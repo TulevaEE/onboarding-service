@@ -55,16 +55,26 @@ class SrriCalculator {
     return byWeek.headMap(currentWeekStart).entrySet().stream()
         .map(
             entry ->
-                new WeeklyNav(entry.getKey(), entry.getValue().date(), entry.getValue().value()))
+                new WeeklyNav(
+                    entry.getKey(),
+                    entry.getValue().date(),
+                    entry.getValue().key(),
+                    entry.getValue().value()))
         .toList();
   }
 
+  /**
+   * A return needs both the previous ISO week and the same instrument. Splicing a proxy series to
+   * the fund's own NAV puts two different price scales in one list, and a return across that join
+   * would be a fiction rather than a market move.
+   */
   private List<WeeklyReturn> adjacentWeekReturns(List<WeeklyNav> weeklyNavs) {
     var returns = new ArrayList<WeeklyReturn>(weeklyNavs.size());
     for (int i = 1; i < weeklyNavs.size(); i++) {
       var previous = weeklyNavs.get(i - 1);
       var current = weeklyNavs.get(i);
-      if (previous.weekStart().plusWeeks(1).equals(current.weekStart())) {
+      if (previous.weekStart().plusWeeks(1).equals(current.weekStart())
+          && previous.key().equals(current.key())) {
         returns.add(
             new WeeklyReturn(
                 current.weekEnd(), current.nav().divide(previous.nav(), MC).subtract(ONE)));
@@ -105,7 +115,7 @@ class SrriCalculator {
     return variance.sqrt(MC).multiply(SQRT_52, MC).setScale(VOLATILITY_SCALE, RoundingMode.HALF_UP);
   }
 
-  private record WeeklyNav(LocalDate weekStart, LocalDate weekEnd, BigDecimal nav) {}
+  private record WeeklyNav(LocalDate weekStart, LocalDate weekEnd, String key, BigDecimal nav) {}
 
   private record WeeklyReturn(LocalDate weekEnd, BigDecimal value) {}
 }

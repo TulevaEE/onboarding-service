@@ -58,11 +58,14 @@ class RiskIndicatorServiceTest {
 
   @BeforeEach
   void setUp() {
+    given(seriesService.refreshSeries(any(), any(), anyInt()))
+        .willReturn(RiskIndicatorSeriesService.SeriesRefresh.empty());
     given(pointRepository.findByIndicatorTypeAndFundOrderByAsOfDateAsc(any(), any()))
         .willReturn(List.of());
     given(
-            publicationRepository.findFirstByIndicatorTypeAndFundOrderByEvaluationDateDesc(
-                any(), any()))
+            publicationRepository
+                .findFirstByIndicatorTypeAndFundAndNotifiedTrueOrderByEvaluationDateDesc(
+                    any(), any()))
         .willReturn(Optional.empty());
     given(publicationRepository.findByIndicatorTypeAndFundAndEvaluationDate(any(), any(), any()))
         .willReturn(Optional.empty());
@@ -123,8 +126,9 @@ class RiskIndicatorServiceTest {
   void thePreviousPublicationIsReadBeforeTodayIsWritten() {
     storedPoints(SRI, TKF100, daily(200, 4));
     given(
-            publicationRepository.findFirstByIndicatorTypeAndFundOrderByEvaluationDateDesc(
-                SRI, TKF100))
+            publicationRepository
+                .findFirstByIndicatorTypeAndFundAndNotifiedTrueOrderByEvaluationDateDesc(
+                    SRI, TKF100))
         .willReturn(
             Optional.of(
                 RiskIndicatorPublication.builder()

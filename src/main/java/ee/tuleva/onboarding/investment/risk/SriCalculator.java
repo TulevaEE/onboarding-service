@@ -53,12 +53,24 @@ class SriCalculator {
         .toList();
   }
 
+  /**
+   * A return is only defined between two prices of the same instrument. Where a proxy series is
+   * spliced to the fund's own NAV, the two sides are on completely different scales — an index
+   * level around 2000 against a NAV around 1 — so a return across the join would be a fiction large
+   * enough to dominate sigma and drive the class to 7.
+   */
   private List<DatedReturn> logReturns(List<FundValue> series) {
     var returns = new ArrayList<DatedReturn>(series.size());
     for (int i = 1; i < series.size(); i++) {
-      var current = series.get(i).value().doubleValue();
-      var previous = series.get(i - 1).value().doubleValue();
-      returns.add(new DatedReturn(series.get(i).date(), Math.log(current / previous)));
+      var current = series.get(i);
+      var previous = series.get(i - 1);
+      if (!current.key().equals(previous.key())) {
+        continue;
+      }
+      returns.add(
+          new DatedReturn(
+              current.date(),
+              Math.log(current.value().doubleValue() / previous.value().doubleValue())));
     }
     return returns;
   }

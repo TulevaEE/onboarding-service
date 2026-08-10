@@ -70,7 +70,7 @@ class RiskIndicatorSeriesServiceTest {
     given(pointRepository.findByIndicatorTypeAndFundOrderByAsOfDateAsc(SRI, TKF100))
         .willReturn(List.of());
 
-    var points = service.refreshSeries(TKF100, SRI, 1);
+    var points = service.refreshSeries(TKF100, SRI, 1).points();
 
     assertThat(points.getLast().date()).isEqualTo(staleAnchor);
   }
@@ -114,16 +114,18 @@ class RiskIndicatorSeriesServiceTest {
     given(pointRepository.findByIndicatorTypeAndFundOrderByAsOfDateAsc(SRI, TKF100))
         .willReturn(List.of(drifted));
 
-    service.refreshSeries(TKF100, SRI, 1);
+    var refresh = service.refreshSeries(TKF100, SRI, 1);
 
     assertThat(drifted.getRiskClass()).isNotEqualTo(1);
     assertThat(drifted.getMetrics()).containsKey("driftHistory");
+    assertThat(refresh.driftedDates()).containsExactly(ANCHOR);
   }
 
   @Test
   void doesNotComputeAReturnAcrossASegmentJoin() {
-    var acwiPrices = dailyPrices(ACWI, ANCHOR.minusYears(7), ANCHOR.minusYears(2).minusDays(1));
-    var navPrices = dailyPrices(TKF_ISIN, ANCHOR.minusYears(2), ANCHOR);
+    var acwiPrices =
+        dailyPrices(ACWI, ANCHOR.minusYears(7), ANCHOR.minusYears(2).minusDays(1), 2000.0);
+    var navPrices = dailyPrices(TKF_ISIN, ANCHOR.minusYears(2), ANCHOR, 1.05);
     given(fundValueRepository.findLastValueForFund(TKF_ISIN))
         .willReturn(Optional.of(navPrices.getLast()));
     given(fundValueRepository.findValuesBetweenDates(eq(ACWI), any(), any()))
@@ -134,20 +136,25 @@ class RiskIndicatorSeriesServiceTest {
         .willReturn(List.of());
     var splicedService = serviceWith(splicedProperties());
 
-    var points = splicedService.refreshSeries(TKF100, SRI, 1);
+    var points = splicedService.refreshSeries(TKF100, SRI, 1).points();
 
     var saved = ArgumentCaptor.forClass(List.class);
     verify(pointRepository).saveAll(saved.capture());
     assertThat(((List<RiskIndicatorPoint>) saved.getValue()).getFirst().getSourceKeys())
         .isEqualTo(ACWI + "," + TKF_ISIN);
+
+    // Without the same-key guard the join yields ln(1.05 / 2000) ≈ -7.55, which dominates sigma
+    // and saturates the class at 7 for every evaluation date whose window spans the join.
     assertThat(points).isNotEmpty();
+    assertThat(points).allSatisfy(point -> assertThat(point.riskClass()).isLessThan(7));
+    assertThat(points.getLast().volatility().doubleValue()).isLessThan(0.5);
   }
 
   @Test
   void skipsFundsWithoutSourceData() {
     given(fundValueRepository.findLastValueForFund(anyString())).willReturn(Optional.empty());
 
-    var points = service.refreshSeries(TUK75, SRRI, 1);
+    var points = service.refreshSeries(TUK75, SRRI, 1).points();
 
     assertThat(points).isEmpty();
   }
@@ -188,8 +195,13 @@ class RiskIndicatorSeriesServiceTest {
   }
 
   private static List<FundValue> dailyPrices(String key, LocalDate from, LocalDate to) {
+    return dailyPrices(key, from, to, 100.0);
+  }
+
+  private static List<FundValue> dailyPrices(
+      String key, LocalDate from, LocalDate to, double startValue) {
     var prices = new ArrayList<FundValue>();
-    var value = 100.0;
+    var value = startValue;
     var date = from;
     var i = 0;
     while (!date.isAfter(to)) {

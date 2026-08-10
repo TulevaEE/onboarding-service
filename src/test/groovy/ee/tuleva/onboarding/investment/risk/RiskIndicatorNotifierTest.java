@@ -47,6 +47,8 @@ class RiskIndicatorNotifierTest {
   private final RiskIndicatorDigestRepository digests =
       Mockito.mock(RiskIndicatorDigestRepository.class);
   private final FundValueRepository fundValues = Mockito.mock(FundValueRepository.class);
+  private final RiskIndicatorPublicationRepository publications =
+      Mockito.mock(RiskIndicatorPublicationRepository.class);
   private final Map<TulevaFund, ProxyReview> proxyReviews = new HashMap<>();
 
   private RiskIndicatorNotifier notifier;
@@ -58,7 +60,8 @@ class RiskIndicatorNotifierTest {
                 .findFirstByIndicatorTypeAndFundAndDisclosedFromLessThanEqualOrderByDisclosedFromDesc(
                     any(), any(), any()))
         .willReturn(Optional.empty());
-    given(digests.existsByDigestMonth(any())).willReturn(false);
+    given(digests.findByDigestMonth(any())).willReturn(Optional.empty());
+    given(digests.save(any())).willAnswer(invocation -> invocation.getArgument(0));
     given(fundValues.findEarliestDateForKey(any())).willReturn(Optional.empty());
     notifier = notifier(FOURTH_BUSINESS_DAY);
   }
@@ -76,6 +79,7 @@ class RiskIndicatorNotifierTest {
         notifications,
         disclosures,
         digests,
+        publications,
         properties,
         fundValues,
         new PublicHolidays(),
@@ -150,11 +154,121 @@ class RiskIndicatorNotifierTest {
 
   @Test
   void theDigestIsNotSentTwiceInTheSameMonth() {
-    given(digests.existsByDigestMonth(LocalDate.of(2026, 8, 1))).willReturn(true);
+    given(digests.findByDigestMonth(LocalDate.of(2026, 8, 1)))
+        .willReturn(
+            Optional.of(
+                RiskIndicatorDigest.builder()
+                    .digestMonth(LocalDate.of(2026, 8, 1))
+                    .complete(true)
+                    .build()));
 
     notifier.notify(run(stableSri()));
 
     assertThat(notifications.messages).isEmpty();
+  }
+
+  @Test
+  void anIncompleteDigestIsSentButLeavesTheMonthOpenForACompleteOne() {
+    var withFailure =
+        new RiskIndicatorRun(
+            EVALUATION_DATE, List.of(outcome(stableSri(), null)), List.of("TUK75 SRRI: no data"));
+
+    notifier.notify(withFailure);
+
+    Mockito.verify(digests)
+        .save(
+            RiskIndicatorDigest.builder()
+                .digestMonth(LocalDate.of(2026, 8, 1))
+                .complete(false)
+                .build());
+  }
+
+  @Test
+  void aCompleteRunResendsTheDigestOverAnIncompleteMonth() {
+    var incomplete =
+        RiskIndicatorDigest.builder().digestMonth(LocalDate.of(2026, 8, 1)).complete(false).build();
+    given(digests.findByDigestMonth(LocalDate.of(2026, 8, 1))).willReturn(Optional.of(incomplete));
+
+    notifier.notify(run(stableSri()));
+
+    assertThat(notifications.messages).hasSize(1);
+    assertThat(incomplete.getComplete()).isTrue();
+  }
+
+  @Test
+  void anIncompleteMonthIsNotResentWhileTheSameFundKeepsFailing() {
+    given(digests.findByDigestMonth(LocalDate.of(2026, 8, 1)))
+        .willReturn(
+            Optional.of(
+                RiskIndicatorDigest.builder()
+                    .digestMonth(LocalDate.of(2026, 8, 1))
+                    .complete(false)
+                    .build()));
+
+    notifier.notify(
+        new RiskIndicatorRun(
+            EVALUATION_DATE, List.of(outcome(stableSri(), null)), List.of("TUK75 SRRI: no data")));
+
+    assertThat(notifications.messages).isEmpty();
+  }
+
+  @Test
+  void aFailedSendReleasesTheMonthSoTheNextDayRetries() {
+    notifications.failing = true;
+
+    notifier.notify(run(stableSri()));
+
+    Mockito.verify(digests).delete(any());
+  }
+
+  @Test
+  void theTransitionBaselineOnlyAdvancesOnceTheMessageIsOut() {
+    var publication = RiskIndicatorPublication.builder().build();
+    var run =
+        new RiskIndicatorRun(
+            EVALUATION_DATE,
+            List.of(new RiskIndicatorOutcome(stableSri(), null, publication, List.of())),
+            List.of());
+
+    notifier.notify(run);
+
+    assertThat(publication.getNotified()).isTrue();
+  }
+
+  @Test
+  void aFailedTransitionSendLeavesTheBaselineWhereItWas() {
+    disclose(SRRI, TUV100, 4);
+    notifications.failing = true;
+    var publication = RiskIndicatorPublication.builder().build();
+
+    notifier.notify(
+        new RiskIndicatorRun(
+            EVALUATION_DATE,
+            List.of(new RiskIndicatorOutcome(staleDocumentSrri(), null, publication, List.of())),
+            List.of()));
+
+    assertThat(publication.getNotified()).isFalse();
+  }
+
+  @Test
+  void recomputedHistoricalPointsAreCalledOutInTheDigest() {
+    disclose(SRI, TKF100, 4);
+
+    notifier.notify(
+        new RiskIndicatorRun(
+            EVALUATION_DATE,
+            List.of(
+                new RiskIndicatorOutcome(
+                    stableSri(),
+                    null,
+                    RiskIndicatorPublication.builder().build(),
+                    List.of(LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 30)))),
+            List.of()));
+
+    assertThat(notifications.lastMessage())
+        .contains(
+            "⚠️ TKF100 SRI: 2 varasemat referentspunkti arvutati ümber",
+            "vanim 2026-06-01, viimane 2026-06-30");
   }
 
   @Test
@@ -398,14 +512,19 @@ class RiskIndicatorNotifierTest {
 
   private RiskIndicatorOutcome outcome(
       PublishedRiskIndicator indicator, @Nullable PublicationSnapshot previous) {
-    return new RiskIndicatorOutcome(indicator, previous);
+    return new RiskIndicatorOutcome(
+        indicator, previous, RiskIndicatorPublication.builder().build(), List.of());
   }
 
   private static class RecordingNotificationService implements OperationsNotificationService {
     private final List<String> messages = new ArrayList<>();
+    private boolean failing = false;
 
     @Override
     public void sendMessage(String message, Channel channel) {
+      if (failing) {
+        throw new IllegalStateException("slack is down");
+      }
       messages.add(message);
     }
 

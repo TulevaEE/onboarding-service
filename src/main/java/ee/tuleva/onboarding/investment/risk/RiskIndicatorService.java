@@ -61,7 +61,7 @@ public class RiskIndicatorService {
 
   private @Nullable RiskIndicatorOutcome evaluate(
       TulevaFund fund, RiskIndicatorType indicatorType, int lookbackMonths) {
-    seriesService.refreshSeries(fund, indicatorType, lookbackMonths);
+    var refresh = seriesService.refreshSeries(fund, indicatorType, lookbackMonths);
 
     var storedSeries = storedSeries(fund, indicatorType);
     if (storedSeries.isEmpty()) {
@@ -69,15 +69,14 @@ public class RiskIndicatorService {
       return null;
     }
 
-    var previous = snapshotOfLastPublication(fund, indicatorType);
+    var previous = snapshotOfLastNotifiedPublication(fund, indicatorType);
     var published = rule(indicatorType).publish(storedSeries);
     var indicator =
         published.isEmpty()
             ? insufficientData(fund, indicatorType, storedSeries)
             : published.analyse(fund, indicatorType, storedSeries);
 
-    save(indicator);
-    return new RiskIndicatorOutcome(indicator, previous);
+    return new RiskIndicatorOutcome(indicator, previous, save(indicator), refresh.driftedDates());
   }
 
   private PublishedRiskIndicator insufficientData(
@@ -106,10 +105,16 @@ public class RiskIndicatorService {
     return indicatorType == SRI ? majorityRule : persistenceRule;
   }
 
-  private @Nullable PublicationSnapshot snapshotOfLastPublication(
+  /**
+   * The baseline for a transition alert is the last publication we actually got out to Slack, not
+   * merely the last one stored. If a send failed, the alert has to still be pending against the
+   * state the reader last saw.
+   */
+  private @Nullable PublicationSnapshot snapshotOfLastNotifiedPublication(
       TulevaFund fund, RiskIndicatorType indicatorType) {
     return publicationRepository
-        .findFirstByIndicatorTypeAndFundOrderByEvaluationDateDesc(indicatorType, fund)
+        .findFirstByIndicatorTypeAndFundAndNotifiedTrueOrderByEvaluationDateDesc(
+            indicatorType, fund)
         .map(
             publication ->
                 new PublicationSnapshot(
@@ -119,7 +124,7 @@ public class RiskIndicatorService {
         .orElse(null);
   }
 
-  private void save(PublishedRiskIndicator indicator) {
+  private RiskIndicatorPublication save(PublishedRiskIndicator indicator) {
     var publication =
         publicationRepository
             .findByIndicatorTypeAndFundAndEvaluationDate(
@@ -142,7 +147,7 @@ public class RiskIndicatorService {
     publication.setStatus(indicator.status());
     publication.setDetails(details(indicator));
 
-    publicationRepository.save(publication);
+    var saved = publicationRepository.save(publication);
 
     log.info(
         "Risk indicator published: fund={}, type={}, date={}, publishedClass={}, rawClass={},"
@@ -156,6 +161,8 @@ public class RiskIndicatorService {
         indicator.status(),
         indicator.matchingReferencePoints(),
         indicator.windowReferencePoints());
+
+    return saved;
   }
 
   private Map<String, Object> details(PublishedRiskIndicator indicator) {
@@ -171,7 +178,10 @@ public class RiskIndicatorService {
       LocalDate evaluationDate, @Nullable Integer publishedClass, RiskIndicatorStatus status) {}
 
   record RiskIndicatorOutcome(
-      PublishedRiskIndicator indicator, @Nullable PublicationSnapshot previous) {}
+      PublishedRiskIndicator indicator,
+      @Nullable PublicationSnapshot previous,
+      RiskIndicatorPublication publication,
+      List<LocalDate> driftedDates) {}
 
   record RiskIndicatorRun(
       LocalDate runDate, List<RiskIndicatorOutcome> outcomes, List<String> failures) {}

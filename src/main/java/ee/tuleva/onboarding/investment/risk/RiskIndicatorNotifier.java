@@ -35,6 +35,7 @@ class RiskIndicatorNotifier {
   private final ee.tuleva.onboarding.notification.OperationsNotificationService notificationService;
   private final DisclosedRiskIndicatorRepository disclosureRepository;
   private final RiskIndicatorDigestRepository digestRepository;
+  private final RiskIndicatorPublicationRepository publicationRepository;
   private final RiskIndicatorProperties properties;
   private final FundValueRepository fundValueRepository;
   private final PublicHolidays publicHolidays;
@@ -60,11 +61,23 @@ class RiskIndicatorNotifier {
     for (var outcome : run.outcomes()) {
       lines.addAll(transitionLines(outcome));
     }
-    if (lines.isEmpty()) {
-      return;
+    if (!lines.isEmpty()) {
+      notificationService.sendMessage(
+          "Riskiindikaatori muutus\n" + String.join("\n", lines), INVESTMENT);
     }
-    notificationService.sendMessage(
-        "Riskiindikaatori muutus\n" + String.join("\n", lines), INVESTMENT);
+    markNotified(run);
+  }
+
+  /**
+   * Only once the message is out does this state become the baseline for the next comparison.
+   * Marking earlier would let a failed send swallow the transition permanently, because the next
+   * run would compare against a state the reader never saw. Having nothing to say still counts as
+   * reconciled.
+   */
+  private void markNotified(RiskIndicatorRun run) {
+    var publications = run.outcomes().stream().map(RiskIndicatorOutcome::publication).toList();
+    publications.forEach(publication -> publication.setNotified(true));
+    publicationRepository.saveAll(publications);
   }
 
   private List<String> transitionLines(RiskIndicatorOutcome outcome) {
@@ -119,11 +132,42 @@ class RiskIndicatorNotifier {
     if (!publicHolidays.isOnOrAfterNthBusinessDayOfMonth(today, DIGEST_BUSINESS_DAY)) {
       return;
     }
-    if (digestRepository.existsByDigestMonth(month)) {
+
+    var complete = run.failures().isEmpty();
+    var existing = digestRepository.findByDigestMonth(month).orElse(null);
+    if (existing != null && (existing.getComplete() || !complete)) {
       return;
     }
-    notificationService.sendMessage(digest(run), INVESTMENT);
-    digestRepository.save(RiskIndicatorDigest.builder().digestMonth(month).build());
+
+    // Claim the month before sending. A concurrent run then loses on the unique constraint instead
+    // of putting a second copy into Slack, and a send that fails releases the claim so the next
+    // business day retries rather than the month being silently written off.
+    var claim = claim(existing, month, complete);
+    try {
+      notificationService.sendMessage(digest(run), INVESTMENT);
+    } catch (RuntimeException e) {
+      release(claim, existing);
+      throw e;
+    }
+  }
+
+  private RiskIndicatorDigest claim(
+      @Nullable RiskIndicatorDigest existing, LocalDate month, boolean complete) {
+    if (existing == null) {
+      return digestRepository.save(
+          RiskIndicatorDigest.builder().digestMonth(month).complete(complete).build());
+    }
+    existing.setComplete(true);
+    return digestRepository.save(existing);
+  }
+
+  private void release(RiskIndicatorDigest claim, @Nullable RiskIndicatorDigest existing) {
+    if (existing == null) {
+      digestRepository.delete(claim);
+      return;
+    }
+    existing.setComplete(false);
+    digestRepository.save(existing);
   }
 
   private String digest(RiskIndicatorRun run) {
@@ -254,6 +298,7 @@ class RiskIndicatorNotifier {
     }
 
     dataQualityLine(indicator).ifPresent(block::add);
+    driftLine(outcome).ifPresent(block::add);
     return String.join("\n", block);
   }
 
@@ -340,6 +385,22 @@ class RiskIndicatorNotifier {
                 since,
                 weeksLeft)
         + " eeldatav kinnitus %s.".formatted(threshold);
+  }
+
+  private Optional<String> driftLine(RiskIndicatorOutcome outcome) {
+    var drifted = outcome.driftedDates();
+    if (drifted.isEmpty()) {
+      return Optional.empty();
+    }
+    return Optional.of(
+        "⚠️ %s %s: %d varasemat referentspunkti arvutati ümber (vanim %s, viimane %s) —"
+                .formatted(
+                    outcome.indicator().fund(),
+                    outcome.indicator().indicatorType(),
+                    drifted.size(),
+                    drifted.getFirst(),
+                    drifted.getLast())
+            + " allikaandmed muutusid tagantjärele.");
   }
 
   private Optional<String> dataQualityLine(PublishedRiskIndicator indicator) {

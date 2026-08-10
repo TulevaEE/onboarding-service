@@ -146,6 +146,25 @@ class PublicationRuleTest {
   }
 
   @Test
+  void aPublicHolidayShiftingTheWeekEndDoesNotCountAsAMissingWeek() {
+    var points = new ArrayList<ReferencePoint>();
+    for (int i = 0; i < 30; i++) {
+      points.add(point(friday(i), 4));
+    }
+    for (int i = 30; i < 50; i++) {
+      points.add(point(i == 40 ? friday(i).minusDays(1) : friday(i), 5));
+    }
+
+    var series = persistence.publish(points);
+
+    assertThat(series.points().getLast().riskClass()).isEqualTo(5);
+  }
+
+  private static LocalDate friday(int week) {
+    return START.plusWeeks(week).plusDays(4);
+  }
+
+  @Test
   void persistenceDoesNotMigrateBeforeFourMonthsOfHistoryExist() {
     var series = persistence.publish(weekly(sameClass(8, 5)));
 

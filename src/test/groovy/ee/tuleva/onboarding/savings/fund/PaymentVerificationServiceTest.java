@@ -131,7 +131,7 @@ class PaymentVerificationServiceTest {
 
     service.process(payment);
 
-    verify(userRepository).findByPersonalCode("37508295796");
+    verify(userRepository, atLeastOnce()).findByPersonalCode("37508295796");
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
     verify(savingFundPaymentRepository)
         .addReturnReason(payment.getId(), "isik ei ole Tuleva klient");
@@ -141,6 +141,7 @@ class PaymentVerificationServiceTest {
         .publishEvent(
             new UnattributedPaymentEvent(
                 payment.getId(), payment.getAmount(), "isik ei ole Tuleva klient"));
+    verify(applicationEventPublisher, never()).publishEvent(any(SavingsPaymentFailedEvent.class));
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 
@@ -154,7 +155,7 @@ class PaymentVerificationServiceTest {
 
     service.process(payment);
 
-    verify(userRepository).findByPersonalCode("37508295796");
+    verify(userRepository, atLeastOnce()).findByPersonalCode("37508295796");
     verify(savingsFundOnboardingService).isOnboardingCompleted(new PartyId(PERSON, "37508295796"));
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
     verify(savingFundPaymentRepository)
@@ -167,6 +168,11 @@ class PaymentVerificationServiceTest {
                 payment.getId(),
                 payment.getAmount(),
                 "see isik ei ole täiendava kogumisfondiga liitunud"));
+    verify(applicationEventPublisher)
+        .publishEvent(
+            argThat(
+                (SavingsPaymentFailedEvent e) ->
+                    e.getUser().equals(user) && e.getLocale().equals(Locale.of("et"))));
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 
@@ -586,6 +592,81 @@ class PaymentVerificationServiceTest {
             argThat(
                 (SavingsPaymentFailedEvent e) ->
                     e.getUser().equals(user) && e.getLocale().equals(Locale.of("et"))));
+  }
+
+  @Test
+  void identityCheckFailure_publishesSavingsPaymentFailedEventForRemitter_whenChildPartyAttached() {
+    var parentCode = "38812121215";
+    var childCode = "61506150006";
+    var parent =
+        User.builder()
+            .id(123L)
+            .personalCode(parentCode)
+            .firstName("JAAN")
+            .lastName("MAASIKAS")
+            .build();
+    var child =
+        User.builder()
+            .id(456L)
+            .personalCode(childCode)
+            .firstName("MARI")
+            .lastName("MAASIKAS")
+            .build();
+    var payment =
+        SavingFundPayment.builder()
+            .id(randomUUID())
+            .amount(new BigDecimal("100.00"))
+            .partyId(new PartyId(PERSON, childCode))
+            .remitterName("JAAN MAASIKAS")
+            .remitterIban("EE123456789012345678")
+            .remitterIdCode(parentCode)
+            .description("for child " + childCode)
+            .receivedBefore(Instant.parse("2025-10-01T20:59:59.999999Z"))
+            .build();
+    when(userRepository.findByPersonalCode(parentCode)).thenReturn(Optional.of(parent));
+    when(userRepository.findByPersonalCode(childCode)).thenReturn(Optional.of(child));
+    when(parentChildLinkService.isActiveRepresentation(parentCode, childCode)).thenReturn(false);
+
+    service.process(payment);
+
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
+    verify(savingFundPaymentRepository)
+        .addReturnReason(payment.getId(), "selgituses olev isikukood ei klapi maksja isikukoodiga");
+    verify(savingsFundLedger)
+        .recordUnattributedPayment(payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
+    verify(applicationEventPublisher)
+        .publishEvent(
+            new UnattributedPaymentEvent(
+                payment.getId(),
+                payment.getAmount(),
+                "selgituses olev isikukood ei klapi maksja isikukoodiga"));
+    verify(applicationEventPublisher)
+        .publishEvent(
+            argThat(
+                (SavingsPaymentFailedEvent e) ->
+                    e.getUser().equals(parent) && e.getLocale().equals(Locale.of("et"))));
+    verifyNoMoreInteractions(savingFundPaymentRepository);
+  }
+
+  @Test
+  void identityCheckFailure_publishesNoSavingsPaymentFailedEvent_whenRemitterIsNotAUser() {
+    var remitterCode = "38812121215";
+    var payment = createPayment(remitterCode, "no code here");
+    when(userRepository.findByPersonalCode(remitterCode)).thenReturn(Optional.empty());
+
+    service.process(payment);
+
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
+    verify(savingFundPaymentRepository)
+        .addReturnReason(payment.getId(), "isik ei ole Tuleva klient");
+    verify(savingsFundLedger)
+        .recordUnattributedPayment(payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
+    verify(applicationEventPublisher)
+        .publishEvent(
+            new UnattributedPaymentEvent(
+                payment.getId(), payment.getAmount(), "isik ei ole Tuleva klient"));
+    verify(applicationEventPublisher, never()).publishEvent(any(SavingsPaymentFailedEvent.class));
+    verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 
   @Test

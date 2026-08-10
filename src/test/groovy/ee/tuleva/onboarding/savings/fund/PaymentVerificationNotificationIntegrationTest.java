@@ -11,10 +11,12 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.notification.email.EmailService;
@@ -24,6 +26,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,6 +45,7 @@ class PaymentVerificationNotificationIntegrationTest {
   private static final BigDecimal AMOUNT = new BigDecimal("125.00");
   private static final String CODE_MISMATCH =
       "selgituses olev isikukood ei klapi maksja isikukoodiga";
+  private static final String MANDRILL_MESSAGE_ID = "mandrill-savings-payment-failed";
 
   @Autowired private PaymentVerificationService paymentVerificationService;
   @Autowired private SavingFundPaymentRepository paymentRepository;
@@ -60,6 +64,7 @@ class PaymentVerificationNotificationIntegrationTest {
   void cleanUp() {
     createdPaymentIds.forEach(this::deletePayment);
     createdPaymentIds.clear();
+    deleteFailureEmails();
     userRepository.findByPersonalCode(REMITTER_CODE).ifPresent(userRepository::delete);
   }
 
@@ -95,6 +100,22 @@ class PaymentVerificationNotificationIntegrationTest {
             argThat(user -> payer.getPersonalCode().equals(user.getPersonalCode())),
             any(),
             eq("savings_fund_payment_failed_et"));
+  }
+
+  @Test
+  void theFailureEmailIsRecordedInTheDatabase() {
+    savePayer();
+    var payment = receivedPaymentWithMismatchedCode();
+    var mandrillResponse = mock(MandrillMessageStatus.class);
+    given(mandrillResponse.getId()).willReturn(MANDRILL_MESSAGE_ID);
+    given(mandrillResponse.getStatus()).willReturn("sent");
+    given(emailService.send(any(), any(), eq("savings_fund_payment_failed_et")))
+        .willReturn(Optional.of(mandrillResponse));
+
+    paymentVerificationService.process(payment);
+
+    verify(emailService).send(any(), any(), eq("savings_fund_payment_failed_et"));
+    assertThat(persistedFailureEmailTypes()).containsExactly("SAVINGS_FUND_PAYMENT_FAIL");
   }
 
   @Test
@@ -147,6 +168,21 @@ class PaymentVerificationNotificationIntegrationTest {
     createdPaymentIds.add(paymentId);
     paymentRepository.changeStatus(paymentId, RECEIVED);
     return paymentRepository.findById(paymentId).orElseThrow();
+  }
+
+  private List<String> persistedFailureEmailTypes() {
+    return jdbcClient
+        .sql("select type from email where mandrill_message_id = :messageId")
+        .param("messageId", MANDRILL_MESSAGE_ID)
+        .query(String.class)
+        .list();
+  }
+
+  private void deleteFailureEmails() {
+    jdbcClient
+        .sql("delete from email where mandrill_message_id = :messageId")
+        .param("messageId", MANDRILL_MESSAGE_ID)
+        .update();
   }
 
   private void deletePayment(UUID paymentId) {

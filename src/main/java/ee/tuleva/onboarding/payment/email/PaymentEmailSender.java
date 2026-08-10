@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.payment.email;
 
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.MEMBER_FEE;
+import static org.springframework.transaction.annotation.Propagation.REQUIRES_NEW;
 import static org.springframework.transaction.event.TransactionPhase.AFTER_COMMIT;
 
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
@@ -22,6 +23,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 @Component
@@ -64,6 +66,7 @@ public class PaymentEmailSender {
   }
 
   @TransactionalEventListener(phase = AFTER_COMMIT)
+  @Transactional(propagation = REQUIRES_NEW)
   public void onSavingsPaymentFailed(SavingsPaymentFailedEvent event) {
     emailService.sendSavingsFundPaymentEmail(
         event.getUser(), SavingsFundPaymentEmail.failed(), event.getLocale());

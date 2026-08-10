@@ -22,8 +22,10 @@ import ee.tuleva.onboarding.savings.fund.notification.UnattributedPaymentEvent;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -41,6 +43,7 @@ class PaymentVerificationServiceTest {
   ApplicationEventPublisher applicationEventPublisher = mock(ApplicationEventPublisher.class);
   PartyResolver partyResolver = new PartyResolver(userRepository, companyRepository);
   ParentChildLinkService parentChildLinkService = mock(ParentChildLinkService.class);
+  Clock clock = Clock.fixed(Instant.parse("2025-10-01T12:00:00Z"), ZoneOffset.UTC);
 
   PaymentVerificationService service =
       new PaymentVerificationService(
@@ -51,7 +54,8 @@ class PaymentVerificationServiceTest {
           applicationEventPublisher,
           new NameMatcher(),
           partyResolver,
-          parentChildLinkService);
+          parentChildLinkService,
+          clock);
 
   @Test
   void process_returnsPaymentWhenNoCodeAnywhere() {
@@ -131,7 +135,7 @@ class PaymentVerificationServiceTest {
 
     service.process(payment);
 
-    verify(userRepository).findByPersonalCode("37508295796");
+    verify(userRepository, atLeastOnce()).findByPersonalCode("37508295796");
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
     verify(savingFundPaymentRepository)
         .addReturnReason(payment.getId(), "isik ei ole Tuleva klient");
@@ -154,7 +158,7 @@ class PaymentVerificationServiceTest {
 
     service.process(payment);
 
-    verify(userRepository).findByPersonalCode("37508295796");
+    verify(userRepository, atLeastOnce()).findByPersonalCode("37508295796");
     verify(savingsFundOnboardingService).isOnboardingCompleted(new PartyId(PERSON, "37508295796"));
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
     verify(savingFundPaymentRepository)
@@ -648,6 +652,104 @@ class PaymentVerificationServiceTest {
         .addReturnReason(payment.getId(), "selgituses olev isikukood ei klapi maksja isikukoodiga");
     verify(savingFundPaymentRepository, never()).attachParty(any(), any());
     verifyNoMoreInteractions(savingFundPaymentRepository);
+  }
+
+  @Test
+  void identityCheckFailure_notifiesPayerRatherThanIntendedBeneficiary() {
+    var parentCode = "38812121215";
+    var childCode = "61506150006";
+    var parent =
+        User.builder()
+            .id(789L)
+            .personalCode(parentCode)
+            .firstName("PÄRT")
+            .lastName("ÕLEKÕRS")
+            .build();
+    var payment = createPayment(parentCode, "for child " + childCode);
+    when(parentChildLinkService.isActiveRepresentation(parentCode, childCode)).thenReturn(false);
+    when(userRepository.findByPersonalCode(parentCode)).thenReturn(Optional.of(parent));
+
+    service.process(payment);
+
+    verify(applicationEventPublisher)
+        .publishEvent(
+            argThat(
+                (SavingsPaymentFailedEvent e) ->
+                    e.getUser().equals(parent) && e.getLocale().equals(Locale.of("et"))));
+  }
+
+  @Test
+  void identityCheckFailure_doesNotNotifyMinorBeneficiaryWhenRemitterIsUnidentified() {
+    var childCode = "61506150006";
+    var child =
+        User.builder()
+            .id(456L)
+            .personalCode(childCode)
+            .firstName("MARI")
+            .lastName("MAASIKAS")
+            .build();
+    var payment =
+        SavingFundPayment.builder()
+            .id(randomUUID())
+            .amount(new BigDecimal("100.00"))
+            .partyId(new PartyId(PERSON, childCode))
+            .remitterName("PÄRT ÕLEKÕRS")
+            .remitterIban("EE123456789012345678")
+            .description("no personal code here")
+            .receivedBefore(Instant.parse("2025-10-01T20:59:59.999999Z"))
+            .build();
+    lenient().when(userRepository.findByPersonalCode(childCode)).thenReturn(Optional.of(child));
+
+    service.process(payment);
+
+    verify(applicationEventPublisher, never()).publishEvent(any(SavingsPaymentFailedEvent.class));
+  }
+
+  @Test
+  void identityCheckFailure_recordsReturnAndLedgerEvenWhenNotificationFails() {
+    var payment = createPayment("37508295796", "to user 37508295796");
+    var user =
+        User.builder().personalCode("37508295796").firstName("PÄRT").lastName("ÕLEKÕRS").build();
+    when(userRepository.findByPersonalCode(any())).thenReturn(Optional.of(user));
+    when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(false);
+    doThrow(new RuntimeException("notification failed"))
+        .when(applicationEventPublisher)
+        .publishEvent(any(SavingsPaymentFailedEvent.class));
+
+    service.process(payment);
+
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
+    verify(savingsFundLedger)
+        .recordUnattributedPayment(payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
+  }
+
+  @Test
+  void identityCheckFailure_notifiesAttachedPersonWhenRemitterIsCompany() {
+    var personalCode = "37508295796";
+    var user =
+        User.builder()
+            .id(321L)
+            .personalCode(personalCode)
+            .firstName("PÄRT")
+            .lastName("ÕLEKÕRS")
+            .build();
+    var payment =
+        SavingFundPayment.builder()
+            .id(randomUUID())
+            .amount(new BigDecimal("100.00"))
+            .partyId(new PartyId(PERSON, personalCode))
+            .remitterName("TULEVA FONDID AS")
+            .remitterIdCode("14118923")
+            .remitterIban("EE123456789012345678")
+            .description("for user 45009144745")
+            .receivedBefore(Instant.parse("2025-10-01T20:59:59.999999Z"))
+            .build();
+    when(userRepository.findByPersonalCode(personalCode)).thenReturn(Optional.of(user));
+
+    service.process(payment);
+
+    verify(applicationEventPublisher)
+        .publishEvent(argThat((SavingsPaymentFailedEvent e) -> e.getUser().equals(user)));
   }
 
   private SavingFundPayment createPayment(String remitterIdCode, String description) {

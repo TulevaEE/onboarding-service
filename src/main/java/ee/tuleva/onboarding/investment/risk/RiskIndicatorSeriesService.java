@@ -23,6 +23,7 @@ class RiskIndicatorSeriesService {
   private static final Period SRI_PRECEDING_PRICE_BUFFER = Period.ofWeeks(2);
   private static final Period SRRI_PRECEDING_PRICE_BUFFER = Period.ofMonths(1);
 
+  private final java.time.Clock clock;
   private final FundValueRepository fundValueRepository;
   private final RiskIndicatorPointRepository pointRepository;
   private final RiskIndicatorProperties properties;
@@ -178,6 +179,8 @@ class RiskIndicatorSeriesService {
     var history = new ArrayList<>(driftHistory(stored));
     history.add(
         java.util.Map.of(
+            "detectedAt",
+            LocalDate.now(clock).toString(),
             "previousClass",
             String.valueOf(stored.getRiskClass()),
             "previousVolatility",

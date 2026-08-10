@@ -119,6 +119,9 @@ class RiskIndicatorSeriesServiceTest {
     assertThat(drifted.getRiskClass()).isNotEqualTo(1);
     assertThat(drifted.getMetrics()).containsKey("driftHistory");
     assertThat(refresh.driftedDates()).containsExactly(ANCHOR);
+    assertThat((List<Map<String, String>>) drifted.getMetrics().get("driftHistory"))
+        .singleElement()
+        .satisfies(entry -> assertThat(entry).containsEntry("detectedAt", ANCHOR.toString()));
   }
 
   @Test
@@ -167,6 +170,8 @@ class RiskIndicatorSeriesServiceTest {
 
   private RiskIndicatorSeriesService serviceWith(RiskIndicatorProperties properties) {
     return new RiskIndicatorSeriesService(
+        java.time.Clock.fixed(
+            ANCHOR.atStartOfDay(java.time.ZoneOffset.UTC).toInstant(), java.time.ZoneOffset.UTC),
         fundValueRepository,
         pointRepository,
         properties,

@@ -98,14 +98,15 @@ class RiskIndicatorNotifierTest {
     assertThat(digest)
         .isEqualTo(
             """
-            📊 Riskiindikaatorite kuuülevaade — seisuga 2026-07-31
+            🔴 Riskiindikaatorite kuuülevaade — seisuga 2026-07-31
+            1 vajab tegevust, 2 jälgimist, 1 korras.
 
             ```
             Fond    Näitaja Arvutatud  Avaldatud  Kehtib alates  Kestus   Eelmine  Staatus
             TKF100  SRI     4          4          2026-03-14     4 kuud   —        ✅ stabiilne
             TUK75   SRRI    4          4          2021-09-06     4a 10k   5        ⚠️ muutus ootel
             TUV100  SRRI    5          4          2026-05-05     2 kuud   4        🔴 DOKUMENT VANANENUD
-            TUK00   SRRI    4          ?          2022-06-27     4a 1k    3        ❔ avaldatud teadmata
+            TUK00   SRRI    4          ?          2022-06-27     4a 1k    3        ⚠️ avaldatud teadmata
             ```
 
             ✅ TKF100 SRI — stabiilne, dokument ajakohane
@@ -121,7 +122,7 @@ class RiskIndicatorNotifierTest {
             Muutus jõustus 2026-05-05. Viimane dokument: 'Pohiteave TUV100' (klass 4, alates 2026-03-19).
             👉 Tegevus: dokument vajab uuendamist — riskijuht. Pärast avaldamist lisa rida investment_risk_indicator_disclosure tabelisse.
 
-            ❔ TUK00 SRRI — avaldatud klass teadmata
+            ⚠️ TUK00 SRRI — avaldatud klass teadmata
             Arvutatud avaldatav klass on 4, aga ühtegi dokumendirida ei ole.
             👉 Tegevus: lisa kehtiv KID/KIID rida investment_risk_indicator_disclosure tabelisse — riskijuht.
 
@@ -165,6 +166,52 @@ class RiskIndicatorNotifierTest {
     notifier.notify(run(stableSri()));
 
     assertThat(notifications.messages).isEmpty();
+  }
+
+  @Test
+  void aRunWhereEveryDocumentAgreesLeadsWithGreen() {
+    disclose(SRI, TKF100, 4);
+    disclose(SRRI, TUK00, 4);
+
+    notifier.notify(run(stableSri(), undisclosedSrri()));
+
+    assertThat(notifications.lastMessage())
+        .startsWith("✅ Riskiindikaatorite kuuülevaade — seisuga 2026-07-31\n2 korras.");
+  }
+
+  @Test
+  void aPendingChangeLeadsWithYellowNotRed() {
+    disclose(SRRI, TUK75, 4);
+
+    notifier.notify(run(pendingSrri()));
+
+    assertThat(notifications.lastMessage())
+        .startsWith("⚠️ Riskiindikaatorite kuuülevaade — seisuga 2026-07-31\n1 jälgimist.");
+  }
+
+  @Test
+  void aStaleDocumentLeadsWithRedEvenWhenEverythingElseIsFine() {
+    disclose(SRI, TKF100, 4);
+    disclose(SRRI, TUV100, 4);
+
+    notifier.notify(run(stableSri(), staleDocumentSrri()));
+
+    assertThat(notifications.lastMessage())
+        .startsWith(
+            "🔴 Riskiindikaatorite kuuülevaade — seisuga 2026-07-31\n1 vajab tegevust, 1 korras.");
+  }
+
+  @Test
+  void anUnevaluatedFundIsCountedInTheHeadline() {
+    disclose(SRI, TKF100, 4);
+
+    notifier.notify(
+        new RiskIndicatorRun(
+            EVALUATION_DATE, List.of(outcome(stableSri(), null)), List.of("TUK75 SRRI: no data")));
+
+    assertThat(notifications.lastMessage())
+        .startsWith(
+            "⚠️ Riskiindikaatorite kuuülevaade — seisuga 2026-07-31\n1 korras, 1 hindamata.");
   }
 
   @Test
@@ -305,7 +352,7 @@ class RiskIndicatorNotifierTest {
         .containsExactly(
             """
             Riskiindikaatori muutus
-            🔔 TUV100 SRRI — avaldatav klass muutus 4 → 5 (kehtib alates 2026-05-05)""");
+            ⚠️ TUV100 SRRI — avaldatav klass muutus 4 → 5 (kehtib alates 2026-05-05)""");
   }
 
   @Test
@@ -397,7 +444,7 @@ class RiskIndicatorNotifierTest {
     assertThat(beforeThreshold).doesNotContain("proxy vajab ülevaatust");
     assertThat(notifications.lastMessage())
         .contains(
-            "🔔 TKF100 SRI — võrdlusindeksi proxy vajab ülevaatust", "2,0 aastat oma NAV-ajalugu");
+            "⚠️ TKF100 SRI — võrdlusindeksi proxy vajab ülevaatust", "2,0 aastat oma NAV-ajalugu");
   }
 
   @Test

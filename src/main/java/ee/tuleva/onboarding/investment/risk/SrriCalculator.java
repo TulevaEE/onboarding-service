@@ -1,0 +1,111 @@
+package ee.tuleva.onboarding.investment.risk;
+
+import static java.math.BigDecimal.ONE;
+import static java.math.BigDecimal.ZERO;
+import static java.time.DayOfWeek.MONDAY;
+import static java.time.temporal.TemporalAdjusters.previousOrSame;
+
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
+import java.math.BigDecimal;
+import java.math.MathContext;
+import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import org.jspecify.annotations.Nullable;
+import org.springframework.stereotype.Component;
+
+@Component
+class SrriCalculator {
+
+  private static final MathContext MC = MathContext.DECIMAL64;
+  private static final BigDecimal SQRT_52 = BigDecimal.valueOf(52).sqrt(MC);
+  private static final int SAMPLE_PERIOD_YEARS = 5;
+  private static final int MINIMUM_OBSERVATIONS = 200;
+  private static final int MINIMUM_RETURNS = 2;
+  private static final int VOLATILITY_SCALE = 12;
+
+  List<ReferencePoint> calculate(List<FundValue> navValues, LocalDate from, LocalDate to) {
+    var weeklyNavs = lastNavOfEachCompleteWeek(navValues);
+    if (weeklyNavs.size() < MINIMUM_RETURNS) {
+      return List.of();
+    }
+    var returns = adjacentWeekReturns(weeklyNavs);
+    return weeklyNavs.stream()
+        .map(WeeklyNav::weekEnd)
+        .filter(date -> !date.isBefore(from) && !date.isAfter(to))
+        .map(date -> referencePoint(returns, date))
+        .filter(java.util.Objects::nonNull)
+        .toList();
+  }
+
+  private List<WeeklyNav> lastNavOfEachCompleteWeek(List<FundValue> navValues) {
+    var byWeek = new TreeMap<LocalDate, FundValue>();
+    navValues.stream()
+        .filter(value -> value.value().signum() > 0)
+        .sorted(Comparator.comparing(FundValue::date))
+        .forEach(value -> byWeek.put(value.date().with(previousOrSame(MONDAY)), value));
+    if (byWeek.isEmpty()) {
+      return List.of();
+    }
+    var currentWeekStart = byWeek.lastKey();
+    return byWeek.headMap(currentWeekStart).entrySet().stream()
+        .map(
+            entry ->
+                new WeeklyNav(entry.getKey(), entry.getValue().date(), entry.getValue().value()))
+        .toList();
+  }
+
+  private List<WeeklyReturn> adjacentWeekReturns(List<WeeklyNav> weeklyNavs) {
+    var returns = new ArrayList<WeeklyReturn>(weeklyNavs.size());
+    for (int i = 1; i < weeklyNavs.size(); i++) {
+      var previous = weeklyNavs.get(i - 1);
+      var current = weeklyNavs.get(i);
+      if (previous.weekStart().plusWeeks(1).equals(current.weekStart())) {
+        returns.add(
+            new WeeklyReturn(
+                current.weekEnd(), current.nav().divide(previous.nav(), MC).subtract(ONE)));
+      }
+    }
+    return returns;
+  }
+
+  private @Nullable ReferencePoint referencePoint(List<WeeklyReturn> returns, LocalDate evalDate) {
+    var windowStart = evalDate.minusYears(SAMPLE_PERIOD_YEARS);
+    var window =
+        returns.stream()
+            .filter(r -> r.weekEnd().isAfter(windowStart) && !r.weekEnd().isAfter(evalDate))
+            .map(WeeklyReturn::value)
+            .toList();
+    if (window.size() < MINIMUM_RETURNS) {
+      return null;
+    }
+    var annualisedVolatility = annualise(window);
+    return new ReferencePoint(
+        evalDate,
+        window.size() >= MINIMUM_OBSERVATIONS
+            ? RiskClassBucket.srriClass(annualisedVolatility)
+            : null,
+        window.size(),
+        annualisedVolatility,
+        Map.of("weeklyReturns", window.size(), "windowStart", windowStart));
+  }
+
+  private BigDecimal annualise(List<BigDecimal> weeklyReturns) {
+    var count = BigDecimal.valueOf(weeklyReturns.size());
+    var mean = weeklyReturns.stream().reduce(ZERO, BigDecimal::add).divide(count, MC);
+    var sumOfSquares =
+        weeklyReturns.stream()
+            .map(value -> value.subtract(mean).pow(2))
+            .reduce(ZERO, BigDecimal::add);
+    var variance = sumOfSquares.divide(count.subtract(ONE), MC);
+    return variance.sqrt(MC).multiply(SQRT_52, MC).setScale(VOLATILITY_SCALE, RoundingMode.HALF_UP);
+  }
+
+  private record WeeklyNav(LocalDate weekStart, LocalDate weekEnd, BigDecimal nav) {}
+
+  private record WeeklyReturn(LocalDate weekEnd, BigDecimal value) {}
+}

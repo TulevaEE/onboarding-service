@@ -67,6 +67,8 @@ class RiskIndicatorPublication {
 
   @NotNull @Builder.Default private Boolean notified = false;
 
+  private @Nullable Integer notifiedDisclosedClass;
+
   @NotNull
   @Builder.Default
   @JdbcTypeCode(JSON)

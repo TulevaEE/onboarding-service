@@ -26,6 +26,7 @@ class PublishedSeriesTest {
     var indicator = analyse(classes, classes);
 
     assertThat(indicator.publishedSince()).isEqualTo(START);
+    assertThat(indicator.publishedSinceIsTruncated()).isTrue();
     assertThat(indicator.streakReferencePoints()).isEqualTo(200);
     assertThat(indicator.previousPublishedClass()).isNull();
   }

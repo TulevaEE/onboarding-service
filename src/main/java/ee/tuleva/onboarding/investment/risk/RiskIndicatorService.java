@@ -120,6 +120,7 @@ public class RiskIndicatorService {
                 new PublicationSnapshot(
                     publication.getEvaluationDate(),
                     publication.getPublishedClass(),
+                    publication.getNotifiedDisclosedClass(),
                     publication.getStatus()))
         .orElse(null);
   }
@@ -136,6 +137,15 @@ public class RiskIndicatorService {
                         .fund(indicator.fund())
                         .evaluationDate(indicator.evaluationDate())
                         .build());
+
+    // Compare before overwriting. A row whose content moved has not been notified, whatever it
+    // said before: recomputing the same evaluation date -- SRRI keeps one for a whole week --
+    // must not inherit yesterday's "already told Slack", or a failed send would have nothing left
+    // to retry against.
+    if (hasChanged(publication, indicator)) {
+      publication.setNotified(false);
+      publication.setNotifiedDisclosedClass(null);
+    }
 
     publication.setPublishedClass(indicator.publishedClass());
     publication.setRawLatestClass(indicator.rawLatestClass());
@@ -165,6 +175,12 @@ public class RiskIndicatorService {
     return saved;
   }
 
+  private boolean hasChanged(
+      RiskIndicatorPublication publication, PublishedRiskIndicator indicator) {
+    return !java.util.Objects.equals(publication.getPublishedClass(), indicator.publishedClass())
+        || publication.getStatus() != indicator.status();
+  }
+
   private Map<String, Object> details(PublishedRiskIndicator indicator) {
     var details = new HashMap<String, Object>();
     details.put("latestObservationCount", String.valueOf(indicator.latestObservationCount()));
@@ -175,7 +191,10 @@ public class RiskIndicatorService {
   }
 
   record PublicationSnapshot(
-      LocalDate evaluationDate, @Nullable Integer publishedClass, RiskIndicatorStatus status) {}
+      LocalDate evaluationDate,
+      @Nullable Integer publishedClass,
+      @Nullable Integer notifiedDisclosedClass,
+      RiskIndicatorStatus status) {}
 
   record RiskIndicatorOutcome(
       PublishedRiskIndicator indicator,

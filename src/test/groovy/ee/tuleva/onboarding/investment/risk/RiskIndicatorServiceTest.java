@@ -142,7 +142,7 @@ class RiskIndicatorServiceTest {
     var run = service.evaluateAllFunds(28);
 
     assertThat(run.outcomes().getFirst().previous())
-        .isEqualTo(new RiskIndicatorService.PublicationSnapshot(START, 3, STABLE));
+        .isEqualTo(new RiskIndicatorService.PublicationSnapshot(START, 3, null, STABLE));
   }
 
   @Test

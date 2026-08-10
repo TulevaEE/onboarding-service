@@ -75,8 +75,18 @@ class RiskIndicatorNotifier {
    * reconciled.
    */
   private void markNotified(RiskIndicatorRun run) {
-    var publications = run.outcomes().stream().map(RiskIndicatorOutcome::publication).toList();
-    publications.forEach(publication -> publication.setNotified(true));
+    var publications =
+        run.outcomes().stream()
+            .map(
+                outcome -> {
+                  var publication = outcome.publication();
+                  var disclosed = disclosedClass(outcome.indicator());
+                  publication.setNotified(true);
+                  publication.setNotifiedDisclosedClass(
+                      disclosed == null ? null : disclosed.getDisclosedClass());
+                  return publication;
+                })
+            .toList();
     publicationRepository.saveAll(publications);
   }
 
@@ -113,11 +123,15 @@ class RiskIndicatorNotifier {
 
     // A document that disagrees with the computed class is a compliance defect, not a transition:
     // it is just as true on the very first run, so it is not suppressed on a cold start.
+    // Whether we were already mismatched has to be judged against the document as it stood when
+    // we last spoke, not against today's. Comparing yesterday's computed class to today's
+    // disclosure would call a freshly mistyped disclosure row "already known" and swallow the
+    // alert -- and a wrong INSERT is the likeliest failure of a hand-maintained table.
     var mismatched = isMismatched(disclosed, indicator);
     var wasMismatched =
         previous != null
-            && disclosed != null
-            && !Objects.equals(previous.publishedClass(), disclosed.getDisclosedClass());
+            && previous.notifiedDisclosedClass() != null
+            && !Objects.equals(previous.publishedClass(), previous.notifiedDisclosedClass());
     if (mismatched && !wasMismatched) {
       lines.add(mismatchLine(indicator, disclosed));
     }
@@ -261,7 +275,7 @@ class RiskIndicatorNotifier {
               indicator.indicatorType(),
               text(indicator.publishedClass()),
               disclosed == null ? "?" : String.valueOf(disclosed.getDisclosedClass()),
-              text(indicator.publishedSince()),
+              publishedSince(indicator),
               duration(indicator),
               text(indicator.previousPublishedClass()),
               statusLabel(indicator, disclosed)));
@@ -337,6 +351,7 @@ class RiskIndicatorNotifier {
     }
 
     dataQualityLine(indicator).ifPresent(block::add);
+    truncatedHistoryLine(indicator).ifPresent(block::add);
     driftLine(outcome).ifPresent(block::add);
     return String.join("\n", block);
   }
@@ -424,6 +439,16 @@ class RiskIndicatorNotifier {
                 since,
                 weeksLeft)
         + " eeldatav kinnitus %s.".formatted(threshold);
+  }
+
+  private Optional<String> truncatedHistoryLine(PublishedRiskIndicator indicator) {
+    if (!indicator.publishedSinceIsTruncated()) {
+      return Optional.empty();
+    }
+    return Optional.of(
+        "⚠️ %s %s: jooks algab salvestatud seeria esimesest punktist (%s), seega \"kehtib alates\""
+                .formatted(indicator.fund(), indicator.indicatorType(), indicator.publishedSince())
+            + " on alampiir, mitte tegelik algus — jooksuta RiskIndicatorBackfillJob.");
   }
 
   private Optional<String> driftLine(RiskIndicatorOutcome outcome) {
@@ -579,6 +604,19 @@ class RiskIndicatorNotifier {
           case CHANGE_PENDING -> " muutus ootel";
           case CHANGE_CONFIRMED -> " muutus kinnitatud";
         };
+  }
+
+  /**
+   * A run that begins at the very first stored reference point may simply have been cut off there,
+   * so the date is a lower bound rather than a fact. Printing it bare would assert a start we
+   * cannot stand behind; the backfill is what turns it into one.
+   */
+  private String publishedSince(PublishedRiskIndicator indicator) {
+    var since = indicator.publishedSince();
+    if (since == null) {
+      return "—";
+    }
+    return indicator.publishedSinceIsTruncated() ? "≥" + since : since.toString();
   }
 
   private String duration(PublishedRiskIndicator indicator) {

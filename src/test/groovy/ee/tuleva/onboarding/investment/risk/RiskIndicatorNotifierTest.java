@@ -169,6 +169,95 @@ class RiskIndicatorNotifierTest {
   }
 
   @Test
+  void aFreshlyMistypedDisclosureRowStillRaisesTheRedAlert() {
+    disclose(SRRI, TUV100, 4);
+
+    notifier(LocalDate.of(2026, 8, 5))
+        .notify(
+            new RiskIndicatorRun(
+                EVALUATION_DATE,
+                List.of(
+                    new RiskIndicatorOutcome(
+                        staleDocumentSrri(),
+                        new PublicationSnapshot(
+                            EVALUATION_DATE.minusDays(1), 5, 5, CHANGE_CONFIRMED),
+                        RiskIndicatorPublication.builder().build(),
+                        List.of())),
+                List.of()));
+
+    assertThat(notifications.messages)
+        .singleElement()
+        .asString()
+        .contains("🔴 TUV100 SRRI — dokumendis on klass 4, arvutatud avaldatav klass on 5");
+  }
+
+  @Test
+  void anAlreadyReportedMismatchIsNotRepeatedEveryDay() {
+    disclose(SRRI, TUV100, 4);
+
+    notifier(LocalDate.of(2026, 8, 5))
+        .notify(
+            new RiskIndicatorRun(
+                EVALUATION_DATE,
+                List.of(
+                    new RiskIndicatorOutcome(
+                        staleDocumentSrri(),
+                        new PublicationSnapshot(
+                            EVALUATION_DATE.minusDays(1), 5, 4, CHANGE_CONFIRMED),
+                        RiskIndicatorPublication.builder().build(),
+                        List.of())),
+                List.of()));
+
+    assertThat(notifications.messages).isEmpty();
+  }
+
+  @Test
+  void markingNotifiedRecordsWhatTheDocumentSaidAtThatMoment() {
+    disclose(SRRI, TUV100, 4);
+    var publication = RiskIndicatorPublication.builder().build();
+
+    notifier(LocalDate.of(2026, 8, 5))
+        .notify(
+            new RiskIndicatorRun(
+                EVALUATION_DATE,
+                List.of(
+                    new RiskIndicatorOutcome(staleDocumentSrri(), null, publication, List.of())),
+                List.of()));
+
+    assertThat(publication.getNotifiedDisclosedClass()).isEqualTo(4);
+  }
+
+  @Test
+  void aTruncatedPublishedSinceIsPrintedAsALowerBound() {
+    var indicator = stableSri();
+    var truncated =
+        new PublishedRiskIndicator(
+            indicator.fund(),
+            indicator.indicatorType(),
+            indicator.evaluationDate(),
+            indicator.publishedClass(),
+            indicator.rawLatestClass(),
+            indicator.previousPublishedClass(),
+            indicator.publishedSince(),
+            true,
+            indicator.rawClassSince(),
+            indicator.streakReferencePoints(),
+            indicator.rawStreakReferencePoints(),
+            indicator.windowReferencePoints(),
+            indicator.matchingReferencePoints(),
+            indicator.latestObservationCount(),
+            indicator.latestVolatility(),
+            indicator.status());
+    disclose(SRI, TKF100, 4);
+
+    notifier.notify(run(truncated));
+
+    assertThat(notifications.lastMessage())
+        .contains(
+            "≥2026-03-14", "on alampiir, mitte tegelik algus — jooksuta RiskIndicatorBackfillJob.");
+  }
+
+  @Test
   void aRunWhereEveryDocumentAgreesLeadsWithGreen() {
     disclose(SRI, TKF100, 4);
     disclose(SRRI, TUK00, 4);
@@ -345,7 +434,7 @@ class RiskIndicatorNotifierTest {
                 List.of(
                     outcome(
                         staleDocumentSrri(),
-                        new PublicationSnapshot(EVALUATION_DATE.minusDays(1), 4, STABLE))),
+                        new PublicationSnapshot(EVALUATION_DATE.minusDays(1), 4, 4, STABLE))),
                 List.of()));
 
     assertThat(notifications.messages)
@@ -367,7 +456,7 @@ class RiskIndicatorNotifierTest {
                     outcome(
                         staleDocumentSrri(),
                         new PublicationSnapshot(
-                            EVALUATION_DATE.minusDays(1), 5, CHANGE_CONFIRMED))),
+                            EVALUATION_DATE.minusDays(1), 5, 5, CHANGE_CONFIRMED))),
                 List.of()));
 
     assertThat(notifications.messages).isEmpty();
@@ -394,6 +483,7 @@ class RiskIndicatorNotifierTest {
             4,
             null,
             LocalDate.of(2021, 9, 6),
+            false,
             LocalDate.of(2021, 9, 6),
             250,
             250,
@@ -431,6 +521,7 @@ class RiskIndicatorNotifierTest {
             indicator.rawLatestClass(),
             null,
             indicator.publishedSince(),
+            false,
             indicator.rawClassSince(),
             indicator.streakReferencePoints(),
             indicator.rawStreakReferencePoints(),
@@ -467,6 +558,7 @@ class RiskIndicatorNotifierTest {
         4,
         null,
         LocalDate.of(2026, 3, 14),
+        false,
         LocalDate.of(2026, 3, 14),
         85,
         85,
@@ -486,6 +578,7 @@ class RiskIndicatorNotifierTest {
         5,
         5,
         LocalDate.of(2021, 9, 6),
+        false,
         LocalDate.of(2026, 5, 25),
         250,
         9,
@@ -505,6 +598,7 @@ class RiskIndicatorNotifierTest {
         5,
         4,
         LocalDate.of(2026, 5, 5),
+        false,
         LocalDate.of(2026, 5, 5),
         13,
         13,
@@ -524,6 +618,7 @@ class RiskIndicatorNotifierTest {
         4,
         3,
         LocalDate.of(2022, 6, 27),
+        false,
         LocalDate.of(2022, 6, 27),
         213,
         213,

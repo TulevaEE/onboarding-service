@@ -8,6 +8,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -32,6 +33,8 @@ class RiskIndicatorDigest {
   @NotNull private LocalDate digestMonth;
 
   @NotNull @Builder.Default private Boolean complete = true;
+
+  @Version private @Nullable Long version;
 
   private @Nullable Instant sentAt;
 

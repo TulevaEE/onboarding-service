@@ -77,6 +77,7 @@ record PublishedSeries(List<PublishedPoint> points) {
         rawLatestClass,
         previousPublishedClass,
         currentRun.start(),
+        currentRun.start().equals(points.getFirst().date()),
         rawRun.start(),
         currentRun.referencePoints(),
         rawRun.referencePoints(),

@@ -4,6 +4,7 @@ import static java.time.DayOfWeek.SATURDAY;
 import static java.time.DayOfWeek.SUNDAY;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -54,6 +55,25 @@ public class PublicHolidays {
     return !(date.getDayOfWeek() == SATURDAY
         || date.getDayOfWeek() == SUNDAY
         || isPublicHoliday(date));
+  }
+
+  public LocalDate nthBusinessDayOfMonth(YearMonth month, int n) {
+    var businessDay = month.atDay(1);
+    if (!isWorkingDay(businessDay)) {
+      businessDay = nextWorkingDay(businessDay);
+    }
+    for (int i = 1; i < n; i++) {
+      businessDay = nextWorkingDay(businessDay);
+    }
+    return businessDay;
+  }
+
+  public boolean isNthBusinessDayOfMonth(LocalDate date, int n) {
+    return date.equals(nthBusinessDayOfMonth(YearMonth.from(date), n));
+  }
+
+  public boolean isOnOrAfterNthBusinessDayOfMonth(LocalDate date, int n) {
+    return !date.isBefore(nthBusinessDayOfMonth(YearMonth.from(date), n));
   }
 
   boolean isPublicHoliday(LocalDate date) {

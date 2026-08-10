@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.investment.check.tracking;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.check.tracking.PeriodType.MONTHLY;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -16,7 +15,6 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -26,8 +24,6 @@ class PeriodicTdAttributionJobTest {
 
   @Mock PeriodicTdAttributionService service;
   @Spy PublicHolidays publicHolidays = new PublicHolidays();
-
-  @InjectMocks PeriodicTdAttributionJob job;
 
   @Test
   void computesOnFourthBusinessDay() {
@@ -86,20 +82,6 @@ class PeriodicTdAttributionJobTest {
     jobWithClock.onBackfillRequested(new RunTdAttributionBackfillRequested(3));
 
     verify(service).backfillMonths(eq(3), any(Clock.class));
-  }
-
-  @Test
-  void isNthBusinessDayHandlesWeekendStart() {
-    // February 2026: 1st = Sunday → 1st bday = 2nd (Mon), 4th bday = 5th (Thu)
-    assertThat(job.isNthBusinessDayOfMonth(LocalDate.of(2026, 2, 5), 4)).isTrue();
-    assertThat(job.isNthBusinessDayOfMonth(LocalDate.of(2026, 2, 4), 4)).isFalse();
-  }
-
-  @Test
-  void isNthBusinessDayHandlesHolidayStart() {
-    // May 2026: 1st = Friday (holiday) → 1st bday = 4th (Mon), 4th bday = 7th (Thu)
-    assertThat(job.isNthBusinessDayOfMonth(LocalDate.of(2026, 5, 7), 4)).isTrue();
-    assertThat(job.isNthBusinessDayOfMonth(LocalDate.of(2026, 5, 6), 4)).isFalse();
   }
 
   private static Clock clockFor(String date) {

@@ -35,7 +35,7 @@ public class PeriodicTdAttributionJob {
       lockAtLeastFor = "PT5M")
   void computeMonthlyIfReady() {
     var today = LocalDate.now(clock);
-    if (!isNthBusinessDayOfMonth(today, 4)) {
+    if (!publicHolidays.isNthBusinessDayOfMonth(today, 4)) {
       return;
     }
     var lastMonth = YearMonth.from(today).minusMonths(1);
@@ -67,16 +67,5 @@ public class PeriodicTdAttributionJob {
   void onBackfillRequested(RunTdAttributionBackfillRequested event) {
     log.info("TD attribution backfill requested: monthsBack={}", event.monthsBack());
     service.backfillMonths(event.monthsBack(), clock);
-  }
-
-  boolean isNthBusinessDayOfMonth(LocalDate date, int n) {
-    var nthBusinessDay = date.withDayOfMonth(1);
-    if (!publicHolidays.isWorkingDay(nthBusinessDay)) {
-      nthBusinessDay = publicHolidays.nextWorkingDay(nthBusinessDay);
-    }
-    for (int i = 1; i < n; i++) {
-      nthBusinessDay = publicHolidays.nextWorkingDay(nthBusinessDay);
-    }
-    return date.equals(nthBusinessDay);
   }
 }

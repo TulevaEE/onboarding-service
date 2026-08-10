@@ -54,7 +54,7 @@ class RiskIndicatorPoint {
 
   @NotNull private Integer observationCount;
 
-  private @Nullable BigDecimal volatility;
+  @NotNull private BigDecimal volatility;
 
   @NotNull
   @Builder.Default

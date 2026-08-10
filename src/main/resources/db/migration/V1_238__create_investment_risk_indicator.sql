@@ -6,7 +6,7 @@ CREATE TABLE investment_risk_indicator_point (
     source_keys text NOT NULL,
     risk_class int,
     observation_count int NOT NULL,
-    volatility numeric(18, 12),
+    volatility numeric(18, 12) NOT NULL,
     metrics jsonb NOT NULL DEFAULT '{}',
     created_at timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT uq_risk_indicator_point UNIQUE (indicator_type, fund_code, as_of_date)

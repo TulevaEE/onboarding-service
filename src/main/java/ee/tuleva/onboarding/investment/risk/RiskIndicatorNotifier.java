@@ -367,6 +367,10 @@ class RiskIndicatorNotifier {
       if (review == null) {
         continue;
       }
+      var activeSourceKey = properties.sourcesFor(fund).getLast().key();
+      if (activeSourceKey.equals(review.ownHistoryKey())) {
+        continue;
+      }
       var earliest = fundValueRepository.findEarliestDateForKey(review.ownHistoryKey());
       if (earliest.isEmpty()) {
         continue;
@@ -386,7 +390,7 @@ class RiskIndicatorNotifier {
                   outcome.indicator().indicatorType(),
                   String.format(ESTONIAN, "%.1f", years),
                   earliest.get(),
-                  properties.sourcesFor(fund).getLast().key()));
+                  activeSourceKey));
     }
     return lines;
   }

@@ -14,7 +14,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -31,7 +30,11 @@ public class RiskIndicatorService {
   private final PersistencePublicationRule persistenceRule;
   private final Clock clock;
 
-  @Transactional
+  /**
+   * Deliberately not transactional: each fund is caught individually so that one failure cannot
+   * take the run down, and a shared transaction would be marked rollback-only by the very exception
+   * we just swallowed, failing every other fund at commit.
+   */
   RiskIndicatorRun evaluateAllFunds(int lookbackMonths) {
     var outcomes = new ArrayList<RiskIndicatorOutcome>();
     var failures = new ArrayList<String>();

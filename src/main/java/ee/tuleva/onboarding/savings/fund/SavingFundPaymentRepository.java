@@ -67,6 +67,21 @@ public class SavingFundPaymentRepository {
         this::rowMapper);
   }
 
+  public List<SavingFundPayment> findStuckPayments(Instant stuckSince, Status... statuses) {
+    return jdbcTemplate.query(
+        """
+        select * from saving_fund_payment
+        where status in (:statuses) and status_changed_at < :stuck_since
+        order by status_changed_at asc
+        """,
+        Map.of(
+            "statuses",
+            Arrays.stream(statuses).map(Enum::name).toList(),
+            "stuck_since",
+            Timestamp.from(stuckSince)),
+        this::rowMapper);
+  }
+
   public List<SavingFundPayment> findRecentPayments(String description) {
     return jdbcTemplate.query(
         """

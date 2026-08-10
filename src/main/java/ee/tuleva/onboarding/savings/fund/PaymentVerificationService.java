@@ -148,13 +148,13 @@ public class PaymentVerificationService {
   }
 
   private Optional<User> findPayer(SavingFundPayment payment) {
-    return Optional.ofNullable(payment.getRemitterIdCode())
-        .flatMap(userRepository::findByPersonalCode)
-        .or(
-            () ->
-                Optional.ofNullable(payment.getPartyId())
-                    .map(PartyId::code)
-                    .flatMap(userRepository::findByPersonalCode));
+    var remitterIdCode = payment.getRemitterIdCode();
+    if (remitterIdCode != null) {
+      return userRepository.findByPersonalCode(remitterIdCode);
+    }
+    return Optional.ofNullable(payment.getPartyId())
+        .map(PartyId::code)
+        .flatMap(userRepository::findByPersonalCode);
   }
 
   private Optional<PartyId> extractPartyId(SavingFundPayment payment) {

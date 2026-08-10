@@ -2,9 +2,18 @@
 -- Exported by export-snapshot.sh on 2026-02-23
 
 -- investment_fund_position (cash balance)
-INSERT INTO investment_fund_position (nav_date, fund_code, account_type, account_name, market_value, currency, created_at)
+INSERT INTO investment_fund_position (nav_date, fund_code, account_type, account_name, account_id, quantity, market_price, market_value, currency, created_at)
 VALUES
-  (DATE '2026-02-10', 'TKF100', 'CASH', 'Cash account in SEB Pank', 496296.85, 'EUR', CURRENT_TIMESTAMP);
+  (DATE '2026-02-10', 'TKF100', 'CASH', 'Cash account in SEB Pank', NULL, NULL, NULL, 500000.00, 'EUR', CURRENT_TIMESTAMP),
+  (DATE '2026-02-10', 'TKF100', 'SECURITY', 'IE000F60HVH9', 'IE000F60HVH9', 11000.000000, 100.00, 1100000.00, 'EUR', CURRENT_TIMESTAMP),
+  (DATE '2026-02-10', 'TKF100', 'SECURITY', 'IE000O58J820', 'IE000O58J820', 14000.000000, 50.00, 700000.00, 'EUR', CURRENT_TIMESTAMP),
+  (DATE '2026-02-10', 'TKF100', 'SECURITY', 'IE00BFG1TM61', 'IE00BFG1TM61', 45000.000000, 20.00, 900000.00, 'EUR', CURRENT_TIMESTAMP),
+  (DATE '2026-02-10', 'TKF100', 'SECURITY', 'IE00BJZ2DC62', 'IE00BJZ2DC62', 10000.000000, 105.00, 1050000.00, 'EUR', CURRENT_TIMESTAMP),
+  (DATE '2026-02-10', 'TKF100', 'SECURITY', 'IE00BMDBMY19', 'IE00BMDBMY19', 10000.000000, 45.00, 450000.00, 'EUR', CURRENT_TIMESTAMP),
+  (DATE '2026-02-10', 'TKF100', 'SECURITY', 'LU0476289540', 'LU0476289540', 4000.000000, 25.00, 100000.00, 'EUR', CURRENT_TIMESTAMP),
+  (DATE '2026-02-10', 'TKF100', 'SECURITY', 'LU1291099718', 'LU1291099718', 5000.000000, 80.00, 400000.00, 'EUR', CURRENT_TIMESTAMP),
+  (DATE '2026-02-10', 'TKF100', 'SECURITY', 'LU1291102447', 'LU1291102447', 5000.000000, 40.00, 200000.00, 'EUR', CURRENT_TIMESTAMP),
+  (DATE '2026-02-10', 'TKF100', 'SECURITY', 'LU1291106356', 'LU1291106356', 10000.000000, 10.00, 100000.00, 'EUR', CURRENT_TIMESTAMP);
 
 -- investment_fee_accrual
 INSERT INTO investment_fee_accrual (fund_code, fee_type, accrual_date, fee_month, base_value, annual_rate, daily_amount_net, daily_amount_gross, vat_rate, days_in_year, reference_date)
@@ -92,3 +101,16 @@ VALUES
 -- index_values (NAV)
 INSERT INTO index_values (key, date, value, provider, updated_at)
 VALUES ('EE0000003283', DATE '2026-02-20', 1.00320, 'MANUAL', TIMESTAMP '2026-02-23 13:54:44');
+
+-- index_values (instrument prices used to size ETF quantities)
+INSERT INTO index_values (key, date, value, provider, updated_at)
+VALUES
+  ('ESGM.DE', DATE '2026-02-10', 45.00000, 'EODHD', TIMESTAMP '2026-02-10 20:00:00'),
+  ('XRSM.DE', DATE '2026-02-10', 105.00000, 'EODHD', TIMESTAMP '2026-02-10 20:00:00'),
+  ('D5BH.DE', DATE '2026-02-10', 25.00000, 'EODHD', TIMESTAMP '2026-02-10 20:00:00'),
+  ('V3YA.DE', DATE '2026-02-10', 50.00000, 'EODHD', TIMESTAMP '2026-02-10 20:00:00'),
+  ('EEUX.DE', DATE '2026-02-10', 80.00000, 'EODHD', TIMESTAMP '2026-02-10 20:00:00'),
+  ('PAC.DE', DATE '2026-02-10', 10.00000, 'EODHD', TIMESTAMP '2026-02-10 20:00:00'),
+  ('EJAP.DE', DATE '2026-02-10', 40.00000, 'EODHD', TIMESTAMP '2026-02-10 20:00:00'),
+  ('USAS.PA', DATE '2026-02-10', 100.00000, 'EODHD', TIMESTAMP '2026-02-10 20:00:00'),
+  ('0P000152G5.F', DATE '2026-02-10', 20.00000, 'EODHD', TIMESTAMP '2026-02-10 20:00:00');

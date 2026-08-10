@@ -63,7 +63,8 @@ public class PaymentEmailSender {
 
   @EventListener
   public void onSavingsPaymentFailed(SavingsPaymentFailedEvent event) {
-    sendSavingsFundEmail(event, SavingsFundPaymentEmail.failed());
+    emailService.sendSavingsFundPaymentEmail(
+        event.getUser(), SavingsFundPaymentEmail.failed(), event.getLocale());
   }
 
   private void sendSavingsFundEmail(PaymentEvent event, SavingsFundPaymentEmail email) {

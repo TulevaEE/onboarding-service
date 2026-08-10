@@ -43,6 +43,31 @@ final class RiskClassBucket {
     return srriClass(BigDecimal.valueOf(annualisedVolatility));
   }
 
+  static ClassRange range(RiskIndicatorType indicatorType, int riskClass) {
+    var buckets = indicatorType == RiskIndicatorType.SRI ? MRM_BUCKETS : SRRI_BUCKETS;
+    return new ClassRange(
+        riskClass <= 1 ? null : buckets.get(riskClass - 2).upperBoundExclusive(),
+        riskClass > buckets.size() ? null : buckets.get(riskClass - 1).upperBoundExclusive());
+  }
+
+  /**
+   * How far the value sits from the nearer edge of its class. The open ends of classes 1 and 7 have
+   * only one edge.
+   */
+  static @org.jspecify.annotations.Nullable BigDecimal distanceToNearestBound(
+      RiskIndicatorType indicatorType, int riskClass, BigDecimal value) {
+    var range = range(indicatorType, riskClass);
+    var toLower = range.lowerInclusive() == null ? null : value.subtract(range.lowerInclusive());
+    var toUpper = range.upperExclusive() == null ? null : range.upperExclusive().subtract(value);
+    if (toLower == null) {
+      return toUpper;
+    }
+    if (toUpper == null) {
+      return toLower;
+    }
+    return toLower.min(toUpper);
+  }
+
   private static int classify(List<Bucket> buckets, BigDecimal value) {
     return buckets.stream()
         .filter(bucket -> value.compareTo(bucket.upperBoundExclusive()) < 0)
@@ -52,4 +77,8 @@ final class RiskClassBucket {
   }
 
   private record Bucket(BigDecimal upperBoundExclusive, int riskClass) {}
+
+  record ClassRange(
+      @org.jspecify.annotations.Nullable BigDecimal lowerInclusive,
+      @org.jspecify.annotations.Nullable BigDecimal upperExclusive) {}
 }

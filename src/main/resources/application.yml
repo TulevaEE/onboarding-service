@@ -453,6 +453,22 @@ investment-report-publishing:
     username: ${WP_USERNAME:}
     app-password: ${WP_APP_PASSWORD:}
 
+investment:
+  risk:
+    sources:
+      TKF100:
+        - key: MSCI_ACWI
+      TUK75:
+        - key: EE3600109435
+      TUK00:
+        - key: EE3600109443
+      TUV100:
+        - key: EE3600001707
+    proxy-review:
+      TKF100:
+        own-history-key: EE0000003283
+        required-years: 2
+
 #Sentry environment configuration
 ---
 spring:

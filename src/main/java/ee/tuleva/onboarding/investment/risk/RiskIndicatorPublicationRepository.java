@@ -7,8 +7,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 interface RiskIndicatorPublicationRepository extends JpaRepository<RiskIndicatorPublication, Long> {
 
-  Optional<RiskIndicatorPublication> findFirstByIndicatorTypeAndFundOrderByEvaluationDateDesc(
-      RiskIndicatorType indicatorType, TulevaFund fund);
+  Optional<RiskIndicatorPublication>
+      findFirstByIndicatorTypeAndFundAndNotifiedTrueOrderByEvaluationDateDesc(
+          RiskIndicatorType indicatorType, TulevaFund fund);
 
   Optional<RiskIndicatorPublication> findByIndicatorTypeAndFundAndEvaluationDate(
       RiskIndicatorType indicatorType, TulevaFund fund, LocalDate evaluationDate);

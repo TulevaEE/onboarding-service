@@ -36,6 +36,20 @@ class SriCalculatorTest {
   }
 
   @Test
+  void noReturnIsComputedBetweenTwoDifferentSources() {
+    var proxy = pricesForKey("MSCI_ACWI", LocalDate.of(2024, 1, 1), 2000.0, 5);
+    var ownNav = pricesForKey("EE0000003283", LocalDate.of(2024, 1, 8), 1.05, 5);
+    var spliced = new ArrayList<>(proxy);
+    spliced.addAll(ownNav);
+    var evalDate = ownNav.getLast().date();
+
+    var point = calculator.calculate(spliced, evalDate, evalDate).getFirst();
+
+    assertThat(point.observationCount()).isEqualTo(spliced.size() - 2);
+    assertThat((double) point.metrics().get("dailySigma")).isLessThan(0.01);
+  }
+
+  @Test
   void cornishFisherCoefficientsMatchTheirClosedForms() {
     assertThat(SriCalculator.SKEW_COEFFICIENT).isCloseTo((Z * Z - 1) / 6, within(1e-4));
     assertThat(SriCalculator.KURTOSIS_COEFFICIENT)
@@ -135,6 +149,22 @@ class SriCalculatorTest {
       }
       price *= Math.exp(logReturn);
       prices.add(new FundValue(KEY, date, valueOf(price), "MSCI", Instant.EPOCH));
+      date = date.plusDays(1);
+    }
+    return prices;
+  }
+
+  private static List<FundValue> pricesForKey(
+      String key, LocalDate start, double startPrice, int count) {
+    var prices = new ArrayList<FundValue>();
+    var price = startPrice;
+    var date = start;
+    for (int i = 0; i < count; i++) {
+      while (date.getDayOfWeek().getValue() > 5) {
+        date = date.plusDays(1);
+      }
+      price *= 1.001;
+      prices.add(new FundValue(key, date, valueOf(price), "TEST", Instant.EPOCH));
       date = date.plusDays(1);
     }
     return prices;

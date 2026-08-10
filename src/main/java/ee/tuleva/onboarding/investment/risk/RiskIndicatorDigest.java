@@ -31,6 +31,8 @@ class RiskIndicatorDigest {
 
   @NotNull private LocalDate digestMonth;
 
+  @NotNull @Builder.Default private Boolean complete = true;
+
   private @Nullable Instant sentAt;
 
   @PrePersist

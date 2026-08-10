@@ -29,7 +29,7 @@ class RiskIndicatorSeriesService {
   private final SriCalculator sriCalculator;
   private final SrriCalculator srriCalculator;
 
-  List<ReferencePoint> refreshSeries(
+  SeriesRefresh refreshSeries(
       TulevaFund fund, RiskIndicatorType indicatorType, int lookbackMonths) {
     var segments = properties.sourcesFor(fund);
     var anchor = anchorDate(segments);
@@ -39,7 +39,7 @@ class RiskIndicatorSeriesService {
           fund,
           indicatorType,
           sourceKeys(segments));
-      return List.of();
+      return SeriesRefresh.empty();
     }
 
     var evaluationStart = anchor.minusMonths(lookbackMonths);
@@ -50,7 +50,7 @@ class RiskIndicatorSeriesService {
 
     var prices = loadSegments(segments, loadStart, anchor);
     if (prices.isEmpty()) {
-      return List.of();
+      return SeriesRefresh.empty();
     }
 
     var points =
@@ -58,8 +58,7 @@ class RiskIndicatorSeriesService {
             ? sriCalculator.calculate(prices, evaluationStart, anchor)
             : srriCalculator.calculate(prices, evaluationStart, anchor);
 
-    save(fund, indicatorType, sourceKeys(segments), points);
-    return points;
+    return new SeriesRefresh(points, save(fund, indicatorType, sourceKeys(segments), points));
   }
 
   private List<FundValue> loadSegments(
@@ -107,7 +106,7 @@ class RiskIndicatorSeriesService {
         .collect(Collectors.joining(","));
   }
 
-  private void save(
+  private List<LocalDate> save(
       TulevaFund fund,
       RiskIndicatorType indicatorType,
       String sourceKeys,
@@ -117,15 +116,29 @@ class RiskIndicatorSeriesService {
             .collect(Collectors.toMap(RiskIndicatorPoint::getAsOfDate, point -> point));
 
     var toSave = new ArrayList<RiskIndicatorPoint>();
+    var drifted = new ArrayList<LocalDate>();
     for (var point : points) {
       var stored = existing.get(point.date());
       if (stored == null) {
         toSave.add(newPoint(fund, indicatorType, sourceKeys, point));
       } else if (hasDrifted(stored, point)) {
         toSave.add(applyDrift(stored, point));
+        drifted.add(point.date());
       }
     }
     pointRepository.saveAll(toSave);
+    return drifted;
+  }
+
+  /**
+   * A recomputation that moved an already-stored point means the source data changed underneath us.
+   * The dates travel back to the caller so the digest can say so — drift that only ever reaches the
+   * log is drift nobody finds.
+   */
+  record SeriesRefresh(List<ReferencePoint> points, List<LocalDate> driftedDates) {
+    static SeriesRefresh empty() {
+      return new SeriesRefresh(List.of(), List.of());
+    }
   }
 
   private RiskIndicatorPoint newPoint(

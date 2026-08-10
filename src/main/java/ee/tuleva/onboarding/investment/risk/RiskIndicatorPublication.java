@@ -65,6 +65,8 @@ class RiskIndicatorPublication {
   @Enumerated(STRING)
   private RiskIndicatorStatus status;
 
+  @NotNull @Builder.Default private Boolean notified = false;
+
   @NotNull
   @Builder.Default
   @JdbcTypeCode(JSON)

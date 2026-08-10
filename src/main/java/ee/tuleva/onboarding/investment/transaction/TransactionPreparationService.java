@@ -147,6 +147,10 @@ public class TransactionPreparationService {
     return command.getActor() == null ? "system" : command.getActor();
   }
 
+  private static String finalizingActor(TransactionBatch batch) {
+    return batch.getConfirmedBy() == null ? "system" : batch.getConfirmedBy();
+  }
+
   private Map<String, Object> failedPayload(
       TransactionCommand command, @Nullable FundTransactionInput input, RuntimeException e) {
     Map<String, Object> payload = new LinkedHashMap<>();
@@ -219,7 +223,7 @@ public class TransactionPreparationService {
         TransactionAuditEvent.builder()
             .batch(batch)
             .eventType("BATCH_FINALIZED")
-            .actor("system")
+            .actor(finalizingActor(batch))
             .createdAt(Instant.now(clock))
             .payload(Map.of("tradeDate", tradeDate.toString(), "orderCount", orders.size()))
             .build());

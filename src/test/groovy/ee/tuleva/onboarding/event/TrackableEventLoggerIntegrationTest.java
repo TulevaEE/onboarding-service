@@ -34,7 +34,10 @@ class TrackableEventLoggerIntegrationTest {
 
     // Then
     assertThat(eventLogRepository.findAll())
-        .filteredOn(log -> log.getType().equals(eventType.toString()))
+        .filteredOn(
+            log ->
+                log.getType().equals(eventType.toString())
+                    && person.getPersonalCode().equals(log.getPrincipal()))
         .singleElement()
         .satisfies(
             savedLog -> {
@@ -56,7 +59,10 @@ class TrackableEventLoggerIntegrationTest {
 
     // Then
     assertThat(eventLogRepository.findAll())
-        .filteredOn(log -> log.getType().equals(eventType.toString()))
+        .filteredOn(
+            log ->
+                log.getType().equals(eventType.toString())
+                    && person.getPersonalCode().equals(log.getPrincipal()))
         .singleElement()
         .satisfies(
             savedLog -> {
@@ -68,13 +74,18 @@ class TrackableEventLoggerIntegrationTest {
   @Test
   void logsTrackableSystemEvent() {
     TrackableEventType eventType = TrackableEventType.SUBSCRIPTION_BATCH_CREATED;
-    Map<String, Object> eventData = Map.of("batchId", "test-batch-id", "paymentCount", 3);
+    String batchId = "test-batch-id";
+    Map<String, Object> eventData = Map.of("batchId", batchId, "paymentCount", 3);
     TrackableSystemEvent eventToPublish = new TrackableSystemEvent(eventType, eventData);
 
     eventPublisher.publishEvent(eventToPublish);
 
     assertThat(eventLogRepository.findAll())
-        .filteredOn(log -> log.getType().equals(eventType.toString()))
+        .filteredOn(
+            log ->
+                log.getType().equals(eventType.toString())
+                    && log.getData() != null
+                    && batchId.equals(log.getData().get("batchId")))
         .singleElement()
         .satisfies(
             savedLog -> {

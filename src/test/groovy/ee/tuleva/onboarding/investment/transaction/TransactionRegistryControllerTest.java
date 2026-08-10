@@ -44,6 +44,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.TestPropertySource;
@@ -53,7 +54,9 @@ import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(TransactionRegistryController.class)
-@TestPropertySource(properties = "admin.api-token=valid-token")
+@TestPropertySource(
+    properties = {"admin.api-token=valid-token", "admin.operator-tokens.alice=alice-token"})
+@Import({AdminTokenAuthenticator.class, AdminTokenConfiguration.class})
 @WithMockUser
 @RecordApplicationEvents
 class TransactionRegistryControllerTest {
@@ -289,7 +292,7 @@ class TransactionRegistryControllerTest {
 
   @Test
   void ftConfirmations_batch_returnsResultPerRow() throws Exception {
-    given(ftConfirmationVerificationService.verifyAll(any(), eq("admin")))
+    given(ftConfirmationVerificationService.verifyAll(any(), eq("shared-admin-token")))
         .willReturn(
             List.of(
                 FtConfirmationBatchResult.verified(
@@ -321,8 +324,7 @@ class TransactionRegistryControllerTest {
         .perform(
             post("/admin/transaction-registry/ft-confirmations")
                 .with(csrf())
-                .header("X-Admin-Token", "valid-token")
-                .header("X-Admin-Actor", "alice")
+                .header("X-Admin-Token", "alice-token")
                 .contentType("application/json")
                 .content("[]"))
         .andExpect(status().isOk());

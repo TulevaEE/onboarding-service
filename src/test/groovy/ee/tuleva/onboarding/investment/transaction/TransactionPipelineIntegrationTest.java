@@ -13,8 +13,8 @@ import static ee.tuleva.onboarding.investment.transaction.TransactionMode.REBALA
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
 import static java.math.BigDecimal.ZERO;
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static java.util.stream.Collectors.toMap;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.assertj.core.api.Assertions.within;
 
 import ee.tuleva.onboarding.time.ClockHolder;
@@ -33,7 +33,6 @@ import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -48,7 +47,6 @@ import org.springframework.transaction.annotation.Transactional;
 @ActiveProfiles("test")
 @Transactional
 @Sql("classpath:db/snapshots/transaction-pipeline/TKF100_2026-02-10.sql")
-@Disabled
 class TransactionPipelineIntegrationTest {
 
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
@@ -94,22 +92,20 @@ class TransactionPipelineIntegrationTest {
     assertThat(command.getStatus()).isEqualTo(CALCULATED);
 
     List<TransactionOrder> orders = result.orders();
-    assertThat(orders).hasSize(9);
 
-    Map<String, TransactionOrder> ordersByIsin =
-        orders.stream().collect(toMap(TransactionOrder::getInstrumentIsin, order -> order));
-
-    BigDecimal tolerance = BigDecimal.ONE;
-
-    assertBuyOrder(ordersByIsin, "IE00BMDBMY19", new BigDecimal("24288"), ETF, SEB, tolerance);
-    assertBuyOrder(ordersByIsin, "IE00BFG1TM61", new BigDecimal("53487"), FUND, SEB, tolerance);
-    assertSellOrder(ordersByIsin, "IE00BJZ2DC62", new BigDecimal("34875"), ETF, FT, tolerance);
-    assertBuyOrder(ordersByIsin, "LU0476289540", new BigDecimal("1675"), ETF, FT, tolerance);
-    assertSellOrder(ordersByIsin, "IE000F60HVH9", new BigDecimal("38571"), ETF, FT, tolerance);
-    assertSellOrder(ordersByIsin, "IE000O58J820", new BigDecimal("36991"), ETF, FT, tolerance);
-    assertBuyOrder(ordersByIsin, "LU1291099718", new BigDecimal("28701"), ETF, FT, tolerance);
-    assertBuyOrder(ordersByIsin, "LU1291106356", new BigDecimal("3981"), ETF, SEB, tolerance);
-    assertSellOrder(ordersByIsin, "LU1291102447", new BigDecimal("5696"), ETF, SEB, tolerance);
+    assertThat(orders)
+        .extracting(
+            TransactionOrder::getInstrumentIsin,
+            TransactionOrder::getTransactionType,
+            TransactionOrder::getInstrumentType,
+            TransactionOrder::getOrderVenue)
+        .containsExactlyInAnyOrder(
+            tuple("IE000F60HVH9", SELL, ETF, FT),
+            tuple("IE00BJZ2DC62", SELL, ETF, FT),
+            tuple("IE000O58J820", TransactionType.BUY, ETF, FT),
+            tuple("IE00BFG1TM61", TransactionType.BUY, FUND, SEB),
+            tuple("IE00BMDBMY19", TransactionType.BUY, ETF, SEB),
+            tuple("LU1291099718", TransactionType.BUY, ETF, FT));
 
     entityManager.flush();
     var auditEvents = auditEventRepository.findByBatchIdOrderByCreatedAt(result.batch().getId());
@@ -120,7 +116,7 @@ class TransactionPipelineIntegrationTest {
 
   @Test
   void processCommand_buyMode_producesNoOrdersWhenCashBelowReserve() {
-    var command = createCommand(BUY);
+    var command = createCommand(BUY, new BigDecimal("120000.00"));
 
     var result = preparationService.processCommand(command);
 
@@ -181,13 +177,22 @@ class TransactionPipelineIntegrationTest {
     byte[] sebFundCsv = decodeExport(batch.getMetadata(), "sebFundXlsx");
     List<String> lines = List.of(new String(sebFundCsv, UTF_8).split("\n", -1));
 
+    var fundOrder =
+        orderRepository.findByBatchId(batch.getId()).stream()
+            .filter(order -> order.getInstrumentIsin().equals("IE00BFG1TM61"))
+            .findFirst()
+            .orElseThrow();
+
+    assertThat(lines).anyMatch(line -> line.startsWith("Original reference;"));
+
     String dataLine =
         lines.stream().filter(line -> line.contains("IE00BFG1TM61")).findFirst().orElseThrow();
     List<String> cells = List.of(dataLine.split(";", -1));
+    assertThat(cells.get(0)).isEqualTo(fundOrder.getOrderUuid().toString());
     assertThat(cells.get(5)).isEqualTo("SUBS");
     assertThat(cells.get(9)).isEqualTo("IE00BFG1TM61");
     assertThat(new BigDecimal(cells.get(12)))
-        .isCloseTo(new BigDecimal("53487"), within(BigDecimal.ONE));
+        .isCloseTo(fundOrder.getOrderAmount(), within(BigDecimal.ONE));
   }
 
   @Test
@@ -211,11 +216,7 @@ class TransactionPipelineIntegrationTest {
           .isEqualTo("ESGM.DE");
       assertThat(rowsByIsin.get("IE00BMDBMY19").getCell(7).getStringCellValue()).isEqualTo("Buy");
 
-      assertThat(rowsByIsin).containsKey("LU1291106356");
-      assertThat(rowsByIsin.get("LU1291106356").getCell(7).getStringCellValue()).isEqualTo("Buy");
-
-      assertThat(rowsByIsin).containsKey("LU1291102447");
-      assertThat(rowsByIsin.get("LU1291102447").getCell(7).getStringCellValue()).isEqualTo("Sell");
+      assertThat(rowsByIsin).containsOnlyKeys("IE00BMDBMY19");
     }
   }
 
@@ -227,25 +228,30 @@ class TransactionPipelineIntegrationTest {
     try (var workbook = WorkbookFactory.create(new ByteArrayInputStream(ftEtfXlsx))) {
       Sheet sheet = workbook.getSheetAt(0);
 
+      assertThat(sheet.getRow(0).getCell(0).getStringCellValue()).isEqualTo("Symbol");
+      assertThat(sheet.getRow(0).getCell(3).getStringCellValue()).isEqualTo("TD");
+      assertThat(sheet.getRow(0).getCell(4).getStringCellValue()).isEqualTo("SD");
+
       Map<String, Row> rowsByIsin = new java.util.HashMap<>();
-      for (int i = 2; i <= sheet.getLastRowNum(); i++) {
+      for (int i = 1; i <= sheet.getLastRowNum(); i++) {
         Row row = sheet.getRow(i);
         if (row != null
-            && row.getCell(2) != null
-            && !row.getCell(2).getStringCellValue().isEmpty()) {
-          rowsByIsin.put(row.getCell(2).getStringCellValue(), row);
+            && row.getCell(6) != null
+            && !row.getCell(6).getStringCellValue().isEmpty()) {
+          rowsByIsin.put(row.getCell(6).getStringCellValue(), row);
         }
       }
 
-      assertThat(rowsByIsin).containsKey("IE00BJZ2DC62");
-      assertThat(rowsByIsin).containsKey("LU0476289540");
-      assertThat(rowsByIsin).containsKey("IE000F60HVH9");
-      assertThat(rowsByIsin).containsKey("IE000O58J820");
-      assertThat(rowsByIsin).containsKey("LU1291099718");
+      assertThat(rowsByIsin)
+          .containsOnlyKeys("IE00BJZ2DC62", "IE000F60HVH9", "IE000O58J820", "LU1291099718");
+      assertThat(rowsByIsin.get("IE00BJZ2DC62").getCell(0).getStringCellValue())
+          .isEqualTo("XRSM GY");
+      assertThat(rowsByIsin.get("IE00BJZ2DC62").getCell(1).getStringCellValue()).isEqualTo("SELL");
+      assertThat(rowsByIsin.get("LU1291099718").getCell(1).getStringCellValue()).isEqualTo("BUY");
 
       BigDecimal totalAmount = ZERO;
       for (Row row : rowsByIsin.values()) {
-        totalAmount = totalAmount.add(BigDecimal.valueOf(row.getCell(5).getNumericCellValue()));
+        totalAmount = totalAmount.add(BigDecimal.valueOf(row.getCell(7).getNumericCellValue()));
       }
       assertThat(totalAmount).isGreaterThan(ZERO);
     }
@@ -268,6 +274,12 @@ class TransactionPipelineIntegrationTest {
 
   private TransactionCommand createCommand(TransactionMode mode) {
     var command = TransactionCommand.builder().fund(TKF100).mode(mode).asOfDate(TEST_DATE).build();
+    return commandRepository.save(command);
+  }
+
+  private TransactionCommand createCommand(TransactionMode mode, BigDecimal cash) {
+    var command =
+        TransactionCommand.builder().fund(TKF100).mode(mode).asOfDate(TEST_DATE).cash(cash).build();
     return commandRepository.save(command);
   }
 

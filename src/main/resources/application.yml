@@ -73,6 +73,8 @@ eodhd:
 admin:
   api-token: ${ADMIN_API_TOKEN:}
   ops-token: ${ADMIN_OPS_TOKEN:}
+  # Per-operator registry tokens bind from env vars: ADMIN_OPERATORTOKENS_<NAME>=<token>.
+  # The name becomes the audited actor; api-token still works but audits as "shared-admin-token".
 
 hackathon:
   # 20.09.2026 23:59:59 Estonian time

@@ -3,8 +3,6 @@ package ee.tuleva.onboarding.investment.transaction;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.springframework.http.HttpStatus.ACCEPTED;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
-import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
-import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 import static org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE;
 import static org.springframework.http.MediaType.TEXT_PLAIN_VALUE;
 
@@ -26,13 +24,11 @@ import ee.tuleva.onboarding.investment.transaction.ingest.FtConfirmationVerifica
 import ee.tuleva.onboarding.investment.transaction.ingest.HistoricalRegistryImportService;
 import jakarta.validation.Valid;
 import java.io.IOException;
-import java.security.MessageDigest;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Profile;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -45,7 +41,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
 
 @Slf4j
 @RestController
@@ -56,6 +51,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class TransactionRegistryController {
 
   private final ApplicationEventPublisher eventPublisher;
+  private final AdminTokenAuthenticator authenticator;
   private final TransactionAdminService adminService;
   private final FtConfirmationVerificationService ftConfirmationVerificationService;
   private final HistoricalRegistryImportService historicalRegistryImportService;
@@ -65,16 +61,13 @@ public class TransactionRegistryController {
   private final R16StatusService r16StatusService;
   private final SettlementTimingWarningService settlementTimingWarningService;
 
-  @Value("${admin.api-token:}")
-  private String adminApiToken = "";
-
   @PostMapping("/transaction-registry/match")
   @ResponseStatus(ACCEPTED)
   public String triggerExecutionMatching(@RequestHeader("X-Admin-Token") String token) {
 
-    validateToken(token);
+    var actor = authenticator.resolveActor(token);
 
-    log.info("Admin triggered SEB pending transaction reconciliation");
+    log.info("Admin triggered SEB pending transaction reconciliation: actor={}", actor);
     eventPublisher.publishEvent(new RunSebPendingTransactionReconciliationRequested());
 
     return "Triggered SEB pending transaction reconciliation";
@@ -83,7 +76,7 @@ public class TransactionRegistryController {
   @GetMapping("/dashboard/daily-summary")
   public TransactionDailySummary dailySummary(@RequestHeader("X-Admin-Token") String token) {
 
-    validateToken(token);
+    authenticator.resolveActor(token);
 
     return adminService.dailySummary();
   }
@@ -93,7 +86,7 @@ public class TransactionRegistryController {
       @RequestHeader("X-Admin-Token") String token,
       @Valid @RequestBody FtConfirmation confirmation) {
 
-    validateToken(token);
+    authenticator.resolveActor(token);
 
     log.info(
         "Admin submitted FT confirmation for verification: fund={}, isin={}, tradeDate={}",
@@ -106,10 +99,9 @@ public class TransactionRegistryController {
   @PostMapping("/transaction-registry/ft-confirmations")
   public List<FtConfirmationBatchResult> verifyFtConfirmations(
       @RequestHeader("X-Admin-Token") String token,
-      @RequestHeader(name = "X-Admin-Actor", required = false, defaultValue = "admin") String actor,
       @RequestBody List<FtConfirmation> confirmations) {
 
-    validateToken(token);
+    var actor = authenticator.resolveActor(token);
 
     log.info(
         "Admin submitted FT confirmations batch for verification: count={}, actor={}",
@@ -122,9 +114,12 @@ public class TransactionRegistryController {
   public HistoricalImportResult importHistory(
       @RequestHeader("X-Admin-Token") String token, @RequestBody String csv) {
 
-    validateToken(token);
+    var actor = authenticator.resolveActor(token);
 
-    log.info("Admin triggered historical registry import: contentLength={}", csv.length());
+    log.info(
+        "Admin triggered historical registry import: contentLength={}, actor={}",
+        csv.length(),
+        actor);
     return historicalRegistryImportService.importCsv(csv);
   }
 
@@ -133,7 +128,7 @@ public class TransactionRegistryController {
       @RequestHeader("X-Admin-Token") String token, @RequestParam("file") MultipartFile file)
       throws IOException {
 
-    validateToken(token);
+    authenticator.resolveActor(token);
 
     log.info(
         "Admin triggered historical registry import from file: fileName={}, size={}",
@@ -148,9 +143,13 @@ public class TransactionRegistryController {
       @RequestParam("type") ReportType type,
       @RequestBody String csv) {
 
-    validateToken(token);
+    var actor = authenticator.resolveActor(token);
 
-    log.info("Admin triggered EPIS report import: type={}, contentLength={}", type, csv.length());
+    log.info(
+        "Admin triggered EPIS report import: type={}, contentLength={}, actor={}",
+        type,
+        csv.length(),
+        actor);
     return episReportIngestionService.ingestReport(type, csv);
   }
 
@@ -161,7 +160,7 @@ public class TransactionRegistryController {
       @RequestParam("file") MultipartFile file)
       throws IOException {
 
-    validateToken(token);
+    authenticator.resolveActor(token);
 
     log.info(
         "Admin triggered EPIS report import from file: type={}, fileName={}, size={}",
@@ -174,7 +173,7 @@ public class TransactionRegistryController {
   @GetMapping("/transaction-registry/peva-rava/status")
   public PevaRavaStatus pevaRavaStatus(@RequestHeader("X-Admin-Token") String token) {
 
-    validateToken(token);
+    authenticator.resolveActor(token);
 
     return pevaRavaStatusService.status();
   }
@@ -183,16 +182,16 @@ public class TransactionRegistryController {
   public Map<TulevaFund, PevaRavaFlows> recalculatePevaRavaFlows(
       @RequestHeader("X-Admin-Token") String token) {
 
-    validateToken(token);
+    var actor = authenticator.resolveActor(token);
 
-    log.info("Admin triggered PEVA/RAVA flow recalculation");
+    log.info("Admin triggered PEVA/RAVA flow recalculation: actor={}", actor);
     return pevaRavaStatusService.recalculate();
   }
 
   @GetMapping("/transaction-registry/r45/latest")
   public Map<TulevaFund, R45Result> latestR45Flows(@RequestHeader("X-Admin-Token") String token) {
 
-    validateToken(token);
+    authenticator.resolveActor(token);
 
     return r45ReportService.getLatestFlows();
   }
@@ -200,7 +199,7 @@ public class TransactionRegistryController {
   @GetMapping("/transaction-registry/r16/status")
   public List<R16FundStatus> r16Status(@RequestHeader("X-Admin-Token") String token) {
 
-    validateToken(token);
+    authenticator.resolveActor(token);
 
     return r16StatusService.status();
   }
@@ -209,7 +208,7 @@ public class TransactionRegistryController {
   public List<SettlementTimingWarning> settlementWarnings(
       @RequestHeader("X-Admin-Token") String token) {
 
-    validateToken(token);
+    authenticator.resolveActor(token);
 
     return settlementTimingWarningService.activeWarnings();
   }
@@ -227,14 +226,5 @@ public class TransactionRegistryController {
         "error", e.getMessage(),
         "missingHeaders", e.getMissingHeaders(),
         "requiredHeaders", e.getRequiredHeaders());
-  }
-
-  private void validateToken(String token) {
-    if (adminApiToken.isBlank()) {
-      throw new ResponseStatusException(SERVICE_UNAVAILABLE, "Admin API not configured");
-    }
-    if (!MessageDigest.isEqual(adminApiToken.getBytes(UTF_8), token.getBytes(UTF_8))) {
-      throw new ResponseStatusException(UNAUTHORIZED, "Invalid admin token");
-    }
   }
 }

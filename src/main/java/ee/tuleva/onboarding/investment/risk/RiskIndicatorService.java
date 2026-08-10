@@ -10,6 +10,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
@@ -177,7 +178,7 @@ public class RiskIndicatorService {
 
   private boolean hasChanged(
       RiskIndicatorPublication publication, PublishedRiskIndicator indicator) {
-    return !java.util.Objects.equals(publication.getPublishedClass(), indicator.publishedClass())
+    return !Objects.equals(publication.getPublishedClass(), indicator.publishedClass())
         || publication.getStatus() != indicator.status();
   }
 

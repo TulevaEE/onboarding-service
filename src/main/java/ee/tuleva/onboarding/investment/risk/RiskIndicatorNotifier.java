@@ -7,12 +7,15 @@ import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepositor
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.risk.RiskIndicatorService.RiskIndicatorOutcome;
 import ee.tuleva.onboarding.investment.risk.RiskIndicatorService.RiskIndicatorRun;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -32,7 +35,7 @@ class RiskIndicatorNotifier {
   private static final int FULL_SRRI_WINDOW_OBSERVATIONS = 260;
   private static final Locale ESTONIAN = Locale.of("et", "EE");
 
-  private final ee.tuleva.onboarding.notification.OperationsNotificationService notificationService;
+  private final OperationsNotificationService notificationService;
   private final DisclosedRiskIndicatorRepository disclosureRepository;
   private final RiskIndicatorDigestRepository digestRepository;
   private final RiskIndicatorPublicationRepository publicationRepository;
@@ -185,18 +188,19 @@ class RiskIndicatorNotifier {
   }
 
   private String digest(RiskIndicatorRun run) {
+    var proxyReviews = proxyReviewLines(run);
     var message = new StringBuilder();
     message.append(
         "%s Riskiindikaatorite kuuülevaade — seisuga %s\n"
-            .formatted(worstSeverity(run).icon(), asOfDate(run)));
-    message.append(headline(run)).append("\n\n");
+            .formatted(worstSeverity(run, proxyReviews).icon(), asOfDate(run)));
+    message.append(headline(run, proxyReviews)).append("\n\n");
     message.append("```\n").append(table(run)).append("```\n");
 
     for (var outcome : run.outcomes()) {
       message.append("\n").append(detailBlock(outcome)).append("\n");
     }
 
-    proxyReviewLines(run).forEach(line -> message.append("\n").append(line).append("\n"));
+    proxyReviews.forEach(line -> message.append("\n").append(line).append("\n"));
 
     if (!run.failures().isEmpty()) {
       message.append("\n⚠️ Osa fonde jäi hindamata:\n");
@@ -208,8 +212,8 @@ class RiskIndicatorNotifier {
   }
 
   /** The one line someone reads before deciding whether to open the rest. */
-  private String headline(RiskIndicatorRun run) {
-    var counts = new java.util.EnumMap<Severity, Integer>(Severity.class);
+  private String headline(RiskIndicatorRun run, List<String> proxyReviews) {
+    var counts = new EnumMap<Severity, Integer>(Severity.class);
     run.outcomes()
         .forEach(
             outcome ->
@@ -231,16 +235,27 @@ class RiskIndicatorNotifier {
     if (!run.failures().isEmpty()) {
       parts.add("%d hindamata".formatted(run.failures().size()));
     }
+    if (!proxyReviews.isEmpty()) {
+      parts.add("%d proxy ülevaatust".formatted(proxyReviews.size()));
+    }
     return parts.isEmpty() ? "Ühtegi fondi ei hinnatud." : String.join(", ", parts) + ".";
   }
 
-  private Severity worstSeverity(RiskIndicatorRun run) {
+  /**
+   * The header icon has to cover everything printed underneath it, including the lines that hang
+   * off the run rather than off a single fund. A green header above a proxy review or a fund that
+   * failed to evaluate would be exactly the reassurance the traffic light is supposed to withhold.
+   */
+  private Severity worstSeverity(RiskIndicatorRun run, List<String> proxyReviews) {
     var worst =
         run.outcomes().stream()
             .map(outcome -> severity(outcome.indicator(), disclosedClass(outcome.indicator())))
-            .max(java.util.Comparator.naturalOrder())
+            .max(Comparator.naturalOrder())
             .orElse(Severity.GREEN);
-    return run.failures().isEmpty() || worst == Severity.RED ? worst : Severity.YELLOW;
+    if (worst == Severity.RED) {
+      return Severity.RED;
+    }
+    return run.failures().isEmpty() && proxyReviews.isEmpty() ? worst : Severity.YELLOW;
   }
 
   private String asOfDate(RiskIndicatorRun run) {

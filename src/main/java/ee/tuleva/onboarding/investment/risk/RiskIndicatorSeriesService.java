@@ -5,13 +5,19 @@ import static ee.tuleva.onboarding.investment.risk.RiskIndicatorType.SRI;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.risk.RiskIndicatorProperties.Source;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.Period;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -23,7 +29,7 @@ class RiskIndicatorSeriesService {
   private static final Period SRI_PRECEDING_PRICE_BUFFER = Period.ofWeeks(2);
   private static final Period SRRI_PRECEDING_PRICE_BUFFER = Period.ofMonths(1);
 
-  private final java.time.Clock clock;
+  private final Clock clock;
   private final FundValueRepository fundValueRepository;
   private final RiskIndicatorPointRepository pointRepository;
   private final RiskIndicatorProperties properties;
@@ -63,7 +69,7 @@ class RiskIndicatorSeriesService {
   }
 
   private List<FundValue> loadSegments(
-      List<RiskIndicatorProperties.Source> segments, LocalDate loadStart, LocalDate anchor) {
+      List<Source> segments, LocalDate loadStart, LocalDate anchor) {
     var prices = new ArrayList<FundValue>();
     for (int i = 0; i < segments.size(); i++) {
       var segment = segments.get(i);
@@ -78,8 +84,7 @@ class RiskIndicatorSeriesService {
     return prices;
   }
 
-  private @org.jspecify.annotations.Nullable LocalDate nextSegmentStart(
-      List<RiskIndicatorProperties.Source> segments, int index) {
+  private @Nullable LocalDate nextSegmentStart(List<Source> segments, int index) {
     if (index + 1 >= segments.size()) {
       return null;
     }
@@ -87,24 +92,21 @@ class RiskIndicatorSeriesService {
     return next == null ? null : next.minusDays(1);
   }
 
-  private LocalDate maxDate(@org.jspecify.annotations.Nullable LocalDate a, LocalDate b) {
+  private LocalDate maxDate(@Nullable LocalDate a, LocalDate b) {
     return a == null || a.isBefore(b) ? b : a;
   }
 
-  private LocalDate minDate(@org.jspecify.annotations.Nullable LocalDate a, LocalDate b) {
+  private LocalDate minDate(@Nullable LocalDate a, LocalDate b) {
     return a == null || a.isAfter(b) ? b : a;
   }
 
-  private @org.jspecify.annotations.Nullable LocalDate anchorDate(
-      List<RiskIndicatorProperties.Source> segments) {
+  private @Nullable LocalDate anchorDate(List<Source> segments) {
     var activeKey = segments.getLast().key();
     return fundValueRepository.findLastValueForFund(activeKey).map(FundValue::date).orElse(null);
   }
 
-  private String sourceKeys(List<RiskIndicatorProperties.Source> segments) {
-    return segments.stream()
-        .map(RiskIndicatorProperties.Source::key)
-        .collect(Collectors.joining(","));
+  private String sourceKeys(List<Source> segments) {
+    return segments.stream().map(Source::key).collect(Collectors.joining(","));
   }
 
   private List<LocalDate> save(
@@ -158,8 +160,8 @@ class RiskIndicatorSeriesService {
 
   private boolean hasDrifted(RiskIndicatorPoint stored, ReferencePoint recomputed) {
     var storedVolatility = stored.getVolatility();
-    return !java.util.Objects.equals(stored.getRiskClass(), recomputed.riskClass())
-        || !java.util.Objects.equals(stored.getObservationCount(), recomputed.observationCount())
+    return !Objects.equals(stored.getRiskClass(), recomputed.riskClass())
+        || !Objects.equals(stored.getObservationCount(), recomputed.observationCount())
         || storedVolatility == null
         || storedVolatility.compareTo(recomputed.volatility()) != 0;
   }
@@ -176,10 +178,10 @@ class RiskIndicatorSeriesService {
         stored.getVolatility(),
         recomputed.volatility());
 
-    var metrics = new java.util.HashMap<String, Object>(stringKeyed(recomputed.metrics()));
+    var metrics = new HashMap<String, Object>(stringKeyed(recomputed.metrics()));
     var history = new ArrayList<>(driftHistory(stored));
     history.add(
-        java.util.Map.of(
+        Map.of(
             "detectedAt",
             LocalDate.now(clock).toString(),
             "previousClass",
@@ -203,8 +205,8 @@ class RiskIndicatorSeriesService {
     return history instanceof List<?> list ? List.copyOf((List<Object>) list) : List.of();
   }
 
-  private java.util.Map<String, Object> stringKeyed(java.util.Map<String, Object> metrics) {
+  private Map<String, Object> stringKeyed(Map<String, Object> metrics) {
     return metrics.entrySet().stream()
-        .collect(Collectors.toMap(java.util.Map.Entry::getKey, e -> String.valueOf(e.getValue())));
+        .collect(Collectors.toMap(Map.Entry::getKey, e -> String.valueOf(e.getValue())));
   }
 }

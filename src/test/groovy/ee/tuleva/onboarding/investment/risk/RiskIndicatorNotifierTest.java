@@ -539,6 +539,20 @@ class RiskIndicatorNotifierTest {
   }
 
   @Test
+  void aPendingProxyReviewKeepsTheHeaderOffGreenEvenWhenEveryFundIsStable() {
+    proxyReviews.put(TKF100, new ProxyReview(TKF100.getIsin(), 2));
+    given(fundValues.findEarliestDateForKey(TKF100.getIsin()))
+        .willReturn(Optional.of(LocalDate.of(2019, 1, 1)));
+    disclose(SRI, TKF100, 4);
+
+    notifier.notify(run(stableSri()));
+
+    assertThat(notifications.lastMessage())
+        .startsWith("⚠️ Riskiindikaatorite kuuülevaade")
+        .contains("1 korras, 1 proxy ülevaatust.");
+  }
+
+  @Test
   void aFundWithoutAProxyReviewEntryNeverRaisesTheLine() {
     given(fundValues.findEarliestDateForKey(any()))
         .willReturn(Optional.of(LocalDate.of(2000, 1, 1)));

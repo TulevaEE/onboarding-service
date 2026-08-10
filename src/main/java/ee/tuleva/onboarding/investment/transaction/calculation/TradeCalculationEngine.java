@@ -1,10 +1,13 @@
 package ee.tuleva.onboarding.investment.transaction.calculation;
 
+import static ee.tuleva.onboarding.investment.transaction.CalculationWarningType.REBALANCE_NET_CASH_MISMATCH;
+import static ee.tuleva.onboarding.investment.transaction.CalculationWarningType.REBALANCE_NET_NOT_ACHIEVED;
 import static ee.tuleva.onboarding.investment.transaction.LimitStatus.OK;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 import static java.util.stream.Collectors.toMap;
 
+import ee.tuleva.onboarding.investment.transaction.CalculationWarning;
 import ee.tuleva.onboarding.investment.transaction.FundCalculationResult;
 import ee.tuleva.onboarding.investment.transaction.FundTransactionInput;
 import ee.tuleva.onboarding.investment.transaction.LimitStatus;
@@ -19,9 +22,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.IntStream;
+import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 public class TradeCalculationEngine {
 
@@ -31,6 +36,8 @@ public class TradeCalculationEngine {
   private static final BigDecimal MIN_MEANINGFUL_AMOUNT = new BigDecimal("0.01");
 
   public FundCalculationResult calculate(FundTransactionInput input, TransactionMode mode) {
+    validateInput(input);
+
     List<BigDecimal> rawTrades =
         switch (mode) {
           case BUY -> calculateBuy(input);
@@ -46,7 +53,97 @@ public class TradeCalculationEngine {
         input,
         trades,
         netInvestable(input),
-        noTradeReason(input, mode, trades));
+        noTradeReason(input, mode, trades),
+        warnings(input, mode, trades));
+  }
+
+  private void validateInput(FundTransactionInput input) {
+    input
+        .positions()
+        .forEach(
+            position -> {
+              if (position.marketValue().signum() < 0) {
+                throw new IllegalArgumentException(
+                    "Position market value cannot be negative: fund=%s, isin=%s, marketValue=%s"
+                        .formatted(
+                            input.fund().name(),
+                            position.isin(),
+                            position.marketValue().toPlainString()));
+              }
+            });
+    input
+        .modelWeights()
+        .forEach(
+            weight -> {
+              if (weight.weight().signum() < 0) {
+                throw new IllegalArgumentException(
+                    "Model weight cannot be negative: fund=%s, isin=%s, weight=%s"
+                        .formatted(
+                            input.fund().name(), weight.isin(), weight.weight().toPlainString()));
+              }
+            });
+    if (input.grossPortfolioValue().signum() < 0) {
+      throw new IllegalArgumentException(
+          "Gross portfolio value cannot be negative: fund=%s, grossPortfolioValue=%s"
+              .formatted(input.fund().name(), input.grossPortfolioValue().toPlainString()));
+    }
+  }
+
+  private List<CalculationWarning> warnings(
+      FundTransactionInput input, TransactionMode mode, List<TradeCalculation> trades) {
+    if (mode != TransactionMode.REBALANCE || input.positions().isEmpty()) {
+      return List.of();
+    }
+    return rebalanceWarnings(input, trades);
+  }
+
+  private List<CalculationWarning> rebalanceWarnings(
+      FundTransactionInput input, List<TradeCalculation> trades) {
+    RebalanceBuckets buckets = rebalanceBuckets(input);
+    BigDecimal intendedNet = sum(buckets.buyScores()).subtract(sum(buckets.sellScores()));
+    BigDecimal realizedNet =
+        trades.stream().map(TradeCalculation::tradeAmount).reduce(ZERO, BigDecimal::add);
+    BigDecimal threshold = input.minTransactionThreshold();
+
+    List<CalculationWarning> warnings = new ArrayList<>();
+    BigDecimal cashGap = intendedNet.subtract(input.freeCash());
+    if (cashGap.abs().compareTo(threshold) >= 0) {
+      warnings.add(
+          new CalculationWarning(
+              REBALANCE_NET_CASH_MISMATCH,
+              ("Rebalance net cash need does not match free cash, check the inputs: fund=%s,"
+                      + " intendedNet=%s, freeCash=%s, difference=%s, minTransactionThreshold=%s")
+                  .formatted(
+                      input.fund().name(),
+                      intendedNet.toPlainString(),
+                      input.freeCash().toPlainString(),
+                      cashGap.toPlainString(),
+                      threshold.toPlainString())));
+    }
+
+    BigDecimal achievedGap = realizedNet.subtract(intendedNet);
+    if (achievedGap.abs().compareTo(threshold) >= 0) {
+      warnings.add(
+          new CalculationWarning(
+              REBALANCE_NET_NOT_ACHIEVED,
+              ("Rebalance could not achieve the intended net, a limit or the minimum trade size"
+                      + " blocked part of it and a Sell may be needed instead: fund=%s,"
+                      + " realizedNet=%s, intendedNet=%s, difference=%s,"
+                      + " minTransactionThreshold=%s")
+                  .formatted(
+                      input.fund().name(),
+                      realizedNet.toPlainString(),
+                      intendedNet.toPlainString(),
+                      achievedGap.toPlainString(),
+                      threshold.toPlainString())));
+    }
+
+    warnings.forEach(warning -> log.warn(warning.message()));
+    return List.copyOf(warnings);
+  }
+
+  private static BigDecimal sum(List<BigDecimal> values) {
+    return values.stream().reduce(ZERO, BigDecimal::add);
   }
 
   @Nullable
@@ -769,6 +866,28 @@ public class TradeCalculationEngine {
       return List.of();
     }
 
+    RebalanceBuckets buckets = rebalanceBuckets(input);
+    List<BigDecimal> buyScores = buckets.buyScores();
+    List<BigDecimal> sellScores = buckets.sellScores();
+
+    List<BigDecimal> buyAllocations =
+        redistributeHardLimitExcess(
+            input,
+            buyScores,
+            distributeBucketWithThreshold(buyScores, input.minTransactionThreshold()));
+    List<BigDecimal> rawSellAllocations =
+        distributeBucketWithThreshold(sellScores, input.minTransactionThreshold());
+    List<BigDecimal> sellAllocations =
+        IntStream.range(0, rawSellAllocations.size())
+            .mapToObj(i -> rawSellAllocations.get(i).min(input.positions().get(i).marketValue()))
+            .toList();
+
+    return IntStream.range(0, buyAllocations.size())
+        .mapToObj(i -> buyAllocations.get(i).subtract(sellAllocations.get(i)))
+        .toList();
+  }
+
+  private RebalanceBuckets rebalanceBuckets(FundTransactionInput input) {
     List<BigDecimal> targetValues = normalizedTargetValues(input);
     List<BigDecimal> rawTrades =
         IntStream.range(0, input.positions().size())
@@ -788,22 +907,10 @@ public class TradeCalculationEngine {
                     rawTrades.get(i).negate().max(ZERO).min(input.positions().get(i).marketValue()))
             .toList();
 
-    List<BigDecimal> buyAllocations =
-        redistributeHardLimitExcess(
-            input,
-            buyScores,
-            distributeBucketWithThreshold(buyScores, input.minTransactionThreshold()));
-    List<BigDecimal> rawSellAllocations =
-        distributeBucketWithThreshold(sellScores, input.minTransactionThreshold());
-    List<BigDecimal> sellAllocations =
-        IntStream.range(0, rawSellAllocations.size())
-            .mapToObj(i -> rawSellAllocations.get(i).min(input.positions().get(i).marketValue()))
-            .toList();
-
-    return IntStream.range(0, rawTrades.size())
-        .mapToObj(i -> buyAllocations.get(i).subtract(sellAllocations.get(i)))
-        .toList();
+    return new RebalanceBuckets(buyScores, sellScores);
   }
+
+  private record RebalanceBuckets(List<BigDecimal> buyScores, List<BigDecimal> sellScores) {}
 
   private List<BigDecimal> distributeBucketWithThreshold(
       List<BigDecimal> scores, BigDecimal threshold) {

@@ -5,6 +5,7 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
+import ee.tuleva.onboarding.investment.transaction.export.ExportFile;
 import jakarta.validation.Valid;
 import java.security.MessageDigest;
 import java.util.List;
@@ -33,9 +34,6 @@ import org.springframework.web.server.ResponseStatusException;
 @Profile("!staging")
 @NullMarked
 public class TransactionCommandController {
-
-  private static final MediaType XLSX_MEDIA_TYPE =
-      MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
 
   private final TransactionAdminService adminService;
 
@@ -184,6 +182,11 @@ public class TransactionCommandController {
 
     validateToken(token);
 
+    ExportFile exportFile =
+        ExportFile.byMetadataKey(type)
+            .orElseThrow(
+                () -> new ResponseStatusException(NOT_FOUND, "Unknown export type: type=" + type));
+
     byte[] export =
         adminService
             .exportFile(id, type)
@@ -193,12 +196,12 @@ public class TransactionCommandController {
                         NOT_FOUND, "Export not found: batchId=" + id + ", type=" + type));
 
     return ResponseEntity.ok()
-        .contentType(XLSX_MEDIA_TYPE)
+        .contentType(MediaType.parseMediaType(exportFile.mimeType()))
         .headers(
             headers ->
                 headers.setContentDisposition(
                     ContentDisposition.attachment()
-                        .filename("batch-%d-%s.xlsx".formatted(id, type))
+                        .filename(exportFile.downloadFileName(id))
                         .build()))
         .body(export);
   }

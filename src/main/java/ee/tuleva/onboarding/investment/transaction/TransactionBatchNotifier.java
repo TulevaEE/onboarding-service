@@ -3,8 +3,8 @@ package ee.tuleva.onboarding.investment.transaction;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static java.util.stream.Collectors.joining;
 
+import ee.tuleva.onboarding.investment.transaction.export.ExportFile;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -14,13 +14,6 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 class TransactionBatchNotifier {
-
-  private static final Map<String, String> DRIVE_URL_LABELS =
-      Map.of(
-          "sebFundXlsx", "SEB indeksfondid",
-          "sebEtfXlsx", "SEB ETF",
-          "ftEtfXlsx", "FT ETF",
-          "uuidWorkbookXlsx", "UUID workbook");
 
   private final OperationsNotificationService notificationService;
 
@@ -35,13 +28,14 @@ class TransactionBatchNotifier {
           event.driveFileUrls() == null || event.driveFileUrls().isEmpty()
               ? ""
               : "\n"
-                  + DRIVE_URL_LABELS.entrySet().stream()
-                      .filter(entry -> event.driveFileUrls().containsKey(entry.getKey()))
+                  + ExportFile.brokerFiles().stream()
+                      .filter(file -> event.driveFileUrls().containsKey(file.metadataKey()))
                       .map(
-                          entry ->
+                          file ->
                               "%s: %s"
                                   .formatted(
-                                      entry.getValue(), event.driveFileUrls().get(entry.getKey())))
+                                      file.driveLabel(),
+                                      event.driveFileUrls().get(file.metadataKey())))
                       .collect(joining("\n", "\n", ""));
 
       notificationService.sendMessage(header + driveLinks, INVESTMENT);

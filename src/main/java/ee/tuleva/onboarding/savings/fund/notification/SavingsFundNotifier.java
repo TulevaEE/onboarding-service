@@ -29,7 +29,7 @@ public class SavingsFundNotifier {
     }
   }
 
-  @EventListener
+  @TransactionalEventListener(phase = AFTER_COMMIT)
   public void onIssuingCompleted(IssuingCompletedEvent event) {
     try {
       notificationService.sendMessage(
@@ -42,7 +42,7 @@ public class SavingsFundNotifier {
     }
   }
 
-  @EventListener
+  @TransactionalEventListener(phase = AFTER_COMMIT)
   public void onSubscriptionBatchSent(SubscriptionBatchSentEvent event) {
     try {
       notificationService.sendMessage(
@@ -79,7 +79,7 @@ public class SavingsFundNotifier {
     }
   }
 
-  @EventListener
+  @TransactionalEventListener(phase = AFTER_COMMIT)
   public void onDeferredReturnMatchingCompleted(DeferredReturnMatchingCompletedEvent event) {
     try {
       notificationService.sendMessage(
@@ -91,7 +91,7 @@ public class SavingsFundNotifier {
     }
   }
 
-  @EventListener
+  @TransactionalEventListener(phase = AFTER_COMMIT)
   public void onRedemptionRequested(RedemptionRequestedEvent event) {
     try {
       notificationService.sendMessage(

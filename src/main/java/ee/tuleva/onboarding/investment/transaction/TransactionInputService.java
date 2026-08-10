@@ -12,6 +12,7 @@ import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static java.math.BigDecimal.ONE;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.CEILING;
+import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
@@ -40,6 +41,7 @@ import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import ee.tuleva.onboarding.ledger.SystemAccount;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -78,6 +80,7 @@ public class TransactionInputService {
   private final R16FlowCalculationService r16FlowCalculationService;
   private final R16PhaseCalculator r16PhaseCalculator;
   private final InvestmentParameterRepository investmentParameterRepository;
+  private final PendingOrderImpactService pendingOrderImpactService;
 
   public FundTransactionInput gatherInput(
       TulevaFund fund, LocalDate asOfDate, Map<String, Object> manualAdjustments) {
@@ -103,7 +106,9 @@ public class TransactionInputService {
         asOfDate,
         positionDate);
 
-    List<PositionSnapshot> positions = getPositions(fund, positionDate);
+    PendingOrderImpact pendingOrders = pendingOrderImpactService.calculate(fund, asOfDate);
+    List<PositionSnapshot> positions =
+        applyUnreportedPositions(getPositions(fund, positionDate), pendingOrders);
     BigDecimal reportCash = getCashBalance(fund, positionDate);
     BigDecimal appliedCash = cashOverride == null ? reportCash : cashOverride;
     BigDecimal managementFee = getAccruedFees(fund, asOfDate, FeeType.MANAGEMENT);
@@ -165,13 +170,10 @@ public class TransactionInputService {
     liabilities = liabilities.add(getAdjustment(manualAdjustments, "additionalLiabilities"));
     receivables = receivables.add(getAdjustment(manualAdjustments, "additionalReceivables"));
 
-    PendingCash pendingCash = getPendingCashImpact(fund, asOfDate);
-    BigDecimal freeCash =
-        appliedCash
-            .subtract(cashBuffer)
-            .subtract(liabilities)
-            .add(receivables)
-            .subtract(pendingCash.net());
+    liabilities = liabilities.add(pendingOrders.pendingBuys());
+    receivables = receivables.add(pendingOrders.pendingSells());
+
+    BigDecimal freeCash = appliedCash.subtract(cashBuffer).subtract(liabilities).add(receivables);
 
     BigDecimal ledgerCash =
         navLedgerRepository.getSystemAccountBalance(
@@ -184,8 +186,8 @@ public class TransactionInputService {
             pevaRava,
             r16,
             r45Net,
-            pendingCash.pendingBuys(),
-            pendingCash.pendingSells(),
+            pendingOrders.pendingBuys(),
+            pendingOrders.pendingSells(),
             unreconciledBankReceipts,
             fundUnitsReservedValue,
             incomingPaymentsClearing);
@@ -211,6 +213,52 @@ public class TransactionInputService {
         .positionDate(positionDate)
         .modelEffectiveDate(modelEffectiveDate)
         .build();
+  }
+
+  private List<PositionSnapshot> applyUnreportedPositions(
+      List<PositionSnapshot> positions, PendingOrderImpact pendingOrders) {
+    Map<String, BigDecimal> values = pendingOrders.unreportedPositionValues();
+    if (values.isEmpty()) {
+      return positions;
+    }
+    Map<String, BigDecimal> quantities = pendingOrders.unreportedPositionQuantities();
+
+    List<PositionSnapshot> adjusted =
+        positions.stream()
+            .map(
+                position ->
+                    adjustPosition(
+                        position,
+                        values.getOrDefault(position.isin(), ZERO),
+                        quantities.getOrDefault(position.isin(), ZERO)))
+            .collect(Collectors.toCollection(ArrayList::new));
+
+    Set<String> reported = positions.stream().map(PositionSnapshot::isin).collect(toSet());
+    values.entrySet().stream()
+        .filter(entry -> !reported.contains(entry.getKey()))
+        .forEach(
+            entry ->
+                adjusted.add(
+                    new PositionSnapshot(
+                        entry.getKey(),
+                        entry.getValue().max(ZERO),
+                        quantities.get(entry.getKey()),
+                        null)));
+    return List.copyOf(adjusted);
+  }
+
+  private PositionSnapshot adjustPosition(
+      PositionSnapshot position, BigDecimal valueDelta, BigDecimal quantityDelta) {
+    if (valueDelta.signum() == 0 && quantityDelta.signum() == 0) {
+      return position;
+    }
+    BigDecimal quantity =
+        position.quantity() == null ? null : position.quantity().add(quantityDelta).max(ZERO);
+    return new PositionSnapshot(
+        position.isin(),
+        position.marketValue().add(valueDelta).max(ZERO),
+        quantity,
+        position.unitPrice());
   }
 
   private List<PositionSnapshot> getPositions(TulevaFund fund, LocalDate date) {
@@ -441,28 +489,5 @@ public class TransactionInputService {
         .filter(a -> a.getOrderVenue() != null)
         .forEach(a -> merged.put(a.getIsin(), a.getOrderVenue()));
     return merged;
-  }
-
-  private PendingCash getPendingCashImpact(TulevaFund fund, LocalDate asOfDate) {
-    List<TransactionOrder> unsettledOrders = orderRepository.findUnsettledOrders(fund, asOfDate);
-    BigDecimal pendingBuys =
-        unsettledOrders.stream()
-            .filter(order -> order.getTransactionType() == TransactionType.BUY)
-            .map(TransactionOrder::getOrderAmount)
-            .filter(Objects::nonNull)
-            .reduce(ZERO, BigDecimal::add);
-    BigDecimal pendingSells =
-        unsettledOrders.stream()
-            .filter(order -> order.getTransactionType() == TransactionType.SELL)
-            .map(TransactionOrder::getOrderAmount)
-            .filter(Objects::nonNull)
-            .reduce(ZERO, BigDecimal::add);
-    return new PendingCash(pendingBuys, pendingSells);
-  }
-
-  private record PendingCash(BigDecimal pendingBuys, BigDecimal pendingSells) {
-    BigDecimal net() {
-      return pendingBuys.subtract(pendingSells);
-    }
   }
 }

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.risk;
 
 import java.math.BigDecimal;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 
 final class RiskClassBucket {
 
@@ -54,7 +55,7 @@ final class RiskClassBucket {
    * How far the value sits from the nearer edge of its class. The open ends of classes 1 and 7 have
    * only one edge.
    */
-  static @org.jspecify.annotations.Nullable BigDecimal distanceToNearestBound(
+  static @Nullable BigDecimal distanceToNearestBound(
       RiskIndicatorType indicatorType, int riskClass, BigDecimal value) {
     var range = range(indicatorType, riskClass);
     var toLower = range.lowerInclusive() == null ? null : value.subtract(range.lowerInclusive());
@@ -78,7 +79,5 @@ final class RiskClassBucket {
 
   private record Bucket(BigDecimal upperBoundExclusive, int riskClass) {}
 
-  record ClassRange(
-      @org.jspecify.annotations.Nullable BigDecimal lowerInclusive,
-      @org.jspecify.annotations.Nullable BigDecimal upperExclusive) {}
+  record ClassRange(@Nullable BigDecimal lowerInclusive, @Nullable BigDecimal upperExclusive) {}
 }

@@ -10,6 +10,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
@@ -39,8 +40,7 @@ class PersistencePublicationRule implements PublicationRule {
   }
 
   private boolean isFullyOutside(List<ReferencePoint> window, @Nullable Integer publishedClass) {
-    return window.stream()
-        .noneMatch(point -> java.util.Objects.equals(point.riskClass(), publishedClass));
+    return window.stream().noneMatch(point -> Objects.equals(point.riskClass(), publishedClass));
   }
 
   private List<ReferencePoint> window(List<ReferencePoint> classified, LocalDate evalDate) {

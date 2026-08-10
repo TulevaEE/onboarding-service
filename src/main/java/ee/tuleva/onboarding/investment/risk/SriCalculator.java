@@ -5,9 +5,12 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -41,7 +44,7 @@ class SriCalculator {
         .map(FundValue::date)
         .filter(date -> !date.isBefore(from) && !date.isAfter(to))
         .map(date -> referencePoint(returns, date))
-        .filter(java.util.Objects::nonNull)
+        .filter(Objects::nonNull)
         .toList();
   }
 
@@ -75,8 +78,7 @@ class SriCalculator {
     return returns;
   }
 
-  private @org.jspecify.annotations.Nullable ReferencePoint referencePoint(
-      List<DatedReturn> returns, LocalDate evalDate) {
+  private @Nullable ReferencePoint referencePoint(List<DatedReturn> returns, LocalDate evalDate) {
     var windowStart = evalDate.minusYears(OBSERVATION_WINDOW_YEARS);
     var window =
         returns.stream()
@@ -91,7 +93,7 @@ class SriCalculator {
 
   private ReferencePoint referencePoint(LocalDate evalDate, double[] window) {
     int n = window.length;
-    var mean = java.util.stream.DoubleStream.of(window).average().orElseThrow();
+    var mean = Arrays.stream(window).average().orElseThrow();
 
     double s2 = 0;
     double s3 = 0;

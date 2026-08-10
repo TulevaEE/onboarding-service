@@ -9,6 +9,7 @@ import static ee.tuleva.onboarding.investment.transaction.OrderStatus.DRAFT;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.REBALANCE;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.springframework.http.HttpStatus.CONFLICT;
@@ -625,5 +626,33 @@ class TransactionCommandControllerTest {
             get("/admin/transaction-batches/10/exports/sebEtfXlsx")
                 .header("X-Admin-Token", "valid-token"))
         .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void downloadExport_sebFundOrderFile_isServedAsCsv() throws Exception {
+    var csv = "Original reference;Client name\n".getBytes(UTF_8);
+    given(adminService.exportFile(10L, "sebFundXlsx")).willReturn(Optional.of(csv));
+
+    mockMvc
+        .perform(
+            get("/admin/transaction-batches/10/exports/sebFundXlsx")
+                .header("X-Admin-Token", "valid-token"))
+        .andExpect(status().isOk())
+        .andExpect(content().contentTypeCompatibleWith("text/csv"))
+        .andExpect(
+            header()
+                .string("Content-Disposition", "attachment; filename=\"batch-10-sebFundXlsx.csv\""))
+        .andExpect(content().bytes(csv));
+  }
+
+  @Test
+  void downloadExport_unknownExportType_returnsNotFound() throws Exception {
+    mockMvc
+        .perform(
+            get("/admin/transaction-batches/10/exports/notAnExport")
+                .header("X-Admin-Token", "valid-token"))
+        .andExpect(status().isNotFound());
+
+    then(adminService).shouldHaveNoInteractions();
   }
 }

@@ -11,4 +11,5 @@ public record FundCalculationResult(
     FundTransactionInput input,
     List<TradeCalculation> trades,
     BigDecimal netInvestable,
-    @Nullable String noTradeReason) {}
+    @Nullable String noTradeReason,
+    List<CalculationWarning> warnings) {}

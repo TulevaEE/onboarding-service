@@ -54,6 +54,10 @@ class DomicileCalendarSpec extends Specification {
     IRELAND    | "2030-02-01" | false // St Brigid's Day 2030 (Feb 1 is a Friday)
     IRELAND    | "2030-02-04" | true // first Monday of February 2030 is not a holiday
     LUXEMBOURG | "2025-02-03" | true // St Brigid's Day is not a Luxembourg holiday
+    IRELAND    | "2023-02-06" | false // St Brigid's Day first recurred in 2023
+    IRELAND    | "2022-02-07" | true // St Brigid's Day did not exist in 2022
+    IRELAND    | "2021-02-01" | true // St Brigid's Day did not exist in 2021
+    IRELAND    | "2022-03-18" | false // one-off 2022 public holiday
     IRELAND    | "2025-05-05" | false // May bank holiday (first Monday)
     IRELAND    | "2025-06-02" | false // June bank holiday (first Monday)
     IRELAND    | "2025-08-04" | false // August bank holiday (first Monday)

@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.investment.epis.SettlementTimingWarning.Type.
 import static ee.tuleva.onboarding.investment.transaction.BatchStatus.*;
 import static ee.tuleva.onboarding.investment.transaction.CommandStatus.*;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.BUY;
+import static ee.tuleva.onboarding.investment.transaction.TransactionMode.REBALANCE;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.SELL;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -116,7 +117,8 @@ class TransactionPreparationServiceTest {
                 "IE00A", new BigDecimal("100000"), new BigDecimal("0.60"), LimitStatus.OK));
 
     var calculationResult =
-        new FundCalculationResult(TUV100, BUY, input, trades, netInvestable(input), null);
+        new FundCalculationResult(
+            TUV100, BUY, input, trades, netInvestable(input), null, List.of());
 
     when(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of())).thenReturn(input);
     when(calculationEngine.calculate(input, BUY)).thenReturn(calculationResult);
@@ -172,7 +174,8 @@ class TransactionPreparationServiceTest {
             .fastSellIsins(Set.of())
             .build();
     var calculationResult =
-        new FundCalculationResult(TUV100, BUY, input, List.of(), netInvestable(input), null);
+        new FundCalculationResult(
+            TUV100, BUY, input, List.of(), netInvestable(input), null, List.of());
     given(
             inputService.gatherInput(
                 TUV100, command.getAsOfDate(), Map.of(), new BigDecimal("40000")))
@@ -225,7 +228,8 @@ class TransactionPreparationServiceTest {
                 "IE00A", new BigDecimal("100000"), new BigDecimal("0.60"), LimitStatus.OK));
 
     var calculationResult =
-        new FundCalculationResult(TUV100, BUY, input, trades, netInvestable(input), null);
+        new FundCalculationResult(
+            TUV100, BUY, input, trades, netInvestable(input), null, List.of());
 
     given(inputService.gatherInput(TUV100, command.getAsOfDate(), manualAdjustments))
         .willReturn(input);
@@ -289,7 +293,8 @@ class TransactionPreparationServiceTest {
             .fastSellIsins(Set.of())
             .build();
     var calculationResult =
-        new FundCalculationResult(TUK75, BUY, input, List.of(), netInvestable(input), null);
+        new FundCalculationResult(
+            TUK75, BUY, input, List.of(), netInvestable(input), null, List.of());
     given(inputService.gatherInput(TUK75, asOfDate, Map.of())).willReturn(input);
     given(calculationEngine.calculate(input, BUY)).willReturn(calculationResult);
     given(batchRepository.save(any(TransactionBatch.class)))
@@ -355,7 +360,8 @@ class TransactionPreparationServiceTest {
             input,
             List.of(),
             netInvestable(input),
-            "No trades: mode=BUY, reason=freeCashBelowMinTransactionThreshold");
+            "No trades: mode=BUY, reason=freeCashBelowMinTransactionThreshold",
+            List.of());
     given(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of())).willReturn(input);
     given(calculationEngine.calculate(input, BUY)).willReturn(calculationResult);
     given(batchRepository.save(any(TransactionBatch.class)))
@@ -402,7 +408,8 @@ class TransactionPreparationServiceTest {
             .fastSellIsins(Set.of())
             .build();
     var calculationResult =
-        new FundCalculationResult(TUV100, BUY, input, List.of(), netInvestable(input), null);
+        new FundCalculationResult(
+            TUV100, BUY, input, List.of(), netInvestable(input), null, List.of());
     given(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of())).willReturn(input);
     given(calculationEngine.calculate(input, BUY)).willReturn(calculationResult);
     given(batchRepository.save(any(TransactionBatch.class)))
@@ -444,7 +451,8 @@ class TransactionPreparationServiceTest {
             .fastSellIsins(Set.of())
             .build();
     var calculationResult =
-        new FundCalculationResult(TUV100, BUY, input, List.of(), netInvestable(input), null);
+        new FundCalculationResult(
+            TUV100, BUY, input, List.of(), netInvestable(input), null, List.of());
     given(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of())).willReturn(input);
     given(calculationEngine.calculate(input, BUY)).willReturn(calculationResult);
     given(batchRepository.save(any(TransactionBatch.class)))
@@ -487,7 +495,8 @@ class TransactionPreparationServiceTest {
             .build();
     var trades = List.<TradeCalculation>of();
     var calculationResult =
-        new FundCalculationResult(TUV100, BUY, input, trades, new BigDecimal("950000"), null);
+        new FundCalculationResult(
+            TUV100, BUY, input, trades, new BigDecimal("950000"), null, List.of());
     given(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of())).willReturn(input);
     given(calculationEngine.calculate(input, BUY)).willReturn(calculationResult);
     given(batchRepository.save(any(TransactionBatch.class)))
@@ -661,7 +670,7 @@ class TransactionPreparationServiceTest {
             new TradeCalculation(
                 "IE00A", new BigDecimal("100000"), new BigDecimal("0.60"), LimitStatus.OK));
 
-    var result = TransactionPreparationService.serializeTrades(trades, Map.of());
+    var result = TransactionPreparationService.serializeTrades(trades, Map.of(), Map.of());
 
     assertThat(result)
         .singleElement()
@@ -692,7 +701,8 @@ class TransactionPreparationServiceTest {
             .orderQuantity(new BigDecimal("16666.666667"))
             .build();
 
-    var result = TransactionPreparationService.serializeTrades(trades, Map.of("IE00ETF", order));
+    var result =
+        TransactionPreparationService.serializeTrades(trades, Map.of("IE00ETF", order), Map.of());
 
     assertThat(result.get(0))
         .containsEntry("isin", "IE00ETF")
@@ -818,7 +828,8 @@ class TransactionPreparationServiceTest {
             new TradeCalculation(
                 "IE00A", new BigDecimal("100000"), new BigDecimal("0.60"), LimitStatus.OK));
     var calculationResult =
-        new FundCalculationResult(TUV100, BUY, input, trades, netInvestable(input), null);
+        new FundCalculationResult(
+            TUV100, BUY, input, trades, netInvestable(input), null, List.of());
 
     given(clock.instant()).willReturn(Instant.parse("2026-01-15T10:00:00Z"));
     given(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of())).willReturn(input);
@@ -1001,7 +1012,8 @@ class TransactionPreparationServiceTest {
                 "LU00FUND", new BigDecimal("40000"), new BigDecimal("0.40"), LimitStatus.OK));
 
     var calculationResult =
-        new FundCalculationResult(TUV100, BUY, input, trades, netInvestable(input), null);
+        new FundCalculationResult(
+            TUV100, BUY, input, trades, netInvestable(input), null, List.of());
 
     when(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of())).thenReturn(input);
     when(calculationEngine.calculate(input, BUY)).thenReturn(calculationResult);
@@ -1084,7 +1096,8 @@ class TransactionPreparationServiceTest {
                 "LU00FUND", new BigDecimal("40000"), new BigDecimal("0.40"), LimitStatus.OK));
 
     var calculationResult =
-        new FundCalculationResult(TUV100, BUY, input, trades, netInvestable(input), null);
+        new FundCalculationResult(
+            TUV100, BUY, input, trades, netInvestable(input), null, List.of());
 
     when(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of())).thenReturn(input);
     when(calculationEngine.calculate(input, BUY)).thenReturn(calculationResult);
@@ -1146,7 +1159,8 @@ class TransactionPreparationServiceTest {
                 "IE00ETF", new BigDecimal("50000"), new BigDecimal("0.55"), LimitStatus.OK));
 
     var calculationResult =
-        new FundCalculationResult(TUV100, BUY, input, trades, netInvestable(input), null);
+        new FundCalculationResult(
+            TUV100, BUY, input, trades, netInvestable(input), null, List.of());
 
     when(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of())).thenReturn(input);
     when(calculationEngine.calculate(input, BUY)).thenReturn(calculationResult);
@@ -1296,7 +1310,8 @@ class TransactionPreparationServiceTest {
             new TradeCalculation(
                 "IE00ETF", new BigDecimal("50000"), new BigDecimal("0.55"), LimitStatus.OK));
     var calculationResult =
-        new FundCalculationResult(TUV100, BUY, input, trades, netInvestable(input), null);
+        new FundCalculationResult(
+            TUV100, BUY, input, trades, netInvestable(input), null, List.of());
     given(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of())).willReturn(input);
     given(calculationEngine.calculate(input, BUY)).willReturn(calculationResult);
     given(batchRepository.save(any(TransactionBatch.class)))
@@ -1386,7 +1401,8 @@ class TransactionPreparationServiceTest {
                 "LU00FUND2", new BigDecimal("40000"), new BigDecimal("0.42"), LimitStatus.OK));
 
     var calculationResult =
-        new FundCalculationResult(TUV100, SELL, input, trades, netInvestable(input), null);
+        new FundCalculationResult(
+            TUV100, SELL, input, trades, netInvestable(input), null, List.of());
 
     given(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of())).willReturn(input);
     given(calculationEngine.calculate(input, SELL)).willReturn(calculationResult);
@@ -1445,7 +1461,8 @@ class TransactionPreparationServiceTest {
                 "LU00FUND", new BigDecimal("-50000"), new BigDecimal("0.55"), LimitStatus.OK));
 
     var calculationResult =
-        new FundCalculationResult(TUV100, SELL, input, trades, netInvestable(input), null);
+        new FundCalculationResult(
+            TUV100, SELL, input, trades, netInvestable(input), null, List.of());
 
     given(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of())).willReturn(input);
     given(calculationEngine.calculate(input, SELL)).willReturn(calculationResult);
@@ -1504,7 +1521,8 @@ class TransactionPreparationServiceTest {
                 "IE00A", new BigDecimal("-100000"), new BigDecimal("0.40"), LimitStatus.OK));
 
     var calculationResult =
-        new FundCalculationResult(TUV100, SELL, input, trades, netInvestable(input), null);
+        new FundCalculationResult(
+            TUV100, SELL, input, trades, netInvestable(input), null, List.of());
 
     when(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of())).thenReturn(input);
     when(calculationEngine.calculate(input, SELL)).thenReturn(calculationResult);
@@ -1633,5 +1651,98 @@ class TransactionPreparationServiceTest {
     assertThat(batch.getMetadata()).containsKey("driveFileUrls");
     verify(custodianOrderEmailSender).send(eq(TUV100), any(), any());
     verify(eventPublisher).publishEvent(any(BatchFinalizedEvent.class));
+  }
+
+  @Test
+  void serializeTrades_recordsThePriceTheQuantityWasSizedOn() {
+    var trades =
+        List.of(
+            new TradeCalculation(
+                "IE00ETF", new BigDecimal("50000"), new BigDecimal("0.55"), LimitStatus.OK));
+    var resolvedPrice =
+        ResolvedPrice.builder()
+            .usedPrice(new BigDecimal("3.25"))
+            .priceDate(LocalDate.of(2026, 1, 10))
+            .priceSource(PriceSource.EODHD)
+            .build();
+
+    var result =
+        TransactionPreparationService.serializeTrades(
+            trades, Map.of(), Map.of("IE00ETF", resolvedPrice));
+
+    assertThat(result)
+        .singleElement()
+        .satisfies(trade -> assertThat(trade).containsEntry("price", "3.25"));
+  }
+
+  @Test
+  void serializeModelDrift_recordsDriftVersusModelBeforeAndAfterForEveryPosition() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(
+                List.of(
+                    new PositionSnapshot("IE00A", new BigDecimal("600000")),
+                    new PositionSnapshot("IE00B", new BigDecimal("400000"))))
+            .modelWeights(
+                List.of(
+                    new ModelWeight("IE00A", new BigDecimal("0.50")),
+                    new ModelWeight("IE00B", new BigDecimal("0.50"))))
+            .grossPortfolioValue(new BigDecimal("1000000"))
+            .cashBuffer(ZERO)
+            .liabilities(ZERO)
+            .freeCash(ZERO)
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+    var trades =
+        List.of(
+            new TradeCalculation(
+                "IE00A", new BigDecimal("-100000"), new BigDecimal("0.500000"), LimitStatus.OK),
+            new TradeCalculation(
+                "IE00B", new BigDecimal("100000"), new BigDecimal("0.500000"), LimitStatus.OK));
+    var result =
+        new FundCalculationResult(
+            TUV100, REBALANCE, input, trades, new BigDecimal("1000000"), null, List.of());
+
+    var drift = TransactionPreparationService.serializeModelDrift(input, result);
+
+    assertThat(drift)
+        .containsEntry("totalAbsoluteDriftBefore", "0.200000")
+        .containsEntry("totalAbsoluteDriftAfter", "0.000000");
+    assertThat((List<Map<String, Object>>) drift.get("positions"))
+        .satisfiesExactly(
+            first ->
+                assertThat(first)
+                    .containsEntry("isin", "IE00A")
+                    .containsEntry("targetWeight", "0.500000")
+                    .containsEntry("weightBefore", "0.600000")
+                    .containsEntry("weightAfter", "0.500000")
+                    .containsEntry("driftBefore", "0.100000")
+                    .containsEntry("driftAfter", "0.000000"),
+            second ->
+                assertThat(second)
+                    .containsEntry("isin", "IE00B")
+                    .containsEntry("driftBefore", "-0.100000")
+                    .containsEntry("driftAfter", "0.000000"));
+  }
+
+  @Test
+  void serializeCalculationWarnings_serializesTypeAndMessage() {
+    var warnings =
+        List.of(
+            new CalculationWarning(
+                CalculationWarningType.REBALANCE_NET_CASH_MISMATCH, "inputs do not reconcile"));
+
+    var result = TransactionPreparationService.serializeCalculationWarnings(warnings);
+
+    assertThat(result)
+        .singleElement()
+        .satisfies(
+            warning ->
+                assertThat(warning)
+                    .containsEntry("type", "REBALANCE_NET_CASH_MISMATCH")
+                    .containsEntry("message", "inputs do not reconcile"));
   }
 }

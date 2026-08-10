@@ -31,6 +31,8 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class DomicileCalendar {
 
+  private static final int ST_BRIGIDS_DAY_FIRST_YEAR = 2023;
+
   private final Target2Calendar target2Calendar;
   private final Map<Domicile, Map<Integer, Set<LocalDate>>> holidaysByDomicileAndYear =
       new ConcurrentHashMap<>();
@@ -60,7 +62,6 @@ public class DomicileCalendar {
         new HashSet<>(
             Set.of(
                 newYearsDay(year),
-                stBrigidsDay(year),
                 stPatricksDay(year),
                 easterMonday(easterSunday),
                 firstMonday(year, MAY),
@@ -69,6 +70,12 @@ public class DomicileCalendar {
                 lastMonday(year, OCTOBER),
                 christmasDay(year),
                 stStephensDay(year)));
+    if (year >= ST_BRIGIDS_DAY_FIRST_YEAR) {
+      holidays.add(stBrigidsDay(year));
+    }
+    if (year == 2022) {
+      holidays.add(LocalDate.of(2022, MARCH, 18));
+    }
     addWeekendSubstitutes(
         holidays, newYearsDay(year), stPatricksDay(year), christmasDay(year), stStephensDay(year));
     return Set.copyOf(holidays);

@@ -1,7 +1,11 @@
 package ee.tuleva.onboarding.investment.transaction;
 
+import static java.util.stream.Collectors.toUnmodifiableSet;
+
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.transaction.export.ExportFile;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -22,7 +26,7 @@ public record TransactionBatchResponse(
     @Nullable Map<String, Object> calculationSnapshot) {
 
   static final Set<String> EXPORT_TYPES =
-      Set.of("xlsxExport", "sebFundXlsx", "sebEtfXlsx", "ftEtfXlsx", "uuidWorkbookXlsx");
+      Arrays.stream(ExportFile.values()).map(ExportFile::metadataKey).collect(toUnmodifiableSet());
 
   static TransactionBatchResponse from(
       TransactionBatch batch,

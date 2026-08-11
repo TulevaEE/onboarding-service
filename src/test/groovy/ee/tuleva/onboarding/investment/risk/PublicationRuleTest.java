@@ -70,6 +70,17 @@ class PublicationRuleTest {
   }
 
   @Test
+  void neitherRulePublishesAnythingWhileNoPointCarriesAClass() {
+    var points =
+        List.of(
+            new ReferencePoint(START, null, 10, ONE, Map.of()),
+            new ReferencePoint(START.plusWeeks(1), null, 12, ONE, Map.of()));
+
+    assertThat(majority.publish(points).points()).isEmpty();
+    assertThat(persistence.publish(points).points()).isEmpty();
+  }
+
+  @Test
   void persistenceFlipsToThePrevailingClassAfterFourMonthsFullyOutsideTheCurrentClass() {
     var classes = new ArrayList<>(sameClass(30, 4));
     for (int i = 0; i < 30; i++) {

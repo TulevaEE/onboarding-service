@@ -40,10 +40,6 @@ final class RiskClassBucket {
     return classify(SRRI_BUCKETS, annualisedVolatility);
   }
 
-  static int srriClass(double annualisedVolatility) {
-    return srriClass(BigDecimal.valueOf(annualisedVolatility));
-  }
-
   static ClassRange range(RiskIndicatorType indicatorType, int riskClass) {
     var buckets = indicatorType == RiskIndicatorType.SRI ? MRM_BUCKETS : SRRI_BUCKETS;
     return new ClassRange(

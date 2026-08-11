@@ -31,6 +31,18 @@ class SrriCalculatorTest {
   }
 
   @Test
+  void anEmptyPriceSeriesProducesNoReferencePoints() {
+    assertThat(calculator.calculate(List.of(), FIRST_MONDAY, FIRST_MONDAY.plusWeeks(4))).isEmpty();
+  }
+
+  @Test
+  void aSingleIncompleteWeekProducesNoReferencePoints() {
+    var navs = List.of(nav(FIRST_MONDAY, 100.0), nav(FIRST_MONDAY.plusDays(2), 105.0));
+
+    assertThat(calculator.calculate(navs, FIRST_MONDAY, FIRST_MONDAY.plusWeeks(4))).isEmpty();
+  }
+
+  @Test
   void doesNotComputeAReturnAcrossAMissingWeek() {
     var navs = new ArrayList<FundValue>();
     for (int week : List.of(0, 1, 2, 4, 5, 6)) {

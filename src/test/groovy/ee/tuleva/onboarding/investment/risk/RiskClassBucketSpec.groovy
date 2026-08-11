@@ -48,4 +48,16 @@ class RiskClassBucketSpec extends Specification {
     0.25     || 7
     0.60     || 7
   }
+
+  @Unroll
+  def "class #riskClass measures #value against its nearer bound: #expected"() {
+    expect:
+    RiskClassBucket.distanceToNearestBound(RiskIndicatorType.SRRI, riskClass, value) == expected
+    where:
+    riskClass | value  || expected
+    1         | 0.001  || 0.004
+    7         | 0.30   || 0.05
+    4         | 0.06   || 0.01
+    4         | 0.09   || 0.01
+  }
 }

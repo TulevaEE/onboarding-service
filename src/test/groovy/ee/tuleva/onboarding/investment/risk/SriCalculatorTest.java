@@ -36,6 +36,17 @@ class SriCalculatorTest {
   }
 
   @Test
+  void anEvaluationDateWithOnlyOneReturnBehindItYieldsNoReferencePoint() {
+    var prices = pricesForKey(KEY, LocalDate.of(2024, 1, 1), 100.0, 4);
+    var firstReturnDate = prices.get(1).date();
+
+    var points = calculator.calculate(prices, firstReturnDate, prices.getLast().date());
+
+    assertThat(points.stream().map(ReferencePoint::date)).doesNotContain(firstReturnDate);
+    assertThat(points.getFirst().date()).isEqualTo(prices.get(2).date());
+  }
+
+  @Test
   void noReturnIsComputedBetweenTwoDifferentSources() {
     var proxy = pricesForKey("MSCI_ACWI", LocalDate.of(2024, 1, 1), 2000.0, 5);
     var ownNav = pricesForKey("EE0000003283", LocalDate.of(2024, 1, 8), 1.05, 5);

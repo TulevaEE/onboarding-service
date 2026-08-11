@@ -55,10 +55,8 @@ var SOURCES = {
         senders: ["flowtraders@ullink.eu"],
         files: [
             {
-                // ASSUMPTION (unconfirmed against a real FT email attachment name —
-                // see appscripts/seb-position-uploader/README.md / migration plan):
-                // Flow Traders names the confirmation PDF by allocation id, e.g.
-                // "MID9BlFbos-00.pdf". One-line regex change if the real name differs.
+                // Flow Traders names the confirmation PDF by allocation id,
+                // e.g. "MID9DSWsDs-00.pdf" (confirmed against live FT email, 2026-08).
                 pattern: /^(MID\w+-\d+)\.pdf$/i,
                 s3Prefix: "ft-confirmations/",
                 s3Suffix: ".pdf",

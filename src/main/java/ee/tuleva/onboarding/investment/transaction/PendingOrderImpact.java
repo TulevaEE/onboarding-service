@@ -14,8 +14,4 @@ record PendingOrderImpact(
   static PendingOrderImpact none() {
     return new PendingOrderImpact(ZERO, ZERO, Map.of(), Map.of());
   }
-
-  BigDecimal net() {
-    return pendingBuys.subtract(pendingSells);
-  }
 }

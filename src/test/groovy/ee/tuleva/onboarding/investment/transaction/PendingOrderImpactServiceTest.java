@@ -197,6 +197,118 @@ class PendingOrderImpactServiceTest {
         .containsExactly(Map.entry("IE00A", new BigDecimal("4000")));
   }
 
+  @Test
+  void anEtfOrderPlacedInEurosIsValuedAtItsAmountAndContributesNoQuantity() {
+    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
+        .willReturn(
+            List.of(
+                order(
+                    1L,
+                    "IE00A",
+                    TransactionType.BUY,
+                    InstrumentType.ETF,
+                    OrderStatus.SENT,
+                    null,
+                    new BigDecimal("4000"))));
+    given(executionRepository.findByOrderIdIn(List.of(1L))).willReturn(List.of());
+
+    var impact = service.calculate(TUV100, AS_OF_DATE);
+
+    assertThat(impact.unreportedPositionValues())
+        .containsExactly(Map.entry("IE00A", new BigDecimal("4000")));
+    assertThat(impact.unreportedPositionQuantities()).isEmpty();
+  }
+
+  @Test
+  void anExecutionWithoutAConsiderationDoesNotDisplaceTheEstimate() {
+    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
+        .willReturn(
+            List.of(
+                order(
+                    1L,
+                    "IE00FUND",
+                    TransactionType.BUY,
+                    InstrumentType.FUND,
+                    OrderStatus.SENT,
+                    null,
+                    new BigDecimal("7000"))));
+    given(executionRepository.findByOrderIdIn(List.of(1L)))
+        .willReturn(List.of(TransactionExecution.builder().orderId(1L).build()));
+
+    var impact = service.calculate(TUV100, AS_OF_DATE);
+
+    assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("7000"));
+  }
+
+  // A zero consideration is a placeholder, not a free trade — the cash still has to be reserved.
+  @Test
+  void aZeroConsiderationFallsBackToTheEstimatedValue() {
+    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
+        .willReturn(
+            List.of(
+                order(
+                    1L,
+                    "IE00FUND",
+                    TransactionType.BUY,
+                    InstrumentType.FUND,
+                    OrderStatus.SENT,
+                    null,
+                    new BigDecimal("7000"))));
+    given(executionRepository.findByOrderIdIn(List.of(1L)))
+        .willReturn(
+            List.of(TransactionExecution.builder().orderId(1L).totalConsideration(ZERO).build()));
+
+    var impact = service.calculate(TUV100, AS_OF_DATE);
+
+    assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("7000"));
+  }
+
+  @Test
+  void anOrderWithNeitherQuantityNorAmountReservesNothing() {
+    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
+        .willReturn(
+            List.of(
+                order(
+                    1L,
+                    "IE00FUND",
+                    TransactionType.BUY,
+                    InstrumentType.FUND,
+                    OrderStatus.SENT,
+                    null,
+                    null)));
+    given(executionRepository.findByOrderIdIn(List.of(1L))).willReturn(List.of());
+
+    var impact = service.calculate(TUV100, AS_OF_DATE);
+
+    assertThat(impact.pendingBuys()).isEqualByComparingTo(ZERO);
+    assertThat(impact.unreportedPositionValues()).containsExactly(Map.entry("IE00FUND", ZERO));
+  }
+
+  // A resolver that answers zero has not priced the instrument; the order amount is the better
+  // estimate.
+  @Test
+  void aNonPositiveResolvedPriceIsNotUsedForValuation() {
+    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
+        .willReturn(
+            List.of(
+                order(
+                    1L,
+                    "IE00A",
+                    TransactionType.BUY,
+                    InstrumentType.ETF,
+                    OrderStatus.SENT,
+                    new BigDecimal("100"),
+                    new BigDecimal("4000"))));
+    given(executionRepository.findByOrderIdIn(List.of(1L))).willReturn(List.of());
+    given(positionPriceResolver.resolve("IE00A", AS_OF_DATE))
+        .willReturn(Optional.of(ResolvedPrice.builder().usedPrice(ZERO).build()));
+
+    var impact = service.calculate(TUV100, AS_OF_DATE);
+
+    assertThat(impact.unreportedPositionValues())
+        .containsExactly(Map.entry("IE00A", new BigDecimal("4000")));
+  }
+
   private TransactionOrder order(
       Long id,
       String isin,

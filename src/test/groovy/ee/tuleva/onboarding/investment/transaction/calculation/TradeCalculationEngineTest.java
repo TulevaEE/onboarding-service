@@ -1912,6 +1912,47 @@ class TradeCalculationEngineTest {
   }
 
   @Test
+  void buy_withANegativeGrossPortfolioValue_failsLoudly() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(List.of(new PositionSnapshot("IE00A", new BigDecimal("500000"))))
+            .modelWeights(List.of(new ModelWeight("IE00A", new BigDecimal("1.00"))))
+            .grossPortfolioValue(new BigDecimal("-1000000"))
+            .cashBuffer(ZERO)
+            .liabilities(ZERO)
+            .freeCash(new BigDecimal("100000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+
+    assertThatThrownBy(() -> engine.calculate(input, BUY))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  // A rebalance needs something to rebalance against; with no positions there is nothing to warn
+  // about either.
+  @Test
+  void rebalance_withoutAnyPositions_raisesNoCashWarnings() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(List.of())
+            .modelWeights(List.of(new ModelWeight("IE00A", new BigDecimal("1.00"))))
+            .grossPortfolioValue(ZERO)
+            .cashBuffer(ZERO)
+            .liabilities(ZERO)
+            .freeCash(ZERO)
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+
+    assertThat(engine.calculate(input, REBALANCE).warnings()).isEmpty();
+  }
+
+  @Test
   void buy_withANegativeModelWeight_failsLoudly() {
     var input =
         FundTransactionInput.builder()

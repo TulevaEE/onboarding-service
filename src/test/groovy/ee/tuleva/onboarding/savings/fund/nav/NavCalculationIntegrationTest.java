@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.position.AccountType.NAV;
+import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.SYSTEM_ACCOUNT;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
@@ -402,23 +403,9 @@ class NavCalculationIntegrationTest {
 
   private void createSecuritiesUnitBalance(
       TulevaFund fund, String isin, BigDecimal units, Instant transactionDate) {
-    var securitiesUnitsAccount =
-        LedgerAccount.builder()
-            .name(SECURITIES_UNITS.getAccountName(fund, isin))
-            .purpose(LedgerAccount.AccountPurpose.SYSTEM_ACCOUNT)
-            .accountType(SECURITIES_UNITS.getAccountType())
-            .assetType(SECURITIES_UNITS.getAssetType())
-            .build();
-    entityManager.persist(securitiesUnitsAccount);
-
+    var securitiesUnitsAccount = getOrCreateInstrumentAccount(SECURITIES_UNITS, fund, isin);
     var securitiesUnitsEquityAccount =
-        LedgerAccount.builder()
-            .name(SECURITIES_UNITS_EQUITY.getAccountName(fund, isin))
-            .purpose(LedgerAccount.AccountPurpose.SYSTEM_ACCOUNT)
-            .accountType(SECURITIES_UNITS_EQUITY.getAccountType())
-            .assetType(SECURITIES_UNITS_EQUITY.getAssetType())
-            .build();
-    entityManager.persist(securitiesUnitsEquityAccount);
+        getOrCreateInstrumentAccount(SECURITIES_UNITS_EQUITY, fund, isin);
 
     var transaction =
         LedgerTransaction.builder()
@@ -445,6 +432,40 @@ class NavCalculationIntegrationTest {
     transaction.getEntries().add(entry);
     transaction.getEntries().add(counterEntry);
     entityManager.persist(transaction);
+  }
+
+  private LedgerAccount getOrCreateInstrumentAccount(
+      SystemAccount systemAccount, TulevaFund fund, String isin) {
+    String name = systemAccount.getAccountName(fund, isin);
+    return entityManager
+        .createQuery(
+            """
+            SELECT a FROM LedgerAccount a
+            WHERE a.name = :name
+              AND a.purpose = :purpose
+              AND a.accountType = :accountType
+              AND a.assetType = :assetType
+            """,
+            LedgerAccount.class)
+        .setParameter("name", name)
+        .setParameter("purpose", SYSTEM_ACCOUNT)
+        .setParameter("accountType", systemAccount.getAccountType())
+        .setParameter("assetType", systemAccount.getAssetType())
+        .getResultStream()
+        .findFirst()
+        .orElseGet(() -> persistSystemAccount(systemAccount, name));
+  }
+
+  private LedgerAccount persistSystemAccount(SystemAccount systemAccount, String name) {
+    var account =
+        LedgerAccount.builder()
+            .name(name)
+            .purpose(SYSTEM_ACCOUNT)
+            .accountType(systemAccount.getAccountType())
+            .assetType(systemAccount.getAssetType())
+            .build();
+    entityManager.persist(account);
+    return account;
   }
 
   private void createSystemAccountBalance(

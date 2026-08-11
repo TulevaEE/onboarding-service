@@ -71,18 +71,18 @@ class PortfolioControllerTest {
   }
 
   @Test
-  void defaultsToTheBeginningOfTimesAndToday() throws Exception {
-    LocalDate from = LocalDate.parse("2003-01-07");
+  void leavesTheStartOfAnAllTimePeriodToTheServiceAndEndsItToday() throws Exception {
+    LocalDate firstHolding = LocalDate.parse("2019-03-05");
     LocalDate to = LocalDate.parse("2020-01-01");
 
     when(clock.instant()).thenReturn(TestClockHolder.now);
     when(clock.getZone()).thenReturn(UTC);
-    when(portfolioService.getPortfolio(eq(authPerson), eq(from), eq(to)))
-        .thenReturn(portfolio(from, to));
+    when(portfolioService.getPortfolio(eq(authPerson), eq(null), eq(to)))
+        .thenReturn(portfolio(firstHolding, to));
 
     mvc.perform(get("/v1/portfolio").with(authentication(authentication)))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.from").value("2003-01-07"))
+        .andExpect(jsonPath("$.from").value("2019-03-05"))
         .andExpect(jsonPath("$.to").value("2020-01-01"));
   }
 

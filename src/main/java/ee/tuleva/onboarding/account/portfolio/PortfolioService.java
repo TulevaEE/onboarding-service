@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.account.portfolio;
 
 import static ee.tuleva.onboarding.account.portfolio.PortfolioGroup.SECOND_PILLAR;
 import static ee.tuleva.onboarding.account.portfolio.PortfolioGroup.THIRD_PILLAR;
+import static java.util.Comparator.naturalOrder;
 import static java.util.stream.Collectors.toMap;
 
 import ee.tuleva.onboarding.account.transaction.Transaction;
@@ -24,6 +25,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -44,22 +46,31 @@ public class PortfolioService {
   private final ReturnsService returnsService;
   private final FundNavProvider fundNavProvider;
 
-  public Portfolio getPortfolio(AuthenticatedPerson person, LocalDate from, LocalDate to) {
+  public Portfolio getPortfolio(
+      AuthenticatedPerson person, @Nullable LocalDate from, LocalDate to) {
     List<Transaction> transactions = transactionService.getTransactions(person);
+    LocalDate startDate = from == null ? firstHoldingDate(transactions, to) : from;
     Map<String, PortfolioGroup> groupByIsin = groupByIsin();
     Set<String> heldIsins = PortfolioValuation.heldIsins(transactions, groupByIsin);
 
     PortfolioValuation valuation =
-        new PortfolioValuation(transactions, groupByIsin, navHistory(heldIsins, from, to));
+        new PortfolioValuation(transactions, groupByIsin, navHistory(heldIsins, startDate, to));
     List<PortfolioGroup> groups = valuation.heldGroups();
-    Map<PortfolioGroup, BigDecimal> rates = annualReturnRates(person, groups, from, to);
+    Map<PortfolioGroup, BigDecimal> rates = annualReturnRates(person, groups, startDate, to);
 
     return Portfolio.builder()
-        .from(from)
+        .from(startDate)
         .to(to)
-        .groups(summaries(valuation, groups, rates, from, to))
-        .series(valuation.series(from, to))
+        .groups(summaries(valuation, groups, rates, startDate, to))
+        .series(valuation.series(startDate, to))
         .build();
+  }
+
+  private static LocalDate firstHoldingDate(List<Transaction> transactions, LocalDate to) {
+    return transactions.stream()
+        .map(PortfolioValuation::pricingDayOf)
+        .min(naturalOrder())
+        .orElse(to);
   }
 
   private static List<Portfolio.GroupSummary> summaries(

@@ -81,7 +81,7 @@ public class PortfolioValuation {
     return byIsin;
   }
 
-  private static LocalDate pricingDayOf(Transaction transaction) {
+  static LocalDate pricingDayOf(Transaction transaction) {
     return transaction.priceTime().atZone(ESTONIAN_ZONE).toLocalDate();
   }
 

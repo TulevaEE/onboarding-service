@@ -22,8 +22,6 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 public class PortfolioController {
 
-  private static final LocalDate BEGINNING_OF_TIMES = LocalDate.parse("2003-01-07");
-
   private final PortfolioService portfolioService;
   private final Clock clock;
 
@@ -33,12 +31,11 @@ public class PortfolioController {
       @AuthenticationPrincipal AuthenticatedPerson person,
       @RequestParam(required = false) @DateTimeFormat(iso = DATE) @Nullable LocalDate from,
       @RequestParam(required = false) @DateTimeFormat(iso = DATE) @Nullable LocalDate to) {
-    var startDate = from == null ? BEGINNING_OF_TIMES : from;
     var endDate = to == null ? LocalDate.now(clock) : to;
-    if (startDate.isAfter(endDate)) {
+    if (from != null && from.isAfter(endDate)) {
       throw new ResponseStatusException(
-          BAD_REQUEST, "Invalid portfolio period: from=" + startDate + ", to=" + endDate);
+          BAD_REQUEST, "Invalid portfolio period: from=" + from + ", to=" + endDate);
     }
-    return portfolioService.getPortfolio(person, startDate, endDate);
+    return portfolioService.getPortfolio(person, from, endDate);
   }
 }

@@ -115,6 +115,31 @@ class PaymentEmailServiceSpec extends Specification {
     SavingsFundPaymentEmail.cancelled()                 | "savings_fund_payment_cancelled_en"
   }
 
+  def "send savings fund payment email without a pillar suggestion"() {
+    given:
+    def user = sampleUser().build()
+    def message = new MandrillMessage()
+    var mergeVars = [
+        "fname": user.firstName,
+        "lname": user.lastName
+    ]
+    def tags = ["savings_fund"]
+    def locale = Locale.ENGLISH
+
+    def mandrillResponse = new MandrillMessageStatus().tap {
+      _id = "123"
+      status = "sent"
+    }
+
+    when:
+    paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.failed(), locale)
+
+    then:
+    1 * emailService.newMandrillMessage(user.email, "savings_fund_payment_failed_en", mergeVars, tags, null) >> message
+    1 * emailService.send(user, message, "savings_fund_payment_failed_en") >> Optional.of(mandrillResponse)
+    1 * emailPersistenceService.save(user, mandrillResponse.id, SAVINGS_FUND_PAYMENT_FAIL, mandrillResponse.status)
+  }
+
   def "savings fund payment email includes the recipient name when present"() {
     given:
     def user = sampleUser().build()

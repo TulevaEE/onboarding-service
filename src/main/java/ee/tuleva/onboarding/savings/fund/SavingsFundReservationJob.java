@@ -41,7 +41,7 @@ public class SavingsFundReservationJob {
         successCount++;
         successAmount = successAmount.add(payment.getAmount());
       } catch (Exception e) {
-        log.error("Reservation failed for payment {}", payment, e);
+        log.error("Payment reservation failed: paymentId={}", payment.getId(), e);
       }
     }
 

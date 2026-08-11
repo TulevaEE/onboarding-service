@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.account.transaction;
 
+import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION;
+import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH;
+import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH_WORKPLACE;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Comparator.comparing;
 
@@ -17,11 +20,18 @@ public record Transaction(
     BigDecimal amount,
     Currency currency,
     Instant time,
+    Instant priceTime,
+    Instant settledTime,
     String isin,
     CashFlow.Type type,
     BigDecimal units,
     BigDecimal nav)
     implements Comparable<Transaction> {
+
+  public Transaction {
+    priceTime = priceTime == null ? time : priceTime;
+    settledTime = settledTime == null ? time : settledTime;
+  }
 
   public static Transaction from(CashFlow cashFlow) {
     String seed =
@@ -31,11 +41,16 @@ public record Transaction(
         .amount(cashFlow.getAmount())
         .currency(cashFlow.getCurrency())
         .time(cashFlow.getTime())
+        .priceTime(cashFlow.getPriceTime())
         .isin(cashFlow.getIsin())
         .type(cashFlow.getType())
         .units(cashFlow.getUnits())
         .nav(cashFlow.getNav())
         .build();
+  }
+
+  public boolean isAcquisition() {
+    return type == CONTRIBUTION_CASH || type == CONTRIBUTION_CASH_WORKPLACE || type == CONTRIBUTION;
   }
 
   @Override

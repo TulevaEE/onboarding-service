@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.error;
 
 import java.util.Set;
+import org.jspecify.annotations.Nullable;
 
 public final class ExpectedErrorCodes {
 
@@ -8,15 +9,18 @@ public final class ExpectedErrorCodes {
       Set.of(
           "smart.id.user.refused",
           "smart.id.account.not.found",
+          "smart.id.timeout",
+          "smart.id.validation.failed",
           "mobile.id.cancelled",
           "mobile.id.timeout",
           "mobile.id.no.signal",
           "mobile.id.certificates.revoked",
-          "invalid.mandate.checks.missing");
+          "invalid.mandate.checks.missing",
+          "new.user.flow.signup.error.email.duplicate");
 
   private ExpectedErrorCodes() {}
 
-  public static boolean isExpected(String code) {
-    return EXPECTED.contains(code);
+  public static boolean isExpected(@Nullable String code) {
+    return code != null && EXPECTED.contains(code);
   }
 }

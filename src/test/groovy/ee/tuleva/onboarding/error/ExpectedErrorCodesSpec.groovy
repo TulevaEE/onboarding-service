@@ -36,4 +36,19 @@ class ExpectedErrorCodesSpec extends Specification {
     expect:
     !ExpectedErrorCodes.isExpected(null)
   }
+
+  @Unroll
+  def "codes #codes are all expected: #expected"() {
+    expect:
+    ExpectedErrorCodes.areAllExpected(codes) == expected
+
+    where:
+    codes                                                    || expected
+    ["smart.id.user.refused"]                                || true
+    ["smart.id.user.refused", "mobile.id.cancelled"]         || true
+    ["smart.id.user.refused", "mobile.id.internal.error"]    || false
+    ["mobile.id.internal.error", "smart.id.user.refused"]    || false
+    ["mobile.id.internal.error"]                             || false
+    []                                                       || false
+  }
 }

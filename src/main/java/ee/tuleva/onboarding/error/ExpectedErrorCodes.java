@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.error;
 
+import java.util.Collection;
 import java.util.Set;
 import org.jspecify.annotations.Nullable;
 
@@ -22,5 +23,9 @@ public final class ExpectedErrorCodes {
 
   public static boolean isExpected(@Nullable String code) {
     return code != null && EXPECTED.contains(code);
+  }
+
+  public static boolean areAllExpected(Collection<String> codes) {
+    return !codes.isEmpty() && codes.stream().allMatch(ExpectedErrorCodes::isExpected);
   }
 }

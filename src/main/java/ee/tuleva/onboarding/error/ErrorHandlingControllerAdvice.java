@@ -15,6 +15,7 @@ import ee.tuleva.onboarding.auth.smartid.SmartIdSessionNotFoundException;
 import ee.tuleva.onboarding.auth.webeid.WebEidAuthException;
 import ee.tuleva.onboarding.company.CompanyNotFoundException;
 import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
+import ee.tuleva.onboarding.error.response.ErrorResponse;
 import ee.tuleva.onboarding.error.response.ErrorResponseEntityFactory;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.exception.IdSessionException;
@@ -118,9 +119,11 @@ public class ErrorHandlingControllerAdvice {
       return;
     }
     var errorCode = errors.getFirst().getCode();
+    var allExpected =
+        ExpectedErrorCodes.areAllExpected(errors.stream().map(ErrorResponse::getCode).toList());
     MDC.put(ERROR_CODE, errorCode);
     try {
-      if (ExpectedErrorCodes.isExpected(errorCode)) {
+      if (allExpected) {
         log.info("Request rejected: code={}, error={}", errorCode, exception.toString());
       } else {
         log.error("Request rejected: code={}, error={}", errorCode, exception.toString());

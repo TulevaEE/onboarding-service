@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.investment.check.tracking;
 
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 
-import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.deadline.BusinessDays;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.event.RunTdAttributionBackfillRequested;
 import ee.tuleva.onboarding.investment.event.RunTdAttributionMonthlyRequested;
@@ -25,7 +25,7 @@ import org.springframework.stereotype.Component;
 public class PeriodicTdAttributionJob {
 
   private final PeriodicTdAttributionService service;
-  private final PublicHolidays publicHolidays;
+  private final BusinessDays businessDays;
   private final Clock clock;
 
   @Scheduled(cron = "0 0 8 1-14 * *", zone = TIMEZONE)
@@ -35,7 +35,7 @@ public class PeriodicTdAttributionJob {
       lockAtLeastFor = "PT5M")
   void computeMonthlyIfReady() {
     var today = LocalDate.now(clock);
-    if (!publicHolidays.isNthBusinessDayOfMonth(today, 4)) {
+    if (!businessDays.isNthBusinessDayOfMonth(today, 4)) {
       return;
     }
     var lastMonth = YearMonth.from(today).minusMonths(1);

@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.investment.fees.ocf;
 
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 
-import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.deadline.BusinessDays;
 import ee.tuleva.onboarding.investment.event.RunOcfCalculationRequested;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -22,14 +22,14 @@ import org.springframework.stereotype.Component;
 public class OcfCalculationJob {
 
   private final OcfCalculationService service;
-  private final PublicHolidays publicHolidays;
+  private final BusinessDays businessDays;
   private final Clock clock;
 
   @Scheduled(cron = "0 0 9 1-14 * *", zone = TIMEZONE)
   @SchedulerLock(name = "OcfCalculationJob", lockAtMostFor = "PT30M", lockAtLeastFor = "PT5M")
   void computeMonthlyIfReady() {
     var today = LocalDate.now(clock);
-    if (!publicHolidays.isNthBusinessDayOfMonth(today, 4)) {
+    if (!businessDays.isNthBusinessDayOfMonth(today, 4)) {
       return;
     }
     var lastMonth = YearMonth.from(today).minusMonths(1);

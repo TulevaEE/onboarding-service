@@ -4,7 +4,7 @@ import static ee.tuleva.onboarding.investment.risk.RiskIndicatorType.SRI;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
-import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.deadline.BusinessDays;
 import ee.tuleva.onboarding.investment.risk.RiskIndicatorService.RiskIndicatorOutcome;
 import ee.tuleva.onboarding.investment.risk.RiskIndicatorService.RiskIndicatorRun;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
@@ -41,7 +41,7 @@ class RiskIndicatorNotifier {
   private final RiskIndicatorPublicationRepository publicationRepository;
   private final RiskIndicatorProperties properties;
   private final FundValueRepository fundValueRepository;
-  private final PublicHolidays publicHolidays;
+  private final BusinessDays businessDays;
   private final Clock clock;
 
   void notify(RiskIndicatorRun run) {
@@ -146,7 +146,7 @@ class RiskIndicatorNotifier {
   private void sendDigestIfDue(RiskIndicatorRun run) {
     var today = LocalDate.now(clock);
     var month = today.withDayOfMonth(1);
-    if (!publicHolidays.isOnOrAfterNthBusinessDayOfMonth(today, DIGEST_BUSINESS_DAY)) {
+    if (!businessDays.isOnOrAfterNthBusinessDayOfMonth(today, DIGEST_BUSINESS_DAY)) {
       return;
     }
 

@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.deadline.BusinessDays;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -13,13 +14,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class OcfCalculationJobTest {
 
   @Mock private OcfCalculationService service;
-  @Mock private PublicHolidays publicHolidays;
+  @Spy private BusinessDays businessDays = new BusinessDays(new PublicHolidays());
   @Mock private Clock clock;
 
   @InjectMocks private OcfCalculationJob job;
@@ -30,7 +32,6 @@ class OcfCalculationJobTest {
   void computeMonthlyOnFourthBusinessDay() {
     var fourthBd = LocalDate.of(2026, 6, 4);
     setupClock(fourthBd);
-    given(publicHolidays.isNthBusinessDayOfMonth(fourthBd, 4)).willReturn(true);
 
     job.computeMonthlyIfReady();
 
@@ -41,7 +42,6 @@ class OcfCalculationJobTest {
   void skipWhenNotFourthBusinessDay() {
     var thirdBd = LocalDate.of(2026, 6, 3);
     setupClock(thirdBd);
-    given(publicHolidays.isNthBusinessDayOfMonth(thirdBd, 4)).willReturn(false);
 
     job.computeMonthlyIfReady();
 

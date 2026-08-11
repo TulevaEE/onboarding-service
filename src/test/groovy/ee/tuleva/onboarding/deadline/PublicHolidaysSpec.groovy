@@ -4,7 +4,6 @@ import spock.lang.Specification
 
 import java.time.LocalDate
 import java.time.Month
-import java.time.YearMonth
 
 class PublicHolidaysSpec extends Specification {
 
@@ -62,47 +61,6 @@ class PublicHolidaysSpec extends Specification {
     PublicHolidays publicHolidays = new PublicHolidays()
     then:
     publicHolidays.previousWorkingDay(LocalDate.parse("2017-05-02")) == LocalDate.parse("2017-04-28")
-  }
-
-  def "nth business day of month skips weekends and public holidays"() {
-    given:
-    PublicHolidays publicHolidays = new PublicHolidays()
-    expect:
-    publicHolidays.nthBusinessDayOfMonth(YearMonth.from(LocalDate.parse(month)), n) == LocalDate.parse(expected)
-    where:
-    month        | n || expected
-    "2026-02-01" | 1 || "2026-02-02"
-    "2026-02-01" | 4 || "2026-02-05"
-    "2026-05-01" | 4 || "2026-05-07"
-    "2026-06-01" | 4 || "2026-06-04"
-    "2026-08-01" | 4 || "2026-08-06"
-  }
-
-  def "isNthBusinessDayOfMonth is true only on the exact day"() {
-    given:
-    PublicHolidays publicHolidays = new PublicHolidays()
-    expect:
-    publicHolidays.isNthBusinessDayOfMonth(LocalDate.parse(date), 4) == expected
-    where:
-    date         || expected
-    "2026-02-05" || true
-    "2026-02-04" || false
-    "2026-02-06" || false
-    "2026-05-07" || true
-    "2026-05-06" || false
-  }
-
-  def "isOnOrAfterNthBusinessDayOfMonth is true from the nth business day onwards"() {
-    given:
-    PublicHolidays publicHolidays = new PublicHolidays()
-    expect:
-    publicHolidays.isOnOrAfterNthBusinessDayOfMonth(LocalDate.parse(date), 4) == expected
-    where:
-    date         || expected
-    "2026-02-04" || false
-    "2026-02-05" || true
-    "2026-02-06" || true
-    "2026-02-28" || true
   }
 
 }

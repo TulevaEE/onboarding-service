@@ -14,6 +14,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
+import ee.tuleva.onboarding.deadline.BusinessDays;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.risk.RiskIndicatorProperties.ProxyReview;
@@ -82,7 +83,7 @@ class RiskIndicatorNotifierTest {
         publications,
         properties,
         fundValues,
-        new PublicHolidays(),
+        new BusinessDays(new PublicHolidays()),
         Clock.fixed(today.atStartOfDay(ZoneOffset.UTC).toInstant(), ZoneOffset.UTC));
   }
 
@@ -561,6 +562,223 @@ class RiskIndicatorNotifierTest {
     notifier.notify(run(stableSri()));
 
     assertThat(notifications.lastMessage()).doesNotContain("proxy vajab ülevaatust");
+  }
+
+  @Test
+  void aRunThatEvaluatedNothingSaysSoAndFallsBackToTheRunDate() {
+    notifier.notify(new RiskIndicatorRun(EVALUATION_DATE, List.of(), List.of()));
+
+    assertThat(notifications.lastMessage())
+        .startsWith(
+            "✅ Riskiindikaatorite kuuülevaade — seisuga 2026-07-31\nÜhtegi fondi ei hinnatud.");
+  }
+
+  @Test
+  void theOpenEndedTopClassPrintsItsRangeWithoutAnUpperBound() {
+    disclose(SRRI, TUV100, 7);
+
+    notifier.notify(run(topClassSrri()));
+
+    assertThat(notifications.lastMessage())
+        .contains("(klassi 7 vahemik 25,00%–∞); lähim piir on 5,00% kaugusel.");
+  }
+
+  @Test
+  void aStatusChangeThatLeavesThePublishedClassAloneIsStillAlerted() {
+    disclose(SRRI, TUK75, 4);
+
+    notifier(LocalDate.of(2026, 8, 5))
+        .notify(
+            new RiskIndicatorRun(
+                EVALUATION_DATE,
+                List.of(
+                    outcome(
+                        pendingSrri(),
+                        new PublicationSnapshot(EVALUATION_DATE.minusDays(1), 4, 4, STABLE))),
+                List.of()));
+
+    assertThat(notifications.messages)
+        .containsExactly(
+            """
+            Riskiindikaatori muutus
+            ⚠️ TUK75 SRRI — staatus STABLE → CHANGE_PENDING (arvutatud klass 5, avaldatav klass 4)""");
+  }
+
+  @Test
+  void aFailedSendOverAnIncompleteMonthLeavesTheMonthOpenInsteadOfDeletingIt() {
+    var incomplete =
+        RiskIndicatorDigest.builder().digestMonth(LocalDate.of(2026, 8, 1)).complete(false).build();
+    given(digests.findByDigestMonth(LocalDate.of(2026, 8, 1))).willReturn(Optional.of(incomplete));
+    notifications.failing = true;
+
+    notifier.notify(run(stableSri()));
+
+    assertThat(incomplete.getComplete()).isFalse();
+    Mockito.verify(digests, Mockito.never()).delete(any());
+  }
+
+  @Test
+  void aFundWithoutEnoughDataGetsItsOwnBlockAndNoClassColumns() {
+    notifier.notify(
+        run(
+            PublishedRiskIndicator.insufficientData(
+                TUK00, SRRI, EVALUATION_DATE, 17, new BigDecimal("0.021000000000"))));
+
+    assertThat(notifications.lastMessage())
+        .contains(
+            "TUK00   SRRI    —          ?          —              —        —        ⚠️ andmeid napib",
+            "⚠️ TUK00 SRRI — andmeid napib",
+            "Aknas on 17 vaatlust, klassi ei avaldata. Volatiilsus 2,10%.",
+            "👉 Tegevus: kontrolli, kas NAV-seeria on täielik — fondijuht.");
+  }
+
+  @Test
+  void aConfirmedChangeThatTheDocumentAlreadyReflectsIsSpelledOutRatherThanFlaggedRed() {
+    disclose(SRRI, TUV100, 5);
+
+    notifier.notify(run(staleDocumentSrri()));
+
+    assertThat(notifications.lastMessage())
+        .contains(
+            "⚠️ muutus kinnitatud",
+            "⚠️ TUV100 SRRI — muutus äsja kinnitatud",
+            "Avaldatav klass 5 alates 2026-05-05 (eelmine 4).",
+            "👉 Tegevus: kontrolli, kas dokument on juba uuendatud — riskijuht.");
+  }
+
+  @Test
+  void aClassWithoutAVolatilityStillPrintsItsRange() {
+    disclose(SRI, TKF100, 4);
+
+    notifier.notify(run(withVolatility(stableSri(), null)));
+
+    assertThat(notifications.lastMessage()).contains("Klassi 4 vahemik 0,1200–0,2000.");
+  }
+
+  @Test
+  void aPendingSriChangeCountsTheReferencePointsStillMissingForTheMajority() {
+    disclose(SRI, TKF100, 4);
+
+    notifier.notify(run(pendingSri()));
+
+    assertThat(notifications.lastMessage())
+        .contains(
+            "Klass 5 on hoidnud 30 kauplemispäeva alates 2026-06-15."
+                + " PRIIPs enamuseni puudu 13 punkti.");
+  }
+
+  @Test
+  void aPendingSrriChangeWithoutAKnownStartDateOnlyReportsTheStreak() {
+    disclose(SRRI, TUK75, 4);
+
+    notifier.notify(run(withRawClassSince(pendingSrri(), null)));
+
+    assertThat(notifications.lastMessage()).contains("Klass 5 on hoidnud 9 nädalat.");
+  }
+
+  @Test
+  void theProxyReviewStopsOnceTheIndicatorAlreadyReadsTheFundsOwnHistory() {
+    proxyReviews.put(TKF100, new ProxyReview("MSCI_ACWI", 2));
+    given(fundValues.findEarliestDateForKey(any()))
+        .willReturn(Optional.of(LocalDate.of(2000, 1, 1)));
+    disclose(SRI, TKF100, 4);
+
+    notifier.notify(run(stableSri()));
+
+    assertThat(notifications.lastMessage()).doesNotContain("proxy vajab ülevaatust");
+  }
+
+  @Test
+  void theProxyReviewStaysSilentWhileTheFundHasNoOwnHistoryAtAll() {
+    proxyReviews.put(TKF100, new ProxyReview(TKF100.getIsin(), 2));
+    given(fundValues.findEarliestDateForKey(TKF100.getIsin())).willReturn(Optional.empty());
+    disclose(SRI, TKF100, 4);
+
+    notifier.notify(run(stableSri()));
+
+    assertThat(notifications.lastMessage()).doesNotContain("proxy vajab ülevaatust");
+  }
+
+  private PublishedRiskIndicator topClassSrri() {
+    return new PublishedRiskIndicator(
+        TUV100,
+        SRRI,
+        EVALUATION_DATE,
+        7,
+        7,
+        6,
+        LocalDate.of(2025, 5, 5),
+        false,
+        LocalDate.of(2025, 5, 5),
+        60,
+        60,
+        17,
+        17,
+        260,
+        new BigDecimal("0.300000000000"),
+        STABLE);
+  }
+
+  private PublishedRiskIndicator pendingSri() {
+    return new PublishedRiskIndicator(
+        TKF100,
+        SRI,
+        EVALUATION_DATE,
+        4,
+        5,
+        4,
+        LocalDate.of(2026, 3, 14),
+        false,
+        LocalDate.of(2026, 6, 15),
+        85,
+        30,
+        85,
+        30,
+        1305,
+        new BigDecimal("0.204000000000"),
+        CHANGE_PENDING);
+  }
+
+  private PublishedRiskIndicator withVolatility(
+      PublishedRiskIndicator indicator, @Nullable BigDecimal volatility) {
+    return new PublishedRiskIndicator(
+        indicator.fund(),
+        indicator.indicatorType(),
+        indicator.evaluationDate(),
+        indicator.publishedClass(),
+        indicator.rawLatestClass(),
+        indicator.previousPublishedClass(),
+        indicator.publishedSince(),
+        indicator.publishedSinceIsTruncated(),
+        indicator.rawClassSince(),
+        indicator.streakReferencePoints(),
+        indicator.rawStreakReferencePoints(),
+        indicator.windowReferencePoints(),
+        indicator.matchingReferencePoints(),
+        indicator.latestObservationCount(),
+        volatility,
+        indicator.status());
+  }
+
+  private PublishedRiskIndicator withRawClassSince(
+      PublishedRiskIndicator indicator, @Nullable LocalDate rawClassSince) {
+    return new PublishedRiskIndicator(
+        indicator.fund(),
+        indicator.indicatorType(),
+        indicator.evaluationDate(),
+        indicator.publishedClass(),
+        indicator.rawLatestClass(),
+        indicator.previousPublishedClass(),
+        indicator.publishedSince(),
+        indicator.publishedSinceIsTruncated(),
+        rawClassSince,
+        indicator.streakReferencePoints(),
+        indicator.rawStreakReferencePoints(),
+        indicator.windowReferencePoints(),
+        indicator.matchingReferencePoints(),
+        indicator.latestObservationCount(),
+        indicator.latestVolatility(),
+        indicator.status());
   }
 
   private PublishedRiskIndicator stableSri() {

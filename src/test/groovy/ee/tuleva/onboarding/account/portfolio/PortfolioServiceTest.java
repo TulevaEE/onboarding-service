@@ -46,6 +46,7 @@ class PortfolioServiceTest {
   private static final LocalDate FROM = LocalDate.parse("2025-01-01");
   private static final LocalDate TO = LocalDate.parse("2025-12-31");
   private static final LocalDate FAR_FUTURE = LocalDate.parse("9999-12-31");
+  private static final LocalDate FIRST_HOLDING = LocalDate.parse("2019-03-05");
 
   @Mock private TransactionService transactionService;
   @Mock private FundRepository fundRepository;
@@ -101,6 +102,26 @@ class PortfolioServiceTest {
                     .to(TO)
                     .build()))
         .build();
+  }
+
+  @Test
+  void startsAnAllTimePeriodAtTheFirstDayAnythingWasHeld() {
+    given(transactionService.getTransactions(person))
+        .willReturn(List.of(buy(PILLAR_2, "2019-03-05T10:00:00Z", "100", "2")));
+    given(fundRepository.findAll())
+        .willReturn(List.of(Fund.builder().isin(PILLAR_2).pillar(2).build()));
+    given(fundValueRepository.getLatestValue(any(), any())).willReturn(Optional.empty());
+    given(fundValueRepository.findValuesBetweenDates(eq(PILLAR_2), eq(FIRST_HOLDING), eq(TO)))
+        .willReturn(
+            List.of(
+                fundValue(PILLAR_2, "2019-03-05", "2"), fundValue(PILLAR_2, "2025-12-31", "3")));
+    given(returnsService.get(eq(person), eq(FIRST_HOLDING), eq(TO), any()))
+        .willReturn(personalReturn(PersonalReturnProvider.SECOND_PILLAR, "0.0712"));
+
+    Portfolio portfolio = portfolioService.getPortfolio(person, null, TO);
+
+    assertThat(portfolio.from()).isEqualTo(FIRST_HOLDING);
+    assertThat(portfolio.series().getFirst().date()).isEqualTo(FIRST_HOLDING);
   }
 
   @Test

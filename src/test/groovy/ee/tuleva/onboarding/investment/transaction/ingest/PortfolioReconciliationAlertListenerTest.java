@@ -76,4 +76,41 @@ class PortfolioReconciliationAlertListenerTest {
         .contains("IE0009FT4LX4")
         .contains("(puudub)");
   }
+
+  // An empty ledger means the comparison did not happen. Reporting it as a mismatch is what made
+  // the missing baseline row look like a position divergence.
+  @Test
+  void onLedgerUnavailable_saysTheComparisonDidNotHappenRatherThanReportingADivergence() {
+    given(emailService.sendSystemEmail(org.mockito.ArgumentMatchers.any(MandrillMessage.class)))
+        .willReturn(true);
+
+    listener()
+        .onLedgerUnavailable(
+            new PortfolioLedgerUnavailableEvent(TUK75, LocalDate.of(2026, 5, 18), 12));
+
+    ArgumentCaptor<MandrillMessage> captor = ArgumentCaptor.forClass(MandrillMessage.class);
+    verify(emailService).sendSystemEmail(captor.capture());
+    MandrillMessage message = captor.getValue();
+
+    assertThat(message.getSubject())
+        .isEqualTo("[HOIATUS] Portfelli võrdlus jäi tegemata – TUK75 – 2026-05-18");
+    assertThat(message.getText())
+        .contains("See EI ole positsioonide lahknevus.")
+        .contains("Kuupäev: 2026-05-18")
+        .contains("Fond: TUK75 (Tuleva Maailma Aktsiate Pensionifond)")
+        .contains("on 12 väärtpaberipositsiooni, meie pearaamatus 0")
+        .contains("investment_portfolio_baseline");
+  }
+
+  @Test
+  void onLedgerUnavailable_survivesAnEmailThatWasNotAccepted() {
+    given(emailService.sendSystemEmail(org.mockito.ArgumentMatchers.any(MandrillMessage.class)))
+        .willReturn(false);
+
+    listener()
+        .onLedgerUnavailable(
+            new PortfolioLedgerUnavailableEvent(TUK75, LocalDate.of(2026, 5, 18), 12));
+
+    verify(emailService).sendSystemEmail(org.mockito.ArgumentMatchers.any(MandrillMessage.class));
+  }
 }

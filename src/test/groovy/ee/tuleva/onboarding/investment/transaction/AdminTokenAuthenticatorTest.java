@@ -60,6 +60,20 @@ class AdminTokenAuthenticatorTest {
         .isEqualTo(SERVICE_UNAVAILABLE);
   }
 
+  // Neither property is set in local runs, and an unconfigured admin API has to say so rather
+  // than blow up on a null token.
+  @Test
+  void treatsCompletelyUnsetPropertiesAsNoTokensRatherThanNulls() {
+    var properties = new AdminTokenProperties(null, null);
+
+    assertThat(properties.apiToken()).isEmpty();
+    assertThat(properties.operatorTokens()).isEmpty();
+    assertThatThrownBy(() -> new AdminTokenAuthenticator(properties).resolveActor("anything"))
+        .isInstanceOf(ResponseStatusException.class)
+        .extracting(exception -> ((ResponseStatusException) exception).getStatusCode())
+        .isEqualTo(SERVICE_UNAVAILABLE);
+  }
+
   @Test
   void refusesToStartWithABlankOperatorTokenThatWouldMatchAnEmptyHeader() {
     assertThatThrownBy(() -> new AdminTokenProperties("shared", Map.of("ghost", "")))

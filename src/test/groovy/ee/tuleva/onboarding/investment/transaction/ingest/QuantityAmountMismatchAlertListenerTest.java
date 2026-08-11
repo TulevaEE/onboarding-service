@@ -9,7 +9,11 @@ import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.verify;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
@@ -44,8 +48,7 @@ class QuantityAmountMismatchAlertListenerTest {
 
   @Test
   void onQuantityAmountMismatch_sendsSlackNotificationWithKeyDetails() {
-    given(emailService.sendSystemEmail(org.mockito.ArgumentMatchers.any(MandrillMessage.class)))
-        .willReturn(true);
+    given(emailService.sendSystemEmail(any(MandrillMessage.class))).willReturn(true);
 
     listener().onQuantityAmountMismatch(sampleEvent());
 
@@ -60,8 +63,7 @@ class QuantityAmountMismatchAlertListenerTest {
 
   @Test
   void onQuantityAmountMismatch_sendsSystemEmailWithSubjectAndBody() {
-    given(emailService.sendSystemEmail(org.mockito.ArgumentMatchers.any(MandrillMessage.class)))
-        .willReturn(true);
+    given(emailService.sendSystemEmail(any(MandrillMessage.class))).willReturn(true);
 
     QuantityAmountMismatchEvent event = sampleEvent();
     UUID clientRef = event.row().clientRef();
@@ -95,6 +97,37 @@ class QuantityAmountMismatchAlertListenerTest {
         .contains("Our ref: DLA0799512")
         .contains("Side: BUY")
         .contains("Client name: Tuleva Täiendav Kogumisfond");
+  }
+
+  @Test
+  void onQuantityAmountMismatch_stillSendsTheEmailWhenSlackIsDown() {
+    given(emailService.sendSystemEmail(any(MandrillMessage.class))).willReturn(true);
+    willThrow(new IllegalStateException())
+        .given(notificationService)
+        .sendMessage(anyString(), any());
+
+    listener().onQuantityAmountMismatch(sampleEvent());
+
+    verify(emailService).sendSystemEmail(any(MandrillMessage.class));
+  }
+
+  @Test
+  void onQuantityAmountMismatch_survivesAnEmailThatWasNotAccepted() {
+    given(emailService.sendSystemEmail(any(MandrillMessage.class))).willReturn(false);
+
+    listener().onQuantityAmountMismatch(sampleEvent());
+
+    verify(notificationService).sendMessage(anyString(), eq(INVESTMENT));
+  }
+
+  @Test
+  void onQuantityAmountMismatch_survivesAMandrillFailureInsteadOfKillingTheListener() {
+    given(emailService.sendSystemEmail(any(MandrillMessage.class)))
+        .willThrow(new IllegalStateException());
+
+    listener().onQuantityAmountMismatch(sampleEvent());
+
+    verify(notificationService).sendMessage(anyString(), eq(INVESTMENT));
   }
 
   private static QuantityAmountMismatchEvent sampleEvent() {

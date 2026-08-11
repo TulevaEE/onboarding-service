@@ -79,9 +79,6 @@ class PendingOrderImpactService {
   private Map<Long, BigDecimal> executedConsiderationByOrderId(List<TransactionOrder> orders) {
     List<Long> orderIds =
         orders.stream().map(TransactionOrder::getId).filter(Objects::nonNull).toList();
-    if (orderIds.isEmpty()) {
-      return Map.of();
-    }
     return executionRepository.findByOrderIdIn(orderIds).stream()
         .filter(execution -> execution.getTotalConsideration() != null)
         .collect(

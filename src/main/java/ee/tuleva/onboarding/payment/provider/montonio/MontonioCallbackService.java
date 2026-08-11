@@ -106,6 +106,9 @@ public class MontonioCallbackService {
   }
 
   private JWSObject parseToken(String serializedToken) {
+    if (serializedToken == null || serializedToken.isBlank()) {
+      throw new BadCredentialsException("Missing payment token");
+    }
     try {
       return JWSObject.parse(serializedToken);
     } catch (ParseException e) {

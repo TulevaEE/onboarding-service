@@ -128,9 +128,9 @@ class PaymentVerificationNotificationIntegrationTest {
                 transactionTemplate.executeWithoutResult(
                     status -> {
                       paymentVerificationService.process(payment);
-                      throw new IllegalStateException("Something else failed");
+                      throw new DeliberateRollback();
                     }))
-        .isInstanceOf(IllegalStateException.class);
+        .isInstanceOf(DeliberateRollback.class);
 
     verifyNoInteractions(notificationService);
     verify(emailService, never()).send(any(), any(), any());
@@ -203,4 +203,6 @@ class PaymentVerificationNotificationIntegrationTest {
         .param("id", paymentId)
         .update();
   }
+
+  private static class DeliberateRollback extends RuntimeException {}
 }

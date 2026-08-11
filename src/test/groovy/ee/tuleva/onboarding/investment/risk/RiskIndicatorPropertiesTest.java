@@ -20,6 +20,22 @@ class RiskIndicatorPropertiesTest {
   }
 
   @Test
+  void aFundWithNoConfiguredSourceIsARefusalRatherThanAnEmptySeries() {
+    var properties = new RiskIndicatorProperties(null, null);
+
+    assertThatThrownBy(() -> properties.sourcesFor(TKF100))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void aFundConfiguredWithAnEmptySourceListIsARefusalToo() {
+    var properties = propertiesWith(List.of());
+
+    assertThatThrownBy(() -> properties.sourcesFor(TKF100))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
   void aSplicedSourceMustSayWhereEachLaterSegmentStarts() {
     var properties =
         propertiesWith(List.of(new Source("MSCI_ACWI", null), new Source("EE0000003283", null)));

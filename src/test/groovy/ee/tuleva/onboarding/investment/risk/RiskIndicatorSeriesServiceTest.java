@@ -10,6 +10,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
@@ -151,6 +152,44 @@ class RiskIndicatorSeriesServiceTest {
     assertThat(points).isNotEmpty();
     assertThat(points).allSatisfy(point -> assertThat(point.riskClass()).isLessThan(7));
     assertThat(points.getLast().volatility().doubleValue()).isLessThan(0.5);
+  }
+
+  @Test
+  void skipsFundsWhoseSourceHasAnAnchorButNoPricesInTheLoadWindow() {
+    var prices = dailyPrices(ACWI, ANCHOR.minusYears(7), ANCHOR);
+    given(fundValueRepository.findLastValueForFund(anyString()))
+        .willReturn(Optional.of(prices.getLast()));
+    given(fundValueRepository.findValuesBetweenDates(anyString(), any(), any()))
+        .willReturn(List.of());
+
+    var refresh = service.refreshSeries(TKF100, SRI, 1);
+
+    assertThat(refresh.points()).isEmpty();
+    verify(pointRepository, never()).saveAll(any());
+  }
+
+  @Test
+  void aSegmentThatEndsBeforeTheLoadWindowOpensIsNotQueriedAtAll() {
+    var navPrices = dailyPrices(TKF_ISIN, ANCHOR.minusYears(7), ANCHOR, 1.05);
+    given(fundValueRepository.findLastValueForFund(TKF_ISIN))
+        .willReturn(Optional.of(navPrices.getLast()));
+    given(fundValueRepository.findValuesBetweenDates(eq(TKF_ISIN), any(), any()))
+        .willReturn(navPrices);
+    given(pointRepository.findByIndicatorTypeAndFundOrderByAsOfDateAsc(SRI, TKF100))
+        .willReturn(List.of());
+    var longRetiredProxy =
+        new RiskIndicatorProperties(
+            Map.of(
+                TKF100,
+                List.of(
+                    new RiskIndicatorProperties.Source(ACWI, null),
+                    new RiskIndicatorProperties.Source(TKF_ISIN, ANCHOR.minusYears(20)))),
+            Map.of());
+
+    var points = serviceWith(longRetiredProxy).refreshSeries(TKF100, SRI, 1).points();
+
+    verify(fundValueRepository, never()).findValuesBetweenDates(eq(ACWI), any(), any());
+    assertThat(points).isNotEmpty();
   }
 
   @Test

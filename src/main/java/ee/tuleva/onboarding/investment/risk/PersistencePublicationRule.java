@@ -51,9 +51,6 @@ class PersistencePublicationRule implements PublicationRule {
   }
 
   private boolean isWindowComplete(List<ReferencePoint> window, LocalDate evalDate) {
-    if (window.isEmpty()) {
-      return false;
-    }
     var windowStart = evalDate.minusMonths(PERSISTENCE_WINDOW_MONTHS);
     if (window.getFirst().date().isAfter(windowStart.plusDays(WINDOW_START_TOLERANCE_DAYS))) {
       return false;

@@ -335,6 +335,46 @@ class OpenSanctionsServiceTest {
   }
 
   @Test
+  @DisplayName("Should skip a country whose code is missing rather than send it")
+  void match_whenCountryCodeIsMissing_skipsIt() throws JacksonException, JSONException {
+    // given
+    String firstName = "Peeter";
+    String lastName = "Meeter";
+    String fullName = firstName + " " + lastName;
+    LocalDate birthDate = LocalDate.parse("1960-04-08");
+    String personalCode = "36004081234";
+    Person person = new PersonImpl(personalCode, firstName, lastName);
+    // Country is a mutable bean, so a null code is constructible even though Countries.of filters
+    // it. Sending it would put a literal "null" in the outbound body.
+    Set<Country> countries = Set.of(new Country("fi"), new Country(null));
+
+    List<String> countriesForRequest = List.of("ee", "fi");
+    List<String> countriesForQueryInResponse = List.of("ee", "fi");
+    String gender = "male";
+
+    String emptyResultsJson = "[]";
+    String mockApiResponseJson =
+        buildMockApiResponseJson(
+            personalCode, fullName, birthDate, countriesForQueryInResponse, emptyResultsJson);
+    String expectedRequestBodyJson =
+        buildExpectedRequestBodyJson(
+            personalCode, fullName, birthDate, countriesForRequest, gender);
+
+    server
+        .expect(requestTo(baseUrlForMatching))
+        .andExpect(MockRestRequestMatchers.method(HttpMethod.POST))
+        .andExpect(MockRestRequestMatchers.content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(MockRestRequestMatchers.content().json(expectedRequestBodyJson, true))
+        .andRespond(withSuccess(mockApiResponseJson, MediaType.APPLICATION_JSON));
+
+    // when
+    MatchResponse actualResponse = openSanctionsService.match(person, countries);
+
+    // then
+    assertTrue(actualResponse.results().isEmpty());
+  }
+
+  @Test
   @DisplayName("Should find a match for a company")
   void canFindCompanyMatch() throws JacksonException, JSONException {
     String registryCode = "12345678";

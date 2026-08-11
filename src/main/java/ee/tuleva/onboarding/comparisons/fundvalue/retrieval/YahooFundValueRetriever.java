@@ -93,7 +93,7 @@ public class YahooFundValueRetriever implements ComparisonIndexRetriever {
 
     Result result = response.chart().result().getFirst();
     if (result.timestamp() == null) {
-      log.error(
+      log.warn(
           "Expected Yahoo data but response has no timestamps: ticker={}, startDate={}, endDate={}",
           fundName,
           startDate,

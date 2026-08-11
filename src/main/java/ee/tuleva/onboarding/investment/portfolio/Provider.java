@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.investment.portfolio;
 
-import static ee.tuleva.onboarding.investment.calendar.Domicile.FRANCE;
 import static ee.tuleva.onboarding.investment.calendar.Domicile.IRELAND;
 import static ee.tuleva.onboarding.investment.calendar.Domicile.LUXEMBOURG;
 
@@ -12,7 +11,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum Provider {
   ISHARES(IRELAND),
-  CCF(FRANCE),
+  CCF(IRELAND),
   INVESCO(IRELAND),
   XTRACKERS(IRELAND),
   AMUNDI(LUXEMBOURG),

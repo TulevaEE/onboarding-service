@@ -98,7 +98,8 @@ public class HoldingDetailsJob {
     }
 
     List<HoldingDetail> parsedDetails = new ArrayList<>();
-    try (GZIPInputStream gzipStream = new GZIPInputStream(fileStream)) {
+    try (InputStream downloadedStream = fileStream;
+        GZIPInputStream gzipStream = new GZIPInputStream(downloadedStream)) {
       new XmlHoldingDetailParser(
               gzipStream,
               VAN_ID,

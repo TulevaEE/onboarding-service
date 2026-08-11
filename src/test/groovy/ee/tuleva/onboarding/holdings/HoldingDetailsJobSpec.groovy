@@ -201,6 +201,38 @@ class HoldingDetailsJobSpec extends Specification {
         0 * repository.save(_)
     }
 
+    def "closes the downloaded stream when gzip initialisation fails"() {
+        given:
+        FtpClient corruptClient = Mock(FtpClient)
+        HoldingDetailsJob jobUnderTest = new HoldingDetailsJob(repository, corruptClient)
+        def downloadedStream = new ClosingTrackingInputStream("this is not gzipped at all".bytes)
+        repository.findFirstByOrderByCreatedDateDesc() >> null
+        corruptClient.listFiles(_) >> [A_FILE_NAME]
+        corruptClient.downloadFileStream(_) >> downloadedStream
+
+        when:
+        jobUnderTest.runJob()
+
+        then:
+        thrown(RuntimeException)
+        downloadedStream.closed
+        1 * corruptClient.close()
+    }
+
+    private static class ClosingTrackingInputStream extends ByteArrayInputStream {
+        boolean closed = false
+
+        ClosingTrackingInputStream(byte[] bytes) {
+            super(bytes)
+        }
+
+        @Override
+        void close() throws IOException {
+            closed = true
+            super.close()
+        }
+    }
+
     private static final String A_FILE_NAME = "AllHoldings25_XI_MSTAR_USA_M_20200506.xml.gz"
 
     private static final String TRUNCATED_XML =

@@ -18,6 +18,7 @@ import spock.lang.Specification
 
 import java.nio.file.Files
 import java.time.LocalDate
+import java.util.zip.GZIPOutputStream
 
 class HoldingDetailsJobSpec extends Specification {
     @Shared
@@ -148,5 +149,74 @@ class HoldingDetailsJobSpec extends Specification {
 
         then:
         0 * repository.save(_ as HoldingDetail)
+    }
+
+    def "fails fast when the ftp download returns no stream"() {
+        given:
+        FtpClient unreadyClient = Mock(FtpClient)
+        HoldingDetailsJob jobUnderTest = new HoldingDetailsJob(repository, unreadyClient)
+        repository.findFirstByOrderByCreatedDateDesc() >> null
+        unreadyClient.listFiles(_) >> [A_FILE_NAME]
+        unreadyClient.downloadFileStream(_) >> null
+
+        when:
+        jobUnderTest.runJob()
+
+        then:
+        thrown(IllegalStateException)
+    }
+
+    def "closes the ftp session when parsing fails"() {
+        given:
+        FtpClient failingClient = Mock(FtpClient)
+        HoldingDetailsJob jobUnderTest = new HoldingDetailsJob(repository, failingClient)
+        repository.findFirstByOrderByCreatedDateDesc() >> null
+        failingClient.listFiles(_) >> [A_FILE_NAME]
+        failingClient.downloadFileStream(_) >> gzipOf(TRUNCATED_XML)
+
+        when:
+        jobUnderTest.runJob()
+
+        then:
+        thrown(RuntimeException)
+        1 * failingClient.close()
+        0 * repository.save(_)
+    }
+
+    def "fails when the transfer does not complete"() {
+        given:
+        FtpClient truncatingClient = Mock(FtpClient)
+        HoldingDetailsJob jobUnderTest = new HoldingDetailsJob(repository, truncatingClient)
+        repository.findFirstByOrderByCreatedDateDesc() >> null
+        truncatingClient.listFiles(_) >> [A_FILE_NAME]
+        truncatingClient.downloadFileStream(_) >> gzipOf(readFileAsString('/morningstar/investment_minimal.xml.gz'))
+        truncatingClient.completePendingCommand() >> false
+
+        when:
+        jobUnderTest.runJob()
+
+        then:
+        thrown(IllegalStateException)
+        1 * truncatingClient.close()
+        0 * repository.save(_)
+    }
+
+    private static final String A_FILE_NAME = "AllHoldings25_XI_MSTAR_USA_M_20200506.xml.gz"
+
+    private static final String TRUNCATED_XML =
+        '<Package><PackageBody><InvestmentVehicle _Id="F00000VN9N"><PortfolioList>'
+
+    private static InputStream gzipOf(String xml) {
+        def compressed = new ByteArrayOutputStream()
+        new GZIPOutputStream(compressed).withCloseable { it.write(xml.getBytes("UTF-8")) }
+        return new ByteArrayInputStream(compressed.toByteArray())
+    }
+
+    private String readFileAsString(String fileName) {
+        return new String(gunzip(readFile(fileName)), "UTF-8")
+    }
+
+    private static byte[] gunzip(byte[] compressed) {
+        return new java.util.zip.GZIPInputStream(new ByteArrayInputStream(compressed)).bytes
     }
 }

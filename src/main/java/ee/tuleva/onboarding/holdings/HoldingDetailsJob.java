@@ -13,6 +13,7 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.GZIPInputStream;
 import javax.xml.namespace.QName;
@@ -50,7 +51,7 @@ public class HoldingDetailsJob {
       lastDate = lastDetail.getCreatedDate();
     }
 
-    log.info("Get data from last date: " + lastDate);
+    log.info("Getting holding details: fromDate={}", lastDate);
     downloadHoldingDetails(lastDate);
   }
 
@@ -72,30 +73,56 @@ public class HoldingDetailsJob {
         if (!fileName.endsWith(".xml.gz")) continue;
 
         LocalDate fileDate = extractFileDate(fileName);
-        log.info("Retrieved a file with date: " + fileDate.toString());
+        log.info("Retrieved a file: fileName={}, fileDate={}", fileName, fileDate);
 
         if (fileDate.compareTo(from) > 0) {
-          log.info("Parsing file");
-          InputStream fileStream = morningstarFtpClient.downloadFileStream(PATH + fileName);
-          GZIPInputStream gzipStream = new GZIPInputStream(fileStream);
-          new XmlHoldingDetailParser(
-                  gzipStream,
-                  VAN_ID,
-                  xmlDetail -> {
-                    log.info("Parsed entry with security name: " + xmlDetail.getSecurityName());
-                    HoldingDetail detail = new HoldingDetailConverter().convert(xmlDetail);
-                    detail.setCreatedDate(fileDate);
-                    persistHoldingDetail(detail);
-                  })
-              .parse();
-          gzipStream.close();
-          morningstarFtpClient.completePendingCommand();
+          parseHoldingDetailsFile(fileName, fileDate);
         }
       }
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     } catch (JAXBException | XMLStreamException e) {
       throw new RuntimeException(e);
+    } finally {
+      closeFtpConnection();
+    }
+  }
+
+  private void parseHoldingDetailsFile(String fileName, LocalDate fileDate)
+      throws IOException, JAXBException, XMLStreamException {
+    log.info("Parsing file: fileName={}", fileName);
+    InputStream fileStream = morningstarFtpClient.downloadFileStream(PATH + fileName);
+
+    if (fileStream == null) {
+      throw new IllegalStateException("FTP download returned no stream: path=" + PATH + fileName);
+    }
+
+    List<HoldingDetail> parsedDetails = new ArrayList<>();
+    try (GZIPInputStream gzipStream = new GZIPInputStream(fileStream)) {
+      new XmlHoldingDetailParser(
+              gzipStream,
+              VAN_ID,
+              xmlDetail -> {
+                log.debug("Parsed entry: securityName={}", xmlDetail.getSecurityName());
+                HoldingDetail detail = new HoldingDetailConverter().convert(xmlDetail);
+                detail.setCreatedDate(fileDate);
+                parsedDetails.add(detail);
+              })
+          .parse();
+    }
+
+    if (!morningstarFtpClient.completePendingCommand()) {
+      throw new IllegalStateException("FTP transfer did not complete: path=" + PATH + fileName);
+    }
+
+    parsedDetails.forEach(this::persistHoldingDetail);
+  }
+
+  private void closeFtpConnection() {
+    try {
+      morningstarFtpClient.close();
+    } catch (IOException e) {
+      log.error("Unable to close FTP connection: path={}", PATH, e);
     }
   }
 

@@ -94,6 +94,7 @@ public class OpenSanctionsService implements PepAndSanctionCheckService {
     codes.add(ESTONIA);
     countries.stream()
         .map(Country::getCountryCode)
+        .filter(code -> code != null && !code.isBlank())
         .map(code -> code.toLowerCase(Locale.ROOT))
         .forEach(codes::add);
     return codes;

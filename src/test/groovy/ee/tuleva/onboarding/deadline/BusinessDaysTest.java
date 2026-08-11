@@ -66,6 +66,25 @@ class BusinessDaysTest {
     assertThat(businessDays.isNthBusinessDayOfMonth(LocalDate.of(2026, 8, 31), 3)).isFalse();
   }
 
+  // A monthly job that may be late needs "from the nth business day onwards", not "exactly on it",
+  // or a missed run is never retried.
+  @Test
+  void isOnOrAfterNthBusinessDayIsFalseBeforeAndTrueFromTheNthOnwards() {
+    assertThat(businessDays.isOnOrAfterNthBusinessDayOfMonth(LocalDate.of(2026, 8, 5), 4))
+        .isFalse();
+    assertThat(businessDays.isOnOrAfterNthBusinessDayOfMonth(LocalDate.of(2026, 8, 6), 4)).isTrue();
+    assertThat(businessDays.isOnOrAfterNthBusinessDayOfMonth(LocalDate.of(2026, 8, 7), 4)).isTrue();
+    assertThat(businessDays.isOnOrAfterNthBusinessDayOfMonth(LocalDate.of(2026, 8, 31), 4))
+        .isTrue();
+  }
+
+  @Test
+  void isOnOrAfterNthBusinessDayCountsPastAHolidayStartOfMonth() {
+    assertThat(businessDays.isOnOrAfterNthBusinessDayOfMonth(LocalDate.of(2026, 5, 6), 4))
+        .isFalse();
+    assertThat(businessDays.isOnOrAfterNthBusinessDayOfMonth(LocalDate.of(2026, 5, 7), 4)).isTrue();
+  }
+
   @Test
   void nthBusinessDayOfMonthResolvesFromAnyDayOfThatMonth() {
     assertThat(businessDays.nthBusinessDayOfMonth(LocalDate.of(2026, 8, 20), 3))

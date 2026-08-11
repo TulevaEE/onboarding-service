@@ -14,6 +14,10 @@ public class BusinessDays {
     return date.equals(nthBusinessDayOfMonth(date, n));
   }
 
+  public boolean isOnOrAfterNthBusinessDayOfMonth(LocalDate date, int n) {
+    return !date.isBefore(nthBusinessDayOfMonth(date, n));
+  }
+
   public LocalDate nthBusinessDayOfMonth(LocalDate dayInMonth, int n) {
     var nthBusinessDay = dayInMonth.withDayOfMonth(1);
     if (!publicHolidays.isWorkingDay(nthBusinessDay)) {

@@ -10,6 +10,7 @@ import ee.sk.smartid.AuthenticationResponseValidator;
 import ee.sk.smartid.SmartIdAuthenticationResponse;
 import ee.sk.smartid.SmartIdClient;
 import ee.sk.smartid.exception.UnprocessableSmartIdResponseException;
+import ee.sk.smartid.exception.UserActionException;
 import ee.sk.smartid.exception.useraccount.UserAccountNotFoundException;
 import ee.sk.smartid.exception.useraction.UserRefusedException;
 import ee.sk.smartid.rest.dao.Interaction;
@@ -85,6 +86,10 @@ public class SmartIdAuthService {
           } catch (UserRefusedException e) {
             session.setErrorCode("smart.id.user.refused");
             session.setErrorMessage("Smart ID User refused");
+          } catch (UserActionException e) {
+            log.info("Smart ID session ended without a user response");
+            session.setErrorCode("smart.id.technical.error");
+            session.setErrorMessage("Smart ID technical error");
           } catch (Exception e) {
             log.error("Smart ID technical error", e);
             session.setErrorCode("smart.id.technical.error");

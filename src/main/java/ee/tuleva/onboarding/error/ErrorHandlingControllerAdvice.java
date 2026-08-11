@@ -67,7 +67,7 @@ public class ErrorHandlingControllerAdvice {
 
   @ExceptionHandler({SmartIdSessionNotFoundException.class, MobileIdSessionNotFoundException.class})
   public ResponseEntity<ErrorsResponse> handleAuthSessionNotFound(RuntimeException exception) {
-    log.error("Auth session not found: {}", exception.getMessage());
+    log.info("Auth session not found: {}", exception.getMessage());
     return new ResponseEntity<>(
         ErrorsResponse.ofSingleError("auth.session.not.found", exception.getMessage()),
         UNAUTHORIZED);

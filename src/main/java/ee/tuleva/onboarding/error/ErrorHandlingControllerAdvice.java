@@ -120,7 +120,11 @@ public class ErrorHandlingControllerAdvice {
     var errorCode = errors.getFirst().getCode();
     MDC.put(ERROR_CODE, errorCode);
     try {
-      log.error("Request rejected: code={}, error={}", errorCode, exception.toString());
+      if (ExpectedErrorCodes.isExpected(errorCode)) {
+        log.info("Request rejected: code={}, error={}", errorCode, exception.toString());
+      } else {
+        log.error("Request rejected: code={}, error={}", errorCode, exception.toString());
+      }
     } finally {
       MDC.remove(ERROR_CODE);
     }

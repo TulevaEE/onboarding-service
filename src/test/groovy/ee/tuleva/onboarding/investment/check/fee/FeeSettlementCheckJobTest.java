@@ -1,8 +1,10 @@
 package ee.tuleva.onboarding.investment.check.fee;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -104,6 +106,20 @@ class FeeSettlementCheckJobTest {
             eq(LocalDate.of(2026, 5, 1)),
             eq(LocalDate.of(2026, 4, 1)),
             eq(notTheThirdBusinessDay));
+  }
+
+  // The check is alert-only, so a failure inside it must not take down the scheduled run that
+  // hosts it.
+  @Test
+  void swallowsAFailureInsideTheCheckSoTheScheduledRunSurvives() {
+    var thirdBusinessDay = LocalDate.of(2026, 6, 3);
+    doThrow(new IllegalStateException())
+        .when(feeCheckService)
+        .runMonthlyChecks(any(), any(), any(), any());
+
+    var job = jobOn(thirdBusinessDay);
+
+    assertThatCode(job::checkClosedMonthIfReady).doesNotThrowAnyException();
   }
 
   // A typo in the cron or the lock name is invisible to every behavioural test: the job would

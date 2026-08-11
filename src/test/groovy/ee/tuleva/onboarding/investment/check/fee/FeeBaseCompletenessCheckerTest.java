@@ -9,6 +9,7 @@ import static ee.tuleva.onboarding.investment.fees.FeeType.DEPOT;
 import static ee.tuleva.onboarding.investment.fees.FeeType.MANAGEMENT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
@@ -20,8 +21,10 @@ import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import ee.tuleva.onboarding.savings.fund.nav.FundNavQueryService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -172,6 +175,41 @@ class FeeBaseCompletenessCheckerTest {
     given(navLedgerRepository.getSystemAccountBalanceBefore(any(), any())).willReturn(blackrock);
 
     assertThat(check(TKF100).getFirst().severity()).isEqualTo(PASS);
+  }
+
+  // A month-long regression names every day it found, which would be an unreadable Slack message;
+  // the tail is counted instead of listed.
+  @Test
+  void aLongRunOfWrongDaysListsTheFirstTenAndCountsTheRest() {
+    var days = workingDays(LocalDate.of(2026, 6, 1), 12);
+    var buggyBase = NAV_TOTAL.subtract(new BigDecimal("1000"));
+    given(feeAccrualRepository.findBaseValuesBetween(any(), any(), any()))
+        .willReturn(
+            days.stream()
+                .flatMap(
+                    day -> Stream.of(base(day, MANAGEMENT, buggyBase), base(day, DEPOT, buggyBase)))
+                .toList());
+    given(fundNavQueryService.findFeeBaseComponentTotal(eq("TUK75"), any()))
+        .willReturn(Optional.of(NAV_TOTAL));
+
+    var finding = checker.check(TUK75, days.getFirst(), days.getLast()).getFirst();
+
+    assertThat(finding.severity()).isEqualTo(FAIL);
+    assertThat(finding.message()).contains(" ... (2 more)");
+    assertThat(finding.deviationAmount()).isEqualByComparingTo(new BigDecimal("12000"));
+  }
+
+  private static List<LocalDate> workingDays(LocalDate from, int count) {
+    var holidays = new PublicHolidays();
+    var days = new ArrayList<LocalDate>(count);
+    var day = from;
+    while (days.size() < count) {
+      if (holidays.isWorkingDay(day)) {
+        days.add(day);
+      }
+      day = day.plusDays(1);
+    }
+    return days;
   }
 
   private List<FeeCheckFinding> check(TulevaFund fund) {

@@ -260,9 +260,10 @@ public class ReturnCalculator {
       return roundPercentage(result);
     } catch (IllegalArgumentException | ArithmeticException e) {
       log.warn(
-          "XIRR solver found no rate: transactionCount={}, reason={}",
+          "XIRR solver found no rate: transactionCount={}, reason={}, message={}",
           transactions.size(),
-          e.getClass().getSimpleName());
+          e.getClass().getSimpleName(),
+          e.getMessage());
       return null;
     }
   }

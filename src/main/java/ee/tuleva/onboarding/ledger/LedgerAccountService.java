@@ -83,14 +83,27 @@ class LedgerAccountService {
   }
 
   LedgerAccount createSystemAccount(String name, AccountType accountType, AssetType assetType) {
-    var ledgerAccount =
-        LedgerAccount.builder()
-            .name(name)
-            .purpose(SYSTEM_ACCOUNT)
-            .assetType(assetType)
-            .accountType(accountType)
-            .build();
+    insertSystemAccountIfAbsent(name, accountType, assetType);
+    return findSystemAccountByName(name, accountType, assetType).orElseThrow();
+  }
 
-    return ledgerAccountRepository.save(ledgerAccount);
+  private void insertSystemAccountIfAbsent(
+      String name, AccountType accountType, AssetType assetType) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO ledger.account (id, name, purpose, account_type, asset_type)
+            VALUES (:id, :name,
+                    CAST(:purpose AS ledger.account_purpose),
+                    CAST(:accountType AS ledger.account_type),
+                    CAST(:assetType AS ledger.asset_type))
+            ON CONFLICT DO NOTHING
+            """)
+        .param("id", UUID.randomUUID())
+        .param("name", name)
+        .param("purpose", SYSTEM_ACCOUNT.name())
+        .param("accountType", accountType.name())
+        .param("assetType", assetType.name())
+        .update();
   }
 }

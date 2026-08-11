@@ -144,6 +144,6 @@ class MontonioCallbackServiceSpec extends Specification {
     0 * paymentRepository.save(_)
 
     where:
-    malformedToken << ["garbage", "", "a.b.c"]
+    malformedToken << ["garbage", "", "   ", "a.b.c", null]
   }
 }

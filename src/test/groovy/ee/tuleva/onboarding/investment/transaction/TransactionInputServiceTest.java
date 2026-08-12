@@ -1428,6 +1428,50 @@ class TransactionInputServiceTest {
   }
 
   @Test
+  void gatherInput_withANegativeSecurityMarketValue_dropsThatRowAndKeepsTrading() {
+    var positionDate = AS_OF_DATE;
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(positionDate));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
+        .willReturn(
+            List.of(
+                FundPosition.builder()
+                    .fund(TUV100)
+                    .accountType(SECURITY)
+                    .accountId("IE00A")
+                    .marketValue(new BigDecimal("500000"))
+                    .build(),
+                FundPosition.builder()
+                    .fund(TUV100)
+                    .accountType(SECURITY)
+                    .accountId("IE00REVERSAL")
+                    .marketValue(new BigDecimal("-5000"))
+                    .build()));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
+        .willReturn(
+            List.of(
+                FundPosition.builder()
+                    .fund(TUV100)
+                    .accountType(CASH)
+                    .marketValue(new BigDecimal("100000"))
+                    .build()));
+    given(feeAccrualRepository.getAccruedFeesForMonth(eq(TUV100), any(), any(), any()))
+        .willReturn(ZERO);
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(List.of());
+    given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(zeroFundLimit(TUV100)));
+    given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+
+    assertThat(result.positions())
+        .extracting(PositionSnapshot::isin, PositionSnapshot::marketValue)
+        .containsExactly(tuple("IE00A", new BigDecimal("500000")));
+    assertThat(result.grossPortfolioValue()).isEqualByComparingTo(new BigDecimal("600000"));
+  }
+
+  @Test
   void gatherInput_withASecurityRowWithoutAnIsin_stillAppliesTheOtherPendingPositions() {
     var positionDate = AS_OF_DATE;
     given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))

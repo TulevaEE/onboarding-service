@@ -82,7 +82,10 @@ class NavCalculationIntegrationTest {
     assertThat(result.receivables()).isEqualByComparingTo(csvData.tradeReceivables);
     assertThat(result.payables()).isEqualByComparingTo(csvData.tradePayables.negate());
     assertThat(result.managementFeeAccrual()).isPositive();
-    assertThat(result.depotFeeAccrual()).isPositive();
+    // The manual calculations carry a 0.00 custody fee, and investment_fee_policy keeps the
+    // depot fee out of NAV, so this now checks against the golden file rather than the
+    // synthetic rate in setUp().
+    assertThat(result.depotFeeAccrual()).isEqualByComparingTo(csvData.depotFeeAccrual.negate());
     assertThat(result.unitsOutstanding().setScale(3, HALF_UP))
         .isEqualByComparingTo(csvData.unitsOutstanding.setScale(3, HALF_UP));
     assertThat(result.pendingSubscriptions()).isEqualByComparingTo(ZERO);

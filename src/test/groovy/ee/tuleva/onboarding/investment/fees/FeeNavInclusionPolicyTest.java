@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.investment.fees;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.fees.FeeType.DEPOT;
 import static ee.tuleva.onboarding.investment.fees.FeeType.MANAGEMENT;
@@ -26,14 +25,17 @@ class FeeNavInclusionPolicyTest {
 
   @Test
   void includeInNav_defaultsToTrueWhenNoPolicyRowExists() {
+    jdbcClient.sql("DELETE FROM investment_fee_policy").update();
+
     assertThat(policy.includeInNav(TKF100, DEPOT, DATE)).isTrue();
     assertThat(policy.includeInNav(TKF100, MANAGEMENT, DATE)).isTrue();
   }
 
   @Test
-  void includeInNav_migrationExcludesDepotForBothPensionFunds() {
-    assertThat(policy.includeInNav(TUK75, DEPOT, DATE)).isFalse();
-    assertThat(policy.includeInNav(TUK00, DEPOT, DATE)).isFalse();
+  void includeInNav_migrationExcludesDepotForEveryFund() {
+    for (TulevaFund fund : TulevaFund.values()) {
+      assertThat(policy.includeInNav(fund, DEPOT, DATE)).isFalse();
+    }
   }
 
   @Test

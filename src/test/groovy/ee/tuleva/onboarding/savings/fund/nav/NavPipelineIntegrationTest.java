@@ -100,7 +100,9 @@ class NavPipelineIntegrationTest {
       assertThat(result.receivables()).isEqualByComparingTo(navData.tradeReceivables);
       assertThat(result.payables()).isEqualByComparingTo(navData.tradePayables.negate());
       assertThat(result.managementFeeAccrual()).isPositive();
-      assertThat(result.depotFeeAccrual()).isPositive();
+      // The manual calculations carry a 0.00 custody fee, and investment_fee_policy keeps the
+      // depot fee out of NAV, so this checks the golden file rather than the rate set above.
+      assertThat(result.depotFeeAccrual()).isEqualByComparingTo(navData.depotFeeAccrual.negate());
       assertThat(result.unitsOutstanding().setScale(3, HALF_UP))
           .isEqualByComparingTo(navData.unitsOutstanding.setScale(3, HALF_UP));
       assertThat(result.pendingSubscriptions()).isEqualByComparingTo(ZERO);

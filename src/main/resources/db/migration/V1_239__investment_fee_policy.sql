@@ -15,9 +15,13 @@ CREATE TABLE investment_fee_policy (
 CREATE INDEX investment_fee_policy_fund_code_fee_type_idx
     ON investment_fee_policy (fund_code, fee_type);
 
--- The depoopank deducts the depot fee directly from the pension funds, so it must not
--- reduce the NAV we calculate. The accrual is still recorded for accounting.
+-- No fund currently bears a depot fee in its NAV: the depoopank deducts it directly from
+-- the pension funds, and the savings funds are not charged one yet. The accrual is still
+-- recorded for accounting. Every fund gets an explicit row from its inception date; close
+-- a row and open a new one with include_in_nav = true on the day a fee starts applying.
 -- Absence of a row means the fee is included in NAV.
 INSERT INTO investment_fee_policy (fund_code, fee_type, include_in_nav, valid_from, created_by)
 VALUES ('TUK75', 'DEPOT', false, DATE '2017-03-28', 'MIGRATION'),
-       ('TUK00', 'DEPOT', false, DATE '2017-03-28', 'MIGRATION');
+       ('TUK00', 'DEPOT', false, DATE '2017-03-28', 'MIGRATION'),
+       ('TUV100', 'DEPOT', false, DATE '2019-10-15', 'MIGRATION'),
+       ('TKF100', 'DEPOT', false, DATE '2026-02-02', 'MIGRATION');

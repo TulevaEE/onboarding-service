@@ -44,7 +44,7 @@ public class PortfolioReconciliationService {
           asOfDate,
           theirQuantities.size());
       eventPublisher.publishEvent(
-          new PortfolioLedgerUnavailableEvent(fund, asOfDate, theirQuantities.size()));
+          new PortfolioLedgerUnavailableEvent(fund, asOfDate, theirQuantities));
       return;
     }
 

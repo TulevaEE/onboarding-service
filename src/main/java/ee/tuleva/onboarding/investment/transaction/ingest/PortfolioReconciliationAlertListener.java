@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 import ee.tuleva.onboarding.investment.transaction.ingest.PortfolioReconciliationMismatchEvent.MismatchEntry;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import java.math.BigDecimal;
+import java.util.Map;
+import java.util.TreeMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -65,22 +67,39 @@ class PortfolioReconciliationAlertListener {
   private static String buildBody(PortfolioLedgerUnavailableEvent event) {
     return """
         Tuleva cost-basis pearaamatus ei ole selle fondi ja kuupäeva kohta ühtegi rida, seega \
-        positsioone ei saanud võrrelda. See EI ole positsioonide lahknevus.
+        positsioone ei saanud võrrelda. Kas lahknevus on või ei ole, jäi välja selgitamata.
 
         Kuupäev: %s
 
         Fond: %s (%s)
 
-        SEB POSITIONS-põhises nav_report'is on %d väärtpaberipositsiooni, meie pearaamatus 0.
+        SEB POSITIONS-põhine nav_report näitab neid koguseid, meie pearaamatus 0:
 
+        %s
         Kontrolli, kas fondil on investment_portfolio_baseline kirje ja kas cost-basis töö on \
-        selle kuupäeva kohta jooksnud.
+        selle kuupäeva kohta jooksnud. Portfelli võrdlus jookseb ainult eelmise tööpäeva kohta, \
+        seega tuleb see kuupäev pärast pearaamatu taastamist käsitsi uuesti võrrelda.
         """
         .formatted(
             event.asOfDate(),
             event.fund().getCode(),
             event.fund().getDisplayName(),
-            event.reportedIsinCount());
+            formatTable(event.reportedQuantities()));
+  }
+
+  private static String formatTable(Map<String, BigDecimal> quantities) {
+    StringBuilder table = new StringBuilder();
+    table.append("ISIN          | Nende kogus\n");
+    table.append("--------------+----------------\n");
+    new TreeMap<>(quantities)
+        .forEach(
+            (isin, quantity) ->
+                table
+                    .append(pad(isin, 13))
+                    .append(" | ")
+                    .append(formatQuantity(quantity))
+                    .append('\n'));
+    return table.toString();
   }
 
   private static String buildBody(PortfolioReconciliationMismatchEvent event) {

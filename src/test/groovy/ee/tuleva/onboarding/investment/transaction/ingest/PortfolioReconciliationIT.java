@@ -119,8 +119,13 @@ class PortfolioReconciliationIT {
     service.reconcile(TUK75, AS_OF);
 
     assertThat(recorder.events).isEmpty();
-    assertThat(recorder.ledgerUnavailableEvents)
-        .containsExactly(new PortfolioLedgerUnavailableEvent(TUK75, AS_OF, 2));
+    assertThat(recorder.ledgerUnavailableEvents).singleElement().isNotNull();
+    var unavailable = recorder.ledgerUnavailableEvents.get(0);
+    assertThat(unavailable.fund()).isEqualTo(TUK75);
+    assertThat(unavailable.asOfDate()).isEqualTo(AS_OF);
+    assertThat(unavailable.reportedQuantities()).containsOnlyKeys(ISIN_A, ISIN_B);
+    assertThat(unavailable.reportedQuantities().get(ISIN_A)).isEqualByComparingTo("10000.0000");
+    assertThat(unavailable.reportedQuantities().get(ISIN_B)).isEqualByComparingTo("250.0000");
   }
 
   private void seedCostBasis(String isin, String quantity) {

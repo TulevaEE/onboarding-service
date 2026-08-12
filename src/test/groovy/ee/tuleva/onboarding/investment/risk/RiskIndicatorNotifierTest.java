@@ -31,16 +31,19 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
 class RiskIndicatorNotifierTest {
 
   private static final LocalDate EVALUATION_DATE = LocalDate.of(2026, 7, 31);
   private static final LocalDate FOURTH_BUSINESS_DAY = LocalDate.of(2026, 8, 6);
+  private static final LocalDate DIGEST_MONTH = LocalDate.of(2026, 8, 1);
 
   private final RecordingNotificationService notifications = new RecordingNotificationService();
   private final DisclosedRiskIndicatorRepository disclosures =
@@ -51,6 +54,7 @@ class RiskIndicatorNotifierTest {
   private final RiskIndicatorPublicationRepository publications =
       Mockito.mock(RiskIndicatorPublicationRepository.class);
   private final Map<TulevaFund, ProxyReview> proxyReviews = new HashMap<>();
+  private final Map<LocalDate, RiskIndicatorDigest> digestRows = new HashMap<>();
 
   private RiskIndicatorNotifier notifier;
 
@@ -61,10 +65,55 @@ class RiskIndicatorNotifierTest {
                 .findFirstByIndicatorTypeAndFundAndDisclosedFromLessThanEqualOrderByDisclosedFromDesc(
                     any(), any(), any()))
         .willReturn(Optional.empty());
-    given(digests.findByDigestMonth(any())).willReturn(Optional.empty());
-    given(digests.save(any())).willAnswer(invocation -> invocation.getArgument(0));
+    given(digests.findByDigestMonth(any()))
+        .willAnswer(
+            invocation -> Optional.ofNullable(detached(digestRows.get(invocation.getArgument(0)))));
+    given(digests.save(any())).willAnswer(invocation -> merge(invocation.getArgument(0)));
     given(fundValues.findEarliestDateForKey(any())).willReturn(Optional.empty());
     notifier = notifier(FOURTH_BUSINESS_DAY);
+  }
+
+  private RiskIndicatorDigest merge(RiskIndicatorDigest incoming) {
+    var row = digestRows.get(incoming.getDigestMonth());
+    if (row != null && !Objects.equals(row.getVersion(), incoming.getVersion())) {
+      throw new ObjectOptimisticLockingFailureException(
+          RiskIndicatorDigest.class, incoming.getDigestMonth());
+    }
+    var merged =
+        RiskIndicatorDigest.builder()
+            .id(1L)
+            .digestMonth(incoming.getDigestMonth())
+            .complete(incoming.getComplete())
+            .version(row == null ? 0L : row.getVersion() + 1)
+            .build();
+    digestRows.put(merged.getDigestMonth(), merged);
+    return detached(merged);
+  }
+
+  private @Nullable RiskIndicatorDigest detached(@Nullable RiskIndicatorDigest row) {
+    return row == null
+        ? null
+        : RiskIndicatorDigest.builder()
+            .id(row.getId())
+            .digestMonth(row.getDigestMonth())
+            .complete(row.getComplete())
+            .version(row.getVersion())
+            .build();
+  }
+
+  private void storeDigestRow(boolean complete) {
+    digestRows.put(
+        DIGEST_MONTH,
+        RiskIndicatorDigest.builder()
+            .id(1L)
+            .digestMonth(DIGEST_MONTH)
+            .complete(complete)
+            .version(0L)
+            .build());
+  }
+
+  private RiskIndicatorDigest storedDigestRow() {
+    return digestRows.get(DIGEST_MONTH);
   }
 
   private RiskIndicatorNotifier notifier(LocalDate today) {
@@ -156,13 +205,7 @@ class RiskIndicatorNotifierTest {
 
   @Test
   void theDigestIsNotSentTwiceInTheSameMonth() {
-    given(digests.findByDigestMonth(LocalDate.of(2026, 8, 1)))
-        .willReturn(
-            Optional.of(
-                RiskIndicatorDigest.builder()
-                    .digestMonth(LocalDate.of(2026, 8, 1))
-                    .complete(true)
-                    .build()));
+    storeDigestRow(true);
 
     notifier.notify(run(stableSri()));
 
@@ -322,25 +365,24 @@ class RiskIndicatorNotifierTest {
 
   @Test
   void aCompleteRunResendsTheDigestOverAnIncompleteMonth() {
-    var incomplete =
-        RiskIndicatorDigest.builder().digestMonth(LocalDate.of(2026, 8, 1)).complete(false).build();
-    given(digests.findByDigestMonth(LocalDate.of(2026, 8, 1))).willReturn(Optional.of(incomplete));
+    storeDigestRow(false);
 
     notifier.notify(run(stableSri()));
 
     assertThat(notifications.messages).hasSize(1);
-    assertThat(incomplete.getComplete()).isTrue();
+    assertThat(storedDigestRow())
+        .isEqualTo(
+            RiskIndicatorDigest.builder()
+                .id(1L)
+                .digestMonth(DIGEST_MONTH)
+                .complete(true)
+                .version(1L)
+                .build());
   }
 
   @Test
   void anIncompleteMonthIsNotResentWhileTheSameFundKeepsFailing() {
-    given(digests.findByDigestMonth(LocalDate.of(2026, 8, 1)))
-        .willReturn(
-            Optional.of(
-                RiskIndicatorDigest.builder()
-                    .digestMonth(LocalDate.of(2026, 8, 1))
-                    .complete(false)
-                    .build()));
+    storeDigestRow(false);
 
     notifier.notify(
         new RiskIndicatorRun(
@@ -606,14 +648,19 @@ class RiskIndicatorNotifierTest {
 
   @Test
   void aFailedSendOverAnIncompleteMonthLeavesTheMonthOpenInsteadOfDeletingIt() {
-    var incomplete =
-        RiskIndicatorDigest.builder().digestMonth(LocalDate.of(2026, 8, 1)).complete(false).build();
-    given(digests.findByDigestMonth(LocalDate.of(2026, 8, 1))).willReturn(Optional.of(incomplete));
+    storeDigestRow(false);
     notifications.failing = true;
 
     notifier.notify(run(stableSri()));
 
-    assertThat(incomplete.getComplete()).isFalse();
+    assertThat(storedDigestRow())
+        .isEqualTo(
+            RiskIndicatorDigest.builder()
+                .id(1L)
+                .digestMonth(DIGEST_MONTH)
+                .complete(false)
+                .version(2L)
+                .build());
     Mockito.verify(digests, Mockito.never()).delete(any());
   }
 

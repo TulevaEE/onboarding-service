@@ -163,7 +163,11 @@ class RiskIndicatorNotifier {
     try {
       notificationService.sendMessage(digest(run), INVESTMENT);
     } catch (RuntimeException e) {
-      release(claim, existing);
+      if (existing == null) {
+        digestRepository.delete(claim);
+      } else {
+        reopen(claim);
+      }
       throw e;
     }
   }
@@ -178,13 +182,9 @@ class RiskIndicatorNotifier {
     return digestRepository.save(existing);
   }
 
-  private void release(RiskIndicatorDigest claim, @Nullable RiskIndicatorDigest existing) {
-    if (existing == null) {
-      digestRepository.delete(claim);
-      return;
-    }
-    existing.setComplete(false);
-    digestRepository.save(existing);
+  private void reopen(RiskIndicatorDigest claim) {
+    claim.setComplete(false);
+    digestRepository.save(claim);
   }
 
   private String digest(RiskIndicatorRun run) {

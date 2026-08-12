@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -30,7 +31,7 @@ class BlackrockAdjustmentFreshnessCheckerTest {
 
   @BeforeEach
   void setUp() {
-    checker = new BlackrockAdjustmentFreshnessChecker(navLedgerRepository, 5);
+    checker = new BlackrockAdjustmentFreshnessChecker(navLedgerRepository, new PublicHolidays(), 5);
   }
 
   @Test
@@ -42,12 +43,25 @@ class BlackrockAdjustmentFreshnessCheckerTest {
 
   @Test
   void anAdjustmentOlderThanTheMaximumAgeWarns() {
-    givenLatestAdjustmentOn(LocalDate.of(2026, 6, 4));
+    givenLatestAdjustmentOn(LocalDate.of(2026, 6, 2));
 
     var finding = checker.check(TUK75, CHECK_DATE).getFirst();
 
     assertThat(finding.severity()).isEqualTo(WARNING);
-    assertThat(finding.message()).contains("2026-06-04");
+    assertThat(finding.message()).contains("2026-06-02");
+  }
+
+  // The adjustment is only ever posted on a business day, so its age has to be measured in business
+  // days too. Over Estonian Christmas - the 24th, 25th and 26th are public holidays, and in 2025
+  // they are followed straight by a weekend - the last working day before the break is six calendar
+  // days but only one working day behind the first working day after it. Counted in calendar days
+  // every fund warns, every year, with nothing missed and nothing for anyone to do.
+  @Test
+  void aChristmasBreakIsNotStaleness() {
+    givenLatestAdjustmentOn(LocalDate.of(2025, 12, 23));
+
+    assertThat(checker.check(TUK75, LocalDate.of(2025, 12, 29)).getFirst().severity())
+        .isEqualTo(PASS);
   }
 
   @Test

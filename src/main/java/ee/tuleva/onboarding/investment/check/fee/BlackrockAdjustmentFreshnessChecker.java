@@ -5,11 +5,11 @@ import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.BLACKROCK_A
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.ADJUSTMENT;
 import static ee.tuleva.onboarding.ledger.SystemAccount.BLACKROCK_ADJUSTMENT;
 
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,13 +24,17 @@ class BlackrockAdjustmentFreshnessChecker {
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
 
   private final NavLedgerRepository navLedgerRepository;
-  private final int maxAgeDays;
+  private final PublicHolidays publicHolidays;
+  private final int maxAgeWorkingDays;
 
   BlackrockAdjustmentFreshnessChecker(
       NavLedgerRepository navLedgerRepository,
-      @Value("${investment.fee-check.blackrock-adjustment-max-age-days:5}") int maxAgeDays) {
+      PublicHolidays publicHolidays,
+      @Value("${investment.fee-check.blackrock-adjustment-max-age-working-days:5}")
+          int maxAgeWorkingDays) {
     this.navLedgerRepository = navLedgerRepository;
-    this.maxAgeDays = maxAgeDays;
+    this.publicHolidays = publicHolidays;
+    this.maxAgeWorkingDays = maxAgeWorkingDays;
   }
 
   List<FeeCheckFinding> check(TulevaFund fund, LocalDate checkDate) {
@@ -48,25 +52,23 @@ class BlackrockAdjustmentFreshnessChecker {
     }
 
     var latestDate = latest.get().atZone(ESTONIAN_ZONE).toLocalDate();
-    var ageDays = ChronoUnit.DAYS.between(latestDate, checkDate);
-    if (ageDays > maxAgeDays) {
+    var ageWorkingDays = publicHolidays.countWorkingDaysBehind(latestDate, checkDate);
+    var details =
+        Map.<String, Object>of(
+            "lastAdjustmentDate", latestDate.toString(), "ageWorkingDays", ageWorkingDays);
+    if (ageWorkingDays > maxAgeWorkingDays) {
       return List.of(
           finding(
               fund,
               FeeCheckSeverity.WARNING,
               "BlackRock adjustment is "
-                  + ageDays
-                  + " days old (last posted "
+                  + ageWorkingDays
+                  + " working days old (last posted "
                   + latestDate
                   + "); the fee base may be running on a stale balance",
-              Map.of("lastAdjustmentDate", latestDate.toString(), "ageDays", ageDays)));
+              details));
     }
-    return List.of(
-        finding(
-            fund,
-            FeeCheckSeverity.PASS,
-            "",
-            Map.of("lastAdjustmentDate", latestDate.toString(), "ageDays", ageDays)));
+    return List.of(finding(fund, FeeCheckSeverity.PASS, "", details));
   }
 
   private FeeCheckFinding finding(

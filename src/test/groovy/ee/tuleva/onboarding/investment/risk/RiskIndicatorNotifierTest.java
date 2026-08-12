@@ -262,6 +262,28 @@ class RiskIndicatorNotifierTest {
   }
 
   @Test
+  void aMismatchRetypedIntoADifferentWrongClassIsAlertedAgain() {
+    disclose(SRRI, TUV100, 6);
+
+    notifier(LocalDate.of(2026, 8, 5))
+        .notify(
+            new RiskIndicatorRun(
+                EVALUATION_DATE,
+                List.of(
+                    outcome(
+                        staleDocumentSrri(),
+                        new PublicationSnapshot(
+                            EVALUATION_DATE.minusDays(1), 5, 4, CHANGE_CONFIRMED))),
+                List.of()));
+
+    assertThat(notifications.messages)
+        .containsExactly(
+            """
+            Riskiindikaatori muutus
+            🔴 TUV100 SRRI — dokumendis on klass 6, arvutatud avaldatav klass on 5""");
+  }
+
+  @Test
   void anAlreadyReportedMismatchIsNotRepeatedEveryDay() {
     disclose(SRRI, TUV100, 4);
 

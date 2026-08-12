@@ -126,6 +126,6 @@ exit 0 unless @findings;
 print "\n🛑 Personal data detected in added lines.\n";
 print "   This repository is PUBLIC — pushing publishes it permanently.\n\n";
 printf "   %s:%s\n     %s: %s\n", @$_ for @findings;
-print "\n   Use a role (fondijuht), a synthetic value (38888888888) or an\n";
-print "   opaque id instead. See CLAUDE.md.\n\n";
+print "\n   Use a role (investment-role), a synthetic value (38888888888) or\n";
+print "   an opaque id instead. See CLAUDE.md.\n\n";
 exit 1;

@@ -66,7 +66,7 @@ class SebRedemptionIntegrationTest {
   void setUp() {
     ClockHolder.setClock(Clock.fixed(FRIDAY, UTC));
     when(navProvider.getDisplayNav(any())).thenReturn(ONE);
-    when(navProvider.getVerifiedNavForIssuingAndRedeeming(any())).thenReturn(ONE);
+    when(navProvider.getVerifiedNavForIssuingAndRedeeming(any(), any())).thenReturn(ONE);
 
     testUser =
         userRepository.save(sampleUser().id(null).member(null).personalCode("39901019992").build());

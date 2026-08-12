@@ -409,17 +409,13 @@ class NavTransactionImpactAlertJobTest {
   }
 
   private void stubTkf100Redemptions(List<RedemptionRequest> redemptions) {
-    given(
-            redemptionRequestRepository.findByStatusAndRequestedAtBefore(
-                eq(VERIFIED), any(Instant.class)))
+    given(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any(Instant.class)))
         .willReturn(redemptions);
   }
 
   private void stubTkf100RedemptionsLenient(List<RedemptionRequest> redemptions) {
     lenient()
-        .when(
-            redemptionRequestRepository.findByStatusAndRequestedAtBefore(
-                eq(VERIFIED), any(Instant.class)))
+        .when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any(Instant.class)))
         .thenReturn(redemptions);
   }
 

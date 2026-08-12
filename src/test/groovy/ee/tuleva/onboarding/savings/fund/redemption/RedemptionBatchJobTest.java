@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestFixture.redemptionRequestFixture;
 import static java.time.ZoneOffset.UTC;
@@ -59,7 +60,7 @@ class RedemptionBatchJobTest {
   @BeforeEach
   void setUp() {
     lenient()
-        .when(navProvider.getVerifiedNavForIssuingAndRedeeming(any()))
+        .when(navProvider.getVerifiedNavForIssuingAndRedeeming(any(), any()))
         .thenReturn(BigDecimal.ONE);
   }
 
@@ -86,13 +87,49 @@ class RedemptionBatchJobTest {
     var now = Instant.parse("2025-01-15T15:00:00Z");
     var batchJob = createBatchJob(now);
 
-    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
-        .thenReturn(List.of());
+    when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any())).thenReturn(List.of());
 
     batchJob.runJob();
 
-    verify(redemptionRequestRepository).findByStatusAndRequestedAtBefore(eq(VERIFIED), any());
+    verify(redemptionRequestRepository).findAcceptedBefore(eq(VERIFIED), any());
     verify(eventPublisher, never()).publishEvent(any(RequestPaymentEvent.class));
+  }
+
+  @Test
+  void runJob_beforeCutoff_pricesAtTheNavOfTheSecondToLastWorkingDay() {
+    var now = Instant.parse("2025-01-15T12:00:00Z"); // 14:00 Tallinn time (before cutoff)
+
+    runJobWithSinglePendingRequest(now);
+
+    verify(navProvider).getVerifiedNavForIssuingAndRedeeming(TKF100, LocalDate.of(2025, 1, 13));
+  }
+
+  @Test
+  void runJob_afterCutoff_pricesAtTheNavOfTheLastWorkingDay() {
+    var now = Instant.parse("2025-01-15T15:00:00Z"); // 17:00 Tallinn time (after cutoff)
+
+    runJobWithSinglePendingRequest(now);
+
+    verify(navProvider).getVerifiedNavForIssuingAndRedeeming(TKF100, LocalDate.of(2025, 1, 14));
+  }
+
+  private void runJobWithSinglePendingRequest(Instant now) {
+    var requestId = UUID.randomUUID();
+    var request = redemptionRequestFixture().id(requestId).status(VERIFIED).build();
+
+    when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
+        .thenReturn(List.of(request));
+    when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(savingsFundLedger.hasPricingEntry(requestId)).thenReturn(true);
+    doAnswer(
+            invocation -> {
+              TransactionCallback<?> callback = invocation.getArgument(0);
+              return callback.doInTransaction(null);
+            })
+        .when(transactionTemplate)
+        .execute(any());
+
+    createBatchJob(now).runJob();
   }
 
   @Test
@@ -113,7 +150,7 @@ class RedemptionBatchJobTest {
             .requestedAt(now.minus(1, DAYS)) // yesterday
             .build();
 
-    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
+    when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
     when(bankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
@@ -156,8 +193,7 @@ class RedemptionBatchJobTest {
     var batchJob = createBatchJob(now);
 
     var cutoffCaptor = ArgumentCaptor.forClass(Instant.class);
-    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(
-            eq(VERIFIED), cutoffCaptor.capture()))
+    when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), cutoffCaptor.capture()))
         .thenReturn(List.of());
 
     batchJob.runJob();
@@ -176,8 +212,7 @@ class RedemptionBatchJobTest {
     var batchJob = createBatchJob(now);
 
     var cutoffCaptor = ArgumentCaptor.forClass(Instant.class);
-    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(
-            eq(VERIFIED), cutoffCaptor.capture()))
+    when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), cutoffCaptor.capture()))
         .thenReturn(List.of());
 
     batchJob.runJob();
@@ -195,8 +230,7 @@ class RedemptionBatchJobTest {
     var batchJob = createBatchJob(sundayNightUtc);
 
     var cutoffCaptor = ArgumentCaptor.forClass(Instant.class);
-    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(
-            eq(VERIFIED), cutoffCaptor.capture()))
+    when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), cutoffCaptor.capture()))
         .thenReturn(List.of());
 
     batchJob.runJob();
@@ -212,8 +246,7 @@ class RedemptionBatchJobTest {
     var batchJob = createBatchJob(sundayNightUtc);
 
     var cutoffCaptor = ArgumentCaptor.forClass(Instant.class);
-    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(
-            eq(VERIFIED), cutoffCaptor.capture()))
+    when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), cutoffCaptor.capture()))
         .thenReturn(List.of());
 
     batchJob.runJob();
@@ -229,8 +262,7 @@ class RedemptionBatchJobTest {
     var batchJob = createBatchJob(fridayNightUtc);
 
     var cutoffCaptor = ArgumentCaptor.forClass(Instant.class);
-    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(
-            eq(VERIFIED), cutoffCaptor.capture()))
+    when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), cutoffCaptor.capture()))
         .thenReturn(List.of());
 
     batchJob.runJob();
@@ -257,7 +289,7 @@ class RedemptionBatchJobTest {
             .cashAmount(new BigDecimal("10.00"))
             .build();
 
-    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
+    when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
     when(bankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
@@ -298,7 +330,7 @@ class RedemptionBatchJobTest {
     var requestId = UUID.randomUUID();
     var request = redemptionRequestFixture().id(requestId).status(VERIFIED).build();
 
-    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
+    when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
 
@@ -331,7 +363,7 @@ class RedemptionBatchJobTest {
             .requestedAt(now.minus(1, DAYS))
             .build();
 
-    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
+    when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
     when(bankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
@@ -373,7 +405,7 @@ class RedemptionBatchJobTest {
             .requestedAt(now.minus(1, DAYS))
             .build();
 
-    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
+    when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
     when(bankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
@@ -419,7 +451,7 @@ class RedemptionBatchJobTest {
             .requestedAt(now.minus(1, DAYS))
             .build();
 
-    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
+    when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request))
         .thenReturn(List.of()); // Second run finds no VERIFIED requests
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
@@ -464,7 +496,7 @@ class RedemptionBatchJobTest {
             .requestedAt(now.minus(1, DAYS))
             .build();
 
-    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
+    when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
     when(savingsFundLedger.hasPricingEntry(requestId)).thenReturn(true);
@@ -500,7 +532,7 @@ class RedemptionBatchJobTest {
             .requestedAt(now.minus(1, DAYS))
             .build();
 
-    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
+    when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
     when(bankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
@@ -640,7 +672,7 @@ class RedemptionBatchJobTest {
             .requestedAt(now.minus(1, DAYS))
             .build();
 
-    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
+    when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
     when(bankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
@@ -694,7 +726,7 @@ class RedemptionBatchJobTest {
             .requestedAt(now.minus(1, DAYS))
             .build();
 
-    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
+    when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
     when(bankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
@@ -745,7 +777,7 @@ class RedemptionBatchJobTest {
             .cashAmount(new BigDecimal("10.00"))
             .build();
 
-    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
+    when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
     when(bankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
@@ -787,7 +819,7 @@ class RedemptionBatchJobTest {
             .cashAmount(new BigDecimal("10.00"))
             .build();
 
-    when(redemptionRequestRepository.findByStatusAndRequestedAtBefore(eq(VERIFIED), any()))
+    when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
     when(bankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))

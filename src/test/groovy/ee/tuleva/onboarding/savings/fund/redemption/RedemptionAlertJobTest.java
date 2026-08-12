@@ -48,7 +48,7 @@ class RedemptionAlertJobTest {
     var job = jobOn(WED_1605_UTC);
     given(publicHolidays.isWorkingDay(LocalDate.of(2025, 1, 15))).willReturn(true);
 
-    given(redemptionRequestRepository.findByStatusAndRequestedAtBefore(VERIFIED, WED_CUTOFF))
+    given(redemptionRequestRepository.findAcceptedBefore(VERIFIED, WED_CUTOFF))
         .willReturn(
             List.of(
                 requestWithAmount(new BigDecimal("25000.00")),
@@ -68,7 +68,7 @@ class RedemptionAlertJobTest {
     var job = jobOn(WED_1605_UTC);
     given(publicHolidays.isWorkingDay(LocalDate.of(2025, 1, 15))).willReturn(true);
 
-    given(redemptionRequestRepository.findByStatusAndRequestedAtBefore(VERIFIED, WED_CUTOFF))
+    given(redemptionRequestRepository.findAcceptedBefore(VERIFIED, WED_CUTOFF))
         .willReturn(
             List.of(
                 requestWithAmount(new BigDecimal("3000.00")),
@@ -88,7 +88,7 @@ class RedemptionAlertJobTest {
     var job = jobOn(WED_1605_UTC);
     given(publicHolidays.isWorkingDay(LocalDate.of(2025, 1, 15))).willReturn(true);
 
-    given(redemptionRequestRepository.findByStatusAndRequestedAtBefore(VERIFIED, WED_CUTOFF))
+    given(redemptionRequestRepository.findAcceptedBefore(VERIFIED, WED_CUTOFF))
         .willReturn(
             List.of(
                 requestWithAmount(new BigDecimal("25000.00")),
@@ -108,7 +108,7 @@ class RedemptionAlertJobTest {
     var job = jobOn(WED_1605_UTC);
     given(publicHolidays.isWorkingDay(LocalDate.of(2025, 1, 15))).willReturn(true);
 
-    given(redemptionRequestRepository.findByStatusAndRequestedAtBefore(VERIFIED, WED_CUTOFF))
+    given(redemptionRequestRepository.findAcceptedBefore(VERIFIED, WED_CUTOFF))
         .willReturn(
             List.of(
                 requestWithAmount(new BigDecimal("2000.00")),
@@ -127,7 +127,7 @@ class RedemptionAlertJobTest {
     var job = jobOn(WED_1605_UTC);
     given(publicHolidays.isWorkingDay(LocalDate.of(2025, 1, 15))).willReturn(true);
 
-    given(redemptionRequestRepository.findByStatusAndRequestedAtBefore(VERIFIED, WED_CUTOFF))
+    given(redemptionRequestRepository.findAcceptedBefore(VERIFIED, WED_CUTOFF))
         .willReturn(List.of(requestWithAmount(new BigDecimal("40000.00"))));
 
     given(fundValueRepository.findLastValueForFund(TKF100.getAumKey()))
@@ -154,7 +154,7 @@ class RedemptionAlertJobTest {
     var job = jobOn(WED_1605_UTC);
     given(publicHolidays.isWorkingDay(LocalDate.of(2025, 1, 15))).willReturn(true);
 
-    given(redemptionRequestRepository.findByStatusAndRequestedAtBefore(VERIFIED, WED_CUTOFF))
+    given(redemptionRequestRepository.findAcceptedBefore(VERIFIED, WED_CUTOFF))
         .willReturn(List.of());
 
     job.checkRedemptionAlerts();
@@ -168,7 +168,7 @@ class RedemptionAlertJobTest {
     var job = jobOn(WED_1605_UTC);
     given(publicHolidays.isWorkingDay(LocalDate.of(2025, 1, 15))).willReturn(true);
 
-    given(redemptionRequestRepository.findByStatusAndRequestedAtBefore(VERIFIED, WED_CUTOFF))
+    given(redemptionRequestRepository.findAcceptedBefore(VERIFIED, WED_CUTOFF))
         .willReturn(
             List.of(
                 requestWithAmount(new BigDecimal("25000.00")),
@@ -188,7 +188,7 @@ class RedemptionAlertJobTest {
     var job = jobOn(WED_1605_UTC);
     given(publicHolidays.isWorkingDay(LocalDate.of(2025, 1, 15))).willReturn(true);
 
-    given(redemptionRequestRepository.findByStatusAndRequestedAtBefore(VERIFIED, WED_CUTOFF))
+    given(redemptionRequestRepository.findAcceptedBefore(VERIFIED, WED_CUTOFF))
         .willReturn(
             List.of(
                 requestWithAmount(new BigDecimal("25000.00")),

@@ -31,8 +31,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 // Settlement sweeps the whole outstanding balance rather than a computed amount, so every invariant
-// here is about the balance. All of them are exact identities between two-decimal quantities from
-// the same code path - a tolerance on any of them would only ever hide a real defect.
+// here is an exact identity between two-decimal quantities from one code path. A tolerance on any
+// of them could only ever hide a real defect.
 @Component
 class SettlementCompletenessChecker {
 

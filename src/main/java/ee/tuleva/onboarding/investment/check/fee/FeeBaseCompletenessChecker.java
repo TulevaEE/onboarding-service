@@ -113,11 +113,9 @@ class FeeBaseCompletenessChecker {
     return List.of(FeeCheckFinding.pass(fund, FEE_BASE_COMPLETENESS, ALL));
   }
 
-  // Once a fee type has accrued, it must keep accruing: a day that drops one charges only part of
-  // the fee, and the ledger check cannot see it because that day is absent from both the table and
-  // the ledger on that side. Calibrated from the window itself rather than from a start date or
-  // the rate configuration, so a fee type that is not in use yet has nothing earlier to compare
-  // against and raises nothing until it genuinely starts.
+  // The ledger check cannot see this: the dropped day is absent from both the table and the ledger
+  // on that side. Calibrated from the window itself rather than from a start date or the rate
+  // configuration, so a fee type not in use yet raises nothing until it genuinely starts.
   private List<FeeType> feeTypesThatStoppedAccruing(
       List<FeeBaseValue> bases, Set<FeeType> seenSoFar) {
     var present = bases.stream().map(FeeBaseValue::feeType).collect(toSet());
@@ -167,10 +165,8 @@ class FeeBaseCompletenessChecker {
         .toInstant();
   }
 
-  // Every day from the first accrual seen to the last, so a day missing from the table entirely is
-  // visited rather than skipped over. Calibrated from the window's own contents: a window opening
-  // before the fund started charging, or closing before today's run has posted, has skipped
-  // nothing and must raise nothing.
+  // Calibrated from the window's own contents: a window opening before the fund started charging,
+  // or closing before today's run has posted, has skipped nothing and must raise nothing.
   private List<LocalDate> datesAccruedOver(SortedMap<LocalDate, List<FeeBaseValue>> basesByDate) {
     if (basesByDate.isEmpty()) {
       return List.of();

@@ -12,9 +12,8 @@ interface FeeCheckEventRepository extends JpaRepository<FeeCheckEvent, Long> {
 
   // Deliberately not scoped by check_date: the daily legs write one row per day, so a same-day
   // lookup would never find a predecessor and every persisting deviation would alert again daily.
-  // Rows whose alert never reached anyone are skipped - an undelivered severity must not become
-  // the baseline the next run diffs against. Ordered by id as well as createdAt, so two rows
-  // written close enough together to share a timestamp can never come back in an arbitrary order.
+  // Ordered by id as well as createdAt, so two rows written close enough together to share a
+  // timestamp can never come back in an arbitrary order.
   @Query(
       """
       SELECT event FROM FeeCheckEvent event
@@ -47,10 +46,9 @@ interface FeeCheckEventRepository extends JpaRepository<FeeCheckEvent, Long> {
       LocalDate feeMonth,
       Limit limit);
 
-  // The first check date of the oldest deviation this fund has not cleared yet. A deviating row
-  // counts as outstanding while no later run of its own check type and scope came back clean, so a
-  // check type that has deviated since its very first run is included rather than skipped for
-  // having no clean run to measure from.
+  // A deviating row counts as outstanding while no later run of its own check type and scope came
+  // back clean, so a check that has deviated since its very first run is included rather than
+  // skipped for having no clean run to measure from.
   @Query(
       """
       SELECT MIN(event.checkDate) FROM FeeCheckEvent event

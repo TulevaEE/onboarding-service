@@ -64,8 +64,8 @@ class FeeCheckEvent {
 
   private @Nullable BigDecimal deviationAmount;
 
-  // Set when the run's Slack message could not be delivered, so this row is skipped when looking
-  // for the previous severity and the deviation alerts again next run instead of going silent.
+  // Skips this row when the next run looks for the previous severity, so a deviation first seen
+  // during a Slack outage alerts again rather than going silent for good.
   @NotNull private boolean alertFailed;
 
   @NotNull

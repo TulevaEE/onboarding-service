@@ -66,15 +66,7 @@ class CashSettlementChecker {
                 FEE_SETTLEMENT,
                 startOf(feeMonth),
                 startOf(feeMonth.plusMonths(1))));
-    // The window opens on the settlement date, not on the fee month. A month is only settled on
-    // its last day, so anything paid earlier belongs to the previous month - and counting from the
-    // fee month would sweep that in and report two payments every single month.
-    var payments =
-        entries(
-            SystemAccount.MANAGEMENT_FEE.getAccountName(fund),
-            MANAGEMENT_FEE_PAYMENT,
-            startOf(settlementDate),
-            startOf(windowCloses));
+    var payments = paymentsSinceSettlement(fund, settlementDate, windowCloses);
 
     var details =
         Map.<String, Object>of(
@@ -166,6 +158,18 @@ class CashSettlementChecker {
         message,
         deviation == null ? null : deviation.abs(),
         details);
+  }
+
+  // A month is only settled on its last day, so anything paid before that belongs to the previous
+  // month: opening the window on the fee month instead would sweep it in and report two payments
+  // every single month.
+  private List<LedgerEntryAmount> paymentsSinceSettlement(
+      TulevaFund fund, LocalDate settlementDate, LocalDate windowCloses) {
+    return entries(
+        SystemAccount.MANAGEMENT_FEE.getAccountName(fund),
+        MANAGEMENT_FEE_PAYMENT,
+        startOf(settlementDate),
+        startOf(windowCloses));
   }
 
   private List<LedgerEntryAmount> entries(

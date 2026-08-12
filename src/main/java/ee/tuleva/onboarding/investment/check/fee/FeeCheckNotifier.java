@@ -23,7 +23,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class FeeCheckNotifier {
 
-  // The current run's row is already saved by the time this reads, so the baseline is the second.
   private static final Limit PREVIOUS_AND_CURRENT = Limit.of(2);
 
   private static final Map<FeeCheckSeverity, String> EMOJI =

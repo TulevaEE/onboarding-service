@@ -76,10 +76,9 @@ class FeeCheckService {
         fund -> dailyFindings(fund, windowStart(fund, checkDate), checkDate));
   }
 
-  // A deviation nobody fixed used to age out of the rolling window: the checkers stopped being
-  // asked about the divergent date, came back clean, and the notifier read that as the deviation
-  // having cleared. So the window keeps reaching back over whatever the run that first saw an
-  // outstanding deviation was looking at, until that deviation genuinely passes.
+  // Reaches back over whatever the run that first saw an outstanding deviation was looking at.
+  // A rolling window alone lets an unfixed deviation age out, and the checker's pass on a window
+  // that no longer covers the divergent date is announced as CLEARED.
   private LocalDate windowStart(TulevaFund fund, LocalDate checkDate) {
     var rollingFrom = checkDate.minusDays(lookbackDays);
     return eventRepository
@@ -196,9 +195,8 @@ class FeeCheckService {
         () -> settlementCompletenessChecker.check(fund, feeMonth, checkDate));
   }
 
-  // One checker blowing up must not take the others down with it - being blind about one thing is
-  // not a reason to stop checking everything else. The fallback covers the same scopes the checker
-  // would have written, so a later successful run can transition them back out of NOT_RUN.
+  // The fallback covers the same scopes the checker would have written, so a later successful run
+  // can transition them back out of NOT_RUN.
   private List<FeeCheckFinding> runChecker(
       TulevaFund fund,
       FeeCheckType checkType,

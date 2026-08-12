@@ -28,6 +28,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,6 +56,7 @@ class RiskIndicatorNotifierTest {
       Mockito.mock(RiskIndicatorPublicationRepository.class);
   private final Map<TulevaFund, ProxyReview> proxyReviews = new HashMap<>();
   private final Map<LocalDate, RiskIndicatorDigest> digestRows = new HashMap<>();
+  private final List<DisclosedRiskIndicator> disclosureRows = new ArrayList<>();
 
   private RiskIndicatorNotifier notifier;
 
@@ -64,7 +66,12 @@ class RiskIndicatorNotifierTest {
             disclosures
                 .findFirstByIndicatorTypeAndFundAndDisclosedFromLessThanEqualOrderByDisclosedFromDesc(
                     any(), any(), any()))
-        .willReturn(Optional.empty());
+        .willAnswer(
+            invocation ->
+                documentInForce(
+                    invocation.getArgument(0),
+                    invocation.getArgument(1),
+                    invocation.getArgument(2)));
     given(digests.findByDigestMonth(any()))
         .willAnswer(
             invocation -> Optional.ofNullable(detached(digestRows.get(invocation.getArgument(0)))));
@@ -233,6 +240,25 @@ class RiskIndicatorNotifierTest {
         .singleElement()
         .asString()
         .contains("🔴 TUV100 SRRI — dokumendis on klass 4, arvutatud avaldatav klass on 5");
+  }
+
+  @Test
+  void aDocumentCorrectedAfterTheLatestReferencePointIsAlreadyInForceToday() {
+    disclose(SRRI, TUV100, 4);
+    discloseFrom(SRRI, TUV100, 5, LocalDate.of(2026, 8, 3));
+
+    notifier(LocalDate.of(2026, 8, 5))
+        .notify(
+            new RiskIndicatorRun(
+                EVALUATION_DATE,
+                List.of(
+                    outcome(
+                        staleDocumentSrri(),
+                        new PublicationSnapshot(
+                            EVALUATION_DATE.minusDays(1), 5, 5, CHANGE_CONFIRMED))),
+                List.of()));
+
+    assertThat(notifications.messages).isEmpty();
   }
 
   @Test
@@ -909,19 +935,27 @@ class RiskIndicatorNotifierTest {
   }
 
   private void disclose(RiskIndicatorType type, TulevaFund fund, int disclosedClass) {
-    given(
-            disclosures
-                .findFirstByIndicatorTypeAndFundAndDisclosedFromLessThanEqualOrderByDisclosedFromDesc(
-                    type, fund, EVALUATION_DATE))
-        .willReturn(
-            Optional.of(
-                DisclosedRiskIndicator.builder()
-                    .indicatorType(type)
-                    .fund(fund)
-                    .disclosedClass(disclosedClass)
-                    .disclosedFrom(LocalDate.of(2026, 3, 19))
-                    .document("Pohiteave " + fund)
-                    .build()));
+    discloseFrom(type, fund, disclosedClass, LocalDate.of(2026, 3, 19));
+  }
+
+  private void discloseFrom(
+      RiskIndicatorType type, TulevaFund fund, int disclosedClass, LocalDate disclosedFrom) {
+    disclosureRows.add(
+        DisclosedRiskIndicator.builder()
+            .indicatorType(type)
+            .fund(fund)
+            .disclosedClass(disclosedClass)
+            .disclosedFrom(disclosedFrom)
+            .document("Pohiteave " + fund)
+            .build());
+  }
+
+  private Optional<DisclosedRiskIndicator> documentInForce(
+      RiskIndicatorType type, TulevaFund fund, LocalDate asOf) {
+    return disclosureRows.stream()
+        .filter(row -> row.getIndicatorType() == type && row.getFund() == fund)
+        .filter(row -> !row.getDisclosedFrom().isAfter(asOf))
+        .max(Comparator.comparing(DisclosedRiskIndicator::getDisclosedFrom));
   }
 
   private RiskIndicatorRun run(PublishedRiskIndicator... indicators) {

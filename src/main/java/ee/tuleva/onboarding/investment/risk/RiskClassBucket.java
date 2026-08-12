@@ -47,10 +47,7 @@ final class RiskClassBucket {
         riskClass > buckets.size() ? null : buckets.get(riskClass - 1).upperBoundExclusive());
   }
 
-  /**
-   * How far the value sits from the nearer edge of its class. The open ends of classes 1 and 7 have
-   * only one edge.
-   */
+  /** The open ends of classes 1 and 7 have only one edge to measure against. */
   static @Nullable BigDecimal distanceToNearestBound(
       RiskIndicatorType indicatorType, int riskClass, BigDecimal value) {
     var range = range(indicatorType, riskClass);

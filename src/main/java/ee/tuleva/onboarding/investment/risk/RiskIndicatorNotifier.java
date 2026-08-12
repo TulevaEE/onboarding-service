@@ -58,8 +58,6 @@ class RiskIndicatorNotifier {
     }
   }
 
-  // --- immediate alerts -------------------------------------------------------------------
-
   private void notifyTransitions(RiskIndicatorRun run) {
     var lines = new ArrayList<String>();
     for (var outcome : run.outcomes()) {
@@ -100,10 +98,7 @@ class RiskIndicatorNotifier {
     var disclosed = disclosedClass(indicator);
     var lines = new ArrayList<String>();
 
-    // A status transition is only defined against a previous run. On a cold start the publication
-    // table is empty, so there is nothing to transition from and the alert stays silent.
-    if (previous != null
-        && !Objects.equals(previous.publishedClass(), indicator.publishedClass())) {
+    if (hasPublishedClassChangedSinceLastMessage(previous, indicator)) {
       lines.add(
           "⚠️ %s %s — avaldatav klass muutus %s → %s (kehtib alates %s)"
               .formatted(
@@ -112,7 +107,7 @@ class RiskIndicatorNotifier {
                   previous.publishedClass(),
                   indicator.publishedClass(),
                   indicator.publishedSince()));
-    } else if (previous != null && previous.status() != indicator.status()) {
+    } else if (hasStatusChangedSinceLastMessage(previous, indicator)) {
       lines.add(
           "%s %s %s — staatus %s → %s (arvutatud klass %s, avaldatav klass %s)"
               .formatted(
@@ -125,12 +120,24 @@ class RiskIndicatorNotifier {
                   indicator.publishedClass()));
     }
 
-    // A document that disagrees with the computed class is a compliance defect, not a transition:
-    // it is just as true on the very first run, so it is not suppressed on a cold start.
+    // A document disagreeing with the computed class is a compliance defect rather than a
+    // transition, so unlike the two above it is not suppressed on a cold start: it is just as true
+    // on the very first run.
     if (isMismatched(disclosed, indicator) && !isSameMismatchAlreadyReported(previous, disclosed)) {
       lines.add(mismatchLine(indicator, disclosed));
     }
     return lines;
+  }
+
+  private boolean hasPublishedClassChangedSinceLastMessage(
+      @Nullable PublicationSnapshot previous, PublishedRiskIndicator indicator) {
+    return previous != null
+        && !Objects.equals(previous.publishedClass(), indicator.publishedClass());
+  }
+
+  private boolean hasStatusChangedSinceLastMessage(
+      @Nullable PublicationSnapshot previous, PublishedRiskIndicator indicator) {
+    return previous != null && previous.status() != indicator.status();
   }
 
   /**
@@ -148,8 +155,6 @@ class RiskIndicatorNotifier {
         && Objects.equals(previous.notifiedDisclosedClass(), disclosed.getDisclosedClass());
   }
 
-  // --- monthly digest ---------------------------------------------------------------------
-
   private void sendDigestIfDue(RiskIndicatorRun run) {
     var today = LocalDate.now(clock);
     var month = today.withDayOfMonth(1);
@@ -163,9 +168,6 @@ class RiskIndicatorNotifier {
       return;
     }
 
-    // Claim the month before sending. A concurrent run then loses on the unique constraint instead
-    // of putting a second copy into Slack, and a send that fails releases the claim so the next
-    // business day retries rather than the month being silently written off.
     var claim = claim(existing, month, complete);
     try {
       notificationService.sendMessage(digest(run), INVESTMENT);
@@ -179,6 +181,11 @@ class RiskIndicatorNotifier {
     }
   }
 
+  /**
+   * The month is claimed before the message goes out, so a concurrent run loses on the unique
+   * constraint instead of putting a second copy into Slack. A failed send hands the claim back, so
+   * the next business day retries rather than the month being silently written off.
+   */
   private RiskIndicatorDigest claim(
       @Nullable RiskIndicatorDigest existing, LocalDate month, boolean complete) {
     if (existing == null) {
@@ -218,7 +225,6 @@ class RiskIndicatorNotifier {
     return message.toString();
   }
 
-  /** The one line someone reads before deciding whether to open the rest. */
   private String headline(RiskIndicatorRun run, List<String> proxyReviews) {
     var counts = new EnumMap<Severity, Integer>(Severity.class);
     run.outcomes()
@@ -515,8 +521,6 @@ class RiskIndicatorNotifier {
                 FULL_SRRI_WINDOW_OBSERVATIONS));
   }
 
-  // --- proxy review -----------------------------------------------------------------------
-
   private List<String> proxyReviewLines(RiskIndicatorRun run) {
     var lines = new ArrayList<String>();
     for (var outcome : run.outcomes()) {
@@ -552,8 +556,6 @@ class RiskIndicatorNotifier {
     }
     return lines;
   }
-
-  // --- formatting -------------------------------------------------------------------------
 
   private String footer(RiskIndicatorRun run) {
     var sources =
@@ -639,11 +641,6 @@ class RiskIndicatorNotifier {
         };
   }
 
-  /**
-   * A run that begins at the very first stored reference point may simply have been cut off there,
-   * so the date is a lower bound rather than a fact. Printing it bare would assert a start we
-   * cannot stand behind; the backfill is what turns it into one.
-   */
   private String publishedSince(PublishedRiskIndicator indicator) {
     var since = indicator.publishedSince();
     if (since == null) {

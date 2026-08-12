@@ -49,14 +49,7 @@ class RiskIndicatorSeriesService {
           sourceKeys(segments));
       return SeriesRefresh.empty();
     }
-    // A feed that stops updating recomputes an identical series forever: nothing drifts, the
-    // publication row for the frozen date already exists, and the digest keeps reporting that
-    // date as green. Age is the only thing that distinguishes a dead feed from a quiet one.
-    if (anchor.isBefore(LocalDate.now(clock).minusDays(MAX_SOURCE_AGE_DAYS))) {
-      throw new IllegalStateException(
-          "source data is stale: lastValue=%s, maxAgeDays=%d, sources=%s"
-              .formatted(anchor, MAX_SOURCE_AGE_DAYS, sourceKeys(segments)));
-    }
+    failIfSourceStoppedUpdating(anchor, segments);
 
     var evaluationStart = anchor.minusMonths(lookbackMonths);
     var loadStart =
@@ -75,6 +68,19 @@ class RiskIndicatorSeriesService {
             : srriCalculator.calculate(prices, evaluationStart, anchor);
 
     return new SeriesRefresh(points, save(fund, indicatorType, sourceKeys(segments), points));
+  }
+
+  /**
+   * A feed that stops updating recomputes an identical series forever: nothing drifts, the
+   * publication row for the frozen date already exists, and the digest keeps reporting that date as
+   * green. Age is the only thing that distinguishes a dead feed from a quiet one.
+   */
+  private void failIfSourceStoppedUpdating(LocalDate anchor, List<Source> segments) {
+    if (anchor.isBefore(LocalDate.now(clock).minusDays(MAX_SOURCE_AGE_DAYS))) {
+      throw new IllegalStateException(
+          "source data is stale: lastValue=%s, maxAgeDays=%d, sources=%s"
+              .formatted(anchor, MAX_SOURCE_AGE_DAYS, sourceKeys(segments)));
+    }
   }
 
   private List<FundValue> loadSegments(

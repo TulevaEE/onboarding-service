@@ -135,14 +135,7 @@ public class RiskIndicatorService {
                         .evaluationDate(indicator.evaluationDate())
                         .build());
 
-    // Compare before overwriting. A row whose content moved has not been notified, whatever it
-    // said before: recomputing the same evaluation date -- SRRI keeps one for a whole week --
-    // must not inherit yesterday's "already told Slack", or a failed send would have nothing left
-    // to retry against.
-    if (hasChanged(publication, indicator)) {
-      publication.setNotified(false);
-      publication.setNotifiedDisclosedClass(null);
-    }
+    resetNotifiedStateIfChanged(publication, indicator);
 
     publication.setPublishedClass(indicator.publishedClass());
     publication.setRawLatestClass(indicator.rawLatestClass());
@@ -170,6 +163,19 @@ public class RiskIndicatorService {
         indicator.windowReferencePoints());
 
     return saved;
+  }
+
+  /**
+   * A row whose content moved has not been notified, whatever it said before. SRRI keeps one
+   * evaluation date for a whole week, so recomputing it must not inherit yesterday's "already told
+   * Slack", or a failed send would have nothing left to retry against.
+   */
+  private void resetNotifiedStateIfChanged(
+      RiskIndicatorPublication publication, PublishedRiskIndicator indicator) {
+    if (hasChanged(publication, indicator)) {
+      publication.setNotified(false);
+      publication.setNotifiedDisclosedClass(null);
+    }
   }
 
   private boolean hasChanged(

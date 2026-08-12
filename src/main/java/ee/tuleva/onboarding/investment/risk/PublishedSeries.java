@@ -88,10 +88,6 @@ record PublishedSeries(List<PublishedPoint> points) {
         status(currentRun, previousPublishedClass, rawLatestClass, evaluationDate));
   }
 
-  /**
-   * How long the raw (unpublished) class has held at the end of the series. Drives the "CESR
-   * four-month threshold is N weeks away" line in the digest.
-   */
   private Run trailingRawRun(List<ReferencePoint> classified, @Nullable Integer rawLatestClass) {
     var start = classified.getLast().date();
     var referencePoints = 0;

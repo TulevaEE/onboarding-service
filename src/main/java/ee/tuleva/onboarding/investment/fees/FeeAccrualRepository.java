@@ -37,7 +37,7 @@ public class FeeAccrualRepository {
     return jdbcClient
         .sql(
             """
-            SELECT COALESCE(SUM(daily_amount_gross), 0)
+            SELECT COALESCE(SUM(daily_amount_net), 0)
             FROM investment_fee_accrual
             WHERE fund_code = :fundCode
               AND fee_month = :feeMonth
@@ -231,7 +231,6 @@ public class FeeAccrualRepository {
                     annual_rate = :annualRate,
                     daily_amount_net = :dailyAmountNet,
                     daily_amount_gross = :dailyAmountGross,
-                    vat_rate = :vatRate,
                     days_in_year = :daysInYear,
                     reference_date = :referenceDate
                 WHERE fund_code = :fundCode
@@ -246,7 +245,6 @@ public class FeeAccrualRepository {
             .param("annualRate", accrual.annualRate())
             .param("dailyAmountNet", accrual.dailyAmountNet())
             .param("dailyAmountGross", accrual.dailyAmountGross())
-            .param("vatRate", accrual.vatRate())
             .param("daysInYear", accrual.daysInYear())
             .param("referenceDate", accrual.referenceDate())
             .update();
@@ -257,12 +255,12 @@ public class FeeAccrualRepository {
               """
               INSERT INTO investment_fee_accrual (
                   fund_code, fee_type, accrual_date, fee_month, base_value,
-                  annual_rate, daily_amount_net, daily_amount_gross, vat_rate,
+                  annual_rate, daily_amount_net, daily_amount_gross,
                   days_in_year, reference_date
               )
               VALUES (
                   :fundCode, :feeType, :accrualDate, :feeMonth, :baseValue,
-                  :annualRate, :dailyAmountNet, :dailyAmountGross, :vatRate,
+                  :annualRate, :dailyAmountNet, :dailyAmountGross,
                   :daysInYear, :referenceDate
               )
               """)
@@ -274,7 +272,6 @@ public class FeeAccrualRepository {
           .param("annualRate", accrual.annualRate())
           .param("dailyAmountNet", accrual.dailyAmountNet())
           .param("dailyAmountGross", accrual.dailyAmountGross())
-          .param("vatRate", accrual.vatRate())
           .param("daysInYear", accrual.daysInYear())
           .param("referenceDate", accrual.referenceDate())
           .update();

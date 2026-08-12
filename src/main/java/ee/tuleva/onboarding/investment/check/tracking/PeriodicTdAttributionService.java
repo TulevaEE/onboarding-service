@@ -256,7 +256,7 @@ public class PeriodicTdAttributionService {
   private BigDecimal computeFeeDragPeriod(List<FeeAccrual> accruals, FeeType feeType) {
     return accruals.stream()
         .filter(a -> a.feeType() == feeType)
-        .map(a -> feeType == FeeType.DEPOT ? a.dailyAmountGross() : a.dailyAmountNet())
+        .map(FeeAccrual::dailyAmountNet)
         .reduce(ZERO, BigDecimal::add);
   }
 

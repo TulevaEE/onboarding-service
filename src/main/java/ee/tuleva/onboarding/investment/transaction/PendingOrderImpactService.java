@@ -15,7 +15,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
@@ -40,7 +39,7 @@ class PendingOrderImpactService {
       return PendingOrderImpact.none();
     }
 
-    Map<Long, BigDecimal> executedConsideration = executedConsiderationByOrderId(unsettled);
+    Map<Long, ExecutedTotals> executed = executedTotalsByOrderId(unsettled);
 
     BigDecimal pendingBuys = ZERO;
     BigDecimal pendingSells = ZERO;
@@ -48,7 +47,7 @@ class PendingOrderImpactService {
     Map<String, BigDecimal> unreportedQuantities = new HashMap<>();
 
     for (TransactionOrder order : unsettled) {
-      BigDecimal cashImpact = cashImpact(order, executedConsideration.get(order.getId()), asOfDate);
+      BigDecimal cashImpact = expectedConsideration(order, executedOf(executed, order), asOfDate);
       if (order.getTransactionType() == BUY) {
         pendingBuys = pendingBuys.add(cashImpact);
       } else {
@@ -87,24 +86,68 @@ class PendingOrderImpactService {
         && orderTimestamp.atZone(TALLINN).toLocalDate().isAfter(positionDate);
   }
 
-  private Map<Long, BigDecimal> executedConsiderationByOrderId(List<TransactionOrder> orders) {
-    List<Long> orderIds =
-        orders.stream().map(TransactionOrder::getId).filter(Objects::nonNull).toList();
-    return executionRepository.findByOrderIdIn(orderIds).stream()
-        .filter(execution -> execution.getTotalConsideration() != null)
-        .collect(
-            Collectors.groupingBy(
-                TransactionExecution::getOrderId,
-                Collectors.reducing(
-                    ZERO, TransactionExecution::getTotalConsideration, BigDecimal::add)));
+  private record ExecutedTotals(BigDecimal consideration, BigDecimal quantity) {
+
+    static final ExecutedTotals NONE = new ExecutedTotals(ZERO, ZERO);
+
+    ExecutedTotals add(TransactionExecution execution) {
+      return new ExecutedTotals(
+          consideration.add(absOrZero(execution.getTotalConsideration())),
+          quantity.add(absOrZero(execution.getExecutedQuantity())));
+    }
+
+    private static BigDecimal absOrZero(@Nullable BigDecimal value) {
+      return value == null ? ZERO : value.abs();
+    }
   }
 
-  private BigDecimal cashImpact(
-      TransactionOrder order, @Nullable BigDecimal executedConsideration, LocalDate asOfDate) {
-    if (executedConsideration != null && executedConsideration.signum() != 0) {
-      return executedConsideration.abs();
+  private Map<Long, ExecutedTotals> executedTotalsByOrderId(List<TransactionOrder> orders) {
+    List<Long> orderIds =
+        orders.stream().map(TransactionOrder::getId).filter(Objects::nonNull).toList();
+    Map<Long, ExecutedTotals> totals = new HashMap<>();
+    executionRepository
+        .findByOrderIdIn(orderIds)
+        .forEach(
+            execution ->
+                totals.merge(
+                    execution.getOrderId(),
+                    ExecutedTotals.NONE.add(execution),
+                    (a, b) ->
+                        new ExecutedTotals(
+                            a.consideration().add(b.consideration()),
+                            a.quantity().add(b.quantity()))));
+    return totals;
+  }
+
+  private static ExecutedTotals executedOf(
+      Map<Long, ExecutedTotals> executed, TransactionOrder order) {
+    return executed.getOrDefault(order.getId(), ExecutedTotals.NONE);
+  }
+
+  private BigDecimal expectedConsideration(
+      TransactionOrder order, ExecutedTotals executed, LocalDate asOfDate) {
+    return executed.consideration().add(unfilledValue(order, executed, asOfDate));
+  }
+
+  private BigDecimal unfilledValue(
+      TransactionOrder order, ExecutedTotals executed, LocalDate asOfDate) {
+    BigDecimal orderQuantity = order.getOrderQuantity();
+    if (orderQuantity == null) {
+      return unfilledAmount(order, executed);
     }
-    return estimatedValue(order, asOfDate).abs();
+    BigDecimal unfilledQuantity = orderQuantity.abs().subtract(executed.quantity()).max(ZERO);
+    if (unfilledQuantity.signum() == 0) {
+      return ZERO;
+    }
+    BigDecimal price = latestPrice(order.getInstrumentIsin(), asOfDate);
+    return price == null ? unfilledAmount(order, executed) : unfilledQuantity.multiply(price);
+  }
+
+  private static BigDecimal unfilledAmount(TransactionOrder order, ExecutedTotals executed) {
+    BigDecimal orderAmount = order.getOrderAmount();
+    return orderAmount == null
+        ? ZERO
+        : orderAmount.abs().subtract(executed.consideration()).max(ZERO);
   }
 
   private BigDecimal estimatedValue(TransactionOrder order, LocalDate asOfDate) {

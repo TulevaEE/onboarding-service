@@ -159,11 +159,13 @@ class RiskIndicatorServiceTest {
   }
 
   @Test
-  void aFundWithoutReferencePointsProducesNoOutcome() {
+  void aFundWithoutReferencePointsIsReportedAsAFailure() {
     var run = service.evaluateAllFunds(28);
 
     assertThat(run.outcomes()).isEmpty();
-    assertThat(run.failures()).isEmpty();
+    assertThat(run.failures())
+        .containsExactly(
+            "TUK75 SRRI: no reference points stored", "TKF100 SRI: no reference points stored");
   }
 
   @Test

@@ -34,8 +34,7 @@ public interface TransactionExecutionRepository extends JpaRepository<Transactio
   // Report sanity check: how much of an instrument we ourselves traded into a position over a
   // window, per side. A trade moves the custodian position when it SETTLES, so the window is
   // anchored on the settlement date, falling back to the trade date when the custodian gave us
-  // none. Buy and sell totals stay separate because a position report shows quantities before
-  // unsettled trades settle — a same-window buy and sell must not net each other out.
+  // none.
   @Query(
       value =
           """

@@ -258,12 +258,18 @@ class QuantityChangeCheckerTest {
   }
 
   @Test
-  void noFindingsWhenTheReportHasNoSecuritiesAtAll() {
-    var previous = List.of(security("IE0009FT4LX4", new BigDecimal("1000")));
+  void warnsForEveryHoldingWhenTheReportHasNoSecuritiesAtAll() {
+    var previous =
+        List.of(
+            security("IE0009FT4LX4", new BigDecimal("1000")),
+            security("IE00BFG1TM61", new BigDecimal("2000")));
 
     var findings = checker.check(TUK75, List.of(), previous, Map.of());
 
-    assertThat(findings).isEmpty();
+    assertThat(findings).hasSize(2);
+    assertThat(findings).allMatch(f -> f.severity() == WARNING);
+    assertThat(findings.get(0).message()).contains("IE0009FT4LX4", "-1000", "current 0");
+    assertThat(findings.get(1).message()).contains("IE00BFG1TM61", "-2000", "current 0");
   }
 
   @Test

@@ -29,7 +29,7 @@ class QuantityChangeChecker {
       List<FundPosition> securities,
       List<FundPosition> previousSecurities,
       Map<String, TradedQuantity> tradedQuantities) {
-    if (previousSecurities.isEmpty() || securities.isEmpty()) {
+    if (previousSecurities.isEmpty()) {
       return List.of();
     }
 

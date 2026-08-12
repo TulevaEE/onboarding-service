@@ -57,8 +57,7 @@ class PendingOrderImpactService {
       if (!isMissingFromPositionReport(order, positionDate)) {
         continue;
       }
-      BigDecimal signedValue = signed(order, estimatedValue(order, asOfDate));
-      unreportedValues.merge(order.getInstrumentIsin(), signedValue, BigDecimal::add);
+      unreportedValues.merge(order.getInstrumentIsin(), signed(order, cashImpact), BigDecimal::add);
       if (order.getInstrumentType() == ETF && order.getOrderQuantity() != null) {
         unreportedQuantities.merge(
             order.getInstrumentIsin(), signed(order, order.getOrderQuantity()), BigDecimal::add);
@@ -148,16 +147,6 @@ class PendingOrderImpactService {
     return orderAmount == null
         ? ZERO
         : orderAmount.abs().subtract(executed.consideration()).max(ZERO);
-  }
-
-  private BigDecimal estimatedValue(TransactionOrder order, LocalDate asOfDate) {
-    if (order.getInstrumentType() == ETF && order.getOrderQuantity() != null) {
-      BigDecimal price = latestPrice(order.getInstrumentIsin(), asOfDate);
-      if (price != null) {
-        return order.getOrderQuantity().multiply(price);
-      }
-    }
-    return order.getOrderAmount() == null ? ZERO : order.getOrderAmount();
   }
 
   @Nullable

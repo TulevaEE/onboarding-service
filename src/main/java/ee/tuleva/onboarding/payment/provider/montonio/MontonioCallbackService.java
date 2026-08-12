@@ -11,6 +11,7 @@ import ee.tuleva.onboarding.payment.provider.PaymentReference;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
+import java.text.ParseException;
 import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -33,11 +34,10 @@ public class MontonioCallbackService {
   private final JsonMapper objectMapper;
   private final ApplicationEventPublisher eventPublisher;
 
-  @SneakyThrows
   public Optional<Payment> processToken(String serializedToken) {
     // TODO: can we create a separate class for the token and encapsulate the verify() and
     // isFinalized() logic there?
-    JWSObject token = JWSObject.parse(serializedToken);
+    JWSObject token = parseToken(serializedToken);
     verifyToken(token);
 
     Map<String, Object> json = token.getPayload().toJSONObject();
@@ -103,6 +103,17 @@ public class MontonioCallbackService {
         .get("paymentStatus")
         .toString()
         .equalsIgnoreCase("PAID");
+  }
+
+  private JWSObject parseToken(String serializedToken) {
+    if (serializedToken == null || serializedToken.isBlank()) {
+      throw new BadCredentialsException("Missing payment token");
+    }
+    try {
+      return JWSObject.parse(serializedToken);
+    } catch (ParseException e) {
+      throw new BadCredentialsException("Malformed payment token", e);
+    }
   }
 
   @SneakyThrows

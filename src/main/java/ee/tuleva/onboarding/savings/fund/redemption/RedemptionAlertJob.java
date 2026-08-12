@@ -48,7 +48,7 @@ public class RedemptionAlertJob {
 
     Instant cutoff = RedemptionCutoff.cutoffInstant(today);
     List<RedemptionRequest> requests =
-        redemptionRequestRepository.findByStatusAndRequestedAtBefore(VERIFIED, cutoff);
+        redemptionRequestRepository.findAcceptedBefore(VERIFIED, cutoff);
 
     if (requests.isEmpty()) {
       return;

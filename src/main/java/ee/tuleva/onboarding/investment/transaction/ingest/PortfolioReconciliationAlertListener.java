@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 import ee.tuleva.onboarding.investment.transaction.ingest.PortfolioReconciliationMismatchEvent.MismatchEntry;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import java.math.BigDecimal;
+import java.util.Map;
+import java.util.TreeMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -38,6 +40,78 @@ class PortfolioReconciliationAlertListener {
           event.fund().getCode(),
           event.asOfDate());
     }
+  }
+
+  @EventListener
+  public void onSkipped(PortfolioReconciliationSkippedEvent event) {
+    var subject =
+        "[HOIATUS] Portfelli võrdlus jäi tegemata – "
+            + event.fund().getCode()
+            + " – "
+            + event.asOfDate();
+
+    boolean sent = emailService.sendSystemEmail(messageFactory.create(subject, buildBody(event)));
+    if (sent) {
+      log.info(
+          "Sent portfolio reconciliation skipped alert: fundCode={}, asOfDate={}",
+          event.fund().getCode(),
+          event.asOfDate());
+    } else {
+      log.error(
+          "Failed to send portfolio reconciliation skipped alert: fundCode={}, asOfDate={}",
+          event.fund().getCode(),
+          event.asOfDate());
+    }
+  }
+
+  private static String buildBody(PortfolioReconciliationSkippedEvent event) {
+    boolean ledgerMissing = event.isLedgerMissing();
+    String missingSource =
+        ledgerMissing ? "Tuleva cost-basis pearaamat" : "SEB POSITIONS-põhine nav_report";
+    String availableSource =
+        ledgerMissing ? "SEB POSITIONS-põhine nav_report" : "Tuleva cost-basis pearaamat";
+    String whatToCheck =
+        ledgerMissing
+            ? "Kontrolli, kas fondil on investment_portfolio_baseline kirje ja kas cost-basis töö on selle kuupäeva kohta jooksnud."
+            : "Kontrolli, kas selle kuupäeva NAV arvutus jooksis ja kas nav_report sai avaldatud.";
+
+    return """
+        %s ei sisalda selle fondi ja kuupäeva kohta ühtegi väärtpaberipositsiooni, seega \
+        positsioone ei saanud võrrelda. Kas lahknevus on või ei ole, jäi välja selgitamata.
+
+        Kuupäev: %s
+
+        Fond: %s (%s)
+
+        %s näitab neid koguseid:
+
+        %s
+        %s Portfelli võrdlus jookseb ainult eelmise tööpäeva kohta, seega tuleb see kuupäev \
+        pärast paranduse tegemist käsitsi uuesti võrrelda.
+        """
+        .formatted(
+            missingSource,
+            event.asOfDate(),
+            event.fund().getCode(),
+            event.fund().getDisplayName(),
+            availableSource,
+            formatTable(event.availableQuantities()),
+            whatToCheck);
+  }
+
+  private static String formatTable(Map<String, BigDecimal> quantities) {
+    StringBuilder table = new StringBuilder();
+    table.append("ISIN          | Kogus\n");
+    table.append("--------------+----------------\n");
+    new TreeMap<>(quantities)
+        .forEach(
+            (isin, quantity) ->
+                table
+                    .append(pad(isin, 13))
+                    .append(" | ")
+                    .append(formatQuantity(quantity))
+                    .append('\n'));
+    return table.toString();
   }
 
   private static String buildBody(PortfolioReconciliationMismatchEvent event) {

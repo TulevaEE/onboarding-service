@@ -9,6 +9,7 @@ import static ee.tuleva.onboarding.investment.transaction.OrderStatus.DRAFT;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.REBALANCE;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.springframework.http.HttpStatus.CONFLICT;
@@ -31,6 +32,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -38,7 +40,12 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.server.ResponseStatusException;
 
 @WebMvcTest(TransactionCommandController.class)
-@TestPropertySource(properties = "admin.api-token=valid-token")
+@TestPropertySource(
+    properties = {
+      "admin.api-token=valid-token",
+      "admin.operator-tokens.operator-7=operator-7-token"
+    })
+@Import({AdminTokenAuthenticator.class, AdminTokenConfiguration.class})
 @WithMockUser
 class TransactionCommandControllerTest {
 
@@ -86,7 +93,12 @@ class TransactionCommandControllerTest {
   void createCommand_withValidToken_processesSynchronouslyAndReturnsResult() throws Exception {
     given(
             adminService.createAndProcess(
-                TUK75, REBALANCE, AS_OF_DATE, Map.of("IE00BFG1TM61", "1000.00"), "admin", null))
+                TUK75,
+                REBALANCE,
+                AS_OF_DATE,
+                Map.of("IE00BFG1TM61", "1000.00"),
+                "shared-admin-token",
+                null))
         .willReturn(commandResponse());
 
     mockMvc
@@ -122,8 +134,7 @@ class TransactionCommandControllerTest {
         .perform(
             post("/admin/transaction-commands")
                 .with(csrf())
-                .header("X-Admin-Token", "valid-token")
-                .header("X-Admin-Actor", "operator-7")
+                .header("X-Admin-Token", "operator-7-token")
                 .contentType(APPLICATION_JSON)
                 .content(
                     """
@@ -140,7 +151,7 @@ class TransactionCommandControllerTest {
   void createCommand_passesCashOverrideToService() throws Exception {
     given(
             adminService.createAndProcess(
-                TUK75, REBALANCE, AS_OF_DATE, null, "admin", new BigDecimal("40000")))
+                TUK75, REBALANCE, AS_OF_DATE, null, "shared-admin-token", new BigDecimal("40000")))
         .willReturn(commandResponse());
 
     mockMvc
@@ -157,7 +168,8 @@ class TransactionCommandControllerTest {
 
     then(adminService)
         .should()
-        .createAndProcess(TUK75, REBALANCE, AS_OF_DATE, null, "admin", new BigDecimal("40000"));
+        .createAndProcess(
+            TUK75, REBALANCE, AS_OF_DATE, null, "shared-admin-token", new BigDecimal("40000"));
   }
 
   @Test
@@ -244,7 +256,7 @@ class TransactionCommandControllerTest {
   void createCommandBatch_processesRequestedFunds() throws Exception {
     given(
             adminService.createAndProcessAll(
-                List.of(TUK75, TUK00), REBALANCE, AS_OF_DATE, "admin", Map.of()))
+                List.of(TUK75, TUK00), REBALANCE, AS_OF_DATE, "shared-admin-token", Map.of()))
         .willReturn(
             List.of(
                 commandResponse(),
@@ -268,7 +280,9 @@ class TransactionCommandControllerTest {
 
   @Test
   void createCommandBatch_withoutFunds_processesAllFunds() throws Exception {
-    given(adminService.createAndProcessAll(null, REBALANCE, AS_OF_DATE, "admin", Map.of()))
+    given(
+            adminService.createAndProcessAll(
+                null, REBALANCE, AS_OF_DATE, "shared-admin-token", Map.of()))
         .willReturn(List.of(commandResponse()));
 
     mockMvc
@@ -333,7 +347,7 @@ class TransactionCommandControllerTest {
 
   @Test
   void confirmBatch_finalizesAndReturnsBatch() throws Exception {
-    given(adminService.confirmAndFinalize(10L, "admin")).willReturn(batchResponse());
+    given(adminService.confirmAndFinalize(10L, "shared-admin-token")).willReturn(batchResponse());
 
     mockMvc
         .perform(
@@ -353,8 +367,7 @@ class TransactionCommandControllerTest {
         .perform(
             post("/admin/transaction-batches/10/confirm")
                 .with(csrf())
-                .header("X-Admin-Token", "valid-token")
-                .header("X-Admin-Actor", "operator-7"))
+                .header("X-Admin-Token", "operator-7-token"))
         .andExpect(status().isOk());
 
     then(adminService).should().confirmAndFinalize(10L, "operator-7");
@@ -362,7 +375,7 @@ class TransactionCommandControllerTest {
 
   @Test
   void confirmBatch_notAwaitingConfirmation_returnsConflict() throws Exception {
-    given(adminService.confirmAndFinalize(10L, "admin"))
+    given(adminService.confirmAndFinalize(10L, "shared-admin-token"))
         .willThrow(
             new ResponseStatusException(
                 CONFLICT, "Batch not awaiting confirmation: id=10, status=SENT"));
@@ -384,8 +397,7 @@ class TransactionCommandControllerTest {
         .perform(
             post("/admin/transaction-batches/10/cancel")
                 .with(csrf())
-                .header("X-Admin-Token", "valid-token")
-                .header("X-Admin-Actor", "operator-7")
+                .header("X-Admin-Token", "operator-7-token")
                 .contentType(APPLICATION_JSON)
                 .content(
                     """
@@ -399,7 +411,8 @@ class TransactionCommandControllerTest {
 
   @Test
   void cancelBatch_withoutActor_defaultsToAdmin() throws Exception {
-    given(adminService.cancelBatch(10L, "duplicate batch", "admin")).willReturn(batchResponse());
+    given(adminService.cancelBatch(10L, "duplicate batch", "shared-admin-token"))
+        .willReturn(batchResponse());
 
     mockMvc
         .perform(
@@ -413,7 +426,7 @@ class TransactionCommandControllerTest {
                     """))
         .andExpect(status().isOk());
 
-    then(adminService).should().cancelBatch(10L, "duplicate batch", "admin");
+    then(adminService).should().cancelBatch(10L, "duplicate batch", "shared-admin-token");
   }
 
   @Test
@@ -458,8 +471,7 @@ class TransactionCommandControllerTest {
         .perform(
             post("/admin/transaction-batches/10/discard")
                 .with(csrf())
-                .header("X-Admin-Token", "valid-token")
-                .header("X-Admin-Actor", "operator-7"))
+                .header("X-Admin-Token", "operator-7-token"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(10));
 
@@ -468,7 +480,7 @@ class TransactionCommandControllerTest {
 
   @Test
   void discardBatch_withoutActor_defaultsToAdmin() throws Exception {
-    given(adminService.discardBatch(10L, "admin")).willReturn(batchResponse());
+    given(adminService.discardBatch(10L, "shared-admin-token")).willReturn(batchResponse());
 
     mockMvc
         .perform(
@@ -477,12 +489,12 @@ class TransactionCommandControllerTest {
                 .header("X-Admin-Token", "valid-token"))
         .andExpect(status().isOk());
 
-    then(adminService).should().discardBatch(10L, "admin");
+    then(adminService).should().discardBatch(10L, "shared-admin-token");
   }
 
   @Test
   void discardBatch_nonDraftBatch_returnsConflict() throws Exception {
-    given(adminService.discardBatch(10L, "admin"))
+    given(adminService.discardBatch(10L, "shared-admin-token"))
         .willThrow(
             new ResponseStatusException(CONFLICT, "Batch not in DRAFT status: id=10, status=SENT"));
 
@@ -514,8 +526,7 @@ class TransactionCommandControllerTest {
         .perform(
             post("/admin/transaction-orders/100/cancel")
                 .with(csrf())
-                .header("X-Admin-Token", "valid-token")
-                .header("X-Admin-Actor", "operator-7")
+                .header("X-Admin-Token", "operator-7-token")
                 .contentType(APPLICATION_JSON)
                 .content(
                     """
@@ -529,7 +540,8 @@ class TransactionCommandControllerTest {
 
   @Test
   void cancelOrder_withoutActor_defaultsToAdmin() throws Exception {
-    given(adminService.cancelOrder(100L, "trader error", "admin")).willReturn(orderResponse());
+    given(adminService.cancelOrder(100L, "trader error", "shared-admin-token"))
+        .willReturn(orderResponse());
 
     mockMvc
         .perform(
@@ -543,7 +555,7 @@ class TransactionCommandControllerTest {
                     """))
         .andExpect(status().isOk());
 
-    then(adminService).should().cancelOrder(100L, "trader error", "admin");
+    then(adminService).should().cancelOrder(100L, "trader error", "shared-admin-token");
   }
 
   @Test
@@ -565,7 +577,7 @@ class TransactionCommandControllerTest {
 
   @Test
   void cancelOrder_notSentOrder_returnsConflict() throws Exception {
-    given(adminService.cancelOrder(100L, "trader error", "admin"))
+    given(adminService.cancelOrder(100L, "trader error", "shared-admin-token"))
         .willThrow(
             new ResponseStatusException(
                 CONFLICT, "Only SENT orders can be cancelled: id=100, status=DRAFT"));
@@ -625,5 +637,33 @@ class TransactionCommandControllerTest {
             get("/admin/transaction-batches/10/exports/sebEtfXlsx")
                 .header("X-Admin-Token", "valid-token"))
         .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void downloadExport_sebFundOrderFile_isServedAsCsv() throws Exception {
+    var csv = "Original reference;Client name\n".getBytes(UTF_8);
+    given(adminService.exportFile(10L, "sebFundXlsx")).willReturn(Optional.of(csv));
+
+    mockMvc
+        .perform(
+            get("/admin/transaction-batches/10/exports/sebFundXlsx")
+                .header("X-Admin-Token", "valid-token"))
+        .andExpect(status().isOk())
+        .andExpect(content().contentTypeCompatibleWith("text/csv"))
+        .andExpect(
+            header()
+                .string("Content-Disposition", "attachment; filename=\"batch-10-sebFundXlsx.csv\""))
+        .andExpect(content().bytes(csv));
+  }
+
+  @Test
+  void downloadExport_unknownExportType_returnsNotFound() throws Exception {
+    mockMvc
+        .perform(
+            get("/admin/transaction-batches/10/exports/notAnExport")
+                .header("X-Admin-Token", "valid-token"))
+        .andExpect(status().isNotFound());
+
+    then(adminService).shouldHaveNoInteractions();
   }
 }

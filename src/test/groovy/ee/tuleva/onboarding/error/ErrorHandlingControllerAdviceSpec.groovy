@@ -42,7 +42,8 @@ class ErrorHandlingControllerAdviceSpec extends BaseControllerSpec {
         .andExpect(content().json('''
         {"errors":[
           {"code":"NotNull","message":"must not be null","path":"fundTransferExchanges","arguments":[]},
-          {"code":"NotNull","message":"must not be null","path":"address","arguments":[]}
+          {"code":"NotNull","message":"must not be null","path":"address","arguments":[]},
+          {"code":"AssertTrue","message":"either futureContributionFundIsin or fundTransferExchanges must be present","path":"sourceIsinPresent","arguments":[]}
         ]}
       '''))
   }

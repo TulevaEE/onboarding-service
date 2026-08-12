@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserService
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.dao.DataIntegrityViolationException
+import org.springframework.security.authentication.BadCredentialsException
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
@@ -131,5 +132,18 @@ class MontonioCallbackServiceSpec extends Specification {
     0 * paymentRepository.save(_)
 
     result.isEmpty()
+  }
+
+  def "processToken: rejects a malformed token"() {
+    when:
+    service.processToken(malformedToken)
+
+    then:
+    thrown(BadCredentialsException)
+    0 * paymentRepository.findByInternalReference(_)
+    0 * paymentRepository.save(_)
+
+    where:
+    malformedToken << ["garbage", "", "   ", "a.b.c", null]
   }
 }

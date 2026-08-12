@@ -15,6 +15,7 @@ import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.party.PartyResolver;
 import ee.tuleva.onboarding.payment.event.SavingsPaymentFailedEvent;
 import ee.tuleva.onboarding.savings.fund.notification.UnattributedPaymentEvent;
+import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import ee.tuleva.onboarding.user.personalcode.PersonalCodeValidator;
 import java.util.Locale;
@@ -139,13 +140,21 @@ public class PaymentVerificationService {
     applicationEventPublisher.publishEvent(
         new UnattributedPaymentEvent(payment.getId(), payment.getAmount(), reason));
 
-    Optional.ofNullable(payment.getPartyId())
-        .map(PartyId::code)
-        .flatMap(userRepository::findByPersonalCode)
+    findPayer(payment)
         .ifPresent(
             user ->
                 applicationEventPublisher.publishEvent(
                     new SavingsPaymentFailedEvent(this, user, Locale.of("et"))));
+  }
+
+  private Optional<User> findPayer(SavingFundPayment payment) {
+    var remitterIdCode = payment.getRemitterIdCode();
+    if (remitterIdCode != null) {
+      return userRepository.findByPersonalCode(remitterIdCode);
+    }
+    return Optional.ofNullable(payment.getPartyId())
+        .map(PartyId::code)
+        .flatMap(userRepository::findByPersonalCode);
   }
 
   private Optional<PartyId> extractPartyId(SavingFundPayment payment) {

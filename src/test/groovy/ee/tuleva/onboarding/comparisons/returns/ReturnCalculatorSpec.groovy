@@ -61,6 +61,22 @@ class ReturnCalculatorSpec extends Specification {
     marketAverageReturn.to() == LocalDate.parse("2018-06-18")
   }
 
+  def "it returns no rate when the internal rate of return does not converge"() {
+    given:
+    Instant startTime = parseInstant("2018-06-17")
+    Instant endTime = parseInstant("2018-06-18")
+    def overview = new AccountOverview([
+        new Transaction(100.0, startTime),
+    ], 0.0, 1000000.0, startTime, endTime, 2)
+
+    when:
+    def personalReturn = returnCalculator.getReturn(overview)
+
+    then:
+    personalReturn.rate() == null
+    personalReturn.paymentsSum() == 100
+  }
+
   def "it successfully calculates a return for 0-valued transactions"() {
     given:
     Instant startTime = parseInstant("2018-06-17")

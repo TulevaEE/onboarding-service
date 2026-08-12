@@ -198,7 +198,20 @@ class EmailServiceSpec extends Specification {
     thrown(EmailDeliveryException)
   }
 
-  def "does not send email when user has no email"() {
+  def "does not send email when the message has no recipient"() {
+    given:
+    def messageWithoutRecipient = service.newMandrillMessage(
+        null, templateName, [:], ["test"], null)
+
+    when:
+    def response = service.send(user, messageWithoutRecipient, templateName)
+
+    then:
+    response == Optional.empty()
+    0 * mandrillMessagesApi._
+  }
+
+  def "sends to the message recipient even when the user profile has no email"() {
     given:
     def userWithoutEmail = sampleUser().email(null).build()
 
@@ -206,8 +219,8 @@ class EmailServiceSpec extends Specification {
     def response = service.send(userWithoutEmail, message, templateName)
 
     then:
-    response == Optional.empty()
-    0 * mandrillMessagesApi._
+    1 * mandrillMessagesApi.sendTemplate(templateName, [:], message, false, null, null) >> [mandrillMessageStatus]
+    response == Optional.of(mandrillMessageStatus)
   }
 
   def "returns empty when Mandrill returns empty response"() {

@@ -7,6 +7,7 @@ import java.time.LocalDate;
 import java.util.List;
 import lombok.Builder;
 import lombok.Value;
+import org.jspecify.annotations.Nullable;
 
 @Value
 @Builder
@@ -19,7 +20,7 @@ public class Returns {
   public static class Return {
 
     String key;
-    BigDecimal rate;
+    @Nullable BigDecimal rate;
     BigDecimal amount;
     BigDecimal paymentsSum;
     Currency currency;

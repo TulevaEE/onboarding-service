@@ -44,23 +44,25 @@ public class FundNavProvider {
     return nav.stripTrailingZeros().setScale(fund.getNavScale(), UNNECESSARY);
   }
 
-  public BigDecimal getVerifiedNavForIssuingAndRedeeming(TulevaFund fund) {
+  public BigDecimal getVerifiedNavForIssuingAndRedeeming(TulevaFund fund, LocalDate dealingDate) {
     String isin = fund.getIsin();
     FundValue fundValue =
         fundValueRepository
-            .findLastValueForFund(isin)
+            .getLatestValue(isin, dealingDate)
             .orElseThrow(
-                () -> new IllegalStateException("NAV not found for savings fund: isin=" + isin));
+                () ->
+                    new IllegalStateException(
+                        "NAV not found for savings fund: isin="
+                            + isin
+                            + ", expectedDate="
+                            + dealingDate));
 
-    LocalDate today = clock.instant().atZone(ESTONIAN_ZONE).toLocalDate();
-    LocalDate expectedDate = publicHolidays.previousWorkingDay(today);
-
-    if (!fundValue.date().equals(expectedDate)) {
+    if (!fundValue.date().equals(dealingDate)) {
       throw new IllegalStateException(
           "Stale NAV for savings fund: isin="
               + isin
               + ", expectedDate="
-              + expectedDate
+              + dealingDate
               + ", actualDate="
               + fundValue.date());
     }
@@ -78,7 +80,7 @@ public class FundNavProvider {
 
     nav = nav.stripTrailingZeros().setScale(fund.getNavScale(), UNNECESSARY);
 
-    validateReasonableChange(isin, nav, expectedDate);
+    validateReasonableChange(isin, nav, dealingDate);
 
     return nav;
   }

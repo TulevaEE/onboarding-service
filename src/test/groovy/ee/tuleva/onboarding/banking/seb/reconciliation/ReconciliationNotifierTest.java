@@ -41,7 +41,7 @@ class ReconciliationNotifierTest {
 
     verify(notificationService)
         .sendMessage(
-            "🔴 Bank reconciliation FAILED: bankAccount=DEPOSIT_EUR, bankBalance=1000.00, ledgerBalance=999.99, diff=0.01",
+            "🔴 Bank reconciliation FAILED: bankAccount=DEPOSIT_EUR, bankBalance=1000.00, ledgerBalance=999.99, diff=0.01 <!channel>",
             SAVINGS);
   }
 }

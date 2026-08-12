@@ -29,7 +29,8 @@ public class PaymentVerificationJob {
               try {
                 paymentVerificationService.process(payment);
               } catch (Exception e) {
-                log.error("Identity check failed for payment {}", payment, e);
+                log.error(
+                    "Payment verification processing failed: paymentId={}", payment.getId(), e);
               }
             });
   }

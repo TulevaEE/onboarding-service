@@ -30,6 +30,68 @@ class CompletenessCheckerTest {
   }
 
   @Test
+  void warnsOnNegativeSecurityQuantityWithoutBlockingTheImport() {
+    var positions =
+        List.of(
+            securityPosition("IE00BFG1TM61", new BigDecimal("-50")),
+            cashPosition(new BigDecimal("50000")));
+
+    var findings = checker.check(TUK75, NAV_DATE, positions);
+
+    assertThat(findings)
+        .singleElement()
+        .satisfies(
+            finding -> {
+              assertThat(finding.checkType()).isEqualTo(COMPLETENESS);
+              assertThat(finding.severity()).isEqualTo(WARNING);
+              assertThat(finding.message()).contains("IE00BFG1TM61", "-50");
+            });
+  }
+
+  @Test
+  void warnsOnNegativeSecurityQuantityWithoutIsinAndNamesTheAccount() {
+    var positions =
+        List.of(
+            FundPosition.builder()
+                .navDate(NAV_DATE)
+                .fund(TUK75)
+                .accountType(SECURITY)
+                .accountName("Unmapped custody line")
+                .quantity(new BigDecimal("-3"))
+                .build(),
+            cashPosition(new BigDecimal("50000")));
+
+    var findings = checker.check(TUK75, NAV_DATE, positions);
+
+    assertThat(findings)
+        .singleElement()
+        .satisfies(
+            finding -> {
+              assertThat(finding.severity()).isEqualTo(WARNING);
+              assertThat(finding.message()).contains("Unmapped custody line", "-3");
+            });
+  }
+
+  // A row carrying no quantity at all is not a negative one — that case belongs to ISIN_MATCH.
+  @Test
+  void aSecurityRowWithoutAQuantityIsNotTreatedAsNegative() {
+    var positions =
+        List.of(
+            FundPosition.builder()
+                .navDate(NAV_DATE)
+                .fund(TUK75)
+                .accountType(SECURITY)
+                .accountName("iShares")
+                .accountId("IE00BFG1TM61")
+                .build(),
+            cashPosition(new BigDecimal("50000")));
+
+    var findings = checker.check(TUK75, NAV_DATE, positions);
+
+    assertThat(findings).isEmpty();
+  }
+
+  @Test
   void warnsWhenCashMissing() {
     var positions = List.of(securityPosition("IE00BFG1TM61", new BigDecimal("1000")));
 

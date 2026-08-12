@@ -32,7 +32,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class SettlementDateCalculatorTest {
 
   private static final String ETF_ISIN = "IE00BJZ2DC62";
-  private static final String FRENCH_FUND_ISIN = "FR0010688192";
   private static final String IRISH_FUND_ISIN = "IE00BFG1TM61";
   private static final String LUXEMBOURG_FUND_ISIN = "LU1437018838";
   private static final String UNKNOWN_ISIN = "XX0000000000";
@@ -58,7 +57,7 @@ class SettlementDateCalculatorTest {
   }
 
   @Test
-  void ccf_submittedBeforeCutoff_acceptedSameDay_settlesThreeFrenchBusinessDaysLater() {
+  void ccf_submittedBeforeCutoff_acceptedSameDay_settlesThreeIrishBusinessDaysLater() {
     given(instrumentReferenceService.settlementTerms(CCF_ISIN)).willReturn(Optional.of(CCF_TERMS));
     givenProvider(CCF_ISIN, CCF);
     Instant mondayBeforeCutoff = tallinnInstant(LocalDate.of(2026, 1, 12), LocalTime.of(9, 15));
@@ -88,23 +87,24 @@ class SettlementDateCalculatorTest {
   }
 
   @Test
-  void ccf_dayCountSkipsFrenchHoliday() {
+  void ccf_dayCountSkipsIrishHoliday() {
     given(instrumentReferenceService.settlementTerms(CCF_ISIN)).willReturn(Optional.of(CCF_TERMS));
     givenProvider(CCF_ISIN, CCF);
-    Instant mondayBeforeBastille = tallinnInstant(LocalDate.of(2026, 7, 13), LocalTime.of(9, 15));
+    Instant thursdayBeforeStPatricks =
+        tallinnInstant(LocalDate.of(2026, 3, 12), LocalTime.of(9, 15));
 
-    assertThat(calculator().calculateSettlementDate(mondayBeforeBastille, FUND, CCF_ISIN))
-        .isEqualTo(LocalDate.of(2026, 7, 17));
+    assertThat(calculator().calculateSettlementDate(thursdayBeforeStPatricks, FUND, CCF_ISIN))
+        .isEqualTo(LocalDate.of(2026, 3, 18));
   }
 
   @Test
-  void ccf_submittedOnFrenchHolidayBeforeCutoff_acceptedNextBusinessDay() {
+  void ccf_submittedOnIrishHolidayBeforeCutoff_acceptedNextBusinessDay() {
     given(instrumentReferenceService.settlementTerms(CCF_ISIN)).willReturn(Optional.of(CCF_TERMS));
     givenProvider(CCF_ISIN, CCF);
-    Instant bastilleDayBeforeCutoff = tallinnInstant(LocalDate.of(2026, 7, 14), LocalTime.of(9, 0));
+    Instant stPatricksBeforeCutoff = tallinnInstant(LocalDate.of(2026, 3, 17), LocalTime.of(9, 0));
 
-    assertThat(calculator().calculateSettlementDate(bastilleDayBeforeCutoff, FUND, CCF_ISIN))
-        .isEqualTo(LocalDate.of(2026, 7, 20));
+    assertThat(calculator().calculateSettlementDate(stPatricksBeforeCutoff, FUND, CCF_ISIN))
+        .isEqualTo(LocalDate.of(2026, 3, 23));
   }
 
   @Test
@@ -157,15 +157,6 @@ class SettlementDateCalculatorTest {
 
     assertThat(calculator().calculateSettlementDate(maundyThursday2025, ETF, ETF_ISIN))
         .isEqualTo(LocalDate.of(2025, 4, 23));
-  }
-
-  @Test
-  void fund_settlesInFiveBusinessDaysOnProviderDomicileCalendar() {
-    givenProvider(FRENCH_FUND_ISIN, CCF);
-    LocalDate beforeBastilleDay = LocalDate.of(2026, 7, 8);
-
-    assertThat(calculator().calculateSettlementDate(beforeBastilleDay, FUND, FRENCH_FUND_ISIN))
-        .isEqualTo(LocalDate.of(2026, 7, 16));
   }
 
   @Test

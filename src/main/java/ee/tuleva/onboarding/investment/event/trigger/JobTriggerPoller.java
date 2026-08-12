@@ -49,7 +49,9 @@ class JobTriggerPoller {
           Map.entry("R16FlowRecalcJob", RunR16FlowRecalcRequested::new),
           Map.entry("TdAttributionJob", RunTdAttributionMonthlyRequested::new),
           Map.entry("TdAttributionBackfillJob", () -> new RunTdAttributionBackfillRequested(6)),
-          Map.entry("OcfCalculationJob", RunOcfCalculationRequested::new));
+          Map.entry("OcfCalculationJob", RunOcfCalculationRequested::new),
+          Map.entry("RiskIndicatorJob", () -> new RunRiskIndicatorRequested(28)),
+          Map.entry("RiskIndicatorBackfillJob", () -> new RunRiskIndicatorRequested(120)));
 
   private final JobTriggerRepository repository;
   private final ApplicationEventPublisher eventPublisher;

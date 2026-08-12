@@ -9,6 +9,7 @@ import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -61,6 +62,9 @@ class TransactionInputServiceTest {
   @BeforeEach
   void defaultLedgerCashToZero() {
     lenient().when(navLedgerRepository.getSystemAccountBalance(anyString())).thenReturn(ZERO);
+    lenient()
+        .when(pendingOrderImpactService.calculate(any(), any(), any()))
+        .thenReturn(PendingOrderImpact.none());
   }
 
   @Mock private FundPositionRepository fundPositionRepository;
@@ -77,6 +81,7 @@ class TransactionInputServiceTest {
   @Mock private R16FlowCalculationService r16FlowCalculationService;
   @Mock private R16PhaseCalculator r16PhaseCalculator;
   @Mock private InvestmentParameterRepository investmentParameterRepository;
+  @Mock private PendingOrderImpactService pendingOrderImpactService;
 
   @InjectMocks private TransactionInputService service;
 
@@ -982,8 +987,13 @@ class TransactionInputServiceTest {
             .orderStatus(OrderStatus.SENT)
             .expectedSettlementDate(AS_OF_DATE.plusDays(2))
             .build();
-    when(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
-        .thenReturn(List.of(pendingBuyOrder, pendingSellOrder));
+    given(pendingOrderImpactService.calculate(eq(TUV100), eq(AS_OF_DATE), any()))
+        .willReturn(
+            new PendingOrderImpact(
+                new BigDecimal("30000"),
+                new BigDecimal("10000"),
+                Map.of("IE00A", new BigDecimal("30000"), "IE00B", new BigDecimal("-10000")),
+                Map.of()));
 
     var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
 
@@ -1026,8 +1036,8 @@ class TransactionInputServiceTest {
             .orderStatus(OrderStatus.EXECUTED)
             .expectedSettlementDate(AS_OF_DATE.plusDays(1))
             .build();
-    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
-        .willReturn(List.of(executedUnsettledBuy));
+    given(pendingOrderImpactService.calculate(eq(TUV100), eq(AS_OF_DATE), any()))
+        .willReturn(new PendingOrderImpact(new BigDecimal("25000"), ZERO, Map.of(), Map.of()));
 
     var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
 
@@ -1362,5 +1372,343 @@ class TransactionInputServiceTest {
         liquidityRequired,
         tradeBufferedLiquidity,
         tradeBufferedLiquidity);
+  }
+
+  @Test
+  void gatherInput_withASentBuyNotYetInTheSebReport_addsItsValueToThePosition() {
+    var positionDate = AS_OF_DATE;
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(positionDate));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
+        .willReturn(
+            List.of(
+                FundPosition.builder()
+                    .fund(TUV100)
+                    .accountType(SECURITY)
+                    .accountId("IE00A")
+                    .quantity(new BigDecimal("1000"))
+                    .marketValue(new BigDecimal("500000"))
+                    .build()));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
+        .willReturn(
+            List.of(
+                FundPosition.builder()
+                    .fund(TUV100)
+                    .accountType(CASH)
+                    .marketValue(new BigDecimal("100000"))
+                    .build()));
+    given(feeAccrualRepository.getAccruedFeesForMonth(eq(TUV100), any(), any(), any()))
+        .willReturn(ZERO);
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(List.of());
+    given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(zeroFundLimit(TUV100)));
+    given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
+    given(pendingOrderImpactService.calculate(eq(TUV100), eq(AS_OF_DATE), any()))
+        .willReturn(
+            new PendingOrderImpact(
+                new BigDecimal("40000"),
+                ZERO,
+                Map.of("IE00A", new BigDecimal("40000")),
+                Map.of("IE00A", new BigDecimal("80"))));
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+
+    assertThat(result.positions())
+        .singleElement()
+        .satisfies(
+            position -> {
+              assertThat(position.isin()).isEqualTo("IE00A");
+              assertThat(position.marketValue()).isEqualByComparingTo(new BigDecimal("540000"));
+              assertThat(position.quantity()).isEqualByComparingTo(new BigDecimal("1080"));
+            });
+    assertThat(result.grossPortfolioValue()).isEqualByComparingTo(new BigDecimal("640000"));
+    assertThat(result.liabilities()).isEqualByComparingTo(new BigDecimal("40000"));
+    assertThat(result.freeCash()).isEqualByComparingTo(new BigDecimal("60000"));
+  }
+
+  @Test
+  void gatherInput_withANegativeSecurityMarketValue_dropsThatRowAndKeepsTrading() {
+    var positionDate = AS_OF_DATE;
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(positionDate));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
+        .willReturn(
+            List.of(
+                FundPosition.builder()
+                    .fund(TUV100)
+                    .accountType(SECURITY)
+                    .accountId("IE00A")
+                    .marketValue(new BigDecimal("500000"))
+                    .build(),
+                FundPosition.builder()
+                    .fund(TUV100)
+                    .accountType(SECURITY)
+                    .accountId("IE00REVERSAL")
+                    .marketValue(new BigDecimal("-5000"))
+                    .build()));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
+        .willReturn(
+            List.of(
+                FundPosition.builder()
+                    .fund(TUV100)
+                    .accountType(CASH)
+                    .marketValue(new BigDecimal("100000"))
+                    .build()));
+    given(feeAccrualRepository.getAccruedFeesForMonth(eq(TUV100), any(), any(), any()))
+        .willReturn(ZERO);
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(List.of());
+    given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(zeroFundLimit(TUV100)));
+    given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+
+    assertThat(result.positions())
+        .extracting(PositionSnapshot::isin, PositionSnapshot::marketValue)
+        .containsExactly(tuple("IE00A", new BigDecimal("500000")));
+    assertThat(result.grossPortfolioValue()).isEqualByComparingTo(new BigDecimal("600000"));
+  }
+
+  @Test
+  void gatherInput_withASecurityRowWithoutAnIsin_stillAppliesTheOtherPendingPositions() {
+    var positionDate = AS_OF_DATE;
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(positionDate));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
+        .willReturn(
+            List.of(
+                FundPosition.builder()
+                    .fund(TUV100)
+                    .accountType(SECURITY)
+                    .accountId("IE00A")
+                    .quantity(new BigDecimal("1000"))
+                    .marketValue(new BigDecimal("500000"))
+                    .build(),
+                FundPosition.builder()
+                    .fund(TUV100)
+                    .accountType(SECURITY)
+                    .marketValue(new BigDecimal("250000"))
+                    .build()));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
+        .willReturn(
+            List.of(
+                FundPosition.builder()
+                    .fund(TUV100)
+                    .accountType(CASH)
+                    .marketValue(new BigDecimal("100000"))
+                    .build()));
+    given(feeAccrualRepository.getAccruedFeesForMonth(eq(TUV100), any(), any(), any()))
+        .willReturn(ZERO);
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(List.of());
+    given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(zeroFundLimit(TUV100)));
+    given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
+    given(pendingOrderImpactService.calculate(eq(TUV100), eq(AS_OF_DATE), any()))
+        .willReturn(
+            new PendingOrderImpact(
+                new BigDecimal("40000"), ZERO, Map.of("IE00A", new BigDecimal("40000")), Map.of()));
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+
+    assertThat(result.positions())
+        .extracting(PositionSnapshot::isin, PositionSnapshot::marketValue)
+        .containsExactly(
+            tuple("IE00A", new BigDecimal("540000")), tuple(null, new BigDecimal("250000")));
+  }
+
+  @Test
+  void gatherInput_withASentSellOfAnIsinAbsentFromTheSebReport_addsNoPositionForIt() {
+    var positionDate = AS_OF_DATE;
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(positionDate));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
+        .willReturn(
+            List.of(
+                FundPosition.builder()
+                    .fund(TUV100)
+                    .accountType(SECURITY)
+                    .accountId("IE00A")
+                    .quantity(new BigDecimal("1000"))
+                    .marketValue(new BigDecimal("500000"))
+                    .build()));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
+        .willReturn(
+            List.of(
+                FundPosition.builder()
+                    .fund(TUV100)
+                    .accountType(CASH)
+                    .marketValue(new BigDecimal("100000"))
+                    .build()));
+    given(feeAccrualRepository.getAccruedFeesForMonth(eq(TUV100), any(), any(), any()))
+        .willReturn(ZERO);
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(List.of());
+    given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(zeroFundLimit(TUV100)));
+    given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
+    given(pendingOrderImpactService.calculate(eq(TUV100), eq(AS_OF_DATE), any()))
+        .willReturn(
+            new PendingOrderImpact(
+                ZERO,
+                new BigDecimal("1000"),
+                Map.of("IE00B", new BigDecimal("-1000")),
+                Map.of("IE00B", new BigDecimal("-20"))));
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+
+    assertThat(result.positions())
+        .singleElement()
+        .satisfies(position -> assertThat(position.isin()).isEqualTo("IE00A"));
+  }
+
+  @Test
+  void gatherInput_leavesPositionsWithoutAnUnsettledOrderExactlyAsReported() {
+    var positionDate = AS_OF_DATE;
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(positionDate));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
+        .willReturn(
+            List.of(
+                FundPosition.builder()
+                    .fund(TUV100)
+                    .accountType(SECURITY)
+                    .accountId("IE00A")
+                    .quantity(new BigDecimal("1000"))
+                    .marketValue(new BigDecimal("500000"))
+                    .build(),
+                FundPosition.builder()
+                    .fund(TUV100)
+                    .accountType(SECURITY)
+                    .accountId("IE00B")
+                    .quantity(new BigDecimal("200"))
+                    .marketValue(new BigDecimal("100000"))
+                    .build()));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
+        .willReturn(
+            List.of(
+                FundPosition.builder()
+                    .fund(TUV100)
+                    .accountType(CASH)
+                    .marketValue(new BigDecimal("100000"))
+                    .build()));
+    given(feeAccrualRepository.getAccruedFeesForMonth(eq(TUV100), any(), any(), any()))
+        .willReturn(ZERO);
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(List.of());
+    given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(zeroFundLimit(TUV100)));
+    given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
+    given(pendingOrderImpactService.calculate(eq(TUV100), eq(AS_OF_DATE), any()))
+        .willReturn(
+            new PendingOrderImpact(
+                new BigDecimal("40000"),
+                ZERO,
+                Map.of("IE00A", new BigDecimal("40000")),
+                Map.of("IE00A", new BigDecimal("80"))));
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+
+    assertThat(result.positions())
+        .filteredOn(position -> position.isin().equals("IE00B"))
+        .singleElement()
+        .satisfies(
+            position -> {
+              assertThat(position.marketValue()).isEqualByComparingTo(new BigDecimal("100000"));
+              assertThat(position.quantity()).isEqualByComparingTo(new BigDecimal("200"));
+            });
+  }
+
+  @Test
+  void gatherInput_withASentBuyOfANewInstrument_createsThePositionItIsNotYetReportedIn() {
+    var positionDate = AS_OF_DATE;
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(positionDate));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
+        .willReturn(List.of());
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
+        .willReturn(
+            List.of(
+                FundPosition.builder()
+                    .fund(TUV100)
+                    .accountType(CASH)
+                    .marketValue(new BigDecimal("100000"))
+                    .build()));
+    given(feeAccrualRepository.getAccruedFeesForMonth(eq(TUV100), any(), any(), any()))
+        .willReturn(ZERO);
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(List.of());
+    given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(zeroFundLimit(TUV100)));
+    given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
+    given(pendingOrderImpactService.calculate(eq(TUV100), eq(AS_OF_DATE), any()))
+        .willReturn(
+            new PendingOrderImpact(
+                new BigDecimal("25000"),
+                ZERO,
+                Map.of("IE00NEW", new BigDecimal("25000")),
+                Map.of()));
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+
+    assertThat(result.positions())
+        .singleElement()
+        .satisfies(
+            position -> {
+              assertThat(position.isin()).isEqualTo("IE00NEW");
+              assertThat(position.marketValue()).isEqualByComparingTo(new BigDecimal("25000"));
+            });
+  }
+
+  @Test
+  void gatherInput_withAnUnsettledBuy_leavesNetInvestableUnchangedSoItIsNotBoughtTwice() {
+    var positionDate = AS_OF_DATE;
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(positionDate));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
+        .willReturn(
+            List.of(
+                FundPosition.builder()
+                    .fund(TUV100)
+                    .accountType(SECURITY)
+                    .accountId("IE00A")
+                    .marketValue(new BigDecimal("500000"))
+                    .build()));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
+        .willReturn(
+            List.of(
+                FundPosition.builder()
+                    .fund(TUV100)
+                    .accountType(CASH)
+                    .marketValue(new BigDecimal("100000"))
+                    .build()));
+    given(feeAccrualRepository.getAccruedFeesForMonth(eq(TUV100), any(), any(), any()))
+        .willReturn(ZERO);
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(List.of());
+    given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(zeroFundLimit(TUV100)));
+    given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
+    given(pendingOrderImpactService.calculate(eq(TUV100), eq(AS_OF_DATE), any()))
+        .willReturn(
+            new PendingOrderImpact(
+                new BigDecimal("40000"), ZERO, Map.of("IE00A", new BigDecimal("40000")), Map.of()));
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+
+    BigDecimal netInvestable =
+        result
+            .grossPortfolioValue()
+            .subtract(result.cashBuffer())
+            .subtract(result.liabilities())
+            .add(result.receivables());
+    BigDecimal securityValue =
+        result.positions().stream()
+            .map(PositionSnapshot::marketValue)
+            .reduce(ZERO, BigDecimal::add);
+
+    assertThat(netInvestable.subtract(securityValue)).isEqualByComparingTo(result.freeCash());
   }
 }

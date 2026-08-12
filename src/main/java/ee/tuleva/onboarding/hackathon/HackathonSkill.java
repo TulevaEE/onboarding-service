@@ -1,0 +1,11 @@
+package ee.tuleva.onboarding.hackathon;
+
+public enum HackathonSkill {
+  SOFTWARE_DEVELOPMENT,
+  DESIGN,
+  DATA_AND_AI,
+  LAW_AND_REGULATION,
+  BUSINESS_AND_PRODUCT,
+  MARKETING_AND_COMMUNICATION,
+  FINANCE_AND_INSURANCE
+}

@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.investment.transaction.calculation;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
+import static ee.tuleva.onboarding.investment.transaction.CalculationWarningType.REBALANCE_NET_CASH_MISMATCH;
+import static ee.tuleva.onboarding.investment.transaction.CalculationWarningType.REBALANCE_NET_NOT_ACHIEVED;
 import static ee.tuleva.onboarding.investment.transaction.LimitStatus.*;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.*;
 import static java.math.BigDecimal.ZERO;
@@ -1770,5 +1772,203 @@ class TradeCalculationEngineTest {
     nonZero.forEach(v -> assertThat(v).isGreaterThanOrEqualTo(new BigDecimal("4999")));
     assertThat(result.stream().reduce(ZERO, BigDecimal::add))
         .isCloseTo(amount, org.assertj.core.data.Offset.offset(BigDecimal.ONE));
+  }
+
+  @Test
+  void rebalance_whenModelNetDivergesFromFreeCash_warnsToCheckTheInputs() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(
+                List.of(
+                    new PositionSnapshot("IE00A", new BigDecimal("600000")),
+                    new PositionSnapshot("IE00B", new BigDecimal("400000"))))
+            .modelWeights(
+                List.of(
+                    new ModelWeight("IE00A", new BigDecimal("0.50")),
+                    new ModelWeight("IE00B", new BigDecimal("0.50"))))
+            .grossPortfolioValue(new BigDecimal("1100000"))
+            .cashBuffer(ZERO)
+            .liabilities(ZERO)
+            .freeCash(new BigDecimal("40000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+
+    var result = engine.calculate(input, REBALANCE);
+
+    assertThat(result.warnings())
+        .extracting(CalculationWarning::type)
+        .containsExactly(REBALANCE_NET_CASH_MISMATCH);
+  }
+
+  @Test
+  void rebalance_whenModelNetMatchesFreeCash_raisesNoWarning() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(
+                List.of(
+                    new PositionSnapshot("IE00A", new BigDecimal("600000")),
+                    new PositionSnapshot("IE00B", new BigDecimal("400000"))))
+            .modelWeights(
+                List.of(
+                    new ModelWeight("IE00A", new BigDecimal("0.50")),
+                    new ModelWeight("IE00B", new BigDecimal("0.50"))))
+            .grossPortfolioValue(new BigDecimal("1100000"))
+            .cashBuffer(ZERO)
+            .liabilities(ZERO)
+            .freeCash(new BigDecimal("100000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+
+    var result = engine.calculate(input, REBALANCE);
+
+    assertThat(result.warnings()).isEmpty();
+  }
+
+  @Test
+  void rebalance_whenTheGapIsExactlyTheMinTransactionThreshold_stillWarns() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(
+                List.of(
+                    new PositionSnapshot("IE00A", new BigDecimal("600000")),
+                    new PositionSnapshot("IE00B", new BigDecimal("400000"))))
+            .modelWeights(
+                List.of(
+                    new ModelWeight("IE00A", new BigDecimal("0.50")),
+                    new ModelWeight("IE00B", new BigDecimal("0.50"))))
+            .grossPortfolioValue(new BigDecimal("1100000"))
+            .cashBuffer(ZERO)
+            .liabilities(ZERO)
+            .freeCash(new BigDecimal("95000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+
+    var result = engine.calculate(input, REBALANCE);
+
+    assertThat(result.warnings())
+        .extracting(CalculationWarning::type)
+        .containsExactly(REBALANCE_NET_CASH_MISMATCH);
+  }
+
+  @Test
+  void rebalance_whenAHardLimitBlocksPartOfTheBuySide_warnsTheNetWasNotAchieved() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(
+                List.of(
+                    new PositionSnapshot("IE00A", new BigDecimal("100000")),
+                    new PositionSnapshot("IE00B", new BigDecimal("900000"))))
+            .modelWeights(
+                List.of(
+                    new ModelWeight("IE00A", new BigDecimal("0.50")),
+                    new ModelWeight("IE00B", new BigDecimal("0.50"))))
+            .grossPortfolioValue(new BigDecimal("1000000"))
+            .cashBuffer(ZERO)
+            .liabilities(ZERO)
+            .freeCash(ZERO)
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(
+                Map.of(
+                    "IE00A",
+                    new PositionLimitSnapshot(new BigDecimal("0.20"), new BigDecimal("0.20"))))
+            .fastSellIsins(Set.of())
+            .build();
+
+    var result = engine.calculate(input, REBALANCE);
+
+    assertThat(result.warnings())
+        .extracting(CalculationWarning::type)
+        .containsExactly(REBALANCE_NET_NOT_ACHIEVED);
+  }
+
+  @Test
+  void buy_withANegativePositionMarketValue_failsLoudly() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(List.of(new PositionSnapshot("IE00A", new BigDecimal("-500000"))))
+            .modelWeights(List.of(new ModelWeight("IE00A", new BigDecimal("1.00"))))
+            .grossPortfolioValue(new BigDecimal("1000000"))
+            .cashBuffer(ZERO)
+            .liabilities(ZERO)
+            .freeCash(new BigDecimal("100000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+
+    assertThatThrownBy(() -> engine.calculate(input, BUY))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void buy_withANegativeGrossPortfolioValue_failsLoudly() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(List.of(new PositionSnapshot("IE00A", new BigDecimal("500000"))))
+            .modelWeights(List.of(new ModelWeight("IE00A", new BigDecimal("1.00"))))
+            .grossPortfolioValue(new BigDecimal("-1000000"))
+            .cashBuffer(ZERO)
+            .liabilities(ZERO)
+            .freeCash(new BigDecimal("100000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+
+    assertThatThrownBy(() -> engine.calculate(input, BUY))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  // A rebalance needs something to rebalance against; with no positions there is nothing to warn
+  // about either.
+  @Test
+  void rebalance_withoutAnyPositions_raisesNoCashWarnings() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(List.of())
+            .modelWeights(List.of(new ModelWeight("IE00A", new BigDecimal("1.00"))))
+            .grossPortfolioValue(ZERO)
+            .cashBuffer(ZERO)
+            .liabilities(ZERO)
+            .freeCash(ZERO)
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+
+    assertThat(engine.calculate(input, REBALANCE).warnings()).isEmpty();
+  }
+
+  @Test
+  void buy_withANegativeModelWeight_failsLoudly() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(List.of(new PositionSnapshot("IE00A", new BigDecimal("500000"))))
+            .modelWeights(List.of(new ModelWeight("IE00A", new BigDecimal("-1.00"))))
+            .grossPortfolioValue(new BigDecimal("1000000"))
+            .cashBuffer(ZERO)
+            .liabilities(ZERO)
+            .freeCash(new BigDecimal("100000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+
+    assertThatThrownBy(() -> engine.calculate(input, BUY))
+        .isInstanceOf(IllegalArgumentException.class);
   }
 }

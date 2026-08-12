@@ -5,9 +5,7 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.auth.role.RoleType.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.company.RelationshipType.BOARD_MEMBER;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
-import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_UNITS_OUTSTANDING;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
@@ -99,7 +97,7 @@ class RedemptionIntegrationTest {
     doReturn("").when(sebGatewayClient).submitPaymentFile(any(), any());
     lenient().when(navProvider.getDisplayNav(any())).thenReturn(BigDecimal.ONE);
     lenient()
-        .when(navProvider.getVerifiedNavForIssuingAndRedeeming(any()))
+        .when(navProvider.getVerifiedNavForIssuingAndRedeeming(any(), any()))
         .thenReturn(BigDecimal.ONE);
 
     testUser =
@@ -313,7 +311,7 @@ class RedemptionIntegrationTest {
     assertThat(getUserFundUnitsAccount().getBalance())
         .isEqualByComparingTo(remainingUnits.negate());
     assertThat(getUserFundUnitsReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getFundUnitsOutstandingAccount().getBalance()).isEqualByComparingTo(remainingUnits);
+    assertThat(savingsFundLedger.hasPricingEntry(requestId)).isTrue();
 
     // Cash redemption account has pending payout (will be cleared during reconciliation)
     assertThat(getUserCashRedemptionAccount().getBalance())
@@ -381,10 +379,6 @@ class RedemptionIntegrationTest {
 
   private LedgerAccount getUserRedemptionsAccount() {
     return ledgerService.getPartyAccount(testUser.getPersonalCode(), PERSON, REDEMPTIONS);
-  }
-
-  private LedgerAccount getFundUnitsOutstandingAccount() {
-    return ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100);
   }
 
   private void setupUserDepositIban(String iban) {

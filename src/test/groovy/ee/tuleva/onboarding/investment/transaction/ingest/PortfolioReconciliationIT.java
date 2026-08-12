@@ -40,6 +40,7 @@ class PortfolioReconciliationIT {
   @BeforeEach
   void cleanRecorderAndData() {
     recorder.events.clear();
+    recorder.skippedEvents.clear();
     deleteNavRows();
     deleteCostBasisRows();
   }
@@ -82,10 +83,13 @@ class PortfolioReconciliationIT {
   @Test
   void navReportRowMissing_emitsMismatch() {
     seedCostBasis(ISIN_A, "10005.0000");
+    seedCostBasis(ISIN_B, "250.0000");
+    seedNavReport(ISIN_B, new BigDecimal("250.0000"));
 
     service.reconcile(TUK75, AS_OF);
 
     assertThat(recorder.events).hasSize(1);
+    assertThat(recorder.events.get(0).mismatches()).hasSize(1);
     MismatchEntry entry = recorder.events.get(0).mismatches().get(0);
     assertThat(entry.isin()).isEqualTo(ISIN_A);
     assertThat(entry.ourQuantity()).isEqualByComparingTo("10005.0000");
@@ -94,15 +98,52 @@ class PortfolioReconciliationIT {
 
   @Test
   void costBasisRowMissing_emitsMismatch() {
-    seedNavReport(ISIN_B, new BigDecimal("250.0000"));
+    UUID calculationId = UUID.randomUUID();
+    seedCostBasis(ISIN_A, "10000.0000");
+    seedNavReport(ISIN_A, new BigDecimal("10000.0000"), calculationId);
+    seedNavReport(ISIN_B, new BigDecimal("250.0000"), calculationId);
 
     service.reconcile(TUK75, AS_OF);
 
     assertThat(recorder.events).hasSize(1);
+    assertThat(recorder.events.get(0).mismatches()).hasSize(1);
     MismatchEntry entry = recorder.events.get(0).mismatches().get(0);
     assertThat(entry.isin()).isEqualTo(ISIN_B);
     assertThat(entry.ourQuantity()).isNull();
     assertThat(entry.theirQuantity()).isEqualByComparingTo("250.0000");
+  }
+
+  @Test
+  void wholeCostBasisLedgerMissing_emitsSkippedInsteadOfMismatch() {
+    UUID calculationId = UUID.randomUUID();
+    seedNavReport(ISIN_A, new BigDecimal("10000.0000"), calculationId);
+    seedNavReport(ISIN_B, new BigDecimal("250.0000"), calculationId);
+
+    service.reconcile(TUK75, AS_OF);
+
+    assertThat(recorder.events).isEmpty();
+    assertThat(recorder.skippedEvents).hasSize(1);
+    var skipped = recorder.skippedEvents.get(0);
+    assertThat(skipped.fund()).isEqualTo(TUK75);
+    assertThat(skipped.asOfDate()).isEqualTo(AS_OF);
+    assertThat(skipped.ourQuantities()).isEmpty();
+    assertThat(skipped.theirQuantities()).containsOnlyKeys(ISIN_A, ISIN_B);
+    assertThat(skipped.theirQuantities().get(ISIN_A)).isEqualByComparingTo("10000.0000");
+    assertThat(skipped.theirQuantities().get(ISIN_B)).isEqualByComparingTo("250.0000");
+  }
+
+  @Test
+  void wholeNavReportMissing_emitsSkippedInsteadOfMismatch() {
+    seedCostBasis(ISIN_A, "10000.0000");
+    seedCostBasis(ISIN_B, "250.0000");
+
+    service.reconcile(TUK75, AS_OF);
+
+    assertThat(recorder.events).isEmpty();
+    assertThat(recorder.skippedEvents).hasSize(1);
+    var skipped = recorder.skippedEvents.get(0);
+    assertThat(skipped.theirQuantities()).isEmpty();
+    assertThat(skipped.ourQuantities()).containsOnlyKeys(ISIN_A, ISIN_B);
   }
 
   private void seedCostBasis(String isin, String quantity) {
@@ -119,6 +160,10 @@ class PortfolioReconciliationIT {
   }
 
   private void seedNavReport(String isin, BigDecimal quantity) {
+    seedNavReport(isin, quantity, UUID.randomUUID());
+  }
+
+  private void seedNavReport(String isin, BigDecimal quantity, UUID calculationId) {
     jdbcClient
         .sql(
             """
@@ -133,7 +178,7 @@ class PortfolioReconciliationIT {
         .param("name", TUK75.getCode() + "-" + isin)
         .param("isin", isin)
         .param("quantity", quantity)
-        .param("calcId", UUID.randomUUID())
+        .param("calcId", calculationId)
         .update();
   }
 
@@ -156,10 +201,16 @@ class PortfolioReconciliationIT {
 
   public static class TestEventRecorder {
     final List<PortfolioReconciliationMismatchEvent> events = new ArrayList<>();
+    final List<PortfolioReconciliationSkippedEvent> skippedEvents = new ArrayList<>();
 
     @EventListener
     void onMismatch(PortfolioReconciliationMismatchEvent event) {
       events.add(event);
+    }
+
+    @EventListener
+    void onSkipped(PortfolioReconciliationSkippedEvent event) {
+      skippedEvents.add(event);
     }
   }
 }

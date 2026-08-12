@@ -20,6 +20,12 @@ spinner() {
 #echo "📦 Stashing uncommitted changes..."
 #git stash -q --keep-index || true
 
+echo "🕵️ Checking for personal data..."
+if ! git diff --cached | "$(dirname "${BASH_SOURCE[0]}")/pii-scan"; then
+    exit 1
+fi
+echo "✅ No personal data found."
+
 echo "✨ Checking Spotless formatting..."
 if ! ./gradlew spotlessCheck --no-daemon --quiet; then
     echo "❌ Spotless formatting check failed."

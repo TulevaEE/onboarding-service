@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.payment.email
 
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil
+import ee.tuleva.onboarding.auth.principal.MinorCannotSelfAuthenticateException
 import ee.tuleva.onboarding.auth.principal.PrincipalService
 import ee.tuleva.onboarding.conversion.UserConversionService
 import ee.tuleva.onboarding.epis.contact.ContactDetails
@@ -143,25 +144,38 @@ class PaymentEmailSenderSpec extends Specification {
     1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.cancelled(), pillarSuggestion, locale)
   }
 
-  def "send email on savings payment failure"() {
+  def "send email on savings payment failure without a pillar suggestion"() {
     given:
     def user = sampleUser().build()
     def locale = ENGLISH
-    def contactDetails = new ContactDetails()
-    def conversion = notFullyConverted()
-    def paymentRates = samplePaymentRates()
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
 
     def savingsPaymentFailedEvent = new SavingsPaymentFailedEvent(this, user, locale)
-
-    1 * contactDetailsService.getContactDetails(user) >> contactDetails
-    1 * conversionService.getConversion(user) >> conversion
-    1 * paymentRateService.getPaymentRates(user) >> paymentRates
 
     when:
     paymentEmailSender.onSavingsPaymentFailed(savingsPaymentFailedEvent)
 
     then:
-    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.failed(), pillarSuggestion, locale)
+    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.failed(), locale)
+    0 * contactDetailsService._
+    0 * conversionService._
+    0 * paymentRateService._
+    0 * principalService._
+  }
+
+  def "send email on savings payment failure for a minor who cannot self authenticate"() {
+    given:
+    def minor = sampleUser().personalCode("51111111111").build()
+    def locale = ENGLISH
+
+    def savingsPaymentFailedEvent = new SavingsPaymentFailedEvent(this, minor, locale)
+
+    principalService.getFrom(_, _) >> { throw new MinorCannotSelfAuthenticateException(minor.personalCode) }
+
+    when:
+    paymentEmailSender.onSavingsPaymentFailed(savingsPaymentFailedEvent)
+
+    then:
+    noExceptionThrown()
+    1 * paymentEmailService.sendSavingsFundPaymentEmail(minor, SavingsFundPaymentEmail.failed(), locale)
   }
 }

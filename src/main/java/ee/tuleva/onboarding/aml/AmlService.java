@@ -439,7 +439,7 @@ public class AmlService {
         && residencyCheck) {
       return true;
     }
-    log.error("All necessary AML checks not passed for user userId={}", user.getId());
+    log.info("All necessary AML checks not passed for user userId={}", user.getId());
     eventPublisher.publishEvent(new TrackableEvent(user, TrackableEventType.MANDATE_DENIED));
 
     return false;

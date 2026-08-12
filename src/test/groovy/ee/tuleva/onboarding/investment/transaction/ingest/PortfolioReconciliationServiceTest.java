@@ -54,6 +54,36 @@ class PortfolioReconciliationServiceTest {
   }
 
   @Test
+  void emptyCostBasisLedger_publishesSkippedInsteadOfEveryIsinMismatching() {
+    Map<String, BigDecimal> reported =
+        Map.of(ISIN_A, new BigDecimal("10000"), ISIN_B, new BigDecimal("2000"));
+    given(costBasisService.snapshotForFundAndDate(TUK75, AS_OF)).willReturn(List.of());
+    given(navReportLookup.findSecurityQuantities(TUK75, AS_OF)).willReturn(reported);
+
+    service.reconcile(TUK75, AS_OF);
+
+    verify(eventPublisher)
+        .publishEvent(new PortfolioReconciliationSkippedEvent(TUK75, AS_OF, Map.of(), reported));
+  }
+
+  @Test
+  void emptyNavReport_publishesSkippedInsteadOfEveryIsinMismatching() {
+    given(costBasisService.snapshotForFundAndDate(TUK75, AS_OF))
+        .willReturn(List.of(costBasis(ISIN_A, "10000.0000"), costBasis(ISIN_B, "2000.0000")));
+    given(navReportLookup.findSecurityQuantities(TUK75, AS_OF)).willReturn(Map.of());
+
+    service.reconcile(TUK75, AS_OF);
+
+    verify(eventPublisher)
+        .publishEvent(
+            new PortfolioReconciliationSkippedEvent(
+                TUK75,
+                AS_OF,
+                Map.of(ISIN_A, new BigDecimal("10000.0000"), ISIN_B, new BigDecimal("2000.0000")),
+                Map.of()));
+  }
+
+  @Test
   void quantityWithinTolerance_noEvent() {
     given(costBasisService.snapshotForFundAndDate(TUK75, AS_OF))
         .willReturn(List.of(costBasis(ISIN_A, "10000.5000")));
@@ -91,8 +121,9 @@ class PortfolioReconciliationServiceTest {
   @Test
   void missingFromTheirSide_emitsEventWithNullTheirQuantity() {
     given(costBasisService.snapshotForFundAndDate(TUK75, AS_OF))
-        .willReturn(List.of(costBasis(ISIN_A, "10005.0000")));
-    given(navReportLookup.findSecurityQuantities(TUK75, AS_OF)).willReturn(Map.of());
+        .willReturn(List.of(costBasis(ISIN_A, "10005.0000"), costBasis(ISIN_B, "100.0000")));
+    given(navReportLookup.findSecurityQuantities(TUK75, AS_OF))
+        .willReturn(Map.of(ISIN_B, new BigDecimal("100.0000")));
 
     service.reconcile(TUK75, AS_OF);
 
@@ -108,9 +139,10 @@ class PortfolioReconciliationServiceTest {
 
   @Test
   void missingFromOurSide_emitsEventWithNullOurQuantity() {
-    given(costBasisService.snapshotForFundAndDate(TUK75, AS_OF)).willReturn(List.of());
+    given(costBasisService.snapshotForFundAndDate(TUK75, AS_OF))
+        .willReturn(List.of(costBasis(ISIN_B, "100.0000")));
     given(navReportLookup.findSecurityQuantities(TUK75, AS_OF))
-        .willReturn(Map.of(ISIN_A, new BigDecimal("250.0000")));
+        .willReturn(Map.of(ISIN_A, new BigDecimal("250.0000"), ISIN_B, new BigDecimal("100.0000")));
 
     service.reconcile(TUK75, AS_OF);
 

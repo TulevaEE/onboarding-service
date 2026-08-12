@@ -19,7 +19,7 @@ import lombok.*;
 @AllArgsConstructor
 @NoArgsConstructor
 @Data
-@ToString(exclude = {"mandate", "mandateBatch"})
+@ToString(exclude = {"personalCode", "mandate", "mandateBatch"})
 public class Email {
 
   @Id

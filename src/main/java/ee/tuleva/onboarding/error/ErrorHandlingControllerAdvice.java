@@ -15,8 +15,10 @@ import ee.tuleva.onboarding.auth.smartid.SmartIdSessionNotFoundException;
 import ee.tuleva.onboarding.auth.webeid.WebEidAuthException;
 import ee.tuleva.onboarding.company.CompanyNotFoundException;
 import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
+import ee.tuleva.onboarding.error.response.ErrorResponse;
 import ee.tuleva.onboarding.error.response.ErrorResponseEntityFactory;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
+import ee.tuleva.onboarding.hackathon.HackathonRegistrationClosedException;
 import ee.tuleva.onboarding.mandate.exception.IdSessionException;
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
 import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
@@ -67,7 +69,7 @@ public class ErrorHandlingControllerAdvice {
 
   @ExceptionHandler({SmartIdSessionNotFoundException.class, MobileIdSessionNotFoundException.class})
   public ResponseEntity<ErrorsResponse> handleAuthSessionNotFound(RuntimeException exception) {
-    log.error("Auth session not found: {}", exception.getMessage());
+    log.info("Auth session not found: {}", exception.getMessage());
     return new ResponseEntity<>(
         ErrorsResponse.ofSingleError("auth.session.not.found", exception.getMessage()),
         UNAUTHORIZED);
@@ -118,9 +120,15 @@ public class ErrorHandlingControllerAdvice {
       return;
     }
     var errorCode = errors.getFirst().getCode();
+    var allExpected =
+        ExpectedErrorCodes.areAllExpected(errors.stream().map(ErrorResponse::getCode).toList());
     MDC.put(ERROR_CODE, errorCode);
     try {
-      log.error("Request rejected: code={}, error={}", errorCode, exception.toString());
+      if (allExpected) {
+        log.info("Request rejected: code={}, error={}", errorCode, exception.toString());
+      } else {
+        log.error("Request rejected: code={}, error={}", errorCode, exception.toString());
+      }
     } finally {
       MDC.remove(ERROR_CODE);
     }
@@ -175,6 +183,15 @@ public class ErrorHandlingControllerAdvice {
     log.info("ChildIsNotAMinorException: {}", exception.getMessage());
     return new ResponseEntity<>(
         Map.of("error", "CHILD_IS_NOT_A_MINOR", "error_description", exception.getMessage()),
+        BAD_REQUEST);
+  }
+
+  @ExceptionHandler(HackathonRegistrationClosedException.class)
+  public ResponseEntity<Object> handleErrors(HackathonRegistrationClosedException exception) {
+    log.info("HackathonRegistrationClosedException: {}", exception.getMessage());
+    return new ResponseEntity<>(
+        Map.of(
+            "error", "HACKATHON_REGISTRATION_CLOSED", "error_description", exception.getMessage()),
         BAD_REQUEST);
   }
 

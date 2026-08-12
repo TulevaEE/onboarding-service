@@ -35,7 +35,7 @@ public class PaymentReturningJob {
         successCount++;
         totalAmount = totalAmount.add(payment.getAmount());
       } catch (Exception e) {
-        log.error("Payment return failed: payment={}", payment, e);
+        log.error("Payment return failed: paymentId={}", payment.getId(), e);
       }
     }
     log.info("Payment returning job completed: payments={}", successCount);

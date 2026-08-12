@@ -1,18 +1,14 @@
 package ee.tuleva.onboarding.investment.transaction;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
-import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
-import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
+import ee.tuleva.onboarding.investment.transaction.export.ExportFile;
 import jakarta.validation.Valid;
-import java.security.MessageDigest;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.MediaType;
@@ -34,21 +30,15 @@ import org.springframework.web.server.ResponseStatusException;
 @NullMarked
 public class TransactionCommandController {
 
-  private static final MediaType XLSX_MEDIA_TYPE =
-      MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-
   private final TransactionAdminService adminService;
-
-  @Value("${admin.api-token:}")
-  private String adminApiToken = "";
+  private final AdminTokenAuthenticator authenticator;
 
   @PostMapping("/transaction-commands")
   public TransactionCommandResponse createCommand(
       @RequestHeader("X-Admin-Token") String token,
-      @RequestHeader(name = "X-Admin-Actor", required = false, defaultValue = "admin") String actor,
       @Valid @RequestBody CreateTransactionCommandRequest request) {
 
-    validateToken(token);
+    var actor = authenticator.resolveActor(token);
 
     log.info(
         "Admin triggered transaction command: fund={}, mode={}, asOfDate={}, actor={}",
@@ -69,10 +59,9 @@ public class TransactionCommandController {
   @PostMapping("/transaction-commands/batch")
   public List<TransactionCommandResponse> createCommands(
       @RequestHeader("X-Admin-Token") String token,
-      @RequestHeader(name = "X-Admin-Actor", required = false, defaultValue = "admin") String actor,
       @Valid @RequestBody CreateTransactionCommandBatchRequest request) {
 
-    validateToken(token);
+    var actor = authenticator.resolveActor(token);
 
     log.info(
         "Admin triggered transaction command batch: funds={}, mode={}, asOfDate={}, actor={}",
@@ -93,7 +82,7 @@ public class TransactionCommandController {
   public TransactionCommandResponse getCommand(
       @RequestHeader("X-Admin-Token") String token, @PathVariable Long id) {
 
-    validateToken(token);
+    authenticator.resolveActor(token);
 
     return adminService
         .getCommand(id)
@@ -106,7 +95,7 @@ public class TransactionCommandController {
   public TransactionBatchResponse getBatch(
       @RequestHeader("X-Admin-Token") String token, @PathVariable Long id) {
 
-    validateToken(token);
+    authenticator.resolveActor(token);
 
     return adminService
         .getBatch(id)
@@ -116,11 +105,9 @@ public class TransactionCommandController {
 
   @PostMapping("/transaction-batches/{id}/confirm")
   public TransactionBatchResponse confirmBatch(
-      @RequestHeader("X-Admin-Token") String token,
-      @RequestHeader(name = "X-Admin-Actor", required = false, defaultValue = "admin") String actor,
-      @PathVariable Long id) {
+      @RequestHeader("X-Admin-Token") String token, @PathVariable Long id) {
 
-    validateToken(token);
+    var actor = authenticator.resolveActor(token);
 
     log.info("Admin triggered transaction batch confirmation: id={}, actor={}", id, actor);
 
@@ -130,11 +117,10 @@ public class TransactionCommandController {
   @PostMapping("/transaction-batches/{id}/cancel")
   public TransactionBatchResponse cancelBatch(
       @RequestHeader("X-Admin-Token") String token,
-      @RequestHeader(name = "X-Admin-Actor", required = false, defaultValue = "admin") String actor,
       @PathVariable Long id,
       @Valid @RequestBody CancelTransactionBatchRequest request) {
 
-    validateToken(token);
+    var actor = authenticator.resolveActor(token);
 
     log.info(
         "Admin triggered transaction batch cancellation: id={}, actor={}, reason={}",
@@ -147,11 +133,9 @@ public class TransactionCommandController {
 
   @PostMapping("/transaction-batches/{id}/discard")
   public TransactionBatchResponse discardBatch(
-      @RequestHeader("X-Admin-Token") String token,
-      @RequestHeader(name = "X-Admin-Actor", required = false, defaultValue = "admin") String actor,
-      @PathVariable Long id) {
+      @RequestHeader("X-Admin-Token") String token, @PathVariable Long id) {
 
-    validateToken(token);
+    var actor = authenticator.resolveActor(token);
 
     log.info("Admin triggered transaction batch discard: id={}, actor={}", id, actor);
 
@@ -161,11 +145,10 @@ public class TransactionCommandController {
   @PostMapping("/transaction-orders/{id}/cancel")
   public TransactionOrderResponse cancelOrder(
       @RequestHeader("X-Admin-Token") String token,
-      @RequestHeader(name = "X-Admin-Actor", required = false, defaultValue = "admin") String actor,
       @PathVariable Long id,
       @Valid @RequestBody CancelTransactionOrderRequest request) {
 
-    validateToken(token);
+    var actor = authenticator.resolveActor(token);
 
     log.info(
         "Admin triggered transaction order cancellation: id={}, actor={}, reason={}",
@@ -182,7 +165,12 @@ public class TransactionCommandController {
       @PathVariable Long id,
       @PathVariable String type) {
 
-    validateToken(token);
+    authenticator.resolveActor(token);
+
+    ExportFile exportFile =
+        ExportFile.byMetadataKey(type)
+            .orElseThrow(
+                () -> new ResponseStatusException(NOT_FOUND, "Unknown export type: type=" + type));
 
     byte[] export =
         adminService
@@ -193,22 +181,13 @@ public class TransactionCommandController {
                         NOT_FOUND, "Export not found: batchId=" + id + ", type=" + type));
 
     return ResponseEntity.ok()
-        .contentType(XLSX_MEDIA_TYPE)
+        .contentType(MediaType.parseMediaType(exportFile.mimeType()))
         .headers(
             headers ->
                 headers.setContentDisposition(
                     ContentDisposition.attachment()
-                        .filename("batch-%d-%s.xlsx".formatted(id, type))
+                        .filename(exportFile.downloadFileName(id))
                         .build()))
         .body(export);
-  }
-
-  private void validateToken(String token) {
-    if (adminApiToken.isBlank()) {
-      throw new ResponseStatusException(SERVICE_UNAVAILABLE, "Admin API not configured");
-    }
-    if (!MessageDigest.isEqual(adminApiToken.getBytes(UTF_8), token.getBytes(UTF_8))) {
-      throw new ResponseStatusException(UNAUTHORIZED, "Invalid admin token");
-    }
   }
 }

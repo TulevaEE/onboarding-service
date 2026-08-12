@@ -288,7 +288,12 @@ public class LedgerAccountFixture {
         List.of(new EntryFixture(balance, Instant.parse("2025-01-01T00:00:00Z"))));
   }
 
-  public record EntryFixture(BigDecimal amount, Instant transactionDate, BigDecimal navPerUnit) {
+  public record EntryFixture(
+      BigDecimal amount, Instant transactionDate, BigDecimal navPerUnit, UUID externalReference) {
+    public EntryFixture(BigDecimal amount, Instant transactionDate, BigDecimal navPerUnit) {
+      this(amount, transactionDate, navPerUnit, null);
+    }
+
     public EntryFixture(BigDecimal amount, Instant transactionDate) {
       this(amount, transactionDate, new BigDecimal("10.0"));
     }
@@ -329,6 +334,55 @@ public class LedgerAccountFixture {
     return account;
   }
 
+  public static LedgerAccount subscriptionsAccountWithoutFundUnits(EntryFixture entry) {
+    LedgerAccount account = emptySubscriptionsAccount();
+
+    LedgerTransaction transaction =
+        LedgerTransaction.builder()
+            .id(UUID.randomUUID())
+            .transactionType(FUND_SUBSCRIPTION)
+            .transactionDate(entry.transactionDate())
+            .metadata(Map.of("navPerUnit", entry.navPerUnit()))
+            .build();
+    transaction.addEntry(account, entry.amount().negate());
+
+    return account;
+  }
+
+  public static LedgerAccount subscriptionsAccountWithoutNavPerUnit(EntryFixture entry) {
+    LedgerAccount account = emptySubscriptionsAccount();
+
+    LedgerAccount fundUnitsAccount =
+        LedgerAccount.builder()
+            .name(FUND_UNITS.name())
+            .purpose(USER_ACCOUNT)
+            .assetType(FUND_UNIT)
+            .accountType(LIABILITY)
+            .build();
+
+    LedgerTransaction transaction =
+        LedgerTransaction.builder()
+            .id(UUID.randomUUID())
+            .transactionType(FUND_SUBSCRIPTION)
+            .transactionDate(entry.transactionDate())
+            .metadata(Map.of())
+            .build();
+    transaction.addEntry(account, entry.amount().negate());
+    transaction.addEntry(
+        fundUnitsAccount, entry.amount().divide(entry.navPerUnit(), 5, HALF_UP).negate());
+
+    return account;
+  }
+
+  private static LedgerAccount emptySubscriptionsAccount() {
+    return LedgerAccount.builder()
+        .name(SUBSCRIPTIONS.name())
+        .purpose(USER_ACCOUNT)
+        .assetType(EUR)
+        .accountType(INCOME)
+        .build();
+  }
+
   public static LedgerAccount redemptionsAccountWithEntries(List<EntryFixture> entries) {
     LedgerAccount account =
         LedgerAccount.builder()
@@ -355,6 +409,7 @@ public class LedgerAccountFixture {
                   .id(UUID.randomUUID())
                   .transactionType(REDEMPTION_PAYOUT)
                   .transactionDate(entry.transactionDate())
+                  .externalReference(entry.externalReference())
                   .metadata(Map.of("navPerUnit", navPerUnit))
                   .build();
           transaction.addEntry(account, entry.amount());

@@ -9,7 +9,6 @@ import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
 import ee.tuleva.onboarding.savings.fund.notification.IssuingCompletedEvent;
-import java.math.BigDecimal;
 import java.time.*;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -37,12 +36,13 @@ public class IssuingJob {
   @SchedulerLock(name = "IssuingJob_runJob", lockAtMostFor = "50s", lockAtLeastFor = "10s")
   @Transactional
   public void runJob() {
-    var payments = getReservedPaymentsDependingOnCurrentTime();
+    var cutoff = getCutoffForProcessing();
+    var payments = getReservedPaymentsReceivedBefore(cutoff);
     if (payments.isEmpty()) {
       log.info("No payments to issue, skipping");
       return;
     }
-    var previousCutoff = getPreviousCutoff();
+    var previousCutoff = getPreviousCutoff(cutoff);
     payments.forEach(
         payment -> {
           if (payment.getReceivedBefore() != null
@@ -55,7 +55,7 @@ public class IssuingJob {
           }
         });
     log.info("Running issuing job for {} payments", payments.size());
-    var nav = getNAV();
+    var nav = navProvider.getVerifiedNavForIssuingAndRedeeming(TKF100, dealingDate(cutoff));
     log.info("Running issuing job for {} payments with nav {}", payments.size(), nav);
     var totalAmount = ZERO;
     var totalFundUnits = ZERO;
@@ -69,70 +69,35 @@ public class IssuingJob {
         new IssuingCompletedEvent(payments.size(), totalAmount, totalFundUnits, nav));
   }
 
-  private List<SavingFundPayment> getReservedPaymentsDependingOnCurrentTime() {
+  private Instant getCutoffForProcessing() {
     var today = todayInTallinn();
-    var todaysCutoff = getCutoff(today);
-    var currentTime = clock.instant();
-    var isTodayWorkingDay = new PublicHolidays().isWorkingDay(today);
-    if (currentTime.isBefore(todaysCutoff) || !isTodayWorkingDay) {
-      return getReservedPaymentsFromBeforeSecondToLastWorkingDay();
+    var publicHolidays = new PublicHolidays();
+    var lastWorkingDay = publicHolidays.previousWorkingDay(today);
+    if (clock.instant().isBefore(getCutoff(today)) || !publicHolidays.isWorkingDay(today)) {
+      return getCutoff(publicHolidays.previousWorkingDay(lastWorkingDay));
     }
-
-    return getReservedPaymentsFromBeforeLastWorkingDay();
+    return getCutoff(lastWorkingDay);
   }
 
-  private List<SavingFundPayment> getReservedPaymentsFromBeforeSecondToLastWorkingDay() {
-    var reservedPayments = savingFundPaymentRepository.findPaymentsWithStatus(RESERVED);
-
-    var publicHolidays = new PublicHolidays();
-    var secondToLastWorkingDay =
-        publicHolidays.previousWorkingDay(publicHolidays.previousWorkingDay(todayInTallinn()));
-
-    var reservedTransactionCutoff = getCutoff(secondToLastWorkingDay);
-
-    return reservedPayments.stream()
-        .filter(payment -> payment.getReceivedBefore().isBefore(reservedTransactionCutoff))
+  private List<SavingFundPayment> getReservedPaymentsReceivedBefore(Instant cutoff) {
+    return savingFundPaymentRepository.findPaymentsWithStatus(RESERVED).stream()
+        .filter(payment -> payment.getReceivedBefore().isBefore(cutoff))
         .toList();
   }
 
-  private List<SavingFundPayment> getReservedPaymentsFromBeforeLastWorkingDay() {
-    var reservedPayments = savingFundPaymentRepository.findPaymentsWithStatus(RESERVED);
-
-    var lastWorkingDay = new PublicHolidays().previousWorkingDay(todayInTallinn());
-
-    var reservedTransactionCutoff = getCutoff(lastWorkingDay);
-
-    return reservedPayments.stream()
-        .filter(payment -> payment.getReceivedBefore().isBefore(reservedTransactionCutoff))
-        .toList();
-  }
-
-  private Instant getPreviousCutoff() {
-    var today = todayInTallinn();
-    var todaysCutoff = getCutoff(today);
-    var currentTime = clock.instant();
-    var publicHolidays = new PublicHolidays();
-    var isTodayWorkingDay = publicHolidays.isWorkingDay(today);
-    if (currentTime.isBefore(todaysCutoff) || !isTodayWorkingDay) {
-      var thirdToLastWorkingDay =
-          publicHolidays.previousWorkingDay(
-              publicHolidays.previousWorkingDay(publicHolidays.previousWorkingDay(today)));
-      return getCutoff(thirdToLastWorkingDay);
-    }
-    var secondToLastWorkingDay =
-        publicHolidays.previousWorkingDay(publicHolidays.previousWorkingDay(today));
-    return getCutoff(secondToLastWorkingDay);
+  private Instant getPreviousCutoff(Instant cutoff) {
+    return getCutoff(new PublicHolidays().previousWorkingDay(dealingDate(cutoff)));
   }
 
   private LocalDate todayInTallinn() {
     return clock.instant().atZone(CUTOFF_TIMEZONE).toLocalDate();
   }
 
-  private Instant getCutoff(LocalDate date) {
-    return ZonedDateTime.of(date, CUTOFF_TIME, CUTOFF_TIMEZONE).toInstant();
+  private LocalDate dealingDate(Instant cutoff) {
+    return cutoff.atZone(CUTOFF_TIMEZONE).toLocalDate();
   }
 
-  private BigDecimal getNAV() {
-    return navProvider.getVerifiedNavForIssuingAndRedeeming(TKF100);
+  private Instant getCutoff(LocalDate date) {
+    return ZonedDateTime.of(date, CUTOFF_TIME, CUTOFF_TIMEZONE).toInstant();
   }
 }

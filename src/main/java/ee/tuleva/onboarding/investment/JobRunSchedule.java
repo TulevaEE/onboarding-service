@@ -23,6 +23,10 @@ public final class JobRunSchedule {
   public static final String PEVA_RAVA_FLOW_RECALC = "0 30 17 * * MON-FRI";
   public static final String R16_FLOW_RECALC = "0 30 17 * * MON-FRI";
 
+  // SRI/SRRI risk indicators — evaluated every business day; the monthly Slack digest is a
+  // notification decision inside the job, not a separate schedule.
+  public static final String RISK_INDICATOR_DAILY = "0 30 9 * * MON-FRI";
+
   // Ad-hoc job trigger polling
   public static final String JOB_TRIGGER_POLL = "0 * * * * *";
 }

@@ -106,68 +106,95 @@ class FundNavProviderTest {
   }
 
   @Test
-  void getCurrentNavForIssuing_returnsNavWhenDateMatches() {
+  void getVerifiedNav_returnsNavDatedOnTheDealingDate() {
     var provider = provider("2025-01-15T17:00:00");
-    LocalDate today = LocalDate.of(2025, 1, 15);
-    LocalDate yesterday = LocalDate.of(2025, 1, 14);
-    LocalDate dayBefore = LocalDate.of(2025, 1, 13);
+    LocalDate dealingDate = LocalDate.of(2025, 1, 14);
+    LocalDate previousDealingDate = LocalDate.of(2025, 1, 13);
     var fundValue =
-        new FundValue(ISIN, yesterday, new BigDecimal("9.6994"), "TULEVA", Instant.now());
+        new FundValue(ISIN, dealingDate, new BigDecimal("9.6994"), "TULEVA", Instant.now());
     var previousValue =
-        new FundValue(ISIN, dayBefore, new BigDecimal("9.6500"), "TULEVA", Instant.now());
-    when(fundValueRepository.findLastValueForFund(ISIN)).thenReturn(Optional.of(fundValue));
-    when(fundValueRepository.getLatestValue(ISIN, dayBefore))
+        new FundValue(ISIN, previousDealingDate, new BigDecimal("9.6500"), "TULEVA", Instant.now());
+    when(fundValueRepository.getLatestValue(ISIN, dealingDate)).thenReturn(Optional.of(fundValue));
+    when(fundValueRepository.getLatestValue(ISIN, previousDealingDate))
         .thenReturn(Optional.of(previousValue));
 
-    assertThat(provider.getVerifiedNavForIssuingAndRedeeming(TKF100))
+    assertThat(provider.getVerifiedNavForIssuingAndRedeeming(TKF100, dealingDate))
         .isEqualByComparingTo("9.6994");
   }
 
   @Test
-  void getCurrentNavForIssuing_throwsWhenDateDoesNotMatch() {
+  void getVerifiedNav_throwsWhenNewestNavPredatesTheDealingDate() {
     var provider = provider("2025-01-15T17:00:00");
-    LocalDate today = LocalDate.of(2025, 1, 15);
-    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    LocalDate dealingDate = LocalDate.of(2025, 1, 14);
     var staleValue =
         new FundValue(
             ISIN, LocalDate.of(2025, 1, 10), new BigDecimal("9.6994"), "TULEVA", Instant.now());
-    when(fundValueRepository.findLastValueForFund(ISIN)).thenReturn(Optional.of(staleValue));
+    when(fundValueRepository.getLatestValue(ISIN, dealingDate)).thenReturn(Optional.of(staleValue));
 
-    assertThatThrownBy(() -> provider.getVerifiedNavForIssuingAndRedeeming(TKF100))
+    assertThatThrownBy(() -> provider.getVerifiedNavForIssuingAndRedeeming(TKF100, dealingDate))
         .isInstanceOf(IllegalStateException.class);
   }
 
   @Test
-  void getCurrentNavForIssuing_throwsWhenNavDeviatesMoreThan20Percent() {
+  void getVerifiedNav_throwsWhenNoNavExistsOnOrBeforeTheDealingDate() {
     var provider = provider("2025-01-15T17:00:00");
-    LocalDate today = LocalDate.of(2025, 1, 15);
-    LocalDate yesterday = LocalDate.of(2025, 1, 14);
-    LocalDate dayBefore = LocalDate.of(2025, 1, 13);
-    var currentNav =
-        new FundValue(ISIN, yesterday, new BigDecimal("500.0000"), "TULEVA", Instant.now());
-    var previousNav =
-        new FundValue(ISIN, dayBefore, new BigDecimal("10.0000"), "TULEVA", Instant.now());
-    when(fundValueRepository.findLastValueForFund(ISIN)).thenReturn(Optional.of(currentNav));
-    when(fundValueRepository.getLatestValue(ISIN, dayBefore)).thenReturn(Optional.of(previousNav));
+    LocalDate dealingDate = LocalDate.of(2025, 1, 14);
+    when(fundValueRepository.getLatestValue(ISIN, dealingDate)).thenReturn(Optional.empty());
 
-    assertThatThrownBy(() -> provider.getVerifiedNavForIssuingAndRedeeming(TKF100))
+    assertThatThrownBy(() -> provider.getVerifiedNavForIssuingAndRedeeming(TKF100, dealingDate))
         .isInstanceOf(IllegalStateException.class);
   }
 
   @Test
-  void getCurrentNavForIssuing_allowsNavChangeWithin20Percent() {
-    var provider = provider("2025-01-15T17:00:00");
-    LocalDate today = LocalDate.of(2025, 1, 15);
-    LocalDate yesterday = LocalDate.of(2025, 1, 14);
-    LocalDate dayBefore = LocalDate.of(2025, 1, 13);
-    var currentNav =
-        new FundValue(ISIN, yesterday, new BigDecimal("10.5000"), "TULEVA", Instant.now());
-    var previousNav =
-        new FundValue(ISIN, dayBefore, new BigDecimal("10.0000"), "TULEVA", Instant.now());
-    when(fundValueRepository.findLastValueForFund(ISIN)).thenReturn(Optional.of(currentNav));
-    when(fundValueRepository.getLatestValue(ISIN, dayBefore)).thenReturn(Optional.of(previousNav));
+  void getVerifiedNav_comparesAgainstThePreviousWorkingDayAcrossAWeekend() {
+    var provider = provider("2025-01-15T15:30:00");
+    LocalDate dealingDate = LocalDate.of(2025, 1, 13);
+    LocalDate previousDealingDate = LocalDate.of(2025, 1, 10);
+    var fundValue =
+        new FundValue(ISIN, dealingDate, new BigDecimal("9.6500"), "TULEVA", Instant.now());
+    var previousValue =
+        new FundValue(ISIN, previousDealingDate, new BigDecimal("9.6000"), "TULEVA", Instant.now());
+    when(fundValueRepository.getLatestValue(ISIN, dealingDate)).thenReturn(Optional.of(fundValue));
+    when(fundValueRepository.getLatestValue(ISIN, previousDealingDate))
+        .thenReturn(Optional.of(previousValue));
 
-    assertThat(provider.getVerifiedNavForIssuingAndRedeeming(TKF100))
+    assertThat(provider.getVerifiedNavForIssuingAndRedeeming(TKF100, dealingDate))
+        .isEqualByComparingTo("9.6500");
+  }
+
+  @Test
+  void getVerifiedNav_throwsWhenNavDeviatesMoreThan20Percent() {
+    var provider = provider("2025-01-15T17:00:00");
+    LocalDate dealingDate = LocalDate.of(2025, 1, 14);
+    LocalDate previousDealingDate = LocalDate.of(2025, 1, 13);
+    var currentNav =
+        new FundValue(ISIN, dealingDate, new BigDecimal("500.0000"), "TULEVA", Instant.now());
+    var previousNav =
+        new FundValue(
+            ISIN, previousDealingDate, new BigDecimal("10.0000"), "TULEVA", Instant.now());
+    when(fundValueRepository.getLatestValue(ISIN, dealingDate)).thenReturn(Optional.of(currentNav));
+    when(fundValueRepository.getLatestValue(ISIN, previousDealingDate))
+        .thenReturn(Optional.of(previousNav));
+
+    assertThatThrownBy(() -> provider.getVerifiedNavForIssuingAndRedeeming(TKF100, dealingDate))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void getVerifiedNav_allowsNavChangeWithin20Percent() {
+    var provider = provider("2025-01-15T17:00:00");
+    LocalDate dealingDate = LocalDate.of(2025, 1, 14);
+    LocalDate previousDealingDate = LocalDate.of(2025, 1, 13);
+    var currentNav =
+        new FundValue(ISIN, dealingDate, new BigDecimal("10.5000"), "TULEVA", Instant.now());
+    var previousNav =
+        new FundValue(
+            ISIN, previousDealingDate, new BigDecimal("10.0000"), "TULEVA", Instant.now());
+    when(fundValueRepository.getLatestValue(ISIN, dealingDate)).thenReturn(Optional.of(currentNav));
+    when(fundValueRepository.getLatestValue(ISIN, previousDealingDate))
+        .thenReturn(Optional.of(previousNav));
+
+    assertThat(provider.getVerifiedNavForIssuingAndRedeeming(TKF100, dealingDate))
         .isEqualByComparingTo("10.5000");
   }
 }

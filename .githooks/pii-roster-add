@@ -1,0 +1,13 @@
+#!/bin/bash
+# Adds a name to the PII roster as a salted hash, so the roster never holds the
+# name itself. Hashing goes through pii-scan so both sides normalise identically.
+set -euo pipefail
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+[ $# -eq 1 ] || { echo "usage: $0 'Eesnimi Perekonnanimi'" >&2; exit 1; }
+HASH=$("$DIR/pii-scan" --hash "$1")
+if grep -q "^${HASH}$" "$DIR/pii-roster.sha256"; then
+  echo "Already on the roster."
+else
+  echo "$HASH" >> "$DIR/pii-roster.sha256"
+  echo "Added. The roster now covers $(grep -cE '^[0-9a-f]{64}$' "$DIR/pii-roster.sha256") names."
+fi

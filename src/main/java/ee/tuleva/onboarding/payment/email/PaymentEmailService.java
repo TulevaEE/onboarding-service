@@ -23,6 +23,8 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class PaymentEmailService {
 
+  private static final String SAVINGS_FUND_TAG = "savings_fund";
+
   private final EmailService emailService;
   private final EmailPersistenceService emailPersistenceService;
 
@@ -48,14 +50,30 @@ public class PaymentEmailService {
 
   void sendSavingsFundPaymentEmail(
       User user, SavingsFundPaymentEmail email, PillarSuggestion pillarSuggestion, Locale locale) {
-    String templateName = email.emailType().getTemplateName(locale);
     Map<String, Object> mergeVars = new HashMap<>(getNameMergeVars(user));
     mergeVars.putAll(getPillarSuggestionMergeVars(pillarSuggestion));
     mergeVars.putAll(email.mergeVars());
 
+    sendSavingsFundEmail(user, email, mergeVars, getSavingsFundTags(pillarSuggestion), locale);
+  }
+
+  void sendSavingsFundPaymentEmail(User user, SavingsFundPaymentEmail email, Locale locale) {
+    Map<String, Object> mergeVars = new HashMap<>(getNameMergeVars(user));
+    mergeVars.putAll(email.mergeVars());
+
+    sendSavingsFundEmail(user, email, mergeVars, List.of(SAVINGS_FUND_TAG), locale);
+  }
+
+  private void sendSavingsFundEmail(
+      User user,
+      SavingsFundPaymentEmail email,
+      Map<String, Object> mergeVars,
+      List<String> tags,
+      Locale locale) {
+    String templateName = email.emailType().getTemplateName(locale);
+
     MandrillMessage mandrillMessage =
-        emailService.newMandrillMessage(
-            user.getEmail(), templateName, mergeVars, getSavingsFundTags(pillarSuggestion), null);
+        emailService.newMandrillMessage(user.getEmail(), templateName, mergeVars, tags, null);
     emailService
         .send(user, mandrillMessage, templateName)
         .ifPresent(
@@ -99,7 +117,7 @@ public class PaymentEmailService {
 
   private List<String> getSavingsFundTags(PillarSuggestion pillarSuggestion) {
     List<String> tags = new ArrayList<>();
-    tags.add("savings_fund");
+    tags.add(SAVINGS_FUND_TAG);
     if (pillarSuggestion.isSuggestPaymentRate()) {
       tags.add("suggest_payment_rate");
     }

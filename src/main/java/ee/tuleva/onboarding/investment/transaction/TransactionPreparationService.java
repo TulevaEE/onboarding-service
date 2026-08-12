@@ -147,6 +147,10 @@ public class TransactionPreparationService {
     return command.getActor() == null ? "system" : command.getActor();
   }
 
+  private static String finalizingActor(TransactionBatch batch) {
+    return batch.getConfirmedBy() == null ? "system" : batch.getConfirmedBy();
+  }
+
   private Map<String, Object> failedPayload(
       TransactionCommand command, @Nullable FundTransactionInput input, RuntimeException e) {
     Map<String, Object> payload = new LinkedHashMap<>();
@@ -219,7 +223,7 @@ public class TransactionPreparationService {
         TransactionAuditEvent.builder()
             .batch(batch)
             .eventType("BATCH_FINALIZED")
-            .actor("system")
+            .actor(finalizingActor(batch))
             .createdAt(Instant.now(clock))
             .payload(Map.of("tradeDate", tradeDate.toString(), "orderCount", orders.size()))
             .build());
@@ -524,13 +528,17 @@ public class TransactionPreparationService {
       CalculatedOrders calculated) {
     Map<String, Object> payload = new LinkedHashMap<>();
     payload.put("input", serializeInput(input, command.getManualAdjustments()));
-    payload.put("output", serializeTrades(result.trades(), ordersByIsin(orders)));
+    payload.put(
+        "output",
+        serializeTrades(result.trades(), ordersByIsin(orders), calculated.priceResolutions()));
     payload.put("priceResolutions", serializePriceResolutions(calculated.priceResolutions()));
     payload.put(
         "settlementWarnings",
         serializeSettlementWarnings(
             settlementTimingWarningService.activeWarnings(
                 command.getFund(), command.getAsOfDate())));
+    payload.put("calculationWarnings", serializeCalculationWarnings(result.warnings()));
+    payload.put("modelDrift", serializeModelDrift(input, result));
     Map<String, Object> summary = new LinkedHashMap<>();
     summary.put("fund", command.getFund().name());
     summary.put("mode", command.getMode().name());
@@ -541,25 +549,105 @@ public class TransactionPreparationService {
     return payload;
   }
 
+  static List<Map<String, Object>> serializeCalculationWarnings(List<CalculationWarning> warnings) {
+    return warnings.stream()
+        .map(
+            warning -> {
+              Map<String, Object> map = new LinkedHashMap<>();
+              putIfPresent(map, "type", warning.type().name());
+              putIfPresent(map, "message", warning.message());
+              return map;
+            })
+        .toList();
+  }
+
   private static Map<String, TransactionOrder> ordersByIsin(List<TransactionOrder> orders) {
     Map<String, TransactionOrder> map = new LinkedHashMap<>();
     orders.forEach(order -> map.put(order.getInstrumentIsin(), order));
     return map;
   }
 
+  static Map<String, Object> serializeModelDrift(
+      FundTransactionInput input, FundCalculationResult result) {
+    Map<String, BigDecimal> targetWeights =
+        targetWeights(input.modelWeights(), input.grossPortfolioValue(), result.netInvestable());
+    Map<String, BigDecimal> weightsAfter = new LinkedHashMap<>();
+    result.trades().forEach(trade -> weightsAfter.put(trade.isin(), trade.projectedWeight()));
+
+    List<Map<String, Object>> positions = new ArrayList<>();
+    BigDecimal totalBefore = ZERO;
+    BigDecimal totalAfter = ZERO;
+    for (PositionSnapshot position : input.positions()) {
+      BigDecimal target = targetWeights.getOrDefault(position.isin(), ZERO);
+      BigDecimal before = currentWeight(position, input.grossPortfolioValue());
+      BigDecimal after = weightsAfter.get(position.isin());
+      Map<String, Object> map = new LinkedHashMap<>();
+      putIfPresent(map, "isin", position.isin());
+      putIfPresent(map, "targetWeight", plain(target));
+      putIfPresent(map, "weightBefore", plain(before));
+      putIfPresent(map, "weightAfter", plain(after));
+      if (before != null) {
+        BigDecimal driftBefore = before.subtract(target);
+        putIfPresent(map, "driftBefore", plain(driftBefore));
+        totalBefore = totalBefore.add(driftBefore.abs());
+      }
+      if (after != null) {
+        BigDecimal driftAfter = after.subtract(target);
+        putIfPresent(map, "driftAfter", plain(driftAfter));
+        totalAfter = totalAfter.add(driftAfter.abs());
+      }
+      positions.add(map);
+    }
+
+    Map<String, Object> drift = new LinkedHashMap<>();
+    putIfPresent(drift, "totalAbsoluteDriftBefore", plain(totalBefore));
+    putIfPresent(drift, "totalAbsoluteDriftAfter", plain(totalAfter));
+    putIfPresent(drift, "positions", positions);
+    return drift;
+  }
+
+  private static Map<String, BigDecimal> targetWeights(
+      List<ModelWeight> modelWeights, BigDecimal grossPortfolioValue, BigDecimal netInvestable) {
+    if (grossPortfolioValue.signum() == 0) {
+      return Map.of();
+    }
+    BigDecimal totalWeight =
+        modelWeights.stream().map(ModelWeight::weight).reduce(ZERO, BigDecimal::add);
+    BigDecimal normalizer = totalWeight.signum() == 0 ? BigDecimal.ONE : totalWeight;
+    Map<String, BigDecimal> map = new LinkedHashMap<>();
+    modelWeights.forEach(
+        weight ->
+            map.put(
+                weight.isin(),
+                weight
+                    .weight()
+                    .divide(normalizer, 10, RoundingMode.HALF_UP)
+                    .multiply(netInvestable)
+                    .divide(grossPortfolioValue, 6, RoundingMode.HALF_UP)));
+    return map;
+  }
+
   static List<Map<String, Object>> serializeTrades(
-      List<TradeCalculation> trades, Map<String, TransactionOrder> ordersByIsin) {
+      List<TradeCalculation> trades,
+      Map<String, TransactionOrder> ordersByIsin,
+      Map<String, ResolvedPrice> priceResolutions) {
     return trades.stream()
-        .map(trade -> serializeTrade(trade, ordersByIsin.get(trade.isin())))
+        .map(
+            trade ->
+                serializeTrade(
+                    trade, ordersByIsin.get(trade.isin()), priceResolutions.get(trade.isin())))
         .toList();
   }
 
   private static Map<String, Object> serializeTrade(
-      TradeCalculation trade, @Nullable TransactionOrder order) {
+      TradeCalculation trade,
+      @Nullable TransactionOrder order,
+      @Nullable ResolvedPrice resolvedPrice) {
     Map<String, Object> map = new LinkedHashMap<>();
     putIfPresent(map, "isin", trade.isin());
     putIfPresent(map, "tradeAmount", plain(trade.tradeAmount()));
     putIfPresent(map, "projectedWeight", plain(trade.projectedWeight()));
+    putIfPresent(map, "price", resolvedPrice == null ? null : plain(resolvedPrice.usedPrice()));
     putIfPresent(
         map, "limitStatus", trade.limitStatus() == null ? null : trade.limitStatus().name());
     if (order != null) {

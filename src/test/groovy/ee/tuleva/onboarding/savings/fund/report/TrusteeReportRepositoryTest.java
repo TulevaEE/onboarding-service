@@ -109,7 +109,6 @@ class TrusteeReportRepositoryTest {
   }
 
   private UUID createSystemAccount(String name, String assetType) {
-    var id = UUID.randomUUID();
     jdbcClient
         .sql(
             """
@@ -118,12 +117,21 @@ class TrusteeReportRepositoryTest {
               CAST('SYSTEM_ACCOUNT' AS ledger.account_purpose),
               CAST('LIABILITY' AS ledger.account_type),
               CAST(:assetType AS ledger.asset_type))
+            ON CONFLICT DO NOTHING
             """)
-        .param("id", id)
+        .param("id", UUID.randomUUID())
         .param("name", name)
         .param("assetType", assetType)
         .update();
-    return id;
+    return jdbcClient
+        .sql(
+            """
+            SELECT id FROM ledger.account
+            WHERE name = :name AND owner_party_id IS NULL AND purpose = 'SYSTEM_ACCOUNT'
+            """)
+        .param("name", name)
+        .query(UUID.class)
+        .single();
   }
 
   private UUID createUserAccount(String name, String assetType) {

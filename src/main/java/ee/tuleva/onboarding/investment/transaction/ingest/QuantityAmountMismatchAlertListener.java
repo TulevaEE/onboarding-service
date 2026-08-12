@@ -36,22 +36,33 @@ class QuantityAmountMismatchAlertListener {
     var subject = "[HOIATUS] Tehingute koguse/summa lahknevused – " + event.reportDate();
     var body = buildBody(event);
 
-    boolean sent = emailService.sendSystemEmail(messageFactory.create(subject, body));
-    if (sent) {
-      log.info(
-          "Sent quantity/amount mismatch alert: reportDate={}, isin={}, orderId={}, kind={}",
-          event.reportDate(),
-          event.row().isin(),
-          event.order().getId(),
-          event.kind());
-    } else {
+    try {
+      boolean sent = emailService.sendSystemEmail(messageFactory.create(subject, body));
+      if (sent) {
+        log.info(
+            "Sent quantity/amount mismatch alert: reportDate={}, isin={}, orderId={}, kind={}",
+            event.reportDate(),
+            event.row().isin(),
+            event.order().getId(),
+            event.kind());
+      } else {
+        log.error(
+            "Failed to send quantity/amount mismatch alert: reportDate={}, isin={}, orderId={},"
+                + " kind={}",
+            event.reportDate(),
+            event.row().isin(),
+            event.order().getId(),
+            event.kind());
+      }
+    } catch (RuntimeException e) {
       log.error(
           "Failed to send quantity/amount mismatch alert: reportDate={}, isin={}, orderId={},"
               + " kind={}",
           event.reportDate(),
           event.row().isin(),
           event.order().getId(),
-          event.kind());
+          event.kind(),
+          e);
     }
   }
 

@@ -427,7 +427,30 @@ class PendingOrderImpactServiceTest {
     var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
 
     assertThat(impact.pendingBuys()).isEqualByComparingTo(ZERO);
-    assertThat(impact.unreportedPositionValues()).containsExactly(Map.entry("IE00FUND", ZERO));
+    assertThat(impact.unreportedPositionValues()).isEmpty();
+  }
+
+  @Test
+  void anEtfOrderThatCannotBeValuedContributesNeitherValueNorQuantity() {
+    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
+        .willReturn(
+            List.of(
+                order(
+                    1L,
+                    "IE00A",
+                    TransactionType.BUY,
+                    InstrumentType.ETF,
+                    OrderStatus.SENT,
+                    new BigDecimal("80"),
+                    null)));
+    given(executionRepository.findByOrderIdIn(List.of(1L))).willReturn(List.of());
+    lenient().when(positionPriceResolver.resolve(any(), any())).thenReturn(Optional.empty());
+
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
+
+    assertThat(impact.pendingBuys()).isEqualByComparingTo(ZERO);
+    assertThat(impact.unreportedPositionValues()).isEmpty();
+    assertThat(impact.unreportedPositionQuantities()).isEmpty();
   }
 
   // A resolver that answers zero has not priced the instrument; the order amount is the better

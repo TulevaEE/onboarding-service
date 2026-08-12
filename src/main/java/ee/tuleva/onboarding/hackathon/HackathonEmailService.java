@@ -23,13 +23,6 @@ public class HackathonEmailService {
 
   public void sendRegistrationConfirmation(
       User user, HackathonRegistration registration, Locale locale) {
-    if (user.getEmail() == null || user.getEmail().isBlank()) {
-      log.warn(
-          "User profile has no email, hackathon confirmation will not be sent: userId={}",
-          user.getId());
-      return;
-    }
-
     String templateName = HACKATHON_REGISTRATION.getTemplateName(locale);
 
     MandrillMessage message =
@@ -42,9 +35,14 @@ public class HackathonEmailService {
 
     emailService
         .send(user, message, templateName)
-        .ifPresent(
-            response ->
+        .ifPresentOrElse(
+            status ->
                 emailPersistenceService.save(
-                    user, response.getId(), HACKATHON_REGISTRATION, response.getStatus()));
+                    user, status.getId(), HACKATHON_REGISTRATION, status.getStatus()),
+            () ->
+                log.error(
+                    "Hackathon confirmation email was not delivered: userId={}, templateName={}",
+                    user.getId(),
+                    templateName));
   }
 }

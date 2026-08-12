@@ -10,6 +10,7 @@ import static ee.tuleva.onboarding.hackathon.HackathonSkill.DATA_AND_AI;
 import static ee.tuleva.onboarding.hackathon.HackathonSkill.SOFTWARE_DEVELOPMENT;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.is;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
@@ -177,6 +178,30 @@ class HackathonRegistrationControllerTest {
         .andExpect(jsonPath("$.registered", is(true)));
 
     verify(hackathonRegistrationService).register(authenticatedPerson, request);
+  }
+
+  @Test
+  void register_afterTheDeadline_returnsBadRequestWithTheClosedErrorCode() throws Exception {
+    given(hackathonRegistrationService.register(eq(authenticatedPerson), any()))
+        .willThrow(new HackathonRegistrationClosedException(DEADLINE, DEADLINE.plusSeconds(1)));
+
+    mvc.perform(
+            post("/v1/hackathon-registration")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "email": "participant@example.com",
+                      "role": "PARTICIPANT",
+                      "skills": [],
+                      "challenges": [],
+                      "participation": "LOOKING_FOR_TEAM"
+                    }
+                    """)
+                .with(authentication(authentication))
+                .with(csrf()))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.error", is("HACKATHON_REGISTRATION_CLOSED")));
   }
 
   @Test

@@ -64,11 +64,22 @@ class HackathonEmailServiceTest {
   }
 
   @Test
-  void sendRegistrationConfirmation_withoutAProfileEmail_doesNotAttemptToSend() {
+  void sendRegistrationConfirmation_withoutAProfileEmail_stillSendsToTheRegistrationEmail() {
     User user = sampleUser().email(null).build();
+    MandrillMessage message = new MandrillMessage();
+    given(
+            emailService.newMandrillMessage(
+                "participant@example.com",
+                "hackathon_registration_et",
+                Map.of("fname", user.getFirstName(), "lname", user.getLastName()),
+                List.of("hackathon"),
+                null))
+        .willReturn(message);
+    given(emailService.send(user, message, "hackathon_registration_et")).willReturn(empty());
 
     hackathonEmailService.sendRegistrationConfirmation(user, registration, Locale.of("et"));
 
-    verifyNoInteractions(emailService, emailPersistenceService);
+    verify(emailService).send(user, message, "hackathon_registration_et");
+    verifyNoInteractions(emailPersistenceService);
   }
 }

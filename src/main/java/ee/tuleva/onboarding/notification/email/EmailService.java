@@ -96,6 +96,14 @@ public class EmailService {
     return send(user, message, templateName, null);
   }
 
+  private static String recipientOf(MandrillMessage message) {
+    if (message.getTo() == null || message.getTo().isEmpty()) {
+      return null;
+    }
+    String email = message.getTo().getFirst().getEmail();
+    return email == null || email.isBlank() ? null : email;
+  }
+
   public Optional<MandrillMessageStatus> send(
       User user, MandrillMessage message, String templateName, Instant sendAt) {
     if (mandrillApi == null) {
@@ -107,9 +115,11 @@ public class EmailService {
       return Optional.empty();
     }
 
-    if (user.getEmail() == null || user.getEmail().isBlank()) {
+    if (recipientOf(message) == null) {
       log.warn(
-          "User has no email, not sending: userId={}, templateName={}", user.getId(), templateName);
+          "Message has no recipient, not sending: userId={}, templateName={}",
+          user.getId(),
+          templateName);
       return Optional.empty();
     }
 

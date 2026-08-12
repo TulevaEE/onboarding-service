@@ -275,6 +275,7 @@ public class TransactionInputService {
   private List<PositionSnapshot> getPositions(TulevaFund fund, LocalDate date) {
     return fundPositionRepository.findByNavDateAndFundAndAccountType(date, fund, SECURITY).stream()
         .filter(position -> position.getMarketValue() != null)
+        .filter(position -> isTradeableHolding(fund, date, position))
         .map(
             position ->
                 new PositionSnapshot(
@@ -283,6 +284,20 @@ public class TransactionInputService {
                     position.getQuantity(),
                     position.getMarketPrice()))
         .toList();
+  }
+
+  private boolean isTradeableHolding(TulevaFund fund, LocalDate date, FundPosition position) {
+    if (position.getMarketValue().signum() >= 0) {
+      return true;
+    }
+    log.warn(
+        "Skipping security row with a negative market value: fund={}, positionDate={}, isin={},"
+            + " marketValue={}",
+        fund,
+        date,
+        position.getAccountId(),
+        position.getMarketValue().toPlainString());
+    return false;
   }
 
   private BigDecimal getCashBalance(TulevaFund fund, LocalDate date) {

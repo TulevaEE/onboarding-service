@@ -106,4 +106,16 @@ class SecurityConfigurationSpec extends Specification {
     "/v1/listings" | memberToken | status().isOk()
     "/v1/listings" | userToken   | status().isForbidden()
   }
+
+  def "only members can reach hackathon registration"() {
+    expect:
+    mvc.perform(get(url)
+        .header("Authorization", "Bearer " + token))
+        .andExpect(status)
+
+    where:
+    url                          | token       | status
+    "/v1/hackathon-registration" | userToken   | status().isForbidden()
+    "/v1/hackathon-registration" | memberToken | status().isOk()
+  }
 }

@@ -18,6 +18,7 @@ import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorResponse;
 import ee.tuleva.onboarding.error.response.ErrorResponseEntityFactory;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
+import ee.tuleva.onboarding.hackathon.HackathonRegistrationClosedException;
 import ee.tuleva.onboarding.mandate.exception.IdSessionException;
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
 import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
@@ -182,6 +183,15 @@ public class ErrorHandlingControllerAdvice {
     log.info("ChildIsNotAMinorException: {}", exception.getMessage());
     return new ResponseEntity<>(
         Map.of("error", "CHILD_IS_NOT_A_MINOR", "error_description", exception.getMessage()),
+        BAD_REQUEST);
+  }
+
+  @ExceptionHandler(HackathonRegistrationClosedException.class)
+  public ResponseEntity<Object> handleErrors(HackathonRegistrationClosedException exception) {
+    log.info("HackathonRegistrationClosedException: {}", exception.getMessage());
+    return new ResponseEntity<>(
+        Map.of(
+            "error", "HACKATHON_REGISTRATION_CLOSED", "error_description", exception.getMessage()),
         BAD_REQUEST);
   }
 

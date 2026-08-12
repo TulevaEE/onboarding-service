@@ -74,6 +74,10 @@ admin:
   api-token: ${ADMIN_API_TOKEN:}
   ops-token: ${ADMIN_OPS_TOKEN:}
 
+hackathon:
+  # 20.09.2026 23:59:59 Estonian time
+  registration-deadline: 2026-09-20T20:59:59Z
+
 mobile-id:
   # use "https://mid.sk.ee/mid-api" for testing signing
   hostUrl: 'https://tsp.demo.sk.ee/mid-api'

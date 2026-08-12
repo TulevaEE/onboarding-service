@@ -558,7 +558,7 @@ class RiskIndicatorNotifier {
   private @Nullable DisclosedRiskIndicator disclosedClass(PublishedRiskIndicator indicator) {
     return disclosureRepository
         .findFirstByIndicatorTypeAndFundAndDisclosedFromLessThanEqualOrderByDisclosedFromDesc(
-            indicator.indicatorType(), indicator.fund(), indicator.evaluationDate())
+            indicator.indicatorType(), indicator.fund(), LocalDate.now(clock))
         .orElse(null);
   }
 

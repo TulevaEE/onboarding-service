@@ -9,11 +9,14 @@ import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class DepotFeeCalculator implements FeeCalculator {
 
   private final DepotFeeTierRepository tierRepository;
@@ -49,12 +52,21 @@ public class DepotFeeCalculator implements FeeCalculator {
     return DEPOT;
   }
 
+  /**
+   * A row valid on the accrual date decides the rate: a TIER row reads the AUM tier for the fee
+   * month, a FIXED row carries the rate itself. No row means no depot fee — never the tier, so that
+   * a lapsed or deleted row cannot silently start charging one.
+   */
   private BigDecimal determineDepotRate(
       TulevaFund fund, LocalDate calendarDate, LocalDate feeMonth) {
-    return feeRateRepository
-        .findValidRate(fund, DEPOT, calendarDate)
-        .map(FeeRate::annualRate)
-        .orElseGet(() -> determineDepotRateFromTier(feeMonth));
+    Optional<FeeRate> rate = feeRateRepository.findValidRate(fund, DEPOT, calendarDate);
+    if (rate.isEmpty()) {
+      log.warn("No depot fee rate configured, accruing zero: fund={}, date={}", fund, calendarDate);
+      return ZERO;
+    }
+    return rate.get().isTierBased()
+        ? determineDepotRateFromTier(feeMonth)
+        : rate.get().annualRate();
   }
 
   private BigDecimal determineDepotRateFromTier(LocalDate feeMonth) {

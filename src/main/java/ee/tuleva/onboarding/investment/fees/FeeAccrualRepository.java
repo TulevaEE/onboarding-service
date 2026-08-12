@@ -15,23 +15,6 @@ public class FeeAccrualRepository {
 
   private final JdbcClient jdbcClient;
 
-  public BigDecimal getAccruedFeeAsOf(TulevaFund fund, FeeType feeType, LocalDate asOfDate) {
-    return jdbcClient
-        .sql(
-            """
-            SELECT COALESCE(ROUND(SUM(daily_amount_net), 2), 0)
-            FROM investment_fee_accrual
-            WHERE fund_code = :fundCode
-              AND fee_type = :feeType
-              AND accrual_date <= :asOfDate
-            """)
-        .param("fundCode", fund.name())
-        .param("feeType", feeType.name())
-        .param("asOfDate", asOfDate)
-        .query(BigDecimal.class)
-        .single();
-  }
-
   public BigDecimal getAccruedFeesForMonth(
       TulevaFund fund, LocalDate feeMonth, List<FeeType> feeTypes, LocalDate beforeDate) {
     return jdbcClient

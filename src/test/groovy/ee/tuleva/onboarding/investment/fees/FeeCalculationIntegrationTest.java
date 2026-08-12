@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.fees;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
+import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
@@ -135,20 +136,24 @@ class FeeCalculationIntegrationTest {
 
   private void insertFeeRates() {
     for (TulevaFund fund : TulevaFund.values()) {
-      insertFeeRate(fund.name(), "MANAGEMENT", new BigDecimal("0.0025"));
+      insertFeeRate(fund.name(), "MANAGEMENT", new BigDecimal("0.0025"), "FIXED");
+      insertFeeRate(fund.name(), "DEPOT", ZERO, "TIER");
     }
   }
 
-  private void insertFeeRate(String fundCode, String feeType, BigDecimal annualRate) {
+  private void insertFeeRate(
+      String fundCode, String feeType, BigDecimal annualRate, String rateSource) {
     jdbcClient
         .sql(
             """
-            INSERT INTO investment_fee_rate (fund_code, fee_type, annual_rate, valid_from, created_by)
-            VALUES (:fundCode, :feeType, :annualRate, :validFrom, 'TEST')
+            INSERT INTO investment_fee_rate
+                (fund_code, fee_type, annual_rate, rate_source, valid_from, created_by)
+            VALUES (:fundCode, :feeType, :annualRate, :rateSource, :validFrom, 'TEST')
             """)
         .param("fundCode", fundCode)
         .param("feeType", feeType)
         .param("annualRate", annualRate)
+        .param("rateSource", rateSource)
         .param("validFrom", LocalDate.of(2025, 1, 1))
         .update();
   }

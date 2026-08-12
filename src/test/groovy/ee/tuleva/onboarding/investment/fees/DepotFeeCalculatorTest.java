@@ -4,8 +4,10 @@ import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -92,7 +94,7 @@ class DepotFeeCalculatorTest {
   }
 
   @Test
-  void calculate_fallsBackToTierWhenNoFundRate() {
+  void calculate_usesTierWhenTheRowSaysTier() {
     LocalDate date = LocalDate.of(2025, 7, 15);
     LocalDate feeMonth = LocalDate.of(2025, 7, 1);
     LocalDate previousMonthEnd = LocalDate.of(2025, 6, 30);
@@ -101,7 +103,8 @@ class DepotFeeCalculatorTest {
     BigDecimal tierRate = new BigDecimal("0.005");
 
     when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
-    when(feeRateRepository.findValidRate(TUK75, FeeType.DEPOT, date)).thenReturn(Optional.empty());
+    when(feeRateRepository.findValidRate(TUK75, FeeType.DEPOT, date))
+        .thenReturn(Optional.of(tierRow(TUK75, LocalDate.of(2025, 1, 1), null)));
     when(fundPositionRepository.findLatestSecurityNavDateUpTo(LocalDate.of(2025, 6, 30)))
         .thenReturn(Optional.of(previousMonthEnd));
     when(fundPositionRepository.sumSecurityMarketValueAllFunds(previousMonthEnd))
@@ -114,6 +117,22 @@ class DepotFeeCalculatorTest {
   }
 
   @Test
+  void calculate_accruesNothingWhenNoRateRowIsValid() {
+    LocalDate date = LocalDate.of(2025, 7, 15);
+    LocalDate feeMonth = LocalDate.of(2025, 7, 1);
+    BigDecimal baseValue = new BigDecimal("500000000");
+
+    when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
+    when(feeRateRepository.findValidRate(TUK75, FeeType.DEPOT, date)).thenReturn(Optional.empty());
+
+    FeeAccrual result = calculator.calculate(TUK75, date, baseValue);
+
+    assertThat(result.annualRate()).isEqualByComparingTo(ZERO);
+    assertThat(result.dailyAmountNet()).isEqualByComparingTo(ZERO);
+    verifyNoInteractions(tierRepository);
+  }
+
+  @Test
   void calculate_usesTierRateAsIsWithoutAnyFloor() {
     LocalDate date = LocalDate.of(2025, 7, 15);
     LocalDate feeMonth = LocalDate.of(2025, 7, 1);
@@ -123,7 +142,8 @@ class DepotFeeCalculatorTest {
     BigDecimal tinyTierRate = new BigDecimal("0.00001");
 
     when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
-    when(feeRateRepository.findValidRate(TUK75, FeeType.DEPOT, date)).thenReturn(Optional.empty());
+    when(feeRateRepository.findValidRate(TUK75, FeeType.DEPOT, date))
+        .thenReturn(Optional.of(tierRow(TUK75, LocalDate.of(2025, 1, 1), null)));
     when(fundPositionRepository.findLatestSecurityNavDateUpTo(LocalDate.of(2025, 6, 30)))
         .thenReturn(Optional.of(previousMonthEnd));
     when(fundPositionRepository.sumSecurityMarketValueAllFunds(previousMonthEnd))
@@ -135,8 +155,11 @@ class DepotFeeCalculatorTest {
     assertThat(result.annualRate()).isEqualByComparingTo(tinyTierRate);
   }
 
+  /**
+   * The 18.09.2026 switch-over in miniature: a 0 row closed the day before, a TIER row after it.
+   */
   @Test
-  void calculate_resolvesOverridePerDaySoAFeeCanStartMidMonth() {
+  void calculate_resolvesTheRowPerDaySoAFeeCanStartMidMonth() {
     LocalDate feeMonth = LocalDate.of(2025, 9, 1);
     LocalDate beforeStart = LocalDate.of(2025, 9, 9);
     LocalDate onStart = LocalDate.of(2025, 9, 10);
@@ -153,7 +176,7 @@ class DepotFeeCalculatorTest {
                 new FeeRate(
                     1L, TUK75, FeeType.DEPOT, ZERO, LocalDate.of(2025, 1, 1), beforeStart)));
     when(feeRateRepository.findValidRate(TUK75, FeeType.DEPOT, onStart))
-        .thenReturn(Optional.empty());
+        .thenReturn(Optional.of(tierRow(TUK75, onStart, null)));
     when(fundPositionRepository.findLatestSecurityNavDateUpTo(previousMonthEnd))
         .thenReturn(Optional.of(previousMonthEnd));
     when(fundPositionRepository.sumSecurityMarketValueAllFunds(previousMonthEnd))
@@ -172,6 +195,10 @@ class DepotFeeCalculatorTest {
         .isEqualByComparingTo(
             baseValue.multiply(tierRate).divide(BigDecimal.valueOf(365), 6, RoundingMode.HALF_UP));
     assertThat(on.feeMonth()).isEqualTo(feeMonth);
+  }
+
+  private FeeRate tierRow(TulevaFund fund, LocalDate validFrom, LocalDate validTo) {
+    return new FeeRate(1L, fund, FeeType.DEPOT, ZERO, FeeRateSource.TIER, validFrom, validTo);
   }
 
   @Test

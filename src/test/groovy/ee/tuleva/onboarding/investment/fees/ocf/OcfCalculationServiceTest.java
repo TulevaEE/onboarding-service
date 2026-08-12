@@ -165,8 +165,12 @@ class OcfCalculationServiceTest {
   }
 
   @Test
-  void depotFeeFallsBackToTierWhenNoRateExists() {
-    given(feeRateRepository.findValidRate(TUV100, DEPOT, MONTH_END)).willReturn(Optional.empty());
+  void depotFeeUsesTierWhenTheRowSaysTier() {
+    given(feeRateRepository.findValidRate(TUV100, DEPOT, MONTH_END))
+        .willReturn(
+            Optional.of(
+                new FeeRate(
+                    1L, TUV100, DEPOT, ZERO, FeeRateSource.TIER, MONTH_END.minusYears(1), null)));
     given(fundPositionRepository.findLatestSecurityNavDateUpTo(MONTH_END))
         .willReturn(Optional.of(MONTH_END));
     given(fundPositionRepository.sumSecurityMarketValueAllFunds(MONTH_END))
@@ -177,6 +181,16 @@ class OcfCalculationServiceTest {
     var rate = service.getDepotFeeRate(TUV100, MONTH_END);
 
     assertThat(rate).isEqualByComparingTo(new BigDecimal("0.0010"));
+  }
+
+  @Test
+  void depotFeeIsZeroWhenNoRateRowExists() {
+    given(feeRateRepository.findValidRate(TUV100, DEPOT, MONTH_END)).willReturn(Optional.empty());
+
+    var rate = service.getDepotFeeRate(TUV100, MONTH_END);
+
+    assertThat(rate).isEqualByComparingTo(ZERO);
+    verifyNoInteractions(depotFeeTierRepository);
   }
 
   @Test

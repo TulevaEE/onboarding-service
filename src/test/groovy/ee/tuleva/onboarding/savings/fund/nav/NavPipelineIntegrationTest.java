@@ -410,7 +410,13 @@ class NavPipelineIntegrationTest {
 
     insertFeeRate(TKF100, "MANAGEMENT", new BigDecimal("0.0025"));
     insertFeeRate(TUK75, "MANAGEMENT", new BigDecimal("0.0025"));
+    insertDepotTierRate(TKF100);
+    insertDepotTierRate(TUK75);
     insertDepotFeeTier(new BigDecimal("0.01"));
+
+    // The premise of this test: a fund that IS charged the depot fee, next to one that is not.
+    // Closed before TKF100's own policy row starts, so the two never overlap.
+    insertFeePolicy(TKF100, "DEPOT", true, LocalDate.of(2025, 1, 1), LocalDate.of(2026, 2, 1));
 
     Instant feeCutoff =
         date.plusDays(1).atStartOfDay().atZone(ZoneId.of("Europe/Tallinn")).toInstant();
@@ -466,18 +472,23 @@ class NavPipelineIntegrationTest {
   }
 
   private void insertFeePolicy(
-      TulevaFund fund, String feeType, boolean chargedToFund, LocalDate validFrom) {
+      TulevaFund fund,
+      String feeType,
+      boolean chargedToFund,
+      LocalDate validFrom,
+      LocalDate validTo) {
     jdbcClient
         .sql(
             """
             INSERT INTO investment_fee_policy
-                (fund_code, fee_type, charged_to_fund, valid_from, created_by)
-            VALUES (:fundCode, :feeType, :chargedToFund, :validFrom, 'TEST')
+                (fund_code, fee_type, charged_to_fund, valid_from, valid_to, created_by)
+            VALUES (:fundCode, :feeType, :chargedToFund, :validFrom, :validTo, 'TEST')
             """)
         .param("fundCode", fund.name())
         .param("feeType", feeType)
         .param("chargedToFund", chargedToFund)
         .param("validFrom", validFrom)
+        .param("validTo", validTo)
         .update();
   }
 
@@ -521,6 +532,20 @@ class NavPipelineIntegrationTest {
         .param("fundCode", fund.name())
         .param("feeType", feeType)
         .param("annualRate", annualRate)
+        .param("validFrom", LocalDate.of(2025, 1, 1))
+        .update();
+  }
+
+  /** Declares that this fund's depot rate comes from the AUM tier table. */
+  private void insertDepotTierRate(TulevaFund fund) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO investment_fee_rate
+                (fund_code, fee_type, annual_rate, rate_source, valid_from, created_by)
+            VALUES (:fundCode, 'DEPOT', 0, 'TIER', :validFrom, 'TEST')
+            """)
+        .param("fundCode", fund.name())
         .param("validFrom", LocalDate.of(2025, 1, 1))
         .update();
   }

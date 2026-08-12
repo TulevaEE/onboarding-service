@@ -109,8 +109,8 @@ public class OcfCalculationService {
     }
     return feeRateRepository
         .findValidRate(fund, DEPOT, asOf)
-        .map(FeeRate::annualRate)
-        .orElseGet(() -> getDepotRateFromTier(asOf));
+        .map(rate -> rate.isTierBased() ? getDepotRateFromTier(asOf) : rate.annualRate())
+        .orElse(ZERO);
   }
 
   private BigDecimal getDepotRateFromTier(LocalDate asOf) {

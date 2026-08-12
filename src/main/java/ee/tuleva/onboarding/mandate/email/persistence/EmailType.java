@@ -48,6 +48,8 @@ public enum EmailType {
   PARENT_CHILD_LINK_ADDED("parent_child_link_added"),
 
   MAILCHIMP_CAMPAIGN("mailchimp_campaign"),
+
+  HACKATHON_REGISTRATION("hackathon_registration"),
   ;
 
   private final String templateName;

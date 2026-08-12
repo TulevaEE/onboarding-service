@@ -26,6 +26,7 @@ import org.springframework.stereotype.Service;
 class RiskIndicatorSeriesService {
 
   private static final int OBSERVATION_WINDOW_YEARS = 5;
+  private static final int MAX_SOURCE_AGE_DAYS = 10;
   private static final Period SRI_PRECEDING_PRICE_BUFFER = Period.ofWeeks(2);
   private static final Period SRRI_PRECEDING_PRICE_BUFFER = Period.ofMonths(1);
 
@@ -47,6 +48,14 @@ class RiskIndicatorSeriesService {
           indicatorType,
           sourceKeys(segments));
       return SeriesRefresh.empty();
+    }
+    // A feed that stops updating recomputes an identical series forever: nothing drifts, the
+    // publication row for the frozen date already exists, and the digest keeps reporting that
+    // date as green. Age is the only thing that distinguishes a dead feed from a quiet one.
+    if (anchor.isBefore(LocalDate.now(clock).minusDays(MAX_SOURCE_AGE_DAYS))) {
+      throw new IllegalStateException(
+          "source data is stale: lastValue=%s, maxAgeDays=%d, sources=%s"
+              .formatted(anchor, MAX_SOURCE_AGE_DAYS, sourceKeys(segments)));
     }
 
     var evaluationStart = anchor.minusMonths(lookbackMonths);

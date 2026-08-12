@@ -9,7 +9,9 @@ import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.fees.FeeCalculationService;
+import ee.tuleva.onboarding.investment.fees.FeeNavInclusionPolicy;
 import ee.tuleva.onboarding.investment.fees.FeeResult;
+import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
@@ -50,6 +52,7 @@ public class NavCalculationService {
   private final BlackrockAdjustmentComponent blackrockAdjustmentComponent;
   private final PositionPriceResolver positionPriceResolver;
   private final FeeCalculationService feeCalculationService;
+  private final FeeNavInclusionPolicy feeNavInclusionPolicy;
   private final Clock clock;
 
   @Transactional
@@ -108,8 +111,10 @@ public class NavCalculationService {
     FeeResult fees =
         feeCalculationService.calculateFeesForNav(
             fund, positionReportDate, feeBaseValue, feeCutoff, context.getSecurityPrices());
-    BigDecimal managementFeeAccrual = fees.managementFeeAccrual();
-    BigDecimal depotFeeAccrual = fees.depotFeeAccrual();
+    BigDecimal managementFeeAccrual =
+        navFacingAccrual(fund, FeeType.MANAGEMENT, positionReportDate, fees.managementFeeAccrual());
+    BigDecimal depotFeeAccrual =
+        navFacingAccrual(fund, FeeType.DEPOT, positionReportDate, fees.depotFeeAccrual());
 
     BigDecimal aum =
         calculateAum(
@@ -219,6 +224,11 @@ public class NavCalculationService {
             .add(blackrockAdjustment.min(ZERO).negate());
 
     return assets.subtract(liabilities);
+  }
+
+  private BigDecimal navFacingAccrual(
+      TulevaFund fund, FeeType feeType, LocalDate navDate, BigDecimal accrual) {
+    return feeNavInclusionPolicy.includeInNav(fund, feeType, navDate) ? accrual : ZERO;
   }
 
   private BigDecimal calculateNavPerUnit(

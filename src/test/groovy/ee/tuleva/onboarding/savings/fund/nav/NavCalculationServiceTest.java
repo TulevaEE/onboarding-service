@@ -16,7 +16,9 @@ import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.fees.FeeCalculationService;
+import ee.tuleva.onboarding.investment.fees.FeeNavInclusionPolicy;
 import ee.tuleva.onboarding.investment.fees.FeeResult;
+import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.ledger.LedgerAccountFixture.EntryFixture;
 import ee.tuleva.onboarding.ledger.LedgerService;
@@ -54,12 +56,16 @@ class NavCalculationServiceTest {
   @Mock private PositionPriceResolver positionPriceResolver;
   @Mock private FeeCalculationService feeCalculationService;
 
+  @Mock(strictness = Mock.Strictness.LENIENT)
+  private FeeNavInclusionPolicy feeNavInclusionPolicy;
+
   private NavCalculationService service;
   private Clock fixedClock;
 
   @BeforeEach
   void setUp() {
     fixedClock = Clock.fixed(Instant.parse("2025-01-15T14:00:00Z"), ZoneOffset.UTC);
+    when(feeNavInclusionPolicy.includeInNav(any(), any(), any())).thenReturn(true);
     service =
         new NavCalculationService(
             fundPositionRepository,
@@ -75,6 +81,7 @@ class NavCalculationServiceTest {
             blackrockAdjustmentComponent,
             positionPriceResolver,
             feeCalculationService,
+            feeNavInclusionPolicy,
             fixedClock);
   }
 
@@ -129,6 +136,40 @@ class NavCalculationServiceTest {
 
     assertThat(result.aum()).isEqualByComparingTo(expectedTotalNav);
     assertThat(result.navPerUnit().compareTo(ZERO)).isGreaterThan(0);
+  }
+
+  @Test
+  void calculate_keepsAnExcludedDepotFeeOutOfNavWhileTheAccrualStillHappens() {
+    LocalDate calcDate = LocalDate.of(2025, 1, 15);
+    LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
+
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
+        .thenReturn(Optional.of(previousWorkingDay));
+    when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100))
+        .thenReturn(fundUnitsOutstandingAccount(new BigDecimal("100000.00000")));
+
+    when(securitiesValueComponent.calculate(any())).thenReturn(new BigDecimal("900000.00"));
+    when(cashPositionComponent.calculate(any())).thenReturn(new BigDecimal("50000.00"));
+    when(receivablesComponent.calculate(any())).thenReturn(ZERO);
+    when(payablesComponent.calculate(any())).thenReturn(ZERO);
+    when(subscriptionsComponent.calculate(any())).thenReturn(ZERO);
+    when(blackrockAdjustmentComponent.calculate(any())).thenReturn(ZERO);
+    when(redemptionsComponent.calculate(any())).thenReturn(ZERO);
+    when(feeCalculationService.calculateFeesForNav(
+            eq(TKF100), eq(previousWorkingDay), any(), any(), any()))
+        .thenReturn(new FeeResult(new BigDecimal("52.08"), new BigDecimal("6.85")));
+    when(feeNavInclusionPolicy.includeInNav(TKF100, FeeType.DEPOT, previousWorkingDay))
+        .thenReturn(false);
+
+    NavCalculationResult result = service.calculate(TKF100, calcDate);
+
+    assertThat(result.depotFeeAccrual()).isEqualByComparingTo(ZERO);
+    assertThat(result.managementFeeAccrual()).isEqualByComparingTo("52.08");
+    assertThat(result.aum())
+        .isEqualByComparingTo(
+            new BigDecimal("900000.00")
+                .add(new BigDecimal("50000.00"))
+                .subtract(new BigDecimal("52.08")));
   }
 
   @Test

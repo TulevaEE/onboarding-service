@@ -25,7 +25,7 @@ public class DepotFeeCalculator implements FeeCalculator {
   public FeeAccrual calculate(TulevaFund fund, LocalDate calendarDate, BigDecimal baseValue) {
     LocalDate feeMonth = feeMonthResolver.resolveFeeMonth(calendarDate);
 
-    BigDecimal annualRate = determineDepotRate(fund, feeMonth);
+    BigDecimal annualRate = determineDepotRate(fund, calendarDate, feeMonth);
 
     BigDecimal dailyFee =
         baseValue.multiply(annualRate).divide(BigDecimal.valueOf(DAYS_IN_YEAR), 6, HALF_UP);
@@ -49,9 +49,10 @@ public class DepotFeeCalculator implements FeeCalculator {
     return DEPOT;
   }
 
-  private BigDecimal determineDepotRate(TulevaFund fund, LocalDate feeMonth) {
+  private BigDecimal determineDepotRate(
+      TulevaFund fund, LocalDate calendarDate, LocalDate feeMonth) {
     return feeRateRepository
-        .findValidRate(fund, DEPOT, feeMonth)
+        .findValidRate(fund, DEPOT, calendarDate)
         .map(FeeRate::annualRate)
         .orElseGet(() -> determineDepotRateFromTier(feeMonth));
   }

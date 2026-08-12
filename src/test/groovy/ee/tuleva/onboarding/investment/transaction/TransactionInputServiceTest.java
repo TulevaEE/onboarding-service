@@ -37,6 +37,7 @@ import ee.tuleva.onboarding.investment.epis.R16PhaseCalculator;
 import ee.tuleva.onboarding.investment.epis.R45ReportService;
 import ee.tuleva.onboarding.investment.epis.R45Result;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
+import ee.tuleva.onboarding.investment.fees.FeeNavInclusionPolicy;
 import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.portfolio.*;
 import ee.tuleva.onboarding.investment.position.FundPosition;
@@ -65,10 +66,12 @@ class TransactionInputServiceTest {
     lenient()
         .when(pendingOrderImpactService.calculate(any(), any(), any()))
         .thenReturn(PendingOrderImpact.none());
+    lenient().when(feeNavInclusionPolicy.includeInNav(any(), any(), any())).thenReturn(true);
   }
 
   @Mock private FundPositionRepository fundPositionRepository;
   @Mock private FeeAccrualRepository feeAccrualRepository;
+  @Mock private FeeNavInclusionPolicy feeNavInclusionPolicy;
   @Mock private ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
   @Mock private FundLimitRepository fundLimitRepository;
   @Mock private PositionLimitRepository positionLimitRepository;
@@ -158,6 +161,35 @@ class TransactionInputServiceTest {
     assertThat(result.minTransactionThreshold()).isEqualByComparingTo(new BigDecimal("5000"));
     assertThat(result.positionLimits()).containsKey("IE00A");
     assertThat(result.liabilities()).isEqualByComparingTo(new BigDecimal("5000"));
+  }
+
+  @Test
+  void gatherInput_leavesOutADepotFeeThatIsExcludedFromNav() {
+    var positionDate = AS_OF_DATE;
+    given(feeNavInclusionPolicy.includeInNav(TUV100, FeeType.DEPOT, AS_OF_DATE)).willReturn(false);
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(positionDate));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
+        .willReturn(List.of());
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
+        .willReturn(List.of());
+    given(
+            feeAccrualRepository.getAccruedFeesForMonth(
+                eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT)), any()))
+        .willReturn(new BigDecimal("3000"));
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(List.of());
+    given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(zeroFundLimit(TUV100)));
+    given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
+    given(r45ReportService.getLatestFlows()).willReturn(Map.of());
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+
+    assertThat(result.liabilityBreakdown().depotFee()).isEqualByComparingTo(ZERO);
+    assertThat(result.liabilityBreakdown().managementFee()).isEqualByComparingTo("3000");
+    verify(feeAccrualRepository, never())
+        .getAccruedFeesForMonth(eq(TUV100), any(), eq(List.of(FeeType.DEPOT)), any());
   }
 
   @Test

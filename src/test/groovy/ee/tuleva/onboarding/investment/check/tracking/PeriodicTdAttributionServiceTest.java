@@ -19,6 +19,7 @@ import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.fees.FeeAccrual;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
+import ee.tuleva.onboarding.investment.fees.FeeNavInclusionPolicy;
 import ee.tuleva.onboarding.investment.fees.FeeRate;
 import ee.tuleva.onboarding.investment.fees.FeeRateRepository;
 import ee.tuleva.onboarding.investment.fees.FeeType;
@@ -59,6 +60,7 @@ class PeriodicTdAttributionServiceTest {
   @Mock TrackingDifferenceEventRepository tdEventRepository;
   @Mock FeeAccrualRepository feeAccrualRepository;
   @Mock FeeRateRepository feeRateRepository;
+  @Mock FeeNavInclusionPolicy feeNavInclusionPolicy;
   @Mock FundPositionRepository fundPositionRepository;
   @Mock FundNavQueryService fundNavQueryService;
   @Mock ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
@@ -76,6 +78,7 @@ class PeriodicTdAttributionServiceTest {
             tdEventRepository,
             feeAccrualRepository,
             feeRateRepository,
+            feeNavInclusionPolicy,
             fundPositionRepository,
             fundNavQueryService,
             modelPortfolioAllocationRepository,
@@ -93,6 +96,7 @@ class PeriodicTdAttributionServiceTest {
                 any(), eq(TrackingCheckType.BENCHMARK_MODEL), any(), any()))
         .willReturn(List.of());
     given(instrumentFeeRepository.findAllValidRates(any())).willReturn(List.of());
+    given(feeNavInclusionPolicy.includeInNav(any(), any(), any())).willReturn(true);
   }
 
   @Test
@@ -376,6 +380,47 @@ class PeriodicTdAttributionServiceTest {
     var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
 
     assertThat(result.depotFeeDrag()).isNegative();
+    assertThat(result.mgmtFeeDrag()).isNegative();
+  }
+
+  @Test
+  void reportsNoDepotFeeDragWhenTheFeeIsExcludedFromNav() {
+    var date1 = LocalDate.of(2026, 4, 1);
+
+    given(feeNavInclusionPolicy.includeInNav(TUK75, FeeType.DEPOT, PERIOD_END)).willReturn(false);
+    given(
+            tdEventRepository.findDeduplicatedEventsForPeriod(
+                TUK75, MODEL_PORTFOLIO, PERIOD_START, PERIOD_END))
+        .willReturn(List.of(tdEvent(date1, "0.0008", "0.001")));
+    given(feeAccrualRepository.findByFundAndDateRange(TUK75, PERIOD_START, PERIOD_END))
+        .willReturn(
+            List.of(
+                feeAccrual(date1, FeeType.MANAGEMENT, "27.40"),
+                feeAccrual(date1, FeeType.DEPOT, "6.85")));
+    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, PERIOD_END))
+        .willReturn(
+            Optional.of(
+                new FeeRate(
+                    1L, TUK75, FeeType.MANAGEMENT, new BigDecimal("0.0027"), PERIOD_START, null)));
+    given(
+            modelPortfolioAllocationRepository.findVersionsActiveDuringPeriod(
+                TUK75, PERIOD_START, PERIOD_END))
+        .willReturn(
+            List.of(
+                modelAllocation(ISIN_DW, "0.70", date1), modelAllocation(ISIN_EM, "0.30", date1)));
+    given(fundNavQueryService.findAum(FUND_CODE, date1)).willReturn(new BigDecimal("100000000"));
+    given(fundNavQueryService.findCashValue(anyString(), any()))
+        .willReturn(new BigDecimal("1500000"));
+    given(fundNavQueryService.findSecuritiesTotalValue(anyString(), any()))
+        .willReturn(new BigDecimal("98000000"));
+    given(fundNavQueryService.findFeeAccrualLiabilities(anyString(), any()))
+        .willReturn(new BigDecimal("-50000"));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(any(), eq(TUK75), eq(SECURITY)))
+        .willReturn(List.of(position(ISIN_DW, "68600000"), position(ISIN_EM, "29400000")));
+
+    var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
+
+    assertThat(result.depotFeeDrag()).isEqualByComparingTo(ZERO);
     assertThat(result.mgmtFeeDrag()).isNegative();
   }
 

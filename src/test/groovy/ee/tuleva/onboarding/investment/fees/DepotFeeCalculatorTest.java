@@ -35,7 +35,7 @@ class DepotFeeCalculatorTest {
     BigDecimal fundRate = new BigDecimal("0.01");
 
     when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
-    when(feeRateRepository.findValidRate(TKF100, FeeType.DEPOT, feeMonth))
+    when(feeRateRepository.findValidRate(TKF100, FeeType.DEPOT, date))
         .thenReturn(Optional.of(new FeeRate(1L, TKF100, FeeType.DEPOT, fundRate, feeMonth, null)));
 
     FeeAccrual result = calculator.calculate(TKF100, date, baseValue);
@@ -63,7 +63,7 @@ class DepotFeeCalculatorTest {
     BigDecimal fundRate = new BigDecimal("0.01");
 
     when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
-    when(feeRateRepository.findValidRate(TKF100, FeeType.DEPOT, feeMonth))
+    when(feeRateRepository.findValidRate(TKF100, FeeType.DEPOT, date))
         .thenReturn(Optional.of(new FeeRate(1L, TKF100, FeeType.DEPOT, fundRate, feeMonth, null)));
 
     FeeAccrual result = calculator.calculate(TKF100, date, baseValue);
@@ -82,7 +82,7 @@ class DepotFeeCalculatorTest {
     BigDecimal baseValue = new BigDecimal("500000000");
 
     when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
-    when(feeRateRepository.findValidRate(TKF100, FeeType.DEPOT, feeMonth))
+    when(feeRateRepository.findValidRate(TKF100, FeeType.DEPOT, date))
         .thenReturn(Optional.of(new FeeRate(1L, TKF100, FeeType.DEPOT, ZERO, feeMonth, null)));
 
     FeeAccrual result = calculator.calculate(TKF100, date, baseValue);
@@ -101,8 +101,7 @@ class DepotFeeCalculatorTest {
     BigDecimal tierRate = new BigDecimal("0.005");
 
     when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
-    when(feeRateRepository.findValidRate(TUK75, FeeType.DEPOT, feeMonth))
-        .thenReturn(Optional.empty());
+    when(feeRateRepository.findValidRate(TUK75, FeeType.DEPOT, date)).thenReturn(Optional.empty());
     when(fundPositionRepository.findLatestSecurityNavDateUpTo(LocalDate.of(2025, 6, 30)))
         .thenReturn(Optional.of(previousMonthEnd));
     when(fundPositionRepository.sumSecurityMarketValueAllFunds(previousMonthEnd))
@@ -124,8 +123,7 @@ class DepotFeeCalculatorTest {
     BigDecimal tinyTierRate = new BigDecimal("0.00001");
 
     when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
-    when(feeRateRepository.findValidRate(TUK75, FeeType.DEPOT, feeMonth))
-        .thenReturn(Optional.empty());
+    when(feeRateRepository.findValidRate(TUK75, FeeType.DEPOT, date)).thenReturn(Optional.empty());
     when(fundPositionRepository.findLatestSecurityNavDateUpTo(LocalDate.of(2025, 6, 30)))
         .thenReturn(Optional.of(previousMonthEnd));
     when(fundPositionRepository.sumSecurityMarketValueAllFunds(previousMonthEnd))
@@ -135,6 +133,45 @@ class DepotFeeCalculatorTest {
     FeeAccrual result = calculator.calculate(TUK75, date, baseValue);
 
     assertThat(result.annualRate()).isEqualByComparingTo(tinyTierRate);
+  }
+
+  @Test
+  void calculate_resolvesOverridePerDaySoAFeeCanStartMidMonth() {
+    LocalDate feeMonth = LocalDate.of(2025, 9, 1);
+    LocalDate beforeStart = LocalDate.of(2025, 9, 9);
+    LocalDate onStart = LocalDate.of(2025, 9, 10);
+    LocalDate previousMonthEnd = LocalDate.of(2025, 8, 31);
+    BigDecimal baseValue = new BigDecimal("500000000");
+    BigDecimal totalAum = new BigDecimal("1400000000");
+    BigDecimal tierRate = new BigDecimal("0.0004");
+
+    when(feeMonthResolver.resolveFeeMonth(beforeStart)).thenReturn(feeMonth);
+    when(feeMonthResolver.resolveFeeMonth(onStart)).thenReturn(feeMonth);
+    when(feeRateRepository.findValidRate(TUK75, FeeType.DEPOT, beforeStart))
+        .thenReturn(
+            Optional.of(
+                new FeeRate(
+                    1L, TUK75, FeeType.DEPOT, ZERO, LocalDate.of(2025, 1, 1), beforeStart)));
+    when(feeRateRepository.findValidRate(TUK75, FeeType.DEPOT, onStart))
+        .thenReturn(Optional.empty());
+    when(fundPositionRepository.findLatestSecurityNavDateUpTo(previousMonthEnd))
+        .thenReturn(Optional.of(previousMonthEnd));
+    when(fundPositionRepository.sumSecurityMarketValueAllFunds(previousMonthEnd))
+        .thenReturn(totalAum);
+    when(tierRepository.findRateForAum(totalAum, feeMonth)).thenReturn(tierRate);
+
+    FeeAccrual before = calculator.calculate(TUK75, beforeStart, baseValue);
+    FeeAccrual on = calculator.calculate(TUK75, onStart, baseValue);
+
+    assertThat(before.annualRate()).isEqualByComparingTo(ZERO);
+    assertThat(before.dailyAmountNet()).isEqualByComparingTo(ZERO);
+    assertThat(before.feeMonth()).isEqualTo(feeMonth);
+
+    assertThat(on.annualRate()).isEqualByComparingTo(tierRate);
+    assertThat(on.dailyAmountNet())
+        .isEqualByComparingTo(
+            baseValue.multiply(tierRate).divide(BigDecimal.valueOf(365), 6, RoundingMode.HALF_UP));
+    assertThat(on.feeMonth()).isEqualTo(feeMonth);
   }
 
   @Test

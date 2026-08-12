@@ -262,7 +262,25 @@ class NavCalculationIntegrationTest {
 
     // Fees computed inline from base value (securitiesValue + cash)
     assertThat(result.managementFeeAccrual()).isPositive();
-    assertThat(result.depotFeeAccrual()).isPositive();
+
+    // The depoopank charges TUK75 directly, so the depot fee is accrued for accounting
+    // but kept out of NAV (investment_fee_policy seeded by V1_239).
+    assertThat(result.depotFeeAccrual()).isEqualByComparingTo(ZERO);
+    assertThat(accruedDepotFee(TUK75, priceDate)).isPositive();
+  }
+
+  private BigDecimal accruedDepotFee(TulevaFund fund, LocalDate accrualDate) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT COALESCE(SUM(daily_amount_net), 0)
+            FROM investment_fee_accrual
+            WHERE fund_code = :fundCode AND fee_type = 'DEPOT' AND accrual_date <= :accrualDate
+            """)
+        .param("fundCode", fund.name())
+        .param("accrualDate", accrualDate)
+        .query(BigDecimal.class)
+        .single();
   }
 
   @SneakyThrows

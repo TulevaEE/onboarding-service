@@ -26,7 +26,14 @@ public interface RedemptionRequestRepository extends CrudRepository<RedemptionRe
   List<RedemptionRequest> findByStatusAndRequestedAtBeforeAndCancelledAtIsNull(
       Status status, Instant cutoff);
 
-  List<RedemptionRequest> findByStatusAndRequestedAtBefore(Status status, Instant cutoff);
+  @Query(
+      """
+      SELECT r FROM RedemptionRequest r
+      WHERE r.status = :status
+        AND COALESCE(r.reviewedAt, r.requestedAt) < :cutoff
+      """)
+  List<RedemptionRequest> findAcceptedBefore(
+      @Param("status") Status status, @Param("cutoff") Instant cutoff);
 
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query("SELECT r FROM RedemptionRequest r WHERE r.id = :id")

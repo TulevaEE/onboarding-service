@@ -106,7 +106,7 @@ public class NavTransactionImpactAlertJob {
           reservedPayments.stream().map(SavingFundPayment::getAmount).reduce(ZERO, BigDecimal::add);
 
       List<RedemptionRequest> redemptions =
-          redemptionRequestRepository.findByStatusAndRequestedAtBefore(VERIFIED, cutoff);
+          redemptionRequestRepository.findAcceptedBefore(VERIFIED, cutoff);
       BigDecimal redemptionEur = estimateRedemptionEur(redemptions);
 
       BigDecimal totalVolume = subscriptionEur.add(redemptionEur);

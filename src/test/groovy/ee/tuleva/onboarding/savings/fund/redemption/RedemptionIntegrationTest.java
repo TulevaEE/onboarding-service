@@ -99,7 +99,7 @@ class RedemptionIntegrationTest {
     doReturn("").when(sebGatewayClient).submitPaymentFile(any(), any());
     lenient().when(navProvider.getDisplayNav(any())).thenReturn(BigDecimal.ONE);
     lenient()
-        .when(navProvider.getVerifiedNavForIssuingAndRedeeming(any()))
+        .when(navProvider.getVerifiedNavForIssuingAndRedeeming(any(), any()))
         .thenReturn(BigDecimal.ONE);
 
     testUser =

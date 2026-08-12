@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.savings.fund.issuing;
 
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RESERVED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPaymentFixture.aPayment;
 import static java.math.BigDecimal.ONE;
@@ -45,7 +46,7 @@ class IssuingJobTest {
     issuerService = mock(IssuerService.class);
     navProvider = mock(FundNavProvider.class);
     eventPublisher = mock(ApplicationEventPublisher.class);
-    lenient().when(navProvider.getVerifiedNavForIssuingAndRedeeming(any())).thenReturn(nav);
+    lenient().when(navProvider.getVerifiedNavForIssuingAndRedeeming(any(), any())).thenReturn(nav);
     lenient()
         .when(issuerService.processPayment(any(), any()))
         .thenReturn(new IssuingResult(ZERO, ZERO));
@@ -300,8 +301,44 @@ class IssuingJobTest {
 
     issuingJob.runJob();
 
-    verify(navProvider, never()).getVerifiedNavForIssuingAndRedeeming(any());
+    verify(navProvider, never()).getVerifiedNavForIssuingAndRedeeming(any(), any());
     verifyNoInteractions(issuerService);
+  }
+
+  @Test
+  void beforeCutoff_issuesAtTheNavOfTheSecondToLastWorkingDay() {
+    var now = Instant.parse("2025-01-15T12:00:00Z"); // 14:00 Tallinn time (before cutoff)
+    var issuingJob = createIssuingJob(now);
+
+    when(paymentRepository.findPaymentsWithStatus(RESERVED))
+        .thenReturn(
+            List.of(
+                aPayment()
+                    .receivedBefore(Instant.parse("2025-01-13T10:00:00Z"))
+                    .status(RESERVED)
+                    .build()));
+
+    issuingJob.runJob();
+
+    verify(navProvider).getVerifiedNavForIssuingAndRedeeming(TKF100, LocalDate.of(2025, 1, 13));
+  }
+
+  @Test
+  void afterCutoff_issuesAtTheNavOfTheLastWorkingDay() {
+    var now = Instant.parse("2025-01-15T15:00:00Z"); // 17:00 Tallinn time (after cutoff)
+    var issuingJob = createIssuingJob(now);
+
+    when(paymentRepository.findPaymentsWithStatus(RESERVED))
+        .thenReturn(
+            List.of(
+                aPayment()
+                    .receivedBefore(Instant.parse("2025-01-14T10:00:00Z"))
+                    .status(RESERVED)
+                    .build()));
+
+    issuingJob.runJob();
+
+    verify(navProvider).getVerifiedNavForIssuingAndRedeeming(TKF100, LocalDate.of(2025, 1, 14));
   }
 
   @Test
@@ -309,7 +346,7 @@ class IssuingJobTest {
     var issuingJob = createIssuingJob(Instant.parse("2025-01-03T14:00:00Z"));
 
     var nav = new BigDecimal("9.9918");
-    when(navProvider.getVerifiedNavForIssuingAndRedeeming(any())).thenReturn(nav);
+    when(navProvider.getVerifiedNavForIssuingAndRedeeming(any(), any())).thenReturn(nav);
 
     var payment1 =
         aPayment()

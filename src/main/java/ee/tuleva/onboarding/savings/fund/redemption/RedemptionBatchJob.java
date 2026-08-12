@@ -67,7 +67,7 @@ public class RedemptionBatchJob {
   public void runJob() {
     Instant cutoff = getCutoffForProcessing();
     List<RedemptionRequest> toProcess =
-        redemptionRequestRepository.findByStatusAndRequestedAtBefore(VERIFIED, cutoff);
+        redemptionRequestRepository.findAcceptedBefore(VERIFIED, cutoff);
 
     if (toProcess.isEmpty()) {
       return;
@@ -77,7 +77,7 @@ public class RedemptionBatchJob {
         "Running redemption job for {} verified requests submitted before {}",
         toProcess.size(),
         cutoff);
-    processVerifiedRequests(toProcess);
+    processVerifiedRequests(toProcess, dealingDate(cutoff));
   }
 
   private Instant getCutoffForProcessing() {
@@ -107,12 +107,16 @@ public class RedemptionBatchJob {
     return clock.instant().atZone(CUTOFF_TIMEZONE).toLocalDate();
   }
 
+  private LocalDate dealingDate(Instant cutoff) {
+    return cutoff.atZone(CUTOFF_TIMEZONE).toLocalDate();
+  }
+
   private Instant getCutoff(LocalDate date) {
     return RedemptionCutoff.cutoffInstant(date);
   }
 
-  private void processVerifiedRequests(List<RedemptionRequest> toProcess) {
-    BigDecimal nav = getNAV();
+  private void processVerifiedRequests(List<RedemptionRequest> toProcess, LocalDate dealingDate) {
+    BigDecimal nav = getNAV(dealingDate);
     BigDecimal totalCashAmount = ZERO;
 
     for (RedemptionRequest request : toProcess) {
@@ -310,7 +314,7 @@ public class RedemptionBatchJob {
     }
   }
 
-  private BigDecimal getNAV() {
-    return navProvider.getVerifiedNavForIssuingAndRedeeming(TKF100);
+  private BigDecimal getNAV(LocalDate dealingDate) {
+    return navProvider.getVerifiedNavForIssuingAndRedeeming(TKF100, dealingDate);
   }
 }

@@ -60,11 +60,35 @@ class FeeSettlementCheckJobTest {
             eq(thirdBusinessDay));
   }
 
+  // A monthly job that may be late needs "from the nth business day onwards", not "exactly on it".
+  // One missed 10:00 run - a deploy, a restart, a ShedLock still held - used to drop the whole
+  // month: no rows for that fee month for any fund, no notification, and nothing to signal the gap.
   @Test
-  void skipsDaysAfterTheThirdBusinessDay() {
-    jobOn(LocalDate.of(2026, 6, 4)).checkClosedMonthIfReady();
+  void stillRunsWhenTheThirdBusinessDayRunWasMissed() {
+    var fourthBusinessDay = LocalDate.of(2026, 6, 4);
 
-    verifyNoInteractions(feeCheckService);
+    jobOn(fourthBusinessDay).checkClosedMonthIfReady();
+
+    verify(feeCheckService)
+        .runMonthlyChecks(
+            eq(List.of(TulevaFund.values())),
+            eq(LocalDate.of(2026, 5, 1)),
+            eq(LocalDate.of(2026, 4, 1)),
+            eq(fourthBusinessDay));
+  }
+
+  @Test
+  void keepsRunningToTheEndOfTheCronWindow() {
+    var lastDayOfTheCronWindow = LocalDate.of(2026, 6, 14);
+
+    jobOn(lastDayOfTheCronWindow).checkClosedMonthIfReady();
+
+    verify(feeCheckService)
+        .runMonthlyChecks(
+            any(),
+            eq(LocalDate.of(2026, 5, 1)),
+            eq(LocalDate.of(2026, 4, 1)),
+            eq(lastDayOfTheCronWindow));
   }
 
   // The cash leg trails a month behind: April's payment has landed by June, May's has not.

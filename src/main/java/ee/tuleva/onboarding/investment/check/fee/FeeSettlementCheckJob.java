@@ -37,7 +37,7 @@ class FeeSettlementCheckJob {
   @SchedulerLock(name = "FeeSettlementCheckJob", lockAtMostFor = "PT30M", lockAtLeastFor = "PT5M")
   void checkClosedMonthIfReady() {
     var today = LocalDate.now(clock);
-    if (!businessDays.isNthBusinessDayOfMonth(today, SETTLEMENT_SETTLED_BY_BUSINESS_DAY)) {
+    if (!businessDays.isOnOrAfterNthBusinessDayOfMonth(today, SETTLEMENT_SETTLED_BY_BUSINESS_DAY)) {
       return;
     }
     runForClosedMonth(today);

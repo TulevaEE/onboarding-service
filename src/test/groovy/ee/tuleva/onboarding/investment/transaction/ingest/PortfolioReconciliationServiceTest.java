@@ -55,13 +55,15 @@ class PortfolioReconciliationServiceTest {
 
   @Test
   void emptyCostBasisLedger_publishesLedgerUnavailableInsteadOfEveryIsinMismatching() {
+    Map<String, BigDecimal> reported =
+        Map.of(ISIN_A, new BigDecimal("10000"), ISIN_B, new BigDecimal("2000"));
     given(costBasisService.snapshotForFundAndDate(TUK75, AS_OF)).willReturn(List.of());
-    given(navReportLookup.findSecurityQuantities(TUK75, AS_OF))
-        .willReturn(Map.of(ISIN_A, new BigDecimal("10000"), ISIN_B, new BigDecimal("2000")));
+    given(navReportLookup.findSecurityQuantities(TUK75, AS_OF)).willReturn(reported);
 
     service.reconcile(TUK75, AS_OF);
 
-    verify(eventPublisher).publishEvent(new PortfolioLedgerUnavailableEvent(TUK75, AS_OF, 2));
+    verify(eventPublisher)
+        .publishEvent(new PortfolioLedgerUnavailableEvent(TUK75, AS_OF, reported));
   }
 
   @Test

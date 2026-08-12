@@ -1427,6 +1427,51 @@ class TransactionInputServiceTest {
   }
 
   @Test
+  void gatherInput_withASentSellOfAnIsinAbsentFromTheSebReport_addsNoPositionForIt() {
+    var positionDate = AS_OF_DATE;
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(positionDate));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
+        .willReturn(
+            List.of(
+                FundPosition.builder()
+                    .fund(TUV100)
+                    .accountType(SECURITY)
+                    .accountId("IE00A")
+                    .quantity(new BigDecimal("1000"))
+                    .marketValue(new BigDecimal("500000"))
+                    .build()));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
+        .willReturn(
+            List.of(
+                FundPosition.builder()
+                    .fund(TUV100)
+                    .accountType(CASH)
+                    .marketValue(new BigDecimal("100000"))
+                    .build()));
+    given(feeAccrualRepository.getAccruedFeesForMonth(eq(TUV100), any(), any(), any()))
+        .willReturn(ZERO);
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(List.of());
+    given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(zeroFundLimit(TUV100)));
+    given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
+    given(pendingOrderImpactService.calculate(eq(TUV100), eq(AS_OF_DATE), any()))
+        .willReturn(
+            new PendingOrderImpact(
+                ZERO,
+                new BigDecimal("1000"),
+                Map.of("IE00B", new BigDecimal("-1000")),
+                Map.of("IE00B", new BigDecimal("-20"))));
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+
+    assertThat(result.positions())
+        .singleElement()
+        .satisfies(position -> assertThat(position.isin()).isEqualTo("IE00A"));
+  }
+
+  @Test
   void gatherInput_leavesPositionsWithoutAnUnsettledOrderExactlyAsReported() {
     var positionDate = AS_OF_DATE;
     given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))

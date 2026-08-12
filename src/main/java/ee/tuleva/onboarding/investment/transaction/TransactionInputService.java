@@ -237,15 +237,21 @@ public class TransactionInputService {
     Set<String> reported = positions.stream().map(PositionSnapshot::isin).collect(toSet());
     values.entrySet().stream()
         .filter(entry -> !reported.contains(entry.getKey()))
+        .filter(entry -> entry.getValue().signum() > 0)
         .forEach(
             entry ->
                 adjusted.add(
                     new PositionSnapshot(
                         entry.getKey(),
-                        entry.getValue().max(ZERO),
-                        quantities.get(entry.getKey()),
+                        entry.getValue(),
+                        clampToZero(quantities.get(entry.getKey())),
                         null)));
     return List.copyOf(adjusted);
+  }
+
+  @Nullable
+  private static BigDecimal clampToZero(@Nullable BigDecimal quantity) {
+    return quantity == null ? null : quantity.max(ZERO);
   }
 
   private PositionSnapshot adjustPosition(

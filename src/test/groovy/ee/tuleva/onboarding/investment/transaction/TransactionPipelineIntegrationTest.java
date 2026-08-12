@@ -12,9 +12,10 @@ import static ee.tuleva.onboarding.investment.transaction.TransactionMode.BUY;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.REBALANCE;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
 import static java.math.BigDecimal.ZERO;
+import static java.math.RoundingMode.HALF_UP;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.stream.Collectors.toMap;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.tuple;
 import static org.assertj.core.api.Assertions.within;
 
 import ee.tuleva.onboarding.time.ClockHolder;
@@ -55,6 +56,15 @@ class TransactionPipelineIntegrationTest {
       TEST_DATE.atStartOfDay(TALLINN).toInstant().plusSeconds(3600);
   private static final Clock FIXED_CLOCK = Clock.fixed(FIXED_INSTANT, TALLINN);
 
+  private static final BigDecimal EXPECTED_SELL_IE000F60HVH9 = new BigDecimal("118094.61");
+  private static final BigDecimal EXPECTED_SELL_IE00BJZ2DC62 = new BigDecimal("127582.57");
+  private static final BigDecimal EXPECTED_BUY_IE000O58J820 = new BigDecimal("124291.20");
+  private static final BigDecimal EXPECTED_BUY_IE00BFG1TM61 = new BigDecimal("116881.35");
+  private static final BigDecimal EXPECTED_BUY_IE00BMDBMY19 = new BigDecimal("85266.68");
+  private static final BigDecimal EXPECTED_BUY_LU1291099718 = new BigDecimal("269536.01");
+  private static final BigDecimal EXPECTED_FT_TOTAL = new BigDecimal("639504.39");
+  private static final BigDecimal ESGM_PRICE = new BigDecimal("45.00");
+
   @TestConfiguration
   static class TestClockConfig {
     @Bean
@@ -92,20 +102,19 @@ class TransactionPipelineIntegrationTest {
     assertThat(command.getStatus()).isEqualTo(CALCULATED);
 
     List<TransactionOrder> orders = result.orders();
+    assertThat(orders).hasSize(6);
 
-    assertThat(orders)
-        .extracting(
-            TransactionOrder::getInstrumentIsin,
-            TransactionOrder::getTransactionType,
-            TransactionOrder::getInstrumentType,
-            TransactionOrder::getOrderVenue)
-        .containsExactlyInAnyOrder(
-            tuple("IE000F60HVH9", SELL, ETF, FT),
-            tuple("IE00BJZ2DC62", SELL, ETF, FT),
-            tuple("IE000O58J820", TransactionType.BUY, ETF, FT),
-            tuple("IE00BFG1TM61", TransactionType.BUY, FUND, SEB),
-            tuple("IE00BMDBMY19", TransactionType.BUY, ETF, SEB),
-            tuple("LU1291099718", TransactionType.BUY, ETF, FT));
+    Map<String, TransactionOrder> ordersByIsin =
+        orders.stream().collect(toMap(TransactionOrder::getInstrumentIsin, order -> order));
+
+    BigDecimal tolerance = BigDecimal.ONE;
+
+    assertSellOrder(ordersByIsin, "IE000F60HVH9", EXPECTED_SELL_IE000F60HVH9, ETF, FT, tolerance);
+    assertSellOrder(ordersByIsin, "IE00BJZ2DC62", EXPECTED_SELL_IE00BJZ2DC62, ETF, FT, tolerance);
+    assertBuyOrder(ordersByIsin, "IE000O58J820", EXPECTED_BUY_IE000O58J820, ETF, FT, tolerance);
+    assertBuyOrder(ordersByIsin, "IE00BFG1TM61", EXPECTED_BUY_IE00BFG1TM61, FUND, SEB, tolerance);
+    assertBuyOrder(ordersByIsin, "IE00BMDBMY19", EXPECTED_BUY_IE00BMDBMY19, ETF, SEB, tolerance);
+    assertBuyOrder(ordersByIsin, "LU1291099718", EXPECTED_BUY_LU1291099718, ETF, FT, tolerance);
 
     entityManager.flush();
     var auditEvents = auditEventRepository.findByBatchIdOrderByCreatedAt(result.batch().getId());
@@ -192,7 +201,9 @@ class TransactionPipelineIntegrationTest {
     assertThat(cells.get(5)).isEqualTo("SUBS");
     assertThat(cells.get(9)).isEqualTo("IE00BFG1TM61");
     assertThat(new BigDecimal(cells.get(12)))
-        .isCloseTo(fundOrder.getOrderAmount(), within(BigDecimal.ONE));
+        .isCloseTo(EXPECTED_BUY_IE00BFG1TM61, within(BigDecimal.ONE));
+    assertThat(fundOrder.getOrderAmount())
+        .isCloseTo(EXPECTED_BUY_IE00BFG1TM61, within(BigDecimal.ONE));
   }
 
   @Test
@@ -215,6 +226,11 @@ class TransactionPipelineIntegrationTest {
       assertThat(rowsByIsin.get("IE00BMDBMY19").getCell(3).getStringCellValue())
           .isEqualTo("ESGM.DE");
       assertThat(rowsByIsin.get("IE00BMDBMY19").getCell(7).getStringCellValue()).isEqualTo("Buy");
+      assertThat(
+              BigDecimal.valueOf(rowsByIsin.get("IE00BMDBMY19").getCell(6).getNumericCellValue()))
+          .isCloseTo(
+              EXPECTED_BUY_IE00BMDBMY19.divide(ESGM_PRICE, 6, HALF_UP),
+              within(new BigDecimal("1")));
 
       assertThat(rowsByIsin).containsOnlyKeys("IE00BMDBMY19");
     }
@@ -249,11 +265,24 @@ class TransactionPipelineIntegrationTest {
       assertThat(rowsByIsin.get("IE00BJZ2DC62").getCell(1).getStringCellValue()).isEqualTo("SELL");
       assertThat(rowsByIsin.get("LU1291099718").getCell(1).getStringCellValue()).isEqualTo("BUY");
 
+      assertThat(
+              BigDecimal.valueOf(rowsByIsin.get("IE000F60HVH9").getCell(7).getNumericCellValue()))
+          .isCloseTo(EXPECTED_SELL_IE000F60HVH9, within(BigDecimal.ONE));
+      assertThat(
+              BigDecimal.valueOf(rowsByIsin.get("IE00BJZ2DC62").getCell(7).getNumericCellValue()))
+          .isCloseTo(EXPECTED_SELL_IE00BJZ2DC62, within(BigDecimal.ONE));
+      assertThat(
+              BigDecimal.valueOf(rowsByIsin.get("IE000O58J820").getCell(7).getNumericCellValue()))
+          .isCloseTo(EXPECTED_BUY_IE000O58J820, within(BigDecimal.ONE));
+      assertThat(
+              BigDecimal.valueOf(rowsByIsin.get("LU1291099718").getCell(7).getNumericCellValue()))
+          .isCloseTo(EXPECTED_BUY_LU1291099718, within(BigDecimal.ONE));
+
       BigDecimal totalAmount = ZERO;
       for (Row row : rowsByIsin.values()) {
         totalAmount = totalAmount.add(BigDecimal.valueOf(row.getCell(7).getNumericCellValue()));
       }
-      assertThat(totalAmount).isGreaterThan(ZERO);
+      assertThat(totalAmount).isCloseTo(EXPECTED_FT_TOTAL, within(BigDecimal.ONE));
     }
   }
 

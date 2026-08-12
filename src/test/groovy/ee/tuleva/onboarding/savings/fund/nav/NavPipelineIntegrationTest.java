@@ -449,6 +449,36 @@ class NavPipelineIntegrationTest {
         .isEqualByComparingTo(tuk75ManagementFee.setScale(2, HALF_UP));
     assertThat(tkf100DepotBalance).isNotEqualByComparingTo(ZERO);
     assertThat(tkf100MgmtBalance).isNotEqualByComparingTo(tuk75MgmtBalance);
+
+    // TUK75 accrues the depot fee for cost tracking, but nothing reaches its ledger
+    assertThat(getSystemAccountBalance(DEPOT_FEE_ACCRUAL, TUK75)).isEqualByComparingTo(ZERO);
+    assertThat(
+            jdbcClient
+                .sql(
+                    """
+                    SELECT COUNT(*) FROM investment_fee_accrual
+                    WHERE fund_code = 'TUK75' AND fee_type = 'DEPOT' AND accrual_date = :date
+                    """)
+                .param("date", date)
+                .query(Integer.class)
+                .single())
+        .isEqualTo(1);
+  }
+
+  private void insertFeePolicy(
+      TulevaFund fund, String feeType, boolean chargedToFund, LocalDate validFrom) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO investment_fee_policy
+                (fund_code, fee_type, charged_to_fund, valid_from, created_by)
+            VALUES (:fundCode, :feeType, :chargedToFund, :validFrom, 'TEST')
+            """)
+        .param("fundCode", fund.name())
+        .param("feeType", feeType)
+        .param("chargedToFund", chargedToFund)
+        .param("validFrom", validFrom)
+        .update();
   }
 
   private void insertSecurityPosition(TulevaFund fund, LocalDate date, BigDecimal marketValue) {

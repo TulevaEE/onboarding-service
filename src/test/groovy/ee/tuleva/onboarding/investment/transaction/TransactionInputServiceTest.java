@@ -37,7 +37,7 @@ import ee.tuleva.onboarding.investment.epis.R16PhaseCalculator;
 import ee.tuleva.onboarding.investment.epis.R45ReportService;
 import ee.tuleva.onboarding.investment.epis.R45Result;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
-import ee.tuleva.onboarding.investment.fees.FeeNavInclusionPolicy;
+import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
 import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.portfolio.*;
 import ee.tuleva.onboarding.investment.position.FundPosition;
@@ -66,12 +66,12 @@ class TransactionInputServiceTest {
     lenient()
         .when(pendingOrderImpactService.calculate(any(), any(), any()))
         .thenReturn(PendingOrderImpact.none());
-    lenient().when(feeNavInclusionPolicy.includeInNav(any(), any(), any())).thenReturn(true);
+    lenient().when(feeChargedToFundPolicy.chargedToFund(any(), any(), any())).thenReturn(true);
   }
 
   @Mock private FundPositionRepository fundPositionRepository;
   @Mock private FeeAccrualRepository feeAccrualRepository;
-  @Mock private FeeNavInclusionPolicy feeNavInclusionPolicy;
+  @Mock private FeeChargedToFundPolicy feeChargedToFundPolicy;
   @Mock private ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
   @Mock private FundLimitRepository fundLimitRepository;
   @Mock private PositionLimitRepository positionLimitRepository;
@@ -166,7 +166,8 @@ class TransactionInputServiceTest {
   @Test
   void gatherInput_leavesOutADepotFeeThatIsExcludedFromNav() {
     var positionDate = AS_OF_DATE;
-    given(feeNavInclusionPolicy.includeInNav(TUV100, FeeType.DEPOT, AS_OF_DATE)).willReturn(false);
+    given(feeChargedToFundPolicy.chargedToFund(TUV100, FeeType.DEPOT, AS_OF_DATE))
+        .willReturn(false);
     given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
         .willReturn(Optional.of(positionDate));
     given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))

@@ -34,6 +34,7 @@ public class FeeCalculationService {
   private final NavFeeAccrualLedger navFeeAccrualLedger;
   private final NavLedgerRepository navLedgerRepository;
   private final FeeMonthResolver feeMonthResolver;
+  private final FeeChargedToFundPolicy feeChargedToFundPolicy;
 
   private void settleMonthlyFeesIfNeeded(TulevaFund fund, LocalDate month) {
     Instant cutoff = month.plusMonths(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
@@ -120,6 +121,14 @@ public class FeeCalculationService {
     for (FeeCalculator calculator : feeCalculators) {
       FeeAccrual accrual = calculator.calculate(fund, date, baseValue);
       feeAccrualRepository.save(accrual);
+      if (!feeChargedToFundPolicy.chargedToFund(fund, accrual.feeType(), date)) {
+        log.info(
+            "recordDailyFees: fund={}, date={}, feeType={}, tracked but not charged to the fund",
+            fund,
+            date,
+            accrual.feeType());
+        continue;
+      }
       SystemAccount feeAccount = accrual.feeType().getAccrualAccount();
       BigDecimal ledgerAmount = roundForLedger(accrual.dailyAmountNet());
       log.info(

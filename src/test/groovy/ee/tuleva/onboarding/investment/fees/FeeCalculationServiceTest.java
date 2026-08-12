@@ -35,6 +35,7 @@ class FeeCalculationServiceTest {
   @Mock private FeeAccrualRepository feeAccrualRepository;
   @Mock private NavFeeAccrualLedger navFeeAccrualLedger;
   @Mock private NavLedgerRepository navLedgerRepository;
+  @Mock private FeeChargedToFundPolicy feeChargedToFundPolicy;
 
   private FeeCalculationService service;
 
@@ -48,7 +49,42 @@ class FeeCalculationServiceTest {
             feeAccrualRepository,
             navFeeAccrualLedger,
             navLedgerRepository,
-            feeMonthResolver);
+            feeMonthResolver,
+            feeChargedToFundPolicy);
+    lenient().when(feeChargedToFundPolicy.chargedToFund(any(), any(), any())).thenReturn(true);
+  }
+
+  @Test
+  void calculateFeesForNav_recordsTheAccrualButKeepsTheFundLedgerCleanWhenTulevaBearsTheFee() {
+    LocalDate positionReportDate = LocalDate.of(2025, 1, 13);
+    BigDecimal baseValue = new BigDecimal("12000000");
+    Instant feeCutoff =
+        positionReportDate.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
+
+    FeeAccrual mgmtAccrual = createAccrual(TKF100, FeeType.MANAGEMENT, positionReportDate);
+    FeeAccrual depotAccrual = createAccrual(TKF100, FeeType.DEPOT, positionReportDate);
+
+    when(feeChargedToFundPolicy.chargedToFund(TKF100, FeeType.DEPOT, positionReportDate))
+        .thenReturn(false);
+    when(feeAccrualRepository.findLatestAccrualDate(TKF100))
+        .thenReturn(Optional.of(positionReportDate.minusDays(1)));
+    when(feeAccrualRepository.findLatestBaseValue(TKF100)).thenReturn(Optional.of(baseValue));
+    when(calculator1.calculate(eq(TKF100), any(LocalDate.class), any(BigDecimal.class)))
+        .thenReturn(mgmtAccrual);
+    when(calculator2.calculate(eq(TKF100), any(LocalDate.class), any(BigDecimal.class)))
+        .thenReturn(depotAccrual);
+    stubZeroLedgerBalance();
+
+    service.calculateFeesForNav(TKF100, positionReportDate, baseValue, feeCutoff, null);
+
+    // the cost is still tracked
+    verify(feeAccrualRepository).save(depotAccrual);
+    // but the fund's ledger only carries the fee the fund actually bears
+    verify(navFeeAccrualLedger)
+        .recordFeeAccrual(
+            eq(TKF100), eq(positionReportDate), eq(MANAGEMENT_FEE_ACCRUAL), any(), any());
+    verify(navFeeAccrualLedger, never())
+        .recordFeeAccrual(any(), any(), eq(DEPOT_FEE_ACCRUAL), any(), any());
   }
 
   @Test

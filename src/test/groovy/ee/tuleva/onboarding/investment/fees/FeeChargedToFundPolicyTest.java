@@ -15,67 +15,67 @@ import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 @DataJpaTest
-@Import(FeeNavInclusionPolicy.class)
-class FeeNavInclusionPolicyTest {
+@Import(FeeChargedToFundPolicy.class)
+class FeeChargedToFundPolicyTest {
 
   private static final LocalDate DATE = LocalDate.of(2026, 8, 12);
 
   @Autowired private JdbcClient jdbcClient;
-  @Autowired private FeeNavInclusionPolicy policy;
+  @Autowired private FeeChargedToFundPolicy policy;
 
   @Test
-  void includeInNav_defaultsToTrueWhenNoPolicyRowExists() {
+  void chargedToFund_defaultsToTrueWhenNoPolicyRowExists() {
     jdbcClient.sql("DELETE FROM investment_fee_policy").update();
 
-    assertThat(policy.includeInNav(TKF100, DEPOT, DATE)).isTrue();
-    assertThat(policy.includeInNav(TKF100, MANAGEMENT, DATE)).isTrue();
+    assertThat(policy.chargedToFund(TKF100, DEPOT, DATE)).isTrue();
+    assertThat(policy.chargedToFund(TKF100, MANAGEMENT, DATE)).isTrue();
   }
 
   @Test
-  void includeInNav_migrationExcludesDepotForEveryFund() {
+  void chargedToFund_migrationExcludesDepotForEveryFund() {
     for (TulevaFund fund : TulevaFund.values()) {
-      assertThat(policy.includeInNav(fund, DEPOT, DATE)).isFalse();
+      assertThat(policy.chargedToFund(fund, DEPOT, DATE)).isFalse();
     }
   }
 
   @Test
-  void includeInNav_excludesOnlyTheConfiguredFeeType() {
-    assertThat(policy.includeInNav(TUK75, MANAGEMENT, DATE)).isTrue();
+  void chargedToFund_excludesOnlyTheConfiguredFeeType() {
+    assertThat(policy.chargedToFund(TUK75, MANAGEMENT, DATE)).isTrue();
   }
 
   @Test
-  void includeInNav_treatsDatesBeforeValidFromAsIncluded() {
-    assertThat(policy.includeInNav(TUK75, DEPOT, LocalDate.of(2017, 3, 27))).isTrue();
-    assertThat(policy.includeInNav(TUK75, DEPOT, LocalDate.of(2017, 3, 28))).isFalse();
+  void chargedToFund_treatsDatesBeforeValidFromAsIncluded() {
+    assertThat(policy.chargedToFund(TUK75, DEPOT, LocalDate.of(2017, 3, 27))).isTrue();
+    assertThat(policy.chargedToFund(TUK75, DEPOT, LocalDate.of(2017, 3, 28))).isFalse();
   }
 
   @Test
-  void includeInNav_followsTheRowValidOnTheGivenDate() {
+  void chargedToFund_followsTheRowValidOnTheGivenDate() {
     jdbcClient.sql("DELETE FROM investment_fee_policy").update();
     insertPolicy(TUK75, DEPOT, false, LocalDate.of(2017, 3, 28), LocalDate.of(2026, 12, 31));
     insertPolicy(TUK75, DEPOT, true, LocalDate.of(2027, 1, 1), null);
 
-    assertThat(policy.includeInNav(TUK75, DEPOT, LocalDate.of(2026, 12, 31))).isFalse();
-    assertThat(policy.includeInNav(TUK75, DEPOT, LocalDate.of(2027, 1, 1))).isTrue();
-    assertThat(policy.includeInNav(TUK75, DEPOT, LocalDate.of(2027, 6, 30))).isTrue();
+    assertThat(policy.chargedToFund(TUK75, DEPOT, LocalDate.of(2026, 12, 31))).isFalse();
+    assertThat(policy.chargedToFund(TUK75, DEPOT, LocalDate.of(2027, 1, 1))).isTrue();
+    assertThat(policy.chargedToFund(TUK75, DEPOT, LocalDate.of(2027, 6, 30))).isTrue();
   }
 
   private void insertPolicy(
       TulevaFund fund,
       FeeType feeType,
-      boolean includeInNav,
+      boolean chargedToFund,
       LocalDate validFrom,
       LocalDate validTo) {
     jdbcClient
         .sql(
             """
             INSERT INTO investment_fee_policy
-                (fund_code, fee_type, include_in_nav, valid_from, valid_to, created_by)
-            VALUES (:fundCode, :feeType, :includeInNav, :validFrom, :validTo, 'TEST')
+                (fund_code, fee_type, charged_to_fund, valid_from, valid_to, created_by)
+            VALUES (:fundCode, :feeType, :chargedToFund, :validFrom, :validTo, 'TEST')
             """)
         .param("fundCode", fund.name())
         .param("feeType", feeType.name())
-        .param("includeInNav", includeInNav)
+        .param("chargedToFund", chargedToFund)
         .param("validFrom", validFrom)
         .param("validTo", validTo)
         .update();

@@ -13,6 +13,7 @@ import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.fees.*;
+import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.position.FundPosition;
@@ -45,7 +46,15 @@ class OcfCalculationServiceTest {
   @Mock private TransactionExecutionRepository transactionExecutionRepository;
   @Mock private OcfSnapshotRepository ocfSnapshotRepository;
 
+  @Mock(strictness = Mock.Strictness.LENIENT)
+  private FeeChargedToFundPolicy feeChargedToFundPolicy;
+
   @InjectMocks private OcfCalculationService service;
+
+  @org.junit.jupiter.api.BeforeEach
+  void defaultFeesChargedToFund() {
+    when(feeChargedToFundPolicy.chargedToFund(any(), any(), any())).thenReturn(true);
+  }
 
   private static final YearMonth MONTH = YearMonth.of(2026, 4);
   private static final LocalDate MONTH_END = MONTH.atEndOfMonth();

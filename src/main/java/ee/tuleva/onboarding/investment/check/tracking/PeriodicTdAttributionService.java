@@ -13,7 +13,7 @@ import ee.tuleva.onboarding.investment.check.tracking.TdAttributionCalculator.Se
 import ee.tuleva.onboarding.investment.check.tracking.TdAttributionCalculator.TdAttributionInput;
 import ee.tuleva.onboarding.investment.fees.FeeAccrual;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
-import ee.tuleva.onboarding.investment.fees.FeeNavInclusionPolicy;
+import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
 import ee.tuleva.onboarding.investment.fees.FeeRateRepository;
 import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.fees.InstrumentFeeRepository;
@@ -52,7 +52,7 @@ public class PeriodicTdAttributionService {
   private final TrackingDifferenceEventRepository tdEventRepository;
   private final FeeAccrualRepository feeAccrualRepository;
   private final FeeRateRepository feeRateRepository;
-  private final FeeNavInclusionPolicy feeNavInclusionPolicy;
+  private final FeeChargedToFundPolicy feeChargedToFundPolicy;
   private final FundPositionRepository fundPositionRepository;
   private final FundNavQueryService fundNavQueryService;
   private final ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
@@ -257,7 +257,7 @@ public class PeriodicTdAttributionService {
 
   private BigDecimal computeFeeDragPeriod(
       TulevaFund fund, List<FeeAccrual> accruals, FeeType feeType, LocalDate periodEnd) {
-    if (!feeNavInclusionPolicy.includeInNav(fund, feeType, periodEnd)) {
+    if (!feeChargedToFundPolicy.chargedToFund(fund, feeType, periodEnd)) {
       return ZERO;
     }
     return accruals.stream()

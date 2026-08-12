@@ -9,7 +9,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.fees.FeeCalculationService;
-import ee.tuleva.onboarding.investment.fees.FeeNavInclusionPolicy;
+import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
 import ee.tuleva.onboarding.investment.fees.FeeResult;
 import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
@@ -52,7 +52,7 @@ public class NavCalculationService {
   private final BlackrockAdjustmentComponent blackrockAdjustmentComponent;
   private final PositionPriceResolver positionPriceResolver;
   private final FeeCalculationService feeCalculationService;
-  private final FeeNavInclusionPolicy feeNavInclusionPolicy;
+  private final FeeChargedToFundPolicy feeChargedToFundPolicy;
   private final Clock clock;
 
   @Transactional
@@ -228,7 +228,7 @@ public class NavCalculationService {
 
   private BigDecimal navFacingAccrual(
       TulevaFund fund, FeeType feeType, LocalDate navDate, BigDecimal accrual) {
-    return feeNavInclusionPolicy.includeInNav(fund, feeType, navDate) ? accrual : ZERO;
+    return feeChargedToFundPolicy.chargedToFund(fund, feeType, navDate) ? accrual : ZERO;
   }
 
   private BigDecimal calculateNavPerUnit(

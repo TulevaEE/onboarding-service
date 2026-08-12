@@ -16,7 +16,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.fees.FeeCalculationService;
-import ee.tuleva.onboarding.investment.fees.FeeNavInclusionPolicy;
+import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
 import ee.tuleva.onboarding.investment.fees.FeeResult;
 import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
@@ -57,7 +57,7 @@ class NavCalculationServiceTest {
   @Mock private FeeCalculationService feeCalculationService;
 
   @Mock(strictness = Mock.Strictness.LENIENT)
-  private FeeNavInclusionPolicy feeNavInclusionPolicy;
+  private FeeChargedToFundPolicy feeChargedToFundPolicy;
 
   private NavCalculationService service;
   private Clock fixedClock;
@@ -65,7 +65,7 @@ class NavCalculationServiceTest {
   @BeforeEach
   void setUp() {
     fixedClock = Clock.fixed(Instant.parse("2025-01-15T14:00:00Z"), ZoneOffset.UTC);
-    when(feeNavInclusionPolicy.includeInNav(any(), any(), any())).thenReturn(true);
+    when(feeChargedToFundPolicy.chargedToFund(any(), any(), any())).thenReturn(true);
     service =
         new NavCalculationService(
             fundPositionRepository,
@@ -81,7 +81,7 @@ class NavCalculationServiceTest {
             blackrockAdjustmentComponent,
             positionPriceResolver,
             feeCalculationService,
-            feeNavInclusionPolicy,
+            feeChargedToFundPolicy,
             fixedClock);
   }
 
@@ -158,7 +158,7 @@ class NavCalculationServiceTest {
     when(feeCalculationService.calculateFeesForNav(
             eq(TKF100), eq(previousWorkingDay), any(), any(), any()))
         .thenReturn(new FeeResult(new BigDecimal("52.08"), new BigDecimal("6.85")));
-    when(feeNavInclusionPolicy.includeInNav(TKF100, FeeType.DEPOT, previousWorkingDay))
+    when(feeChargedToFundPolicy.chargedToFund(TKF100, FeeType.DEPOT, previousWorkingDay))
         .thenReturn(false);
 
     NavCalculationResult result = service.calculate(TKF100, calcDate);

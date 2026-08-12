@@ -11,6 +11,7 @@ import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
+import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -38,7 +39,15 @@ class FeeAccrualPositionSyncJobTest {
   @Mock private ApplicationEventPublisher eventPublisher;
   @Mock private PipelineTracker pipelineTracker;
 
+  @Mock(strictness = Mock.Strictness.LENIENT)
+  private FeeChargedToFundPolicy feeChargedToFundPolicy;
+
   @InjectMocks private FeeAccrualPositionSyncJob syncJob;
+
+  @org.junit.jupiter.api.BeforeEach
+  void defaultFeesChargedToFund() {
+    when(feeChargedToFundPolicy.chargedToFund(any(), any(), any())).thenReturn(true);
+  }
 
   @Test
   void sync_writesFeeAccrualLiabilityPositions() {

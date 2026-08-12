@@ -8,15 +8,15 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-public class FeeNavInclusionPolicy {
+public class FeeChargedToFundPolicy {
 
   private final JdbcClient jdbcClient;
 
-  public boolean includeInNav(TulevaFund fund, FeeType feeType, LocalDate date) {
+  public boolean chargedToFund(TulevaFund fund, FeeType feeType, LocalDate date) {
     return jdbcClient
         .sql(
             """
-            SELECT include_in_nav
+            SELECT charged_to_fund
             FROM investment_fee_policy
             WHERE fund_code = :fundCode
               AND fee_type = :feeType

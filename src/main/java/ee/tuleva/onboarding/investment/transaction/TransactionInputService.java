@@ -28,7 +28,7 @@ import ee.tuleva.onboarding.investment.epis.R16PhaseCalculator;
 import ee.tuleva.onboarding.investment.epis.R45ReportService;
 import ee.tuleva.onboarding.investment.epis.R45Result;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
-import ee.tuleva.onboarding.investment.fees.FeeNavInclusionPolicy;
+import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
 import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.portfolio.FundLimit;
 import ee.tuleva.onboarding.investment.portfolio.FundLimitRepository;
@@ -69,7 +69,7 @@ public class TransactionInputService {
 
   private final FundPositionRepository fundPositionRepository;
   private final FeeAccrualRepository feeAccrualRepository;
-  private final FeeNavInclusionPolicy feeNavInclusionPolicy;
+  private final FeeChargedToFundPolicy feeChargedToFundPolicy;
   private final ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
   private final FundLimitRepository fundLimitRepository;
   private final PositionLimitRepository positionLimitRepository;
@@ -312,7 +312,7 @@ public class TransactionInputService {
   }
 
   private BigDecimal getAccruedFees(TulevaFund fund, LocalDate asOfDate, FeeType feeType) {
-    if (!feeNavInclusionPolicy.includeInNav(fund, feeType, asOfDate)) {
+    if (!feeChargedToFundPolicy.chargedToFund(fund, feeType, asOfDate)) {
       return ZERO;
     }
     LocalDate feeMonth = asOfDate.withDayOfMonth(1);

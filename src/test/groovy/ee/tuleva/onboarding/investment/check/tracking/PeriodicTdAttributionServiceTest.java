@@ -19,7 +19,7 @@ import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.fees.FeeAccrual;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
-import ee.tuleva.onboarding.investment.fees.FeeNavInclusionPolicy;
+import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
 import ee.tuleva.onboarding.investment.fees.FeeRate;
 import ee.tuleva.onboarding.investment.fees.FeeRateRepository;
 import ee.tuleva.onboarding.investment.fees.FeeType;
@@ -60,7 +60,7 @@ class PeriodicTdAttributionServiceTest {
   @Mock TrackingDifferenceEventRepository tdEventRepository;
   @Mock FeeAccrualRepository feeAccrualRepository;
   @Mock FeeRateRepository feeRateRepository;
-  @Mock FeeNavInclusionPolicy feeNavInclusionPolicy;
+  @Mock FeeChargedToFundPolicy feeChargedToFundPolicy;
   @Mock FundPositionRepository fundPositionRepository;
   @Mock FundNavQueryService fundNavQueryService;
   @Mock ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
@@ -78,7 +78,7 @@ class PeriodicTdAttributionServiceTest {
             tdEventRepository,
             feeAccrualRepository,
             feeRateRepository,
-            feeNavInclusionPolicy,
+            feeChargedToFundPolicy,
             fundPositionRepository,
             fundNavQueryService,
             modelPortfolioAllocationRepository,
@@ -96,7 +96,7 @@ class PeriodicTdAttributionServiceTest {
                 any(), eq(TrackingCheckType.BENCHMARK_MODEL), any(), any()))
         .willReturn(List.of());
     given(instrumentFeeRepository.findAllValidRates(any())).willReturn(List.of());
-    given(feeNavInclusionPolicy.includeInNav(any(), any(), any())).willReturn(true);
+    given(feeChargedToFundPolicy.chargedToFund(any(), any(), any())).willReturn(true);
   }
 
   @Test
@@ -387,7 +387,7 @@ class PeriodicTdAttributionServiceTest {
   void reportsNoDepotFeeDragWhenTheFeeIsExcludedFromNav() {
     var date1 = LocalDate.of(2026, 4, 1);
 
-    given(feeNavInclusionPolicy.includeInNav(TUK75, FeeType.DEPOT, PERIOD_END)).willReturn(false);
+    given(feeChargedToFundPolicy.chargedToFund(TUK75, FeeType.DEPOT, PERIOD_END)).willReturn(false);
     given(
             tdEventRepository.findDeduplicatedEventsForPeriod(
                 TUK75, MODEL_PORTFOLIO, PERIOD_START, PERIOD_END))

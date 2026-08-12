@@ -16,6 +16,7 @@ import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import ee.tuleva.onboarding.ledger.SystemAccount;
 import ee.tuleva.onboarding.savings.fund.nav.FundNavQueryService;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -142,15 +143,23 @@ class FeeBaseCompletenessChecker {
 
   // NavReportMapper omits both BlackRock rows for savings funds, so their fee base carries an
   // adjustment that nav_report cannot show. Read it from the ledger instead.
-  private BigDecimal blackrockAdjustment(TulevaFund fund, LocalDate date) {
+  private BigDecimal blackrockAdjustment(TulevaFund fund, LocalDate positionReportDate) {
     if (!fund.isSavingsFund()) {
       return ZERO;
     }
-    var cutoff = date.plusDays(1).atStartOfDay(ESTONIAN_ZONE).toInstant();
     var balance =
         navLedgerRepository.getSystemAccountBalanceBefore(
-            SystemAccount.BLACKROCK_ADJUSTMENT.getAccountName(fund), cutoff);
+            SystemAccount.BLACKROCK_ADJUSTMENT.getAccountName(fund),
+            navCutoffThatChargedTheFee(fund, positionReportDate));
     return balance == null ? ZERO : balance;
+  }
+
+  private Instant navCutoffThatChargedTheFee(TulevaFund fund, LocalDate positionReportDate) {
+    return publicHolidays
+        .nextWorkingDay(positionReportDate)
+        .atTime(fund.getNavCutoffTime())
+        .atZone(ESTONIAN_ZONE)
+        .toInstant();
   }
 
   private Map<LocalDate, List<FeeBaseValue>> basesByDate(

@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.NOT_RUN
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.PASS;
 import static ee.tuleva.onboarding.investment.fees.FeeType.DEPOT;
 import static ee.tuleva.onboarding.investment.fees.FeeType.MANAGEMENT;
+import static ee.tuleva.onboarding.ledger.SystemAccount.BLACKROCK_ADJUSTMENT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -20,7 +21,9 @@ import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import ee.tuleva.onboarding.savings.fund.nav.FundNavQueryService;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -175,6 +178,35 @@ class FeeBaseCompletenessCheckerTest {
     given(navLedgerRepository.getSystemAccountBalanceBefore(any(), any())).willReturn(blackrock);
 
     assertThat(check(TKF100).getFirst().severity()).isEqualTo(PASS);
+  }
+
+  // The NAV read the adjustment at its own cutoff on the calculation day, 15:20 for the savings
+  // fund, and the accrual date is the position report date, the working day before. An adjustment
+  // posted for the calculation day is stamped 08:00, so it is inside the window the NAV charged
+  // against but outside a window that ends at midnight - and the checker headlined a correct fee
+  // base as needing manual correction.
+  @Test
+  void theBlackrockAdjustmentIsReadAtTheCutoffTheNavChargedAt() {
+    var blackrock = new BigDecimal("56980.96");
+    givenAccruals(
+        base(WORKING_DAY, MANAGEMENT, NAV_TOTAL.add(blackrock)),
+        base(WORKING_DAY, DEPOT, NAV_TOTAL.add(blackrock)));
+    given(fundNavQueryService.findFeeBaseComponentTotal("TKF100", WORKING_DAY))
+        .willReturn(Optional.of(NAV_TOTAL));
+    given(
+            navLedgerRepository.getSystemAccountBalanceBefore(
+                BLACKROCK_ADJUSTMENT.getAccountName(TKF100), navCutoffCharging(WORKING_DAY)))
+        .willReturn(blackrock);
+
+    assertThat(check(TKF100).getFirst().severity()).isEqualTo(PASS);
+  }
+
+  private static Instant navCutoffCharging(LocalDate positionReportDate) {
+    return new PublicHolidays()
+        .nextWorkingDay(positionReportDate)
+        .atTime(TKF100.getNavCutoffTime())
+        .atZone(ZoneId.of("Europe/Tallinn"))
+        .toInstant();
   }
 
   // A month-long regression names every day it found, which would be an unreadable Slack message;

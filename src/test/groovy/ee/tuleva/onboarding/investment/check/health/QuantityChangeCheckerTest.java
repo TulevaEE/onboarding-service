@@ -298,6 +298,16 @@ class QuantityChangeCheckerTest {
   }
 
   @Test
+  void skipsIsinsWhoseOnlyPreviousRowCarriedNoQuantity() {
+    var today = List.of(security("IE0009FT4LX4", new BigDecimal("1000")));
+    var previous = List.of(security("IE0009FT4LX4", (BigDecimal) null));
+
+    var findings = checker.check(TUK75, today, previous, Map.of());
+
+    assertThat(findings).isEmpty();
+  }
+
+  @Test
   void reportsEachUnexplainedIsinSortedByIsin() {
     var today =
         List.of(

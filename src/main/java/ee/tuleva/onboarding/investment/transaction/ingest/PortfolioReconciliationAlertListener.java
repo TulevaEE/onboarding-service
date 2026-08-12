@@ -43,7 +43,7 @@ class PortfolioReconciliationAlertListener {
   }
 
   @EventListener
-  public void onLedgerUnavailable(PortfolioLedgerUnavailableEvent event) {
+  public void onSkipped(PortfolioReconciliationSkippedEvent event) {
     var subject =
         "[HOIATUS] Portfelli võrdlus jäi tegemata – "
             + event.fund().getCode()
@@ -53,43 +53,55 @@ class PortfolioReconciliationAlertListener {
     boolean sent = emailService.sendSystemEmail(messageFactory.create(subject, buildBody(event)));
     if (sent) {
       log.info(
-          "Sent portfolio ledger unavailable alert: fundCode={}, asOfDate={}",
+          "Sent portfolio reconciliation skipped alert: fundCode={}, asOfDate={}",
           event.fund().getCode(),
           event.asOfDate());
     } else {
       log.error(
-          "Failed to send portfolio ledger unavailable alert: fundCode={}, asOfDate={}",
+          "Failed to send portfolio reconciliation skipped alert: fundCode={}, asOfDate={}",
           event.fund().getCode(),
           event.asOfDate());
     }
   }
 
-  private static String buildBody(PortfolioLedgerUnavailableEvent event) {
+  private static String buildBody(PortfolioReconciliationSkippedEvent event) {
+    boolean ledgerMissing = event.isLedgerMissing();
+    String missingSource =
+        ledgerMissing ? "Tuleva cost-basis pearaamat" : "SEB POSITIONS-põhine nav_report";
+    String availableSource =
+        ledgerMissing ? "SEB POSITIONS-põhine nav_report" : "Tuleva cost-basis pearaamat";
+    String whatToCheck =
+        ledgerMissing
+            ? "Kontrolli, kas fondil on investment_portfolio_baseline kirje ja kas cost-basis töö on selle kuupäeva kohta jooksnud."
+            : "Kontrolli, kas selle kuupäeva NAV arvutus jooksis ja kas nav_report sai avaldatud.";
+
     return """
-        Tuleva cost-basis pearaamatus ei ole selle fondi ja kuupäeva kohta ühtegi rida, seega \
+        %s ei sisalda selle fondi ja kuupäeva kohta ühtegi väärtpaberipositsiooni, seega \
         positsioone ei saanud võrrelda. Kas lahknevus on või ei ole, jäi välja selgitamata.
 
         Kuupäev: %s
 
         Fond: %s (%s)
 
-        SEB POSITIONS-põhine nav_report näitab neid koguseid, meie pearaamatus 0:
+        %s näitab neid koguseid:
 
         %s
-        Kontrolli, kas fondil on investment_portfolio_baseline kirje ja kas cost-basis töö on \
-        selle kuupäeva kohta jooksnud. Portfelli võrdlus jookseb ainult eelmise tööpäeva kohta, \
-        seega tuleb see kuupäev pärast pearaamatu taastamist käsitsi uuesti võrrelda.
+        %s Portfelli võrdlus jookseb ainult eelmise tööpäeva kohta, seega tuleb see kuupäev \
+        pärast paranduse tegemist käsitsi uuesti võrrelda.
         """
         .formatted(
+            missingSource,
             event.asOfDate(),
             event.fund().getCode(),
             event.fund().getDisplayName(),
-            formatTable(event.reportedQuantities()));
+            availableSource,
+            formatTable(event.availableQuantities()),
+            whatToCheck);
   }
 
   private static String formatTable(Map<String, BigDecimal> quantities) {
     StringBuilder table = new StringBuilder();
-    table.append("ISIN          | Nende kogus\n");
+    table.append("ISIN          | Kogus\n");
     table.append("--------------+----------------\n");
     new TreeMap<>(quantities)
         .forEach(

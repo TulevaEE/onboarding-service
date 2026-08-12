@@ -36,6 +36,7 @@ class FeeCheckIntegrationTest {
   private static final LocalDate DAY_ONE = LocalDate.of(2026, 6, 2);
   private static final LocalDate DAY_TWO = LocalDate.of(2026, 6, 3);
   private static final LocalDate DAY_THREE = LocalDate.of(2026, 6, 4);
+  private static final LocalDate SECURITY_POSITION_DATE = LocalDate.of(2026, 5, 29);
   private static final BigDecimal BASE_VALUE = new BigDecimal("1000000000");
   private static final BigDecimal CORRECTION = new BigDecimal("5.00");
   private static final BigDecimal CUSTODIAN_CASH = new BigDecimal("500000.00");
@@ -359,6 +360,9 @@ class FeeCheckIntegrationTest {
     return date.atTime(8, 0).atZone(ESTONIAN_ZONE).toInstant();
   }
 
+  // The custodian check walks every position date in its window, so this depot-fee-tier fixture
+  // needs the nav_report row that a real position date would have had. Without it the date is a
+  // day the check could not compare, which is a coverage gap rather than a clean run.
   private void insertSecurityPositions() {
     for (TulevaFund fund : TulevaFund.values()) {
       jdbcClient
@@ -368,11 +372,12 @@ class FeeCheckIntegrationTest {
               (nav_date, fund_code, account_type, account_name, account_id, market_value)
               VALUES (:navDate, :fundCode, 'SECURITY', :accountId, :accountId, 980000000)
               """)
-          .param("navDate", LocalDate.of(2026, 5, 29))
+          .param("navDate", SECURITY_POSITION_DATE)
           .param("fundCode", fund.name())
           .param("accountId", "TEST_ISIN_" + fund.name())
           .update();
     }
+    insertNavReportRow(SECURITY_POSITION_DATE, "SECURITY", "Security", new BigDecimal("980000000"));
   }
 
   private void insertFeeRates() {

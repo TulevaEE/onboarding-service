@@ -19,7 +19,6 @@ public record FeeAccrual(
     BigDecimal annualRate,
     BigDecimal dailyAmountNet,
     BigDecimal dailyAmountGross,
-    BigDecimal vatRate,
     int daysInYear,
     LocalDate referenceDate) {
 
@@ -35,7 +34,6 @@ public record FeeAccrual(
         rs.getBigDecimal("annual_rate"),
         rs.getBigDecimal("daily_amount_net"),
         rs.getBigDecimal("daily_amount_gross"),
-        rs.getBigDecimal("vat_rate"),
         rs.getInt("days_in_year"),
         referenceDateSql != null ? referenceDateSql.toLocalDate() : null);
   }

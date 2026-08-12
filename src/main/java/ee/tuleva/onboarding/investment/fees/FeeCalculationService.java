@@ -74,10 +74,6 @@ public class FeeCalculationService {
     metadata.put("referenceDate", accrual.referenceDate());
     metadata.put("feeMonth", accrual.feeMonth());
     metadata.put("dailyAmountNet", accrual.dailyAmountNet());
-    if (accrual.vatRate() != null) {
-      metadata.put("vatRate", accrual.vatRate());
-      metadata.put("dailyAmountGross", accrual.dailyAmountGross());
-    }
     metadata.put("ledgerAmount", ledgerAmount);
     return metadata;
   }

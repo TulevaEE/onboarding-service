@@ -61,8 +61,7 @@ class FeeCalculationIntegrationTest {
     assertThat(accrual.feeType()).isEqualTo(FeeType.DEPOT);
     assertThat(accrual.accrualDate()).isEqualTo(TEST_DATE);
     assertThat(accrual.dailyAmountNet()).isPositive();
-    assertThat(accrual.dailyAmountGross()).isGreaterThan(accrual.dailyAmountNet());
-    assertThat(accrual.vatRate()).isNotNull();
+    assertThat(accrual.dailyAmountGross()).isEqualByComparingTo(accrual.dailyAmountNet());
   }
 
   @Test

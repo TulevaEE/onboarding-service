@@ -108,13 +108,10 @@ class PendingOrderImpactService {
         .findByOrderIdIn(orderIds)
         .forEach(
             execution ->
-                totals.merge(
+                totals.compute(
                     execution.getOrderId(),
-                    ExecutedTotals.NONE.add(execution),
-                    (a, b) ->
-                        new ExecutedTotals(
-                            a.consideration().add(b.consideration()),
-                            a.quantity().add(b.quantity()))));
+                    (orderId, accumulated) ->
+                        (accumulated == null ? ExecutedTotals.NONE : accumulated).add(execution)));
     return totals;
   }
 

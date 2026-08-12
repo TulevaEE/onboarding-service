@@ -20,6 +20,8 @@ import static java.util.stream.Collectors.toSet;
 import static java.util.stream.StreamSupport.stream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -293,7 +295,8 @@ class SavingsFundNotificationCommitIntegrationTest {
   }
 
   private UUID reservedPaymentReadyForIssuing() {
-    given(navProvider.getVerifiedNavForIssuingAndRedeeming(TKF100)).willReturn(ISSUING_NAV);
+    given(navProvider.getVerifiedNavForIssuingAndRedeeming(eq(TKF100), any()))
+        .willReturn(ISSUING_NAV);
     ClockHolder.setClock(Clock.fixed(AFTER_THE_CUTOFF, UTC));
     var party = new PartyId(PartyId.Type.PERSON, REDEEMER_CODE);
     var paymentId =

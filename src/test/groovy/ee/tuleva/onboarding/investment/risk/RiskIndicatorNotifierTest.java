@@ -121,11 +121,11 @@ class RiskIndicatorNotifierTest {
 
             🔴 TUV100 SRRI — dokumendis on klass 4, arvutatud avaldatav klass on 5
             Muutus jõustus 2026-05-05. Viimane dokument: 'Pohiteave TUV100' (klass 4, alates 2026-03-19).
-            👉 Tegevus: dokument vajab uuendamist — riskijuht. Pärast avaldamist lisa rida investment_risk_indicator_disclosure tabelisse.
+            👉 Tegevus: dokument vajab uuendamist — risk-role. Pärast avaldamist lisa rida investment_risk_indicator_disclosure tabelisse.
 
             ⚠️ TUK00 SRRI — avaldatud klass teadmata
             Arvutatud avaldatav klass on 4, aga ühtegi dokumendirida ei ole.
-            👉 Tegevus: lisa kehtiv KID/KIID rida investment_risk_indicator_disclosure tabelisse — riskijuht.
+            👉 Tegevus: lisa kehtiv KID/KIID rida investment_risk_indicator_disclosure tabelisse — risk-role.
 
             Allikad: TKF100: MSCI_ACWI; TUK75: EE3600109435; TUV100: EE3600001707; TUK00: EE3600109443. SRI = MRM, eeldusel CRM = 1.
             """);
@@ -629,7 +629,7 @@ class RiskIndicatorNotifierTest {
             "TUK00   SRRI    —          ?          —              —        —        ⚠️ andmeid napib",
             "⚠️ TUK00 SRRI — andmeid napib",
             "Aknas on 17 vaatlust, klassi ei avaldata. Volatiilsus 2,10%.",
-            "👉 Tegevus: kontrolli, kas NAV-seeria on täielik — fondijuht.");
+            "👉 Tegevus: kontrolli, kas NAV-seeria on täielik — investment-role.");
   }
 
   @Test
@@ -643,7 +643,7 @@ class RiskIndicatorNotifierTest {
             "⚠️ muutus kinnitatud",
             "⚠️ TUV100 SRRI — muutus äsja kinnitatud",
             "Avaldatav klass 5 alates 2026-05-05 (eelmine 4).",
-            "👉 Tegevus: kontrolli, kas dokument on juba uuendatud — riskijuht.");
+            "👉 Tegevus: kontrolli, kas dokument on juba uuendatud — risk-role.");
   }
 
   @Test

@@ -4,8 +4,11 @@ import static ee.tuleva.onboarding.notification.OperationsNotificationService.Ch
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -117,5 +120,42 @@ class PipelineNotifierTest {
     then(notificationService)
         .should()
         .sendMessage(contains("Limit Check (skipped)"), eq(INVESTMENT));
+  }
+
+  @Test
+  void aFailedFeeCheckTellsTheOperatorToTriggerTheFeeCheckJob() {
+    var pipeline = new PipelineRun(PipelineRun.PipelineType.NAV, "NAV TUK75");
+    pipeline.stepStarted(PipelineStep.FEE_CHECK);
+    pipeline.stepFailed(PipelineStep.FEE_CHECK, "boom");
+
+    notifier.sendCompleted(pipeline);
+
+    then(notificationService)
+        .should()
+        .sendMessage(contains("VALUES ('FeeCheckJob');"), eq(INVESTMENT));
+  }
+
+  // The failure alert hands the operator the exact INSERT to re-run the failed step, and
+  // JobTriggerPoller keys investment_job_trigger by job class name. A step that falls through to
+  // its own display label - "Fee Check" rather than "FeeCheckJob" - produces SQL the poller marks
+  // as an unknown job: nothing re-runs and nobody is told, while the operator believes it did.
+  @Test
+  void noPipelineStepOffersItsOwnDisplayLabelAsAJobName() {
+    var steps =
+        Stream.concat(PipelineStep.NAV_PIPELINE.stream(), PipelineStep.IMPORT_PIPELINE.stream())
+            .toList();
+
+    for (var step : steps) {
+      var stepNotificationService = mock(OperationsNotificationService.class);
+      var pipeline = new PipelineRun(PipelineRun.PipelineType.NAV, "NAV TUK75");
+      pipeline.stepStarted(step);
+      pipeline.stepFailed(step, "boom");
+
+      new PipelineNotifier(stepNotificationService).sendCompleted(pipeline);
+
+      then(stepNotificationService)
+          .should(never())
+          .sendMessage(contains("VALUES ('" + step + "');"), eq(INVESTMENT));
+    }
   }
 }

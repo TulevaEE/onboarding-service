@@ -62,7 +62,7 @@ class TransactionInputServiceTest {
   void defaultLedgerCashToZero() {
     lenient().when(navLedgerRepository.getSystemAccountBalance(anyString())).thenReturn(ZERO);
     lenient()
-        .when(pendingOrderImpactService.calculate(any(), any()))
+        .when(pendingOrderImpactService.calculate(any(), any(), any()))
         .thenReturn(PendingOrderImpact.none());
   }
 
@@ -986,7 +986,7 @@ class TransactionInputServiceTest {
             .orderStatus(OrderStatus.SENT)
             .expectedSettlementDate(AS_OF_DATE.plusDays(2))
             .build();
-    given(pendingOrderImpactService.calculate(TUV100, AS_OF_DATE))
+    given(pendingOrderImpactService.calculate(eq(TUV100), eq(AS_OF_DATE), any()))
         .willReturn(
             new PendingOrderImpact(
                 new BigDecimal("30000"),
@@ -1035,7 +1035,7 @@ class TransactionInputServiceTest {
             .orderStatus(OrderStatus.EXECUTED)
             .expectedSettlementDate(AS_OF_DATE.plusDays(1))
             .build();
-    given(pendingOrderImpactService.calculate(TUV100, AS_OF_DATE))
+    given(pendingOrderImpactService.calculate(eq(TUV100), eq(AS_OF_DATE), any()))
         .willReturn(new PendingOrderImpact(new BigDecimal("25000"), ZERO, Map.of(), Map.of()));
 
     var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
@@ -1403,7 +1403,7 @@ class TransactionInputServiceTest {
     given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
         .willReturn(Optional.of(zeroFundLimit(TUV100)));
     given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
-    given(pendingOrderImpactService.calculate(TUV100, AS_OF_DATE))
+    given(pendingOrderImpactService.calculate(eq(TUV100), eq(AS_OF_DATE), any()))
         .willReturn(
             new PendingOrderImpact(
                 new BigDecimal("40000"),
@@ -1463,7 +1463,7 @@ class TransactionInputServiceTest {
     given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
         .willReturn(Optional.of(zeroFundLimit(TUV100)));
     given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
-    given(pendingOrderImpactService.calculate(TUV100, AS_OF_DATE))
+    given(pendingOrderImpactService.calculate(eq(TUV100), eq(AS_OF_DATE), any()))
         .willReturn(
             new PendingOrderImpact(
                 new BigDecimal("40000"),
@@ -1505,7 +1505,7 @@ class TransactionInputServiceTest {
     given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
         .willReturn(Optional.of(zeroFundLimit(TUV100)));
     given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
-    given(pendingOrderImpactService.calculate(TUV100, AS_OF_DATE))
+    given(pendingOrderImpactService.calculate(eq(TUV100), eq(AS_OF_DATE), any()))
         .willReturn(
             new PendingOrderImpact(
                 new BigDecimal("25000"),
@@ -1553,7 +1553,7 @@ class TransactionInputServiceTest {
     given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
         .willReturn(Optional.of(zeroFundLimit(TUV100)));
     given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
-    given(pendingOrderImpactService.calculate(TUV100, AS_OF_DATE))
+    given(pendingOrderImpactService.calculate(eq(TUV100), eq(AS_OF_DATE), any()))
         .willReturn(
             new PendingOrderImpact(
                 new BigDecimal("40000"), ZERO, Map.of("IE00A", new BigDecimal("40000")), Map.of()));

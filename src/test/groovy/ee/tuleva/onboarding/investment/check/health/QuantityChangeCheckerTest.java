@@ -171,14 +171,16 @@ class QuantityChangeCheckerTest {
   }
 
   @Test
-  void noFindingsWhenChangeIsWithinPartialFillTolerance() {
+  void warnsWhenTheChangeExceedsTheExecutedQuantityByASmallMargin() {
     var today = List.of(security("IE0009FT4LX4", new BigDecimal("1550")));
     var previous = List.of(security("IE0009FT4LX4", new BigDecimal("1000")));
     var traded = Map.of("IE0009FT4LX4", new TradedQuantity(new BigDecimal("500"), ZERO));
 
     var findings = checker.check(TUK75, today, previous, traded);
 
-    assertThat(findings).isEmpty();
+    assertThat(findings)
+        .singleElement()
+        .satisfies(f -> assertThat(f.severity()).isEqualTo(WARNING));
   }
 
   @Test

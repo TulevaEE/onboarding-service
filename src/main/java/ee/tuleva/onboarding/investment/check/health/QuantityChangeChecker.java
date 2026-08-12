@@ -14,16 +14,12 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 @Component
 class QuantityChangeChecker {
 
   private static final BigDecimal ROUNDING_TOLERANCE = new BigDecimal("0.01");
-
-  @Value("${investment.health-check.quantity-change.partial-fill-tolerance-ratio:0.1}")
-  private BigDecimal partialFillToleranceRatio = new BigDecimal("0.1");
 
   List<HealthCheckFinding> check(
       TulevaFund fund,
@@ -79,8 +75,7 @@ class QuantityChangeChecker {
     }
 
     BigDecimal budget = traded.budgetFor(quantityChange);
-    if (budget.signum() > 0
-        && quantityChange.abs().compareTo(budget.add(toleranceFor(budget))) <= 0) {
+    if (quantityChange.abs().compareTo(budget) <= 0) {
       return null;
     }
 
@@ -96,9 +91,5 @@ class QuantityChangeChecker {
                 previousQuantity.toPlainString(),
                 currentQuantity.toPlainString(),
                 budget.toPlainString()));
-  }
-
-  private BigDecimal toleranceFor(BigDecimal budget) {
-    return budget.multiply(partialFillToleranceRatio).max(ROUNDING_TOLERANCE);
   }
 }

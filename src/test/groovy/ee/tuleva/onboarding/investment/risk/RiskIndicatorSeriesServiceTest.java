@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.investment.risk.RiskIndicatorType.SRI;
 import static ee.tuleva.onboarding.investment.risk.RiskIndicatorType.SRRI;
 import static java.math.BigDecimal.valueOf;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -64,8 +65,7 @@ class RiskIndicatorSeriesServiceTest {
 
   @Test
   void anchorsOnTheLatestDataDateNotTheClock() {
-    var staleAnchor = LocalDate.of(2026, 1, 15);
-    var prices = dailyPrices(ACWI, staleAnchor.minusYears(7), staleAnchor);
+    var prices = dailyPrices(ACWI, ANCHOR.minusYears(7), ANCHOR.minusDays(4));
     given(fundValueRepository.findLastValueForFund(ACWI)).willReturn(Optional.of(prices.getLast()));
     given(fundValueRepository.findValuesBetweenDates(anyString(), any(), any())).willReturn(prices);
     given(pointRepository.findByIndicatorTypeAndFundOrderByAsOfDateAsc(SRI, TKF100))
@@ -73,7 +73,18 @@ class RiskIndicatorSeriesServiceTest {
 
     var points = service.refreshSeries(TKF100, SRI, 1).points();
 
-    assertThat(points.getLast().date()).isEqualTo(staleAnchor);
+    assertThat(points.getLast().date()).isEqualTo(prices.getLast().date()).isNotEqualTo(ANCHOR);
+  }
+
+  @Test
+  void aSourceThatStoppedUpdatingFailsInsteadOfRecomputingTheSameSeries() {
+    var lastPriceDate = ANCHOR.minusMonths(5);
+    var prices = dailyPrices(ACWI, lastPriceDate.minusYears(7), lastPriceDate);
+    given(fundValueRepository.findLastValueForFund(ACWI)).willReturn(Optional.of(prices.getLast()));
+    given(fundValueRepository.findValuesBetweenDates(anyString(), any(), any())).willReturn(prices);
+
+    assertThatThrownBy(() -> service.refreshSeries(TKF100, SRI, 1))
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test

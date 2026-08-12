@@ -8,6 +8,7 @@ CREATE TABLE investment_fee_check_event (
     severity         text        NOT NULL,
     deviation_found  boolean     NOT NULL DEFAULT false,
     deviation_amount numeric(19, 6),
+    alert_failed     boolean     NOT NULL DEFAULT false,
     result           jsonb       NOT NULL DEFAULT '{}',
     created_at       timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT investment_fee_check_event_pkey PRIMARY KEY (id)

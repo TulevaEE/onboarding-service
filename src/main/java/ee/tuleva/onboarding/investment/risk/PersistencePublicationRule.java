@@ -11,7 +11,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -28,18 +27,21 @@ class PersistencePublicationRule implements PublicationRule {
     }
 
     var published = new ArrayList<PublishedPoint>(classified.size());
-    var carried = classified.getFirst().riskClass();
+    Integer carried = null;
     for (var point : classified) {
       var window = window(classified, point.date());
-      if (isWindowComplete(window, point.date()) && isFullyOutside(window, carried)) {
+      if (isWindowComplete(window, point.date())
+          && (carried == null || isFullyOutside(window, carried))) {
         carried = prevailingClass(window);
       }
-      published.add(new PublishedPoint(point.date(), carried));
+      if (carried != null) {
+        published.add(new PublishedPoint(point.date(), carried));
+      }
     }
     return new PublishedSeries(published);
   }
 
-  private boolean isFullyOutside(List<ReferencePoint> window, @Nullable Integer publishedClass) {
+  private boolean isFullyOutside(List<ReferencePoint> window, Integer publishedClass) {
     return window.stream().noneMatch(point -> Objects.equals(point.riskClass(), publishedClass));
   }
 
@@ -75,7 +77,7 @@ class PersistencePublicationRule implements PublicationRule {
     return true;
   }
 
-  private @Nullable Integer prevailingClass(List<ReferencePoint> window) {
+  private int prevailingClass(List<ReferencePoint> window) {
     Map<Integer, Integer> counts = new LinkedHashMap<>();
     window.forEach(point -> counts.merge(point.riskClass(), 1, Integer::sum));
     return counts.entrySet().stream()

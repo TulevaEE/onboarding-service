@@ -26,7 +26,13 @@ class RedemptionRequestRepositoryTest {
 
   @BeforeEach
   void persistUser() {
-    userId = entityManager.persistFlushFind(sampleUserNonMember().id(null).build()).getId();
+    var user =
+        sampleUserNonMember()
+            .id(null)
+            .personalCode("38812121008")
+            .email("redemption-request-repository-test@tuleva.ee")
+            .build();
+    userId = entityManager.persistFlushFind(user).getId();
   }
 
   @Test

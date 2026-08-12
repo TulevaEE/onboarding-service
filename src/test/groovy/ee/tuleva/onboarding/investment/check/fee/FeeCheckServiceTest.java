@@ -12,11 +12,13 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.investment.fees.FeeType;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -117,6 +119,44 @@ class FeeCheckServiceTest {
     service.runDailyChecks(List.of(TUK75), CHECK_DATE);
 
     assertThat(savedEvents()).allMatch(event -> !event.isDeviationFound());
+  }
+
+  @Test
+  void theDailyWindowRollsWhenNothingIsOutstanding() {
+    givenAllCheckersPass();
+
+    service.runDailyChecks(List.of(TUK75), CHECK_DATE);
+
+    verify(feeBaseCompletenessChecker).check(TUK75, CHECK_DATE.minusDays(35), CHECK_DATE);
+  }
+
+  // An unfixed divergence used to age out of the rolling window: on day D+36 the divergent date
+  // fell outside it, the checker was no longer asked about it and returned a pass, and the notifier
+  // read PASS against a previous FAIL and announced "[CLEARED]" under the header "Fee check
+  // cleared". Nothing had been fixed. An affirmative all-clear is worse than silence, because it
+  // closes the item. The window now reaches back far enough to still cover whatever the run that
+  // first saw the deviation was looking at, for as long as it stays unresolved.
+  @Test
+  void theDailyWindowStillCoversADeviationThatWasNeverFixed() {
+    givenAllCheckersPass();
+    var firstSeen = LocalDate.of(2026, 5, 1);
+    given(eventRepository.findOldestUnresolvedDailyDeviationDate(TUK75))
+        .willReturn(Optional.of(firstSeen));
+
+    service.runDailyChecks(List.of(TUK75), CHECK_DATE);
+
+    verify(feeBaseCompletenessChecker).check(TUK75, firstSeen.minusDays(35), CHECK_DATE);
+  }
+
+  @Test
+  void aDeviationNewerThanTheRollingWindowDoesNotShrinkIt() {
+    givenAllCheckersPass();
+    given(eventRepository.findOldestUnresolvedDailyDeviationDate(TUK75))
+        .willReturn(Optional.of(CHECK_DATE));
+
+    service.runDailyChecks(List.of(TUK75), CHECK_DATE);
+
+    verify(feeBaseCompletenessChecker).check(TUK75, CHECK_DATE.minusDays(35), CHECK_DATE);
   }
 
   private void givenAllCheckersPass() {

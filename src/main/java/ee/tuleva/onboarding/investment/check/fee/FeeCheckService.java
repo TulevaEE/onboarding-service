@@ -69,8 +69,24 @@ class FeeCheckService {
 
   @Transactional
   List<FeeCheckResult> runDailyChecks(List<TulevaFund> funds, LocalDate checkDate) {
-    var from = checkDate.minusDays(lookbackDays);
-    return run(funds, checkDate, null, fund -> dailyFindings(fund, from, checkDate));
+    return run(
+        funds,
+        checkDate,
+        null,
+        fund -> dailyFindings(fund, windowStart(fund, checkDate), checkDate));
+  }
+
+  // A deviation nobody fixed used to age out of the rolling window: the checkers stopped being
+  // asked about the divergent date, came back clean, and the notifier read that as the deviation
+  // having cleared. So the window keeps reaching back over whatever the run that first saw an
+  // outstanding deviation was looking at, until that deviation genuinely passes.
+  private LocalDate windowStart(TulevaFund fund, LocalDate checkDate) {
+    var rollingFrom = checkDate.minusDays(lookbackDays);
+    return eventRepository
+        .findOldestUnresolvedDailyDeviationDate(fund)
+        .map(firstSeen -> firstSeen.minusDays(lookbackDays))
+        .filter(rollingFrom::isAfter)
+        .orElse(rollingFrom);
   }
 
   // The cash leg trails the settlement leg by a month: a month settles on its last day but the

@@ -127,6 +127,59 @@ class FeeCheckEventRepositoryTest {
     assertThat(repository.findAll().getFirst().getResult()).isEqualTo(detail);
   }
 
+  @Test
+  void aFundWithNothingOutstandingHasNoUnresolvedDeviationDate() {
+    saveOn(LocalDate.of(2026, 6, 1), FEE_BASE_COMPLETENESS, ALL, PASS);
+
+    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75)).isEmpty();
+  }
+
+  @Test
+  void theOldestOutstandingDeviationIsTheOneStillUncleared() {
+    saveOn(LocalDate.of(2026, 6, 1), FEE_BASE_COMPLETENESS, ALL, FAIL);
+    saveOn(LocalDate.of(2026, 6, 2), FEE_BASE_COMPLETENESS, ALL, FAIL);
+
+    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75))
+        .contains(LocalDate.of(2026, 6, 1));
+  }
+
+  @Test
+  void aDeviationFollowedByACleanRunIsNoLongerOutstanding() {
+    saveOn(LocalDate.of(2026, 6, 1), FEE_BASE_COMPLETENESS, ALL, FAIL);
+    saveOn(LocalDate.of(2026, 6, 2), FEE_BASE_COMPLETENESS, ALL, PASS);
+
+    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75)).isEmpty();
+  }
+
+  // A clean run only clears its own check type and scope. One leg recovering must not shorten the
+  // window the other leg still needs.
+  @Test
+  void aCleanRunOnOneCheckDoesNotClearAnother() {
+    saveOn(LocalDate.of(2026, 6, 1), FEE_BASE_COMPLETENESS, ALL, FAIL);
+    saveOn(LocalDate.of(2026, 6, 2), SETTLEMENT_COMPLETENESS, MANAGEMENT, PASS);
+
+    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75))
+        .contains(LocalDate.of(2026, 6, 1));
+  }
+
+  @Test
+  void aMonthlyDeviationDoesNotWidenTheDailyWindow() {
+    var event = event(SETTLEMENT_COMPLETENESS, MANAGEMENT, MAY, FAIL);
+    event.setCheckDate(LocalDate.of(2026, 6, 1));
+    event.setCreatedAt(BASE_TIME.plusSeconds(saved++));
+    repository.saveAndFlush(event);
+
+    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75)).isEmpty();
+  }
+
+  private void saveOn(
+      LocalDate checkDate, FeeCheckType checkType, FeeCheckScope scope, FeeCheckSeverity severity) {
+    var event = event(checkType, scope, null, severity);
+    event.setCheckDate(checkDate);
+    event.setCreatedAt(BASE_TIME.plusSeconds(saved++));
+    repository.saveAndFlush(event);
+  }
+
   // createdAt is set explicitly and distinctly: the notifier orders on it, and rows written in the
   // same run would otherwise be free to come back in either order.
   private void save(

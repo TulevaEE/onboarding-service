@@ -55,6 +55,9 @@ Follow **Uncle Bob** (Clean Code, SOLID), **Kent Beck** (TDD, simple design), **
 - Always `git add` new files immediately
 - NEVER commit or push without user approval
 - **NEVER commit PII — this repo is open-source.** No real names, personal/ID codes, emails, phone numbers, addresses, account/väärtpaberikonto numbers, or other personally identifiable data in code, comments, tests, fixtures, migrations, or commit messages. Use synthetic values (e.g. `38888888888`) or stable opaque IDs (payment id, `external_id`, party UUID) instead. This also applies to logs and anything pushed to an external service.
+- **`.githooks/pii-scan` enforces the rule** on added lines, at three points: `pre-commit`, `pre-push`, and the CircleCI `pii-scan` job. The push hook is the load-bearing one — on a public repo a push *is* publication, so CI can only ever report what is already visible. Run `./gradlew setupGitHooks` once per clone to enable the hooks.
+  - Detects ID codes (mod-11), IBANs (mod-97), `first.last@` emails, and names on a roster. Checksums keep it quiet: `38888888888` and timestamps do not match.
+  - Names cannot be recognised by pattern, so `.githooks/pii-roster.sha256` holds *salted hashes* — the roster guards against personal data without containing any. Add a colleague with `.githooks/pii-roster-add 'Eesnimi Perekonnanimi'`.
 
 ## Architecture
 

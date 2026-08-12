@@ -1,0 +1,9 @@
+# Salted SHA-256 of names that must not appear in this public repository.
+# The roster holds hashes so that guarding against personal data does not
+# itself commit personal data. The salt is not a secret: it only stops a
+# plain rainbow-table lookup, and the names it covers are public anyway.
+#
+# Add a name:  .githooks/pii-roster-add 'Eesnimi Perekonnanimi'
+salt=tuleva-pii-roster-v1
+93449f1c73210a53ee6d5d3eaadbe5417f92af8bfe6675b07088f66e6504afa1
+21c918a399670f6d533602a3d16b5a3c4e38bc5b1dd94a86bd06f169d861902c

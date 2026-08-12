@@ -54,7 +54,7 @@ class PendingOrderImpactService {
         pendingSells = pendingSells.add(cashImpact);
       }
 
-      if (!isMissingFromPositionReport(order, positionDate)) {
+      if (cashImpact.signum() == 0 || !isMissingFromPositionReport(order, positionDate)) {
         continue;
       }
       unreportedValues.merge(order.getInstrumentIsin(), signed(order, cashImpact), BigDecimal::add);

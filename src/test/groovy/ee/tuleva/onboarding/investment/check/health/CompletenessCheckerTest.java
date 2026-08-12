@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.investment.check.health;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
-import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.FAIL;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.COMPLETENESS;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
@@ -31,7 +30,7 @@ class CompletenessCheckerTest {
   }
 
   @Test
-  void failsOnNegativeSecurityQuantity() {
+  void warnsOnNegativeSecurityQuantityWithoutBlockingTheImport() {
     var positions =
         List.of(
             securityPosition("IE00BFG1TM61", new BigDecimal("-50")),
@@ -44,13 +43,13 @@ class CompletenessCheckerTest {
         .satisfies(
             finding -> {
               assertThat(finding.checkType()).isEqualTo(COMPLETENESS);
-              assertThat(finding.severity()).isEqualTo(FAIL);
+              assertThat(finding.severity()).isEqualTo(WARNING);
               assertThat(finding.message()).contains("IE00BFG1TM61", "-50");
             });
   }
 
   @Test
-  void failsOnNegativeSecurityQuantityWithoutIsinAndNamesTheAccount() {
+  void warnsOnNegativeSecurityQuantityWithoutIsinAndNamesTheAccount() {
     var positions =
         List.of(
             FundPosition.builder()
@@ -68,7 +67,7 @@ class CompletenessCheckerTest {
         .singleElement()
         .satisfies(
             finding -> {
-              assertThat(finding.severity()).isEqualTo(FAIL);
+              assertThat(finding.severity()).isEqualTo(WARNING);
               assertThat(finding.message()).contains("Unmapped custody line", "-3");
             });
   }

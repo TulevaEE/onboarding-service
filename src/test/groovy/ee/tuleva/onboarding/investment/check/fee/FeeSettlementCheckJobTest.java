@@ -27,6 +27,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 class FeeSettlementCheckJobTest {
 
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
+  private static final LocalDate JUNE_2026 = LocalDate.of(2026, 6, 1);
 
   @Mock private FeeCheckService feeCheckService;
 
@@ -172,6 +173,34 @@ class FeeSettlementCheckJobTest {
         month.getYear() < 2029;
         month = month.plusMonths(1)) {
       assertThat(businessDays.nthBusinessDayOfMonth(month, 3).getDayOfMonth())
+          .isLessThanOrEqualTo(14);
+    }
+  }
+
+  // SettlementCompletenessChecker only escalates a stalled NAV pipeline to a warning once checkDate
+  // has reached the settlement grace end, the fifth business day of the month after the fee month
+  // (investment.fee-check.settlement-grace-business-days). A scheduled run has to still be firing
+  // by then, or the one failure the check most needs to report is permanently out of reach and gets
+  // filed as a benign "month not yet crossed".
+  @Test
+  void theScheduledRunStillFiresAtTheSettlementGraceEnd() {
+    var graceEnd = new BusinessDays(new PublicHolidays()).nthBusinessDayOfMonth(JUNE_2026, 5);
+
+    jobOn(graceEnd).checkClosedMonthIfReady();
+
+    verify(feeCheckService)
+        .runMonthlyChecks(
+            any(), eq(LocalDate.of(2026, 5, 1)), eq(LocalDate.of(2026, 4, 1)), eq(graceEnd));
+  }
+
+  @Test
+  void theSettlementGraceEndAlwaysFallsWithinTheCronWindow() {
+    var businessDays = new BusinessDays(new PublicHolidays());
+
+    for (var month = LocalDate.of(2026, 1, 1);
+        month.getYear() < 2029;
+        month = month.plusMonths(1)) {
+      assertThat(businessDays.nthBusinessDayOfMonth(month, 5).getDayOfMonth())
           .isLessThanOrEqualTo(14);
     }
   }

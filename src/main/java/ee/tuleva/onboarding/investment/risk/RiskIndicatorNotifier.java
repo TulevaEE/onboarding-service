@@ -460,7 +460,18 @@ class RiskIndicatorNotifier {
                 indicator.rawStreakReferencePoints(),
                 since,
                 weeksLeft)
-        + " eeldatav kinnitus %s.".formatted(threshold);
+        + " eeldatav kinnitus %s; aknas on veel %d referentspunkti muus klassis."
+            .formatted(threshold, blockingReferencePoints(indicator));
+  }
+
+  /**
+   * The confirmation date only holds if the window really does run clear of the published class by
+   * then. Printing it alone lets it pass with nothing happening and no way to tell why; the count
+   * of window points not yet on the raw class is what says whether the class is actually
+   * converging.
+   */
+  private int blockingReferencePoints(PublishedRiskIndicator indicator) {
+    return indicator.windowReferencePoints() - indicator.matchingReferencePoints();
   }
 
   private Optional<String> truncatedHistoryLine(PublishedRiskIndicator indicator) {

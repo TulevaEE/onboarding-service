@@ -7,6 +7,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class PublicationRuleTest {
@@ -144,23 +145,28 @@ class PublicationRuleTest {
   }
 
   @Test
-  void aMissingWeekInTheWindowSuspendsTheMigrationAssessment() {
-    var points = new ArrayList<ReferencePoint>();
-    var date = START;
-    for (int i = 0; i < 30; i++) {
-      points.add(point(date, 4));
-      date = date.plusWeeks(1);
-    }
-    for (int i = 0; i < 20; i++) {
-      if (i != 10) {
-        points.add(point(date, 5));
-      }
-      date = date.plusWeeks(1);
-    }
+  void aSingleMissingWeekDoesNotSuspendTheMigrationAssessment() {
+    var series = persistence.publish(migratingSeriesWithoutWeeks(40));
 
-    var series = persistence.publish(points);
+    assertThat(series.points().getLast().riskClass()).isEqualTo(5);
+  }
+
+  @Test
+  void aWiderHoleInTheWindowSuspendsTheMigrationAssessment() {
+    var series = persistence.publish(migratingSeriesWithoutWeeks(40, 44));
 
     assertThat(distinctPublished(series)).containsExactly(4);
+  }
+
+  private static List<ReferencePoint> migratingSeriesWithoutWeeks(Integer... missingWeeks) {
+    var missing = Set.of(missingWeeks);
+    var points = new ArrayList<ReferencePoint>();
+    for (int week = 0; week < 50; week++) {
+      if (!missing.contains(week)) {
+        points.add(point(START.plusWeeks(week), week < 30 ? 4 : 5));
+      }
+    }
+    return points;
   }
 
   @Test

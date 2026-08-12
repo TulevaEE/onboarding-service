@@ -5,6 +5,7 @@ import static java.time.temporal.TemporalAdjusters.previousOrSame;
 
 import ee.tuleva.onboarding.investment.risk.PublishedSeries.PublishedPoint;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -18,6 +19,7 @@ class PersistencePublicationRule implements PublicationRule {
 
   private static final int PERSISTENCE_WINDOW_MONTHS = 4;
   private static final int WINDOW_START_TOLERANCE_DAYS = 7;
+  private static final int MAX_MISSING_WEEKS = 1;
 
   @Override
   public PublishedSeries publish(List<ReferencePoint> points) {
@@ -57,24 +59,27 @@ class PersistencePublicationRule implements PublicationRule {
     if (window.getFirst().date().isAfter(windowStart.plusDays(WINDOW_START_TOLERANCE_DAYS))) {
       return false;
     }
-    return hasNoMissingWeek(window);
+    return missingWeeks(window) <= MAX_MISSING_WEEKS;
   }
 
   /**
    * A reference point is dated on the week's last NAV day, which a public holiday moves off Friday.
-   * Consecutiveness therefore has to be read on the ISO week, not on the raw dates — otherwise
-   * every holiday would look like a missing week and freeze the migration assessment for four
-   * months.
+   * Gaps therefore have to be read on the ISO week, not on the raw dates — otherwise every holiday
+   * would look like a missing week.
+   *
+   * <p>One absent NAV week costs two reference points' worth of returns, because the week after it
+   * has no preceding week to compute a return against. Demanding an unbroken window would let that
+   * single hole freeze the migration assessment for four months while the digest went on printing a
+   * confirmation date that could never arrive.
    */
-  private boolean hasNoMissingWeek(List<ReferencePoint> window) {
+  private long missingWeeks(List<ReferencePoint> window) {
+    var missing = 0L;
     for (int i = 1; i < window.size(); i++) {
       var previousWeek = window.get(i - 1).date().with(previousOrSame(MONDAY));
       var currentWeek = window.get(i).date().with(previousOrSame(MONDAY));
-      if (!previousWeek.plusWeeks(1).equals(currentWeek)) {
-        return false;
-      }
+      missing += ChronoUnit.WEEKS.between(previousWeek, currentWeek) - 1;
     }
-    return true;
+    return missing;
   }
 
   private int prevailingClass(List<ReferencePoint> window) {

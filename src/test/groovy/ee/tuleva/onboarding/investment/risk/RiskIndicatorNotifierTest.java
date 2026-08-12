@@ -172,7 +172,7 @@ class RiskIndicatorNotifierTest {
 
             ⚠️ TUK75 SRRI — muutus ootel
             Toores klass 5, avaldatav klass 4. Aastane volatiilsus 15,30%.
-            Klass 5 on püsinud 9 nädalat alates 2026-05-25. CESR 4-kuu künniseni puudu 9 nädalat, eeldatav kinnitus 2026-09-25.
+            Klass 5 on püsinud 9 nädalat alates 2026-05-25. CESR 4-kuu künniseni puudu 9 nädalat, eeldatav kinnitus 2026-09-25; aknas on veel 8 referentspunkti muus klassis.
             👉 Tegevus praegu pole — jälgi.
 
             🔴 TUV100 SRRI — dokumendis on klass 4, arvutatud avaldatav klass on 5
@@ -760,6 +760,16 @@ class RiskIndicatorNotifierTest {
         .contains(
             "Klass 5 on hoidnud 30 kauplemispäeva alates 2026-06-15."
                 + " PRIIPs enamuseni puudu 13 punkti.");
+  }
+
+  @Test
+  void thePendingSrriLineCountsTheWindowPointsThatStillBlockTheMigration() {
+    disclose(SRRI, TUK75, 4);
+
+    notifier.notify(run(pendingSrri()));
+
+    assertThat(notifications.lastMessage())
+        .contains("eeldatav kinnitus 2026-09-25; aknas on veel 8 referentspunkti muus klassis.");
   }
 
   @Test

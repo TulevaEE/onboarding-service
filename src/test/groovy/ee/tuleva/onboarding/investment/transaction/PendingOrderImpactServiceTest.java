@@ -265,6 +265,37 @@ class PendingOrderImpactServiceTest {
   }
 
   @Test
+  void valuesTheSynthesizedPositionAtExactlyTheCashItReserves() {
+    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
+        .willReturn(
+            List.of(
+                order(
+                    1L,
+                    "IE00A",
+                    TransactionType.BUY,
+                    InstrumentType.ETF,
+                    OrderStatus.EXECUTED,
+                    new BigDecimal("100"),
+                    new BigDecimal("5000"))));
+    given(executionRepository.findByOrderIdIn(List.of(1L)))
+        .willReturn(
+            List.of(
+                TransactionExecution.builder()
+                    .orderId(1L)
+                    .executedQuantity(new BigDecimal("30"))
+                    .totalConsideration(new BigDecimal("1200"))
+                    .build()));
+    given(positionPriceResolver.resolve("IE00A", AS_OF_DATE))
+        .willReturn(Optional.of(ResolvedPrice.builder().usedPrice(new BigDecimal("50")).build()));
+
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
+
+    assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("4700"));
+    assertThat(impact.unreportedPositionValues())
+        .containsExactly(Map.entry("IE00A", new BigDecimal("4700")));
+  }
+
+  @Test
   void aPartiallyFilledFundBuyStillReservesTheUnfilledRemainder() {
     given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
         .willReturn(

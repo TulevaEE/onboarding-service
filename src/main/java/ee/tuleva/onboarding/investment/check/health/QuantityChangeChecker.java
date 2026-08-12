@@ -13,6 +13,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -35,7 +36,11 @@ class QuantityChangeChecker {
 
     Map<String, BigDecimal> currentByIsin = SecurityQuantities.byIsin(securities);
     Map<String, BigDecimal> previousByIsin = SecurityQuantities.byIsin(previousSecurities);
-    Set<String> reportedWithoutQuantity = reportedWithoutQuantity(securities, currentByIsin);
+    Set<String> reportedWithoutQuantity =
+        Stream.concat(
+                isinsWithoutQuantity(securities, currentByIsin),
+                isinsWithoutQuantity(previousSecurities, previousByIsin))
+            .collect(Collectors.toSet());
 
     Set<String> isins = new TreeSet<>(previousByIsin.keySet());
     isins.addAll(currentByIsin.keySet());
@@ -54,13 +59,12 @@ class QuantityChangeChecker {
         .toList();
   }
 
-  private Set<String> reportedWithoutQuantity(
+  private Stream<String> isinsWithoutQuantity(
       List<FundPosition> positions, Map<String, BigDecimal> quantifiedByIsin) {
     return positions.stream()
         .map(FundPosition::getAccountId)
         .filter(Objects::nonNull)
-        .filter(isin -> !quantifiedByIsin.containsKey(isin))
-        .collect(Collectors.toSet());
+        .filter(isin -> !quantifiedByIsin.containsKey(isin));
   }
 
   private HealthCheckFinding unexplainedChange(

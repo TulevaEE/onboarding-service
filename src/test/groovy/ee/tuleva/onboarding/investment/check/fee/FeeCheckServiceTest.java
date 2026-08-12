@@ -34,7 +34,6 @@ class FeeCheckServiceTest {
   @Mock private CustodianCompletenessChecker custodianCompletenessChecker;
   @Mock private BlackrockAdjustmentFreshnessChecker blackrockAdjustmentFreshnessChecker;
   @Mock private SettlementCompletenessChecker settlementCompletenessChecker;
-  @Mock private AccrualRoundingDriftChecker accrualRoundingDriftChecker;
   @Mock private CashSettlementChecker cashSettlementChecker;
   @Mock private FeeCheckEventRepository eventRepository;
   @Mock private FeeCheckNotifier notifier;
@@ -50,7 +49,6 @@ class FeeCheckServiceTest {
             custodianCompletenessChecker,
             blackrockAdjustmentFreshnessChecker,
             settlementCompletenessChecker,
-            accrualRoundingDriftChecker,
             cashSettlementChecker,
             eventRepository,
             notifier,

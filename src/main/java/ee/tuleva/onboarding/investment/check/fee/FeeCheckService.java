@@ -6,7 +6,6 @@ import static ee.tuleva.onboarding.investment.check.fee.FeeCheckScope.MANAGEMENT
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.FAIL;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.NOT_RUN;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.WARNING;
-import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.ACCRUAL_ROUNDING_DRIFT;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.BLACKROCK_ADJUSTMENT_FRESHNESS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.CASH_SETTLEMENT_OBSERVED;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.CUSTODIAN_POSITION_COMPLETENESS;
@@ -42,7 +41,6 @@ class FeeCheckService {
   private final CustodianCompletenessChecker custodianCompletenessChecker;
   private final BlackrockAdjustmentFreshnessChecker blackrockAdjustmentFreshnessChecker;
   private final SettlementCompletenessChecker settlementCompletenessChecker;
-  private final AccrualRoundingDriftChecker accrualRoundingDriftChecker;
   private final CashSettlementChecker cashSettlementChecker;
   private final FeeCheckEventRepository eventRepository;
   private final FeeCheckNotifier notifier;
@@ -54,7 +52,6 @@ class FeeCheckService {
       CustodianCompletenessChecker custodianCompletenessChecker,
       BlackrockAdjustmentFreshnessChecker blackrockAdjustmentFreshnessChecker,
       SettlementCompletenessChecker settlementCompletenessChecker,
-      AccrualRoundingDriftChecker accrualRoundingDriftChecker,
       CashSettlementChecker cashSettlementChecker,
       FeeCheckEventRepository eventRepository,
       FeeCheckNotifier notifier,
@@ -64,7 +61,6 @@ class FeeCheckService {
     this.custodianCompletenessChecker = custodianCompletenessChecker;
     this.blackrockAdjustmentFreshnessChecker = blackrockAdjustmentFreshnessChecker;
     this.settlementCompletenessChecker = settlementCompletenessChecker;
-    this.accrualRoundingDriftChecker = accrualRoundingDriftChecker;
     this.cashSettlementChecker = cashSettlementChecker;
     this.eventRepository = eventRepository;
     this.notifier = notifier;
@@ -177,20 +173,11 @@ class FeeCheckService {
 
   private List<FeeCheckFinding> monthlyFindings(
       TulevaFund fund, LocalDate feeMonth, LocalDate checkDate) {
-    var findings = new ArrayList<FeeCheckFinding>();
-    findings.addAll(
-        runChecker(
-            fund,
-            SETTLEMENT_COMPLETENESS,
-            PER_FEE_TYPE,
-            () -> settlementCompletenessChecker.check(fund, feeMonth, checkDate)));
-    findings.addAll(
-        runChecker(
-            fund,
-            ACCRUAL_ROUNDING_DRIFT,
-            PER_FEE_TYPE,
-            () -> accrualRoundingDriftChecker.check(fund, feeMonth)));
-    return findings;
+    return runChecker(
+        fund,
+        SETTLEMENT_COMPLETENESS,
+        PER_FEE_TYPE,
+        () -> settlementCompletenessChecker.check(fund, feeMonth, checkDate));
   }
 
   // One checker blowing up must not take the others down with it - being blind about one thing is

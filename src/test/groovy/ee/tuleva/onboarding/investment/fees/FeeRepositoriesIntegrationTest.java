@@ -253,28 +253,6 @@ class FeeRepositoriesIntegrationTest {
     }
 
     @Test
-    void sumRoundedDailyNetForMonth_roundsEachDayBeforeSumming() {
-      LocalDate feeMonth = LocalDate.of(2025, 1, 1);
-      for (int day = 13; day <= 15; day++) {
-        insertAccrualWithFeeMonth(
-            TUK75,
-            FeeType.MANAGEMENT,
-            LocalDate.of(2025, 1, day),
-            feeMonth,
-            new BigDecimal("0.005"));
-      }
-
-      BigDecimal sumOfRounded =
-          feeAccrualRepository.sumRoundedDailyNetForMonth(TUK75, feeMonth, FeeType.MANAGEMENT);
-      BigDecimal roundedSum =
-          feeAccrualRepository.getUnsettledAccrual(
-              TUK75, FeeType.MANAGEMENT, LocalDate.of(2025, 1, 15));
-
-      assertThat(sumOfRounded).isEqualByComparingTo(new BigDecimal("0.03"));
-      assertThat(roundedSum).isEqualByComparingTo(new BigDecimal("0.02"));
-    }
-
-    @Test
     void findRoundedDailyNetBetween_returnsOneRoundedAmountPerDay() {
       insertAccrual(TUK75, FeeType.MANAGEMENT, LocalDate.of(2025, 1, 13), new BigDecimal("5.894"));
       insertAccrual(TUK75, FeeType.MANAGEMENT, LocalDate.of(2025, 1, 14), new BigDecimal("5.895"));

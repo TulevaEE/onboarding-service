@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.fees.FeeCalculationService;
@@ -43,6 +44,8 @@ class FeeSettlementCheckIntegrationTest {
   private static final LocalDate LAST_DAY_OF_MAY = LocalDate.of(2026, 5, 31);
   private static final LocalDate FIRST_DAY_OF_JUNE = LocalDate.of(2026, 6, 1);
   private static final LocalDate THIRD_BUSINESS_DAY_OF_JUNE = LocalDate.of(2026, 6, 3);
+  private static final LocalDate JUNE = LocalDate.of(2026, 6, 1);
+  private static final LocalDate THIRD_BUSINESS_DAY_OF_JULY = LocalDate.of(2026, 7, 3);
   private static final BigDecimal BASE_VALUE = new BigDecimal("1000000000");
   private static final BigDecimal CORRECTION = new BigDecimal("13.32");
   private static final List<TulevaFund> PENSION_FUNDS = List.of(TUK75, TUK00, TUV100);
@@ -125,25 +128,41 @@ class FeeSettlementCheckIntegrationTest {
   }
 
   // Absence of data is not a deviation. The pension funds have no bank statement ingestion, so the
-  // cash leg must stay blind about them rather than report a missing payment every month.
+  // cash leg must stay blind about them rather than report a missing payment every month. Every run
+  // stamps a fresh cashMonth, so the previous month's row is never found as a baseline and the same
+  // permanent PASS -> NOT_RUN transition was reported for all three funds every single month, with
+  // no way to ever clear it. Ops learn to skim a message that is mostly noise, and then miss the
+  // month it carries a real failure.
   @Test
-  void fundsWithoutCashIngestionAreNotRunAndNeverWarn() {
+  void theCashLegSaysNothingAboutFundsItCanNeverObserve() {
     feeCheckService.runMonthlyChecks(PENSION_FUNDS, MAY, APRIL, THIRD_BUSINESS_DAY_OF_JUNE);
+    feeCheckService.runMonthlyChecks(PENSION_FUNDS, JUNE, MAY, THIRD_BUSINESS_DAY_OF_JULY);
 
-    assertThat(severities("CASH_SETTLEMENT_OBSERVED")).containsOnly("NOT_RUN");
+    assertThat(severities("CASH_SETTLEMENT_OBSERVED")).isEmpty();
   }
 
-  // The first run registers the coverage baseline as a PASS -> NOT_RUN transition on the cash leg.
-  // The second, with identical state, must produce no transition at all.
+  // A deviation is announced once. The second run, with identical state, must produce no transition
+  // rather than repeat itself for as long as the deviation goes unfixed.
   @Test
   void aRepeatedRunWithTheSameStateSendsNothingASecondTime() {
     accrueFor(LAST_DAY_OF_MAY);
     accrueFor(FIRST_DAY_OF_JUNE);
+    insertManagementFeeCorrection(LocalDate.of(2026, 5, 19), CORRECTION);
 
     runMonthlyChecks();
     runMonthlyChecks();
 
     verify(notificationService, times(1)).sendMessage(any(), any());
+  }
+
+  @Test
+  void aCleanlySettledMonthSendsNothingAtAll() {
+    accrueFor(LAST_DAY_OF_MAY);
+    accrueFor(FIRST_DAY_OF_JUNE);
+
+    runMonthlyChecks();
+
+    verifyNoInteractions(notificationService);
   }
 
   @Test

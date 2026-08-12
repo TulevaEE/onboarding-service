@@ -54,13 +54,7 @@ class CashSettlementChecker {
 
   List<FeeCheckFinding> check(TulevaFund fund, LocalDate feeMonth, LocalDate checkDate) {
     if (!coverage.coversFund(fund)) {
-      return List.of(
-          finding(
-              fund,
-              NOT_RUN,
-              "No bank statement ingestion for " + fund + ", so fee payments cannot be observed",
-              null,
-              Map.of("feeMonth", feeMonth.toString())));
+      return List.of();
     }
 
     var settlementDate = feeMonth.plusMonths(1).minusDays(1);

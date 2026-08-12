@@ -49,11 +49,14 @@ class CashSettlementCheckerTest {
             navLedgerRepository, new FeeCashIngestionCoverage(), new BigDecimal("0.02"), 20);
   }
 
+  // A fund with no bank statement ingestion is not something this check observed and could not
+  // see - it is something the check has nothing to say about at all, permanently. Reporting that
+  // as a monthly NOT_RUN observation makes a static fact about the system look like a finding.
   @Test
-  void aFundWithoutBankStatementIngestionIsNotRunAndNeverWarns() {
+  void aFundWithoutBankStatementIngestionYieldsNoFindingAtAll() {
     var findings = checker.check(TUK75, FEE_MONTH, WINDOW_ELAPSED);
 
-    assertThat(findings).singleElement().extracting(FeeCheckFinding::severity).isEqualTo(NOT_RUN);
+    assertThat(findings).isEmpty();
   }
 
   @Test

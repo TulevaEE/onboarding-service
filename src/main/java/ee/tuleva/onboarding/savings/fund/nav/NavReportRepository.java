@@ -105,4 +105,46 @@ interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
       @Param("fundCode") String fundCode,
       @Param("navDate") LocalDate navDate,
       @Param("accountType") String accountType);
+
+  @Query(
+      value =
+          """
+          SELECT COALESCE(SUM(nr.market_value), 0)
+          FROM nav_report nr
+          WHERE nr.fund_code = :fundCode AND nr.nav_date = :navDate
+            AND nr.account_type IN (:accountTypes)
+            AND nr.calculation_id = (
+              SELECT calculation_id FROM nav_report
+              WHERE nav_date = :navDate AND fund_code = :fundCode
+              ORDER BY id DESC LIMIT 1
+            )
+          """,
+      nativeQuery = true)
+  BigDecimal sumLatestCalculationMarketValueByAccountTypes(
+      @Param("fundCode") String fundCode,
+      @Param("navDate") LocalDate navDate,
+      @Param("accountTypes") List<String> accountTypes);
+
+  @Query(
+      value =
+          """
+          SELECT COALESCE(SUM(nr.market_value), 0)
+          FROM nav_report nr
+          WHERE nr.fund_code = :fundCode AND nr.nav_date = :navDate
+            AND nr.account_type IN (:accountTypes)
+            AND (nr.account_name IS NULL OR nr.account_name NOT IN (:excludedAccountNames))
+            AND nr.calculation_id = (
+              SELECT calculation_id FROM nav_report
+              WHERE nav_date = :navDate AND fund_code = :fundCode
+              ORDER BY id DESC LIMIT 1
+            )
+          """,
+      nativeQuery = true)
+  BigDecimal sumLatestCalculationMarketValueExcludingAccountNames(
+      @Param("fundCode") String fundCode,
+      @Param("navDate") LocalDate navDate,
+      @Param("accountTypes") List<String> accountTypes,
+      @Param("excludedAccountNames") List<String> excludedAccountNames);
+
+  boolean existsByFundCodeAndNavDate(String fundCode, LocalDate navDate);
 }

@@ -7,6 +7,8 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 
+import ee.tuleva.onboarding.investment.event.RunFeeCheckRequested;
+import ee.tuleva.onboarding.investment.event.RunFeeSettlementCheckRequested;
 import ee.tuleva.onboarding.investment.event.RunLimitCheckRequested;
 import ee.tuleva.onboarding.investment.event.RunOverdueSettlementRequested;
 import ee.tuleva.onboarding.investment.event.RunPevaRavaFlowRecalcRequested;
@@ -136,6 +138,21 @@ class JobTriggerPollerTest {
     assertThat(phaseUpdate.getStatus()).isEqualTo("COMPLETED");
     assertThat(pevaRavaRecalc.getStatus()).isEqualTo("COMPLETED");
     assertThat(r16Recalc.getStatus()).isEqualTo("COMPLETED");
+  }
+
+  @Test
+  void publishesTheDailyAndMonthlyFeeCheckEventsSeparately() {
+    var daily = JobTrigger.builder().jobName("FeeCheckJob").status("PENDING").build();
+    var monthly = JobTrigger.builder().jobName("FeeSettlementCheckJob").status("PENDING").build();
+    given(repository.findByStatusOrderByCreatedAtAsc("PENDING"))
+        .willReturn(List.of(daily, monthly));
+
+    poller.poll();
+
+    then(eventPublisher).should().publishEvent(any(RunFeeCheckRequested.class));
+    then(eventPublisher).should().publishEvent(any(RunFeeSettlementCheckRequested.class));
+    assertThat(daily.getStatus()).isEqualTo("COMPLETED");
+    assertThat(monthly.getStatus()).isEqualTo("COMPLETED");
   }
 
   @Test

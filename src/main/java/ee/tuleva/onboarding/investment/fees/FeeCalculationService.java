@@ -29,11 +29,6 @@ public class FeeCalculationService {
 
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
 
-  private static final Map<FeeType, SystemAccount> FEE_TYPE_ACCOUNTS =
-      Map.of(
-          MANAGEMENT, MANAGEMENT_FEE_ACCRUAL,
-          DEPOT, DEPOT_FEE_ACCRUAL);
-
   private final List<FeeCalculator> feeCalculators;
   private final FeeAccrualRepository feeAccrualRepository;
   private final NavFeeAccrualLedger navFeeAccrualLedger;
@@ -44,17 +39,16 @@ public class FeeCalculationService {
     Instant cutoff = month.plusMonths(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
     LocalDate settlementDate = month.plusMonths(1).minusDays(1);
 
-    FEE_TYPE_ACCOUNTS.forEach(
-        (feeType, feeAccount) -> {
-          BigDecimal balance =
-              navLedgerRepository.getSystemAccountBalanceBefore(
-                  feeAccount.getAccountName(fund), cutoff);
-          BigDecimal settlementAmount = balance.negate();
-          if (settlementAmount.signum() > 0) {
-            navFeeAccrualLedger.settleFeeAccrual(
-                fund, settlementDate, feeAccount, settlementAmount);
-          }
-        });
+    for (FeeType feeType : FeeType.values()) {
+      SystemAccount feeAccount = feeType.getAccrualAccount();
+      BigDecimal balance =
+          navLedgerRepository.getSystemAccountBalanceBefore(
+              feeAccount.getAccountName(fund), cutoff);
+      BigDecimal settlementAmount = balance.negate();
+      if (settlementAmount.signum() > 0) {
+        navFeeAccrualLedger.settleFeeAccrual(fund, settlementDate, feeAccount, settlementAmount);
+      }
+    }
   }
 
   private BigDecimal roundForLedger(BigDecimal amount) {
@@ -130,7 +124,7 @@ public class FeeCalculationService {
     for (FeeCalculator calculator : feeCalculators) {
       FeeAccrual accrual = calculator.calculate(fund, date, baseValue);
       feeAccrualRepository.save(accrual);
-      SystemAccount feeAccount = FEE_TYPE_ACCOUNTS.get(accrual.feeType());
+      SystemAccount feeAccount = accrual.feeType().getAccrualAccount();
       BigDecimal ledgerAmount = roundForLedger(accrual.dailyAmountNet());
       log.info(
           "recordDailyFees: fund={}, date={}, feeType={}, ledgerAmount={}",

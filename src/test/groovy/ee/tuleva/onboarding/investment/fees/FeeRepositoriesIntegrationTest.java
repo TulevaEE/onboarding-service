@@ -253,6 +253,39 @@ class FeeRepositoriesIntegrationTest {
     }
 
     @Test
+    void findRoundedDailyNetBetween_returnsOneRoundedAmountPerDay() {
+      insertAccrual(TUK75, FeeType.MANAGEMENT, LocalDate.of(2025, 1, 13), new BigDecimal("5.894"));
+      insertAccrual(TUK75, FeeType.MANAGEMENT, LocalDate.of(2025, 1, 14), new BigDecimal("5.895"));
+      insertAccrual(TUK75, FeeType.DEPOT, LocalDate.of(2025, 1, 14), new BigDecimal("1.111"));
+
+      var amounts =
+          feeAccrualRepository.findRoundedDailyNetBetween(
+              TUK75, FeeType.MANAGEMENT, LocalDate.of(2025, 1, 13), LocalDate.of(2025, 1, 14));
+
+      assertThat(amounts)
+          .containsExactly(
+              new DailyAccrualAmount(LocalDate.of(2025, 1, 13), new BigDecimal("5.89")),
+              new DailyAccrualAmount(LocalDate.of(2025, 1, 14), new BigDecimal("5.90")));
+    }
+
+    @Test
+    void findBaseValuesBetween_returnsBaseValuePerDayAndFeeType() {
+      insertAccrual(TUK75, FeeType.MANAGEMENT, LocalDate.of(2025, 1, 13), new BigDecimal("5.89"));
+      insertAccrual(TUK75, FeeType.DEPOT, LocalDate.of(2025, 1, 13), new BigDecimal("1.11"));
+
+      var baseValues =
+          feeAccrualRepository.findBaseValuesBetween(
+              TUK75, LocalDate.of(2025, 1, 13), LocalDate.of(2025, 1, 13));
+
+      assertThat(baseValues)
+          .containsExactlyInAnyOrder(
+              new FeeBaseValue(
+                  LocalDate.of(2025, 1, 13), FeeType.MANAGEMENT, new BigDecimal("1000000.00")),
+              new FeeBaseValue(
+                  LocalDate.of(2025, 1, 13), FeeType.DEPOT, new BigDecimal("1000000.00")));
+    }
+
+    @Test
     void save_updatesAccrualOnDuplicate() {
       LocalDate accrualDate = LocalDate.of(2025, 1, 15);
       LocalDate feeMonth = LocalDate.of(2025, 1, 1);

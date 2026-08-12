@@ -25,6 +25,8 @@ class JobTriggerPoller {
           Map.entry("TrackingDifferenceJob", RunTrackingDifferenceCheckRequested::new),
           Map.entry("TrackingDifferenceBackfillJob", RunTrackingDifferenceBackfillRequested::new),
           Map.entry("LimitCheckJob", RunLimitCheckRequested::new),
+          Map.entry("FeeCheckJob", RunFeeCheckRequested::new),
+          Map.entry("FeeSettlementCheckJob", RunFeeSettlementCheckRequested::new),
           Map.entry("LimitCheckBackfillJob", RunLimitCheckBackfillRequested::new),
           Map.entry("ReportImportJob", RunReportImportRequested::new),
           Map.entry("FundPositionImportJob", RunFundPositionImportRequested::new),

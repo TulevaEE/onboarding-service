@@ -39,6 +39,7 @@ class FeeBaseCompletenessCheckerTest {
 
   private static final LocalDate EARLIER_WORKING_DAY = LocalDate.of(2026, 6, 2);
   private static final LocalDate WORKING_DAY = LocalDate.of(2026, 6, 3);
+  private static final LocalDate LATER_WORKING_DAY = LocalDate.of(2026, 6, 4);
   private static final LocalDate SATURDAY = LocalDate.of(2026, 6, 6);
   private static final BigDecimal NAV_TOTAL = new BigDecimal("1000000.00");
 
@@ -158,6 +159,39 @@ class FeeBaseCompletenessCheckerTest {
         .willReturn(Optional.of(NAV_TOTAL));
 
     assertThat(check(TUK75)).singleElement().extracting(FeeCheckFinding::severity).isEqualTo(PASS);
+  }
+
+  // A working day with no accrual row for either fee type is a day the fund charged no fee at all.
+  // It is absent from the accrual table and from the ledger alike, so the ledger check sees two
+  // sides that agree, and walking only the dates that do have rows skipped it outright. A whole
+  // working day of fees never charged, and every check reporting PASS.
+  @Test
+  void aWorkingDayThatAccruedNothingAtAllIsDetected() {
+    givenAccruals(
+        base(EARLIER_WORKING_DAY, MANAGEMENT, NAV_TOTAL),
+        base(EARLIER_WORKING_DAY, DEPOT, NAV_TOTAL),
+        base(LATER_WORKING_DAY, MANAGEMENT, NAV_TOTAL),
+        base(LATER_WORKING_DAY, DEPOT, NAV_TOTAL));
+    givenNavTotal(EARLIER_WORKING_DAY, NAV_TOTAL);
+    givenNavTotal(LATER_WORKING_DAY, NAV_TOTAL);
+
+    var finding = check(TUK75).getFirst();
+
+    assertThat(finding.severity()).isEqualTo(FAIL);
+    assertThat(finding.message()).contains(WORKING_DAY.toString());
+  }
+
+  // Only the days between the first and the last accrual are the fund's own, so a window that
+  // opens before it started charging and closes before today's run has not skipped anything.
+  @Test
+  void daysOutsideTheAccrualsTheWindowActuallySawRaiseNothing() {
+    givenAccruals(base(WORKING_DAY, MANAGEMENT, NAV_TOTAL), base(WORKING_DAY, DEPOT, NAV_TOTAL));
+    givenNavTotal(WORKING_DAY, NAV_TOTAL);
+
+    assertThat(checker.check(TUK75, LocalDate.of(2026, 5, 1), LocalDate.of(2026, 6, 30)))
+        .singleElement()
+        .extracting(FeeCheckFinding::severity)
+        .isEqualTo(PASS);
   }
 
   @Test

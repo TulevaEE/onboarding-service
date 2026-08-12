@@ -123,6 +123,49 @@ class FeeCheckIntegrationTest {
         .isEqualByComparingTo(unrecognisedLiability.abs());
   }
 
+  // A working day on which no fee accrued at all is missing from the accrual table and from the
+  // ledger alike, so the two agree and the ledger check passes. Nothing else on the daily path
+  // walked the calendar, so a whole working day of uncharged fees left every check reporting PASS.
+  @Test
+  void aWorkingDayOnWhichNoFeeAccruedAtAllIsDetected() {
+    accrueFor(DAY_ONE);
+    accrueFor(DAY_TWO);
+    accrueFor(DAY_THREE);
+
+    eraseBothSidesOfTheAccrualOn(DAY_TWO);
+
+    feeCheckService.runDailyChecks(List.of(TUK75), DAY_THREE);
+
+    assertThat(findEvent(TUK75, "LEDGER_ACCRUAL_CONSISTENCY", "MANAGEMENT").get("severity"))
+        .isEqualTo("PASS");
+    var event = findEvent(TUK75, "FEE_BASE_COMPLETENESS", "ALL");
+    assertThat(event.get("severity")).isEqualTo("FAIL");
+    assertThat(asText(event.get("result"))).contains(DAY_TWO.toString());
+  }
+
+  private void eraseBothSidesOfTheAccrualOn(LocalDate date) {
+    jdbcClient
+        .sql(
+            """
+            DELETE FROM investment_fee_accrual
+            WHERE fund_code = 'TUK75' AND accrual_date = :date
+            """)
+        .param("date", date)
+        .update();
+    jdbcClient
+        .sql(
+            """
+            DELETE FROM ledger.entry WHERE transaction_id IN (
+              SELECT id FROM ledger.transaction
+              WHERE transaction_type = CAST('FEE_ACCRUAL' AS ledger.transaction_type)
+                AND transaction_date >= :from AND transaction_date < :to
+            )
+            """)
+        .param("from", Timestamp.from(date.atStartOfDay(ESTONIAN_ZONE).toInstant()))
+        .param("to", Timestamp.from(date.plusDays(1).atStartOfDay(ESTONIAN_ZONE).toInstant()))
+        .update();
+  }
+
   @Test
   void cleanRunProducesPassEventsAndNoSlackMessage() {
     accrueFor(DAY_ONE);

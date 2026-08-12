@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.investment.check.fee.FeeCheckScope.ALL;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.FEE_BASE_COMPLETENESS;
 import static java.math.BigDecimal.ZERO;
 import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
 
@@ -25,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.SortedMap;
 import java.util.TreeMap;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -62,12 +64,15 @@ class FeeBaseCompletenessChecker {
     var totalDeviation = ZERO;
     var feeTypesSeenSoFar = EnumSet.noneOf(FeeType.class);
 
-    for (var entry : basesByDate.entrySet()) {
-      var date = entry.getKey();
+    for (var date : datesAccruedOver(basesByDate)) {
       if (!publicHolidays.isWorkingDay(date)) {
         continue;
       }
-      var bases = entry.getValue();
+      var bases = basesByDate.get(date);
+      if (bases == null) {
+        mismatches.add(date + " accrued no fee at all");
+        continue;
+      }
       var stopped = feeTypesThatStoppedAccruing(bases, feeTypesSeenSoFar);
       bases.forEach(base -> feeTypesSeenSoFar.add(base.feeType()));
       if (!stopped.isEmpty()) {
@@ -162,7 +167,18 @@ class FeeBaseCompletenessChecker {
         .toInstant();
   }
 
-  private Map<LocalDate, List<FeeBaseValue>> basesByDate(
+  // Every day from the first accrual seen to the last, so a day missing from the table entirely is
+  // visited rather than skipped over. Calibrated from the window's own contents: a window opening
+  // before the fund started charging, or closing before today's run has posted, has skipped
+  // nothing and must raise nothing.
+  private List<LocalDate> datesAccruedOver(SortedMap<LocalDate, List<FeeBaseValue>> basesByDate) {
+    if (basesByDate.isEmpty()) {
+      return List.of();
+    }
+    return basesByDate.firstKey().datesUntil(basesByDate.lastKey().plusDays(1)).collect(toList());
+  }
+
+  private SortedMap<LocalDate, List<FeeBaseValue>> basesByDate(
       TulevaFund fund, LocalDate from, LocalDate to) {
     return new TreeMap<>(
         feeAccrualRepository.findBaseValuesBetween(fund, from, to).stream()

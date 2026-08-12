@@ -354,7 +354,7 @@ tasks {
                 commandLine(shellCommand, shellArg, "git config core.hooksPath .githooks")
             }
             execOps.exec {
-                commandLine(shellCommand, shellArg, "chmod +x .githooks/pre-commit")
+                commandLine(shellCommand, shellArg, "chmod +x .githooks/*")
             }
             println("Git hooks configured successfully!")
         }

@@ -168,6 +168,19 @@ jobs:
           monitor-on-build: true
           organization: tuleva
 
+  pii-scan:
+    docker:
+      - image: cimg/base:stable
+    resource_class: small
+    steps:
+      - checkout
+      - run:
+          name: Check added lines for personal data
+          command: |
+            git fetch --no-tags origin master
+            BASE=$(git merge-base FETCH_HEAD HEAD)
+            git diff "$BASE"..HEAD | .githooks/pii-scan
+
   flag-for-additional-review:
     docker:
       - image: cimg/base:stable
@@ -315,6 +328,8 @@ workflows:
       - build:
           context:
             - codecov
+
+      - pii-scan
 
       - snyk-scan:
           context: snyk

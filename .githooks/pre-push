@@ -1,0 +1,33 @@
+#!/bin/bash
+# On a public repository a push is publication, so personal data has to be
+# stopped here rather than in CI: by the time a workflow runs, the branch is
+# already on GitHub and a later commit cannot unpublish it.
+
+set -uo pipefail
+
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REMOTE_SHA_UNBORN=0000000000000000000000000000000000000000
+
+status=0
+while read -r _local_ref local_sha _remote_ref remote_sha; do
+  [ "$local_sha" = "$REMOTE_SHA_UNBORN" ] && continue
+
+  if [ "$remote_sha" = "$REMOTE_SHA_UNBORN" ]; then
+    # New branch: scan what it adds on top of the default branch rather than
+    # its whole history, so an old commit cannot block a new branch forever.
+    base=$(git merge-base origin/master "$local_sha" 2>/dev/null) || base=""
+    range="${base:+$base..}$local_sha"
+  else
+    range="$remote_sha..$local_sha"
+  fi
+
+  git diff "$range" 2>/dev/null | "$HOOK_DIR/pii-scan" || status=1
+done
+
+if [ "$status" -ne 0 ]; then
+  echo "   Push aborted. Amend the commits so the data never reaches GitHub;"
+  echo "   pushing first and removing later leaves it in the public history."
+  echo ""
+fi
+
+exit $status

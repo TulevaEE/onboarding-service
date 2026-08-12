@@ -30,10 +30,10 @@ class TradedQuantitySourceTest {
   @InjectMocks private TradedQuantitySource source;
 
   @Test
-  void looksUpTradesSettlingBetweenThePreviousNavDateAndTheNavDate() {
+  void looksUpTradesSettlingAfterThePreviousNavDateAndUpToTheNavDate() {
     given(
             executionRepository.sumExecutedQuantitiesByIsin(
-                TUK75.getCode(), LocalDate.of(2026, 4, 9), NAV_DATE))
+                TUK75.getCode(), PREVIOUS_NAV_DATE, NAV_DATE))
         .willReturn(
             List.of(
                 summary("IE0009FT4LX4", new BigDecimal("1500"), new BigDecimal("200")),

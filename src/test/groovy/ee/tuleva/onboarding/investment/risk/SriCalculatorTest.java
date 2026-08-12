@@ -61,6 +61,28 @@ class SriCalculatorTest {
   }
 
   @Test
+  void aWindowTooShortToStandBehindReportsItsVolatilityWithoutAClass() {
+    var prices = pricesFrom(deterministicReturns(500), LocalDate.of(2024, 1, 1));
+    var evalDate = prices.getLast().date();
+
+    var point = calculator.calculate(prices, evalDate, evalDate).getFirst();
+
+    assertThat(point.riskClass()).isNull();
+    assertThat(point.observationCount()).isEqualTo(499);
+    assertThat(point.volatility()).isPositive();
+  }
+
+  @Test
+  void theVevSpansTheHoldingPeriodRatherThanTheLengthOfTheSample() {
+    var longerSample = onlyPointOf(alternatingReturns(1201));
+    var shorterSample = onlyPointOf(alternatingReturns(1101));
+
+    assertThat(shorterSample.observationCount()).isNotEqualTo(longerSample.observationCount());
+    assertThat(shorterSample.volatility().doubleValue())
+        .isCloseTo(longerSample.volatility().doubleValue(), within(1e-6));
+  }
+
+  @Test
   void cornishFisherCoefficientsMatchTheirClosedForms() {
     assertThat(SriCalculator.SKEW_COEFFICIENT).isCloseTo((Z * Z - 1) / 6, within(1e-4));
     assertThat(SriCalculator.KURTOSIS_COEFFICIENT)
@@ -103,8 +125,8 @@ class SriCalculatorTest {
 
   @Test
   void constantPricesGiveZeroVolatilityAndLowestClassWithoutNaN() {
-    var returns = new double[600];
-    var prices = pricesFrom(returns, LocalDate.of(2024, 1, 1));
+    var returns = new double[1400];
+    var prices = pricesFrom(returns, LocalDate.of(2019, 1, 1));
     var evalDate = prices.getLast().date();
 
     var points = calculator.calculate(prices, evalDate, evalDate);
@@ -118,11 +140,11 @@ class SriCalculatorTest {
 
   @Test
   void extremeVolatilityStaysInTheCornishFisherDomainAndSaturatesAtTheHighestClass() {
-    var returns = deterministicReturns(400);
+    var returns = deterministicReturns(1400);
     for (int i = 0; i < returns.length; i++) {
       returns[i] = returns[i] * 40;
     }
-    var prices = pricesFrom(returns, LocalDate.of(2024, 1, 1));
+    var prices = pricesFrom(returns, LocalDate.of(2019, 1, 1));
     var evalDate = prices.getLast().date();
 
     var points = calculator.calculate(prices, evalDate, evalDate);
@@ -140,6 +162,24 @@ class SriCalculatorTest {
 
     assertThat(points.getFirst().observationCount())
         .isEqualTo(returnsInWindow(prices, evalDate).size());
+  }
+
+  private ReferencePoint onlyPointOf(double[] returns) {
+    var prices = pricesFrom(returns, LocalDate.of(2021, 1, 1));
+    var evalDate = prices.getLast().date();
+
+    var points = calculator.calculate(prices, evalDate, evalDate);
+
+    assertThat(points).hasSize(1);
+    return points.getFirst();
+  }
+
+  private static double[] alternatingReturns(int count) {
+    var returns = new double[count];
+    for (int i = 0; i < count; i++) {
+      returns[i] = i % 2 == 0 ? 0.008 : -0.008;
+    }
+    return returns;
   }
 
   private static double[] deterministicReturns(int count) {
@@ -214,14 +254,15 @@ class SriCalculatorTest {
     double sigma = Math.sqrt(m2);
     double skew = m2 > 0 ? m3 / Math.pow(sigma, 3) : 0;
     double excessKurtosis = m2 > 0 ? m4 / Math.pow(sigma, 4) - 3 : 0;
+    int horizon = SriCalculator.HOLDING_PERIOD_TRADING_DAYS;
     double var =
         -sigma
-                * Math.sqrt(n)
+                * Math.sqrt(horizon)
                 * (Z
-                    - 0.47357647 * (skew / Math.sqrt(n))
-                    + 0.068717874 * (excessKurtosis / n)
-                    - 0.146067276 * (skew * skew / n))
-            - 0.5 * sigma * sigma * n;
+                    - 0.47357647 * (skew / Math.sqrt(horizon))
+                    + 0.068717874 * (excessKurtosis / horizon)
+                    - 0.146067276 * (skew * skew / horizon))
+            - 0.5 * sigma * sigma * horizon;
     return (Math.sqrt(Z * Z - 2 * var) - Z) / Math.sqrt(5);
   }
 }

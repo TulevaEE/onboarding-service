@@ -43,10 +43,7 @@ public class RiskIndicatorService {
     for (var fund : configuredFunds()) {
       var indicatorType = RiskIndicatorType.forFund(fund);
       try {
-        var outcome = evaluate(fund, indicatorType, lookbackMonths);
-        if (outcome != null) {
-          outcomes.add(outcome);
-        }
+        outcomes.add(evaluate(fund, indicatorType, lookbackMonths));
       } catch (Exception e) {
         log.error("Risk indicator evaluation failed: fund={}, type={}", fund, indicatorType, e);
         failures.add("%s %s: %s".formatted(fund, indicatorType, e.getMessage()));
@@ -60,14 +57,13 @@ public class RiskIndicatorService {
     return properties.sources().keySet().stream().sorted(Comparator.naturalOrder()).toList();
   }
 
-  private @Nullable RiskIndicatorOutcome evaluate(
+  private RiskIndicatorOutcome evaluate(
       TulevaFund fund, RiskIndicatorType indicatorType, int lookbackMonths) {
     var refresh = seriesService.refreshSeries(fund, indicatorType, lookbackMonths);
 
     var storedSeries = storedSeries(fund, indicatorType);
     if (storedSeries.isEmpty()) {
-      log.warn("No risk indicator reference points: fund={}, type={}", fund, indicatorType);
-      return null;
+      throw new IllegalStateException("no reference points stored");
     }
 
     var previous = snapshotOfLastNotifiedPublication(fund, indicatorType);

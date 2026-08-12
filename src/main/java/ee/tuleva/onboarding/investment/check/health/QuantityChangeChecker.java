@@ -70,12 +70,8 @@ class QuantityChangeChecker {
       BigDecimal currentQuantity,
       TradedQuantity traded) {
     BigDecimal quantityChange = currentQuantity.subtract(previousQuantity);
-    if (quantityChange.abs().compareTo(ROUNDING_TOLERANCE) < 0) {
-      return null;
-    }
-
-    BigDecimal budget = traded.budgetFor(quantityChange);
-    if (quantityChange.abs().compareTo(budget) <= 0) {
+    BigDecimal expectedChange = traded.netChange();
+    if (quantityChange.subtract(expectedChange).abs().compareTo(ROUNDING_TOLERANCE) < 0) {
       return null;
     }
 
@@ -83,13 +79,13 @@ class QuantityChangeChecker {
         fund,
         QUANTITY_CHANGE,
         WARNING,
-        "%s: SECURITY quantity changed by %s for ISIN %s (previous %s, current %s) — not explained by executed transactions (available %s)"
+        "%s: SECURITY quantity changed by %s for ISIN %s (previous %s, current %s) — executed transactions explain %s"
             .formatted(
                 fund,
                 quantityChange.toPlainString(),
                 isin,
                 previousQuantity.toPlainString(),
                 currentQuantity.toPlainString(),
-                budget.toPlainString()));
+                expectedChange.toPlainString()));
   }
 }

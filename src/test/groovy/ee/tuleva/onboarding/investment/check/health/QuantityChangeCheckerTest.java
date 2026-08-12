@@ -124,14 +124,59 @@ class QuantityChangeCheckerTest {
   }
 
   @Test
-  void noFindingsWhenOnlyPartOfAnExecutedBuyHasSettled() {
+  void noFindingsWhenABuyAndASellNetToTheReportedChange() {
+    var today = List.of(security("IE0009FT4LX4", new BigDecimal("1100")));
+    var previous = List.of(security("IE0009FT4LX4", new BigDecimal("1000")));
+    var traded =
+        Map.of("IE0009FT4LX4", new TradedQuantity(new BigDecimal("1000"), new BigDecimal("900")));
+
+    var findings = checker.check(TUK75, today, previous, traded);
+
+    assertThat(findings).isEmpty();
+  }
+
+  @Test
+  void warnsWhenTheChangeIgnoresASettledSaleAndOnlyMatchesTheBuys() {
+    var today = List.of(security("IE0009FT4LX4", new BigDecimal("2000")));
+    var previous = List.of(security("IE0009FT4LX4", new BigDecimal("1000")));
+    var traded =
+        Map.of("IE0009FT4LX4", new TradedQuantity(new BigDecimal("1000"), new BigDecimal("900")));
+
+    var findings = checker.check(TUK75, today, previous, traded);
+
+    assertThat(findings)
+        .singleElement()
+        .satisfies(
+            f -> {
+              assertThat(f.severity()).isEqualTo(WARNING);
+              assertThat(f.message()).contains("IE0009FT4LX4", "1000", "2000", "100");
+            });
+  }
+
+  @Test
+  void warnsWhenLessSettledThanWeTraded() {
     var today = List.of(security("IE0009FT4LX4", new BigDecimal("1200")));
     var previous = List.of(security("IE0009FT4LX4", new BigDecimal("1000")));
     var traded = Map.of("IE0009FT4LX4", new TradedQuantity(new BigDecimal("500"), ZERO));
 
     var findings = checker.check(TUK75, today, previous, traded);
 
-    assertThat(findings).isEmpty();
+    assertThat(findings)
+        .singleElement()
+        .satisfies(f -> assertThat(f.severity()).isEqualTo(WARNING));
+  }
+
+  @Test
+  void warnsWhenAnExecutedSaleDidNotMoveThePositionAtAll() {
+    var today = List.of(security("IE0009FT4LX4", new BigDecimal("1000")));
+    var previous = List.of(security("IE0009FT4LX4", new BigDecimal("1000")));
+    var traded = Map.of("IE0009FT4LX4", new TradedQuantity(ZERO, new BigDecimal("600")));
+
+    var findings = checker.check(TUK75, today, previous, traded);
+
+    assertThat(findings)
+        .singleElement()
+        .satisfies(f -> assertThat(f.severity()).isEqualTo(WARNING));
   }
 
   @Test

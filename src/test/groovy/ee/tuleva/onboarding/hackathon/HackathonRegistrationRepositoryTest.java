@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.hackathon;
 
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.hackathon.HackathonChallenge.COLLECTIVE_BUYING_POWER;
 import static ee.tuleva.onboarding.hackathon.HackathonChallenge.FAIR_LENDING;
 import static ee.tuleva.onboarding.hackathon.HackathonParticipation.LOOKING_FOR_TEAM;
@@ -26,17 +27,8 @@ class HackathonRegistrationRepositoryTest {
   @Autowired HackathonRegistrationRepository repository;
   @Autowired TestEntityManager entityManager;
 
-  private User persistedUser(String personalCode) {
-    return entityManager.persistAndFlush(
-        User.builder()
-            .personalCode(personalCode)
-            .firstName("Test")
-            .lastName("Person")
-            .email(personalCode + "@example.com")
-            .createdDate(Instant.parse("2026-08-12T10:00:00Z"))
-            .updatedDate(Instant.parse("2026-08-12T10:00:00Z"))
-            .active(true)
-            .build());
+  private User persistedUser() {
+    return entityManager.persistAndFlush(sampleUser().id(null).member(null).build());
   }
 
   private HackathonRegistration.HackathonRegistrationBuilder registration(Long userId) {
@@ -56,7 +48,7 @@ class HackathonRegistrationRepositoryTest {
 
   @Test
   void savesAndReadsBackTheSkillAndChallengeLists() {
-    var user = persistedUser("38812121215");
+    var user = persistedUser();
 
     repository.saveAndFlush(registration(user.getId()).build());
     entityManager.clear();
@@ -72,7 +64,7 @@ class HackathonRegistrationRepositoryTest {
 
   @Test
   void savesEmptySkillAndChallengeLists() {
-    var user = persistedUser("38812121215");
+    var user = persistedUser();
 
     repository.saveAndFlush(
         registration(user.getId()).skills(List.of()).challenges(List.of()).build());
@@ -85,7 +77,7 @@ class HackathonRegistrationRepositoryTest {
 
   @Test
   void savesWithoutTheOptionalFields() {
-    var user = persistedUser("38812121215");
+    var user = persistedUser();
 
     repository.saveAndFlush(
         registration(user.getId()).phoneNumber(null).idea(null).linkedinUrl(null).build());
@@ -99,7 +91,7 @@ class HackathonRegistrationRepositoryTest {
 
   @Test
   void allowsOnlyOneRegistrationPerUser() {
-    var user = persistedUser("38812121215");
+    var user = persistedUser();
     repository.saveAndFlush(registration(user.getId()).build());
 
     assertThatThrownBy(() -> repository.saveAndFlush(registration(user.getId()).build()))
@@ -108,7 +100,7 @@ class HackathonRegistrationRepositoryTest {
 
   @Test
   void findByUserId_withoutARegistration_isEmpty() {
-    var user = persistedUser("38812121215");
+    var user = persistedUser();
 
     assertThat(repository.findByUserId(user.getId())).isEmpty();
   }

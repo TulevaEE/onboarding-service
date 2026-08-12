@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.notification.OperationsNotificationService.Ch
 
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import ee.tuleva.onboarding.deadline.BusinessDays;
+import ee.tuleva.onboarding.investment.risk.RiskIndicatorService.PublicationSnapshot;
 import ee.tuleva.onboarding.investment.risk.RiskIndicatorService.RiskIndicatorOutcome;
 import ee.tuleva.onboarding.investment.risk.RiskIndicatorService.RiskIndicatorRun;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
@@ -126,19 +127,25 @@ class RiskIndicatorNotifier {
 
     // A document that disagrees with the computed class is a compliance defect, not a transition:
     // it is just as true on the very first run, so it is not suppressed on a cold start.
-    // Whether we were already mismatched has to be judged against the document as it stood when
-    // we last spoke, not against today's. Comparing yesterday's computed class to today's
-    // disclosure would call a freshly mistyped disclosure row "already known" and swallow the
-    // alert -- and a wrong INSERT is the likeliest failure of a hand-maintained table.
-    var mismatched = isMismatched(disclosed, indicator);
-    var wasMismatched =
-        previous != null
-            && previous.notifiedDisclosedClass() != null
-            && !Objects.equals(previous.publishedClass(), previous.notifiedDisclosedClass());
-    if (mismatched && !wasMismatched) {
+    if (isMismatched(disclosed, indicator) && !isSameMismatchAlreadyReported(previous, disclosed)) {
       lines.add(mismatchLine(indicator, disclosed));
     }
     return lines;
+  }
+
+  /**
+   * Only the mismatch we already put into Slack is old news. Both a first mistyped INSERT and a
+   * correction from one wrong class to another are new information, and a hand-maintained table
+   * fails in exactly those two ways -- so the mismatch has to be identified by the class the
+   * document carried when we last spoke, not merely by the fact that some mismatch existed.
+   */
+  private boolean isSameMismatchAlreadyReported(
+      @Nullable PublicationSnapshot previous, @Nullable DisclosedRiskIndicator disclosed) {
+    return previous != null
+        && previous.notifiedDisclosedClass() != null
+        && !Objects.equals(previous.publishedClass(), previous.notifiedDisclosedClass())
+        && disclosed != null
+        && Objects.equals(previous.notifiedDisclosedClass(), disclosed.getDisclosedClass());
   }
 
   // --- monthly digest ---------------------------------------------------------------------

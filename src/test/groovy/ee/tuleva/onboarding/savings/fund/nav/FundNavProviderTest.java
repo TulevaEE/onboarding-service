@@ -146,7 +146,7 @@ class FundNavProviderTest {
   }
 
   @Test
-  void getVerifiedNav_ignoresNavPublishedAfterTheDealingDate() {
+  void getVerifiedNav_comparesAgainstThePreviousWorkingDayAcrossAWeekend() {
     var provider = provider("2025-01-15T15:30:00");
     LocalDate dealingDate = LocalDate.of(2025, 1, 13);
     LocalDate previousDealingDate = LocalDate.of(2025, 1, 10);

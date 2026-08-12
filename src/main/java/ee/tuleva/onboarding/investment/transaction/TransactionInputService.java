@@ -106,7 +106,8 @@ public class TransactionInputService {
         asOfDate,
         positionDate);
 
-    PendingOrderImpact pendingOrders = pendingOrderImpactService.calculate(fund, asOfDate);
+    PendingOrderImpact pendingOrders =
+        pendingOrderImpactService.calculate(fund, asOfDate, positionDate);
     List<PositionSnapshot> positions =
         applyUnreportedPositions(getPositions(fund, positionDate), pendingOrders);
     BigDecimal reportCash = getCashBalance(fund, positionDate);

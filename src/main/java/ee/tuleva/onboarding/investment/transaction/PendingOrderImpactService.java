@@ -1,14 +1,16 @@
 package ee.tuleva.onboarding.investment.transaction;
 
+import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
-import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SENT;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,11 +28,13 @@ import org.springframework.stereotype.Component;
 @NullMarked
 class PendingOrderImpactService {
 
+  private static final ZoneId TALLINN = ZoneId.of(TIMEZONE);
+
   private final TransactionOrderRepository orderRepository;
   private final TransactionExecutionRepository executionRepository;
   private final PositionPriceResolver positionPriceResolver;
 
-  PendingOrderImpact calculate(TulevaFund fund, LocalDate asOfDate) {
+  PendingOrderImpact calculate(TulevaFund fund, LocalDate asOfDate, LocalDate positionDate) {
     List<TransactionOrder> unsettled = orderRepository.findUnsettledOrders(fund, asOfDate);
     if (unsettled.isEmpty()) {
       return PendingOrderImpact.none();
@@ -51,7 +55,7 @@ class PendingOrderImpactService {
         pendingSells = pendingSells.add(cashImpact);
       }
 
-      if (order.getOrderStatus() != SENT) {
+      if (!isMissingFromPositionReport(order, positionDate)) {
         continue;
       }
       BigDecimal signedValue = signed(order, estimatedValue(order, asOfDate));
@@ -74,6 +78,13 @@ class PendingOrderImpactService {
 
     return new PendingOrderImpact(
         pendingBuys, pendingSells, Map.copyOf(unreportedValues), Map.copyOf(unreportedQuantities));
+  }
+
+  private static boolean isMissingFromPositionReport(
+      TransactionOrder order, LocalDate positionDate) {
+    Instant orderTimestamp = order.getOrderTimestamp();
+    return orderTimestamp != null
+        && orderTimestamp.atZone(TALLINN).toLocalDate().isAfter(positionDate);
   }
 
   private Map<Long, BigDecimal> executedConsiderationByOrderId(List<TransactionOrder> orders) {

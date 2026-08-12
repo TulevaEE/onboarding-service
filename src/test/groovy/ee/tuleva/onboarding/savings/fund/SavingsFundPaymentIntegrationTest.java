@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.seb.Seb.SEB_GATEWAY_TIME_ZONE;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.*;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.FUND_TRANSFER;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_BOUNCE_BACK;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_CANCELLED;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
@@ -23,6 +24,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.ledger.LedgerAccount;
+import ee.tuleva.onboarding.ledger.LedgerEntry;
 import ee.tuleva.onboarding.ledger.LedgerParty;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
@@ -37,6 +39,8 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -73,6 +77,10 @@ class SavingsFundPaymentIntegrationTest {
   private static final Instant NOW = Instant.parse("2025-09-29T15:00:00Z");
 
   private User testUser;
+
+  // Tests share one database with other Gradle forks, so every assertion is scoped to the payments
+  // this test itself created
+  private final Set<UUID> ownedPaymentIds = new HashSet<>();
 
   @BeforeEach
   void setUp() {
@@ -139,10 +147,11 @@ class SavingsFundPaymentIntegrationTest {
             .externalId("2025092412345-1")
             .build();
 
-    var payments = paymentRepository.findAll();
+    var payment = paymentRepository.findByExternalId("2025092412345-1").orElseThrow();
 
-    assertThat(payments)
-        .usingRecursiveFieldByFieldElementComparatorOnFields(
+    assertThat(payment)
+        .usingRecursiveComparison()
+        .comparingOnlyFields(
             "amount",
             "currency",
             "status",
@@ -152,11 +161,11 @@ class SavingsFundPaymentIntegrationTest {
             "beneficiaryIban",
             "description",
             "externalId")
-        .containsExactly(expectedPayment);
+        .isEqualTo(expectedPayment);
 
-    var payment = payments.getFirst();
     assertThat(payment.getPartyId()).as("Payment should not be attached to any party yet").isNull();
     var paymentId = payment.getId();
+    ownedPaymentIds.add(paymentId);
 
     // Step 2: Run verification job → Payment should be VERIFIED and attached to user
     paymentVerificationJob.runJob();
@@ -167,8 +176,8 @@ class SavingsFundPaymentIntegrationTest {
 
     // Assert ledger: user cash liability increased, incoming payments clearing increased
     var paymentAmount = new BigDecimal("100.50");
-    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(paymentAmount.negate());
-    assertThat(getIncomingPaymentsClearingAccount().getBalance())
+    assertThat(scopedBalance(getUserCashAccount())).isEqualByComparingTo(paymentAmount.negate());
+    assertThat(scopedBalance(getIncomingPaymentsClearingAccount()))
         .isEqualByComparingTo(paymentAmount);
 
     // Step 3: Run reservation job → Payment should be RESERVED
@@ -178,10 +187,10 @@ class SavingsFundPaymentIntegrationTest {
     assertThat(payment.getStatus()).isEqualTo(RESERVED);
 
     // Assert ledger: cash moved to cash_reserved
-    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getUserCashReservedAccount().getBalance())
+    assertThat(scopedBalance(getUserCashAccount())).isEqualByComparingTo(ZERO);
+    assertThat(scopedBalance(getUserCashReservedAccount()))
         .isEqualByComparingTo(paymentAmount.negate());
-    assertThat(getIncomingPaymentsClearingAccount().getBalance())
+    assertThat(scopedBalance(getIncomingPaymentsClearingAccount()))
         .isEqualByComparingTo(paymentAmount);
 
     // Step 4: Run issuing job → Payment should be ISSUED
@@ -192,13 +201,13 @@ class SavingsFundPaymentIntegrationTest {
 
     // Assert ledger: fund units issued from reserved cash
     var fundUnits = new BigDecimal("100.50000"); // NAV = 1.0, so units = amount
-    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getUserUnitsAccount().getBalance()).isEqualByComparingTo(fundUnits.negate());
-    assertThat(getUserSubscriptionsAccount().getBalance())
+    assertThat(scopedBalance(getUserCashAccount())).isEqualByComparingTo(ZERO);
+    assertThat(scopedBalance(getUserCashReservedAccount())).isEqualByComparingTo(ZERO);
+    assertThat(scopedBalance(getUserUnitsAccount())).isEqualByComparingTo(fundUnits.negate());
+    assertThat(scopedBalance(getUserSubscriptionsAccount()))
         .isEqualByComparingTo(paymentAmount.negate());
-    assertThat(getFundUnitsOutstandingAccount().getBalance()).isEqualByComparingTo(fundUnits);
-    assertThat(getIncomingPaymentsClearingAccount().getBalance())
+    assertThat(scopedBalance(getFundUnitsOutstandingAccount())).isEqualByComparingTo(fundUnits);
+    assertThat(scopedBalance(getIncomingPaymentsClearingAccount()))
         .isEqualByComparingTo(paymentAmount);
 
     // Step 5: Run fund account payment job → Payment should be PROCESSED
@@ -215,21 +224,15 @@ class SavingsFundPaymentIntegrationTest {
     eventPublisher.publishEvent(new ProcessBankMessagesRequested());
 
     // Verify outgoing payment was created and processed
-    var allPayments = paymentRepository.findAll();
-    assertThat(allPayments).hasSize(2); // Original incoming + new outgoing
-    var outgoingPayment =
-        allPayments.stream()
-            .filter(p -> p.getAmount().compareTo(ZERO) < 0)
-            .findFirst()
-            .orElseThrow();
+    var outgoingPayment = paymentRepository.findByExternalId("2025092915000-1").orElseThrow();
     assertThat(outgoingPayment.getAmount()).isEqualByComparingTo(paymentAmount.negate());
     assertThat(outgoingPayment.getStatus()).isEqualTo(PROCESSED);
     assertThat(outgoingPayment.getBeneficiaryIban()).isEqualTo(investmentIban);
 
     // Assert final ledger: funds transferred from INCOMING_PAYMENTS_CLEARING to
     // FUND_INVESTMENT_CASH_CLEARING
-    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getFundInvestmentCashClearingAccount().getBalance())
+    assertThat(scopedBalance(getIncomingPaymentsClearingAccount())).isEqualByComparingTo(ZERO);
+    assertThat(scopedBalance(getFundInvestmentCashClearingAccount()))
         .isEqualByComparingTo(paymentAmount);
   }
 
@@ -258,12 +261,13 @@ class SavingsFundPaymentIntegrationTest {
                 .receivedBefore(
                     bookingDate.atTime(9, 0).atZone(ZoneId.of("Europe/Tallinn")).toInstant())
                 .build());
+    ownedPaymentIds.add(paymentId);
     paymentRepository.changeStatus(paymentId, RECEIVED);
     paymentRepository.changeStatus(paymentId, TO_BE_RETURNED);
     paymentRepository.changeStatus(paymentId, RETURNED);
     savingsFundLedger.recordUnattributedPayment(amount, paymentId, bookingDate);
 
-    assertThat(getUnreconciledBankReceiptsAccount().getBalance())
+    assertThat(scopedBalance(getUnreconciledBankReceiptsAccount()))
         .isEqualByComparingTo(amount.negate());
 
     // When: ops attributes it to the member (outbound return cancelled in the bank)
@@ -273,16 +277,16 @@ class SavingsFundPaymentIntegrationTest {
     var payment = paymentRepository.findById(paymentId).orElseThrow();
     assertThat(payment.getStatus()).isEqualTo(VERIFIED);
     assertThat(payment.getPartyId()).isEqualTo(party);
-    assertThat(getUnreconciledBankReceiptsAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(amount.negate());
-    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(amount);
+    assertThat(scopedBalance(getUnreconciledBankReceiptsAccount())).isEqualByComparingTo(ZERO);
+    assertThat(scopedBalance(getUserCashAccount())).isEqualByComparingTo(amount.negate());
+    assertThat(scopedBalance(getIncomingPaymentsClearingAccount())).isEqualByComparingTo(amount);
 
     // Reservation job -> RESERVED
     savingsFundReservationJob.runJob();
     payment = paymentRepository.findById(paymentId).orElseThrow();
     assertThat(payment.getStatus()).isEqualTo(RESERVED);
-    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(amount.negate());
+    assertThat(scopedBalance(getUserCashAccount())).isEqualByComparingTo(ZERO);
+    assertThat(scopedBalance(getUserCashReservedAccount())).isEqualByComparingTo(amount.negate());
 
     // Issuing job -> ISSUED, units issued at NAV 1.0
     issuingJob.runJob();
@@ -290,12 +294,12 @@ class SavingsFundPaymentIntegrationTest {
     assertThat(payment.getStatus()).isEqualTo(ISSUED);
 
     var fundUnits = new BigDecimal("100.50000");
-    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getUserUnitsAccount().getBalance()).isEqualByComparingTo(fundUnits.negate());
-    assertThat(getUserSubscriptionsAccount().getBalance()).isEqualByComparingTo(amount.negate());
-    assertThat(getFundUnitsOutstandingAccount().getBalance()).isEqualByComparingTo(fundUnits);
-    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(amount);
+    assertThat(scopedBalance(getUserCashAccount())).isEqualByComparingTo(ZERO);
+    assertThat(scopedBalance(getUserCashReservedAccount())).isEqualByComparingTo(ZERO);
+    assertThat(scopedBalance(getUserUnitsAccount())).isEqualByComparingTo(fundUnits.negate());
+    assertThat(scopedBalance(getUserSubscriptionsAccount())).isEqualByComparingTo(amount.negate());
+    assertThat(scopedBalance(getFundUnitsOutstandingAccount())).isEqualByComparingTo(fundUnits);
+    assertThat(scopedBalance(getIncomingPaymentsClearingAccount())).isEqualByComparingTo(amount);
   }
 
   // XML template with a single CREDIT transaction from 3 working days ago (Wed 2025-09-24)
@@ -435,6 +439,23 @@ class SavingsFundPaymentIntegrationTest {
     return ledgerService.getSystemAccount(UNRECONCILED_BANK_RECEIPTS, TKF100);
   }
 
+  // Balance of only the entries booked for this test's own payments
+  private BigDecimal scopedBalance(LedgerAccount account) {
+    return account.getEntries().stream()
+        .filter(this::isOwnEntry)
+        .map(LedgerEntry::getAmount)
+        .reduce(ZERO, BigDecimal::add);
+  }
+
+  // The statement processor books FUND_TRANSFER from the payment it just extracted, which has no id
+  // yet, so that transaction carries no external reference and is recognised by its type instead
+  private boolean isOwnEntry(LedgerEntry entry) {
+    var transaction = entry.getTransaction();
+    return ownedPaymentIds.contains(transaction.getExternalReference())
+        || (transaction.getExternalReference() == null
+            && transaction.getTransactionType() == FUND_TRANSFER);
+  }
+
   @Test
   void deferredReturnMatcher_createsBounceback_whenUnattributedPaymentExists() {
     var differentUser =
@@ -455,8 +476,9 @@ class SavingsFundPaymentIntegrationTest {
     persistXmlMessage(xml, NOW);
     eventPublisher.publishEvent(new ProcessBankMessagesRequested());
 
-    var payment = paymentRepository.findAll().getFirst();
+    var payment = paymentRepository.findByExternalId("2025092909000-1").orElseThrow();
     var paymentId = payment.getId();
+    ownedPaymentIds.add(paymentId);
 
     // Step 2: Verification → UNATTRIBUTED_PAYMENT + TO_BE_RETURNED
     paymentVerificationJob.runJob();
@@ -466,19 +488,20 @@ class SavingsFundPaymentIntegrationTest {
 
     // At this point, UNATTRIBUTED_PAYMENT ledger entry exists but no PAYMENT_BOUNCE_BACK
     var paymentAmount = new BigDecimal("50.00");
-    assertThat(getUnreconciledBankReceiptsAccount().getBalance())
+    assertThat(scopedBalance(getUnreconciledBankReceiptsAccount()))
         .isEqualByComparingTo(paymentAmount.negate());
-    assertThat(getIncomingPaymentsClearingAccount().getBalance())
+    assertThat(scopedBalance(getIncomingPaymentsClearingAccount()))
         .isEqualByComparingTo(paymentAmount);
 
     // Step 3: Process return payment XML in a SEPARATE batch (deferred scenario)
+    // The bounce back is booked against the original payment, so nothing new to own here
     var returnXml = createReturnPaymentXml(paymentId);
     persistXmlMessage(returnXml, NOW);
     eventPublisher.publishEvent(new ProcessBankMessagesRequested());
 
     // The DeferredReturnMatcher should fire and create PAYMENT_BOUNCE_BACK
-    assertThat(getUnreconciledBankReceiptsAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(scopedBalance(getUnreconciledBankReceiptsAccount())).isEqualByComparingTo(ZERO);
+    assertThat(scopedBalance(getIncomingPaymentsClearingAccount())).isEqualByComparingTo(ZERO);
   }
 
   @Test
@@ -490,7 +513,8 @@ class SavingsFundPaymentIntegrationTest {
     // Step 1: incoming payment that fails automatic identification
     persistXmlMessage(createUnverifiablePaymentXml(), NOW);
     eventPublisher.publishEvent(new ProcessBankMessagesRequested());
-    var paymentId = paymentRepository.findAll().getFirst().getId();
+    var paymentId = paymentRepository.findByExternalId("2025092909000-1").orElseThrow().getId();
+    ownedPaymentIds.add(paymentId);
 
     // Step 2: verification parks it as unattributed and flags it for return
     paymentVerificationJob.runJob();
@@ -504,9 +528,9 @@ class SavingsFundPaymentIntegrationTest {
     var payment = paymentRepository.findById(paymentId).orElseThrow();
     assertThat(payment.getStatus()).isEqualTo(VERIFIED);
     assertThat(payment.getPartyId()).isEqualTo(party);
-    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(paymentAmount.negate());
-    assertThat(getUnreconciledBankReceiptsAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getIncomingPaymentsClearingAccount().getBalance())
+    assertThat(scopedBalance(getUserCashAccount())).isEqualByComparingTo(paymentAmount.negate());
+    assertThat(scopedBalance(getUnreconciledBankReceiptsAccount())).isEqualByComparingTo(ZERO);
+    assertThat(scopedBalance(getIncomingPaymentsClearingAccount()))
         .isEqualByComparingTo(paymentAmount);
 
     // Step 4: the outbound return executes anyway and is matched in a later batch
@@ -518,9 +542,9 @@ class SavingsFundPaymentIntegrationTest {
     assertThat(payment.getStatus()).isEqualTo(VERIFIED);
     assertThat(savingsFundLedger.hasLedgerEntry(paymentId, PAYMENT_BOUNCE_BACK)).isFalse();
     assertThat(savingsFundLedger.hasLedgerEntry(paymentId, PAYMENT_CANCELLED)).isFalse();
-    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(paymentAmount.negate());
-    assertThat(getUnreconciledBankReceiptsAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getIncomingPaymentsClearingAccount().getBalance())
+    assertThat(scopedBalance(getUserCashAccount())).isEqualByComparingTo(paymentAmount.negate());
+    assertThat(scopedBalance(getUnreconciledBankReceiptsAccount())).isEqualByComparingTo(ZERO);
+    assertThat(scopedBalance(getIncomingPaymentsClearingAccount()))
         .isEqualByComparingTo(paymentAmount);
   }
 
@@ -564,11 +588,12 @@ class SavingsFundPaymentIntegrationTest {
             .externalId("2025092909000-1")
             .build();
 
-    var payments = paymentRepository.findAll();
+    var payment = paymentRepository.findByExternalId("2025092909000-1").orElseThrow();
 
     // Compare the actual fields we care about (ID and timestamps will be generated)
-    assertThat(payments)
-        .usingRecursiveFieldByFieldElementComparatorOnFields(
+    assertThat(payment)
+        .usingRecursiveComparison()
+        .comparingOnlyFields(
             "amount",
             "currency",
             "status",
@@ -578,10 +603,10 @@ class SavingsFundPaymentIntegrationTest {
             "beneficiaryIban",
             "description",
             "externalId")
-        .containsExactly(expectedPayment);
+        .isEqualTo(expectedPayment);
 
-    var payment = payments.getFirst();
     var paymentId = payment.getId();
+    ownedPaymentIds.add(paymentId);
 
     // Step 2: Run verification job → Payment should be TO_BE_RETURNED
     paymentVerificationJob.runJob();
@@ -594,9 +619,9 @@ class SavingsFundPaymentIntegrationTest {
 
     // Assert ledger: payment recorded as unattributed
     var paymentAmount = new BigDecimal("50.00");
-    assertThat(getUnreconciledBankReceiptsAccount().getBalance())
+    assertThat(scopedBalance(getUnreconciledBankReceiptsAccount()))
         .isEqualByComparingTo(paymentAmount.negate());
-    assertThat(getIncomingPaymentsClearingAccount().getBalance())
+    assertThat(scopedBalance(getIncomingPaymentsClearingAccount()))
         .isEqualByComparingTo(paymentAmount);
 
     // Step 3: Process outgoing return XML → Ledger should record bounce back
@@ -605,19 +630,14 @@ class SavingsFundPaymentIntegrationTest {
     eventPublisher.publishEvent(new ProcessBankMessagesRequested());
 
     // Verify return payment was created
-    var allPayments = paymentRepository.findAll();
-    assertThat(allPayments).hasSize(2); // Original incoming + return
-    var returnPayment =
-        allPayments.stream()
-            .filter(p -> p.getAmount().compareTo(ZERO) < 0)
-            .findFirst()
-            .orElseThrow();
+    // The bounce back is booked against the original payment, so nothing new to own here
+    var returnPayment = paymentRepository.findByExternalId("2025092914000-1").orElseThrow();
     assertThat(returnPayment.getAmount()).isEqualByComparingTo(paymentAmount.negate());
     assertThat(returnPayment.getStatus()).isEqualTo(PROCESSED);
 
     // Assert final ledger: bounce back recorded, clearing accounts balanced
-    assertThat(getUnreconciledBankReceiptsAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(scopedBalance(getUnreconciledBankReceiptsAccount())).isEqualByComparingTo(ZERO);
+    assertThat(scopedBalance(getIncomingPaymentsClearingAccount())).isEqualByComparingTo(ZERO);
   }
 
   private String createUnverifiablePaymentXml() {

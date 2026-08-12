@@ -221,16 +221,73 @@ class PendingOrderImpactServiceTest {
             List.of(
                 TransactionExecution.builder()
                     .orderId(1L)
+                    .executedQuantity(new BigDecimal("60"))
                     .totalConsideration(new BigDecimal("2000"))
                     .build(),
                 TransactionExecution.builder()
                     .orderId(1L)
+                    .executedQuantity(new BigDecimal("40"))
                     .totalConsideration(new BigDecimal("1500"))
                     .build()));
 
     var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
 
     assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("3500"));
+  }
+
+  @Test
+  void aPartiallyFilledEtfBuyStillReservesTheUnfilledRemainder() {
+    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
+        .willReturn(
+            List.of(
+                order(
+                    1L,
+                    "IE00A",
+                    TransactionType.BUY,
+                    InstrumentType.ETF,
+                    OrderStatus.EXECUTED,
+                    new BigDecimal("100"),
+                    new BigDecimal("5000"))));
+    given(executionRepository.findByOrderIdIn(List.of(1L)))
+        .willReturn(
+            List.of(
+                TransactionExecution.builder()
+                    .orderId(1L)
+                    .executedQuantity(new BigDecimal("30"))
+                    .totalConsideration(new BigDecimal("1500"))
+                    .build()));
+    given(positionPriceResolver.resolve("IE00A", AS_OF_DATE))
+        .willReturn(Optional.of(ResolvedPrice.builder().usedPrice(new BigDecimal("50")).build()));
+
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
+
+    assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("5000"));
+  }
+
+  @Test
+  void aPartiallyFilledFundBuyStillReservesTheUnfilledRemainder() {
+    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
+        .willReturn(
+            List.of(
+                order(
+                    1L,
+                    "IE00FUND",
+                    TransactionType.BUY,
+                    InstrumentType.FUND,
+                    OrderStatus.EXECUTED,
+                    null,
+                    new BigDecimal("100000"))));
+    given(executionRepository.findByOrderIdIn(List.of(1L)))
+        .willReturn(
+            List.of(
+                TransactionExecution.builder()
+                    .orderId(1L)
+                    .totalConsideration(new BigDecimal("30000"))
+                    .build()));
+
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
+
+    assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("100000"));
   }
 
   @Test

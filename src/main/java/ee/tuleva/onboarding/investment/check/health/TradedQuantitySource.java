@@ -16,16 +16,12 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class TradedQuantitySource {
 
-  private static final int LATE_SETTLEMENT_DAYS = 5;
-
   private final TransactionExecutionRepository executionRepository;
 
   Map<String, TradedQuantity> resolve(
       TulevaFund fund, LocalDate previousNavDate, LocalDate navDate) {
-    LocalDate fromExclusive = previousNavDate.minusDays(LATE_SETTLEMENT_DAYS);
-
     return executionRepository
-        .sumExecutedQuantitiesByIsin(fund.getCode(), fromExclusive, navDate)
+        .sumExecutedQuantitiesByIsin(fund.getCode(), previousNavDate, navDate)
         .stream()
         .collect(
             Collectors.toMap(

@@ -59,3 +59,6 @@ src/test/resources/banking/seb/real-data/
 .claude/scheduled_tasks.lock
 CLAUDE.local.md
 .playwright-mcp/
+
+# Transient git worktrees used by coding agents
+.claude/worktrees/

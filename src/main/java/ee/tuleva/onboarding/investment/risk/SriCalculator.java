@@ -30,8 +30,13 @@ class SriCalculator {
 
   private static final int RECOMMENDED_HOLDING_PERIOD_YEARS = 5;
   private static final int OBSERVATION_WINDOW_YEARS = 5;
+  private static final int TRADING_DAYS_PER_YEAR = 260;
   private static final int MINIMUM_RETURNS = 2;
+  private static final int MINIMUM_OBSERVATIONS = 1000;
   private static final int VOLATILITY_SCALE = 12;
+
+  static final int HOLDING_PERIOD_TRADING_DAYS =
+      RECOMMENDED_HOLDING_PERIOD_YEARS * TRADING_DAYS_PER_YEAR;
 
   List<ReferencePoint> calculate(List<FundValue> prices, LocalDate from, LocalDate to) {
     var series = tradingDayPrices(prices);
@@ -111,7 +116,7 @@ class SriCalculator {
     var skew = m2 > 0 ? (s3 / n) / (sigma * sigma * sigma) : 0.0;
     var excessKurtosis = m2 > 0 ? (s4 / n) / (sigma * sigma * sigma * sigma) - 3.0 : 0.0;
 
-    var valueAtRisk = valueAtRisk(sigma, skew, excessKurtosis, n);
+    var valueAtRisk = valueAtRisk(sigma, skew, excessKurtosis);
     var discriminant = Z * Z - 2 * valueAtRisk;
     if (discriminant < 0) {
       throw new IllegalStateException(
@@ -123,7 +128,7 @@ class SriCalculator {
     var volatility = BigDecimal.valueOf(vev).setScale(VOLATILITY_SCALE, RoundingMode.HALF_UP);
     return new ReferencePoint(
         evalDate,
-        RiskClassBucket.mrmClass(vev),
+        n >= MINIMUM_OBSERVATIONS ? RiskClassBucket.mrmClass(vev) : null,
         n,
         volatility,
         Map.of(
@@ -133,15 +138,22 @@ class SriCalculator {
             "valueAtRisk", valueAtRisk));
   }
 
-  private double valueAtRisk(double sigma, double skew, double excessKurtosis, int n) {
-    var rootN = Math.sqrt(n);
+  /**
+   * N is the number of trading periods in the recommended holding period, not the number of
+   * observations the moments were estimated from. Feeding the sample size in scales the whole
+   * quantile to whatever history happens to be loaded: a short series collapses the VEV several
+   * fold and reports a risk class low enough to demand a KID reissue.
+   */
+  private double valueAtRisk(double sigma, double skew, double excessKurtosis) {
+    var horizon = HOLDING_PERIOD_TRADING_DAYS;
+    var rootHorizon = Math.sqrt(horizon);
     return -sigma
-            * rootN
+            * rootHorizon
             * (Z
-                - SKEW_COEFFICIENT * (skew / rootN)
-                + KURTOSIS_COEFFICIENT * (excessKurtosis / n)
-                - SKEW_SQUARED_COEFFICIENT * (skew * skew / n))
-        - 0.5 * sigma * sigma * n;
+                - SKEW_COEFFICIENT * (skew / rootHorizon)
+                + KURTOSIS_COEFFICIENT * (excessKurtosis / horizon)
+                - SKEW_SQUARED_COEFFICIENT * (skew * skew / horizon))
+        - 0.5 * sigma * sigma * horizon;
   }
 
   private record DatedReturn(LocalDate date, double value) {}

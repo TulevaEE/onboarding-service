@@ -230,8 +230,8 @@ public class TransactionInputService {
                 position ->
                     adjustPosition(
                         position,
-                        values.getOrDefault(position.isin(), ZERO),
-                        quantities.getOrDefault(position.isin(), ZERO)))
+                        deltaFor(values, position.isin()),
+                        deltaFor(quantities, position.isin())))
             .collect(Collectors.toCollection(ArrayList::new));
 
     Set<String> reported = positions.stream().map(PositionSnapshot::isin).collect(toSet());
@@ -247,6 +247,10 @@ public class TransactionInputService {
                         clampToZero(quantities.get(entry.getKey())),
                         null)));
     return List.copyOf(adjusted);
+  }
+
+  private static BigDecimal deltaFor(Map<String, BigDecimal> deltas, @Nullable String isin) {
+    return isin == null ? ZERO : deltas.getOrDefault(isin, ZERO);
   }
 
   @Nullable

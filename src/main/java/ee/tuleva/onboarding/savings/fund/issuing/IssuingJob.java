@@ -42,7 +42,7 @@ public class IssuingJob {
       log.info("No payments to issue, skipping");
       return;
     }
-    var previousCutoff = getPreviousCutoff();
+    var previousCutoff = getPreviousCutoff(cutoff);
     payments.forEach(
         payment -> {
           if (payment.getReceivedBefore() != null
@@ -85,21 +85,8 @@ public class IssuingJob {
         .toList();
   }
 
-  private Instant getPreviousCutoff() {
-    var today = todayInTallinn();
-    var todaysCutoff = getCutoff(today);
-    var currentTime = clock.instant();
-    var publicHolidays = new PublicHolidays();
-    var isTodayWorkingDay = publicHolidays.isWorkingDay(today);
-    if (currentTime.isBefore(todaysCutoff) || !isTodayWorkingDay) {
-      var thirdToLastWorkingDay =
-          publicHolidays.previousWorkingDay(
-              publicHolidays.previousWorkingDay(publicHolidays.previousWorkingDay(today)));
-      return getCutoff(thirdToLastWorkingDay);
-    }
-    var secondToLastWorkingDay =
-        publicHolidays.previousWorkingDay(publicHolidays.previousWorkingDay(today));
-    return getCutoff(secondToLastWorkingDay);
+  private Instant getPreviousCutoff(Instant cutoff) {
+    return getCutoff(new PublicHolidays().previousWorkingDay(dealingDate(cutoff)));
   }
 
   private LocalDate todayInTallinn() {

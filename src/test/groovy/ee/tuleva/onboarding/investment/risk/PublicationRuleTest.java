@@ -61,12 +61,19 @@ class PublicationRuleTest {
   void bothRulesIgnoreUnclassifiedPoints() {
     var points = new ArrayList<ReferencePoint>();
     points.add(new ReferencePoint(START, null, 10, ONE, Map.of()));
-    points.add(new ReferencePoint(START.plusWeeks(1), 5, 260, ONE, Map.of()));
-    points.add(new ReferencePoint(START.plusWeeks(2), 5, 260, ONE, Map.of()));
+    for (int week = 1; week <= 25; week++) {
+      points.add(new ReferencePoint(START.plusWeeks(week), 5, 260, ONE, Map.of()));
+    }
 
-    assertThat(majority.publish(points).points()).hasSize(2);
-    assertThat(persistence.publish(points).points()).hasSize(2);
-    assertThat(persistence.publish(points).points().getFirst().riskClass()).isEqualTo(5);
+    assertThat(majority.publish(points).points())
+        .isNotEmpty()
+        .extracting(PublishedSeries.PublishedPoint::date)
+        .doesNotContain(START);
+    assertThat(persistence.publish(points).points())
+        .isNotEmpty()
+        .extracting(PublishedSeries.PublishedPoint::date)
+        .doesNotContain(START);
+    assertThat(distinctPublished(persistence.publish(points))).containsExactly(5);
   }
 
   @Test
@@ -176,8 +183,19 @@ class PublicationRuleTest {
   }
 
   @Test
-  void persistenceDoesNotMigrateBeforeFourMonthsOfHistoryExist() {
+  void persistencePublishesNothingBeforeFourMonthsOfHistoryExist() {
     var series = persistence.publish(weekly(sameClass(8, 5)));
+
+    assertThat(series.points()).isEmpty();
+  }
+
+  @Test
+  void theFirstPublishedClassComesFromAWholeWindowNotFromTheOldestStoredPoint() {
+    var classes = new ArrayList<Integer>();
+    classes.add(6);
+    classes.addAll(sameClass(29, 5));
+
+    var series = persistence.publish(weekly(classes));
 
     assertThat(distinctPublished(series)).containsExactly(5);
   }

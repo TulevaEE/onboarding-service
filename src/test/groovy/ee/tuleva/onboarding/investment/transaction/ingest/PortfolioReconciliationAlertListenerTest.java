@@ -78,18 +78,19 @@ class PortfolioReconciliationAlertListenerTest {
         .contains("(puudub)");
   }
 
-  // An empty ledger means the comparison did not happen. Reporting it as a mismatch is what made
+  // An empty side means the comparison did not happen. Reporting it as a mismatch is what made
   // the missing baseline row look like a position divergence.
   @Test
-  void onLedgerUnavailable_listsTheReportedPositionsAndAsksForAManualRecheck() {
+  void onSkipped_listsTheReportedPositionsAndAsksForAManualRecheck() {
     given(emailService.sendSystemEmail(org.mockito.ArgumentMatchers.any(MandrillMessage.class)))
         .willReturn(true);
 
     listener()
-        .onLedgerUnavailable(
-            new PortfolioLedgerUnavailableEvent(
+        .onSkipped(
+            new PortfolioReconciliationSkippedEvent(
                 TUK75,
                 LocalDate.of(2026, 5, 18),
+                Map.of(),
                 Map.of(
                     "IE00BFG1TM61",
                     new BigDecimal("10005.0000"),
@@ -115,14 +116,43 @@ class PortfolioReconciliationAlertListenerTest {
   }
 
   @Test
-  void onLedgerUnavailable_survivesAnEmailThatWasNotAccepted() {
+  void onSkipped_listsOurOwnLedgerWhenTheNavReportIsTheMissingSide() {
+    given(emailService.sendSystemEmail(org.mockito.ArgumentMatchers.any(MandrillMessage.class)))
+        .willReturn(true);
+
+    listener()
+        .onSkipped(
+            new PortfolioReconciliationSkippedEvent(
+                TUK75,
+                LocalDate.of(2026, 5, 18),
+                Map.of("IE00BFG1TM61", new BigDecimal("10005.0000")),
+                Map.of()));
+
+    ArgumentCaptor<MandrillMessage> captor = ArgumentCaptor.forClass(MandrillMessage.class);
+    verify(emailService).sendSystemEmail(captor.capture());
+
+    assertThat(captor.getValue().getText())
+        .doesNotContain("See EI ole positsioonide lahknevus")
+        .contains("SEB POSITIONS-põhine nav_report ei sisalda")
+        .contains("Tuleva cost-basis pearaamat näitab neid koguseid")
+        .contains("IE00BFG1TM61")
+        .contains("10005.0000")
+        .contains("NAV arvutus")
+        .contains("käsitsi uuesti");
+  }
+
+  @Test
+  void onSkipped_survivesAnEmailThatWasNotAccepted() {
     given(emailService.sendSystemEmail(org.mockito.ArgumentMatchers.any(MandrillMessage.class)))
         .willReturn(false);
 
     listener()
-        .onLedgerUnavailable(
-            new PortfolioLedgerUnavailableEvent(
-                TUK75, LocalDate.of(2026, 5, 18), Map.of("IE00BFG1TM61", new BigDecimal("12"))));
+        .onSkipped(
+            new PortfolioReconciliationSkippedEvent(
+                TUK75,
+                LocalDate.of(2026, 5, 18),
+                Map.of(),
+                Map.of("IE00BFG1TM61", new BigDecimal("12"))));
 
     verify(emailService).sendSystemEmail(org.mockito.ArgumentMatchers.any(MandrillMessage.class));
   }

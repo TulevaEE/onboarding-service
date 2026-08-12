@@ -37,14 +37,8 @@ public class PortfolioReconciliationService {
     Map<String, BigDecimal> theirQuantities =
         navReportLookup.findSecurityQuantities(fund, asOfDate);
 
-    if (ourQuantities.isEmpty() && !theirQuantities.isEmpty()) {
-      log.warn(
-          "Portfolio reconciliation skipped, no cost-basis rows: fundCode={}, asOfDate={}, reportedIsinCount={}",
-          fund.getCode(),
-          asOfDate,
-          theirQuantities.size());
-      eventPublisher.publishEvent(
-          new PortfolioLedgerUnavailableEvent(fund, asOfDate, theirQuantities));
+    if (ourQuantities.isEmpty() || theirQuantities.isEmpty()) {
+      skip(fund, asOfDate, ourQuantities, theirQuantities);
       return;
     }
 
@@ -81,6 +75,28 @@ public class PortfolioReconciliationService {
         mismatches.size());
     eventPublisher.publishEvent(
         new PortfolioReconciliationMismatchEvent(fund, asOfDate, mismatches));
+  }
+
+  private void skip(
+      TulevaFund fund,
+      LocalDate asOfDate,
+      Map<String, BigDecimal> ourQuantities,
+      Map<String, BigDecimal> theirQuantities) {
+    if (ourQuantities.isEmpty() && theirQuantities.isEmpty()) {
+      log.warn(
+          "Portfolio reconciliation had nothing to compare: fundCode={}, asOfDate={}",
+          fund.getCode(),
+          asOfDate);
+      return;
+    }
+    log.warn(
+        "Portfolio reconciliation skipped, one side is empty: fundCode={}, asOfDate={}, ourIsinCount={}, theirIsinCount={}",
+        fund.getCode(),
+        asOfDate,
+        ourQuantities.size(),
+        theirQuantities.size());
+    eventPublisher.publishEvent(
+        new PortfolioReconciliationSkippedEvent(fund, asOfDate, ourQuantities, theirQuantities));
   }
 
   private boolean isMismatch(BigDecimal ourQty, BigDecimal theirQty, BigDecimal delta) {

@@ -40,7 +40,7 @@ class PortfolioReconciliationIT {
   @BeforeEach
   void cleanRecorderAndData() {
     recorder.events.clear();
-    recorder.ledgerUnavailableEvents.clear();
+    recorder.skippedEvents.clear();
     deleteNavRows();
     deleteCostBasisRows();
   }
@@ -83,10 +83,13 @@ class PortfolioReconciliationIT {
   @Test
   void navReportRowMissing_emitsMismatch() {
     seedCostBasis(ISIN_A, "10005.0000");
+    seedCostBasis(ISIN_B, "250.0000");
+    seedNavReport(ISIN_B, new BigDecimal("250.0000"));
 
     service.reconcile(TUK75, AS_OF);
 
     assertThat(recorder.events).hasSize(1);
+    assertThat(recorder.events.get(0).mismatches()).hasSize(1);
     MismatchEntry entry = recorder.events.get(0).mismatches().get(0);
     assertThat(entry.isin()).isEqualTo(ISIN_A);
     assertThat(entry.ourQuantity()).isEqualByComparingTo("10005.0000");
@@ -111,7 +114,7 @@ class PortfolioReconciliationIT {
   }
 
   @Test
-  void wholeCostBasisLedgerMissing_emitsLedgerUnavailableInsteadOfMismatch() {
+  void wholeCostBasisLedgerMissing_emitsSkippedInsteadOfMismatch() {
     UUID calculationId = UUID.randomUUID();
     seedNavReport(ISIN_A, new BigDecimal("10000.0000"), calculationId);
     seedNavReport(ISIN_B, new BigDecimal("250.0000"), calculationId);
@@ -119,13 +122,28 @@ class PortfolioReconciliationIT {
     service.reconcile(TUK75, AS_OF);
 
     assertThat(recorder.events).isEmpty();
-    assertThat(recorder.ledgerUnavailableEvents).singleElement().isNotNull();
-    var unavailable = recorder.ledgerUnavailableEvents.get(0);
-    assertThat(unavailable.fund()).isEqualTo(TUK75);
-    assertThat(unavailable.asOfDate()).isEqualTo(AS_OF);
-    assertThat(unavailable.reportedQuantities()).containsOnlyKeys(ISIN_A, ISIN_B);
-    assertThat(unavailable.reportedQuantities().get(ISIN_A)).isEqualByComparingTo("10000.0000");
-    assertThat(unavailable.reportedQuantities().get(ISIN_B)).isEqualByComparingTo("250.0000");
+    assertThat(recorder.skippedEvents).hasSize(1);
+    var skipped = recorder.skippedEvents.get(0);
+    assertThat(skipped.fund()).isEqualTo(TUK75);
+    assertThat(skipped.asOfDate()).isEqualTo(AS_OF);
+    assertThat(skipped.ourQuantities()).isEmpty();
+    assertThat(skipped.theirQuantities()).containsOnlyKeys(ISIN_A, ISIN_B);
+    assertThat(skipped.theirQuantities().get(ISIN_A)).isEqualByComparingTo("10000.0000");
+    assertThat(skipped.theirQuantities().get(ISIN_B)).isEqualByComparingTo("250.0000");
+  }
+
+  @Test
+  void wholeNavReportMissing_emitsSkippedInsteadOfMismatch() {
+    seedCostBasis(ISIN_A, "10000.0000");
+    seedCostBasis(ISIN_B, "250.0000");
+
+    service.reconcile(TUK75, AS_OF);
+
+    assertThat(recorder.events).isEmpty();
+    assertThat(recorder.skippedEvents).hasSize(1);
+    var skipped = recorder.skippedEvents.get(0);
+    assertThat(skipped.theirQuantities()).isEmpty();
+    assertThat(skipped.ourQuantities()).containsOnlyKeys(ISIN_A, ISIN_B);
   }
 
   private void seedCostBasis(String isin, String quantity) {
@@ -183,7 +201,7 @@ class PortfolioReconciliationIT {
 
   public static class TestEventRecorder {
     final List<PortfolioReconciliationMismatchEvent> events = new ArrayList<>();
-    final List<PortfolioLedgerUnavailableEvent> ledgerUnavailableEvents = new ArrayList<>();
+    final List<PortfolioReconciliationSkippedEvent> skippedEvents = new ArrayList<>();
 
     @EventListener
     void onMismatch(PortfolioReconciliationMismatchEvent event) {
@@ -191,8 +209,8 @@ class PortfolioReconciliationIT {
     }
 
     @EventListener
-    void onLedgerUnavailable(PortfolioLedgerUnavailableEvent event) {
-      ledgerUnavailableEvents.add(event);
+    void onSkipped(PortfolioReconciliationSkippedEvent event) {
+      skippedEvents.add(event);
     }
   }
 }

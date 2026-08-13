@@ -4,7 +4,6 @@ import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.FAIL;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.NOT_RUN;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.SETTLEMENT_COMPLETENESS;
-import static ee.tuleva.onboarding.investment.fees.FeeType.DEPOT;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.FEE_ACCRUAL;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.FEE_SETTLEMENT;
 import static java.math.BigDecimal.ZERO;
@@ -109,7 +108,7 @@ class SettlementCompletenessChecker {
     var settled = sum(settlements);
     var expectedSettlement = opening.add(accrued).negate();
 
-    var details = details(fund, feeMonth, feeType, opening, closing, accrued, settled);
+    var details = details(feeMonth, opening, closing, accrued, settled);
     var scope = scopeOf(feeType);
     var findings = new ArrayList<FeeCheckFinding>();
 
@@ -188,12 +187,8 @@ class SettlementCompletenessChecker {
     return findings;
   }
 
-  // The ledger carries net only, so the gross figure is recorded for the depot invoice comparison
-  // rather than checked - no ledger number can equal a VAT-inclusive invoice today.
   private Map<String, Object> details(
-      TulevaFund fund,
       LocalDate feeMonth,
-      FeeType feeType,
       BigDecimal opening,
       BigDecimal closing,
       BigDecimal accrued,
@@ -204,10 +199,6 @@ class SettlementCompletenessChecker {
     details.put("closing", closing.toPlainString());
     details.put("accrued", accrued.toPlainString());
     details.put("settled", settled.toPlainString());
-    if (feeType == DEPOT) {
-      var gross = feeAccrualRepository.sumGrossForMonth(fund, feeMonth, feeType);
-      details.put("grossAccrued", (gross == null ? ZERO : gross).toPlainString());
-    }
     return Map.copyOf(details);
   }
 

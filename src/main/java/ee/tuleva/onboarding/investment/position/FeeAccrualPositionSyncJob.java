@@ -83,9 +83,12 @@ public class FeeAccrualPositionSyncJob {
               .filter(date -> !date.isBefore(cutoffDate))
               .toList();
 
+      var managementPolicy = feeChargedToFundPolicy.resolverFor(fund, MANAGEMENT);
+      var depotPolicy = feeChargedToFundPolicy.resolverFor(fund, DEPOT);
+
       for (var navDate : navDates) {
-        var mgmtAccrual = chargedAccrual(fund, MANAGEMENT, navDate);
-        var depotAccrual = chargedAccrual(fund, DEPOT, navDate);
+        var mgmtAccrual = chargedAccrual(managementPolicy, fund, MANAGEMENT, navDate);
+        var depotAccrual = chargedAccrual(depotPolicy, fund, DEPOT, navDate);
 
         var positions =
             List.of(
@@ -100,8 +103,9 @@ public class FeeAccrualPositionSyncJob {
     return total;
   }
 
-  private BigDecimal chargedAccrual(TulevaFund fund, FeeType feeType, LocalDate navDate) {
-    return feeChargedToFundPolicy.chargedToFund(fund, feeType, navDate)
+  private BigDecimal chargedAccrual(
+      FeeChargedToFundPolicy.Resolver policy, TulevaFund fund, FeeType feeType, LocalDate navDate) {
+    return policy.chargedOn(navDate)
         ? feeAccrualRepository.getUnsettledAccrual(fund, feeType, navDate)
         : BigDecimal.ZERO;
   }

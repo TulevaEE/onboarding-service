@@ -18,8 +18,7 @@ import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.PriceSnapshot;
 import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.SecurityData;
 import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.TrackingInput;
-import ee.tuleva.onboarding.investment.fees.FeeRate;
-import ee.tuleva.onboarding.investment.fees.FeeRateRepository;
+import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
@@ -54,6 +53,7 @@ class TrackingDifferenceService {
   private static final int ESCALATION_LOOKBACK_FALLBACK = 10;
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
   private static final int SCALE = 6;
+  private static final int FEE_FRACTION_SCALE = 10;
 
   private static final Map<TulevaFund, BenchmarkConfig> BENCHMARK_CONFIGS =
       Map.of(
@@ -73,7 +73,7 @@ class TrackingDifferenceService {
   private final PriorityPriceProvider priorityPriceProvider;
   private final PositionPriceResolver positionPriceResolver;
   private final PublicHolidays publicHolidays;
-  private final FeeRateRepository feeRateRepository;
+  private final FeeAccrualRepository feeAccrualRepository;
   private final TrackingDifferenceEventRepository eventRepository;
   private final TrackingDifferenceCalculator calculator;
   private final FundNavQueryService fundNavQueryService;
@@ -179,11 +179,7 @@ class TrackingDifferenceService {
             .filter(Objects::nonNull)
             .reduce(ZERO, BigDecimal::add);
 
-    var annualFeeRate =
-        feeRateRepository
-            .findValidRate(fund, FeeType.MANAGEMENT, checkDate)
-            .map(FeeRate::annualRate)
-            .orElse(ZERO);
+    var accruedFeeFraction = accruedFeeFraction(fund, previousDate, checkDate, totalNav);
 
     var securities =
         buildSecurityData(
@@ -269,7 +265,7 @@ class TrackingDifferenceService {
             .yesterdayNav(yesterdayNav.value())
             .securities(blendedSecurities)
             .cashWeight(cashWeight)
-            .annualFeeRate(annualFeeRate)
+            .accruedFeeFraction(accruedFeeFraction)
             .consecutiveBreachDays(priorBreaches.count())
             .bodHoldings(bodHoldings)
             .bodSecuritiesFraction(bodSecuritiesFraction)
@@ -299,6 +295,21 @@ class TrackingDifferenceService {
             });
 
     return results;
+  }
+
+  private BigDecimal accruedFeeFraction(
+      TulevaFund fund, LocalDate previousDate, LocalDate checkDate, BigDecimal totalNav) {
+    if (totalNav.signum() == 0) {
+      return ZERO;
+    }
+    var accrued =
+        feeAccrualRepository
+            .findByFundAndDateRange(fund, previousDate.plusDays(1), checkDate)
+            .stream()
+            .map(a -> a.feeType() == FeeType.DEPOT ? a.dailyAmountGross() : a.dailyAmountNet())
+            .filter(Objects::nonNull)
+            .reduce(ZERO, BigDecimal::add);
+    return accrued.divide(totalNav, FEE_FRACTION_SCALE, RoundingMode.HALF_UP);
   }
 
   private Optional<TrackingDifferenceResult> buildBenchmarkCheck(

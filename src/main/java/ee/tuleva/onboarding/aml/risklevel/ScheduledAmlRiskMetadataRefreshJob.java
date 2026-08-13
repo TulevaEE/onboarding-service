@@ -20,7 +20,7 @@ public class ScheduledAmlRiskMetadataRefreshJob {
   @Scheduled(cron = "0 0 12,16 * * ?", zone = "Europe/Tallinn")
   @SchedulerLock(
       name = "ScheduledAmlRiskMetadataRefreshJob_refreshAmlRiskMetadata",
-      lockAtMostFor = "23h",
+      lockAtMostFor = "1h",
       lockAtLeastFor = "30m")
   public void refreshAmlRiskMetadata() {
     log.info("Starting scheduled risk metadata view refresh");

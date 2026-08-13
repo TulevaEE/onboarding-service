@@ -1,10 +1,12 @@
 package ee.tuleva.onboarding.aml.risklevel;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.verify;
 
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -22,6 +24,15 @@ class ScheduledRiskLevelCheckJobTest {
   private static final double DAYS_IN_MONTH_ASSUMPTION_FOR_DAILY_RUN = 30.0;
   private static final double EXPECTED_PROBABILITY =
       MONTHLY_MEDIUM_RISK_TARGET_PROBABILITY / DAYS_IN_MONTH_ASSUMPTION_FOR_DAILY_RUN;
+
+  @Test
+  void staleLockFromAKilledInstanceExpiresWellBeforeTheNextScheduledRun()
+      throws NoSuchMethodException {
+    SchedulerLock lock =
+        ScheduledRiskLevelCheckJob.class.getMethod("run").getAnnotation(SchedulerLock.class);
+
+    assertThat(lock.lockAtMostFor()).isEqualTo("1h");
+  }
 
   @Test
   void runCallsBothRiskLevelChecks() {

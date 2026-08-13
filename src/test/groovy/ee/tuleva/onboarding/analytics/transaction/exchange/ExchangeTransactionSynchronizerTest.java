@@ -13,31 +13,55 @@ import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.SimpleTransactionStatus;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @ExtendWith(MockitoExtension.class)
 class ExchangeTransactionSynchronizerTest extends FixedClockConfig {
 
   @Mock private EpisService episService;
   @Mock private ExchangeTransactionRepository repository;
+  @Mock private PlatformTransactionManager transactionManager;
 
-  @InjectMocks private ExchangeTransactionSynchronizer synchronizer;
+  private ExchangeTransactionSynchronizer synchronizer;
 
   @Captor private ArgumentCaptor<List<ExchangeTransaction>> savedEntitiesCaptor;
+
+  @BeforeEach
+  void setUp() {
+    lenient()
+        .when(transactionManager.getTransaction(any()))
+        .thenReturn(new SimpleTransactionStatus());
+    synchronizer =
+        new ExchangeTransactionSynchronizer(
+            episService, repository, new TransactionTemplate(transactionManager));
+  }
 
   private final LocalDate reportingDate = LocalDate.of(2025, 1, 15);
   private final Optional<String> securityFrom = Optional.of("SEC_A");
   private final Optional<String> securityTo = Optional.of("SEC_B");
   private final boolean pikFlag = false;
   private final int deletedCount = 5;
+
+  @Test
+  void syncHoldsNoTransactionAcrossTheEpisFetch() throws NoSuchMethodException {
+    var sync =
+        ExchangeTransactionSynchronizer.class.getMethod(
+            "sync", LocalDate.class, Optional.class, Optional.class, boolean.class);
+
+    assertThat(sync.getAnnotation(Transactional.class)).isNull();
+  }
 
   @Nested
   @DisplayName("When EPIS returns transactions")

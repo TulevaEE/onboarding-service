@@ -10,7 +10,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 @Slf4j
@@ -20,8 +20,10 @@ public class FundTransactionSynchronizer
   private final FundTransactionRepository repository;
 
   public FundTransactionSynchronizer(
-      EpisService episService, FundTransactionRepository repository) {
-    super(episService);
+      EpisService episService,
+      FundTransactionRepository repository,
+      TransactionTemplate transactionTemplate) {
+    super(episService, transactionTemplate);
     this.repository = repository;
   }
 
@@ -33,7 +35,6 @@ public class FundTransactionSynchronizer
     private final LocalDate endDate;
   }
 
-  @Transactional
   public void sync(String fundIsin, LocalDate startDate, LocalDate endDate) {
     FundSyncContext context =
         FundSyncContext.builder().isin(fundIsin).startDate(startDate).endDate(endDate).build();

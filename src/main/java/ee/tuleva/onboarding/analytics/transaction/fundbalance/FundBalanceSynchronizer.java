@@ -15,6 +15,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 @Slf4j
@@ -27,8 +28,9 @@ public class FundBalanceSynchronizer
   public FundBalanceSynchronizer(
       EpisService episService,
       FundBalanceRepository repository,
-      EpisUnitCountLedgerRecorder unitCountLedgerRecorder) {
-    super(episService);
+      EpisUnitCountLedgerRecorder unitCountLedgerRecorder,
+      TransactionTemplate transactionTemplate) {
+    super(episService, transactionTemplate);
     this.repository = repository;
     this.unitCountLedgerRecorder = unitCountLedgerRecorder;
   }
@@ -39,7 +41,6 @@ public class FundBalanceSynchronizer
     private final LocalDate requestDate;
   }
 
-  @Transactional
   public void sync(LocalDate requestDate) {
     FundBalanceSyncContext context =
         FundBalanceSyncContext.builder().requestDate(requestDate).build();

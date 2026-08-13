@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.analytics.transaction.unitowner;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.epis.EpisService;
@@ -11,27 +12,72 @@ import ee.tuleva.onboarding.time.FixedClockConfig;
 import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
-import org.mockito.InjectMocks;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.SimpleTransactionStatus;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @ExtendWith(MockitoExtension.class)
 class UnitOwnerSynchronizerTest extends FixedClockConfig {
 
   @Mock private EpisService episService;
   @Mock private UnitOwnerRepository repository;
+  @Mock private PlatformTransactionManager transactionManager;
 
-  @InjectMocks private UnitOwnerSynchronizer synchronizer;
+  private UnitOwnerSynchronizer synchronizer;
 
   @Captor private ArgumentCaptor<List<UnitOwner>> savedEntitiesCaptor;
 
   private final LocalDate snapshotDate = LocalDate.of(2025, 4, 22);
+
+  @BeforeEach
+  void setUp() {
+    lenient()
+        .when(transactionManager.getTransaction(any()))
+        .thenReturn(new SimpleTransactionStatus());
+    synchronizer =
+        new UnitOwnerSynchronizer(
+            episService, repository, new TransactionTemplate(transactionManager));
+  }
+
+  @Test
+  void syncHoldsNoTransactionAcrossTheEpisFetch() throws NoSuchMethodException {
+    var sync = UnitOwnerSynchronizer.class.getMethod("sync", LocalDate.class);
+
+    assertThat(sync.getAnnotation(Transactional.class)).isNull();
+  }
+
+  @Test
+  void fetchRunsOutsideTheDatabaseTransaction() {
+    given(episService.getUnitOwners())
+        .willReturn(List.of(UnitOwnerFixture.dtoBuilder(UnitOwnerFixture.PERSON_ID_1).build()));
+
+    synchronizer.sync(snapshotDate);
+
+    InOrder inOrder = inOrder(episService, transactionManager, repository);
+    inOrder.verify(episService).getUnitOwners();
+    inOrder.verify(transactionManager).getTransaction(any());
+    inOrder.verify(repository).saveAll(anyList());
+  }
+
+  @Test
+  void emptyFetchNeverStartsATransaction() {
+    given(episService.getUnitOwners()).willReturn(List.of());
+
+    synchronizer.sync(snapshotDate);
+
+    verifyNoInteractions(transactionManager);
+  }
 
   @Nested
   @DisplayName("When EPIS returns unit owners")

@@ -69,6 +69,8 @@ public class HistoricalRegistryImportService {
           "expected_settlement_date",
           "comment");
 
+  private static final ZoneId TALLINN = ZoneId.of(TIMEZONE);
+
   static final String SOURCE_HISTORICAL_IMPORT = "HISTORICAL_IMPORT";
   static final String CREATED_BY_HISTORICAL_IMPORT = "historical-import";
 
@@ -353,10 +355,10 @@ public class HistoricalRegistryImportService {
     Instant known =
         row.executionTimestamp() == null ? row.orderTimestamp() : row.executionTimestamp();
     if (known != null) {
-      return LocalDate.ofInstant(known, ZoneId.of(TIMEZONE));
+      return LocalDate.ofInstant(known, TALLINN);
     }
     return row.actualSettlementDate() == null
-        ? LocalDate.ofInstant(clock.instant(), ZoneId.of(TIMEZONE))
+        ? LocalDate.ofInstant(clock.instant(), TALLINN)
         : row.actualSettlementDate();
   }
 

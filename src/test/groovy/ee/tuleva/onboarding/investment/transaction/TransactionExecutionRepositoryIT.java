@@ -437,6 +437,78 @@ class TransactionExecutionRepositoryIT {
         .build();
   }
 
+  @Test
+  void insert_stampsCreatedAndUpdatedTimestamps() {
+    TransactionOrder order = persistOrder();
+
+    TransactionExecution saved =
+        executionRepository.save(
+            TransactionExecution.builder()
+                .orderId(order.getId())
+                .executedQuantity(new BigDecimal("100"))
+                .source("SEB_OOTEL")
+                .reportedDate(LocalDate.of(2026, 5, 12))
+                .build());
+    entityManager.flush();
+
+    assertThat(saved.getCreatedAt()).isNotNull();
+    assertThat(saved.getUpdatedAt()).isEqualTo(saved.getCreatedAt());
+  }
+
+  @Test
+  void insert_keepsTimestampsThatWereSetExplicitly() {
+    TransactionOrder order = persistOrder();
+    Instant createdAt = Instant.parse("2026-05-11T10:26:04Z");
+    Instant updatedAt = Instant.parse("2026-05-12T11:00:00Z");
+
+    TransactionExecution saved =
+        executionRepository.save(
+            TransactionExecution.builder()
+                .orderId(order.getId())
+                .executedQuantity(new BigDecimal("100"))
+                .source("SEB_OOTEL")
+                .reportedDate(LocalDate.of(2026, 5, 12))
+                .createdAt(createdAt)
+                .updatedAt(updatedAt)
+                .build());
+    entityManager.flush();
+
+    assertThat(saved.getCreatedAt()).isEqualTo(createdAt);
+    assertThat(saved.getUpdatedAt()).isEqualTo(updatedAt);
+  }
+
+  @Test
+  void update_movesUpdatedAtButLeavesCreatedAtAndReportedDateAlone() {
+    TransactionOrder order = persistOrder();
+    Instant createdAt = Instant.parse("2026-05-11T10:26:04Z");
+    LocalDate reportedDate = LocalDate.of(2026, 5, 12);
+
+    TransactionExecution saved =
+        executionRepository.save(
+            TransactionExecution.builder()
+                .orderId(order.getId())
+                .executedQuantity(new BigDecimal("100"))
+                .source("SEB_OOTEL")
+                .reportedDate(reportedDate)
+                .createdAt(createdAt)
+                .updatedAt(createdAt)
+                .build());
+    entityManager.flush();
+    entityManager.clear();
+
+    TransactionExecution loaded = executionRepository.findById(saved.getId()).orElseThrow();
+    loaded.setExecutedQuantity(new BigDecimal("150"));
+    executionRepository.save(loaded);
+    entityManager.flush();
+    entityManager.clear();
+
+    TransactionExecution updated = executionRepository.findById(saved.getId()).orElseThrow();
+    assertThat(updated.getExecutedQuantity()).isEqualByComparingTo(new BigDecimal("150"));
+    assertThat(updated.getCreatedAt()).isEqualTo(createdAt);
+    assertThat(updated.getReportedDate()).isEqualTo(reportedDate);
+    assertThat(updated.getUpdatedAt()).isAfter(createdAt);
+  }
+
   private TransactionOrder persistOrder() {
     return persistOrder(TUK75);
   }

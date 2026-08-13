@@ -173,7 +173,7 @@ class PendingOrderImpactService {
     if (orderQuantity == null) {
       return unfilledAmount(order, executed);
     }
-    BigDecimal unfilledQuantity = orderQuantity.abs().subtract(executed.quantity()).max(ZERO);
+    BigDecimal unfilledQuantity = unfilledQuantity(order, executed);
     if (unfilledQuantity.signum() == 0) {
       return ZERO;
     }

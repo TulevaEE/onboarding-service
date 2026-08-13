@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.config;
 
+import static ee.tuleva.onboarding.error.SentryErrorCodeFingerprint.ERROR_CODE;
+
 import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Duration;
@@ -10,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
+import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -93,13 +96,26 @@ public class LongRunningTransactionMonitor {
   }
 
   private void report(LongRunningTransaction transaction) {
-    log.error(
-        "Long-running database transaction: pid={}, applicationName={}, state={}, durationSeconds={}, query={}",
-        transaction.pid(),
-        transaction.applicationName(),
-        transaction.state(),
-        transaction.durationSeconds(),
-        transaction.query());
+    MDC.put(ERROR_CODE, groupingErrorCode(transaction.query()));
+    try {
+      log.error(
+          "Long-running database transaction: pid={}, applicationName={}, state={}, durationSeconds={}, query={}",
+          transaction.pid(),
+          transaction.applicationName(),
+          transaction.state(),
+          transaction.durationSeconds(),
+          transaction.query());
+    } finally {
+      MDC.remove(ERROR_CODE);
+    }
+  }
+
+  static String groupingErrorCode(String sanitizedQuery) {
+    int sentryTagValueMaxLength = 200;
+    String errorCode = "long-running-transaction: " + sanitizedQuery;
+    return errorCode.length() <= sentryTagValueMaxLength
+        ? errorCode
+        : errorCode.substring(0, sentryTagValueMaxLength);
   }
 
   List<LongRunningTransaction> findLongRunningTransactions() {

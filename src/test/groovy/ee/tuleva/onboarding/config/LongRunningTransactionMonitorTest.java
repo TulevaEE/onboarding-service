@@ -95,6 +95,20 @@ class LongRunningTransactionMonitorTest {
         .isEqualTo("UPDATE [redacted]");
   }
 
+  @Test
+  void groupingErrorCodeGivesEachStatementItsOwnSentryIssue() {
+    assertThat(
+            LongRunningTransactionMonitor.groupingErrorCode(
+                "REFRESH MATERIALIZED VIEW CONCURRENTLY analytics.v_aml_risk_metadata"))
+        .isEqualTo(
+            "long-running-transaction: REFRESH MATERIALIZED VIEW CONCURRENTLY analytics.v_aml_risk_metadata");
+  }
+
+  @Test
+  void groupingErrorCodeStaysWithinTheSentryTagValueLimit() {
+    assertThat(LongRunningTransactionMonitor.groupingErrorCode("x".repeat(300))).hasSize(200);
+  }
+
   private static JdbcDataSource h2DataSource() {
     JdbcDataSource dataSource = new JdbcDataSource();
     dataSource.setURL("jdbc:h2:mem:longRunningTransactionMonitorTest;DB_CLOSE_DELAY=-1");

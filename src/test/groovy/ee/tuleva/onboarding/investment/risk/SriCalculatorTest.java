@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -61,6 +62,11 @@ class SriCalculatorTest {
   }
 
   @Test
+  void theHoldingPeriodSpansTheSupervisoryTradingYear() {
+    assertThat(SriCalculator.HOLDING_PERIOD_TRADING_DAYS).isEqualTo(5 * 256);
+  }
+
+  @Test
   void aWindowTooShortToStandBehindReportsItsVolatilityWithoutAClass() {
     var prices = pricesFrom(deterministicReturns(500), LocalDate.of(2024, 1, 1));
     var evalDate = prices.getLast().date();
@@ -70,6 +76,33 @@ class SriCalculatorTest {
     assertThat(point.riskClass()).isNull();
     assertThat(point.observationCount()).isEqualTo(499);
     assertThat(point.volatility()).isPositive();
+  }
+
+  @Test
+  void aWindowAtTheAnnexTwoMinimumOfTwoYearsGetsAClass() {
+    var prices = pricesFrom(deterministicReturns(600), LocalDate.of(2024, 1, 1));
+    var evalDate = prices.getLast().date();
+
+    var point = calculator.calculate(prices, evalDate, evalDate).getFirst();
+
+    assertThat(point.observationCount()).isEqualTo(599).isGreaterThanOrEqualTo(2 * 256);
+    assertThat(point.riskClass()).isNotNull();
+  }
+
+  @Test
+  void aPointThatCannotBeEvaluatedDoesNotTakeTheRestOfTheSeriesDownWithIt() {
+    var prices = new ArrayList<>(pricesFrom(deterministicReturns(1400), LocalDate.of(2019, 1, 1)));
+    var corrupted = prices.get(1300);
+    prices.set(
+        1300,
+        new FundValue(KEY, corrupted.date(), new BigDecimal("1E+400"), "MSCI", Instant.EPOCH));
+    var healthyDate = prices.get(1200).date();
+
+    var points = calculator.calculate(prices, prices.getFirst().date(), prices.getLast().date());
+
+    assertThat(points.stream().map(ReferencePoint::date)).contains(healthyDate);
+    assertThat(points.stream().map(ReferencePoint::date))
+        .doesNotContain(prices.get(1300).date(), prices.getLast().date());
   }
 
   @Test

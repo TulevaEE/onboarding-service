@@ -68,6 +68,7 @@ public class SebPendingTransactionReconciliationService {
         extractor.extractWithDiagnostics(report);
     List<SebPendingTransactionRow> rows = extraction.rows();
     LocalDate reportDate = report.getReportDate();
+    LocalDate asOfDate = asOfDate(report);
     TransactionMatchingProperties matchingProperties = matchingPolicy.current();
     log.info(
         "Reconciling SEB pending transactions: reportDate={}, rowCount={}, malformedCount={}",
@@ -133,7 +134,7 @@ public class SebPendingTransactionReconciliationService {
         matched++;
         continue;
       }
-      if (upsert(row, order, reportDate)) {
+      if (upsert(row, order, reportDate, asOfDate)) {
         matched++;
         checkPriceConsistency(order, reportDate, matchingProperties);
       }
@@ -265,7 +266,10 @@ public class SebPendingTransactionReconciliationService {
   }
 
   private boolean upsert(
-      SebPendingTransactionRow row, TransactionOrder order, LocalDate reportDate) {
+      SebPendingTransactionRow row,
+      TransactionOrder order,
+      LocalDate reportDate,
+      LocalDate asOfDate) {
     if (wouldOrphanExistingExecution(row, order)) {
       return false;
     }
@@ -281,7 +285,7 @@ public class SebPendingTransactionReconciliationService {
         auditRecorder.recordExecutionUpdated(order, row, reportDate, before, after);
       }
     } else {
-      executionRepository.save(executionMapper.toExecution(row, order));
+      executionRepository.save(executionMapper.toExecution(row, order, asOfDate));
       auditRecorder.recordExecutionMatched(order, row, reportDate);
     }
 
@@ -433,6 +437,31 @@ public class SebPendingTransactionReconciliationService {
           .ifPresent(orderIds::add);
     }
     return orderIds;
+  }
+
+  /**
+   * The positions report keys its rows on the report's "As of" date, so an execution has to be
+   * stamped with the same date or the two sides of every position comparison run on different
+   * clocks. The filename date is only a fallback, exactly as in the positions parser.
+   */
+  private LocalDate asOfDate(InvestmentReport report) {
+    Object value = report.getMetadata().get("asOfDate");
+    if (value == null) {
+      log.warn(
+          "No 'As of' date in SEB pending transactions report, falling back to report date:"
+              + " reportDate={}",
+          report.getReportDate());
+      return report.getReportDate();
+    }
+    try {
+      return LocalDate.parse(value.toString());
+    } catch (Exception e) {
+      log.warn(
+          "Failed to parse 'As of' date, falling back to report date: value={}, reportDate={}",
+          value,
+          report.getReportDate());
+      return report.getReportDate();
+    }
   }
 
   private boolean wouldOrphanExistingExecution(

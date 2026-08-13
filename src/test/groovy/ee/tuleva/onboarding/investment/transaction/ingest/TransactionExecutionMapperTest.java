@@ -35,7 +35,7 @@ class TransactionExecutionMapperTest {
             .build();
     SebPendingTransactionRow row = sampleRow(clientRef);
 
-    TransactionExecution execution = mapper.toExecution(row, order);
+    TransactionExecution execution = mapper.toExecution(row, order, LocalDate.of(2026, 5, 11));
 
     assertThat(execution.getOrderId()).isEqualTo(123L);
     assertThat(execution.getBrokerTransactionId()).isEqualTo("DLA0799512");

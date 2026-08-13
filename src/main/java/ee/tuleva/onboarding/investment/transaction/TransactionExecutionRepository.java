@@ -32,9 +32,14 @@ public interface TransactionExecutionRepository extends JpaRepository<Transactio
       Collection<Long> orderIds, Instant fromInclusive, Instant toExclusive);
 
   // Report sanity check: how much of an instrument we ourselves traded into a position over a
-  // window, per side. A trade moves the custodian position when it SETTLES, so the window is
-  // anchored on the settlement date, falling back to the trade date when the custodian gave us
-  // none.
+  // window, per side. A trade reaches the custodian position report once SEB reports it in the
+  // pending transactions file — for an ETF the day after we send, for a fund a few days later,
+  // for the CCF only on settlement day — so the window is anchored on the report that first
+  // carried it. reported_date is the report's "As of" date, the same clock fund_position.nav_date
+  // runs on, so both sides of the comparison move on the same event. Anchoring on settlement, or
+  // on our own ingestion instant, would count a trade against a later position report than the
+  // one whose quantity it moved, and every trade would look unexplained twice: once where the
+  // quantity moved, once where the window put it.
   @Query(
       value =
           """
@@ -48,10 +53,8 @@ public interface TransactionExecutionRepository extends JpaRepository<Transactio
           WHERE o.fund_code = :fundCode
             AND o.order_status NOT IN ('CANCELLED', 'DISCARDED')
             AND e.executed_quantity IS NOT NULL
-            AND COALESCE(e.scheduled_settlement_date, CAST(e.execution_timestamp AS DATE))
-                  > :fromExclusive
-            AND COALESCE(e.scheduled_settlement_date, CAST(e.execution_timestamp AS DATE))
-                  <= :toInclusive
+            AND e.reported_date > :fromExclusive
+            AND e.reported_date <= :toInclusive
           GROUP BY o.instrument_isin
           """,
       nativeQuery = true)

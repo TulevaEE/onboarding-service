@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
+import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.stereotype.Component;
@@ -12,8 +13,13 @@ class TransactionExecutionMapper {
   static final String SOURCE_SEB_OOTEL = "SEB_OOTEL";
   static final String MODIFIED_BY_SEB_RECONCILIATION = "system:seb-reconciliation";
 
-  TransactionExecution toExecution(SebPendingTransactionRow row, TransactionOrder order) {
-    return applyTo(new TransactionExecution(), row, order);
+  // reportedDate is set here and deliberately not in applyTo: it records the report a trade FIRST
+  // appeared in, so a later report restating that trade must not move it forward.
+  TransactionExecution toExecution(
+      SebPendingTransactionRow row, TransactionOrder order, LocalDate reportedDate) {
+    TransactionExecution execution = applyTo(new TransactionExecution(), row, order);
+    execution.setReportedDate(reportedDate);
+    return execution;
   }
 
   TransactionExecution applyTo(

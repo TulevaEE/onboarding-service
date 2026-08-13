@@ -10,9 +10,11 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 class SriCalculator {
 
@@ -28,11 +30,27 @@ class SriCalculator {
   static final double KURTOSIS_COEFFICIENT = 0.068717874;
   static final double SKEW_SQUARED_COEFFICIENT = 0.146067276;
 
+  /**
+   * Annex II leaves the length of a trading year to the manufacturer, so the number comes from the
+   * ESAs' own worked example instead (JC 2017 49, the flow diagram published as PRIIPs Q&A
+   * material): 365 days less 104 weekend days less 5 public holidays, giving N = 5 * 256 = 1280 for
+   * a five-year holding period. 52 * 5 would be a house convention with nothing behind it, and the
+   * choice moves the VEV by about 0,8%, which is enough to cross a class boundary.
+   */
+  private static final int TRADING_DAYS_PER_YEAR = 256;
+
+  /**
+   * Annex II p10: below five years of daily prices a shorter period may be used, but never less
+   * than two years of observed returns. Under that, the reference point still carries its
+   * volatility — the digest needs to show something — but no class, because the class would not be
+   * one we may stand behind.
+   */
+  private static final int MINIMUM_OBSERVATION_YEARS = 2;
+
   private static final int RECOMMENDED_HOLDING_PERIOD_YEARS = 5;
   private static final int OBSERVATION_WINDOW_YEARS = 5;
-  private static final int TRADING_DAYS_PER_YEAR = 260;
   private static final int MINIMUM_RETURNS = 2;
-  private static final int MINIMUM_OBSERVATIONS = 1000;
+  private static final int MINIMUM_OBSERVATIONS = MINIMUM_OBSERVATION_YEARS * TRADING_DAYS_PER_YEAR;
   private static final int VOLATILITY_SCALE = 12;
 
   static final int HOLDING_PERIOD_TRADING_DAYS =
@@ -96,7 +114,7 @@ class SriCalculator {
     return referencePoint(evalDate, window);
   }
 
-  private ReferencePoint referencePoint(LocalDate evalDate, double[] window) {
+  private @Nullable ReferencePoint referencePoint(LocalDate evalDate, double[] window) {
     int n = window.length;
     var mean = Arrays.stream(window).average().orElseThrow();
 
@@ -117,13 +135,20 @@ class SriCalculator {
     var excessKurtosis = m2 > 0 ? (s4 / n) / (sigma * sigma * sigma * sigma) - 3.0 : 0.0;
 
     var valueAtRisk = valueAtRisk(sigma, skew, excessKurtosis);
-    var discriminant = Z * Z - 2 * valueAtRisk;
-    if (discriminant < 0) {
-      throw new IllegalStateException(
-          "Cornish-Fisher quantile out of domain: date=%s, valueAtRisk=%s, discriminant=%s"
-              .formatted(evalDate, valueAtRisk, discriminant));
+    var vev =
+        (Math.sqrt(Z * Z - 2 * valueAtRisk) - Z) / Math.sqrt(RECOMMENDED_HOLDING_PERIOD_YEARS);
+    if (!Double.isFinite(vev)) {
+      log.warn(
+          "Skipping unusable risk indicator reference point: date={}, observations={}, sigma={},"
+              + " skew={}, excessKurtosis={}, valueAtRisk={}",
+          evalDate,
+          n,
+          sigma,
+          skew,
+          excessKurtosis,
+          valueAtRisk);
+      return null;
     }
-    var vev = (Math.sqrt(discriminant) - Z) / Math.sqrt(RECOMMENDED_HOLDING_PERIOD_YEARS);
 
     var volatility = BigDecimal.valueOf(vev).setScale(VOLATILITY_SCALE, RoundingMode.HALF_UP);
     return new ReferencePoint(

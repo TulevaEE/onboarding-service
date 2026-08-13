@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 import static java.math.BigDecimal.ZERO;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.time.ZoneOffset.UTC;
@@ -30,6 +31,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -331,9 +333,26 @@ public class HistoricalRegistryImportService {
         .settlementAmount(row.settlementAmount())
         .commissionAmount(row.commissionAmount())
         .scheduledSettlementDate(row.actualSettlementDate())
+        .reportedDate(reportedDate(row))
         .source(SOURCE_HISTORICAL_IMPORT)
         .modifiedBy(CREATED_BY_HISTORICAL_IMPORT)
         .build();
+  }
+
+  // These rows never came from a custodian report, so there is no "As of" date to carry. The trade
+  // date is the closest honest answer, the settlement date the next, and failing both the import
+  // itself is when we first held the record. Historical rows are settled by definition, so they
+  // never enter the windows that read this column — the value only has to exist and not lie about
+  // its origin, which the HISTORICAL_IMPORT source records.
+  private LocalDate reportedDate(ParsedRow row) {
+    Instant known =
+        row.executionTimestamp() == null ? row.orderTimestamp() : row.executionTimestamp();
+    if (known != null) {
+      return LocalDate.ofInstant(known, ZoneId.of(TIMEZONE));
+    }
+    return row.actualSettlementDate() == null
+        ? LocalDate.ofInstant(clock.instant(), ZoneId.of(TIMEZONE))
+        : row.actualSettlementDate();
   }
 
   private HistoricalImportResult abortedResult(

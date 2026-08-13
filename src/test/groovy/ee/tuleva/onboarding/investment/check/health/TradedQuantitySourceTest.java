@@ -30,7 +30,7 @@ class TradedQuantitySourceTest {
   @InjectMocks private TradedQuantitySource source;
 
   @Test
-  void looksUpTradesSettlingAfterThePreviousNavDateAndUpToTheNavDate() {
+  void looksUpTradesTheCustodianReportedAfterThePreviousNavDateAndUpToTheNavDate() {
     given(
             executionRepository.sumExecutedQuantitiesByIsin(
                 TUK75.getCode(), PREVIOUS_NAV_DATE, NAV_DATE))

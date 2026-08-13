@@ -1159,7 +1159,10 @@ class SebPendingTransactionReconciliationServiceTest {
     TransactionOrder order = sampleOrder(clientRef);
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
     TransactionExecution existing =
-        mapper.toExecution(SebPendingTransactionRow.fromRawData(validRawRow(clientRef)), order);
+        mapper.toExecution(
+            SebPendingTransactionRow.fromRawData(validRawRow(clientRef)),
+            order,
+            LocalDate.of(2026, 5, 11));
     existing.setId(99L);
     given(executionRepository.findAllByOrderId(123L)).willReturn(List.of(existing));
     given(executionRepository.findByBrokerTransactionId("DLA0799512"))
@@ -1297,6 +1300,62 @@ class SebPendingTransactionReconciliationServiceTest {
         .build();
   }
 
+  @Test
+  void reconcile_stampsTheExecutionWithTheReportsAsOfDateNotTheFilenameDate() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder order = sampleOrder(clientRef);
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+
+    service.reconcile(reportOf(validRawRow(clientRef), Map.of("asOfDate", "2026-05-11")));
+
+    verify(executionRepository)
+        .save(
+            argThat(
+                (TransactionExecution e) -> LocalDate.of(2026, 5, 11).equals(e.getReportedDate())));
+  }
+
+  @Test
+  void reconcile_fallsBackToTheReportDateWhenTheReportCarriesNoAsOfDate() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder order = sampleOrder(clientRef);
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+
+    service.reconcile(reportOf(validRawRow(clientRef), Map.of()));
+
+    verify(executionRepository)
+        .save(
+            argThat(
+                (TransactionExecution e) -> LocalDate.of(2026, 5, 13).equals(e.getReportedDate())));
+  }
+
+  @Test
+  void reconcile_aLaterReportRestatingATradeLeavesTheOriginalReportedDateAlone() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder order = sampleOrder(clientRef);
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
+    TransactionExecution existing =
+        mapper.toExecution(
+            SebPendingTransactionRow.fromRawData(validRawRow(clientRef)),
+            order,
+            LocalDate.of(2026, 5, 11));
+    existing.setId(99L);
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of(existing));
+    given(executionRepository.findByBrokerTransactionId("DLA0799512"))
+        .willReturn(Optional.of(existing));
+
+    service.reconcile(reportOf(validRawRow(clientRef), Map.of("asOfDate", "2026-05-20")));
+
+    verify(executionRepository)
+        .save(
+            argThat(
+                (TransactionExecution e) -> LocalDate.of(2026, 5, 11).equals(e.getReportedDate())));
+  }
+
   private static InvestmentReport reportWithSingleRow(UUID clientRef) {
     return reportOf(validRawRow(clientRef));
   }
@@ -1327,10 +1386,15 @@ class SebPendingTransactionReconciliationServiceTest {
   }
 
   private static InvestmentReport reportOf(Map<String, Object> raw) {
+    return reportOf(raw, Map.of("asOfDate", "2026-05-13"));
+  }
+
+  private static InvestmentReport reportOf(Map<String, Object> raw, Map<String, Object> metadata) {
     return InvestmentReport.builder()
         .provider(SEB)
         .reportType(PENDING_TRANSACTIONS)
         .reportDate(LocalDate.of(2026, 5, 13))
+        .metadata(metadata)
         .rawData(List.of(raw))
         .build();
   }

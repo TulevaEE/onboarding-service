@@ -321,7 +321,7 @@ class RiskIndicatorNotifier {
       block.add(
           "Aknas on %d vaatlust, klassi ei avaldata. Volatiilsus %s."
               .formatted(indicator.latestObservationCount(), volatility(indicator)));
-      block.add("👉 Tegevus: kontrolli, kas NAV-seeria on täielik — investment-role.");
+      block.add("👉 Tegevus: kontrolli, kas NAV-seeria on täielik.");
       return String.join("\n", block);
     }
 
@@ -335,7 +335,7 @@ class RiskIndicatorNotifier {
                   disclosed.getDisclosedClass(),
                   disclosed.getDisclosedFrom()));
       block.add(
-          "👉 Tegevus: dokument vajab uuendamist — risk-role. Pärast avaldamist lisa rida"
+          "👉 Tegevus: dokument vajab uuendamist. Pärast avaldamist lisa rida"
               + " investment_risk_indicator_disclosure tabelisse.");
     } else if (disclosed == null) {
       block.add(
@@ -345,8 +345,8 @@ class RiskIndicatorNotifier {
           "Arvutatud avaldatav klass on %d, aga ühtegi dokumendirida ei ole."
               .formatted(indicator.publishedClass()));
       block.add(
-          "👉 Tegevus: lisa kehtiv KID/KIID rida investment_risk_indicator_disclosure tabelisse"
-              + " — risk-role.");
+          "👉 Tegevus: lisa kehtiv KID/KIID rida investment_risk_indicator_disclosure"
+              + " tabelisse.");
     } else if (indicator.status() == RiskIndicatorStatus.CHANGE_PENDING) {
       block.add("⚠️ %s %s — muutus ootel".formatted(indicator.fund(), indicator.indicatorType()));
       block.add(
@@ -369,7 +369,7 @@ class RiskIndicatorNotifier {
                   indicator.publishedSince(),
                   text(indicator.previousPublishedClass()),
                   rangeLine(indicator)));
-      block.add("👉 Tegevus: kontrolli, kas dokument on juba uuendatud — risk-role.");
+      block.add("👉 Tegevus: kontrolli, kas dokument on juba uuendatud.");
     } else {
       block.add(
           "✅ %s %s — stabiilne, dokument ajakohane"
@@ -546,7 +546,7 @@ class RiskIndicatorNotifier {
           ("⚠️ %s %s — võrdlusindeksi proxy vajab ülevaatust\n"
                   + "Fondil on nüüd %s aastat oma NAV-ajalugu (alates %s); indikaator arvutatakse"
                   + " endiselt allikast %s. Annex II p5 lävend on täidetud.\n"
-                  + "👉 Tegevus: risk-role — otsusta, kas minna üle oma andmetele.")
+                  + "👉 Tegevus: otsusta, kas minna üle oma andmetele.")
               .formatted(
                   fund,
                   outcome.indicator().indicatorType(),

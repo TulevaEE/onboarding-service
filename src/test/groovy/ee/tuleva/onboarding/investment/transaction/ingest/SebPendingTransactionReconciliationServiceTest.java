@@ -1333,6 +1333,33 @@ class SebPendingTransactionReconciliationServiceTest {
   }
 
   @Test
+  void reconcile_recoversTheAsOfDateFromTheRawHeaderRowsWhenMetadataHasNone() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder order = sampleOrder(clientRef);
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+    InvestmentReport report =
+        InvestmentReport.builder()
+            .provider(SEB)
+            .reportType(PENDING_TRANSACTIONS)
+            .reportDate(LocalDate.of(2026, 5, 13))
+            .metadata(Map.of())
+            .rawData(
+                List.of(
+                    Map.of("Fund Management Company:", "As of:", "Tuleva Fondid AS", "2026-05-11"),
+                    validRawRow(clientRef)))
+            .build();
+
+    service.reconcile(report);
+
+    verify(executionRepository)
+        .save(
+            argThat(
+                (TransactionExecution e) -> LocalDate.of(2026, 5, 11).equals(e.getReportedDate())));
+  }
+
+  @Test
   void reconcile_aLaterReportRestatingATradeLeavesTheOriginalReportedDateAlone() {
     service = newService();
     UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");

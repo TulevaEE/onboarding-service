@@ -724,7 +724,9 @@ class RiskIndicatorNotifierTest {
             "TUK00   SRRI    —          ?          —              —        —        ⚠️ andmeid napib",
             "⚠️ TUK00 SRRI — andmeid napib",
             "Aknas on 17 vaatlust, klassi ei avaldata. Volatiilsus 2,10%.",
-            "👉 Tegevus: kontrolli, kas NAV-seeria on täielik.");
+            "👉 Tegevus: kontrolli, kas NAV-seeria on täielik. Kui fondi enda ajalugu ongi nõutud"
+                + " perioodist lühem, lisa investment.risk.sources alla võrdlusindeksi segment —"
+                + " klassi avaldamata jätmine ei ole lubatud variant.");
   }
 
   @Test

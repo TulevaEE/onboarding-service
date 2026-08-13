@@ -22,6 +22,14 @@ ALTER TABLE investment_transaction_execution ADD COLUMN reported_date date;
 -- position-report window and show up as quantity nobody can explain. An execution can reach this
 -- state: the importer creates one whenever quantity, price or consideration is present, and none
 -- of those requires execution_timestamp.
+--
+-- The chain still ends at created_at, and for one row shape that is still the recent-import date:
+-- a non-terminal row (order_timestamp is only mandatory for EXECUTED and SETTLED) carrying a
+-- quantity but no timestamps and no settlement date. Dating that row cannot be fixed here — it has
+-- no date to give. The traded-quantity window therefore excludes source = 'HISTORICAL_IMPORT'
+-- outright, because "which custodian report first carried this" has no answer for a row that never
+-- came from one. What this backfill writes for those rows is a best effort for display, not an
+-- input to any check.
 UPDATE investment_transaction_execution e
 SET reported_date = COALESCE(
         CAST(e.execution_timestamp AS date),

@@ -90,6 +90,17 @@ class SriCalculatorTest {
   }
 
   @Test
+  void twoCalendarYearsOfPricesGetAClassEvenWhenHolidaysThinTheDayCount() {
+    var evalDate = LocalDate.of(2026, 1, 2);
+    var prices = weekdayPricesWithHolidays(evalDate.minusYears(2).minusWeeks(1), evalDate);
+
+    var point = calculator.calculate(prices, evalDate, evalDate).getFirst();
+
+    assertThat(point.observationCount()).isLessThan(2 * 256);
+    assertThat(point.riskClass()).isNotNull();
+  }
+
+  @Test
   void aPointThatCannotBeEvaluatedDoesNotTakeTheRestOfTheSeriesDownWithIt() {
     var prices = new ArrayList<>(pricesFrom(deterministicReturns(1400), LocalDate.of(2019, 1, 1)));
     var corrupted = prices.get(1300);
@@ -233,6 +244,21 @@ class SriCalculatorTest {
       }
       price *= Math.exp(logReturn);
       prices.add(new FundValue(KEY, date, valueOf(price), "MSCI", Instant.EPOCH));
+      date = date.plusDays(1);
+    }
+    return prices;
+  }
+
+  private static List<FundValue> weekdayPricesWithHolidays(LocalDate start, LocalDate end) {
+    var prices = new ArrayList<FundValue>();
+    var price = 100.0;
+    var date = start;
+    var weekday = 0;
+    while (!date.isAfter(end)) {
+      if (date.getDayOfWeek().getValue() <= 5 && ++weekday % 25 != 0) {
+        price *= Math.exp(0.004 * Math.sin(weekday) - 0.0003);
+        prices.add(new FundValue(KEY, date, valueOf(price), "MSCI", Instant.EPOCH));
+      }
       date = date.plusDays(1);
     }
     return prices;

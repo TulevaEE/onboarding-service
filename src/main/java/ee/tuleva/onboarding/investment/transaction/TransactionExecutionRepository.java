@@ -40,6 +40,13 @@ public interface TransactionExecutionRepository extends JpaRepository<Transactio
   // on our own ingestion instant, would count a trade against a later position report than the
   // one whose quantity it moved, and every trade would look unexplained twice: once where the
   // quantity moved, once where the window put it.
+  //
+  // Historical-import rows are excluded because the question does not apply to them: they were
+  // loaded from a registry export, never from a custodian report, so there is no report whose "As
+  // of" date could date them. reported_date carries a best guess for those rows and the guess ends
+  // at the import instant, which would place a pre-system trade in whatever window happens to be
+  // open. The trades they describe predate the position baseline, so nothing recent is theirs to
+  // explain.
   @Query(
       value =
           """
@@ -53,6 +60,7 @@ public interface TransactionExecutionRepository extends JpaRepository<Transactio
           WHERE o.fund_code = :fundCode
             AND o.order_status NOT IN ('CANCELLED', 'DISCARDED')
             AND e.executed_quantity IS NOT NULL
+            AND e.source <> 'HISTORICAL_IMPORT'
             AND e.reported_date > :fromExclusive
             AND e.reported_date <= :toInclusive
           GROUP BY o.instrument_isin

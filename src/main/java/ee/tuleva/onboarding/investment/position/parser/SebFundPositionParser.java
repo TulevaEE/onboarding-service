@@ -6,6 +6,7 @@ import static java.math.BigDecimal.ZERO;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.position.AccountType;
 import ee.tuleva.onboarding.investment.position.FundPosition;
+import ee.tuleva.onboarding.investment.report.SebReportHeaders;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -41,15 +42,8 @@ public class SebFundPositionParser implements FundPositionParser {
   @Override
   public List<FundPosition> parse(
       List<Map<String, Object>> rawData, LocalDate reportDate, Map<String, Object> metadata) {
-    LocalDate navDate = extractMetadataDate(metadata, "asOfDate");
-    LocalDate sentDate = extractMetadataDate(metadata, "sentDate");
-
-    if (navDate == null) {
-      navDate = extractHeaderDate(rawData, "As of:");
-    }
-    if (sentDate == null) {
-      sentDate = extractHeaderDate(rawData, "Sent:");
-    }
+    LocalDate navDate = SebReportHeaders.asOfDate(metadata, rawData);
+    LocalDate sentDate = SebReportHeaders.sentDate(metadata, rawData);
 
     if (navDate == null) {
       log.warn("No 'As of' date found in SEB data, falling back to report date");
@@ -66,36 +60,6 @@ public class SebFundPositionParser implements FundPositionParser {
         .map(row -> parseRow(row, effectiveNavDate, effectiveReportDate))
         .flatMap(Optional::stream)
         .toList();
-  }
-
-  private LocalDate extractMetadataDate(Map<String, Object> metadata, String key) {
-    Object value = metadata.get(key);
-    if (value == null) {
-      return null;
-    }
-    try {
-      return LocalDate.parse(value.toString());
-    } catch (Exception e) {
-      log.warn("Failed to parse metadata date: key={}, value={}", key, value);
-      return null;
-    }
-  }
-
-  private LocalDate extractHeaderDate(List<Map<String, Object>> rawData, String headerLabel) {
-    for (Map<String, Object> row : rawData) {
-      String fundManagementColumn = getString(row, "Fund Management Company:");
-      if (headerLabel.equals(fundManagementColumn)) {
-        String dateValue = getString(row, "Tuleva Fondid AS");
-        if (dateValue != null) {
-          try {
-            return LocalDate.parse(dateValue);
-          } catch (Exception e) {
-            log.warn("Failed to parse '{}' date: value={}", headerLabel, dateValue);
-          }
-        }
-      }
-    }
-    return null;
   }
 
   private Optional<FundPosition> parseRow(

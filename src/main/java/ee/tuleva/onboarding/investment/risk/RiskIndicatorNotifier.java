@@ -321,7 +321,10 @@ class RiskIndicatorNotifier {
       block.add(
           "Aknas on %d vaatlust, klassi ei avaldata. Volatiilsus %s."
               .formatted(indicator.latestObservationCount(), volatility(indicator)));
-      block.add("👉 Tegevus: kontrolli, kas NAV-seeria on täielik.");
+      block.add(
+          "👉 Tegevus: kontrolli, kas NAV-seeria on täielik. Kui fondi enda ajalugu ongi nõutud"
+              + " perioodist lühem, lisa investment.risk.sources alla võrdlusindeksi segment —"
+              + " klassi avaldamata jätmine ei ole lubatud variant.");
       return String.join("\n", block);
     }
 

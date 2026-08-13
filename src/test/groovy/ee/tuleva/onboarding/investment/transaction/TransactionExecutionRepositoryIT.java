@@ -337,6 +337,36 @@ class TransactionExecutionRepositoryIT {
         .satisfies(summary -> assertThat(summary.getBought()).isEqualByComparingTo("100"));
   }
 
+  @Test
+  void sumExecutedQuantitiesByIsin_ignoresHistoricalImportRowsThatNeverCameFromACustodianReport() {
+    LocalDate fromExclusive = LocalDate.of(2026, 5, 1);
+    LocalDate toInclusive = LocalDate.of(2026, 5, 31);
+    LocalDate inside = LocalDate.of(2026, 5, 11);
+
+    TransactionOrder order = persistOrder(TUK75, "IE0009FT4LX4", BUY, SENT);
+
+    executionRepository.save(executionWithQuantity(order.getId(), "DLA_SEB", inside, "100"));
+    executionRepository.save(
+        TransactionExecution.builder()
+            .orderId(order.getId())
+            .brokerTransactionId("DLA_UNDATEABLE")
+            .executedQuantity(new BigDecimal("900"))
+            .reportedDate(inside)
+            .source("HISTORICAL_IMPORT")
+            .build());
+
+    entityManager.flush();
+    entityManager.clear();
+
+    var summaries =
+        executionRepository.sumExecutedQuantitiesByIsin(
+            TUK75.getCode(), fromExclusive, toInclusive);
+
+    assertThat(summaries)
+        .singleElement()
+        .satisfies(summary -> assertThat(summary.getBought()).isEqualByComparingTo("100"));
+  }
+
   private TransactionExecution executionWithQuantity(
       Long orderId, String brokerTxId, LocalDate reportedDate, String quantity) {
     return executionWithQuantity(

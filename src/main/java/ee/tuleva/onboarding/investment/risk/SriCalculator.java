@@ -44,13 +44,26 @@ class SriCalculator {
    * than two years of observed returns. Under that, the reference point still carries its
    * volatility — the digest needs to show something — but no class, because the class would not be
    * one we may stand behind.
+   *
+   * <p>Two years is a period, so it is measured as one. Multiplying it by the trading year would
+   * demand 512 prices, which is what a two-year stretch holds only if no exchange ever closes:
+   * every public holiday puts a genuine two-year history under the threshold and withholds a class
+   * the Annex allows. The tolerance absorbs the same calendar drift at the other end.
    */
   private static final int MINIMUM_OBSERVATION_YEARS = 2;
+
+  private static final int MINIMUM_HISTORY_TOLERANCE_DAYS = 7;
+
+  /**
+   * Not the Annex test — a floor beneath which the four moments say nothing however wide a period
+   * they are spread across, set well below the roughly 500 trading days a real two-year history
+   * carries.
+   */
+  private static final int MINIMUM_OBSERVATIONS = 400;
 
   private static final int RECOMMENDED_HOLDING_PERIOD_YEARS = 5;
   private static final int OBSERVATION_WINDOW_YEARS = 5;
   private static final int MINIMUM_RETURNS = 2;
-  private static final int MINIMUM_OBSERVATIONS = MINIMUM_OBSERVATION_YEARS * TRADING_DAYS_PER_YEAR;
   private static final int VOLATILITY_SCALE = 12;
 
   static final int HOLDING_PERIOD_TRADING_DAYS =
@@ -106,15 +119,24 @@ class SriCalculator {
     var window =
         returns.stream()
             .filter(r -> r.date().isAfter(windowStart) && !r.date().isAfter(evalDate))
-            .mapToDouble(DatedReturn::value)
-            .toArray();
-    if (window.length < MINIMUM_RETURNS) {
+            .toList();
+    if (window.size() < MINIMUM_RETURNS) {
       return null;
     }
-    return referencePoint(evalDate, window);
+    return referencePoint(
+        evalDate,
+        window.stream().mapToDouble(DatedReturn::value).toArray(),
+        window.getFirst().date());
   }
 
-  private @Nullable ReferencePoint referencePoint(LocalDate evalDate, double[] window) {
+  private boolean isPublishable(int observations, LocalDate earliestReturn, LocalDate evalDate) {
+    var minimumHistoryStart =
+        evalDate.minusYears(MINIMUM_OBSERVATION_YEARS).plusDays(MINIMUM_HISTORY_TOLERANCE_DAYS);
+    return observations >= MINIMUM_OBSERVATIONS && !earliestReturn.isAfter(minimumHistoryStart);
+  }
+
+  private @Nullable ReferencePoint referencePoint(
+      LocalDate evalDate, double[] window, LocalDate earliestReturn) {
     int n = window.length;
     var mean = Arrays.stream(window).average().orElseThrow();
 
@@ -153,7 +175,7 @@ class SriCalculator {
     var volatility = BigDecimal.valueOf(vev).setScale(VOLATILITY_SCALE, RoundingMode.HALF_UP);
     return new ReferencePoint(
         evalDate,
-        n >= MINIMUM_OBSERVATIONS ? RiskClassBucket.mrmClass(vev) : null,
+        isPublishable(n, earliestReturn, evalDate) ? RiskClassBucket.mrmClass(vev) : null,
         n,
         volatility,
         Map.of(

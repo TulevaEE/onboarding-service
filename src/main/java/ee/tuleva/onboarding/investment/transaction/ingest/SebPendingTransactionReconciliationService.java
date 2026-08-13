@@ -10,6 +10,7 @@ import static ee.tuleva.onboarding.investment.transaction.ingest.ReconciliationA
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
+import ee.tuleva.onboarding.investment.report.SebReportHeaders;
 import ee.tuleva.onboarding.investment.transaction.OrderStatus;
 import ee.tuleva.onboarding.investment.transaction.OrderVenue;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
@@ -442,26 +443,19 @@ public class SebPendingTransactionReconciliationService {
   /**
    * The positions report keys its rows on the report's "As of" date, so an execution has to be
    * stamped with the same date or the two sides of every position comparison run on different
-   * clocks. The filename date is only a fallback, exactly as in the positions parser.
+   * clocks. Resolved exactly as the positions parser resolves it, down to the raw-row fallback, so
+   * a report that yields an "As of" on one side cannot yield the filename date on the other.
    */
   private LocalDate asOfDate(InvestmentReport report) {
-    Object value = report.getMetadata().get("asOfDate");
-    if (value == null) {
+    LocalDate asOfDate = SebReportHeaders.asOfDate(report);
+    if (asOfDate == null) {
       log.warn(
           "No 'As of' date in SEB pending transactions report, falling back to report date:"
               + " reportDate={}",
           report.getReportDate());
       return report.getReportDate();
     }
-    try {
-      return LocalDate.parse(value.toString());
-    } catch (Exception e) {
-      log.warn(
-          "Failed to parse 'As of' date, falling back to report date: value={}, reportDate={}",
-          value,
-          report.getReportDate());
-      return report.getReportDate();
-    }
+    return asOfDate;
   }
 
   private boolean wouldOrphanExistingExecution(

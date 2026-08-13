@@ -341,9 +341,14 @@ public class HistoricalRegistryImportService {
 
   // These rows never came from a custodian report, so there is no "As of" date to carry. The trade
   // date is the closest honest answer, the settlement date the next, and failing both the import
-  // itself is when we first held the record. Historical rows are settled by definition, so they
-  // never enter the windows that read this column — the value only has to exist and not lie about
-  // its origin, which the HISTORICAL_IMPORT source records.
+  // itself is when we first held the record.
+  //
+  // That last step dates the row to today, which is wrong for a trade that is not from today, and
+  // it is reachable: an execution is created whenever quantity, price or consideration is present,
+  // while order_timestamp is only mandatory for EXECUTED and SETTLED rows. There is no better date
+  // to invent here — the row carries none. That is why the traded-quantity window excludes this
+  // source outright rather than trusting the value: the column answers "which custodian report
+  // first carried this", and these rows never came from one.
   private LocalDate reportedDate(ParsedRow row) {
     Instant known =
         row.executionTimestamp() == null ? row.orderTimestamp() : row.executionTimestamp();

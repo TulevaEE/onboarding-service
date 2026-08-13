@@ -158,7 +158,7 @@ class LedgerAccrualConsistencyCheckerTest {
   }
 
   private void givenAccruals(DailyAccrualAmount... accruals) {
-    given(feeAccrualRepository.findRoundedDailyNetBetween(TUK75, MANAGEMENT, DAY_ONE, DAY_TWO))
+    given(feeAccrualRepository.findRoundedDailyGrossBetween(TUK75, MANAGEMENT, DAY_ONE, DAY_TWO))
         .willReturn(List.of(accruals));
   }
 

@@ -431,7 +431,7 @@ class NavPipelineIntegrationTest {
         jdbcClient
             .sql(
                 """
-                SELECT daily_amount_net FROM investment_fee_accrual
+                SELECT daily_amount_gross FROM investment_fee_accrual
                 WHERE fund_code = 'TKF100' AND fee_type = 'MANAGEMENT' AND accrual_date = :date
                 """)
             .param("date", date)
@@ -442,7 +442,7 @@ class NavPipelineIntegrationTest {
         jdbcClient
             .sql(
                 """
-                SELECT daily_amount_net FROM investment_fee_accrual
+                SELECT daily_amount_gross FROM investment_fee_accrual
                 WHERE fund_code = 'TUK75' AND fee_type = 'MANAGEMENT' AND accrual_date = :date
                 """)
             .param("date", date)

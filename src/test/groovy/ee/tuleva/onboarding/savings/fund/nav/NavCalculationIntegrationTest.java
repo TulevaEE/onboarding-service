@@ -267,7 +267,7 @@ class NavCalculationIntegrationTest {
     assertThat(result.managementFeeAccrual()).isPositive();
 
     // The depoopank charges TUK75 directly, so the depot fee is accrued for accounting
-    // but kept out of NAV (investment_fee_policy seeded by V1_242).
+    // but kept out of NAV (investment_fee_policy seeded by V1_243).
     assertThat(result.depotFeeAccrual()).isEqualByComparingTo(ZERO);
     assertThat(accruedDepotFee(TUK75, priceDate)).isPositive();
   }
@@ -276,7 +276,7 @@ class NavCalculationIntegrationTest {
     return jdbcClient
         .sql(
             """
-            SELECT COALESCE(SUM(daily_amount_net), 0)
+            SELECT COALESCE(SUM(daily_amount_gross), 0)
             FROM investment_fee_accrual
             WHERE fund_code = :fundCode AND fee_type = 'DEPOT' AND accrual_date <= :accrualDate
             """)

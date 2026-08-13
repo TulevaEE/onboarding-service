@@ -40,7 +40,6 @@ public class DepotFeeCalculator implements FeeCalculator {
         .feeMonth(feeMonth)
         .baseValue(baseValue)
         .annualRate(annualRate)
-        .dailyAmountNet(dailyFee)
         .dailyAmountGross(dailyFee)
         .daysInYear(DAYS_IN_YEAR)
         .referenceDate(calendarDate)

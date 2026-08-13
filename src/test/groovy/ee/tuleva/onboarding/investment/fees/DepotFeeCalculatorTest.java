@@ -51,10 +51,9 @@ class DepotFeeCalculatorTest {
     assertThat(result.referenceDate()).isEqualTo(date);
     assertThat(result.daysInYear()).isEqualTo(365);
 
-    BigDecimal expectedDailyNet =
+    BigDecimal expectedDailyGross =
         baseValue.multiply(fundRate).divide(BigDecimal.valueOf(365), 6, RoundingMode.HALF_UP);
-    assertThat(result.dailyAmountNet()).isEqualByComparingTo(expectedDailyNet);
-    assertThat(result.dailyAmountGross()).isEqualByComparingTo(expectedDailyNet);
+    assertThat(result.dailyAmountGross()).isEqualByComparingTo(expectedDailyGross);
   }
 
   @Test
@@ -72,9 +71,9 @@ class DepotFeeCalculatorTest {
 
     assertThat(result.daysInYear()).isEqualTo(365);
 
-    BigDecimal expectedDailyNet =
+    BigDecimal expectedDailyGross =
         baseValue.multiply(fundRate).divide(BigDecimal.valueOf(365), 6, RoundingMode.HALF_UP);
-    assertThat(result.dailyAmountNet()).isEqualByComparingTo(expectedDailyNet);
+    assertThat(result.dailyAmountGross()).isEqualByComparingTo(expectedDailyGross);
   }
 
   @Test
@@ -90,7 +89,7 @@ class DepotFeeCalculatorTest {
     FeeAccrual result = calculator.calculate(TKF100, date, baseValue);
 
     assertThat(result.annualRate()).isEqualByComparingTo(ZERO);
-    assertThat(result.dailyAmountNet()).isEqualByComparingTo(ZERO);
+    assertThat(result.dailyAmountGross()).isEqualByComparingTo(ZERO);
   }
 
   @Test
@@ -128,7 +127,7 @@ class DepotFeeCalculatorTest {
     FeeAccrual result = calculator.calculate(TUK75, date, baseValue);
 
     assertThat(result.annualRate()).isEqualByComparingTo(ZERO);
-    assertThat(result.dailyAmountNet()).isEqualByComparingTo(ZERO);
+    assertThat(result.dailyAmountGross()).isEqualByComparingTo(ZERO);
     verifyNoInteractions(tierRepository);
   }
 
@@ -187,11 +186,11 @@ class DepotFeeCalculatorTest {
     FeeAccrual on = calculator.calculate(TUK75, onStart, baseValue);
 
     assertThat(before.annualRate()).isEqualByComparingTo(ZERO);
-    assertThat(before.dailyAmountNet()).isEqualByComparingTo(ZERO);
+    assertThat(before.dailyAmountGross()).isEqualByComparingTo(ZERO);
     assertThat(before.feeMonth()).isEqualTo(feeMonth);
 
     assertThat(on.annualRate()).isEqualByComparingTo(tierRate);
-    assertThat(on.dailyAmountNet())
+    assertThat(on.dailyAmountGross())
         .isEqualByComparingTo(
             baseValue.multiply(tierRate).divide(BigDecimal.valueOf(365), 6, RoundingMode.HALF_UP));
     assertThat(on.feeMonth()).isEqualTo(feeMonth);

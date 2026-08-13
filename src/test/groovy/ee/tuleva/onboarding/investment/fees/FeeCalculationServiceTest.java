@@ -287,7 +287,6 @@ class FeeCalculationServiceTest {
         .feeMonth(date.withDayOfMonth(1))
         .baseValue(ZERO)
         .annualRate(ZERO)
-        .dailyAmountNet(ZERO)
         .dailyAmountGross(ZERO)
         .daysInYear(365)
         .build();

@@ -20,7 +20,7 @@ public class FeeAccrualRepository {
     return jdbcClient
         .sql(
             """
-            SELECT COALESCE(SUM(daily_amount_net), 0)
+            SELECT COALESCE(SUM(daily_amount_gross), 0)
             FROM investment_fee_accrual
             WHERE fund_code = :fundCode
               AND fee_month = :feeMonth
@@ -49,12 +49,12 @@ public class FeeAccrualRepository {
         > 0;
   }
 
-  public List<DailyAccrualAmount> findRoundedDailyNetBetween(
+  public List<DailyAccrualAmount> findRoundedDailyGrossBetween(
       TulevaFund fund, FeeType feeType, LocalDate from, LocalDate to) {
     return jdbcClient
         .sql(
             """
-            SELECT accrual_date, ROUND(daily_amount_net, 2) AS rounded_net
+            SELECT accrual_date, ROUND(daily_amount_gross, 2) AS rounded_gross
             FROM investment_fee_accrual
             WHERE fund_code = :fundCode AND fee_type = :feeType
               AND accrual_date BETWEEN :from AND :to
@@ -67,7 +67,7 @@ public class FeeAccrualRepository {
         .query(
             (rs, rowNum) ->
                 new DailyAccrualAmount(
-                    rs.getDate("accrual_date").toLocalDate(), rs.getBigDecimal("rounded_net")))
+                    rs.getDate("accrual_date").toLocalDate(), rs.getBigDecimal("rounded_gross")))
         .list();
   }
 
@@ -96,7 +96,7 @@ public class FeeAccrualRepository {
     return jdbcClient
         .sql(
             """
-            SELECT COALESCE(ROUND(SUM(daily_amount_net), 2), 0)
+            SELECT COALESCE(ROUND(SUM(daily_amount_gross), 2), 0)
             FROM investment_fee_accrual
             WHERE fund_code = :fundCode
               AND fee_type = :feeType
@@ -197,7 +197,6 @@ public class FeeAccrualRepository {
                     fee_month = :feeMonth,
                     base_value = :baseValue,
                     annual_rate = :annualRate,
-                    daily_amount_net = :dailyAmountNet,
                     daily_amount_gross = :dailyAmountGross,
                     days_in_year = :daysInYear,
                     reference_date = :referenceDate
@@ -211,7 +210,6 @@ public class FeeAccrualRepository {
             .param("feeMonth", accrual.feeMonth())
             .param("baseValue", accrual.baseValue())
             .param("annualRate", accrual.annualRate())
-            .param("dailyAmountNet", accrual.dailyAmountNet())
             .param("dailyAmountGross", accrual.dailyAmountGross())
             .param("daysInYear", accrual.daysInYear())
             .param("referenceDate", accrual.referenceDate())
@@ -223,12 +221,12 @@ public class FeeAccrualRepository {
               """
               INSERT INTO investment_fee_accrual (
                   fund_code, fee_type, accrual_date, fee_month, base_value,
-                  annual_rate, daily_amount_net, daily_amount_gross,
+                  annual_rate, daily_amount_gross,
                   days_in_year, reference_date
               )
               VALUES (
                   :fundCode, :feeType, :accrualDate, :feeMonth, :baseValue,
-                  :annualRate, :dailyAmountNet, :dailyAmountGross,
+                  :annualRate, :dailyAmountGross,
                   :daysInYear, :referenceDate
               )
               """)
@@ -238,7 +236,6 @@ public class FeeAccrualRepository {
           .param("feeMonth", accrual.feeMonth())
           .param("baseValue", accrual.baseValue())
           .param("annualRate", accrual.annualRate())
-          .param("dailyAmountNet", accrual.dailyAmountNet())
           .param("dailyAmountGross", accrual.dailyAmountGross())
           .param("daysInYear", accrual.daysInYear())
           .param("referenceDate", accrual.referenceDate())

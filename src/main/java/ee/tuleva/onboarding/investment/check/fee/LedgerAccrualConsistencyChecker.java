@@ -121,7 +121,7 @@ class LedgerAccrualConsistencyChecker {
 
   private Map<LocalDate, BigDecimal> accrualsByDate(
       TulevaFund fund, FeeType feeType, LocalDate from, LocalDate to) {
-    return feeAccrualRepository.findRoundedDailyNetBetween(fund, feeType, from, to).stream()
+    return feeAccrualRepository.findRoundedDailyGrossBetween(fund, feeType, from, to).stream()
         .collect(
             groupingBy(
                 DailyAccrualAmount::date,

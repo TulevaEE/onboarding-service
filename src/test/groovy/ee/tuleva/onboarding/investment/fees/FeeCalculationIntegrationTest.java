@@ -47,7 +47,7 @@ class FeeCalculationIntegrationTest {
     assertThat(accrual.accrualDate()).isEqualTo(TEST_DATE);
     assertThat(accrual.feeMonth()).isEqualTo(LocalDate.of(2025, 1, 1));
     assertThat(accrual.baseValue()).isEqualByComparingTo(BASE_VALUE);
-    assertThat(accrual.dailyAmountNet()).isPositive();
+    assertThat(accrual.dailyAmountGross()).isPositive();
     assertThat(accrual.daysInYear()).isEqualTo(365);
   }
 
@@ -61,8 +61,7 @@ class FeeCalculationIntegrationTest {
     assertThat(accrual.fund()).isEqualTo(TUK75);
     assertThat(accrual.feeType()).isEqualTo(FeeType.DEPOT);
     assertThat(accrual.accrualDate()).isEqualTo(TEST_DATE);
-    assertThat(accrual.dailyAmountNet()).isPositive();
-    assertThat(accrual.dailyAmountGross()).isEqualByComparingTo(accrual.dailyAmountNet());
+    assertThat(accrual.dailyAmountGross()).isPositive();
   }
 
   @Test
@@ -77,7 +76,8 @@ class FeeCalculationIntegrationTest {
     var secondAccrual = findAccrual(TKF100, FeeType.MANAGEMENT, TEST_DATE);
     int ledgerEntriesAfterSecond = countLedgerEntries();
 
-    assertThat(secondAccrual.dailyAmountNet()).isEqualByComparingTo(firstAccrual.dailyAmountNet());
+    assertThat(secondAccrual.dailyAmountGross())
+        .isEqualByComparingTo(firstAccrual.dailyAmountGross());
     assertThat(ledgerEntriesAfterSecond).isEqualTo(ledgerEntriesAfterFirst);
   }
 

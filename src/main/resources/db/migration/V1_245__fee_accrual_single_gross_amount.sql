@@ -1,0 +1,22 @@
+-- One amount per accrual, named for what it is.
+--
+-- The net/gross pair only ever meant something while a VAT rate was applied on top of the net
+-- figure. That multiplication is gone: investment_depot_fee_tier.annual_rate already includes VAT,
+-- so the depot accrual computed from it is the VAT-inclusive amount, and fund management is a
+-- VAT-exempt service, so the management accrual has no VAT component to separate out. Both
+-- calculators therefore wrote the same number into both columns.
+--
+-- Gross is the accurate name for what survives: the amount actually charged. Keeping "net" on a
+-- VAT-inclusive figure is the kind of label that gets believed.
+--
+-- Nothing is lost by dropping the net column. Management accruals have always had
+-- daily_amount_net = daily_amount_gross, and every fund carries an explicit DEPOT rate row of 0,
+-- so the only rows where the old VAT multiplication could have made them differ are zero on both
+-- sides. Verify before deploying if you want the receipt:
+--
+--   SELECT count(*) FROM investment_fee_accrual WHERE daily_amount_net <> daily_amount_gross;
+--
+-- Metabase reads this table directly. Questions selecting daily_amount_net must move to
+-- daily_amount_gross -- the management fee drag in "TD Attribution + OCF Calculation" is one.
+
+ALTER TABLE investment_fee_accrual DROP COLUMN daily_amount_net;

@@ -264,8 +264,7 @@ class FeeCheckIntegrationTest {
         .sql(
             """
             UPDATE investment_fee_accrual
-            SET daily_amount_net = daily_amount_net + :amount,
-                daily_amount_gross = daily_amount_gross + :amount
+            SET daily_amount_gross = daily_amount_gross + :amount
             WHERE fund_code = 'TUK75' AND fee_type = 'MANAGEMENT' AND accrual_date = :date
             """)
         .param("amount", amount)
@@ -312,22 +311,22 @@ class FeeCheckIntegrationTest {
       String feeType,
       LocalDate accrualDate,
       BigDecimal baseValue,
-      BigDecimal dailyNet) {
+      BigDecimal dailyGross) {
     jdbcClient
         .sql(
             """
             INSERT INTO investment_fee_accrual
             (fund_code, fee_type, accrual_date, fee_month, base_value, annual_rate,
-             daily_amount_net, daily_amount_gross, days_in_year, reference_date)
+             daily_amount_gross, days_in_year, reference_date)
             VALUES (:fundCode, :feeType, :accrualDate, :feeMonth, :baseValue, 0.0025,
-                    :dailyNet, :dailyNet, 365, :accrualDate)
+                    :dailyGross, 365, :accrualDate)
             """)
         .param("fundCode", fund.name())
         .param("feeType", feeType)
         .param("accrualDate", accrualDate)
         .param("feeMonth", accrualDate.withDayOfMonth(1))
         .param("baseValue", baseValue)
-        .param("dailyNet", dailyNet)
+        .param("dailyGross", dailyGross)
         .update();
   }
 

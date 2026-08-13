@@ -68,7 +68,7 @@ public class FeeCalculationService {
     metadata.put("daysInYear", accrual.daysInYear());
     metadata.put("referenceDate", accrual.referenceDate());
     metadata.put("feeMonth", accrual.feeMonth());
-    metadata.put("dailyAmountNet", accrual.dailyAmountNet());
+    metadata.put("dailyAmountGross", accrual.dailyAmountGross());
     metadata.put("ledgerAmount", ledgerAmount);
     return metadata;
   }
@@ -130,7 +130,7 @@ public class FeeCalculationService {
         continue;
       }
       SystemAccount feeAccount = accrual.feeType().getAccrualAccount();
-      BigDecimal ledgerAmount = roundForLedger(accrual.dailyAmountNet());
+      BigDecimal ledgerAmount = roundForLedger(accrual.dailyAmountGross());
       log.info(
           "recordDailyFees: fund={}, date={}, feeType={}, ledgerAmount={}",
           fund,

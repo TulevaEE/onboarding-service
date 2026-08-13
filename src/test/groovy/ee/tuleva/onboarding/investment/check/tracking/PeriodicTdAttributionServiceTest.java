@@ -362,7 +362,7 @@ class PeriodicTdAttributionServiceTest {
                     .feeMonth(date1.withDayOfMonth(1))
                     .baseValue(new BigDecimal("100000000"))
                     .annualRate(new BigDecimal("0.0003"))
-                    .dailyAmountNet(new BigDecimal("6.85"))
+                    .dailyAmountGross(new BigDecimal("6.85"))
                     .dailyAmountGross(new BigDecimal("8.36"))
                     .daysInYear(365)
                     .build()));
@@ -675,7 +675,7 @@ class PeriodicTdAttributionServiceTest {
         .feeMonth(date.withDayOfMonth(1))
         .baseValue(new BigDecimal("100000000"))
         .annualRate(new BigDecimal("0.0027"))
-        .dailyAmountNet(new BigDecimal(amount))
+        .dailyAmountGross(new BigDecimal(amount))
         .dailyAmountGross(new BigDecimal(amount))
         .daysInYear(365)
         .build();

@@ -13,6 +13,11 @@
 -- invalid", which took the whole fee and NAV suite red while PostgreSQL was perfectly happy.
 --
 -- varchar, not text: H2 maps text to a CLOB, which cannot be compared inside a CHECK constraint.
+--
+-- Whichever way a rate is resolved, it must be entered VAT-inclusive. The accrual computed from it
+-- is stored in investment_fee_accrual.daily_amount_gross and posted to the ledger as the amount
+-- charged, with no VAT step anywhere after this point. The tier rates already satisfy this; a
+-- hand-entered FIXED depot rate must too, or the column name stops being true.
 ALTER TABLE investment_fee_rate
     ADD COLUMN rate_source varchar(10) DEFAULT 'FIXED' NOT NULL;
 

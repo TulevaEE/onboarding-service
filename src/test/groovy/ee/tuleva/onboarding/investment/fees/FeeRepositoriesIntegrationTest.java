@@ -199,18 +199,18 @@ class FeeRepositoriesIntegrationTest {
               .feeMonth(LocalDate.of(2025, 1, 1))
               .baseValue(BigDecimal.valueOf(1000000))
               .annualRate(new BigDecimal("0.02"))
-              .dailyAmountNet(BigDecimal.TEN)
+              .dailyAmountGross(BigDecimal.TEN)
               .dailyAmountGross(BigDecimal.TEN)
               .daysInYear(365)
               .build();
 
       feeAccrualRepository.save(accrual);
 
-      BigDecimal dailyAmountNet =
+      BigDecimal dailyAmountGross =
           jdbcClient
               .sql(
                   """
-                  SELECT daily_amount_net FROM investment_fee_accrual
+                  SELECT daily_amount_gross FROM investment_fee_accrual
                   WHERE fund_code = :fundCode AND fee_type = :feeType AND accrual_date = :accrualDate
                   """)
               .param("fundCode", TUK75.name())
@@ -219,7 +219,7 @@ class FeeRepositoriesIntegrationTest {
               .query(BigDecimal.class)
               .single();
 
-      assertThat(dailyAmountNet).isEqualByComparingTo(BigDecimal.TEN);
+      assertThat(dailyAmountGross).isEqualByComparingTo(BigDecimal.TEN);
     }
 
     @Test
@@ -240,13 +240,13 @@ class FeeRepositoriesIntegrationTest {
     }
 
     @Test
-    void findRoundedDailyNetBetween_returnsOneRoundedAmountPerDay() {
+    void findRoundedDailyGrossBetween_returnsOneRoundedAmountPerDay() {
       insertAccrual(TUK75, FeeType.MANAGEMENT, LocalDate.of(2025, 1, 13), new BigDecimal("5.894"));
       insertAccrual(TUK75, FeeType.MANAGEMENT, LocalDate.of(2025, 1, 14), new BigDecimal("5.895"));
       insertAccrual(TUK75, FeeType.DEPOT, LocalDate.of(2025, 1, 14), new BigDecimal("1.111"));
 
       var amounts =
-          feeAccrualRepository.findRoundedDailyNetBetween(
+          feeAccrualRepository.findRoundedDailyGrossBetween(
               TUK75, FeeType.MANAGEMENT, LocalDate.of(2025, 1, 13), LocalDate.of(2025, 1, 14));
 
       assertThat(amounts)
@@ -285,7 +285,7 @@ class FeeRepositoriesIntegrationTest {
               .feeMonth(feeMonth)
               .baseValue(BigDecimal.valueOf(1000000))
               .annualRate(new BigDecimal("0.02"))
-              .dailyAmountNet(BigDecimal.TEN)
+              .dailyAmountGross(BigDecimal.TEN)
               .dailyAmountGross(BigDecimal.TEN)
               .daysInYear(365)
               .build();
@@ -299,17 +299,17 @@ class FeeRepositoriesIntegrationTest {
               .feeMonth(feeMonth)
               .baseValue(BigDecimal.valueOf(2000000))
               .annualRate(new BigDecimal("0.02"))
-              .dailyAmountNet(new BigDecimal("20"))
+              .dailyAmountGross(new BigDecimal("20"))
               .dailyAmountGross(new BigDecimal("20"))
               .daysInYear(365)
               .build();
       feeAccrualRepository.save(updated);
 
-      BigDecimal dailyAmountNet =
+      BigDecimal dailyAmountGross =
           jdbcClient
               .sql(
                   """
-                  SELECT daily_amount_net FROM investment_fee_accrual
+                  SELECT daily_amount_gross FROM investment_fee_accrual
                   WHERE fund_code = :fundCode AND fee_type = :feeType AND accrual_date = :accrualDate
                   """)
               .param("fundCode", TUK75.name())
@@ -318,7 +318,7 @@ class FeeRepositoriesIntegrationTest {
               .query(BigDecimal.class)
               .single();
 
-      assertThat(dailyAmountNet).isEqualByComparingTo(new BigDecimal("20"));
+      assertThat(dailyAmountGross).isEqualByComparingTo(new BigDecimal("20"));
     }
 
     @Test
@@ -336,7 +336,7 @@ class FeeRepositoriesIntegrationTest {
       assertThat(accrual.feeType()).isEqualTo(FeeType.MANAGEMENT);
       assertThat(accrual.accrualDate()).isEqualTo(LocalDate.of(2025, 1, 13));
       assertThat(accrual.feeMonth()).isEqualTo(LocalDate.of(2025, 1, 1));
-      assertThat(accrual.dailyAmountNet()).isEqualByComparingTo(new BigDecimal("5.894"));
+      assertThat(accrual.dailyAmountGross()).isEqualByComparingTo(new BigDecimal("5.894"));
       assertThat(accrual.daysInYear()).isEqualTo(365);
     }
 
@@ -391,9 +391,9 @@ class FeeRepositoriesIntegrationTest {
     }
 
     private void insertAccrual(
-        TulevaFund fund, FeeType feeType, LocalDate accrualDate, BigDecimal dailyAmountNet) {
+        TulevaFund fund, FeeType feeType, LocalDate accrualDate, BigDecimal dailyAmountGross) {
       insertAccrualWithFeeMonth(
-          fund, feeType, accrualDate, accrualDate.withDayOfMonth(1), dailyAmountNet);
+          fund, feeType, accrualDate, accrualDate.withDayOfMonth(1), dailyAmountGross);
     }
 
     private void insertAccrualWithFeeMonth(
@@ -401,31 +401,31 @@ class FeeRepositoriesIntegrationTest {
         FeeType feeType,
         LocalDate accrualDate,
         LocalDate feeMonth,
-        BigDecimal dailyAmountNet) {
+        BigDecimal dailyAmountGross) {
       jdbcClient
           .sql(
               """
               INSERT INTO investment_fee_accrual (
                   fund_code, fee_type, accrual_date, fee_month, base_value,
-                  annual_rate, daily_amount_net, daily_amount_gross, days_in_year
+                  annual_rate, daily_amount_gross, days_in_year
               )
               VALUES (
                   :fundCode, :feeType, :accrualDate, :feeMonth, 1000000,
-                  0.02, :dailyAmountNet, :dailyAmountNet, 365
+                  0.02, :dailyAmountGross, 365
               )
               """)
           .param("fundCode", fund.name())
           .param("feeType", feeType.name())
           .param("accrualDate", accrualDate)
           .param("feeMonth", feeMonth)
-          .param("dailyAmountNet", dailyAmountNet)
+          .param("dailyAmountGross", dailyAmountGross)
           .update();
     }
   }
 
   // rate_source carries three rules that would normally be CHECK constraints. They are asserted
   // here instead because a CHECK added by ALTER is not re-evaluated correctly by H2 once a second
-  // Spring context has opened the shared test database -- see V1_243. This is what catches a
+  // Spring context has opened the shared test database -- see V1_244. This is what catches a
   // migration that hand-writes a row breaking one of them.
   @Nested
   class RateSourceRulesHoldForEveryRow {

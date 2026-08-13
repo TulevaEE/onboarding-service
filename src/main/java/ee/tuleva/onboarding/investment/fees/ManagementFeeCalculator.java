@@ -39,7 +39,6 @@ public class ManagementFeeCalculator implements FeeCalculator {
         .feeMonth(feeMonth)
         .baseValue(baseValue)
         .annualRate(rate.annualRate())
-        .dailyAmountNet(dailyFee)
         .dailyAmountGross(dailyFee)
         .daysInYear(DAYS_IN_YEAR)
         .referenceDate(calendarDate)

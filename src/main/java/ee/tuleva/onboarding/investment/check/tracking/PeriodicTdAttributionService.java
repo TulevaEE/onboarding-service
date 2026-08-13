@@ -265,7 +265,7 @@ public class PeriodicTdAttributionService {
     return accruals.stream()
         .filter(a -> a.feeType() == feeType)
         .filter(a -> charged.chargedOn(a.accrualDate()))
-        .map(FeeAccrual::dailyAmountNet)
+        .map(FeeAccrual::dailyAmountGross)
         .reduce(ZERO, BigDecimal::add);
   }
 

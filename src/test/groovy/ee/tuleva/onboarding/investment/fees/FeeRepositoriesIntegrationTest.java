@@ -351,4 +351,34 @@ class FeeRepositoriesIntegrationTest {
           .update();
     }
   }
+
+  // rate_source carries three rules that would normally be CHECK constraints. They are asserted
+  // here instead because a CHECK added by ALTER is not re-evaluated correctly by H2 once a second
+  // Spring context has opened the shared test database -- see V1_243. This is what catches a
+  // migration that hand-writes a row breaking one of them.
+  @Nested
+  class RateSourceRulesHoldForEveryRow {
+
+    @Test
+    void everyRateSourceIsAKnownValue() {
+      assertThat(violations("rate_source NOT IN ('FIXED', 'TIER')")).isZero();
+    }
+
+    @Test
+    void onlyTheDepotFeeReadsATier() {
+      assertThat(violations("rate_source = 'TIER' AND fee_type <> 'DEPOT'")).isZero();
+    }
+
+    @Test
+    void aTierRowCarriesNoRateOfItsOwn() {
+      assertThat(violations("rate_source = 'TIER' AND annual_rate <> 0")).isZero();
+    }
+
+    private Integer violations(String condition) {
+      return jdbcClient
+          .sql("SELECT COUNT(*) FROM investment_fee_rate WHERE " + condition)
+          .query(Integer.class)
+          .single();
+    }
+  }
 }

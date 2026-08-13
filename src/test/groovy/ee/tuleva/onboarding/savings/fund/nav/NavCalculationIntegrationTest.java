@@ -267,7 +267,7 @@ class NavCalculationIntegrationTest {
     assertThat(result.managementFeeAccrual()).isPositive();
 
     // The depoopank charges TUK75 directly, so the depot fee is accrued for accounting
-    // but kept out of NAV (investment_fee_policy seeded by V1_239).
+    // but kept out of NAV (investment_fee_policy seeded by V1_242).
     assertThat(result.depotFeeAccrual()).isEqualByComparingTo(ZERO);
     assertThat(accruedDepotFee(TUK75, priceDate)).isPositive();
   }

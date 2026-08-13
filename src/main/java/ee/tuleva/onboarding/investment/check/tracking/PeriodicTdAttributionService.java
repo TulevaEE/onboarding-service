@@ -151,8 +151,8 @@ public class PeriodicTdAttributionService {
 
     var dailyRecords = buildDailyRecords(fund, tdEvents, modelAllocations);
 
-    var mgmtFeeDragTotal = computeFeeDragPeriod(fund, feeAccruals, FeeType.MANAGEMENT, periodEnd);
-    var depotFeeDragTotal = computeFeeDragPeriod(fund, feeAccruals, FeeType.DEPOT, periodEnd);
+    var mgmtFeeDragTotal = computeFeeDragPeriod(fund, feeAccruals, FeeType.MANAGEMENT);
+    var depotFeeDragTotal = computeFeeDragPeriod(fund, feeAccruals, FeeType.DEPOT);
 
     var avgAum = computeAvgAumFromDailyRecords(dailyRecords);
     var mgmtFeeDragReturn =
@@ -255,13 +255,16 @@ public class PeriodicTdAttributionService {
         .reduce(ZERO, BigDecimal::add);
   }
 
+  // Resolved per accrual date, not once for the period: a policy that changes mid-period would
+  // otherwise apply the closing answer to every day before it. Reporting a quarter of real depot
+  // drag as zero does not lose the cost -- it moves it into the unexplained residual, which is the
+  // one bucket that is supposed to mean "we cannot account for this".
   private BigDecimal computeFeeDragPeriod(
-      TulevaFund fund, List<FeeAccrual> accruals, FeeType feeType, LocalDate periodEnd) {
-    if (!feeChargedToFundPolicy.chargedToFund(fund, feeType, periodEnd)) {
-      return ZERO;
-    }
+      TulevaFund fund, List<FeeAccrual> accruals, FeeType feeType) {
+    var charged = feeChargedToFundPolicy.resolverFor(fund, feeType);
     return accruals.stream()
         .filter(a -> a.feeType() == feeType)
+        .filter(a -> charged.chargedOn(a.accrualDate()))
         .map(FeeAccrual::dailyAmountNet)
         .reduce(ZERO, BigDecimal::add);
   }

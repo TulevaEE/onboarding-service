@@ -96,7 +96,17 @@ class PeriodicTdAttributionServiceTest {
                 any(), eq(TrackingCheckType.BENCHMARK_MODEL), any(), any()))
         .willReturn(List.of());
     given(instrumentFeeRepository.findAllValidRates(any())).willReturn(List.of());
-    given(feeChargedToFundPolicy.chargedToFund(any(), any(), any())).willReturn(true);
+    given(feeChargedToFundPolicy.resolverFor(any(), any()))
+        .willAnswer(call -> alwaysCharged(call.getArgument(1), true));
+  }
+
+  private FeeChargedToFundPolicy.Resolver alwaysCharged(FeeType feeType, boolean chargedToFund) {
+    return new FeeChargedToFundPolicy.Resolver(
+        TUK75,
+        feeType,
+        List.of(
+            new FeeChargedToFundPolicy.Policy(
+                chargedToFund, LocalDate.of(2017, 3, 28), (LocalDate) null)));
   }
 
   @Test
@@ -387,7 +397,8 @@ class PeriodicTdAttributionServiceTest {
   void reportsNoDepotFeeDragWhenTheFeeIsExcludedFromNav() {
     var date1 = LocalDate.of(2026, 4, 1);
 
-    given(feeChargedToFundPolicy.chargedToFund(TUK75, FeeType.DEPOT, PERIOD_END)).willReturn(false);
+    given(feeChargedToFundPolicy.resolverFor(TUK75, FeeType.DEPOT))
+        .willReturn(alwaysCharged(FeeType.DEPOT, false));
     given(
             tdEventRepository.findDeduplicatedEventsForPeriod(
                 TUK75, MODEL_PORTFOLIO, PERIOD_START, PERIOD_END))
@@ -422,6 +433,58 @@ class PeriodicTdAttributionServiceTest {
 
     assertThat(result.depotFeeDrag()).isEqualByComparingTo(ZERO);
     assertThat(result.mgmtFeeDrag()).isNegative();
+  }
+
+  // The policy is resolved per accrual date, so a fee the fund stops bearing mid-period counts for
+  // the days it did bear it. Resolving once at periodEnd would report those days as zero drag and
+  // push a real cost into the unexplained residual.
+  @Test
+  void countsDepotFeeDragOnlyForTheDaysTheFundActuallyBoreIt() {
+    var chargedDay = LocalDate.of(2026, 4, 10);
+    var uncharged = LocalDate.of(2026, 4, 20);
+
+    given(feeChargedToFundPolicy.resolverFor(TUK75, FeeType.DEPOT))
+        .willReturn(
+            new FeeChargedToFundPolicy.Resolver(
+                TUK75,
+                FeeType.DEPOT,
+                List.of(
+                    new FeeChargedToFundPolicy.Policy(
+                        true, LocalDate.of(2017, 3, 28), LocalDate.of(2026, 4, 15)),
+                    new FeeChargedToFundPolicy.Policy(
+                        false, LocalDate.of(2026, 4, 16), (LocalDate) null))));
+    given(
+            tdEventRepository.findDeduplicatedEventsForPeriod(
+                TUK75, MODEL_PORTFOLIO, PERIOD_START, PERIOD_END))
+        .willReturn(List.of(tdEvent(chargedDay, "0.0008", "0.001")));
+    given(feeAccrualRepository.findByFundAndDateRange(TUK75, PERIOD_START, PERIOD_END))
+        .willReturn(
+            List.of(
+                feeAccrual(chargedDay, FeeType.DEPOT, "6.85"),
+                feeAccrual(uncharged, FeeType.DEPOT, "6.85")));
+    given(
+            modelPortfolioAllocationRepository.findVersionsActiveDuringPeriod(
+                TUK75, PERIOD_START, PERIOD_END))
+        .willReturn(
+            List.of(
+                modelAllocation(ISIN_DW, "0.70", chargedDay),
+                modelAllocation(ISIN_EM, "0.30", chargedDay)));
+    given(fundNavQueryService.findAum(FUND_CODE, chargedDay))
+        .willReturn(new BigDecimal("100000000"));
+    given(fundNavQueryService.findCashValue(anyString(), any()))
+        .willReturn(new BigDecimal("1500000"));
+    given(fundNavQueryService.findSecuritiesTotalValue(anyString(), any()))
+        .willReturn(new BigDecimal("98000000"));
+    given(fundNavQueryService.findFeeAccrualLiabilities(anyString(), any()))
+        .willReturn(new BigDecimal("-50000"));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(any(), eq(TUK75), eq(SECURITY)))
+        .willReturn(List.of(position(ISIN_DW, "68600000"), position(ISIN_EM, "29400000")));
+
+    var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
+
+    // Only the 10 April accrual counts: 6.85 / 100000000, negated and rounded to the attribution
+    // scale. Counting both days would give -0.00000014.
+    assertThat(result.depotFeeDrag()).isEqualByComparingTo(new BigDecimal("-0.00000007"));
   }
 
   @Test

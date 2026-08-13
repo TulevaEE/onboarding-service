@@ -5,23 +5,16 @@
 -- Before this, "use the tier" was expressed by having no row at all, so a lapsed valid_to or a
 -- deleted row silently switched a fund from a 0 rate to the tier rate. Using the tier is now a
 -- row you add rather than a row you remove, and a missing row means no fee.
+-- The three rules this column carries -- the value is FIXED or TIER, TIER is only meaningful for
+-- DEPOT, and a TIER row leaves annual_rate at 0 -- are enforced in code and asserted over this
+-- table in FeeRepositoriesIntegrationTest, not by CHECK constraints. A CHECK added here by ALTER
+-- is not re-evaluated correctly by H2 once a second Spring context has opened the shared test
+-- database: every insert that relies on the column default then fails with "Check constraint
+-- invalid", which took the whole fee and NAV suite red while PostgreSQL was perfectly happy.
+--
 -- varchar, not text: H2 maps text to a CLOB, which cannot be compared inside a CHECK constraint.
 ALTER TABLE investment_fee_rate
     ADD COLUMN rate_source varchar(10) DEFAULT 'FIXED' NOT NULL;
-
-ALTER TABLE investment_fee_rate
-    ADD CONSTRAINT investment_fee_rate_rate_source_check
-        CHECK (rate_source IN ('FIXED', 'TIER'));
-
--- Only the depot fee has an AUM tier table to read.
-ALTER TABLE investment_fee_rate
-    ADD CONSTRAINT investment_fee_rate_tier_only_for_depot_check
-        CHECK (rate_source = 'FIXED' OR CAST(fee_type AS varchar(20)) = 'DEPOT');
-
--- A TIER row carries no rate of its own; keep the column at 0 so it cannot be misread as one.
-ALTER TABLE investment_fee_rate
-    ADD CONSTRAINT investment_fee_rate_tier_rate_unused_check
-        CHECK (rate_source = 'FIXED' OR annual_rate = 0);
 
 -- The depot fee starts being accrued at the actual tier rate on 2026-09-18. Until 2026-09-17 the
 -- existing 0 rate stands, so September accrues nothing for days 1-17 and the September tier rate

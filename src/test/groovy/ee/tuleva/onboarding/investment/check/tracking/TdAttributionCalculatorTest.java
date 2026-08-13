@@ -596,6 +596,54 @@ class TdAttributionCalculatorTest {
         .build();
   }
 
+  @Test
+  void etfOcfIsNotChargedTwiceInTdVsBenchmark() {
+    var days = buildConstantDays(20, "0.0005", "0.0005");
+    var etfOcfDrag = new BigDecimal("-0.00016438");
+    var benchmarkModelSum = new BigDecimal("-0.00025000");
+    var input = etfLayerInput(days, etfOcfDrag, benchmarkModelSum);
+
+    var result = calculator.calculate(input);
+
+    // The BENCHMARK_MODEL sum is measured from ETF NAVs, which are already net of the ETF's
+    // own OCF. Adding an analytic OCF term on top would charge it a second time, so the
+    // residual is the measured sum minus the OCF it already contains.
+    assertThat(result.etfTrackingResidual())
+        .isEqualByComparingTo(benchmarkModelSum.subtract(etfOcfDrag));
+    assertThat(result.tdVsBenchmark())
+        .isEqualByComparingTo(result.tdGeometric().add(benchmarkModelSum));
+  }
+
+  @Test
+  void etfOcfAndTrackingResidualSplitTheMeasuredBenchmarkModelSum() {
+    var days = buildConstantDays(20, "0.0005", "0.0005");
+    var etfOcfDrag = new BigDecimal("-0.00016438");
+    var benchmarkModelSum = new BigDecimal("-0.00025000");
+
+    var result = calculator.calculate(etfLayerInput(days, etfOcfDrag, benchmarkModelSum));
+
+    // etf_ocf_drag is an informational split of the measured sum, not a term that changes it.
+    assertThat(result.etfOcfDrag().add(result.etfTrackingResidual()))
+        .isEqualByComparingTo(benchmarkModelSum);
+  }
+
+  private TdAttributionInput etfLayerInput(
+      List<DailyRecord> days, BigDecimal etfOcfDrag, BigDecimal benchmarkModelSum) {
+    return TdAttributionInput.builder()
+        .fund(TUK75)
+        .periodStart(PERIOD_START)
+        .periodEnd(PERIOD_END)
+        .periodType(MONTHLY)
+        .calendarDays(30)
+        .mgmtFeeDragPeriod(ZERO)
+        .depotFeeDragPeriod(ZERO)
+        .expectedAnnualFeeRate(new BigDecimal("0.0027"))
+        .etfOcfDragPeriod(etfOcfDrag)
+        .etfTrackingResidualArithmetic(benchmarkModelSum)
+        .dailyRecords(days)
+        .build();
+  }
+
   private TdAttributionInput inputWith(
       List<DailyRecord> days, BigDecimal mgmtFee, BigDecimal depotFee) {
     return TdAttributionInput.builder()

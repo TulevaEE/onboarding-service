@@ -113,7 +113,8 @@ class TdAttributionCalculator {
             .toList();
 
     var etfOcfDrag = orZero(input.etfOcfDragPeriod()).setScale(8, HALF_UP);
-    var etfTrackingResidual = orZero(input.etfTrackingResidualArithmetic()).setScale(8, HALF_UP);
+    var etfTrackingResidual =
+        orZero(input.etfTrackingResidualArithmetic()).subtract(etfOcfDrag).setScale(8, HALF_UP);
     var tdVsBenchmark =
         tdGeometricRounded.add(etfOcfDrag).add(etfTrackingResidual).setScale(8, HALF_UP);
 

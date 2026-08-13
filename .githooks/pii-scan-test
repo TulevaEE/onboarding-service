@@ -1,0 +1,78 @@
+#!/bin/bash
+# Self-test for pii-scan. Runs in CI so a regression cannot reach a developer's
+# terminal as a raw Perl error or, worse, as a silent pass.
+#
+# The roster cases use a throwaway roster built from invented names, so this
+# file never has to contain anyone's real name to prove name matching works.
+
+set -uo pipefail
+
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WORK=$(mktemp -d)
+trap 'rm -rf "$WORK"' EXIT
+
+cp "$DIR/pii-scan" "$WORK/"
+printf 'salt=test-salt\n' > "$WORK/pii-roster.sha256"
+# The ASCII entry goes in first and unconditionally. Hashing a non-ASCII name
+# is itself broken by the bug this file guards against, and an empty roster
+# would skip the name loop entirely — every wide-character case would then pass
+# without ever reaching the code that dies.
+"$WORK/pii-scan" --hash 'Testnimi Testperenimi' >> "$WORK/pii-roster.sha256"
+"$WORK/pii-scan" --hash 'Šeperenimi Žtest' >> "$WORK/pii-roster.sha256" 2>/dev/null
+
+if [ "$(grep -cE '^[0-9a-f]{64}$' "$WORK/pii-roster.sha256")" -eq 0 ]; then
+  echo "FAIL  setup: roster is empty, so no name case would exercise the scanner"
+  exit 1
+fi
+
+failures=0
+
+# expect: "clean" (exit 0, no output), "finding" (exit 1), plus never a Perl die
+check() {
+  local name=$1 expect=$2 line=$3
+  local out rc
+  out=$(printf -- '--- a/x\n+++ b/x\n@@ -0,0 +1,1 @@\n+%s\n' "$line" | "$WORK/pii-scan" 2>&1)
+  rc=$?
+
+  if printf '%s' "$out" | grep -qE 'Wide character|at .*pii-scan line [0-9]+'; then
+    echo "FAIL  $name: perl error instead of a verdict"
+    printf '%s\n' "$out" | head -2 | sed 's/^/        /'
+    failures=$((failures + 1))
+    return
+  fi
+
+  case "$expect" in
+    clean)   [ "$rc" -eq 0 ] || { echo "FAIL  $name: expected clean, got a finding"; failures=$((failures + 1)); return; } ;;
+    finding) [ "$rc" -eq 1 ] || { echo "FAIL  $name: expected a finding, got clean"; failures=$((failures + 1)); return; } ;;
+  esac
+  echo "ok    $name"
+}
+
+# Characters above U+00FF reach Digest::SHA only through the roster loop, and
+# it dies on them unless normalise encodes back to bytes. Estonian s and z with
+# caron are above U+00FF, so this is not an exotic case here.
+check 'greek letter'        clean   '  // Σ(paevased tasud kuus)'
+check 's-caron z-caron'     clean   '  String s = "Šefer Žukov";'
+check 'cyrillic and CJK'    clean   '  // Кириллица 日本語'
+check 'emoji'               clean   '  block.add("👉 Tegevus: kontrolli");'
+check 'latin-1 diacritics'  clean   '  String s = "Märt Põder ütles";'
+
+check 'valid id code'       finding '  String c = "38903112710";'
+check 'synthetic id code'   clean   '  String c = "38888888888";'
+check 'timestamp'           clean   '  long t = 1786541411606L;'
+check 'valid iban'          finding '  String i = "EE382200221020145685";'
+check 'personal email'      finding '  String e = "jaan.tamm@tuleva.ee";'
+check 'role email'          clean   '  String e = "compliance@tuleva.ee";'
+check 'ordinary code'       clean   '  return fundValueRepository.findLastValueForFund(key);'
+
+check 'rostered ascii name'    finding '  block.add("Tegevus — Testnimi Testperenimi.");'
+check 'rostered name lowered'  finding '  var owner = "testnimi testperenimi";'
+check 'rostered non-ascii name' finding '  block.add("Tegevus — Šeperenimi Žtest.");'
+
+if [ "$failures" -ne 0 ]; then
+  echo ""
+  echo "$failures pii-scan self-test failure(s)"
+  exit 1
+fi
+echo ""
+echo "pii-scan self-test passed"

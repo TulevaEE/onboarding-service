@@ -31,12 +31,17 @@ if (open my $fh, '<', $ROSTER) {
 
 # One normalisation for both scanning and roster building, so a name can never
 # hash differently depending on which side computed it.
+#
+# Decoding is needed for lc and \p{L} to understand ä and š; encoding back is
+# needed because Digest::SHA takes bytes and dies on any character above
+# U+00FF. Estonian š and ž are above it, as is every non-Latin script.
 sub normalise {
   my ($text) = @_;
   utf8::decode($text);
   $text = lc $text;
   $text =~ s/[^\p{L}]+/ /g;
   $text =~ s/^ | $//g;
+  utf8::encode($text);
   return $text;
 }
 
@@ -85,9 +90,15 @@ sub personal_email {
   return $local =~ /^[A-Za-z]+\.[A-Za-z]+$/;
 }
 
+# The scanner's own test vectors have to look exactly like the things it
+# detects, so this one file is exempt. Matched on the exact path rather than a
+# pattern, so no other file can opt out by being named like a test.
+my $SELF_TEST = '.githooks/pii-scan-test';
+
 my (@findings, $file, $line);
 while (my $raw = <STDIN>) {
   if ($raw =~ m{^\+\+\+ [ab]/(.*)$}) { $file = $1; next }
+  next if defined $file && $file eq $SELF_TEST;
   if ($raw =~ /^\@\@ .*?\+(\d+)/)    { $line = $1 - 1; next }
   if ($raw =~ /^ /)                  { $line++; next }
   next unless $raw =~ /^\+/ && $raw !~ /^\+\+\+/;

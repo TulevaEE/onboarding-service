@@ -13,12 +13,25 @@ ALTER TABLE investment_transaction_execution ADD COLUMN reported_date date;
 
 -- Rows written before the column existed. Exact values start at this migration; both consumers
 -- window over the last few position reports, so the approximation ages out of scope within days.
--- Historical-import rows never came from a custodian report at all, so the trade date is the
--- closest thing that import ever carried.
-UPDATE investment_transaction_execution
-SET reported_date = COALESCE(CAST(execution_timestamp AS date), CAST(created_at AS date))
-WHERE reported_date IS NULL
-  AND source = 'HISTORICAL_IMPORT';
+--
+-- Historical-import rows never came from a custodian report at all, so this walks the same
+-- fallback chain the importer now uses for new rows: trade date, then the order's own timestamp,
+-- then the settlement date. Falling straight through to created_at would date an old trade to
+-- whenever the import happened to run — a recent date — and the traded-quantity window filters on
+-- reported_date alone, with no settled-order exclusion, so those trades would land inside a recent
+-- position-report window and show up as quantity nobody can explain. An execution can reach this
+-- state: the importer creates one whenever quantity, price or consideration is present, and none
+-- of those requires execution_timestamp.
+UPDATE investment_transaction_execution e
+SET reported_date = COALESCE(
+        CAST(e.execution_timestamp AS date),
+        CAST((SELECT o.order_timestamp
+              FROM investment_transaction_order o
+              WHERE o.id = e.order_id) AS date),
+        e.scheduled_settlement_date,
+        CAST(e.created_at AS date))
+WHERE e.reported_date IS NULL
+  AND e.source = 'HISTORICAL_IMPORT';
 
 -- Custodian-sourced rows: the ingestion date, which trails the true as-of date by one business
 -- day. Overstating the date is the safe direction — a trade looks reported later than it was,

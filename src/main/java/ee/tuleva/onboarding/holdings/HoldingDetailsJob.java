@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.holdings;
 
+import static javax.xml.XMLConstants.ACCESS_EXTERNAL_DTD;
+import static javax.xml.stream.XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES;
+
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.ftp.FtpClient;
 import ee.tuleva.onboarding.holdings.converters.HoldingDetailConverter;
 import ee.tuleva.onboarding.holdings.persistence.HoldingDetail;
@@ -176,6 +179,12 @@ public class HoldingDetailsJob {
 
     public void parse() throws XMLStreamException, JAXBException {
       XMLInputFactory xmlInputFactory = XMLInputFactory.newInstance();
+      xmlInputFactory.setProperty(ACCESS_EXTERNAL_DTD, "");
+      xmlInputFactory.setProperty(IS_SUPPORTING_EXTERNAL_ENTITIES, false);
+      xmlInputFactory.setProperty("jdk.xml.entityExpansionLimit", 2_500);
+      int maxAccumulatedEntitySize = 2_000_000;
+      xmlInputFactory.setProperty("jdk.xml.maxGeneralEntitySizeLimit", maxAccumulatedEntitySize);
+      xmlInputFactory.setProperty("jdk.xml.totalEntitySizeLimit", maxAccumulatedEntitySize);
       XMLEventReader xmlEventReader = xmlInputFactory.createXMLEventReader(stream);
       XMLEvent e = null;
 

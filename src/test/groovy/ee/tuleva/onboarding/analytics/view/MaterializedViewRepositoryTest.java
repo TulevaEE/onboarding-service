@@ -37,7 +37,7 @@ class MaterializedViewRepositoryTest {
   void refreshesSnapshotsBeforeTheViewsThatReadThem() {
     repository.refreshAllViews();
 
-    verify(jdbcOperations, times(22)).execute(anyString());
+    verify(jdbcOperations, times(23)).execute(anyString());
     InOrder inOrder = inOrder(jdbcOperations);
     inOrder.verify(jdbcOperations).execute("REFRESH MATERIALIZED VIEW analytics.mv_tuk75_api;");
     inOrder.verify(jdbcOperations).execute("REFRESH MATERIALIZED VIEW analytics.mv_tuk00_api;");
@@ -75,6 +75,8 @@ class MaterializedViewRepositoryTest {
         .execute("REFRESH MATERIALIZED VIEW analytics.mv_aasta_eelarve_vs_prognoos;");
     verify(jdbcOperations)
         .execute("REFRESH MATERIALIZED VIEW analytics.mv_ytd_eelarve_vs_tulemus;");
+    verify(jdbcOperations)
+        .execute("REFRESH MATERIALIZED VIEW analytics.mv_unit_owner_balance_snapshot;");
   }
 
   @Test

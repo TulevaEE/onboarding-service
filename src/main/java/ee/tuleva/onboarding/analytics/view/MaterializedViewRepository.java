@@ -34,7 +34,8 @@ public class MaterializedViewRepository {
     "analytics.mv_tulud_kulud_prognoos",
     "analytics.mv_kuu_tulemus_vs_prognoos",
     "analytics.mv_aasta_eelarve_vs_prognoos",
-    "analytics.mv_ytd_eelarve_vs_tulemus"
+    "analytics.mv_ytd_eelarve_vs_tulemus",
+    "analytics.mv_unit_owner_balance_snapshot"
   };
 
   public void refreshAllViews() {

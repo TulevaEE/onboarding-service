@@ -1,0 +1,42 @@
+-- One amount per accrual, named for what it is. This is the expand half; the drop comes later.
+--
+-- The net/gross pair only ever meant something while a VAT rate was applied on top of the net
+-- figure. That multiplication is gone: investment_depot_fee_tier.annual_rate already includes VAT,
+-- so the depot accrual computed from it is the VAT-inclusive amount, and fund management is a
+-- VAT-exempt service, so the management accrual has no VAT component to separate out. Both
+-- calculators therefore wrote the same number into both columns.
+--
+-- Gross is the accurate name for what survives: the amount actually charged. Keeping "net" on a
+-- VAT-inclusive figure is the kind of label that gets believed.
+--
+-- Nothing is lost by eventually dropping the net column. Management accruals have always had
+-- daily_amount_net = daily_amount_gross, and every fund carries an explicit DEPOT rate row of 0,
+-- so the only rows where the old VAT multiplication could have made them differ are zero on both
+-- sides. Verify before deploying if you want the receipt:
+--
+--   SELECT count(*) FROM investment_fee_accrual WHERE daily_amount_net <> daily_amount_gross;
+--
+-- Why this only drops NOT NULL rather than the column. A Flyway migration is one-way; an ECS
+-- rollback is not. Dropping the column here and then rolling the deploy back -- health checks
+-- fail, ECS reverts the task definition -- puts the image back while the schema stays ahead, and
+-- the previous image still names daily_amount_net in its INSERT. That fails inside
+-- FeeCalculationService.recordDailyFees, which is a step in the NAV pipeline rather than a side
+-- report, and it fails silently: ECS rolls back on its own while CI stays green, so the first
+-- symptom is the daily fee accrual having stopped for every fund. The same window opens for a few
+-- minutes during any rolling deploy, where an old task can run the fee job after the migration has
+-- landed. Keeping the column nullable makes both directions work: the old image writes both
+-- amounts, the new one writes only the gross.
+--
+-- The residual exposure is a read, not a write: rows written by the new image have
+-- daily_amount_net NULL, so an old image summing that column during a rollback window understates
+-- by however many days it covers. It is bounded by the rollback itself and does not stop the NAV
+-- pipeline, which is the trade being made here.
+--
+-- DROP COLUMN belongs in the next release, once nothing deployed references the column. Tracked in
+-- the PR that introduced this migration.
+--
+-- Metabase reads this table directly. Questions selecting daily_amount_net must move to
+-- daily_amount_gross -- the management fee drag in "TD Attribution + OCF Calculation" is one --
+-- and they must move before the drop, not before this migration.
+
+ALTER TABLE investment_fee_accrual ALTER COLUMN daily_amount_net DROP NOT NULL;

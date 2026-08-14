@@ -18,24 +18,9 @@
 -- is stored in investment_fee_accrual.daily_amount_gross and posted to the ledger as the amount
 -- charged, with no VAT step anywhere after this point. The tier rates already satisfy this; a
 -- hand-entered FIXED depot rate must too, or the column name stops being true.
+--
+-- This migration is structural only. Switching the depot fee from its 0 rate to the tier is a
+-- dated business change and lives in its own migration, V1_246, so that the date can be moved
+-- without touching this one.
 ALTER TABLE investment_fee_rate
     ADD COLUMN rate_source varchar(10) DEFAULT 'FIXED' NOT NULL;
-
--- The depot fee starts being accrued at the actual tier rate on 2026-09-18. Until 2026-09-17 the
--- existing 0 rate stands, so September accrues nothing for days 1-17 and the September tier rate
--- from day 18 on. This only changes what we record as Tuleva's cost: investment_fee_policy still
--- says the depot fee is not charged to any fund, so it stays out of every fund's NAV and ledger.
-UPDATE investment_fee_rate
-SET valid_to = DATE '2026-09-17'
-WHERE fee_type = 'DEPOT'
-  AND rate_source = 'FIXED'
-  AND fund_code IN ('TUK75', 'TUK00', 'TUV100', 'TKF100')
-  AND valid_from <= DATE '2026-09-17'
-  AND (valid_to IS NULL OR valid_to > DATE '2026-09-17');
-
-INSERT INTO investment_fee_rate
-    (fund_code, fee_type, annual_rate, rate_source, valid_from, created_by)
-VALUES ('TUK75', 'DEPOT', 0, 'TIER', DATE '2026-09-18', 'MIGRATION'),
-       ('TUK00', 'DEPOT', 0, 'TIER', DATE '2026-09-18', 'MIGRATION'),
-       ('TUV100', 'DEPOT', 0, 'TIER', DATE '2026-09-18', 'MIGRATION'),
-       ('TKF100', 'DEPOT', 0, 'TIER', DATE '2026-09-18', 'MIGRATION');

@@ -3,12 +3,15 @@ package ee.tuleva.onboarding.investment.fees;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -18,7 +21,12 @@ import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 @DataJpaTest
-@Import({FeeRateRepository.class, DepotFeeTierRepository.class, FeeAccrualRepository.class})
+@Import({
+  FeeRateRepository.class,
+  DepotFeeTierRepository.class,
+  FeeAccrualRepository.class,
+  FeeChargedToFundPolicy.class
+})
 class FeeRepositoriesIntegrationTest {
 
   @Autowired private JdbcClient jdbcClient;
@@ -450,6 +458,62 @@ class FeeRepositoriesIntegrationTest {
           .sql("SELECT COUNT(*) FROM investment_fee_rate WHERE " + condition)
           .query(Integer.class)
           .single();
+    }
+  }
+
+  // investment_fee_policy has no default and no fallback: FeeChargedToFundPolicy throws on an
+  // unconfigured fund and fee type, on overlapping rows and on a gap between rows. That throw
+  // happens inside the NAV run, so a new TulevaFund added without a policy row is a production NAV
+  // failure discovered at 08:00 rather than a red build. This is the red build.
+  //
+  // V1_243 says "add rows here when adding a fund" -- a comment cannot enforce itself, and the
+  // enum is the side that changes.
+  @Nested
+  class EveryFundAndFeeTypeHasAPolicy {
+
+    @Autowired private FeeChargedToFundPolicy feeChargedToFundPolicy;
+
+    @Test
+    void policyResolvesForEveryFundAndFeeTypeOnEveryDateItChangesOn() {
+      for (TulevaFund fund : TulevaFund.values()) {
+        for (FeeType feeType : FeeType.values()) {
+          var resolver = feeChargedToFundPolicy.resolverFor(fund, feeType);
+          for (LocalDate date : datesToProbe(fund, feeType)) {
+            assertThatCode(() -> resolver.chargedOn(date))
+                .as("fee policy for fund=%s, feeType=%s, date=%s", fund, feeType, date)
+                .doesNotThrowAnyException();
+          }
+        }
+      }
+    }
+
+    // The fund's inception (the first day an accrual can exist) and today (the day the NAV run
+    // asks about) are the two ends that must be covered. In between, a gap can only open where one
+    // row stops and the next has not started, so probe every boundary the table itself declares:
+    // each valid_from, each valid_to, and the day after each valid_to.
+    private List<LocalDate> datesToProbe(TulevaFund fund, FeeType feeType) {
+      var dates = new ArrayList<LocalDate>();
+      dates.add(fund.getInceptionDate());
+      dates.add(LocalDate.now());
+      jdbcClient
+          .sql(
+              """
+              SELECT valid_from, valid_to
+              FROM investment_fee_policy
+              WHERE fund_code = :fundCode AND fee_type = :feeType
+              """)
+          .param("fundCode", fund.name())
+          .param("feeType", feeType.name())
+          .query(
+              rs -> {
+                dates.add(rs.getDate("valid_from").toLocalDate());
+                if (rs.getDate("valid_to") != null) {
+                  LocalDate validTo = rs.getDate("valid_to").toLocalDate();
+                  dates.add(validTo);
+                  dates.add(validTo.plusDays(1));
+                }
+              });
+      return dates;
     }
   }
 }

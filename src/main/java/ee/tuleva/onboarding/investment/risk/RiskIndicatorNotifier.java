@@ -325,6 +325,7 @@ class RiskIndicatorNotifier {
           "👉 Tegevus: kontrolli, kas NAV-seeria on täielik. Kui fondi enda ajalugu ongi nõutud"
               + " perioodist lühem, lisa investment.risk.sources alla võrdlusindeksi segment —"
               + " klassi avaldamata jätmine ei ole lubatud variant.");
+      skippedLine(outcome).ifPresent(block::add);
       return String.join("\n", block);
     }
 
@@ -384,6 +385,7 @@ class RiskIndicatorNotifier {
     dataQualityLine(indicator).ifPresent(block::add);
     truncatedHistoryLine(indicator).ifPresent(block::add);
     driftLine(outcome).ifPresent(block::add);
+    skippedLine(outcome).ifPresent(block::add);
     return String.join("\n", block);
   }
 
@@ -507,6 +509,28 @@ class RiskIndicatorNotifier {
                     drifted.getFirst(),
                     drifted.getLast())
             + " allikaandmed muutusid tagantjärele.");
+  }
+
+  /**
+   * A skipped date is not a quiet one. The publication rules count reference points inside a
+   * window, so every hole moves the majority the class is measured against, and the observation
+   * counts the drift check compares are taken from a series that is missing a row. Both readings
+   * look ordinary unless the hole is named.
+   */
+  private Optional<String> skippedLine(RiskIndicatorOutcome outcome) {
+    var skipped = outcome.skippedDates();
+    if (skipped.isEmpty()) {
+      return Optional.empty();
+    }
+    return Optional.of(
+        "⚠️ %s %s: %d referentspunkti jäi arvutamata (vanim %s, viimane %s) — VEV ei tulnud"
+                .formatted(
+                    outcome.indicator().fund(),
+                    outcome.indicator().indicatorType(),
+                    skipped.size(),
+                    skipped.getFirst(),
+                    skipped.getLast())
+            + " lõplik arv, seeriasse jäi auk. 👉 Tegevus: kontrolli nende kuupäevade alushindu.");
   }
 
   private Optional<String> dataQualityLine(PublishedRiskIndicator indicator) {

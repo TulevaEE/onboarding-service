@@ -73,7 +73,8 @@ public class RiskIndicatorService {
             ? insufficientData(fund, indicatorType, storedSeries)
             : published.analyse(fund, indicatorType, storedSeries);
 
-    return new RiskIndicatorOutcome(indicator, previous, save(indicator), refresh.driftedDates());
+    return new RiskIndicatorOutcome(
+        indicator, previous, save(indicator), refresh.driftedDates(), refresh.skippedDates());
   }
 
   private PublishedRiskIndicator insufficientData(
@@ -203,7 +204,8 @@ public class RiskIndicatorService {
       PublishedRiskIndicator indicator,
       @Nullable PublicationSnapshot previous,
       RiskIndicatorPublication publication,
-      List<LocalDate> driftedDates) {}
+      List<LocalDate> driftedDates,
+      List<LocalDate> skippedDates) {}
 
   record RiskIndicatorRun(
       LocalDate runDate, List<RiskIndicatorOutcome> outcomes, List<String> failures) {}

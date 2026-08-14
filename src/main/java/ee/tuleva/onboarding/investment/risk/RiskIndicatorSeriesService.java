@@ -62,12 +62,15 @@ class RiskIndicatorSeriesService {
       return SeriesRefresh.empty();
     }
 
-    var points =
+    var calculated =
         indicatorType == SRI
             ? sriCalculator.calculate(prices, evaluationStart, anchor)
-            : srriCalculator.calculate(prices, evaluationStart, anchor);
+            : new CalculatedSeries(
+                srriCalculator.calculate(prices, evaluationStart, anchor), List.of());
+    var points = calculated.points();
 
-    return new SeriesRefresh(points, save(fund, indicatorType, sourceKeys(segments), points));
+    return new SeriesRefresh(
+        points, save(fund, indicatorType, sourceKeys(segments), points), calculated.skippedDates());
   }
 
   /**
@@ -149,13 +152,15 @@ class RiskIndicatorSeriesService {
   }
 
   /**
-   * A recomputation that moved an already-stored point means the source data changed underneath us.
-   * The dates travel back to the caller so the digest can say so — drift that only ever reaches the
-   * log is drift nobody finds.
+   * A recomputation that moved an already-stored point means the source data changed underneath us;
+   * a date the calculator could not use at all means the series has a hole in it. Both travel back
+   * to the caller so the digest can say so — a defect that only ever reaches the log is a defect
+   * nobody finds.
    */
-  record SeriesRefresh(List<ReferencePoint> points, List<LocalDate> driftedDates) {
+  record SeriesRefresh(
+      List<ReferencePoint> points, List<LocalDate> driftedDates, List<LocalDate> skippedDates) {
     static SeriesRefresh empty() {
-      return new SeriesRefresh(List.of(), List.of());
+      return new SeriesRefresh(List.of(), List.of(), List.of());
     }
   }
 

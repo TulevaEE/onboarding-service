@@ -48,11 +48,16 @@ class SriCalculator {
    * <p>Two years is a period, so it is measured as one. Multiplying it by the trading year would
    * demand 512 prices, which is what a two-year stretch holds only if no exchange ever closes:
    * every public holiday puts a genuine two-year history under the threshold and withholds a class
-   * the Annex allows. The tolerance absorbs the same calendar drift at the other end.
+   * the Annex allows.
+   *
+   * <p>Measured as a period it needs no tolerance either. A return dated D covers the stretch from
+   * the previous price to D, so the returns observed at an evaluation date begin at the price the
+   * earliest of them was taken against — and that price, not the return, is what the two years are
+   * counted from. Anchoring on the return date instead would lose the first stretch and demand a
+   * few days of slack to give it back, slack that no calendar can consume and that would publish a
+   * class the Annex withholds for as long as it lasts.
    */
   private static final int MINIMUM_OBSERVATION_YEARS = 2;
-
-  private static final int MINIMUM_HISTORY_TOLERANCE_DAYS = 7;
 
   /**
    * Not the Annex test — a floor beneath which the four moments say nothing however wide a period
@@ -69,19 +74,22 @@ class SriCalculator {
   static final int HOLDING_PERIOD_TRADING_DAYS =
       RECOMMENDED_HOLDING_PERIOD_YEARS * TRADING_DAYS_PER_YEAR;
 
-  List<ReferencePoint> calculate(List<FundValue> prices, LocalDate from, LocalDate to) {
+  CalculatedSeries calculate(List<FundValue> prices, LocalDate from, LocalDate to) {
     var series = tradingDayPrices(prices);
     if (series.size() <= MINIMUM_RETURNS) {
-      return List.of();
+      return CalculatedSeries.empty();
     }
     var returns = logReturns(series);
-    return series.stream()
-        .skip(1)
-        .map(FundValue::date)
-        .filter(date -> !date.isBefore(from) && !date.isAfter(to))
-        .map(date -> referencePoint(returns, date))
-        .filter(Objects::nonNull)
-        .toList();
+    var evaluations =
+        series.stream()
+            .skip(1)
+            .map(FundValue::date)
+            .filter(date -> !date.isBefore(from) && !date.isAfter(to))
+            .map(date -> evaluate(returns, date))
+            .toList();
+    return new CalculatedSeries(
+        evaluations.stream().map(Evaluation::point).filter(Objects::nonNull).toList(),
+        evaluations.stream().filter(Evaluation::skipped).map(Evaluation::date).toList());
   }
 
   private List<FundValue> tradingDayPrices(List<FundValue> prices) {
@@ -109,34 +117,33 @@ class SriCalculator {
       returns.add(
           new DatedReturn(
               current.date(),
+              previous.date(),
               Math.log(current.value().doubleValue() / previous.value().doubleValue())));
     }
     return returns;
   }
 
-  private @Nullable ReferencePoint referencePoint(List<DatedReturn> returns, LocalDate evalDate) {
+  private Evaluation evaluate(List<DatedReturn> returns, LocalDate evalDate) {
     var windowStart = evalDate.minusYears(OBSERVATION_WINDOW_YEARS);
     var window =
         returns.stream()
             .filter(r -> r.date().isAfter(windowStart) && !r.date().isAfter(evalDate))
             .toList();
     if (window.size() < MINIMUM_RETURNS) {
-      return null;
+      return Evaluation.none(evalDate);
     }
-    return referencePoint(
+    return evaluate(
         evalDate,
         window.stream().mapToDouble(DatedReturn::value).toArray(),
-        window.getFirst().date());
+        window.getFirst().previousDate());
   }
 
-  private boolean isPublishable(int observations, LocalDate earliestReturn, LocalDate evalDate) {
-    var minimumHistoryStart =
-        evalDate.minusYears(MINIMUM_OBSERVATION_YEARS).plusDays(MINIMUM_HISTORY_TOLERANCE_DAYS);
-    return observations >= MINIMUM_OBSERVATIONS && !earliestReturn.isAfter(minimumHistoryStart);
+  private boolean isPublishable(int observations, LocalDate observedFrom, LocalDate evalDate) {
+    var minimumHistoryStart = evalDate.minusYears(MINIMUM_OBSERVATION_YEARS);
+    return observations >= MINIMUM_OBSERVATIONS && !observedFrom.isAfter(minimumHistoryStart);
   }
 
-  private @Nullable ReferencePoint referencePoint(
-      LocalDate evalDate, double[] window, LocalDate earliestReturn) {
+  private Evaluation evaluate(LocalDate evalDate, double[] window, LocalDate observedFrom) {
     int n = window.length;
     var mean = Arrays.stream(window).average().orElseThrow();
 
@@ -169,20 +176,21 @@ class SriCalculator {
           skew,
           excessKurtosis,
           valueAtRisk);
-      return null;
+      return Evaluation.skipped(evalDate);
     }
 
     var volatility = BigDecimal.valueOf(vev).setScale(VOLATILITY_SCALE, RoundingMode.HALF_UP);
-    return new ReferencePoint(
-        evalDate,
-        isPublishable(n, earliestReturn, evalDate) ? RiskClassBucket.mrmClass(vev) : null,
-        n,
-        volatility,
-        Map.of(
-            "dailySigma", sigma,
-            "skew", skew,
-            "excessKurtosis", excessKurtosis,
-            "valueAtRisk", valueAtRisk));
+    return Evaluation.of(
+        new ReferencePoint(
+            evalDate,
+            isPublishable(n, observedFrom, evalDate) ? RiskClassBucket.mrmClass(vev) : null,
+            n,
+            volatility,
+            Map.of(
+                "dailySigma", sigma,
+                "skew", skew,
+                "excessKurtosis", excessKurtosis,
+                "valueAtRisk", valueAtRisk)));
   }
 
   /**
@@ -203,5 +211,30 @@ class SriCalculator {
         - 0.5 * sigma * sigma * horizon;
   }
 
-  private record DatedReturn(LocalDate date, double value) {}
+  /**
+   * {@code previousDate} is the date of the price this return was taken against, which is where the
+   * stretch it measures begins. The Annex counts observed returns as a period, and a period has to
+   * be measured from its start rather than from the first date that carries a number.
+   */
+  private record DatedReturn(LocalDate date, LocalDate previousDate, double value) {}
+
+  /**
+   * A date with no point behind it is either a date the window could not yet reach back from, which
+   * is simply the start of the series, or one whose moments produced a VEV that is not a number,
+   * which is a defect in the prices. Only the second is worth telling anyone about.
+   */
+  private record Evaluation(LocalDate date, @Nullable ReferencePoint point, boolean skipped) {
+
+    static Evaluation of(ReferencePoint point) {
+      return new Evaluation(point.date(), point, false);
+    }
+
+    static Evaluation none(LocalDate date) {
+      return new Evaluation(date, null, false);
+    }
+
+    static Evaluation skipped(LocalDate date) {
+      return new Evaluation(date, null, true);
+    }
+  }
 }

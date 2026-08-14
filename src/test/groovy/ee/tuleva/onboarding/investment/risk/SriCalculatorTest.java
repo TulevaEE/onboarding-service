@@ -25,7 +25,7 @@ class SriCalculatorTest {
     var prices = pricesFrom(returns, LocalDate.of(2019, 1, 1));
     var evalDate = prices.getLast().date();
 
-    var points = calculator.calculate(prices, evalDate, evalDate);
+    var points = calculator.calculate(prices, evalDate, evalDate).points();
 
     assertThat(points).hasSize(1);
     var point = points.getFirst();
@@ -41,7 +41,7 @@ class SriCalculatorTest {
     var prices = pricesForKey(KEY, LocalDate.of(2024, 1, 1), 100.0, 4);
     var firstReturnDate = prices.get(1).date();
 
-    var points = calculator.calculate(prices, firstReturnDate, prices.getLast().date());
+    var points = calculator.calculate(prices, firstReturnDate, prices.getLast().date()).points();
 
     assertThat(points.stream().map(ReferencePoint::date)).doesNotContain(firstReturnDate);
     assertThat(points.getFirst().date()).isEqualTo(prices.get(2).date());
@@ -55,7 +55,7 @@ class SriCalculatorTest {
     spliced.addAll(ownNav);
     var evalDate = ownNav.getLast().date();
 
-    var point = calculator.calculate(spliced, evalDate, evalDate).getFirst();
+    var point = calculator.calculate(spliced, evalDate, evalDate).points().getFirst();
 
     assertThat(point.observationCount()).isEqualTo(spliced.size() - 2);
     assertThat((double) point.metrics().get("dailySigma")).isLessThan(0.01);
@@ -71,7 +71,7 @@ class SriCalculatorTest {
     var prices = pricesFrom(deterministicReturns(500), LocalDate.of(2024, 1, 1));
     var evalDate = prices.getLast().date();
 
-    var point = calculator.calculate(prices, evalDate, evalDate).getFirst();
+    var point = calculator.calculate(prices, evalDate, evalDate).points().getFirst();
 
     assertThat(point.riskClass()).isNull();
     assertThat(point.observationCount()).isEqualTo(499);
@@ -83,7 +83,7 @@ class SriCalculatorTest {
     var prices = pricesFrom(deterministicReturns(600), LocalDate.of(2024, 1, 1));
     var evalDate = prices.getLast().date();
 
-    var point = calculator.calculate(prices, evalDate, evalDate).getFirst();
+    var point = calculator.calculate(prices, evalDate, evalDate).points().getFirst();
 
     assertThat(point.observationCount()).isEqualTo(599).isGreaterThanOrEqualTo(2 * 256);
     assertThat(point.riskClass()).isNotNull();
@@ -94,10 +94,26 @@ class SriCalculatorTest {
     var evalDate = LocalDate.of(2026, 1, 2);
     var prices = weekdayPricesWithHolidays(evalDate.minusYears(2).minusWeeks(1), evalDate);
 
-    var point = calculator.calculate(prices, evalDate, evalDate).getFirst();
+    var point = calculator.calculate(prices, evalDate, evalDate).points().getFirst();
 
     assertThat(point.observationCount()).isLessThan(2 * 256);
     assertThat(point.riskClass()).isNotNull();
+  }
+
+  @Test
+  void theTwoYearsRunFromThePriceTheEarliestReturnWasTakenAgainst() {
+    var evalDate = LocalDate.of(2026, 1, 2);
+    var exactlyTwoYears = weekdayPricesWithHolidays(evalDate.minusYears(2), evalDate);
+    var oneDayShort = weekdayPricesWithHolidays(evalDate.minusYears(2).plusDays(1), evalDate);
+
+    var granted = calculator.calculate(exactlyTwoYears, evalDate, evalDate).points().getFirst();
+    var withheld = calculator.calculate(oneDayShort, evalDate, evalDate).points().getFirst();
+
+    assertThat(granted.riskClass()).isNotNull();
+    assertThat(withheld.riskClass()).isNull();
+    assertThat(withheld.observationCount())
+        .isGreaterThan(400)
+        .isEqualTo(granted.observationCount() - 1);
   }
 
   @Test
@@ -109,11 +125,28 @@ class SriCalculatorTest {
         new FundValue(KEY, corrupted.date(), new BigDecimal("1E+400"), "MSCI", Instant.EPOCH));
     var healthyDate = prices.get(1200).date();
 
-    var points = calculator.calculate(prices, prices.getFirst().date(), prices.getLast().date());
+    var points =
+        calculator.calculate(prices, prices.getFirst().date(), prices.getLast().date()).points();
 
     assertThat(points.stream().map(ReferencePoint::date)).contains(healthyDate);
     assertThat(points.stream().map(ReferencePoint::date))
         .doesNotContain(prices.get(1300).date(), prices.getLast().date());
+  }
+
+  @Test
+  void theDatesItCouldNotEvaluateLeaveWithTheSeriesRatherThanOnlyWithTheLog() {
+    var prices = new ArrayList<>(pricesFrom(deterministicReturns(1400), LocalDate.of(2019, 1, 1)));
+    var corrupted = prices.get(1300);
+    prices.set(
+        1300,
+        new FundValue(KEY, corrupted.date(), new BigDecimal("1E+400"), "MSCI", Instant.EPOCH));
+
+    var series = calculator.calculate(prices, prices.getFirst().date(), prices.getLast().date());
+
+    assertThat(series.skippedDates())
+        .contains(prices.get(1300).date(), prices.getLast().date())
+        .doesNotContain(prices.get(1200).date())
+        .doesNotContainAnyElementsOf(series.points().stream().map(ReferencePoint::date).toList());
   }
 
   @Test
@@ -147,7 +180,7 @@ class SriCalculatorTest {
       date = date.plusDays(1);
     }
 
-    var points = calculator.calculate(prices, friday, friday);
+    var points = calculator.calculate(prices, friday, friday).points();
 
     assertThat(points.getFirst().observationCount())
         .isEqualTo(returnsInWindow(prices, friday).size())
@@ -162,9 +195,10 @@ class SriCalculatorTest {
             new FundValue(KEY, LocalDate.of(2026, 1, 1), valueOf(100), "MSCI", Instant.EPOCH),
             new FundValue(KEY, LocalDate.of(2026, 1, 2), valueOf(101), "MSCI", Instant.EPOCH));
 
-    var points = calculator.calculate(prices, LocalDate.of(2026, 1, 2), LocalDate.of(2026, 1, 2));
+    var series = calculator.calculate(prices, LocalDate.of(2026, 1, 2), LocalDate.of(2026, 1, 2));
 
-    assertThat(points).isEmpty();
+    assertThat(series.points()).isEmpty();
+    assertThat(series.skippedDates()).isEmpty();
   }
 
   @Test
@@ -173,7 +207,7 @@ class SriCalculatorTest {
     var prices = pricesFrom(returns, LocalDate.of(2019, 1, 1));
     var evalDate = prices.getLast().date();
 
-    var points = calculator.calculate(prices, evalDate, evalDate);
+    var points = calculator.calculate(prices, evalDate, evalDate).points();
 
     var point = points.getFirst();
     assertThat(point.volatility()).isEqualByComparingTo("0");
@@ -191,7 +225,7 @@ class SriCalculatorTest {
     var prices = pricesFrom(returns, LocalDate.of(2019, 1, 1));
     var evalDate = prices.getLast().date();
 
-    var points = calculator.calculate(prices, evalDate, evalDate);
+    var points = calculator.calculate(prices, evalDate, evalDate).points();
 
     assertThat(points.getFirst().riskClass()).isEqualTo(7);
   }
@@ -202,7 +236,7 @@ class SriCalculatorTest {
     var prices = pricesFrom(returns, LocalDate.of(2016, 1, 1));
     var evalDate = prices.getLast().date();
 
-    var points = calculator.calculate(prices, evalDate, evalDate);
+    var points = calculator.calculate(prices, evalDate, evalDate).points();
 
     assertThat(points.getFirst().observationCount())
         .isEqualTo(returnsInWindow(prices, evalDate).size());
@@ -212,7 +246,7 @@ class SriCalculatorTest {
     var prices = pricesFrom(returns, LocalDate.of(2021, 1, 1));
     var evalDate = prices.getLast().date();
 
-    var points = calculator.calculate(prices, evalDate, evalDate);
+    var points = calculator.calculate(prices, evalDate, evalDate).points();
 
     assertThat(points).hasSize(1);
     return points.getFirst();

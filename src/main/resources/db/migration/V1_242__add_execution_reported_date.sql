@@ -48,10 +48,15 @@ UPDATE investment_transaction_execution
 SET reported_date = CAST(created_at AS date)
 WHERE reported_date IS NULL;
 
--- created_at is NOT NULL DEFAULT now(), so the backfill above cannot leave a hole. Enforcing it
--- means a future insert path that forgets the date fails at the boundary rather than writing a
--- row that silently disappears from every window that filters on it.
-ALTER TABLE investment_transaction_execution ALTER COLUMN reported_date SET NOT NULL;
+-- NOT NULL is deliberately NOT set here. Flyway runs at the startup of the new ECS task while the
+-- old tasks are still serving, and the old jar knows nothing about this column: any insert it makes
+-- in that window -- SebPendingTransactionReconciliationService on its 09:00 job, or a manual
+-- historical import -- would hit a NOT NULL column with no default and fail. Expand now, contract
+-- once the deploy has settled.
+--
+-- The follow-up migration must repeat both backfills before it constrains the column: rows written
+-- by the old jar during the rollover carry no date, and a null reported_date silently disappears
+-- from every window that filters on it.
 
 CREATE INDEX ix_investment_transaction_execution_reported_date
     ON investment_transaction_execution (reported_date);

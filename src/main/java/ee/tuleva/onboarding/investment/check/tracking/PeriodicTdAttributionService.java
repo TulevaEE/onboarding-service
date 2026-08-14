@@ -15,6 +15,7 @@ import ee.tuleva.onboarding.investment.fees.FeeAccrual;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.fees.FeeRateRepository;
 import ee.tuleva.onboarding.investment.fees.FeeType;
+import ee.tuleva.onboarding.investment.fees.InstrumentFee;
 import ee.tuleva.onboarding.investment.fees.InstrumentFeeRepository;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
@@ -30,12 +31,14 @@ import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -176,17 +179,9 @@ public class PeriodicTdAttributionService {
     var bmModelEvents =
         tdEventRepository.findDeduplicatedEventsForPeriod(
             fund, BENCHMARK_MODEL, periodStart, periodEnd);
-    var etfTrackingArithmetic =
-        bmModelEvents.stream()
-            .map(TrackingDifferenceEvent::getTrackingDifference)
-            .reduce(ZERO, BigDecimal::add);
-
-    var weightedOcf = computeWeightedOcf(modelAllocations, periodEnd);
-    var etfOcfDrag =
-        weightedOcf
-            .negate()
-            .multiply(BigDecimal.valueOf(calendarDays))
-            .divide(BigDecimal.valueOf(365), SCALE, HALF_UP);
+    var etfLayer =
+        computeEtfLayer(
+            fund, bmModelEvents, modelAllocations, periodStart, periodEnd, calendarDays);
 
     return TdAttributionInput.builder()
         .fund(fund)
@@ -197,10 +192,13 @@ public class PeriodicTdAttributionService {
         .mgmtFeeDragPeriod(mgmtFeeDragReturn)
         .depotFeeDragPeriod(depotFeeDragReturn)
         .transactionCostsPeriod(txnCostReturn)
-        .etfOcfDragPeriod(etfOcfDrag)
-        .etfTrackingResidualArithmetic(etfTrackingArithmetic)
+        .etfOcfDragPeriod(etfLayer.ocfDrag())
+        .benchmarkModelSumPeriod(etfLayer.measuredSum())
+        .benchmarkProxyOcfDragPeriod(etfLayer.proxyOcfDrag())
         .expectedAnnualFeeRate(expectedAnnualFeeRate)
         .seriesGapDays(seriesGapDays)
+        .etfLayerCoveredDays(etfLayer.coveredDays())
+        .etfLayerUnbenchmarkedWeight(etfLayer.unbenchmarkedWeight())
         .dailyRecords(dailyRecords)
         .build();
   }
@@ -228,15 +226,141 @@ public class PeriodicTdAttributionService {
         fund, LocalDate.of(year, 1, 1), LocalDate.of(year, 12, 31), PeriodType.ANNUAL);
   }
 
-  private BigDecimal computeWeightedOcf(
-      List<ModelPortfolioAllocation> allocations, LocalDate asOf) {
-    var rates = instrumentFeeRepository.findAllValidRates(asOf);
-    if (rates.isEmpty()) {
-      return ZERO;
-    }
-    var rateByIsin =
-        rates.stream().collect(Collectors.toMap(r -> r.isin(), r -> r.netOcf(), (a, b) -> a));
+  // measuredSum is null when the layer was never measured, which the calculator must not confuse
+  // with a measured zero.
+  record EtfLayer(
+      @Nullable BigDecimal measuredSum,
+      BigDecimal ocfDrag,
+      BigDecimal proxyOcfDrag,
+      int coveredDays,
+      BigDecimal unbenchmarkedWeight) {
 
+    static EtfLayer unmeasured() {
+      return new EtfLayer(null, ZERO, ZERO, 0, ZERO);
+    }
+  }
+
+  private EtfLayer computeEtfLayer(
+      TulevaFund fund,
+      List<TrackingDifferenceEvent> bmModelEvents,
+      List<ModelPortfolioAllocation> modelAllocations,
+      LocalDate periodStart,
+      LocalDate periodEnd,
+      int calendarDays) {
+
+    if (bmModelEvents.isEmpty()) {
+      log.warn(
+          "No BENCHMARK_MODEL events in the period, reporting the ETF layer as unmeasured rather than as a residual: fund={}, period={}-{}",
+          fund,
+          periodStart,
+          periodEnd);
+      return EtfLayer.unmeasured();
+    }
+
+    var measuredSum =
+        bmModelEvents.stream()
+            .map(TrackingDifferenceEvent::getTrackingDifference)
+            .reduce(ZERO, BigDecimal::add);
+
+    // Each event measures the window from the previous working day, so the windows tile the period
+    // exactly when the series is complete. Charging a full-period OCF against a partially covered
+    // sum would push the uncovered days straight into the residual.
+    var coveredDays =
+        bmModelEvents.stream()
+            .map(TrackingDifferenceEvent::getCheckDate)
+            .mapToInt(d -> (int) ChronoUnit.DAYS.between(publicHolidays.previousWorkingDay(d), d))
+            .sum();
+    if (coveredDays < calendarDays) {
+      log.warn(
+          "The ETF layer covers fewer days than the period, its OCF term is scaled to the measured days: fund={}, period={}-{}, coveredDays={}, calendarDays={}",
+          fund,
+          periodStart,
+          periodEnd,
+          coveredDays,
+          calendarDays);
+    }
+
+    var allocations = latestAllocations(modelAllocations, periodEnd);
+    var rateByIsin =
+        instrumentFeeRepository.findAllValidRates(periodEnd).stream()
+            .collect(Collectors.toMap(InstrumentFee::isin, InstrumentFee::netOcf, (a, b) -> a));
+
+    var heldOcf = ZERO;
+    var proxyOcf = ZERO;
+    var unbenchmarkedWeight = ZERO;
+    var unpricedIsins = new LinkedHashSet<String>();
+    var unpricedProxyIsins = new LinkedHashSet<String>();
+
+    for (var allocation : allocations) {
+      var weight = allocation.getWeight();
+      var isin = allocation.getIsin();
+
+      var ocf = rateByIsin.get(isin);
+      if (ocf == null) {
+        unpricedIsins.add(isin);
+      } else {
+        heldOcf = heldOcf.add(weight.multiply(ocf));
+      }
+
+      var leg = BenchmarkLegResolver.resolve(isin).orElse(null);
+      if (leg == null) {
+        // No benchmark leg means the daily check skipped this holding entirely, so its weight is
+        // not in measuredSum at all -- an OCF term covering it would be charged against a sum that
+        // never included it.
+        unbenchmarkedWeight = unbenchmarkedWeight.add(weight);
+        continue;
+      }
+      if (leg.isIndex()) {
+        continue;
+      }
+      var proxyIsin = leg.proxyEtf().getIsin();
+      var proxyRate = rateByIsin.get(proxyIsin);
+      if (proxyRate == null) {
+        unpricedProxyIsins.add(proxyIsin);
+        continue;
+      }
+      proxyOcf = proxyOcf.add(weight.multiply(proxyRate));
+    }
+
+    if (!unpricedIsins.isEmpty()) {
+      log.warn(
+          "No OCF rate for model instruments, their cost is missing from etf_ocf_drag and falls into the residual: fund={}, asOf={}, isins={}",
+          fund,
+          periodEnd,
+          unpricedIsins);
+    }
+    if (!unpricedProxyIsins.isEmpty()) {
+      log.warn(
+          "No OCF rate for benchmark proxy ETFs, so td_vs_benchmark measures against the proxies rather than the index for their share: fund={}, asOf={}, isins={}",
+          fund,
+          periodEnd,
+          unpricedProxyIsins);
+    }
+    if (unbenchmarkedWeight.signum() > 0) {
+      log.warn(
+          "Model weight with no benchmark leg is outside the measured ETF layer: fund={}, asOf={}, weight={}",
+          fund,
+          periodEnd,
+          unbenchmarkedWeight);
+    }
+
+    return new EtfLayer(
+        measuredSum,
+        annualisedDrag(heldOcf, coveredDays),
+        annualisedDrag(proxyOcf, coveredDays),
+        coveredDays,
+        unbenchmarkedWeight);
+  }
+
+  private BigDecimal annualisedDrag(BigDecimal weightedRate, int days) {
+    return weightedRate
+        .negate()
+        .multiply(BigDecimal.valueOf(days))
+        .divide(BigDecimal.valueOf(365), SCALE, HALF_UP);
+  }
+
+  private List<ModelPortfolioAllocation> latestAllocations(
+      List<ModelPortfolioAllocation> allocations, LocalDate asOf) {
     var latestDate =
         allocations.stream()
             .map(ModelPortfolioAllocation::getEffectiveDate)
@@ -244,13 +368,9 @@ public class PeriodicTdAttributionService {
             .max(LocalDate::compareTo)
             .orElse(null);
     if (latestDate == null) {
-      return ZERO;
+      return List.of();
     }
-
-    return allocations.stream()
-        .filter(a -> a.getEffectiveDate().equals(latestDate))
-        .map(a -> a.getWeight().multiply(rateByIsin.getOrDefault(a.getIsin(), ZERO)))
-        .reduce(ZERO, BigDecimal::add);
+    return allocations.stream().filter(a -> a.getEffectiveDate().equals(latestDate)).toList();
   }
 
   private BigDecimal computeFeeDragPeriod(List<FeeAccrual> accruals, FeeType feeType) {

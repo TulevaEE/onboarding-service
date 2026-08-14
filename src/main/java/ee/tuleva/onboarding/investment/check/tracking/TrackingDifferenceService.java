@@ -12,7 +12,6 @@ import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.comparisons.fundvalue.PriorityPriceProvider;
 import ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus;
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.PriceSnapshot;
@@ -505,26 +504,9 @@ class TrackingDifferenceService {
   }
 
   private String resolveBenchmarkKey(String isin) {
-    var ticker = FundTicker.findByIsin(isin).orElse(null);
-    if (ticker == null) {
-      return null;
-    }
-
-    var category = ticker.getBenchmarkCategory();
-    if (category == null) {
-      return null;
-    }
-
-    var isEtf =
-        ticker.getEodhdTicker().endsWith(".XETRA") || ticker.getEodhdTicker().endsWith(".PA.EODHD");
-
-    return switch (category) {
-      case EQUITY_DM ->
-          isEtf ? ISHARES_CORE_MSCI_WORLD.getXetraStorageKey().orElseThrow() : "MSCI_WORLD";
-      case EQUITY_EM -> isEtf ? ISHARES_MSCI_EM.getXetraStorageKey().orElseThrow() : "MSCI_EM";
-      case BOND_EURO -> ISHARES_EURO_AGG_BOND_ETF.getXetraStorageKey().orElseThrow();
-      case BOND_GLOBAL -> ISHARES_GLOBAL_AGG_BOND_ETF.getXetraStorageKey().orElseThrow();
-    };
+    return BenchmarkLegResolver.resolve(isin)
+        .map(BenchmarkLegResolver.BenchmarkLeg::seriesKey)
+        .orElse(null);
   }
 
   private Optional<BigDecimal> lookupReturn(

@@ -112,11 +112,7 @@ class TdAttributionCalculator {
             .map(acc -> acc.toAttribution(periodCoefficient))
             .toList();
 
-    var etfOcfDrag = orZero(input.etfOcfDragPeriod()).setScale(8, HALF_UP);
-    var etfTrackingResidual =
-        orZero(input.etfTrackingResidualArithmetic()).subtract(etfOcfDrag).setScale(8, HALF_UP);
-    var tdVsBenchmark =
-        tdGeometricRounded.add(etfOcfDrag).add(etfTrackingResidual).setScale(8, HALF_UP);
+    var etfLayer = computeEtfLayer(input, tdGeometricRounded);
 
     return TdAttributionResult.builder()
         .fund(input.fund())
@@ -134,15 +130,45 @@ class TdAttributionCalculator {
         .weightDeviation(weightDeviation)
         .transactionCosts(transactionCosts)
         .residual(residual)
-        .etfOcfDrag(etfOcfDrag)
-        .etfTrackingResidual(etfTrackingResidual)
-        .tdVsBenchmark(tdVsBenchmark)
+        .etfOcfDrag(etfLayer.ocfDrag())
+        .etfTrackingResidual(etfLayer.trackingResidual())
+        .tdVsBenchmark(etfLayer.tdVsBenchmark())
         .navEventCount(navEventCount)
         .avgAum(avgAum)
         .avgCashPct(avgCashPct.setScale(6, HALF_UP))
         .instrumentDetails(instrumentDetails)
         .checks(checks)
         .build();
+  }
+
+  private record EtfLayer(
+      BigDecimal ocfDrag, BigDecimal trackingResidual, BigDecimal tdVsBenchmark) {}
+
+  // The measured BENCHMARK_MODEL sum is the model's gap to its benchmark legs, not to the index.
+  // Only the mutual-fund holdings are compared against an index series; every ETF holding, and
+  // every bond holding, is compared against a proxy ETF (BenchmarkLegResolver). A proxy leg is
+  // itself net of the proxy's own OCF, so the measured difference has already netted that away and
+  // it has to be added back to get the gap to the index -- benchmarkProxyOcfDragPeriod is that
+  // restoration, and it is zero for the index-benchmarked share.
+  //
+  // etfOcfDrag then splits the result rather than changing it: the ETFs' own analytic cost, with
+  // whatever they did beyond it falling into the residual. It is not a term that adds to the total,
+  // which is what makes the total depend only on measured data plus the proxy restoration.
+  private EtfLayer computeEtfLayer(TdAttributionInput input, BigDecimal tdGeometric) {
+    // Null, not zero: a period that produced no BENCHMARK_MODEL event has an unmeasured ETF layer,
+    // and reporting a residual for it would show ETF outperformance that nothing observed.
+    if (input.benchmarkModelSumPeriod() == null) {
+      return new EtfLayer(ZERO, ZERO, tdGeometric);
+    }
+    var ocfDrag = orZero(input.etfOcfDragPeriod()).setScale(8, HALF_UP);
+    var modelVsIndex =
+        input
+            .benchmarkModelSumPeriod()
+            .add(orZero(input.benchmarkProxyOcfDragPeriod()))
+            .setScale(8, HALF_UP);
+    var trackingResidual = modelVsIndex.subtract(ocfDrag).setScale(8, HALF_UP);
+    return new EtfLayer(
+        ocfDrag, trackingResidual, tdGeometric.add(modelVsIndex).setScale(8, HALF_UP));
   }
 
   private BigDecimal carinoCoefficient(BigDecimal portfolioReturn, BigDecimal benchmarkReturn) {
@@ -228,7 +254,14 @@ class TdAttributionCalculator {
         "feeXcheck", feeXcheck.setScale(8, HALF_UP),
         "scalingFactor", periodLink.setScale(8, HALF_UP),
         "residualBps", residualBps.setScale(2, HALF_UP),
-        "seriesGapDays", input.seriesGapDays());
+        "seriesGapDays", input.seriesGapDays(),
+        // The ETF layer is measured over its own population and its own days, neither of which has
+        // to match the period. Without these three, a partially covered layer reads exactly like a
+        // fully covered one.
+        "etfLayerMeasured", input.benchmarkModelSumPeriod() != null,
+        "etfLayerCoveredDays", input.etfLayerCoveredDays(),
+        "etfLayerUnbenchmarkedWeight",
+            orZero(input.etfLayerUnbenchmarkedWeight()).setScale(6, HALF_UP));
   }
 
   private TdAttributionResult emptyResult(TdAttributionInput input) {
@@ -274,9 +307,14 @@ class TdAttributionCalculator {
       BigDecimal depotFeeDragPeriod,
       BigDecimal transactionCostsPeriod,
       BigDecimal etfOcfDragPeriod,
-      BigDecimal etfTrackingResidualArithmetic,
+      // The raw measured sum, deliberately not named for the output field it feeds: the output is
+      // this sum minus the OCF it already contains, which is not the same number.
+      @Nullable BigDecimal benchmarkModelSumPeriod,
+      @Nullable BigDecimal benchmarkProxyOcfDragPeriod,
       BigDecimal expectedAnnualFeeRate,
       int seriesGapDays,
+      int etfLayerCoveredDays,
+      BigDecimal etfLayerUnbenchmarkedWeight,
       List<DailyRecord> dailyRecords) {}
 
   @Builder

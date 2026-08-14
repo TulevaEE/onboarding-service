@@ -54,6 +54,8 @@ class PeriodicTdAttributionServiceTest {
   private static final LocalDate PERIOD_END = LocalDate.of(2026, 4, 30);
   private static final String FUND_CODE = "TUK75";
   private static final String ISIN_DW = "IE00BFG1TM61";
+  // The proxy the BENCHMARK_MODEL check compares an EQUITY_DM ETF against.
+  private static final String EUNL_ISIN = "IE00B4L5Y983";
   private static final String ISIN_EM = "IE00BFNM3D14";
 
   @Mock TrackingDifferenceEventRepository tdEventRepository;
@@ -463,21 +465,121 @@ class PeriodicTdAttributionServiceTest {
   @Test
   void computeWeightedOcfUsesInstrumentFeeRates() {
     setupStandardMocks();
-
-    var instrumentFee =
-        ee.tuleva.onboarding.investment.fees.InstrumentFee.builder()
-            .isin(ISIN_DW)
-            .instrumentName("iShares DW")
-            .netOcf(new BigDecimal("0.0012"))
-            .publishedOcf(new BigDecimal("0.0015"))
-            .rebateRate(new BigDecimal("0.0003"))
-            .validFrom(LocalDate.of(2025, 1, 1))
-            .build();
-    given(instrumentFeeRepository.findAllValidRates(PERIOD_END)).willReturn(List.of(instrumentFee));
+    givenBenchmarkModelEvents();
+    given(instrumentFeeRepository.findAllValidRates(PERIOD_END))
+        .willReturn(List.of(instrumentFee(ISIN_DW, "0.0012")));
 
     var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
 
     assertThat(result.etfOcfDrag()).isNegative();
+  }
+
+  @Test
+  void anEtfLayerWithNoMeasuredDayIsReportedAsZeroRatherThanAsOutperformance() {
+    setupStandardMocks();
+    // The default stub leaves BENCHMARK_MODEL empty. Subtracting an analytic OCF from a sum that
+    // was never measured would report ETF outperformance of exactly one OCF.
+    given(instrumentFeeRepository.findAllValidRates(PERIOD_END))
+        .willReturn(List.of(instrumentFee(ISIN_DW, "0.0012")));
+
+    var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
+
+    assertThat(result.etfOcfDrag()).isEqualByComparingTo(ZERO);
+    assertThat(result.etfTrackingResidual()).isEqualByComparingTo(ZERO);
+    assertThat(result.tdVsBenchmark()).isEqualByComparingTo(result.tdGeometric());
+    assertThat(result.checks()).containsEntry("etfLayerMeasured", false);
+  }
+
+  @Test
+  void aProxyBenchmarkedHoldingHasTheProxyOwnOcfRestoredIntoTdVsBenchmark() {
+    setupStandardMocks();
+    givenBenchmarkModelEvents();
+    // ISIN_DW is a mutual fund, so the daily check compares it against the MSCI World series
+    // itself. ISIN_EM is an ETF and is compared against the EUNL proxy, which is net of EUNL's own
+    // OCF -- that part of the gap to the index is not in the measured sum and has to be added back.
+    given(instrumentFeeRepository.findAllValidRates(PERIOD_END))
+        .willReturn(List.of(instrumentFee(ISIN_DW, "0.0012"), instrumentFee(ISIN_EM, "0.0020")));
+    var withoutProxyRate = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
+
+    given(instrumentFeeRepository.findAllValidRates(PERIOD_END))
+        .willReturn(
+            List.of(
+                instrumentFee(ISIN_DW, "0.0012"),
+                instrumentFee(ISIN_EM, "0.0020"),
+                instrumentFee(EUNL_ISIN, "0.0020")));
+    var withProxyRate = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
+
+    // Knowing what the proxy itself costs has to widen the reported gap to the index, because the
+    // measured sum stopped at the proxy. Nothing else about the layer moves: the ETFs' own analytic
+    // cost is identical in both runs.
+    assertThat(withProxyRate.tdVsBenchmark()).isLessThan(withoutProxyRate.tdVsBenchmark());
+    assertThat(withProxyRate.etfOcfDrag()).isEqualByComparingTo(withoutProxyRate.etfOcfDrag());
+
+    // The two ETF fields still partition the layer rather than inflating it.
+    assertThat(withProxyRate.etfOcfDrag().add(withProxyRate.etfTrackingResidual()))
+        .isEqualByComparingTo(withProxyRate.tdVsBenchmark().subtract(withProxyRate.tdGeometric()));
+
+    // With no rate for the proxy there is nothing to restore, so the layer falls back to the
+    // measured sum alone rather than guessing at it.
+    assertThat(withoutProxyRate.tdVsBenchmark().subtract(withoutProxyRate.tdGeometric()))
+        .isEqualByComparingTo(BENCHMARK_MODEL_SUM);
+  }
+
+  @Test
+  void modelWeightWithNoBenchmarkLegIsRecordedAsOutsideTheMeasuredLayer() {
+    setupStandardMocks();
+    givenBenchmarkModelEvents();
+    given(
+            modelPortfolioAllocationRepository.findVersionsActiveDuringPeriod(
+                TUK75, PERIOD_START, PERIOD_END))
+        .willReturn(
+            List.of(
+                modelAllocation(ISIN_DW, "0.70", PERIOD_START),
+                modelAllocation("IE00NOTATRACKER", "0.30", PERIOD_START)));
+
+    var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
+
+    // The daily check skips a holding it cannot benchmark, so its weight is not in the measured sum
+    // at all. Charging its OCF against that sum would land the difference in the residual.
+    assertThat(result.checks())
+        .containsEntry("etfLayerUnbenchmarkedWeight", new BigDecimal("0.300000"));
+  }
+
+  private void givenBenchmarkModelEvents() {
+    given(
+            tdEventRepository.findDeduplicatedEventsForPeriod(
+                TUK75, TrackingCheckType.BENCHMARK_MODEL, PERIOD_START, PERIOD_END))
+        .willReturn(
+            List.of(
+                benchmarkModelEvent(LocalDate.of(2026, 4, 1), "-0.00010"),
+                benchmarkModelEvent(LocalDate.of(2026, 4, 2), "-0.00015")));
+  }
+
+  private static final BigDecimal BENCHMARK_MODEL_SUM = new BigDecimal("-0.00025");
+
+  private TrackingDifferenceEvent benchmarkModelEvent(LocalDate date, String trackingDifference) {
+    return TrackingDifferenceEvent.builder()
+        .fund(TUK75)
+        .checkDate(date)
+        .checkType(TrackingCheckType.BENCHMARK_MODEL)
+        .trackingDifference(new BigDecimal(trackingDifference))
+        .fundReturn(ZERO)
+        .benchmarkReturn(ZERO)
+        .breach(false)
+        .result(Map.of())
+        .build();
+  }
+
+  private ee.tuleva.onboarding.investment.fees.InstrumentFee instrumentFee(
+      String isin, String netOcf) {
+    return ee.tuleva.onboarding.investment.fees.InstrumentFee.builder()
+        .isin(isin)
+        .instrumentName(isin)
+        .netOcf(new BigDecimal(netOcf))
+        .publishedOcf(new BigDecimal(netOcf))
+        .rebateRate(ZERO)
+        .validFrom(LocalDate.of(2025, 1, 1))
+        .build();
   }
 
   // --- shared setup ---

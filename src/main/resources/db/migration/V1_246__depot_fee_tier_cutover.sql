@@ -1,8 +1,9 @@
 -- The depot fee starts being accrued at the actual tier rate on 2026-09-18.
 --
 -- Source of the date: the depoopank agreement -- this is the date from which the depoopank's fee
--- is payable. It is a contractual date, not an implementation convenience, so it does not move to
--- suit the deploy. Confirm it against the agreement before merging rather than trusting this line.
+-- is payable, checked against the agreement rather than inferred from anything here. It is a
+-- contractual date, not an implementation convenience: it does not move to suit the deploy, and
+-- the deploy has to reach it in time instead. See the deploy note below.
 --
 -- The existing 0 rate rows close on 2026-09-17 and TIER rows open on 2026-09-18, so September
 -- accrues nothing for days 1-17 and the September tier rate from day 18 on. This only changes what
@@ -31,8 +32,10 @@
 -- means no ledger entry was posted for these accruals and no NAV depends on them. Do not copy this
 -- recipe for a fee a fund is charged.
 --
--- The cheaper path is to move both dates in this migration to the deploy date and accept that the
--- days before it are recorded as zero, if that is a smaller lie than the one above.
+-- Do not "fix" a late deploy by moving both dates forward to it. That looks cheaper and is the
+-- worse answer: the fee is payable from 18.09 under the agreement whatever our deploy did, so
+-- moving the dates would leave us owing the depoopank for days this table says cost nothing, and
+-- investment_fee_accrual is the only place that cost is recorded. Delete and backfill instead.
 --
 -- The same gap opens without the calendar being involved. A TIER row carries annual_rate = 0 and
 -- names the tier table as the real source; the previously deployed image has no rate_source column

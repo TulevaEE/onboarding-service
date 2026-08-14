@@ -18,8 +18,8 @@ import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.PriceSnapshot;
 import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.SecurityData;
 import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.TrackingInput;
+import ee.tuleva.onboarding.investment.fees.FeeAccrual;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
-import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.position.FundPosition;
@@ -32,6 +32,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -179,8 +180,6 @@ class TrackingDifferenceService {
             .filter(Objects::nonNull)
             .reduce(ZERO, BigDecimal::add);
 
-    var accruedFeeFraction = accruedFeeFraction(fund, previousDate, checkDate, totalNav);
-
     var securities =
         buildSecurityData(
             fund,
@@ -232,17 +231,20 @@ class TrackingDifferenceService {
             .map(FundPosition::getMarketValue)
             .filter(Objects::nonNull)
             .reduce(ZERO, BigDecimal::add);
-    var bodTotalNav =
+    var previousTotalNav =
         fundPositionRepository.sumMarketValueByFundAndAccountTypes(
             fund, previousDate, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY));
 
     List<TrackingDifferenceCalculator.BodHolding> bodHoldings = null;
     BigDecimal bodSecuritiesFraction = null;
-    if (bodTotalNav != null && bodTotalNav.signum() > 0 && bodTotalSecurities.signum() > 0) {
+    if (previousTotalNav != null
+        && previousTotalNav.signum() > 0
+        && bodTotalSecurities.signum() > 0) {
       bodHoldings =
           buildBodHoldings(fund, checkDate, previousDate, bodPositions, bodTotalSecurities);
       if (bodHoldings != null) {
-        bodSecuritiesFraction = bodTotalSecurities.divide(bodTotalNav, SCALE, RoundingMode.HALF_UP);
+        bodSecuritiesFraction =
+            bodTotalSecurities.divide(previousTotalNav, SCALE, RoundingMode.HALF_UP);
       }
     } else {
       log.warn(
@@ -250,9 +252,12 @@ class TrackingDifferenceService {
           fund,
           checkDate,
           previousDate,
-          bodTotalNav,
+          previousTotalNav,
           bodTotalSecurities);
     }
+
+    var accruedFeeFraction =
+        accruedFeeFraction(fund, previousDate, checkDate, previousTotalNav, totalNav);
 
     var priorBreaches = countConsecutiveBreaches(fund, MODEL_PORTFOLIO, checkDate);
 
@@ -297,19 +302,71 @@ class TrackingDifferenceService {
     return results;
   }
 
+  // Only dailyAmountNet ever reduces the NAV: FeeCalculationService.recordDailyFees posts
+  // roundForLedger(dailyAmountNet) to the ledger for every fee type, and the AUM deduction sums the
+  // same column. Reading the depot leg's gross amount would claim a larger deduction than the NAV
+  // took, and the VAT delta would land in navResidual -- which blocks the NAV report.
   private BigDecimal accruedFeeFraction(
-      TulevaFund fund, LocalDate previousDate, LocalDate checkDate, BigDecimal totalNav) {
-    if (totalNav.signum() == 0) {
+      TulevaFund fund,
+      LocalDate previousDate,
+      LocalDate checkDate,
+      @Nullable BigDecimal previousTotalNav,
+      BigDecimal totalNav) {
+    var base = feeFractionBase(fund, checkDate, previousDate, previousTotalNav, totalNav);
+    if (base.signum() == 0) {
       return ZERO;
     }
+    var accruals =
+        feeAccrualRepository.findByFundAndDateRange(fund, previousDate.plusDays(1), checkDate);
+    warnOnIncompleteAccrualCoverage(fund, previousDate, checkDate, accruals);
     var accrued =
-        feeAccrualRepository
-            .findByFundAndDateRange(fund, previousDate.plusDays(1), checkDate)
-            .stream()
-            .map(a -> a.feeType() == FeeType.DEPOT ? a.dailyAmountGross() : a.dailyAmountNet())
+        accruals.stream()
+            .map(FeeAccrual::dailyAmountNet)
             .filter(Objects::nonNull)
             .reduce(ZERO, BigDecimal::add);
-    return accrued.divide(totalNav, FEE_FRACTION_SCALE, RoundingMode.HALF_UP);
+    return accrued.divide(base, FEE_FRACTION_SCALE, RoundingMode.HALF_UP);
+  }
+
+  // The fee is deducted from the NAV the return is measured against: fundReturn is
+  // todayNav/yesterdayNav - 1, so NAV_today = NAV_yesterday * (1 + grossReturn) - fee makes the
+  // drag exactly fee / NAV_yesterday. Dividing by checkDate's NAV leaves a second-order error that
+  // never reconciles with the ledger. checkDate is only a fallback for a fund whose previous NAV
+  // date carries no positions -- zero there would drop the whole fee into the residual.
+  private BigDecimal feeFractionBase(
+      TulevaFund fund,
+      LocalDate checkDate,
+      LocalDate previousDate,
+      @Nullable BigDecimal previousTotalNav,
+      BigDecimal totalNav) {
+    if (previousTotalNav != null && previousTotalNav.signum() != 0) {
+      return previousTotalNav;
+    }
+    log.warn(
+        "No positions on the previous NAV date, dividing the fee accrual by the check date NAV instead: fund={}, checkDate={}, previousDate={}",
+        fund,
+        checkDate,
+        previousDate);
+    return totalNav;
+  }
+
+  // A window with no accrual rows silently yields feeDrag = 0, and the fee it should have offset
+  // reappears in residual and navResidual as if the fund had underperformed. Backfilling a date
+  // that predates the accrual table, and a fee transaction that rolled back while the NAV
+  // persisted, both land here. Partial coverage leaks the same way, one day at a time.
+  private void warnOnIncompleteAccrualCoverage(
+      TulevaFund fund, LocalDate previousDate, LocalDate checkDate, List<FeeAccrual> accruals) {
+    var expectedDays = ChronoUnit.DAYS.between(previousDate, checkDate);
+    var coveredDays = accruals.stream().map(FeeAccrual::accrualDate).distinct().count();
+    if (coveredDays >= expectedDays) {
+      return;
+    }
+    log.warn(
+        "Fee accruals incomplete for the check window, the uncovered fee will surface as tracking residual: fund={}, window=({}, {}], expectedDays={}, coveredDays={}",
+        fund,
+        previousDate,
+        checkDate,
+        expectedDays,
+        coveredDays);
   }
 
   private Optional<TrackingDifferenceResult> buildBenchmarkCheck(

@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.B
 import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
 import static java.math.BigDecimal.ZERO;
+import static java.math.RoundingMode.HALF_UP;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -391,6 +392,65 @@ class TrackingDifferenceServiceTest {
     verify(feeAccrualRepository).findByFundAndDateRange(TUK75, saturday, monday);
   }
 
+  @Test
+  void feeDragMatchesTheAmountThatWasPostedToTheLedger() {
+    setupFundData(TUK75);
+    // The ledger posts roundForLedger(dailyAmountNet) for every fee type, so a depot accrual whose
+    // gross carries VAT on top must still only offset its net. Reading gross here would claim a
+    // deduction the NAV never took, and the delta would sit in navResidual, blocking the report.
+    given(feeAccrualRepository.findByFundAndDateRange(TUK75, CHECK_DATE, CHECK_DATE))
+        .willReturn(
+            List.of(
+                accrual(FeeType.MANAGEMENT, CHECK_DATE, new BigDecimal("9.00")),
+                accrual(
+                    FeeType.DEPOT, CHECK_DATE, new BigDecimal("3.00"), new BigDecimal("3.66"))));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var model =
+        results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst().orElseThrow();
+    var ledgerPosted = new BigDecimal("12.00");
+    var previousTotalNav = new BigDecimal("1000000");
+    assertThat(model.feeDrag())
+        .isEqualByComparingTo(
+            ledgerPosted.divide(previousTotalNav, 10, HALF_UP).negate().setScale(6, HALF_UP));
+  }
+
+  @Test
+  void feeDragIsMeasuredAgainstThePreviousNavDatesTotal() {
+    setupFundData(TUK75);
+    // fundReturn is todayNav/yesterdayNav - 1, and the fee was deducted from yesterday's NAV, so
+    // that is the only denominator the term reconciles against. Against CHECK_DATE's 1_000_000 the
+    // same accrual would round to -0.000009.
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, PREVIOUS_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(new BigDecimal("900000"));
+    given(feeAccrualRepository.findByFundAndDateRange(TUK75, CHECK_DATE, CHECK_DATE))
+        .willReturn(List.of(accrual(FeeType.MANAGEMENT, CHECK_DATE, new BigDecimal("9.00"))));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var model =
+        results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst().orElseThrow();
+    assertThat(model.feeDrag()).isEqualByComparingTo(new BigDecimal("-0.000010"));
+  }
+
+  @Test
+  void feeDragIsZeroWhenTheWindowHasNoAccrualsAtAll() {
+    setupFundData(TUK75);
+    // Backfilling a date that predates the accrual table lands here. Nothing can be offset, so the
+    // fee surfaces as residual -- accruedFeeFraction logs the gap rather than hiding it.
+    given(feeAccrualRepository.findByFundAndDateRange(TUK75, CHECK_DATE, CHECK_DATE))
+        .willReturn(List.of());
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var model =
+        results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst().orElseThrow();
+    assertThat(model.feeDrag()).isEqualByComparingTo(BigDecimal.ZERO);
+  }
+
   private void setupFundDataForMonday(LocalDate monday) {
     var friday = publicHolidays.previousWorkingDay(monday);
     var isin = "IE00B4L5Y983";
@@ -436,6 +496,10 @@ class TrackingDifferenceServiceTest {
             fundPositionRepository.sumMarketValueByFundAndAccountTypes(
                 TUK75, monday, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
         .willReturn(new BigDecimal("1000000"));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, friday, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(new BigDecimal("1000000"));
     given(fundPositionRepository.sumMarketValueByFundAndAccountTypes(TUK75, monday, List.of(CASH)))
         .willReturn(new BigDecimal("50000"));
     lenient()
@@ -444,12 +508,16 @@ class TrackingDifferenceServiceTest {
   }
 
   private FeeAccrual accrual(FeeType feeType, LocalDate date, BigDecimal amount) {
+    return accrual(feeType, date, amount, amount);
+  }
+
+  private FeeAccrual accrual(FeeType feeType, LocalDate date, BigDecimal net, BigDecimal gross) {
     return FeeAccrual.builder()
         .fund(TUK75)
         .feeType(feeType)
         .accrualDate(date)
-        .dailyAmountNet(amount)
-        .dailyAmountGross(amount)
+        .dailyAmountNet(net)
+        .dailyAmountGross(gross)
         .build();
   }
 
@@ -1732,6 +1800,11 @@ class TrackingDifferenceServiceTest {
             fundPositionRepository.sumMarketValueByFundAndAccountTypes(
                 fund, CHECK_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
         .willReturn(new BigDecimal("1000000"));
+    lenient()
+        .when(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                fund, PREVIOUS_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .thenReturn(new BigDecimal("1000000"));
     given(
             fundPositionRepository.sumMarketValueByFundAndAccountTypes(
                 fund, CHECK_DATE, List.of(CASH)))

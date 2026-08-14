@@ -6,6 +6,8 @@ import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.B
 import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
 import static java.math.BigDecimal.ZERO;
+import static java.util.function.Function.identity;
+import static java.util.stream.Collectors.toMap;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
@@ -20,6 +22,8 @@ import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculat
 import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.TrackingInput;
 import ee.tuleva.onboarding.investment.fees.FeeAccrual;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
+import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
+import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.position.FundPosition;
@@ -34,6 +38,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -75,6 +80,7 @@ class TrackingDifferenceService {
   private final PositionPriceResolver positionPriceResolver;
   private final PublicHolidays publicHolidays;
   private final FeeAccrualRepository feeAccrualRepository;
+  private final FeeChargedToFundPolicy feeChargedToFundPolicy;
   private final TrackingDifferenceEventRepository eventRepository;
   private final TrackingDifferenceCalculator calculator;
   private final FundNavQueryService fundNavQueryService;
@@ -302,10 +308,22 @@ class TrackingDifferenceService {
     return results;
   }
 
-  // Only dailyAmountNet ever reduces the NAV: FeeCalculationService.recordDailyFees posts
-  // roundForLedger(dailyAmountNet) to the ledger for every fee type, and the AUM deduction sums the
-  // same column. Reading the depot leg's gross amount would claim a larger deduction than the NAV
-  // took, and the VAT delta would land in navResidual -- which blocks the NAV report.
+  // Offset exactly what the NAV was reduced by, and nothing else. Two rules decide that, and both
+  // live in FeeCalculationService.recordDailyFees:
+  //
+  // The amount is dailyAmountGross -- the one amount an accrual carries, VAT-inclusive, posted to
+  // the ledger as roundForLedger(dailyAmountGross) and summed by the AUM deduction from the same
+  // column. There is no VAT step anywhere after the rate.
+  //
+  // An accrual only reaches the fund when investment_fee_policy says so. A fee Tuleva bears -- the
+  // depot fee, paid out of the management fee -- is still written to investment_fee_accrual as the
+  // record of the cost, but nothing is posted to the fund's ledger and the NAV never took it.
+  // Subtracting it here would claim a deduction the NAV did not make, and the difference would
+  // land in navResidual, which blocks the NAV report.
+  //
+  // Resolved per accrual date rather than once for the window, for the same reason
+  // PeriodicTdAttributionService does: a policy that changed mid-window would otherwise have its
+  // closing answer applied to every day before it.
   private BigDecimal accruedFeeFraction(
       TulevaFund fund,
       LocalDate previousDate,
@@ -319,9 +337,14 @@ class TrackingDifferenceService {
     var accruals =
         feeAccrualRepository.findByFundAndDateRange(fund, previousDate.plusDays(1), checkDate);
     warnOnIncompleteAccrualCoverage(fund, previousDate, checkDate, accruals);
+    var chargedResolvers =
+        Arrays.stream(FeeType.values())
+            .collect(
+                toMap(identity(), feeType -> feeChargedToFundPolicy.resolverFor(fund, feeType)));
     var accrued =
         accruals.stream()
-            .map(FeeAccrual::dailyAmountNet)
+            .filter(a -> chargedResolvers.get(a.feeType()).chargedOn(a.accrualDate()))
+            .map(FeeAccrual::dailyAmountGross)
             .filter(Objects::nonNull)
             .reduce(ZERO, BigDecimal::add);
     return accrued.divide(base, FEE_FRACTION_SCALE, RoundingMode.HALF_UP);

@@ -30,6 +30,7 @@ import ee.tuleva.onboarding.investment.config.InvestmentParameter;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.fees.FeeAccrual;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
+import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
 import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
@@ -59,6 +60,7 @@ class TrackingDifferenceServiceTest {
   @Mock PositionPriceResolver positionPriceResolver;
   final PublicHolidays publicHolidays = new PublicHolidays();
   @Mock FeeAccrualRepository feeAccrualRepository;
+  @Mock FeeChargedToFundPolicy feeChargedToFundPolicy;
   @Mock TrackingDifferenceEventRepository eventRepository;
   @Mock InvestmentParameterRepository parameterRepository;
   @Mock ee.tuleva.onboarding.savings.fund.nav.FundNavQueryService fundNavQueryService;
@@ -106,6 +108,7 @@ class TrackingDifferenceServiceTest {
             parameterRepository.findLatestValue(
                 eq(InvestmentParameter.ESCALATION_NET_TD_THRESHOLD), any(LocalDate.class)))
         .thenReturn(new BigDecimal("0.005"));
+    chargeEveryFeeToTheFund();
     service =
         new TrackingDifferenceService(
             FIXED_CLOCK,
@@ -116,9 +119,30 @@ class TrackingDifferenceServiceTest {
             positionPriceResolver,
             publicHolidays,
             feeAccrualRepository,
+            feeChargedToFundPolicy,
             eventRepository,
             new TrackingDifferenceCalculator(parameterRepository),
             fundNavQueryService);
+  }
+
+  // The default premise for every test that is not about the policy. Production is the other way
+  // round for DEPOT -- see feeDragExcludesAFeeTheFundIsNotCharged.
+  private void chargeEveryFeeToTheFund() {
+    for (TulevaFund fund : TulevaFund.values()) {
+      for (FeeType feeType : FeeType.values()) {
+        lenient()
+            .when(feeChargedToFundPolicy.resolverFor(fund, feeType))
+            .thenReturn(policy(fund, feeType, true));
+      }
+    }
+  }
+
+  private FeeChargedToFundPolicy.Resolver policy(
+      TulevaFund fund, FeeType feeType, boolean chargedToFund) {
+    return new FeeChargedToFundPolicy.Resolver(
+        fund,
+        feeType,
+        List.of(new FeeChargedToFundPolicy.Policy(chargedToFund, fund.getInceptionDate(), null)));
   }
 
   @Test
@@ -365,8 +389,8 @@ class TrackingDifferenceServiceTest {
 
     var model =
         results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst().orElseThrow();
-    // (9.00 mgmt net + 3.00 depot gross) / 1_000_000 AUM. Depot was previously omitted entirely,
-    // which left the whole depot fee sitting in the residual.
+    // (9.00 mgmt + 3.00 depot) / 1_000_000 AUM, both charged to the fund here. Depot was
+    // previously omitted entirely, which left the whole depot fee sitting in the residual.
     assertThat(model.feeDrag()).isEqualByComparingTo(new BigDecimal("-0.000012"));
   }
 
@@ -395,15 +419,13 @@ class TrackingDifferenceServiceTest {
   @Test
   void feeDragMatchesTheAmountThatWasPostedToTheLedger() {
     setupFundData(TUK75);
-    // The ledger posts roundForLedger(dailyAmountNet) for every fee type, so a depot accrual whose
-    // gross carries VAT on top must still only offset its net. Reading gross here would claim a
-    // deduction the NAV never took, and the delta would sit in navResidual, blocking the report.
+    // The ledger posts roundForLedger(dailyAmountGross) for every fee type it charges, and the AUM
+    // deduction sums the same column, so the drag has to read that one amount and no other.
     given(feeAccrualRepository.findByFundAndDateRange(TUK75, CHECK_DATE, CHECK_DATE))
         .willReturn(
             List.of(
                 accrual(FeeType.MANAGEMENT, CHECK_DATE, new BigDecimal("9.00")),
-                accrual(
-                    FeeType.DEPOT, CHECK_DATE, new BigDecimal("3.00"), new BigDecimal("3.66"))));
+                accrual(FeeType.DEPOT, CHECK_DATE, new BigDecimal("3.00"))));
 
     var results = service.runChecksAsOf(CHECK_DATE);
 
@@ -414,6 +436,61 @@ class TrackingDifferenceServiceTest {
     assertThat(model.feeDrag())
         .isEqualByComparingTo(
             ledgerPosted.divide(previousTotalNav, 10, HALF_UP).negate().setScale(6, HALF_UP));
+  }
+
+  @Test
+  void feeDragExcludesAFeeTheFundIsNotCharged() {
+    setupFundData(TUK75);
+    // The production case: the depot fee is paid out of the management fee, so the accrual is
+    // written as the record of Tuleva's cost but nothing is posted to the fund's ledger and the
+    // NAV never took it. Subtracting it here would claim a deduction that did not happen, and the
+    // difference would land in navResidual -- which blocks the NAV report.
+    given(feeChargedToFundPolicy.resolverFor(TUK75, FeeType.DEPOT))
+        .willReturn(policy(TUK75, FeeType.DEPOT, false));
+    given(feeAccrualRepository.findByFundAndDateRange(TUK75, CHECK_DATE, CHECK_DATE))
+        .willReturn(
+            List.of(
+                accrual(FeeType.MANAGEMENT, CHECK_DATE, new BigDecimal("9.00")),
+                accrual(FeeType.DEPOT, CHECK_DATE, new BigDecimal("3.00"))));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var model =
+        results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst().orElseThrow();
+    // 9.00 mgmt only, off the previous NAV date's 1_000_000. The depot 3.00 is not a drag.
+    assertThat(model.feeDrag()).isEqualByComparingTo(new BigDecimal("-0.000009"));
+  }
+
+  @Test
+  void feeDragFollowsThePolicyInForceOnEachAccrualDate() {
+    var monday = LocalDate.of(2026, 4, 13);
+    var saturday = LocalDate.of(2026, 4, 11);
+    var sunday = LocalDate.of(2026, 4, 12);
+    setupFundDataForMonday(monday);
+    // A policy that changed mid-window: charged through Saturday, not charged from Sunday.
+    // Resolving once at the window's end would apply the closing answer to Saturday too, and that
+    // day's real drag would move into the unexplained residual.
+    given(feeChargedToFundPolicy.resolverFor(TUK75, FeeType.DEPOT))
+        .willReturn(
+            new FeeChargedToFundPolicy.Resolver(
+                TUK75,
+                FeeType.DEPOT,
+                List.of(
+                    new FeeChargedToFundPolicy.Policy(true, TUK75.getInceptionDate(), saturday),
+                    new FeeChargedToFundPolicy.Policy(false, sunday, null))));
+    given(feeAccrualRepository.findByFundAndDateRange(TUK75, saturday, monday))
+        .willReturn(
+            List.of(
+                accrual(FeeType.DEPOT, saturday, new BigDecimal("3.00")),
+                accrual(FeeType.DEPOT, sunday, new BigDecimal("3.00")),
+                accrual(FeeType.DEPOT, monday, new BigDecimal("3.00"))));
+
+    var results = service.runChecksAsOf(monday);
+
+    var model =
+        results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst().orElseThrow();
+    // Saturday's 3.00 only, off 1_000_000.
+    assertThat(model.feeDrag()).isEqualByComparingTo(new BigDecimal("-0.000003"));
   }
 
   @Test
@@ -508,16 +585,11 @@ class TrackingDifferenceServiceTest {
   }
 
   private FeeAccrual accrual(FeeType feeType, LocalDate date, BigDecimal amount) {
-    return accrual(feeType, date, amount, amount);
-  }
-
-  private FeeAccrual accrual(FeeType feeType, LocalDate date, BigDecimal net, BigDecimal gross) {
     return FeeAccrual.builder()
         .fund(TUK75)
         .feeType(feeType)
         .accrualDate(date)
-        .dailyAmountNet(net)
-        .dailyAmountGross(gross)
+        .dailyAmountGross(amount)
         .build();
   }
 

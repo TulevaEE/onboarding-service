@@ -188,6 +188,13 @@ public class FeeAccrualRepository {
         .update();
   }
 
+  // daily_amount_net is written with the same amount as daily_amount_gross, not because the two
+  // mean different things -- there is no VAT step after the rate, so they cannot -- but because the
+  // previously deployed image still reads the net column. Its getUnsettledAccrual sums it into the
+  // NAV's fee liability, and SUM skips NULLs, so a rollback onto rows this image wrote would
+  // understate the liability and publish an overstated unit price. Writing both keeps a rollback
+  // and a rolling deploy correct in either direction. Drop this alongside the column, once no
+  // deployed image reads it.
   public void save(FeeAccrual accrual) {
     int updated =
         jdbcClient
@@ -197,6 +204,7 @@ public class FeeAccrualRepository {
                     fee_month = :feeMonth,
                     base_value = :baseValue,
                     annual_rate = :annualRate,
+                    daily_amount_net = :dailyAmountGross,
                     daily_amount_gross = :dailyAmountGross,
                     days_in_year = :daysInYear,
                     reference_date = :referenceDate
@@ -221,12 +229,12 @@ public class FeeAccrualRepository {
               """
               INSERT INTO investment_fee_accrual (
                   fund_code, fee_type, accrual_date, fee_month, base_value,
-                  annual_rate, daily_amount_gross,
+                  annual_rate, daily_amount_net, daily_amount_gross,
                   days_in_year, reference_date
               )
               VALUES (
                   :fundCode, :feeType, :accrualDate, :feeMonth, :baseValue,
-                  :annualRate, :dailyAmountGross,
+                  :annualRate, :dailyAmountGross, :dailyAmountGross,
                   :daysInYear, :referenceDate
               )
               """)

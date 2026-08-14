@@ -24,19 +24,24 @@
 -- report, and it fails silently: ECS rolls back on its own while CI stays green, so the first
 -- symptom is the daily fee accrual having stopped for every fund. The same window opens for a few
 -- minutes during any rolling deploy, where an old task can run the fee job after the migration has
--- landed. Keeping the column nullable makes both directions work: the old image writes both
--- amounts, the new one writes only the gross.
+-- landed. Keeping the column nullable lets the old image keep writing both amounts.
 --
--- The residual exposure is a read, not a write: rows written by the new image have
--- daily_amount_net NULL, so an old image summing that column during a rollback window understates
--- by however many days it covers. It is bounded by the rollback itself and does not stop the NAV
--- pipeline, which is the trade being made here.
+-- Making the column nullable is only half of it, and the missing half is the dangerous one. If the
+-- new image simply stopped writing daily_amount_net, every row it wrote would be NULL -- and the
+-- old image does not merely write that column, it READS it: getUnsettledAccrual sums
+-- daily_amount_net straight into the NAV's fee liability. SUM skips NULLs, so a rollback onto
+-- those rows would understate the management fee liability and publish an OVERSTATED unit price.
+-- That is a wrong published NAV, not a reporting nuisance.
 --
--- DROP COLUMN belongs in the next release, once nothing deployed references the column. Tracked in
--- the PR that introduced this migration.
+-- So FeeAccrualRepository.save writes the same amount to both columns for as long as both exist.
+-- Nothing reads daily_amount_net in the new image; it exists purely so a rollback lands on correct
+-- data. Remove the dual-write in the same change that drops the column.
 --
--- Metabase reads this table directly. Questions selecting daily_amount_net must move to
--- daily_amount_gross -- the management fee drag in "TD Attribution + OCF Calculation" is one --
--- and they must move before the drop, not before this migration.
+-- DROP COLUMN belongs in the next release, once nothing deployed references the column, together
+-- with vat_rate, which is nullable and unread but still named by the old image's INSERT.
+--
+-- Metabase reads this table directly. Questions selecting daily_amount_net keep working while the
+-- dual-write is in place, and break on the drop -- so move them to daily_amount_gross before that
+-- release. The management fee drag in "TD Attribution + OCF Calculation" is one.
 
 ALTER TABLE investment_fee_accrual ALTER COLUMN daily_amount_net DROP NOT NULL;

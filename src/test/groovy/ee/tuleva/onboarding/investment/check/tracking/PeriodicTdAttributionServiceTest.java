@@ -355,17 +355,7 @@ class PeriodicTdAttributionServiceTest {
         .willReturn(
             List.of(
                 feeAccrual(date1, FeeType.MANAGEMENT, "27.40"),
-                FeeAccrual.builder()
-                    .fund(TUK75)
-                    .feeType(FeeType.DEPOT)
-                    .accrualDate(date1)
-                    .feeMonth(date1.withDayOfMonth(1))
-                    .baseValue(new BigDecimal("100000000"))
-                    .annualRate(new BigDecimal("0.0003"))
-                    .dailyAmountGross(new BigDecimal("6.85"))
-                    .dailyAmountGross(new BigDecimal("8.36"))
-                    .daysInYear(365)
-                    .build()));
+                feeAccrual(date1, FeeType.DEPOT, "6.85")));
     given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, PERIOD_END))
         .willReturn(
             Optional.of(
@@ -675,7 +665,6 @@ class PeriodicTdAttributionServiceTest {
         .feeMonth(date.withDayOfMonth(1))
         .baseValue(new BigDecimal("100000000"))
         .annualRate(new BigDecimal("0.0027"))
-        .dailyAmountGross(new BigDecimal(amount))
         .dailyAmountGross(new BigDecimal(amount))
         .daysInYear(365)
         .build();

@@ -33,6 +33,19 @@
 --
 -- The cheaper path is to move both dates in this migration to the deploy date and accept that the
 -- days before it are recorded as zero, if that is a smaller lie than the one above.
+--
+-- The same gap opens without the calendar being involved. A TIER row carries annual_rate = 0 and
+-- names the tier table as the real source; the previously deployed image has no rate_source column
+-- to read, so DepotFeeCalculator finds the row, takes annual_rate, and accrues zero -- it never
+-- consults the tier. Any old task that runs the fee accrual after this migration lands, whether
+-- through an ECS rollback or the few minutes of overlap in a rolling deploy, records zero depot
+-- cost for the days it covers, and forward-only accrual means it never corrects itself.
+--
+-- Recovery is the same as above: delete those DEPOT accrual rows and re-run the backfill. And the
+-- same caveat applies -- it is safe only while investment_fee_policy says no fund is charged the
+-- depot fee, so no ledger entry or NAV depends on those rows. Once a fund is charged one, this
+-- migration needs a different shape: give the TIER rows the tier's own rate as annual_rate so an
+-- old image reading annual_rate lands on the right number instead of zero.
 
 UPDATE investment_fee_rate
 SET valid_to = DATE '2026-09-17'

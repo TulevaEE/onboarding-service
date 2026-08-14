@@ -75,6 +75,25 @@ class OcfCalculationServiceTest {
     verify(ocfSnapshotRepository).save(any());
   }
 
+  // The production case for all four funds: Tuleva pays the depoopank out of the management fee, so
+  // the depot fee is not a cost the fund's investors bear on top of it and must not reach the
+  // published OCF. The rate table is not even consulted -- whatever rate it carries describes
+  // Tuleva's own cost, not the fund's.
+  @Test
+  void depotFeeStaysOutOfTheOcfWhenTheFundIsNotChargedIt() {
+    var fund = TUK75;
+    given(feeChargedToFundPolicy.chargedToFund(fund, DEPOT, MONTH_END)).willReturn(false);
+    setupManagementFee(fund, new BigDecimal("0.0034"));
+    setupNoInstrumentFees();
+    setupNoTransactionCosts(fund);
+
+    var result = service.calculateOcf(fund, MONTH);
+
+    assertThat(result.depotFeeRate()).isEqualByComparingTo(ZERO);
+    assertThat(result.totalOcf()).isEqualByComparingTo(new BigDecimal("0.0034"));
+    verify(feeRateRepository, never()).findValidRate(fund, DEPOT, MONTH_END);
+  }
+
   @Test
   void calculateOcfWithAllFourComponents() {
     var fund = TUK75;

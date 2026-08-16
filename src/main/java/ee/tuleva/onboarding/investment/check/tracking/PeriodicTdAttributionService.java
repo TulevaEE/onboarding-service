@@ -295,6 +295,16 @@ public class PeriodicTdAttributionService {
       var weight = allocation.getWeight();
       var isin = allocation.getIsin();
 
+      // The leg decides membership, so it is resolved before anything is accumulated. A holding the
+      // daily check skipped is not in measuredSum at all, and etfTrackingResidual is
+      // measuredSum minus this OCF term -- so charging its OCF here would report a cost that was
+      // never measured as ETF outperformance of exactly that amount.
+      var leg = BenchmarkLegResolver.resolve(isin).orElse(null);
+      if (leg == null) {
+        unbenchmarkedWeight = unbenchmarkedWeight.add(weight);
+        continue;
+      }
+
       var ocf = rateByIsin.get(isin);
       if (ocf == null) {
         unpricedIsins.add(isin);
@@ -302,14 +312,6 @@ public class PeriodicTdAttributionService {
         heldOcf = heldOcf.add(weight.multiply(ocf));
       }
 
-      var leg = BenchmarkLegResolver.resolve(isin).orElse(null);
-      if (leg == null) {
-        // No benchmark leg means the daily check skipped this holding entirely, so its weight is
-        // not in measuredSum at all -- an OCF term covering it would be charged against a sum that
-        // never included it.
-        unbenchmarkedWeight = unbenchmarkedWeight.add(weight);
-        continue;
-      }
       if (leg.isIndex()) {
         continue;
       }
@@ -338,7 +340,7 @@ public class PeriodicTdAttributionService {
     }
     if (unbenchmarkedWeight.signum() > 0) {
       log.warn(
-          "Model weight with no benchmark leg is outside the measured ETF layer: fund={}, asOf={}, weight={}",
+          "Model weight with no benchmark leg is outside the measured ETF layer, and outside its OCF term with it: fund={}, asOf={}, weight={}",
           fund,
           periodEnd,
           unbenchmarkedWeight);

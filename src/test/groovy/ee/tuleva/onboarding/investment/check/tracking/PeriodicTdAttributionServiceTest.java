@@ -545,6 +545,39 @@ class PeriodicTdAttributionServiceTest {
         .containsEntry("etfLayerUnbenchmarkedWeight", new BigDecimal("0.300000"));
   }
 
+  @Test
+  void anUnbenchmarkedHoldingsOwnOcfStaysOutOfTheEtfOcfDrag() {
+    setupStandardMocks();
+    givenBenchmarkModelEvents();
+    given(
+            modelPortfolioAllocationRepository.findVersionsActiveDuringPeriod(
+                TUK75, PERIOD_START, PERIOD_END))
+        .willReturn(
+            List.of(
+                modelAllocation(ISIN_DW, "0.70", PERIOD_START),
+                modelAllocation("IE00NOTATRACKER", "0.30", PERIOD_START)));
+
+    given(instrumentFeeRepository.findAllValidRates(PERIOD_END))
+        .willReturn(List.of(instrumentFee(ISIN_DW, "0.0012")));
+    var withoutRateForTheUnbenchmarkedHolding =
+        service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
+
+    given(instrumentFeeRepository.findAllValidRates(PERIOD_END))
+        .willReturn(
+            List.of(instrumentFee(ISIN_DW, "0.0012"), instrumentFee("IE00NOTATRACKER", "0.0090")));
+    var withRateForTheUnbenchmarkedHolding =
+        service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
+
+    // Knowing what an unbenchmarked holding costs must not move the layer at all. Its weight is not
+    // in measuredSum, and etfTrackingResidual is measuredSum minus etfOcfDrag -- so letting its OCF
+    // into the drag would surface as ETF outperformance of exactly that amount, from a holding
+    // nothing measured.
+    assertThat(withRateForTheUnbenchmarkedHolding.etfOcfDrag())
+        .isEqualByComparingTo(withoutRateForTheUnbenchmarkedHolding.etfOcfDrag());
+    assertThat(withRateForTheUnbenchmarkedHolding.etfTrackingResidual())
+        .isEqualByComparingTo(withoutRateForTheUnbenchmarkedHolding.etfTrackingResidual());
+  }
+
   private void givenBenchmarkModelEvents() {
     given(
             tdEventRepository.findDeduplicatedEventsForPeriod(

@@ -228,6 +228,19 @@ public class PeriodicTdAttributionService {
 
   // measuredSum is null when the layer was never measured, which the calculator must not confuse
   // with a measured zero.
+  //
+  // The two sides share a denominator only while unbenchmarkedWeight is zero, which is the normal
+  // state: every instrument we hold carries a FundTicker benchmark category, and the only
+  // null-category entries are the benchmark proxies themselves. measuredSum comes from the daily
+  // check, which weights by ACTUAL weight and divides by the summed actual weight of benchmarked
+  // holdings -- so it is renormalised to represent the benchmarked sleeve as the whole. ocfDrag and
+  // proxyOcfDrag are raw MODEL weights, which sum to one only when nothing is unbenchmarked.
+  //
+  // So an unbenchmarked holding does not just drop out of both sides symmetrically: the measured
+  // side rescales and the OCF side does not, and the gap closes into the residual. Renormalising
+  // the OCF terms would make that state produce believable numbers, which is the wrong service to
+  // do it -- the state itself is a missing benchmark category, and it is reported as such in the
+  // warning above and in etfLayerUnbenchmarkedWeight.
   record EtfLayer(
       @Nullable BigDecimal measuredSum,
       BigDecimal ocfDrag,
@@ -339,8 +352,16 @@ public class PeriodicTdAttributionService {
           unpricedProxyIsins);
     }
     if (unbenchmarkedWeight.signum() > 0) {
+      // Every instrument we hold is supposed to carry a benchmark category, so this should be
+      // zero. When it is not, the two sides of the layer stop sharing a denominator and the
+      // figures below are approximate rather than wrong-by-a-known-amount -- see the note on
+      // EtfLayer. Warned rather than thrown: an inaccurate attribution row is a reporting problem,
+      // and failing the run would take out the accurate components with it.
       log.warn(
-          "Model weight with no benchmark leg is outside the measured ETF layer, and outside its OCF term with it: fund={}, asOf={}, weight={}",
+          "Model weight with no benchmark leg: the ETF layer figures for this period are NOT accurate,"
+              + " etf_ocf_drag and etf_tracking_residual are measured over different weight bases and"
+              + " the difference lands in the residual. Give this ISIN a FundTicker benchmark category."
+              + " fund={}, asOf={}, unbenchmarkedWeight={}",
           fund,
           periodEnd,
           unbenchmarkedWeight);

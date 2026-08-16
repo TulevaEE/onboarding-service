@@ -138,17 +138,32 @@ public class WordPressMediaClient {
     return (Integer) pages.getFirst().get("id");
   }
 
+  /**
+   * Both halves are sanitised, because the whole result is interpolated into the {@code
+   * Content-Disposition} header. Leaving the extension raw would let a quote or a line break after
+   * the last dot reach that header unchanged — the base name is only half the string that gets
+   * there. Report names come from the report builder and contain neither, so this is defence in
+   * depth rather than a live hole, but it has to cover the string it actually emits.
+   *
+   * <p>Mirrored by {@code toWordPressSlug} in the tuleva repo's {@code investeeringute_aruanne.gs}:
+   * both systems upload the same monthly PDF, and {@link #findExistingMedia} matches on {@code
+   * source_url.endsWith("/" + slug)}, so the two must agree character for character or the same
+   * report lands twice under two URLs.
+   */
   static String toWordPressSlug(String filename) {
     var dotIndex = filename.lastIndexOf('.');
     var base = dotIndex > 0 ? filename.substring(0, dotIndex) : filename;
     var extension = dotIndex > 0 ? filename.substring(dotIndex + 1) : "pdf";
-    var slug =
-        Normalizer.normalize(base, Normalizer.Form.NFD)
-            .replaceAll("\\p{M}+", "")
-            .toLowerCase(Locale.ROOT)
-            .replaceAll("[^a-z0-9]+", "-")
-            .replaceAll("(^-+)|(-+$)", "");
-    return slug + "." + extension.toLowerCase(Locale.ROOT);
+    var slug = asciiSlug(base).replaceAll("(^-+)|(-+$)", "");
+    var extensionSlug = asciiSlug(extension).replace("-", "");
+    return slug + "." + (extensionSlug.isEmpty() ? "pdf" : extensionSlug);
+  }
+
+  private static String asciiSlug(String value) {
+    return Normalizer.normalize(value, Normalizer.Form.NFD)
+        .replaceAll("\\p{M}+", "")
+        .toLowerCase(Locale.ROOT)
+        .replaceAll("[^a-z0-9]+", "-");
   }
 
   private static String truncate(String s, int maxLen) {

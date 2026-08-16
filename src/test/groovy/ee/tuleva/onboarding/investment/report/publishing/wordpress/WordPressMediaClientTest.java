@@ -220,4 +220,27 @@ class WordPressMediaClientTest {
     assertThat(WordPressMediaClient.toWordPressSlug("Võlakirjade fond.pdf"))
         .isEqualTo("volakirjade-fond.pdf");
   }
+
+  @Test
+  void toWordPressSlugSanitisesTheExtensionToo() {
+    // The whole slug is interpolated into Content-Disposition, so the half after the last dot has
+    // to be as clean as the half before it.
+    assertThat(WordPressMediaClient.toWordPressSlug("report.pdf\"; x=\"y"))
+        .isEqualTo("report.pdfxy");
+    assertThat(WordPressMediaClient.toWordPressSlug("report.pdf\r\nX-Injected: 1"))
+        .isEqualTo("report.pdfxinjected1");
+    assertThat(WordPressMediaClient.toWordPressSlug("report.PDF")).isEqualTo("report.pdf");
+    // An extension that sanitises away leaves the default rather than a slug ending in a bare dot.
+    assertThat(WordPressMediaClient.toWordPressSlug("report.")).isEqualTo("report.pdf");
+    assertThat(WordPressMediaClient.toWordPressSlug("report")).isEqualTo("report.pdf");
+  }
+
+  @Test
+  void toWordPressSlugEmitsNothingOutsideTheAllowedAlphabet() {
+    // The guarantee the Content-Disposition header depends on, stated as a test rather than as a
+    // comment: whatever goes in, what comes out is [a-z0-9-] then one dot then [a-z0-9].
+    var hostile = "  Ä\"wild\\\r\n name??  .p d\"f  ";
+
+    assertThat(WordPressMediaClient.toWordPressSlug(hostile)).matches("[a-z0-9-]+\\.[a-z0-9]+");
+  }
 }

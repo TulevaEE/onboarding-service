@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings.fund;
 
 import static org.mockito.Mockito.mock;
 
+import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
@@ -14,5 +15,11 @@ public class MockSavingsFundLedgerConfiguration {
   @Primary
   public SavingsFundLedger savingsFundLedger() {
     return mock(SavingsFundLedger.class);
+  }
+
+  @Bean
+  @Primary
+  public FundBankLedger fundBankLedger() {
+    return mock(FundBankLedger.class);
   }
 }

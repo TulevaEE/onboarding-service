@@ -49,7 +49,7 @@ class SebGatewayClientRetryTest {
     expectCall().andRespond(withServerError());
     expectCall().andRespond(withSuccess("<ok/>", null));
 
-    String result = sebGatewayClient.submitPaymentFile("<xml/>", IDEMPOTENCY_KEY);
+    String result = sebGatewayClient.submitPaymentFile("<xml/>", IDEMPOTENCY_KEY, "1162");
 
     assertThat(result).isEqualTo("<ok/>");
     mockServer.verify();
@@ -61,7 +61,7 @@ class SebGatewayClientRetryTest {
       expectCall().andRespond(withServerError());
     }
 
-    assertThatThrownBy(() -> sebGatewayClient.submitPaymentFile("<xml/>", IDEMPOTENCY_KEY))
+    assertThatThrownBy(() -> sebGatewayClient.submitPaymentFile("<xml/>", IDEMPOTENCY_KEY, "1162"))
         .isInstanceOf(HttpServerErrorException.class);
     mockServer.verify();
   }
@@ -70,7 +70,7 @@ class SebGatewayClientRetryTest {
   void submitPaymentFile_doesNotRetryOn400() {
     expectCall().andRespond(withBadRequest());
 
-    assertThatThrownBy(() -> sebGatewayClient.submitPaymentFile("<xml/>", IDEMPOTENCY_KEY))
+    assertThatThrownBy(() -> sebGatewayClient.submitPaymentFile("<xml/>", IDEMPOTENCY_KEY, "1162"))
         .isInstanceOf(HttpClientErrorException.class);
     mockServer.verify();
   }
@@ -86,7 +86,7 @@ class SebGatewayClientRetryTest {
             });
     expectCall().andRespond(withSuccess("<ok/>", null));
 
-    String result = sebGatewayClient.submitPaymentFile("<xml/>", IDEMPOTENCY_KEY);
+    String result = sebGatewayClient.submitPaymentFile("<xml/>", IDEMPOTENCY_KEY, "1162");
 
     assertThat(result).isEqualTo("<ok/>");
     mockServer.verify();

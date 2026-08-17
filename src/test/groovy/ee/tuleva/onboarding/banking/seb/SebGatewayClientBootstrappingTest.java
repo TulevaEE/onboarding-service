@@ -57,6 +57,10 @@ class SebGatewayClientBootstrappingTest {
 
   @Autowired private SebGatewayClient sebGatewayClient;
 
+  private static String testOrgId() {
+    return System.getenv("SEB_GATEWAY_ORG_ID");
+  }
+
   @BeforeAll
   static void setupFixturesDir() throws IOException {
     Files.createDirectories(FIXTURES_DIR);
@@ -65,7 +69,7 @@ class SebGatewayClientBootstrappingTest {
   @Test
   @DisplayName("Capture EOD transactions response")
   void captureEodTransactions() throws IOException {
-    String xml = sebGatewayClient.getEodTransactions(TEST_IBAN_EUR);
+    String xml = sebGatewayClient.getEodTransactions(TEST_IBAN_EUR, testOrgId());
 
     assertThat(xml).isNotNull().contains("camt.053");
     writeFixture("eod-transactions-response.xml", xml);
@@ -74,7 +78,7 @@ class SebGatewayClientBootstrappingTest {
   @Test
   @DisplayName("Capture current day transactions response")
   void captureCurrentTransactions() throws IOException {
-    String xml = sebGatewayClient.getCurrentTransactions(TEST_IBAN_EUR);
+    String xml = sebGatewayClient.getCurrentTransactions(TEST_IBAN_EUR, testOrgId());
 
     assertThat(xml).isNotNull().contains("camt.052");
     writeFixture("current-transactions-response.xml", xml);
@@ -85,7 +89,7 @@ class SebGatewayClientBootstrappingTest {
   void captureHistoricalTransactions() throws IOException {
     LocalDate dateTo = LocalDate.now().minusDays(1);
     LocalDate dateFrom = dateTo.minusDays(30);
-    String xml = sebGatewayClient.getTransactions(TEST_IBAN_EUR, dateFrom, dateTo);
+    String xml = sebGatewayClient.getTransactions(TEST_IBAN_EUR, testOrgId(), dateFrom, dateTo);
 
     assertThat(xml).isNotNull().contains("camt.053");
     writeFixture("historical-transactions-response.xml", xml);
@@ -94,7 +98,7 @@ class SebGatewayClientBootstrappingTest {
   @Test
   @DisplayName("Capture balances response")
   void captureBalances() throws IOException {
-    String xml = sebGatewayClient.getBalances(TEST_IBAN_EUR);
+    String xml = sebGatewayClient.getBalances(TEST_IBAN_EUR, testOrgId());
 
     assertThat(xml).isNotNull().contains("camt.052").contains("<Bal>");
     writeFixture("balances-response.xml", xml);
@@ -104,7 +108,8 @@ class SebGatewayClientBootstrappingTest {
   @DisplayName("Capture payment import response")
   void capturePaymentImport() throws IOException {
     String paymentXml = createTestPaymentXml();
-    String response = sebGatewayClient.submitPaymentFile(paymentXml, UUID.randomUUID().toString());
+    String response =
+        sebGatewayClient.submitPaymentFile(paymentXml, UUID.randomUUID().toString(), testOrgId());
 
     assertThat(response).isNotNull().contains("importedFileId");
     writeFixture("imported-payment-response.xml", response);

@@ -4,9 +4,11 @@ import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
 import static ee.tuleva.onboarding.banking.BankType.SEB;
 import static ee.tuleva.onboarding.banking.seb.Seb.SEB_GATEWAY_TIME_ZONE;
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
+import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebCurrentDayTransactionsRequested;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebEodTransactionsRequested;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebHistoricTransactionsRequested;
@@ -45,9 +47,11 @@ class SebBankMessagesFetchingIntegrationTest {
   @Test
   void fetchCurrentDayTransactions_persistsMessageToDatabase() throws Exception {
     String testXml = loadTestXml("current-transactions-response.xml");
-    when(sebGatewayClient.getCurrentTransactions(DEPOSIT_IBAN)).thenReturn(testXml);
+    when(sebGatewayClient.getCurrentTransactions(DEPOSIT_IBAN, "gw-test")).thenReturn(testXml);
 
-    eventPublisher.publishEvent(new FetchSebCurrentDayTransactionsRequested(DEPOSIT_EUR));
+    eventPublisher.publishEvent(
+        new FetchSebCurrentDayTransactionsRequested(
+            new BankAccount(DEPOSIT_IBAN, DEPOSIT_EUR, TKF100, "gw-test")));
 
     List<BankingMessage> messages = findAllUnprocessedMessages();
     assertThat(messages).hasSize(1);
@@ -63,9 +67,11 @@ class SebBankMessagesFetchingIntegrationTest {
   @Test
   void fetchEodTransactions_persistsMessageToDatabase() throws Exception {
     String testXml = loadTestXml("eod-transactions-response.xml");
-    when(sebGatewayClient.getEodTransactions(WITHDRAWAL_IBAN)).thenReturn(testXml);
+    when(sebGatewayClient.getEodTransactions(WITHDRAWAL_IBAN, "gw-test")).thenReturn(testXml);
 
-    eventPublisher.publishEvent(new FetchSebEodTransactionsRequested(WITHDRAWAL_EUR));
+    eventPublisher.publishEvent(
+        new FetchSebEodTransactionsRequested(
+            new BankAccount(WITHDRAWAL_IBAN, WITHDRAWAL_EUR, TKF100, "gw-test")));
 
     List<BankingMessage> messages = findAllUnprocessedMessages();
     assertThat(messages).hasSize(1);
@@ -81,10 +87,12 @@ class SebBankMessagesFetchingIntegrationTest {
     String testXml = loadTestXml("historical-transactions-response.xml");
     LocalDate dateFrom = LocalDate.of(2024, 1, 1);
     LocalDate dateTo = LocalDate.of(2024, 1, 31);
-    when(sebGatewayClient.getTransactions(DEPOSIT_IBAN, dateFrom, dateTo)).thenReturn(testXml);
+    when(sebGatewayClient.getTransactions(DEPOSIT_IBAN, "gw-test", dateFrom, dateTo))
+        .thenReturn(testXml);
 
     eventPublisher.publishEvent(
-        new FetchSebHistoricTransactionsRequested(DEPOSIT_EUR, dateFrom, dateTo));
+        new FetchSebHistoricTransactionsRequested(
+            new BankAccount(DEPOSIT_IBAN, DEPOSIT_EUR, TKF100, "gw-test"), dateFrom, dateTo));
 
     List<BankingMessage> messages = findAllUnprocessedMessages();
     assertThat(messages).hasSize(1);

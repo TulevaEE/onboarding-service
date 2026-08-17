@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.admin;
 
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.springframework.format.annotation.DateTimeFormat.ISO.DATE;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
@@ -9,8 +10,11 @@ import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 import ee.tuleva.onboarding.analytics.transaction.fundbalance.FundBalanceSynchronizer;
 import ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwnerSnapshotDateValidator;
 import ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwnerSynchronizer;
+import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.BankAccountType;
+import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebHistoricTransactionsRequested;
+import ee.tuleva.onboarding.banking.seb.processor.SuspenseReclassificationService;
 import ee.tuleva.onboarding.capital.transfer.iban.IbanValidator;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
@@ -52,7 +56,6 @@ import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -77,6 +80,8 @@ import org.springframework.web.server.ResponseStatusException;
 public class AdminController {
 
   private final ApplicationEventPublisher eventPublisher;
+  private final BankAccounts bankAccounts;
+  private final SuspenseReclassificationService suspenseReclassificationService;
   private final SavingsFundLedger savingsFundLedger;
   private final NavFeeAccrualLedger navFeeAccrualLedger;
   private final FeeAccrualRepository feeAccrualRepository;
@@ -117,20 +122,42 @@ public class AdminController {
       @RequestHeader("X-Admin-Token") String token,
       @RequestParam @DateTimeFormat(iso = DATE) LocalDate from,
       @RequestParam @DateTimeFormat(iso = DATE) LocalDate to,
-      @RequestParam(required = false) BankAccountType account) {
+      @RequestParam(required = false) BankAccountType account,
+      @RequestParam(required = false) String fundCode) {
 
     validateToken(token);
 
-    var accounts = account != null ? List.of(account) : Arrays.asList(BankAccountType.values());
+    var fund = fundCode != null ? TulevaFund.fromCode(fundCode) : TKF100;
+    var accounts =
+        bankAccounts.findAll(fund).stream()
+            .filter(bankAccount -> account == null || bankAccount.type() == account)
+            .toList();
 
     log.info("Admin triggered SEB history fetch: from={}, to={}, accounts={}", from, to, accounts);
 
-    for (BankAccountType bankAccount : accounts) {
+    for (BankAccount bankAccount : accounts) {
       log.info("Fetching SEB history: account={}", bankAccount);
       eventPublisher.publishEvent(new FetchSebHistoricTransactionsRequested(bankAccount, from, to));
     }
 
     return "Fetched SEB history for " + accounts + " from " + from + " to " + to;
+  }
+
+  @PostMapping("/reclassify-suspense")
+  public Map<String, Object> reclassifySuspense(
+      @RequestHeader("X-Admin-Token") String token, @RequestParam String fundCode) {
+
+    validateToken(token);
+
+    var fund = TulevaFund.fromCode(fundCode);
+    log.info("Admin triggered suspense reclassification: fund={}", fund);
+
+    var result = suspenseReclassificationService.reclassify(fund);
+
+    return Map.of(
+        "fund", fund.name(),
+        "reclassified", result.reclassified(),
+        "remaining", result.remaining());
   }
 
   @Transactional

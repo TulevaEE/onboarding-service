@@ -1,47 +1,26 @@
 package ee.tuleva.onboarding.banking.seb;
 
-import static java.util.stream.Collectors.toMap;
-
-import ee.tuleva.onboarding.banking.BankAccountConfiguration;
 import ee.tuleva.onboarding.banking.BankAccountType;
 import jakarta.annotation.Nullable;
-import jakarta.annotation.PostConstruct;
-import jakarta.validation.constraints.NotNull;
+import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Optional;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @RequiredArgsConstructor
 @ConfigurationProperties("seb-gateway")
-public class SebAccountConfiguration implements BankAccountConfiguration {
+public class SebAccountConfiguration {
 
   @Getter private final Map<BankAccountType, String> accounts;
   @Getter private final String managementCompanyName;
-  private Map<String, BankAccountType> accountsByIban;
-
-  @Override
-  @NotNull
-  public String getAccountIban(BankAccountType account) {
-    return Optional.ofNullable(accounts.get(account))
-        .orElseThrow(
-            () -> new IllegalStateException("No iban found for account=%s".formatted(account)));
-  }
-
-  @Override
-  @Nullable
-  public BankAccountType getAccountType(String iban) {
-    return accountsByIban.get(iban);
-  }
+  private final @Nullable List<String> registrarIbans;
 
   public boolean isManagementCompany(String name) {
     return managementCompanyName.equalsIgnoreCase(name);
   }
 
-  @PostConstruct
-  void mapByIban() {
-    accountsByIban = accounts.entrySet().stream().collect(toMap(Entry::getValue, Entry::getKey));
+  public List<String> getRegistrarIbans() {
+    return registrarIbans == null ? List.of() : registrarIbans;
   }
 }

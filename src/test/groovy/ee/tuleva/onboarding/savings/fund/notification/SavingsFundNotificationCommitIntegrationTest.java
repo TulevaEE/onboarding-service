@@ -26,7 +26,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
-import ee.tuleva.onboarding.banking.BankAccountConfiguration;
+import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankMessagesProcessingCompleted;
 import ee.tuleva.onboarding.banking.seb.SebGatewayClient;
 import ee.tuleva.onboarding.event.EventLog;
@@ -86,7 +86,7 @@ class SavingsFundNotificationCommitIntegrationTest {
   private static final BigDecimal BATCHED_CASH = new BigDecimal("75.00");
 
   @Autowired private ApplicationEventPublisher eventPublisher;
-  @Autowired private BankAccountConfiguration bankAccountConfiguration;
+  @Autowired private BankAccounts bankAccounts;
   @Autowired private FundAccountPaymentJob fundAccountPaymentJob;
   @Autowired private IssuingJob issuingJob;
   @Autowired private RedemptionService redemptionService;
@@ -283,7 +283,7 @@ class SavingsFundNotificationCommitIntegrationTest {
                 .description("Return")
                 .remitterName("TULEVA TÄIENDAV KOGUMISFOND")
                 .remitterIdCode("14118923")
-                .remitterIban(bankAccountConfiguration.getAccountIban(DEPOSIT_EUR))
+                .remitterIban(bankAccounts.getIban(TKF100, DEPOSIT_EUR))
                 .beneficiaryName("Riina Raha")
                 .beneficiaryIban(REDEMPTION_IBAN)
                 .externalId(fixtureExternalId())
@@ -396,7 +396,7 @@ class SavingsFundNotificationCommitIntegrationTest {
   private void assertNoForeignUnmatchedOutgoingReturns() {
     var outgoingReturns =
         paymentRepository
-            .findUnmatchedOutgoingReturns(bankAccountConfiguration.getAccountIban(DEPOSIT_EUR))
+            .findUnmatchedOutgoingReturns(bankAccounts.getIban(TKF100, DEPOSIT_EUR))
             .stream()
             .filter(returnPayment -> !hasReturnLedgerEntry(returnPayment))
             .toList();

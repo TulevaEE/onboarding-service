@@ -7,13 +7,16 @@ import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.Statem
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.LedgerAccountFixture.systemAccountWithBalance;
 import static ee.tuleva.onboarding.ledger.LedgerAccountFixture.systemAccountWithEntries;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration;
+import ee.tuleva.onboarding.banking.BankAccount;
+import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatementAccount;
 import ee.tuleva.onboarding.banking.statement.BankStatementBalance;
+import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.LedgerAccount;
 import ee.tuleva.onboarding.ledger.LedgerAccountFixture.EntryFixture;
 import ee.tuleva.onboarding.ledger.LedgerService;
@@ -22,6 +25,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -33,7 +37,8 @@ import org.springframework.context.ApplicationEventPublisher;
 class SebReconciliatorTest {
 
   @Mock private LedgerService ledgerService;
-  @Mock private SebAccountConfiguration sebAccountConfiguration;
+  @Mock private BankAccounts bankAccounts;
+  @Mock private FundBankLedger fundBankLedger;
   @Mock private ApplicationEventPublisher eventPublisher;
 
   @InjectMocks private SebReconciliator reconciliator;
@@ -55,7 +60,9 @@ class SebReconciliatorTest {
 
     when(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount(), TKF100))
         .thenReturn(ledgerAccount);
-    when(sebAccountConfiguration.getAccountType("EE123456789012345678")).thenReturn(DEPOSIT_EUR);
+    when(bankAccounts.find("EE123456789012345678"))
+        .thenReturn(
+            Optional.of(new BankAccount("EE123456789012345678", DEPOSIT_EUR, TKF100, "gw-test")));
 
     assertDoesNotThrow(() -> reconciliator.reconcile(bankStatement));
   }
@@ -77,13 +84,19 @@ class SebReconciliatorTest {
 
     when(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount(), TKF100))
         .thenReturn(ledgerAccount);
-    when(sebAccountConfiguration.getAccountType("EE123456789012345678")).thenReturn(DEPOSIT_EUR);
+    when(bankAccounts.find("EE123456789012345678"))
+        .thenReturn(
+            Optional.of(new BankAccount("EE123456789012345678", DEPOSIT_EUR, TKF100, "gw-test")));
 
     reconciliator.reconcile(bankStatement);
 
     verify(eventPublisher)
         .publishEvent(
-            new ReconciliationCompletedEvent(DEPOSIT_EUR, matchingBalance, matchingBalance, true));
+            new ReconciliationCompletedEvent(
+                new BankAccount("EE123456789012345678", DEPOSIT_EUR, TKF100, "gw-test"),
+                matchingBalance,
+                matchingBalance,
+                true));
   }
 
   @Test
@@ -103,7 +116,9 @@ class SebReconciliatorTest {
 
     when(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount(), TKF100))
         .thenReturn(ledgerAccount);
-    when(sebAccountConfiguration.getAccountType("EE987700771001802057")).thenReturn(DEPOSIT_EUR);
+    when(bankAccounts.find("EE987700771001802057"))
+        .thenReturn(
+            Optional.of(new BankAccount("EE987700771001802057", DEPOSIT_EUR, TKF100, "gw-test")));
 
     assertThrows(IllegalStateException.class, () -> reconciliator.reconcile(bankStatement));
   }
@@ -125,13 +140,19 @@ class SebReconciliatorTest {
 
     when(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount(), TKF100))
         .thenReturn(ledgerAccount);
-    when(sebAccountConfiguration.getAccountType("EE987700771001802057")).thenReturn(DEPOSIT_EUR);
+    when(bankAccounts.find("EE987700771001802057"))
+        .thenReturn(
+            Optional.of(new BankAccount("EE987700771001802057", DEPOSIT_EUR, TKF100, "gw-test")));
 
     assertThrows(IllegalStateException.class, () -> reconciliator.reconcile(bankStatement));
 
     verify(eventPublisher)
         .publishEvent(
-            new ReconciliationCompletedEvent(DEPOSIT_EUR, bankBalance, ledgerBalance, false));
+            new ReconciliationCompletedEvent(
+                new BankAccount("EE987700771001802057", DEPOSIT_EUR, TKF100, "gw-test"),
+                bankBalance,
+                ledgerBalance,
+                false));
   }
 
   @Test
@@ -144,6 +165,48 @@ class SebReconciliatorTest {
         new BankStatement(HISTORIC_STATEMENT, account, List.of(openingBalance), List.of());
 
     assertThrows(NoSuchElementException.class, () -> reconciliator.reconcile(bankStatement));
+  }
+
+  @Test
+  void reconcile_shouldThrowException_whenAccountIsUnknown() {
+    BankStatementBalance closingBalance =
+        new BankStatementBalance(CLOSE, LocalDate.of(2024, 1, 15), new BigDecimal("1000.00"));
+    BankStatementAccount account =
+        new BankStatementAccount("EE999999999999999999", "Test Company", "12345678");
+    BankStatement bankStatement =
+        new BankStatement(HISTORIC_STATEMENT, account, List.of(closingBalance), List.of());
+
+    when(bankAccounts.find("EE999999999999999999")).thenReturn(Optional.empty());
+
+    assertThrows(IllegalStateException.class, () -> reconciliator.reconcile(bankStatement));
+    verifyNoInteractions(ledgerService, eventPublisher);
+  }
+
+  @Test
+  void reconcile_shouldThrowException_whenUnresolvedUnclassifiedEntriesExist() {
+    BigDecimal matchingBalance = new BigDecimal("1000.00");
+    BankStatementBalance closingBalance =
+        new BankStatementBalance(CLOSE, LocalDate.of(2024, 1, 15), matchingBalance);
+    BankStatementAccount account =
+        new BankStatementAccount("EE123456789012345678", "Test Company", "12345678");
+    BankStatement bankStatement =
+        new BankStatement(HISTORIC_STATEMENT, account, List.of(closingBalance), List.of());
+
+    LedgerAccount ledgerAccount =
+        systemAccountWithBalance(matchingBalance, Instant.parse("2024-01-15T12:00:00Z"));
+
+    when(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount(), TKF100))
+        .thenReturn(ledgerAccount);
+    when(bankAccounts.find("EE123456789012345678"))
+        .thenReturn(
+            Optional.of(new BankAccount("EE123456789012345678", DEPOSIT_EUR, TKF100, "gw-test")));
+    when(fundBankLedger.countUnresolvedUnclassifiedEntries(TKF100)).thenReturn(2L);
+
+    var exception =
+        assertThrows(IllegalStateException.class, () -> reconciliator.reconcile(bankStatement));
+
+    assertThat(exception.getMessage()).contains("Unresolved unclassified bank entries");
+    verifyNoInteractions(eventPublisher);
   }
 
   @Test
@@ -165,7 +228,9 @@ class SebReconciliatorTest {
 
     when(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount(), TKF100))
         .thenReturn(ledgerAccount);
-    when(sebAccountConfiguration.getAccountType("EE123456789012345678")).thenReturn(DEPOSIT_EUR);
+    when(bankAccounts.find("EE123456789012345678"))
+        .thenReturn(
+            Optional.of(new BankAccount("EE123456789012345678", DEPOSIT_EUR, TKF100, "gw-test")));
 
     // Should succeed: balance at Jan 15 = 1000.00, ignoring the +50 on Jan 16
     assertDoesNotThrow(() -> reconciliator.reconcile(bankStatement));
@@ -191,7 +256,9 @@ class SebReconciliatorTest {
 
     when(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount(), TKF100))
         .thenReturn(ledgerAccount);
-    when(sebAccountConfiguration.getAccountType("EE123456789012345678")).thenReturn(DEPOSIT_EUR);
+    when(bankAccounts.find("EE123456789012345678"))
+        .thenReturn(
+            Optional.of(new BankAccount("EE123456789012345678", DEPOSIT_EUR, TKF100, "gw-test")));
 
     assertDoesNotThrow(() -> reconciliator.reconcile(bankStatement));
   }

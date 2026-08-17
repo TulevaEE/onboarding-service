@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.banking.seb.reconciliation;
 
 import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.CLOSE;
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 
-import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration;
+import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
+import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import java.time.ZoneId;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +19,8 @@ public class SebReconciliator {
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
 
   private final LedgerService ledgerService;
-  private final SebAccountConfiguration sebAccountConfiguration;
+  private final BankAccounts bankAccounts;
+  private final FundBankLedger fundBankLedger;
   private final ApplicationEventPublisher eventPublisher;
 
   @Transactional
@@ -34,43 +35,49 @@ public class SebReconciliator {
         closingBankBalance.time().plusDays(1).atStartOfDay(ESTONIAN_ZONE).toInstant();
 
     var iban = bankStatement.getBankStatementAccount().iban();
-    var bankStatementAccount = sebAccountConfiguration.getAccountType(iban);
+    var account =
+        bankAccounts
+            .find(iban)
+            .orElseThrow(
+                () -> new IllegalStateException("Unknown bank account: iban=%s".formatted(iban)));
 
-    if (bankStatementAccount == null) {
-      log.error("Unknown account type: iban={}", iban);
-      return;
-    }
-
-    var ledgerSystemAccount = bankStatementAccount.getLedgerAccount();
     var ledgerAccountBalance =
         ledgerService
-            .getSystemAccount(ledgerSystemAccount, TKF100)
+            .getSystemAccount(account.ledgerAccount(), account.fund())
             .getBalanceAt(reconciliationTime);
 
     if (ledgerAccountBalance.compareTo(closingBankBalance.balance()) != 0) {
       eventPublisher.publishEvent(
           new ReconciliationCompletedEvent(
-              bankStatementAccount, closingBankBalance.balance(), ledgerAccountBalance, false));
+              account, closingBankBalance.balance(), ledgerAccountBalance, false));
 
       var diff = ledgerAccountBalance.subtract(closingBankBalance.balance());
       throw new IllegalStateException(
           "Bank statement reconciliation failed: bankAccount=%s, closingBalance=%s, ledgerAccount=%s, ledgerBalance=%s, diff=%s"
               .formatted(
-                  bankStatementAccount,
+                  account,
                   closingBankBalance.balance(),
-                  ledgerSystemAccount,
+                  account.ledgerAccount(),
                   ledgerAccountBalance,
                   diff));
     }
 
+    var unresolvedUnclassifiedEntries =
+        fundBankLedger.countUnresolvedUnclassifiedEntries(account.fund());
+    if (unresolvedUnclassifiedEntries > 0) {
+      throw new IllegalStateException(
+          "Unresolved unclassified bank entries: fund=%s, count=%d"
+              .formatted(account.fund(), unresolvedUnclassifiedEntries));
+    }
+
     eventPublisher.publishEvent(
         new ReconciliationCompletedEvent(
-            bankStatementAccount, closingBankBalance.balance(), ledgerAccountBalance, true));
+            account, closingBankBalance.balance(), ledgerAccountBalance, true));
 
     log.info(
         "Reconciliation successful: bankAccount={}, balance={}, ledgerAccount={}",
-        bankStatementAccount,
+        account,
         closingBankBalance.balance(),
-        ledgerSystemAccount);
+        account.ledgerAccount());
   }
 }

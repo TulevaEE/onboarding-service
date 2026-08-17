@@ -15,11 +15,11 @@ import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMP
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.BankType;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.ProcessBankMessagesRequested;
 import ee.tuleva.onboarding.banking.message.BankingMessage;
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
-import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import ee.tuleva.onboarding.currency.Currency;
@@ -66,7 +66,7 @@ class SavingsFundPaymentIntegrationTest {
   @Autowired private UserRepository userRepository;
   @Autowired private LedgerService ledgerService;
   @Autowired private SavingsFundOnboardingRepository savingsFundOnboardingRepository;
-  @Autowired private SebAccountConfiguration sebAccountConfiguration;
+  @Autowired private BankAccounts bankAccounts;
   @Autowired private FundValueRepository fundValueRepository;
   @Autowired private SavingsFundConfiguration savingsFundConfiguration;
   @Autowired private JdbcClient jdbcClient;
@@ -216,7 +216,7 @@ class SavingsFundPaymentIntegrationTest {
     payment = paymentRepository.findById(paymentId).orElseThrow();
     assertThat(payment.getStatus()).isEqualTo(PROCESSED);
 
-    var investmentIban = sebAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR);
+    var investmentIban = bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR);
 
     var outgoingToInvestmentXml =
         createOutgoingToInvestmentAccountXml(investmentIban, paymentAmount);

@@ -92,7 +92,10 @@ public class SavingsFundLedger {
     DESCRIPTION("description"),
     INSTRUMENT("instrument"),
     TICKER("ticker"),
-    DISPLAY_NAME("displayName");
+    DISPLAY_NAME("displayName"),
+    COUNTERPARTY_NAME("counterpartyName"),
+    COUNTERPARTY_IBAN("counterpartyIban"),
+    SUB_FAMILY_CODE("subFamilyCode");
 
     private final String key;
   }
@@ -565,135 +568,6 @@ public class SavingsFundLedger {
     return getUserAccount(ledgerParty, userAccount);
   }
 
-  @Transactional
-  public LedgerTransaction recordManagementFeePayment(
-      BigDecimal amount, UUID externalReference, String description) {
-    return recordManagementFeePayment(amount, externalReference, description, LocalDate.now(clock));
-  }
-
-  @Transactional
-  public LedgerTransaction recordManagementFeePayment(
-      BigDecimal amount, UUID externalReference, String description, LocalDate bookingDate) {
-    LedgerAccount managementFeeAccount = getSystemAccount(MANAGEMENT_FEE);
-    LedgerAccount clearingAccount = getFundInvestmentCashClearingAccount();
-
-    Map<String, Object> metadata =
-        Map.of(OPERATION_TYPE.key, MANAGEMENT_FEE_PAYMENT.name(), DESCRIPTION.key, description);
-
-    return ledgerTransactionService.createTransaction(
-        MANAGEMENT_FEE_PAYMENT,
-        transactionDate(bookingDate),
-        externalReference,
-        metadata,
-        entry(managementFeeAccount, amount),
-        entry(clearingAccount, amount.negate()));
-  }
-
-  @Transactional
-  public LedgerTransaction recordBankFee(
-      BigDecimal amount, UUID externalReference, SystemAccount clearingAccount) {
-    return recordBankFee(amount, externalReference, clearingAccount, LocalDate.now(clock));
-  }
-
-  @Transactional
-  public LedgerTransaction recordBankFee(
-      BigDecimal amount,
-      UUID externalReference,
-      SystemAccount clearingAccount,
-      LocalDate bookingDate) {
-    LedgerAccount bankFeeExpenseAccount = getSystemAccount(SystemAccount.BANK_FEE);
-    LedgerAccount clearingLedgerAccount = getSystemAccount(clearingAccount);
-
-    Map<String, Object> metadata = Map.of(OPERATION_TYPE.key, TransactionType.BANK_FEE.name());
-
-    return ledgerTransactionService.createTransaction(
-        TransactionType.BANK_FEE,
-        transactionDate(bookingDate),
-        externalReference,
-        metadata,
-        entry(bankFeeExpenseAccount, amount.negate()),
-        entry(clearingLedgerAccount, amount));
-  }
-
-  @Transactional
-  public LedgerTransaction recordInterestReceived(
-      BigDecimal amount, UUID externalReference, SystemAccount clearingAccount) {
-    return recordInterestReceived(amount, externalReference, clearingAccount, LocalDate.now(clock));
-  }
-
-  @Transactional
-  public LedgerTransaction recordInterestReceived(
-      BigDecimal amount,
-      UUID externalReference,
-      SystemAccount clearingAccount,
-      LocalDate bookingDate) {
-    LedgerAccount clearingLedgerAccount = getSystemAccount(clearingAccount);
-    LedgerAccount interestIncomeAccount = getSystemAccount(INTEREST_INCOME);
-
-    Map<String, Object> metadata = Map.of(OPERATION_TYPE.key, INTEREST_RECEIVED.name());
-
-    return ledgerTransactionService.createTransaction(
-        INTEREST_RECEIVED,
-        transactionDate(bookingDate),
-        externalReference,
-        metadata,
-        entry(clearingLedgerAccount, amount),
-        entry(interestIncomeAccount, amount.negate()));
-  }
-
-  @Transactional
-  public LedgerTransaction recordManagementFeeRebate(
-      BigDecimal amount,
-      UUID externalReference,
-      SystemAccount clearingAccount,
-      LocalDate bookingDate,
-      String description) {
-    LedgerAccount rebateIncomeAccount = getSystemAccount(SystemAccount.MANAGEMENT_FEE_REBATE);
-    LedgerAccount clearingLedgerAccount = getSystemAccount(clearingAccount);
-
-    Map<String, Object> metadata =
-        Map.of(
-            OPERATION_TYPE.key,
-            TransactionType.MANAGEMENT_FEE_REBATE.name(),
-            DESCRIPTION.key,
-            description);
-
-    return ledgerTransactionService.createTransaction(
-        TransactionType.MANAGEMENT_FEE_REBATE,
-        transactionDate(bookingDate),
-        externalReference,
-        metadata,
-        entry(clearingLedgerAccount, amount),
-        entry(rebateIncomeAccount, amount.negate()));
-  }
-
-  @Transactional
-  public LedgerTransaction recordBankAdjustment(
-      BigDecimal amount, UUID externalReference, SystemAccount clearingAccount) {
-    return recordBankAdjustment(amount, externalReference, clearingAccount, LocalDate.now(clock));
-  }
-
-  @Transactional
-  public LedgerTransaction recordBankAdjustment(
-      BigDecimal amount,
-      UUID externalReference,
-      SystemAccount clearingAccount,
-      LocalDate bookingDate) {
-    LedgerAccount bankAdjustmentAccount = getSystemAccount(SystemAccount.BANK_ADJUSTMENT);
-    LedgerAccount clearingLedgerAccount = getSystemAccount(clearingAccount);
-
-    Map<String, Object> metadata =
-        Map.of(OPERATION_TYPE.key, TransactionType.BANK_ADJUSTMENT.name());
-
-    return ledgerTransactionService.createTransaction(
-        TransactionType.BANK_ADJUSTMENT,
-        transactionDate(bookingDate),
-        externalReference,
-        metadata,
-        entry(bankAdjustmentAccount, amount.negate()),
-        entry(clearingLedgerAccount, amount));
-  }
-
   private Instant transactionDate(LocalDate bookingDate) {
     Instant now = Instant.now(clock);
     if (now.atZone(ESTONIAN_ZONE).toLocalDate().equals(bookingDate)) {
@@ -789,64 +663,5 @@ public class SavingsFundLedger {
 
   public boolean hasPayoutEntry(UUID redemptionRequestId) {
     return hasLedgerEntry(redemptionRequestId, REDEMPTION_PAYOUT);
-  }
-
-  @Transactional
-  public LedgerTransaction recordTradeSettlement(
-      BigDecimal amount,
-      BigDecimal units,
-      UUID externalReference,
-      SystemAccount clearingAccount,
-      String isin,
-      String ticker,
-      String displayName) {
-    return recordTradeSettlement(
-        amount,
-        units,
-        externalReference,
-        clearingAccount,
-        isin,
-        ticker,
-        displayName,
-        LocalDate.now(clock));
-  }
-
-  @Transactional
-  public LedgerTransaction recordTradeSettlement(
-      BigDecimal amount,
-      BigDecimal units,
-      UUID externalReference,
-      SystemAccount clearingAccount,
-      String isin,
-      String ticker,
-      String displayName,
-      LocalDate bookingDate) {
-    LedgerAccount clearingLedgerAccount = getSystemAccount(clearingAccount);
-    LedgerAccount tradeSettlementAccount =
-        findOrCreateInstrumentAccount(
-            TRADE_CASH_SETTLEMENT, TRADE_CASH_SETTLEMENT.getAccountName(TKF100, isin));
-    LedgerAccount securityUnitsAccount =
-        findOrCreateInstrumentAccount(
-            TRADE_UNIT_SETTLEMENT, TRADE_UNIT_SETTLEMENT.getAccountName(TKF100, isin));
-    LedgerAccount securitiesCustodyAccount =
-        findOrCreateInstrumentAccount(
-            SECURITIES_CUSTODY, SECURITIES_CUSTODY.getAccountName(TKF100, isin));
-
-    Map<String, Object> metadata =
-        Map.of(
-            OPERATION_TYPE.key, TRADE_SETTLEMENT.name(),
-            INSTRUMENT.key, isin,
-            TICKER.key, ticker,
-            DISPLAY_NAME.key, displayName);
-
-    return ledgerTransactionService.createTransaction(
-        TRADE_SETTLEMENT,
-        transactionDate(bookingDate),
-        externalReference,
-        metadata,
-        entry(clearingLedgerAccount, amount),
-        entry(tradeSettlementAccount, amount.negate()),
-        entry(securityUnitsAccount, units.negate()),
-        entry(securitiesCustodyAccount, units));
   }
 }

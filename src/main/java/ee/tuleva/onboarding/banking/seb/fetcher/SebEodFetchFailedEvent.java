@@ -1,5 +1,5 @@
 package ee.tuleva.onboarding.banking.seb.fetcher;
 
-import ee.tuleva.onboarding.banking.BankAccountType;
+import ee.tuleva.onboarding.banking.BankAccount;
 
-public record SebEodFetchFailedEvent(BankAccountType account, String errorMessage) {}
+public record SebEodFetchFailedEvent(BankAccount account, String errorMessage) {}

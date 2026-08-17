@@ -3,11 +3,12 @@ package ee.tuleva.onboarding.savings.fund.issuing;
 import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.event.TrackableEventType.SUBSCRIPTION_BATCH_CREATED;
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.ISSUED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.PROCESSED;
 import static java.math.BigDecimal.ZERO;
 
-import ee.tuleva.onboarding.banking.BankAccountConfiguration;
+import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.payment.PaymentRequest;
 import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
@@ -33,7 +34,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Profile("!staging")
 public class FundAccountPaymentJob {
 
-  private final BankAccountConfiguration bankAccountConfiguration;
+  private final BankAccounts bankAccounts;
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final TransactionTemplate transactionTemplate;
   private final ApplicationEventPublisher eventPublisher;
@@ -78,9 +79,9 @@ public class FundAccountPaymentJob {
 
     var paymentRequest =
         PaymentRequest.tulevaPaymentBuilder(endToEndIdConverter.toEndToEndId(id))
-            .remitterIban(bankAccountConfiguration.getAccountIban(DEPOSIT_EUR))
+            .remitterIban(bankAccounts.getIban(TKF100, DEPOSIT_EUR))
             .beneficiaryName("Tuleva Täiendav Kogumisfond")
-            .beneficiaryIban(bankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
+            .beneficiaryIban(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR))
             .amount(total)
             .description("Subscriptions")
             .build();

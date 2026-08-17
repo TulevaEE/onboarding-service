@@ -2,13 +2,17 @@ package ee.tuleva.onboarding.banking.seb;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
 import static ee.tuleva.onboarding.banking.seb.Seb.BIC;
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static java.math.BigDecimal.TEN;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.banking.BankAccount;
+import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.payment.PaymentMessageGenerator;
 import ee.tuleva.onboarding.banking.payment.PaymentRequest;
 import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,7 +26,7 @@ class SebPaymentRequestListenerTest {
   private static final String SEB_IBAN = "EE111111111111111111";
 
   @Mock private SebGatewayClient sebGatewayClient;
-  @Mock private SebAccountConfiguration sebAccountConfiguration;
+  @Mock private BankAccounts bankAccounts;
   @Mock private PaymentMessageGenerator paymentMessageGenerator;
 
   @InjectMocks private SebPaymentRequestListener listener;
@@ -44,13 +48,14 @@ class SebPaymentRequestListenerTest {
 
     var event = new RequestPaymentEvent(paymentRequest, UUID.randomUUID());
 
-    when(sebAccountConfiguration.getAccountType(SEB_IBAN)).thenReturn(WITHDRAWAL_EUR);
+    when(bankAccounts.find(SEB_IBAN))
+        .thenReturn(Optional.of(new BankAccount(SEB_IBAN, WITHDRAWAL_EUR, TKF100, "1162")));
     when(paymentMessageGenerator.generatePaymentMessage(paymentRequest, BIC))
         .thenReturn("<xml>payment</xml>");
 
     listener.onRequestPayment(event);
 
-    verify(sebGatewayClient).submitPaymentFile("<xml>payment</xml>", "end-to-end-123");
+    verify(sebGatewayClient).submitPaymentFile("<xml>payment</xml>", "end-to-end-123", "1162");
   }
 
   @Test
@@ -71,11 +76,11 @@ class SebPaymentRequestListenerTest {
 
     var event = new RequestPaymentEvent(paymentRequest, UUID.randomUUID());
 
-    when(sebAccountConfiguration.getAccountType(nonSebIban)).thenReturn(null);
+    when(bankAccounts.find(nonSebIban)).thenReturn(Optional.empty());
 
     listener.onRequestPayment(event);
 
-    verify(sebGatewayClient, never()).submitPaymentFile(anyString(), anyString());
+    verify(sebGatewayClient, never()).submitPaymentFile(anyString(), anyString(), anyString());
     verify(paymentMessageGenerator, never()).generatePaymentMessage(any(), anyString());
   }
 }

@@ -17,8 +17,6 @@ public enum TulevaFund {
       2,
       "EE3600109435",
       "Tuleva Maailma Aktsiate Pensionifond",
-      "VP68169",
-      "EE421010220306592227",
       true,
       5,
       LocalTime.parse("11:00"),
@@ -37,8 +35,6 @@ public enum TulevaFund {
       2,
       "EE3600109443",
       "Tuleva Maailma Võlakirjade Pensionifond",
-      "VP68170",
-      "EE021010220306593225",
       true,
       5,
       LocalTime.parse("11:00"),
@@ -49,8 +45,6 @@ public enum TulevaFund {
       3,
       "EE3600001707",
       "Tuleva III Samba Pensionifond",
-      "VP68959",
-      "EE691010220306737229",
       true,
       4,
       LocalTime.parse("15:20"),
@@ -69,8 +63,6 @@ public enum TulevaFund {
       null,
       "EE0000003283",
       "Tuleva Täiendav Kogumisfond",
-      "VP68168",
-      "EE861010220306591229",
       true,
       4,
       LocalTime.parse("15:20"),
@@ -90,8 +82,6 @@ public enum TulevaFund {
   private final @Nullable Integer pillar;
   private final String isin;
   private final String displayName;
-  private final String securitiesAccount;
-  private final String cashAccount;
   private final boolean navCalculation;
   private final int navScale;
   private final LocalTime navCutoffTime;

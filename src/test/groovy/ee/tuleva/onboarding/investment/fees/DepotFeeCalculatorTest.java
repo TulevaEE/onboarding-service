@@ -4,15 +4,19 @@ import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import ee.tuleva.onboarding.savings.fund.nav.FundNavQueryService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -28,6 +32,8 @@ class DepotFeeCalculatorTest {
   @Mock private FundNavQueryService fundNavQueryService;
   @Mock private FeeMonthResolver feeMonthResolver;
   @Mock private FeeRateRepository feeRateRepository;
+  @Mock private NavLedgerRepository navLedgerRepository;
+  @Mock private PublicHolidays publicHolidays;
 
   @InjectMocks private DepotFeeCalculator calculator;
 
@@ -161,6 +167,10 @@ class DepotFeeCalculatorTest {
         .thenReturn(Optional.of(LocalDate.of(2025, 5, 30)));
     when(fundNavQueryService.findAssetTotal(anyString(), eq(LocalDate.of(2025, 5, 30))))
         .thenReturn(Optional.of(new BigDecimal("250000000")));
+    when(publicHolidays.nextWorkingDay(LocalDate.of(2025, 5, 30)))
+        .thenReturn(LocalDate.of(2025, 6, 2));
+    when(navLedgerRepository.getSystemAccountBalanceBefore(anyString(), any(Instant.class)))
+        .thenReturn(ZERO);
     when(tierRepository.findRateForAum(new BigDecimal("1000000000"), feeMonth))
         .thenReturn(tierRate);
 
@@ -263,6 +273,38 @@ class DepotFeeCalculatorTest {
     assertThat(on.feeMonth()).isEqualTo(feeMonth);
   }
 
+  /**
+   * nav_report has no BlackRock rows for a savings fund — NavReportMapper writes them only for
+   * pension funds — so the tier basis has to pick that term up from the ledger, or it disagrees
+   * with the daily base, which takes it from the NAV components in memory.
+   */
+  @Test
+  void calculate_addsTheSavingsFundsBlackrockAdjustmentToTheTierBasis() {
+    LocalDate date = LocalDate.of(2025, 7, 15);
+    LocalDate feeMonth = LocalDate.of(2025, 7, 1);
+    BigDecimal tierRate = new BigDecimal("0.0004");
+
+    when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
+    when(feeRateRepository.findValidRate(TUK75, FeeType.DEPOT, date))
+        .thenReturn(Optional.of(tierRow(TUK75, LocalDate.of(2025, 1, 1), null)));
+    when(fundNavQueryService.findLatestNavDateOnOrBefore(anyString(), eq(MAY_END)))
+        .thenReturn(Optional.of(MAY_END));
+    when(fundNavQueryService.findAssetTotal(anyString(), eq(MAY_END)))
+        .thenReturn(Optional.of(new BigDecimal("350000000")));
+    when(publicHolidays.nextWorkingDay(MAY_END)).thenReturn(MAY_END.plusDays(1));
+    when(navLedgerRepository.getSystemAccountBalanceBefore(anyString(), any(Instant.class)))
+        .thenReturn(new BigDecimal("1000000"));
+
+    // 4 x 350M from nav_report, plus 1M of BlackRock adjustment for TKF100 only -- the three
+    // pension funds short-circuit before the ledger read.
+    when(tierRepository.findRateForAum(new BigDecimal("1401000000"), feeMonth))
+        .thenReturn(tierRate);
+
+    FeeAccrual result = calculator.calculate(TUK75, date, BASES);
+
+    assertThat(result.annualRate()).isEqualByComparingTo(tierRate);
+  }
+
   @Test
   void getFeeType_returnsDepot() {
     assertThat(calculator.getFeeType()).isEqualTo(FeeType.DEPOT);
@@ -277,6 +319,10 @@ class DepotFeeCalculatorTest {
         .thenReturn(Optional.of(anchor));
     when(fundNavQueryService.findAssetTotal(anyString(), eq(anchor)))
         .thenReturn(Optional.of(perFundAssets));
+    // Only TKF100 reaches the ledger; the others short-circuit on isSavingsFund().
+    when(publicHolidays.nextWorkingDay(anchor)).thenReturn(anchor.plusDays(1));
+    when(navLedgerRepository.getSystemAccountBalanceBefore(anyString(), any(Instant.class)))
+        .thenReturn(ZERO);
   }
 
   private FeeRate tierRow(TulevaFund fund, LocalDate validFrom, LocalDate validTo) {

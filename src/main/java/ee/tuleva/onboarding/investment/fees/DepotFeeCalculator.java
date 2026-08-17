@@ -4,11 +4,16 @@ import static ee.tuleva.onboarding.investment.fees.FeeType.DEPOT;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.ledger.NavLedgerRepository;
+import ee.tuleva.onboarding.ledger.SystemAccount;
 import ee.tuleva.onboarding.savings.fund.nav.FundNavQueryService;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.Year;
+import java.time.ZoneId;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,10 +38,14 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class DepotFeeCalculator implements FeeCalculator {
 
+  private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
+
   private final DepotFeeTierRepository tierRepository;
   private final FundNavQueryService fundNavQueryService;
   private final FeeMonthResolver feeMonthResolver;
   private final FeeRateRepository feeRateRepository;
+  private final NavLedgerRepository navLedgerRepository;
+  private final PublicHolidays publicHolidays;
 
   @Override
   public FeeAccrual calculate(TulevaFund fund, LocalDate calendarDate, FeeBases bases) {
@@ -129,8 +138,37 @@ public class DepotFeeCalculator implements FeeCalculator {
         continue;
       }
       total =
-          total.add(fundNavQueryService.findAssetTotal(fund.getCode(), navDate.get()).orElse(ZERO));
+          total
+              .add(fundNavQueryService.findAssetTotal(fund.getCode(), navDate.get()).orElse(ZERO))
+              .add(blackrockAdjustment(fund, navDate.get()));
     }
     return total;
+  }
+
+  /**
+   * The one asset term nav_report cannot answer for. {@code NavReportMapper} writes the BlackRock
+   * receivable and liability rows only for pension funds, so for a savings fund the asset total
+   * read back from nav_report is short by exactly this adjustment — while the daily base, taken
+   * from the NAV components in memory, includes it. Reading it from the ledger keeps the two
+   * definitions of aktiva the same number. Same approach as {@code
+   * FeeBaseCompletenessChecker.blackrockAdjustment}.
+   *
+   * <p>Zero for a pension fund (the rows are already in the total, adding it again would
+   * double-count) and zero when the account has no entries, which is the case for every fund today.
+   */
+  private BigDecimal blackrockAdjustment(TulevaFund fund, LocalDate navDate) {
+    if (!fund.isSavingsFund()) {
+      return ZERO;
+    }
+    Instant cutoff =
+        publicHolidays
+            .nextWorkingDay(navDate)
+            .atTime(fund.getNavCutoffTime())
+            .atZone(ESTONIAN_ZONE)
+            .toInstant();
+    BigDecimal balance =
+        navLedgerRepository.getSystemAccountBalanceBefore(
+            SystemAccount.BLACKROCK_ADJUSTMENT.getAccountName(fund), cutoff);
+    return balance == null ? ZERO : balance;
   }
 }

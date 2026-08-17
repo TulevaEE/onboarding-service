@@ -94,12 +94,18 @@ public class DepotFeeCalculator implements FeeCalculator {
    * ends back, while the tier row's own validity is tested against the fee month, which is when
    * that rate is the one in force.
    *
-   * <p>What this deliberately does <b>not</b> reproduce: the depositary submits a rate only when it
-   * differs from the one already in force, so contractually the rate is sticky between
-   * notifications and the confirmed one governs. Recomputing it here can move the accrual in a
-   * month where no notification arrived — a band crossing we saw and the depositary did not — and
-   * nothing currently compares the two. Treat a change in this rate as something to reconcile
-   * against a notification, not as a fact.
+   * <p><b>This is a recomputation, not the source.</b> Contractually the depositary calculates the
+   * rate, sends it to funds@tuleva.ee only when it differs from the one in force, and Tuleva
+   * confirms it to trustee@seb.ee by the 20th. The rate is therefore sticky between notifications
+   * and the confirmed one governs. That exchange is a manual process today — it happens over email
+   * and no system holds it — so what this method returns has nothing to agree against inside the
+   * application.
+   *
+   * <p>The failure that follows: in a month where our assets cross a band and no notification
+   * arrived, this silently moves the accrual away from the rate actually agreed. Accruals are
+   * forward-only, so by the time anyone compares, the affected days cannot be rewritten without
+   * deleting them and re-running the backfill. If a rate change here does not correspond to a
+   * notification you can point at, that is the bug, not the notification.
    */
   private BigDecimal determineDepotRateFromTier(LocalDate feeMonth) {
     LocalDate submissionBasisDate = feeMonth.minusMonths(1).minusDays(1);

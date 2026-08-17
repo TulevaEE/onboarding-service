@@ -100,13 +100,31 @@ population-register:
   url: ${POPULATION_REGISTER_URL:http://localhost:9000}
   client-id: ${POPULATION_REGISTER_CLIENT_ID:EE/COM/00000000/non-production}
 
+fund-accounts:
+  funds:
+    TUK75:
+      cash-account: EE651010220306497226
+      securities-account: VP00001
+      gateway-client-id: gw-test-tuk75
+    TUK00:
+      cash-account: EE241010220306719221
+      securities-account: VP00002
+      gateway-client-id: gw-test-tuk00
+    TUV100:
+      cash-account: EE581010220306498225
+      securities-account: VP00003
+      gateway-client-id: gw-test-tuv100
+    TKF100:
+      cash-account: EE861010220306591229
+      securities-account: VP68168
+      gateway-client-id: "1162"
+
 seb-gateway:
   enabled: false
   keystore:
     path: "src/main/resources/empty-keystore.p12"
     password: changeit
   url: ''
-  org-id: ''
   reconciliation-delay: 5m
   management-company-name: 'Tuleva Fondid AS'
   accounts:
@@ -351,13 +369,32 @@ smartid:
 truststore:
   path: "/truststore.jks"
 
+fund-accounts:
+  funds:
+    TUK75:
+      cash-account: ${FUND_ACCOUNTS_TUK75_CASH_ACCOUNT:}
+      securities-account: ${FUND_ACCOUNTS_TUK75_SECURITIES_ACCOUNT:}
+      gateway-client-id: ${FUND_ACCOUNTS_TUK75_GATEWAY_CLIENT_ID:}
+    TUK00:
+      cash-account: ${FUND_ACCOUNTS_TUK00_CASH_ACCOUNT:}
+      securities-account: ${FUND_ACCOUNTS_TUK00_SECURITIES_ACCOUNT:}
+      gateway-client-id: ${FUND_ACCOUNTS_TUK00_GATEWAY_CLIENT_ID:}
+    TUV100:
+      cash-account: ${FUND_ACCOUNTS_TUV100_CASH_ACCOUNT:}
+      securities-account: ${FUND_ACCOUNTS_TUV100_SECURITIES_ACCOUNT:}
+      gateway-client-id: ${FUND_ACCOUNTS_TUV100_GATEWAY_CLIENT_ID:}
+    TKF100:
+      cash-account: ${FUND_ACCOUNTS_TKF100_CASH_ACCOUNT:}
+      securities-account: ${FUND_ACCOUNTS_TKF100_SECURITIES_ACCOUNT:}
+      gateway-client-id: ${FUND_ACCOUNTS_TKF100_GATEWAY_CLIENT_ID:}
+
 seb-gateway:
   enabled: ${SEB_GATEWAY_ENABLED:true}
   keystore:
     path: ${SEB_GATEWAY_KEYSTORE_PATH:/seb-gateway.p12}
     password: ${SEB_GATEWAY_KEYSTORE_PASSWORD:changeit}
   url: ${SEB_GATEWAY_URL:}
-  org-id: ${SEB_GATEWAY_ORG_ID:}
+  registrar-ibans: ${SEB_GATEWAY_REGISTRAR_IBANS:}
   accounts:
     DEPOSIT_EUR: ${SEB_GATEWAY_ACCOUNTS_DEPOSIT_EUR:}
     WITHDRAWAL_EUR: ${SEB_GATEWAY_ACCOUNTS_WITHDRAWAL_EUR:}

@@ -94,18 +94,19 @@ public class DepotFeeCalculator implements FeeCalculator {
    * ends back, while the tier row's own validity is tested against the fee month, which is when
    * that rate is the one in force.
    *
-   * <p><b>This is a recomputation, not the source.</b> Contractually the depositary calculates the
-   * rate, sends it to funds@tuleva.ee only when it differs from the one in force, and Tuleva
-   * confirms it to trustee@seb.ee by the 20th. The rate is therefore sticky between notifications
-   * and the confirmed one governs. That exchange is a manual process today — it happens over email
-   * and no system holds it — so what this method returns has nothing to agree against inside the
-   * application.
+   * <p><b>Calculation is automatic, verification is manual.</b> This method is what the accrual
+   * uses, deliberately. The depositary also calculates the rate, emails it to funds@tuleva.ee when
+   * it changes, and Tuleva confirms it to trustee@seb.ee by the 20th; that exchange is the check on
+   * this code, and it is a manual one — no system holds either side of it.
    *
-   * <p>The failure that follows: in a month where our assets cross a band and no notification
-   * arrived, this silently moves the accrual away from the rate actually agreed. Accruals are
-   * forward-only, so by the time anyone compares, the affected days cannot be rewritten without
-   * deleting them and re-running the backfill. If a rate change here does not correspond to a
-   * notification you can point at, that is the bug, not the notification.
+   * <p>So a disagreement between the two is a defect <b>here</b>, in this method or in the {@code
+   * investment_depot_fee_tier} rows, and the fix belongs here too. Do not paper over one by
+   * hand-entering a FIXED rate: that hides the defect and leaves the next month wrong the same way.
+   *
+   * <p>Why the check has to be prompt rather than eventual: accruals are forward-only, so days
+   * already written cannot be corrected in place. Repairing them means deleting the DEPOT accruals
+   * from the affected date and re-running the backfill, and the longer the gap the more days that
+   * is.
    */
   private BigDecimal determineDepotRateFromTier(LocalDate feeMonth) {
     LocalDate submissionBasisDate = feeMonth.minusMonths(1).minusDays(1);

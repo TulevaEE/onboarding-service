@@ -1,6 +1,8 @@
 -- How a fee rate row gets its rate:
 --   FIXED -- annual_rate is the rate
---   TIER  -- the rate comes from investment_depot_fee_tier, by total AUM, at the fee month
+--   TIER  -- the rate comes from investment_depot_fee_tier, by the funds' combined aktiva two
+--            month ends back, valid at the fee month. Aktiva, not AUM: AUM is net of liabilities
+--            and is the management fee's base. See DepotFeeCalculator.
 --
 -- Before this, "use the tier" was expressed by having no row at all, so a lapsed valid_to or a
 -- deleted row silently switched a fund from a 0 rate to the tier rate. Using the tier is now a

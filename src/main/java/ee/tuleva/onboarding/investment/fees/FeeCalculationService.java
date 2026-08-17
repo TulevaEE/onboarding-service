@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.fees;
 import static ee.tuleva.onboarding.investment.fees.FeeType.*;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static java.math.RoundingMode.HALF_UP;
+import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
@@ -14,6 +15,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -105,6 +107,13 @@ public class FeeCalculationService {
         startDate,
         !startDate.isAfter(positionReportDate));
 
+    // Read once for the whole run rather than per day: the policy cannot change underneath a
+    // single call, and a backfill walks hundreds of days.
+    Map<FeeType, FeeChargedToFundPolicy.Resolver> chargedPolicies =
+        Arrays.stream(FeeType.values())
+            .collect(
+                toMap(identity(), feeType -> feeChargedToFundPolicy.resolverFor(fund, feeType)));
+
     LocalDate previousFeeMonth = null;
     for (LocalDate day = startDate; !day.isAfter(positionReportDate); day = day.plusDays(1)) {
       LocalDate feeMonth = feeMonthResolver.resolveFeeMonth(day);
@@ -112,7 +121,7 @@ public class FeeCalculationService {
         settleMonthlyFeesIfNeeded(fund, feeMonth.minusMonths(1));
       }
       FeeBases dayBases = day.isBefore(positionReportDate) ? previousBases : bases;
-      recordDailyFees(fund, day, dayBases, securityPrices);
+      recordDailyFees(fund, day, dayBases, chargedPolicies, securityPrices);
       previousFeeMonth = feeMonth;
     }
 
@@ -124,11 +133,15 @@ public class FeeCalculationService {
   }
 
   private void recordDailyFees(
-      TulevaFund fund, LocalDate date, FeeBases bases, Map<String, ResolvedPrice> securityPrices) {
+      TulevaFund fund,
+      LocalDate date,
+      FeeBases bases,
+      Map<FeeType, FeeChargedToFundPolicy.Resolver> chargedPolicies,
+      Map<String, ResolvedPrice> securityPrices) {
     for (FeeCalculator calculator : feeCalculators) {
       FeeAccrual accrual = calculator.calculate(fund, date, bases);
       feeAccrualRepository.save(accrual);
-      if (!feeChargedToFundPolicy.chargedToFund(fund, accrual.feeType(), date)) {
+      if (!chargedPolicies.get(accrual.feeType()).chargedOn(date)) {
         log.info(
             "recordDailyFees: fund={}, date={}, feeType={}, tracked but not charged to the fund",
             fund,

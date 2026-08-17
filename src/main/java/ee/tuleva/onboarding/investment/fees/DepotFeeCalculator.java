@@ -149,12 +149,19 @@ public class DepotFeeCalculator implements FeeCalculator {
    * The one asset term nav_report cannot answer for. {@code NavReportMapper} writes the BlackRock
    * receivable and liability rows only for pension funds, so for a savings fund the asset total
    * read back from nav_report is short by exactly this adjustment — while the daily base, taken
-   * from the NAV components in memory, includes it. Reading it from the ledger keeps the two
-   * definitions of aktiva the same number. Same approach as {@code
-   * FeeBaseCompletenessChecker.blackrockAdjustment}.
+   * from the NAV components in memory, includes it. Reading it from the ledger brings the two
+   * definitions of aktiva back together. Same approach as {@code
+   * FeeBaseCompletenessChecker.navFeeBaseBlackrockAdjustment}.
    *
-   * <p>Zero for a pension fund (the rows are already in the total, adding it again would
-   * double-count) and zero when the account has no entries, which is the case for every fund today.
+   * <p>Zero for a pension fund, because nav_report already carries the adjustment — though only the
+   * part of it that landed on the asset side. {@code NavReportMapper} splits the signed amount, the
+   * positive part into a RECEIVABLES row and the negative part into a LIABILITY one, and {@code
+   * findAssetTotal} reads the assets alone. So the two definitions coincide only while the
+   * adjustment is at or above zero: a pension fund with a <b>negative</b> adjustment gets a tier
+   * basis larger than its own daily base by exactly that amount. Both readings are defensible as
+   * "aktiva" and neither is obviously the Depooleping's, which is a question worth settling before
+   * the account carries anything. Today it is empty for every fund, so this is zero throughout and
+   * nothing turns on it.
    */
   private BigDecimal blackrockAdjustment(TulevaFund fund, LocalDate navDate) {
     if (!fund.isSavingsFund()) {

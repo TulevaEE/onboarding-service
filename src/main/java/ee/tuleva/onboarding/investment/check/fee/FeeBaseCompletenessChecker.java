@@ -5,7 +5,6 @@ import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.FEE_BASE_CO
 import static java.math.BigDecimal.ZERO;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
-import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
@@ -21,6 +20,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
@@ -79,28 +79,29 @@ class FeeBaseCompletenessChecker {
         mismatches.add(date + " stopped accruing " + stopped);
         continue;
       }
-      var disagreement = feeTypeDisagreement(bases);
-      if (disagreement.isPresent()) {
-        mismatches.add(date + " " + disagreement.get());
-        continue;
-      }
-      var expected = expectedBase(fund, date);
+      var expected = expectedBases(fund, bases, date);
       if (expected.isEmpty()) {
         notRunDays.add(date);
         continue;
       }
-      var actual = bases.getFirst().baseValue();
-      var deviation = expected.get().subtract(actual);
-      if (deviation.abs().compareTo(feeBaseTolerance) > 0) {
-        mismatches.add(
-            date
-                + " base="
-                + actual.toPlainString()
+      var divergent = new TreeMap<String, String>();
+      for (var base : bases) {
+        var deviation = expected.get().get(base.feeType()).subtract(base.baseValue());
+        if (deviation.abs().compareTo(feeBaseTolerance) <= 0) {
+          continue;
+        }
+        divergent.put(
+            base.feeType().name(),
+            "base="
+                + base.baseValue().toPlainString()
                 + " navComponents="
-                + expected.get().toPlainString()
+                + expected.get().get(base.feeType()).toPlainString()
                 + " missing="
                 + deviation.toPlainString());
         totalDeviation = totalDeviation.add(deviation);
+      }
+      if (!divergent.isEmpty()) {
+        mismatches.add(date + " " + divergent);
       }
     }
 
@@ -122,34 +123,53 @@ class FeeBaseCompletenessChecker {
     return seenSoFar.stream().filter(feeType -> !present.contains(feeType)).sorted().toList();
   }
 
-  private Optional<String> feeTypeDisagreement(List<FeeBaseValue> bases) {
-    var distinct = bases.stream().map(FeeBaseValue::baseValue).map(BigDecimal::stripTrailingZeros);
-    if (distinct.distinct().count() <= 1) {
-      return Optional.empty();
+  // Empty when nav_report cannot answer for one of the day's fee types, which is a day the check
+  // did not run rather than a deviation.
+  private Optional<Map<FeeType, BigDecimal>> expectedBases(
+      TulevaFund fund, List<FeeBaseValue> bases, LocalDate date) {
+    var expected = new EnumMap<FeeType, BigDecimal>(FeeType.class);
+    for (var base : bases) {
+      var value = expectedBase(fund, base.feeType(), date);
+      if (value.isEmpty()) {
+        return Optional.empty();
+      }
+      expected.put(base.feeType(), value.get());
     }
-    var perType =
-        bases.stream()
-            .collect(
-                toMap(
-                    b -> b.feeType().name(),
-                    b -> b.baseValue().toPlainString(),
-                    (a, b) -> a,
-                    TreeMap::new));
-    return Optional.of("fee types disagree on the base: " + perType);
+    return Optional.of(expected);
   }
 
-  private Optional<BigDecimal> expectedBase(TulevaFund fund, LocalDate date) {
-    return fundNavQueryService
-        .findFeeBaseComponentTotal(fund.getCode(), date)
-        .map(total -> total.add(blackrockAdjustment(fund, date)));
+  // Each fee type against the base its own contract names, because they are different numbers: the
+  // management fee is charged on netovara (Tingimused 18.2.1) and the depot fee on aktiva, the
+  // asset side gross (Depooleping). Comparing the two accruals to each other instead would fail
+  // every day the fund has payables or pending redemptions, and would still not notice a depot
+  // base that was quietly handed the net figure -- the one error the split makes possible.
+  private Optional<BigDecimal> expectedBase(TulevaFund fund, FeeType feeType, LocalDate date) {
+    return feeType == FeeType.DEPOT
+        ? fundNavQueryService
+            .findAssetTotal(fund.getCode(), date)
+            .map(total -> total.add(assetSideBlackrockAdjustment(fund, date)))
+        : fundNavQueryService
+            .findFeeBaseComponentTotal(fund.getCode(), date)
+            .map(total -> total.add(navFeeBaseBlackrockAdjustment(fund, date)));
   }
 
   // NavReportMapper omits both BlackRock rows for savings funds, so their fee base carries an
   // adjustment that nav_report cannot show. Read it from the ledger instead.
+  private BigDecimal navFeeBaseBlackrockAdjustment(TulevaFund fund, LocalDate positionReportDate) {
+    return fund.isSavingsFund() ? blackrockAdjustment(fund, positionReportDate) : ZERO;
+  }
+
+  // Only the part of the adjustment that nav_report put on the asset side. NavReportMapper splits
+  // it -- the positive part becomes a RECEIVABLES row and the negative part a LIABILITY one -- and
+  // findAssetTotal reads the first only. The accrual's base carries the whole signed amount, so a
+  // negative adjustment has to be added back or a correct base would read as short by exactly it.
+  // For a savings fund neither row is written, so the whole amount comes from the ledger.
+  private BigDecimal assetSideBlackrockAdjustment(TulevaFund fund, LocalDate positionReportDate) {
+    var adjustment = blackrockAdjustment(fund, positionReportDate);
+    return fund.isSavingsFund() ? adjustment : adjustment.min(ZERO);
+  }
+
   private BigDecimal blackrockAdjustment(TulevaFund fund, LocalDate positionReportDate) {
-    if (!fund.isSavingsFund()) {
-      return ZERO;
-    }
     var balance =
         navLedgerRepository.getSystemAccountBalanceBefore(
             SystemAccount.BLACKROCK_ADJUSTMENT.getAccountName(fund),

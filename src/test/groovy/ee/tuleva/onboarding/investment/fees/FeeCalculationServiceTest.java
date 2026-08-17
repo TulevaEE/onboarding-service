@@ -51,7 +51,20 @@ class FeeCalculationServiceTest {
             navLedgerRepository,
             feeMonthResolver,
             feeChargedToFundPolicy);
-    lenient().when(feeChargedToFundPolicy.chargedToFund(any(), any(), any())).thenReturn(true);
+    lenient()
+        .when(feeChargedToFundPolicy.resolverFor(any(), any()))
+        .thenAnswer(call -> alwaysCharged(call.getArgument(0), call.getArgument(1), true));
+  }
+
+  // The policy is read once per run rather than per day, so the tests hand over a resolver.
+  private FeeChargedToFundPolicy.Resolver alwaysCharged(
+      TulevaFund fund, FeeType feeType, boolean chargedToFund) {
+    return new FeeChargedToFundPolicy.Resolver(
+        fund,
+        feeType,
+        List.of(
+            new FeeChargedToFundPolicy.Policy(
+                chargedToFund, LocalDate.of(2017, 3, 28), (LocalDate) null)));
   }
 
   @Test
@@ -64,8 +77,8 @@ class FeeCalculationServiceTest {
     FeeAccrual mgmtAccrual = createAccrual(TKF100, FeeType.MANAGEMENT, positionReportDate);
     FeeAccrual depotAccrual = createAccrual(TKF100, FeeType.DEPOT, positionReportDate);
 
-    when(feeChargedToFundPolicy.chargedToFund(TKF100, FeeType.DEPOT, positionReportDate))
-        .thenReturn(false);
+    when(feeChargedToFundPolicy.resolverFor(TKF100, FeeType.DEPOT))
+        .thenReturn(alwaysCharged(TKF100, FeeType.DEPOT, false));
     when(feeAccrualRepository.findLatestAccrualDate(TKF100))
         .thenReturn(Optional.of(positionReportDate.minusDays(1)));
     when(feeAccrualRepository.findLatestBaseValue(eq(TKF100), any(FeeType.class)))

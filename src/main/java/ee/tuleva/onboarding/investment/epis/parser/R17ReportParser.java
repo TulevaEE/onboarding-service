@@ -110,13 +110,19 @@ public class R17ReportParser {
   }
 
   private static BigDecimal requiredUnits(Map<String, String> row, String fund, String toiming) {
-    BigDecimal units =
+    BigDecimal feeBearingUnits =
         parseNumber(findValue(row, "osakud (teenustasuga)", "osakuid"), DECIMAL_CONVENTION);
-    if (units == null) {
+    BigDecimal feeFreeUnits =
+        parseNumber(findValue(row, "osakud (teenustasuta)"), DECIMAL_CONVENTION);
+    if (feeBearingUnits == null && feeFreeUnits == null) {
       throw new IllegalArgumentException(
           "R17 required units missing: fund=" + fund + ", toiming=" + toiming);
     }
-    return units;
+    return zeroIfNull(feeBearingUnits).add(zeroIfNull(feeFreeUnits));
+  }
+
+  private static BigDecimal zeroIfNull(@Nullable BigDecimal value) {
+    return value == null ? BigDecimal.ZERO : value;
   }
 
   private static String trimmed(@Nullable String value) {

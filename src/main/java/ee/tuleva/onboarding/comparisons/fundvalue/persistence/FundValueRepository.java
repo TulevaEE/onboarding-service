@@ -25,4 +25,9 @@ public interface FundValueRepository {
   Optional<FundValue> getLatestValue(String key, LocalDate date);
 
   List<FundValue> findValuesBetweenDates(String fundKey, LocalDate startDate, LocalDate endDate);
+
+  List<FundValue> findLatestValuesByKeys(List<String> keys);
+
+  List<FundValue> findValuesBetweenDatesForKeys(
+      List<String> keys, LocalDate startDate, LocalDate endDate);
 }

@@ -24,8 +24,8 @@ public class R17ReportParser {
   private static final String HEADER_MARKER = "Väärtpaber";
   private static final DecimalConvention DECIMAL_CONVENTION = DecimalConvention.PERIOD_DECIMAL;
   private static final BigDecimal MAX_REASONABLE_UNITS = new BigDecimal("100000000");
-  private static final BigDecimal AMOUNT_TOLERANCE_RATIO = new BigDecimal("0.005");
-  private static final BigDecimal MIN_AMOUNT_TOLERANCE_EUR = BigDecimal.ONE;
+  private static final BigDecimal MIN_AMOUNT_TOLERANCE_EUR = new BigDecimal("0.02");
+  private static final BigDecimal HALF = new BigDecimal("0.5");
 
   private final EpisCsvParser csvParser;
 
@@ -124,9 +124,13 @@ public class R17ReportParser {
     if (price == null || reportedAmount == null || price.signum() <= 0) {
       return;
     }
+    // A zero amount means "not applicable" in R17, the way Summa (PF valitseja) is 0 on every
+    // row, so it is not a mismatch. The GAS side has always read it that way.
+    if (reportedAmount.signum() == 0) {
+      return;
+    }
     BigDecimal expectedAmount = units.multiply(price);
-    BigDecimal tolerance =
-        reportedAmount.abs().multiply(AMOUNT_TOLERANCE_RATIO).max(MIN_AMOUNT_TOLERANCE_EUR);
+    BigDecimal tolerance = tolerance(units, price);
     if (expectedAmount.subtract(reportedAmount.abs()).abs().compareTo(tolerance) > 0) {
       throw new IllegalArgumentException(
           "R17 units do not match the reported amount: fund="
@@ -142,6 +146,16 @@ public class R17ReportParser {
               + ", reportedAmount="
               + reportedAmount);
     }
+  }
+
+  // The allowance comes from the price's own precision, not from a percentage of the amount.
+  // Summa is computed from an unrounded price while the report shows a rounded one, so the
+  // largest legitimate divergence is half a price step times the units. On a 20M EUR row that
+  // is a few hundred euros, where 0.5% of the amount would be 100_000 — wide enough for a
+  // whole missing units column to hide inside.
+  private static BigDecimal tolerance(BigDecimal units, BigDecimal price) {
+    BigDecimal priceStep = BigDecimal.ONE.movePointLeft(Math.max(price.scale(), 0));
+    return units.multiply(priceStep).multiply(HALF).max(MIN_AMOUNT_TOLERANCE_EUR);
   }
 
   private static BigDecimal requiredUnits(Map<String, String> row, String fund, String toiming) {

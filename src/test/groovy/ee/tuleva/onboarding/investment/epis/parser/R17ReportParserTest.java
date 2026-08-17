@@ -237,7 +237,7 @@ class R17ReportParserTest {
         Staatus;;;;Seisuga;;Valuuta;;
         Netitud;;;;15.04.2026;;EUR;;
         %s
-        Tuleva Maailma Aktsiate Pensionifond;0.80;Väljalase;Oma;0.80;40.500;60.000;80.00;0.00
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Väljalase;Oma;0.80;40.500;60.000;80.40;0.00
         """
             .formatted(HEADER_ROW);
 
@@ -306,6 +306,37 @@ class R17ReportParserTest {
 
     assertThatThrownBy(() -> parser.parse(csv, LOCK_DATE, EXEC_DATE))
         .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void catchesAMissingUnitComponentTooSmallForAPercentageTolerance() {
+    String csv =
+        """
+        Staatus;;;;Seisuga;;Valuuta;;
+        Netitud;;;;15.04.2026;;EUR;;
+        %s
+        Tuleva Maailma Aktsiate Pensionifond;1.6167;Väljalase;Teine PF valitseja;1.6167;0;12643992.000;20501430.35;0.00
+        """
+            .formatted(HEADER_ROW);
+
+    assertThatThrownBy(() -> parser.parse(csv, LOCK_DATE, EXEC_DATE))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void ignoresAZeroAmountAsNotApplicable() {
+    String csv =
+        """
+        Staatus;;;;Seisuga;;Valuuta;;
+        Netitud;;;;15.04.2026;;EUR;;
+        %s
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Tagasivõtt;PIK;0.80;40.000;60.000;0.00;0.00
+        """
+            .formatted(HEADER_ROW);
+
+    Map<String, R17Result> result = parser.parse(csv, LOCK_DATE, EXEC_DATE);
+
+    assertThat(result.get("TUK75").pikUnits()).isEqualByComparingTo("100.000");
   }
 
   @Test

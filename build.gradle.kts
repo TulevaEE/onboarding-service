@@ -90,7 +90,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-aspectj")
     implementation("org.springframework.boot:spring-boot-starter-jackson")
     implementation("org.springframework.boot:spring-boot-starter-validation")
-    compileOnly("org.jspecify:jspecify:1.0.0")
+    compileOnly("org.jspecify:jspecify:1.0.1")
 
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     implementation("org.springframework.boot:spring-boot-starter-opentelemetry")

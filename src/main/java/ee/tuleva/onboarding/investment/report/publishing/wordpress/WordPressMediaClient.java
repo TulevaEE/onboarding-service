@@ -147,8 +147,13 @@ public class WordPressMediaClient {
    *
    * <p>Mirrored by {@code toWordPressSlug} in the tuleva repo's {@code investeeringute_aruanne.gs}:
    * both systems upload the same monthly PDF, and {@link #findExistingMedia} matches on {@code
-   * source_url.endsWith("/" + slug)}, so the two must agree character for character or the same
-   * report lands twice under two URLs.
+   * source_url.endsWith("/" + slug)}, so a name the two slug differently lands the same report
+   * twice under two URLs. They agree over the alphabet report names actually use — ASCII plus the
+   * Estonian letters — and not beyond it: the Rhino runtime has no {@code String.normalize}, so the
+   * GAS side folds a fixed list (ä ö õ ü š ž) where this one folds any combining mark. A base name
+   * containing, say, "é" would give {@code e} here and {@code -} there. Names come from {@code
+   * buildPdfName} off the fund titles, which stay inside that alphabet; widening it means widening
+   * both sides together.
    */
   static String toWordPressSlug(String filename) {
     var dotIndex = filename.lastIndexOf('.');

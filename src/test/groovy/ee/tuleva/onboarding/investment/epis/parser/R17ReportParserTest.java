@@ -294,6 +294,37 @@ class R17ReportParserTest {
   }
 
   @Test
+  void throwsWhenUnitsTimesPriceDisagreesWithReportedAmount() {
+    String csv =
+        """
+        Staatus;;;;Seisuga;;Valuuta;;
+        Netitud;;;;15.04.2026;;EUR;;
+        %s
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Tagasivõtt;PIK;0.80;40.000;60.000;800.00;0.00
+        """
+            .formatted(HEADER_ROW);
+
+    assertThatThrownBy(() -> parser.parse(csv, LOCK_DATE, EXEC_DATE))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void toleratesRoundingBetweenUnitsTimesPriceAndReportedAmount() {
+    String csv =
+        """
+        Staatus;;;;Seisuga;;Valuuta;;
+        Netitud;;;;15.04.2026;;EUR;;
+        %s
+        Tuleva Maailma Aktsiate Pensionifond;0.61267;Tagasivõtt;PIK;0.61267;400000.000;300000.000;428869.02;0.00
+        """
+            .formatted(HEADER_ROW);
+
+    Map<String, R17Result> result = parser.parse(csv, LOCK_DATE, EXEC_DATE);
+
+    assertThat(result.get("TUK75").pikUnits()).isEqualByComparingTo("700000.000");
+  }
+
+  @Test
   void acceptsRowWhenOnlyOneUnitColumnIsPopulated() {
     String csv =
         """

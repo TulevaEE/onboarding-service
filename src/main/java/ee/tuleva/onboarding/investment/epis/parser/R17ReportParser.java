@@ -24,6 +24,8 @@ public class R17ReportParser {
   private static final String HEADER_MARKER = "Väärtpaber";
   private static final DecimalConvention DECIMAL_CONVENTION = DecimalConvention.PERIOD_DECIMAL;
   private static final BigDecimal MAX_REASONABLE_UNITS = new BigDecimal("100000000");
+  private static final BigDecimal AMOUNT_TOLERANCE_RATIO = new BigDecimal("0.005");
+  private static final BigDecimal MIN_AMOUNT_TOLERANCE_EUR = BigDecimal.ONE;
 
   private final EpisCsvParser csvParser;
 
@@ -47,6 +49,7 @@ public class R17ReportParser {
       if (units.compareTo(MAX_REASONABLE_UNITS) > 0) {
         throw new IllegalArgumentException("R17 row units exceed sanity limit: units=" + units);
       }
+      validateUnitsAgainstReportedAmount(row, fundRaw, toiming, units);
 
       Optional<TulevaFund> fund = FundResolver.resolve(fundRaw);
       if (fund.isEmpty()) {
@@ -107,6 +110,33 @@ public class R17ReportParser {
       }
     }
     return null;
+  }
+
+  private static void validateUnitsAgainstReportedAmount(
+      Map<String, String> row, String fund, String toiming, BigDecimal units) {
+    BigDecimal price = parseNumber(findValue(row, "hind"), DECIMAL_CONVENTION);
+    BigDecimal reportedAmount = parseNumber(findValue(row, "summa"), DECIMAL_CONVENTION);
+    if (price == null || reportedAmount == null || price.signum() <= 0) {
+      return;
+    }
+    BigDecimal expectedAmount = units.multiply(price);
+    BigDecimal tolerance =
+        reportedAmount.abs().multiply(AMOUNT_TOLERANCE_RATIO).max(MIN_AMOUNT_TOLERANCE_EUR);
+    if (expectedAmount.subtract(reportedAmount.abs()).abs().compareTo(tolerance) > 0) {
+      throw new IllegalArgumentException(
+          "R17 units do not match the reported amount: fund="
+              + fund
+              + ", toiming="
+              + toiming
+              + ", units="
+              + units
+              + ", price="
+              + price
+              + ", expectedAmount="
+              + expectedAmount
+              + ", reportedAmount="
+              + reportedAmount);
+    }
   }
 
   private static BigDecimal requiredUnits(Map<String, String> row, String fund, String toiming) {

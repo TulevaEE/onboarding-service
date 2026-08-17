@@ -3,10 +3,10 @@ package ee.tuleva.onboarding.banking.processor;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.*;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import ee.tuleva.onboarding.banking.BankAccountType;
+import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
+import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
-import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -31,11 +31,10 @@ public class BankOperationProcessor {
   private static final String SUBS = "SUBS";
   private static final String BOOK = "BOOK";
 
-  private final SavingsFundLedger savingsFundLedger;
+  private final FundBankLedger fundBankLedger;
   private final TradeSettlementParser tradeSettlementParser;
 
-  public void processBankOperation(
-      BankStatementEntry entry, String accountIban, BankAccountType accountType) {
+  public void processBankOperation(BankStatementEntry entry, BankAccount account) {
     if (entry.details() != null) {
       return;
     }
@@ -50,25 +49,24 @@ public class BankOperationProcessor {
     }
 
     var externalReference =
-        UUID.nameUUIDFromBytes((accountIban + ":" + entry.externalId()).getBytes(UTF_8));
+        UUID.nameUUIDFromBytes((account.iban() + ":" + entry.externalId()).getBytes(UTF_8));
 
     var amount = normalizeAmount(entry.amount());
-    var clearingAccount = accountType.getLedgerAccount();
+    var clearingAccount = account.ledgerAccount();
 
     TransactionType transactionType =
         mapSubFamilyCode(subFamilyCode, entry.remittanceInformation());
     if (transactionType == null) {
       log.error(
-          "Unknown bank operation SubFmlyCd: subFamilyCode={}, externalId={}, amount={}, account={}, iban={}",
+          "Unknown bank operation SubFmlyCd: subFamilyCode={}, externalId={}, amount={}, account={}",
           subFamilyCode,
           entry.externalId(),
           entry.amount(),
-          accountType,
-          accountIban);
+          account);
       return;
     }
 
-    if (savingsFundLedger.hasLedgerEntry(externalReference, transactionType)) {
+    if (fundBankLedger.hasLedgerEntry(externalReference, transactionType)) {
       log.debug(
           "Ledger entry already exists: subFamilyCode={}, externalRef={}",
           subFamilyCode,
@@ -84,29 +82,30 @@ public class BankOperationProcessor {
             "Bank interest received: amount={}, externalRef={}, account={}, description={}",
             amount,
             externalReference,
-            accountType,
+            account,
             entry.remittanceInformation());
-        savingsFundLedger.recordInterestReceived(
-            amount, externalReference, clearingAccount, bookingDate);
+        fundBankLedger.recordInterestReceived(
+            account.fund(), amount, externalReference, clearingAccount, bookingDate);
       }
       case FEES, COMM -> {
         log.info(
             "Bank fee charged: amount={}, externalRef={}, account={}, description={}",
             amount,
             externalReference,
-            accountType,
+            account,
             entry.remittanceInformation());
-        savingsFundLedger.recordBankFee(amount, externalReference, clearingAccount, bookingDate);
+        fundBankLedger.recordBankFee(
+            account.fund(), amount, externalReference, clearingAccount, bookingDate);
       }
       case ADJT, OTHR -> {
         log.info(
             "Bank adjustment: amount={}, externalRef={}, account={}, description={}",
             amount,
             externalReference,
-            accountType,
+            account,
             entry.remittanceInformation());
-        savingsFundLedger.recordBankAdjustment(
-            amount, externalReference, clearingAccount, bookingDate);
+        fundBankLedger.recordBankAdjustment(
+            account.fund(), amount, externalReference, clearingAccount, bookingDate);
       }
       case TRAD, SUBS -> {
         var tradeInfo = tradeSettlementParser.parse(entry.remittanceInformation());
@@ -119,16 +118,17 @@ public class BankOperationProcessor {
         }
         var info = tradeInfo.get();
         var ticker = info.ticker();
-        var units = info.units().setScale(5, RoundingMode.HALF_UP);
+        var units = signedUnits(info.units(), amount);
         log.info(
             "Trade settlement: amount={}, units={}, externalRef={}, account={}, ticker={}, isin={}",
             amount,
             units,
             externalReference,
-            accountType,
+            account,
             ticker.getYahooTicker(),
             ticker.getIsin());
-        savingsFundLedger.recordTradeSettlement(
+        fundBankLedger.recordTradeSettlement(
+            account.fund(),
             amount,
             units,
             externalReference,
@@ -143,10 +143,15 @@ public class BankOperationProcessor {
             "Management fee rebate received: amount={}, externalRef={}, account={}, description={}",
             amount,
             externalReference,
-            accountType,
+            account,
             entry.remittanceInformation());
-        savingsFundLedger.recordManagementFeeRebate(
-            amount, externalReference, clearingAccount, bookingDate, entry.remittanceInformation());
+        fundBankLedger.recordManagementFeeRebate(
+            account.fund(),
+            amount,
+            externalReference,
+            clearingAccount,
+            bookingDate,
+            entry.remittanceInformation());
       }
       default -> throw new IllegalStateException("Unexpected value: " + subFamilyCode);
     }
@@ -166,6 +171,11 @@ public class BankOperationProcessor {
   private static boolean isManagementFeeRebate(String remittanceInformation) {
     return remittanceInformation != null
         && remittanceInformation.toLowerCase().contains("kickback");
+  }
+
+  private static BigDecimal signedUnits(BigDecimal units, BigDecimal amount) {
+    var scaled = units.abs().setScale(5, RoundingMode.HALF_UP);
+    return amount.signum() > 0 ? scaled.negate() : scaled;
   }
 
   private static LocalDate bookingDate(BankStatementEntry entry) {

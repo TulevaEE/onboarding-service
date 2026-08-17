@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.savings.fund.issuing;
 import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.event.TrackableEventType.SUBSCRIPTION_BATCH_CREATED;
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.ISSUED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.PROCESSED;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -12,7 +13,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import ee.tuleva.onboarding.banking.BankAccountConfiguration;
+import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
 import ee.tuleva.onboarding.event.TrackableSystemEvent;
@@ -29,14 +30,14 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 class FundAccountPaymentJobTest {
 
-  BankAccountConfiguration bankAccountConfiguration = mock();
+  BankAccounts bankAccounts = mock();
   SavingFundPaymentRepository savingFundPaymentRepository = mock();
   TransactionTemplate transactionTemplate = mock();
   ApplicationEventPublisher eventPublisher = mock();
 
   FundAccountPaymentJob job =
       new FundAccountPaymentJob(
-          bankAccountConfiguration,
+          bankAccounts,
           savingFundPaymentRepository,
           transactionTemplate,
           eventPublisher,
@@ -52,9 +53,8 @@ class FundAccountPaymentJobTest {
             SavingFundPayment.builder().id(paymentId1).amount(new BigDecimal("40")).build(),
             SavingFundPayment.builder().id(paymentId2).amount(new BigDecimal("50.40")).build());
     when(savingFundPaymentRepository.findPaymentsWithStatus(ISSUED)).thenReturn(payments);
-    when(bankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
-        .thenReturn("investment-IBAN");
-    when(bankAccountConfiguration.getAccountIban(DEPOSIT_EUR)).thenReturn("deposit-IBAN");
+    when(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR)).thenReturn("investment-IBAN");
+    when(bankAccounts.getIban(TKF100, DEPOSIT_EUR)).thenReturn("deposit-IBAN");
 
     job.createPaymentRequest();
 
@@ -103,9 +103,8 @@ class FundAccountPaymentJobTest {
                 .amount(new BigDecimal("50.40"))
                 .build());
     when(savingFundPaymentRepository.findPaymentsWithStatus(ISSUED)).thenReturn(payments);
-    when(bankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
-        .thenReturn("investment-IBAN");
-    when(bankAccountConfiguration.getAccountIban(DEPOSIT_EUR)).thenReturn("deposit-IBAN");
+    when(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR)).thenReturn("investment-IBAN");
+    when(bankAccounts.getIban(TKF100, DEPOSIT_EUR)).thenReturn("deposit-IBAN");
 
     job.createPaymentRequest();
 

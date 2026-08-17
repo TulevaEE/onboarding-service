@@ -94,7 +94,7 @@ class RedemptionIntegrationTest {
   @BeforeEach
   void setUp() {
     ClockHolder.setClock(Clock.fixed(NOW, UTC));
-    doReturn("").when(sebGatewayClient).submitPaymentFile(any(), any());
+    doReturn("").when(sebGatewayClient).submitPaymentFile(any(), any(), any());
     lenient().when(navProvider.getDisplayNav(any())).thenReturn(BigDecimal.ONE);
     lenient()
         .when(navProvider.getVerifiedNavForIssuingAndRedeeming(any(), any()))
@@ -772,6 +772,6 @@ class RedemptionIntegrationTest {
     assertThat(cashRedemptionAfterSecond).isEqualByComparingTo(cashRedemptionAfterFirst);
 
     // Payments sent only once (batch + individual)
-    verify(sebGatewayClient, times(2)).submitPaymentFile(any(), any());
+    verify(sebGatewayClient, times(2)).submitPaymentFile(any(), any(), any());
   }
 }

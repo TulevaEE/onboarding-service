@@ -98,7 +98,7 @@ class SebRedemptionIntegrationTest {
     ClockHolder.setClock(Clock.fixed(TUESDAY, ZoneId.of("UTC")));
     redemptionBatchJob.runJob();
 
-    verify(sebGatewayClient, times(2)).submitPaymentFile(anyString(), anyString());
+    verify(sebGatewayClient, times(2)).submitPaymentFile(anyString(), anyString(), anyString());
   }
 
   private void setupUserWithFundUnits(BigDecimal cashAmount, BigDecimal fundUnits) {

@@ -7,7 +7,7 @@ import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Sta
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 
-import ee.tuleva.onboarding.banking.BankAccountConfiguration;
+import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.payment.PaymentRequest;
 import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
@@ -54,7 +54,7 @@ public class RedemptionBatchJob {
   private final RedemptionStatusService redemptionStatusService;
   private final SavingsFundLedger savingsFundLedger;
   private final ApplicationEventPublisher eventPublisher;
-  private final BankAccountConfiguration bankAccountConfiguration;
+  private final BankAccounts bankAccounts;
   private final TransactionTemplate transactionTemplate;
   private final FundNavProvider navProvider;
   private final SavingFundPaymentRepository savingFundPaymentRepository;
@@ -181,9 +181,9 @@ public class RedemptionBatchJob {
     UUID batchId = UUID.randomUUID();
     PaymentRequest paymentRequest =
         PaymentRequest.tulevaPaymentBuilder(endToEndIdConverter.toEndToEndId(batchId))
-            .remitterIban(bankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
+            .remitterIban(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR))
             .beneficiaryName("Tuleva Täiendav Kogumisfond")
-            .beneficiaryIban(bankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
+            .beneficiaryIban(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR))
             .amount(totalAmount)
             .description("Redemptions batch")
             .build();
@@ -207,7 +207,7 @@ public class RedemptionBatchJob {
 
         PaymentRequest paymentRequest =
             PaymentRequest.tulevaPaymentBuilder(endToEndIdConverter.toEndToEndId(updated.getId()))
-                .remitterIban(bankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
+                .remitterIban(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR))
                 .beneficiaryName(beneficiaryName)
                 .beneficiaryIban(updated.getCustomerIban())
                 .amount(updated.getCashAmount())
@@ -254,7 +254,7 @@ public class RedemptionBatchJob {
 
     PaymentRequest paymentRequest =
         PaymentRequest.tulevaPaymentBuilder(endToEndIdConverter.toEndToEndId(request.getId()))
-            .remitterIban(bankAccountConfiguration.getAccountIban(WITHDRAWAL_EUR))
+            .remitterIban(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR))
             .beneficiaryName(beneficiaryName)
             .beneficiaryIban(request.getCustomerIban())
             .amount(request.getCashAmount())

@@ -23,9 +23,19 @@ public enum SystemAccount {
 
   // Bank reconciliation
   UNRECONCILED_BANK_RECEIPTS(ASSET, EUR, BANK_RECONCILIATION, "Bank receipts not yet matched"),
+  REGISTRAR_CASH_SETTLEMENT(
+      LIABILITY,
+      EUR,
+      BANK_RECONCILIATION,
+      "Net cash settled with the pension registrar for issued and redeemed units"),
+  UNCLASSIFIED_BANK_ENTRY(
+      LIABILITY,
+      EUR,
+      BANK_RECONCILIATION,
+      "Bank entries pending classification - resolved entries net to zero per external reference"),
 
   // Fund operations
-  FUND_INVESTMENT_CASH_CLEARING(ASSET, EUR, FUND_OPERATIONS, "Cash reserved for unit purchases"),
+  FUND_INVESTMENT_CASH_CLEARING(ASSET, EUR, FUND_OPERATIONS, "Fund's SEB current account"),
   FUND_UNITS_OUTSTANDING(LIABILITY, FUND_UNIT, FUND_OPERATIONS, "Total units issued to investors"),
   FUND_UNITS_EQUITY(
       LIABILITY, FUND_UNIT, FUND_OPERATIONS, "Balancing account for fund units outstanding"),

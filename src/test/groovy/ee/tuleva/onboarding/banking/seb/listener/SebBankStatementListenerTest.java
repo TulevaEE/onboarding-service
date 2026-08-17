@@ -6,7 +6,7 @@ import static ee.tuleva.onboarding.banking.statement.BankStatement.BankStatement
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankStatementReceived;
-import ee.tuleva.onboarding.banking.seb.processor.SebBankStatementProcessor;
+import ee.tuleva.onboarding.banking.seb.processor.SebStatementRouter;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatementAccount;
 import java.util.List;
@@ -20,7 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class SebBankStatementListenerTest {
 
-  @Mock private SebBankStatementProcessor processor;
+  @Mock private SebStatementRouter router;
 
   @InjectMocks private SebBankStatementListener listener;
 
@@ -32,7 +32,7 @@ class SebBankStatementListenerTest {
 
     listener.processStatement(event);
 
-    verify(processor).processStatement(statement);
+    verify(router).route(statement);
   }
 
   @Test
@@ -42,7 +42,7 @@ class SebBankStatementListenerTest {
 
     listener.processStatement(event);
 
-    verifyNoInteractions(processor);
+    verifyNoInteractions(router);
   }
 
   private BankStatement createStatement() {

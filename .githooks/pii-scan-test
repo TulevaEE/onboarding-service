@@ -20,6 +20,10 @@ printf 'salt=test-salt\n' > "$WORK/pii-roster.sha256"
 "$WORK/pii-scan" --hash 'Testnimi Testperenimi' >> "$WORK/pii-roster.sha256"
 "$WORK/pii-scan" --hash 'Šeperenimi Žtest' >> "$WORK/pii-roster.sha256" 2>/dev/null
 
+# A throwaway allowlist, so this test never depends on the repo's real one. The
+# IBAN is the SEB test-gateway account already public in the repo's fixtures.
+printf '# test allowlist\nEE651010220306497226\n' > "$WORK/pii-iban-allow"
+
 if [ "$(grep -cE '^[0-9a-f]{64}$' "$WORK/pii-roster.sha256")" -eq 0 ]; then
   echo "FAIL  setup: roster is empty, so no name case would exercise the scanner"
   exit 1
@@ -61,6 +65,19 @@ check 'valid id code'       finding '  String c = "38903112710";'
 check 'synthetic id code'   clean   '  String c = "38888888888";'
 check 'timestamp'           clean   '  long t = 1786541411606L;'
 check 'valid iban'          finding '  String i = "EE382200221020145685";'
+check 'allowlisted iban'    clean   '  String i = "EE651010220306497226";'
+
+# The hook wrappers pass the allowlist of the revision being scanned via the
+# environment, so a working-tree edit cannot exempt what the commit publishes.
+out=$(printf -- '--- a/x\n+++ b/x\n@@ -0,0 +1,1 @@\n+String i = "EE382200221020145685";\n' \
+  | PII_IBAN_ALLOW_SOURCE='EE382200221020145685' "$WORK/pii-scan" 2>&1)
+if [ $? -eq 0 ]; then echo "ok    env allowlist overrides file"; else
+  echo "FAIL  env allowlist overrides file: expected clean"; failures=$((failures + 1)); fi
+
+out=$(printf -- '--- a/x\n+++ b/x\n@@ -0,0 +1,1 @@\n+String i = "EE651010220306497226";\n' \
+  | PII_IBAN_ALLOW_SOURCE='# nothing allowed' "$WORK/pii-scan" 2>&1)
+if [ $? -eq 1 ]; then echo "ok    env allowlist replaces file"; else
+  echo "FAIL  env allowlist replaces file: expected a finding"; failures=$((failures + 1)); fi
 check 'personal email'      finding '  String e = "jaan.tamm@tuleva.ee";'
 check 'role email'          clean   '  String e = "compliance@tuleva.ee";'
 check 'ordinary code'       clean   '  return fundValueRepository.findLastValueForFund(key);'
@@ -68,6 +85,18 @@ check 'ordinary code'       clean   '  return fundValueRepository.findLastValueF
 check 'rostered ascii name'    finding '  block.add("Tegevus — Testnimi Testperenimi.");'
 check 'rostered name lowered'  finding '  var owner = "testnimi testperenimi";'
 check 'rostered non-ascii name' finding '  block.add("Tegevus — Šeperenimi Žtest.");'
+
+# Growing the allowlist adds a valid-IBAN line; it passes because the same
+# commit's allowlist carries the value, not because the path is exempt. Every
+# other detector still runs on the allow file, so it cannot smuggle a name.
+out=$(printf -- '--- a/.githooks/pii-iban-allow\n+++ b/.githooks/pii-iban-allow\n@@ -0,0 +1,1 @@\n+EE382200221020145685\n' \
+  | PII_IBAN_ALLOW_SOURCE='EE382200221020145685' "$WORK/pii-scan" 2>&1)
+if [ $? -eq 0 ]; then echo "ok    allow-file growth carries its own exemption"; else
+  echo "FAIL  allow-file growth carries its own exemption: expected clean"; failures=$((failures + 1)); fi
+
+out=$(printf -- '--- a/.githooks/pii-iban-allow\n+++ b/.githooks/pii-iban-allow\n@@ -0,0 +1,1 @@\n+# kontakt: Testnimi Testperenimi\n' | "$WORK/pii-scan" 2>&1)
+if [ $? -eq 1 ]; then echo "ok    allow-file cannot smuggle a rostered name"; else
+  echo "FAIL  allow-file cannot smuggle a rostered name: expected a finding"; failures=$((failures + 1)); fi
 
 if [ "$failures" -ne 0 ]; then
   echo ""

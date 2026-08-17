@@ -1,47 +1,63 @@
 package ee.tuleva.onboarding.investment.fees;
 
-import static ee.tuleva.onboarding.investment.fees.FeeAccrualBuilder.DAYS_IN_YEAR;
 import static ee.tuleva.onboarding.investment.fees.FeeType.DEPOT;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
-import ee.tuleva.onboarding.investment.position.FundPositionRepository;
+import ee.tuleva.onboarding.savings.fund.nav.FundNavQueryService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Year;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+/**
+ * The depot fee follows the Depooleping, not the NAV formula, and differs from the management fee
+ * on all three of base, day count and rate.
+ *
+ * <p><b>Base.</b> "Depootasu arvutatakse igapäevaselt Fondi aktivate turuväärtuste summale vastava
+ * päevalõpu seisuga" — the market value of the fund's assets at the corresponding end of day. That
+ * is the gross asset side, so {@link FeeBases#assetValue()} rather than the net {@link
+ * FeeBases#navFeeBase()} the management fee uses.
+ *
+ * <p><b>Day count.</b> "kasutades tegeliku (aasta ja kuu) päevade arvu meetodit" — actual/actual.
+ * Every calendar day accrues and the divisor is the real length of that year, so 366 in a leap
+ * year. {@code FeeAccrualBuilder.DAYS_IN_YEAR} is fixed at 365 and stays in use for the management
+ * fee, whose own terms specify it; the next divergence between the two is 2028.
+ */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class DepotFeeCalculator implements FeeCalculator {
 
   private final DepotFeeTierRepository tierRepository;
-  private final FundPositionRepository fundPositionRepository;
+  private final FundNavQueryService fundNavQueryService;
   private final FeeMonthResolver feeMonthResolver;
   private final FeeRateRepository feeRateRepository;
 
   @Override
-  public FeeAccrual calculate(TulevaFund fund, LocalDate calendarDate, BigDecimal baseValue) {
+  public FeeAccrual calculate(TulevaFund fund, LocalDate calendarDate, FeeBases bases) {
     LocalDate feeMonth = feeMonthResolver.resolveFeeMonth(calendarDate);
 
     BigDecimal annualRate = determineDepotRate(fund, calendarDate, feeMonth);
+    BigDecimal assetValue = bases.assetValue();
+    int daysInYear = Year.of(calendarDate.getYear()).length();
 
     BigDecimal dailyFee =
-        baseValue.multiply(annualRate).divide(BigDecimal.valueOf(DAYS_IN_YEAR), 6, HALF_UP);
+        assetValue.multiply(annualRate).divide(BigDecimal.valueOf(daysInYear), 6, HALF_UP);
 
     return FeeAccrual.builder()
         .fund(fund)
         .feeType(DEPOT)
         .accrualDate(calendarDate)
         .feeMonth(feeMonth)
-        .baseValue(baseValue)
+        .baseValue(assetValue)
         .annualRate(annualRate)
         .dailyAmountGross(dailyFee)
-        .daysInYear(DAYS_IN_YEAR)
+        .daysInYear(daysInYear)
         .referenceDate(calendarDate)
         .build();
   }
@@ -68,18 +84,46 @@ public class DepotFeeCalculator implements FeeCalculator {
         : rate.get().annualRate();
   }
 
+  /**
+   * The tier band for a fee month, on the funds' combined assets two month ends back.
+   *
+   * <p>The two-month lag is the agreement's, not a safety margin. The depositary submits, by the
+   * 10th of each month, the asset values from the last business day of the preceding month, for the
+   * rate applicable the month after: by 10 September it sends end-of-August values, Tuleva confirms
+   * by the 20th, and the rate runs from 1 October. So the fee month's band is anchored two month
+   * ends back, while the tier row's own validity is tested against the fee month, which is when
+   * that rate is the one in force.
+   *
+   * <p>What this deliberately does <b>not</b> reproduce: the depositary submits a rate only when it
+   * differs from the one already in force, so contractually the rate is sticky between
+   * notifications and the confirmed one governs. Recomputing it here can move the accrual in a
+   * month where no notification arrived — a band crossing we saw and the depositary did not — and
+   * nothing currently compares the two. Treat a change in this rate as something to reconcile
+   * against a notification, not as a fact.
+   */
   private BigDecimal determineDepotRateFromTier(LocalDate feeMonth) {
-    LocalDate previousMonthEnd = feeMonth.minusDays(1);
-    BigDecimal historicalMaxAum = getHistoricalMaxTotalValue(previousMonthEnd);
-    return tierRepository.findRateForAum(historicalMaxAum, feeMonth);
+    LocalDate submissionBasisDate = feeMonth.minusMonths(1).minusDays(1);
+    BigDecimal totalAssets = getTotalAssetValue(submissionBasisDate);
+    return tierRepository.findRateForAum(totalAssets, feeMonth);
   }
 
-  private BigDecimal getHistoricalMaxTotalValue(LocalDate upToDate) {
-    LocalDate latestDate =
-        fundPositionRepository.findLatestSecurityNavDateUpTo(upToDate).orElse(null);
-    if (latestDate == null) {
-      return ZERO;
+  /**
+   * Every fund's assets at its own last calculation on or before the anchor, added up. Resolved per
+   * fund rather than off one shared date so that a fund without a calculation on that exact date
+   * contributes its latest known assets instead of dropping out of the total and pulling the whole
+   * band down.
+   */
+  private BigDecimal getTotalAssetValue(LocalDate upToDate) {
+    BigDecimal total = ZERO;
+    for (TulevaFund fund : TulevaFund.values()) {
+      Optional<LocalDate> navDate =
+          fundNavQueryService.findLatestNavDateOnOrBefore(fund.getCode(), upToDate);
+      if (navDate.isEmpty()) {
+        continue;
+      }
+      total =
+          total.add(fundNavQueryService.findAssetTotal(fund.getCode(), navDate.get()).orElse(ZERO));
     }
-    return fundPositionRepository.sumSecurityMarketValueAllFunds(latestDate);
+    return total;
   }
 }

@@ -128,16 +128,20 @@ public class FeeAccrualRepository {
         .optional();
   }
 
-  public Optional<BigDecimal> findLatestBaseValue(TulevaFund fund) {
+  // Filtered by fee type: since the depot fee moved onto gross assets and the management fee stayed
+  // on the net NAV base, "the fund's latest base value" is no longer one number, and answering
+  // without the fee type would return whichever row the ordering happened to reach.
+  public Optional<BigDecimal> findLatestBaseValue(TulevaFund fund, FeeType feeType) {
     return jdbcClient
         .sql(
             """
             SELECT base_value FROM investment_fee_accrual
-            WHERE fund_code = :fundCode
+            WHERE fund_code = :fundCode AND fee_type = :feeType
             ORDER BY accrual_date DESC
             LIMIT 1
             """)
         .param("fundCode", fund.name())
+        .param("feeType", feeType.name())
         .query(BigDecimal.class)
         .optional();
   }

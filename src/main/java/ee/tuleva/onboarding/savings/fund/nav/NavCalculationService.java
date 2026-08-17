@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.fees.FeeBases;
 import ee.tuleva.onboarding.investment.fees.FeeCalculationService;
 import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
 import ee.tuleva.onboarding.investment.fees.FeeResult;
@@ -99,18 +100,23 @@ public class NavCalculationService {
       pendingRedemptions = redemptionsComponent.calculate(context);
     }
 
-    BigDecimal feeBaseValue =
+    // Assets first, then the net base as assets less liabilities. The two fees are charged on
+    // different ones: see FeeBases.
+    BigDecimal feeAssetValue =
         securitiesValue
             .add(cashPosition)
             .add(receivables)
             .add(pendingSubscriptions)
-            .add(blackrockAdjustment)
-            .subtract(payables)
-            .subtract(pendingRedemptions);
+            .add(blackrockAdjustment);
+    BigDecimal feeBaseValue = feeAssetValue.subtract(payables).subtract(pendingRedemptions);
     Instant feeCutoff = positionReportDate.plusDays(1).atStartOfDay(ESTONIAN_ZONE).toInstant();
     FeeResult fees =
         feeCalculationService.calculateFeesForNav(
-            fund, positionReportDate, feeBaseValue, feeCutoff, context.getSecurityPrices());
+            fund,
+            positionReportDate,
+            new FeeBases(feeBaseValue, feeAssetValue),
+            feeCutoff,
+            context.getSecurityPrices());
     BigDecimal managementFeeAccrual =
         navFacingAccrual(fund, FeeType.MANAGEMENT, positionReportDate, fees.managementFeeAccrual());
     BigDecimal depotFeeAccrual =
@@ -260,7 +266,7 @@ public class NavCalculationService {
             .toList();
   }
 
-  private BigDecimal calculateFeeBaseValue(NavComponentContext context) {
+  private FeeBases calculateFeeBases(NavComponentContext context) {
     BigDecimal securitiesValue = securitiesValueComponent.calculate(context);
     BigDecimal cashPosition = cashPositionComponent.calculate(context);
     BigDecimal receivables = receivablesComponent.calculate(context);
@@ -268,19 +274,17 @@ public class NavCalculationService {
     BigDecimal pendingSubscriptions = subscriptionsComponent.calculate(context);
     BigDecimal blackrockAdjustment = blackrockAdjustmentComponent.calculate(context);
     BigDecimal pendingRedemptions = redemptionsComponent.calculate(context);
-    return securitiesValue
-        .add(cashPosition)
-        .add(receivables)
-        .add(pendingSubscriptions)
-        .add(blackrockAdjustment)
-        .subtract(payables)
-        .subtract(pendingRedemptions);
+    BigDecimal assetValue =
+        securitiesValue
+            .add(cashPosition)
+            .add(receivables)
+            .add(pendingSubscriptions)
+            .add(blackrockAdjustment);
+    return new FeeBases(assetValue.subtract(payables).subtract(pendingRedemptions), assetValue);
   }
 
   public record FeeBaseValueResult(
-      BigDecimal baseValue,
-      LocalDate positionReportDate,
-      Map<String, ResolvedPrice> securityPrices) {}
+      FeeBases bases, LocalDate positionReportDate, Map<String, ResolvedPrice> securityPrices) {}
 
   public Optional<FeeBaseValueResult> computeFeeBaseValue(
       TulevaFund fund, LocalDate calculationDate) {
@@ -305,9 +309,9 @@ public class NavCalculationService {
             .cutoff(cutoff)
             .priceCutoff(priceCutoff)
             .build();
-    BigDecimal baseValue = calculateFeeBaseValue(context);
     return Optional.of(
-        new FeeBaseValueResult(baseValue, positionReportDate, context.getSecurityPrices()));
+        new FeeBaseValueResult(
+            calculateFeeBases(context), positionReportDate, context.getSecurityPrices()));
   }
 
   @Transactional
@@ -321,7 +325,7 @@ public class NavCalculationService {
       var result = optional.get();
       Instant feeCutoff = navDate.atTime(fund.getNavCutoffTime()).atZone(ESTONIAN_ZONE).toInstant();
       feeCalculationService.calculateFeesForNav(
-          fund, navDate, result.baseValue(), feeCutoff, result.securityPrices());
+          fund, navDate, result.bases(), feeCutoff, result.securityPrices());
     }
     log.info("Fee backfill completed: fund={}, from={}, to={}", fund, from, to);
   }

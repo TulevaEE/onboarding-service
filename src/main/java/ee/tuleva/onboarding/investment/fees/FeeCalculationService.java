@@ -77,7 +77,7 @@ public class FeeCalculationService {
   public FeeResult calculateFeesForNav(
       TulevaFund fund,
       LocalDate positionReportDate,
-      BigDecimal baseValue,
+      FeeBases bases,
       Instant feeCutoff,
       Map<String, ResolvedPrice> securityPrices) {
     LocalDate startDate =
@@ -86,7 +86,17 @@ public class FeeCalculationService {
             .map(d -> d.plusDays(1))
             .orElse(positionReportDate);
 
-    BigDecimal previousBaseValue = feeAccrualRepository.findLatestBaseValue(fund).orElse(baseValue);
+    // Carried forward per fee type, because the two no longer share a base. Reading the latest
+    // accrual without saying which fee it belonged to would hand the depot fee's gross assets to
+    // the management fee, or the other way round, on every gap day.
+    FeeBases previousBases =
+        new FeeBases(
+            feeAccrualRepository
+                .findLatestBaseValue(fund, FeeType.MANAGEMENT)
+                .orElse(bases.navFeeBase()),
+            feeAccrualRepository
+                .findLatestBaseValue(fund, FeeType.DEPOT)
+                .orElse(bases.assetValue()));
 
     log.info(
         "calculateFeesForNav: fund={}, positionReportDate={}, startDate={}, willProcess={}",
@@ -101,8 +111,8 @@ public class FeeCalculationService {
       if (!feeMonth.equals(previousFeeMonth)) {
         settleMonthlyFeesIfNeeded(fund, feeMonth.minusMonths(1));
       }
-      BigDecimal dayBaseValue = day.isBefore(positionReportDate) ? previousBaseValue : baseValue;
-      recordDailyFees(fund, day, dayBaseValue, securityPrices);
+      FeeBases dayBases = day.isBefore(positionReportDate) ? previousBases : bases;
+      recordDailyFees(fund, day, dayBases, securityPrices);
       previousFeeMonth = feeMonth;
     }
 
@@ -114,12 +124,9 @@ public class FeeCalculationService {
   }
 
   private void recordDailyFees(
-      TulevaFund fund,
-      LocalDate date,
-      BigDecimal baseValue,
-      Map<String, ResolvedPrice> securityPrices) {
+      TulevaFund fund, LocalDate date, FeeBases bases, Map<String, ResolvedPrice> securityPrices) {
     for (FeeCalculator calculator : feeCalculators) {
-      FeeAccrual accrual = calculator.calculate(fund, date, baseValue);
+      FeeAccrual accrual = calculator.calculate(fund, date, bases);
       feeAccrualRepository.save(accrual);
       if (!feeChargedToFundPolicy.chargedToFund(fund, accrual.feeType(), date)) {
         log.info(

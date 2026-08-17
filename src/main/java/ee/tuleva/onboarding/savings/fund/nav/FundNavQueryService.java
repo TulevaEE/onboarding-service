@@ -52,6 +52,17 @@ public class FundNavQueryService {
         fundCode, navDate, List.of("SECURITY", "CASH", "RECEIVABLES", "LIABILITY"));
   }
 
+  // "Fondi aktivate turuväärtuste summa" as the Depooleping means it: the asset side, gross. Same
+  // rows and the same latest-calculation semantics as findFeeBaseComponentTotal, minus the
+  // LIABILITY term - netting that off would give netovara, which is a different number and not what
+  // the depot fee is charged on. LIABILITY_FEE is a separate account type and is excluded either
+  // way. Used to pick the depot fee tier at a historical month end, where the calculation has long
+  // been written; the daily base cannot come from here, because on the day being accrued these rows
+  // do not exist yet.
+  public Optional<BigDecimal> findAssetTotal(String fundCode, LocalDate navDate) {
+    return sumForLatestCalculation(fundCode, navDate, List.of("SECURITY", "CASH", "RECEIVABLES"));
+  }
+
   // What the custodian position report is the source of truth for: cash and unsettled trades.
   // Excluding the register-sourced and manually-adjusted rows makes the remainder comparable to
   // investment_fund_position, so a custodian row the ledger never recognised shows up as a

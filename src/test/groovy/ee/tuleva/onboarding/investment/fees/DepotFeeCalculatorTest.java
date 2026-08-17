@@ -4,11 +4,13 @@ import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
-import ee.tuleva.onboarding.investment.position.FundPositionRepository;
+import ee.tuleva.onboarding.savings.fund.nav.FundNavQueryService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -23,70 +25,101 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class DepotFeeCalculatorTest {
 
   @Mock private DepotFeeTierRepository tierRepository;
-  @Mock private FundPositionRepository fundPositionRepository;
+  @Mock private FundNavQueryService fundNavQueryService;
   @Mock private FeeMonthResolver feeMonthResolver;
   @Mock private FeeRateRepository feeRateRepository;
 
   @InjectMocks private DepotFeeCalculator calculator;
 
+  // Deliberately different numbers, so a test that reads the wrong one cannot pass by accident.
+  private static final BigDecimal NAV_FEE_BASE = new BigDecimal("480000000");
+  private static final BigDecimal ASSET_VALUE = new BigDecimal("500000000");
+  private static final FeeBases BASES = new FeeBases(NAV_FEE_BASE, ASSET_VALUE);
+
   @Test
   void calculate_returnsDailyFeeWithoutVat() {
     LocalDate date = LocalDate.of(2025, 7, 15);
     LocalDate feeMonth = LocalDate.of(2025, 7, 1);
-    BigDecimal baseValue = new BigDecimal("500000000");
     BigDecimal fundRate = new BigDecimal("0.01");
 
     when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
     when(feeRateRepository.findValidRate(TKF100, FeeType.DEPOT, date))
         .thenReturn(Optional.of(new FeeRate(1L, TKF100, FeeType.DEPOT, fundRate, feeMonth, null)));
 
-    FeeAccrual result = calculator.calculate(TKF100, date, baseValue);
+    FeeAccrual result = calculator.calculate(TKF100, date, BASES);
 
     assertThat(result.fund()).isEqualTo(TKF100);
     assertThat(result.feeType()).isEqualTo(FeeType.DEPOT);
     assertThat(result.accrualDate()).isEqualTo(date);
     assertThat(result.feeMonth()).isEqualTo(feeMonth);
-    assertThat(result.baseValue()).isEqualTo(baseValue);
     assertThat(result.annualRate()).isEqualTo(fundRate);
     assertThat(result.referenceDate()).isEqualTo(date);
     assertThat(result.daysInYear()).isEqualTo(365);
 
     BigDecimal expectedDailyGross =
-        baseValue.multiply(fundRate).divide(BigDecimal.valueOf(365), 6, RoundingMode.HALF_UP);
+        ASSET_VALUE.multiply(fundRate).divide(BigDecimal.valueOf(365), 6, RoundingMode.HALF_UP);
     assertThat(result.dailyAmountGross()).isEqualByComparingTo(expectedDailyGross);
   }
 
+  /**
+   * "Depootasu arvutatakse ... Fondi aktivate turuväärtuste summale" — the asset side, not the net
+   * NAV base the management fee uses. Fails against the previous behaviour, which took whichever
+   * single base value it was handed.
+   */
   @Test
-  void calculate_usesCalendar365EvenInLeapYear() {
-    LocalDate date = LocalDate.of(2024, 2, 29);
-    LocalDate feeMonth = LocalDate.of(2024, 2, 1);
-    BigDecimal baseValue = new BigDecimal("100000000");
+  void calculate_chargesTheAssetValueAndNotTheNetNavBase() {
+    LocalDate date = LocalDate.of(2025, 7, 15);
+    LocalDate feeMonth = LocalDate.of(2025, 7, 1);
     BigDecimal fundRate = new BigDecimal("0.01");
 
     when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
     when(feeRateRepository.findValidRate(TKF100, FeeType.DEPOT, date))
         .thenReturn(Optional.of(new FeeRate(1L, TKF100, FeeType.DEPOT, fundRate, feeMonth, null)));
 
-    FeeAccrual result = calculator.calculate(TKF100, date, baseValue);
+    FeeAccrual result = calculator.calculate(TKF100, date, BASES);
 
-    assertThat(result.daysInYear()).isEqualTo(365);
+    assertThat(result.baseValue()).isEqualByComparingTo(ASSET_VALUE);
+    assertThat(result.baseValue()).isNotEqualByComparingTo(NAV_FEE_BASE);
+  }
+
+  /**
+   * "kasutades tegeliku (aasta ja kuu) päevade arvu meetodit" — actual/actual, so a leap year
+   * divides by 366. The management fee keeps its contractual 365.
+   */
+  @Test
+  void calculate_usesActualDaysInYearSoALeapYearDividesBy366() {
+    LocalDate date = LocalDate.of(2024, 2, 29);
+    LocalDate feeMonth = LocalDate.of(2024, 2, 1);
+    BigDecimal fundRate = new BigDecimal("0.01");
+
+    when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
+    when(feeRateRepository.findValidRate(TKF100, FeeType.DEPOT, date))
+        .thenReturn(Optional.of(new FeeRate(1L, TKF100, FeeType.DEPOT, fundRate, feeMonth, null)));
+
+    FeeAccrual result = calculator.calculate(TKF100, date, BASES);
+
+    assertThat(result.daysInYear()).isEqualTo(366);
 
     BigDecimal expectedDailyGross =
-        baseValue.multiply(fundRate).divide(BigDecimal.valueOf(365), 6, RoundingMode.HALF_UP);
+        ASSET_VALUE.multiply(fundRate).divide(BigDecimal.valueOf(366), 6, RoundingMode.HALF_UP);
     assertThat(result.dailyAmountGross()).isEqualByComparingTo(expectedDailyGross);
+    assertThat(result.dailyAmountGross())
+        .isNotEqualByComparingTo(
+            ASSET_VALUE
+                .multiply(fundRate)
+                .divide(BigDecimal.valueOf(365), 6, RoundingMode.HALF_UP));
   }
 
   @Test
   void calculate_returnsZeroFeeWhenFundRateIsZero() {
     LocalDate date = LocalDate.of(2025, 7, 15);
     LocalDate feeMonth = LocalDate.of(2025, 7, 1);
-    BigDecimal baseValue = new BigDecimal("500000000");
 
     when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
     when(feeRateRepository.findValidRate(TKF100, FeeType.DEPOT, date))
         .thenReturn(Optional.of(new FeeRate(1L, TKF100, FeeType.DEPOT, ZERO, feeMonth, null)));
 
-    FeeAccrual result = calculator.calculate(TKF100, date, baseValue);
+    FeeAccrual result = calculator.calculate(TKF100, date, BASES);
 
     assertThat(result.annualRate()).isEqualByComparingTo(ZERO);
     assertThat(result.dailyAmountGross()).isEqualByComparingTo(ZERO);
@@ -96,60 +129,96 @@ class DepotFeeCalculatorTest {
   void calculate_usesTierWhenTheRowSaysTier() {
     LocalDate date = LocalDate.of(2025, 7, 15);
     LocalDate feeMonth = LocalDate.of(2025, 7, 1);
-    LocalDate previousMonthEnd = LocalDate.of(2025, 6, 30);
-    BigDecimal baseValue = new BigDecimal("500000000");
-    BigDecimal totalAum = new BigDecimal("1400000000");
     BigDecimal tierRate = new BigDecimal("0.005");
 
     when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
     when(feeRateRepository.findValidRate(TUK75, FeeType.DEPOT, date))
         .thenReturn(Optional.of(tierRow(TUK75, LocalDate.of(2025, 1, 1), null)));
-    when(fundPositionRepository.findLatestSecurityNavDateUpTo(LocalDate.of(2025, 6, 30)))
-        .thenReturn(Optional.of(previousMonthEnd));
-    when(fundPositionRepository.sumSecurityMarketValueAllFunds(previousMonthEnd))
-        .thenReturn(totalAum);
-    when(tierRepository.findRateForAum(totalAum, feeMonth)).thenReturn(tierRate);
+    stubEveryFundsAssets(MAY_END, new BigDecimal("350000000"));
+    when(tierRepository.findRateForAum(new BigDecimal("1400000000"), feeMonth))
+        .thenReturn(tierRate);
 
-    FeeAccrual result = calculator.calculate(TUK75, date, baseValue);
+    FeeAccrual result = calculator.calculate(TUK75, date, BASES);
 
     assertThat(result.annualRate()).isEqualByComparingTo(tierRate);
+  }
+
+  /**
+   * The band for July is set from May's month end, not June's: the depositary submits by 10 June
+   * the values from the last business day of May, for the rate applicable in July. Stubbing only
+   * the May anchor means this fails outright if the calculator reaches for any other date.
+   */
+  @Test
+  void calculate_anchorsTheTierTwoMonthEndsBackAsTheAgreementRequires() {
+    LocalDate date = LocalDate.of(2025, 7, 15);
+    LocalDate feeMonth = LocalDate.of(2025, 7, 1);
+    BigDecimal tierRate = new BigDecimal("0.0004");
+
+    when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
+    when(feeRateRepository.findValidRate(TUK75, FeeType.DEPOT, date))
+        .thenReturn(Optional.of(tierRow(TUK75, LocalDate.of(2025, 1, 1), null)));
+    when(fundNavQueryService.findLatestNavDateOnOrBefore(anyString(), eq(MAY_END)))
+        .thenReturn(Optional.of(LocalDate.of(2025, 5, 30)));
+    when(fundNavQueryService.findAssetTotal(anyString(), eq(LocalDate.of(2025, 5, 30))))
+        .thenReturn(Optional.of(new BigDecimal("250000000")));
+    when(tierRepository.findRateForAum(new BigDecimal("1000000000"), feeMonth))
+        .thenReturn(tierRate);
+
+    FeeAccrual result = calculator.calculate(TUK75, date, BASES);
+
+    assertThat(result.annualRate()).isEqualByComparingTo(tierRate);
+  }
+
+  /**
+   * A fund with no calculation on or before the anchor contributes nothing, rather than throwing.
+   */
+  @Test
+  void calculate_skipsFundsWithNoCalculationAtTheAnchor() {
+    LocalDate date = LocalDate.of(2025, 7, 15);
+    LocalDate feeMonth = LocalDate.of(2025, 7, 1);
+
+    when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
+    when(feeRateRepository.findValidRate(TUK75, FeeType.DEPOT, date))
+        .thenReturn(Optional.of(tierRow(TUK75, LocalDate.of(2025, 1, 1), null)));
+    when(fundNavQueryService.findLatestNavDateOnOrBefore(anyString(), eq(MAY_END)))
+        .thenReturn(Optional.empty());
+    when(tierRepository.findRateForAum(ZERO, feeMonth)).thenReturn(ZERO);
+
+    FeeAccrual result = calculator.calculate(TUK75, date, BASES);
+
+    assertThat(result.annualRate()).isEqualByComparingTo(ZERO);
   }
 
   @Test
   void calculate_accruesNothingWhenNoRateRowIsValid() {
     LocalDate date = LocalDate.of(2025, 7, 15);
     LocalDate feeMonth = LocalDate.of(2025, 7, 1);
-    BigDecimal baseValue = new BigDecimal("500000000");
 
     when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
     when(feeRateRepository.findValidRate(TUK75, FeeType.DEPOT, date)).thenReturn(Optional.empty());
 
-    FeeAccrual result = calculator.calculate(TUK75, date, baseValue);
+    FeeAccrual result = calculator.calculate(TUK75, date, BASES);
 
     assertThat(result.annualRate()).isEqualByComparingTo(ZERO);
     assertThat(result.dailyAmountGross()).isEqualByComparingTo(ZERO);
     verifyNoInteractions(tierRepository);
+    verifyNoInteractions(fundNavQueryService);
   }
 
   @Test
   void calculate_usesTierRateAsIsWithoutAnyFloor() {
     LocalDate date = LocalDate.of(2025, 7, 15);
     LocalDate feeMonth = LocalDate.of(2025, 7, 1);
-    LocalDate previousMonthEnd = LocalDate.of(2025, 6, 30);
-    BigDecimal baseValue = new BigDecimal("500000000");
-    BigDecimal totalAum = new BigDecimal("1400000000");
     BigDecimal tinyTierRate = new BigDecimal("0.00001");
 
     when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(feeMonth);
     when(feeRateRepository.findValidRate(TUK75, FeeType.DEPOT, date))
         .thenReturn(Optional.of(tierRow(TUK75, LocalDate.of(2025, 1, 1), null)));
-    when(fundPositionRepository.findLatestSecurityNavDateUpTo(LocalDate.of(2025, 6, 30)))
-        .thenReturn(Optional.of(previousMonthEnd));
-    when(fundPositionRepository.sumSecurityMarketValueAllFunds(previousMonthEnd))
-        .thenReturn(totalAum);
-    when(tierRepository.findRateForAum(totalAum, feeMonth)).thenReturn(tinyTierRate);
+    stubEveryFundsAssets(MAY_END, new BigDecimal("350000000"));
+    when(tierRepository.findRateForAum(new BigDecimal("1400000000"), feeMonth))
+        .thenReturn(tinyTierRate);
 
-    FeeAccrual result = calculator.calculate(TUK75, date, baseValue);
+    FeeAccrual result = calculator.calculate(TUK75, date, BASES);
 
     assertThat(result.annualRate()).isEqualByComparingTo(tinyTierRate);
   }
@@ -162,9 +231,7 @@ class DepotFeeCalculatorTest {
     LocalDate feeMonth = LocalDate.of(2025, 9, 1);
     LocalDate beforeStart = LocalDate.of(2025, 9, 9);
     LocalDate onStart = LocalDate.of(2025, 9, 10);
-    LocalDate previousMonthEnd = LocalDate.of(2025, 8, 31);
-    BigDecimal baseValue = new BigDecimal("500000000");
-    BigDecimal totalAum = new BigDecimal("1400000000");
+    LocalDate julyEnd = LocalDate.of(2025, 7, 31);
     BigDecimal tierRate = new BigDecimal("0.0004");
 
     when(feeMonthResolver.resolveFeeMonth(beforeStart)).thenReturn(feeMonth);
@@ -176,14 +243,12 @@ class DepotFeeCalculatorTest {
                     1L, TUK75, FeeType.DEPOT, ZERO, LocalDate.of(2025, 1, 1), beforeStart)));
     when(feeRateRepository.findValidRate(TUK75, FeeType.DEPOT, onStart))
         .thenReturn(Optional.of(tierRow(TUK75, onStart, null)));
-    when(fundPositionRepository.findLatestSecurityNavDateUpTo(previousMonthEnd))
-        .thenReturn(Optional.of(previousMonthEnd));
-    when(fundPositionRepository.sumSecurityMarketValueAllFunds(previousMonthEnd))
-        .thenReturn(totalAum);
-    when(tierRepository.findRateForAum(totalAum, feeMonth)).thenReturn(tierRate);
+    stubEveryFundsAssets(julyEnd, new BigDecimal("350000000"));
+    when(tierRepository.findRateForAum(new BigDecimal("1400000000"), feeMonth))
+        .thenReturn(tierRate);
 
-    FeeAccrual before = calculator.calculate(TUK75, beforeStart, baseValue);
-    FeeAccrual on = calculator.calculate(TUK75, onStart, baseValue);
+    FeeAccrual before = calculator.calculate(TUK75, beforeStart, BASES);
+    FeeAccrual on = calculator.calculate(TUK75, onStart, BASES);
 
     assertThat(before.annualRate()).isEqualByComparingTo(ZERO);
     assertThat(before.dailyAmountGross()).isEqualByComparingTo(ZERO);
@@ -192,16 +257,29 @@ class DepotFeeCalculatorTest {
     assertThat(on.annualRate()).isEqualByComparingTo(tierRate);
     assertThat(on.dailyAmountGross())
         .isEqualByComparingTo(
-            baseValue.multiply(tierRate).divide(BigDecimal.valueOf(365), 6, RoundingMode.HALF_UP));
+            ASSET_VALUE
+                .multiply(tierRate)
+                .divide(BigDecimal.valueOf(365), 6, RoundingMode.HALF_UP));
     assertThat(on.feeMonth()).isEqualTo(feeMonth);
-  }
-
-  private FeeRate tierRow(TulevaFund fund, LocalDate validFrom, LocalDate validTo) {
-    return new FeeRate(1L, fund, FeeType.DEPOT, ZERO, FeeRateSource.TIER, validFrom, validTo);
   }
 
   @Test
   void getFeeType_returnsDepot() {
     assertThat(calculator.getFeeType()).isEqualTo(FeeType.DEPOT);
+  }
+
+  /** Two month ends back from a July fee month. */
+  private static final LocalDate MAY_END = LocalDate.of(2025, 5, 31);
+
+  /** Every fund reports the same assets at the anchor, so the band sees four times the amount. */
+  private void stubEveryFundsAssets(LocalDate anchor, BigDecimal perFundAssets) {
+    when(fundNavQueryService.findLatestNavDateOnOrBefore(anyString(), eq(anchor)))
+        .thenReturn(Optional.of(anchor));
+    when(fundNavQueryService.findAssetTotal(anyString(), eq(anchor)))
+        .thenReturn(Optional.of(perFundAssets));
+  }
+
+  private FeeRate tierRow(TulevaFund fund, LocalDate validFrom, LocalDate validTo) {
+    return new FeeRate(1L, fund, FeeType.DEPOT, ZERO, FeeRateSource.TIER, validFrom, validTo);
   }
 }

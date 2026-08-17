@@ -17,6 +17,7 @@ import static java.util.stream.Collectors.toMap;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.fees.FeeBases;
 import ee.tuleva.onboarding.investment.fees.FeeCalculationService;
 import ee.tuleva.onboarding.investment.fees.FeeResult;
 import ee.tuleva.onboarding.investment.position.AccountType;
@@ -177,14 +178,14 @@ class NavPipelineIntegrationTest {
     // Establish first accrual at Feb 25
     Instant feb26Cutoff = LocalDate.of(2026, 2, 26).atStartOfDay(eet).toInstant();
     feeCalculationService.calculateFeesForNav(
-        TKF100, LocalDate.of(2026, 2, 25), aum, feb26Cutoff, null);
+        TKF100, LocalDate.of(2026, 2, 25), new FeeBases(aum, aum), feb26Cutoff, null);
 
     // Monday: fees for Feb 26-27 added, feeCutoff=Feb 28 00:00 EET
     // Accumulated balance visible: Feb 25, 26, 27 = 3 days
     Instant mondayCutoff = LocalDate.of(2026, 2, 28).atStartOfDay(eet).toInstant();
     FeeResult mondayResult =
         feeCalculationService.calculateFeesForNav(
-            TKF100, LocalDate.of(2026, 2, 27), aum, mondayCutoff, null);
+            TKF100, LocalDate.of(2026, 2, 27), new FeeBases(aum, aum), mondayCutoff, null);
 
     // Tuesday: fees for Feb 28, Mar 1, 2 added
     // Feb settlement triggered when recording Mar 1
@@ -192,7 +193,7 @@ class NavPipelineIntegrationTest {
     Instant tuesdayCutoff = LocalDate.of(2026, 3, 3).atStartOfDay(eet).toInstant();
     FeeResult tuesdayResult =
         feeCalculationService.calculateFeesForNav(
-            TKF100, LocalDate.of(2026, 3, 2), aum, tuesdayCutoff, null);
+            TKF100, LocalDate.of(2026, 3, 2), new FeeBases(aum, aum), tuesdayCutoff, null);
 
     // Daily management: 50,000,000 × 0.0029 / 365 → ledger 397.26/day
     // Daily depot:      50,000,000 × 0.01   / 365 → ledger 1369.86/day
@@ -237,7 +238,7 @@ class NavPipelineIntegrationTest {
 
     var result = navCalculationService.computeFeeBaseValue(TKF100, inceptionDate);
     assertThat(result).isPresent();
-    assertThat(result.get().baseValue()).isEqualByComparingTo(inceptionCash);
+    assertThat(result.get().bases().navFeeBase()).isEqualByComparingTo(inceptionCash);
   }
 
   @Test
@@ -271,7 +272,7 @@ class NavPipelineIntegrationTest {
     // Feb 3's fee should use only Feb 2's position (5M), NOT cumulative (6M)
     var feb3Result = navCalculationService.computeFeeBaseValue(TKF100, feb3);
     assertThat(feb3Result).isPresent();
-    assertThat(feb3Result.get().baseValue()).isEqualByComparingTo(feb2Cash);
+    assertThat(feb3Result.get().bases().navFeeBase()).isEqualByComparingTo(feb2Cash);
   }
 
   @Test
@@ -297,7 +298,7 @@ class NavPipelineIntegrationTest {
 
     var result = navCalculationService.computeFeeBaseValue(TKF100, saturday);
     assertThat(result).isPresent();
-    assertThat(result.get().baseValue()).isEqualByComparingTo(friCash);
+    assertThat(result.get().bases().navFeeBase()).isEqualByComparingTo(friCash);
   }
 
   @Test
@@ -362,7 +363,7 @@ class NavPipelineIntegrationTest {
 
     var day2FeeBase = navCalculationService.computeFeeBaseValue(TKF100, day2);
     assertThat(day2FeeBase).isPresent();
-    assertThat(day2FeeBase.get().baseValue()).isEqualByComparingTo(day1Cash);
+    assertThat(day2FeeBase.get().bases().navFeeBase()).isEqualByComparingTo(day1Cash);
   }
 
   @Test
@@ -396,7 +397,7 @@ class NavPipelineIntegrationTest {
 
     var result = navCalculationService.computeFeeBaseValue(TKF100, calcDate);
     assertThat(result).isPresent();
-    assertThat(result.get().baseValue()).isEqualByComparingTo(cash.add(pendingSubs));
+    assertThat(result.get().bases().navFeeBase()).isEqualByComparingTo(cash.add(pendingSubs));
   }
 
   @Test
@@ -420,8 +421,10 @@ class NavPipelineIntegrationTest {
 
     Instant feeCutoff =
         date.plusDays(1).atStartOfDay().atZone(ZoneId.of("Europe/Tallinn")).toInstant();
-    feeCalculationService.calculateFeesForNav(TKF100, date, tkf100Aum, feeCutoff, null);
-    feeCalculationService.calculateFeesForNav(TUK75, date, tuk75Aum, feeCutoff, null);
+    feeCalculationService.calculateFeesForNav(
+        TKF100, date, new FeeBases(tkf100Aum, tkf100Aum), feeCutoff, null);
+    feeCalculationService.calculateFeesForNav(
+        TUK75, date, new FeeBases(tuk75Aum, tuk75Aum), feeCutoff, null);
 
     BigDecimal tkf100MgmtBalance = getSystemAccountBalance(MANAGEMENT_FEE_ACCRUAL, TKF100);
     BigDecimal tuk75MgmtBalance = getSystemAccountBalance(MANAGEMENT_FEE_ACCRUAL, TUK75);

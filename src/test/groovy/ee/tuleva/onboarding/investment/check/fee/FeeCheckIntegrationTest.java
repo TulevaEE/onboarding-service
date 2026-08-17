@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.fees.FeeBases;
 import ee.tuleva.onboarding.investment.fees.FeeCalculationService;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.math.BigDecimal;
@@ -256,7 +257,8 @@ class FeeCheckIntegrationTest {
 
   private void accrueFor(LocalDate date) {
     var cutoff = date.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
-    feeCalculationService.calculateFeesForNav(TUK75, date, BASE_VALUE, cutoff, null);
+    feeCalculationService.calculateFeesForNav(
+        TUK75, date, new FeeBases(BASE_VALUE, BASE_VALUE), cutoff, null);
   }
 
   private void correctAccrualWithoutTouchingLedger(LocalDate date, BigDecimal amount) {

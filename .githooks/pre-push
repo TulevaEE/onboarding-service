@@ -26,6 +26,10 @@ while read -r _local_ref local_sha _remote_ref remote_sha; do
     base=$remote_sha
   fi
 
+  # The allowlist comes from the pushed revision itself, so only an allowlist
+  # entry that is being published can exempt an IBAN being published.
+  PII_IBAN_ALLOW_SOURCE=$(git show "$local_sha:.githooks/pii-iban-allow" 2>/dev/null || true)
+  export PII_IBAN_ALLOW_SOURCE
   git diff "$base..$local_sha" 2>/dev/null | "$HOOK_DIR/pii-scan" || status=1
 done
 

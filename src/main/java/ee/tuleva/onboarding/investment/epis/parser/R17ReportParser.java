@@ -49,12 +49,17 @@ public class R17ReportParser {
       if (units.compareTo(MAX_REASONABLE_UNITS) > 0) {
         throw new IllegalArgumentException("R17 row units exceed sanity limit: units=" + units);
       }
-      validateUnitsAgainstReportedAmount(row, fundRaw, toiming, units);
 
       Optional<TulevaFund> fund = FundResolver.resolve(fundRaw);
       if (fund.isEmpty()) {
         continue;
       }
+
+      // Only after the fund is ours. R17 carries rows for other managers' funds, which the line
+      // above drops; their internal consistency is not ours to enforce, and rejecting the upload
+      // over one would leave the operator with nothing to fix — the row belongs to someone else.
+      validateUnitsAgainstReportedAmount(row, fundRaw, toiming, units);
+
       UnitAccumulator accumulator =
           accumulators.computeIfAbsent(fund.get().getCode(), code -> new UnitAccumulator());
 

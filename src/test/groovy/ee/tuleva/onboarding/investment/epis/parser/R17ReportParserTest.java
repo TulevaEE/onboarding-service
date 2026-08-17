@@ -372,4 +372,48 @@ class R17ReportParserTest {
 
     assertThat(result.get("TUK75").pikUnits()).isEqualByComparingTo("100.000");
   }
+
+  /**
+   * R17 carries rows for other managers' funds and we drop them. An inconsistent one must not take
+   * the upload down with it — the operator cannot fix a row that belongs to someone else.
+   */
+  @Test
+  void ignoresTheReportedAmountOnRowsForFundsThatAreNotOurs() {
+    String csv =
+        """
+        Staatus;;;;Seisuga;;Valuuta;;
+        Netitud;;;;15.04.2026;;EUR;;
+        %s
+        Mingi Muu Fond;0.80;Väljalase;Oma;0.80;40.000;60.000;999999.00;0.00
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Väljalase;Oma;0.80;40.000;60.000;80.00;0.00
+        """
+            .formatted(HEADER_ROW);
+
+    Map<String, R17Result> result = parser.parse(csv, LOCK_DATE, EXEC_DATE);
+
+    assertThat(result.get("TUK75").switchingNetUnits()).isEqualByComparingTo("100.000");
+    assertThat(result).doesNotContainKey("MINGIMUUFOND");
+  }
+
+  /**
+   * "Summa" is also a substring of "Summa (PF valitseja)". If the cross-check reads the latter it
+   * sees 0.00 and rejects every row, so the match must not depend on which column comes first.
+   */
+  @Test
+  void readsTheRowAmountEvenWhenThePfValitsejaAmountColumnComesFirst() {
+    String reorderedHeader =
+        "Väärtpaber;NAV;Toiming;PF valitseja/PIK;Hind;Osakud (teenustasuta);Osakud (teenustasuga);Summa (PF valitseja);Summa";
+    String csv =
+        """
+        Staatus;;;;Seisuga;;Valuuta;;
+        Netitud;;;;15.04.2026;;EUR;;
+        %s
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Väljalase;Oma;0.80;40.000;60.000;0.00;80.00
+        """
+            .formatted(reorderedHeader);
+
+    Map<String, R17Result> result = parser.parse(csv, LOCK_DATE, EXEC_DATE);
+
+    assertThat(result.get("TUK75").switchingNetUnits()).isEqualByComparingTo("100.000");
+  }
 }

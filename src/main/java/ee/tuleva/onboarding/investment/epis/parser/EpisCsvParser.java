@@ -79,9 +79,24 @@ public class EpisCsvParser {
     return group + " " + sub;
   }
 
+  /**
+   * The value of the first column matching any keyword, an exact column name winning over a longer
+   * one that merely contains it.
+   *
+   * <p>Without the exact pass the answer depends on column order, and R17 has two collisions:
+   * "summa" is also inside "Summa (PF valitseja)", and "pf valitseja" is inside it as well. Both
+   * resolve correctly today only because the rows are a LinkedHashMap in column order and the
+   * shorter column happens to come first. An export that reordered them would have made the amount
+   * cross-check read 0.00 and reject every row.
+   */
   public static @Nullable String findValue(Map<String, String> row, String... keywords) {
     for (String keyword : keywords) {
       String normalizedKeyword = normalize(keyword);
+      for (Map.Entry<String, String> entry : row.entrySet()) {
+        if (entry.getKey().equals(normalizedKeyword)) {
+          return entry.getValue();
+        }
+      }
       for (Map.Entry<String, String> entry : row.entrySet()) {
         if (entry.getKey().contains(normalizedKeyword)) {
           return entry.getValue();

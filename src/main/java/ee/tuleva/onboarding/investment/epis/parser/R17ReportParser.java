@@ -46,18 +46,21 @@ public class R17ReportParser {
       if (units.signum() == 0) {
         continue;
       }
-      if (units.compareTo(MAX_REASONABLE_UNITS) > 0) {
-        throw new IllegalArgumentException("R17 row units exceed sanity limit: units=" + units);
-      }
-
       Optional<TulevaFund> fund = FundResolver.resolve(fundRaw);
       if (fund.isEmpty()) {
         continue;
       }
 
-      // Only after the fund is ours. R17 carries rows for other managers' funds, which the line
-      // above drops; their internal consistency is not ours to enforce, and rejecting the upload
-      // over one would leave the operator with nothing to fix — the row belongs to someone else.
+      // Both row checks run only after the fund is ours. R17 carries rows for other managers'
+      // funds, which the line above drops; their internal consistency is not ours to enforce, and
+      // rejecting the upload over one would leave the operator with nothing to fix — the row
+      // belongs to someone else. That matters more for the sanity limit than it looks: the units
+      // it measures are now the two columns added together, so a large manager's row can reach a
+      // number that neither of its columns alone did.
+      if (units.compareTo(MAX_REASONABLE_UNITS) > 0) {
+        throw new IllegalArgumentException(
+            "R17 row units exceed sanity limit: fund=" + fundRaw + ", units=" + units);
+      }
       validateUnitsAgainstReportedAmount(row, fundRaw, toiming, units);
 
       UnitAccumulator accumulator =

@@ -427,6 +427,46 @@ class R17ReportParserTest {
   }
 
   /**
+   * The same rule for the sanity limit, and it bites harder here: the number it measures is now the
+   * two unit columns added together, so a large manager's row can pass 100M when neither of its own
+   * columns did. Rejecting the whole upload over the size of someone else's fund would be a new way
+   * to lose a cycle.
+   */
+  @Test
+  void aForeignFundsRowBeyondTheSanityLimitDoesNotRejectTheUpload() {
+    String csv =
+        """
+        Staatus;;;;Seisuga;;Valuuta;;
+        Netitud;;;;15.04.2026;;EUR;;
+        %s
+        Mingi Muu Fond;0.80;Väljalase;Oma;0.80;60000000.000;60000000.000;96000000.00;0.00
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Väljalase;Oma;0.80;40.000;60.000;80.00;0.00
+        """
+            .formatted(HEADER_ROW);
+
+    Map<String, R17Result> result = parser.parse(csv, LOCK_DATE, EXEC_DATE);
+
+    assertThat(result.get("TUK75").switchingNetUnits()).isEqualByComparingTo("100.000");
+    assertThat(result).doesNotContainKey("MINGIMUUFOND");
+  }
+
+  /** Our own row still has to stay inside it. */
+  @Test
+  void ourOwnRowBeyondTheSanityLimitStillThrows() {
+    String csv =
+        """
+        Staatus;;;;Seisuga;;Valuuta;;
+        Netitud;;;;15.04.2026;;EUR;;
+        %s
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Väljalase;Oma;0.80;60000000.000;60000000.000;96000000.00;0.00
+        """
+            .formatted(HEADER_ROW);
+
+    assertThatThrownBy(() -> parser.parse(csv, LOCK_DATE, EXEC_DATE))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  /**
    * "Summa" is also a substring of "Summa (PF valitseja)". If the cross-check reads the latter it
    * sees 0.00 and rejects every row, so the match must not depend on which column comes first.
    */

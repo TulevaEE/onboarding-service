@@ -29,6 +29,7 @@ import java.time.YearMonth;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -51,9 +52,9 @@ class OcfCalculationServiceTest {
 
   @InjectMocks private OcfCalculationService service;
 
-  @org.junit.jupiter.api.BeforeEach
+  @BeforeEach
   void defaultFeesChargedToFund() {
-    when(feeChargedToFundPolicy.chargedToFund(any(), any(), any())).thenReturn(true);
+    given(feeChargedToFundPolicy.chargedToFund(any(), any(), any())).willReturn(true);
   }
 
   private static final YearMonth MONTH = YearMonth.of(2026, 4);
@@ -75,10 +76,6 @@ class OcfCalculationServiceTest {
     verify(ocfSnapshotRepository).save(any());
   }
 
-  // The production case for all four funds: Tuleva pays the depoopank out of the management fee, so
-  // the depot fee is not a cost the fund's investors bear on top of it and must not reach the
-  // published OCF. The rate table is not even consulted -- whatever rate it carries describes
-  // Tuleva's own cost, not the fund's.
   @Test
   void depotFeeStaysOutOfTheOcfWhenTheFundIsNotChargedIt() {
     var fund = TUK75;
@@ -176,7 +173,13 @@ class OcfCalculationServiceTest {
         .willReturn(
             Optional.of(
                 new FeeRate(
-                    1L, TUK75, DEPOT, new BigDecimal("0.0009"), MONTH_END.minusYears(1), null)));
+                    1L,
+                    TUK75,
+                    DEPOT,
+                    new BigDecimal("0.0009"),
+                    FeeRateSource.FIXED,
+                    MONTH_END.minusYears(1),
+                    null)));
 
     var rate = service.getDepotFeeRate(TUK75, MONTH_END);
 
@@ -195,7 +198,7 @@ class OcfCalculationServiceTest {
     given(fundPositionRepository.sumSecurityMarketValueAllFunds(MONTH_END))
         .willReturn(new BigDecimal("200000000"));
     given(depotFeeTierRepository.findRateForAum(new BigDecimal("200000000"), MONTH_END))
-        .willReturn(new BigDecimal("0.0010"));
+        .willReturn(Optional.of(new BigDecimal("0.0010")));
 
     var rate = service.getDepotFeeRate(TUV100, MONTH_END);
 
@@ -366,7 +369,15 @@ class OcfCalculationServiceTest {
             .willReturn(Optional.empty());
         given(feeRateRepository.findValidRate(eq(fund), eq(DEPOT), any()))
             .willReturn(
-                Optional.of(new FeeRate(1L, fund, DEPOT, ZERO, MONTH_END.minusYears(1), null)));
+                Optional.of(
+                    new FeeRate(
+                        1L,
+                        fund,
+                        DEPOT,
+                        ZERO,
+                        FeeRateSource.FIXED,
+                        MONTH_END.minusYears(1),
+                        null)));
         given(
                 transactionExecutionRepository.sumCommissionsForFundAndPeriod(
                     eq(fund.getCode()), any(), any()))
@@ -394,7 +405,9 @@ class OcfCalculationServiceTest {
       lenient()
           .when(feeRateRepository.findValidRate(eq(fund), eq(DEPOT), any()))
           .thenReturn(
-              Optional.of(new FeeRate(1L, fund, DEPOT, ZERO, MONTH_END.minusYears(1), null)));
+              Optional.of(
+                  new FeeRate(
+                      1L, fund, DEPOT, ZERO, FeeRateSource.FIXED, MONTH_END.minusYears(1), null)));
       lenient().when(instrumentFeeRepository.findAllValidRates(any())).thenReturn(List.of());
       lenient()
           .when(
@@ -436,12 +449,23 @@ class OcfCalculationServiceTest {
   private void setupManagementFee(TulevaFund fund, BigDecimal rate) {
     given(feeRateRepository.findValidRate(fund, MANAGEMENT, MONTH_END))
         .willReturn(
-            Optional.of(new FeeRate(1L, fund, MANAGEMENT, rate, MONTH_END.minusYears(1), null)));
+            Optional.of(
+                new FeeRate(
+                    1L,
+                    fund,
+                    MANAGEMENT,
+                    rate,
+                    FeeRateSource.FIXED,
+                    MONTH_END.minusYears(1),
+                    null)));
   }
 
   private void setupDepotFee(TulevaFund fund, BigDecimal rate) {
     given(feeRateRepository.findValidRate(fund, DEPOT, MONTH_END))
-        .willReturn(Optional.of(new FeeRate(1L, fund, DEPOT, rate, MONTH_END.minusYears(1), null)));
+        .willReturn(
+            Optional.of(
+                new FeeRate(
+                    1L, fund, DEPOT, rate, FeeRateSource.FIXED, MONTH_END.minusYears(1), null)));
   }
 
   private void setupNoInstrumentFees() {

@@ -42,7 +42,6 @@ class FeeBaseCompletenessCheckerTest {
   private static final LocalDate LATER_WORKING_DAY = LocalDate.of(2026, 6, 4);
   private static final LocalDate SATURDAY = LocalDate.of(2026, 6, 6);
   private static final BigDecimal NAV_TOTAL = new BigDecimal("1000000.00");
-  // Aktiva is the asset side gross, so it is the larger number by exactly the liabilities.
   private static final BigDecimal ASSET_TOTAL = new BigDecimal("1080000.00");
 
   @Mock private FeeAccrualRepository feeAccrualRepository;
@@ -65,7 +64,7 @@ class FeeBaseCompletenessCheckerTest {
   @Test
   void aBaseMatchingTheNavComponentsPasses() {
     givenAccruals(base(WORKING_DAY, MANAGEMENT, NAV_TOTAL), base(WORKING_DAY, DEPOT, NAV_TOTAL));
-    givenNavTotal(WORKING_DAY, NAV_TOTAL);
+    givenBothFeeBaseTotalsEqual(WORKING_DAY, NAV_TOTAL);
 
     assertThat(check(TUK75)).singleElement().extracting(FeeCheckFinding::severity).isEqualTo(PASS);
   }
@@ -75,7 +74,7 @@ class FeeBaseCompletenessCheckerTest {
     var missing = new BigDecimal("44980.96");
     var buggyBase = NAV_TOTAL.subtract(missing);
     givenAccruals(base(WORKING_DAY, MANAGEMENT, buggyBase), base(WORKING_DAY, DEPOT, buggyBase));
-    givenNavTotal(WORKING_DAY, NAV_TOTAL);
+    givenBothFeeBaseTotalsEqual(WORKING_DAY, NAV_TOTAL);
 
     var finding = check(TUK75).getFirst();
 
@@ -89,31 +88,24 @@ class FeeBaseCompletenessCheckerTest {
     givenAccruals(
         base(WORKING_DAY, MANAGEMENT, NAV_TOTAL.add(new BigDecimal("0.01"))),
         base(WORKING_DAY, DEPOT, NAV_TOTAL.add(new BigDecimal("0.01"))));
-    givenNavTotal(WORKING_DAY, NAV_TOTAL);
+    givenBothFeeBaseTotalsEqual(WORKING_DAY, NAV_TOTAL);
 
     assertThat(check(TUK75).getFirst().severity()).isEqualTo(PASS);
   }
 
-  // The two fees are charged on different numbers: the management fee on netovara, the depot fee
-  // on aktiva (Depooleping, see FeeBases). Each is therefore checked against its own side of
-  // nav_report, and the two disagreeing is the normal state on any day the fund has payables or
-  // pending redemptions -- which is most of them.
   @Test
   void eachFeeTypeIsCheckedAgainstTheBaseItsOwnContractNames() {
     givenAccruals(base(WORKING_DAY, MANAGEMENT, NAV_TOTAL), base(WORKING_DAY, DEPOT, ASSET_TOTAL));
-    givenNavTotal(WORKING_DAY, NAV_TOTAL);
+    givenBothFeeBaseTotalsEqual(WORKING_DAY, NAV_TOTAL);
     givenAssetTotal(WORKING_DAY, ASSET_TOTAL);
 
     assertThat(check(TUK75)).singleElement().extracting(FeeCheckFinding::severity).isEqualTo(PASS);
   }
 
-  // The regression the split base makes possible: a depot accrual handed the net NAV base looks
-  // perfectly consistent with the management accrual, so a check comparing the two to each other
-  // sees nothing. It is wrong by exactly the liabilities, and only aktiva says so.
   @Test
   void aDepotBaseThatIsSilentlyTheNetNavBaseFails() {
     givenAccruals(base(WORKING_DAY, MANAGEMENT, NAV_TOTAL), base(WORKING_DAY, DEPOT, NAV_TOTAL));
-    givenNavTotal(WORKING_DAY, NAV_TOTAL);
+    givenBothFeeBaseTotalsEqual(WORKING_DAY, NAV_TOTAL);
     givenAssetTotal(WORKING_DAY, ASSET_TOTAL);
 
     var finding = check(TUK75).getFirst();
@@ -127,7 +119,7 @@ class FeeBaseCompletenessCheckerTest {
   void aManagementBaseTakenFromTheGrossAssetsFails() {
     givenAccruals(
         base(WORKING_DAY, MANAGEMENT, ASSET_TOTAL), base(WORKING_DAY, DEPOT, ASSET_TOTAL));
-    givenNavTotal(WORKING_DAY, NAV_TOTAL);
+    givenBothFeeBaseTotalsEqual(WORKING_DAY, NAV_TOTAL);
     givenAssetTotal(WORKING_DAY, ASSET_TOTAL);
 
     var finding = check(TUK75).getFirst();
@@ -157,7 +149,7 @@ class FeeBaseCompletenessCheckerTest {
         base(EARLIER_WORKING_DAY, MANAGEMENT, NAV_TOTAL),
         base(EARLIER_WORKING_DAY, DEPOT, NAV_TOTAL),
         base(WORKING_DAY, MANAGEMENT, NAV_TOTAL));
-    givenNavTotal(EARLIER_WORKING_DAY, NAV_TOTAL);
+    givenBothFeeBaseTotalsEqual(EARLIER_WORKING_DAY, NAV_TOTAL);
 
     var finding = check(TUK75).getFirst();
 
@@ -185,7 +177,7 @@ class FeeBaseCompletenessCheckerTest {
         base(EARLIER_WORKING_DAY, MANAGEMENT, NAV_TOTAL),
         base(WORKING_DAY, MANAGEMENT, NAV_TOTAL),
         base(WORKING_DAY, DEPOT, NAV_TOTAL));
-    givenNavTotal(WORKING_DAY, NAV_TOTAL);
+    givenBothFeeBaseTotalsEqual(WORKING_DAY, NAV_TOTAL);
     givenNavFeeBaseTotal(EARLIER_WORKING_DAY, NAV_TOTAL);
 
     assertThat(check(TUK75)).singleElement().extracting(FeeCheckFinding::severity).isEqualTo(PASS);
@@ -202,8 +194,8 @@ class FeeBaseCompletenessCheckerTest {
         base(EARLIER_WORKING_DAY, DEPOT, NAV_TOTAL),
         base(LATER_WORKING_DAY, MANAGEMENT, NAV_TOTAL),
         base(LATER_WORKING_DAY, DEPOT, NAV_TOTAL));
-    givenNavTotal(EARLIER_WORKING_DAY, NAV_TOTAL);
-    givenNavTotal(LATER_WORKING_DAY, NAV_TOTAL);
+    givenBothFeeBaseTotalsEqual(EARLIER_WORKING_DAY, NAV_TOTAL);
+    givenBothFeeBaseTotalsEqual(LATER_WORKING_DAY, NAV_TOTAL);
 
     var finding = check(TUK75).getFirst();
 
@@ -216,7 +208,7 @@ class FeeBaseCompletenessCheckerTest {
   @Test
   void daysOutsideTheAccrualsTheWindowActuallySawRaiseNothing() {
     givenAccruals(base(WORKING_DAY, MANAGEMENT, NAV_TOTAL), base(WORKING_DAY, DEPOT, NAV_TOTAL));
-    givenNavTotal(WORKING_DAY, NAV_TOTAL);
+    givenBothFeeBaseTotalsEqual(WORKING_DAY, NAV_TOTAL);
 
     assertThat(checker.check(TUK75, LocalDate.of(2026, 5, 1), LocalDate.of(2026, 6, 30)))
         .singleElement()
@@ -298,7 +290,6 @@ class FeeBaseCompletenessCheckerTest {
 
     assertThat(finding.severity()).isEqualTo(FAIL);
     assertThat(finding.message()).contains(" ... (2 more)");
-    // Both fee types are wrong on all 12 days, and each wrong base is its own deviation.
     assertThat(finding.deviationAmount()).isEqualByComparingTo(new BigDecimal("24000"));
   }
 
@@ -324,9 +315,7 @@ class FeeBaseCompletenessCheckerTest {
         .willReturn(List.of(values));
   }
 
-  // Both sides of nav_report at once, for the days a test is not asking about the split. A fund
-  // with no payables and no pending redemptions genuinely has aktiva equal to netovara.
-  private void givenNavTotal(LocalDate date, BigDecimal total) {
+  private void givenBothFeeBaseTotalsEqual(LocalDate date, BigDecimal total) {
     givenNavFeeBaseTotal(date, total);
     givenAssetTotal(date, total);
   }

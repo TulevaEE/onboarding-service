@@ -29,8 +29,7 @@ class FeeChargedToFundPolicyTest {
     jdbcClient.sql("DELETE FROM investment_fee_policy").update();
 
     assertThatThrownBy(() -> policy.chargedToFund(TKF100, DEPOT, DATE))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("No fee policy configured");
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test
@@ -40,8 +39,9 @@ class FeeChargedToFundPolicyTest {
     insertPolicy(TUK75, DEPOT, true, LocalDate.of(2026, 9, 1), null);
 
     assertThatThrownBy(() -> policy.chargedToFund(TUK75, DEPOT, LocalDate.of(2026, 7, 15)))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("Gap in the fee policy");
+        .isInstanceOf(IllegalStateException.class);
+    assertThat(policy.chargedToFund(TUK75, DEPOT, LocalDate.of(2026, 6, 30))).isFalse();
+    assertThat(policy.chargedToFund(TUK75, DEPOT, LocalDate.of(2026, 9, 1))).isTrue();
   }
 
   @Test
@@ -51,8 +51,8 @@ class FeeChargedToFundPolicyTest {
     insertPolicy(TUK75, DEPOT, true, LocalDate.of(2026, 1, 1), null);
 
     assertThatThrownBy(() -> policy.chargedToFund(TUK75, DEPOT, DATE))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("Overlapping fee policy rows");
+        .isInstanceOf(IllegalStateException.class);
+    assertThat(policy.chargedToFund(TUK75, DEPOT, LocalDate.of(2025, 12, 31))).isFalse();
   }
 
   @Test

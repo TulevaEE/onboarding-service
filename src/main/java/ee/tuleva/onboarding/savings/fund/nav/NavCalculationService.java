@@ -100,23 +100,19 @@ public class NavCalculationService {
       pendingRedemptions = redemptionsComponent.calculate(context);
     }
 
-    // Assets first, then the net base as assets less liabilities. The two fees are charged on
-    // different ones: see FeeBases.
-    BigDecimal feeAssetValue =
-        securitiesValue
-            .add(cashPosition)
-            .add(receivables)
-            .add(pendingSubscriptions)
-            .add(blackrockAdjustment);
-    BigDecimal feeBaseValue = feeAssetValue.subtract(payables).subtract(pendingRedemptions);
+    FeeBases feeBases =
+        feeBases(
+            securitiesValue,
+            cashPosition,
+            receivables,
+            pendingSubscriptions,
+            blackrockAdjustment,
+            payables,
+            pendingRedemptions);
     Instant feeCutoff = positionReportDate.plusDays(1).atStartOfDay(ESTONIAN_ZONE).toInstant();
     FeeResult fees =
         feeCalculationService.calculateFeesForNav(
-            fund,
-            positionReportDate,
-            new FeeBases(feeBaseValue, feeAssetValue),
-            feeCutoff,
-            context.getSecurityPrices());
+            fund, positionReportDate, feeBases, feeCutoff, context.getSecurityPrices());
     BigDecimal managementFeeAccrual =
         navFacingAccrual(fund, FeeType.MANAGEMENT, positionReportDate, fees.managementFeeAccrual());
     BigDecimal depotFeeAccrual =
@@ -274,6 +270,24 @@ public class NavCalculationService {
     BigDecimal pendingSubscriptions = subscriptionsComponent.calculate(context);
     BigDecimal blackrockAdjustment = blackrockAdjustmentComponent.calculate(context);
     BigDecimal pendingRedemptions = redemptionsComponent.calculate(context);
+    return feeBases(
+        securitiesValue,
+        cashPosition,
+        receivables,
+        pendingSubscriptions,
+        blackrockAdjustment,
+        payables,
+        pendingRedemptions);
+  }
+
+  private FeeBases feeBases(
+      BigDecimal securitiesValue,
+      BigDecimal cashPosition,
+      BigDecimal receivables,
+      BigDecimal pendingSubscriptions,
+      BigDecimal blackrockAdjustment,
+      BigDecimal payables,
+      BigDecimal pendingRedemptions) {
     BigDecimal assetValue =
         securitiesValue
             .add(cashPosition)

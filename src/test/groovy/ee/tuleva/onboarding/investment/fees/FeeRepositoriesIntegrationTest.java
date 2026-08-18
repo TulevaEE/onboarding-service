@@ -4,8 +4,8 @@ import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
+import static org.assertj.core.api.InstanceOfAssertFactories.BIG_DECIMAL;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import java.math.BigDecimal;
@@ -143,34 +143,27 @@ class FeeRepositoriesIntegrationTest {
     void findRateForAum_returnsCorrectTierRate() {
       LocalDate date = LocalDate.of(2025, 1, 15);
 
-      BigDecimal rateForSmallAum =
-          depotFeeTierRepository.findRateForAum(new BigDecimal("500000000"), date);
-      assertThat(rateForSmallAum).isEqualByComparingTo(new BigDecimal("0.01"));
-
-      BigDecimal rateFor1300M =
-          depotFeeTierRepository.findRateForAum(new BigDecimal("1300000000"), date);
-      assertThat(rateFor1300M).isEqualByComparingTo(new BigDecimal("0.005"));
-
-      BigDecimal rateFor1650M =
-          depotFeeTierRepository.findRateForAum(new BigDecimal("1650000000"), date);
-      assertThat(rateFor1650M).isEqualByComparingTo(new BigDecimal("0.0025"));
-
-      BigDecimal rateFor2000M =
-          depotFeeTierRepository.findRateForAum(new BigDecimal("2000000000"), date);
-      assertThat(rateFor2000M).isEqualByComparingTo(new BigDecimal("0.001"));
+      assertThat(depotFeeTierRepository.findRateForAum(new BigDecimal("500000000"), date))
+          .get(BIG_DECIMAL)
+          .isEqualByComparingTo(new BigDecimal("0.01"));
+      assertThat(depotFeeTierRepository.findRateForAum(new BigDecimal("1300000000"), date))
+          .get(BIG_DECIMAL)
+          .isEqualByComparingTo(new BigDecimal("0.005"));
+      assertThat(depotFeeTierRepository.findRateForAum(new BigDecimal("1650000000"), date))
+          .get(BIG_DECIMAL)
+          .isEqualByComparingTo(new BigDecimal("0.0025"));
+      assertThat(depotFeeTierRepository.findRateForAum(new BigDecimal("2000000000"), date))
+          .get(BIG_DECIMAL)
+          .isEqualByComparingTo(new BigDecimal("0.001"));
     }
 
     @Test
-    void findRateForAum_throwsWhenNoTierMatches() {
+    void findRateForAum_isEmptyWhenNoTierMatches() {
       LocalDate futureDate = LocalDate.of(2099, 1, 1);
       jdbcClient.sql("DELETE FROM investment_depot_fee_tier").update();
 
-      BigDecimal totalAum = new BigDecimal("1000000000");
-      assertThatThrownBy(() -> depotFeeTierRepository.findRateForAum(totalAum, futureDate))
-          .isInstanceOf(IllegalStateException.class)
-          .hasMessageContaining("No depot fee tier found")
-          .hasMessageContaining("totalAum=" + totalAum)
-          .hasMessageContaining("date=" + futureDate);
+      assertThat(depotFeeTierRepository.findRateForAum(new BigDecimal("1000000000"), futureDate))
+          .isEmpty();
     }
 
     private void insertDepotFeeTier(long minAum, String annualRate, LocalDate validFrom) {
@@ -229,9 +222,6 @@ class FeeRepositoriesIntegrationTest {
       assertThat(dailyAmountGross).isEqualByComparingTo(BigDecimal.TEN);
     }
 
-    // The previously deployed image reads daily_amount_net -- getUnsettledAccrual sums it straight
-    // into the NAV's fee liability -- so leaving it NULL would make a rollback publish an
-    // overstated unit price. Both columns carry the same amount until the column is dropped.
     @Test
     void save_writesTheSameAmountToTheColumnTheOlderImageStillReads() {
       FeeAccrual accrual =
@@ -485,10 +475,6 @@ class FeeRepositoriesIntegrationTest {
     }
   }
 
-  // rate_source carries three rules that would normally be CHECK constraints. They are asserted
-  // here instead because a CHECK added by ALTER is not re-evaluated correctly by H2 once a second
-  // Spring context has opened the shared test database -- see V1_244. This is what catches a
-  // migration that hand-writes a row breaking one of them.
   @Nested
   class RateSourceRulesHoldForEveryRow {
 
@@ -515,13 +501,6 @@ class FeeRepositoriesIntegrationTest {
     }
   }
 
-  // investment_fee_policy has no default and no fallback: FeeChargedToFundPolicy throws on an
-  // unconfigured fund and fee type, on overlapping rows and on a gap between rows. That throw
-  // happens inside the NAV run, so a new TulevaFund added without a policy row is a production NAV
-  // failure discovered at 08:00 rather than a red build. This is the red build.
-  //
-  // V1_243 says "add rows here when adding a fund" -- a comment cannot enforce itself, and the
-  // enum is the side that changes.
   @Nested
   class EveryFundAndFeeTypeHasAPolicy {
 
@@ -541,10 +520,6 @@ class FeeRepositoriesIntegrationTest {
       }
     }
 
-    // The fund's inception (the first day an accrual can exist) and today (the day the NAV run
-    // asks about) are the two ends that must be covered. In between, a gap can only open where one
-    // row stops and the next has not started, so probe every boundary the table itself declares:
-    // each valid_from, each valid_to, and the day after each valid_to.
     private List<LocalDate> datesToProbe(TulevaFund fund, FeeType feeType) {
       var dates = new ArrayList<LocalDate>();
       dates.add(fund.getInceptionDate());

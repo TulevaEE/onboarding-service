@@ -56,7 +56,6 @@ class FeeCalculationServiceTest {
         .thenAnswer(call -> alwaysCharged(call.getArgument(0), call.getArgument(1), true));
   }
 
-  // The policy is read once per run rather than per day, so the tests hand over a resolver.
   private FeeChargedToFundPolicy.Resolver alwaysCharged(
       TulevaFund fund, FeeType feeType, boolean chargedToFund) {
     return new FeeChargedToFundPolicy.Resolver(
@@ -92,9 +91,7 @@ class FeeCalculationServiceTest {
     service.calculateFeesForNav(
         TKF100, positionReportDate, new FeeBases(baseValue, baseValue), feeCutoff, null);
 
-    // the cost is still tracked
     verify(feeAccrualRepository).save(depotAccrual);
-    // but the fund's ledger only carries the fee the fund actually bears
     verify(navFeeAccrualLedger)
         .recordFeeAccrual(
             eq(TKF100), eq(positionReportDate), eq(MANAGEMENT_FEE_ACCRUAL), any(), any());

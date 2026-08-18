@@ -66,9 +66,6 @@ class LedgerAccrualConsistencyChecker {
     return List.of(failure(fund, feeType, divergences));
   }
 
-  // A fee Tuleva bears is accrued to record the cost but never posted to the fund's ledger, so an
-  // accrual with no ledger entry is the correct state, not a divergence. The check still bites the
-  // other way round: a ledger entry on a day the fund is not charged remains a failure.
   private Divergence divergenceOn(
       LocalDate date,
       BigDecimal accrual,

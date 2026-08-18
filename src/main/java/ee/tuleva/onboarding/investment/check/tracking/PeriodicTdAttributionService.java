@@ -255,10 +255,6 @@ public class PeriodicTdAttributionService {
         .reduce(ZERO, BigDecimal::add);
   }
 
-  // Resolved per accrual date, not once for the period: a policy that changes mid-period would
-  // otherwise apply the closing answer to every day before it. Reporting a quarter of real depot
-  // drag as zero does not lose the cost -- it moves it into the unexplained residual, which is the
-  // one bucket that is supposed to mean "we cannot account for this".
   private BigDecimal computeFeeDragPeriod(
       TulevaFund fund, List<FeeAccrual> accruals, FeeType feeType) {
     var charged = feeChargedToFundPolicy.resolverFor(fund, feeType);

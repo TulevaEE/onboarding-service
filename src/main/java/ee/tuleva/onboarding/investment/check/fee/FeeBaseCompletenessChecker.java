@@ -64,7 +64,7 @@ class FeeBaseCompletenessChecker {
     var totalDeviation = ZERO;
     var feeTypesSeenSoFar = EnumSet.noneOf(FeeType.class);
 
-    for (var date : datesAccruedOver(basesByDate)) {
+    for (var date : datesBetweenFirstAndLastAccrual(basesByDate)) {
       if (!publicHolidays.isWorkingDay(date)) {
         continue;
       }
@@ -114,17 +114,15 @@ class FeeBaseCompletenessChecker {
     return List.of(FeeCheckFinding.pass(fund, FEE_BASE_COMPLETENESS, ALL));
   }
 
-  // The ledger check cannot see this: the dropped day is absent from both the table and the ledger
-  // on that side. Calibrated from the window itself rather than from a start date or the rate
-  // configuration, so a fee type not in use yet raises nothing until it genuinely starts.
   private List<FeeType> feeTypesThatStoppedAccruing(
-      List<FeeBaseValue> bases, Set<FeeType> seenSoFar) {
+      List<FeeBaseValue> bases, Set<FeeType> seenEarlierInThisWindow) {
     var present = bases.stream().map(FeeBaseValue::feeType).collect(toSet());
-    return seenSoFar.stream().filter(feeType -> !present.contains(feeType)).sorted().toList();
+    return seenEarlierInThisWindow.stream()
+        .filter(feeType -> !present.contains(feeType))
+        .sorted()
+        .toList();
   }
 
-  // Empty when nav_report cannot answer for one of the day's fee types, which is a day the check
-  // did not run rather than a deviation.
   private Optional<Map<FeeType, BigDecimal>> expectedBases(
       TulevaFund fund, List<FeeBaseValue> bases, LocalDate date) {
     var expected = new EnumMap<FeeType, BigDecimal>(FeeType.class);
@@ -138,11 +136,6 @@ class FeeBaseCompletenessChecker {
     return Optional.of(expected);
   }
 
-  // Each fee type against the base its own contract names, because they are different numbers: the
-  // management fee is charged on netovara (Tingimused 18.2.1) and the depot fee on aktiva, the
-  // asset side gross (Depooleping). Comparing the two accruals to each other instead would fail
-  // every day the fund has payables or pending redemptions, and would still not notice a depot
-  // base that was quietly handed the net figure -- the one error the split makes possible.
   private Optional<BigDecimal> expectedBase(TulevaFund fund, FeeType feeType, LocalDate date) {
     return feeType == FeeType.DEPOT
         ? fundNavQueryService
@@ -153,23 +146,19 @@ class FeeBaseCompletenessChecker {
             .map(total -> total.add(navFeeBaseBlackrockAdjustment(fund, date)));
   }
 
-  // NavReportMapper omits both BlackRock rows for savings funds, so their fee base carries an
-  // adjustment that nav_report cannot show. Read it from the ledger instead.
   private BigDecimal navFeeBaseBlackrockAdjustment(TulevaFund fund, LocalDate positionReportDate) {
-    return fund.isSavingsFund() ? blackrockAdjustment(fund, positionReportDate) : ZERO;
+    return fund.isSavingsFund()
+        ? blackrockAdjustmentMissingFromNavReport(fund, positionReportDate)
+        : ZERO;
   }
 
-  // Only the part of the adjustment that nav_report put on the asset side. NavReportMapper splits
-  // it -- the positive part becomes a RECEIVABLES row and the negative part a LIABILITY one -- and
-  // findAssetTotal reads the first only. The accrual's base carries the whole signed amount, so a
-  // negative adjustment has to be added back or a correct base would read as short by exactly it.
-  // For a savings fund neither row is written, so the whole amount comes from the ledger.
   private BigDecimal assetSideBlackrockAdjustment(TulevaFund fund, LocalDate positionReportDate) {
-    var adjustment = blackrockAdjustment(fund, positionReportDate);
+    var adjustment = blackrockAdjustmentMissingFromNavReport(fund, positionReportDate);
     return fund.isSavingsFund() ? adjustment : adjustment.min(ZERO);
   }
 
-  private BigDecimal blackrockAdjustment(TulevaFund fund, LocalDate positionReportDate) {
+  private BigDecimal blackrockAdjustmentMissingFromNavReport(
+      TulevaFund fund, LocalDate positionReportDate) {
     var balance =
         navLedgerRepository.getSystemAccountBalanceBefore(
             SystemAccount.BLACKROCK_ADJUSTMENT.getAccountName(fund),
@@ -185,9 +174,8 @@ class FeeBaseCompletenessChecker {
         .toInstant();
   }
 
-  // Calibrated from the window's own contents: a window opening before the fund started charging,
-  // or closing before today's run has posted, has skipped nothing and must raise nothing.
-  private List<LocalDate> datesAccruedOver(SortedMap<LocalDate, List<FeeBaseValue>> basesByDate) {
+  private List<LocalDate> datesBetweenFirstAndLastAccrual(
+      SortedMap<LocalDate, List<FeeBaseValue>> basesByDate) {
     if (basesByDate.isEmpty()) {
       return List.of();
     }

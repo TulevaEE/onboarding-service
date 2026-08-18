@@ -22,6 +22,7 @@ import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
 import ee.tuleva.onboarding.investment.fees.FeeRate;
 import ee.tuleva.onboarding.investment.fees.FeeRateRepository;
+import ee.tuleva.onboarding.investment.fees.FeeRateSource;
 import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.fees.InstrumentFeeRepository;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
@@ -360,7 +361,13 @@ class PeriodicTdAttributionServiceTest {
         .willReturn(
             Optional.of(
                 new FeeRate(
-                    1L, TUK75, FeeType.MANAGEMENT, new BigDecimal("0.0027"), PERIOD_START, null)));
+                    1L,
+                    TUK75,
+                    FeeType.MANAGEMENT,
+                    new BigDecimal("0.0027"),
+                    FeeRateSource.FIXED,
+                    PERIOD_START,
+                    null)));
     given(
             modelPortfolioAllocationRepository.findVersionsActiveDuringPeriod(
                 TUK75, PERIOD_START, PERIOD_END))
@@ -402,7 +409,13 @@ class PeriodicTdAttributionServiceTest {
         .willReturn(
             Optional.of(
                 new FeeRate(
-                    1L, TUK75, FeeType.MANAGEMENT, new BigDecimal("0.0027"), PERIOD_START, null)));
+                    1L,
+                    TUK75,
+                    FeeType.MANAGEMENT,
+                    new BigDecimal("0.0027"),
+                    FeeRateSource.FIXED,
+                    PERIOD_START,
+                    null)));
     given(
             modelPortfolioAllocationRepository.findVersionsActiveDuringPeriod(
                 TUK75, PERIOD_START, PERIOD_END))
@@ -425,9 +438,6 @@ class PeriodicTdAttributionServiceTest {
     assertThat(result.mgmtFeeDrag()).isNegative();
   }
 
-  // The policy is resolved per accrual date, so a fee the fund stops bearing mid-period counts for
-  // the days it did bear it. Resolving once at periodEnd would report those days as zero drag and
-  // push a real cost into the unexplained residual.
   @Test
   void countsDepotFeeDragOnlyForTheDaysTheFundActuallyBoreIt() {
     var chargedDay = LocalDate.of(2026, 4, 10);
@@ -472,8 +482,6 @@ class PeriodicTdAttributionServiceTest {
 
     var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
 
-    // Only the 10 April accrual counts: 6.85 / 100000000, negated and rounded to the attribution
-    // scale. Counting both days would give -0.00000014.
     assertThat(result.depotFeeDrag()).isEqualByComparingTo(new BigDecimal("-0.00000007"));
   }
 
@@ -599,7 +607,13 @@ class PeriodicTdAttributionServiceTest {
         .willReturn(
             Optional.of(
                 new FeeRate(
-                    1L, TUK75, FeeType.MANAGEMENT, new BigDecimal("0.0027"), PERIOD_START, null)));
+                    1L,
+                    TUK75,
+                    FeeType.MANAGEMENT,
+                    new BigDecimal("0.0027"),
+                    FeeRateSource.FIXED,
+                    PERIOD_START,
+                    null)));
 
     given(
             modelPortfolioAllocationRepository.findVersionsActiveDuringPeriod(
@@ -715,7 +729,13 @@ class PeriodicTdAttributionServiceTest {
         .willReturn(
             Optional.of(
                 new FeeRate(
-                    1L, TUK75, FeeType.MANAGEMENT, new BigDecimal("0.0027"), PERIOD_START, null)));
+                    1L,
+                    TUK75,
+                    FeeType.MANAGEMENT,
+                    new BigDecimal("0.0027"),
+                    FeeRateSource.FIXED,
+                    PERIOD_START,
+                    null)));
 
     given(
             modelPortfolioAllocationRepository.findVersionsActiveDuringPeriod(

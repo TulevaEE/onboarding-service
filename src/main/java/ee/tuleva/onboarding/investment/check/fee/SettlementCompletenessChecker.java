@@ -29,9 +29,6 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-// Settlement sweeps the whole outstanding balance rather than a computed amount, so every invariant
-// here is an exact identity between two-decimal quantities from one code path. A tolerance on any
-// of them could only ever hide a real defect.
 @Component
 class SettlementCompletenessChecker {
 
@@ -56,7 +53,7 @@ class SettlementCompletenessChecker {
   List<FeeCheckFinding> check(TulevaFund fund, LocalDate feeMonth, LocalDate checkDate) {
     var nextMonth = feeMonth.plusMonths(1);
     if (!feeAccrualRepository.existsByFundAndFeeMonth(fund, nextMonth)) {
-      return monthNotCrossed(fund, feeMonth, nextMonth, checkDate);
+      return reportAccrualLoopHasNotCrossedTheMonth(fund, feeMonth, nextMonth, checkDate);
     }
     var findings = new ArrayList<FeeCheckFinding>();
     for (var feeType : FeeType.values()) {
@@ -65,10 +62,7 @@ class SettlementCompletenessChecker {
     return findings;
   }
 
-  // Settlement only ever fires from inside the accrual loop, so a stalled NAV pipeline is exactly
-  // the case where settlement never happens. An unbounded precondition would stay quiet forever
-  // about the one failure it most needs to report.
-  private List<FeeCheckFinding> monthNotCrossed(
+  private List<FeeCheckFinding> reportAccrualLoopHasNotCrossedTheMonth(
       TulevaFund fund, LocalDate feeMonth, LocalDate nextMonth, LocalDate checkDate) {
     var graceEnds = businessDays.nthBusinessDayOfMonth(nextMonth, graceBusinessDays);
     var stalled = !checkDate.isBefore(graceEnds);
@@ -94,6 +88,10 @@ class SettlementCompletenessChecker {
                     null,
                     Map.of("feeMonth", feeMonth.toString(), "graceEnds", graceEnds.toString())))
         .toList();
+  }
+
+  private static boolean isExactly(BigDecimal amount, BigDecimal expected) {
+    return amount.compareTo(expected) == 0;
   }
 
   private List<FeeCheckFinding> checkFeeType(TulevaFund fund, LocalDate feeMonth, FeeType feeType) {
@@ -144,7 +142,7 @@ class SettlementCompletenessChecker {
               closing,
               details));
     }
-    if (settled.compareTo(expectedSettlement) != 0) {
+    if (!isExactly(settled, expectedSettlement)) {
       findings.add(
           finding(
               fund,

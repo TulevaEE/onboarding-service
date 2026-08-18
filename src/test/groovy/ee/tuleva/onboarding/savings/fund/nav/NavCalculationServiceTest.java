@@ -103,8 +103,6 @@ class NavCalculationServiceTest {
     when(subscriptionsComponent.calculate(any())).thenReturn(new BigDecimal("25000.00"));
     when(blackrockAdjustmentComponent.calculate(any())).thenReturn(new BigDecimal("500.00"));
     when(redemptionsComponent.calculate(any())).thenReturn(new BigDecimal("10500.00"));
-    // assets 985500.00 = 900000 + 50000 + 10000 + 25000 + 500; net base takes off
-    // payables 5000 and pending redemptions 10500
     FeeBases expectedBases = new FeeBases(new BigDecimal("970000.00"), new BigDecimal("985500.00"));
     when(feeCalculationService.calculateFeesForNav(
             eq(TKF100), eq(previousWorkingDay), eq(expectedBases), any(), any()))
@@ -443,7 +441,6 @@ class NavCalculationServiceTest {
         .calculateFeesForNav(
             eq(TKF100),
             any(),
-            // nothing to net off here, so both bases are the same 1M of cash
             eq(new FeeBases(new BigDecimal("1000000"), new BigDecimal("1000000"))),
             any(),
             any());

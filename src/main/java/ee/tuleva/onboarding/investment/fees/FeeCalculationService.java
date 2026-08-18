@@ -88,9 +88,6 @@ public class FeeCalculationService {
             .map(d -> d.plusDays(1))
             .orElse(positionReportDate);
 
-    // Carried forward per fee type, because the two no longer share a base. Reading the latest
-    // accrual without saying which fee it belonged to would hand the depot fee's gross assets to
-    // the management fee, or the other way round, on every gap day.
     FeeBases previousBases =
         new FeeBases(
             feeAccrualRepository
@@ -107,8 +104,6 @@ public class FeeCalculationService {
         startDate,
         !startDate.isAfter(positionReportDate));
 
-    // Read once for the whole run rather than per day: the policy cannot change underneath a
-    // single call, and a backfill walks hundreds of days.
     Map<FeeType, FeeChargedToFundPolicy.Resolver> chargedPolicies =
         Arrays.stream(FeeType.values())
             .collect(

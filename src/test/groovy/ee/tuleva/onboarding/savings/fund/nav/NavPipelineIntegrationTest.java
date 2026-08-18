@@ -101,8 +101,6 @@ class NavPipelineIntegrationTest {
       assertThat(result.receivables()).isEqualByComparingTo(navData.tradeReceivables);
       assertThat(result.payables()).isEqualByComparingTo(navData.tradePayables.negate());
       assertThat(result.managementFeeAccrual()).isPositive();
-      // The manual calculations carry a 0.00 custody fee, and investment_fee_policy keeps the
-      // depot fee out of NAV, so this checks the golden file rather than the rate set above.
       assertThat(result.depotFeeAccrual()).isEqualByComparingTo(navData.depotFeeAccrual.negate());
       assertThat(result.unitsOutstanding().setScale(3, HALF_UP))
           .isEqualByComparingTo(navData.unitsOutstanding.setScale(3, HALF_UP));
@@ -415,8 +413,6 @@ class NavPipelineIntegrationTest {
     insertDepotTierRate(TUK75);
     insertDepotFeeTier(new BigDecimal("0.01"));
 
-    // The premise of this test: a fund that IS charged the depot fee, next to one that is not.
-    // Closed before TKF100's own policy row starts, so the two never overlap.
     insertFeePolicy(TKF100, "DEPOT", true, LocalDate.of(2025, 1, 1), LocalDate.of(2026, 2, 1));
 
     Instant feeCutoff =
@@ -459,7 +455,6 @@ class NavPipelineIntegrationTest {
     assertThat(tkf100DepotBalance).isNotEqualByComparingTo(ZERO);
     assertThat(tkf100MgmtBalance).isNotEqualByComparingTo(tuk75MgmtBalance);
 
-    // TUK75 accrues the depot fee for cost tracking, but nothing reaches its ledger
     assertThat(getSystemAccountBalance(DEPOT_FEE_ACCRUAL, TUK75)).isEqualByComparingTo(ZERO);
     assertThat(
             jdbcClient
@@ -539,7 +534,6 @@ class NavPipelineIntegrationTest {
         .update();
   }
 
-  /** Declares that this fund's depot rate comes from the AUM tier table. */
   private void insertDepotTierRate(TulevaFund fund) {
     jdbcClient
         .sql(

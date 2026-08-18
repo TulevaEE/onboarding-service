@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.investment.position.AccountType.FEE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
@@ -24,6 +25,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -52,12 +54,27 @@ class FeeAccrualPositionSyncJobTest {
 
   @InjectMocks private FeeAccrualPositionSyncJob syncJob;
 
-  @org.junit.jupiter.api.BeforeEach
+  @BeforeEach
   void defaultFeesChargedToFund() {
-    when(feeChargedToFundPolicy.resolverFor(any(), any()))
-        .thenAnswer(
+    given(feeChargedToFundPolicy.resolverFor(any(), any()))
+        .willAnswer(
             invocation ->
                 resolver(invocation.getArgument(0), invocation.getArgument(1), CHARGED_TO_FUND));
+  }
+
+  private static FundPosition feeAccrualPosition(
+      LocalDate navDate, String accountName, BigDecimal marketValue) {
+    return FundPosition.builder()
+        .navDate(navDate)
+        .fund(TKF100)
+        .accountType(FEE)
+        .accountName(accountName)
+        .quantity(BigDecimal.ONE)
+        .marketPrice(marketValue)
+        .currency("EUR")
+        .marketValue(marketValue)
+        .createdAt(NOW)
+        .build();
   }
 
   private static FeeChargedToFundPolicy.Resolver resolver(
@@ -70,17 +87,17 @@ class FeeAccrualPositionSyncJobTest {
 
   @Test
   void sync_writesFeeAccrualLiabilityPositions() {
-    when(clock.instant()).thenReturn(NOW);
-    when(clock.getZone()).thenReturn(ZONE);
+    given(clock.instant()).willReturn(NOW);
+    given(clock.getZone()).willReturn(ZONE);
 
     var navDate = LocalDate.of(2025, 3, 10);
-    when(fundPositionRepository.findDistinctNavDatesByFund(any())).thenReturn(List.of());
-    when(fundPositionRepository.findDistinctNavDatesByFund(TKF100)).thenReturn(List.of(navDate));
+    given(fundPositionRepository.findDistinctNavDatesByFund(any())).willReturn(List.of());
+    given(fundPositionRepository.findDistinctNavDatesByFund(TKF100)).willReturn(List.of(navDate));
 
-    when(feeAccrualRepository.getUnsettledAccrual(TKF100, MANAGEMENT, navDate))
-        .thenReturn(new BigDecimal("52.08"));
-    when(feeAccrualRepository.getUnsettledAccrual(TKF100, DEPOT, navDate))
-        .thenReturn(new BigDecimal("6.85"));
+    given(feeAccrualRepository.getUnsettledAccrual(TKF100, MANAGEMENT, navDate))
+        .willReturn(new BigDecimal("52.08"));
+    given(feeAccrualRepository.getUnsettledAccrual(TKF100, DEPOT, navDate))
+        .willReturn(new BigDecimal("6.85"));
 
     syncJob.sync(7);
 
@@ -106,16 +123,16 @@ class FeeAccrualPositionSyncJobTest {
 
   @Test
   void sync_filtersNavDatesToLastNDays() {
-    when(clock.instant()).thenReturn(NOW);
-    when(clock.getZone()).thenReturn(ZONE);
+    given(clock.instant()).willReturn(NOW);
+    given(clock.getZone()).willReturn(ZONE);
 
     var recentDate = LocalDate.of(2025, 3, 10);
     var oldDate = LocalDate.of(2025, 2, 1);
-    when(fundPositionRepository.findDistinctNavDatesByFund(any()))
-        .thenReturn(List.of(oldDate, recentDate));
+    given(fundPositionRepository.findDistinctNavDatesByFund(any()))
+        .willReturn(List.of(oldDate, recentDate));
 
-    when(feeAccrualRepository.getUnsettledAccrual(any(), any(), eq(recentDate)))
-        .thenReturn(BigDecimal.ZERO);
+    given(feeAccrualRepository.getUnsettledAccrual(any(), any(), eq(recentDate)))
+        .willReturn(BigDecimal.ZERO);
 
     syncJob.sync(7);
 
@@ -125,41 +142,39 @@ class FeeAccrualPositionSyncJobTest {
 
   @Test
   void sync_reportsZeroForAFeeTheFundIsNotChargedAndDoesNotReadTheAccrual() {
-    when(clock.instant()).thenReturn(NOW);
-    when(clock.getZone()).thenReturn(ZONE);
-    when(feeChargedToFundPolicy.resolverFor(TKF100, DEPOT))
-        .thenReturn(resolver(TKF100, DEPOT, BORNE_BY_TULEVA));
+    given(clock.instant()).willReturn(NOW);
+    given(clock.getZone()).willReturn(ZONE);
+    given(feeChargedToFundPolicy.resolverFor(TKF100, DEPOT))
+        .willReturn(resolver(TKF100, DEPOT, BORNE_BY_TULEVA));
 
     var navDate = LocalDate.of(2025, 3, 10);
-    when(fundPositionRepository.findDistinctNavDatesByFund(any())).thenReturn(List.of());
-    when(fundPositionRepository.findDistinctNavDatesByFund(TKF100)).thenReturn(List.of(navDate));
-    when(feeAccrualRepository.getUnsettledAccrual(TKF100, MANAGEMENT, navDate))
-        .thenReturn(new BigDecimal("52.08"));
+    given(fundPositionRepository.findDistinctNavDatesByFund(any())).willReturn(List.of());
+    given(fundPositionRepository.findDistinctNavDatesByFund(TKF100)).willReturn(List.of(navDate));
+    given(feeAccrualRepository.getUnsettledAccrual(TKF100, MANAGEMENT, navDate))
+        .willReturn(new BigDecimal("52.08"));
 
     syncJob.sync(7);
 
-    @SuppressWarnings("unchecked")
-    ArgumentCaptor<List<FundPosition>> captor = ArgumentCaptor.forClass(List.class);
-    verify(fundPositionImportService).upsertPositions(captor.capture());
-
-    var positions = captor.getValue();
-    assertThat(positions.get(0).getMarketValue()).isEqualByComparingTo("-52.08");
-    assertThat(positions.get(1).getAccountName()).isEqualTo("Depot Fee Accrual");
-    assertThat(positions.get(1).getMarketValue()).isEqualByComparingTo("0");
+    verify(fundPositionImportService)
+        .upsertPositions(
+            List.of(
+                feeAccrualPosition(navDate, "Management Fee Accrual", new BigDecimal("-52.08")),
+                feeAccrualPosition(navDate, "Depot Fee Accrual", BigDecimal.ZERO)));
     verify(feeAccrualRepository, never()).getUnsettledAccrual(TKF100, DEPOT, navDate);
   }
 
   @Test
   void sync_readsThePolicyOncePerFeeTypeRatherThanOncePerDate() {
-    when(clock.instant()).thenReturn(NOW);
-    when(clock.getZone()).thenReturn(ZONE);
+    given(clock.instant()).willReturn(NOW);
+    given(clock.getZone()).willReturn(ZONE);
 
-    when(fundPositionRepository.findDistinctNavDatesByFund(any())).thenReturn(List.of());
-    when(fundPositionRepository.findDistinctNavDatesByFund(TKF100))
-        .thenReturn(
+    given(fundPositionRepository.findDistinctNavDatesByFund(any())).willReturn(List.of());
+    given(fundPositionRepository.findDistinctNavDatesByFund(TKF100))
+        .willReturn(
             List.of(
                 LocalDate.of(2025, 3, 10), LocalDate.of(2025, 3, 11), LocalDate.of(2025, 3, 12)));
-    when(feeAccrualRepository.getUnsettledAccrual(any(), any(), any())).thenReturn(BigDecimal.ZERO);
+    given(feeAccrualRepository.getUnsettledAccrual(any(), any(), any()))
+        .willReturn(BigDecimal.ZERO);
 
     syncJob.sync(7);
 
@@ -170,9 +185,9 @@ class FeeAccrualPositionSyncJobTest {
 
   @Test
   void positionsImportedEventTriggersASyncAndAnnouncesTheResult() {
-    when(clock.instant()).thenReturn(NOW);
-    when(clock.getZone()).thenReturn(ZONE);
-    when(fundPositionRepository.findDistinctNavDatesByFund(any())).thenReturn(List.of());
+    given(clock.instant()).willReturn(NOW);
+    given(clock.getZone()).willReturn(ZONE);
+    given(fundPositionRepository.findDistinctNavDatesByFund(any())).willReturn(List.of());
 
     syncJob.onFundPositionsImported(new FundPositionsImported());
 
@@ -183,9 +198,9 @@ class FeeAccrualPositionSyncJobTest {
 
   @Test
   void anAdHocRequestTriggersASyncWithoutAnnouncingTheResult() {
-    when(clock.instant()).thenReturn(NOW);
-    when(clock.getZone()).thenReturn(ZONE);
-    when(fundPositionRepository.findDistinctNavDatesByFund(any())).thenReturn(List.of());
+    given(clock.instant()).willReturn(NOW);
+    given(clock.getZone()).willReturn(ZONE);
+    given(fundPositionRepository.findDistinctNavDatesByFund(any())).willReturn(List.of());
 
     syncJob.onFeeAccrualPositionSyncRequested(new RunFeeAccrualPositionSyncRequested());
 
@@ -196,9 +211,9 @@ class FeeAccrualPositionSyncJobTest {
 
   @Test
   void theBackfillJobSyncsTheSameWindowWithoutTouchingThePipelineTracker() {
-    when(clock.instant()).thenReturn(NOW);
-    when(clock.getZone()).thenReturn(ZONE);
-    when(fundPositionRepository.findDistinctNavDatesByFund(any())).thenReturn(List.of());
+    given(clock.instant()).willReturn(NOW);
+    given(clock.getZone()).willReturn(ZONE);
+    given(fundPositionRepository.findDistinctNavDatesByFund(any())).willReturn(List.of());
 
     syncJob.backfill();
 

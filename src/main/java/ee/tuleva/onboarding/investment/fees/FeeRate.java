@@ -15,16 +15,6 @@ public record FeeRate(
     LocalDate validFrom,
     LocalDate validTo) {
 
-  public FeeRate(
-      Long id,
-      TulevaFund fund,
-      FeeType feeType,
-      BigDecimal annualRate,
-      LocalDate validFrom,
-      LocalDate validTo) {
-    this(id, fund, feeType, annualRate, FeeRateSource.FIXED, validFrom, validTo);
-  }
-
   public boolean isTierBased() {
     return rateSource == FeeRateSource.TIER;
   }

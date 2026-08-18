@@ -7,17 +7,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
-/**
- * Decides whether a fee is charged to the fund (it reduces NAV and is posted to the fund's ledger)
- * or borne by Tuleva (it is only accrued to track the cost).
- *
- * <p>Every fund and fee type must have an explicit row. An unconfigured pair, overlapping rows and
- * gaps between rows all throw rather than falling back to a default: guessing "charged" would
- * silently put a fee back into a published unit price, and guessing "not charged" would silently
- * stop the management fee from accruing. Failing the NAV run is the recoverable outcome; both
- * guesses are not. Dates before the earliest row predate the fund and answer with that first row,
- * the founding policy.
- */
 @Component
 @RequiredArgsConstructor
 public class FeeChargedToFundPolicy {
@@ -28,11 +17,6 @@ public class FeeChargedToFundPolicy {
     return resolverFor(fund, feeType).chargedOn(date);
   }
 
-  /**
-   * Reads the policy once for callers that ask about many dates -- a period of accruals, a window
-   * of daily checks. Asking per date would repeat the same query for every day of the window, and
-   * the answer cannot change underneath a single run.
-   */
   public Resolver resolverFor(TulevaFund fund, FeeType feeType) {
     List<Policy> rows =
         jdbcClient
@@ -79,13 +63,8 @@ public class FeeChargedToFundPolicy {
       if (applicable.size() == 1) {
         return applicable.getFirst().chargedToFund();
       }
-
-      // Rows start at the fund's inception, so a date before the first one predates the fund. Read
-      // it as the founding policy still standing rather than as an absence of one, which would
-      // silently stop the management fee from accruing. A gap between rows is a mistake, not a
-      // statement, and must not resolve to either answer by accident.
-      if (date.isBefore(rows.getFirst().validFrom())) {
-        return rows.getFirst().chargedToFund();
+      if (predatesTheFoundingPolicy(date)) {
+        return foundingPolicy().chargedToFund();
       }
       throw new IllegalStateException(
           "Gap in the fee policy, no row covers this date: fund="
@@ -94,6 +73,14 @@ public class FeeChargedToFundPolicy {
               + feeType
               + ", date="
               + date);
+    }
+
+    private boolean predatesTheFoundingPolicy(LocalDate date) {
+      return date.isBefore(foundingPolicy().validFrom());
+    }
+
+    private Policy foundingPolicy() {
+      return rows.getFirst();
     }
   }
 

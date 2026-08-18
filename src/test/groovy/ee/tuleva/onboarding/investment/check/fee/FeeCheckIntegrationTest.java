@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.fees.FeeBases;
 import ee.tuleva.onboarding.investment.fees.FeeCalculationService;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.math.BigDecimal;
@@ -42,6 +43,8 @@ class FeeCheckIntegrationTest {
   private static final BigDecimal CUSTODIAN_CASH = new BigDecimal("500000.00");
   private static final BigDecimal TRADE_PAYABLES = new BigDecimal("-91782.00");
   private static final BigDecimal PENDING_REDEMPTIONS = new BigDecimal("-12000.00");
+  private static final BigDecimal ASSET_VALUE =
+      BASE_VALUE.subtract(TRADE_PAYABLES).subtract(PENDING_REDEMPTIONS);
 
   @Autowired private FeeCheckService feeCheckService;
   @Autowired private FeeCalculationService feeCalculationService;
@@ -84,14 +87,17 @@ class FeeCheckIntegrationTest {
     insertNavReportRow(
         DAY_THREE, "LIABILITY", "Payables of redeemed units", pendingRedemptions.negate());
 
-    var buggyBase = securities;
-    insertAccrual(TUK75, "MANAGEMENT", DAY_THREE, buggyBase, new BigDecimal("6712.33"));
-    insertAccrual(TUK75, "DEPOT", DAY_THREE, buggyBase, new BigDecimal("268.49"));
+    var managementBaseMissingBothTerms = securities;
+    insertAccrual(
+        TUK75, "MANAGEMENT", DAY_THREE, managementBaseMissingBothTerms, new BigDecimal("6712.33"));
+    insertAccrual(
+        TUK75, "DEPOT", DAY_THREE, securities.add(blackrockAdjustment), new BigDecimal("268.49"));
 
     feeCheckService.runDailyChecks(List.of(TUK75), DAY_THREE);
 
     var event = findEvent(TUK75, "FEE_BASE_COMPLETENESS", "ALL");
     assertThat(event.get("severity")).isEqualTo("FAIL");
+    assertThat(asText(event.get("result"))).contains("MANAGEMENT");
     assertThat((BigDecimal) event.get("deviation_amount"))
         .isEqualByComparingTo(blackrockAdjustment.subtract(pendingRedemptions));
   }
@@ -256,7 +262,8 @@ class FeeCheckIntegrationTest {
 
   private void accrueFor(LocalDate date) {
     var cutoff = date.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
-    feeCalculationService.calculateFeesForNav(TUK75, date, BASE_VALUE, cutoff, null);
+    feeCalculationService.calculateFeesForNav(
+        TUK75, date, new FeeBases(BASE_VALUE, ASSET_VALUE), cutoff, null);
   }
 
   private void correctAccrualWithoutTouchingLedger(LocalDate date, BigDecimal amount) {

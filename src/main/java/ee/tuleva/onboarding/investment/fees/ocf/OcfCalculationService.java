@@ -119,7 +119,7 @@ public class OcfCalculationService {
       return ZERO;
     }
     var totalSecurityAum = fundPositionRepository.sumSecurityMarketValueAllFunds(latestNavDate);
-    return depotFeeTierRepository.findRateForAum(totalSecurityAum, asOf);
+    return depotFeeTierRepository.findRateForAum(totalSecurityAum, asOf).orElse(ZERO);
   }
 
   BigDecimal getUnderlyingFundCost(TulevaFund fund, LocalDate asOf) {

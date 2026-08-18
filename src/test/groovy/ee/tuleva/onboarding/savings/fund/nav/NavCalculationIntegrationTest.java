@@ -82,9 +82,6 @@ class NavCalculationIntegrationTest {
     assertThat(result.receivables()).isEqualByComparingTo(csvData.tradeReceivables);
     assertThat(result.payables()).isEqualByComparingTo(csvData.tradePayables.negate());
     assertThat(result.managementFeeAccrual()).isPositive();
-    // The manual calculations carry a 0.00 custody fee, and investment_fee_policy keeps the
-    // depot fee out of NAV, so this now checks against the golden file rather than the
-    // synthetic rate in setUp().
     assertThat(result.depotFeeAccrual()).isEqualByComparingTo(csvData.depotFeeAccrual.negate());
     assertThat(result.unitsOutstanding().setScale(3, HALF_UP))
         .isEqualByComparingTo(csvData.unitsOutstanding.setScale(3, HALF_UP));
@@ -266,8 +263,6 @@ class NavCalculationIntegrationTest {
     // Fees computed inline from base value (securitiesValue + cash)
     assertThat(result.managementFeeAccrual()).isPositive();
 
-    // The depoopank charges TUK75 directly, so the depot fee is accrued for accounting
-    // but kept out of NAV (investment_fee_policy seeded by V1_243).
     assertThat(result.depotFeeAccrual()).isEqualByComparingTo(ZERO);
     assertThat(accruedDepotFee(TUK75, priceDate)).isPositive();
   }

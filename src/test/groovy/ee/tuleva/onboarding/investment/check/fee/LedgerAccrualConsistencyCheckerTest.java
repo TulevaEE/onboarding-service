@@ -130,8 +130,6 @@ class LedgerAccrualConsistencyCheckerTest {
     assertThat(findings.getFirst().message()).contains(DAY_ONE.toString(), DAY_TWO.toString());
   }
 
-  // A fee Tuleva bears is accrued to record the cost and deliberately never posted to the fund's
-  // ledger. Without this the depot check would fail every single day for every fund.
   @Test
   void anAccrualWithNoLedgerEntryPassesWhenTheFundIsNotChargedTheFee() {
     givenChargedToFund(false);

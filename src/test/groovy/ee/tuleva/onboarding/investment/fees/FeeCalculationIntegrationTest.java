@@ -39,7 +39,8 @@ class FeeCalculationIntegrationTest {
   void calculateFeesForNav_savesManagementFeeAccrual() {
     Instant feeCutoff = TEST_DATE.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
 
-    feeCalculationService.calculateFeesForNav(TUK75, TEST_DATE, BASE_VALUE, feeCutoff, null);
+    feeCalculationService.calculateFeesForNav(
+        TUK75, TEST_DATE, new FeeBases(BASE_VALUE, BASE_VALUE), feeCutoff, null);
 
     var accrual = findAccrual(TUK75, FeeType.MANAGEMENT, TEST_DATE);
     assertThat(accrual.fund()).isEqualTo(TUK75);
@@ -55,7 +56,8 @@ class FeeCalculationIntegrationTest {
   void calculateFeesForNav_savesDepotFeeAccrual() {
     Instant feeCutoff = TEST_DATE.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
 
-    feeCalculationService.calculateFeesForNav(TUK75, TEST_DATE, BASE_VALUE, feeCutoff, null);
+    feeCalculationService.calculateFeesForNav(
+        TUK75, TEST_DATE, new FeeBases(BASE_VALUE, BASE_VALUE), feeCutoff, null);
 
     var accrual = findAccrual(TUK75, FeeType.DEPOT, TEST_DATE);
     assertThat(accrual.fund()).isEqualTo(TUK75);
@@ -68,11 +70,13 @@ class FeeCalculationIntegrationTest {
   void calculateFeesForNav_isIdempotent() {
     Instant feeCutoff = TEST_DATE.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
 
-    feeCalculationService.calculateFeesForNav(TKF100, TEST_DATE, BASE_VALUE, feeCutoff, null);
+    feeCalculationService.calculateFeesForNav(
+        TKF100, TEST_DATE, new FeeBases(BASE_VALUE, BASE_VALUE), feeCutoff, null);
     var firstAccrual = findAccrual(TKF100, FeeType.MANAGEMENT, TEST_DATE);
     int ledgerEntriesAfterFirst = countLedgerEntries();
 
-    feeCalculationService.calculateFeesForNav(TKF100, TEST_DATE, BASE_VALUE, feeCutoff, null);
+    feeCalculationService.calculateFeesForNav(
+        TKF100, TEST_DATE, new FeeBases(BASE_VALUE, BASE_VALUE), feeCutoff, null);
     var secondAccrual = findAccrual(TKF100, FeeType.MANAGEMENT, TEST_DATE);
     int ledgerEntriesAfterSecond = countLedgerEntries();
 
@@ -86,7 +90,8 @@ class FeeCalculationIntegrationTest {
     Instant feeCutoff = TEST_DATE.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
 
     FeeResult result =
-        feeCalculationService.calculateFeesForNav(TKF100, TEST_DATE, BASE_VALUE, feeCutoff, null);
+        feeCalculationService.calculateFeesForNav(
+            TKF100, TEST_DATE, new FeeBases(BASE_VALUE, BASE_VALUE), feeCutoff, null);
 
     assertThat(result.managementFeeAccrual()).isPositive();
     assertThat(result.depotFeeAccrual()).isPositive();

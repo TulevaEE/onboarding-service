@@ -18,8 +18,9 @@ public class ManagementFeeCalculator implements FeeCalculator {
   private final FeeMonthResolver feeMonthResolver;
 
   @Override
-  public FeeAccrual calculate(TulevaFund fund, LocalDate calendarDate, BigDecimal baseValue) {
+  public FeeAccrual calculate(TulevaFund fund, LocalDate calendarDate, FeeBases bases) {
     LocalDate feeMonth = feeMonthResolver.resolveFeeMonth(calendarDate);
+    BigDecimal baseValue = bases.navFeeBase();
 
     FeeRate rate =
         feeRateRepository

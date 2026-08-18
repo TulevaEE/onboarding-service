@@ -128,16 +128,17 @@ public class FeeAccrualRepository {
         .optional();
   }
 
-  public Optional<BigDecimal> findLatestBaseValue(TulevaFund fund) {
+  public Optional<BigDecimal> findLatestBaseValue(TulevaFund fund, FeeType feeType) {
     return jdbcClient
         .sql(
             """
             SELECT base_value FROM investment_fee_accrual
-            WHERE fund_code = :fundCode
+            WHERE fund_code = :fundCode AND fee_type = :feeType
             ORDER BY accrual_date DESC
             LIMIT 1
             """)
         .param("fundCode", fund.name())
+        .param("feeType", feeType.name())
         .query(BigDecimal.class)
         .optional();
   }
@@ -188,13 +189,6 @@ public class FeeAccrualRepository {
         .update();
   }
 
-  // daily_amount_net is written with the same amount as daily_amount_gross, not because the two
-  // mean different things -- there is no VAT step after the rate, so they cannot -- but because the
-  // previously deployed image still reads the net column. Its getUnsettledAccrual sums it into the
-  // NAV's fee liability, and SUM skips NULLs, so a rollback onto rows this image wrote would
-  // understate the liability and publish an overstated unit price. Writing both keeps a rollback
-  // and a rolling deploy correct in either direction. Drop this alongside the column, once no
-  // deployed image reads it.
   public void save(FeeAccrual accrual) {
     int updated =
         jdbcClient

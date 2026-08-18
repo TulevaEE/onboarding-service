@@ -219,6 +219,82 @@ class HoldingDetailsJobSpec extends Specification {
         1 * corruptClient.close()
     }
 
+    def "parses a file whose accumulated entity references exceed the jdk default limit"() {
+        given:
+        FtpClient bigFileClient = Mock(FtpClient)
+        HoldingDetailsJob jobUnderTest = new HoldingDetailsJob(repository, bigFileClient)
+        repository.findFirstByOrderByCreatedDateDesc() >> null
+        bigFileClient.listFiles(_) >> [A_FILE_NAME]
+        bigFileClient.downloadFileStream(_) >> gzipOf(xmlWithEntityReferencesOverJdkLimit())
+        bigFileClient.completePendingCommand() >> true
+
+        when:
+        jobUnderTest.runJob()
+
+        then:
+        300 * repository.save(_)
+    }
+
+    def "does not resolve external entities"() {
+        given:
+        def externalFile = File.createTempFile("holdings-external-entity", ".txt")
+        externalFile.text = "INJECTED"
+        FtpClient hostileClient = Mock(FtpClient)
+        HoldingDetailsJob jobUnderTest = new HoldingDetailsJob(repository, hostileClient)
+        repository.findFirstByOrderByCreatedDateDesc() >> null
+        hostileClient.listFiles(_) >> [A_FILE_NAME]
+        hostileClient.downloadFileStream(_) >> gzipOf(xmlWithExternalEntity(externalFile.toURI().toString()))
+        hostileClient.completePendingCommand() >> true
+
+        when:
+        jobUnderTest.runJob()
+
+        then:
+        1 * repository.save({ it.securityName == "prepost" })
+
+        cleanup:
+        externalFile.delete()
+    }
+
+    def "does not read external dtds"() {
+        given:
+        def externalDtd = File.createTempFile("holdings-external", ".dtd")
+        externalDtd.text = ""
+        FtpClient hostileClient = Mock(FtpClient)
+        HoldingDetailsJob jobUnderTest = new HoldingDetailsJob(repository, hostileClient)
+        repository.findFirstByOrderByCreatedDateDesc() >> null
+        hostileClient.listFiles(_) >> [A_FILE_NAME]
+        hostileClient.downloadFileStream(_) >> gzipOf(xmlWithExternalDtd(externalDtd.toURI().toString()))
+        hostileClient.completePendingCommand() >> true
+
+        when:
+        jobUnderTest.runJob()
+
+        then:
+        thrown(RuntimeException)
+        0 * repository.save(_)
+
+        cleanup:
+        externalDtd.delete()
+    }
+
+    def "rejects a file with runaway internal entity expansion"() {
+        given:
+        FtpClient hostileClient = Mock(FtpClient)
+        HoldingDetailsJob jobUnderTest = new HoldingDetailsJob(repository, hostileClient)
+        repository.findFirstByOrderByCreatedDateDesc() >> null
+        hostileClient.listFiles(_) >> [A_FILE_NAME]
+        hostileClient.downloadFileStream(_) >> gzipOf(xmlWithRunawayEntityExpansion())
+        hostileClient.completePendingCommand() >> true
+
+        when:
+        jobUnderTest.runJob()
+
+        then:
+        thrown(RuntimeException)
+        0 * repository.save(_)
+    }
+
     private static class ClosingTrackingInputStream extends ByteArrayInputStream {
         boolean closed = false
 
@@ -237,6 +313,70 @@ class HoldingDetailsJobSpec extends Specification {
 
     private static final String TRUNCATED_XML =
         '<Package><PackageBody><InvestmentVehicle _Id="F00000VN9N"><PortfolioList>'
+
+    private static String xmlWithEntityReferencesOverJdkLimit() {
+        def securityName = 'Procter ' + '&amp; Gamble ' * 350
+        def holding = """<HoldingDetail _ExternalId="742718109" _Id="E0USA002UJ">
+            <Symbol>PG</Symbol>
+            <Country _Id="USA">United States</Country>
+            <Currency _Id="USD">US Dollar</Currency>
+            <SecurityName>${securityName}</SecurityName>
+            <Weighting>2.76</Weighting>
+            <NumberOfShare>7628806000</NumberOfShare>
+            <ShareChange>0</ShareChange>
+            <MarketValue>1367158323260</MarketValue>
+            <Sector>11</Sector>
+            <HoldingYTDReturn>11.02</HoldingYTDReturn>
+            <Region>1</Region>
+            <ISIN>US7427181091</ISIN>
+            <FirstBoughtDate>2014-12-31</FirstBoughtDate>
+        </HoldingDetail>"""
+        return '<Package><PackageBody><InvestmentVehicle _Id="F00000VN9N"><PortfolioList><Portfolio><Holding>' +
+            holding * 300 +
+            '</Holding></Portfolio></PortfolioList></InvestmentVehicle></PackageBody></Package>'
+    }
+
+    private static String xmlWithExternalEntity(String externalUri) {
+        return """<?xml version="1.0"?>
+            <!DOCTYPE Package [<!ENTITY ext SYSTEM "${externalUri}">]>
+            <Package><PackageBody><InvestmentVehicle _Id="F00000VN9N"><PortfolioList><Portfolio><Holding>
+            <HoldingDetail _ExternalId="742718109" _Id="E0USA002UJ">
+                <SecurityName>pre&ext;post</SecurityName>
+                <Weighting>2.76</Weighting>
+                <Sector>11</Sector>
+                <Region>1</Region>
+                <FirstBoughtDate>2014-12-31</FirstBoughtDate>
+            </HoldingDetail>
+            </Holding></Portfolio></PortfolioList></InvestmentVehicle></PackageBody></Package>"""
+    }
+
+    private static String xmlWithExternalDtd(String dtdUri) {
+        return """<?xml version="1.0"?>
+            <!DOCTYPE Package SYSTEM "${dtdUri}">
+            <Package><PackageBody><InvestmentVehicle _Id="F00000VN9N"><PortfolioList><Portfolio><Holding>
+            <HoldingDetail _ExternalId="742718109" _Id="E0USA002UJ">
+                <SecurityName>Procter Gamble</SecurityName>
+                <Weighting>2.76</Weighting>
+                <Sector>11</Sector>
+                <Region>1</Region>
+                <FirstBoughtDate>2014-12-31</FirstBoughtDate>
+            </HoldingDetail>
+            </Holding></Portfolio></PortfolioList></InvestmentVehicle></PackageBody></Package>"""
+    }
+
+    private static String xmlWithRunawayEntityExpansion() {
+        return """<?xml version="1.0"?>
+            <!DOCTYPE Package [<!ENTITY a "x">]>
+            <Package><PackageBody><InvestmentVehicle _Id="F00000VN9N"><PortfolioList><Portfolio><Holding>
+            <HoldingDetail _ExternalId="742718109" _Id="E0USA002UJ">
+                <SecurityName>${'&a;' * 2501}</SecurityName>
+                <Weighting>2.76</Weighting>
+                <Sector>11</Sector>
+                <Region>1</Region>
+                <FirstBoughtDate>2014-12-31</FirstBoughtDate>
+            </HoldingDetail>
+            </Holding></Portfolio></PortfolioList></InvestmentVehicle></PackageBody></Package>"""
+    }
 
     private static InputStream gzipOf(String xml) {
         def compressed = new ByteArrayOutputStream()

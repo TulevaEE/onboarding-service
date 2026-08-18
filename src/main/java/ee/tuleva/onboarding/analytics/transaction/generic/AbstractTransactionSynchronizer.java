@@ -1,18 +1,21 @@
 package ee.tuleva.onboarding.analytics.transaction.generic;
 
+import static java.util.stream.Collectors.toList;
+
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Slf4j
 @RequiredArgsConstructor
 public abstract class AbstractTransactionSynchronizer<DTO, E> {
 
   protected final EpisService episService;
+  protected final TransactionTemplate transactionTemplate;
 
   protected abstract List<DTO> fetchTransactions(SyncContext context);
 
@@ -43,25 +46,29 @@ public abstract class AbstractTransactionSynchronizer<DTO, E> {
         return;
       }
 
-      log.info("Deleting existing {} transactions for {}", transactionType, syncIdentifier);
-      int deletedCount = deleteExistingTransactions(context);
-      log.info(
-          "Deleted {} existing {} transactions for {}",
-          deletedCount,
-          transactionType,
-          syncIdentifier);
-
       List<E> entitiesToInsert =
-          dtos.stream().map(dto -> convertToEntity(dto, context)).collect(Collectors.toList());
+          dtos.stream().map(dto -> convertToEntity(dto, context)).collect(toList());
 
-      if (!entitiesToInsert.isEmpty()) {
-        saveEntities(entitiesToInsert);
-        log.info(
-            "Successfully inserted {} new {} transactions for {}.",
-            entitiesToInsert.size(),
-            transactionType,
-            syncIdentifier);
-      }
+      Integer deletedCount =
+          transactionTemplate.execute(
+              status -> {
+                log.info(
+                    "Deleting existing {} transactions for {}", transactionType, syncIdentifier);
+                int deleted = deleteExistingTransactions(context);
+                log.info(
+                    "Deleted {} existing {} transactions for {}",
+                    deleted,
+                    transactionType,
+                    syncIdentifier);
+
+                saveEntities(entitiesToInsert);
+                log.info(
+                    "Successfully inserted {} new {} transactions for {}.",
+                    entitiesToInsert.size(),
+                    transactionType,
+                    syncIdentifier);
+                return deleted;
+              });
 
       log.info(
           "{} transaction synchronization completed for {}: {} deleted, {} inserted.",

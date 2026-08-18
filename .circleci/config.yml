@@ -175,6 +175,9 @@ jobs:
     steps:
       - checkout
       - run:
+          name: Self-test the scanner
+          command: .githooks/pii-scan-test
+      - run:
           name: Check added lines for personal data
           command: |
             git fetch --no-tags origin master

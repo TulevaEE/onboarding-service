@@ -16,7 +16,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 @Slf4j
@@ -25,8 +25,11 @@ public class UnitOwnerSynchronizer
 
   private final UnitOwnerRepository repository;
 
-  public UnitOwnerSynchronizer(EpisService episService, UnitOwnerRepository repository) {
-    super(episService);
+  public UnitOwnerSynchronizer(
+      EpisService episService,
+      UnitOwnerRepository repository,
+      TransactionTemplate transactionTemplate) {
+    super(episService, transactionTemplate);
     this.repository = repository;
   }
 
@@ -36,7 +39,6 @@ public class UnitOwnerSynchronizer
     private final LocalDate snapshotDate;
   }
 
-  @Transactional
   public void sync(LocalDate snapshotDate) {
     log.info("Starting unit owner snapshot synchronization for date {}", snapshotDate);
 

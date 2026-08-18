@@ -23,7 +23,7 @@ public class ScheduledRiskLevelCheckJob {
   @Scheduled(cron = "0 0 1 * * ?", zone = "Europe/Tallinn")
   @SchedulerLock(
       name = "ScheduledRiskLevelCheckJob_run",
-      lockAtMostFor = "23h",
+      lockAtMostFor = "1h",
       lockAtLeastFor = "30m")
   public void run() {
     log.info(

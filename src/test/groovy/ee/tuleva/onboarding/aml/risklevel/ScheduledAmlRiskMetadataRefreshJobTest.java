@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.verify;
 
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -31,6 +32,17 @@ class ScheduledAmlRiskMetadataRefreshJobTest {
 
     assertThat(scheduled.cron()).isEqualTo("0 0 12,16 * * ?");
     assertThat(scheduled.zone()).isEqualTo("Europe/Tallinn");
+  }
+
+  @Test
+  void staleLockFromAKilledInstanceExpiresWellBeforeTheNextScheduledRun()
+      throws NoSuchMethodException {
+    SchedulerLock lock =
+        ScheduledAmlRiskMetadataRefreshJob.class
+            .getMethod("refreshAmlRiskMetadata")
+            .getAnnotation(SchedulerLock.class);
+
+    assertThat(lock.lockAtMostFor()).isEqualTo("1h");
   }
 
   @Test

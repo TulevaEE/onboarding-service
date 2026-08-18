@@ -12,15 +12,19 @@ import ee.tuleva.onboarding.time.FixedClockConfig;
 import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.SimpleTransactionStatus;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @ExtendWith(MockitoExtension.class)
 class FundBalanceSynchronizerTest extends FixedClockConfig {
@@ -28,13 +32,34 @@ class FundBalanceSynchronizerTest extends FixedClockConfig {
   @Mock private EpisService episService;
   @Mock private FundBalanceRepository repository;
   @Mock private EpisUnitCountLedgerRecorder unitCountLedgerRecorder;
+  @Mock private PlatformTransactionManager transactionManager;
 
-  @InjectMocks private FundBalanceSynchronizer synchronizer;
+  private FundBalanceSynchronizer synchronizer;
 
   @Captor private ArgumentCaptor<List<FundBalance>> savedEntitiesCaptor;
 
+  @BeforeEach
+  void setUp() {
+    lenient()
+        .when(transactionManager.getTransaction(any()))
+        .thenReturn(new SimpleTransactionStatus());
+    synchronizer =
+        new FundBalanceSynchronizer(
+            episService,
+            repository,
+            unitCountLedgerRecorder,
+            new TransactionTemplate(transactionManager));
+  }
+
   private final LocalDate syncDate = LocalDate.of(2025, 4, 21);
   private final int deletedCount = 5;
+
+  @Test
+  void syncHoldsNoTransactionAcrossTheEpisFetch() throws NoSuchMethodException {
+    var sync = FundBalanceSynchronizer.class.getMethod("sync", LocalDate.class);
+
+    assertThat(sync.getAnnotation(Transactional.class)).isNull();
+  }
 
   @Nested
   @DisplayName("When EPIS returns fund balances")

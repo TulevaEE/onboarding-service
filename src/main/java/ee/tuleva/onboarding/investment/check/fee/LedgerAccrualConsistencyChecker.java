@@ -12,6 +12,7 @@ import static java.util.stream.Collectors.toSet;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.fees.DailyAccrualAmount;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
+import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
 import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.ledger.LedgerEntryAmount;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
@@ -34,12 +35,14 @@ class LedgerAccrualConsistencyChecker {
 
   private final FeeAccrualRepository feeAccrualRepository;
   private final NavLedgerRepository navLedgerRepository;
+  private final FeeChargedToFundPolicy feeChargedToFundPolicy;
 
   List<FeeCheckFinding> check(TulevaFund fund, FeeType feeType, LocalDate from, LocalDate to) {
     var accrualsByDate = accrualsByDate(fund, feeType, from, to);
     var entries = ledgerEntries(fund, feeType, from, to);
     var ledgerByDate = ledgerAmountsByDate(entries);
     var transactionCountByDate = transactionCountsByDate(entries);
+    var charged = feeChargedToFundPolicy.resolverFor(fund, feeType);
 
     var dates = new TreeSet<>(accrualsByDate.keySet());
     dates.addAll(ledgerByDate.keySet());
@@ -51,6 +54,7 @@ class LedgerAccrualConsistencyChecker {
                     divergenceOn(
                         date,
                         accrualsByDate.get(date),
+                        charged.chargedOn(date),
                         ledgerByDate.getOrDefault(date, ZERO),
                         transactionCountByDate.getOrDefault(date, 0L)))
             .filter(Divergence::isDivergent)
@@ -63,8 +67,12 @@ class LedgerAccrualConsistencyChecker {
   }
 
   private Divergence divergenceOn(
-      LocalDate date, BigDecimal accrual, BigDecimal ledgerAmount, long transactionCount) {
-    var expectedLedgerAmount = accrual == null ? ZERO : accrual.negate();
+      LocalDate date,
+      BigDecimal accrual,
+      boolean chargedToFund,
+      BigDecimal ledgerAmount,
+      long transactionCount) {
+    var expectedLedgerAmount = accrual == null || !chargedToFund ? ZERO : accrual.negate();
     var expectedTransactionCount = expectedLedgerAmount.signum() == 0 ? 0 : 1;
     return new Divergence(
         date,
@@ -110,7 +118,7 @@ class LedgerAccrualConsistencyChecker {
 
   private Map<LocalDate, BigDecimal> accrualsByDate(
       TulevaFund fund, FeeType feeType, LocalDate from, LocalDate to) {
-    return feeAccrualRepository.findRoundedDailyNetBetween(fund, feeType, from, to).stream()
+    return feeAccrualRepository.findRoundedDailyGrossBetween(fund, feeType, from, to).stream()
         .collect(
             groupingBy(
                 DailyAccrualAmount::date,

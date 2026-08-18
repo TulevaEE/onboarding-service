@@ -81,9 +81,9 @@ class EpisReportIngestionServiceTest {
       Staatus;;;;Seisuga;;Valuuta;;
       Netitud;;;;01.08.2026;;EUR;;
       Väärtpaber;NAV;Toiming;PF valitseja/PIK;Hind;Osakud (teenustasuta);Osakud (teenustasuga);Summa;Summa (PF valitseja)
-      Tuleva Maailma Aktsiate Pensionifond;0.80;Tagasivõtt;PIK;0.80;100.000;100.000;80.00;0.00
-      Tuleva Maailma Aktsiate Pensionifond;0.80;Väljalase;Teine PF valitseja;0.80;200.000;200.000;160.00;0.00
-      Tuleva Maailma Võlakirjade Pensionifond;0.70;Tagasivõtt;Teine PF valitseja;0.70;50.000;50.000;35.00;0.00
+      Tuleva Maailma Aktsiate Pensionifond;0.80;Tagasivõtt;PIK;0.80;40.000;60.000;80.00;0.00
+      Tuleva Maailma Aktsiate Pensionifond;0.80;Väljalase;Teine PF valitseja;0.80;80.000;120.000;160.00;0.00
+      Tuleva Maailma Võlakirjade Pensionifond;0.70;Tagasivõtt;Teine PF valitseja;0.70;20.000;30.000;35.00;0.00
       """;
 
   @Test

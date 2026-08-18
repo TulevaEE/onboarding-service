@@ -24,7 +24,6 @@ import org.springframework.stereotype.Component;
 class TrackingDifferenceCalculator {
 
   private static final int SCALE = 6;
-  private static final BigDecimal DAYS_IN_YEAR = new BigDecimal("365");
 
   private final InvestmentParameterRepository parameterRepository;
 
@@ -122,10 +121,7 @@ class TrackingDifferenceCalculator {
 
     var cashDrag = input.cashWeight().negate().multiply(benchmarkReturn).setScale(SCALE, HALF_UP);
 
-    var feeDrag =
-        input.annualFeeRate().signum() != 0
-            ? input.annualFeeRate().negate().divide(DAYS_IN_YEAR, SCALE, HALF_UP)
-            : ZERO;
+    var feeDrag = input.accruedFeeFraction().negate().setScale(SCALE, HALF_UP);
 
     var attributedSum =
         securityAttributions.stream()
@@ -204,7 +200,7 @@ class TrackingDifferenceCalculator {
       BigDecimal yesterdayNav,
       List<SecurityData> securities,
       BigDecimal cashWeight,
-      BigDecimal annualFeeRate,
+      BigDecimal accruedFeeFraction,
       int consecutiveBreachDays,
       @Nullable List<BodHolding> bodHoldings,
       @Nullable BigDecimal bodSecuritiesFraction) {}

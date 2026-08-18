@@ -12,6 +12,7 @@ import static org.mockito.BDDMockito.given;
 
 import ee.tuleva.onboarding.investment.fees.DailyAccrualAmount;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
+import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
 import ee.tuleva.onboarding.ledger.LedgerEntryAmount;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import java.math.BigDecimal;
@@ -34,12 +35,27 @@ class LedgerAccrualConsistencyCheckerTest {
 
   @Mock private FeeAccrualRepository feeAccrualRepository;
   @Mock private NavLedgerRepository navLedgerRepository;
+  @Mock private FeeChargedToFundPolicy feeChargedToFundPolicy;
 
   private LedgerAccrualConsistencyChecker checker;
 
   @BeforeEach
   void setUp() {
-    checker = new LedgerAccrualConsistencyChecker(feeAccrualRepository, navLedgerRepository);
+    checker =
+        new LedgerAccrualConsistencyChecker(
+            feeAccrualRepository, navLedgerRepository, feeChargedToFundPolicy);
+    givenChargedToFund(true);
+  }
+
+  private void givenChargedToFund(boolean chargedToFund) {
+    given(feeChargedToFundPolicy.resolverFor(TUK75, MANAGEMENT))
+        .willReturn(
+            new FeeChargedToFundPolicy.Resolver(
+                TUK75,
+                MANAGEMENT,
+                List.of(
+                    new FeeChargedToFundPolicy.Policy(
+                        chargedToFund, LocalDate.of(2017, 3, 28), (LocalDate) null))));
   }
 
   @Test
@@ -114,12 +130,33 @@ class LedgerAccrualConsistencyCheckerTest {
     assertThat(findings.getFirst().message()).contains(DAY_ONE.toString(), DAY_TWO.toString());
   }
 
+  @Test
+  void anAccrualWithNoLedgerEntryPassesWhenTheFundIsNotChargedTheFee() {
+    givenChargedToFund(false);
+    givenAccruals(accrual(DAY_ONE, "5.89"), accrual(DAY_TWO, "5.90"));
+    givenLedger();
+
+    assertThat(check()).singleElement().extracting(FeeCheckFinding::severity).isEqualTo(PASS);
+  }
+
+  @Test
+  void aLedgerEntryOnADayTheFundIsNotChargedTheFeeStillFails() {
+    givenChargedToFund(false);
+    givenAccruals(accrual(DAY_ONE, "5.89"));
+    givenLedger(ledger(DAY_ONE, "-5.89"));
+
+    var finding = check().getFirst();
+
+    assertThat(finding.severity()).isEqualTo(FAIL);
+    assertThat(finding.deviationAmount()).isEqualByComparingTo("5.89");
+  }
+
   private List<FeeCheckFinding> check() {
     return checker.check(TUK75, MANAGEMENT, DAY_ONE, DAY_TWO);
   }
 
   private void givenAccruals(DailyAccrualAmount... accruals) {
-    given(feeAccrualRepository.findRoundedDailyNetBetween(TUK75, MANAGEMENT, DAY_ONE, DAY_TWO))
+    given(feeAccrualRepository.findRoundedDailyGrossBetween(TUK75, MANAGEMENT, DAY_ONE, DAY_TWO))
         .willReturn(List.of(accruals));
   }
 

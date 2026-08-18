@@ -4,7 +4,7 @@ import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.fees.FeeType.MANAGEMENT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.when;
+import static org.mockito.BDDMockito.given;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -30,11 +30,13 @@ class ManagementFeeCalculatorTest {
     BigDecimal baseValue = new BigDecimal("1000000000");
     BigDecimal annualRate = new BigDecimal("0.02");
 
-    when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(LocalDate.of(2025, 1, 1));
-    when(feeRateRepository.findValidRate(TUK75, MANAGEMENT, date))
-        .thenReturn(Optional.of(new FeeRate(1L, TUK75, MANAGEMENT, annualRate, date, null)));
+    given(feeMonthResolver.resolveFeeMonth(date)).willReturn(LocalDate.of(2025, 1, 1));
+    given(feeRateRepository.findValidRate(TUK75, MANAGEMENT, date))
+        .willReturn(
+            Optional.of(
+                new FeeRate(1L, TUK75, MANAGEMENT, annualRate, FeeRateSource.FIXED, date, null)));
 
-    FeeAccrual result = calculator.calculate(TUK75, date, baseValue);
+    FeeAccrual result = calculator.calculate(TUK75, date, new FeeBases(baseValue, baseValue));
 
     assertThat(result.fund()).isEqualTo(TUK75);
     assertThat(result.feeType()).isEqualTo(MANAGEMENT);
@@ -46,9 +48,7 @@ class ManagementFeeCalculatorTest {
 
     BigDecimal expectedDailyFee =
         baseValue.multiply(annualRate).divide(BigDecimal.valueOf(365), 6, RoundingMode.HALF_UP);
-    assertThat(result.dailyAmountNet()).isEqualByComparingTo(expectedDailyFee);
     assertThat(result.dailyAmountGross()).isEqualByComparingTo(expectedDailyFee);
-    assertThat(result.vatRate()).isNull();
     assertThat(result.daysInYear()).isEqualTo(365);
   }
 
@@ -56,10 +56,11 @@ class ManagementFeeCalculatorTest {
   void calculate_throwsWhenNoFeeRateFound() {
     LocalDate date = LocalDate.of(2025, 1, 15);
 
-    when(feeMonthResolver.resolveFeeMonth(date)).thenReturn(LocalDate.of(2025, 1, 1));
-    when(feeRateRepository.findValidRate(TUK75, MANAGEMENT, date)).thenReturn(Optional.empty());
+    given(feeMonthResolver.resolveFeeMonth(date)).willReturn(LocalDate.of(2025, 1, 1));
+    given(feeRateRepository.findValidRate(TUK75, MANAGEMENT, date)).willReturn(Optional.empty());
 
-    assertThatThrownBy(() -> calculator.calculate(TUK75, date, BigDecimal.TEN))
+    assertThatThrownBy(
+            () -> calculator.calculate(TUK75, date, new FeeBases(BigDecimal.TEN, BigDecimal.TEN)))
         .isInstanceOf(IllegalStateException.class);
   }
 

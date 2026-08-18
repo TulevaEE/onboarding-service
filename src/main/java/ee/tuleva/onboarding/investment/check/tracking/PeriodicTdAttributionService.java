@@ -13,6 +13,7 @@ import ee.tuleva.onboarding.investment.check.tracking.TdAttributionCalculator.Se
 import ee.tuleva.onboarding.investment.check.tracking.TdAttributionCalculator.TdAttributionInput;
 import ee.tuleva.onboarding.investment.fees.FeeAccrual;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
+import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
 import ee.tuleva.onboarding.investment.fees.FeeRateRepository;
 import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.fees.InstrumentFeeRepository;
@@ -51,6 +52,7 @@ public class PeriodicTdAttributionService {
   private final TrackingDifferenceEventRepository tdEventRepository;
   private final FeeAccrualRepository feeAccrualRepository;
   private final FeeRateRepository feeRateRepository;
+  private final FeeChargedToFundPolicy feeChargedToFundPolicy;
   private final FundPositionRepository fundPositionRepository;
   private final FundNavQueryService fundNavQueryService;
   private final ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
@@ -149,8 +151,8 @@ public class PeriodicTdAttributionService {
 
     var dailyRecords = buildDailyRecords(fund, tdEvents, modelAllocations);
 
-    var mgmtFeeDragTotal = computeFeeDragPeriod(feeAccruals, FeeType.MANAGEMENT);
-    var depotFeeDragTotal = computeFeeDragPeriod(feeAccruals, FeeType.DEPOT);
+    var mgmtFeeDragTotal = computeFeeDragPeriod(fund, feeAccruals, FeeType.MANAGEMENT);
+    var depotFeeDragTotal = computeFeeDragPeriod(fund, feeAccruals, FeeType.DEPOT);
 
     var avgAum = computeAvgAumFromDailyRecords(dailyRecords);
     var mgmtFeeDragReturn =
@@ -253,10 +255,13 @@ public class PeriodicTdAttributionService {
         .reduce(ZERO, BigDecimal::add);
   }
 
-  private BigDecimal computeFeeDragPeriod(List<FeeAccrual> accruals, FeeType feeType) {
+  private BigDecimal computeFeeDragPeriod(
+      TulevaFund fund, List<FeeAccrual> accruals, FeeType feeType) {
+    var charged = feeChargedToFundPolicy.resolverFor(fund, feeType);
     return accruals.stream()
         .filter(a -> a.feeType() == feeType)
-        .map(a -> feeType == FeeType.DEPOT ? a.dailyAmountGross() : a.dailyAmountNet())
+        .filter(a -> charged.chargedOn(a.accrualDate()))
+        .map(FeeAccrual::dailyAmountGross)
         .reduce(ZERO, BigDecimal::add);
   }
 

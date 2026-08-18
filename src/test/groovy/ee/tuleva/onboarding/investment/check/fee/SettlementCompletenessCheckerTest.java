@@ -5,7 +5,6 @@ import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.FAIL;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.NOT_RUN;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.PASS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.WARNING;
-import static ee.tuleva.onboarding.investment.fees.FeeType.DEPOT;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.FEE_ACCRUAL;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.FEE_SETTLEMENT;
 import static java.math.BigDecimal.ZERO;
@@ -42,7 +41,6 @@ class SettlementCompletenessCheckerTest {
   private static final LocalDate PAST_THE_GRACE_WINDOW = LocalDate.of(2026, 6, 9);
   private static final BigDecimal ACCRUED = new BigDecimal("-1234.56");
   private static final BigDecimal SETTLED = new BigDecimal("1234.56");
-  private static final BigDecimal GROSS = new BigDecimal("1493.82");
 
   @Mock private FeeAccrualRepository feeAccrualRepository;
   @Mock private NavLedgerRepository navLedgerRepository;
@@ -145,12 +143,11 @@ class SettlementCompletenessCheckerTest {
   }
 
   @Test
-  void theDepotGrossAccrualIsRecordedWithoutRaisingAFinding() {
+  void theDepotAccrualIsRecordedWithoutRaisingAFinding() {
     givenMonthCrossed();
     givenBalances(ZERO, ZERO);
     givenEntries(FEE_ACCRUAL, ACCRUED);
     givenEntries(FEE_SETTLEMENT, SETTLED);
-    given(feeAccrualRepository.sumGrossForMonth(TUK75, FEE_MONTH, DEPOT)).willReturn(GROSS);
 
     var depot =
         check(THIRD_BUSINESS_DAY_OF_JUNE).stream()
@@ -159,7 +156,10 @@ class SettlementCompletenessCheckerTest {
             .orElseThrow();
 
     assertThat(depot.severity()).isEqualTo(PASS);
-    assertThat(depot.details()).containsEntry("grossAccrued", GROSS.toPlainString());
+    assertThat(depot.details())
+        .containsEntry("accrued", ACCRUED.toPlainString())
+        .containsEntry("settled", SETTLED.toPlainString())
+        .doesNotContainKey("grossAccrued");
   }
 
   private List<FeeCheckFinding> check(LocalDate checkDate) {

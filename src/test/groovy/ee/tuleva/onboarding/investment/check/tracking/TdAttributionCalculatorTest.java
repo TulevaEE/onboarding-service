@@ -312,6 +312,7 @@ class TdAttributionCalculatorTest {
     assertThat(result.tdGeometric()).isEqualByComparingTo(ZERO);
     assertThat(result.navEventCount()).isZero();
     assertThat(result.instrumentDetails()).isEmpty();
+    assertThat(result.checks()).containsEntry("etfLayerMeasured", false);
   }
 
   @Test
@@ -593,6 +594,71 @@ class TdAttributionCalculatorTest {
         .cashValue(new BigDecimal(cash))
         .nonSecurityValue(new BigDecimal(nonSec))
         .securities(securities)
+        .build();
+  }
+
+  @Test
+  void anIndexBenchmarkedHoldingsOwnOcfIsSplitOutOfTheMeasuredSumRatherThanAddedToIt() {
+    var days = buildConstantDays(20, "0.0005", "0.0005");
+    var etfOcfDrag = new BigDecimal("-0.00016438");
+    var benchmarkModelSum = new BigDecimal("-0.00025000");
+    var input = etfLayerInput(days, etfOcfDrag, benchmarkModelSum, ZERO);
+
+    var result = calculator.calculate(input);
+
+    assertThat(result.etfTrackingResidual())
+        .isEqualByComparingTo(benchmarkModelSum.subtract(etfOcfDrag));
+    assertThat(result.tdVsBenchmark())
+        .isEqualByComparingTo(result.tdGeometric().add(benchmarkModelSum));
+  }
+
+  @Test
+  void proxyBenchmarkedHoldingsHaveTheProxyOwnOcfAddedBackToReachTheIndex() {
+    var days = buildConstantDays(20, "0.0005", "0.0005");
+    var etfOcfDrag = new BigDecimal("-0.00016438");
+    var benchmarkModelSum = new BigDecimal("-0.00025000");
+    var proxyOcfDrag = new BigDecimal("-0.00010000");
+
+    var result =
+        calculator.calculate(etfLayerInput(days, etfOcfDrag, benchmarkModelSum, proxyOcfDrag));
+
+    var modelVsIndex = benchmarkModelSum.add(proxyOcfDrag);
+    assertThat(result.tdVsBenchmark()).isEqualByComparingTo(result.tdGeometric().add(modelVsIndex));
+    assertThat(result.etfOcfDrag().add(result.etfTrackingResidual()))
+        .isEqualByComparingTo(modelVsIndex);
+  }
+
+  @Test
+  void anUnmeasuredEtfLayerReportsZeroRatherThanFabricatingOutperformance() {
+    var days = buildConstantDays(20, "0.0005", "0.0005");
+
+    var result =
+        calculator.calculate(etfLayerInput(days, new BigDecimal("-0.00016438"), null, null));
+
+    assertThat(result.etfOcfDrag()).isEqualByComparingTo(ZERO);
+    assertThat(result.etfTrackingResidual()).isEqualByComparingTo(ZERO);
+    assertThat(result.tdVsBenchmark()).isEqualByComparingTo(result.tdGeometric());
+    assertThat(result.checks()).containsEntry("etfLayerMeasured", false);
+  }
+
+  private TdAttributionInput etfLayerInput(
+      List<DailyRecord> days,
+      BigDecimal etfOcfDrag,
+      BigDecimal benchmarkModelSum,
+      BigDecimal proxyOcfDrag) {
+    return TdAttributionInput.builder()
+        .fund(TUK75)
+        .periodStart(PERIOD_START)
+        .periodEnd(PERIOD_END)
+        .periodType(MONTHLY)
+        .calendarDays(30)
+        .mgmtFeeDragPeriod(ZERO)
+        .depotFeeDragPeriod(ZERO)
+        .expectedAnnualFeeRate(new BigDecimal("0.0027"))
+        .etfOcfDragPeriod(etfOcfDrag)
+        .benchmarkModelSumPeriod(benchmarkModelSum)
+        .benchmarkProxyOcfDragPeriod(proxyOcfDrag)
+        .dailyRecords(days)
         .build();
   }
 

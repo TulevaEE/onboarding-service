@@ -324,6 +324,36 @@ class R17ReportParserTest {
   }
 
   @Test
+  void catchesADroppedUnitComponentWhenThePriceIsPrintedWithTwoDecimals() {
+    String csv =
+        """
+        Staatus;;;;Seisuga;;Valuuta;;
+        Netitud;;;;15.04.2026;;EUR;;
+        %s
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Väljalase;Teine PF valitseja;0.80;40000.000;60000.000;80400.00;0.00
+        """
+            .formatted(HEADER_ROW);
+
+    assertThatThrownBy(() -> parser.parse(csv, LOCK_DATE, EXEC_DATE))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void throwsWhenThePriceColumnIsPresentButTheRowHasNoPrice() {
+    String csv =
+        """
+        Staatus;;;;Seisuga;;Valuuta;;
+        Netitud;;;;15.04.2026;;EUR;;
+        %s
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Väljalase;Oma;;40.000;60.000;80.00;0.00
+        """
+            .formatted(HEADER_ROW);
+
+    assertThatThrownBy(() -> parser.parse(csv, LOCK_DATE, EXEC_DATE))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
   void ignoresAZeroAmountAsNotApplicable() {
     String csv =
         """
@@ -404,10 +434,6 @@ class R17ReportParserTest {
     assertThat(result.get("TUK75").pikUnits()).isEqualByComparingTo("100.000");
   }
 
-  /**
-   * R17 carries rows for other managers' funds and we drop them. An inconsistent one must not take
-   * the upload down with it — the operator cannot fix a row that belongs to someone else.
-   */
   @Test
   void ignoresTheReportedAmountOnRowsForFundsThatAreNotOurs() {
     String csv =
@@ -426,12 +452,6 @@ class R17ReportParserTest {
     assertThat(result).doesNotContainKey("MINGIMUUFOND");
   }
 
-  /**
-   * The same rule for the sanity limit, and it bites harder here: the number it measures is now the
-   * two unit columns added together, so a large manager's row can pass 100M when neither of its own
-   * columns did. Rejecting the whole upload over the size of someone else's fund would be a new way
-   * to lose a cycle.
-   */
   @Test
   void aForeignFundsRowBeyondTheSanityLimitDoesNotRejectTheUpload() {
     String csv =
@@ -450,7 +470,6 @@ class R17ReportParserTest {
     assertThat(result).doesNotContainKey("MINGIMUUFOND");
   }
 
-  /** Our own row still has to stay inside it. */
   @Test
   void ourOwnRowBeyondTheSanityLimitStillThrows() {
     String csv =
@@ -466,10 +485,6 @@ class R17ReportParserTest {
         .isInstanceOf(IllegalArgumentException.class);
   }
 
-  /**
-   * "Summa" is also a substring of "Summa (PF valitseja)". If the cross-check reads the latter it
-   * sees 0.00 and rejects every row, so the match must not depend on which column comes first.
-   */
   @Test
   void readsTheRowAmountEvenWhenThePfValitsejaAmountColumnComesFirst() {
     String reorderedHeader =
@@ -479,7 +494,7 @@ class R17ReportParserTest {
         Staatus;;;;Seisuga;;Valuuta;;
         Netitud;;;;15.04.2026;;EUR;;
         %s
-        Tuleva Maailma Aktsiate Pensionifond;0.80;Väljalase;Oma;0.80;40.000;60.000;0.00;80.00
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Väljalase;Oma;0.80;40.000;60.000;999.00;80.00
         """
             .formatted(reorderedHeader);
 

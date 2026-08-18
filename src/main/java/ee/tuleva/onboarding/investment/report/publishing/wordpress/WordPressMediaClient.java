@@ -21,6 +21,9 @@ public class WordPressMediaClient {
       Pattern.compile(
           "^https://tuleva\\.ee/wp-content/uploads/\\d{4}/\\d{2}/[A-Za-z0-9._-]+\\.pdf$");
 
+  private static final String DEFAULT_EXTENSION = "pdf";
+  private static final int MAX_BASE_SLUG_LENGTH = 100;
+
   private final RestClient restClient;
   private final RetryTemplate retryTemplate;
 
@@ -138,30 +141,28 @@ public class WordPressMediaClient {
     return (Integer) pages.getFirst().get("id");
   }
 
-  /**
-   * Both halves are sanitised, because the whole result is interpolated into the {@code
-   * Content-Disposition} header. Leaving the extension raw would let a quote or a line break after
-   * the last dot reach that header unchanged — the base name is only half the string that gets
-   * there. Report names come from the report builder and contain neither, so this is defence in
-   * depth rather than a live hole, but it has to cover the string it actually emits.
-   *
-   * <p>Mirrored by {@code toWordPressSlug} in the tuleva repo's {@code investeeringute_aruanne.gs}:
-   * both systems upload the same monthly PDF, and {@link #findExistingMedia} matches on {@code
-   * source_url.endsWith("/" + slug)}, so a name the two slug differently lands the same report
-   * twice under two URLs. They agree over the alphabet report names actually use — ASCII plus the
-   * Estonian letters — and not beyond it: the Rhino runtime has no {@code String.normalize}, so the
-   * GAS side folds a fixed list (ä ö õ ü š ž) where this one folds any combining mark. A base name
-   * containing, say, "é" would give {@code e} here and {@code -} there. Names come from {@code
-   * buildPdfName} off the fund titles, which stay inside that alphabet; widening it means widening
-   * both sides together.
-   */
   static String toWordPressSlug(String filename) {
     var dotIndex = filename.lastIndexOf('.');
     var base = dotIndex > 0 ? filename.substring(0, dotIndex) : filename;
-    var extension = dotIndex > 0 ? filename.substring(dotIndex + 1) : "pdf";
-    var slug = asciiSlug(base).replaceAll("(^-+)|(-+$)", "");
-    var extensionSlug = asciiSlug(extension).replace("-", "");
-    return slug + "." + (extensionSlug.isEmpty() ? "pdf" : extensionSlug);
+    var extension = dotIndex > 0 ? filename.substring(dotIndex + 1) : DEFAULT_EXTENSION;
+    var baseSlug = toHyphenatedWords(base);
+    if (baseSlug.isEmpty()) {
+      throw new IllegalArgumentException(
+          "Filename sanitises to an empty slug: filename=" + filename);
+    }
+    var extensionSlug = toSingleWord(extension);
+    return baseSlug + "." + (extensionSlug.isEmpty() ? DEFAULT_EXTENSION : extensionSlug);
+  }
+
+  private static String toHyphenatedWords(String value) {
+    var hyphenated = asciiSlug(value);
+    return hyphenated
+        .substring(0, Math.min(hyphenated.length(), MAX_BASE_SLUG_LENGTH))
+        .replaceAll("(^-+)|(-+$)", "");
+  }
+
+  private static String toSingleWord(String value) {
+    return asciiSlug(value).replace("-", "");
   }
 
   private static String asciiSlug(String value) {

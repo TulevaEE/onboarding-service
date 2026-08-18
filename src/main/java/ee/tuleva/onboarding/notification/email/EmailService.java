@@ -10,8 +10,8 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageContent;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
 import com.microtripit.mandrillapp.lutung.view.MandrillScheduledMessageInfo;
+import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.config.EmailConfiguration;
-import ee.tuleva.onboarding.user.User;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Date;
@@ -92,8 +92,8 @@ public class EmailService {
   }
 
   public Optional<MandrillMessageStatus> send(
-      User user, MandrillMessage message, String templateName) {
-    return send(user, message, templateName, null);
+      Person person, MandrillMessage message, String templateName) {
+    return send(person, message, templateName, null);
   }
 
   private static String recipientOf(MandrillMessage message) {
@@ -105,20 +105,20 @@ public class EmailService {
   }
 
   public Optional<MandrillMessageStatus> send(
-      User user, MandrillMessage message, String templateName, Instant sendAt) {
+      Person person, MandrillMessage message, String templateName, Instant sendAt) {
     if (mandrillApi == null) {
       log.warn(
-          "Mandrill not initialised, not sending email for user: userId={}, sendAt={}, templateName={}",
-          user.getId(),
-          templateName,
-          sendAt);
+          "Mandrill not initialised, not sending email for person: personalCode={}, sendAt={}, templateName={}",
+          person.getPersonalCode(),
+          sendAt,
+          templateName);
       return Optional.empty();
     }
 
     if (recipientOf(message) == null) {
       log.warn(
-          "Message has no recipient, not sending: userId={}, templateName={}",
-          user.getId(),
+          "Message has no recipient, not sending: personalCode={}, templateName={}",
+          person.getPersonalCode(),
           templateName);
       return Optional.empty();
     }
@@ -126,8 +126,8 @@ public class EmailService {
     try {
       Date sendDate = sendAt != null ? Date.from(sendAt) : null;
       log.info(
-          "Sending email to user: userId={}, sendAt={}, templateName={}",
-          user.getId(),
+          "Sending email to person: personalCode={}, sendAt={}, templateName={}",
+          person.getPersonalCode(),
           sendDate,
           templateName);
 
@@ -142,8 +142,8 @@ public class EmailService {
 
       if (response.getStatus() != null && FAILED_STATUSES.contains(response.getStatus())) {
         log.warn(
-            "Mandrill did not deliver email: userId={}, templateName={}, status={}, rejectReason={}, id={}",
-            user.getId(),
+            "Mandrill did not deliver email: personalCode={}, templateName={}, status={}, rejectReason={}, id={}",
+            person.getPersonalCode(),
             templateName,
             response.getStatus(),
             response.getRejectReason(),
@@ -156,7 +156,11 @@ public class EmailService {
       log.error(mandrillApiError.getMandrillErrorAsJson(), mandrillApiError);
       return Optional.empty();
     } catch (Exception e) {
-      log.error("Failed to send email: userId={}, templateName={}", user.getId(), templateName, e);
+      log.error(
+          "Failed to send email: personalCode={}, templateName={}",
+          person.getPersonalCode(),
+          templateName,
+          e);
       return Optional.empty();
     }
   }

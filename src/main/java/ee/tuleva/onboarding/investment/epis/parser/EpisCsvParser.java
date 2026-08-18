@@ -82,10 +82,23 @@ public class EpisCsvParser {
   public static @Nullable String findValue(Map<String, String> row, String... keywords) {
     for (String keyword : keywords) {
       String normalizedKeyword = normalize(keyword);
-      for (Map.Entry<String, String> entry : row.entrySet()) {
-        if (entry.getKey().contains(normalizedKeyword)) {
-          return entry.getValue();
-        }
+      String exactColumnMatch = row.get(normalizedKeyword);
+      if (exactColumnMatch != null) {
+        return exactColumnMatch;
+      }
+      String containsMatch = valueOfColumnContaining(row, normalizedKeyword);
+      if (containsMatch != null) {
+        return containsMatch;
+      }
+    }
+    return null;
+  }
+
+  private static @Nullable String valueOfColumnContaining(
+      Map<String, String> row, String normalizedKeyword) {
+    for (Map.Entry<String, String> entry : row.entrySet()) {
+      if (entry.getKey().contains(normalizedKeyword)) {
+        return entry.getValue();
       }
     }
     return null;

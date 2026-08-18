@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.fees;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
+import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
@@ -38,7 +39,8 @@ class FeeCalculationIntegrationTest {
   void calculateFeesForNav_savesManagementFeeAccrual() {
     Instant feeCutoff = TEST_DATE.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
 
-    feeCalculationService.calculateFeesForNav(TUK75, TEST_DATE, BASE_VALUE, feeCutoff, null);
+    feeCalculationService.calculateFeesForNav(
+        TUK75, TEST_DATE, new FeeBases(BASE_VALUE, BASE_VALUE), feeCutoff, null);
 
     var accrual = findAccrual(TUK75, FeeType.MANAGEMENT, TEST_DATE);
     assertThat(accrual.fund()).isEqualTo(TUK75);
@@ -46,7 +48,7 @@ class FeeCalculationIntegrationTest {
     assertThat(accrual.accrualDate()).isEqualTo(TEST_DATE);
     assertThat(accrual.feeMonth()).isEqualTo(LocalDate.of(2025, 1, 1));
     assertThat(accrual.baseValue()).isEqualByComparingTo(BASE_VALUE);
-    assertThat(accrual.dailyAmountNet()).isPositive();
+    assertThat(accrual.dailyAmountGross()).isPositive();
     assertThat(accrual.daysInYear()).isEqualTo(365);
   }
 
@@ -54,30 +56,32 @@ class FeeCalculationIntegrationTest {
   void calculateFeesForNav_savesDepotFeeAccrual() {
     Instant feeCutoff = TEST_DATE.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
 
-    feeCalculationService.calculateFeesForNav(TUK75, TEST_DATE, BASE_VALUE, feeCutoff, null);
+    feeCalculationService.calculateFeesForNav(
+        TUK75, TEST_DATE, new FeeBases(BASE_VALUE, BASE_VALUE), feeCutoff, null);
 
     var accrual = findAccrual(TUK75, FeeType.DEPOT, TEST_DATE);
     assertThat(accrual.fund()).isEqualTo(TUK75);
     assertThat(accrual.feeType()).isEqualTo(FeeType.DEPOT);
     assertThat(accrual.accrualDate()).isEqualTo(TEST_DATE);
-    assertThat(accrual.dailyAmountNet()).isPositive();
-    assertThat(accrual.dailyAmountGross()).isGreaterThan(accrual.dailyAmountNet());
-    assertThat(accrual.vatRate()).isNotNull();
+    assertThat(accrual.dailyAmountGross()).isPositive();
   }
 
   @Test
   void calculateFeesForNav_isIdempotent() {
     Instant feeCutoff = TEST_DATE.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
 
-    feeCalculationService.calculateFeesForNav(TKF100, TEST_DATE, BASE_VALUE, feeCutoff, null);
+    feeCalculationService.calculateFeesForNav(
+        TKF100, TEST_DATE, new FeeBases(BASE_VALUE, BASE_VALUE), feeCutoff, null);
     var firstAccrual = findAccrual(TKF100, FeeType.MANAGEMENT, TEST_DATE);
     int ledgerEntriesAfterFirst = countLedgerEntries();
 
-    feeCalculationService.calculateFeesForNav(TKF100, TEST_DATE, BASE_VALUE, feeCutoff, null);
+    feeCalculationService.calculateFeesForNav(
+        TKF100, TEST_DATE, new FeeBases(BASE_VALUE, BASE_VALUE), feeCutoff, null);
     var secondAccrual = findAccrual(TKF100, FeeType.MANAGEMENT, TEST_DATE);
     int ledgerEntriesAfterSecond = countLedgerEntries();
 
-    assertThat(secondAccrual.dailyAmountNet()).isEqualByComparingTo(firstAccrual.dailyAmountNet());
+    assertThat(secondAccrual.dailyAmountGross())
+        .isEqualByComparingTo(firstAccrual.dailyAmountGross());
     assertThat(ledgerEntriesAfterSecond).isEqualTo(ledgerEntriesAfterFirst);
   }
 
@@ -86,7 +90,8 @@ class FeeCalculationIntegrationTest {
     Instant feeCutoff = TEST_DATE.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
 
     FeeResult result =
-        feeCalculationService.calculateFeesForNav(TKF100, TEST_DATE, BASE_VALUE, feeCutoff, null);
+        feeCalculationService.calculateFeesForNav(
+            TKF100, TEST_DATE, new FeeBases(BASE_VALUE, BASE_VALUE), feeCutoff, null);
 
     assertThat(result.managementFeeAccrual()).isPositive();
     assertThat(result.depotFeeAccrual()).isPositive();
@@ -136,20 +141,24 @@ class FeeCalculationIntegrationTest {
 
   private void insertFeeRates() {
     for (TulevaFund fund : TulevaFund.values()) {
-      insertFeeRate(fund.name(), "MANAGEMENT", new BigDecimal("0.0025"));
+      insertFeeRate(fund.name(), "MANAGEMENT", new BigDecimal("0.0025"), "FIXED");
+      insertFeeRate(fund.name(), "DEPOT", ZERO, "TIER");
     }
   }
 
-  private void insertFeeRate(String fundCode, String feeType, BigDecimal annualRate) {
+  private void insertFeeRate(
+      String fundCode, String feeType, BigDecimal annualRate, String rateSource) {
     jdbcClient
         .sql(
             """
-            INSERT INTO investment_fee_rate (fund_code, fee_type, annual_rate, valid_from, created_by)
-            VALUES (:fundCode, :feeType, :annualRate, :validFrom, 'TEST')
+            INSERT INTO investment_fee_rate
+                (fund_code, fee_type, annual_rate, rate_source, valid_from, created_by)
+            VALUES (:fundCode, :feeType, :annualRate, :rateSource, :validFrom, 'TEST')
             """)
         .param("fundCode", fundCode)
         .param("feeType", feeType)
         .param("annualRate", annualRate)
+        .param("rateSource", rateSource)
         .param("validFrom", LocalDate.of(2025, 1, 1))
         .update();
   }

@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.investment.epis.parser;
 import static ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser.findDate;
 import static ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser.findValue;
 import static ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser.parseNumber;
+import static java.math.BigDecimal.ZERO;
+import static java.util.Objects.requireNonNullElse;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.epis.R17Result;
@@ -24,6 +26,8 @@ public class R17ReportParser {
   private static final String HEADER_MARKER = "Väärtpaber";
   private static final DecimalConvention DECIMAL_CONVENTION = DecimalConvention.PERIOD_DECIMAL;
   private static final BigDecimal MAX_REASONABLE_UNITS = new BigDecimal("100000000");
+  private static final BigDecimal MIN_AMOUNT_TOLERANCE_EUR = new BigDecimal("0.02");
+  private static final BigDecimal HALF_PRICE_STEP = new BigDecimal("0.000005");
 
   private final EpisCsvParser csvParser;
 
@@ -44,14 +48,12 @@ public class R17ReportParser {
       if (units.signum() == 0) {
         continue;
       }
-      if (units.compareTo(MAX_REASONABLE_UNITS) > 0) {
-        throw new IllegalArgumentException("R17 row units exceed sanity limit: units=" + units);
-      }
-
       Optional<TulevaFund> fund = FundResolver.resolve(fundRaw);
       if (fund.isEmpty()) {
         continue;
       }
+      validateOurRow(row, fundRaw, toiming, units);
+
       UnitAccumulator accumulator =
           accumulators.computeIfAbsent(fund.get().getCode(), code -> new UnitAccumulator());
 
@@ -109,14 +111,80 @@ public class R17ReportParser {
     return null;
   }
 
+  private static void validateOurRow(
+      Map<String, String> row, String fund, String toiming, BigDecimal units) {
+    if (units.compareTo(MAX_REASONABLE_UNITS) > 0) {
+      throw new IllegalArgumentException(
+          "R17 row units exceed sanity limit: fund=" + fund + ", units=" + units);
+    }
+    validateUnitsAgainstReportedAmount(row, fund, toiming, units);
+  }
+
+  private static void validateUnitsAgainstReportedAmount(
+      Map<String, String> row, String fund, String toiming, BigDecimal units) {
+    String priceCell = findValue(row, "hind");
+    String amountCell = findValue(row, "summa");
+    if (priceCell == null || amountCell == null) {
+      return;
+    }
+    BigDecimal reportedAmount = parseNumber(amountCell, DECIMAL_CONVENTION);
+    if (reportedAmount == null || isNotApplicable(reportedAmount)) {
+      return;
+    }
+    BigDecimal price = requiredPrice(priceCell, fund, toiming, units);
+    BigDecimal expectedAmount = units.multiply(price);
+    if (expectedAmount.subtract(reportedAmount.abs()).abs().compareTo(amountTolerance(units)) > 0) {
+      throw new IllegalArgumentException(
+          "R17 units do not match the reported amount: fund="
+              + fund
+              + ", toiming="
+              + toiming
+              + ", units="
+              + units
+              + ", price="
+              + price
+              + ", expectedAmount="
+              + expectedAmount
+              + ", reportedAmount="
+              + reportedAmount);
+    }
+  }
+
+  private static boolean isNotApplicable(BigDecimal reportedAmount) {
+    return reportedAmount.signum() == 0;
+  }
+
+  private static BigDecimal requiredPrice(
+      String priceCell, String fund, String toiming, BigDecimal units) {
+    BigDecimal price = parseNumber(priceCell, DECIMAL_CONVENTION);
+    if (price == null || price.signum() <= 0) {
+      throw new IllegalArgumentException(
+          "R17 row has units and a reported amount but no usable price: fund="
+              + fund
+              + ", toiming="
+              + toiming
+              + ", units="
+              + units
+              + ", price="
+              + priceCell);
+    }
+    return price;
+  }
+
+  private static BigDecimal amountTolerance(BigDecimal units) {
+    return units.multiply(HALF_PRICE_STEP).max(MIN_AMOUNT_TOLERANCE_EUR);
+  }
+
   private static BigDecimal requiredUnits(Map<String, String> row, String fund, String toiming) {
-    BigDecimal units =
+    BigDecimal feeBearingUnits =
         parseNumber(findValue(row, "osakud (teenustasuga)", "osakuid"), DECIMAL_CONVENTION);
-    if (units == null) {
+    BigDecimal feeFreeUnits =
+        parseNumber(findValue(row, "osakud (teenustasuta)"), DECIMAL_CONVENTION);
+    if (feeBearingUnits == null && feeFreeUnits == null) {
       throw new IllegalArgumentException(
           "R17 required units missing: fund=" + fund + ", toiming=" + toiming);
     }
-    return units;
+    return requireNonNullElse(feeBearingUnits, ZERO).add(requireNonNullElse(feeFreeUnits, ZERO));
   }
 
   private static String trimmed(@Nullable String value) {
@@ -128,7 +196,7 @@ public class R17ReportParser {
   }
 
   private static final class UnitAccumulator {
-    private BigDecimal pikUnits = BigDecimal.ZERO;
-    private BigDecimal netUnits = BigDecimal.ZERO;
+    private BigDecimal pikUnits = ZERO;
+    private BigDecimal netUnits = ZERO;
   }
 }

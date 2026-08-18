@@ -82,7 +82,7 @@ class NavCalculationIntegrationTest {
     assertThat(result.receivables()).isEqualByComparingTo(csvData.tradeReceivables);
     assertThat(result.payables()).isEqualByComparingTo(csvData.tradePayables.negate());
     assertThat(result.managementFeeAccrual()).isPositive();
-    assertThat(result.depotFeeAccrual()).isPositive();
+    assertThat(result.depotFeeAccrual()).isEqualByComparingTo(csvData.depotFeeAccrual.negate());
     assertThat(result.unitsOutstanding().setScale(3, HALF_UP))
         .isEqualByComparingTo(csvData.unitsOutstanding.setScale(3, HALF_UP));
     assertThat(result.pendingSubscriptions()).isEqualByComparingTo(ZERO);
@@ -262,7 +262,23 @@ class NavCalculationIntegrationTest {
 
     // Fees computed inline from base value (securitiesValue + cash)
     assertThat(result.managementFeeAccrual()).isPositive();
-    assertThat(result.depotFeeAccrual()).isPositive();
+
+    assertThat(result.depotFeeAccrual()).isEqualByComparingTo(ZERO);
+    assertThat(accruedDepotFee(TUK75, priceDate)).isPositive();
+  }
+
+  private BigDecimal accruedDepotFee(TulevaFund fund, LocalDate accrualDate) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT COALESCE(SUM(daily_amount_gross), 0)
+            FROM investment_fee_accrual
+            WHERE fund_code = :fundCode AND fee_type = 'DEPOT' AND accrual_date <= :accrualDate
+            """)
+        .param("fundCode", fund.name())
+        .param("accrualDate", accrualDate)
+        .query(BigDecimal.class)
+        .single();
   }
 
   @SneakyThrows

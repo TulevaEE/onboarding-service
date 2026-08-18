@@ -88,7 +88,7 @@ class TrackingDifferenceCalculatorTest {
             .yesterdayNav(new BigDecimal("10.00"))
             .securities(securities)
             .cashWeight(BigDecimal.ZERO)
-            .annualFeeRate(BigDecimal.ZERO)
+            .accruedFeeFraction(BigDecimal.ZERO)
             .build();
 
     var result = calculator.calculate(input);
@@ -111,7 +111,7 @@ class TrackingDifferenceCalculatorTest {
             .yesterdayNav(new BigDecimal("10.00"))
             .securities(securities)
             .cashWeight(BigDecimal.ZERO)
-            .annualFeeRate(BigDecimal.ZERO)
+            .accruedFeeFraction(BigDecimal.ZERO)
             .build();
 
     var result = calculator.calculate(input);
@@ -135,7 +135,7 @@ class TrackingDifferenceCalculatorTest {
             .yesterdayNav(new BigDecimal("10.00"))
             .securities(securities)
             .cashWeight(BigDecimal.ZERO)
-            .annualFeeRate(BigDecimal.ZERO)
+            .accruedFeeFraction(BigDecimal.ZERO)
             .build();
 
     var result = calculator.calculate(input);
@@ -184,7 +184,7 @@ class TrackingDifferenceCalculatorTest {
             .yesterdayNav(new BigDecimal("10.00"))
             .securities(securities)
             .cashWeight(new BigDecimal("0.05"))
-            .annualFeeRate(BigDecimal.ZERO)
+            .accruedFeeFraction(BigDecimal.ZERO)
             .build();
 
     var result = calculator.calculate(input);
@@ -207,13 +207,36 @@ class TrackingDifferenceCalculatorTest {
             .yesterdayNav(new BigDecimal("10.00"))
             .securities(securities)
             .cashWeight(BigDecimal.ZERO)
-            .annualFeeRate(new BigDecimal("0.02"))
+            .accruedFeeFraction(new BigDecimal("0.0000548"))
             .build();
 
     var result = calculator.calculate(input);
 
     assertThat(result).isPresent();
     assertThat(result.get().feeDrag()).isNegative();
+  }
+
+  @Test
+  void feeDragIsTheAccruedFractionItselfNotAnAnnualRateSpreadOverADay() {
+    var input =
+        TrackingInput.builder()
+            .fund(TUK75)
+            .checkDate(CHECK_DATE)
+            .checkType(MODEL_PORTFOLIO)
+            .todayNav(new BigDecimal("10.20"))
+            .yesterdayNav(new BigDecimal("10.00"))
+            .securities(
+                List.of(
+                    security(
+                        "IE00A", new BigDecimal("1.00"), new BigDecimal("1.00"), "102", "100")))
+            .cashWeight(BigDecimal.ZERO)
+            .accruedFeeFraction(new BigDecimal("0.000027"))
+            .build();
+
+    var result = calculator.calculate(input);
+
+    assertThat(result).isPresent();
+    assertThat(result.get().feeDrag()).isEqualByComparingTo(new BigDecimal("-0.000027"));
   }
 
   @Test
@@ -232,7 +255,7 @@ class TrackingDifferenceCalculatorTest {
             .yesterdayNav(new BigDecimal("10.00"))
             .securities(securities)
             .cashWeight(new BigDecimal("0.05"))
-            .annualFeeRate(BigDecimal.ZERO)
+            .accruedFeeFraction(BigDecimal.ZERO)
             .build();
 
     var result = calculator.calculate(input);
@@ -262,7 +285,7 @@ class TrackingDifferenceCalculatorTest {
                     security(
                         "IE00A", new BigDecimal("1.00"), new BigDecimal("1.00"), "102", "100")))
             .cashWeight(BigDecimal.ZERO)
-            .annualFeeRate(BigDecimal.ZERO)
+            .accruedFeeFraction(BigDecimal.ZERO)
             .bodHoldings(List.of(bodHolding("IE00A", new BigDecimal("1.00"), "102", "100")))
             .bodSecuritiesFraction(new BigDecimal("1.00"))
             .build();
@@ -292,7 +315,7 @@ class TrackingDifferenceCalculatorTest {
                     security(
                         "IE00A", new BigDecimal("1.00"), new BigDecimal("1.00"), "102", "100")))
             .cashWeight(new BigDecimal("0.05"))
-            .annualFeeRate(new BigDecimal("0.0365"))
+            .accruedFeeFraction(new BigDecimal("0.0001"))
             .bodHoldings(List.of(bodHolding("IE00A", new BigDecimal("1.00"), "102", "100")))
             .bodSecuritiesFraction(new BigDecimal("0.95"))
             .build();
@@ -321,7 +344,7 @@ class TrackingDifferenceCalculatorTest {
                     security(
                         "IE00A", new BigDecimal("1.00"), new BigDecimal("1.00"), "102", "100")))
             .cashWeight(BigDecimal.ZERO)
-            .annualFeeRate(BigDecimal.ZERO)
+            .accruedFeeFraction(BigDecimal.ZERO)
             .bodHoldings(List.of(bodHolding("IE00A", new BigDecimal("1.00"), "102", "100")))
             .bodSecuritiesFraction(new BigDecimal("1.00"))
             .build();
@@ -351,7 +374,7 @@ class TrackingDifferenceCalculatorTest {
                     security(
                         "IE00A", new BigDecimal("1.00"), new BigDecimal("1.00"), "160", "100")))
             .cashWeight(BigDecimal.ZERO)
-            .annualFeeRate(BigDecimal.ZERO)
+            .accruedFeeFraction(BigDecimal.ZERO)
             .bodHoldings(List.of(bodHolding("IE00A", new BigDecimal("1.00"), "160", "100")))
             .bodSecuritiesFraction(new BigDecimal("1.00"))
             .build();
@@ -385,7 +408,7 @@ class TrackingDifferenceCalculatorTest {
                         "100.81",
                         "100")))
             .cashWeight(BigDecimal.ZERO)
-            .annualFeeRate(BigDecimal.ZERO)
+            .accruedFeeFraction(BigDecimal.ZERO)
             .bodHoldings(List.of(bodHolding("IE00OLD", new BigDecimal("1.00"), "100.23", "100")))
             .bodSecuritiesFraction(new BigDecimal("1.00"))
             .build();
@@ -424,7 +447,7 @@ class TrackingDifferenceCalculatorTest {
                     security(
                         "IE00A", new BigDecimal("1.00"), new BigDecimal("1.00"), "102", "100")))
             .cashWeight(BigDecimal.ZERO)
-            .annualFeeRate(BigDecimal.ZERO)
+            .accruedFeeFraction(BigDecimal.ZERO)
             .bodHoldings(null)
             .bodSecuritiesFraction(new BigDecimal("1.00"))
             .build();
@@ -451,7 +474,7 @@ class TrackingDifferenceCalculatorTest {
                     security(
                         "IE00A", new BigDecimal("1.00"), new BigDecimal("1.00"), "102", "100")))
             .cashWeight(BigDecimal.ZERO)
-            .annualFeeRate(BigDecimal.ZERO)
+            .accruedFeeFraction(BigDecimal.ZERO)
             .bodHoldings(List.of())
             .bodSecuritiesFraction(new BigDecimal("1.00"))
             .build();
@@ -480,7 +503,7 @@ class TrackingDifferenceCalculatorTest {
                     security(
                         "IE00A", new BigDecimal("1.00"), new BigDecimal("1.00"), "102", "100")))
             .cashWeight(BigDecimal.ZERO)
-            .annualFeeRate(BigDecimal.ZERO)
+            .accruedFeeFraction(BigDecimal.ZERO)
             .bodHoldings(
                 List.of(
                     bodHolding("IE00A", new BigDecimal("1.00"), "102", "100"),
@@ -594,7 +617,7 @@ class TrackingDifferenceCalculatorTest {
         .yesterdayNav(yesterdayNav)
         .securities(securities)
         .cashWeight(BigDecimal.ZERO)
-        .annualFeeRate(BigDecimal.ZERO)
+        .accruedFeeFraction(BigDecimal.ZERO)
         .build();
   }
 
@@ -607,7 +630,7 @@ class TrackingDifferenceCalculatorTest {
         .yesterdayNav(new BigDecimal("10.00"))
         .securities(securities)
         .cashWeight(BigDecimal.ZERO)
-        .annualFeeRate(BigDecimal.ZERO)
+        .accruedFeeFraction(BigDecimal.ZERO)
         .build();
   }
 

@@ -35,7 +35,7 @@ class TransactionExecutionMapperTest {
             .build();
     SebPendingTransactionRow row = sampleRow(clientRef);
 
-    TransactionExecution execution = mapper.toExecution(row, order);
+    TransactionExecution execution = mapper.toExecution(row, order, LocalDate.of(2026, 5, 11));
 
     assertThat(execution.getOrderId()).isEqualTo(123L);
     assertThat(execution.getBrokerTransactionId()).isEqualTo("DLA0799512");
@@ -45,6 +45,7 @@ class TransactionExecutionMapperTest {
     assertThat(execution.getSettlementAmount()).isEqualByComparingTo("70915.58");
     assertThat(execution.getCommissionAmount()).isEqualByComparingTo("0.00");
     assertThat(execution.getScheduledSettlementDate()).isEqualTo(LocalDate.of(2026, 5, 13));
+    assertThat(execution.getReportedDate()).isEqualTo(LocalDate.of(2026, 5, 11));
     assertThat(execution.getExecutionTimestamp()).isEqualTo(Instant.parse("2026-05-11T10:26:04Z"));
     assertThat(execution.getSource()).isEqualTo("SEB_OOTEL");
     assertThat(execution.getModifiedBy()).isEqualTo("system:seb-reconciliation");

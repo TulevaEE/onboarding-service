@@ -10,6 +10,7 @@ import static ee.tuleva.onboarding.investment.transaction.ingest.ReconciliationA
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
+import ee.tuleva.onboarding.investment.report.SebReportHeaders;
 import ee.tuleva.onboarding.investment.transaction.OrderStatus;
 import ee.tuleva.onboarding.investment.transaction.OrderVenue;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
@@ -68,6 +69,7 @@ public class SebPendingTransactionReconciliationService {
         extractor.extractWithDiagnostics(report);
     List<SebPendingTransactionRow> rows = extraction.rows();
     LocalDate reportDate = report.getReportDate();
+    LocalDate asOfDate = asOfDate(report);
     TransactionMatchingProperties matchingProperties = matchingPolicy.current();
     log.info(
         "Reconciling SEB pending transactions: reportDate={}, rowCount={}, malformedCount={}",
@@ -133,7 +135,7 @@ public class SebPendingTransactionReconciliationService {
         matched++;
         continue;
       }
-      if (upsert(row, order, reportDate)) {
+      if (upsert(row, order, reportDate, asOfDate)) {
         matched++;
         checkPriceConsistency(order, reportDate, matchingProperties);
       }
@@ -265,7 +267,10 @@ public class SebPendingTransactionReconciliationService {
   }
 
   private boolean upsert(
-      SebPendingTransactionRow row, TransactionOrder order, LocalDate reportDate) {
+      SebPendingTransactionRow row,
+      TransactionOrder order,
+      LocalDate reportDate,
+      LocalDate asOfDate) {
     if (wouldOrphanExistingExecution(row, order)) {
       return false;
     }
@@ -273,15 +278,15 @@ public class SebPendingTransactionReconciliationService {
         executionRepository.findByBrokerTransactionId(row.ourRef());
     if (existing.isPresent()) {
       TransactionExecution execution = existing.get();
-      Map<String, Object> before = executionMapper.snapshot(execution);
+      Map<String, Object> before = executionMapper.mutableFieldsForDeltaAudit(execution);
       executionMapper.applyTo(execution, row, order);
       executionRepository.save(execution);
-      Map<String, Object> after = executionMapper.snapshot(execution);
+      Map<String, Object> after = executionMapper.mutableFieldsForDeltaAudit(execution);
       if (!before.equals(after)) {
         auditRecorder.recordExecutionUpdated(order, row, reportDate, before, after);
       }
     } else {
-      executionRepository.save(executionMapper.toExecution(row, order));
+      executionRepository.save(executionMapper.toExecution(row, order, asOfDate));
       auditRecorder.recordExecutionMatched(order, row, reportDate);
     }
 
@@ -433,6 +438,18 @@ public class SebPendingTransactionReconciliationService {
           .ifPresent(orderIds::add);
     }
     return orderIds;
+  }
+
+  private LocalDate asOfDate(InvestmentReport report) {
+    LocalDate asOfDate = SebReportHeaders.asOfDate(report);
+    if (asOfDate == null) {
+      log.warn(
+          "No 'As of' date in SEB pending transactions report, falling back to report date:"
+              + " reportDate={}",
+          report.getReportDate());
+      return report.getReportDate();
+    }
+    return asOfDate;
   }
 
   private boolean wouldOrphanExistingExecution(

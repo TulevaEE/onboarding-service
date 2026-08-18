@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SENT;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
+import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
@@ -49,6 +50,7 @@ class TransactionExecutionRepositoryIT {
             .settlementPenalty(new BigDecimal("0.00"))
             .netSettlementAmount(new BigDecimal("70915.58"))
             .scheduledSettlementDate(LocalDate.of(2026, 5, 13))
+            .reportedDate(LocalDate.of(2026, 5, 12))
             .navDate(LocalDate.of(2026, 5, 12))
             .comment("test execution")
             .source("SEB_OOTEL")
@@ -79,6 +81,7 @@ class TransactionExecutionRepositoryIT {
     assertThat(loaded.getSettlementPenalty()).isEqualByComparingTo("0.00");
     assertThat(loaded.getNetSettlementAmount()).isEqualByComparingTo("70915.58");
     assertThat(loaded.getScheduledSettlementDate()).isEqualTo(LocalDate.of(2026, 5, 13));
+    assertThat(loaded.getReportedDate()).isEqualTo(LocalDate.of(2026, 5, 12));
     assertThat(loaded.getNavDate()).isEqualTo(LocalDate.of(2026, 5, 12));
     assertThat(loaded.getComment()).isEqualTo("test execution");
     assertThat(loaded.getSource()).isEqualTo("SEB_OOTEL");
@@ -98,6 +101,7 @@ class TransactionExecutionRepositoryIT {
             .orderId(order.getId())
             .brokerTransactionId("DLA0000001")
             .source("SEB_OOTEL")
+            .reportedDate(LocalDate.of(2026, 5, 11))
             .build());
 
     TransactionExecution loaded =
@@ -225,7 +229,7 @@ class TransactionExecutionRepositoryIT {
   void sumExecutedQuantitiesByIsin_keepsBuysAndSellsSeparatePerInstrument() {
     LocalDate fromExclusive = LocalDate.of(2026, 5, 1);
     LocalDate toInclusive = LocalDate.of(2026, 5, 31);
-    Instant inside = Instant.parse("2026-05-11T10:00:00Z");
+    LocalDate inside = LocalDate.of(2026, 5, 11);
 
     TransactionOrder buy = persistOrder(TUK75, "IE0009FT4LX4", BUY, SENT);
     TransactionOrder sell = persistOrder(TUK75, "IE0009FT4LX4", SELL, SENT);
@@ -264,7 +268,7 @@ class TransactionExecutionRepositoryIT {
   void sumExecutedQuantitiesByIsin_excludesOtherFundsCancelledOrdersAndTradesOutsideWindow() {
     LocalDate fromExclusive = LocalDate.of(2026, 5, 1);
     LocalDate toInclusive = LocalDate.of(2026, 5, 31);
-    Instant inside = Instant.parse("2026-05-11T10:00:00Z");
+    LocalDate inside = LocalDate.of(2026, 5, 11);
 
     TransactionOrder otherFund = persistOrder(TUV100, "IE0009FT4LX4", BUY, SENT);
     TransactionOrder cancelled = persistOrder(TUK75, "IE0009FT4LX4", BUY, CANCELLED);
@@ -274,11 +278,9 @@ class TransactionExecutionRepositoryIT {
     executionRepository.save(executionWithQuantity(cancelled.getId(), "DLA_CX", inside, "600"));
     executionRepository.save(executionWithQuantity(inWindow.getId(), "DLA_IN", inside, "100"));
     executionRepository.save(
-        executionWithQuantity(
-            inWindow.getId(), "DLA_BEFORE", Instant.parse("2026-05-01T10:00:00Z"), "800"));
+        executionWithQuantity(inWindow.getId(), "DLA_BEFORE", LocalDate.of(2026, 5, 1), "800"));
     executionRepository.save(
-        executionWithQuantity(
-            inWindow.getId(), "DLA_AFTER", Instant.parse("2026-06-01T10:00:00Z"), "900"));
+        executionWithQuantity(inWindow.getId(), "DLA_AFTER", LocalDate.of(2026, 6, 1), "900"));
 
     entityManager.flush();
     entityManager.clear();
@@ -298,7 +300,7 @@ class TransactionExecutionRepositoryIT {
   }
 
   @Test
-  void sumExecutedQuantitiesByIsin_windowsOnSettlementDateNotTradeDate() {
+  void sumExecutedQuantitiesByIsin_windowsOnWhenTheCustodianReportedNotOnSettlementOrTradeDate() {
     LocalDate fromExclusive = LocalDate.of(2026, 5, 1);
     LocalDate toInclusive = LocalDate.of(2026, 5, 31);
 
@@ -307,17 +309,49 @@ class TransactionExecutionRepositoryIT {
     executionRepository.save(
         executionWithQuantity(
             order.getId(),
-            "DLA_LATE_SETTLE",
-            Instant.parse("2026-04-02T10:00:00Z"),
+            "DLA_REPORTED_IN_WINDOW",
+            LocalDate.of(2026, 5, 11),
             "100",
-            LocalDate.of(2026, 5, 11)));
+            LocalDate.of(2026, 6, 15),
+            Instant.parse("2026-04-02T10:00:00Z")));
     executionRepository.save(
         executionWithQuantity(
             order.getId(),
-            "DLA_EARLY_SETTLE",
-            Instant.parse("2026-05-11T10:00:00Z"),
+            "DLA_REPORTED_BEFORE_WINDOW",
+            LocalDate.of(2026, 4, 20),
             "700",
-            LocalDate.of(2026, 4, 20)));
+            LocalDate.of(2026, 5, 11),
+            Instant.parse("2026-04-20T10:00:00Z")));
+
+    entityManager.flush();
+    entityManager.clear();
+
+    var summaries =
+        executionRepository.sumExecutedQuantitiesByIsin(
+            TUK75.getCode(), fromExclusive, toInclusive);
+
+    assertThat(summaries)
+        .singleElement()
+        .satisfies(summary -> assertThat(summary.getBought()).isEqualByComparingTo("100"));
+  }
+
+  @Test
+  void sumExecutedQuantitiesByIsin_ignoresHistoricalImportRowsThatNeverCameFromACustodianReport() {
+    LocalDate fromExclusive = LocalDate.of(2026, 5, 1);
+    LocalDate toInclusive = LocalDate.of(2026, 5, 31);
+    LocalDate inside = LocalDate.of(2026, 5, 11);
+
+    TransactionOrder order = persistOrder(TUK75, "IE0009FT4LX4", BUY, SENT);
+
+    executionRepository.save(executionWithQuantity(order.getId(), "DLA_SEB", inside, "100"));
+    executionRepository.save(
+        TransactionExecution.builder()
+            .orderId(order.getId())
+            .brokerTransactionId("DLA_UNDATEABLE")
+            .executedQuantity(new BigDecimal("900"))
+            .reportedDate(inside)
+            .source("HISTORICAL_IMPORT")
+            .build());
 
     entityManager.flush();
     entityManager.clear();
@@ -332,22 +366,30 @@ class TransactionExecutionRepositoryIT {
   }
 
   private TransactionExecution executionWithQuantity(
-      Long orderId, String brokerTxId, Instant timestamp, String quantity) {
-    return executionWithQuantity(orderId, brokerTxId, timestamp, quantity, null);
+      Long orderId, String brokerTxId, LocalDate reportedDate, String quantity) {
+    return executionWithQuantity(
+        orderId,
+        brokerTxId,
+        reportedDate,
+        quantity,
+        null,
+        reportedDate.atStartOfDay(UTC).toInstant());
   }
 
   private TransactionExecution executionWithQuantity(
       Long orderId,
       String brokerTxId,
-      Instant timestamp,
+      LocalDate reportedDate,
       String quantity,
-      LocalDate scheduledSettlementDate) {
+      LocalDate scheduledSettlementDate,
+      Instant executionTimestamp) {
     return TransactionExecution.builder()
         .orderId(orderId)
         .brokerTransactionId(brokerTxId)
-        .executionTimestamp(timestamp)
+        .executionTimestamp(executionTimestamp)
         .executedQuantity(new BigDecimal(quantity))
         .scheduledSettlementDate(scheduledSettlementDate)
+        .reportedDate(reportedDate)
         .source("SEB_OOTEL")
         .build();
   }
@@ -376,6 +418,7 @@ class TransactionExecutionRepositoryIT {
         .brokerTransactionId(brokerTxId)
         .executionTimestamp(timestamp)
         .source("SEB_OOTEL")
+        .reportedDate(LocalDate.ofInstant(timestamp, java.time.ZoneOffset.UTC))
         .build();
   }
 
@@ -388,7 +431,80 @@ class TransactionExecutionRepositoryIT {
         .commissionAmount(new BigDecimal(commission))
         .settlementFeeAmount(settlementFee == null ? null : new BigDecimal(settlementFee))
         .source("SEB_OOTEL")
+        .reportedDate(LocalDate.ofInstant(timestamp, java.time.ZoneOffset.UTC))
         .build();
+  }
+
+  @Test
+  void insert_stampsCreatedAndUpdatedTimestamps() {
+    TransactionOrder order = persistOrder();
+
+    TransactionExecution saved =
+        executionRepository.save(
+            TransactionExecution.builder()
+                .orderId(order.getId())
+                .executedQuantity(new BigDecimal("100"))
+                .source("SEB_OOTEL")
+                .reportedDate(LocalDate.of(2026, 5, 12))
+                .build());
+    entityManager.flush();
+
+    assertThat(saved.getCreatedAt()).isNotNull();
+    assertThat(saved.getUpdatedAt()).isEqualTo(saved.getCreatedAt());
+  }
+
+  @Test
+  void insert_keepsTimestampsThatWereSetExplicitly() {
+    TransactionOrder order = persistOrder();
+    Instant createdAt = Instant.parse("2026-05-11T10:26:04Z");
+    Instant updatedAt = Instant.parse("2026-05-12T11:00:00Z");
+
+    TransactionExecution saved =
+        executionRepository.save(
+            TransactionExecution.builder()
+                .orderId(order.getId())
+                .executedQuantity(new BigDecimal("100"))
+                .source("SEB_OOTEL")
+                .reportedDate(LocalDate.of(2026, 5, 12))
+                .createdAt(createdAt)
+                .updatedAt(updatedAt)
+                .build());
+    entityManager.flush();
+
+    assertThat(saved.getCreatedAt()).isEqualTo(createdAt);
+    assertThat(saved.getUpdatedAt()).isEqualTo(updatedAt);
+  }
+
+  @Test
+  void update_movesUpdatedAtButLeavesCreatedAtAndReportedDateAlone() {
+    TransactionOrder order = persistOrder();
+    Instant createdAt = Instant.parse("2026-05-11T10:26:04Z");
+    LocalDate reportedDate = LocalDate.of(2026, 5, 12);
+
+    TransactionExecution saved =
+        executionRepository.save(
+            TransactionExecution.builder()
+                .orderId(order.getId())
+                .executedQuantity(new BigDecimal("100"))
+                .source("SEB_OOTEL")
+                .reportedDate(reportedDate)
+                .createdAt(createdAt)
+                .updatedAt(createdAt)
+                .build());
+    entityManager.flush();
+    entityManager.clear();
+
+    TransactionExecution loaded = executionRepository.findById(saved.getId()).orElseThrow();
+    loaded.setExecutedQuantity(new BigDecimal("150"));
+    executionRepository.save(loaded);
+    entityManager.flush();
+    entityManager.clear();
+
+    TransactionExecution updated = executionRepository.findById(saved.getId()).orElseThrow();
+    assertThat(updated.getExecutedQuantity()).isEqualByComparingTo(new BigDecimal("150"));
+    assertThat(updated.getCreatedAt()).isEqualTo(createdAt);
+    assertThat(updated.getReportedDate()).isEqualTo(reportedDate);
+    assertThat(updated.getUpdatedAt()).isAfter(createdAt);
   }
 
   private TransactionOrder persistOrder() {

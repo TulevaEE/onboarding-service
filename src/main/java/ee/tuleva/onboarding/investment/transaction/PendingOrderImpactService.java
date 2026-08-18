@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.investment.transaction;
 
-import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static java.math.BigDecimal.ZERO;
@@ -8,13 +7,12 @@ import static java.math.BigDecimal.ZERO;
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
@@ -27,7 +25,7 @@ import org.springframework.stereotype.Component;
 @NullMarked
 class PendingOrderImpactService {
 
-  private static final ZoneId TALLINN = ZoneId.of(TIMEZONE);
+  private static final String HISTORICAL_IMPORT_SOURCE = "HISTORICAL_IMPORT";
 
   private final TransactionOrderRepository orderRepository;
   private final TransactionExecutionRepository executionRepository;
@@ -39,7 +37,7 @@ class PendingOrderImpactService {
       return PendingOrderImpact.none();
     }
 
-    Map<Long, ExecutedTotals> executed = executedTotalsByOrderId(unsettled);
+    Map<Long, List<TransactionExecution>> executionsByOrder = executionsByOrderId(unsettled);
 
     BigDecimal pendingBuys = ZERO;
     BigDecimal pendingSells = ZERO;
@@ -47,21 +45,24 @@ class PendingOrderImpactService {
     Map<String, BigDecimal> unreportedQuantities = new HashMap<>();
 
     for (TransactionOrder order : unsettled) {
-      BigDecimal cashImpact = expectedConsideration(order, executedOf(executed, order), asOfDate);
+      List<TransactionExecution> executions =
+          executionsByOrder.getOrDefault(order.getId(), List.of());
+      ExecutedTotals executed = ExecutedTotals.of(executions);
+      BigDecimal cashImpact = expectedConsideration(order, executed, asOfDate);
       if (order.getTransactionType() == BUY) {
         pendingBuys = pendingBuys.add(cashImpact);
       } else {
         pendingSells = pendingSells.add(cashImpact);
       }
 
-      if (cashImpact.signum() == 0 || !isMissingFromPositionReport(order, positionDate)) {
-        continue;
-      }
-      unreportedValues.merge(order.getInstrumentIsin(), signed(order, cashImpact), BigDecimal::add);
-      if (order.getInstrumentType() == ETF && order.getOrderQuantity() != null) {
-        unreportedQuantities.merge(
-            order.getInstrumentIsin(), signed(order, order.getOrderQuantity()), BigDecimal::add);
-      }
+      addUnreportedPositions(
+          order,
+          executions,
+          executed,
+          positionDate,
+          asOfDate,
+          unreportedValues,
+          unreportedQuantities);
     }
 
     log.info(
@@ -78,46 +79,93 @@ class PendingOrderImpactService {
         pendingBuys, pendingSells, Map.copyOf(unreportedValues), Map.copyOf(unreportedQuantities));
   }
 
+  private void addUnreportedPositions(
+      TransactionOrder order,
+      List<TransactionExecution> executions,
+      ExecutedTotals executed,
+      LocalDate positionDate,
+      LocalDate asOfDate,
+      Map<String, BigDecimal> unreportedValues,
+      Map<String, BigDecimal> unreportedQuantities) {
+    String isin = order.getInstrumentIsin();
+    for (TransactionExecution execution : executions) {
+      if (!isMissingFromPositionReport(execution, positionDate)) {
+        continue;
+      }
+      BigDecimal consideration = absOrZero(execution.getTotalConsideration());
+      if (consideration.signum() != 0) {
+        unreportedValues.merge(isin, signed(order, consideration), BigDecimal::add);
+      }
+      BigDecimal quantity = absOrZero(execution.getExecutedQuantity());
+      if (order.getInstrumentType() == ETF && quantity.signum() != 0) {
+        unreportedQuantities.merge(isin, signed(order, quantity), BigDecimal::add);
+      }
+    }
+
+    BigDecimal unfilledValue = unfilledValue(order, executed, asOfDate);
+    if (unfilledValue.signum() == 0) {
+      return;
+    }
+    unreportedValues.merge(isin, signed(order, unfilledValue), BigDecimal::add);
+    BigDecimal unfilledQuantity = unfilledQuantity(order, executed);
+    if (order.getInstrumentType() == ETF && unfilledQuantity.signum() != 0) {
+      unreportedQuantities.merge(isin, signed(order, unfilledQuantity), BigDecimal::add);
+    }
+  }
+
   private static boolean isMissingFromPositionReport(
-      TransactionOrder order, LocalDate positionDate) {
-    Instant orderTimestamp = order.getOrderTimestamp();
-    return orderTimestamp != null
-        && orderTimestamp.atZone(TALLINN).toLocalDate().isAfter(positionDate);
+      TransactionExecution execution, LocalDate positionDate) {
+    if (HISTORICAL_IMPORT_SOURCE.equals(execution.getSource())) {
+      return false;
+    }
+    LocalDate reportedDate = execution.getReportedDate();
+    if (reportedDate == null) {
+      log.warn(
+          "Execution carries no reported date, leaving its position to the custodian report:"
+              + " executionId={}, orderId={}, positionDate={}",
+          execution.getId(),
+          execution.getOrderId(),
+          positionDate);
+      return false;
+    }
+    return reportedDate.isAfter(positionDate);
+  }
+
+  private static BigDecimal unfilledQuantity(TransactionOrder order, ExecutedTotals executed) {
+    BigDecimal orderQuantity = order.getOrderQuantity();
+    return orderQuantity == null
+        ? ZERO
+        : orderQuantity.abs().subtract(executed.quantity()).max(ZERO);
   }
 
   private record ExecutedTotals(BigDecimal consideration, BigDecimal quantity) {
 
     static final ExecutedTotals NONE = new ExecutedTotals(ZERO, ZERO);
 
+    static ExecutedTotals of(List<TransactionExecution> executions) {
+      ExecutedTotals totals = NONE;
+      for (TransactionExecution execution : executions) {
+        totals = totals.add(execution);
+      }
+      return totals;
+    }
+
     ExecutedTotals add(TransactionExecution execution) {
       return new ExecutedTotals(
           consideration.add(absOrZero(execution.getTotalConsideration())),
           quantity.add(absOrZero(execution.getExecutedQuantity())));
     }
-
-    private static BigDecimal absOrZero(@Nullable BigDecimal value) {
-      return value == null ? ZERO : value.abs();
-    }
   }
 
-  private Map<Long, ExecutedTotals> executedTotalsByOrderId(List<TransactionOrder> orders) {
+  private static BigDecimal absOrZero(@Nullable BigDecimal value) {
+    return value == null ? ZERO : value.abs();
+  }
+
+  private Map<Long, List<TransactionExecution>> executionsByOrderId(List<TransactionOrder> orders) {
     List<Long> orderIds =
         orders.stream().map(TransactionOrder::getId).filter(Objects::nonNull).toList();
-    Map<Long, ExecutedTotals> totals = new HashMap<>();
-    executionRepository
-        .findByOrderIdIn(orderIds)
-        .forEach(
-            execution ->
-                totals.compute(
-                    execution.getOrderId(),
-                    (orderId, accumulated) ->
-                        (accumulated == null ? ExecutedTotals.NONE : accumulated).add(execution)));
-    return totals;
-  }
-
-  private static ExecutedTotals executedOf(
-      Map<Long, ExecutedTotals> executed, TransactionOrder order) {
-    return executed.getOrDefault(order.getId(), ExecutedTotals.NONE);
+    return executionRepository.findByOrderIdIn(orderIds).stream()
+        .collect(Collectors.groupingBy(TransactionExecution::getOrderId));
   }
 
   private BigDecimal expectedConsideration(
@@ -131,7 +179,7 @@ class PendingOrderImpactService {
     if (orderQuantity == null) {
       return unfilledAmount(order, executed);
     }
-    BigDecimal unfilledQuantity = orderQuantity.abs().subtract(executed.quantity()).max(ZERO);
+    BigDecimal unfilledQuantity = unfilledQuantity(order, executed);
     if (unfilledQuantity.signum() == 0) {
       return ZERO;
     }

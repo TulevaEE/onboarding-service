@@ -62,19 +62,18 @@ class RiskIndicatorSeriesService {
       return SeriesRefresh.empty();
     }
 
-    var points =
+    var calculated =
         indicatorType == SRI
             ? sriCalculator.calculate(prices, evaluationStart, anchor)
-            : srriCalculator.calculate(prices, evaluationStart, anchor);
+            : new CalculatedSeries(
+                srriCalculator.calculate(prices, evaluationStart, anchor), List.of());
+    var points = calculated.points();
 
-    return new SeriesRefresh(points, save(fund, indicatorType, sourceKeys(segments), points));
+    var changes = save(fund, indicatorType, sourceKeys(segments), points);
+    return new SeriesRefresh(
+        points, changes.driftedDates(), changes.redefinitions(), calculated.skippedDates());
   }
 
-  /**
-   * A feed that stops updating recomputes an identical series forever: nothing drifts, the
-   * publication row for the frozen date already exists, and the digest keeps reporting that date as
-   * green. Age is the only thing that distinguishes a dead feed from a quiet one.
-   */
   private void failIfSourceStoppedUpdating(LocalDate anchor, List<Source> segments) {
     if (anchor.isBefore(LocalDate.now(clock).minusDays(MAX_SOURCE_AGE_DAYS))) {
       throw new IllegalStateException(
@@ -124,7 +123,7 @@ class RiskIndicatorSeriesService {
     return segments.stream().map(Source::key).collect(Collectors.joining(","));
   }
 
-  private List<LocalDate> save(
+  private StoredChanges save(
       TulevaFund fund,
       RiskIndicatorType indicatorType,
       String sourceKeys,
@@ -135,27 +134,81 @@ class RiskIndicatorSeriesService {
 
     var toSave = new ArrayList<RiskIndicatorPoint>();
     var drifted = new ArrayList<LocalDate>();
+    var redefined = new ArrayList<Redefinition>();
     for (var point : points) {
       var stored = existing.get(point.date());
       if (stored == null) {
         toSave.add(newPoint(fund, indicatorType, sourceKeys, point));
-      } else if (hasDrifted(stored, point)) {
+      } else if (!hasDrifted(stored, point)) {
+        continue;
+      } else if (holdingPeriodChanged(stored, point)) {
+        var redefinition = redefinition(stored, point);
+        toSave.add(applyRedefinition(stored, point, redefinition));
+        redefined.add(redefinition);
+      } else {
         toSave.add(applyDrift(stored, point));
         drifted.add(point.date());
       }
     }
     pointRepository.saveAll(toSave);
-    return drifted;
+    return new StoredChanges(List.copyOf(drifted), List.copyOf(redefined));
   }
 
-  /**
-   * A recomputation that moved an already-stored point means the source data changed underneath us.
-   * The dates travel back to the caller so the digest can say so — drift that only ever reaches the
-   * log is drift nobody finds.
-   */
-  record SeriesRefresh(List<ReferencePoint> points, List<LocalDate> driftedDates) {
+  private record StoredChanges(List<LocalDate> driftedDates, List<Redefinition> redefinitions) {}
+
+  private boolean holdingPeriodChanged(RiskIndicatorPoint stored, ReferencePoint recomputed) {
+    var current = recomputedHoldingPeriod(recomputed);
+    return current != null && !current.equals(storedHoldingPeriod(stored));
+  }
+
+  private Redefinition redefinition(RiskIndicatorPoint stored, ReferencePoint recomputed) {
+    return new Redefinition(
+        stored.getAsOfDate(),
+        storedHoldingPeriod(stored),
+        Objects.requireNonNull(recomputedHoldingPeriod(recomputed)));
+  }
+
+  private @Nullable String storedHoldingPeriod(RiskIndicatorPoint stored) {
+    var value = stored.getMetrics().get(SriCalculator.HOLDING_PERIOD_METRIC);
+    return value == null ? null : String.valueOf(value);
+  }
+
+  private @Nullable String recomputedHoldingPeriod(ReferencePoint recomputed) {
+    var value = recomputed.metrics().get(SriCalculator.HOLDING_PERIOD_METRIC);
+    return value == null ? null : String.valueOf(value);
+  }
+
+  private RiskIndicatorPoint applyRedefinition(
+      RiskIndicatorPoint stored, ReferencePoint recomputed, Redefinition redefinition) {
+    log.info(
+        "Risk indicator point recomputed under a new definition: fund={}, type={}, date={},"
+            + " storedClass={}, recomputedClass={}, storedVolatility={}, recomputedVolatility={},"
+            + " previousHoldingPeriodTradingDays={}, holdingPeriodTradingDays={}",
+        stored.getFund(),
+        stored.getIndicatorType(),
+        stored.getAsOfDate(),
+        stored.getRiskClass(),
+        recomputed.riskClass(),
+        stored.getVolatility(),
+        recomputed.volatility(),
+        redefinition.previousHoldingPeriodTradingDays(),
+        redefinition.holdingPeriodTradingDays());
+
+    var metrics = new HashMap<String, Object>(stringKeyed(recomputed.metrics()));
+    var history = driftHistory(stored);
+    if (!history.isEmpty()) {
+      metrics.put("driftHistory", history);
+    }
+    return apply(stored, recomputed, metrics);
+  }
+
+  record SeriesRefresh(
+      List<ReferencePoint> points,
+      List<LocalDate> driftedDates,
+      List<Redefinition> redefinitions,
+      List<LocalDate> skippedDates) {
     static SeriesRefresh empty() {
-      return new SeriesRefresh(List.of(), List.of());
+      return new SeriesRefresh(List.of(), List.of(), List.of(), List.of());
     }
   }
 
@@ -206,7 +259,11 @@ class RiskIndicatorSeriesService {
             "newClass",
             String.valueOf(recomputed.riskClass())));
     metrics.put("driftHistory", history);
+    return apply(stored, recomputed, metrics);
+  }
 
+  private RiskIndicatorPoint apply(
+      RiskIndicatorPoint stored, ReferencePoint recomputed, Map<String, Object> metrics) {
     stored.setRiskClass(recomputed.riskClass());
     stored.setObservationCount(recomputed.observationCount());
     stored.setVolatility(recomputed.volatility());

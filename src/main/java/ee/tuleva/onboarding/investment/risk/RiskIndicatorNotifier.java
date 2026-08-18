@@ -67,16 +67,10 @@ class RiskIndicatorNotifier {
       notificationService.sendMessage(
           "Riskiindikaatori muutus\n" + String.join("\n", lines), INVESTMENT);
     }
-    markNotified(run);
+    becomeBaselineForNextComparison(run);
   }
 
-  /**
-   * Only once the message is out does this state become the baseline for the next comparison.
-   * Marking earlier would let a failed send swallow the transition permanently, because the next
-   * run would compare against a state the reader never saw. Having nothing to say still counts as
-   * reconciled.
-   */
-  private void markNotified(RiskIndicatorRun run) {
+  private void becomeBaselineForNextComparison(RiskIndicatorRun run) {
     var publications =
         run.outcomes().stream()
             .map(
@@ -120,13 +114,18 @@ class RiskIndicatorNotifier {
                   indicator.publishedClass()));
     }
 
-    // A document disagreeing with the computed class is a compliance defect rather than a
-    // transition, so unlike the two above it is not suppressed on a cold start: it is just as true
-    // on the very first run.
-    if (isMismatched(disclosed, indicator) && !isSameMismatchAlreadyReported(previous, disclosed)) {
+    if (isComplianceDefectRatherThanTransition(previous, disclosed, indicator)) {
       lines.add(mismatchLine(indicator, disclosed));
     }
     return lines;
+  }
+
+  private boolean isComplianceDefectRatherThanTransition(
+      @Nullable PublicationSnapshot previous,
+      @Nullable DisclosedRiskIndicator disclosed,
+      PublishedRiskIndicator indicator) {
+    return isMismatched(disclosed, indicator)
+        && !isMismatchAlreadyReportedForSameDisclosedClass(previous, disclosed);
   }
 
   private boolean hasPublishedClassChangedSinceLastMessage(
@@ -140,19 +139,19 @@ class RiskIndicatorNotifier {
     return previous != null && previous.status() != indicator.status();
   }
 
-  /**
-   * Only the mismatch we already put into Slack is old news. Both a first mistyped INSERT and a
-   * correction from one wrong class to another are new information, and a hand-maintained table
-   * fails in exactly those two ways -- so the mismatch has to be identified by the class the
-   * document carried when we last spoke, not merely by the fact that some mismatch existed.
-   */
-  private boolean isSameMismatchAlreadyReported(
+  private boolean isMismatchAlreadyReportedForSameDisclosedClass(
       @Nullable PublicationSnapshot previous, @Nullable DisclosedRiskIndicator disclosed) {
     return previous != null
-        && previous.notifiedDisclosedClass() != null
-        && !Objects.equals(previous.publishedClass(), previous.notifiedDisclosedClass())
         && disclosed != null
-        && Objects.equals(previous.notifiedDisclosedClass(), disclosed.getDisclosedClass());
+        && lastMessageReportedMismatchOfClass(previous, disclosed.getDisclosedClass());
+  }
+
+  private boolean lastMessageReportedMismatchOfClass(
+      PublicationSnapshot previous, @Nullable Integer disclosedClass) {
+    var reported = previous.notifiedDisclosedClass();
+    return reported != null
+        && !Objects.equals(previous.publishedClass(), reported)
+        && Objects.equals(reported, disclosedClass);
   }
 
   private void sendDigestIfDue(RiskIndicatorRun run) {
@@ -168,25 +167,16 @@ class RiskIndicatorNotifier {
       return;
     }
 
-    var claim = claim(existing, month, complete);
+    var claim = claimMonthBeforeSending(existing, month, complete);
     try {
       notificationService.sendMessage(digest(run), INVESTMENT);
     } catch (RuntimeException e) {
-      if (existing == null) {
-        digestRepository.delete(claim);
-      } else {
-        reopen(claim);
-      }
+      releaseClaimOnFailedSend(claim, existing);
       throw e;
     }
   }
 
-  /**
-   * The month is claimed before the message goes out, so a concurrent run loses on the unique
-   * constraint instead of putting a second copy into Slack. A failed send hands the claim back, so
-   * the next business day retries rather than the month being silently written off.
-   */
-  private RiskIndicatorDigest claim(
+  private RiskIndicatorDigest claimMonthBeforeSending(
       @Nullable RiskIndicatorDigest existing, LocalDate month, boolean complete) {
     if (existing == null) {
       return digestRepository.save(
@@ -196,7 +186,12 @@ class RiskIndicatorNotifier {
     return digestRepository.save(existing);
   }
 
-  private void reopen(RiskIndicatorDigest claim) {
+  private void releaseClaimOnFailedSend(
+      RiskIndicatorDigest claim, @Nullable RiskIndicatorDigest existing) {
+    if (existing == null) {
+      digestRepository.delete(claim);
+      return;
+    }
     claim.setComplete(false);
     digestRepository.save(claim);
   }
@@ -206,7 +201,7 @@ class RiskIndicatorNotifier {
     var message = new StringBuilder();
     message.append(
         "%s Riskiindikaatorite kuuülevaade — seisuga %s\n"
-            .formatted(worstSeverity(run, proxyReviews).icon(), asOfDate(run)));
+            .formatted(severityCoveringWholeDigest(run, proxyReviews).icon(), asOfDate(run)));
     message.append(headline(run, proxyReviews)).append("\n\n");
     message.append("```\n").append(table(run)).append("```\n");
 
@@ -254,21 +249,23 @@ class RiskIndicatorNotifier {
     return parts.isEmpty() ? "Ühtegi fondi ei hinnatud." : String.join(", ", parts) + ".";
   }
 
-  /**
-   * The header icon has to cover everything printed underneath it, including the lines that hang
-   * off the run rather than off a single fund. A green header above a proxy review or a fund that
-   * failed to evaluate would be exactly the reassurance the traffic light is supposed to withhold.
-   */
-  private Severity worstSeverity(RiskIndicatorRun run, List<String> proxyReviews) {
-    var worst =
-        run.outcomes().stream()
-            .map(outcome -> severity(outcome.indicator(), disclosedClass(outcome.indicator())))
-            .max(Comparator.naturalOrder())
-            .orElse(Severity.GREEN);
-    if (worst == Severity.RED) {
+  private Severity severityCoveringWholeDigest(RiskIndicatorRun run, List<String> proxyReviews) {
+    var worstFund = worstSeverityAcrossFunds(run);
+    if (worstFund == Severity.RED) {
       return Severity.RED;
     }
-    return run.failures().isEmpty() && proxyReviews.isEmpty() ? worst : Severity.YELLOW;
+    return hasLinesTiedToNoFund(run, proxyReviews) ? Severity.YELLOW : worstFund;
+  }
+
+  private Severity worstSeverityAcrossFunds(RiskIndicatorRun run) {
+    return run.outcomes().stream()
+        .map(outcome -> severity(outcome.indicator(), disclosedClass(outcome.indicator())))
+        .max(Comparator.naturalOrder())
+        .orElse(Severity.GREEN);
+  }
+
+  private boolean hasLinesTiedToNoFund(RiskIndicatorRun run, List<String> proxyReviews) {
+    return !run.failures().isEmpty() || !proxyReviews.isEmpty();
   }
 
   private String asOfDate(RiskIndicatorRun run) {
@@ -321,8 +318,11 @@ class RiskIndicatorNotifier {
       block.add(
           "Aknas on %d vaatlust, klassi ei avaldata. Volatiilsus %s."
               .formatted(indicator.latestObservationCount(), volatility(indicator)));
-      block.add("👉 Tegevus: kontrolli, kas NAV-seeria on täielik — investment-role.");
-      return String.join("\n", block);
+      block.add(
+          "👉 Tegevus: kontrolli, kas NAV-seeria on täielik. Kui fondi enda ajalugu ongi nõutud"
+              + " perioodist lühem, lisa investment.risk.sources alla võrdlusindeksi segment —"
+              + " klassi avaldamata jätmine ei ole lubatud variant.");
+      return String.join("\n", withDiagnostics(block, outcome));
     }
 
     if (isMismatched(disclosed, indicator)) {
@@ -335,7 +335,7 @@ class RiskIndicatorNotifier {
                   disclosed.getDisclosedClass(),
                   disclosed.getDisclosedFrom()));
       block.add(
-          "👉 Tegevus: dokument vajab uuendamist — risk-role. Pärast avaldamist lisa rida"
+          "👉 Tegevus: dokument vajab uuendamist. Pärast avaldamist lisa rida"
               + " investment_risk_indicator_disclosure tabelisse.");
     } else if (disclosed == null) {
       block.add(
@@ -345,8 +345,8 @@ class RiskIndicatorNotifier {
           "Arvutatud avaldatav klass on %d, aga ühtegi dokumendirida ei ole."
               .formatted(indicator.publishedClass()));
       block.add(
-          "👉 Tegevus: lisa kehtiv KID/KIID rida investment_risk_indicator_disclosure tabelisse"
-              + " — risk-role.");
+          "👉 Tegevus: lisa kehtiv KID/KIID rida investment_risk_indicator_disclosure"
+              + " tabelisse.");
     } else if (indicator.status() == RiskIndicatorStatus.CHANGE_PENDING) {
       block.add("⚠️ %s %s — muutus ootel".formatted(indicator.fund(), indicator.indicatorType()));
       block.add(
@@ -369,7 +369,7 @@ class RiskIndicatorNotifier {
                   indicator.publishedSince(),
                   text(indicator.previousPublishedClass()),
                   rangeLine(indicator)));
-      block.add("👉 Tegevus: kontrolli, kas dokument on juba uuendatud — risk-role.");
+      block.add("👉 Tegevus: kontrolli, kas dokument on juba uuendatud.");
     } else {
       block.add(
           "✅ %s %s — stabiilne, dokument ajakohane"
@@ -378,10 +378,16 @@ class RiskIndicatorNotifier {
       block.add(majorityLine(indicator));
     }
 
-    dataQualityLine(indicator).ifPresent(block::add);
-    truncatedHistoryLine(indicator).ifPresent(block::add);
+    return String.join("\n", withDiagnostics(block, outcome));
+  }
+
+  private List<String> withDiagnostics(List<String> block, RiskIndicatorOutcome outcome) {
+    dataQualityLine(outcome.indicator()).ifPresent(block::add);
+    truncatedHistoryLine(outcome.indicator()).ifPresent(block::add);
     driftLine(outcome).ifPresent(block::add);
-    return String.join("\n", block);
+    redefinitionLine(outcome).ifPresent(block::add);
+    skippedLine(outcome).ifPresent(block::add);
+    return block;
   }
 
   private String mismatchLine(
@@ -467,16 +473,10 @@ class RiskIndicatorNotifier {
                 since,
                 weeksLeft)
         + " eeldatav kinnitus %s; aknas on veel %d referentspunkti muus klassis."
-            .formatted(threshold, blockingReferencePoints(indicator));
+            .formatted(threshold, referencePointsNotYetOnTheRawClass(indicator));
   }
 
-  /**
-   * The confirmation date only holds if the window really does run clear of the published class by
-   * then. Printing it alone lets it pass with nothing happening and no way to tell why; the count
-   * of window points not yet on the raw class is what says whether the class is actually
-   * converging.
-   */
-  private int blockingReferencePoints(PublishedRiskIndicator indicator) {
+  private int referencePointsNotYetOnTheRawClass(PublishedRiskIndicator indicator) {
     return indicator.windowReferencePoints() - indicator.matchingReferencePoints();
   }
 
@@ -504,6 +504,42 @@ class RiskIndicatorNotifier {
                     drifted.getFirst(),
                     drifted.getLast())
             + " allikaandmed muutusid tagantjärele.");
+  }
+
+  private Optional<String> redefinitionLine(RiskIndicatorOutcome outcome) {
+    var redefinitions = outcome.redefinitions();
+    if (redefinitions.isEmpty()) {
+      return Optional.empty();
+    }
+    var first = redefinitions.getFirst();
+    return Optional.of(
+        "ℹ️ %s %s: %d varasemat referentspunkti arvutati ümber (vanim %s, viimane %s) —"
+                .formatted(
+                    outcome.indicator().fund(),
+                    outcome.indicator().indicatorType(),
+                    redefinitions.size(),
+                    first.date(),
+                    redefinitions.getLast().date())
+            + " hoidmisperioodi kauplemispäevi %s → %s. Alusandmed ei muutunud."
+                .formatted(
+                    text(first.previousHoldingPeriodTradingDays()),
+                    first.holdingPeriodTradingDays()));
+  }
+
+  private Optional<String> skippedLine(RiskIndicatorOutcome outcome) {
+    var skipped = outcome.skippedDates();
+    if (skipped.isEmpty()) {
+      return Optional.empty();
+    }
+    return Optional.of(
+        "⚠️ %s %s: %d referentspunkti jäi arvutamata (vanim %s, viimane %s) — VEV ei tulnud"
+                .formatted(
+                    outcome.indicator().fund(),
+                    outcome.indicator().indicatorType(),
+                    skipped.size(),
+                    skipped.getFirst(),
+                    skipped.getLast())
+            + " lõplik arv, seeriasse jäi auk. 👉 Tegevus: kontrolli nende kuupäevade alushindu.");
   }
 
   private Optional<String> dataQualityLine(PublishedRiskIndicator indicator) {
@@ -546,7 +582,7 @@ class RiskIndicatorNotifier {
           ("⚠️ %s %s — võrdlusindeksi proxy vajab ülevaatust\n"
                   + "Fondil on nüüd %s aastat oma NAV-ajalugu (alates %s); indikaator arvutatakse"
                   + " endiselt allikast %s. Annex II p5 lävend on täidetud.\n"
-                  + "👉 Tegevus: risk-role — otsusta, kas minna üle oma andmetele.")
+                  + "👉 Tegevus: otsusta, kas minna üle oma andmetele.")
               .formatted(
                   fund,
                   outcome.indicator().indicatorType(),
@@ -589,11 +625,6 @@ class RiskIndicatorNotifier {
         && !Objects.equals(disclosed.getDisclosedClass(), indicator.publishedClass());
   }
 
-  /**
-   * The same three-colour scale the rest of the investment checks use: green means nothing to do,
-   * yellow means look at it, red means the filed document and the computed class disagree. Red is
-   * reserved for that one case so that seeing red always means the same thing.
-   */
   private enum Severity {
     GREEN("✅"),
     YELLOW("⚠️"),
@@ -669,11 +700,17 @@ class RiskIndicatorNotifier {
     return volatility == null ? "—" : number(volatility, indicator);
   }
 
-  /** SRI is read as a VEV in decimals, SRRI as an annualised volatility in per cent. */
   private String number(BigDecimal value, PublishedRiskIndicator indicator) {
-    if (indicator.indicatorType() == SRI) {
-      return String.format(ESTONIAN, "%.4f", value);
-    }
+    return indicator.indicatorType() == SRI
+        ? vevInDecimals(value)
+        : annualisedVolatilityInPerCent(value);
+  }
+
+  private String vevInDecimals(BigDecimal value) {
+    return String.format(ESTONIAN, "%.4f", value);
+  }
+
+  private String annualisedVolatilityInPerCent(BigDecimal value) {
     return String.format(
             ESTONIAN,
             "%.2f",

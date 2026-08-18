@@ -177,11 +177,11 @@ class RiskIndicatorNotifierTest {
 
             🔴 TUV100 SRRI — dokumendis on klass 4, arvutatud avaldatav klass on 5
             Muutus jõustus 2026-05-05. Viimane dokument: 'Pohiteave TUV100' (klass 4, alates 2026-03-19).
-            👉 Tegevus: dokument vajab uuendamist — risk-role. Pärast avaldamist lisa rida investment_risk_indicator_disclosure tabelisse.
+            👉 Tegevus: dokument vajab uuendamist. Pärast avaldamist lisa rida investment_risk_indicator_disclosure tabelisse.
 
             ⚠️ TUK00 SRRI — avaldatud klass teadmata
             Arvutatud avaldatav klass on 4, aga ühtegi dokumendirida ei ole.
-            👉 Tegevus: lisa kehtiv KID/KIID rida investment_risk_indicator_disclosure tabelisse — risk-role.
+            👉 Tegevus: lisa kehtiv KID/KIID rida investment_risk_indicator_disclosure tabelisse.
 
             Allikad: TKF100: MSCI_ACWI; TUK75: EE3600109435; TUV100: EE3600001707; TUK00: EE3600109443. SRI = MRM, eeldusel CRM = 1.
             """);
@@ -233,6 +233,8 @@ class RiskIndicatorNotifierTest {
                         new PublicationSnapshot(
                             EVALUATION_DATE.minusDays(1), 5, 5, CHANGE_CONFIRMED),
                         RiskIndicatorPublication.builder().build(),
+                        List.of(),
+                        List.of(),
                         List.of())),
                 List.of()));
 
@@ -297,6 +299,8 @@ class RiskIndicatorNotifierTest {
                         new PublicationSnapshot(
                             EVALUATION_DATE.minusDays(1), 5, 4, CHANGE_CONFIRMED),
                         RiskIndicatorPublication.builder().build(),
+                        List.of(),
+                        List.of(),
                         List.of())),
                 List.of()));
 
@@ -313,7 +317,8 @@ class RiskIndicatorNotifierTest {
             new RiskIndicatorRun(
                 EVALUATION_DATE,
                 List.of(
-                    new RiskIndicatorOutcome(staleDocumentSrri(), null, publication, List.of())),
+                    new RiskIndicatorOutcome(
+                        staleDocumentSrri(), null, publication, List.of(), List.of(), List.of())),
                 List.of()));
 
     assertThat(publication.getNotifiedDisclosedClass()).isEqualTo(4);
@@ -454,7 +459,9 @@ class RiskIndicatorNotifierTest {
     var run =
         new RiskIndicatorRun(
             EVALUATION_DATE,
-            List.of(new RiskIndicatorOutcome(stableSri(), null, publication, List.of())),
+            List.of(
+                new RiskIndicatorOutcome(
+                    stableSri(), null, publication, List.of(), List.of(), List.of())),
             List.of());
 
     notifier.notify(run);
@@ -471,7 +478,9 @@ class RiskIndicatorNotifierTest {
     notifier.notify(
         new RiskIndicatorRun(
             EVALUATION_DATE,
-            List.of(new RiskIndicatorOutcome(staleDocumentSrri(), null, publication, List.of())),
+            List.of(
+                new RiskIndicatorOutcome(
+                    staleDocumentSrri(), null, publication, List.of(), List.of(), List.of())),
             List.of()));
 
     assertThat(publication.getNotified()).isFalse();
@@ -489,13 +498,65 @@ class RiskIndicatorNotifierTest {
                     stableSri(),
                     null,
                     RiskIndicatorPublication.builder().build(),
-                    List.of(LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 30)))),
+                    List.of(LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 30)),
+                    List.of(),
+                    List.of())),
             List.of()));
 
     assertThat(notifications.lastMessage())
         .contains(
             "⚠️ TKF100 SRI: 2 varasemat referentspunkti arvutati ümber",
             "vanim 2026-06-01, viimane 2026-06-30");
+  }
+
+  @Test
+  void aChangedHoldingPeriodIsReportedAsARedefinitionRatherThanSourceDataDrift() {
+    disclose(SRI, TKF100, 4);
+
+    notifier.notify(
+        new RiskIndicatorRun(
+            EVALUATION_DATE,
+            List.of(
+                new RiskIndicatorOutcome(
+                    stableSri(),
+                    null,
+                    RiskIndicatorPublication.builder().build(),
+                    List.of(),
+                    List.of(
+                        new Redefinition(LocalDate.of(2026, 6, 1), "1300", "1280"),
+                        new Redefinition(LocalDate.of(2026, 6, 30), "1300", "1280")),
+                    List.of())),
+            List.of()));
+
+    assertThat(notifications.lastMessage())
+        .contains(
+            "ℹ️ TKF100 SRI: 2 varasemat referentspunkti arvutati ümber",
+            "vanim 2026-06-01, viimane 2026-06-30",
+            "hoidmisperioodi kauplemispäevi 1300 → 1280")
+        .doesNotContain("allikaandmed muutusid tagantjärele");
+  }
+
+  @Test
+  void referencePointsTheCalculatorCouldNotUseAreCalledOutInTheDigest() {
+    disclose(SRI, TKF100, 4);
+
+    notifier.notify(
+        new RiskIndicatorRun(
+            EVALUATION_DATE,
+            List.of(
+                new RiskIndicatorOutcome(
+                    stableSri(),
+                    null,
+                    RiskIndicatorPublication.builder().build(),
+                    List.of(),
+                    List.of(),
+                    List.of(LocalDate.of(2026, 6, 2), LocalDate.of(2026, 7, 1)))),
+            List.of()));
+
+    assertThat(notifications.lastMessage())
+        .contains(
+            "⚠️ TKF100 SRI: 2 referentspunkti jäi arvutamata",
+            "vanim 2026-06-02, viimane 2026-07-01");
   }
 
   @Test
@@ -724,7 +785,9 @@ class RiskIndicatorNotifierTest {
             "TUK00   SRRI    —          ?          —              —        —        ⚠️ andmeid napib",
             "⚠️ TUK00 SRRI — andmeid napib",
             "Aknas on 17 vaatlust, klassi ei avaldata. Volatiilsus 2,10%.",
-            "👉 Tegevus: kontrolli, kas NAV-seeria on täielik — investment-role.");
+            "👉 Tegevus: kontrolli, kas NAV-seeria on täielik. Kui fondi enda ajalugu ongi nõutud"
+                + " perioodist lühem, lisa investment.risk.sources alla võrdlusindeksi segment —"
+                + " klassi avaldamata jätmine ei ole lubatud variant.");
   }
 
   @Test
@@ -738,7 +801,7 @@ class RiskIndicatorNotifierTest {
             "⚠️ muutus kinnitatud",
             "⚠️ TUV100 SRRI — muutus äsja kinnitatud",
             "Avaldatav klass 5 alates 2026-05-05 (eelmine 4).",
-            "👉 Tegevus: kontrolli, kas dokument on juba uuendatud — risk-role.");
+            "👉 Tegevus: kontrolli, kas dokument on juba uuendatud.");
   }
 
   @Test
@@ -1000,7 +1063,12 @@ class RiskIndicatorNotifierTest {
   private RiskIndicatorOutcome outcome(
       PublishedRiskIndicator indicator, @Nullable PublicationSnapshot previous) {
     return new RiskIndicatorOutcome(
-        indicator, previous, RiskIndicatorPublication.builder().build(), List.of());
+        indicator,
+        previous,
+        RiskIndicatorPublication.builder().build(),
+        List.of(),
+        List.of(),
+        List.of());
   }
 
   private static class RecordingNotificationService implements OperationsNotificationService {

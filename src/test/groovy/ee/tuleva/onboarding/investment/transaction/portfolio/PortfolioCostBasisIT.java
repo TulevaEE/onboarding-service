@@ -161,6 +161,7 @@ class PortfolioCostBasisIT {
             .commissionAmount(new BigDecimal(commission))
             .scheduledSettlementDate(TRADE_DATE.plusDays(2))
             .source("SEB_OOTEL")
+            .reportedDate(TRADE_DATE)
             .build();
     executionRepository.save(exec);
     entityManager.flush();
@@ -184,6 +185,7 @@ class PortfolioCostBasisIT {
             .commissionAmount(BigDecimal.ZERO)
             .scheduledSettlementDate(date.plusDays(2))
             .source("SEB_OOTEL")
+            .reportedDate(date)
             .build();
     executionRepository.save(exec);
     entityManager.flush();

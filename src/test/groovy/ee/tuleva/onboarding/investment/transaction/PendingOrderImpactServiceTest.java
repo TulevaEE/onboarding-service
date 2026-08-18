@@ -121,7 +121,7 @@ class PendingOrderImpactServiceTest {
   }
 
   @Test
-  void aSentOrderTradedBeforeThePositionReportIsAlreadyInItAndIsNotSynthesizedAgain() {
+  void aSentOrderWithNoFillsIsSynthesizedEvenIfItWasPlacedBeforeThePositionReport() {
     given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
         .willReturn(
             List.of(
@@ -138,8 +138,10 @@ class PendingOrderImpactServiceTest {
 
     var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
 
-    assertThat(impact.unreportedPositionValues()).isEmpty();
-    assertThat(impact.unreportedPositionQuantities()).isEmpty();
+    assertThat(impact.unreportedPositionValues())
+        .containsExactly(Map.entry("IE00A", new BigDecimal("5000")));
+    assertThat(impact.unreportedPositionQuantities())
+        .containsExactly(Map.entry("IE00A", new BigDecimal("100")));
     assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("5000"));
   }
 
@@ -164,6 +166,7 @@ class PendingOrderImpactServiceTest {
                     .orderId(1L)
                     .executedQuantity(new BigDecimal("15000"))
                     .totalConsideration(new BigDecimal("300000"))
+                    .reportedDate(AS_OF_DATE)
                     .build()));
 
     var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
@@ -194,6 +197,7 @@ class PendingOrderImpactServiceTest {
                     .orderId(1L)
                     .executedQuantity(new BigDecimal("100"))
                     .totalConsideration(new BigDecimal("4123.45"))
+                    .reportedDate(POSITION_DATE)
                     .build()));
 
     var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
@@ -223,11 +227,13 @@ class PendingOrderImpactServiceTest {
                     .orderId(1L)
                     .executedQuantity(new BigDecimal("60"))
                     .totalConsideration(new BigDecimal("2000"))
+                    .reportedDate(AS_OF_DATE)
                     .build(),
                 TransactionExecution.builder()
                     .orderId(1L)
                     .executedQuantity(new BigDecimal("40"))
                     .totalConsideration(new BigDecimal("1500"))
+                    .reportedDate(AS_OF_DATE)
                     .build()));
 
     var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
@@ -255,6 +261,7 @@ class PendingOrderImpactServiceTest {
                     .orderId(1L)
                     .executedQuantity(new BigDecimal("30"))
                     .totalConsideration(new BigDecimal("1500"))
+                    .reportedDate(AS_OF_DATE)
                     .build()));
     given(positionPriceResolver.resolve("IE00A", AS_OF_DATE))
         .willReturn(Optional.of(ResolvedPrice.builder().usedPrice(new BigDecimal("50")).build()));
@@ -284,6 +291,7 @@ class PendingOrderImpactServiceTest {
                     .orderId(1L)
                     .executedQuantity(new BigDecimal("30"))
                     .totalConsideration(new BigDecimal("1200"))
+                    .reportedDate(AS_OF_DATE)
                     .build()));
     given(positionPriceResolver.resolve("IE00A", AS_OF_DATE))
         .willReturn(Optional.of(ResolvedPrice.builder().usedPrice(new BigDecimal("50")).build()));
@@ -314,6 +322,7 @@ class PendingOrderImpactServiceTest {
                 TransactionExecution.builder()
                     .orderId(1L)
                     .totalConsideration(new BigDecimal("30000"))
+                    .reportedDate(AS_OF_DATE)
                     .build()));
 
     var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
@@ -379,7 +388,8 @@ class PendingOrderImpactServiceTest {
                     null,
                     new BigDecimal("7000"))));
     given(executionRepository.findByOrderIdIn(List.of(1L)))
-        .willReturn(List.of(TransactionExecution.builder().orderId(1L).build()));
+        .willReturn(
+            List.of(TransactionExecution.builder().orderId(1L).reportedDate(AS_OF_DATE).build()));
 
     var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
 
@@ -402,7 +412,12 @@ class PendingOrderImpactServiceTest {
                     new BigDecimal("7000"))));
     given(executionRepository.findByOrderIdIn(List.of(1L)))
         .willReturn(
-            List.of(TransactionExecution.builder().orderId(1L).totalConsideration(ZERO).build()));
+            List.of(
+                TransactionExecution.builder()
+                    .orderId(1L)
+                    .totalConsideration(ZERO)
+                    .reportedDate(AS_OF_DATE)
+                    .build()));
 
     var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
 
@@ -476,6 +491,149 @@ class PendingOrderImpactServiceTest {
 
     assertThat(impact.unreportedPositionValues())
         .containsExactly(Map.entry("IE00A", new BigDecimal("4000")));
+  }
+
+  @Test
+  void onlyTheFillsTheCustodianHasNotYetReportedAreSynthesized() {
+    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
+        .willReturn(
+            List.of(
+                order(
+                    1L,
+                    "IE00A",
+                    TransactionType.BUY,
+                    InstrumentType.ETF,
+                    OrderStatus.EXECUTED,
+                    new BigDecimal("100"),
+                    new BigDecimal("5000"))));
+    given(executionRepository.findByOrderIdIn(List.of(1L)))
+        .willReturn(
+            List.of(
+                execution(1L, "60", "3000", POSITION_DATE),
+                execution(1L, "40", "2000", POSITION_DATE.plusDays(1))));
+
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
+
+    assertThat(impact.unreportedPositionValues())
+        .containsExactly(Map.entry("IE00A", new BigDecimal("2000")));
+    assertThat(impact.unreportedPositionQuantities())
+        .containsExactly(Map.entry("IE00A", new BigDecimal("40")));
+    assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("5000"));
+  }
+
+  @Test
+  void aFillTheCustodianHasAlreadyReportedIsNotSynthesizedOnTopOfIt() {
+    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
+        .willReturn(
+            List.of(
+                order(
+                    1L,
+                    "IE00A",
+                    TransactionType.BUY,
+                    InstrumentType.ETF,
+                    OrderStatus.EXECUTED,
+                    new BigDecimal("100"),
+                    new BigDecimal("5000"))));
+    given(executionRepository.findByOrderIdIn(List.of(1L)))
+        .willReturn(List.of(execution(1L, "100", "5000", POSITION_DATE)));
+
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
+
+    assertThat(impact.unreportedPositionValues()).isEmpty();
+    assertThat(impact.unreportedPositionQuantities()).isEmpty();
+    assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("5000"));
+  }
+
+  @Test
+  void theUnfilledRemainderIsSynthesizedBecauseItsCashIsAlreadyReserved() {
+    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
+        .willReturn(
+            List.of(
+                order(
+                    1L,
+                    "IE00A",
+                    TransactionType.BUY,
+                    InstrumentType.ETF,
+                    OrderStatus.EXECUTED,
+                    new BigDecimal("100"),
+                    new BigDecimal("5000"))));
+    given(executionRepository.findByOrderIdIn(List.of(1L)))
+        .willReturn(List.of(execution(1L, "60", "3000", POSITION_DATE)));
+    given(positionPriceResolver.resolve("IE00A", AS_OF_DATE))
+        .willReturn(Optional.of(ResolvedPrice.builder().usedPrice(new BigDecimal("50")).build()));
+
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
+
+    assertThat(impact.unreportedPositionValues())
+        .containsExactly(Map.entry("IE00A", new BigDecimal("2000")));
+    assertThat(impact.unreportedPositionQuantities())
+        .containsExactly(Map.entry("IE00A", new BigDecimal("40")));
+    assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("5000"));
+  }
+
+  @Test
+  void aFillWithNoReportedDateIsNotSynthesizedBecauseItsPositionIsUnknown() {
+    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
+        .willReturn(
+            List.of(
+                order(
+                    1L,
+                    "IE00A",
+                    TransactionType.BUY,
+                    InstrumentType.ETF,
+                    OrderStatus.EXECUTED,
+                    new BigDecimal("100"),
+                    new BigDecimal("5000"))));
+    given(executionRepository.findByOrderIdIn(List.of(1L)))
+        .willReturn(List.of(execution(1L, "100", "5000", null)));
+
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
+
+    assertThat(impact.unreportedPositionValues()).isEmpty();
+    assertThat(impact.unreportedPositionQuantities()).isEmpty();
+    assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("5000"));
+  }
+
+  @Test
+  void aHistoricalImportFillIsNeverSynthesizedBecauseNoCustodianReportCarriedIt() {
+    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
+        .willReturn(
+            List.of(
+                order(
+                    1L,
+                    "IE00A",
+                    TransactionType.BUY,
+                    InstrumentType.ETF,
+                    OrderStatus.EXECUTED,
+                    new BigDecimal("100"),
+                    new BigDecimal("5000"))));
+    given(executionRepository.findByOrderIdIn(List.of(1L)))
+        .willReturn(
+            List.of(historicalImportExecution(1L, "100", "5000", POSITION_DATE.plusDays(1))));
+
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
+
+    assertThat(impact.unreportedPositionValues()).isEmpty();
+    assertThat(impact.unreportedPositionQuantities()).isEmpty();
+    assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("5000"));
+  }
+
+  private TransactionExecution execution(
+      Long orderId, String quantity, String consideration, LocalDate reportedDate) {
+    return TransactionExecution.builder()
+        .orderId(orderId)
+        .executedQuantity(new BigDecimal(quantity))
+        .totalConsideration(new BigDecimal(consideration))
+        .reportedDate(reportedDate)
+        .source("SEB_OOTEL")
+        .build();
+  }
+
+  private TransactionExecution historicalImportExecution(
+      Long orderId, String quantity, String consideration, LocalDate reportedDate) {
+    TransactionExecution execution = execution(orderId, quantity, consideration, reportedDate);
+    execution.setSource("HISTORICAL_IMPORT");
+    return execution;
   }
 
   private TransactionOrder order(

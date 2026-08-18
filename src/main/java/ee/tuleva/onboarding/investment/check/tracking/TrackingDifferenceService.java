@@ -7,7 +7,10 @@ import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.M
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
 import static java.math.BigDecimal.ZERO;
 import static java.util.function.Function.identity;
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.mapping;
 import static java.util.stream.Collectors.toMap;
+import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
@@ -36,14 +39,13 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -59,7 +61,6 @@ class TrackingDifferenceService {
   private static final int ESCALATION_LOOKBACK_FALLBACK = 10;
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
   private static final int SCALE = 6;
-  private static final int FEE_FRACTION_SCALE = 10;
 
   private static final Map<TulevaFund, BenchmarkConfig> BENCHMARK_CONFIGS =
       Map.of(
@@ -308,88 +309,120 @@ class TrackingDifferenceService {
     return results;
   }
 
-  // Offset exactly what the NAV was reduced by, and nothing else. Two rules decide that, and both
-  // live in FeeCalculationService.recordDailyFees:
-  //
-  // The amount is dailyAmountGross -- the one amount an accrual carries, VAT-inclusive, posted to
-  // the ledger as roundForLedger(dailyAmountGross) and summed by the AUM deduction from the same
-  // column. There is no VAT step anywhere after the rate.
-  //
-  // An accrual only reaches the fund when investment_fee_policy says so. A fee Tuleva bears -- the
-  // depot fee, paid out of the management fee -- is still written to investment_fee_accrual as the
-  // record of the cost, but nothing is posted to the fund's ledger and the NAV never took it.
-  // Subtracting it here would claim a deduction the NAV did not make, and the difference would
-  // land in navResidual, which blocks the NAV report.
-  //
-  // Resolved per accrual date rather than once for the window, for the same reason
-  // PeriodicTdAttributionService does: a policy that changed mid-window would otherwise have its
-  // closing answer applied to every day before it.
   private BigDecimal accruedFeeFraction(
       TulevaFund fund,
       LocalDate previousDate,
       LocalDate checkDate,
       @Nullable BigDecimal previousTotalNav,
       BigDecimal totalNav) {
-    var base = feeFractionBase(fund, checkDate, previousDate, previousTotalNav, totalNav);
-    if (base.signum() == 0) {
+    var base = feeFractionBase(fund, previousDate, checkDate, previousTotalNav, totalNav);
+    if (base.signum() <= 0) {
       return ZERO;
     }
     var accruals =
         feeAccrualRepository.findByFundAndDateRange(fund, previousDate.plusDays(1), checkDate);
-    warnOnIncompleteAccrualCoverage(fund, previousDate, checkDate, accruals);
     var chargedResolvers =
-        Arrays.stream(FeeType.values())
+        accruals.stream()
+            .map(FeeAccrual::feeType)
+            .distinct()
             .collect(
                 toMap(identity(), feeType -> feeChargedToFundPolicy.resolverFor(fund, feeType)));
-    var accrued =
+    var chargedAccruals =
         accruals.stream()
             .filter(a -> chargedResolvers.get(a.feeType()).chargedOn(a.accrualDate()))
-            .map(FeeAccrual::dailyAmountGross)
-            .filter(Objects::nonNull)
-            .reduce(ZERO, BigDecimal::add);
-    return accrued.divide(base, FEE_FRACTION_SCALE, RoundingMode.HALF_UP);
+            .toList();
+    warnOnIncompleteAccrualCoverage(
+        fund, previousDate, checkDate, chargedResolvers, chargedAccruals);
+    var accrued =
+        chargedAccruals.stream().map(FeeAccrual::dailyAmountGross).reduce(ZERO, BigDecimal::add);
+    return accrued.divide(base, SCALE, RoundingMode.HALF_UP);
   }
 
-  // The fee is deducted from the NAV the return is measured against: fundReturn is
-  // todayNav/yesterdayNav - 1, so NAV_today = NAV_yesterday * (1 + grossReturn) - fee makes the
-  // drag exactly fee / NAV_yesterday. Dividing by checkDate's NAV leaves a second-order error that
-  // never reconciles with the ledger. checkDate is only a fallback for a fund whose previous NAV
-  // date carries no positions -- zero there would drop the whole fee into the residual.
   private BigDecimal feeFractionBase(
       TulevaFund fund,
-      LocalDate checkDate,
       LocalDate previousDate,
+      LocalDate checkDate,
       @Nullable BigDecimal previousTotalNav,
       BigDecimal totalNav) {
-    if (previousTotalNav != null && previousTotalNav.signum() != 0) {
+    if (previousTotalNav != null && previousTotalNav.signum() > 0) {
       return previousTotalNav;
     }
     log.warn(
-        "No positions on the previous NAV date, dividing the fee accrual by the check date NAV instead: fund={}, checkDate={}, previousDate={}",
+        "No positions on the previous NAV date, dividing the fee accrual by the check date NAV instead: fund={}, previousDate={}, checkDate={}",
         fund,
-        checkDate,
-        previousDate);
+        previousDate,
+        checkDate);
     return totalNav;
   }
 
-  // A window with no accrual rows silently yields feeDrag = 0, and the fee it should have offset
-  // reappears in residual and navResidual as if the fund had underperformed. Backfilling a date
-  // that predates the accrual table, and a fee transaction that rolled back while the NAV
-  // persisted, both land here. Partial coverage leaks the same way, one day at a time.
   private void warnOnIncompleteAccrualCoverage(
-      TulevaFund fund, LocalDate previousDate, LocalDate checkDate, List<FeeAccrual> accruals) {
-    var expectedDays = ChronoUnit.DAYS.between(previousDate, checkDate);
-    var coveredDays = accruals.stream().map(FeeAccrual::accrualDate).distinct().count();
-    if (coveredDays >= expectedDays) {
+      TulevaFund fund,
+      LocalDate previousDate,
+      LocalDate checkDate,
+      Map<FeeType, FeeChargedToFundPolicy.Resolver> chargedResolvers,
+      List<FeeAccrual> chargedAccruals) {
+    if (chargedResolvers.isEmpty()) {
+      log.warn(
+          "No fee accruals for the check window, the uncovered fee will surface as tracking residual: fund={}, previousDate={}, checkDate={}, windowDays={}",
+          fund,
+          previousDate,
+          checkDate,
+          windowDates(previousDate, checkDate).size());
       return;
     }
-    log.warn(
-        "Fee accruals incomplete for the check window, the uncovered fee will surface as tracking residual: fund={}, window=({}, {}], expectedDays={}, coveredDays={}",
-        fund,
-        previousDate,
-        checkDate,
-        expectedDays,
-        coveredDays);
+    var coveredDatesByFeeType =
+        chargedAccruals.stream()
+            .collect(groupingBy(FeeAccrual::feeType, mapping(FeeAccrual::accrualDate, toSet())));
+    chargedResolvers.forEach(
+        (feeType, resolver) ->
+            warnOnIncompleteFeeTypeCoverage(
+                fund,
+                previousDate,
+                checkDate,
+                feeType,
+                resolver,
+                coveredDatesByFeeType.getOrDefault(feeType, Set.of()).size()));
+  }
+
+  private void warnOnIncompleteFeeTypeCoverage(
+      TulevaFund fund,
+      LocalDate previousDate,
+      LocalDate checkDate,
+      FeeType feeType,
+      FeeChargedToFundPolicy.Resolver resolver,
+      int coveredDays) {
+    var chargedDays = 0;
+    for (var date : windowDates(previousDate, checkDate)) {
+      try {
+        if (resolver.chargedOn(date)) {
+          chargedDays++;
+        }
+      } catch (IllegalStateException e) {
+        log.warn(
+            "Fee accrual coverage undetermined, the fee policy does not resolve for a day of the check window: fund={}, feeType={}, previousDate={}, checkDate={}, unresolvedDate={}",
+            fund,
+            feeType,
+            previousDate,
+            checkDate,
+            date,
+            e);
+        return;
+      }
+    }
+    if (coveredDays < chargedDays) {
+      log.warn(
+          "Fee accruals incomplete for the check window, the uncovered fee will surface as tracking residual: fund={}, feeType={}, previousDate={}, checkDate={}, chargedDays={}, coveredDays={}",
+          fund,
+          feeType,
+          previousDate,
+          checkDate,
+          chargedDays,
+          coveredDays);
+    }
+  }
+
+  private List<LocalDate> windowDates(LocalDate previousDate, LocalDate checkDate) {
+    return previousDate.plusDays(1).datesUntil(checkDate.plusDays(1)).toList();
   }
 
   private Optional<TrackingDifferenceResult> buildBenchmarkCheck(

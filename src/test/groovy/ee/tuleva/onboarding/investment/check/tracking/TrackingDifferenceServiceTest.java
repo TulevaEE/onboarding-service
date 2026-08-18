@@ -7,7 +7,7 @@ import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.B
 import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
 import static java.math.BigDecimal.ZERO;
-import static java.math.RoundingMode.HALF_UP;
+import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -18,6 +18,10 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
@@ -44,11 +48,13 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.LoggerFactory;
 
 @ExtendWith(MockitoExtension.class)
 class TrackingDifferenceServiceTest {
@@ -66,6 +72,7 @@ class TrackingDifferenceServiceTest {
   @Mock ee.tuleva.onboarding.savings.fund.nav.FundNavQueryService fundNavQueryService;
 
   private TrackingDifferenceService service;
+  private final ListAppender<ILoggingEvent> serviceLogs = new ListAppender<>();
 
   private static final LocalDate CHECK_DATE = LocalDate.of(2026, 4, 10);
   private static final LocalDate PREVIOUS_DATE = LocalDate.of(2026, 4, 9);
@@ -123,10 +130,19 @@ class TrackingDifferenceServiceTest {
             eventRepository,
             new TrackingDifferenceCalculator(parameterRepository),
             fundNavQueryService);
+    serviceLogs.start();
+    serviceLogger().addAppender(serviceLogs);
   }
 
-  // The default premise for every test that is not about the policy. Production is the other way
-  // round for DEPOT -- see feeDragExcludesAFeeTheFundIsNotCharged.
+  @AfterEach
+  void detachServiceLogs() {
+    serviceLogger().detachAppender(serviceLogs);
+  }
+
+  private static Logger serviceLogger() {
+    return (Logger) LoggerFactory.getLogger(TrackingDifferenceService.class);
+  }
+
   private void chargeEveryFeeToTheFund() {
     for (TulevaFund fund : TulevaFund.values()) {
       for (FeeType feeType : FeeType.values()) {
@@ -143,6 +159,16 @@ class TrackingDifferenceServiceTest {
         fund,
         feeType,
         List.of(new FeeChargedToFundPolicy.Policy(chargedToFund, fund.getInceptionDate(), null)));
+  }
+
+  private FeeChargedToFundPolicy.Resolver depotPolicyWithAGapAfter(
+      LocalDate lastChargedDay, LocalDate resumesOn) {
+    return new FeeChargedToFundPolicy.Resolver(
+        TUK75,
+        FeeType.DEPOT,
+        List.of(
+            new FeeChargedToFundPolicy.Policy(true, TUK75.getInceptionDate(), lastChargedDay),
+            new FeeChargedToFundPolicy.Policy(true, resumesOn, null)));
   }
 
   @Test
@@ -389,8 +415,6 @@ class TrackingDifferenceServiceTest {
 
     var model =
         results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst().orElseThrow();
-    // (9.00 mgmt + 3.00 depot) / 1_000_000 AUM, both charged to the fund here. Depot was
-    // previously omitted entirely, which left the whole depot fee sitting in the residual.
     assertThat(model.feeDrag()).isEqualByComparingTo(new BigDecimal("-0.000012"));
   }
 
@@ -410,41 +434,13 @@ class TrackingDifferenceServiceTest {
 
     var model =
         results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst().orElseThrow();
-    // Fees accrue on calendar days, so a Monday NAV carries Sat+Sun+Mon. The old
-    // annualRate/365 term charged a single day and leaked the other two into the residual.
     assertThat(model.feeDrag()).isEqualByComparingTo(new BigDecimal("-0.000027"));
     verify(feeAccrualRepository).findByFundAndDateRange(TUK75, saturday, monday);
   }
 
   @Test
-  void feeDragMatchesTheAmountThatWasPostedToTheLedger() {
-    setupFundData(TUK75);
-    // The ledger posts roundForLedger(dailyAmountGross) for every fee type it charges, and the AUM
-    // deduction sums the same column, so the drag has to read that one amount and no other.
-    given(feeAccrualRepository.findByFundAndDateRange(TUK75, CHECK_DATE, CHECK_DATE))
-        .willReturn(
-            List.of(
-                accrual(FeeType.MANAGEMENT, CHECK_DATE, new BigDecimal("9.00")),
-                accrual(FeeType.DEPOT, CHECK_DATE, new BigDecimal("3.00"))));
-
-    var results = service.runChecksAsOf(CHECK_DATE);
-
-    var model =
-        results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst().orElseThrow();
-    var ledgerPosted = new BigDecimal("12.00");
-    var previousTotalNav = new BigDecimal("1000000");
-    assertThat(model.feeDrag())
-        .isEqualByComparingTo(
-            ledgerPosted.divide(previousTotalNav, 10, HALF_UP).negate().setScale(6, HALF_UP));
-  }
-
-  @Test
   void feeDragExcludesAFeeTheFundIsNotCharged() {
     setupFundData(TUK75);
-    // The production case: the depot fee is paid out of the management fee, so the accrual is
-    // written as the record of Tuleva's cost but nothing is posted to the fund's ledger and the
-    // NAV never took it. Subtracting it here would claim a deduction that did not happen, and the
-    // difference would land in navResidual -- which blocks the NAV report.
     given(feeChargedToFundPolicy.resolverFor(TUK75, FeeType.DEPOT))
         .willReturn(policy(TUK75, FeeType.DEPOT, false));
     given(feeAccrualRepository.findByFundAndDateRange(TUK75, CHECK_DATE, CHECK_DATE))
@@ -457,7 +453,6 @@ class TrackingDifferenceServiceTest {
 
     var model =
         results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst().orElseThrow();
-    // 9.00 mgmt only, off the previous NAV date's 1_000_000. The depot 3.00 is not a drag.
     assertThat(model.feeDrag()).isEqualByComparingTo(new BigDecimal("-0.000009"));
   }
 
@@ -467,9 +462,6 @@ class TrackingDifferenceServiceTest {
     var saturday = LocalDate.of(2026, 4, 11);
     var sunday = LocalDate.of(2026, 4, 12);
     setupFundDataForMonday(monday);
-    // A policy that changed mid-window: charged through Saturday, not charged from Sunday.
-    // Resolving once at the window's end would apply the closing answer to Saturday too, and that
-    // day's real drag would move into the unexplained residual.
     given(feeChargedToFundPolicy.resolverFor(TUK75, FeeType.DEPOT))
         .willReturn(
             new FeeChargedToFundPolicy.Resolver(
@@ -489,16 +481,12 @@ class TrackingDifferenceServiceTest {
 
     var model =
         results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst().orElseThrow();
-    // Saturday's 3.00 only, off 1_000_000.
     assertThat(model.feeDrag()).isEqualByComparingTo(new BigDecimal("-0.000003"));
   }
 
   @Test
   void feeDragIsMeasuredAgainstThePreviousNavDatesTotal() {
     setupFundData(TUK75);
-    // fundReturn is todayNav/yesterdayNav - 1, and the fee was deducted from yesterday's NAV, so
-    // that is the only denominator the term reconciles against. Against CHECK_DATE's 1_000_000 the
-    // same accrual would round to -0.000009.
     given(
             fundPositionRepository.sumMarketValueByFundAndAccountTypes(
                 TUK75, PREVIOUS_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
@@ -516,8 +504,6 @@ class TrackingDifferenceServiceTest {
   @Test
   void feeDragIsZeroWhenTheWindowHasNoAccrualsAtAll() {
     setupFundData(TUK75);
-    // Backfilling a date that predates the accrual table lands here. Nothing can be offset, so the
-    // fee surfaces as residual -- accruedFeeFraction logs the gap rather than hiding it.
     given(feeAccrualRepository.findByFundAndDateRange(TUK75, CHECK_DATE, CHECK_DATE))
         .willReturn(List.of());
 
@@ -528,6 +514,103 @@ class TrackingDifferenceServiceTest {
     assertThat(model.feeDrag()).isEqualByComparingTo(BigDecimal.ZERO);
   }
 
+  @Test
+  void aFeeTypeCoveringEveryDayDoesNotMaskAnotherFeeTypesMissingAccrualDay() {
+    var monday = LocalDate.of(2026, 4, 13);
+    var saturday = LocalDate.of(2026, 4, 11);
+    var sunday = LocalDate.of(2026, 4, 12);
+    setupFundDataForMonday(monday);
+    given(feeAccrualRepository.findByFundAndDateRange(TUK75, saturday, monday))
+        .willReturn(
+            List.of(
+                accrual(FeeType.DEPOT, saturday, new BigDecimal("1.00")),
+                accrual(FeeType.DEPOT, sunday, new BigDecimal("1.00")),
+                accrual(FeeType.DEPOT, monday, new BigDecimal("1.00")),
+                accrual(FeeType.MANAGEMENT, saturday, new BigDecimal("9.00")),
+                accrual(FeeType.MANAGEMENT, monday, new BigDecimal("9.00"))));
+
+    service.runChecksAsOf(monday);
+
+    assertThat(serviceLogs.list)
+        .filteredOn(event -> event.getLevel() == Level.WARN)
+        .anyMatch(event -> asList(event.getArgumentArray()).contains(FeeType.MANAGEMENT))
+        .noneMatch(event -> asList(event.getArgumentArray()).contains(FeeType.DEPOT));
+  }
+
+  @Test
+  void aFeeTypeChargedOnOnlyPartOfTheWindowByPolicyIsNotAnIncompleteAccrual() {
+    var monday = LocalDate.of(2026, 4, 13);
+    var saturday = LocalDate.of(2026, 4, 11);
+    var sunday = LocalDate.of(2026, 4, 12);
+    setupFundDataForMonday(monday);
+    given(feeChargedToFundPolicy.resolverFor(TUK75, FeeType.DEPOT))
+        .willReturn(
+            new FeeChargedToFundPolicy.Resolver(
+                TUK75,
+                FeeType.DEPOT,
+                List.of(
+                    new FeeChargedToFundPolicy.Policy(true, TUK75.getInceptionDate(), saturday),
+                    new FeeChargedToFundPolicy.Policy(false, sunday, null))));
+    given(feeAccrualRepository.findByFundAndDateRange(TUK75, saturday, monday))
+        .willReturn(
+            List.of(
+                accrual(FeeType.DEPOT, saturday, new BigDecimal("3.00")),
+                accrual(FeeType.DEPOT, sunday, new BigDecimal("3.00")),
+                accrual(FeeType.DEPOT, monday, new BigDecimal("3.00")),
+                accrual(FeeType.MANAGEMENT, saturday, new BigDecimal("9.00")),
+                accrual(FeeType.MANAGEMENT, sunday, new BigDecimal("9.00")),
+                accrual(FeeType.MANAGEMENT, monday, new BigDecimal("9.00"))));
+
+    service.runChecksAsOf(monday);
+
+    assertThat(serviceLogs.list)
+        .filteredOn(event -> event.getLevel() == Level.WARN)
+        .noneMatch(event -> asList(event.getArgumentArray()).contains(FeeType.DEPOT))
+        .noneMatch(event -> asList(event.getArgumentArray()).contains(FeeType.MANAGEMENT));
+  }
+
+  @Test
+  void aFeePolicyGapOnAnAccrualDateFailsTheFeeDragCalculation() {
+    var monday = LocalDate.of(2026, 4, 13);
+    var saturday = LocalDate.of(2026, 4, 11);
+    var sunday = LocalDate.of(2026, 4, 12);
+    setupFundDataForMonday(monday);
+    given(feeChargedToFundPolicy.resolverFor(TUK75, FeeType.DEPOT))
+        .willReturn(depotPolicyWithAGapAfter(saturday, monday));
+    given(feeAccrualRepository.findByFundAndDateRange(TUK75, saturday, monday))
+        .willReturn(
+            List.of(
+                accrual(FeeType.DEPOT, saturday, new BigDecimal("3.00")),
+                accrual(FeeType.DEPOT, sunday, new BigDecimal("3.00")),
+                accrual(FeeType.DEPOT, monday, new BigDecimal("3.00"))));
+
+    assertThatThrownBy(() -> service.runChecksAsOf(monday))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void aFeePolicyGapOnADayWithNoAccrualIsReportedByTheCoverageWarningNotThrown() {
+    var monday = LocalDate.of(2026, 4, 13);
+    var saturday = LocalDate.of(2026, 4, 11);
+    var sunday = LocalDate.of(2026, 4, 12);
+    setupFundDataForMonday(monday);
+    given(feeChargedToFundPolicy.resolverFor(TUK75, FeeType.DEPOT))
+        .willReturn(depotPolicyWithAGapAfter(saturday, monday));
+    given(feeAccrualRepository.findByFundAndDateRange(TUK75, saturday, monday))
+        .willReturn(
+            List.of(
+                accrual(FeeType.DEPOT, saturday, new BigDecimal("3.00")),
+                accrual(FeeType.DEPOT, monday, new BigDecimal("3.00"))));
+
+    var results = service.runChecksAsOf(monday);
+
+    assertThat(results).isNotEmpty();
+    assertThat(serviceLogs.list)
+        .filteredOn(event -> event.getLevel() == Level.WARN)
+        .anyMatch(
+            event -> asList(event.getArgumentArray()).containsAll(List.of(FeeType.DEPOT, sunday)));
+  }
+
   private void setupFundDataForMonday(LocalDate monday) {
     var friday = publicHolidays.previousWorkingDay(monday);
     var isin = "IE00B4L5Y983";
@@ -536,8 +619,9 @@ class TrackingDifferenceServiceTest {
         .willReturn(Optional.of(monday));
     for (var f : TulevaFund.values()) {
       if (f != TUK75) {
-        given(fundNavQueryService.findLatestNavDateOnOrBefore(f.getCode(), monday))
-            .willReturn(Optional.empty());
+        lenient()
+            .when(fundNavQueryService.findLatestNavDateOnOrBefore(f.getCode(), monday))
+            .thenReturn(Optional.empty());
       }
     }
     given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), monday))

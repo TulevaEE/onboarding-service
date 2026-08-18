@@ -11,8 +11,13 @@ public record FeeRate(
     TulevaFund fund,
     FeeType feeType,
     BigDecimal annualRate,
+    FeeRateSource rateSource,
     LocalDate validFrom,
     LocalDate validTo) {
+
+  public boolean isTierBased() {
+    return rateSource == FeeRateSource.TIER;
+  }
 
   public static FeeRate fromResultSet(ResultSet rs, int rowNum) throws SQLException {
     return new FeeRate(
@@ -20,6 +25,7 @@ public record FeeRate(
         TulevaFund.fromCode(rs.getString("fund_code")),
         FeeType.valueOf(rs.getString("fee_type")),
         rs.getBigDecimal("annual_rate"),
+        FeeRateSource.valueOf(rs.getString("rate_source")),
         rs.getDate("valid_from").toLocalDate(),
         rs.getDate("valid_to") != null ? rs.getDate("valid_to").toLocalDate() : null);
   }

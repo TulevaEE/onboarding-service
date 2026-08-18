@@ -29,6 +29,7 @@ import ee.tuleva.onboarding.investment.config.InvestmentParameter;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.fees.FeeRate;
 import ee.tuleva.onboarding.investment.fees.FeeRateRepository;
+import ee.tuleva.onboarding.investment.fees.FeeRateSource;
 import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
@@ -597,7 +598,13 @@ class TrackingDifferenceServiceTest {
         .willReturn(
             Optional.of(
                 new FeeRate(
-                    1L, TUK75, FeeType.MANAGEMENT, new BigDecimal("0.0034"), CHECK_DATE, null)));
+                    1L,
+                    TUK75,
+                    FeeType.MANAGEMENT,
+                    new BigDecimal("0.0034"),
+                    FeeRateSource.FIXED,
+                    CHECK_DATE,
+                    null)));
     given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
@@ -1671,7 +1678,13 @@ class TrackingDifferenceServiceTest {
         .willReturn(
             Optional.of(
                 new FeeRate(
-                    1L, fund, FeeType.MANAGEMENT, new BigDecimal("0.0034"), CHECK_DATE, null)));
+                    1L,
+                    fund,
+                    FeeType.MANAGEMENT,
+                    new BigDecimal("0.0034"),
+                    FeeRateSource.FIXED,
+                    CHECK_DATE,
+                    null)));
 
     lenient()
         .when(eventRepository.findMostRecentEvents(eq(fund), any(), eq(CHECK_DATE), eq(10)))

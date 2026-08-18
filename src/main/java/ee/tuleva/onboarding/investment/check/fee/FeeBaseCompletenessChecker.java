@@ -5,7 +5,6 @@ import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.FEE_BASE_CO
 import static java.math.BigDecimal.ZERO;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
-import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
@@ -21,6 +20,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
@@ -64,7 +64,7 @@ class FeeBaseCompletenessChecker {
     var totalDeviation = ZERO;
     var feeTypesSeenSoFar = EnumSet.noneOf(FeeType.class);
 
-    for (var date : datesAccruedOver(basesByDate)) {
+    for (var date : datesBetweenFirstAndLastAccrual(basesByDate)) {
       if (!publicHolidays.isWorkingDay(date)) {
         continue;
       }
@@ -79,28 +79,29 @@ class FeeBaseCompletenessChecker {
         mismatches.add(date + " stopped accruing " + stopped);
         continue;
       }
-      var disagreement = feeTypeDisagreement(bases);
-      if (disagreement.isPresent()) {
-        mismatches.add(date + " " + disagreement.get());
-        continue;
-      }
-      var expected = expectedBase(fund, date);
+      var expected = expectedBases(fund, bases, date);
       if (expected.isEmpty()) {
         notRunDays.add(date);
         continue;
       }
-      var actual = bases.getFirst().baseValue();
-      var deviation = expected.get().subtract(actual);
-      if (deviation.abs().compareTo(feeBaseTolerance) > 0) {
-        mismatches.add(
-            date
-                + " base="
-                + actual.toPlainString()
+      var divergent = new TreeMap<String, String>();
+      for (var base : bases) {
+        var deviation = expected.get().get(base.feeType()).subtract(base.baseValue());
+        if (deviation.abs().compareTo(feeBaseTolerance) <= 0) {
+          continue;
+        }
+        divergent.put(
+            base.feeType().name(),
+            "base="
+                + base.baseValue().toPlainString()
                 + " navComponents="
-                + expected.get().toPlainString()
+                + expected.get().get(base.feeType()).toPlainString()
                 + " missing="
                 + deviation.toPlainString());
         totalDeviation = totalDeviation.add(deviation);
+      }
+      if (!divergent.isEmpty()) {
+        mismatches.add(date + " " + divergent);
       }
     }
 
@@ -113,43 +114,51 @@ class FeeBaseCompletenessChecker {
     return List.of(FeeCheckFinding.pass(fund, FEE_BASE_COMPLETENESS, ALL));
   }
 
-  // The ledger check cannot see this: the dropped day is absent from both the table and the ledger
-  // on that side. Calibrated from the window itself rather than from a start date or the rate
-  // configuration, so a fee type not in use yet raises nothing until it genuinely starts.
   private List<FeeType> feeTypesThatStoppedAccruing(
-      List<FeeBaseValue> bases, Set<FeeType> seenSoFar) {
+      List<FeeBaseValue> bases, Set<FeeType> seenEarlierInThisWindow) {
     var present = bases.stream().map(FeeBaseValue::feeType).collect(toSet());
-    return seenSoFar.stream().filter(feeType -> !present.contains(feeType)).sorted().toList();
+    return seenEarlierInThisWindow.stream()
+        .filter(feeType -> !present.contains(feeType))
+        .sorted()
+        .toList();
   }
 
-  private Optional<String> feeTypeDisagreement(List<FeeBaseValue> bases) {
-    var distinct = bases.stream().map(FeeBaseValue::baseValue).map(BigDecimal::stripTrailingZeros);
-    if (distinct.distinct().count() <= 1) {
-      return Optional.empty();
+  private Optional<Map<FeeType, BigDecimal>> expectedBases(
+      TulevaFund fund, List<FeeBaseValue> bases, LocalDate date) {
+    var expected = new EnumMap<FeeType, BigDecimal>(FeeType.class);
+    for (var base : bases) {
+      var value = expectedBase(fund, base.feeType(), date);
+      if (value.isEmpty()) {
+        return Optional.empty();
+      }
+      expected.put(base.feeType(), value.get());
     }
-    var perType =
-        bases.stream()
-            .collect(
-                toMap(
-                    b -> b.feeType().name(),
-                    b -> b.baseValue().toPlainString(),
-                    (a, b) -> a,
-                    TreeMap::new));
-    return Optional.of("fee types disagree on the base: " + perType);
+    return Optional.of(expected);
   }
 
-  private Optional<BigDecimal> expectedBase(TulevaFund fund, LocalDate date) {
-    return fundNavQueryService
-        .findFeeBaseComponentTotal(fund.getCode(), date)
-        .map(total -> total.add(blackrockAdjustment(fund, date)));
+  private Optional<BigDecimal> expectedBase(TulevaFund fund, FeeType feeType, LocalDate date) {
+    return feeType == FeeType.DEPOT
+        ? fundNavQueryService
+            .findAssetTotal(fund.getCode(), date)
+            .map(total -> total.add(assetSideBlackrockAdjustment(fund, date)))
+        : fundNavQueryService
+            .findFeeBaseComponentTotal(fund.getCode(), date)
+            .map(total -> total.add(navFeeBaseBlackrockAdjustment(fund, date)));
   }
 
-  // NavReportMapper omits both BlackRock rows for savings funds, so their fee base carries an
-  // adjustment that nav_report cannot show. Read it from the ledger instead.
-  private BigDecimal blackrockAdjustment(TulevaFund fund, LocalDate positionReportDate) {
-    if (!fund.isSavingsFund()) {
-      return ZERO;
-    }
+  private BigDecimal navFeeBaseBlackrockAdjustment(TulevaFund fund, LocalDate positionReportDate) {
+    return fund.isSavingsFund()
+        ? blackrockAdjustmentMissingFromNavReport(fund, positionReportDate)
+        : ZERO;
+  }
+
+  private BigDecimal assetSideBlackrockAdjustment(TulevaFund fund, LocalDate positionReportDate) {
+    var adjustment = blackrockAdjustmentMissingFromNavReport(fund, positionReportDate);
+    return fund.isSavingsFund() ? adjustment : adjustment.min(ZERO);
+  }
+
+  private BigDecimal blackrockAdjustmentMissingFromNavReport(
+      TulevaFund fund, LocalDate positionReportDate) {
     var balance =
         navLedgerRepository.getSystemAccountBalanceBefore(
             SystemAccount.BLACKROCK_ADJUSTMENT.getAccountName(fund),
@@ -165,9 +174,8 @@ class FeeBaseCompletenessChecker {
         .toInstant();
   }
 
-  // Calibrated from the window's own contents: a window opening before the fund started charging,
-  // or closing before today's run has posted, has skipped nothing and must raise nothing.
-  private List<LocalDate> datesAccruedOver(SortedMap<LocalDate, List<FeeBaseValue>> basesByDate) {
+  private List<LocalDate> datesBetweenFirstAndLastAccrual(
+      SortedMap<LocalDate, List<FeeBaseValue>> basesByDate) {
     if (basesByDate.isEmpty()) {
       return List.of();
     }

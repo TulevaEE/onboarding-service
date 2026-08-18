@@ -4,7 +4,6 @@ import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.FAIL;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.NOT_RUN;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.SETTLEMENT_COMPLETENESS;
-import static ee.tuleva.onboarding.investment.fees.FeeType.DEPOT;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.FEE_ACCRUAL;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.FEE_SETTLEMENT;
 import static java.math.BigDecimal.ZERO;
@@ -30,9 +29,6 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-// Settlement sweeps the whole outstanding balance rather than a computed amount, so every invariant
-// here is an exact identity between two-decimal quantities from one code path. A tolerance on any
-// of them could only ever hide a real defect.
 @Component
 class SettlementCompletenessChecker {
 
@@ -57,7 +53,7 @@ class SettlementCompletenessChecker {
   List<FeeCheckFinding> check(TulevaFund fund, LocalDate feeMonth, LocalDate checkDate) {
     var nextMonth = feeMonth.plusMonths(1);
     if (!feeAccrualRepository.existsByFundAndFeeMonth(fund, nextMonth)) {
-      return monthNotCrossed(fund, feeMonth, nextMonth, checkDate);
+      return reportAccrualLoopHasNotCrossedTheMonth(fund, feeMonth, nextMonth, checkDate);
     }
     var findings = new ArrayList<FeeCheckFinding>();
     for (var feeType : FeeType.values()) {
@@ -66,10 +62,7 @@ class SettlementCompletenessChecker {
     return findings;
   }
 
-  // Settlement only ever fires from inside the accrual loop, so a stalled NAV pipeline is exactly
-  // the case where settlement never happens. An unbounded precondition would stay quiet forever
-  // about the one failure it most needs to report.
-  private List<FeeCheckFinding> monthNotCrossed(
+  private List<FeeCheckFinding> reportAccrualLoopHasNotCrossedTheMonth(
       TulevaFund fund, LocalDate feeMonth, LocalDate nextMonth, LocalDate checkDate) {
     var graceEnds = businessDays.nthBusinessDayOfMonth(nextMonth, graceBusinessDays);
     var stalled = !checkDate.isBefore(graceEnds);
@@ -97,6 +90,10 @@ class SettlementCompletenessChecker {
         .toList();
   }
 
+  private static boolean isExactly(BigDecimal amount, BigDecimal expected) {
+    return amount.compareTo(expected) == 0;
+  }
+
   private List<FeeCheckFinding> checkFeeType(TulevaFund fund, LocalDate feeMonth, FeeType feeType) {
     var account = feeType.getAccrualAccount().getAccountName(fund);
     var from = startOf(feeMonth);
@@ -109,7 +106,7 @@ class SettlementCompletenessChecker {
     var settled = sum(settlements);
     var expectedSettlement = opening.add(accrued).negate();
 
-    var details = details(fund, feeMonth, feeType, opening, closing, accrued, settled);
+    var details = details(feeMonth, opening, closing, accrued, settled);
     var scope = scopeOf(feeType);
     var findings = new ArrayList<FeeCheckFinding>();
 
@@ -145,7 +142,7 @@ class SettlementCompletenessChecker {
               closing,
               details));
     }
-    if (settled.compareTo(expectedSettlement) != 0) {
+    if (!isExactly(settled, expectedSettlement)) {
       findings.add(
           finding(
               fund,
@@ -188,12 +185,8 @@ class SettlementCompletenessChecker {
     return findings;
   }
 
-  // The ledger carries net only, so the gross figure is recorded for the depot invoice comparison
-  // rather than checked - no ledger number can equal a VAT-inclusive invoice today.
   private Map<String, Object> details(
-      TulevaFund fund,
       LocalDate feeMonth,
-      FeeType feeType,
       BigDecimal opening,
       BigDecimal closing,
       BigDecimal accrued,
@@ -204,10 +197,6 @@ class SettlementCompletenessChecker {
     details.put("closing", closing.toPlainString());
     details.put("accrued", accrued.toPlainString());
     details.put("settled", settled.toPlainString());
-    if (feeType == DEPOT) {
-      var gross = feeAccrualRepository.sumGrossForMonth(fund, feeMonth, feeType);
-      details.put("grossAccrued", (gross == null ? ZERO : gross).toPlainString());
-    }
     return Map.copyOf(details);
   }
 

@@ -17,9 +17,7 @@ public record FeeAccrual(
     LocalDate feeMonth,
     BigDecimal baseValue,
     BigDecimal annualRate,
-    BigDecimal dailyAmountNet,
     BigDecimal dailyAmountGross,
-    BigDecimal vatRate,
     int daysInYear,
     LocalDate referenceDate) {
 
@@ -33,9 +31,7 @@ public record FeeAccrual(
         rs.getDate("fee_month").toLocalDate(),
         rs.getBigDecimal("base_value"),
         rs.getBigDecimal("annual_rate"),
-        rs.getBigDecimal("daily_amount_net"),
         rs.getBigDecimal("daily_amount_gross"),
-        rs.getBigDecimal("vat_rate"),
         rs.getInt("days_in_year"),
         referenceDateSql != null ? referenceDateSql.toLocalDate() : null);
   }

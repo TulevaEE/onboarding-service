@@ -427,7 +427,8 @@ class PeriodicTdAttributionServiceTest {
                 TUK75, PERIOD_START, PERIOD_END))
         .willReturn(
             List.of(
-                modelAllocation(ISIN_DW, "0.70", date1), modelAllocation(ISIN_EM, "0.30", date1)));
+                modelAllocation(ISIN_DW, "0.70", date1),
+                modelAllocation(ISIN_EUROPE_ETF, "0.30", date1)));
     given(fundNavQueryService.findAum(FUND_CODE, date1)).willReturn(new BigDecimal("100000000"));
     given(fundNavQueryService.findCashValue(anyString(), any()))
         .willReturn(new BigDecimal("1500000"));
@@ -436,7 +437,7 @@ class PeriodicTdAttributionServiceTest {
     given(fundNavQueryService.findFeeAccrualLiabilities(anyString(), any()))
         .willReturn(new BigDecimal("-50000"));
     given(fundPositionRepository.findByNavDateAndFundAndAccountType(any(), eq(TUK75), eq(SECURITY)))
-        .willReturn(List.of(position(ISIN_DW, "68600000"), position(ISIN_EM, "29400000")));
+        .willReturn(List.of(position(ISIN_DW, "68600000"), position(ISIN_EUROPE_ETF, "29400000")));
 
     var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
 
@@ -474,7 +475,7 @@ class PeriodicTdAttributionServiceTest {
         .willReturn(
             List.of(
                 modelAllocation(ISIN_DW, "0.70", chargedDay),
-                modelAllocation(ISIN_EM, "0.30", chargedDay)));
+                modelAllocation(ISIN_EUROPE_ETF, "0.30", chargedDay)));
     given(fundNavQueryService.findAum(FUND_CODE, chargedDay))
         .willReturn(new BigDecimal("100000000"));
     given(fundNavQueryService.findCashValue(anyString(), any()))
@@ -484,7 +485,7 @@ class PeriodicTdAttributionServiceTest {
     given(fundNavQueryService.findFeeAccrualLiabilities(anyString(), any()))
         .willReturn(new BigDecimal("-50000"));
     given(fundPositionRepository.findByNavDateAndFundAndAccountType(any(), eq(TUK75), eq(SECURITY)))
-        .willReturn(List.of(position(ISIN_DW, "68600000"), position(ISIN_EM, "29400000")));
+        .willReturn(List.of(position(ISIN_DW, "68600000"), position(ISIN_EUROPE_ETF, "29400000")));
 
     var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
 

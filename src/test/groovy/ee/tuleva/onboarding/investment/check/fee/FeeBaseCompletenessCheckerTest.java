@@ -43,6 +43,7 @@ class FeeBaseCompletenessCheckerTest {
   private static final LocalDate SATURDAY = LocalDate.of(2026, 6, 6);
   private static final BigDecimal NAV_TOTAL = new BigDecimal("1000000.00");
   private static final BigDecimal ASSET_TOTAL = new BigDecimal("1080000.00");
+  private static final LocalDate DEPOT_ASSET_BASE_FROM = LocalDate.of(2026, 1, 1);
 
   @Mock private FeeAccrualRepository feeAccrualRepository;
   @Mock private FundNavQueryService fundNavQueryService;
@@ -58,7 +59,37 @@ class FeeBaseCompletenessCheckerTest {
             fundNavQueryService,
             navLedgerRepository,
             new PublicHolidays(),
-            new BigDecimal("0.01"));
+            new BigDecimal("0.01"),
+            DEPOT_ASSET_BASE_FROM);
+  }
+
+  private FeeBaseCompletenessChecker checkerWithDepotAssetBaseFrom(LocalDate from) {
+    return new FeeBaseCompletenessChecker(
+        feeAccrualRepository,
+        fundNavQueryService,
+        navLedgerRepository,
+        new PublicHolidays(),
+        new BigDecimal("0.01"),
+        from);
+  }
+
+  @Test
+  void aDepotBaseWrittenBeforeTheAssetValueCutoverIsCheckedAgainstTheNetNavBase() {
+    checker = checkerWithDepotAssetBaseFrom(LATER_WORKING_DAY);
+    givenAccruals(base(WORKING_DAY, MANAGEMENT, NAV_TOTAL), base(WORKING_DAY, DEPOT, NAV_TOTAL));
+    givenNavFeeBaseTotal(WORKING_DAY, NAV_TOTAL);
+
+    assertThat(check(TUK75)).singleElement().extracting(FeeCheckFinding::severity).isEqualTo(PASS);
+  }
+
+  @Test
+  void aDepotBaseOnTheCutoverDayIsAlreadyCheckedAgainstTheAssetValue() {
+    checker = checkerWithDepotAssetBaseFrom(WORKING_DAY);
+    givenAccruals(base(WORKING_DAY, MANAGEMENT, NAV_TOTAL), base(WORKING_DAY, DEPOT, NAV_TOTAL));
+    givenBothFeeBaseTotalsEqual(WORKING_DAY, NAV_TOTAL);
+    givenAssetTotal(WORKING_DAY, ASSET_TOTAL);
+
+    assertThat(check(TUK75).getFirst().severity()).isEqualTo(FAIL);
   }
 
   @Test

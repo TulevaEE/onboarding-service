@@ -42,18 +42,22 @@ class FeeBaseCompletenessChecker {
   private final NavLedgerRepository navLedgerRepository;
   private final PublicHolidays publicHolidays;
   private final BigDecimal feeBaseTolerance;
+  private final LocalDate depotAssetBaseFrom;
 
   FeeBaseCompletenessChecker(
       FeeAccrualRepository feeAccrualRepository,
       FundNavQueryService fundNavQueryService,
       NavLedgerRepository navLedgerRepository,
       PublicHolidays publicHolidays,
-      @Value("${investment.fee-check.fee-base-tolerance:0.01}") BigDecimal feeBaseTolerance) {
+      @Value("${investment.fee-check.fee-base-tolerance:0.01}") BigDecimal feeBaseTolerance,
+      @Value("${investment.fee-check.depot-asset-base-from:2026-08-15}")
+          LocalDate depotAssetBaseFrom) {
     this.feeAccrualRepository = feeAccrualRepository;
     this.fundNavQueryService = fundNavQueryService;
     this.navLedgerRepository = navLedgerRepository;
     this.publicHolidays = publicHolidays;
     this.feeBaseTolerance = feeBaseTolerance;
+    this.depotAssetBaseFrom = depotAssetBaseFrom;
   }
 
   List<FeeCheckFinding> check(TulevaFund fund, LocalDate from, LocalDate to) {
@@ -137,13 +141,17 @@ class FeeBaseCompletenessChecker {
   }
 
   private Optional<BigDecimal> expectedBase(TulevaFund fund, FeeType feeType, LocalDate date) {
-    return feeType == FeeType.DEPOT
+    return chargesDepotOnAssetValue(feeType, date)
         ? fundNavQueryService
             .findAssetTotal(fund.getCode(), date)
             .map(total -> total.add(assetSideBlackrockAdjustment(fund, date)))
         : fundNavQueryService
             .findFeeBaseComponentTotal(fund.getCode(), date)
             .map(total -> total.add(navFeeBaseBlackrockAdjustment(fund, date)));
+  }
+
+  private boolean chargesDepotOnAssetValue(FeeType feeType, LocalDate accrualDate) {
+    return feeType == FeeType.DEPOT && !accrualDate.isBefore(depotAssetBaseFrom);
   }
 
   private BigDecimal navFeeBaseBlackrockAdjustment(TulevaFund fund, LocalDate positionReportDate) {

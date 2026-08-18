@@ -45,6 +45,66 @@ class SebUnknownAccountIntegrationTest {
     assertThat(savingFundPaymentRepository.findAll()).isEmpty();
   }
 
+  @Test
+  void statementFailingTheIntegrityCheck_failsTheMessage() {
+    var xml =
+        """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">
+          <BkToCstmrStmt>
+            <GrpHdr>
+              <MsgId>integrity-test</MsgId>
+              <CreDtTm>2026-02-11T01:00:00</CreDtTm>
+            </GrpHdr>
+            <Stmt>
+              <Id>integrity-test-stmt</Id>
+              <CreDtTm>2026-02-11T01:00:00</CreDtTm>
+              <FrToDt>
+                <FrDtTm>2026-02-10T00:00:00</FrDtTm>
+                <ToDtTm>2026-02-10T23:59:59</ToDtTm>
+              </FrToDt>
+              <Acct>
+                <Id>
+                  <IBAN>EE001234567890123456</IBAN>
+                </Id>
+                <Ccy>EUR</Ccy>
+                <Ownr>
+                  <Nm>TULEVA FONDID AS</Nm>
+                  <Id>
+                    <OrgId>
+                      <Othr>
+                        <Id>14118923</Id>
+                      </Othr>
+                    </OrgId>
+                  </Id>
+                </Ownr>
+              </Acct>
+              <TxsSummry>
+                <TtlNtries>
+                  <NbOfNtries>5</NbOfNtries>
+                </TtlNtries>
+              </TxsSummry>
+            </Stmt>
+          </BkToCstmrStmt>
+        </Document>
+        """;
+    var message =
+        bankingMessageRepository.save(
+            BankingMessage.builder()
+                .bankType(SEB)
+                .requestId("integrity-test")
+                .trackingId("integrity-test")
+                .rawResponse(xml)
+                .timezone("Europe/Tallinn")
+                .build());
+
+    eventPublisher.publishEvent(new ProcessBankMessagesRequested());
+
+    var processed = bankingMessageRepository.findById(message.getId()).orElseThrow();
+    assertThat(processed.getFailedAt()).isNotNull();
+    assertThat(processed.getProcessedAt()).isNull();
+  }
+
   private String loadFixture(String filename) throws IOException {
     try (var stream =
         Objects.requireNonNull(getClass().getResourceAsStream("/banking/seb/" + filename))) {

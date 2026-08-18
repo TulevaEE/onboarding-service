@@ -106,6 +106,7 @@ public class PensionFundStatementProcessor {
             fund,
             amount,
             externalReference,
+            account.ledgerAccount(),
             bookingDate,
             new UnclassifiedEntryDetails(
                 details == null ? null : details.getName(),

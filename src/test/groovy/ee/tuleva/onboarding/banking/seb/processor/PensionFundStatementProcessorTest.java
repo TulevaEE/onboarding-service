@@ -143,6 +143,7 @@ class PensionFundStatementProcessorTest {
             eq(TUK75),
             eq(new BigDecimal("99.99")),
             any(UUID.class),
+            eq(FUND_INVESTMENT_CASH_CLEARING),
             eq(LocalDate.of(2025, 10, 1)),
             eq(
                 new FundBankLedger.UnclassifiedEntryDetails(

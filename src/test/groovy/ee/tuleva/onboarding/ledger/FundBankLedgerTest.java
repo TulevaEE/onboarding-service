@@ -344,7 +344,7 @@ class FundBankLedgerTest {
 
     var transaction =
         fundBankLedger.recordUnclassifiedBankEntry(
-            TUK75, amount, externalReference, BOOKING_DATE, details);
+            TUK75, amount, externalReference, FUND_INVESTMENT_CASH_CLEARING, BOOKING_DATE, details);
 
     assertThat(transaction.getTransactionType())
         .isEqualTo(LedgerTransaction.TransactionType.UNCLASSIFIED_BANK_ENTRY);
@@ -392,6 +392,7 @@ class FundBankLedgerTest {
         TUK75,
         new BigDecimal("10.00"),
         externalReference,
+        FUND_INVESTMENT_CASH_CLEARING,
         BOOKING_DATE,
         new FundBankLedger.UnclassifiedEntryDetails(null, null, null, "OTHR"));
 
@@ -405,12 +406,14 @@ class FundBankLedgerTest {
         TUK75,
         new BigDecimal("100.00"),
         randomUUID(),
+        FUND_INVESTMENT_CASH_CLEARING,
         BOOKING_DATE,
         new FundBankLedger.UnclassifiedEntryDetails(null, null, "credit", "OTHR"));
     fundBankLedger.recordUnclassifiedBankEntry(
         TUK75,
         new BigDecimal("-100.00"),
         randomUUID(),
+        FUND_INVESTMENT_CASH_CLEARING,
         BOOKING_DATE,
         new FundBankLedger.UnclassifiedEntryDetails(null, null, "offsetting debit", "OTHR"));
 
@@ -427,6 +430,7 @@ class FundBankLedgerTest {
         TUK75,
         new BigDecimal("1000.00"),
         externalReference,
+        FUND_INVESTMENT_CASH_CLEARING,
         BOOKING_DATE,
         new FundBankLedger.UnclassifiedEntryDetails(
             "AS Pensionikeskus", "EE001234567890123477", "laekumine", null));
@@ -447,6 +451,7 @@ class FundBankLedgerTest {
         TUK75,
         amount,
         externalReference,
+        FUND_INVESTMENT_CASH_CLEARING,
         BOOKING_DATE,
         new FundBankLedger.UnclassifiedEntryDetails(
             "AS Pensionikeskus", "EE001234567890123477", "laekumine", null));
@@ -491,6 +496,7 @@ class FundBankLedgerTest {
         TUK75,
         amount,
         externalReference,
+        FUND_INVESTMENT_CASH_CLEARING,
         BOOKING_DATE,
         new FundBankLedger.UnclassifiedEntryDetails(
             "Tuleva Fondid AS", "EE001234567890123488", "Valitsemistasu 02/2026", null));

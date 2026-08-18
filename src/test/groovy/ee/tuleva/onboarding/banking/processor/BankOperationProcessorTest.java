@@ -15,6 +15,7 @@ import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.banking.statement.TransactionType;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
+import ee.tuleva.onboarding.ledger.LedgerTransaction;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -106,14 +107,33 @@ class BankOperationProcessorTest {
   }
 
   @Test
-  void processBankOperation_doesNotRecordUnknownSubFamilyCode() {
+  void processBankOperation_parksUnknownSubFamilyCodeInSuspense() {
     var entry = createBankOperationEntry("UNKN", new BigDecimal("10.00"));
 
     processor.processBankOperation(entry, DEPOSIT_ACCOUNT);
 
-    verify(fundBankLedger, never()).recordInterestReceived(any(), any(), any(), any(), any());
-    verify(fundBankLedger, never()).recordBankFee(any(), any(), any(), any(), any());
+    verify(fundBankLedger)
+        .recordUnclassifiedBankEntry(
+            eq(TKF100),
+            eq(new BigDecimal("10.00")),
+            any(UUID.class),
+            eq(INCOMING_PAYMENTS_CLEARING),
+            eq(LocalDate.of(2025, 10, 1)),
+            eq(new FundBankLedger.UnclassifiedEntryDetails(null, null, "Bank operation", "UNKN")));
     verify(fundBankLedger, never()).recordBankAdjustment(any(), any(), any(), any(), any());
+  }
+
+  @Test
+  void processBankOperation_skipsAlreadyParkedUnknownSubFamilyCode() {
+    var entry = createBankOperationEntry("UNKN", new BigDecimal("10.00"));
+    when(fundBankLedger.hasLedgerEntry(
+            any(UUID.class), eq(LedgerTransaction.TransactionType.UNCLASSIFIED_BANK_ENTRY)))
+        .thenReturn(true);
+
+    processor.processBankOperation(entry, DEPOSIT_ACCOUNT);
+
+    verify(fundBankLedger, never())
+        .recordUnclassifiedBankEntry(any(), any(), any(), any(), any(), any());
   }
 
   @Test
@@ -152,12 +172,21 @@ class BankOperationProcessorTest {
   }
 
   @Test
-  void processBankOperation_doesNotRecordBookTransferWithoutKickback() {
+  void processBankOperation_parksBookTransferWithoutKickbackInSuspense() {
     var entry = createBankOperationEntry("BOOK", new BigDecimal("100.00"), "Internal transfer");
 
     processor.processBankOperation(entry, FUND_INVESTMENT_ACCOUNT);
 
-    verifyNoInteractions(fundBankLedger);
+    verify(fundBankLedger)
+        .recordUnclassifiedBankEntry(
+            eq(TKF100),
+            eq(new BigDecimal("100.00")),
+            any(UUID.class),
+            eq(FUND_INVESTMENT_CASH_CLEARING),
+            eq(LocalDate.of(2025, 10, 1)),
+            eq(
+                new FundBankLedger.UnclassifiedEntryDetails(
+                    null, null, "Internal transfer", "BOOK")));
   }
 
   @Test
@@ -191,12 +220,19 @@ class BankOperationProcessorTest {
   }
 
   @Test
-  void processBankOperation_handlesNullSubFamilyCode() {
+  void processBankOperation_parksNullSubFamilyCodeInSuspense() {
     var entry = createBankOperationEntry(null, new BigDecimal("10.00"));
 
     processor.processBankOperation(entry, DEPOSIT_ACCOUNT);
 
-    verifyNoInteractions(fundBankLedger);
+    verify(fundBankLedger)
+        .recordUnclassifiedBankEntry(
+            eq(TKF100),
+            eq(new BigDecimal("10.00")),
+            any(UUID.class),
+            eq(INCOMING_PAYMENTS_CLEARING),
+            eq(LocalDate.of(2025, 10, 1)),
+            eq(new FundBankLedger.UnclassifiedEntryDetails(null, null, "Bank operation", null)));
   }
 
   @Test
@@ -227,7 +263,7 @@ class BankOperationProcessorTest {
   }
 
   @Test
-  void processBankOperation_skipsTradeSettlementWithUnknownTicker() {
+  void processBankOperation_parksUnknownTickerTradeInSuspense() {
     var amount = new BigDecimal("-100000.00");
     var remittanceInfo = "DLA0553690/ZZZZ GY/11704/17.864/Buy/ Euroclear, ABNCNL2AXXX, 14448";
     var entry = createBankOperationEntry("TRAD", amount, remittanceInfo);
@@ -238,6 +274,14 @@ class BankOperationProcessorTest {
 
     verify(fundBankLedger, never())
         .recordTradeSettlement(any(), any(), any(), any(), any(), any(), any(), any(), any());
+    verify(fundBankLedger)
+        .recordUnclassifiedBankEntry(
+            eq(TKF100),
+            eq(new BigDecimal("-100000.00")),
+            any(UUID.class),
+            eq(FUND_INVESTMENT_CASH_CLEARING),
+            eq(LocalDate.of(2025, 10, 1)),
+            eq(new FundBankLedger.UnclassifiedEntryDetails(null, null, remittanceInfo, "TRAD")));
   }
 
   @Test

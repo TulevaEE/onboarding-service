@@ -19,14 +19,10 @@ import java.util.List;
 import javax.xml.datatype.XMLGregorianCalendar;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @Getter
 @RequiredArgsConstructor
 public class BankStatement {
-
-  private static final Logger log = LoggerFactory.getLogger(BankStatement.class);
 
   public enum BankStatementType {
     INTRA_DAY_REPORT,
@@ -97,9 +93,7 @@ public class BankStatement {
             .toList();
 
     var summary = TransactionSummary.from(report.getTxsSummry());
-    var mismatches = validateEntries(entries, summary, balances);
-    mismatches.forEach(
-        m -> log.error("Bank statement integrity check failed: account={}, {}", account.iban(), m));
+    requireIntegrity(entries, summary, balances, account);
 
     return new BankStatement(INTRA_DAY_REPORT, account, balances, entries);
   }
@@ -113,11 +107,22 @@ public class BankStatement {
             .toList();
 
     var summary = TransactionSummary.from(statement.getTxsSummry());
-    var mismatches = validateEntries(entries, summary, balances);
-    mismatches.forEach(
-        m -> log.error("Bank statement integrity check failed: account={}, {}", account.iban(), m));
+    requireIntegrity(entries, summary, balances, account);
 
     return new BankStatement(HISTORIC_STATEMENT, account, balances, entries);
+  }
+
+  private static void requireIntegrity(
+      List<BankStatementEntry> entries,
+      @Nullable TransactionSummary summary,
+      List<BankStatementBalance> balances,
+      BankStatementAccount account) {
+    var mismatches = validateEntries(entries, summary, balances);
+    if (!mismatches.isEmpty()) {
+      throw new BankStatementParseException(
+          "Bank statement integrity check failed: account=%s, mismatches=%s"
+              .formatted(account.iban(), mismatches));
+    }
   }
 
   static List<String> validateEntries(

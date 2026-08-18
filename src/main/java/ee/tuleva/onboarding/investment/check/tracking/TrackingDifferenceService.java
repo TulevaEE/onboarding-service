@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
-import static ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker.*;
 import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.BENCHMARK;
 import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.BENCHMARK_MODEL;
 import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.MODEL_PORTFOLIO;

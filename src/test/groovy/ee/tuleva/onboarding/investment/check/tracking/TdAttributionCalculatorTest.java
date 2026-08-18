@@ -312,6 +312,7 @@ class TdAttributionCalculatorTest {
     assertThat(result.tdGeometric()).isEqualByComparingTo(ZERO);
     assertThat(result.navEventCount()).isZero();
     assertThat(result.instrumentDetails()).isEmpty();
+    assertThat(result.checks()).containsEntry("etfLayerMeasured", false);
   }
 
   @Test
@@ -597,7 +598,7 @@ class TdAttributionCalculatorTest {
   }
 
   @Test
-  void etfOcfIsNotChargedTwiceInTdVsBenchmark() {
+  void anIndexBenchmarkedHoldingsOwnOcfIsSplitOutOfTheMeasuredSumRatherThanAddedToIt() {
     var days = buildConstantDays(20, "0.0005", "0.0005");
     var etfOcfDrag = new BigDecimal("-0.00016438");
     var benchmarkModelSum = new BigDecimal("-0.00025000");
@@ -605,26 +606,10 @@ class TdAttributionCalculatorTest {
 
     var result = calculator.calculate(input);
 
-    // Where a holding is compared against an index series, the measured difference is already net
-    // of that holding's own OCF. Adding an analytic OCF term on top would charge it a second time,
-    // so the residual is the measured sum minus the OCF it already contains.
     assertThat(result.etfTrackingResidual())
         .isEqualByComparingTo(benchmarkModelSum.subtract(etfOcfDrag));
     assertThat(result.tdVsBenchmark())
         .isEqualByComparingTo(result.tdGeometric().add(benchmarkModelSum));
-  }
-
-  @Test
-  void etfOcfAndTrackingResidualSplitTheMeasuredBenchmarkModelSum() {
-    var days = buildConstantDays(20, "0.0005", "0.0005");
-    var etfOcfDrag = new BigDecimal("-0.00016438");
-    var benchmarkModelSum = new BigDecimal("-0.00025000");
-
-    var result = calculator.calculate(etfLayerInput(days, etfOcfDrag, benchmarkModelSum, ZERO));
-
-    // etf_ocf_drag is an informational split of the measured layer, not a term that changes it.
-    assertThat(result.etfOcfDrag().add(result.etfTrackingResidual()))
-        .isEqualByComparingTo(benchmarkModelSum);
   }
 
   @Test
@@ -637,10 +622,6 @@ class TdAttributionCalculatorTest {
     var result =
         calculator.calculate(etfLayerInput(days, etfOcfDrag, benchmarkModelSum, proxyOcfDrag));
 
-    // An ETF holding is compared against a proxy ETF, not against the index, and the proxy is net
-    // of its own OCF. The measured sum therefore stops short of the index by that much: without
-    // adding it back, td_vs_benchmark reports the gap to the proxies and understates the gap to the
-    // index.
     var modelVsIndex = benchmarkModelSum.add(proxyOcfDrag);
     assertThat(result.tdVsBenchmark()).isEqualByComparingTo(result.tdGeometric().add(modelVsIndex));
     assertThat(result.etfOcfDrag().add(result.etfTrackingResidual()))
@@ -651,9 +632,6 @@ class TdAttributionCalculatorTest {
   void anUnmeasuredEtfLayerReportsZeroRatherThanFabricatingOutperformance() {
     var days = buildConstantDays(20, "0.0005", "0.0005");
 
-    // No BENCHMARK_MODEL event in the period: the service passes a null sum. Treating that as a
-    // measured zero would leave etf_tracking_residual = -etfOcfDrag, i.e. ETF outperformance of
-    // exactly one OCF for a layer nothing observed.
     var result =
         calculator.calculate(etfLayerInput(days, new BigDecimal("-0.00016438"), null, null));
 

@@ -144,19 +144,7 @@ class TdAttributionCalculator {
   private record EtfLayer(
       BigDecimal ocfDrag, BigDecimal trackingResidual, BigDecimal tdVsBenchmark) {}
 
-  // The measured BENCHMARK_MODEL sum is the model's gap to its benchmark legs, not to the index.
-  // Only the mutual-fund holdings are compared against an index series; every ETF holding, and
-  // every bond holding, is compared against a proxy ETF (BenchmarkLegResolver). A proxy leg is
-  // itself net of the proxy's own OCF, so the measured difference has already netted that away and
-  // it has to be added back to get the gap to the index -- benchmarkProxyOcfDragPeriod is that
-  // restoration, and it is zero for the index-benchmarked share.
-  //
-  // etfOcfDrag then splits the result rather than changing it: the ETFs' own analytic cost, with
-  // whatever they did beyond it falling into the residual. It is not a term that adds to the total,
-  // which is what makes the total depend only on measured data plus the proxy restoration.
   private EtfLayer computeEtfLayer(TdAttributionInput input, BigDecimal tdGeometric) {
-    // Null, not zero: a period that produced no BENCHMARK_MODEL event has an unmeasured ETF layer,
-    // and reporting a residual for it would show ETF outperformance that nothing observed.
     if (input.benchmarkModelSumPeriod() == null) {
       return new EtfLayer(ZERO, ZERO, tdGeometric);
     }
@@ -255,13 +243,12 @@ class TdAttributionCalculator {
         "scalingFactor", periodLink.setScale(8, HALF_UP),
         "residualBps", residualBps.setScale(2, HALF_UP),
         "seriesGapDays", input.seriesGapDays(),
-        // The ETF layer is measured over its own population and its own days, neither of which has
-        // to match the period. Without these three, a partially covered layer reads exactly like a
-        // fully covered one.
         "etfLayerMeasured", input.benchmarkModelSumPeriod() != null,
         "etfLayerCoveredDays", input.etfLayerCoveredDays(),
         "etfLayerUnbenchmarkedWeight",
-            orZero(input.etfLayerUnbenchmarkedWeight()).setScale(6, HALF_UP));
+            orZero(input.etfLayerUnbenchmarkedWeight()).setScale(6, HALF_UP),
+        "etfLayerUnrestoredProxyWeight",
+            orZero(input.etfLayerUnrestoredProxyWeight()).setScale(6, HALF_UP));
   }
 
   private TdAttributionResult emptyResult(TdAttributionInput input) {
@@ -288,7 +275,7 @@ class TdAttributionCalculator {
         .avgAum(ZERO)
         .avgCashPct(ZERO)
         .instrumentDetails(List.of())
-        .checks(Map.of())
+        .checks(Map.of("etfLayerMeasured", false))
         .build();
   }
 
@@ -307,14 +294,13 @@ class TdAttributionCalculator {
       BigDecimal depotFeeDragPeriod,
       BigDecimal transactionCostsPeriod,
       BigDecimal etfOcfDragPeriod,
-      // The raw measured sum, deliberately not named for the output field it feeds: the output is
-      // this sum minus the OCF it already contains, which is not the same number.
       @Nullable BigDecimal benchmarkModelSumPeriod,
       @Nullable BigDecimal benchmarkProxyOcfDragPeriod,
       BigDecimal expectedAnnualFeeRate,
       int seriesGapDays,
       int etfLayerCoveredDays,
       BigDecimal etfLayerUnbenchmarkedWeight,
+      BigDecimal etfLayerUnrestoredProxyWeight,
       List<DailyRecord> dailyRecords) {}
 
   @Builder

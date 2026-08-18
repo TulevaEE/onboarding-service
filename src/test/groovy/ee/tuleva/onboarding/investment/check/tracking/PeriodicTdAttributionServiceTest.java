@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
+import static ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker.ISHARES_CORE_MSCI_WORLD;
+import static ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker.ISHARES_EUROPE_ESG_SCREENED;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.check.tracking.PeriodType.MONTHLY;
@@ -54,9 +56,9 @@ class PeriodicTdAttributionServiceTest {
   private static final LocalDate PERIOD_END = LocalDate.of(2026, 4, 30);
   private static final String FUND_CODE = "TUK75";
   private static final String ISIN_DW = "IE00BFG1TM61";
-  // The proxy the BENCHMARK_MODEL check compares an EQUITY_DM ETF against.
-  private static final String EUNL_ISIN = "IE00B4L5Y983";
-  private static final String ISIN_EM = "IE00BFNM3D14";
+  private static final String EUNL_ISIN = ISHARES_CORE_MSCI_WORLD.getIsin();
+  private static final String ISIN_EUROPE_ETF = ISHARES_EUROPE_ESG_SCREENED.getIsin();
+  private static final BigDecimal BENCHMARK_MODEL_SUM = new BigDecimal("-0.00025");
 
   @Mock TrackingDifferenceEventRepository tdEventRepository;
   @Mock FeeAccrualRepository feeAccrualRepository;
@@ -180,7 +182,8 @@ class PeriodicTdAttributionServiceTest {
                 TUK75, PERIOD_START, PERIOD_END))
         .willReturn(
             List.of(
-                modelAllocation(ISIN_DW, "0.70", date1), modelAllocation(ISIN_EM, "0.30", date1)));
+                modelAllocation(ISIN_DW, "0.70", date1),
+                modelAllocation(ISIN_EUROPE_ETF, "0.30", date1)));
     given(fundNavQueryService.findAum(anyString(), any())).willReturn(new BigDecimal("100000000"));
     given(fundNavQueryService.findCashValue(anyString(), any()))
         .willReturn(new BigDecimal("1500000"));
@@ -189,7 +192,7 @@ class PeriodicTdAttributionServiceTest {
     given(fundNavQueryService.findFeeAccrualLiabilities(anyString(), any()))
         .willReturn(new BigDecimal("-50000"));
     given(fundPositionRepository.findByNavDateAndFundAndAccountType(any(), eq(TUK75), eq(SECURITY)))
-        .willReturn(List.of(position(ISIN_DW, "68600000"), position(ISIN_EM, "29400000")));
+        .willReturn(List.of(position(ISIN_DW, "68600000"), position(ISIN_EUROPE_ETF, "29400000")));
 
     var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
 
@@ -364,7 +367,8 @@ class PeriodicTdAttributionServiceTest {
                 TUK75, PERIOD_START, PERIOD_END))
         .willReturn(
             List.of(
-                modelAllocation(ISIN_DW, "0.70", date1), modelAllocation(ISIN_EM, "0.30", date1)));
+                modelAllocation(ISIN_DW, "0.70", date1),
+                modelAllocation(ISIN_EUROPE_ETF, "0.30", date1)));
     given(fundNavQueryService.findAum(FUND_CODE, date1)).willReturn(new BigDecimal("100000000"));
     given(fundNavQueryService.findCashValue(anyString(), any()))
         .willReturn(new BigDecimal("1500000"));
@@ -373,7 +377,7 @@ class PeriodicTdAttributionServiceTest {
     given(fundNavQueryService.findFeeAccrualLiabilities(anyString(), any()))
         .willReturn(new BigDecimal("-50000"));
     given(fundPositionRepository.findByNavDateAndFundAndAccountType(any(), eq(TUK75), eq(SECURITY)))
-        .willReturn(List.of(position(ISIN_DW, "68600000"), position(ISIN_EM, "29400000")));
+        .willReturn(List.of(position(ISIN_DW, "68600000"), position(ISIN_EUROPE_ETF, "29400000")));
 
     var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
 
@@ -477,8 +481,6 @@ class PeriodicTdAttributionServiceTest {
   @Test
   void anEtfLayerWithNoMeasuredDayIsReportedAsZeroRatherThanAsOutperformance() {
     setupStandardMocks();
-    // The default stub leaves BENCHMARK_MODEL empty. Subtracting an analytic OCF from a sum that
-    // was never measured would report ETF outperformance of exactly one OCF.
     given(instrumentFeeRepository.findAllValidRates(PERIOD_END))
         .willReturn(List.of(instrumentFee(ISIN_DW, "0.0012")));
 
@@ -494,35 +496,56 @@ class PeriodicTdAttributionServiceTest {
   void aProxyBenchmarkedHoldingHasTheProxyOwnOcfRestoredIntoTdVsBenchmark() {
     setupStandardMocks();
     givenBenchmarkModelEvents();
-    // ISIN_DW is a mutual fund, so the daily check compares it against the MSCI World series
-    // itself. ISIN_EM is an ETF and is compared against the EUNL proxy, which is net of EUNL's own
-    // OCF -- that part of the gap to the index is not in the measured sum and has to be added back.
     given(instrumentFeeRepository.findAllValidRates(PERIOD_END))
-        .willReturn(List.of(instrumentFee(ISIN_DW, "0.0012"), instrumentFee(ISIN_EM, "0.0020")));
+        .willReturn(
+            List.of(instrumentFee(ISIN_DW, "0.0012"), instrumentFee(ISIN_EUROPE_ETF, "0.0020")));
     var withoutProxyRate = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
 
     given(instrumentFeeRepository.findAllValidRates(PERIOD_END))
         .willReturn(
             List.of(
                 instrumentFee(ISIN_DW, "0.0012"),
-                instrumentFee(ISIN_EM, "0.0020"),
+                instrumentFee(ISIN_EUROPE_ETF, "0.0020"),
                 instrumentFee(EUNL_ISIN, "0.0020")));
     var withProxyRate = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
 
-    // Knowing what the proxy itself costs has to widen the reported gap to the index, because the
-    // measured sum stopped at the proxy. Nothing else about the layer moves: the ETFs' own analytic
-    // cost is identical in both runs.
     assertThat(withProxyRate.tdVsBenchmark()).isLessThan(withoutProxyRate.tdVsBenchmark());
     assertThat(withProxyRate.etfOcfDrag()).isEqualByComparingTo(withoutProxyRate.etfOcfDrag());
-
-    // The two ETF fields still partition the layer rather than inflating it.
     assertThat(withProxyRate.etfOcfDrag().add(withProxyRate.etfTrackingResidual()))
         .isEqualByComparingTo(withProxyRate.tdVsBenchmark().subtract(withProxyRate.tdGeometric()));
-
-    // With no rate for the proxy there is nothing to restore, so the layer falls back to the
-    // measured sum alone rather than guessing at it.
     assertThat(withoutProxyRate.tdVsBenchmark().subtract(withoutProxyRate.tdGeometric()))
         .isEqualByComparingTo(BENCHMARK_MODEL_SUM);
+  }
+
+  @Test
+  void aProxyWithNoInstrumentFeeRowRecordsTheWeightItCouldNotRestore() {
+    setupStandardMocks();
+    givenBenchmarkModelEvents();
+    given(instrumentFeeRepository.findAllValidRates(PERIOD_END))
+        .willReturn(
+            List.of(instrumentFee(ISIN_DW, "0.0012"), instrumentFee(ISIN_EUROPE_ETF, "0.0020")));
+
+    var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
+
+    assertThat(result.checks())
+        .containsEntry("etfLayerUnrestoredProxyWeight", new BigDecimal("0.300000"));
+  }
+
+  @Test
+  void aProxyWithAnInstrumentFeeRowLeavesNoUnrestoredWeight() {
+    setupStandardMocks();
+    givenBenchmarkModelEvents();
+    given(instrumentFeeRepository.findAllValidRates(PERIOD_END))
+        .willReturn(
+            List.of(
+                instrumentFee(ISIN_DW, "0.0012"),
+                instrumentFee(ISIN_EUROPE_ETF, "0.0020"),
+                instrumentFee(EUNL_ISIN, "0.0020")));
+
+    var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
+
+    assertThat(result.checks())
+        .containsEntry("etfLayerUnrestoredProxyWeight", new BigDecimal("0.000000"));
   }
 
   @Test
@@ -539,8 +562,6 @@ class PeriodicTdAttributionServiceTest {
 
     var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
 
-    // The daily check skips a holding it cannot benchmark, so its weight is not in the measured sum
-    // at all. Charging its OCF against that sum would land the difference in the residual.
     assertThat(result.checks())
         .containsEntry("etfLayerUnbenchmarkedWeight", new BigDecimal("0.300000"));
   }
@@ -568,29 +589,65 @@ class PeriodicTdAttributionServiceTest {
     var withRateForTheUnbenchmarkedHolding =
         service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
 
-    // Knowing what an unbenchmarked holding costs must not move the layer at all. Its weight is not
-    // in measuredSum, and etfTrackingResidual is measuredSum minus etfOcfDrag -- so letting its OCF
-    // into the drag would surface as ETF outperformance of exactly that amount, from a holding
-    // nothing measured.
     assertThat(withRateForTheUnbenchmarkedHolding.etfOcfDrag())
         .isEqualByComparingTo(withoutRateForTheUnbenchmarkedHolding.etfOcfDrag());
     assertThat(withRateForTheUnbenchmarkedHolding.etfTrackingResidual())
         .isEqualByComparingTo(withoutRateForTheUnbenchmarkedHolding.etfTrackingResidual());
   }
 
+  @Test
+  void aHoldingTheDailyCheckDroppedForAMissingPriceKeepsItsOcfOutOfTheEtfLayer() {
+    setupStandardMocks();
+    givenBenchmarkModelEventsMeasuring(List.of(ISIN_DW));
+
+    given(instrumentFeeRepository.findAllValidRates(PERIOD_END))
+        .willReturn(List.of(instrumentFee(ISIN_DW, "0.0012")));
+    var withoutRateForTheDroppedHolding =
+        service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
+
+    given(instrumentFeeRepository.findAllValidRates(PERIOD_END))
+        .willReturn(
+            List.of(instrumentFee(ISIN_DW, "0.0012"), instrumentFee(ISIN_EUROPE_ETF, "0.0020")));
+    var withRateForTheDroppedHolding =
+        service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
+
+    assertThat(withRateForTheDroppedHolding.etfOcfDrag())
+        .isEqualByComparingTo(withoutRateForTheDroppedHolding.etfOcfDrag());
+    assertThat(withRateForTheDroppedHolding.checks())
+        .containsEntry("etfLayerUnbenchmarkedWeight", new BigDecimal("0.300000"));
+  }
+
+  @Test
+  void aBenchmarkModelEventWithoutSecurityAttributionsLeavesTheEtfOcfUncomputed() {
+    setupStandardMocks();
+    givenBenchmarkModelEventsMeasuring(List.of());
+    given(instrumentFeeRepository.findAllValidRates(PERIOD_END))
+        .willReturn(
+            List.of(instrumentFee(ISIN_DW, "0.0012"), instrumentFee(ISIN_EUROPE_ETF, "0.0020")));
+
+    var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
+
+    assertThat(result.etfOcfDrag()).isEqualByComparingTo(ZERO);
+    assertThat(result.checks())
+        .containsEntry("etfLayerUnbenchmarkedWeight", new BigDecimal("1.000000"));
+  }
+
   private void givenBenchmarkModelEvents() {
+    givenBenchmarkModelEventsMeasuring(List.of(ISIN_DW, ISIN_EUROPE_ETF));
+  }
+
+  private void givenBenchmarkModelEventsMeasuring(List<String> measuredIsins) {
     given(
             tdEventRepository.findDeduplicatedEventsForPeriod(
                 TUK75, TrackingCheckType.BENCHMARK_MODEL, PERIOD_START, PERIOD_END))
         .willReturn(
             List.of(
-                benchmarkModelEvent(LocalDate.of(2026, 4, 1), "-0.00010"),
-                benchmarkModelEvent(LocalDate.of(2026, 4, 2), "-0.00015")));
+                benchmarkModelEvent(LocalDate.of(2026, 4, 1), "-0.00010", measuredIsins),
+                benchmarkModelEvent(LocalDate.of(2026, 4, 2), "-0.00015", measuredIsins)));
   }
 
-  private static final BigDecimal BENCHMARK_MODEL_SUM = new BigDecimal("-0.00025");
-
-  private TrackingDifferenceEvent benchmarkModelEvent(LocalDate date, String trackingDifference) {
+  private TrackingDifferenceEvent benchmarkModelEvent(
+      LocalDate date, String trackingDifference, List<String> measuredIsins) {
     return TrackingDifferenceEvent.builder()
         .fund(TUK75)
         .checkDate(date)
@@ -599,7 +656,10 @@ class PeriodicTdAttributionServiceTest {
         .fundReturn(ZERO)
         .benchmarkReturn(ZERO)
         .breach(false)
-        .result(Map.of())
+        .result(
+            Map.of(
+                "securityAttributions",
+                measuredIsins.stream().map(isin -> Map.<String, Object>of("isin", isin)).toList()))
         .build();
   }
 
@@ -643,7 +703,8 @@ class PeriodicTdAttributionServiceTest {
                 TUK75, PERIOD_START, PERIOD_END))
         .willReturn(
             List.of(
-                modelAllocation(ISIN_DW, "0.70", date1), modelAllocation(ISIN_EM, "0.30", date1)));
+                modelAllocation(ISIN_DW, "0.70", date1),
+                modelAllocation(ISIN_EUROPE_ETF, "0.30", date1)));
 
     given(fundNavQueryService.findAum(FUND_CODE, date1)).willReturn(new BigDecimal("100000000"));
     given(fundNavQueryService.findAum(FUND_CODE, date2)).willReturn(new BigDecimal("100050000"));
@@ -655,7 +716,7 @@ class PeriodicTdAttributionServiceTest {
         .willReturn(new BigDecimal("-50000"));
 
     given(fundPositionRepository.findByNavDateAndFundAndAccountType(any(), eq(TUK75), eq(SECURITY)))
-        .willReturn(List.of(position(ISIN_DW, "68600000"), position(ISIN_EM, "29400000")));
+        .willReturn(List.of(position(ISIN_DW, "68600000"), position(ISIN_EUROPE_ETF, "29400000")));
   }
 
   // --- helpers ---
@@ -680,7 +741,7 @@ class PeriodicTdAttributionServiceTest {
                         "actualWeight", new BigDecimal("0.68"),
                         "securityReturn", new BigDecimal(fundReturn)),
                     Map.<String, Object>of(
-                        "isin", ISIN_EM,
+                        "isin", ISIN_EUROPE_ETF,
                         "modelWeight", new BigDecimal("0.30"),
                         "actualWeight", new BigDecimal("0.30"),
                         "securityReturn", new BigDecimal(benchmarkReturn))),
@@ -761,7 +822,7 @@ class PeriodicTdAttributionServiceTest {
         .willReturn(
             List.of(
                 modelAllocation(ISIN_DW, "0.70", date1),
-                modelAllocation(ISIN_EM, "0.30", date1),
+                modelAllocation(ISIN_EUROPE_ETF, "0.30", date1),
                 modelAllocation(ISIN_DW, "0.70", date2),
                 modelAllocation(isinNew, "0.30", date2)));
 
@@ -777,7 +838,7 @@ class PeriodicTdAttributionServiceTest {
     given(
             fundPositionRepository.findByNavDateAndFundAndAccountType(
                 eq(date1), eq(TUK75), eq(SECURITY)))
-        .willReturn(List.of(position(ISIN_DW, "68600000"), position(ISIN_EM, "29400000")));
+        .willReturn(List.of(position(ISIN_DW, "68600000"), position(ISIN_EUROPE_ETF, "29400000")));
 
     given(
             fundPositionRepository.findByNavDateAndFundAndAccountType(
@@ -785,14 +846,14 @@ class PeriodicTdAttributionServiceTest {
         .willReturn(
             List.of(
                 position(ISIN_DW, "68600000"),
-                position(ISIN_EM, "20000000"),
+                position(ISIN_EUROPE_ETF, "20000000"),
                 position(isinNew, "10000000")));
 
     var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
 
     var emDetail =
         result.instrumentDetails().stream()
-            .filter(d -> d.isin().equals(ISIN_EM))
+            .filter(d -> d.isin().equals(ISIN_EUROPE_ETF))
             .findFirst()
             .orElseThrow();
     var newDetail =
@@ -845,7 +906,7 @@ class PeriodicTdAttributionServiceTest {
         .willReturn(
             List.of(
                 modelAllocation(ISIN_DW, "0.70", date1),
-                modelAllocation(ISIN_EM, "0.30", date1),
+                modelAllocation(ISIN_EUROPE_ETF, "0.30", date1),
                 modelAllocation(ISIN_DW, "0.70", date2),
                 modelAllocation(isinNew, "0.30", date2)));
 
@@ -861,7 +922,7 @@ class PeriodicTdAttributionServiceTest {
     given(
             fundPositionRepository.findByNavDateAndFundAndAccountType(
                 eq(date1), eq(TUK75), eq(SECURITY)))
-        .willReturn(List.of(position(ISIN_DW, "68600000"), position(ISIN_EM, "29400000")));
+        .willReturn(List.of(position(ISIN_DW, "68600000"), position(ISIN_EUROPE_ETF, "29400000")));
 
     given(
             fundPositionRepository.findByNavDateAndFundAndAccountType(
@@ -869,7 +930,7 @@ class PeriodicTdAttributionServiceTest {
         .willReturn(
             List.of(
                 position(ISIN_DW, "68600000"),
-                position(ISIN_EM, "20000000"),
+                position(ISIN_EUROPE_ETF, "20000000"),
                 position(isinNew, "5000000"),
                 position(isinRogue, "5000000")));
 
@@ -879,7 +940,7 @@ class PeriodicTdAttributionServiceTest {
     assertThat(result.instrumentDetails()).isNotEmpty();
     var emDetail =
         result.instrumentDetails().stream()
-            .filter(d -> d.isin().equals(ISIN_EM))
+            .filter(d -> d.isin().equals(ISIN_EUROPE_ETF))
             .findFirst()
             .orElseThrow();
     assertThat(emDetail.modelWeight()).isNotEqualByComparingTo(emDetail.avgActualWeight());
@@ -906,7 +967,7 @@ class PeriodicTdAttributionServiceTest {
                         "securityReturn", new BigDecimal("0.001")),
                     Map.<String, Object>of(
                         "isin",
-                        ISIN_EM,
+                        ISIN_EUROPE_ETF,
                         "modelWeight",
                         ZERO,
                         "actualWeight",

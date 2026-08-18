@@ -179,9 +179,7 @@ public class PeriodicTdAttributionService {
     var bmModelEvents =
         tdEventRepository.findDeduplicatedEventsForPeriod(
             fund, BENCHMARK_MODEL, periodStart, periodEnd);
-    var etfLayer =
-        computeEtfLayer(
-            fund, bmModelEvents, modelAllocations, periodStart, periodEnd, calendarDays);
+    var etfLayer = computeEtfLayer(fund, bmModelEvents, modelAllocations, periodStart, periodEnd);
 
     return TdAttributionInput.builder()
         .fund(fund)
@@ -199,6 +197,7 @@ public class PeriodicTdAttributionService {
         .seriesGapDays(seriesGapDays)
         .etfLayerCoveredDays(etfLayer.coveredDays())
         .etfLayerUnbenchmarkedWeight(etfLayer.unbenchmarkedWeight())
+        .etfLayerUnrestoredProxyWeight(etfLayer.unrestoredProxyWeight())
         .dailyRecords(dailyRecords)
         .build();
   }
@@ -226,30 +225,16 @@ public class PeriodicTdAttributionService {
         fund, LocalDate.of(year, 1, 1), LocalDate.of(year, 12, 31), PeriodType.ANNUAL);
   }
 
-  // measuredSum is null when the layer was never measured, which the calculator must not confuse
-  // with a measured zero.
-  //
-  // The two sides share a denominator only while unbenchmarkedWeight is zero, which is the normal
-  // state: every instrument we hold carries a FundTicker benchmark category, and the only
-  // null-category entries are the benchmark proxies themselves. measuredSum comes from the daily
-  // check, which weights by ACTUAL weight and divides by the summed actual weight of benchmarked
-  // holdings -- so it is renormalised to represent the benchmarked sleeve as the whole. ocfDrag and
-  // proxyOcfDrag are raw MODEL weights, which sum to one only when nothing is unbenchmarked.
-  //
-  // So an unbenchmarked holding does not just drop out of both sides symmetrically: the measured
-  // side rescales and the OCF side does not, and the gap closes into the residual. Renormalising
-  // the OCF terms would make that state produce believable numbers, which is the wrong service to
-  // do it -- the state itself is a missing benchmark category, and it is reported as such in the
-  // warning above and in etfLayerUnbenchmarkedWeight.
-  record EtfLayer(
+  private record EtfLayer(
       @Nullable BigDecimal measuredSum,
       BigDecimal ocfDrag,
       BigDecimal proxyOcfDrag,
       int coveredDays,
-      BigDecimal unbenchmarkedWeight) {
+      BigDecimal unbenchmarkedWeight,
+      BigDecimal unrestoredProxyWeight) {
 
     static EtfLayer unmeasured() {
-      return new EtfLayer(null, ZERO, ZERO, 0, ZERO);
+      return new EtfLayer(null, ZERO, ZERO, 0, ZERO, ZERO);
     }
   }
 
@@ -258,8 +243,7 @@ public class PeriodicTdAttributionService {
       List<TrackingDifferenceEvent> bmModelEvents,
       List<ModelPortfolioAllocation> modelAllocations,
       LocalDate periodStart,
-      LocalDate periodEnd,
-      int calendarDays) {
+      LocalDate periodEnd) {
 
     if (bmModelEvents.isEmpty()) {
       log.warn(
@@ -275,25 +259,24 @@ public class PeriodicTdAttributionService {
             .map(TrackingDifferenceEvent::getTrackingDifference)
             .reduce(ZERO, BigDecimal::add);
 
-    // Each event measures the window from the previous working day, so the windows tile the period
-    // exactly when the series is complete. Charging a full-period OCF against a partially covered
-    // sum would push the uncovered days straight into the residual.
     var coveredDays =
         bmModelEvents.stream()
             .map(TrackingDifferenceEvent::getCheckDate)
             .mapToInt(d -> (int) ChronoUnit.DAYS.between(publicHolidays.previousWorkingDay(d), d))
             .sum();
-    if (coveredDays < calendarDays) {
+    var tilingDays = workingDayTilingDays(periodStart, periodEnd);
+    if (coveredDays != tilingDays) {
       log.warn(
-          "The ETF layer covers fewer days than the period, its OCF term is scaled to the measured days: fund={}, period={}-{}, coveredDays={}, calendarDays={}",
+          "The ETF layer does not tile the period, its OCF term is scaled to the measured days: fund={}, period={}-{}, coveredDays={}, tilingDays={}",
           fund,
           periodStart,
           periodEnd,
           coveredDays,
-          calendarDays);
+          tilingDays);
     }
 
     var allocations = latestAllocations(modelAllocations, periodEnd);
+    var measuredIsins = measuredIsins(fund, periodStart, periodEnd, bmModelEvents);
     var rateByIsin =
         instrumentFeeRepository.findAllValidRates(periodEnd).stream()
             .collect(Collectors.toMap(InstrumentFee::isin, InstrumentFee::netOcf, (a, b) -> a));
@@ -301,6 +284,7 @@ public class PeriodicTdAttributionService {
     var heldOcf = ZERO;
     var proxyOcf = ZERO;
     var unbenchmarkedWeight = ZERO;
+    var unrestoredProxyWeight = ZERO;
     var unpricedIsins = new LinkedHashSet<String>();
     var unpricedProxyIsins = new LinkedHashSet<String>();
 
@@ -308,12 +292,7 @@ public class PeriodicTdAttributionService {
       var weight = allocation.getWeight();
       var isin = allocation.getIsin();
 
-      // The leg decides membership, so it is resolved before anything is accumulated. A holding the
-      // daily check skipped is not in measuredSum at all, and etfTrackingResidual is
-      // measuredSum minus this OCF term -- so charging its OCF here would report a cost that was
-      // never measured as ETF outperformance of exactly that amount.
-      var leg = BenchmarkLegResolver.resolve(isin).orElse(null);
-      if (leg == null) {
+      if (!measuredIsins.contains(isin)) {
         unbenchmarkedWeight = unbenchmarkedWeight.add(weight);
         continue;
       }
@@ -325,13 +304,15 @@ public class PeriodicTdAttributionService {
         heldOcf = heldOcf.add(weight.multiply(ocf));
       }
 
-      if (leg.isIndex()) {
+      var leg = BenchmarkLegResolver.resolve(isin).orElse(null);
+      if (leg == null || leg.isIndex()) {
         continue;
       }
       var proxyIsin = leg.proxyEtf().getIsin();
       var proxyRate = rateByIsin.get(proxyIsin);
       if (proxyRate == null) {
         unpricedProxyIsins.add(proxyIsin);
+        unrestoredProxyWeight = unrestoredProxyWeight.add(weight);
         continue;
       }
       proxyOcf = proxyOcf.add(weight.multiply(proxyRate));
@@ -352,16 +333,8 @@ public class PeriodicTdAttributionService {
           unpricedProxyIsins);
     }
     if (unbenchmarkedWeight.signum() > 0) {
-      // Every instrument we hold is supposed to carry a benchmark category, so this should be
-      // zero. When it is not, the two sides of the layer stop sharing a denominator and the
-      // figures below are approximate rather than wrong-by-a-known-amount -- see the note on
-      // EtfLayer. Warned rather than thrown: an inaccurate attribution row is a reporting problem,
-      // and failing the run would take out the accurate components with it.
       log.warn(
-          "Model weight with no benchmark leg: the ETF layer figures for this period are NOT accurate,"
-              + " etf_ocf_drag and etf_tracking_residual are measured over different weight bases and"
-              + " the difference lands in the residual. Give this ISIN a FundTicker benchmark category."
-              + " fund={}, asOf={}, unbenchmarkedWeight={}",
+          "Model weight outside the measured ETF layer, its OCF drag and tracking residual use different weight bases: fund={}, asOf={}, unbenchmarkedWeight={}",
           fund,
           periodEnd,
           unbenchmarkedWeight);
@@ -372,7 +345,56 @@ public class PeriodicTdAttributionService {
         annualisedDrag(heldOcf, coveredDays),
         annualisedDrag(proxyOcf, coveredDays),
         coveredDays,
-        unbenchmarkedWeight);
+        unbenchmarkedWeight,
+        unrestoredProxyWeight);
+  }
+
+  private Set<String> measuredIsins(
+      TulevaFund fund,
+      LocalDate periodStart,
+      LocalDate periodEnd,
+      List<TrackingDifferenceEvent> bmModelEvents) {
+    var datesWithoutAttributions =
+        bmModelEvents.stream()
+            .filter(event -> attributionIsins(event).isEmpty())
+            .map(TrackingDifferenceEvent::getCheckDate)
+            .toList();
+    if (!datesWithoutAttributions.isEmpty()) {
+      log.warn(
+          "BENCHMARK_MODEL events without security attributions, leaving the ETF OCF term uncomputed: fund={}, period={}-{}, checkDates={}",
+          fund,
+          periodStart,
+          periodEnd,
+          datesWithoutAttributions);
+      return Set.of();
+    }
+    return bmModelEvents.stream()
+        .flatMap(event -> attributionIsins(event).stream())
+        .collect(Collectors.toCollection(LinkedHashSet::new));
+  }
+
+  @SuppressWarnings("unchecked")
+  private List<String> attributionIsins(TrackingDifferenceEvent event) {
+    var attributions =
+        (List<Map<String, Object>>)
+            event.getResult().getOrDefault("securityAttributions", List.of());
+    return attributions.stream().map(attribution -> (String) attribution.get("isin")).toList();
+  }
+
+  private int workingDayTilingDays(LocalDate periodStart, LocalDate periodEnd) {
+    var firstWorkingDay =
+        publicHolidays.isWorkingDay(periodStart)
+            ? periodStart
+            : publicHolidays.nextWorkingDay(periodStart);
+    var lastWorkingDay =
+        publicHolidays.isWorkingDay(periodEnd)
+            ? periodEnd
+            : publicHolidays.previousWorkingDay(periodEnd);
+    if (firstWorkingDay.isAfter(lastWorkingDay)) {
+      return 0;
+    }
+    return (int)
+        ChronoUnit.DAYS.between(publicHolidays.previousWorkingDay(firstWorkingDay), lastWorkingDay);
   }
 
   private BigDecimal annualisedDrag(BigDecimal weightedRate, int days) {

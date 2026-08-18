@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static java.math.BigDecimal.ZERO;
 import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.time.ClockHolder;
@@ -383,6 +384,20 @@ class FundBankLedgerTest {
     assertThat(replay).isEqualTo(transaction);
     assertThat(getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance())
         .isEqualByComparingTo(amount);
+  }
+
+  @Test
+  void reclassifySuspenseEntry_rejectsUnsupportedTargetTypes() {
+    assertThatThrownBy(
+            () ->
+                fundBankLedger.reclassifySuspenseEntry(
+                    TUK75,
+                    new BigDecimal("10.00"),
+                    randomUUID(),
+                    LedgerTransaction.TransactionType.BANK_FEE,
+                    BOOKING_DATE))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("BANK_FEE");
   }
 
   @Test

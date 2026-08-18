@@ -39,6 +39,12 @@ public class BankOperationProcessor {
       return;
     }
 
+    if (entry.externalId() == null || entry.externalId().isBlank()) {
+      throw new IllegalStateException(
+          "Bank entry without external id: account=%s, amount=%s"
+              .formatted(account, entry.amount()));
+    }
+
     var externalReference =
         UUID.nameUUIDFromBytes((account.iban() + ":" + entry.externalId()).getBytes(UTF_8));
 
@@ -192,7 +198,12 @@ public class BankOperationProcessor {
   }
 
   private static LocalDate bookingDate(BankStatementEntry entry) {
-    return entry.receivedBefore().atZone(ESTONIAN_ZONE).toLocalDate();
+    var receivedBefore = entry.receivedBefore();
+    if (receivedBefore == null) {
+      throw new IllegalStateException(
+          "Bank entry without booking time: externalId=%s".formatted(entry.externalId()));
+    }
+    return receivedBefore.atZone(ESTONIAN_ZONE).toLocalDate();
   }
 
   private BigDecimal normalizeAmount(BigDecimal amount) {

@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.INTE
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.MANAGEMENT_FEE_REBATE;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
 import static ee.tuleva.onboarding.ledger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -340,6 +341,45 @@ class BankOperationProcessorTest {
             eq("0P000152G5"),
             eq("iShares Developed World Screened Index Fund"),
             eq(LocalDate.of(2025, 10, 1)));
+  }
+
+  @Test
+  void processBankOperation_failsOnMissingExternalId() {
+    var entry =
+        new BankStatementEntry(
+            null,
+            new BigDecimal("10.00"),
+            "EUR",
+            TransactionType.CREDIT,
+            "tundmatu",
+            null,
+            null,
+            "OTHR",
+            Instant.parse("2025-10-01T20:59:59.999999Z"));
+
+    assertThatThrownBy(() -> processor.processBankOperation(entry, DEPOSIT_ACCOUNT))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("external id");
+    verifyNoInteractions(fundBankLedger);
+  }
+
+  @Test
+  void processBankOperation_failsOnMissingBookingTime() {
+    var entry =
+        new BankStatementEntry(
+            null,
+            new BigDecimal("5.00"),
+            "EUR",
+            TransactionType.CREDIT,
+            "intress",
+            "bank-op-ref",
+            null,
+            "INTR",
+            null);
+
+    assertThatThrownBy(() -> processor.processBankOperation(entry, DEPOSIT_ACCOUNT))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("booking time");
   }
 
   private BankStatementEntry createEntryWithCounterparty() {

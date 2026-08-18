@@ -43,6 +43,16 @@ class FundAccountsTest {
   }
 
   @Test
+  void validate_failsWhenSecuritiesAccountIsBlank() {
+    var accounts = complete();
+    accounts.put(TulevaFund.TUK00, new FundAccounts.Account(VALID_TEST_IBAN, " ", "gw"));
+
+    assertThatThrownBy(() -> fundAccounts(accounts).validate())
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("TUK00");
+  }
+
+  @Test
   void validate_failsWhenGatewayClientIdIsBlank() {
     var accounts = complete();
     accounts.put(TulevaFund.TUV100, new FundAccounts.Account(VALID_TEST_IBAN, "VP1", ""));

@@ -265,6 +265,29 @@ class AdminControllerTest {
   }
 
   @Test
+  void fetchSebHistory_withAccountTypeMissingForFund_returnsBadRequest() throws Exception {
+    given(bankAccounts.findAll(TulevaFund.TUK75))
+        .willReturn(
+            List.of(
+                new BankAccount(
+                    "EE001234567890123475",
+                    BankAccountType.FUND_INVESTMENT_EUR,
+                    TulevaFund.TUK75,
+                    "gw-test")));
+
+    mockMvc
+        .perform(
+            post("/admin/fetch-seb-history")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("from", "2026-02-01")
+                .param("to", "2026-02-28")
+                .param("fundCode", "TUK75")
+                .param("account", "DEPOSIT_EUR"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
   void reclassifySuspense_withValidToken_returnsCounts() throws Exception {
     given(suspenseReclassificationService.reclassify(TulevaFund.TUK75))
         .willReturn(new SuspenseReclassificationService.ReclassificationResult(3, 1));

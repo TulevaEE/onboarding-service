@@ -56,6 +56,10 @@ class PensionFundEntryClassifierSpec extends Specification {
     "detailed adjustment code"               | entry("OTHR", 99.99, "Random Company OU", OTHER_IBAN, "midagi")                    | new Unclassified("unknown counterparty")
     "detail-less unknown code"               | entry("XXXX", 10.00, null, null, "tundmatu")                                       | new Unclassified("subFamilyCode=XXXX")
     "detail-less null code"                  | entry(null, 10.00, null, null, "tundmatu")                                         | new Unclassified("subFamilyCode=null")
+    "mgmt company without fee keyword"       | entry("RCDT", 100.00, "Tuleva Fondid AS", OTHER_IBAN, "muu ülekanne")              | new Unclassified("unknown counterparty")
+    "detailed ADJT from unknown party"       | entry("ADJT", 12.34, "Random Company OU", OTHER_IBAN, "korrektsioon")              | new Unclassified("unknown counterparty")
+    "enriched kickback booking"              | entry("BOOK", 4370.58, "BlackRock AM", OTHER_IBAN, "Management fee kickback VP00001") | new ManagementFeeRebate()
+    "entry with null remittance"             | entry("XXXX", 10.00, null, null, null)                                             | new Unclassified("subFamilyCode=XXXX")
   }
 
   static BankStatementEntry entry(

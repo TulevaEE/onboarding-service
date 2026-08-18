@@ -100,6 +100,11 @@ population-register:
   url: ${POPULATION_REGISTER_URL:http://localhost:9000}
   client-id: ${POPULATION_REGISTER_CLIENT_ID:EE/COM/00000000/non-production}
 
+# Development and test defaults only. The pension fund values are SEB's public
+# Baltic Gateway TEST-environment accounts and synthetic ids; TKF100's values
+# are long-public company data (fund documents, order file fixtures). Real
+# production values are injected via FUND_ACCOUNTS_* environment variables and
+# never appear in this repository.
 fund-accounts:
   funds:
     TUK75:

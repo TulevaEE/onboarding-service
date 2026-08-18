@@ -151,6 +151,98 @@ class PensionFundStatementProcessorTest {
   }
 
   @Test
+  void bankFee_isRecordedAgainstTheAccountsClearingAccount() {
+    var entry = entry(new BigDecimal("-5.00"), "kuutasu");
+    when(classifier.classify(entry)).thenReturn(new PensionFundEntryClassifier.BankFee());
+
+    processor.process(statementWith(entry), TUK75_ACCOUNT);
+
+    verify(fundBankLedger)
+        .recordBankFee(
+            eq(TUK75),
+            eq(new BigDecimal("-5.00")),
+            any(UUID.class),
+            eq(FUND_INVESTMENT_CASH_CLEARING),
+            eq(LocalDate.of(2025, 10, 1)));
+  }
+
+  @Test
+  void bankAdjustment_isRecorded() {
+    var entry = entry(new BigDecimal("0.50"), "korrektsioon");
+    when(classifier.classify(entry)).thenReturn(new PensionFundEntryClassifier.BankAdjustment());
+
+    processor.process(statementWith(entry), TUK75_ACCOUNT);
+
+    verify(fundBankLedger)
+        .recordBankAdjustment(
+            eq(TUK75),
+            eq(new BigDecimal("0.50")),
+            any(UUID.class),
+            eq(FUND_INVESTMENT_CASH_CLEARING),
+            eq(LocalDate.of(2025, 10, 1)));
+  }
+
+  @Test
+  void managementFeeRebate_isRecordedWithRemittanceInformation() {
+    var entry = entry(new BigDecimal("4370.58"), "Management fee kickback VP00001 02/2026");
+    when(classifier.classify(entry))
+        .thenReturn(new PensionFundEntryClassifier.ManagementFeeRebate());
+
+    processor.process(statementWith(entry), TUK75_ACCOUNT);
+
+    verify(fundBankLedger)
+        .recordManagementFeeRebate(
+            eq(TUK75),
+            eq(new BigDecimal("4370.58")),
+            any(UUID.class),
+            eq(FUND_INVESTMENT_CASH_CLEARING),
+            eq(LocalDate.of(2025, 10, 1)),
+            eq("Management fee kickback VP00001 02/2026"));
+  }
+
+  @Test
+  void buySettlement_recordsPositiveUnits() {
+    var entry = entry(new BigDecimal("-999000.00"), "DLA1/BDWTEIA/29000/34.448/Buy/");
+    when(classifier.classify(entry))
+        .thenReturn(
+            new PensionFundEntryClassifier.TradeSettlement(
+                FundTicker.ISHARES_DEVELOPED_WORLD_ESG_SCREENED, new BigDecimal("29000")));
+
+    processor.process(statementWith(entry), TUK75_ACCOUNT);
+
+    verify(fundBankLedger)
+        .recordTradeSettlement(
+            eq(TUK75),
+            eq(new BigDecimal("-999000.00")),
+            eq(new BigDecimal("29000.00000")),
+            any(UUID.class),
+            eq(FUND_INVESTMENT_CASH_CLEARING),
+            eq("IE00BFG1TM61"),
+            eq("0P000152G5"),
+            eq("iShares Developed World Screened Index Fund"),
+            eq(LocalDate.of(2025, 10, 1)));
+  }
+
+  @Test
+  void entryWithoutBookingTime_failsTheStatement() {
+    var entry =
+        new BankStatementEntry(
+            null,
+            new BigDecimal("2.00"),
+            "EUR",
+            TransactionType.CREDIT,
+            "intress",
+            "entry-ref-1",
+            null,
+            "INTR",
+            null);
+
+    assertThatThrownBy(() -> processor.process(statementWith(entry), TUK75_ACCOUNT))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("booking time");
+  }
+
+  @Test
   void alreadyRecordedEntry_isSkippedRegardlessOfClassification() {
     var entry = entry(new BigDecimal("2.00"), "intress");
     when(fundBankLedger.existsForExternalReference(any(UUID.class))).thenReturn(true);

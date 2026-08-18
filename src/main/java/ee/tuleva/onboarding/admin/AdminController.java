@@ -133,6 +133,11 @@ public class AdminController {
             .filter(bankAccount -> account == null || bankAccount.type() == account)
             .toList();
 
+    if (accounts.isEmpty()) {
+      throw new ResponseStatusException(
+          BAD_REQUEST, "No bank accounts match: fund=%s, account=%s".formatted(fund, account));
+    }
+
     log.info("Admin triggered SEB history fetch: from={}, to={}, accounts={}", from, to, accounts);
 
     for (BankAccount bankAccount : accounts) {

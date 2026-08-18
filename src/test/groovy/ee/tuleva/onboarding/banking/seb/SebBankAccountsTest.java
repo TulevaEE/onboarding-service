@@ -71,6 +71,13 @@ class SebBankAccountsTest {
   }
 
   @Test
+  void getIban_throwsForFundAndTypeCombinationWithoutAnAccount() {
+    assertThatThrownBy(() -> bankAccounts.getIban(TUK75, DEPOSIT_EUR))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("TUK75");
+  }
+
+  @Test
   void construction_failsWhenAccountTypeIsMissing() {
     var configuration =
         new SebAccountConfiguration(

@@ -26,4 +26,13 @@ class SebAccountConfigurationTest {
   void isManagementCompany_returnsFalseForNonMatch() {
     assertThat(configuration.isManagementCompany("Some Other Company")).isFalse();
   }
+
+  @Test
+  void registrarIbans_defaultToEmptyWhenNotConfigured() {
+    var withoutRegistrar =
+        new SebAccountConfiguration(
+            Map.of(DEPOSIT_EUR, "EE111111111111111111"), MANAGEMENT_COMPANY_NAME, null);
+
+    assertThat(withoutRegistrar.getRegistrarIbans()).isEmpty();
+  }
 }

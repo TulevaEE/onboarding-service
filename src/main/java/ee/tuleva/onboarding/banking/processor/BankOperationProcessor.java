@@ -39,30 +39,19 @@ public class BankOperationProcessor {
       return;
     }
 
-    var subFamilyCode = entry.subFamilyCode();
-    if (subFamilyCode == null) {
-      log.warn(
-          "Bank operation without SubFmlyCd: externalId={}, amount={}",
-          entry.externalId(),
-          entry.amount());
-      return;
-    }
-
     var externalReference =
         UUID.nameUUIDFromBytes((account.iban() + ":" + entry.externalId()).getBytes(UTF_8));
 
     var amount = normalizeAmount(entry.amount());
     var clearingAccount = account.ledgerAccount();
+    var subFamilyCode = entry.subFamilyCode();
 
     TransactionType transactionType =
-        mapSubFamilyCode(subFamilyCode, entry.remittanceInformation());
+        subFamilyCode == null
+            ? null
+            : mapSubFamilyCode(subFamilyCode, entry.remittanceInformation());
     if (transactionType == null) {
-      log.error(
-          "Unknown bank operation SubFmlyCd: subFamilyCode={}, externalId={}, amount={}, account={}",
-          subFamilyCode,
-          entry.externalId(),
-          entry.amount(),
-          account);
+      parkInSuspense(entry, account, externalReference, amount, "unknown subFamilyCode");
       return;
     }
 
@@ -110,10 +99,7 @@ public class BankOperationProcessor {
       case TRAD, SUBS -> {
         var tradeInfo = tradeSettlementParser.parse(entry.remittanceInformation());
         if (tradeInfo.isEmpty()) {
-          log.error(
-              "Trade settlement with unknown ticker: externalRef={}, remittanceInfo={}",
-              externalReference,
-              entry.remittanceInformation());
+          parkInSuspense(entry, account, externalReference, amount, "unknown ticker");
           return;
         }
         var info = tradeInfo.get();
@@ -171,6 +157,33 @@ public class BankOperationProcessor {
   private static boolean isManagementFeeRebate(String remittanceInformation) {
     return remittanceInformation != null
         && remittanceInformation.toLowerCase().contains("kickback");
+  }
+
+  private void parkInSuspense(
+      BankStatementEntry entry,
+      BankAccount account,
+      UUID externalReference,
+      BigDecimal amount,
+      String reason) {
+    if (fundBankLedger.hasLedgerEntry(externalReference, UNCLASSIFIED_BANK_ENTRY)) {
+      log.debug("Suspense entry already exists: externalRef={}", externalReference);
+      return;
+    }
+    log.error(
+        "Unclassified bank operation: account={}, externalId={}, amount={}, subFamilyCode={}, reason={}",
+        account,
+        entry.externalId(),
+        entry.amount(),
+        entry.subFamilyCode(),
+        reason);
+    fundBankLedger.recordUnclassifiedBankEntry(
+        account.fund(),
+        amount,
+        externalReference,
+        account.ledgerAccount(),
+        bookingDate(entry),
+        new FundBankLedger.UnclassifiedEntryDetails(
+            null, null, entry.remittanceInformation(), entry.subFamilyCode()));
   }
 
   private static BigDecimal signedUnits(BigDecimal units, BigDecimal amount) {

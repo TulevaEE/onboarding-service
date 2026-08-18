@@ -303,9 +303,10 @@ public class FundBankLedger {
       TulevaFund fund,
       BigDecimal amount,
       UUID externalReference,
+      SystemAccount clearingAccount,
       LocalDate bookingDate,
       UnclassifiedEntryDetails details) {
-    LedgerAccount cashAccount = getSystemAccount(SystemAccount.FUND_INVESTMENT_CASH_CLEARING, fund);
+    LedgerAccount cashAccount = getSystemAccount(clearingAccount, fund);
     LedgerAccount suspenseAccount = getSystemAccount(SystemAccount.UNCLASSIFIED_BANK_ENTRY, fund);
 
     var metadata = new HashMap<String, Object>();

@@ -73,9 +73,9 @@ public class SuspenseReclassificationService {
   }
 
   private BigDecimal cashLegAmount(LedgerTransaction suspense, TulevaFund fund) {
-    var cashAccountName = SystemAccount.FUND_INVESTMENT_CASH_CLEARING.getAccountName(fund);
+    var suspenseAccountName = SystemAccount.UNCLASSIFIED_BANK_ENTRY.getAccountName(fund);
     return suspense.getEntries().stream()
-        .filter(entry -> cashAccountName.equals(entry.getAccount().getName()))
+        .filter(entry -> !suspenseAccountName.equals(entry.getAccount().getName()))
         .findFirst()
         .orElseThrow(
             () ->

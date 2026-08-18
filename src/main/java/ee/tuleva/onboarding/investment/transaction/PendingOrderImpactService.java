@@ -25,6 +25,8 @@ import org.springframework.stereotype.Component;
 @NullMarked
 class PendingOrderImpactService {
 
+  private static final String HISTORICAL_IMPORT_SOURCE = "HISTORICAL_IMPORT";
+
   private final TransactionOrderRepository orderRepository;
   private final TransactionExecutionRepository executionRepository;
   private final PositionPriceResolver positionPriceResolver;
@@ -77,15 +79,6 @@ class PendingOrderImpactService {
         pendingBuys, pendingSells, Map.copyOf(unreportedValues), Map.copyOf(unreportedQuantities));
   }
 
-  /**
-   * A fill is in the custodian's position report once the report that carried it is as of the
-   * position date or earlier, so each fill is judged on its own date. Judging the whole order on
-   * one date cannot be right for an order filled across two reports: counting it as reported loses
-   * the fill the custodian has not shown yet, counting it as unreported adds the one it already
-   * has. The unfilled remainder is synthesized regardless, because its cash is already reserved as
-   * a pending buy — dropping it would shrink the portfolio by exactly the amount we are about to
-   * spend, and the model would ask for it a second time.
-   */
   private void addUnreportedPositions(
       TransactionOrder order,
       List<TransactionExecution> executions,
@@ -122,7 +115,20 @@ class PendingOrderImpactService {
 
   private static boolean isMissingFromPositionReport(
       TransactionExecution execution, LocalDate positionDate) {
-    return execution.getReportedDate().isAfter(positionDate);
+    if (HISTORICAL_IMPORT_SOURCE.equals(execution.getSource())) {
+      return false;
+    }
+    LocalDate reportedDate = execution.getReportedDate();
+    if (reportedDate == null) {
+      log.warn(
+          "Execution carries no reported date, leaving its position to the custodian report:"
+              + " executionId={}, orderId={}, positionDate={}",
+          execution.getId(),
+          execution.getOrderId(),
+          positionDate);
+      return false;
+    }
+    return reportedDate.isAfter(positionDate);
   }
 
   private static BigDecimal unfilledQuantity(TransactionOrder order, ExecutedTotals executed) {

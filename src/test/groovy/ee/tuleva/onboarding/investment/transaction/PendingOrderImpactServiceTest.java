@@ -571,6 +571,53 @@ class PendingOrderImpactServiceTest {
     assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("5000"));
   }
 
+  @Test
+  void aFillWithNoReportedDateIsNotSynthesizedBecauseItsPositionIsUnknown() {
+    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
+        .willReturn(
+            List.of(
+                order(
+                    1L,
+                    "IE00A",
+                    TransactionType.BUY,
+                    InstrumentType.ETF,
+                    OrderStatus.EXECUTED,
+                    new BigDecimal("100"),
+                    new BigDecimal("5000"))));
+    given(executionRepository.findByOrderIdIn(List.of(1L)))
+        .willReturn(List.of(execution(1L, "100", "5000", null)));
+
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
+
+    assertThat(impact.unreportedPositionValues()).isEmpty();
+    assertThat(impact.unreportedPositionQuantities()).isEmpty();
+    assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("5000"));
+  }
+
+  @Test
+  void aHistoricalImportFillIsNeverSynthesizedBecauseNoCustodianReportCarriedIt() {
+    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
+        .willReturn(
+            List.of(
+                order(
+                    1L,
+                    "IE00A",
+                    TransactionType.BUY,
+                    InstrumentType.ETF,
+                    OrderStatus.EXECUTED,
+                    new BigDecimal("100"),
+                    new BigDecimal("5000"))));
+    given(executionRepository.findByOrderIdIn(List.of(1L)))
+        .willReturn(
+            List.of(historicalImportExecution(1L, "100", "5000", POSITION_DATE.plusDays(1))));
+
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
+
+    assertThat(impact.unreportedPositionValues()).isEmpty();
+    assertThat(impact.unreportedPositionQuantities()).isEmpty();
+    assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("5000"));
+  }
+
   private TransactionExecution execution(
       Long orderId, String quantity, String consideration, LocalDate reportedDate) {
     return TransactionExecution.builder()
@@ -578,7 +625,15 @@ class PendingOrderImpactServiceTest {
         .executedQuantity(new BigDecimal(quantity))
         .totalConsideration(new BigDecimal(consideration))
         .reportedDate(reportedDate)
+        .source("SEB_OOTEL")
         .build();
+  }
+
+  private TransactionExecution historicalImportExecution(
+      Long orderId, String quantity, String consideration, LocalDate reportedDate) {
+    TransactionExecution execution = execution(orderId, quantity, consideration, reportedDate);
+    execution.setSource("HISTORICAL_IMPORT");
+    return execution;
   }
 
   private TransactionOrder order(

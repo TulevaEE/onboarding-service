@@ -38,6 +38,8 @@ class RiskIndicatorSeriesServiceTest {
   private static final String ACWI = "MSCI_ACWI";
   private static final String TKF_ISIN = "EE0000003283";
   private static final LocalDate ANCHOR = LocalDate.of(2026, 6, 30);
+  private static final String CURRENT_HOLDING_PERIOD =
+      String.valueOf(SriCalculator.HOLDING_PERIOD_TRADING_DAYS);
 
   @Mock private FundValueRepository fundValueRepository;
   @Mock private RiskIndicatorPointRepository pointRepository;
@@ -112,17 +114,7 @@ class RiskIndicatorSeriesServiceTest {
   void updatesDriftedPointsAndKeepsTheirHistory() {
     var prices = dailyPrices(ACWI, ANCHOR.minusYears(7), ANCHOR);
     givenPrices(prices);
-    var drifted =
-        RiskIndicatorPoint.builder()
-            .indicatorType(SRI)
-            .fund(TKF100)
-            .asOfDate(ANCHOR)
-            .sourceKeys(ACWI)
-            .riskClass(1)
-            .observationCount(1)
-            .volatility(valueOf(0.999))
-            .metrics(Map.of())
-            .build();
+    var drifted = storedPoint(Map.of("holdingPeriodTradingDays", CURRENT_HOLDING_PERIOD));
     given(pointRepository.findByIndicatorTypeAndFundOrderByAsOfDateAsc(SRI, TKF100))
         .willReturn(List.of(drifted));
 
@@ -131,9 +123,60 @@ class RiskIndicatorSeriesServiceTest {
     assertThat(drifted.getRiskClass()).isNotEqualTo(1);
     assertThat(drifted.getMetrics()).containsKey("driftHistory");
     assertThat(refresh.driftedDates()).containsExactly(ANCHOR);
+    assertThat(refresh.redefinitions()).isEmpty();
     assertThat((List<Map<String, String>>) drifted.getMetrics().get("driftHistory"))
         .singleElement()
         .satisfies(entry -> assertThat(entry).containsEntry("detectedAt", ANCHOR.toString()));
+  }
+
+  @Test
+  void aPointStoredBeforeTheHoldingPeriodWasRecordedIsRedefinedRatherThanReportedAsDrift() {
+    var prices = dailyPrices(ACWI, ANCHOR.minusYears(7), ANCHOR);
+    givenPrices(prices);
+    var stored = storedPoint(Map.of());
+    given(pointRepository.findByIndicatorTypeAndFundOrderByAsOfDateAsc(SRI, TKF100))
+        .willReturn(List.of(stored));
+
+    var refresh = service.refreshSeries(TKF100, SRI, 1);
+
+    assertThat(refresh.driftedDates()).isEmpty();
+    assertThat(refresh.redefinitions())
+        .containsExactly(new Redefinition(ANCHOR, null, CURRENT_HOLDING_PERIOD));
+    assertThat(stored.getRiskClass()).isNotEqualTo(1);
+    assertThat(stored.getMetrics())
+        .doesNotContainKey("driftHistory")
+        .containsEntry("holdingPeriodTradingDays", CURRENT_HOLDING_PERIOD);
+  }
+
+  @Test
+  void aPointStoredUnderAnOlderHoldingPeriodIsRedefinedRatherThanReportedAsDrift() {
+    var prices = dailyPrices(ACWI, ANCHOR.minusYears(7), ANCHOR);
+    givenPrices(prices);
+    var stored = storedPoint(Map.of("holdingPeriodTradingDays", "1300"));
+    given(pointRepository.findByIndicatorTypeAndFundOrderByAsOfDateAsc(SRI, TKF100))
+        .willReturn(List.of(stored));
+
+    var refresh = service.refreshSeries(TKF100, SRI, 1);
+
+    assertThat(refresh.driftedDates()).isEmpty();
+    assertThat(refresh.redefinitions())
+        .containsExactly(new Redefinition(ANCHOR, "1300", CURRENT_HOLDING_PERIOD));
+    assertThat(stored.getMetrics())
+        .doesNotContainKey("driftHistory")
+        .containsEntry("holdingPeriodTradingDays", CURRENT_HOLDING_PERIOD);
+  }
+
+  private static RiskIndicatorPoint storedPoint(Map<String, Object> metrics) {
+    return RiskIndicatorPoint.builder()
+        .indicatorType(SRI)
+        .fund(TKF100)
+        .asOfDate(ANCHOR)
+        .sourceKeys(ACWI)
+        .riskClass(1)
+        .observationCount(1)
+        .volatility(valueOf(0.999))
+        .metrics(metrics)
+        .build();
   }
 
   @Test

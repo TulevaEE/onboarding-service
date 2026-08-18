@@ -203,9 +203,7 @@ class TransactionExecutionRepositoryIT {
 
     BigDecimal sum =
         executionRepository.sumCommissionsForFundAndPeriod(
-            TUK75.getCode(),
-            Instant.parse("2026-05-01T00:00:00Z"),
-            Instant.parse("2026-06-01T00:00:00Z"));
+            TUK75.getCode(), fromInclusive, toExclusive);
 
     assertThat(sum).isEqualByComparingTo("17.50");
   }

@@ -278,10 +278,10 @@ public class SebPendingTransactionReconciliationService {
         executionRepository.findByBrokerTransactionId(row.ourRef());
     if (existing.isPresent()) {
       TransactionExecution execution = existing.get();
-      Map<String, Object> before = executionMapper.snapshot(execution);
+      Map<String, Object> before = executionMapper.mutableFieldsForDeltaAudit(execution);
       executionMapper.applyTo(execution, row, order);
       executionRepository.save(execution);
-      Map<String, Object> after = executionMapper.snapshot(execution);
+      Map<String, Object> after = executionMapper.mutableFieldsForDeltaAudit(execution);
       if (!before.equals(after)) {
         auditRecorder.recordExecutionUpdated(order, row, reportDate, before, after);
       }
@@ -440,12 +440,6 @@ public class SebPendingTransactionReconciliationService {
     return orderIds;
   }
 
-  /**
-   * The positions report keys its rows on the report's "As of" date, so an execution has to be
-   * stamped with the same date or the two sides of every position comparison run on different
-   * clocks. Resolved exactly as the positions parser resolves it, down to the raw-row fallback, so
-   * a report that yields an "As of" on one side cannot yield the filename date on the other.
-   */
   private LocalDate asOfDate(InvestmentReport report) {
     LocalDate asOfDate = SebReportHeaders.asOfDate(report);
     if (asOfDate == null) {

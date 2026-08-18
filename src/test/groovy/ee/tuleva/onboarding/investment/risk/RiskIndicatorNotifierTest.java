@@ -234,6 +234,7 @@ class RiskIndicatorNotifierTest {
                             EVALUATION_DATE.minusDays(1), 5, 5, CHANGE_CONFIRMED),
                         RiskIndicatorPublication.builder().build(),
                         List.of(),
+                        List.of(),
                         List.of())),
                 List.of()));
 
@@ -299,6 +300,7 @@ class RiskIndicatorNotifierTest {
                             EVALUATION_DATE.minusDays(1), 5, 4, CHANGE_CONFIRMED),
                         RiskIndicatorPublication.builder().build(),
                         List.of(),
+                        List.of(),
                         List.of())),
                 List.of()));
 
@@ -316,7 +318,7 @@ class RiskIndicatorNotifierTest {
                 EVALUATION_DATE,
                 List.of(
                     new RiskIndicatorOutcome(
-                        staleDocumentSrri(), null, publication, List.of(), List.of())),
+                        staleDocumentSrri(), null, publication, List.of(), List.of(), List.of())),
                 List.of()));
 
     assertThat(publication.getNotifiedDisclosedClass()).isEqualTo(4);
@@ -457,7 +459,9 @@ class RiskIndicatorNotifierTest {
     var run =
         new RiskIndicatorRun(
             EVALUATION_DATE,
-            List.of(new RiskIndicatorOutcome(stableSri(), null, publication, List.of(), List.of())),
+            List.of(
+                new RiskIndicatorOutcome(
+                    stableSri(), null, publication, List.of(), List.of(), List.of())),
             List.of());
 
     notifier.notify(run);
@@ -476,7 +480,7 @@ class RiskIndicatorNotifierTest {
             EVALUATION_DATE,
             List.of(
                 new RiskIndicatorOutcome(
-                    staleDocumentSrri(), null, publication, List.of(), List.of())),
+                    staleDocumentSrri(), null, publication, List.of(), List.of(), List.of())),
             List.of()));
 
     assertThat(publication.getNotified()).isFalse();
@@ -495,6 +499,7 @@ class RiskIndicatorNotifierTest {
                     null,
                     RiskIndicatorPublication.builder().build(),
                     List.of(LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 30)),
+                    List.of(),
                     List.of())),
             List.of()));
 
@@ -502,6 +507,33 @@ class RiskIndicatorNotifierTest {
         .contains(
             "⚠️ TKF100 SRI: 2 varasemat referentspunkti arvutati ümber",
             "vanim 2026-06-01, viimane 2026-06-30");
+  }
+
+  @Test
+  void aChangedHoldingPeriodIsReportedAsARedefinitionRatherThanSourceDataDrift() {
+    disclose(SRI, TKF100, 4);
+
+    notifier.notify(
+        new RiskIndicatorRun(
+            EVALUATION_DATE,
+            List.of(
+                new RiskIndicatorOutcome(
+                    stableSri(),
+                    null,
+                    RiskIndicatorPublication.builder().build(),
+                    List.of(),
+                    List.of(
+                        new Redefinition(LocalDate.of(2026, 6, 1), "1300", "1280"),
+                        new Redefinition(LocalDate.of(2026, 6, 30), "1300", "1280")),
+                    List.of())),
+            List.of()));
+
+    assertThat(notifications.lastMessage())
+        .contains(
+            "ℹ️ TKF100 SRI: 2 varasemat referentspunkti arvutati ümber",
+            "vanim 2026-06-01, viimane 2026-06-30",
+            "hoidmisperioodi kauplemispäevi 1300 → 1280")
+        .doesNotContain("allikaandmed muutusid tagantjärele");
   }
 
   @Test
@@ -516,6 +548,7 @@ class RiskIndicatorNotifierTest {
                     stableSri(),
                     null,
                     RiskIndicatorPublication.builder().build(),
+                    List.of(),
                     List.of(),
                     List.of(LocalDate.of(2026, 6, 2), LocalDate.of(2026, 7, 1)))),
             List.of()));
@@ -1030,7 +1063,12 @@ class RiskIndicatorNotifierTest {
   private RiskIndicatorOutcome outcome(
       PublishedRiskIndicator indicator, @Nullable PublicationSnapshot previous) {
     return new RiskIndicatorOutcome(
-        indicator, previous, RiskIndicatorPublication.builder().build(), List.of(), List.of());
+        indicator,
+        previous,
+        RiskIndicatorPublication.builder().build(),
+        List.of(),
+        List.of(),
+        List.of());
   }
 
   private static class RecordingNotificationService implements OperationsNotificationService {

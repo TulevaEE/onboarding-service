@@ -6,18 +6,6 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 
-/**
- * The dates SEB puts above the column header of every report it sends us. Both the positions report
- * and the pending transactions report carry the same five leading lines, so both are read the same
- * way here rather than once per consumer: an "As of" resolved from one report and inferred from the
- * other would put the two sides of a position comparison on different clocks, which is the whole
- * defect this exists to prevent.
- *
- * <p>Current imports find the dates in the report metadata, where {@code
- * SebReportSource#extractCsvMetadata} put them. Reports imported before the header row moved carry
- * those lines as ordinary data rows instead, keyed on the first line's own columns, so the raw rows
- * are searched as a fallback.
- */
 @Slf4j
 public final class SebReportHeaders {
 

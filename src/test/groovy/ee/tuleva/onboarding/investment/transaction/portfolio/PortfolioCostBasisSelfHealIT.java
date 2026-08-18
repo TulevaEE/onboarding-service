@@ -130,9 +130,7 @@ class PortfolioCostBasisSelfHealIT {
             .commissionAmount(BigDecimal.ZERO)
             .scheduledSettlementDate(date.plusDays(2))
             .source("SEB_OOTEL")
-            .reportedDate(
-                LocalDate.ofInstant(
-                    date.atStartOfDay().toInstant(ZoneOffset.UTC), java.time.ZoneOffset.UTC))
+            .reportedDate(date)
             .build();
     executionRepository.save(exec);
     entityManager.flush();

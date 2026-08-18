@@ -36,6 +36,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -1307,13 +1308,14 @@ class SebPendingTransactionReconciliationServiceTest {
     TransactionOrder order = sampleOrder(clientRef);
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
     given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+    List<TransactionExecution> saved = recordSavedExecutions();
 
     service.reconcile(reportOf(validRawRow(clientRef), Map.of("asOfDate", "2026-05-11")));
 
-    verify(executionRepository)
-        .save(
-            argThat(
-                (TransactionExecution e) -> LocalDate.of(2026, 5, 11).equals(e.getReportedDate())));
+    assertThat(saved)
+        .singleElement()
+        .extracting(TransactionExecution::getReportedDate)
+        .isEqualTo(LocalDate.of(2026, 5, 11));
   }
 
   @Test
@@ -1323,13 +1325,14 @@ class SebPendingTransactionReconciliationServiceTest {
     TransactionOrder order = sampleOrder(clientRef);
     given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
     given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+    List<TransactionExecution> saved = recordSavedExecutions();
 
     service.reconcile(reportOf(validRawRow(clientRef), Map.of()));
 
-    verify(executionRepository)
-        .save(
-            argThat(
-                (TransactionExecution e) -> LocalDate.of(2026, 5, 13).equals(e.getReportedDate())));
+    assertThat(saved)
+        .singleElement()
+        .extracting(TransactionExecution::getReportedDate)
+        .isEqualTo(LocalDate.of(2026, 5, 13));
   }
 
   @Test
@@ -1350,13 +1353,14 @@ class SebPendingTransactionReconciliationServiceTest {
                     Map.of("Fund Management Company:", "As of:", "Tuleva Fondid AS", "2026-05-11"),
                     validRawRow(clientRef)))
             .build();
+    List<TransactionExecution> saved = recordSavedExecutions();
 
     service.reconcile(report);
 
-    verify(executionRepository)
-        .save(
-            argThat(
-                (TransactionExecution e) -> LocalDate.of(2026, 5, 11).equals(e.getReportedDate())));
+    assertThat(saved)
+        .singleElement()
+        .extracting(TransactionExecution::getReportedDate)
+        .isEqualTo(LocalDate.of(2026, 5, 11));
   }
 
   @Test
@@ -1374,13 +1378,26 @@ class SebPendingTransactionReconciliationServiceTest {
     given(executionRepository.findAllByOrderId(123L)).willReturn(List.of(existing));
     given(executionRepository.findByBrokerTransactionId("DLA0799512"))
         .willReturn(Optional.of(existing));
+    List<TransactionExecution> saved = recordSavedExecutions();
 
     service.reconcile(reportOf(validRawRow(clientRef), Map.of("asOfDate", "2026-05-20")));
 
-    verify(executionRepository)
-        .save(
-            argThat(
-                (TransactionExecution e) -> LocalDate.of(2026, 5, 11).equals(e.getReportedDate())));
+    assertThat(saved)
+        .singleElement()
+        .extracting(TransactionExecution::getReportedDate)
+        .isEqualTo(LocalDate.of(2026, 5, 11));
+  }
+
+  private List<TransactionExecution> recordSavedExecutions() {
+    List<TransactionExecution> saved = new ArrayList<>();
+    given(executionRepository.save(any(TransactionExecution.class)))
+        .willAnswer(
+            invocation -> {
+              TransactionExecution execution = invocation.getArgument(0);
+              saved.add(execution);
+              return execution;
+            });
+    return saved;
   }
 
   private static InvestmentReport reportWithSingleRow(UUID clientRef) {
@@ -1395,7 +1412,7 @@ class SebPendingTransactionReconciliationServiceTest {
   // referencing no known order — to reach rowCount, so only row count is exercised.
   private static InvestmentReport reportWithRowsAndMatch(
       LocalDate reportDate, UUID clientRef, int rowCount) {
-    List<Map<String, Object>> rows = new java.util.ArrayList<>();
+    List<Map<String, Object>> rows = new ArrayList<>();
     if (clientRef != null) {
       rows.add(validRawRow(clientRef));
     }

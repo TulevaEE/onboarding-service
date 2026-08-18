@@ -21,7 +21,6 @@ import ee.tuleva.onboarding.investment.transaction.TransactionSettlementReposito
 import ee.tuleva.onboarding.investment.transaction.TransactionType;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -549,7 +548,7 @@ class HistoricalRegistryImportServiceIT {
   }
 
   @Test
-  void reportedDateFallsBackToTheImportDateWhenTheRowCarriesNoDateAtAll() {
+  void reportedDateIsLeftUnsetWhenTheRowCarriesNoDateAtAll() {
     String csv =
         """
         order_id,fund_isin,instrument_isin,transaction_id,transaction_type,instrument_type,order_amount,order_quantity,order_timestamp,order_status,expected_settlement_date,actual_settlement_date,execution_timestamp,executed_quantity,unit_price,total_consideration,net_settlement_amount,commission_amount,comment
@@ -561,7 +560,7 @@ class HistoricalRegistryImportServiceIT {
     assertThat(result.errors()).isEmpty();
     TransactionExecution execution =
         executionRepository.findByBrokerTransactionId("BR-9203").orElseThrow();
-    assertThat(execution.getReportedDate()).isEqualTo(LocalDate.now(ZoneId.of("Europe/Tallinn")));
+    assertThat(execution.getReportedDate()).isNull();
   }
 
   @Test

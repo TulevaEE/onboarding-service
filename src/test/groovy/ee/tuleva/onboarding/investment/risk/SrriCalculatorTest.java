@@ -115,7 +115,7 @@ class SrriCalculatorTest {
   }
 
   @Test
-  void publishesAClassOnceTheHistoryReachesBackFiveYears() {
+  void publishesAClassOnceTheFiveYearWindowHasEnoughObservations() {
     var navs = fiveYearsOfNavs(300);
     var evalDate = navs.getLast().date().minusWeeks(1);
 
@@ -126,15 +126,15 @@ class SrriCalculatorTest {
   }
 
   @Test
-  void publishesNoClassWhileTheHistoryFallsShortOfFiveYearsEvenWithPlentyOfObservations() {
+  void publishesAClassOnObservationCountAloneEvenWhenTheWindowReachesPastTheFirstNav() {
     var navs = fiveYearsOfNavs(250);
     var evalDate = navs.getLast().date().minusWeeks(1);
 
     var point = calculator.calculate(navs, evalDate, evalDate).getFirst();
 
     assertThat(point.observationCount()).isGreaterThanOrEqualTo(200);
-    assertThat(point.riskClass()).isNull();
-    assertThat(point.volatility()).isPositive();
+    assertThat((LocalDate) point.metrics().get("windowStart")).isBefore(navs.getFirst().date());
+    assertThat(point.riskClass()).isNotNull();
   }
 
   @Test

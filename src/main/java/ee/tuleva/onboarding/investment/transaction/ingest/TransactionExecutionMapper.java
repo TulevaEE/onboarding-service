@@ -13,8 +13,6 @@ class TransactionExecutionMapper {
   static final String SOURCE_SEB_OOTEL = "SEB_OOTEL";
   static final String MODIFIED_BY_SEB_RECONCILIATION = "system:seb-reconciliation";
 
-  // reportedDate is set here and deliberately not in applyTo: it records the report a trade FIRST
-  // appeared in, so a later report restating that trade must not move it forward.
   TransactionExecution toExecution(
       SebPendingTransactionRow row, TransactionOrder order, LocalDate reportedDate) {
     TransactionExecution execution = applyTo(new TransactionExecution(), row, order);
@@ -39,9 +37,8 @@ class TransactionExecutionMapper {
     return execution;
   }
 
-  // Captures the mutable SEB-sourced fields so an in-place update can be delta-audited
-  // (Art 16: no silent alteration of a transaction record).
-  Map<String, Object> snapshot(TransactionExecution execution) {
+  // Art 16: no silent alteration of a transaction record.
+  Map<String, Object> mutableFieldsForDeltaAudit(TransactionExecution execution) {
     Map<String, Object> snapshot = new LinkedHashMap<>();
     snapshot.put("brokerTransactionId", asString(execution.getBrokerTransactionId()));
     snapshot.put("executionTimestamp", asString(execution.getExecutionTimestamp()));

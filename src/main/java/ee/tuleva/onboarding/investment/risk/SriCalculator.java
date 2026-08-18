@@ -18,11 +18,7 @@ import org.springframework.stereotype.Component;
 @Component
 class SriCalculator {
 
-  /**
-   * Annex II p52: the SRI is read off the MRM/CRM grid, and it equals the MRM class only while the
-   * credit risk measure is 1. TKF100 holds no credit-risky instruments, so this is an assumption
-   * carried in the digest footnote rather than something computed here.
-   */
+  // PRIIPs Annex II point 52: SRI equals the MRM class only while the credit risk measure is 1.
   static final int ASSUMED_CREDIT_RISK_MEASURE = 1;
 
   static final double Z = 1.95996398454005;
@@ -30,42 +26,12 @@ class SriCalculator {
   static final double KURTOSIS_COEFFICIENT = 0.068717874;
   static final double SKEW_SQUARED_COEFFICIENT = 0.146067276;
 
-  /**
-   * Annex II leaves the length of a trading year to the manufacturer, so the number comes from the
-   * ESAs' own worked example instead (JC 2017 49, the flow diagram published as PRIIPs Q&A
-   * material): 365 days less 104 weekend days less 5 public holidays, giving N = 5 * 256 = 1280 for
-   * a five-year holding period. 52 * 5 would be a house convention with nothing behind it, and the
-   * choice moves the VEV by about 0,8%, which is enough to cross a class boundary.
-   */
+  // 256 = 365 - 104 weekend - 5 public holidays, per the ESAs' PRIIPs flow diagram JC 2017 49.
   private static final int TRADING_DAYS_PER_YEAR = 256;
 
-  /**
-   * Annex II p10: below five years of daily prices a shorter period may be used, but never less
-   * than two years of observed returns. Under that, the reference point still carries its
-   * volatility — the digest needs to show something — but no class, because the class would not be
-   * one we may stand behind.
-   *
-   * <p>Two years is a period, so it is measured as one. Multiplying it by the trading year would
-   * demand 512 prices, which is what a two-year stretch holds only if no exchange ever closes:
-   * every public holiday puts a genuine two-year history under the threshold and withholds a class
-   * the Annex allows.
-   *
-   * <p>Measured as a period it needs no tolerance either. A return dated D covers the stretch from
-   * the previous price to D, so the returns observed at an evaluation date begin at the price the
-   * earliest of them was taken against — and that price, not the return, is what the two years are
-   * counted from. Anchoring on the return date instead would lose the first stretch and demand a
-   * few days of slack to give it back, slack that no calendar can consume and that would publish a
-   * class the Annex withholds for as long as it lasts.
-   */
+  // PRIIPs Annex II point 10: never fewer than two years of observed returns.
   private static final int MINIMUM_OBSERVATION_YEARS = 2;
-
-  /**
-   * Not the Annex test — a floor beneath which the four moments say nothing however wide a period
-   * they are spread across, set well below the roughly 500 trading days a real two-year history
-   * carries.
-   */
   private static final int MINIMUM_OBSERVATIONS = 400;
-
   private static final int RECOMMENDED_HOLDING_PERIOD_YEARS = 5;
   private static final int OBSERVATION_WINDOW_YEARS = 5;
   private static final int MINIMUM_RETURNS = 2;
@@ -74,12 +40,14 @@ class SriCalculator {
   static final int HOLDING_PERIOD_TRADING_DAYS =
       RECOMMENDED_HOLDING_PERIOD_YEARS * TRADING_DAYS_PER_YEAR;
 
+  static final String HOLDING_PERIOD_METRIC = "holdingPeriodTradingDays";
+
   CalculatedSeries calculate(List<FundValue> prices, LocalDate from, LocalDate to) {
     var series = tradingDayPrices(prices);
     if (series.size() <= MINIMUM_RETURNS) {
       return CalculatedSeries.empty();
     }
-    var returns = logReturns(series);
+    var returns = logReturnsWithinOneInstrument(series);
     var evaluations =
         series.stream()
             .skip(1)
@@ -100,18 +68,12 @@ class SriCalculator {
         .toList();
   }
 
-  /**
-   * A return is only defined between two prices of the same instrument. Where a proxy series is
-   * spliced to the fund's own NAV, the two sides are on completely different scales — an index
-   * level around 2000 against a NAV around 1 — so a return across the join would be a fiction large
-   * enough to dominate sigma and drive the class to 7.
-   */
-  private List<DatedReturn> logReturns(List<FundValue> series) {
+  private List<DatedReturn> logReturnsWithinOneInstrument(List<FundValue> series) {
     var returns = new ArrayList<DatedReturn>(series.size());
     for (int i = 1; i < series.size(); i++) {
       var current = series.get(i);
       var previous = series.get(i - 1);
-      if (!current.key().equals(previous.key())) {
+      if (!isSameInstrument(previous, current)) {
         continue;
       }
       returns.add(
@@ -121,6 +83,10 @@ class SriCalculator {
               Math.log(current.value().doubleValue() / previous.value().doubleValue())));
     }
     return returns;
+  }
+
+  private boolean isSameInstrument(FundValue previous, FundValue current) {
+    return current.key().equals(previous.key());
   }
 
   private Evaluation evaluate(List<DatedReturn> returns, LocalDate evalDate) {
@@ -163,7 +129,7 @@ class SriCalculator {
     var skew = m2 > 0 ? (s3 / n) / (sigma * sigma * sigma) : 0.0;
     var excessKurtosis = m2 > 0 ? (s4 / n) / (sigma * sigma * sigma * sigma) - 3.0 : 0.0;
 
-    var valueAtRisk = valueAtRisk(sigma, skew, excessKurtosis);
+    var valueAtRisk = valueAtRiskOverHoldingPeriod(sigma, skew, excessKurtosis);
     var vev =
         (Math.sqrt(Z * Z - 2 * valueAtRisk) - Z) / Math.sqrt(RECOMMENDED_HOLDING_PERIOD_YEARS);
     if (!Double.isFinite(vev)) {
@@ -187,19 +153,19 @@ class SriCalculator {
             n,
             volatility,
             Map.of(
-                "dailySigma", sigma,
-                "skew", skew,
-                "excessKurtosis", excessKurtosis,
-                "valueAtRisk", valueAtRisk)));
+                "dailySigma",
+                sigma,
+                "skew",
+                skew,
+                "excessKurtosis",
+                excessKurtosis,
+                "valueAtRisk",
+                valueAtRisk,
+                HOLDING_PERIOD_METRIC,
+                HOLDING_PERIOD_TRADING_DAYS)));
   }
 
-  /**
-   * N is the number of trading periods in the recommended holding period, not the number of
-   * observations the moments were estimated from. Feeding the sample size in scales the whole
-   * quantile to whatever history happens to be loaded: a short series collapses the VEV several
-   * fold and reports a risk class low enough to demand a KID reissue.
-   */
-  private double valueAtRisk(double sigma, double skew, double excessKurtosis) {
+  private double valueAtRiskOverHoldingPeriod(double sigma, double skew, double excessKurtosis) {
     var horizon = HOLDING_PERIOD_TRADING_DAYS;
     var rootHorizon = Math.sqrt(horizon);
     return -sigma
@@ -211,18 +177,8 @@ class SriCalculator {
         - 0.5 * sigma * sigma * horizon;
   }
 
-  /**
-   * {@code previousDate} is the date of the price this return was taken against, which is where the
-   * stretch it measures begins. The Annex counts observed returns as a period, and a period has to
-   * be measured from its start rather than from the first date that carries a number.
-   */
   private record DatedReturn(LocalDate date, LocalDate previousDate, double value) {}
 
-  /**
-   * A date with no point behind it is either a date the window could not yet reach back from, which
-   * is simply the start of the series, or one whose moments produced a VEV that is not a number,
-   * which is a defect in the prices. Only the second is worth telling anyone about.
-   */
   private record Evaluation(LocalDate date, @Nullable ReferencePoint point, boolean skipped) {
 
     static Evaluation of(ReferencePoint point) {

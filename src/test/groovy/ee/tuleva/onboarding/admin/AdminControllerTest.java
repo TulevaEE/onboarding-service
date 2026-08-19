@@ -288,6 +288,30 @@ class AdminControllerTest {
   }
 
   @Test
+  void fetchSebHistory_withUnknownFundCode_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/fetch-seb-history")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("from", "2026-02-01")
+                .param("to", "2026-02-28")
+                .param("fundCode", "TUK7S"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void reclassifySuspense_withUnknownFundCode_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/reclassify-suspense")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("fundCode", "TUK7S"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
   void reclassifySuspense_withValidToken_returnsCounts() throws Exception {
     given(suspenseReclassificationService.reclassify(TulevaFund.TUK75))
         .willReturn(new SuspenseReclassificationService.ReclassificationResult(3, 1));

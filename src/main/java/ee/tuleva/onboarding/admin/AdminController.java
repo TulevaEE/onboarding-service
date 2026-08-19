@@ -127,7 +127,7 @@ public class AdminController {
 
     validateToken(token);
 
-    var fund = fundCode != null ? TulevaFund.fromCode(fundCode) : TKF100;
+    var fund = fundCode != null ? parseFundCode(fundCode) : TKF100;
     var accounts =
         bankAccounts.findAll(fund).stream()
             .filter(bankAccount -> account == null || bankAccount.type() == account)
@@ -148,13 +148,21 @@ public class AdminController {
     return "Fetched SEB history for " + accounts + " from " + from + " to " + to;
   }
 
+  private static TulevaFund parseFundCode(String fundCode) {
+    try {
+      return TulevaFund.fromCode(fundCode);
+    } catch (IllegalArgumentException e) {
+      throw new ResponseStatusException(BAD_REQUEST, e.getMessage());
+    }
+  }
+
   @PostMapping("/reclassify-suspense")
   public Map<String, Object> reclassifySuspense(
       @RequestHeader("X-Admin-Token") String token, @RequestParam String fundCode) {
 
     validateToken(token);
 
-    var fund = TulevaFund.fromCode(fundCode);
+    var fund = parseFundCode(fundCode);
     log.info("Admin triggered suspense reclassification: fund={}", fund);
 
     var result = suspenseReclassificationService.reclassify(fund);

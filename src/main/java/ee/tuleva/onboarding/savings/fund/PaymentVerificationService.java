@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
+import static ee.tuleva.onboarding.party.ParentChildLinkStatus.PENDING_KYC;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.TO_BE_RETURNED;
@@ -21,6 +23,7 @@ import ee.tuleva.onboarding.user.personalcode.PersonalCodeValidator;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -167,10 +170,15 @@ public class PaymentVerificationService {
     return parsePartyId(payment.getRemitterIdCode());
   }
 
+  // Attribution, not authorization: deciding whether an incoming payment is plausibly for this
+  // child, so we attribute it instead of bouncing it. Accepting money grants the payer no access —
+  // acting on the child's behalf goes through isActiveRepresentation. Tuleva intends to accept
+  // third-party payments generally, at which point this widening goes away.
   private boolean isAuthorizedRemitter(PartyId remitter, PartyId party) {
     return remitter.type() == PERSON
         && party.type() == PERSON
-        && parentChildLinkService.isActiveRepresentation(remitter.code(), party.code());
+        && parentChildLinkService.isRepresentation(
+            remitter.code(), party.code(), Set.of(ACTIVE, PENDING_KYC));
   }
 
   Optional<PartyId> extractPartyIdFromDescription(String text) {

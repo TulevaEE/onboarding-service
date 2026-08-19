@@ -53,8 +53,8 @@ public class FirstThirdPillarPaymentRepository {
           WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM unit_owner)
         )
         SELECT fa.personal_id,
-               COALESCE(u.first_name, uo.first_name) AS first_name,
-               COALESCE(u.last_name, uo.last_name) AS last_name,
+               COALESCE(NULLIF(u.first_name, ''), NULLIF(uo.first_name, '')) AS first_name,
+               COALESCE(NULLIF(u.last_name, ''), NULLIF(uo.last_name, '')) AS last_name,
                COALESCE(NULLIF(u.email, ''), NULLIF(uo.email, '')) AS email,
                COALESCE(uo.language_preference, 'EST') AS language_preference,
                fa.amount,
@@ -70,8 +70,8 @@ public class FirstThirdPillarPaymentRepository {
         LEFT JOIN latest_unit_owner uo ON uo.personal_id = fa.personal_id
         LEFT JOIN member m ON m.user_id = u.id
         WHERE COALESCE(NULLIF(u.email, ''), NULLIF(uo.email, '')) IS NOT NULL
-          AND COALESCE(u.first_name, uo.first_name) IS NOT NULL
-          AND COALESCE(u.last_name, uo.last_name) IS NOT NULL
+          AND COALESCE(NULLIF(u.first_name, ''), NULLIF(uo.first_name, '')) IS NOT NULL
+          AND COALESCE(NULLIF(u.last_name, ''), NULLIF(uo.last_name, '')) IS NOT NULL
           AND NOT EXISTS (
             SELECT 1 FROM email e
             WHERE e.personal_code = fa.personal_id

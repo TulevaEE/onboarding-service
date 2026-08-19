@@ -15,6 +15,7 @@ import static org.mockito.Mockito.verify;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
 import ee.tuleva.onboarding.analytics.transaction.thirdpillar.AnalyticsThirdPillarTransactionRepository;
+import ee.tuleva.onboarding.analytics.transaction.thirdpillar.FirstThirdPillarPayment;
 import ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwner;
 import ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwnerRepository;
 import ee.tuleva.onboarding.auth.principal.Person;
@@ -61,6 +62,8 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
   @Autowired private EmailRepository emailRepository;
   @Autowired private EmailPersistenceService emailPersistenceService;
   @Autowired private JdbcClient jdbcClient;
+  @Autowired private ThirdPillarPaymentArrivedClaims claims;
+  @Autowired private ThirdPillarPaymentArrivedEmailService paymentArrivedEmailService;
 
   @MockitoBean private EmailService emailService;
 
@@ -219,6 +222,55 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
 
     verify(emailService, never()).send(any(Person.class), any(), any());
     assertThat(claimCount()).isZero();
+  }
+
+  @Test
+  void skipsWithoutClaimingWhenTheRecipientNameIsBlank() {
+    unitOwnerRepository.save(
+        UnitOwner.builder()
+            .personalId(REGISTRY_ONLY)
+            .snapshotDate(LocalDate.now())
+            .dateCreated(java.time.LocalDateTime.now())
+            .firstName("")
+            .lastName("")
+            .email("blank.name@example.com")
+            .languagePreference("EST")
+            .build());
+    saveOwnPayment(REGISTRY_ONLY, LocalDate.now().minusDays(1), new BigDecimal("100.00"));
+
+    job.run();
+
+    verify(emailService, never()).send(any(Person.class), any(), any());
+    assertThat(claimCount()).isZero();
+  }
+
+  @Test
+  void rejectsASecondClaimForTheSamePerson() {
+    assertThat(claims.claim(ACCOUNT_HOLDER)).isTrue();
+    assertThat(claims.claim(ACCOUNT_HOLDER)).isFalse();
+  }
+
+  @Test
+  void doesNotSendWhenTheClaimIsAlreadyTaken() {
+    claims.claim(REGISTRY_ONLY);
+
+    boolean sent =
+        paymentArrivedEmailService.send(
+            new FirstThirdPillarPayment(
+                REGISTRY_ONLY,
+                "First",
+                "Last",
+                "already.claimed@example.com",
+                "EST",
+                new BigDecimal("100.00"),
+                LocalDate.now().minusDays(1),
+                false,
+                true,
+                true,
+                true));
+
+    assertThat(sent).isFalse();
+    verify(emailService, never()).send(any(Person.class), any(), any());
   }
 
   @Test

@@ -302,6 +302,9 @@ jobs:
       - run:
           name: Verify committed dist matches src
           command: npm run check
+      - run:
+          name: Template tests
+          command: npm test
 
   emails-publish:
     executor: node

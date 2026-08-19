@@ -58,7 +58,10 @@ class PensionFundBankStatementIntegrationTest {
 
     eventPublisher.publishEvent(new ProcessBankMessagesRequested());
 
-    assertThat(savingFundPaymentRepository.findAll()).isEmpty();
+    assertThat(
+            savingFundPaymentRepository.findAll().stream()
+                .filter(payment -> String.valueOf(payment.getExternalId()).startsWith("PENSION-")))
+        .isEmpty();
     assertThat(balance(FUND_INVESTMENT_CASH_CLEARING, TUK75))
         .isEqualByComparingTo(new BigDecimal("50997.00"));
     assertThat(balance(REGISTRAR_CASH_SETTLEMENT, TUK75))

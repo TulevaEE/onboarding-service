@@ -273,6 +273,23 @@ class PensionFundStatementProcessorTest {
   }
 
   @Test
+  void ownAccountTransfer_isRecordedAgainstTheOwnTransferAccount() {
+    var entry = entry(new BigDecimal("1633975.32"), "Ülekanne fondi teisele kontole");
+    when(classifier.classify(entry))
+        .thenReturn(new PensionFundEntryClassifier.OwnAccountTransfer());
+
+    processor.process(statementWith(entry), TUK75_ACCOUNT);
+
+    verify(fundBankLedger)
+        .recordOwnAccountTransfer(
+            eq(TUK75),
+            eq(new BigDecimal("1633975.32")),
+            any(UUID.class),
+            eq(LocalDate.of(2025, 10, 1)),
+            eq("Ülekanne fondi teisele kontole"));
+  }
+
+  @Test
   void openingBalance_isOfferedToTheLedgerForFirstStatementSeeding() {
     var statement =
         new BankStatement(

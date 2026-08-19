@@ -400,6 +400,8 @@ seb-gateway:
     password: ${SEB_GATEWAY_KEYSTORE_PASSWORD:changeit}
   url: ${SEB_GATEWAY_URL:}
   registrar-ibans: ${SEB_GATEWAY_REGISTRAR_IBANS:}
+  own-account-ibans: ${SEB_GATEWAY_OWN_ACCOUNT_IBANS:}
+  bank-fee-ibans: ${SEB_GATEWAY_BANK_FEE_IBANS:}
   accounts:
     DEPOSIT_EUR: ${SEB_GATEWAY_ACCOUNTS_DEPOSIT_EUR:}
     WITHDRAWAL_EUR: ${SEB_GATEWAY_ACCOUNTS_WITHDRAWAL_EUR:}

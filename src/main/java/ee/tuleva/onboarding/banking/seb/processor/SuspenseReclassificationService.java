@@ -1,6 +1,9 @@
 package ee.tuleva.onboarding.banking.seb.processor;
 
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.BANK_FEE;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.MANAGEMENT_FEE_PAYMENT;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.MANAGEMENT_FEE_REBATE;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.OWN_ACCOUNT_TRANSFER;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.REGISTRAR_CONTRIBUTION;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.REGISTRAR_PAYOUT;
 
@@ -43,6 +46,9 @@ public class SuspenseReclassificationService {
             case PensionFundEntryClassifier.RegistrarContribution() -> REGISTRAR_CONTRIBUTION;
             case PensionFundEntryClassifier.RegistrarPayout() -> REGISTRAR_PAYOUT;
             case PensionFundEntryClassifier.ManagementFeePayment() -> MANAGEMENT_FEE_PAYMENT;
+            case PensionFundEntryClassifier.ManagementFeeRebate() -> MANAGEMENT_FEE_REBATE;
+            case PensionFundEntryClassifier.OwnAccountTransfer() -> OWN_ACCOUNT_TRANSFER;
+            case PensionFundEntryClassifier.BankFee() -> BANK_FEE;
             default -> null;
           };
 

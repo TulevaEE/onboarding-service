@@ -94,6 +94,9 @@ public class PensionFundStatementProcessor {
       case PensionFundEntryClassifier.RegistrarPayout() ->
           fundBankLedger.recordRegistrarPayout(
               fund, amount, externalReference, bookingDate, entry.remittanceInformation());
+      case PensionFundEntryClassifier.OwnAccountTransfer() ->
+          fundBankLedger.recordOwnAccountTransfer(
+              fund, amount, externalReference, bookingDate, entry.remittanceInformation());
       case PensionFundEntryClassifier.TradeSettlement(var ticker, var units) ->
           fundBankLedger.recordTradeSettlement(
               fund,

@@ -379,6 +379,7 @@ workflows:
       - emails-build
 
       - emails-publish:
+          context: mandrill
           requires:
             - emails-build
           filters:

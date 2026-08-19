@@ -4,6 +4,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
+import ee.tuleva.onboarding.banking.statement.BankStatementBalance;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.FundBankLedger.UnclassifiedEntryDetails;
@@ -32,7 +33,18 @@ public class PensionFundStatementProcessor {
         account,
         statement.getType(),
         statement.getEntries().size());
+    seedOpeningBalance(statement, account);
     statement.getEntries().forEach(entry -> processEntry(entry, account));
+  }
+
+  private void seedOpeningBalance(BankStatement statement, BankAccount account) {
+    statement.getBalances().stream()
+        .filter(balance -> balance.type() == BankStatementBalance.StatementBalanceType.OPEN)
+        .findFirst()
+        .ifPresent(
+            opening ->
+                fundBankLedger.seedOpeningBalanceIfFirstStatement(
+                    account.fund(), opening.balance(), opening.time()));
   }
 
   private void processEntry(BankStatementEntry entry, BankAccount account) {

@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.BankType.SEB;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
 import static ee.tuleva.onboarding.ledger.SystemAccount.INTEREST_INCOME;
 import static ee.tuleva.onboarding.ledger.SystemAccount.REGISTRAR_CASH_SETTLEMENT;
@@ -85,6 +86,29 @@ class PensionFundBankStatementIntegrationTest {
         .isEqualByComparingTo(new BigDecimal("50997.00"));
     assertThat(instrumentBalance(SystemAccount.SECURITIES_CUSTODY, TUK75))
         .isEqualByComparingTo(new BigDecimal("27549.75"));
+  }
+
+  @Test
+  void firstStatementWithANonZeroOpeningBalanceSeedsTheLedgerAndReconciles() {
+    persistMessage(establishedAccountStatement());
+
+    eventPublisher.publishEvent(new ProcessBankMessagesRequested());
+
+    assertThat(balance(FUND_INVESTMENT_CASH_CLEARING, TUV100))
+        .isEqualByComparingTo(new BigDecimal("250002.00"));
+    assertThat(balance(REGISTRAR_CASH_SETTLEMENT, TUV100))
+        .isEqualByComparingTo(new BigDecimal("-250000.00"));
+    assertThat(
+            applicationEvents.stream(ReconciliationCompletedEvent.class)
+                .filter(event -> event.bankAccount().fund() == TUV100)
+                .filter(ReconciliationCompletedEvent::matched))
+        .hasSize(1);
+
+    persistMessage(establishedAccountStatement());
+    eventPublisher.publishEvent(new ProcessBankMessagesRequested());
+
+    assertThat(balance(FUND_INVESTMENT_CASH_CLEARING, TUV100))
+        .isEqualByComparingTo(new BigDecimal("250002.00"));
   }
 
   private BigDecimal balance(SystemAccount systemAccount, TulevaFund fund) {
@@ -334,5 +358,99 @@ class PensionFundBankStatementIntegrationTest {
         </Document>
         """
         .formatted(bankAccounts.getIban(TUK75, FUND_INVESTMENT_EUR), REGISTRAR_IBAN);
+  }
+
+  private String establishedAccountStatement() {
+    return """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">
+          <BkToCstmrStmt>
+            <GrpHdr>
+              <MsgId>test-pension-opening-balance</MsgId>
+              <CreDtTm>2026-02-11T01:00:00</CreDtTm>
+            </GrpHdr>
+            <Stmt>
+              <Id>test-stmt-opening-balance</Id>
+              <CreDtTm>2026-02-11T01:00:00</CreDtTm>
+              <FrToDt>
+                <FrDtTm>2026-02-10T00:00:00</FrDtTm>
+                <ToDtTm>2026-02-10T23:59:59</ToDtTm>
+              </FrToDt>
+              <Acct>
+                <Id>
+                  <IBAN>%1$s</IBAN>
+                </Id>
+                <Ccy>EUR</Ccy>
+                <Ownr>
+                  <Nm>TULEVA MAAILMA AKTSIATE OSAKUD 100 PENSIONIFOND</Nm>
+                  <Id>
+                    <OrgId>
+                      <Othr>
+                        <Id>14118923</Id>
+                      </Othr>
+                    </OrgId>
+                  </Id>
+                </Ownr>
+              </Acct>
+              <Bal>
+                <Tp>
+                  <CdOrPrtry>
+                    <Cd>OPBD</Cd>
+                  </CdOrPrtry>
+                </Tp>
+                <Amt Ccy="EUR">250000.00</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Dt>
+                  <Dt>2026-02-10</Dt>
+                </Dt>
+              </Bal>
+              <Bal>
+                <Tp>
+                  <CdOrPrtry>
+                    <Cd>CLBD</Cd>
+                  </CdOrPrtry>
+                </Tp>
+                <Amt Ccy="EUR">250002.00</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Dt>
+                  <Dt>2026-02-10</Dt>
+                </Dt>
+              </Bal>
+              <Ntry>
+                <NtryRef>PENSION-OB-1</NtryRef>
+                <Amt Ccy="EUR">2.00</Amt>
+                <CdtDbtInd>CRDT</CdtDbtInd>
+                <Sts>BOOK</Sts>
+                <BookgDt>
+                  <Dt>2026-02-10</Dt>
+                </BookgDt>
+                <ValDt>
+                  <Dt>2026-02-10</Dt>
+                </ValDt>
+                <BkTxCd>
+                  <Domn>
+                    <Cd>ACMT</Cd>
+                    <Fmly>
+                      <Cd>MCOP</Cd>
+                      <SubFmlyCd>INTR</SubFmlyCd>
+                    </Fmly>
+                  </Domn>
+                </BkTxCd>
+                <NtryDtls>
+                  <TxDtls>
+                    <Refs>
+                      <AcctSvcrRef>PENSION-OB-1</AcctSvcrRef>
+                    </Refs>
+                    <RmtInf>
+                      <Ustrd>Intress</Ustrd>
+                    </RmtInf>
+                  </TxDtls>
+                </NtryDtls>
+              </Ntry>
+            </Stmt>
+          </BkToCstmrStmt>
+        </Document>
+        """
+        .formatted(bankAccounts.getIban(TUV100, FUND_INVESTMENT_EUR));
   }
 }

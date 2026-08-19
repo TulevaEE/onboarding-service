@@ -334,6 +334,21 @@ public class FundBankLedger {
   }
 
   @Transactional
+  public void seedOpeningBalanceIfFirstStatement(
+      TulevaFund fund, BigDecimal openingBalance, LocalDate asOfDate) {
+    if (openingBalance.signum() == 0) {
+      return;
+    }
+    var cashAccountName = SystemAccount.FUND_INVESTMENT_CASH_CLEARING.getAccountName(fund);
+    if (ledgerTransactionService.hasEntriesForAccountName(cashAccountName)) {
+      return;
+    }
+    recordOpeningBalance(fund, openingBalance, asOfDate);
+    log.info(
+        "Seeded opening balance from first bank statement: fund={}, asOfDate={}", fund, asOfDate);
+  }
+
+  @Transactional
   public LedgerTransaction recordOpeningBalance(
       TulevaFund fund, BigDecimal amount, LocalDate asOfDate) {
     var externalReference =

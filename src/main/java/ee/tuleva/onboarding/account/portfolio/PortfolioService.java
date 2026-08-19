@@ -155,6 +155,9 @@ public class PortfolioService {
 
   private Optional<BigDecimal> annualReturnRate(
       AuthenticatedPerson person, String key, LocalDate from, LocalDate to) {
+    if (!returnsService.hasMeasurablePeriod(from, to, List.of(key))) {
+      return Optional.empty();
+    }
     return returnsService.get(person, from, to, List.of(key)).getReturns().stream()
         .map(Returns.Return::getRate)
         .filter(Objects::nonNull)

@@ -51,6 +51,11 @@ public class ReturnsService {
     return Returns.builder().returns(filterReturnsBasedOnInputKeys(keys, allReturns)).build();
   }
 
+  public boolean hasMeasurablePeriod(LocalDate fromDate, LocalDate endDate, List<String> keys) {
+    Instant revisedStart = getRevisedFromTime(fromDate, keys, getPillar(keys));
+    return !revisedStart.isAfter(toInstant(endDate));
+  }
+
   private List<Return> filterReturnsBasedOnInputKeys(List<String> keys, List<Return> allReturns) {
     if (keys != null && !keys.isEmpty()) {
       allReturns.removeIf(returnObj -> !keys.contains(returnObj.getKey()));

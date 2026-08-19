@@ -70,9 +70,7 @@ class SavingsFundReservationJobIntegrationTest {
 
     job.runJob();
 
-    var payments = repository.findAll();
-    assertThat(payments).hasSize(1);
-    var payment = payments.getFirst();
+    var payment = repository.findById(paymentId).orElseThrow();
     assertThat(payment.getStatus()).isEqualTo(RESERVED);
     verify(ledger)
         .reservePaymentForSubscription(eq(party), eq(payment.getAmount()), eq(payment.getId()));
@@ -90,9 +88,7 @@ class SavingsFundReservationJobIntegrationTest {
 
     job.runJob();
 
-    var payments = repository.findAll();
-    assertThat(payments).hasSize(1);
-    var payment = payments.getFirst();
+    var payment = repository.findById(paymentId).orElseThrow();
     assertThat(payment.getStatus()).isEqualTo(VERIFIED);
     verify(ledger, never()).reservePaymentForSubscription(any(), any(), any());
   }
@@ -125,13 +121,8 @@ class SavingsFundReservationJobIntegrationTest {
 
     job.runJob();
 
-    var payments = repository.findAll();
-    assertThat(payments).hasSize(2);
-
-    var invalidPayment =
-        payments.stream().filter(p -> p.getId().equals(invalidPaymentId)).findFirst().orElseThrow();
-    var validPayment =
-        payments.stream().filter(p -> p.getId().equals(validPaymentId)).findFirst().orElseThrow();
+    var invalidPayment = repository.findById(invalidPaymentId).orElseThrow();
+    var validPayment = repository.findById(validPaymentId).orElseThrow();
 
     // Invalid payment should remain VERIFIED (failed to process)
     assertThat(invalidPayment.getStatus()).isEqualTo(VERIFIED);

@@ -15,6 +15,8 @@ public class SebAccountConfiguration {
   @Getter private final Map<BankAccountType, String> accounts;
   @Getter private final String managementCompanyName;
   private final @Nullable List<String> registrarIbans;
+  private final @Nullable List<String> ownAccountIbans;
+  private final @Nullable List<String> bankFeeIbans;
 
   public boolean isManagementCompany(String name) {
     return managementCompanyName.equalsIgnoreCase(name);
@@ -22,5 +24,13 @@ public class SebAccountConfiguration {
 
   public List<String> getRegistrarIbans() {
     return registrarIbans == null ? List.of() : registrarIbans;
+  }
+
+  public List<String> getOwnAccountIbans() {
+    return ownAccountIbans == null ? List.of() : ownAccountIbans;
+  }
+
+  public List<String> getBankFeeIbans() {
+    return bankFeeIbans == null ? List.of() : bankFeeIbans;
   }
 }

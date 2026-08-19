@@ -247,6 +247,9 @@ public class FundBankLedger {
     return switch (targetType) {
       case REGISTRAR_CONTRIBUTION, REGISTRAR_PAYOUT -> SystemAccount.REGISTRAR_CASH_SETTLEMENT;
       case MANAGEMENT_FEE_PAYMENT -> SystemAccount.MANAGEMENT_FEE;
+      case MANAGEMENT_FEE_REBATE -> SystemAccount.MANAGEMENT_FEE_REBATE;
+      case OWN_ACCOUNT_TRANSFER -> SystemAccount.OWN_ACCOUNT_TRANSFER;
+      case BANK_FEE -> SystemAccount.BANK_FEE;
       default ->
           throw new IllegalArgumentException(
               "Unsupported reclassification target: %s".formatted(targetType));
@@ -331,6 +334,32 @@ public class FundBankLedger {
         metadata,
         entry(cashAccount, amount),
         entry(suspenseAccount, amount.negate()));
+  }
+
+  @Transactional
+  public LedgerTransaction recordOwnAccountTransfer(
+      TulevaFund fund,
+      BigDecimal amount,
+      UUID externalReference,
+      LocalDate bookingDate,
+      String description) {
+    LedgerAccount cashAccount = getSystemAccount(SystemAccount.FUND_INVESTMENT_CASH_CLEARING, fund);
+    LedgerAccount ownTransferAccount = getSystemAccount(SystemAccount.OWN_ACCOUNT_TRANSFER, fund);
+
+    Map<String, Object> metadata =
+        Map.of(
+            OPERATION_TYPE.getKey(),
+            OWN_ACCOUNT_TRANSFER.name(),
+            DESCRIPTION.getKey(),
+            description);
+
+    return ledgerTransactionService.createTransaction(
+        OWN_ACCOUNT_TRANSFER,
+        transactionDate(bookingDate),
+        externalReference,
+        metadata,
+        entry(cashAccount, amount),
+        entry(ownTransferAccount, amount.negate()));
   }
 
   @Transactional

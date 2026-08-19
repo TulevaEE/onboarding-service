@@ -33,7 +33,9 @@ class SebBankAccountsTest {
                   WITHDRAWAL_EUR, WITHDRAWAL_IBAN,
                   FUND_INVESTMENT_EUR, FUND_INVESTMENT_IBAN),
               "Tuleva Fondid AS",
-              List.of()),
+              List.of(),
+              null,
+              null),
           testFundAccounts());
 
   private static FundAccounts testFundAccounts() {
@@ -81,7 +83,7 @@ class SebBankAccountsTest {
   void construction_failsWhenAccountTypeIsMissing() {
     var configuration =
         new SebAccountConfiguration(
-            Map.of(DEPOSIT_EUR, DEPOSIT_IBAN), "Tuleva Fondid AS", List.of());
+            Map.of(DEPOSIT_EUR, DEPOSIT_IBAN), "Tuleva Fondid AS", List.of(), null, null);
 
     assertThatThrownBy(() -> new SebBankAccounts(configuration, testFundAccounts()))
         .isInstanceOf(IllegalStateException.class)
@@ -98,7 +100,9 @@ class SebBankAccountsTest {
                 WITHDRAWAL_EUR, "",
                 FUND_INVESTMENT_EUR, FUND_INVESTMENT_IBAN),
             "Tuleva Fondid AS",
-            List.of());
+            List.of(),
+            null,
+            null);
 
     assertThatThrownBy(() -> new SebBankAccounts(configuration, testFundAccounts()))
         .isInstanceOf(IllegalStateException.class)
@@ -143,7 +147,9 @@ class SebBankAccountsTest {
                 WITHDRAWAL_EUR, DEPOSIT_IBAN,
                 FUND_INVESTMENT_EUR, FUND_INVESTMENT_IBAN),
             "Tuleva Fondid AS",
-            List.of());
+            List.of(),
+            null,
+            null);
 
     assertThatThrownBy(() -> new SebBankAccounts(configuration, testFundAccounts()))
         .isInstanceOf(IllegalStateException.class);

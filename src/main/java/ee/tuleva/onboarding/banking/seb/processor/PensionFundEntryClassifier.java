@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.banking.seb.processor;
 import ee.tuleva.onboarding.banking.processor.TradeSettlementParser;
 import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
-import ee.tuleva.onboarding.banking.statement.BankStatementEntry.CounterPartyDetails;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker;
 import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +24,7 @@ public class PensionFundEntryClassifier {
           ManagementFeePayment,
           RegistrarContribution,
           RegistrarPayout,
+          OwnAccountTransfer,
           TradeSettlement,
           Unclassified {}
 
@@ -42,6 +42,8 @@ public class PensionFundEntryClassifier {
 
   public record RegistrarPayout() implements Classification {}
 
+  public record OwnAccountTransfer() implements Classification {}
+
   public record TradeSettlement(FundTicker ticker, BigDecimal units) implements Classification {}
 
   public record Unclassified(String reason) implements Classification {}
@@ -56,7 +58,7 @@ public class PensionFundEntryClassifier {
         case "FEES", "COMM" -> {
           return new BankFee();
         }
-        case "TRAD", "SUBS" -> {
+        case "TRAD", "SUBS", "REDM" -> {
           return classifyTradeSettlement(entry);
         }
         default -> {}
@@ -71,13 +73,18 @@ public class PensionFundEntryClassifier {
 
     var details = entry.details();
     if (details != null) {
-      if (isManagementFee(details, entry)) {
-        return entry.amount().signum() < 0
-            ? new ManagementFeePayment()
-            : new Unclassified("management fee with wrong direction");
+      var name = details.getName();
+      if (name != null && sebAccountConfiguration.isManagementCompany(name)) {
+        return entry.amount().signum() < 0 ? new ManagementFeePayment() : new ManagementFeeRebate();
       }
       if (sebAccountConfiguration.getRegistrarIbans().contains(details.getIban())) {
         return entry.amount().signum() > 0 ? new RegistrarContribution() : new RegistrarPayout();
+      }
+      if (sebAccountConfiguration.getOwnAccountIbans().contains(details.getIban())) {
+        return new OwnAccountTransfer();
+      }
+      if (sebAccountConfiguration.getBankFeeIbans().contains(details.getIban())) {
+        return new BankFee();
       }
       return new Unclassified("unknown counterparty");
     }
@@ -90,12 +97,6 @@ public class PensionFundEntryClassifier {
         .parse(entry.remittanceInformation())
         .<Classification>map(info -> new TradeSettlement(info.ticker(), info.units()))
         .orElseGet(() -> new Unclassified("unknown ticker"));
-  }
-
-  private boolean isManagementFee(CounterPartyDetails details, BankStatementEntry entry) {
-    return sebAccountConfiguration.isManagementCompany(details.getName())
-        && entry.remittanceInformation() != null
-        && entry.remittanceInformation().toLowerCase().contains("valitsemistasu");
   }
 
   private static boolean isKickback(@Nullable String remittanceInformation) {

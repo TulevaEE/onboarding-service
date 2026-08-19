@@ -387,6 +387,32 @@ class FundBankLedgerTest {
   }
 
   @Test
+  void recordOwnAccountTransfer_booksCashAgainstTheOwnTransferAccount() {
+    fundBankLedger.recordOwnAccountTransfer(
+        TUK75,
+        new BigDecimal("1633975.32"),
+        randomUUID(),
+        BOOKING_DATE,
+        "Ülekanne fondi teisele kontole");
+
+    assertThat(getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance())
+        .isEqualByComparingTo(new BigDecimal("1633975.32"));
+    assertThat(getSystemAccount(OWN_ACCOUNT_TRANSFER, TUK75).getBalance())
+        .isEqualByComparingTo(new BigDecimal("-1633975.32"));
+  }
+
+  @Test
+  void recordOwnAccountTransfer_booksOutgoingTransfersWithTheOppositeSign() {
+    fundBankLedger.recordOwnAccountTransfer(
+        TUK75, new BigDecimal("-50000.00"), randomUUID(), BOOKING_DATE, "Ülekanne");
+
+    assertThat(getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance())
+        .isEqualByComparingTo(new BigDecimal("-50000.00"));
+    assertThat(getSystemAccount(OWN_ACCOUNT_TRANSFER, TUK75).getBalance())
+        .isEqualByComparingTo(new BigDecimal("50000.00"));
+  }
+
+  @Test
   void seedOpeningBalanceIfFirstStatement_booksOnceAndOnlyOnAnUntouchedAccount() {
     var openingBalance = new BigDecimal("123456.78");
     var asOfDate = LocalDate.of(2026, 1, 31);
@@ -433,10 +459,10 @@ class FundBankLedgerTest {
                     TUK75,
                     new BigDecimal("10.00"),
                     randomUUID(),
-                    LedgerTransaction.TransactionType.BANK_FEE,
+                    LedgerTransaction.TransactionType.TRADE_SETTLEMENT,
                     BOOKING_DATE))
         .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("BANK_FEE");
+        .hasMessageContaining("TRADE_SETTLEMENT");
   }
 
   @Test

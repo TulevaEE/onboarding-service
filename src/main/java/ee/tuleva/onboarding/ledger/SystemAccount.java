@@ -33,6 +33,11 @@ public enum SystemAccount {
       EUR,
       BANK_RECONCILIATION,
       "Bank entries pending classification - resolved entries net to zero per external reference"),
+  OWN_ACCOUNT_TRANSFER(
+      LIABILITY,
+      EUR,
+      BANK_RECONCILIATION,
+      "Cash moved between the fund's own bank accounts held outside this ledger"),
 
   // Fund operations
   FUND_INVESTMENT_CASH_CLEARING(ASSET, EUR, FUND_OPERATIONS, "Fund's SEB current account"),

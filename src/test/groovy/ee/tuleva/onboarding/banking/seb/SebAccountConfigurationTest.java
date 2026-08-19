@@ -13,7 +13,11 @@ class SebAccountConfigurationTest {
 
   private final SebAccountConfiguration configuration =
       new SebAccountConfiguration(
-          Map.of(DEPOSIT_EUR, "EE111111111111111111"), MANAGEMENT_COMPANY_NAME, List.of());
+          Map.of(DEPOSIT_EUR, "EE111111111111111111"),
+          MANAGEMENT_COMPANY_NAME,
+          List.of(),
+          null,
+          null);
 
   @Test
   void isManagementCompany_matchesCaseInsensitively() {
@@ -31,7 +35,7 @@ class SebAccountConfigurationTest {
   void registrarIbans_defaultToEmptyWhenNotConfigured() {
     var withoutRegistrar =
         new SebAccountConfiguration(
-            Map.of(DEPOSIT_EUR, "EE111111111111111111"), MANAGEMENT_COMPANY_NAME, null);
+            Map.of(DEPOSIT_EUR, "EE111111111111111111"), MANAGEMENT_COMPANY_NAME, null, null, null);
 
     assertThat(withoutRegistrar.getRegistrarIbans()).isEmpty();
   }

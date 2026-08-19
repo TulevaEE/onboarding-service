@@ -42,7 +42,7 @@ public class SebStatementFetchingScheduler {
       lockAtLeastFor = "30m")
   public void fetchEodTransactions() {
     log.info("Running SEB end-of-day transactions fetching scheduler");
-    for (BankAccount account : bankAccounts.findAll(TKF100)) {
+    for (BankAccount account : bankAccounts.findAll()) {
       try {
         eventPublisher.publishEvent(new FetchSebEodTransactionsRequested(account));
       } catch (Exception exception) {

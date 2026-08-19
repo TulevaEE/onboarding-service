@@ -5,9 +5,12 @@ import static ee.tuleva.onboarding.auth.role.RoleType.*;
 import static ee.tuleva.onboarding.company.CompanyFixture.*;
 import static ee.tuleva.onboarding.company.RelationshipType.BOARD_MEMBER;
 import static ee.tuleva.onboarding.event.TrackableEventType.ROLE_SWITCH;
+import static ee.tuleva.onboarding.party.ParentChildLinkStatus.PENDING_KYC;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -358,6 +361,22 @@ class RoleSwitchServiceTest {
     assertThatThrownBy(
             () -> roleSwitchService.switchRole(person, new SwitchRoleCommand(PERSON, CHILD_CODE)))
         .isInstanceOf(RoleSwitchAccessDeniedException.class);
+  }
+
+  @Test
+  void switchToChildOfARepresentativeWhoHasNotClearedKycThrows() {
+    // funding the child is KYC-agnostic, acting as the child is not
+    when(parentChildLinkService.isActiveRepresentation(person.getPersonalCode(), CHILD_CODE))
+        .thenReturn(false);
+
+    assertThatThrownBy(
+            () -> roleSwitchService.switchRole(person, new SwitchRoleCommand(PERSON, CHILD_CODE)))
+        .isInstanceOf(RoleSwitchAccessDeniedException.class);
+    // pins the real invariant: the role-switch path never requests a status set admitting a
+    // representative who has not cleared KYC. Survives a refactor onto
+    // isRepresentation(..., Set.of(ACTIVE)), where a blanket never() would fail spuriously.
+    verify(parentChildLinkService, never())
+        .isRepresentation(any(), any(), argThat(statuses -> statuses.contains(PENDING_KYC)));
   }
 
   @Test

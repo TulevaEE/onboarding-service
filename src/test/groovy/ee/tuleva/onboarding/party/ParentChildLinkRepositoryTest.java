@@ -2,11 +2,13 @@ package ee.tuleva.onboarding.party;
 
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.PENDING_KYC;
+import static ee.tuleva.onboarding.party.RepresentationType.GUARDIAN;
 import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
@@ -38,6 +40,10 @@ class ParentChildLinkRepositoryTest {
   }
 
   private ParentChildLink savedPendingLink(String parentPersonalCode) {
+    return savedPendingLink(parentPersonalCode, null);
+  }
+
+  private ParentChildLink savedPendingLink(String parentPersonalCode, Instant suspendedAt) {
     return repository.save(
         ParentChildLink.builder()
             .parentPersonalCode(parentPersonalCode)
@@ -45,6 +51,19 @@ class ParentChildLinkRepositoryTest {
             .relationshipType(LEGAL_REPRESENTATIVE)
             .validUntil(EIGHTEENTH_BIRTHDAY)
             .status(PENDING_KYC)
+            .suspendedAt(suspendedAt)
+            .build());
+  }
+
+  private ParentChildLink savedGuardianLink(
+      String parentPersonalCode, ParentChildLinkStatus status) {
+    return repository.save(
+        ParentChildLink.builder()
+            .parentPersonalCode(parentPersonalCode)
+            .childPersonalCode(CHILD)
+            .relationshipType(GUARDIAN)
+            .validUntil(EIGHTEENTH_BIRTHDAY)
+            .status(status)
             .build());
   }
 
@@ -60,15 +79,15 @@ class ParentChildLinkRepositoryTest {
   void activeRepresentationQueriesExcludePendingLinks() {
     savedPendingLink(PARENT);
 
-    // role switch + payments both read through these two queries
+    // the role switch reads through these two queries
     assertThat(
             repository.findByParentPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
                 PARENT, ACTIVE, EIGHTEENTH_BIRTHDAY.minusDays(1)))
         .isEmpty();
     assertThat(
             repository
-                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
-                    PARENT, CHILD, ACTIVE, EIGHTEENTH_BIRTHDAY.minusDays(1)))
+                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                    PARENT, CHILD, Set.of(ACTIVE), EIGHTEENTH_BIRTHDAY.minusDays(1)))
         .isFalse();
   }
 
@@ -140,41 +159,161 @@ class ParentChildLinkRepositoryTest {
 
     assertThat(
             repository
-                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
-                    PARENT, CHILD, ACTIVE, EIGHTEENTH_BIRTHDAY.minusDays(1)))
+                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                    PARENT, CHILD, Set.of(ACTIVE), EIGHTEENTH_BIRTHDAY.minusDays(1)))
         .isTrue();
   }
 
   @Test
-  void doesNotRepresentOnValidUntilDate() {
+  void representsActiveChildWhenTheStatusSetIsWidened() {
     savedLink(null);
 
     assertThat(
             repository
-                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
-                    PARENT, CHILD, ACTIVE, EIGHTEENTH_BIRTHDAY))
-        .isFalse();
+                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                    PARENT, CHILD, Set.of(ACTIVE, PENDING_KYC), EIGHTEENTH_BIRTHDAY.minusDays(1)))
+        .isTrue();
   }
 
   @Test
-  void doesNotRepresentSuspendedChild() {
+  void representsPendingChildOnlyWhenTheStatusSetIncludesPendingKyc() {
+    // payments ask for the widened set, so a parent who has not cleared KYC still counts;
+    // the role switch asks for ACTIVE only and must not see them
+    savedPendingLink(PARENT);
+
+    assertThat(
+            repository
+                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                    PARENT, CHILD, Set.of(ACTIVE, PENDING_KYC), EIGHTEENTH_BIRTHDAY.minusDays(1)))
+        .isTrue();
+    assertThat(
+            repository
+                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                    PARENT, CHILD, Set.of(ACTIVE), EIGHTEENTH_BIRTHDAY.minusDays(1)))
+        .isFalse();
+  }
+
+  // guardians are deliberately not filtered out by relationship type: a court-appointed guardian
+  // represents their ward exactly as a parent represents a child
+  @Test
+  void representsGuardianWardsOnTheSameTermsAsLegalRepresentatives() {
+    var guardianLink = savedGuardianLink(PARENT, ACTIVE);
+    savedGuardianLink(OTHER_PARENT, PENDING_KYC);
+
+    assertThat(
+            repository
+                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                    PARENT, CHILD, Set.of(ACTIVE), EIGHTEENTH_BIRTHDAY.minusDays(1)))
+        .isTrue();
+    assertThat(
+            repository
+                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                    PARENT, CHILD, Set.of(ACTIVE, PENDING_KYC), EIGHTEENTH_BIRTHDAY.minusDays(1)))
+        .isTrue();
+    assertThat(
+            repository
+                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                    OTHER_PARENT,
+                    CHILD,
+                    Set.of(ACTIVE, PENDING_KYC),
+                    EIGHTEENTH_BIRTHDAY.minusDays(1)))
+        .isTrue();
+    assertThat(
+            repository
+                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                    OTHER_PARENT, CHILD, Set.of(ACTIVE), EIGHTEENTH_BIRTHDAY.minusDays(1)))
+        .isFalse();
+    // the role listing reads through this query, which also ignores relationship type
+    assertThat(
+            repository.findByParentPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
+                PARENT, ACTIVE, EIGHTEENTH_BIRTHDAY.minusDays(1)))
+        .containsExactly(guardianLink);
+    assertThat(
+            repository.findByParentPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
+                OTHER_PARENT, ACTIVE, EIGHTEENTH_BIRTHDAY.minusDays(1)))
+        .isEmpty();
+  }
+
+  @Test
+  void representsNoSuspendedActiveChildForAnyStatusSet() {
     savedLink(SUSPENDED);
 
     assertThat(
             repository
-                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
-                    PARENT, CHILD, ACTIVE, EIGHTEENTH_BIRTHDAY.minusDays(1)))
+                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                    PARENT, CHILD, Set.of(ACTIVE), EIGHTEENTH_BIRTHDAY.minusDays(1)))
+        .isFalse();
+    assertThat(
+            repository
+                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                    PARENT, CHILD, Set.of(ACTIVE, PENDING_KYC), EIGHTEENTH_BIRTHDAY.minusDays(1)))
         .isFalse();
   }
 
   @Test
-  void doesNotRepresentUnknownChild() {
+  void representsNoSuspendedPendingChildForAnyStatusSet() {
+    savedPendingLink(PARENT, SUSPENDED);
+
+    assertThat(
+            repository
+                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                    PARENT, CHILD, Set.of(ACTIVE), EIGHTEENTH_BIRTHDAY.minusDays(1)))
+        .isFalse();
+    assertThat(
+            repository
+                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                    PARENT, CHILD, Set.of(ACTIVE, PENDING_KYC), EIGHTEENTH_BIRTHDAY.minusDays(1)))
+        .isFalse();
+  }
+
+  @Test
+  void representsNoExpiredActiveChildForAnyStatusSet() {
     savedLink(null);
 
     assertThat(
             repository
-                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
-                    PARENT, "99999999999", ACTIVE, EIGHTEENTH_BIRTHDAY.minusDays(1)))
+                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                    PARENT, CHILD, Set.of(ACTIVE), EIGHTEENTH_BIRTHDAY))
+        .isFalse();
+    assertThat(
+            repository
+                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                    PARENT, CHILD, Set.of(ACTIVE, PENDING_KYC), EIGHTEENTH_BIRTHDAY))
+        .isFalse();
+  }
+
+  @Test
+  void representsNoExpiredPendingChildForAnyStatusSet() {
+    savedPendingLink(PARENT);
+
+    assertThat(
+            repository
+                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                    PARENT, CHILD, Set.of(ACTIVE), EIGHTEENTH_BIRTHDAY))
+        .isFalse();
+    assertThat(
+            repository
+                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                    PARENT, CHILD, Set.of(ACTIVE, PENDING_KYC), EIGHTEENTH_BIRTHDAY))
+        .isFalse();
+  }
+
+  @Test
+  void representsNoUnknownChildForAnyStatusSet() {
+    savedLink(null);
+
+    assertThat(
+            repository
+                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                    PARENT, "99999999999", Set.of(ACTIVE), EIGHTEENTH_BIRTHDAY.minusDays(1)))
+        .isFalse();
+    assertThat(
+            repository
+                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                    PARENT,
+                    "99999999999",
+                    Set.of(ACTIVE, PENDING_KYC),
+                    EIGHTEENTH_BIRTHDAY.minusDays(1)))
         .isFalse();
   }
 

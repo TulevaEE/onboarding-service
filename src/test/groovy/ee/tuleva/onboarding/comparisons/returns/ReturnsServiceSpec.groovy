@@ -16,6 +16,7 @@ import java.time.LocalDate
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.comparisons.returns.Returns.Return
 import static ee.tuleva.onboarding.comparisons.returns.Returns.Return.Type.*
+import static ee.tuleva.onboarding.comparisons.returns.provider.PersonalReturnProvider.SECOND_PILLAR
 import static ee.tuleva.onboarding.comparisons.returns.provider.PersonalReturnProvider.THIRD_PILLAR
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static java.time.ZoneOffset.UTC
@@ -248,6 +249,22 @@ class ReturnsServiceSpec extends Specification {
     from          | pillar || expectedRevision
     "2020-01-01"  | 2      || "2020-05-01" // transferMandateFulfillmentDate
     "2020-01-01"  | 3      || "2020-01-01" // fromDate
+  }
+
+  def "knows whether the second pillar can measure a period at all"() {
+    given:
+    fundValueRepository.findEarliestDateForKey(SECOND_PILLAR) >> Optional.empty()
+
+    expect:
+    returnsService.hasMeasurablePeriod(LocalDate.parse(from), LocalDate.parse(to), [SECOND_PILLAR]) == measurable
+
+    where:
+    from         | to           || measurable
+    "2026-02-01" | "2026-08-18" || true  // revised start 2026-05-01, still inside the period
+    "2026-05-01" | "2026-08-18" || false // revised start 2026-09-01, after the period ends
+    "2026-06-01" | "2026-08-18" || false
+    "2026-07-01" | "2026-08-18" || false
+    "2026-08-01" | "2026-08-18" || false
   }
 
   private def sampleReturns1(LocalDate fromDate) {

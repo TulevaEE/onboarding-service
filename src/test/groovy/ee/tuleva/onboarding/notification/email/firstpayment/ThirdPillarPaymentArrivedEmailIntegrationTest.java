@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.notification.email.firstpayment;
 
 import static ee.tuleva.onboarding.analytics.transaction.thirdpillar.AnalyticsThirdPillarTransactionFixture.exampleTransactionBuilder;
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.THIRD_PILLAR_PAYMENT_ARRIVED;
+import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.THIRD_PILLAR_PAYMENT_REMINDER_MANDATE;
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.THIRD_PILLAR_PAYMENT_SUCCESS_MANDATE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -128,6 +129,18 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
     job.run();
 
     verify(emailService, never()).send(any(Person.class), any(), any());
+  }
+
+  @Test
+  void skipsAnInAppMandateSignerWhoIsAlreadyInTheExistingEmailSequence() {
+    User user = saveUser(IN_APP_PAYER, "mandate.signer@example.com");
+    emailPersistenceService.save(user, THIRD_PILLAR_PAYMENT_REMINDER_MANDATE, EmailStatus.SENT);
+    saveOwnPayment(IN_APP_PAYER, LocalDate.now().minusDays(1), new BigDecimal("100.00"));
+
+    job.run();
+
+    verify(emailService, never()).send(any(Person.class), any(), any());
+    assertThat(claimCount()).isZero();
   }
 
   @Test

@@ -75,7 +75,9 @@ public class FirstThirdPillarPaymentRepository {
           AND NOT EXISTS (
             SELECT 1 FROM email e
             WHERE e.personal_code = fa.personal_id
-              AND e.type IN ('THIRD_PILLAR_PAYMENT_ARRIVED', 'THIRD_PILLAR_PAYMENT_SUCCESS_MANDATE'))
+              AND e.type IN ('THIRD_PILLAR_PAYMENT_ARRIVED',
+                             'THIRD_PILLAR_PAYMENT_SUCCESS_MANDATE',
+                             'THIRD_PILLAR_PAYMENT_REMINDER_MANDATE'))
           AND NOT EXISTS (
             SELECT 1 FROM third_pillar_payment_arrived_claim c
             WHERE c.personal_code = fa.personal_id)

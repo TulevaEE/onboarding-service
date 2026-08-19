@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import { readdirSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import mjml2html from 'mjml';
@@ -28,9 +28,9 @@ for (const file of templates) {
   }
   const outPath = join(distDir, `${name}.html`);
   if (checkMode) {
-    const existing = readFileSync(outPath, 'utf8');
+    const existing = existsSync(outPath) ? readFileSync(outPath, 'utf8') : null;
     if (existing !== html) {
-      console.error(`${name}.html is stale: run "npm run build" and commit dist/`);
+      console.error(`${name}.html is missing or stale: run "npm run build" and commit dist/`);
       failed = true;
     }
   } else {

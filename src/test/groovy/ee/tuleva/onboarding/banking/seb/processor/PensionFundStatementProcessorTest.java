@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType;
 import ee.tuleva.onboarding.banking.statement.BankStatementAccount;
+import ee.tuleva.onboarding.banking.statement.BankStatementBalance;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.banking.statement.TransactionType;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker;
@@ -269,6 +270,34 @@ class PensionFundStatementProcessorTest {
 
     assertThatThrownBy(() -> processor.process(statementWith(entry), TUK75_ACCOUNT))
         .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void openingBalance_isOfferedToTheLedgerForFirstStatementSeeding() {
+    var statement =
+        new BankStatement(
+            BankStatement.BankStatementType.HISTORIC_STATEMENT,
+            new BankStatementAccount(
+                TUK75_IBAN, "Tuleva Maailma Aktsiate Pensionifond", "14118923"),
+            List.of(
+                new BankStatementBalance(
+                    BankStatementBalance.StatementBalanceType.OPEN,
+                    LocalDate.of(2026, 2, 10),
+                    new BigDecimal("123456.78"))),
+            List.of());
+
+    processor.process(statement, TUK75_ACCOUNT);
+
+    verify(fundBankLedger)
+        .seedOpeningBalanceIfFirstStatement(
+            TUK75, new BigDecimal("123456.78"), LocalDate.of(2026, 2, 10));
+  }
+
+  @Test
+  void statementWithoutAnOpeningBalance_seedsNothing() {
+    processor.process(statementWith(), TUK75_ACCOUNT);
+
+    verify(fundBankLedger, never()).seedOpeningBalanceIfFirstStatement(any(), any(), any());
   }
 
   private BankStatement statementWith(BankStatementEntry... entries) {

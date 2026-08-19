@@ -387,6 +387,45 @@ class FundBankLedgerTest {
   }
 
   @Test
+  void seedOpeningBalanceIfFirstStatement_booksOnceAndOnlyOnAnUntouchedAccount() {
+    var openingBalance = new BigDecimal("123456.78");
+    var asOfDate = LocalDate.of(2026, 1, 31);
+
+    fundBankLedger.seedOpeningBalanceIfFirstStatement(TUK75, openingBalance, asOfDate);
+
+    assertThat(getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance())
+        .isEqualByComparingTo(openingBalance);
+    assertThat(getSystemAccount(REGISTRAR_CASH_SETTLEMENT, TUK75).getBalance())
+        .isEqualByComparingTo(openingBalance.negate());
+
+    fundBankLedger.seedOpeningBalanceIfFirstStatement(TUK75, new BigDecimal("999.99"), asOfDate);
+
+    assertThat(getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance())
+        .isEqualByComparingTo(openingBalance);
+  }
+
+  @Test
+  void seedOpeningBalanceIfFirstStatement_skipsWhenTheCashAccountAlreadyHasEntries() {
+    fundBankLedger.recordBankFee(
+        TUK75, new BigDecimal("-1.00"), randomUUID(), FUND_INVESTMENT_CASH_CLEARING, BOOKING_DATE);
+
+    fundBankLedger.seedOpeningBalanceIfFirstStatement(
+        TUK75, new BigDecimal("123456.78"), LocalDate.of(2026, 1, 31));
+
+    assertThat(getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance())
+        .isEqualByComparingTo(new BigDecimal("-1.00"));
+  }
+
+  @Test
+  void seedOpeningBalanceIfFirstStatement_skipsAZeroOpeningBalance() {
+    fundBankLedger.seedOpeningBalanceIfFirstStatement(TUK75, ZERO, LocalDate.of(2026, 1, 31));
+
+    assertThat(getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance())
+        .isEqualByComparingTo(ZERO);
+    assertThat(fundBankLedger.existsForExternalReference(randomUUID())).isFalse();
+  }
+
+  @Test
   void reclassifySuspenseEntry_rejectsUnsupportedTargetTypes() {
     assertThatThrownBy(
             () ->

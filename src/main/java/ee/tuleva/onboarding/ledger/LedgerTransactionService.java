@@ -49,6 +49,10 @@ class LedgerTransactionService {
     return ledgerTransactionRepository.existsByExternalReference(externalReference);
   }
 
+  public boolean hasEntriesForAccountName(String accountName) {
+    return ledgerTransactionRepository.countEntriesForAccountName(accountName) > 0;
+  }
+
   public long countUnresolvedByTransactionTypeAndAccountName(
       TransactionType transactionType, String accountName) {
     return ledgerTransactionRepository.countUnresolvedByTransactionTypeAndAccountName(

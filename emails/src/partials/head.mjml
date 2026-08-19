@@ -1,8 +1,9 @@
 <mj-head>
   <mj-attributes>
     <mj-all font-family="Roboto, Helvetica Neue, Helvetica, Arial, sans-serif" />
-    <mj-text font-size="16px" line-height="150%" color="#444444" />
+    <mj-text font-size="16px" line-height="150%" color="#444444" padding="8px 0" />
     <mj-button
+      padding="10px 0"
       background-color="#0081EE"
       border-radius="8px"
       font-size="16px"

@@ -59,10 +59,15 @@ function language(name) {
   return 'muu';
 }
 
-const templates = [
-  ...collect(join(root, 'dist'), 'Managed (MJML)'),
-  ...collect(join(root, 'exported'), 'Legacy (exported from Mandrill)'),
-].map((t) => ({ ...t, group: `${t.group} · ${language(t.name)}` }));
+const managed = collect(join(root, 'dist'), 'Managed (MJML)');
+const managedNames = new Set(managed.map((t) => t.name));
+const legacy = collect(join(root, 'exported'), 'Legacy (exported from Mandrill)').filter(
+  (t) => !managedNames.has(t.name),
+);
+const templates = [...managed, ...legacy].map((t) => ({
+  ...t,
+  group: `${t.group} · ${language(t.name)}`,
+}));
 
 const GROUP_ORDER = [
   'Managed (MJML) · eesti keel',
@@ -81,7 +86,8 @@ templates.sort(
 const cards = [];
 for (const { name, html, variants, group } of templates) {
   for (const [variant, vars] of Object.entries(variants)) {
-    const fileName = `${name}--${variant.replaceAll(/[^a-zA-Z0-9äöüõÄÖÜÕ-]+/g, '-')}.html`;
+    const groupSlug = group.startsWith('Managed') ? 'managed' : 'legacy';
+    const fileName = `${groupSlug}--${name}--${variant.replaceAll(/[^a-zA-Z0-9äöüõÄÖÜÕ-]+/g, '-')}.html`;
     writeFileSync(join(previewDir, fileName), renderMergeLanguage(html, vars));
     cards.push({ template: name, variant, fileName, group });
   }

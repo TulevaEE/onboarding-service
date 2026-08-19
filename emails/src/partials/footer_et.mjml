@@ -1,8 +1,9 @@
 <mj-section padding="12px 18px 0">
   <mj-column>
     <mj-text>
-      Kui sul tekib ükskõik milliseid küsimusi, võta kõhklemata ühendust:
-      e-post <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a>, tel 644 5100.
+      Kui sul on küsimusi, siis võta meiega julgesti ühendust
+      <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> või
+      <a href="tel:+3726445100">644&nbsp;5100</a>.
     </mj-text>
     <mj-text padding-top="12px">
       Tõnu Pekk<br />

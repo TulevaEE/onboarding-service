@@ -1,12 +1,13 @@
 <mj-section padding="12px 18px 0">
   <mj-column>
     <mj-text>
-      If you have any questions please contact us via
-      <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> or 644 5100.
+      Should you have any questions, do not hesitate to contact us via
+      <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> or
+      <a href="tel:+3726445100">644&nbsp;5100</a>.
     </mj-text>
     <mj-text padding-top="12px">
       Tõnu Pekk<br />
-      Tuleva Founder and Fund Manager
+      Founder and fund manager of Tuleva
     </mj-text>
     <mj-text font-size="12px" color="#949494" line-height="140%" padding-top="16px">
       Taxation depends on circumstances related to the individual, including residency. Tax

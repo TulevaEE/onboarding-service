@@ -1,8 +1,11 @@
 <mj-head>
   <mj-attributes>
     <mj-all font-family="Roboto, Helvetica Neue, Helvetica, Arial, sans-serif" />
-    <mj-text font-size="16px" line-height="150%" color="#444444" padding="8px 0" />
+    <mj-text font-size="16px" line-height="150%" color="#303030" padding="8px 0" />
+    <mj-image target="_self" />
+    <mj-social-element target="_self" />
     <mj-button
+      target="_self"
       padding="10px 0"
       background-color="#0081EE"
       border-radius="8px"
@@ -15,6 +18,5 @@
   </mj-attributes>
   <mj-style>
     a { color: #0081EE; }
-    strong { color: #222222; }
   </mj-style>
 </mj-head>

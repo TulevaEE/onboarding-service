@@ -1,4 +1,4 @@
-<mj-section padding="24px 18px 12px">
+<mj-section background-color="#F7F7F7" padding="24px 18px 12px">
   <mj-column>
     <mj-image
       align="left"

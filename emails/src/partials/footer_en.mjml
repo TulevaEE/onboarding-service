@@ -9,13 +9,31 @@
       Tõnu Pekk<br />
       Founder and fund manager of Tuleva
     </mj-text>
-    <mj-text font-size="12px" color="#949494" line-height="140%" padding-top="16px">
+    <mj-text font-size="12px" color="#949494" line-height="140%" font-style="italic" padding-top="16px">
       Taxation depends on circumstances related to the individual, including residency. Tax
       legislation may change. To receive a tax refund, you must file a tax return. Financial
       services are provided by Tuleva Fondid AS. Be sure to read the terms, prospectus, and key
-      information of the selected pension fund at <a href="https://tuleva.ee">tuleva.ee</a>, and
-      if needed, seek advice from an expert.
+      information of the selected pension fund at
+      <a href="https://tuleva.ee">tuleva.ee</a>, and if needed, seek advice from
+      an expert.
     </mj-text>
+    <mj-social mode="horizontal" align="center" icon-size="48px" icon-padding="9px" padding="16px 0 8px">
+      <mj-social-element
+        href="https://www.facebook.com/Tuleva.ee/"
+        src="https://cdn-images.mailchimp.com/icons/social-block-v2/outline-gray-facebook-96.png"
+        alt="Tuleva Facebook"
+      />
+      <mj-social-element
+        href="https://tuleva.ee/"
+        src="https://cdn-images.mailchimp.com/icons/social-block-v2/outline-gray-link-96.png"
+        alt="Tuleva.ee"
+      />
+      <mj-social-element
+        href="mailto:tuleva@tuleva.ee"
+        src="https://cdn-images.mailchimp.com/icons/social-block-v2/outline-gray-forwardtofriend-96.png"
+        alt="Tuleva Email"
+      />
+    </mj-social>
   </mj-column>
 </mj-section>
 <mj-section background-color="#F7F7F7" padding="16px 18px 24px">

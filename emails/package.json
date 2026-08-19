@@ -1,0 +1,15 @@
+{
+  "name": "tuleva-emails",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "preview": "node scripts/build.mjs && node scripts/preview.mjs",
+    "publish-templates": "node scripts/publish.mjs",
+    "check": "node scripts/build.mjs --check"
+  },
+  "dependencies": {
+    "mjml": "^4.15.3"
+  }
+}

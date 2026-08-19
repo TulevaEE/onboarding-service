@@ -1,0 +1,38 @@
+{
+  "variants": {
+    "konto olemas, II sammas mujal": {
+      "FNAME": "Mari",
+      "amount": "300.00",
+      "paymentDate": "12.08.2026",
+      "hasAccount": true,
+      "suggestSecondPillar": true
+    },
+    "konto olemas, tõsta määra": {
+      "FNAME": "Mari",
+      "amount": "300.00",
+      "paymentDate": "12.08.2026",
+      "hasAccount": true,
+      "suggestPaymentRate": true
+    },
+    "konto olemas, astu liikmeks": {
+      "FNAME": "Mari",
+      "amount": "300.00",
+      "paymentDate": "12.08.2026",
+      "hasAccount": true,
+      "suggestMembership": true
+    },
+    "konto olemas, püsimakse": {
+      "FNAME": "Mari",
+      "amount": "300.00",
+      "paymentDate": "12.08.2026",
+      "hasAccount": true
+    },
+    "kontota": {
+      "FNAME": "Mari",
+      "amount": "300.00",
+      "paymentDate": "12.08.2026",
+      "hasAccount": false,
+      "suggestSecondPillar": true
+    }
+  }
+}

@@ -312,6 +312,13 @@ jobs:
     steps:
       - checkout:
           path: ~/project
+      - run:
+          name: Skip if no email changes since last commit
+          command: |
+            if ! git -C ~/project diff --name-only HEAD~1 HEAD | grep -q '^emails/'; then
+              echo "No email changes in HEAD~1..HEAD — skipping publish."
+              circleci-agent step halt
+            fi
       - restore_cache:
           keys:
             - v1-emails-deps-{{ checksum "package-lock.json" }}

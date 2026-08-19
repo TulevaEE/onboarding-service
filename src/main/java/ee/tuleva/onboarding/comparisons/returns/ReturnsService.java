@@ -11,6 +11,7 @@ import ee.tuleva.onboarding.comparisons.returns.provider.ReturnProvider;
 import ee.tuleva.onboarding.deadline.MandateDeadlines;
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -27,6 +28,7 @@ public class ReturnsService {
   private final List<ReturnProvider> returnProviders;
   private final FundValueRepository fundValueRepository;
   private final MandateDeadlinesService mandateDeadlinesService;
+  private final Clock clock;
 
   public Returns get(Person person, LocalDate fromDate, LocalDate endDate, List<String> keys) {
     int pillar = getPillar(keys);
@@ -53,7 +55,12 @@ public class ReturnsService {
 
   public boolean hasMeasurablePeriod(LocalDate fromDate, LocalDate endDate, List<String> keys) {
     Instant revisedStart = getRevisedFromTime(fromDate, keys, getPillar(keys));
-    return !revisedStart.isAfter(toInstant(endDate));
+    return revisedStart.isBefore(lastMeasurableMoment(endDate));
+  }
+
+  private Instant lastMeasurableMoment(LocalDate endDate) {
+    LocalDate today = LocalDate.now(clock);
+    return toInstant(endDate.isBefore(today) ? endDate : today);
   }
 
   private List<Return> filterReturnsBasedOnInputKeys(List<String> keys, List<Return> allReturns) {

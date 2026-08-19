@@ -10,6 +10,7 @@ import ee.tuleva.onboarding.deadline.PublicHolidays
 import ee.tuleva.onboarding.time.TestClockHolder
 import spock.lang.Specification
 
+import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
 
@@ -28,7 +29,7 @@ class ReturnsServiceSpec extends Specification {
   def returnProvider3 = Mock(ReturnProvider)
   def fundValueRepository = Mock(FundValueRepository)
   def mandateDeadlineService = new MandateDeadlinesService(TestClockHolder.clock, new PublicHolidays())
-  def returnsService = new ReturnsService([returnProvider1, returnProvider2, returnProvider3], fundValueRepository, mandateDeadlineService)
+  def returnsService = new ReturnsService([returnProvider1, returnProvider2, returnProvider3], fundValueRepository, mandateDeadlineService, TestClockHolder.clock)
 
   def "can get returns from multiple providers"() {
     given:
@@ -253,10 +254,12 @@ class ReturnsServiceSpec extends Specification {
 
   def "knows whether the second pillar can measure a period at all"() {
     given:
+    def today = Clock.fixed(Instant.parse("2026-08-18T00:00:00Z"), UTC)
+    def service = new ReturnsService([returnProvider1], fundValueRepository, mandateDeadlineService, today)
     fundValueRepository.findEarliestDateForKey(SECOND_PILLAR) >> Optional.empty()
 
     expect:
-    returnsService.hasMeasurablePeriod(LocalDate.parse(from), LocalDate.parse(to), [SECOND_PILLAR]) == measurable
+    service.hasMeasurablePeriod(LocalDate.parse(from), LocalDate.parse(to), [SECOND_PILLAR]) == measurable
 
     where:
     from         | to           || measurable
@@ -265,6 +268,8 @@ class ReturnsServiceSpec extends Specification {
     "2026-06-01" | "2026-08-18" || false
     "2026-07-01" | "2026-08-18" || false
     "2026-08-01" | "2026-08-18" || false
+    "2026-05-01" | "2026-12-31" || false // a `to` in the future does not make it measurable
+    "2026-02-01" | "2026-05-01" || false // a start on the last day measures nothing
   }
 
   private def sampleReturns1(LocalDate fromDate) {

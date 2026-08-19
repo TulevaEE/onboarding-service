@@ -210,7 +210,14 @@ class PortfolioServiceTest {
         .willReturn(List.of(fundValue(PILLAR_2, "2025-12-31", "3")));
     given(fundValueRepository.findValuesBetweenDates(eq(PILLAR_3), eq(FROM), eq(TO)))
         .willReturn(List.of(fundValue(PILLAR_3, "2025-12-31", "6")));
-    given(returnsService.hasMeasurablePeriod(any(), any(), any())).willReturn(true);
+    given(
+            returnsService.hasMeasurablePeriod(
+                FROM, TO, List.of(PersonalReturnProvider.SECOND_PILLAR)))
+        .willReturn(true);
+    given(
+            returnsService.hasMeasurablePeriod(
+                FROM, TO, List.of(PersonalReturnProvider.THIRD_PILLAR)))
+        .willReturn(true);
     given(returnsService.get(person, FROM, TO, List.of(PersonalReturnProvider.SECOND_PILLAR)))
         .willReturn(personalReturn(PersonalReturnProvider.SECOND_PILLAR, "0.0712"));
     given(returnsService.get(person, FROM, TO, List.of(PersonalReturnProvider.THIRD_PILLAR)))

@@ -20,7 +20,9 @@ async function mandrill(method, payload) {
   });
   const body = await response.json();
   if (!response.ok || body.status === 'error') {
-    throw new Error(`${method} failed for ${payload.name ?? ''}: ${JSON.stringify(body)}`);
+    const error = new Error(`${method} failed for ${payload.name ?? ''}: ${JSON.stringify(body)}`);
+    error.mandrillName = body.name;
+    throw error;
   }
   return body;
 }
@@ -28,9 +30,34 @@ async function mandrill(method, payload) {
 let changed = 0;
 for (const [name, meta] of Object.entries(manifest.templates)) {
   const code = readFileSync(join(root, 'dist', `${name}.html`), 'utf8');
-  const live = await mandrill('info', { name });
-  const liveCode = live.publish_code ?? live.code ?? '';
+  let live;
+  try {
+    live = await mandrill('info', { name });
+  } catch (error) {
+    if (error.mandrillName !== 'Unknown_Template') {
+      throw error;
+    }
+  }
 
+  if (live === undefined) {
+    changed++;
+    if (dryRun) {
+      console.log(`would create: ${name}`);
+      continue;
+    }
+    await mandrill('add', {
+      name,
+      code,
+      subject: meta.subject,
+      from_email: meta.from_email,
+      from_name: meta.from_name,
+      publish: true,
+    });
+    console.log(`created: ${name}`);
+    continue;
+  }
+
+  const liveCode = live.publish_code ?? live.code ?? '';
   if (liveCode === code && live.publish_subject === meta.subject) {
     console.log(`unchanged: ${name}`);
     continue;

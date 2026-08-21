@@ -15,8 +15,6 @@ import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import ee.tuleva.onboarding.aml.AmlCheck;
-import ee.tuleva.onboarding.aml.AmlCheckType;
 import ee.tuleva.onboarding.aml.AmlService;
 import ee.tuleva.onboarding.aml.risklevel.RiskLevelService;
 import ee.tuleva.onboarding.country.Countries;
@@ -27,7 +25,6 @@ import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus;
 import ee.tuleva.onboarding.user.UserService;
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -62,12 +59,6 @@ class RedemptionVerificationServiceTest {
             .build();
     var user = sampleUser().id(userId).build();
     var countries = Countries.of("EE");
-    var passing =
-        AmlCheck.builder()
-            .personalCode(user.getPersonalCode())
-            .type(AmlCheckType.SANCTION)
-            .success(true)
-            .build();
 
     given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
     given(kycCountryService.getCountries(userId)).willReturn(Optional.of(countries));
@@ -92,13 +83,6 @@ class RedemptionVerificationServiceTest {
             .build();
     var user = sampleUser().id(userId).build();
     var countries = Countries.of("EE");
-
-    var failing =
-        AmlCheck.builder()
-            .personalCode(user.getPersonalCode())
-            .type(AmlCheckType.SANCTION)
-            .success(false)
-            .build();
 
     given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
     given(kycCountryService.getCountries(userId)).willReturn(Optional.of(countries));
@@ -125,12 +109,6 @@ class RedemptionVerificationServiceTest {
             .build();
     var user = sampleUser().id(userId).build();
     var countries = Countries.of("EE");
-    var failing =
-        AmlCheck.builder()
-            .personalCode(user.getPersonalCode())
-            .type(AmlCheckType.SANCTION)
-            .success(false)
-            .build();
 
     given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
     given(kycCountryService.getCountries(userId)).willReturn(Optional.of(countries));
@@ -157,12 +135,6 @@ class RedemptionVerificationServiceTest {
             .build();
     var user = sampleUser().id(userId).build();
     var countries = Countries.of("EE");
-    var passing =
-        AmlCheck.builder()
-            .personalCode(user.getPersonalCode())
-            .type(AmlCheckType.SANCTION)
-            .success(true)
-            .build();
 
     given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
     given(kycCountryService.getCountries(userId)).willReturn(Optional.of(countries));
@@ -188,12 +160,6 @@ class RedemptionVerificationServiceTest {
             .build();
     var child = sampleUser().id(2L).personalCode(childCode).build();
     var countries = Countries.of("EE");
-    var passing =
-        AmlCheck.builder()
-            .personalCode(childCode)
-            .type(AmlCheckType.SANCTION)
-            .success(true)
-            .build();
 
     given(userService.findByPersonalCode(childCode)).willReturn(Optional.of(child));
     given(kycCountryService.getCountries(child.getId())).willReturn(Optional.of(countries));

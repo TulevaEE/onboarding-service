@@ -47,7 +47,7 @@ class GuardianKycScreeningListenerTest {
   }
 
   @Test
-  void screensEveryGuardianOfAMinorKycSubject() {
+  void screensEveryGuardianOfAMinorKycSubjectOnTheirOwnCountriesNotTheChildSubjectCountries() {
     User guardian = sampleUserNonMember().personalCode(GUARDIAN).build();
     User otherGuardian = sampleUserNonMember().personalCode(OTHER_GUARDIAN).build();
     given(parentChildLinkService.findGuardianCodes(CHILD))
@@ -58,8 +58,8 @@ class GuardianKycScreeningListenerTest {
     listener.beforeKycChecked(
         new BeforeKycCheckedEvent(new PersonImpl(CHILD, "Mari", "Maasikas"), Countries.of("EE")));
 
-    verify(amlService).addSanctionAndPepCheckIfMissing(guardian, Countries.<String>of());
-    verify(amlService).addSanctionAndPepCheckIfMissing(otherGuardian, Countries.<String>of());
+    verify(amlService).addSanctionAndPepCheckIfMissing(guardian);
+    verify(amlService).addSanctionAndPepCheckIfMissing(otherGuardian);
   }
 
   @Test
@@ -78,6 +78,6 @@ class GuardianKycScreeningListenerTest {
     listener.beforeKycChecked(
         new BeforeKycCheckedEvent(new PersonImpl(CHILD, "Mari", "Maasikas"), Countries.of("EE")));
 
-    verify(amlService, never()).addSanctionAndPepCheckIfMissing(any(), any());
+    verify(amlService, never()).addSanctionAndPepCheckIfMissing(any(User.class));
   }
 }

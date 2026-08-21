@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.LOW;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.NONE;
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 import static java.util.stream.Collectors.toSet;
+import static java.util.stream.Collectors.toUnmodifiableSet;
 
 import ee.tuleva.onboarding.aml.notification.AmlCheckCreatedEvent;
 import ee.tuleva.onboarding.aml.notification.AmlChecksRunEvent;
@@ -21,6 +22,7 @@ import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.kyc.KycCheck;
+import ee.tuleva.onboarding.kyc.KycCountryService;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
@@ -63,6 +65,7 @@ public class AmlService {
   private final JsonMapper jsonMapper;
   private final MeterRegistry meterRegistry;
   private final OperationsNotificationService notificationService;
+  private final KycCountryService kycCountryService;
 
   public void checkUserBeforeLogin(User user, Person person, Boolean isResident) {
     addDocumentCheck(user);
@@ -106,6 +109,17 @@ public class AmlService {
 
   public List<AmlCheck> addSanctionAndPepCheckIfMissing(Person person, Set<Country> countries) {
     return screenForSanctionAndPep(person, countries).checks();
+  }
+
+  public List<AmlCheck> addSanctionAndPepCheckIfMissing(User user) {
+    return addSanctionAndPepCheckIfMissing(user, knownCountries(user));
+  }
+
+  private Set<Country> knownCountries(User user) {
+    return Stream.concat(
+            kycCountryService.getCountries(user.getId()).orElseGet(Set::of).stream(),
+            recordedCitizenships(user).stream())
+        .collect(toUnmodifiableSet());
   }
 
   public Set<Country> recordedCitizenships(Person person) {
@@ -252,7 +266,7 @@ public class AmlService {
         personalCodes.size(),
         customers.size());
 
-    screenBatch(ScreeningBatch.SAVINGS_FUND, customers, customer -> Countries.of());
+    screenBatch(ScreeningBatch.SAVINGS_FUND, customers, this::knownCountries);
   }
 
   private <T extends Person> void screenBatch(

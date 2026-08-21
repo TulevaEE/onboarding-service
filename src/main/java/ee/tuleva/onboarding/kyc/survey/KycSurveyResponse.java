@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.kyc.survey;
 
 import static ee.tuleva.onboarding.kyc.KycSurveyPurpose.PERSONAL_ONBOARDING;
 
+import ee.tuleva.onboarding.country.Countries;
+import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.kyc.KycSurveyPurpose;
 import ee.tuleva.onboarding.kyc.survey.KycSurveyResponseItem.Address;
 import ee.tuleva.onboarding.kyc.survey.KycSurveyResponseItem.AddressDetails;
@@ -21,6 +23,8 @@ import jakarta.validation.constraints.Size;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Stream;
 
 public record KycSurveyResponse(
     @NotNull @Size(min = 1) List<@Valid KycSurveyResponseItem> answers, KycSurveyPurpose purpose)
@@ -32,6 +36,16 @@ public record KycSurveyResponse(
 
   public KycSurveyResponse(List<KycSurveyResponseItem> answers) {
     this(answers, PERSONAL_ONBOARDING);
+  }
+
+  public Set<Country> countries() {
+    String residence =
+        address()
+            .map(AddressDetails::countryCode)
+            .orElseThrow(
+                () -> new IllegalArgumentException("Country code is required in KYC survey"));
+    return Countries.of(
+        Stream.concat(Stream.of(residence), citizenship().orElse(List.of()).stream()).toList());
   }
 
   public Optional<List<String>> citizenship() {

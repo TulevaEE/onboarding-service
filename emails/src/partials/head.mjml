@@ -1,0 +1,20 @@
+<mj-head>
+  <mj-attributes>
+    <mj-all font-family="Roboto, Helvetica Neue, Helvetica, Arial, sans-serif" />
+    <mj-text font-size="16px" line-height="150%" color="#444444" padding="8px 0" />
+    <mj-button
+      padding="10px 0"
+      background-color="#0081EE"
+      border-radius="8px"
+      font-size="16px"
+      font-weight="bold"
+      color="#FFFFFF"
+      inner-padding="12px 24px"
+    />
+    <mj-section background-color="#FFFFFF" padding="0 18px" />
+  </mj-attributes>
+  <mj-style>
+    a { color: #0081EE; }
+    strong { color: #222222; }
+  </mj-style>
+</mj-head>

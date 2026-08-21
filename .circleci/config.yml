@@ -285,6 +285,48 @@ jobs:
             sentry-cli releases finalize $SENTRY_RELEASE
             sentry-cli releases deploys $SENTRY_RELEASE new -e $SENTRY_ENVIRONMENT
 
+  emails-build:
+    executor: node
+    working_directory: ~/project/emails
+    steps:
+      - checkout:
+          path: ~/project
+      - restore_cache:
+          keys:
+            - v1-emails-deps-{{ checksum "package-lock.json" }}
+      - run: npm ci
+      - save_cache:
+          key: v1-emails-deps-{{ checksum "package-lock.json" }}
+          paths:
+            - node_modules
+      - run:
+          name: Verify committed dist matches src
+          command: npm run check
+      - run:
+          name: Template tests
+          command: npm test
+
+  emails-publish:
+    executor: node
+    working_directory: ~/project/emails
+    steps:
+      - checkout:
+          path: ~/project
+      - run:
+          name: Skip if no email changes since last commit
+          command: |
+            if ! git -C ~/project diff --name-only HEAD~1 HEAD | grep -q '^emails/'; then
+              echo "No email changes in HEAD~1..HEAD — skipping publish."
+              circleci-agent step halt
+            fi
+      - restore_cache:
+          keys:
+            - v1-emails-deps-{{ checksum "package-lock.json" }}
+      - run: npm ci
+      - run:
+          name: Publish changed templates to Mandrill
+          command: npm run publish-templates
+
   appscript-test:
     executor: node
     working_directory: ~/project/appscripts/seb-position-uploader
@@ -333,6 +375,16 @@ workflows:
             - codecov
 
       - pii-scan
+
+      - emails-build
+
+      - emails-publish:
+          context: mandrill
+          requires:
+            - emails-build
+          filters:
+            branches:
+              only: master
 
       - snyk-scan:
           context: snyk

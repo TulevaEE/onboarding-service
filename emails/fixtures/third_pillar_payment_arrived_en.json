@@ -1,0 +1,38 @@
+{
+  "variants": {
+    "has account, II pillar elsewhere": {
+      "FNAME": "Mari",
+      "amount": "300.00",
+      "paymentDate": "12.08.2026",
+      "hasAccount": true,
+      "suggestSecondPillar": true
+    },
+    "has account, raise the rate": {
+      "FNAME": "Mari",
+      "amount": "300.00",
+      "paymentDate": "12.08.2026",
+      "hasAccount": true,
+      "suggestPaymentRate": true
+    },
+    "has account, membership": {
+      "FNAME": "Mari",
+      "amount": "300.00",
+      "paymentDate": "12.08.2026",
+      "hasAccount": true,
+      "suggestMembership": true
+    },
+    "has account, recurring": {
+      "FNAME": "Mari",
+      "amount": "300.00",
+      "paymentDate": "12.08.2026",
+      "hasAccount": true
+    },
+    "no account": {
+      "FNAME": "Mari",
+      "amount": "300.00",
+      "paymentDate": "12.08.2026",
+      "hasAccount": false,
+      "suggestSecondPillar": true
+    }
+  }
+}

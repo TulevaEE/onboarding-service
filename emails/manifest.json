@@ -1,0 +1,14 @@
+{
+  "templates": {
+    "third_pillar_payment_arrived_et": {
+      "subject": "Sinu sissemakse on kohal",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "third_pillar_payment_arrived_en": {
+      "subject": "Your payment has arrived",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    }
+  }
+}

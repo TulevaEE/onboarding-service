@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.party;
 
 import ee.tuleva.onboarding.aml.AmlService;
-import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.kyc.BeforeKycCheckedEvent;
 import ee.tuleva.onboarding.user.UserService;
 import ee.tuleva.onboarding.user.personalcode.PersonalCode;
@@ -41,7 +40,7 @@ class GuardianKycScreeningListener {
     userService
         .findByPersonalCode(guardianPersonalCode)
         .ifPresentOrElse(
-            guardian -> amlService.addSanctionAndPepCheckIfMissing(guardian, Countries.of()),
+            amlService::addSanctionAndPepCheckIfMissing,
             () ->
                 log.warn(
                     "Guardian has no user account, skipping sanction/PEP screening: guardianCode={}, childCode={}",

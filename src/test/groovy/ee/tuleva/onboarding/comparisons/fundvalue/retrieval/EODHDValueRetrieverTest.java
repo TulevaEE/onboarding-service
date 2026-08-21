@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 import static java.math.BigDecimal.ZERO;
 import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
@@ -66,9 +67,8 @@ class EODHDValueRetrieverTest {
                 server
                     .expect(
                         requestTo(
-                            "https://eodhd.com/api/eod/"
-                                + expectedApiTicker(ticker)
-                                + "?api_token=test-token&fmt=json&from=2024-01-02&to=2024-01-02"))
+                            expectedUri(
+                                ticker, LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 2))))
                     .andRespond(withSuccess(mockResponse, MediaType.APPLICATION_JSON)));
 
     server
@@ -103,9 +103,8 @@ class EODHDValueRetrieverTest {
                 server
                     .expect(
                         requestTo(
-                            "https://eodhd.com/api/eod/"
-                                + expectedApiTicker(ticker)
-                                + "?api_token=test-token&fmt=json&from=2024-01-02&to=2024-01-04"))
+                            expectedUri(
+                                ticker, LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4))))
                     .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON)));
 
     server
@@ -148,9 +147,8 @@ class EODHDValueRetrieverTest {
                 server
                     .expect(
                         requestTo(
-                            "https://eodhd.com/api/eod/"
-                                + expectedApiTicker(ticker)
-                                + "?api_token=test-token&fmt=json&from=2024-01-02&to=2024-01-04"))
+                            expectedUri(
+                                ticker, LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4))))
                     .andRespond(withSuccess(mockResponse, MediaType.APPLICATION_JSON)));
 
     server
@@ -186,9 +184,8 @@ class EODHDValueRetrieverTest {
                 server
                     .expect(
                         requestTo(
-                            "https://eodhd.com/api/eod/"
-                                + expectedApiTicker(ticker)
-                                + "?api_token=test-token&fmt=json&from=2024-01-02&to=2024-01-04"))
+                            expectedUri(
+                                ticker, LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4))))
                     .andRespond(withSuccess(mockResponseWithZeros, MediaType.APPLICATION_JSON)));
 
     server
@@ -218,10 +215,7 @@ class EODHDValueRetrieverTest {
     var firstTicker = FundTicker.getEodhdTickers().getFirst();
     server
         .expect(
-            requestTo(
-                "https://eodhd.com/api/eod/"
-                    + expectedApiTicker(firstTicker)
-                    + "?api_token=test-token&fmt=json&from=2024-01-02&to=2024-01-02"))
+            requestTo(expectedUri(firstTicker, LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 2))))
         .andRespond(withSuccess(mockResponse, MediaType.APPLICATION_JSON));
 
     FundTicker.getEodhdTickers().stream()
@@ -231,9 +225,8 @@ class EODHDValueRetrieverTest {
                 server
                     .expect(
                         requestTo(
-                            "https://eodhd.com/api/eod/"
-                                + expectedApiTicker(ticker)
-                                + "?api_token=test-token&fmt=json&from=2024-01-02&to=2024-01-02"))
+                            expectedUri(
+                                ticker, LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 2))))
                     .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON)));
 
     server
@@ -261,9 +254,8 @@ class EODHDValueRetrieverTest {
                 server
                     .expect(
                         requestTo(
-                            "https://eodhd.com/api/eod/"
-                                + expectedApiTicker(ticker)
-                                + "?api_token=test-token&fmt=json&from=2024-01-02&to=2024-01-04"))
+                            expectedUri(
+                                ticker, LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4))))
                     .andRespond(withServerError()));
 
     server
@@ -298,9 +290,8 @@ class EODHDValueRetrieverTest {
                 server
                     .expect(
                         requestTo(
-                            "https://eodhd.com/api/eod/"
-                                + expectedApiTicker(ticker)
-                                + "?api_token=test-token&fmt=json&from=2024-01-02&to=2024-01-04"))
+                            expectedUri(
+                                ticker, LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4))))
                     .andRespond(withSuccess(mockResponse, MediaType.APPLICATION_JSON)));
 
     server
@@ -319,6 +310,130 @@ class EODHDValueRetrieverTest {
         .anyMatch(fundValue -> fundValue.date().equals(LocalDate.of(2024, 1, 2)))
         .anyMatch(fundValue -> fundValue.date().equals(LocalDate.of(2024, 1, 3)))
         .noneMatch(fundValue -> fundValue.date().equals(LocalDate.of(2024, 1, 4)));
+  }
+
+  @Test
+  void dropsCarriedForwardClosesForEuronextParisTickers() {
+    // 2026-08-20 12:00 UTC = 14:00 CET, so the cutoff is 2026-08-19
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2026-08-20T12:00:00Z"), UTC));
+
+    var mockResponse =
+        """
+        [
+          {"date": "2026-08-17", "open": 5.073, "high": 5.073, "low": 5.06, "close": 5.06, "adjusted_close": 5.063, "volume": 1035},
+          {"date": "2026-08-18", "open": 5.027, "high": 5.027, "low": 5.02, "close": 5.02, "adjusted_close": 5.007, "volume": 1042},
+          {"date": "2026-08-19", "open": 5.007, "high": 5.007, "low": 5.007, "close": 5.007, "adjusted_close": 5.007, "volume": 1049}
+        ]
+        """;
+
+    expectRequests(
+        "USAS.PA.EODHD", mockResponse, LocalDate.of(2026, 8, 19), LocalDate.of(2026, 8, 19));
+
+    var result =
+        retriever.retrieveValuesForRange(LocalDate.of(2026, 8, 19), LocalDate.of(2026, 8, 19));
+
+    assertThat(result).noneMatch(fv -> fv.key().equals("USAS.PA.EODHD"));
+  }
+
+  @Test
+  void keepsChangedClosesForEuronextParisTickers() {
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2026-08-20T12:00:00Z"), UTC));
+
+    var mockResponse =
+        """
+        [
+          {"date": "2026-08-17", "open": 5.073, "high": 5.073, "low": 5.06, "close": 5.06, "adjusted_close": 5.063, "volume": 1035},
+          {"date": "2026-08-18", "open": 5.027, "high": 5.027, "low": 5.02, "close": 5.02, "adjusted_close": 5.007, "volume": 1042},
+          {"date": "2026-08-19", "open": 4.9975, "high": 5.00, "low": 4.9975, "close": 5.00, "adjusted_close": 4.993, "volume": 1049}
+        ]
+        """;
+
+    expectRequests(
+        "USAS.PA.EODHD", mockResponse, LocalDate.of(2026, 8, 19), LocalDate.of(2026, 8, 19));
+
+    var result =
+        retriever.retrieveValuesForRange(LocalDate.of(2026, 8, 19), LocalDate.of(2026, 8, 19));
+
+    var parisValues = result.stream().filter(fv -> fv.key().equals("USAS.PA.EODHD")).toList();
+    assertThat(parisValues)
+        .extracting(FundValue::date, FundValue::value)
+        .containsExactly(tuple(LocalDate.of(2026, 8, 19), new BigDecimal("4.993")));
+  }
+
+  @Test
+  void dropsConsecutiveCarriedForwardClosesForEuronextParisTickers() {
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2026-08-20T12:00:00Z"), UTC));
+
+    var mockResponse =
+        """
+        [
+          {"date": "2026-08-17", "open": 48.875, "high": 48.875, "low": 48.875, "close": 48.875, "adjusted_close": 48.875, "volume": 28},
+          {"date": "2026-08-18", "open": 48.875, "high": 48.875, "low": 48.875, "close": 48.875, "adjusted_close": 48.875, "volume": 29},
+          {"date": "2026-08-19", "open": 48.875, "high": 48.875, "low": 48.875, "close": 48.875, "adjusted_close": 48.875, "volume": 2660}
+        ]
+        """;
+
+    expectRequests(
+        "GAGH.PA.EODHD", mockResponse, LocalDate.of(2026, 8, 18), LocalDate.of(2026, 8, 19));
+
+    var result =
+        retriever.retrieveValuesForRange(LocalDate.of(2026, 8, 18), LocalDate.of(2026, 8, 19));
+
+    assertThat(result).noneMatch(fv -> fv.key().equals("GAGH.PA.EODHD"));
+  }
+
+  @Test
+  void keepsRepeatedClosesForNonParisTickers() {
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2026-08-20T12:00:00Z"), UTC));
+
+    var mockResponse =
+        """
+        [
+          {"date": "2026-08-18", "open": 13.85, "high": 13.85, "low": 13.84, "close": 13.844, "adjusted_close": 13.844, "volume": 280524},
+          {"date": "2026-08-19", "open": 13.84, "high": 13.85, "low": 13.84, "close": 13.844, "adjusted_close": 13.844, "volume": 309691}
+        ]
+        """;
+
+    expectRequests(
+        "SGAS.XETRA", mockResponse, LocalDate.of(2026, 8, 18), LocalDate.of(2026, 8, 19));
+
+    var result =
+        retriever.retrieveValuesForRange(LocalDate.of(2026, 8, 18), LocalDate.of(2026, 8, 19));
+
+    var xetraValues = result.stream().filter(fv -> fv.key().equals("SGAS.XETRA")).toList();
+    assertThat(xetraValues)
+        .extracting(FundValue::date)
+        .containsExactly(LocalDate.of(2026, 8, 18), LocalDate.of(2026, 8, 19));
+  }
+
+  private void expectRequests(
+      String targetTicker, String targetResponse, LocalDate startDate, LocalDate endDate) {
+    FundTicker.getEodhdTickers()
+        .forEach(
+            ticker ->
+                server
+                    .expect(requestTo(expectedUri(ticker, startDate, endDate)))
+                    .andRespond(
+                        withSuccess(
+                            ticker.equals(targetTicker) ? targetResponse : "[]",
+                            MediaType.APPLICATION_JSON)));
+
+    server
+        .expect(requestTo(expectedUri("EURUSD.FOREX", startDate, endDate)))
+        .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
+  }
+
+  private String expectedUri(String storageTicker, LocalDate startDate, LocalDate endDate) {
+    return "https://eodhd.com/api/eod/"
+        + expectedApiTicker(storageTicker)
+        + "?api_token=test-token&fmt=json&from="
+        + expectedFromDate(storageTicker, startDate)
+        + "&to="
+        + endDate;
+  }
+
+  private LocalDate expectedFromDate(String storageTicker, LocalDate startDate) {
+    return storageTicker.endsWith(".PA.EODHD") ? startDate.minusDays(7) : startDate;
   }
 
   private String expectedApiTicker(String storageTicker) {

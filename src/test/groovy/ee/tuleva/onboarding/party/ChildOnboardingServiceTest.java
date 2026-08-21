@@ -232,6 +232,7 @@ class ChildOnboardingServiceTest {
         .addSanctionAndPepCheckIfMissing(
             new PersonImpl(CHILD, "MARI", "MAASIKAS"), Countries.<String>of());
     var expectedEvidence = new LinkedHashMap<String, Object>(evidence);
+    expectedEvidence.put("citizenships", List.of());
     expectedEvidence.put("guardianPersonalCode", PARENT);
     verify(amlService).addCustodyRightCheck(CHILD, true, expectedEvidence);
   }

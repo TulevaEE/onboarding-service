@@ -32,9 +32,7 @@ public record CustodyVerification(
     if (child.citizenship() != null) {
       enriched.put(CITIZENSHIP, child.citizenship());
     }
-    if (!child.citizenships().isEmpty()) {
-      enriched.put(CITIZENSHIPS, child.citizenships());
-    }
+    enriched.put(CITIZENSHIPS, child.citizenships());
     return unmodifiableMap(enriched);
   }
 

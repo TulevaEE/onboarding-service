@@ -12,7 +12,7 @@ import static org.mockito.Mockito.verify;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.role.Role;
 import ee.tuleva.onboarding.auth.role.RoleType;
-import ee.tuleva.onboarding.country.Country;
+import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.kyc.KycCheckService;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
@@ -77,7 +77,7 @@ class KycSurveyServiceTest {
 
     assertThat(saved.getSurvey()).isEqualTo(survey);
     assertThat(saved.getUserId()).isEqualTo(subject.getId());
-    verify(kycCheckService).check(subject, new Country("EE"), survey.purpose());
+    verify(kycCheckService).check(subject, Countries.of("EE"), survey.purpose());
   }
 
   @Test
@@ -116,7 +116,7 @@ class KycSurveyServiceTest {
 
     assertThat(saved.getSurvey()).isEqualTo(survey);
     assertThat(saved.getUserId()).isEqualTo(subject.getId());
-    verify(kycCheckService).check(subject, new Country("EE"), survey.purpose());
+    verify(kycCheckService).check(subject, Countries.of("EE"), survey.purpose());
   }
 
   @Test
@@ -131,51 +131,6 @@ class KycSurveyServiceTest {
     assertThat(identity)
         .isEqualTo(
             new KycIdentityResponse(null, null, "test@example.com", "+37255555555", null, null));
-  }
-
-  @Test
-  void getCountry_returnsCountryFromAddressAnswer() {
-    Long userId = 1L;
-    var addressDetails = new AddressDetails("Street 1", "Tallinn", "12345", "EE");
-    var addressValue = new AddressValue("ADDRESS", addressDetails);
-    var addressItem = new Address(addressValue);
-    var survey = new KycSurveyResponse(List.of(addressItem));
-    var kycSurvey = KycSurvey.builder().userId(userId).survey(survey).build();
-
-    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDesc(userId))
-        .willReturn(Optional.of(kycSurvey));
-
-    Optional<Country> result = kycSurveyService.getCountry(userId);
-
-    assertThat(result).contains(new Country("EE"));
-  }
-
-  @Test
-  void getCountry_returnsEmptyWhenNoSurveyFound() {
-    Long userId = 1L;
-
-    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDesc(userId))
-        .willReturn(Optional.empty());
-
-    Optional<Country> result = kycSurveyService.getCountry(userId);
-
-    assertThat(result).isEmpty();
-  }
-
-  @Test
-  void getCountry_returnsEmptyWhenSurveyHasNoAddressAnswer() {
-    Long userId = 1L;
-    var emailValue = new EmailValue("TEXT", "test@example.com");
-    var emailItem = new Email(emailValue);
-    var survey = new KycSurveyResponse(List.of(emailItem));
-    var kycSurvey = KycSurvey.builder().userId(userId).survey(survey).build();
-
-    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDesc(userId))
-        .willReturn(Optional.of(kycSurvey));
-
-    Optional<Country> result = kycSurveyService.getCountry(userId);
-
-    assertThat(result).isEmpty();
   }
 
   @Test
@@ -427,21 +382,20 @@ class KycSurveyServiceTest {
   }
 
   @Test
-  void getCountry_returnsFirstAddressWhenMultipleAnswersExist() {
-    Long userId = 1L;
-    var emailValue = new EmailValue("TEXT", "test@example.com");
-    var emailItem = new Email(emailValue);
-    var addressDetails = new AddressDetails("Street 1", "Helsinki", "00100", "FI");
-    var addressValue = new AddressValue("ADDRESS", addressDetails);
-    var addressItem = new Address(addressValue);
-    var survey = new KycSurveyResponse(List.of(emailItem, addressItem));
-    var kycSurvey = KycSurvey.builder().userId(userId).survey(survey).build();
+  void submit_screensAgainstEveryDeclaredCitizenshipNotOnlyTheResidence() {
+    var subject = user;
+    var survey =
+        identitySurvey(
+            new Citizenship(new CountriesValue("COUNTRIES", List.of("EE", "RU"))),
+            new Address(
+                new AddressValue(
+                    "ADDRESS", new AddressDetails("Street 1", "Tallinn", "12345", "EE"))));
+    var person = personResolvingTo(subject);
+    given(kycSurveyRepository.saveAndFlush(any(KycSurvey.class)))
+        .willAnswer(invocation -> invocation.getArgument(0));
 
-    given(kycSurveyRepository.findFirstByUserIdOrderByCreatedTimeDesc(userId))
-        .willReturn(Optional.of(kycSurvey));
+    kycSurveyService.submit(person, survey);
 
-    Optional<Country> result = kycSurveyService.getCountry(userId);
-
-    assertThat(result).contains(new Country("FI"));
+    verify(kycCheckService).check(subject, Countries.of("EE", "RU"), survey.purpose());
   }
 }

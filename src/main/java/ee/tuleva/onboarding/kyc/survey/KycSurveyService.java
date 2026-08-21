@@ -1,11 +1,9 @@
 package ee.tuleva.onboarding.kyc.survey;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.kyc.KycCheckService;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,8 +25,7 @@ public class KycSurveyService {
     // explicit flush a first-time submitter's survey is invisible to it.
     KycSurvey saved = kycSurveyRepository.saveAndFlush(survey);
 
-    var country = extractCountry(surveyResponse);
-    kycCheckService.check(subject, country, surveyResponse.purpose());
+    kycCheckService.check(subject, surveyResponse.countries(), surveyResponse.purpose());
 
     return saved;
   }
@@ -43,13 +40,6 @@ public class KycSurveyService {
         .orElseGet(() -> KycIdentityResponse.empty(subject));
   }
 
-  public Optional<Country> getCountry(Long userId) {
-    return kycSurveyRepository
-        .findFirstByUserIdOrderByCreatedTimeDesc(userId)
-        .flatMap(survey -> survey.getSurvey().address())
-        .map(address -> new Country(address.countryCode()));
-  }
-
   private User resolveSubject(AuthenticatedPerson person) {
     String subjectPersonalCode =
         person.isLegalEntity() ? person.getPersonalCode() : person.getRoleCode();
@@ -59,12 +49,5 @@ public class KycSurveyService {
             () ->
                 new IllegalStateException(
                     "KYC subject user not found: personalCode=" + subjectPersonalCode));
-  }
-
-  private Country extractCountry(KycSurveyResponse surveyResponse) {
-    return surveyResponse
-        .address()
-        .map(address -> new Country(address.countryCode()))
-        .orElseThrow(() -> new IllegalArgumentException("Country code is required in KYC survey"));
   }
 }

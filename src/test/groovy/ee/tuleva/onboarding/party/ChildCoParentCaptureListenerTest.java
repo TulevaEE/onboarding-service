@@ -8,7 +8,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.aml.AmlService;
-import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
@@ -47,7 +46,7 @@ class ChildCoParentCaptureListenerTest {
   }
 
   @Test
-  void screensTheCapturedCoParentForSanctionsAndPep() {
+  void screensTheCapturedCoParentOnEveryCountryTheCoParentIsTiedTo() {
     User coParent = sampleUserNonMember().personalCode(CO_PARENT).build();
     given(custodyVerificationService.findGuardiansWithAssetManagement(CHILD, PARENT))
         .willReturn(List.of(CO_PARENT));
@@ -55,7 +54,7 @@ class ChildCoParentCaptureListenerTest {
 
     listener.onChildOnboarded(new ChildOnboardedEvent(PARENT, CHILD, "Mari", "Maasikas"));
 
-    verify(amlService).addSanctionAndPepCheckIfMissing(coParent, new Country(null));
+    verify(amlService).addSanctionAndPepCheckIfMissing(coParent);
   }
 
   @Test
@@ -68,7 +67,7 @@ class ChildCoParentCaptureListenerTest {
 
     verify(parentChildLinkRegistrationService)
         .registerPending(CO_PARENT, CHILD, "Mari", "Maasikas");
-    verify(amlService, never()).addSanctionAndPepCheckIfMissing(any(), any());
+    verify(amlService, never()).addSanctionAndPepCheckIfMissing(any(User.class));
   }
 
   @Test
@@ -77,7 +76,7 @@ class ChildCoParentCaptureListenerTest {
     given(custodyVerificationService.findGuardiansWithAssetManagement(CHILD, PARENT))
         .willReturn(List.of(CO_PARENT));
     given(userService.findByPersonalCode(CO_PARENT)).willReturn(Optional.of(coParent));
-    given(amlService.addSanctionAndPepCheckIfMissing(coParent, new Country(null)))
+    given(amlService.addSanctionAndPepCheckIfMissing(coParent))
         .willThrow(new RuntimeException("screening unavailable"));
 
     listener.onChildOnboarded(new ChildOnboardedEvent(PARENT, CHILD, "Mari", "Maasikas"));

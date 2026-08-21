@@ -5,10 +5,11 @@ import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.kyb.CompanyDto;
 import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import java.time.Duration;
-import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.restclient.RestTemplateBuilder;
@@ -25,6 +26,8 @@ import tools.jackson.databind.node.ArrayNode;
 @Service
 @Profile("!dev")
 public class OpenSanctionsService implements PepAndSanctionCheckService {
+
+  private static final String ESTONIA = "ee";
 
   private final RestTemplate restTemplate;
   private final JsonMapper objectMapper;
@@ -44,14 +47,14 @@ public class OpenSanctionsService implements PepAndSanctionCheckService {
 
   @Override
   @SneakyThrows
-  public MatchResponse match(Person person, Country country) {
+  public MatchResponse match(Person person, Set<Country> countries) {
     var personalCode = person.getPersonalCode();
     var fullName = person.getFullName();
-    var countries = getCountries(country);
+    var countryCodes = getCountryCodes(countries);
     var gender = PersonalCode.getGender(personalCode).name().toLowerCase();
     var birthDate = PersonalCode.getDateOfBirth(personalCode).toString();
     var properties =
-        new PersonProperties(List.of(fullName), List.of(birthDate), countries, List.of(gender));
+        new PersonProperties(List.of(fullName), List.of(birthDate), countryCodes, List.of(gender));
     var personQuery = new PersonQuery(properties);
 
     return executeMatch(personalCode, personQuery);
@@ -62,7 +65,7 @@ public class OpenSanctionsService implements PepAndSanctionCheckService {
   public MatchResponse matchCompany(CompanyDto company) {
     var registryCode = company.registryCode().value();
     var properties =
-        new CompanyProperties(List.of(company.name()), List.of(registryCode), Set.of("ee"));
+        new CompanyProperties(List.of(company.name()), List.of(registryCode), Set.of(ESTONIA));
     var companyQuery = new CompanyQuery(properties);
 
     return executeMatch(registryCode, companyQuery);
@@ -86,13 +89,15 @@ public class OpenSanctionsService implements PepAndSanctionCheckService {
           + "&topics=role.pep&topics=role.rca&topics=sanction"
           + "&facets=countries&facets=topics&facets=datasets&facets=gender";
 
-  private HashSet<String> getCountries(Country country) {
-    var countries = new HashSet<String>();
-    countries.add("ee");
-    if (country != null && country.getCountryCode() != null) {
-      countries.add(country.getCountryCode());
-    }
-    return countries;
+  private Set<String> getCountryCodes(Set<Country> countries) {
+    var codes = new TreeSet<String>();
+    codes.add(ESTONIA);
+    countries.stream()
+        .map(Country::getCountryCode)
+        .filter(code -> code != null && !code.isBlank())
+        .map(code -> code.toLowerCase(Locale.ROOT))
+        .forEach(codes::add);
+    return codes;
   }
 
   private record PersonProperties(

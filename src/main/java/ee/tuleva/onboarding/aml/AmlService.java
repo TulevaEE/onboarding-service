@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.LOW;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.NONE;
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 import static java.util.stream.Collectors.toSet;
+import static java.util.stream.Collectors.toUnmodifiableSet;
 
 import ee.tuleva.onboarding.aml.notification.AmlCheckCreatedEvent;
 import ee.tuleva.onboarding.aml.notification.AmlChecksRunEvent;
@@ -15,20 +16,24 @@ import ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsRecentThirdPillarRepo
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.conversion.UserConversionService;
+import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.kyc.KycCheck;
+import ee.tuleva.onboarding.kyc.KycCountryService;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import io.micrometer.core.instrument.MeterRegistry;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -45,6 +50,11 @@ import tools.jackson.databind.json.JsonMapper;
 @RequiredArgsConstructor
 public class AmlService {
 
+  // The party module records these on its custody checks; screening reads them for parties whose
+  // KYC survey carries no citizenship of its own.
+  private static final String RECORDED_CITIZENSHIP = "citizenship";
+  private static final String RECORDED_CITIZENSHIPS = "citizenships";
+
   private final AmlCheckRepository amlCheckRepository;
   private final ApplicationEventPublisher eventPublisher;
   private final PepAndSanctionCheckService pepAndSanctionCheckService;
@@ -55,6 +65,7 @@ public class AmlService {
   private final JsonMapper jsonMapper;
   private final MeterRegistry meterRegistry;
   private final OperationsNotificationService notificationService;
+  private final KycCountryService kycCountryService;
 
   public void checkUserBeforeLogin(User user, Person person, Boolean isResident) {
     addDocumentCheck(user);
@@ -96,12 +107,43 @@ public class AmlService {
     addCheckIfMissing(skNameCheck);
   }
 
-  public List<AmlCheck> addSanctionAndPepCheckIfMissing(Person person, Country country) {
-    return screenForSanctionAndPep(person, country).checks();
+  public List<AmlCheck> addSanctionAndPepCheckIfMissing(Person person, Set<Country> countries) {
+    return screenForSanctionAndPep(person, countries).checks();
   }
 
-  public boolean isSanctionAndPepClear(Person person, Country country) {
-    if (screenForSanctionAndPep(person, country).failed()) {
+  public List<AmlCheck> addSanctionAndPepCheckIfMissing(User user) {
+    return addSanctionAndPepCheckIfMissing(user, knownCountries(user));
+  }
+
+  private Set<Country> knownCountries(User user) {
+    return Stream.concat(
+            kycCountryService.getCountries(user.getId()).orElseGet(Set::of).stream(),
+            recordedCitizenships(user).stream())
+        .collect(toUnmodifiableSet());
+  }
+
+  public Set<Country> recordedCitizenships(Person person) {
+    return amlCheckRepository
+        .findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
+            person.getPersonalCode(), CUSTODY_RIGHT)
+        .map(AmlCheck::getMetadata)
+        .map(AmlService::citizenshipsFrom)
+        .orElseGet(Set::of);
+  }
+
+  private static Set<Country> citizenshipsFrom(Map<String, Object> metadata) {
+    if (metadata.get(RECORDED_CITIZENSHIPS) instanceof Collection<?> recorded) {
+      return Countries.of(
+          recorded.stream().filter(String.class::isInstance).map(String.class::cast).toList());
+    }
+    if (metadata.get(RECORDED_CITIZENSHIP) instanceof String citizenship) {
+      return Countries.of(citizenship);
+    }
+    return Set.of();
+  }
+
+  public boolean isSanctionAndPepClear(Person person, Set<Country> countries) {
+    if (screenForSanctionAndPep(person, countries).failed()) {
       return false;
     }
     return latestCheckPassed(person, SANCTION)
@@ -117,10 +159,10 @@ public class AmlService {
 
   private record ScreeningResult(List<AmlCheck> checks, boolean failed) {}
 
-  private ScreeningResult screenForSanctionAndPep(Person person, Country country) {
+  private ScreeningResult screenForSanctionAndPep(Person person, Set<Country> countries) {
     MatchResponse response;
     try {
-      response = pepAndSanctionCheckService.match(person, country);
+      response = pepAndSanctionCheckService.match(person, countries);
     } catch (RuntimeException e) {
       handleScreeningFailure(person, "match", e);
       return new ScreeningResult(List.of(), true);
@@ -212,7 +254,7 @@ public class AmlService {
   public void runAmlChecksOnThirdPillarCustomers() {
     List<AnalyticsRecentThirdPillar> records = analyticsRecentThirdPillarRepository.findAll();
     eventPublisher.publishEvent(new AmlChecksRunEvent(this, records));
-    screenBatch(ScreeningBatch.THIRD_PILLAR, records, record -> new Country(record.getCountry()));
+    screenBatch(ScreeningBatch.THIRD_PILLAR, records, record -> Countries.of(record.getCountry()));
   }
 
   public void runAmlChecksOnSavingsFundCustomers() {
@@ -224,18 +266,18 @@ public class AmlService {
         personalCodes.size(),
         customers.size());
 
-    screenBatch(ScreeningBatch.SAVINGS_FUND, customers, customer -> new Country(null));
+    screenBatch(ScreeningBatch.SAVINGS_FUND, customers, this::knownCountries);
   }
 
   private <T extends Person> void screenBatch(
-      ScreeningBatch batch, List<T> people, Function<T, Country> countryOf) {
+      ScreeningBatch batch, List<T> people, Function<T, Set<Country>> countriesOf) {
     log.info(
         "Running AML screening batch: population={}, people={}", batch.population, people.size());
 
     int failureCount = 0;
     for (T person : people) {
       try {
-        if (screenForSanctionAndPep(person, countryOf.apply(person)).failed()) {
+        if (screenForSanctionAndPep(person, countriesOf.apply(person)).failed()) {
           failureCount++;
         }
       } catch (RuntimeException e) {

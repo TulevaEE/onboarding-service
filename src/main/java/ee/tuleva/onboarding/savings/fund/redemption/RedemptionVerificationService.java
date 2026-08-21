@@ -10,11 +10,13 @@ import ee.tuleva.onboarding.aml.AmlService;
 import ee.tuleva.onboarding.aml.risklevel.RiskLevelService;
 import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.kyb.LegalEntityScreener;
-import ee.tuleva.onboarding.kyc.survey.KycSurveyService;
+import ee.tuleva.onboarding.kyc.KycCountryService;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
+import java.util.HashSet;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,7 +29,7 @@ public class RedemptionVerificationService {
 
   private final RedemptionStatusService redemptionStatusService;
   private final UserService userService;
-  private final KycSurveyService kycSurveyService;
+  private final KycCountryService kycCountryService;
   private final AmlService amlService;
   private final RiskLevelService riskLevelService;
   private final SavingsFundOnboardingRepository savingsFundOnboardingRepository;
@@ -78,15 +80,18 @@ public class RedemptionVerificationService {
                 () ->
                     new IllegalStateException(
                         "Redemption party user not found: party=" + request.getPartyId()));
-    Country country =
-        kycSurveyService
-            .getCountry(user.getId())
+    Set<Country> countries =
+        kycCountryService
+            .getCountries(user.getId())
             .orElseThrow(
                 () ->
                     new IllegalStateException(
                         "KYC survey with country not found: userId=" + user.getId()));
 
-    boolean screeningClear = amlService.isSanctionAndPepClear(user, country);
+    Set<Country> allCountries = new HashSet<>(countries);
+    allCountries.addAll(amlService.recordedCitizenships(user));
+
+    boolean screeningClear = amlService.isSanctionAndPepClear(user, allCountries);
     boolean highRisk = riskLevelService.isHighRisk(user.getPersonalCode());
     if (highRisk) {
       log.info(

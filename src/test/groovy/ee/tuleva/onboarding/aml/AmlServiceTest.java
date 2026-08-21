@@ -10,6 +10,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
@@ -25,10 +26,12 @@ import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.conversion.UserConversionService;
+import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.kyc.KycCheck;
+import ee.tuleva.onboarding.kyc.KycCountryService;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
@@ -44,6 +47,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -80,6 +84,7 @@ class AmlServiceTest {
   @Spy private JsonMapper jsonMapper = JsonMapper.builder().build();
   @Spy private MeterRegistry meterRegistry = new SimpleMeterRegistry();
   @Mock private OperationsNotificationService notificationService;
+  @Mock private KycCountryService kycCountryService;
 
   @InjectMocks private AmlService amlService;
 
@@ -586,7 +591,7 @@ class AmlServiceTest {
   void addSanctionAndPepCheckIfMissing_addsChecks() {
     // given
     User user = createUser("123", "First", "Last", 1L);
-    Country country = new Country("EE");
+    Set<Country> country = Countries.of("EE");
     ArrayNode results = objectMapper.createArrayNode();
     ObjectNode result1 = objectMapper.createObjectNode();
     result1.put("id", "res123");
@@ -640,7 +645,7 @@ class AmlServiceTest {
   void addSanctionAndPepCheckIfMissing_considersOverrides() {
     // given
     User user = createUser("123", "First", "Last", 1L);
-    Country country = new Country("EE");
+    Set<Country> country = Countries.of("EE");
 
     ArrayNode resultsArray = objectMapper.createArrayNode();
     ObjectNode resultNode = JsonNodeFactory.instance.objectNode();
@@ -696,7 +701,7 @@ class AmlServiceTest {
   void blanketOverrideWithoutResultsMetadata_appliesToAllMatches() {
     // given
     User user = createUser("123", "First", "Last", 1L);
-    Country country = new Country("EE");
+    Set<Country> country = Countries.of("EE");
 
     ArrayNode resultsArray = objectMapper.createArrayNode();
     ObjectNode resultNode = JsonNodeFactory.instance.objectNode();
@@ -746,7 +751,7 @@ class AmlServiceTest {
   @Test
   void overrideWithObjectShapedResultsMetadata_doesNotCrashAndAppliesOverride() {
     User user = createUser("123", "First", "Last", 1L);
-    Country country = new Country("EE");
+    Set<Country> country = Countries.of("EE");
 
     ArrayNode resultsArray = objectMapper.createArrayNode();
     ObjectNode resultNode = JsonNodeFactory.instance.objectNode();
@@ -790,7 +795,7 @@ class AmlServiceTest {
   @Test
   void overrideWithNonMatchingResults_doesNotApplyAndCheckFails() {
     User user = createUser("123", "First", "Last", 1L);
-    Country country = new Country("EE");
+    Set<Country> country = Countries.of("EE");
 
     ArrayNode resultsArray = objectMapper.createArrayNode();
     ObjectNode resultNode = JsonNodeFactory.instance.objectNode();
@@ -835,7 +840,7 @@ class AmlServiceTest {
   void addSanctionAndPepCheckIfMissing_handlesMatchServiceException() {
     // given
     User user = createUser("123", "First", "Last", 1L);
-    Country country = new Country("EE");
+    Set<Country> country = Countries.of("EE");
     when(pepAndSanctionCheckService.match(user, country))
         .thenThrow(new RuntimeException("Match service error"));
 
@@ -851,7 +856,7 @@ class AmlServiceTest {
   void addSanctionAndPepCheckIfMissing_screeningFailureIsObservable() {
     // given
     User user = createUser("38001010000", "First", "Last", 1L);
-    Country country = new Country("EE");
+    Set<Country> country = Countries.of("EE");
     when(pepAndSanctionCheckService.match(user, country))
         .thenThrow(new RuntimeException("Match service error"));
 
@@ -877,11 +882,10 @@ class AmlServiceTest {
 
     MatchResponse emptyMatchResponse =
         new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode());
-    when(pepAndSanctionCheckService.match(eq(ok), any(Country.class)))
-        .thenReturn(emptyMatchResponse);
-    when(pepAndSanctionCheckService.match(eq(fail1), any(Country.class)))
+    when(pepAndSanctionCheckService.match(eq(ok), anySet())).thenReturn(emptyMatchResponse);
+    when(pepAndSanctionCheckService.match(eq(fail1), anySet()))
         .thenThrow(new RuntimeException("Match service error"));
-    when(pepAndSanctionCheckService.match(eq(fail2), any(Country.class)))
+    when(pepAndSanctionCheckService.match(eq(fail2), anySet()))
         .thenThrow(new RuntimeException("Match service error"));
     when(amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
             anyString(), any(AmlCheckType.class), any(Instant.class)))
@@ -908,7 +912,7 @@ class AmlServiceTest {
     AnalyticsRecentThirdPillar c1 = thirdPillarRecord("c1", "EE");
     AnalyticsRecentThirdPillar c2 = thirdPillarRecord("c2", "EE");
     when(analyticsRecentThirdPillarRepository.findAll()).thenReturn(List.of(c1, c2));
-    when(pepAndSanctionCheckService.match(any(Person.class), any(Country.class)))
+    when(pepAndSanctionCheckService.match(any(Person.class), anySet()))
         .thenThrow(new RuntimeException("Match service error"));
     doThrow(new RuntimeException("Slack is down"))
         .when(notificationService)
@@ -946,8 +950,7 @@ class AmlServiceTest {
 
     MatchResponse emptyMatchResponse =
         new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode());
-    when(pepAndSanctionCheckService.match(eq(record1), any(Country.class)))
-        .thenReturn(emptyMatchResponse);
+    when(pepAndSanctionCheckService.match(eq(record1), anySet())).thenReturn(emptyMatchResponse);
     when(amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
             anyString(), any(AmlCheckType.class), any(Instant.class)))
         .thenReturn(false);
@@ -965,7 +968,7 @@ class AmlServiceTest {
     // then
     verify(eventPublisher).publishEvent(any(AmlChecksRunEvent.class));
 
-    verify(pepAndSanctionCheckService).match(record1, new Country("EE"));
+    verify(pepAndSanctionCheckService).match(record1, Countries.of("EE"));
     verify(amlCheckRepository, times(2)).save(any(AmlCheck.class));
     verify(eventPublisher, times(2)).publishEvent(any(AmlCheckCreatedEvent.class));
   }
@@ -1009,15 +1012,14 @@ class AmlServiceTest {
   @Test
   void screening_recordsNewlyFailingResultDespiteARecentPassingCheck() {
     User user = createUser("38812121215", "Test", "User", 1L);
-    when(pepAndSanctionCheckService.match(eq(user), any(Country.class)))
-        .thenReturn(sanctionAndPepMatch());
+    when(pepAndSanctionCheckService.match(eq(user), anySet())).thenReturn(sanctionAndPepMatch());
     when(amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
             anyString(), any(AmlCheckType.class), any(Instant.class)))
         .thenReturn(true);
     latestCheckIs(SANCTION, true);
     latestCheckIs(POLITICALLY_EXPOSED_PERSON_AUTO, true);
 
-    amlService.addSanctionAndPepCheckIfMissing(user, new Country("EE"));
+    amlService.addSanctionAndPepCheckIfMissing(user, Countries.of("EE"));
 
     verify(amlCheckRepository, times(2)).save(amlCheckCaptor.capture());
     assertThat(amlCheckCaptor.getAllValues())
@@ -1029,7 +1031,7 @@ class AmlServiceTest {
   @Test
   void screening_recordsRecoveryWhenAPreviouslyFailingPersonNoLongerMatches() {
     User user = createUser("38812121215", "Test", "User", 1L);
-    when(pepAndSanctionCheckService.match(eq(user), any(Country.class)))
+    when(pepAndSanctionCheckService.match(eq(user), anySet()))
         .thenReturn(
             new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode()));
     when(amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
@@ -1038,7 +1040,7 @@ class AmlServiceTest {
     latestCheckIs(SANCTION, false);
     latestCheckIs(POLITICALLY_EXPOSED_PERSON_AUTO, false);
 
-    amlService.addSanctionAndPepCheckIfMissing(user, new Country("EE"));
+    amlService.addSanctionAndPepCheckIfMissing(user, Countries.of("EE"));
 
     verify(amlCheckRepository, times(2)).save(amlCheckCaptor.capture());
     assertThat(amlCheckCaptor.getAllValues())
@@ -1050,7 +1052,7 @@ class AmlServiceTest {
   @Test
   void screening_doesNotRecordAnUnchangedOutcomeWithinTheWindow() {
     User user = createUser("38812121215", "Test", "User", 1L);
-    when(pepAndSanctionCheckService.match(eq(user), any(Country.class)))
+    when(pepAndSanctionCheckService.match(eq(user), anySet()))
         .thenReturn(
             new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode()));
     when(amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
@@ -1059,7 +1061,7 @@ class AmlServiceTest {
     latestCheckIs(SANCTION, true);
     latestCheckIs(POLITICALLY_EXPOSED_PERSON_AUTO, true);
 
-    amlService.addSanctionAndPepCheckIfMissing(user, new Country("EE"));
+    amlService.addSanctionAndPepCheckIfMissing(user, Countries.of("EE"));
 
     verify(amlCheckRepository, never()).save(any(AmlCheck.class));
   }
@@ -1067,7 +1069,7 @@ class AmlServiceTest {
   @Test
   void screening_recordsAnUnchangedOutcomeOnceTheWindowHasExpired() {
     User user = createUser("38812121215", "Test", "User", 1L);
-    when(pepAndSanctionCheckService.match(eq(user), any(Country.class)))
+    when(pepAndSanctionCheckService.match(eq(user), anySet()))
         .thenReturn(
             new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode()));
     when(amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
@@ -1076,17 +1078,86 @@ class AmlServiceTest {
     latestCheckIs(SANCTION, true);
     latestCheckIs(POLITICALLY_EXPOSED_PERSON_AUTO, true);
 
-    amlService.addSanctionAndPepCheckIfMissing(user, new Country("EE"));
+    amlService.addSanctionAndPepCheckIfMissing(user, Countries.of("EE"));
 
     verify(amlCheckRepository, times(2)).save(any(AmlCheck.class));
   }
 
   private User savingsFundCustomer(String personalCode) {
+    return savingsFundCustomer(personalCode, null);
+  }
+
+  private User savingsFundCustomer(String personalCode, Long id) {
     return User.builder()
+        .id(id)
         .personalCode(personalCode)
         .firstName("First" + personalCode)
         .lastName("Last" + personalCode)
         .build();
+  }
+
+  private void givenRecordedCitizenships(String personalCode, List<String> citizenships) {
+    given(
+            amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
+                personalCode, CUSTODY_RIGHT))
+        .willReturn(
+            Optional.of(
+                AmlCheck.builder()
+                    .personalCode(personalCode)
+                    .type(CUSTODY_RIGHT)
+                    .success(true)
+                    .metadata(Map.of("citizenships", citizenships))
+                    .build()));
+  }
+
+  @Test
+  void runAmlChecksOnSavingsFundCustomers_screensEachCustomerOnEveryCountryTheyAreTiedTo() {
+    User adult = savingsFundCustomer("38888888881", 1L);
+    User child = savingsFundCustomer("61506150006", 2L);
+    given(savingsFundOnboardingRepository.findPersonCodes())
+        .willReturn(List.of(adult.getPersonalCode(), child.getPersonalCode()));
+    given(
+            userRepository.findAllByPersonalCodeIn(
+                List.of(adult.getPersonalCode(), child.getPersonalCode())))
+        .willReturn(List.of(adult, child));
+    given(kycCountryService.getCountries(1L)).willReturn(Optional.of(Countries.of("EE", "RU")));
+    given(kycCountryService.getCountries(2L)).willReturn(Optional.empty());
+    givenRecordedCitizenships(child.getPersonalCode(), List.of("UA"));
+    given(pepAndSanctionCheckService.match(any(Person.class), anySet()))
+        .willReturn(
+            new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode()));
+
+    amlService.runAmlChecksOnSavingsFundCustomers();
+
+    verify(pepAndSanctionCheckService).match(adult, Countries.of("EE", "RU"));
+    verify(pepAndSanctionCheckService).match(child, Countries.of("UA"));
+  }
+
+  @Test
+  void addSanctionAndPepCheckIfMissing_screensOnKycSurveyCountriesAndRecordedCitizenships() {
+    User user = savingsFundCustomer("38812121215", 3L);
+    given(kycCountryService.getCountries(3L)).willReturn(Optional.of(Countries.of("EE", "RU")));
+    givenRecordedCitizenships(user.getPersonalCode(), List.of("UA"));
+    given(pepAndSanctionCheckService.match(any(Person.class), anySet()))
+        .willReturn(
+            new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode()));
+
+    amlService.addSanctionAndPepCheckIfMissing(user);
+
+    verify(pepAndSanctionCheckService).match(user, Countries.of("EE", "RU", "UA"));
+  }
+
+  @Test
+  void addSanctionAndPepCheckIfMissing_screensOnEstoniaOnlyWhenNothingIsKnownAboutTheUser() {
+    User user = savingsFundCustomer("38812121215", 4L);
+    given(kycCountryService.getCountries(4L)).willReturn(Optional.empty());
+    given(pepAndSanctionCheckService.match(any(Person.class), anySet()))
+        .willReturn(
+            new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode()));
+
+    amlService.addSanctionAndPepCheckIfMissing(user);
+
+    verify(pepAndSanctionCheckService).match(user, Countries.<String>of());
   }
 
   @Test
@@ -1098,7 +1169,7 @@ class AmlServiceTest {
     when(userRepository.findAllByPersonalCodeIn(
             List.of(first.getPersonalCode(), second.getPersonalCode())))
         .thenReturn(List.of(first, second));
-    when(pepAndSanctionCheckService.match(any(Person.class), any(Country.class)))
+    when(pepAndSanctionCheckService.match(any(Person.class), anySet()))
         .thenReturn(
             new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode()));
     when(amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
@@ -1107,8 +1178,8 @@ class AmlServiceTest {
 
     amlService.runAmlChecksOnSavingsFundCustomers();
 
-    verify(pepAndSanctionCheckService).match(first, new Country(null));
-    verify(pepAndSanctionCheckService).match(second, new Country(null));
+    verify(pepAndSanctionCheckService).match(first, Countries.<String>of());
+    verify(pepAndSanctionCheckService).match(second, Countries.<String>of());
     verify(notificationService, never()).sendMessage(anyString(), any());
   }
 
@@ -1119,10 +1190,10 @@ class AmlServiceTest {
     when(savingsFundOnboardingRepository.findPersonCodes())
         .thenReturn(List.of(ok.getPersonalCode(), failing.getPersonalCode()));
     when(userRepository.findAllByPersonalCodeIn(any())).thenReturn(List.of(ok, failing));
-    when(pepAndSanctionCheckService.match(eq(ok), any(Country.class)))
+    when(pepAndSanctionCheckService.match(eq(ok), anySet()))
         .thenReturn(
             new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode()));
-    when(pepAndSanctionCheckService.match(eq(failing), any(Country.class)))
+    when(pepAndSanctionCheckService.match(eq(failing), anySet()))
         .thenThrow(new RuntimeException("Match service error"));
     when(amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
             anyString(), any(AmlCheckType.class), any(Instant.class)))
@@ -1142,7 +1213,7 @@ class AmlServiceTest {
     when(savingsFundOnboardingRepository.findPersonCodes())
         .thenReturn(List.of(failing.getPersonalCode()));
     when(userRepository.findAllByPersonalCodeIn(any())).thenReturn(List.of(failing));
-    when(pepAndSanctionCheckService.match(any(Person.class), any(Country.class)))
+    when(pepAndSanctionCheckService.match(any(Person.class), anySet()))
         .thenReturn(
             new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode()));
     when(amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
@@ -1165,7 +1236,7 @@ class AmlServiceTest {
     when(savingsFundOnboardingRepository.findPersonCodes())
         .thenReturn(List.of(failing.getPersonalCode()));
     when(userRepository.findAllByPersonalCodeIn(any())).thenReturn(List.of(failing));
-    when(pepAndSanctionCheckService.match(any(Person.class), any(Country.class)))
+    when(pepAndSanctionCheckService.match(any(Person.class), anySet()))
         .thenThrow(new RuntimeException("Match service error"));
     doThrow(new RuntimeException("Slack down"))
         .when(notificationService)
@@ -1181,14 +1252,14 @@ class AmlServiceTest {
 
     amlService.runAmlChecksOnSavingsFundCustomers();
 
-    verify(pepAndSanctionCheckService, never()).match(any(Person.class), any(Country.class));
+    verify(pepAndSanctionCheckService, never()).match(any(Person.class), anySet());
     verify(notificationService, never()).sendMessage(anyString(), any());
   }
 
   @Test
   void isSanctionAndPepClear_failsClosedWhenScreeningThrows() {
     User user = createUser("123", "First", "Last", 1L);
-    Country country = new Country("EE");
+    Set<Country> country = Countries.of("EE");
     when(pepAndSanctionCheckService.match(user, country))
         .thenThrow(new RuntimeException("screening service down"));
 
@@ -1198,7 +1269,7 @@ class AmlServiceTest {
   @Test
   void isSanctionAndPepClear_trueWhenLatestScreeningChecksPass() {
     User user = createUser("123", "First", "Last", 1L);
-    Country country = new Country("EE");
+    Set<Country> country = Countries.of("EE");
     MatchResponse emptyResponse =
         new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode());
     when(pepAndSanctionCheckService.match(user, country)).thenReturn(emptyResponse);
@@ -1222,7 +1293,7 @@ class AmlServiceTest {
   @Test
   void isSanctionAndPepClear_falseWhenLatestSanctionCheckHasFailed() {
     User user = createUser("123", "First", "Last", 1L);
-    Country country = new Country("EE");
+    Set<Country> country = Countries.of("EE");
     ArrayNode results = objectMapper.createArrayNode();
     ObjectNode result = objectMapper.createObjectNode();
     result.put("id", "sanction123");
@@ -1246,7 +1317,7 @@ class AmlServiceTest {
   @Test
   void isSanctionAndPepClear_falseWhenNoScreeningRecordExists() {
     User user = createUser("123", "First", "Last", 1L);
-    Country country = new Country("EE");
+    Set<Country> country = Countries.of("EE");
     MatchResponse emptyResponse =
         new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode());
     when(pepAndSanctionCheckService.match(user, country)).thenReturn(emptyResponse);
@@ -1255,5 +1326,70 @@ class AmlServiceTest {
         .thenReturn(Optional.empty());
 
     assertFalse(amlService.isSanctionAndPepClear(user, country));
+  }
+
+  @Test
+  void recordedCitizenships_readsEveryCitizenshipFromTheLatestCustodyCheck() {
+    var person = new PersonImpl("61506150006", "Mari", "Maasikas");
+    given(
+            amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
+                person.getPersonalCode(), CUSTODY_RIGHT))
+        .willReturn(
+            Optional.of(
+                AmlCheck.builder()
+                    .personalCode(person.getPersonalCode())
+                    .type(CUSTODY_RIGHT)
+                    .success(true)
+                    .metadata(Map.of("citizenship", "EE", "citizenships", List.of("EE", "RU")))
+                    .build()));
+
+    assertThat(amlService.recordedCitizenships(person)).isEqualTo(Countries.of("EE", "RU"));
+  }
+
+  @Test
+  void recordedCitizenships_fallsBackToTheSingleCitizenshipOlderChecksRecorded() {
+    var person = new PersonImpl("61506150006", "Mari", "Maasikas");
+    given(
+            amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
+                person.getPersonalCode(), CUSTODY_RIGHT))
+        .willReturn(
+            Optional.of(
+                AmlCheck.builder()
+                    .personalCode(person.getPersonalCode())
+                    .type(CUSTODY_RIGHT)
+                    .success(true)
+                    .metadata(Map.of("citizenship", "EE"))
+                    .build()));
+
+    assertThat(amlService.recordedCitizenships(person)).isEqualTo(Countries.of("EE"));
+  }
+
+  @Test
+  void recordedCitizenships_isEmptyWhenTheCustodyCheckRecordedNoCitizenship() {
+    var person = new PersonImpl("61506150006", "Mari", "Maasikas");
+    given(
+            amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
+                person.getPersonalCode(), CUSTODY_RIGHT))
+        .willReturn(
+            Optional.of(
+                AmlCheck.builder()
+                    .personalCode(person.getPersonalCode())
+                    .type(CUSTODY_RIGHT)
+                    .success(false)
+                    .metadata(Map.of("outcome", "NO_CUSTODY"))
+                    .build()));
+
+    assertThat(amlService.recordedCitizenships(person)).isEmpty();
+  }
+
+  @Test
+  void recordedCitizenships_isEmptyWhenThereIsNoCustodyCheck() {
+    var person = new PersonImpl("38812121215", "Jaan", "Tamm");
+    given(
+            amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
+                person.getPersonalCode(), CUSTODY_RIGHT))
+        .willReturn(Optional.empty());
+
+    assertThat(amlService.recordedCitizenships(person)).isEmpty();
   }
 }

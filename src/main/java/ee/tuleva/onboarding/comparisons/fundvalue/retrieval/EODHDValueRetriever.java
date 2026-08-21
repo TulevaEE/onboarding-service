@@ -17,6 +17,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -152,24 +153,32 @@ public class EODHDValueRetriever implements ComparisonIndexRetriever {
     if (current.value().compareTo(previous.value()) != 0) {
       return true;
     }
-    if (euronextConfirmsValue(ticker, current)) {
+    Optional<FundValue> euronextValue = euronextValueOn(ticker, current.date());
+    if (euronextValue.isEmpty()) {
+      log.warn(
+          "Skipping repeated EODHD close, no Euronext value to confirm it yet: ticker={}, date={}, value={}",
+          ticker,
+          current.date(),
+          current.value());
+      return false;
+    }
+    if (euronextValue.get().value().compareTo(current.value()) == 0) {
       return true;
     }
-    log.warn(
-        "Skipping carried-forward EODHD close: ticker={}, date={}, value={}",
+    log.error(
+        "Skipping stale carried-forward EODHD close contradicted by Euronext: ticker={}, date={}, eodhdValue={}, euronextValue={}",
         ticker,
         current.date(),
-        current.value());
+        current.value(),
+        euronextValue.get().value());
     return false;
   }
 
-  private boolean euronextConfirmsValue(String ticker, FundValue fundValue) {
+  private Optional<FundValue> euronextValueOn(String ticker, LocalDate date) {
     return FundTicker.findByEodhdTicker(ticker)
         .flatMap(FundTicker::getEuronextParisStorageKey)
-        .flatMap(storageKey -> fundValueProvider.getLatestValue(storageKey, fundValue.date()))
-        .filter(euronextValue -> euronextValue.date().equals(fundValue.date()))
-        .filter(euronextValue -> euronextValue.value().compareTo(fundValue.value()) == 0)
-        .isPresent();
+        .flatMap(storageKey -> fundValueProvider.getLatestValue(storageKey, date))
+        .filter(euronextValue -> euronextValue.date().equals(date));
   }
 
   private String stripProviderSuffix(String ticker) {

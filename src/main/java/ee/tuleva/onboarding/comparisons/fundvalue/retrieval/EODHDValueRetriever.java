@@ -7,6 +7,7 @@ import static org.springframework.http.MediaType.APPLICATION_JSON;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -41,14 +42,17 @@ public class EODHDValueRetriever implements ComparisonIndexRetriever {
   private final RestClient restClient;
   private final Clock clock;
   private final String apiToken;
+  private final FundValueProvider fundValueProvider;
 
   public EODHDValueRetriever(
       RestClient.Builder restClientBuilder,
       Clock clock,
-      @Value("${eodhd.api-token:}") String apiToken) {
+      @Value("${eodhd.api-token:}") String apiToken,
+      FundValueProvider fundValueProvider) {
     this.restClient = restClientBuilder.build();
     this.clock = clock;
     this.apiToken = apiToken;
+    this.fundValueProvider = fundValueProvider;
   }
 
   @Override
@@ -145,15 +149,27 @@ public class EODHDValueRetriever implements ComparisonIndexRetriever {
   }
 
   private boolean isFreshClose(String ticker, FundValue current, FundValue previous) {
-    boolean carriedForward = current.value().compareTo(previous.value()) == 0;
-    if (carriedForward) {
-      log.warn(
-          "Skipping carried-forward EODHD close: ticker={}, date={}, value={}",
-          ticker,
-          current.date(),
-          current.value());
+    if (current.value().compareTo(previous.value()) != 0) {
+      return true;
     }
-    return !carriedForward;
+    if (euronextConfirmsValue(ticker, current)) {
+      return true;
+    }
+    log.warn(
+        "Skipping carried-forward EODHD close: ticker={}, date={}, value={}",
+        ticker,
+        current.date(),
+        current.value());
+    return false;
+  }
+
+  private boolean euronextConfirmsValue(String ticker, FundValue fundValue) {
+    return FundTicker.findByEodhdTicker(ticker)
+        .flatMap(FundTicker::getEuronextParisStorageKey)
+        .flatMap(storageKey -> fundValueProvider.getLatestValue(storageKey, fundValue.date()))
+        .filter(euronextValue -> euronextValue.date().equals(fundValue.date()))
+        .filter(euronextValue -> euronextValue.value().compareTo(fundValue.value()) == 0)
+        .isPresent();
   }
 
   private String stripProviderSuffix(String ticker) {

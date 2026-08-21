@@ -4,11 +4,13 @@ import static java.math.BigDecimal.ZERO;
 import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
+import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import ee.tuleva.onboarding.time.ClockConfig;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.math.BigDecimal;
@@ -16,6 +18,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +26,7 @@ import org.springframework.boot.restclient.test.autoconfigure.RestClientTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.client.MockRestServiceServer;
 
 @RestClientTest(EODHDValueRetriever.class)
@@ -33,6 +37,8 @@ class EODHDValueRetrieverTest {
   @Autowired EODHDValueRetriever retriever;
 
   @Autowired MockRestServiceServer server;
+
+  @MockitoBean FundValueProvider fundValueProvider;
 
   @AfterEach
   void cleanup() {
@@ -326,6 +332,81 @@ class EODHDValueRetrieverTest {
         ]
         """;
 
+    given(fundValueProvider.getLatestValue("IE000F60HVH9.XPAR", LocalDate.of(2026, 8, 19)))
+        .willReturn(
+            Optional.of(
+                new FundValue(
+                    "IE000F60HVH9.XPAR",
+                    LocalDate.of(2026, 8, 19),
+                    new BigDecimal("4.993"),
+                    "EURONEXT",
+                    null)));
+
+    expectRequests(
+        "USAS.PA.EODHD", mockResponse, LocalDate.of(2026, 8, 19), LocalDate.of(2026, 8, 19));
+
+    var result =
+        retriever.retrieveValuesForRange(LocalDate.of(2026, 8, 19), LocalDate.of(2026, 8, 19));
+
+    assertThat(result).noneMatch(fv -> fv.key().equals("USAS.PA.EODHD"));
+  }
+
+  @Test
+  void keepsRepeatedCloseConfirmedByEuronext() {
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2026-08-20T12:00:00Z"), UTC));
+
+    var mockResponse =
+        """
+        [
+          {"date": "2026-08-18", "open": 5.027, "high": 5.027, "low": 5.02, "close": 5.02, "adjusted_close": 5.007, "volume": 1042},
+          {"date": "2026-08-19", "open": 5.007, "high": 5.007, "low": 5.007, "close": 5.007, "adjusted_close": 5.007, "volume": 1049}
+        ]
+        """;
+
+    given(fundValueProvider.getLatestValue("IE000F60HVH9.XPAR", LocalDate.of(2026, 8, 19)))
+        .willReturn(
+            Optional.of(
+                new FundValue(
+                    "IE000F60HVH9.XPAR",
+                    LocalDate.of(2026, 8, 19),
+                    new BigDecimal("5.007"),
+                    "EURONEXT",
+                    null)));
+
+    expectRequests(
+        "USAS.PA.EODHD", mockResponse, LocalDate.of(2026, 8, 19), LocalDate.of(2026, 8, 19));
+
+    var result =
+        retriever.retrieveValuesForRange(LocalDate.of(2026, 8, 19), LocalDate.of(2026, 8, 19));
+
+    var parisValues = result.stream().filter(fv -> fv.key().equals("USAS.PA.EODHD")).toList();
+    assertThat(parisValues)
+        .extracting(FundValue::date, FundValue::value)
+        .containsExactly(tuple(LocalDate.of(2026, 8, 19), new BigDecimal("5.007")));
+  }
+
+  @Test
+  void dropsRepeatedCloseWhenEuronextHasNoSameDateValue() {
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2026-08-20T12:00:00Z"), UTC));
+
+    var mockResponse =
+        """
+        [
+          {"date": "2026-08-18", "open": 5.027, "high": 5.027, "low": 5.02, "close": 5.02, "adjusted_close": 5.007, "volume": 1042},
+          {"date": "2026-08-19", "open": 5.007, "high": 5.007, "low": 5.007, "close": 5.007, "adjusted_close": 5.007, "volume": 1049}
+        ]
+        """;
+
+    given(fundValueProvider.getLatestValue("IE000F60HVH9.XPAR", LocalDate.of(2026, 8, 19)))
+        .willReturn(
+            Optional.of(
+                new FundValue(
+                    "IE000F60HVH9.XPAR",
+                    LocalDate.of(2026, 8, 18),
+                    new BigDecimal("5.007"),
+                    "EURONEXT",
+                    null)));
+
     expectRequests(
         "USAS.PA.EODHD", mockResponse, LocalDate.of(2026, 8, 19), LocalDate.of(2026, 8, 19));
 
@@ -372,6 +453,25 @@ class EODHDValueRetrieverTest {
           {"date": "2026-08-19", "open": 48.875, "high": 48.875, "low": 48.875, "close": 48.875, "adjusted_close": 48.875, "volume": 2660}
         ]
         """;
+
+    given(fundValueProvider.getLatestValue("LU1708330318.XPAR", LocalDate.of(2026, 8, 18)))
+        .willReturn(
+            Optional.of(
+                new FundValue(
+                    "LU1708330318.XPAR",
+                    LocalDate.of(2026, 8, 18),
+                    new BigDecimal("48.795"),
+                    "EURONEXT",
+                    null)));
+    given(fundValueProvider.getLatestValue("LU1708330318.XPAR", LocalDate.of(2026, 8, 19)))
+        .willReturn(
+            Optional.of(
+                new FundValue(
+                    "LU1708330318.XPAR",
+                    LocalDate.of(2026, 8, 19),
+                    new BigDecimal("48.89"),
+                    "EURONEXT",
+                    null)));
 
     expectRequests(
         "GAGH.PA.EODHD", mockResponse, LocalDate.of(2026, 8, 18), LocalDate.of(2026, 8, 19));

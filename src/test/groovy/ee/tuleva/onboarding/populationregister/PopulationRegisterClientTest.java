@@ -683,6 +683,36 @@ class PopulationRegisterClientTest {
   }
 
   @Test
+  void dropsCitizenshipCodesTheRegisterMapDoesNotKnow() {
+    server
+        .expect(requestTo(ISIKUD_URL))
+        .andRespond(
+            withSuccess(
+                """
+                [
+                  {
+                    "isikukood": "48503150000",
+                    "eesnimi": "MARI",
+                    "perekonnanimi": "MAASIKAS",
+                    "isikuStaatus": { "elemendiKood": "E", "nimetus": "ELUS" },
+                    "pohiKodakondsus": { "riik": { "elemendiKood": "999", "nimetus": "TUNDMATU" } },
+                    "kodakondsused": [
+                      { "riik": { "elemendiKood": "999", "nimetus": "TUNDMATU" } },
+                      { "riik": { "elemendiKood": "643", "nimetus": "VENEMAA" } }
+                    ]
+                  }
+                ]
+                """,
+                APPLICATION_JSON));
+
+    PopulationRegisterPerson person = client.fetchPerson(REQUESTER, PERSONAL_CODE, MAX_AGE).data();
+
+    assertThat(person.citizenship()).isNull();
+    assertThat(person.citizenships()).containsExactly("RU");
+    server.verify();
+  }
+
+  @Test
   void keepsTheMainCitizenshipWhenTheRegisterListsNoValidOnes() {
     server
         .expect(requestTo(ISIKUD_URL))

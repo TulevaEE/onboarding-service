@@ -121,7 +121,7 @@ public class EODHDValueRetriever implements ComparisonIndexRetriever {
 
     List<FundValue> freshValues =
         isEuronextParisTicker(ticker)
-            ? dropCarriedForwardCloses(ticker, nonZeroValues)
+            ? dropCarriedForwardCloses(ticker, nonZeroValues, startDate)
             : nonZeroValues;
 
     return freshValues.stream()
@@ -140,11 +140,15 @@ public class EODHDValueRetriever implements ComparisonIndexRetriever {
     return ticker.endsWith(".PA." + PROVIDER);
   }
 
-  private List<FundValue> dropCarriedForwardCloses(String ticker, List<FundValue> values) {
+  private List<FundValue> dropCarriedForwardCloses(
+      String ticker, List<FundValue> values, LocalDate startDate) {
     List<FundValue> sorted = values.stream().sorted(comparing(FundValue::date)).toList();
     return IntStream.range(0, sorted.size())
         .filter(
-            index -> index == 0 || isFreshClose(ticker, sorted.get(index), sorted.get(index - 1)))
+            index ->
+                index == 0
+                    || sorted.get(index).date().isBefore(startDate)
+                    || isFreshClose(ticker, sorted.get(index), sorted.get(index - 1)))
         .mapToObj(sorted::get)
         .toList();
   }

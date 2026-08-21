@@ -5,6 +5,7 @@ import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
@@ -504,6 +505,33 @@ class EODHDValueRetrieverTest {
     assertThat(xetraValues)
         .extracting(FundValue::date)
         .containsExactly(LocalDate.of(2026, 8, 18), LocalDate.of(2026, 8, 19));
+  }
+
+  @Test
+  void doesNotCheckBaselineRowsBeforeRequestedRange() {
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2026-08-20T12:00:00Z"), UTC));
+
+    var mockResponse =
+        """
+        [
+          {"date": "2026-08-13", "open": 5.085, "high": 5.085, "low": 5.085, "close": 5.085, "adjusted_close": 5.085, "volume": 65429},
+          {"date": "2026-08-14", "open": 5.113, "high": 5.113, "low": 5.113, "close": 5.113, "adjusted_close": 5.085, "volume": 0},
+          {"date": "2026-08-18", "open": 5.05, "high": 5.05, "low": 5.025, "close": 5.025, "adjusted_close": 5.025, "volume": 121},
+          {"date": "2026-08-19", "open": 4.9975, "high": 5.00, "low": 4.9975, "close": 5.00, "adjusted_close": 4.993, "volume": 1049}
+        ]
+        """;
+
+    expectRequests(
+        "USAS.PA.EODHD", mockResponse, LocalDate.of(2026, 8, 19), LocalDate.of(2026, 8, 19));
+
+    var result =
+        retriever.retrieveValuesForRange(LocalDate.of(2026, 8, 19), LocalDate.of(2026, 8, 19));
+
+    var parisValues = result.stream().filter(fv -> fv.key().equals("USAS.PA.EODHD")).toList();
+    assertThat(parisValues)
+        .extracting(FundValue::date, FundValue::value)
+        .containsExactly(tuple(LocalDate.of(2026, 8, 19), new BigDecimal("4.993")));
+    then(fundValueProvider).shouldHaveNoInteractions();
   }
 
   private void expectRequests(

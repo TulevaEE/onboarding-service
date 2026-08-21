@@ -34,7 +34,7 @@ import ee.tuleva.onboarding.aml.AmlCheck;
 import ee.tuleva.onboarding.aml.AmlCheckRepository;
 import ee.tuleva.onboarding.aml.AmlService;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
-import ee.tuleva.onboarding.country.Country;
+import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.party.ChildAmlBackfillResult.ChildResult;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterClient;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterPerson;
@@ -90,7 +90,7 @@ class ChildAmlBackfillServiceTest {
 
   private final PopulationRegisterPerson child =
       new PopulationRegisterPerson(
-          CHILD, "MARI", "MAASIKAS", LocalDate.of(2015, 6, 15), ALIVE, "EE");
+          CHILD, "MARI", "MAASIKAS", LocalDate.of(2015, 6, 15), ALIVE, "EE", List.of("EE"));
 
   private static ParentChildLink link(String parent, String child, RepresentationType type) {
     return ParentChildLink.builder()
@@ -138,10 +138,11 @@ class ChildAmlBackfillServiceTest {
 
     var evidenceWithCitizenship = new LinkedHashMap<String, Object>(evidence);
     evidenceWithCitizenship.put("citizenship", "EE");
+    evidenceWithCitizenship.put("citizenships", List.of("EE"));
     verify(amlService).addCustodyRightCheck(CHILD, true, evidenceWithCitizenship);
     verify(amlService)
         .addSanctionAndPepCheckIfMissing(
-            new PersonImpl(CHILD, "MARI", "MAASIKAS"), new Country("EE"));
+            new PersonImpl(CHILD, "MARI", "MAASIKAS"), Countries.of("EE"));
     assertThat(result.children())
         .containsExactly(new ChildResult(CHILD, BACKFILLED, OK, "EE", SCREENED, true, null));
   }
@@ -183,7 +184,7 @@ class ChildAmlBackfillServiceTest {
 
     verify(amlService)
         .addSanctionAndPepCheckIfMissing(
-            new PersonImpl(CHILD, "MARI", "MAASIKAS"), new Country("EE"));
+            new PersonImpl(CHILD, "MARI", "MAASIKAS"), Countries.of("EE"));
     assertThat(result.children())
         .extracting(ChildResult::outcome, ChildResult::screeningStatus)
         .containsExactly(tuple(BACKFILLED, SCREENED));
@@ -218,7 +219,7 @@ class ChildAmlBackfillServiceTest {
     verify(amlService).addCustodyRightCheck(CHILD, false, evidence);
     verify(amlService)
         .addSanctionAndPepCheckIfMissing(
-            new PersonImpl(CHILD, "MARI", "MAASIKAS"), new Country("EE"));
+            new PersonImpl(CHILD, "MARI", "MAASIKAS"), Countries.of("EE"));
     verify(parentChildLinkRepository, never()).save(any());
     assertThat(result.children())
         .containsExactly(
@@ -268,7 +269,7 @@ class ChildAmlBackfillServiceTest {
     verify(amlService, never()).addCustodyRightCheck(any(), anyBoolean(), any());
     verify(amlService)
         .addSanctionAndPepCheckIfMissing(
-            new PersonImpl(CHILD, "MARI", "MAASIKAS"), new Country("EE"));
+            new PersonImpl(CHILD, "MARI", "MAASIKAS"), Countries.of("EE"));
     verifyNoInteractions(custodyVerificationService);
     assertThat(result.children())
         .containsExactly(new ChildResult(CHILD, GUARDIAN_LINK, null, "EE", SCREENED, false, null));

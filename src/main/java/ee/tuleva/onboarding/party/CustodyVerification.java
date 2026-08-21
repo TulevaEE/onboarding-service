@@ -36,7 +36,6 @@ public record CustodyVerification(
     return unmodifiableMap(enriched);
   }
 
-
   static CustodyVerification notVerified(Outcome outcome, Map<String, Object> evidence) {
     return new CustodyVerification(outcome, null, evidence);
   }

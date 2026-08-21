@@ -360,6 +360,21 @@ class ChildAmlBackfillServiceTest {
   }
 
   @Test
+  void childTheRegisterKnowsNoCitizenshipFor_isNotReverifiedOnEveryRun() {
+    givenLinks(link(PARENT, CHILD, LEGAL_REPRESENTATIVE));
+    given(amlCheckRepository.findAllByPersonalCodeAndType(CHILD, CUSTODY_RIGHT))
+        .willReturn(List.of(custodyCheck(Map.of("outcome", "OK", "citizenships", List.of()))));
+    givenSanctionRowExists(true);
+
+    ChildAmlBackfillResult result = service.backfill(OPS, false);
+
+    assertThat(result.children())
+        .containsExactly(
+            new ChildResult(CHILD, ALREADY_BACKFILLED, null, null, NOT_ATTEMPTED, false, null));
+    verifyNoInteractions(custodyVerificationService, populationRegisterClient, amlService);
+  }
+
+  @Test
   void childRecordedBeforeCitizenshipsWereCaptured_isReverifiedForTheMissingOnes() {
     givenLinks(link(PARENT, CHILD, LEGAL_REPRESENTATIVE));
     given(amlCheckRepository.findAllByPersonalCodeAndType(CHILD, CUSTODY_RIGHT))

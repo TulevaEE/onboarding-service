@@ -17,6 +17,7 @@ import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
@@ -35,6 +36,7 @@ public class EODHDValueRetriever implements ComparisonIndexRetriever {
   private static final List<String> FOREX_TICKERS = List.of("EURUSD.FOREX");
   private static final ZoneId EUROPE_BERLIN = ZoneId.of("Europe/Berlin");
   private static final LocalTime CLOSING_PRICE_FINALIZED_TIME = LocalTime.of(6, 0);
+  private static final int EURONEXT_PARIS_BASELINE_DAYS = 7;
 
   private final RestClient restClient;
   private final Clock clock;
@@ -75,7 +77,7 @@ public class EODHDValueRetriever implements ComparisonIndexRetriever {
   private List<FundValue> retrieveValuesForTicker(
       String ticker, LocalDate startDate, LocalDate endDate) {
     var apiTicker = stripProviderSuffix(ticker);
-    var uri = buildUri(apiTicker, startDate, endDate);
+    var uri = buildUri(apiTicker, fetchStartDate(ticker, startDate), endDate);
 
     EODHDResponse[] response;
     try {
@@ -112,7 +114,46 @@ public class EODHDValueRetriever implements ComparisonIndexRetriever {
     ZonedDateTime nowInCET = ZonedDateTime.now(clock).withZoneSameInstant(EUROPE_BERLIN);
     LocalDate cutoff = latestFinalizedDate(nowInCET);
 
-    return nonZeroValues.stream().filter(fundValue -> !fundValue.date().isAfter(cutoff)).toList();
+    List<FundValue> freshValues =
+        isEuronextParisTicker(ticker)
+            ? dropCarriedForwardCloses(ticker, nonZeroValues)
+            : nonZeroValues;
+
+    return freshValues.stream()
+        .filter(fundValue -> !fundValue.date().isAfter(cutoff))
+        .filter(fundValue -> !fundValue.date().isBefore(startDate))
+        .toList();
+  }
+
+  private LocalDate fetchStartDate(String ticker, LocalDate startDate) {
+    return isEuronextParisTicker(ticker)
+        ? startDate.minusDays(EURONEXT_PARIS_BASELINE_DAYS)
+        : startDate;
+  }
+
+  private boolean isEuronextParisTicker(String ticker) {
+    return ticker.endsWith(".PA." + PROVIDER);
+  }
+
+  private List<FundValue> dropCarriedForwardCloses(String ticker, List<FundValue> values) {
+    List<FundValue> sorted = values.stream().sorted(comparing(FundValue::date)).toList();
+    return IntStream.range(0, sorted.size())
+        .filter(
+            index -> index == 0 || isFreshClose(ticker, sorted.get(index), sorted.get(index - 1)))
+        .mapToObj(sorted::get)
+        .toList();
+  }
+
+  private boolean isFreshClose(String ticker, FundValue current, FundValue previous) {
+    boolean carriedForward = current.value().compareTo(previous.value()) == 0;
+    if (carriedForward) {
+      log.warn(
+          "Skipping carried-forward EODHD close: ticker={}, date={}, value={}",
+          ticker,
+          current.date(),
+          current.value());
+    }
+    return !carriedForward;
   }
 
   private String stripProviderSuffix(String ticker) {

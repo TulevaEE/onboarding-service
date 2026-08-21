@@ -10,7 +10,7 @@ import ee.tuleva.onboarding.aml.AmlService;
 import ee.tuleva.onboarding.aml.risklevel.RiskLevelService;
 import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.kyb.LegalEntityScreener;
-import ee.tuleva.onboarding.kyc.survey.KycSurveyService;
+import ee.tuleva.onboarding.kyc.KycCountryService;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.user.User;
@@ -29,7 +29,7 @@ public class RedemptionVerificationService {
 
   private final RedemptionStatusService redemptionStatusService;
   private final UserService userService;
-  private final KycSurveyService kycSurveyService;
+  private final KycCountryService kycCountryService;
   private final AmlService amlService;
   private final RiskLevelService riskLevelService;
   private final SavingsFundOnboardingRepository savingsFundOnboardingRepository;
@@ -81,7 +81,7 @@ public class RedemptionVerificationService {
                     new IllegalStateException(
                         "Redemption party user not found: party=" + request.getPartyId()));
     Set<Country> countries =
-        kycSurveyService
+        kycCountryService
             .getCountries(user.getId())
             .orElseThrow(
                 () ->

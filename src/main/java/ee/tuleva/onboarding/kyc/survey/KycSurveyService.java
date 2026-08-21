@@ -1,15 +1,9 @@
 package ee.tuleva.onboarding.kyc.survey;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.country.Countries;
-import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.kyc.KycCheckService;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,7 +25,7 @@ public class KycSurveyService {
     // explicit flush a first-time submitter's survey is invisible to it.
     KycSurvey saved = kycSurveyRepository.saveAndFlush(survey);
 
-    kycCheckService.check(subject, extractCountries(surveyResponse), surveyResponse.purpose());
+    kycCheckService.check(subject, surveyResponse.countries(), surveyResponse.purpose());
 
     return saved;
   }
@@ -46,14 +40,6 @@ public class KycSurveyService {
         .orElseGet(() -> KycIdentityResponse.empty(subject));
   }
 
-  public Optional<Set<Country>> getCountries(Long userId) {
-    return kycSurveyRepository
-        .findFirstByUserIdOrderByCreatedTimeDesc(userId)
-        .map(KycSurvey::getSurvey)
-        .filter(survey -> survey.address().isPresent())
-        .map(this::extractCountries);
-  }
-
   private User resolveSubject(AuthenticatedPerson person) {
     String subjectPersonalCode =
         person.isLegalEntity() ? person.getPersonalCode() : person.getRoleCode();
@@ -63,17 +49,5 @@ public class KycSurveyService {
             () ->
                 new IllegalStateException(
                     "KYC subject user not found: personalCode=" + subjectPersonalCode));
-  }
-
-  private Set<Country> extractCountries(KycSurveyResponse surveyResponse) {
-    String residence =
-        surveyResponse
-            .address()
-            .map(KycSurveyResponseItem.AddressDetails::countryCode)
-            .orElseThrow(
-                () -> new IllegalArgumentException("Country code is required in KYC survey"));
-    return Countries.of(
-        Stream.concat(Stream.of(residence), surveyResponse.citizenship().orElse(List.of()).stream())
-            .toList());
   }
 }

@@ -14,7 +14,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.time.TestClockHolder;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -51,6 +50,7 @@ class PortfolioControllerTest {
     LocalDate from = LocalDate.parse("2025-01-01");
     LocalDate to = LocalDate.parse("2025-12-31");
 
+    givenToday("2026-01-01");
     when(portfolioService.getPortfolio(eq(authPerson), eq(from), eq(to)))
         .thenReturn(portfolio(from, to));
 
@@ -75,8 +75,7 @@ class PortfolioControllerTest {
     LocalDate firstHolding = LocalDate.parse("2019-03-05");
     LocalDate to = LocalDate.parse("2020-01-01");
 
-    when(clock.instant()).thenReturn(TestClockHolder.now);
-    when(clock.getZone()).thenReturn(UTC);
+    givenToday("2020-01-01");
     when(portfolioService.getPortfolio(eq(authPerson), eq(null), eq(to)))
         .thenReturn(portfolio(firstHolding, to));
 
@@ -88,6 +87,8 @@ class PortfolioControllerTest {
 
   @Test
   void rejectsAPeriodWhereFromIsAfterTo() throws Exception {
+    givenToday("2026-01-01");
+
     mvc.perform(
             get("/v1/portfolio")
                 .param("from", "2025-12-31")
@@ -96,6 +97,44 @@ class PortfolioControllerTest {
         .andExpect(status().isBadRequest());
 
     verifyNoInteractions(portfolioService);
+  }
+
+  @Test
+  void rejectsAPeriodThatStartsAfterToday() throws Exception {
+    givenToday("2026-01-01");
+
+    mvc.perform(
+            get("/v1/portfolio")
+                .param("from", "2026-01-02")
+                .param("to", "2026-02-01")
+                .with(authentication(authentication)))
+        .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(portfolioService);
+  }
+
+  @Test
+  void acceptsAPeriodThatStartsToday() throws Exception {
+    LocalDate from = LocalDate.parse("2026-01-01");
+    LocalDate to = LocalDate.parse("2026-02-01");
+
+    givenToday("2026-01-01");
+    when(portfolioService.getPortfolio(eq(authPerson), eq(from), eq(to)))
+        .thenReturn(portfolio(from, to));
+
+    mvc.perform(
+            get("/v1/portfolio")
+                .param("from", "2026-01-01")
+                .param("to", "2026-02-01")
+                .with(authentication(authentication)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.from").value("2026-01-01"))
+        .andExpect(jsonPath("$.to").value("2026-02-01"));
+  }
+
+  private void givenToday(String today) {
+    when(clock.instant()).thenReturn(LocalDate.parse(today).atStartOfDay(UTC).toInstant());
+    when(clock.getZone()).thenReturn(UTC);
   }
 
   private static Portfolio portfolio(LocalDate from, LocalDate to) {

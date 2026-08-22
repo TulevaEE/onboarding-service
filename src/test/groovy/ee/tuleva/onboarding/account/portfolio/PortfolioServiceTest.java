@@ -28,8 +28,10 @@ import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundConfiguration;
 import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -49,6 +51,7 @@ class PortfolioServiceTest {
   private static final LocalDate TO = LocalDate.parse("2025-12-31");
   private static final LocalDate FAR_FUTURE = LocalDate.parse("9999-12-31");
   private static final LocalDate FIRST_HOLDING = LocalDate.parse("2019-03-05");
+  private static final LocalDate TODAY = LocalDate.parse("2026-01-02");
 
   @Mock private TransactionService transactionService;
   @Mock private FundRepository fundRepository;
@@ -56,6 +59,8 @@ class PortfolioServiceTest {
   @Mock private ReturnsService returnsService;
   @Mock private FundNavProvider fundNavProvider;
 
+  private final Clock clock =
+      Clock.fixed(TODAY.atStartOfDay(ZoneOffset.UTC).toInstant(), ZoneOffset.UTC);
   private final SavingsFundConfiguration savingsFundConfiguration = new SavingsFundConfiguration();
   private final AuthenticatedPerson person = sampleAuthenticatedPersonNonMember().build();
 
@@ -70,7 +75,8 @@ class PortfolioServiceTest {
             fundValueRepository,
             savingsFundConfiguration,
             returnsService,
-            fundNavProvider);
+            fundNavProvider,
+            clock);
   }
 
   private static Transaction buy(String isin, String time, String units, String nav) {
@@ -117,7 +123,6 @@ class PortfolioServiceTest {
         .willReturn(
             List.of(
                 fundValue(PILLAR_2, "2019-03-05", "2"), fundValue(PILLAR_2, "2025-12-31", "3")));
-    given(returnsService.hasMeasurablePeriod(any(), any(), any())).willReturn(true);
     given(returnsService.get(eq(person), eq(FIRST_HOLDING), eq(TO), any()))
         .willReturn(personalReturn(PersonalReturnProvider.SECOND_PILLAR, "0.0712"));
 
@@ -148,7 +153,6 @@ class PortfolioServiceTest {
         .willReturn(
             List.of(
                 fundValue(PILLAR_2, "2025-01-01", "2"), fundValue(PILLAR_2, "2025-12-31", "3")));
-    given(returnsService.hasMeasurablePeriod(any(), any(), any())).willReturn(true);
     given(returnsService.get(eq(person), eq(FROM), eq(TO), any()))
         .willReturn(personalReturn(PersonalReturnProvider.SECOND_PILLAR, "0.0712"));
 
@@ -210,14 +214,6 @@ class PortfolioServiceTest {
         .willReturn(List.of(fundValue(PILLAR_2, "2025-12-31", "3")));
     given(fundValueRepository.findValuesBetweenDates(eq(PILLAR_3), eq(FROM), eq(TO)))
         .willReturn(List.of(fundValue(PILLAR_3, "2025-12-31", "6")));
-    given(
-            returnsService.hasMeasurablePeriod(
-                FROM, TO, List.of(PersonalReturnProvider.SECOND_PILLAR)))
-        .willReturn(true);
-    given(
-            returnsService.hasMeasurablePeriod(
-                FROM, TO, List.of(PersonalReturnProvider.THIRD_PILLAR)))
-        .willReturn(true);
     given(returnsService.get(person, FROM, TO, List.of(PersonalReturnProvider.SECOND_PILLAR)))
         .willReturn(personalReturn(PersonalReturnProvider.SECOND_PILLAR, "0.0712"));
     given(returnsService.get(person, FROM, TO, List.of(PersonalReturnProvider.THIRD_PILLAR)))
@@ -230,26 +226,6 @@ class PortfolioServiceTest {
         .containsExactly(
             tuple(SECOND_PILLAR, new BigDecimal("0.0712")),
             tuple(THIRD_PILLAR, new BigDecimal("0.0435")));
-  }
-
-  @Test
-  void asksForNoReturnRateWhenThePeriodIsTooShortForThePillarToMeasureIt() {
-    given(transactionService.getTransactions(person))
-        .willReturn(List.of(buy(PILLAR_2, "2025-01-01T10:00:00Z", "200", "2")));
-    given(fundRepository.findAll())
-        .willReturn(List.of(Fund.builder().isin(PILLAR_2).pillar(2).build()));
-    given(fundValueRepository.getLatestValue(any(), any())).willReturn(Optional.empty());
-    given(fundValueRepository.findValuesBetweenDates(eq(PILLAR_2), eq(FROM), eq(TO)))
-        .willReturn(List.of(fundValue(PILLAR_2, "2025-12-31", "3")));
-    given(
-            returnsService.hasMeasurablePeriod(
-                FROM, TO, List.of(PersonalReturnProvider.SECOND_PILLAR)))
-        .willReturn(false);
-
-    Portfolio portfolio = portfolioService.getPortfolio(person, FROM, TO);
-
-    assertThat(portfolio.groups().getFirst().annualReturnRate()).isNull();
-    verify(returnsService, never()).get(any(), any(), any(), any());
   }
 
   @Test
@@ -297,12 +273,53 @@ class PortfolioServiceTest {
         .willReturn(Optional.empty());
     given(fundValueRepository.findValuesBetweenDates(eq(PILLAR_2), eq(FROM), eq(TO)))
         .willReturn(List.of(fundValue(PILLAR_2, "2025-12-31", "3")));
-    given(returnsService.hasMeasurablePeriod(any(), any(), any())).willReturn(true);
     given(returnsService.get(eq(person), eq(FROM), eq(TO), any()))
         .willReturn(personalReturn(PersonalReturnProvider.SECOND_PILLAR, "0.0712"));
 
     Portfolio portfolio = portfolioService.getPortfolio(person, FROM, TO);
 
     assertThat(portfolio.groups().getFirst().endValue()).isEqualByComparingTo("600.00");
+  }
+
+  @Test
+  void withholdsTheReturnRateOfAPeriodThatIsOverBeforeItStarts() {
+    given(transactionService.getTransactions(person))
+        .willReturn(List.of(buy(PILLAR_2, "2025-06-02T10:00:00Z", "200", "2")));
+    given(fundRepository.findAll())
+        .willReturn(List.of(Fund.builder().isin(PILLAR_2).pillar(2).build()));
+    given(fundValueRepository.getLatestValue(PILLAR_2, TODAY.minusDays(1)))
+        .willReturn(Optional.of(fundValue(PILLAR_2, "2026-01-01", "3")));
+    given(fundValueRepository.findValuesBetweenDates(eq(PILLAR_2), eq(TODAY), eq(TODAY)))
+        .willReturn(List.of(fundValue(PILLAR_2, "2026-01-02", "3.05")));
+
+    Portfolio portfolio = portfolioService.getPortfolio(person, TODAY, TODAY);
+
+    Portfolio.GroupSummary secondPillar = portfolio.groups().getFirst();
+    assertThat(secondPillar.group()).isEqualTo(SECOND_PILLAR);
+    assertThat(secondPillar.startValue()).isEqualByComparingTo("600.00");
+    assertThat(secondPillar.endValue()).isEqualByComparingTo("610.00");
+    assertThat(secondPillar.annualReturnRate()).isNull();
+    assertThat(portfolio.series().getFirst().values().get(SECOND_PILLAR))
+        .isEqualByComparingTo("610.00");
+    verify(returnsService, never()).get(any(), any(), any(), any());
+  }
+
+  @Test
+  void withholdsTheReturnRateOfAPeriodThatStartsTodayAndEndsInTheFuture() {
+    LocalDate nextMonth = TODAY.plusMonths(1);
+    given(transactionService.getTransactions(person))
+        .willReturn(List.of(buy(PILLAR_2, "2025-06-02T10:00:00Z", "200", "2")));
+    given(fundRepository.findAll())
+        .willReturn(List.of(Fund.builder().isin(PILLAR_2).pillar(2).build()));
+    given(fundValueRepository.getLatestValue(PILLAR_2, TODAY.minusDays(1)))
+        .willReturn(Optional.of(fundValue(PILLAR_2, "2026-01-01", "3")));
+    given(fundValueRepository.findValuesBetweenDates(eq(PILLAR_2), eq(TODAY), eq(nextMonth)))
+        .willReturn(List.of(fundValue(PILLAR_2, "2026-01-02", "3.05")));
+
+    Portfolio portfolio = portfolioService.getPortfolio(person, TODAY, nextMonth);
+
+    assertThat(portfolio.groups().getFirst().endValue()).isEqualByComparingTo("610.00");
+    assertThat(portfolio.groups().getFirst().annualReturnRate()).isNull();
+    verify(returnsService, never()).get(any(), any(), any(), any());
   }
 }

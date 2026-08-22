@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.comparisons.returns;
 
+import static ee.tuleva.onboarding.comparisons.returns.provider.PersonalReturnProvider.SECOND_PILLAR;
 import static ee.tuleva.onboarding.comparisons.returns.provider.PersonalReturnProvider.THIRD_PILLAR;
 import static java.time.ZoneOffset.UTC;
 
@@ -11,12 +12,12 @@ import ee.tuleva.onboarding.comparisons.returns.provider.ReturnProvider;
 import ee.tuleva.onboarding.deadline.MandateDeadlines;
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
-import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
@@ -25,10 +26,11 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class ReturnsService {
 
+  private static final Set<String> PERSONAL_KEYS = Set.of(SECOND_PILLAR, THIRD_PILLAR);
+
   private final List<ReturnProvider> returnProviders;
   private final FundValueRepository fundValueRepository;
   private final MandateDeadlinesService mandateDeadlinesService;
-  private final Clock clock;
 
   public Returns get(Person person, LocalDate fromDate, LocalDate endDate, List<String> keys) {
     int pillar = getPillar(keys);
@@ -53,16 +55,6 @@ public class ReturnsService {
     return Returns.builder().returns(filterReturnsBasedOnInputKeys(keys, allReturns)).build();
   }
 
-  public boolean hasMeasurablePeriod(LocalDate fromDate, LocalDate endDate, List<String> keys) {
-    Instant revisedStart = getRevisedFromTime(fromDate, keys, getPillar(keys));
-    return revisedStart.isBefore(lastMeasurableMoment(endDate));
-  }
-
-  private Instant lastMeasurableMoment(LocalDate endDate) {
-    LocalDate today = LocalDate.now(clock);
-    return toInstant(endDate.isBefore(today) ? endDate : today);
-  }
-
   private List<Return> filterReturnsBasedOnInputKeys(List<String> keys, List<Return> allReturns) {
     if (keys != null && !keys.isEmpty()) {
       allReturns.removeIf(returnObj -> !keys.contains(returnObj.getKey()));
@@ -82,6 +74,11 @@ public class ReturnsService {
 
   Instant getRevisedFromTime(LocalDate fromDate, List<String> keys, int pillar) {
     boolean hasKeys = keys != null && !keys.isEmpty();
+
+    if (hasKeys && PERSONAL_KEYS.containsAll(keys)) {
+      return toInstant(fromDate);
+    }
+
     LocalDate latestCommonStartDate = latestCommonStartDate(keys, fromDate);
 
     if (pillar == 3) {

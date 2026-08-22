@@ -17,6 +17,7 @@ import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundConfiguration;
 import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.List;
@@ -45,6 +46,7 @@ public class PortfolioService {
   private final SavingsFundConfiguration savingsFundConfiguration;
   private final ReturnsService returnsService;
   private final FundNavProvider fundNavProvider;
+  private final Clock clock;
 
   public Portfolio getPortfolio(
       AuthenticatedPerson person, @Nullable LocalDate from, LocalDate to) {
@@ -153,8 +155,15 @@ public class PortfolioService {
         .collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
   }
 
+  private boolean hasMeasurableLength(LocalDate from, LocalDate to) {
+    return from.isBefore(earlierOf(to, LocalDate.now(clock)));
+  }
+
   private Optional<BigDecimal> annualReturnRate(
       AuthenticatedPerson person, String key, LocalDate from, LocalDate to) {
+    if (!hasMeasurableLength(from, to)) {
+      return Optional.empty();
+    }
     return returnsService.get(person, from, to, List.of(key)).getReturns().stream()
         .map(Returns.Return::getRate)
         .filter(Objects::nonNull)

@@ -12,6 +12,8 @@ import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.account.transaction.Transaction;
 import ee.tuleva.onboarding.account.transaction.TransactionService;
@@ -26,8 +28,10 @@ import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundConfiguration;
 import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -47,6 +51,7 @@ class PortfolioServiceTest {
   private static final LocalDate TO = LocalDate.parse("2025-12-31");
   private static final LocalDate FAR_FUTURE = LocalDate.parse("9999-12-31");
   private static final LocalDate FIRST_HOLDING = LocalDate.parse("2019-03-05");
+  private static final LocalDate TODAY = LocalDate.parse("2026-01-02");
 
   @Mock private TransactionService transactionService;
   @Mock private FundRepository fundRepository;
@@ -54,6 +59,8 @@ class PortfolioServiceTest {
   @Mock private ReturnsService returnsService;
   @Mock private FundNavProvider fundNavProvider;
 
+  private final Clock clock =
+      Clock.fixed(TODAY.atStartOfDay(ZoneOffset.UTC).toInstant(), ZoneOffset.UTC);
   private final SavingsFundConfiguration savingsFundConfiguration = new SavingsFundConfiguration();
   private final AuthenticatedPerson person = sampleAuthenticatedPersonNonMember().build();
 
@@ -68,7 +75,8 @@ class PortfolioServiceTest {
             fundValueRepository,
             savingsFundConfiguration,
             returnsService,
-            fundNavProvider);
+            fundNavProvider,
+            clock);
   }
 
   private static Transaction buy(String isin, String time, String units, String nav) {
@@ -271,5 +279,47 @@ class PortfolioServiceTest {
     Portfolio portfolio = portfolioService.getPortfolio(person, FROM, TO);
 
     assertThat(portfolio.groups().getFirst().endValue()).isEqualByComparingTo("600.00");
+  }
+
+  @Test
+  void withholdsTheReturnRateOfAPeriodThatIsOverBeforeItStarts() {
+    given(transactionService.getTransactions(person))
+        .willReturn(List.of(buy(PILLAR_2, "2025-06-02T10:00:00Z", "200", "2")));
+    given(fundRepository.findAll())
+        .willReturn(List.of(Fund.builder().isin(PILLAR_2).pillar(2).build()));
+    given(fundValueRepository.getLatestValue(PILLAR_2, TODAY.minusDays(1)))
+        .willReturn(Optional.of(fundValue(PILLAR_2, "2026-01-01", "3")));
+    given(fundValueRepository.findValuesBetweenDates(eq(PILLAR_2), eq(TODAY), eq(TODAY)))
+        .willReturn(List.of(fundValue(PILLAR_2, "2026-01-02", "3.05")));
+
+    Portfolio portfolio = portfolioService.getPortfolio(person, TODAY, TODAY);
+
+    Portfolio.GroupSummary secondPillar = portfolio.groups().getFirst();
+    assertThat(secondPillar.group()).isEqualTo(SECOND_PILLAR);
+    assertThat(secondPillar.startValue()).isEqualByComparingTo("600.00");
+    assertThat(secondPillar.endValue()).isEqualByComparingTo("610.00");
+    assertThat(secondPillar.annualReturnRate()).isNull();
+    assertThat(portfolio.series().getFirst().values().get(SECOND_PILLAR))
+        .isEqualByComparingTo("610.00");
+    verify(returnsService, never()).get(any(), any(), any(), any());
+  }
+
+  @Test
+  void withholdsTheReturnRateOfAPeriodThatStartsTodayAndEndsInTheFuture() {
+    LocalDate nextMonth = TODAY.plusMonths(1);
+    given(transactionService.getTransactions(person))
+        .willReturn(List.of(buy(PILLAR_2, "2025-06-02T10:00:00Z", "200", "2")));
+    given(fundRepository.findAll())
+        .willReturn(List.of(Fund.builder().isin(PILLAR_2).pillar(2).build()));
+    given(fundValueRepository.getLatestValue(PILLAR_2, TODAY.minusDays(1)))
+        .willReturn(Optional.of(fundValue(PILLAR_2, "2026-01-01", "3")));
+    given(fundValueRepository.findValuesBetweenDates(eq(PILLAR_2), eq(TODAY), eq(nextMonth)))
+        .willReturn(List.of(fundValue(PILLAR_2, "2026-01-02", "3.05")));
+
+    Portfolio portfolio = portfolioService.getPortfolio(person, TODAY, nextMonth);
+
+    assertThat(portfolio.groups().getFirst().endValue()).isEqualByComparingTo("610.00");
+    assertThat(portfolio.groups().getFirst().annualReturnRate()).isNull();
+    verify(returnsService, never()).get(any(), any(), any(), any());
   }
 }

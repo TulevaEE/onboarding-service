@@ -21,10 +21,11 @@ spinner() {
 #git stash -q --keep-index || true
 
 echo "🕵️ Checking for personal data..."
-# The allowlist comes from the index, not the working tree, so only a STAGED
-# allowlist entry can exempt a staged IBAN.
+# The allowlists come from the index, not the working tree, so only a STAGED
+# allowlist entry can exempt a staged IBAN or ID code.
 PII_IBAN_ALLOW_SOURCE=$(git show :.githooks/pii-iban-allow 2>/dev/null || true)
-export PII_IBAN_ALLOW_SOURCE
+PII_IDCODE_ALLOW_SOURCE=$(git show :.githooks/pii-idcode-allow 2>/dev/null || true)
+export PII_IBAN_ALLOW_SOURCE PII_IDCODE_ALLOW_SOURCE
 if ! git diff --cached | "$(dirname "${BASH_SOURCE[0]}")/pii-scan"; then
     exit 1
 fi

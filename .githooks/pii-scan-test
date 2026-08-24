@@ -20,9 +20,11 @@ printf 'salt=test-salt\n' > "$WORK/pii-roster.sha256"
 "$WORK/pii-scan" --hash 'Testnimi Testperenimi' >> "$WORK/pii-roster.sha256"
 "$WORK/pii-scan" --hash 'Šeperenimi Žtest' >> "$WORK/pii-roster.sha256" 2>/dev/null
 
-# A throwaway allowlist, so this test never depends on the repo's real one. The
-# IBAN is the SEB test-gateway account already public in the repo's fixtures.
+# Throwaway allowlists, so this test never depends on the repo's real ones.
+# The IBAN is the SEB test-gateway account already public in the repo's
+# fixtures; the ID code is the long-public synthetic sample-user fixture.
 printf '# test allowlist\nEE651010220306497226\n' > "$WORK/pii-iban-allow"
+printf '# test allowlist\n38812121215\n' > "$WORK/pii-idcode-allow"
 
 if [ "$(grep -cE '^[0-9a-f]{64}$' "$WORK/pii-roster.sha256")" -eq 0 ]; then
   echo "FAIL  setup: roster is empty, so no name case would exercise the scanner"
@@ -63,6 +65,9 @@ check 'latin-1 diacritics'  clean   '  String s = "Märt Põder ütles";'
 
 check 'valid id code'       finding '  String c = "38903112710";'
 check 'synthetic id code'   clean   '  String c = "38888888888";'
+check 'allowlisted id code' clean   '  String c = "38812121215";'
+check 'allowlisted then real id code' finding '  process("38812121215", "38903112710");'
+check 'invalid then valid id code'    finding '  process("38812121216", "38903112710");'
 check 'timestamp'           clean   '  long t = 1786541411606L;'
 check 'valid iban'          finding '  String i = "EE382200221020145685";'
 check 'allowlisted iban'    clean   '  String i = "EE651010220306497226";'
@@ -78,6 +83,16 @@ out=$(printf -- '--- a/x\n+++ b/x\n@@ -0,0 +1,1 @@\n+String i = "EE6510102203064
   | PII_IBAN_ALLOW_SOURCE='# nothing allowed' "$WORK/pii-scan" 2>&1)
 if [ $? -eq 1 ]; then echo "ok    env allowlist replaces file"; else
   echo "FAIL  env allowlist replaces file: expected a finding"; failures=$((failures + 1)); fi
+
+out=$(printf -- '--- a/x\n+++ b/x\n@@ -0,0 +1,1 @@\n+String c = "38903112710";\n' \
+  | PII_IDCODE_ALLOW_SOURCE='38903112710' "$WORK/pii-scan" 2>&1)
+if [ $? -eq 0 ]; then echo "ok    id-code env allowlist overrides file"; else
+  echo "FAIL  id-code env allowlist overrides file: expected clean"; failures=$((failures + 1)); fi
+
+out=$(printf -- '--- a/x\n+++ b/x\n@@ -0,0 +1,1 @@\n+String c = "38812121215";\n' \
+  | PII_IDCODE_ALLOW_SOURCE='# nothing allowed' "$WORK/pii-scan" 2>&1)
+if [ $? -eq 1 ]; then echo "ok    id-code env allowlist replaces file"; else
+  echo "FAIL  id-code env allowlist replaces file: expected a finding"; failures=$((failures + 1)); fi
 check 'personal email'      finding '  String e = "jaan.tamm@tuleva.ee";'
 check 'role email'          clean   '  String e = "compliance@tuleva.ee";'
 check 'ordinary code'       clean   '  return fundValueRepository.findLastValueForFund(key);'
@@ -97,6 +112,11 @@ if [ $? -eq 0 ]; then echo "ok    allow-file growth carries its own exemption"; 
 out=$(printf -- '--- a/.githooks/pii-iban-allow\n+++ b/.githooks/pii-iban-allow\n@@ -0,0 +1,1 @@\n+# kontakt: Testnimi Testperenimi\n' | "$WORK/pii-scan" 2>&1)
 if [ $? -eq 1 ]; then echo "ok    allow-file cannot smuggle a rostered name"; else
   echo "FAIL  allow-file cannot smuggle a rostered name: expected a finding"; failures=$((failures + 1)); fi
+
+out=$(printf -- '--- a/.githooks/pii-idcode-allow\n+++ b/.githooks/pii-idcode-allow\n@@ -0,0 +1,1 @@\n+38903112710\n' \
+  | PII_IDCODE_ALLOW_SOURCE='38903112710' "$WORK/pii-scan" 2>&1)
+if [ $? -eq 0 ]; then echo "ok    id-code allow-file growth carries its own exemption"; else
+  echo "FAIL  id-code allow-file growth carries its own exemption: expected clean"; failures=$((failures + 1)); fi
 
 if [ "$failures" -ne 0 ]; then
   echo ""

@@ -53,6 +53,26 @@ if (defined $ENV{PII_IBAN_ALLOW_SOURCE}) {
   close $fh;
 }
 
+# Synthetic fixture ID codes are the same trade-off: the values are invented,
+# already public in this repository's fixtures, and carry a valid mod-11 check
+# digit because parts of the code base validate it — so the detector cannot
+# tell them apart from real codes on its own. Same source-pinning rule as the
+# IBAN allowlist.
+my $IDCODE_ALLOW = dirname(__FILE__) . '/pii-idcode-allow';
+
+my %ALLOWED_ID_CODES;
+if (defined $ENV{PII_IDCODE_ALLOW_SOURCE}) {
+  for my $line (split /\n/, $ENV{PII_IDCODE_ALLOW_SOURCE}) {
+    $ALLOWED_ID_CODES{$1} = 1 if $line =~ /^([1-6][0-9]{10})$/;
+  }
+} elsif (open my $fh, '<', $IDCODE_ALLOW) {
+  while (<$fh>) {
+    chomp;
+    $ALLOWED_ID_CODES{$1} = 1 if /^([1-6][0-9]{10})$/;
+  }
+  close $fh;
+}
+
 # One normalisation for both scanning and roster building, so a name can never
 # hash differently depending on which side computed it.
 #
@@ -116,9 +136,10 @@ sub personal_email {
 
 # The scanner's own test vectors have to look exactly like the things it
 # detects, so this one file is exempt. Matched on the exact path rather than a
-# pattern, so no other file can opt out by being named like a test. The IBAN
-# allowlist is deliberately NOT exempt: its additions pass because the same
-# revision's allowlist carries them, and every other detector still applies.
+# pattern, so no other file can opt out by being named like a test. The
+# allowlist files are deliberately NOT exempt: their additions pass because
+# the same revision's allowlist carries them, and every other detector still
+# applies.
 my %EXEMPT_PATH = map { $_ => 1 } ('.githooks/pii-scan-test');
 
 my (@findings, $file, $line);
@@ -134,8 +155,10 @@ while (my $raw = <STDIN>) {
   chomp $content;
   my $at = sub { push @findings, [$file, $line, $_[0], $_[1]] };
 
-  $at->('Estonian personal ID code', $1)
-    while $content =~ /(?<![0-9])([1-6][0-9]{10})(?![0-9])/g and is_id_code($1);
+  while ($content =~ /(?<![0-9])([1-6][0-9]{10})(?![0-9])/g) {
+    $at->('Estonian personal ID code', $1)
+      if is_id_code($1) && !$ALLOWED_ID_CODES{$1};
+  }
 
   while ($content =~ /\b([A-Z]{2}[0-9]{2}[A-Z0-9]{10,30})\b/g) {
     $at->('Bank account number (IBAN)', $1) if is_iban($1) && !$ALLOWED_IBANS{$1};

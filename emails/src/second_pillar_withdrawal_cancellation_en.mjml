@@ -1,0 +1,28 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Hello *|FNAME|*,</mj-text>
+        <mj-text>
+          You have cancelled your 2nd pillar withdrawal application. You continue to save in 2nd
+          pillar as before.
+        </mj-text>
+        <mj-text>
+          Attached is a copy of the application you just made on our website and which we have
+          sent to Pensionikeskus.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="./partials/contact_en.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">Tuleva</mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

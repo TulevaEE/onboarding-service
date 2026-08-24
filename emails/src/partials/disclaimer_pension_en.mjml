@@ -1,0 +1,12 @@
+<mj-section padding="12px 24px 0">
+  <mj-column>
+    <mj-text font-size="13px" line-height="150%" font-style="italic">
+      Taxation depends on circumstances related to the individual, including residency. Tax
+      legislation may change. To receive a tax refund, you must file a tax return. Financial
+      services are provided by Tuleva Fondid AS. Be sure to read the terms, prospectus, and key
+      information of the selected pension fund at
+      <a href="https://tuleva.ee/en/">tuleva.ee</a>, and if needed, seek advice from
+      an expert.
+    </mj-text>
+  </mj-column>
+</mj-section>

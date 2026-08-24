@@ -1,11 +1,11 @@
 <mjml>
   <mj-include path="./partials/head.mjml" />
-  <mj-body background-color="#FFFFFF" width="600px">
+  <mj-body background-color="#FFFFFF" width="660px">
     <mj-include path="./partials/header.mjml" />
 
     <mj-section padding-top="12px">
       <mj-column>
-        <mj-text>Hello, *|FNAME|*</mj-text>
+        <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
           Your payment of *|amount|*&nbsp;&euro; arrived on *|paymentDate|*! This puts you among
           the 30% of dedicated Estonians who save in the third pillar. The fund units are already
@@ -77,6 +77,16 @@
       </mj-column>
     </mj-section>
 
-    <mj-include path="./partials/footer_en.mjml" />
+    <mj-include path="./partials/contact_en.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">
+          Tõnu Pekk<br />
+          Founder and fund manager of Tuleva
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_pension_en.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
   </mj-body>
 </mjml>

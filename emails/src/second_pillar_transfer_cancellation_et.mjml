@@ -1,0 +1,29 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Tere,&nbsp;*|FNAME|*.</mj-text>
+        <mj-text>
+          Tegid Tuleva kaudu tühistamise avalduse. Sinu II&nbsp;samba vara jääb edasi fondi:
+          *|sourceFundName|*.
+        </mj-text>
+        <mj-text>
+          Käesolevale kirjale on lisatud koopia sinu tehtud avaldustest, mis on saadetud
+          Pensionikeskusesse.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="./partials/contact_et.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">Tuleva</mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_pension_et.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

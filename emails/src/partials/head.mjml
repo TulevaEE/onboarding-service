@@ -1,7 +1,8 @@
 <mj-head>
+  <mj-font name="Roboto" href="https://fonts.googleapis.com/css?family=Roboto:400,400i,700,700i" />
   <mj-attributes>
     <mj-all font-family="Roboto, Helvetica Neue, Helvetica, Arial, sans-serif" />
-    <mj-text font-size="16px" line-height="150%" color="#303030" padding="8px 0" />
+    <mj-text font-size="16px" line-height="150%" color="#212529" padding="8px 0" />
     <mj-image target="_self" />
     <mj-social-element target="_self" />
     <mj-button
@@ -9,12 +10,13 @@
       padding="10px 0"
       background-color="#0081EE"
       border-radius="8px"
-      font-size="16px"
+      font-size="18px"
       font-weight="bold"
       color="#FFFFFF"
-      inner-padding="12px 24px"
+      inner-padding="16px 28px"
     />
-    <mj-section background-color="#FFFFFF" padding="0 18px" />
+    <mj-section background-color="#FFFFFF" padding="0 24px" />
+    <mj-divider border-width="1px" border-color="#E5E5E5" padding="16px 0" />
   </mj-attributes>
   <mj-style>
     a { color: #0081EE; }

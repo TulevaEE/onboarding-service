@@ -1,0 +1,23 @@
+{
+  "variants": {
+    "soovita III sammast": {
+      "FNAME": "Mari",
+      "transferDate": "12.08.2026",
+      "suggestThirdPillar": true
+    },
+    "tõsta makseprotsenti": {
+      "FNAME": "Mari",
+      "transferDate": "12.08.2026",
+      "suggestPaymentRate": true
+    },
+    "astu liikmeks": {
+      "FNAME": "Mari",
+      "transferDate": "12.08.2026",
+      "suggestMembership": true
+    },
+    "muu (harude puudumine)": {
+      "FNAME": "Mari",
+      "transferDate": "12.08.2026"
+    }
+  }
+}

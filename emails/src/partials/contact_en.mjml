@@ -1,0 +1,9 @@
+<mj-section padding="12px 24px 0">
+  <mj-column>
+    <mj-text>
+      Should you have any questions, do not hesitate to contact us via
+      <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> or
+      <a href="tel:+3726445100">644&nbsp;5100</a>.
+    </mj-text>
+  </mj-column>
+</mj-section>

@@ -1,0 +1,24 @@
+{
+  "variants": {
+    "II sammas mujal": {
+      "FNAME": "Mari",
+      "LNAME": "Maasikas",
+      "memberNumber": "482",
+      "memberDate": "12.08.2026",
+      "suggestSecondPillar": true
+    },
+    "tõsta makse määra": {
+      "FNAME": "Jaan",
+      "LNAME": "Tamm",
+      "memberNumber": "615",
+      "memberDate": "03.07.2026",
+      "suggestPaymentRate": true
+    },
+    "ilma lisasoovituseta": {
+      "FNAME": "Liina",
+      "LNAME": "Kask",
+      "memberNumber": "247",
+      "memberDate": "21.05.2026"
+    }
+  }
+}

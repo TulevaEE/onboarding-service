@@ -1,0 +1,67 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Hello *|FNAME|*,</mj-text>
+        <mj-text>
+          You have started to save in Tuleva’s third pillar fund with low fees and a
+          fact-based investment strategy. I noticed that you are not investing your second
+          pillar with us.
+        </mj-text>
+        <mj-text>
+          If you're currently saving in a bank's second pillar fund, it's worth checking
+          whether you're really investing in a low-fee, well-diversified index fund.
+        </mj-text>
+        <mj-text>
+          <strong>
+            Check how much larger your second pillar would be if you were saving in a low-fee
+            index fund:
+          </strong>
+        </mj-text>
+        <mj-button href="https://pension.tuleva.ee/login?language=en">
+          Calculate your savings
+        </mj-button>
+
+        <mj-text>
+          <strong>Is it better to diversify risks by saving in the second pillar elsewhere?</strong>
+        </mj-text>
+        <mj-text>
+          The assets of all Estonian pension funds—both second and third pillar—are very well
+          diversified among hundreds of instruments on the global market. Additionally, pension
+          savers in all pension funds are protected from the fund manager's business risks.
+          This protection is guaranteed by law, and the pension saver does not need to spread
+          their money across multiple fund managers to hedge this risk.
+        </mj-text>
+        <mj-text>
+          It's also important to remember that your money in all pension funds is exposed to
+          market risk. If global securities markets decline, the unit prices of all pension
+          funds will fall. In this case, spreading your assets across different fund managers
+          who invest in stocks does not help.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="./partials/contact_en.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">Tõnu Pekk<br />Tuleva Founder and Fund Manager</mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-section padding="12px 24px 0">
+      <mj-column>
+        <mj-text font-size="13px" line-height="150%" font-style="italic">
+          Taxation depends on circumstances related to the individual, including residency. Tax
+          legislation may change. To receive a tax refund, you must file a tax return. Financial
+          services are provided by Tuleva Fondid AS. Be sure to read the terms, prospectus, and key
+          information of the selected pension fund at
+          <a href="https://tuleva.ee/en/">tuleva.ee</a>, and if needed, seek advice from
+          an expert. Returns are not guaranteed.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

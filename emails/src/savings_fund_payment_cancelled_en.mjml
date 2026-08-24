@@ -1,0 +1,32 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Hello *|FNAME|*</mj-text>
+        <mj-text>
+          You requested to cancel your payment to Tuleva Savings Fund. We received your request
+          on time and will send the money back to your account today. If you want to try again,
+          click here:
+        </mj-text>
+        <mj-button href="https://pension.tuleva.ee/savings-fund/payment?language=en">
+          Tuleva account
+        </mj-button>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="./partials/contact_en.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">
+          Tõnu Pekk<br />
+          Founder and fund manager of Tuleva
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_savings_en.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

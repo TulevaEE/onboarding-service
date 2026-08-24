@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "üks avaldus ebaõnnestus": {
+      "FNAME": "Mari",
+      "totalMandateCount": "3",
+      "failedMandateCount": "1",
+      "successfulMandateCount": "2"
+    }
+  }
+}

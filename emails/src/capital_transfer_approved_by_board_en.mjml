@@ -1,0 +1,39 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Hello *|FNAME|*</mj-text>
+        <mj-text>
+          The board of the Tuleva cooperative approved the transfer of membership
+          capital between members of Tuleva, *|sellerFullName|* and *|buyerFullName|*.
+          The register has been updated, and your new membership capital balance is
+          visible on your account page:
+        </mj-text>
+        <mj-button href="https://pension.tuleva.ee/account?language=en">View member capital</mj-button>
+        <mj-text>
+          Please note that the sales proceeds from the transfer of membership capital
+          are subject to income tax. Therefore, it must be declared in the following
+          year's income tax return (by April 30).
+          <a href="https://drive.google.com/file/d/14bv2QED8fPiC56kixkoAA81_Pi2G5XZt/view?usp=sharing">
+            We have described tax obligations in more detail in a separate instruction
+          </a>
+          (in Estonian).
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="./partials/contact_en.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">
+          TÜ Tuleva members of the board<br />
+          Annika Uudelepp and Tõnu Pekk
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/footer_bottom_coop.mjml" />
+  </mj-body>
+</mjml>

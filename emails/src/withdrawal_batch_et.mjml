@@ -1,0 +1,66 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
+        <mj-text>Väljamaksete avaldused on esitatud!</mj-text>
+        <mj-text>Peagi saad oma kogutud pensionivara kasutusele võtta.</mj-text>
+        <mj-text><strong>Sinu esitatud avaldused:</strong></mj-text>
+
+        <mj-raw>*|IF:fundPensionSecondPillar|*</mj-raw>
+        <mj-text>II&nbsp;samba fondipensioni avaldus</mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+
+        <mj-raw>*|IF:fundPensionThirdPillar|*</mj-raw>
+        <mj-text>III&nbsp;samba fondipensioni avaldus</mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+
+        <mj-raw>*|IF:partialWithdrawalSecondPillar|*</mj-raw>
+        <mj-text>II&nbsp;samba osalise väljamakse avaldus</mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+
+        <mj-raw>*|IF:partialWithdrawalThirdPillar|*</mj-raw>
+        <mj-text>III&nbsp;samba osalise väljamakse avaldus</mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+
+        <mj-raw>*|IF:fundPensionSecondPillar|*</mj-raw>
+        <mj-text>
+          II&nbsp;samba esimene väljamakse tehakse järgmise kuu 20. kuupäevaks ja edaspidi
+          igakuiselt 20. kuupäevaks.
+        </mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+
+        <mj-raw>*|IF:partialWithdrawalSecondPillar|*</mj-raw>
+        <mj-text>II&nbsp;samba ühekordne väljamakse tehakse järgmise kuu 20. kuupäevaks.</mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+
+        <mj-raw>*|IF:fundPensionThirdPillar|*</mj-raw>
+        <mj-text>
+          III&nbsp;samba esimene väljamakse tehakse järgmise kuu 20. kuupäevaks ja edaspidi
+          igakuiselt 20. kuupäevaks.
+        </mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+
+        <mj-raw>*|IF:partialWithdrawalThirdPillar|*</mj-raw>
+        <mj-text>III&nbsp;samba ühekordne väljamakse tehakse nelja tööpäeva pärast.</mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+
+        <mj-text>
+          Kirjale on lisatud koopia sinu tehtud avaldustest, mis on saadetud Pensionikeskusesse.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="./partials/contact_et.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">Tuleva</mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_pension_et.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

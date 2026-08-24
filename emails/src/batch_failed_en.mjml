@@ -1,0 +1,35 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
+        <mj-text>You tried to submit applications, but unfortunately a technical problem occurred.</mj-text>
+        <mj-text>
+          Out of *|totalMandateCount|* applications, a problem occurred while submitting
+          *|failedMandateCount|* applications. This means that the remaining
+          *|successfulMandateCount|* applications were submitted to Pensionikeskus and they are
+          being processed.
+        </mj-text>
+        <mj-text>
+          Please contact us so we can fix the problem:
+          <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> or
+          <a href="tel:+3726445100">644&nbsp;5100</a>.
+        </mj-text>
+        <mj-text>
+          Attached is a copy of the applications you just made on our website and which we have
+          sent to Pensionikeskus.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">Tuleva</mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

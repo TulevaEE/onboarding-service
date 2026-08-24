@@ -1,0 +1,9 @@
+<mj-section padding="12px 24px 0">
+  <mj-column>
+    <mj-text>
+      Küsimuste korral võta ühendust
+      <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> või
+      <a href="tel:+3726445100">644&nbsp;5100</a>.
+    </mj-text>
+  </mj-column>
+</mj-section>

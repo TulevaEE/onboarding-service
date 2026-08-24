@@ -1,0 +1,30 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Hello *|FNAME|*</mj-text>
+        <mj-text>
+          Your listing to transfer membership capital has expired and is no longer visible to
+          members of Tuleva.
+        </mj-text>
+        <mj-button href="https://pension.tuleva.ee/capital/listings/add?language=en">
+          Add new listing
+        </mj-button>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="./partials/contact_en.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">
+          TÜ Tuleva members of the board<br />
+          Annika Uudelepp and Tõnu Pekk
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/footer_bottom_coop.mjml" />
+  </mj-body>
+</mjml>

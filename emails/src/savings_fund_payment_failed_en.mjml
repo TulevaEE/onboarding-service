@@ -1,0 +1,43 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Hello *|FNAME|*</mj-text>
+        <mj-text>
+          Your payment to Tuleva Savings Fund failed and we will send it back to the same
+          account where it came by the end of today. Most likely you chose an account which
+          name does not match yours while making the payment. For safety and compliance,
+          payment has to come from your personal account. Please try again here:
+        </mj-text>
+        <mj-button href="https://pension.tuleva.ee/savings-fund/payment?language=en">
+          Tuleva account
+        </mj-button>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="./partials/contact_en.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">
+          Tõnu Pekk<br />
+          Founder and fund manager of Tuleva
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-section padding="12px 24px 0">
+      <mj-column>
+        <mj-text font-size="13px" line-height="150%" font-style="italic">
+          Please read the terms, prospectus and key information at
+          <a href="https://tuleva.ee">tuleva.ee</a> and consult an expert at
+          <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> or
+          <a href="tel:+3726445100">+372 644&nbsp;5100</a>. Past performance is not a guarantee
+          of future returns.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

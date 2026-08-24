@@ -1,0 +1,9 @@
+{
+  "variants": {
+    "ostja kinnitanud makse": {
+      "FNAME": "Mari",
+      "buyerFullName": "Jaan Tamm",
+      "contractId": "12345"
+    }
+  }
+}

@@ -1,10 +1,14 @@
 # Tuleva email templates
 
-The email templates Tuleva sends through Mandrill, version-controlled. **This directory is the
+All email templates Tuleva sends through Mandrill, version-controlled. **This directory is the
 source of truth**: templates are written in [MJML](https://mjml.io) under `src/`, compiled to
 email-client-compatible HTML in `dist/`, and CI publishes changed templates to Mandrill when a
 change reaches master. Do not edit templates in the Mandrill web editor — the next publish
 overwrites those edits.
+
+The shared design in `src/partials/` follows Taimar's Mailchimp base template "Tuleva UUS
+põhi" (the "New campaign templates" folder in Mailchimp) — change design there once, never
+per-template.
 
 ## Editing a template (also works great by just asking Claude Code)
 
@@ -39,7 +43,6 @@ The template only starts sending once something in `onboarding-service` referenc
 | `dist/` | Compiled HTML, committed, published verbatim to Mandrill |
 | `fixtures/` | Sample merge data per template; drives the preview gallery |
 | `manifest.json` | Which templates CI manages + subject/sender for each |
-| `exported/` | Read-only snapshot of all legacy Mandrill templates not yet ported |
 | `preview/` | Generated gallery (gitignored) |
 
 ## CI
@@ -50,10 +53,3 @@ subject differs from what is live; unchanged templates are untouched. It needs t
 `MANDRILL_API_KEY` environment variable in CircleCI project settings.
 
 Rollback = revert the commit; CI republishes the previous version.
-
-## Porting a legacy template
-
-Pick one from `exported/`, rewrite the content section in MJML on top of the shared partials
-(the layout collapses ~800 lines of table soup into ~80 lines of content), add fixtures +
-manifest entries, compare the preview against the exported original side by side, and delete
-the `exported/` file once it is live from `dist/`.

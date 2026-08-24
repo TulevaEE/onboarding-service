@@ -1,0 +1,23 @@
+{
+  "variants": {
+    "suggest third pillar": {
+      "FNAME": "Mari",
+      "transferDate": "12.08.2026",
+      "suggestThirdPillar": true
+    },
+    "suggest payment rate": {
+      "FNAME": "Mari",
+      "transferDate": "12.08.2026",
+      "suggestPaymentRate": true
+    },
+    "suggest membership": {
+      "FNAME": "Mari",
+      "transferDate": "12.08.2026",
+      "suggestMembership": true
+    },
+    "no branch": {
+      "FNAME": "Mari",
+      "transferDate": "12.08.2026"
+    }
+  }
+}

@@ -18,6 +18,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.PriorityPriceProvider;
 import ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.instrument.BenchmarkProxy;
 import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.PriceSnapshot;
 import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.SecurityData;
 import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.TrackingInput;
@@ -628,10 +629,7 @@ class TrackingDifferenceService {
   }
 
   private String resolveBenchmarkKey(String isin) {
-    return benchmarkLegResolver
-        .resolve(isin)
-        .map(BenchmarkLegResolver.BenchmarkLeg::seriesKey)
-        .orElse(null);
+    return benchmarkLegResolver.resolve(isin).map(BenchmarkProxy::storageKey).orElse(null);
   }
 
   private Optional<BigDecimal> lookupReturn(

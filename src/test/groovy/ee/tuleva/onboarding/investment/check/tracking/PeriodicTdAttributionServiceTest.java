@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
-import static ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker.ISHARES_CORE_MSCI_WORLD;
-import static ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker.ISHARES_EUROPE_ESG_SCREENED;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.instrument.InstrumentReferenceFixture.anInstrument;
+import static ee.tuleva.onboarding.instrument.InstrumentReferenceServiceFixture.instrumentReferenceService;
 import static ee.tuleva.onboarding.investment.check.tracking.PeriodType.MONTHLY;
 import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
@@ -19,6 +19,9 @@ import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.instrument.BenchmarkCategoryProxy;
+import ee.tuleva.onboarding.instrument.InstrumentReference;
+import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.investment.fees.FeeAccrual;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
@@ -58,8 +61,8 @@ class PeriodicTdAttributionServiceTest {
   private static final LocalDate PERIOD_END = LocalDate.of(2026, 4, 30);
   private static final String FUND_CODE = "TUK75";
   private static final String ISIN_DW = "IE00BFG1TM61";
-  private static final String EUNL_ISIN = ISHARES_CORE_MSCI_WORLD.getIsin();
-  private static final String ISIN_EUROPE_ETF = ISHARES_EUROPE_ESG_SCREENED.getIsin();
+  private static final String EUNL_ISIN = "IE00B4L5Y983";
+  private static final String ISIN_EUROPE_ETF = "IE00BFNM3D14";
   private static final BigDecimal BENCHMARK_MODEL_SUM = new BigDecimal("-0.00025");
 
   @Mock TrackingDifferenceEventRepository tdEventRepository;
@@ -92,7 +95,7 @@ class PeriodicTdAttributionServiceTest {
             instrumentFeeRepository,
             transactionManager,
             new PublicHolidays(),
-            new BenchmarkLegResolver());
+            new BenchmarkLegResolver(trackedInstruments()));
 
     // Default lenient stubs for Phase 3 data sources (overridden in specific tests)
     given(transactionExecutionRepository.sumCommissionsForFundAndPeriod(anyString(), any(), any()))
@@ -104,6 +107,26 @@ class PeriodicTdAttributionServiceTest {
     given(instrumentFeeRepository.findAllValidRates(any())).willReturn(List.of());
     given(feeChargedToFundPolicy.resolverFor(any(), any()))
         .willAnswer(call -> alwaysCharged(call.getArgument(1), true));
+  }
+
+  private static InstrumentReferenceService trackedInstruments() {
+    return instrumentReferenceService(
+        List.of(
+            tracked(ISIN_DW, "IE00BFG1TM61.EUFUND", "EQUITY_DM"),
+            tracked(ISIN_EUROPE_ETF, "SLMC.XETRA", "EQUITY_DM"),
+            tracked(EUNL_ISIN, "EUNL.XETRA", null)),
+        List.of(new BenchmarkCategoryProxy(1L, "EQUITY_DM", EUNL_ISIN, null, "MSCI_WORLD")));
+  }
+
+  private static InstrumentReference tracked(
+      String isin, String eodhdTicker, String benchmarkCategory) {
+    return anInstrument()
+        .isin(isin)
+        .displayName(isin)
+        .eodhdTicker(eodhdTicker)
+        .benchmarkCategory(benchmarkCategory)
+        .active(true)
+        .build();
   }
 
   private FeeChargedToFundPolicy.Resolver alwaysCharged(FeeType feeType, boolean chargedToFund) {

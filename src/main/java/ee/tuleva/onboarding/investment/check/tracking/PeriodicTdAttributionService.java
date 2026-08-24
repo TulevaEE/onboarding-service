@@ -307,11 +307,15 @@ public class PeriodicTdAttributionService {
         heldOcf = heldOcf.add(weight.multiply(ocf));
       }
 
-      var leg = benchmarkLegResolver.resolve(isin).orElse(null);
-      if (leg == null || leg.isIndex()) {
+      var proxy = benchmarkLegResolver.resolve(isin).orElse(null);
+      if (proxy == null) {
         continue;
       }
-      var proxyIsin = leg.proxyEtf().getIsin();
+      var proxyInstrument = proxy.proxyInstrument();
+      if (proxyInstrument == null) {
+        continue;
+      }
+      var proxyIsin = proxyInstrument.getIsin();
       var proxyRate = rateByIsin.get(proxyIsin);
       if (proxyRate == null) {
         unpricedProxyIsins.add(proxyIsin);

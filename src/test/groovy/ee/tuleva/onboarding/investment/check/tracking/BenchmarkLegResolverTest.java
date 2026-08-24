@@ -2,20 +2,24 @@ package ee.tuleva.onboarding.investment.check.tracking;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 
+@SpringBootTest
+@ActiveProfiles("test")
 class BenchmarkLegResolverTest {
 
-  private final BenchmarkLegResolver resolver = new BenchmarkLegResolver();
+  @Autowired private BenchmarkLegResolver resolver;
 
   @Test
   void aMutualFundEquityHoldingIsComparedAgainstTheIndexSeriesItself() {
     var leg = resolver.resolve("IE00BFG1TM61").orElseThrow();
 
-    assertThat(leg.seriesKey()).isEqualTo("MSCI_WORLD");
+    assertThat(leg.storageKey()).isEqualTo("MSCI_WORLD");
     assertThat(leg.isIndex()).isTrue();
-    assertThat(leg.proxyEtf()).isNull();
+    assertThat(leg.proxyInstrument()).isNull();
   }
 
   @Test
@@ -23,7 +27,17 @@ class BenchmarkLegResolverTest {
     var leg = resolver.resolve("IE000I9HGDZ3").orElseThrow();
 
     assertThat(leg.isIndex()).isFalse();
-    assertThat(leg.proxyEtf()).isEqualTo(FundTicker.ISHARES_CORE_MSCI_WORLD);
+    assertThat(leg.proxyInstrument().getIsin()).isEqualTo("IE00B4L5Y983");
+    assertThat(leg.storageKey()).isEqualTo("IE00B4L5Y983.XETR");
+  }
+
+  @Test
+  void aEuronextParisListedHoldingIsAnEtfHoldingToo() {
+    var leg = resolver.resolve("IE000F60HVH9").orElseThrow();
+
+    assertThat(leg.isIndex()).isFalse();
+    assertThat(leg.proxyInstrument().getIsin()).isEqualTo("IE00B4L5Y983");
+    assertThat(leg.storageKey()).isEqualTo("IE00B4L5Y983.XETR");
   }
 
   @Test
@@ -31,7 +45,8 @@ class BenchmarkLegResolverTest {
     var leg = resolver.resolve("LU0826455353").orElseThrow();
 
     assertThat(leg.isIndex()).isFalse();
-    assertThat(leg.proxyEtf()).isEqualTo(FundTicker.ISHARES_EURO_AGG_BOND_ETF);
+    assertThat(leg.proxyInstrument().getIsin()).isEqualTo("IE00B3DKXQ41");
+    assertThat(leg.storageKey()).isEqualTo("IE00B3DKXQ41.XETR");
   }
 
   @Test

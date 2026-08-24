@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.investment.check.tracking;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.instrument.InstrumentReferenceFixture.anInstrument;
+import static ee.tuleva.onboarding.instrument.InstrumentReferenceServiceFixture.instrumentReferenceService;
 import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.BENCHMARK;
 import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.BENCHMARK_MODEL;
 import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.MODEL_PORTFOLIO;
@@ -30,6 +32,9 @@ import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.instrument.BenchmarkCategoryProxy;
+import ee.tuleva.onboarding.instrument.InstrumentReference;
+import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.investment.config.InvestmentParameter;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.fees.FeeAccrual;
@@ -130,7 +135,7 @@ class TrackingDifferenceServiceTest {
             eventRepository,
             new TrackingDifferenceCalculator(parameterRepository),
             fundNavQueryService,
-            new BenchmarkLegResolver());
+            new BenchmarkLegResolver(trackedInstruments()));
     serviceLogs.start();
     serviceLogger().addAppender(serviceLogs);
   }
@@ -138,6 +143,37 @@ class TrackingDifferenceServiceTest {
   @AfterEach
   void detachServiceLogs() {
     serviceLogger().detachAppender(serviceLogs);
+  }
+
+  private static InstrumentReferenceService trackedInstruments() {
+    return instrumentReferenceService(
+        List.of(
+            tracked("IE00BFG1TM61", "IE00BFG1TM61.EUFUND", "EQUITY_DM"),
+            tracked("IE00BFNM3G45", "SGAS.XETRA", "EQUITY_DM"),
+            tracked("IE00BKPTWY98", "IE00BKPTWY98.EUFUND", "EQUITY_EM"),
+            tracked("IE00BMDBMY19", "ESGM.XETRA", "EQUITY_EM"),
+            tracked("LU0826455353", "LU0826455353.EUFUND", "BOND_EURO"),
+            tracked("LU0839970364", "LU0839970364.EUFUND", "BOND_GLOBAL"),
+            tracked("IE00B4L5Y983", "EUNL.XETRA", null),
+            tracked("IE00B4L5YC18", "EUNM.XETRA", null),
+            tracked("IE00B3DKXQ41", "EUN4.XETRA", null),
+            tracked("IE00BDBRDM35", "EUNA.XETRA", null)),
+        List.of(
+            new BenchmarkCategoryProxy(1L, "EQUITY_DM", "IE00B4L5Y983", null, "MSCI_WORLD"),
+            new BenchmarkCategoryProxy(2L, "EQUITY_EM", "IE00B4L5YC18", null, "MSCI_EM"),
+            new BenchmarkCategoryProxy(3L, "BOND_EURO", "IE00B3DKXQ41", "IE00B3DKXQ41", null),
+            new BenchmarkCategoryProxy(4L, "BOND_GLOBAL", "IE00BDBRDM35", "IE00BDBRDM35", null)));
+  }
+
+  private static InstrumentReference tracked(
+      String isin, String eodhdTicker, String benchmarkCategory) {
+    return anInstrument()
+        .isin(isin)
+        .displayName(isin)
+        .eodhdTicker(eodhdTicker)
+        .benchmarkCategory(benchmarkCategory)
+        .active(true)
+        .build();
   }
 
   private static Logger serviceLogger() {

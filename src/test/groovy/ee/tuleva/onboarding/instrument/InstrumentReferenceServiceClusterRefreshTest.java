@@ -32,7 +32,7 @@ class InstrumentReferenceServiceClusterRefreshTest {
 
   @Test
   void everyInstanceRefreshesEvenWhenAnotherInstanceWonTheClusterLock() {
-    given(repository.findAll()).willAnswer(invocation -> List.copyOf(tableRows));
+    given(repository.findAllByOrderByIdAsc()).willAnswer(invocation -> List.copyOf(tableRows));
     given(proxyRepository.findAll()).willReturn(List.of());
 
     try (var cluster = clusterOfTwoInstances()) {
@@ -69,6 +69,7 @@ class InstrumentReferenceServiceClusterRefreshTest {
     var reference = BeanUtils.instantiateClass(InstrumentReference.class);
     ReflectionTestUtils.setField(reference, "isin", isin);
     ReflectionTestUtils.setField(reference, "displayName", isin);
+    ReflectionTestUtils.setField(reference, "eodhdTicker", isin + ".XETRA");
     ReflectionTestUtils.setField(reference, "active", true);
     return reference;
   }

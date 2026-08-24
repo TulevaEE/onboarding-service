@@ -69,6 +69,10 @@ public class InstrumentReference {
     return Optional.empty();
   }
 
+  public Optional<String> getExchangeStorageKey() {
+    return getXetraStorageKey().or(this::getEuronextParisStorageKey);
+  }
+
   public Optional<String> getBlackrockStorageKey() {
     if (blackrockProductId != null) {
       return Optional.of(isin + ".BLACKROCK");

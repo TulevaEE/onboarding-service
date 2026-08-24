@@ -2,17 +2,20 @@ package ee.tuleva.onboarding.investment.instrument;
 
 import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient.Type.TO;
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static java.util.stream.Collectors.toSet;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient;
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.instrument.InstrumentDataFinding;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceChange;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceHistoryRepository;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.investment.instrument.InstrumentDataValidator.Severity;
 import ee.tuleva.onboarding.investment.instrument.InstrumentDataValidator.ValidationFinding;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import java.time.Clock;
 import java.time.Duration;
@@ -47,18 +50,64 @@ class InstrumentValidationJob {
   private final InstrumentReferenceService instrumentReferenceService;
   private final InstrumentReferenceHistoryRepository historyRepository;
   private final InstrumentReferenceChangeDescriber changeDescriber;
+  private final OperationsNotificationService notificationService;
   private final Clock clock;
 
   private final AtomicReference<Set<String>> lastAlertedFindings = new AtomicReference<>(Set.of());
   private final AtomicReference<LocalDate> lastAlertDate = new AtomicReference<>();
   private final AtomicReference<LocalDate> lastStaleCacheAlertDate = new AtomicReference<>();
+  private final AtomicReference<Set<String>> lastAlertedDataFindings =
+      new AtomicReference<>(Set.of());
+  private final AtomicReference<LocalDate> lastDataFindingAlertDate = new AtomicReference<>();
 
   @Scheduled(cron = "0 10 * * * *", zone = TIMEZONE)
   @SchedulerLock(name = "InstrumentValidationJob", lockAtMostFor = "10m", lockAtLeastFor = "1m")
   void run() {
     alertOnStaleCache();
+    alertOnInstrumentDataFindings();
     notifyReferenceDataChanges();
     alertOnFindings(collectFindings());
+  }
+
+  private void alertOnInstrumentDataFindings() {
+    var findings = instrumentReferenceService.dataFindings();
+    var findingKeys = findings.stream().map(InstrumentDataFinding::describe).collect(toSet());
+    var today = LocalDate.now(clock);
+
+    if (findingKeys.isEmpty()) {
+      if (!lastAlertedDataFindings.getAndSet(Set.of()).isEmpty()) {
+        lastDataFindingAlertDate.set(null);
+        notificationService.sendMessage(
+            "INSTRUMENT REFERENCE DATA OK — the reported rows no longer have problems.",
+            INVESTMENT);
+      }
+      return;
+    }
+
+    if (findingKeys.equals(lastAlertedDataFindings.get())
+        && today.equals(lastDataFindingAlertDate.get())) {
+      log.info(
+          "Suppressing unchanged instrument reference data alert: dataFindings={}, lastAlertDate={}",
+          findingKeys.size(),
+          lastDataFindingAlertDate.get());
+      return;
+    }
+
+    var message = formatDataFindings(findings);
+    log.error("{}", message);
+    notificationService.sendMessage(message, INVESTMENT);
+    lastAlertedDataFindings.set(findingKeys);
+    lastDataFindingAlertDate.set(today);
+  }
+
+  private static String formatDataFindings(List<InstrumentDataFinding> findings) {
+    var sb =
+        new StringBuilder(
+            "INSTRUMENT REFERENCE DATA BROKEN — fix instrument_reference, rows="
+                + findings.size()
+                + "\n");
+    findings.forEach(finding -> sb.append("  " + finding.describe() + "\n"));
+    return sb.toString().stripTrailing();
   }
 
   private void notifyReferenceDataChanges() {

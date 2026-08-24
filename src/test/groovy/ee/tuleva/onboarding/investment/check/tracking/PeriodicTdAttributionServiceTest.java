@@ -91,7 +91,8 @@ class PeriodicTdAttributionServiceTest {
             transactionExecutionRepository,
             instrumentFeeRepository,
             transactionManager,
-            new PublicHolidays());
+            new PublicHolidays(),
+            new BenchmarkLegResolver());
 
     // Default lenient stubs for Phase 3 data sources (overridden in specific tests)
     given(transactionExecutionRepository.sumCommissionsForFundAndPeriod(anyString(), any(), any()))

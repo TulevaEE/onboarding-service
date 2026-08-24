@@ -83,6 +83,7 @@ class TrackingDifferenceService {
   private final TrackingDifferenceEventRepository eventRepository;
   private final TrackingDifferenceCalculator calculator;
   private final FundNavQueryService fundNavQueryService;
+  private final BenchmarkLegResolver benchmarkLegResolver;
 
   List<TrackingDifferenceResult> runChecks() {
     return runChecksAsOf(LocalDate.now(clock), List.of(TulevaFund.values()));
@@ -627,7 +628,8 @@ class TrackingDifferenceService {
   }
 
   private String resolveBenchmarkKey(String isin) {
-    return BenchmarkLegResolver.resolve(isin)
+    return benchmarkLegResolver
+        .resolve(isin)
         .map(BenchmarkLegResolver.BenchmarkLeg::seriesKey)
         .orElse(null);
   }

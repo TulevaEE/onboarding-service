@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.instrument.InstrumentReference;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
+import ee.tuleva.onboarding.instrument.InstrumentReferenceService.UnresolvableBenchmarkProxyException;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.portfolio.PositionLimitRepository;
@@ -159,15 +160,15 @@ public class InstrumentDataValidator {
       if (instrument == null || instrument.getBenchmarkCategory() == null) {
         continue;
       }
-      var proxy =
-          instrumentReferenceService.resolveBenchmarkProxy(
-              instrument.getBenchmarkCategory(), instrument.isExchangeTraded());
-      if (proxy.isEmpty()) {
+      try {
+        instrumentReferenceService.resolveBenchmarkProxy(
+            instrument.getBenchmarkCategory(), instrument.isExchangeTraded());
+      } catch (UnresolvableBenchmarkProxyException e) {
         findings.add(
             new ValidationFinding(
-                Severity.WARNING,
-                "No benchmark proxy for category %s (ISIN %s) — TD BENCHMARK_MODEL will skip"
-                    .formatted(instrument.getBenchmarkCategory(), isin)));
+                Severity.FAIL,
+                "No benchmark proxy for category %s (ISIN %s) — TD BENCHMARK_MODEL will fail: %s"
+                    .formatted(instrument.getBenchmarkCategory(), isin, e.getMessage())));
       }
     }
   }

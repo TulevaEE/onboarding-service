@@ -325,6 +325,7 @@ public class LedgerAccountFixture {
                   .id(UUID.randomUUID())
                   .transactionType(FUND_SUBSCRIPTION)
                   .transactionDate(entry.transactionDate())
+                  .externalReference(entry.externalReference())
                   .metadata(Map.of("navPerUnit", navPerUnit))
                   .build();
           transaction.addEntry(account, entry.amount().negate());

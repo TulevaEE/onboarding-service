@@ -18,9 +18,12 @@ import ee.tuleva.onboarding.ledger.LedgerParty.PartyType;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.LedgerTransaction;
 import ee.tuleva.onboarding.ledger.UserAccount;
+import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +44,7 @@ public class SavingsFundTransactionService {
   private final SavingsFundOnboardingService savingsFundOnboardingService;
   private final SavingsFundConfiguration savingsFundConfiguration;
   private final RedemptionRequestRepository redemptionRequestRepository;
+  private final SavingFundPaymentRepository savingFundPaymentRepository;
 
   @Transactional
   public List<Transaction> getTransactions(AuthenticatedPerson person) {
@@ -53,16 +57,20 @@ public class SavingsFundTransactionService {
 
     String isin = savingsFundConfiguration.getIsin();
 
+    List<LedgerEntry> subscriptionEntries = entries(ownerCode, partyType, SUBSCRIPTIONS);
+    Map<UUID, String> payerIbans = payerIbans(subscriptionEntries, person.toPartyId());
     List<Transaction> subscriptions =
-        entries(ownerCode, partyType, SUBSCRIPTIONS).stream()
-            .map(entry -> toTransaction(entry, CONTRIBUTION_CASH, isin, Map.of()))
+        subscriptionEntries.stream()
+            .map(entry -> toTransaction(entry, CONTRIBUTION_CASH, isin, Map.of(), payerIbans))
             .toList();
 
     List<LedgerEntry> redemptionEntries = entries(ownerCode, partyType, REDEMPTIONS);
-    Map<UUID, Instant> payoutTimes = payoutTimes(redemptionEntries);
+    List<RedemptionRequest> redemptionRequests = redemptionRequests(redemptionEntries);
+    Map<UUID, Instant> payoutTimes = payoutTimes(redemptionRequests);
+    Map<UUID, String> payoutIbans = payoutIbans(redemptionRequests);
     List<Transaction> redemptions =
         redemptionEntries.stream()
-            .map(entry -> toTransaction(entry, SUBTRACTION, isin, payoutTimes))
+            .map(entry -> toTransaction(entry, SUBTRACTION, isin, payoutTimes, payoutIbans))
             .toList();
 
     return Stream.concat(subscriptions.stream(), redemptions.stream())
@@ -76,31 +84,70 @@ public class SavingsFundTransactionService {
         ledgerService.getPartyAccount(ownerCode, partyType, userAccount).getEntries());
   }
 
-  private Map<UUID, Instant> payoutTimes(List<LedgerEntry> redemptionEntries) {
-    Set<UUID> requestIds =
-        redemptionEntries.stream()
-            .map(entry -> entry.getTransaction().getExternalReference())
-            .filter(Objects::nonNull)
-            .collect(toSet());
+  private List<RedemptionRequest> redemptionRequests(List<LedgerEntry> redemptionEntries) {
+    Set<UUID> requestIds = externalReferences(redemptionEntries);
 
     if (requestIds.isEmpty()) {
-      return Map.of();
+      return List.of();
     }
 
+    List<RedemptionRequest> requests = new ArrayList<>();
+    redemptionRequestRepository.findAllById(requestIds).forEach(requests::add);
+    return List.copyOf(requests);
+  }
+
+  private static Map<UUID, Instant> payoutTimes(List<RedemptionRequest> redemptionRequests) {
     Map<UUID, Instant> byRequestId = new HashMap<>();
-    redemptionRequestRepository
-        .findAllById(requestIds)
-        .forEach(
-            request -> {
-              if (request.getProcessedAt() != null) {
-                byRequestId.put(request.getId(), request.getProcessedAt());
-              }
-            });
+    redemptionRequests.forEach(
+        request -> {
+          if (request.getProcessedAt() != null) {
+            byRequestId.put(request.getId(), request.getProcessedAt());
+          }
+        });
     return Map.copyOf(byRequestId);
   }
 
+  private static Map<UUID, String> payoutIbans(List<RedemptionRequest> redemptionRequests) {
+    Map<UUID, String> byRequestId = new HashMap<>();
+    redemptionRequests.forEach(
+        request -> {
+          if (request.getCustomerIban() != null) {
+            byRequestId.put(request.getId(), request.getCustomerIban());
+          }
+        });
+    return Map.copyOf(byRequestId);
+  }
+
+  private Map<UUID, String> payerIbans(List<LedgerEntry> subscriptionEntries, PartyId partyId) {
+    if (externalReferences(subscriptionEntries).isEmpty()) {
+      return Map.of();
+    }
+
+    Map<UUID, String> byPaymentId = new HashMap<>();
+    savingFundPaymentRepository
+        .findPayments(partyId)
+        .forEach(
+            payment -> {
+              if (payment.getId() != null && payment.getRemitterIban() != null) {
+                byPaymentId.put(payment.getId(), payment.getRemitterIban());
+              }
+            });
+    return Map.copyOf(byPaymentId);
+  }
+
+  private static Set<UUID> externalReferences(List<LedgerEntry> entries) {
+    return entries.stream()
+        .map(entry -> entry.getTransaction().getExternalReference())
+        .filter(Objects::nonNull)
+        .collect(toSet());
+  }
+
   private Transaction toTransaction(
-      LedgerEntry entry, CashFlow.Type type, String isin, Map<UUID, Instant> payoutTimes) {
+      LedgerEntry entry,
+      CashFlow.Type type,
+      String isin,
+      Map<UUID, Instant> payoutTimes,
+      Map<UUID, String> counterpartyIbans) {
     LedgerTransaction ledgerTransaction = entry.getTransaction();
     UUID externalReference = ledgerTransaction.getExternalReference();
 
@@ -111,6 +158,8 @@ public class SavingsFundTransactionService {
         .time(ledgerTransaction.getTransactionDate())
         .priceTime(ledgerTransaction.getTransactionDate())
         .settledTime(externalReference == null ? null : payoutTimes.get(externalReference))
+        .counterpartyIban(
+            externalReference == null ? null : counterpartyIbans.get(externalReference))
         .isin(isin)
         .type(type)
         .units(require(ledgerTransaction.findUserFundUnits(), "fundUnits", ledgerTransaction))

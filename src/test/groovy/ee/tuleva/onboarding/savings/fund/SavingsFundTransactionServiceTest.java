@@ -42,6 +42,7 @@ class SavingsFundTransactionServiceTest {
   @Mock private SavingsFundOnboardingService savingsFundOnboardingService;
   @Mock private SavingsFundConfiguration savingsFundConfiguration;
   @Mock private RedemptionRequestRepository redemptionRequestRepository;
+  @Mock private SavingFundPaymentRepository savingFundPaymentRepository;
 
   @InjectMocks private SavingsFundTransactionService service;
 
@@ -178,6 +179,73 @@ class SavingsFundTransactionServiceTest {
             tuple(new BigDecimal("-10.00"), bookingTimeB, bookingTimeB),
             tuple(new BigDecimal("-15.00"), bookingTimeC, bookingTimeC),
             tuple(new BigDecimal("-25.00"), bookingTimeA, processedAtA));
+  }
+
+  @Test
+  void carriesTheAccountAPaymentCameFrom() {
+    String isin = "EE0000003283";
+    UUID paymentId = UUID.randomUUID();
+    Instant bookingTime = Instant.parse("2025-03-01T10:00:00Z");
+
+    when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
+    when(savingsFundConfiguration.getIsin()).thenReturn(isin);
+    when(ledgerService.getPartyAccount(personalCode, PERSON, SUBSCRIPTIONS))
+        .thenReturn(
+            subscriptionsAccountWithEntries(
+                List.of(
+                    new EntryFixture(
+                        new BigDecimal("-100.00"),
+                        bookingTime,
+                        new BigDecimal("10.0"),
+                        paymentId))));
+    when(ledgerService.getPartyAccount(personalCode, PERSON, REDEMPTIONS))
+        .thenReturn(redemptionsAccountWithEntries(List.of()));
+    when(savingFundPaymentRepository.findPayments(any(PartyId.class)))
+        .thenReturn(
+            List.of(
+                SavingFundPayment.builder()
+                    .id(paymentId)
+                    .remitterIban("EE471000001020145685")
+                    .build()));
+
+    List<Transaction> transactions = service.getTransactions(person);
+
+    assertThat(transactions)
+        .extracting(Transaction::counterpartyIban)
+        .containsExactly("EE471000001020145685");
+  }
+
+  @Test
+  void carriesTheAccountARedemptionWasPaidTo() {
+    String isin = "EE0000003283";
+    UUID requestId = UUID.randomUUID();
+    Instant bookingTime = Instant.parse("2025-03-01T10:00:00Z");
+
+    when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
+    when(savingsFundConfiguration.getIsin()).thenReturn(isin);
+    when(ledgerService.getPartyAccount(personalCode, PERSON, SUBSCRIPTIONS))
+        .thenReturn(subscriptionsAccountWithBalance(BigDecimal.ZERO));
+    when(ledgerService.getPartyAccount(personalCode, PERSON, REDEMPTIONS))
+        .thenReturn(
+            redemptionsAccountWithEntries(
+                List.of(
+                    new EntryFixture(
+                        new BigDecimal("25.00"), bookingTime, new BigDecimal("10.0"), requestId))));
+    when(redemptionRequestRepository.findAllById(Set.of(requestId)))
+        .thenReturn(
+            List.of(
+                RedemptionRequest.builder()
+                    .id(requestId)
+                    .partyType(PartyId.Type.PERSON)
+                    .partyCode("38888888888")
+                    .customerIban("EE342200221020145685")
+                    .build()));
+
+    List<Transaction> transactions = service.getTransactions(person);
+
+    assertThat(transactions)
+        .extracting(Transaction::counterpartyIban)
+        .containsExactly("EE342200221020145685");
   }
 
   @Test

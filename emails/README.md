@@ -16,8 +16,9 @@ per-template.
 2. `npm run preview`
 3. Open `preview/index.html` in your browser — every template, every content branch, both
    languages, rendered with the sample data from `fixtures/`.
-4. Commit `src/` **and** `dist/` (the build rewrites `dist/`; CI fails if they don't match).
-5. Open a PR. When it merges to master, CI publishes the changed templates to Mandrill.
+4. Commit `src/` and `fixtures/` — `dist/` is build output and stays out of git.
+5. Open a PR. When it merges to master, CI rebuilds and publishes the changed templates to
+   Mandrill.
 
 Conditional content uses Mandrill's merge language: `*|IF:variable|* … *|ELSEIF:other|* …
 *|ELSE:|* … *|END:IF|*` and `*|variable|*` for values. Keep those tags exactly as they are —
@@ -40,16 +41,17 @@ The template only starts sending once something in `onboarding-service` referenc
 |---|---|
 | `src/` | MJML sources — the files humans edit |
 | `src/partials/` | Shared design: head (fonts, colors, button), header (logo), footers |
-| `dist/` | Compiled HTML, committed, published verbatim to Mandrill |
+| `dist/` | Compiled HTML build output (gitignored); CI rebuilds and publishes it |
 | `fixtures/` | Sample merge data per template; drives the preview gallery |
 | `manifest.json` | Which templates CI manages + subject/sender for each |
 | `preview/` | Generated gallery (gitignored) |
 
 ## CI
 
-`emails-build` runs on every branch and fails when `dist/` is stale. `emails-publish` runs on
-master only and updates+publishes exactly the templates in `manifest.json` whose content or
-subject differs from what is live; unchanged templates are untouched. It needs the
-`MANDRILL_API_KEY` environment variable in CircleCI project settings.
+`emails-build` runs on every branch: it compiles every template and runs the tests.
+`emails-publish` runs on master only: it rebuilds `dist/` and updates+publishes exactly the
+templates in `manifest.json` whose content or subject differs from what is live in Mandrill;
+unchanged templates are untouched. It needs the `MANDRILL_API_KEY` environment variable in
+CircleCI project settings.
 
 Rollback = revert the commit; CI republishes the previous version.

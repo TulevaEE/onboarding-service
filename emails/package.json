@@ -6,9 +6,8 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "preview": "node scripts/build.mjs && node scripts/preview.mjs",
-    "publish-templates": "node scripts/publish.mjs",
-    "check": "node scripts/build.mjs --check",
-    "test": "node --test scripts/*.test.mjs"
+    "publish-templates": "node scripts/build.mjs && node scripts/publish.mjs",
+    "test": "node scripts/build.mjs && node --test scripts/*.test.mjs"
   },
   "dependencies": {
     "mjml": "^4.15.3"

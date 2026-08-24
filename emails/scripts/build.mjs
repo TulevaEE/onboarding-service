@@ -1,5 +1,4 @@
-import { execSync } from 'node:child_process';
-import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import mjml2html from 'mjml';
@@ -7,7 +6,6 @@ import mjml2html from 'mjml';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const srcDir = join(root, 'src');
 const distDir = join(root, 'dist');
-const checkMode = process.argv.includes('--check');
 
 mkdirSync(distDir, { recursive: true });
 
@@ -26,22 +24,10 @@ for (const file of templates) {
     failed = true;
     continue;
   }
-  const outPath = join(distDir, `${name}.html`);
-  if (checkMode) {
-    const existing = existsSync(outPath) ? readFileSync(outPath, 'utf8') : null;
-    if (existing !== html) {
-      console.error(`${name}.html is missing or stale: run "npm run build" and commit dist/`);
-      failed = true;
-    }
-  } else {
-    writeFileSync(outPath, html);
-    console.log(`built dist/${name}.html`);
-  }
+  writeFileSync(join(distDir, `${name}.html`), html);
 }
+console.log(`built ${templates.length} templates into dist/`);
 
 if (failed) {
   process.exit(1);
-}
-if (checkMode) {
-  console.log(`dist is up to date (${templates.length} templates)`);
 }

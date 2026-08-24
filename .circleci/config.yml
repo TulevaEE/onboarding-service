@@ -300,10 +300,7 @@ jobs:
           paths:
             - node_modules
       - run:
-          name: Verify committed dist matches src
-          command: npm run check
-      - run:
-          name: Template tests
+          name: Build templates and run tests
           command: npm test
 
   emails-publish:

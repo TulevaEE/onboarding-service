@@ -3,8 +3,8 @@
 - Edit only `src/*.mjml`, `src/partials/*.mjml`, `fixtures/*.json`, `manifest.json`. Never edit
   `dist/*.html` by hand.
 - After any source change run `npm run preview` and tell the user to open
-  `emails/preview/index.html` in their browser to see the result. Always commit the rebuilt
-  `dist/` together with `src/`.
+  `emails/preview/index.html` in their browser to see the result. `dist/` is generated and
+  gitignored — never commit it; CI rebuilds it on every branch and at publish time.
 - Preserve Mandrill merge tags verbatim: `*|FNAME|*`, `*|IF:x|*`, `*|ELSEIF:x|*`, `*|ELSE:|*`,
   `*|END:IF|*`. They must sit inside `<mj-raw>` when they wrap MJML components. A typo like
   `*IELSEIF` silently breaks the branch chain in sent emails — treat merge tags as code.

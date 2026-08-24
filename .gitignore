@@ -63,5 +63,3 @@ CLAUDE.local.md
 # Transient git worktrees used by coding agents
 .claude/worktrees/
 
-# compiled email templates are committed on purpose (CI publishes them to Mandrill)
-!emails/dist/

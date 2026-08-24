@@ -6,13 +6,14 @@ import ee.tuleva.onboarding.investment.instrument.InstrumentDataValidator.Severi
 import ee.tuleva.onboarding.investment.instrument.InstrumentDataValidator.ValidationFinding
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository
+import ee.tuleva.onboarding.instrument.InstrumentReferenceService
 import ee.tuleva.onboarding.notification.email.EmailService
+import ee.tuleva.onboarding.time.MutableClock
 import spock.lang.Specification
 
-import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75
 
@@ -21,13 +22,18 @@ class InstrumentValidationJobSpec extends Specification {
   InstrumentDataValidator validator = Mock()
   ModelPortfolioAllocationRepository allocationRepository = Mock()
   EmailService emailService = Mock()
-  Clock clock = Clock.fixed(Instant.parse("2026-05-28T10:00:00Z"), ZoneId.of("Europe/Tallinn"))
+  InstrumentReferenceService instrumentReferenceService = Mock()
+  MutableClock clock = new MutableClock(Instant.parse("2026-05-28T10:00:00Z"))
 
   InstrumentValidationJob job = new InstrumentValidationJob(
-      validator, allocationRepository, emailService, clock)
+      validator, allocationRepository, emailService, instrumentReferenceService, clock)
 
   def today = LocalDate.of(2026, 5, 28)
   def effectiveDate = LocalDate.of(2026, 5, 26)
+
+  def setup() {
+    instrumentReferenceService.getLastRefreshedAt() >> { clock.instant() }
+  }
 
   def "sends email when FAIL findings exist"() {
     given:
@@ -143,6 +149,120 @@ class InstrumentValidationJobSpec extends Specification {
     1 * emailService.sendSystemEmail({ MandrillMessage msg ->
       msg.text.contains("2026-06-15") &&
           msg.text.contains("not ready for model portfolio")
+    }) >> true
+  }
+
+  def "alerts when the instrument cache has not refreshed for over three hours"() {
+    given:
+    def staleService = Mock(InstrumentReferenceService)
+    staleService.getLastRefreshedAt() >> { clock.instant().minus(4, ChronoUnit.HOURS) }
+    def staleJob = new InstrumentValidationJob(
+        validator, allocationRepository, emailService, staleService, clock)
+    allocationRepository.findLatestByFundAsOf(_ as TulevaFund, _ as LocalDate) >> []
+    allocationRepository.findFutureEffectiveDates(_ as TulevaFund, _ as LocalDate) >> []
+
+    when:
+    staleJob.run()
+
+    then:
+    1 * emailService.sendSystemEmail({ MandrillMessage msg ->
+      msg.subject == "[STALE] Instrument reference cache"
+    }) >> true
+  }
+
+  def "does not alert when the instrument cache refreshed within three hours"() {
+    given:
+    allocationRepository.findLatestByFundAsOf(_ as TulevaFund, _ as LocalDate) >> []
+    allocationRepository.findFutureEffectiveDates(_ as TulevaFund, _ as LocalDate) >> []
+
+    when:
+    job.run()
+
+    then:
+    0 * emailService.sendSystemEmail(_)
+  }
+
+  def "sends only one alert a day while the finding set is unchanged"() {
+    given:
+    allocationRepository.findLatestByFundAsOf(TUK75, _ as LocalDate) >> [allocation(effectiveDate)]
+    allocationRepository.findLatestByFundAsOf(_ as TulevaFund, _ as LocalDate) >> []
+    allocationRepository.findFutureEffectiveDates(_ as TulevaFund, _ as LocalDate) >> []
+    validator.validate(TUK75, effectiveDate) >> [
+        new ValidationFinding(Severity.FAIL, "stable failure")
+    ]
+
+    when:
+    job.run()
+    clock.tick(1, ChronoUnit.HOURS)
+    job.run()
+
+    then:
+    1 * emailService.sendSystemEmail(_ as MandrillMessage) >> true
+  }
+
+  def "alerts again the next day for an unchanged finding set"() {
+    given:
+    allocationRepository.findLatestByFundAsOf(TUK75, _ as LocalDate) >> [allocation(effectiveDate)]
+    allocationRepository.findLatestByFundAsOf(_ as TulevaFund, _ as LocalDate) >> []
+    allocationRepository.findFutureEffectiveDates(_ as TulevaFund, _ as LocalDate) >> []
+    validator.validate(TUK75, effectiveDate) >> [
+        new ValidationFinding(Severity.FAIL, "stable failure")
+    ]
+
+    when:
+    job.run()
+    clock.tick(1, ChronoUnit.DAYS)
+    job.run()
+
+    then:
+    2 * emailService.sendSystemEmail(_ as MandrillMessage) >> true
+  }
+
+  def "alerts immediately when the finding set changes"() {
+    given:
+    allocationRepository.findLatestByFundAsOf(TUK75, _ as LocalDate) >> [allocation(effectiveDate)]
+    allocationRepository.findLatestByFundAsOf(_ as TulevaFund, _ as LocalDate) >> []
+    allocationRepository.findFutureEffectiveDates(_ as TulevaFund, _ as LocalDate) >> []
+    validator.validate(TUK75, effectiveDate) >>> [
+        [new ValidationFinding(Severity.FAIL, "first failure")],
+        [new ValidationFinding(Severity.FAIL, "second failure")]
+    ]
+
+    when:
+    job.run()
+    clock.tick(1, ChronoUnit.HOURS)
+    job.run()
+
+    then:
+    2 * emailService.sendSystemEmail(_ as MandrillMessage) >> true
+  }
+
+  def "sends a clearing notice once the findings disappear"() {
+    given:
+    allocationRepository.findLatestByFundAsOf(TUK75, _ as LocalDate) >> [allocation(effectiveDate)]
+    allocationRepository.findLatestByFundAsOf(_ as TulevaFund, _ as LocalDate) >> []
+    allocationRepository.findFutureEffectiveDates(_ as TulevaFund, _ as LocalDate) >> []
+    validator.validate(TUK75, effectiveDate) >>> [
+        [new ValidationFinding(Severity.FAIL, "transient failure")],
+        [],
+        []
+    ]
+
+    when:
+    job.run()
+    clock.tick(1, ChronoUnit.HOURS)
+    job.run()
+    clock.tick(1, ChronoUnit.HOURS)
+    job.run()
+
+    then:
+    1 * emailService.sendSystemEmail({ MandrillMessage msg ->
+      msg.subject == "[FAIL] Instrument validation findings"
+    }) >> true
+
+    then:
+    1 * emailService.sendSystemEmail({ MandrillMessage msg ->
+      msg.subject == "[OK] Instrument validation findings cleared"
     }) >> true
   }
 

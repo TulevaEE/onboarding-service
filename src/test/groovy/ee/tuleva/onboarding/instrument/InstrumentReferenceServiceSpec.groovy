@@ -1,11 +1,15 @@
 package ee.tuleva.onboarding.instrument
 
+import ee.tuleva.onboarding.time.MutableClock
 import spock.lang.Specification
+
+import java.time.temporal.ChronoUnit
 
 class InstrumentReferenceServiceSpec extends Specification {
 
   InstrumentReferenceRepository instrumentReferenceRepository = Mock()
   BenchmarkCategoryProxyRepository benchmarkCategoryProxyRepository = Mock()
+  MutableClock clock = new MutableClock()
 
   InstrumentReferenceService service
 
@@ -24,7 +28,7 @@ class InstrumentReferenceServiceSpec extends Specification {
         new BenchmarkCategoryProxy(3L, "BOND_EURO", "IE00B3DKXQ41.XETR", null),
     ]
 
-    service = new InstrumentReferenceService(instrumentReferenceRepository, benchmarkCategoryProxyRepository)
+    service = new InstrumentReferenceService(instrumentReferenceRepository, benchmarkCategoryProxyRepository, clock)
     service.init()
   }
 
@@ -180,7 +184,7 @@ class InstrumentReferenceServiceSpec extends Specification {
         [instrument("IE00NEW", "NEW.DE", "NEW.XETRA", "NEW", null, null, null, true)]
     ]
     proxyRepo.findAll() >> []
-    def svc = new InstrumentReferenceService(repo, proxyRepo)
+    def svc = new InstrumentReferenceService(repo, proxyRepo, clock)
     svc.init()
 
     when:
@@ -194,7 +198,7 @@ class InstrumentReferenceServiceSpec extends Specification {
 
   def "init populates cache"() {
     given:
-    def svc = new InstrumentReferenceService(instrumentReferenceRepository, benchmarkCategoryProxyRepository)
+    def svc = new InstrumentReferenceService(instrumentReferenceRepository, benchmarkCategoryProxyRepository, clock)
 
     when:
     svc.init()
@@ -212,7 +216,7 @@ class InstrumentReferenceServiceSpec extends Specification {
         { throw new RuntimeException("DB down") }
     ]
     proxyRepo.findAll() >> []
-    def svc = new InstrumentReferenceService(repo, proxyRepo)
+    def svc = new InstrumentReferenceService(repo, proxyRepo, clock)
     svc.init()
 
     when:
@@ -221,6 +225,98 @@ class InstrumentReferenceServiceSpec extends Specification {
     then:
     noExceptionThrown()
     svc.findAll().size() == 1
+  }
+
+  def "init fails fast when the instrument table is empty"() {
+    given:
+    def repo = Mock(InstrumentReferenceRepository)
+    def proxyRepo = Mock(BenchmarkCategoryProxyRepository)
+    repo.findAll() >> []
+    proxyRepo.findAll() >> []
+    def svc = new InstrumentReferenceService(repo, proxyRepo, clock)
+
+    when:
+    svc.init()
+
+    then:
+    thrown(IllegalStateException)
+  }
+
+  def "init fails fast when the instrument table cannot be read"() {
+    given:
+    def repo = Mock(InstrumentReferenceRepository)
+    def proxyRepo = Mock(BenchmarkCategoryProxyRepository)
+    repo.findAll() >> { throw new RuntimeException("DB down") }
+    proxyRepo.findAll() >> []
+    def svc = new InstrumentReferenceService(repo, proxyRepo, clock)
+
+    when:
+    svc.init()
+
+    then:
+    thrown(IllegalStateException)
+  }
+
+  def "scheduledRefresh keeps the live cache when the row count drops by more than 20 percent"() {
+    given:
+    def repo = Mock(InstrumentReferenceRepository)
+    def proxyRepo = Mock(BenchmarkCategoryProxyRepository)
+    repo.findAll() >>> [instruments(10), instruments(7)]
+    proxyRepo.findAll() >> []
+    def svc = new InstrumentReferenceService(repo, proxyRepo, clock)
+    svc.init()
+    def refreshedAtBoot = svc.lastRefreshedAt
+
+    when:
+    clock.tick(1, ChronoUnit.HOURS)
+    svc.scheduledRefresh()
+
+    then:
+    svc.findAll().size() == 10
+    svc.lastRefreshedAt == refreshedAtBoot
+  }
+
+  def "scheduledRefresh applies a snapshot when the row count drops by 20 percent or less"() {
+    given:
+    def repo = Mock(InstrumentReferenceRepository)
+    def proxyRepo = Mock(BenchmarkCategoryProxyRepository)
+    repo.findAll() >>> [instruments(10), instruments(8)]
+    proxyRepo.findAll() >> []
+    def svc = new InstrumentReferenceService(repo, proxyRepo, clock)
+    svc.init()
+
+    when:
+    clock.tick(1, ChronoUnit.HOURS)
+    svc.scheduledRefresh()
+
+    then:
+    svc.findAll().size() == 8
+    svc.lastRefreshedAt == clock.instant()
+  }
+
+  def "lastRefreshedAt stays put when the refresh fails"() {
+    given:
+    def repo = Mock(InstrumentReferenceRepository)
+    def proxyRepo = Mock(BenchmarkCategoryProxyRepository)
+    repo.findAll() >>> [instruments(3), { throw new RuntimeException("DB down") }]
+    proxyRepo.findAll() >> []
+    def svc = new InstrumentReferenceService(repo, proxyRepo, clock)
+    svc.init()
+    def refreshedAtBoot = svc.lastRefreshedAt
+
+    when:
+    clock.tick(1, ChronoUnit.HOURS)
+    svc.scheduledRefresh()
+
+    then:
+    noExceptionThrown()
+    svc.lastRefreshedAt == refreshedAtBoot
+  }
+
+  private static List<InstrumentReference> instruments(int count) {
+    (1..count).collect {
+      instrument("IE00TEST%03d".formatted(it), null, null, null, null, null, null, true)
+    }
   }
 
   private static InstrumentReference instrument(

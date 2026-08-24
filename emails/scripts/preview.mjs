@@ -7,32 +7,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const previewDir = join(root, 'preview');
 mkdirSync(previewDir, { recursive: true });
 
-const DEFAULT_VALUES = { FNAME: 'Mari' };
-
-const TAG = /\*\|(IF|ELSEIF|ELSE|END):?([A-Za-z0-9_]*)\|\*/g;
-
-function autoVariants(html) {
-  const variants = { default: { ...DEFAULT_VALUES } };
-  const stack = [];
-  for (const [, keyword, variable] of html.matchAll(TAG)) {
-    if (keyword === 'IF') {
-      stack.push(variable);
-    } else if (keyword === 'END') {
-      stack.pop();
-    }
-    if ((keyword === 'IF' || keyword === 'ELSEIF') && !variants[variable]) {
-      const enclosing = keyword === 'IF' ? stack.slice(0, -1) : [...stack];
-      variants[variable] = {
-        ...DEFAULT_VALUES,
-        ...Object.fromEntries(enclosing.map((v) => [v, true])),
-        [variable]: true,
-      };
-    }
-  }
-  return variants;
-}
-
-function collect(dir, group) {
+function collect(dir) {
   if (!existsSync(dir)) {
     return [];
   }
@@ -42,10 +17,8 @@ function collect(dir, group) {
       const name = basename(f, '.html');
       const html = readFileSync(join(dir, f), 'utf8');
       const fixturePath = join(root, 'fixtures', `${name}.json`);
-      const variants = existsSync(fixturePath)
-        ? JSON.parse(readFileSync(fixturePath, 'utf8')).variants
-        : autoVariants(html);
-      return { name, html, variants, group };
+      const variants = JSON.parse(readFileSync(fixturePath, 'utf8')).variants;
+      return { name, html, variants };
     });
 }
 
@@ -59,22 +32,12 @@ function language(name) {
   return 'muu';
 }
 
-const managed = collect(join(root, 'dist'), 'Managed (MJML)');
-const managedNames = new Set(managed.map((t) => t.name));
-const legacy = collect(join(root, 'exported'), 'Legacy (exported from Mandrill)').filter(
-  (t) => !managedNames.has(t.name),
-);
-const templates = [...managed, ...legacy].map((t) => ({
+const templates = collect(join(root, 'dist')).map((t) => ({
   ...t,
-  group: `${t.group} · ${language(t.name)}`,
+  group: language(t.name),
 }));
 
-const GROUP_ORDER = [
-  'Managed (MJML) · eesti keel',
-  'Managed (MJML) · English',
-  'Legacy (exported from Mandrill) · eesti keel',
-  'Legacy (exported from Mandrill) · English',
-];
+const GROUP_ORDER = ['eesti keel', 'English'];
 const groupRank = (group) => {
   const index = GROUP_ORDER.indexOf(group);
   return index === -1 ? GROUP_ORDER.length : index;
@@ -86,8 +49,7 @@ templates.sort(
 const cards = [];
 for (const { name, html, variants, group } of templates) {
   for (const [variant, vars] of Object.entries(variants)) {
-    const groupSlug = group.startsWith('Managed') ? 'managed' : 'legacy';
-    const fileName = `${groupSlug}--${name}--${variant.replaceAll(/[^a-zA-Z0-9äöüõÄÖÜÕ-]+/g, '-')}.html`;
+    const fileName = `${name}--${variant.replaceAll(/[^a-zA-Z0-9äöüõÄÖÜÕ-]+/g, '-')}.html`;
     writeFileSync(join(previewDir, fileName), renderMergeLanguage(html, vars));
     cards.push({ template: name, variant, fileName, group });
   }
@@ -116,8 +78,7 @@ const index = `<!doctype html>
   nav a { display: block; padding: 0.1rem 0; }
 </style>
 <h1>Tuleva email previews</h1>
-<p>Every template, every content branch, rendered with sample data. Click a title to open full size.
-Legacy templates get auto-detected variants; add a fixtures file to control them.</p>
+<p>Every template, every content branch, rendered with sample data. Click a title to open full size.</p>
 <nav>
 ${Object.entries(
   templates.reduce((acc, t) => (((acc[t.group] ??= []).push(t)), acc), {}),

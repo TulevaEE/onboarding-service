@@ -1,7 +1,9 @@
 package ee.tuleva.onboarding;
 
+import static java.util.stream.Collectors.toSet;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -67,6 +69,51 @@ class ModularityTest {
     assertThat(modulesWithInvestmentDependency)
         .as("No module should depend on investment module")
         .isEmpty();
+  }
+
+  @Test
+  void instrumentIsSharedAndMayBeDependedOnByAnyModule() {
+    assertThat(module("instrument")).isPresent();
+
+    var dependentsOnInstrument =
+        modules.stream()
+            .filter(module -> !moduleName(module).equals("instrument"))
+            .filter(
+                module ->
+                    module.getDirectDependencies(modules).stream()
+                        .anyMatch(dep -> moduleName(dep.getTargetModule()).equals("instrument")))
+            .map(ModularityTest::moduleName)
+            .toList();
+
+    assertThat(dependentsOnInstrument)
+        .as("Instrument is a shared module with no allowed-dependent restriction")
+        .isNotEmpty();
+  }
+
+  @Test
+  void instrumentDoesNotDependOnAnyOtherModule() {
+    var instrumentModule = module("instrument");
+    assertThat(instrumentModule).isPresent();
+
+    var everyOtherModule =
+        modules.stream()
+            .map(ModularityTest::moduleName)
+            .filter(name -> !name.equals("instrument"))
+            .collect(toSet());
+
+    var instrumentDependencies =
+        instrumentModule.get().getDirectDependencies(modules).stream()
+            .map(dep -> moduleName(dep.getTargetModule()))
+            .filter(everyOtherModule::contains)
+            .toList();
+
+    assertThat(instrumentDependencies)
+        .as("Instrument must stay dependency-free so every module can depend on it")
+        .isEmpty();
+  }
+
+  private Optional<ApplicationModule> module(String name) {
+    return modules.stream().filter(module -> moduleName(module).equals(name)).findFirst();
   }
 
   private static String moduleName(ApplicationModule module) {

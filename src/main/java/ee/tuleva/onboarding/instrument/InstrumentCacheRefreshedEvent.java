@@ -1,3 +1,3 @@
-package ee.tuleva.onboarding.investment.instrument;
+package ee.tuleva.onboarding.instrument;
 
 public record InstrumentCacheRefreshedEvent(int instrumentCount) {}

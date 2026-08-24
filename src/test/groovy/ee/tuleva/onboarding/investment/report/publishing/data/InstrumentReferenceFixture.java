@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.report.publishing.data;
 
-import ee.tuleva.onboarding.investment.instrument.InstrumentReference;
+import ee.tuleva.onboarding.instrument.InstrumentReference;
 import org.springframework.beans.BeanUtils;
 import org.springframework.test.util.ReflectionTestUtils;
 

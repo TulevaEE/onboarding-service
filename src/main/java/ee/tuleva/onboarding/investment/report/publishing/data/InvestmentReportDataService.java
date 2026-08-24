@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.investment.report.publishing.data;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
-import ee.tuleva.onboarding.investment.instrument.InstrumentReference;
-import ee.tuleva.onboarding.investment.instrument.InstrumentReferenceService;
+import ee.tuleva.onboarding.instrument.InstrumentReference;
+import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.investment.report.publishing.FundReportMapping;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportContext;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportContext.SecuritySection;

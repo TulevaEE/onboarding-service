@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.investment.instrument;
+package ee.tuleva.onboarding.instrument;
 
 import static jakarta.persistence.GenerationType.IDENTITY;
 
@@ -11,6 +11,7 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.Optional;
 import lombok.Getter;
+import org.jspecify.annotations.Nullable;
 
 @Getter
 @Entity
@@ -19,29 +20,29 @@ public class InstrumentReference {
 
   @Id
   @GeneratedValue(strategy = IDENTITY)
-  private Long id;
+  private @Nullable Long id;
 
   private String isin;
   private String displayName;
-  private String sebPositionName;
-  private String fundManager;
-  private String country;
-  private String instrumentType;
-  private String assetClass;
-  private String yahooTicker;
-  private String eodhdTicker;
-  private String bloombergTicker;
-  private String ric;
-  private String morningstarId;
-  private String blackrockProductId;
-  private String benchmarkCategory;
-  private LocalTime settlementCutoffTime;
-  private String settlementCutoffZone;
-  private Integer settlementDaysFromAcceptance;
-  private Boolean eodhdListed;
+  private @Nullable String sebPositionName;
+  private @Nullable String fundManager;
+  private @Nullable String country;
+  private @Nullable String instrumentType;
+  private @Nullable String assetClass;
+  private @Nullable String yahooTicker;
+  private @Nullable String eodhdTicker;
+  private @Nullable String bloombergTicker;
+  private @Nullable String ric;
+  private @Nullable String morningstarId;
+  private @Nullable String blackrockProductId;
+  private @Nullable String benchmarkCategory;
+  private @Nullable LocalTime settlementCutoffTime;
+  private @Nullable String settlementCutoffZone;
+  private @Nullable Integer settlementDaysFromAcceptance;
+  private @Nullable Boolean eodhdListed;
   private boolean active;
-  private Instant createdAt;
-  private Instant updatedAt;
+  private @Nullable Instant createdAt;
+  private @Nullable Instant updatedAt;
 
   protected InstrumentReference() {}
 

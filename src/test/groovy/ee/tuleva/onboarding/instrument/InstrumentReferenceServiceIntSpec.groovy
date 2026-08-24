@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.investment.instrument
+package ee.tuleva.onboarding.instrument
 
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker
 import org.springframework.beans.factory.annotation.Autowired

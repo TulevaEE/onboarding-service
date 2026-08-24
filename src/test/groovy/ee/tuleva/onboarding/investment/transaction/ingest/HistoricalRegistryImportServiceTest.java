@@ -4,8 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 
-import ee.tuleva.onboarding.investment.instrument.InstrumentReference;
-import ee.tuleva.onboarding.investment.instrument.InstrumentReferenceService;
+import ee.tuleva.onboarding.instrument.InstrumentReference;
+import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.investment.transaction.HistoricalImportResult;
 import ee.tuleva.onboarding.investment.transaction.HistoricalImportResult.RowError;
 import ee.tuleva.onboarding.investment.transaction.TransactionBatchRepository;

@@ -2,11 +2,11 @@ package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 
+import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
+import ee.tuleva.onboarding.instrument.SettlementTerms;
 import ee.tuleva.onboarding.investment.calendar.DomicileCalendar;
 import ee.tuleva.onboarding.investment.calendar.Target2Calendar;
 import ee.tuleva.onboarding.investment.calendar.TradingCalendar;
-import ee.tuleva.onboarding.investment.instrument.InstrumentReferenceService;
-import ee.tuleva.onboarding.investment.instrument.SettlementTerms;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.portfolio.Provider;

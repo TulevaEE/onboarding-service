@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.investment.instrument
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider
 import ee.tuleva.onboarding.deadline.PublicHolidays
+import ee.tuleva.onboarding.instrument.InstrumentReference
+import ee.tuleva.onboarding.instrument.InstrumentReferenceService
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository
 import ee.tuleva.onboarding.investment.portfolio.PositionLimit

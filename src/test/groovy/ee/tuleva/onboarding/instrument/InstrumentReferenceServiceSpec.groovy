@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.investment.instrument
+package ee.tuleva.onboarding.instrument
 
 import spock.lang.Specification
 

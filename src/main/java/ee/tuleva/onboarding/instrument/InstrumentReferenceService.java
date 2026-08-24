@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.investment.instrument;
+package ee.tuleva.onboarding.instrument;
 
 import jakarta.annotation.PostConstruct;
 import java.util.HashMap;
@@ -8,6 +8,7 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -170,7 +171,8 @@ public class InstrumentReferenceService {
 
   // --- Benchmark proxy resolution ---
 
-  public Optional<String> resolveBenchmarkProxy(String benchmarkCategory, boolean exchangeTraded) {
+  public Optional<String> resolveBenchmarkProxy(
+      @Nullable String benchmarkCategory, boolean exchangeTraded) {
     if (benchmarkCategory == null) {
       return Optional.empty();
     }

@@ -572,7 +572,8 @@ public class FundValueIntegrityChecker {
     return hasCriticalDiscrepancyOn(result, endDate, sourceName) ? CROSS_MARK : CHECK_MARK;
   }
 
-  private boolean hasDiscrepancyOn(InstrumentCheckResult result, LocalDate date, String sourceName) {
+  private boolean hasDiscrepancyOn(
+      InstrumentCheckResult result, LocalDate date, String sourceName) {
     return result.crossProviderDiscrepancies().stream()
         .anyMatch(d -> d.date().equals(date) && involves(d, sourceName));
   }

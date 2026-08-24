@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.comparisons.fundvalue;
 
-import static ee.tuleva.onboarding.comparisons.fundvalue.InstrumentReferenceFixture.instrument;
+import static ee.tuleva.onboarding.instrument.InstrumentReferenceFixture.instrument;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -230,9 +230,7 @@ class PriceDataFreshnessAlertJobTest {
     Map<String, LocalDate> stale = buildAllFreshDates(job, tuesday);
     makeEodhdStale(job, stale, friday);
     Map<String, LocalDate> fresh = buildAllFreshDates(job, tuesday);
-    when(fundValueRepository.findLatestDateByKeys(any()))
-        .thenReturn(fresh)
-        .thenReturn(stale);
+    when(fundValueRepository.findLatestDateByKeys(any())).thenReturn(fresh).thenReturn(stale);
 
     job.checkAfterIndexing();
     verifyNoInteractions(notificationService);
@@ -315,7 +313,8 @@ class PriceDataFreshnessAlertJobTest {
     when(fundValueRepository.findLatestDateByKeys(any())).thenReturn(freshDates);
   }
 
-  private Map<String, LocalDate> buildAllFreshDates(PriceDataFreshnessAlertJob job, LocalDate date) {
+  private Map<String, LocalDate> buildAllFreshDates(
+      PriceDataFreshnessAlertJob job, LocalDate date) {
     Map<String, LocalDate> result = new HashMap<>();
     job.buildKeyToProviderMap(job.getEtfInstruments())
         .keySet()
@@ -334,7 +333,9 @@ class PriceDataFreshnessAlertJobTest {
     job.getEtfInstruments()
         .forEach(
             etfInstrument ->
-                etfInstrument.getXetraStorageKey().ifPresent(key -> latestDates.put(key, staleDate)));
+                etfInstrument
+                    .getXetraStorageKey()
+                    .ifPresent(key -> latestDates.put(key, staleDate)));
   }
 
   private PriceDataFreshnessAlertJob jobOn(String instant) {

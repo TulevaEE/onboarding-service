@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
-import static ee.tuleva.onboarding.comparisons.fundvalue.InstrumentReferenceFixture.instrument;
+import static ee.tuleva.onboarding.instrument.InstrumentReferenceFixture.instrument;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -88,14 +88,14 @@ class MorningstarNavRetrieverTest {
   @Test
   void returnsEmptyListOnApiError() {
     MORNINGSTAR_FUNDS.forEach(
-            fund ->
-                server
-                    .expect(
-                        requestTo(
-                            "https://lt.morningstar.com/api/rest.svc/klr5zyak8x/security_details/"
-                                + fund.getMorningstarId()
-                                + "?viewId=MFsnapshot&currencyId=EUR&itype=msid&languageId=en&responseViewFormat=json"))
-                    .andRespond(withServerError()));
+        fund ->
+            server
+                .expect(
+                    requestTo(
+                        "https://lt.morningstar.com/api/rest.svc/klr5zyak8x/security_details/"
+                            + fund.getMorningstarId()
+                            + "?viewId=MFsnapshot&currencyId=EUR&itype=msid&languageId=en&responseViewFormat=json"))
+                .andRespond(withServerError()));
 
     var result =
         retriever.retrieveValuesForRange(LocalDate.of(2026, 2, 1), LocalDate.of(2026, 2, 28));
@@ -151,14 +151,14 @@ class MorningstarNavRetrieverTest {
 
   private void mockAllFunds(String responseBody) {
     MORNINGSTAR_FUNDS.forEach(
-            fund ->
-                server
-                    .expect(
-                        requestTo(
-                            "https://lt.morningstar.com/api/rest.svc/klr5zyak8x/security_details/"
-                                + fund.getMorningstarId()
-                                + "?viewId=MFsnapshot&currencyId=EUR&itype=msid&languageId=en&responseViewFormat=json"))
-                    .andRespond(withSuccess(responseBody, APPLICATION_JSON)));
+        fund ->
+            server
+                .expect(
+                    requestTo(
+                        "https://lt.morningstar.com/api/rest.svc/klr5zyak8x/security_details/"
+                            + fund.getMorningstarId()
+                            + "?viewId=MFsnapshot&currencyId=EUR&itype=msid&languageId=en&responseViewFormat=json"))
+                .andRespond(withSuccess(responseBody, APPLICATION_JSON)));
   }
 
   private String morningstarResponse(String value, String marketDate) {

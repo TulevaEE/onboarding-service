@@ -4,21 +4,48 @@ import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.instrument.InstrumentReferenceFixture.anInstrument;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult.SecurityDetail;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class NavReportMapperTest {
 
-  private final NavReportMapper navReportMapper = new NavReportMapper();
+  private final InstrumentReferenceService instrumentReferenceService =
+      mock(InstrumentReferenceService.class);
+
+  private final NavReportMapper navReportMapper = new NavReportMapper(instrumentReferenceService);
+
+  @BeforeEach
+  void knownInstruments() {
+    given(instrumentReferenceService.findByIsin("IE00BMDBMY19"))
+        .willReturn(
+            Optional.of(
+                anInstrument()
+                    .isin("IE00BMDBMY19")
+                    .displayName("Invesco MSCI Emerging Markets Universal Screened UCITS ETF Acc")
+                    .build()));
+    given(instrumentReferenceService.findByIsin("IE00BFG1TM61"))
+        .willReturn(
+            Optional.of(
+                anInstrument()
+                    .isin("IE00BFG1TM61")
+                    .displayName("iShares Developed World Screened Index Fund")
+                    .build()));
+  }
 
   @Test
   void mapsSavingsFundWithCustodyFee() {
@@ -341,6 +368,47 @@ class NavReportMapperTest {
     assertThat(securityRows.get(0).getAccountId()).isEqualTo("IE00BMDBMY19");
     assertThat(securityRows.get(0).getQuantity()).isEqualTo(new BigDecimal("0.000"));
     assertThat(securityRows.get(0).getMarketValue()).isEqualTo(new BigDecimal("123.45"));
+  }
+
+  @Test
+  void securityRowFallsBackToIsinWhenInstrumentIsUnknown() {
+    var navDate = LocalDate.of(2026, 6, 25);
+
+    var result =
+        NavCalculationResult.builder()
+            .fund(TKF100)
+            .calculationDate(LocalDate.of(2026, 6, 26))
+            .positionReportDate(navDate)
+            .priceDate(navDate)
+            .calculatedAt(Instant.parse("2026-06-26T13:20:00Z"))
+            .securitiesDetail(
+                List.of(
+                    new SecurityDetail(
+                        "IE00UNKNOWN01",
+                        "UNKN",
+                        new BigDecimal("10.00"),
+                        new BigDecimal("2.0000"),
+                        new BigDecimal("20.00"),
+                        navDate)))
+            .cashPosition(new BigDecimal("1000.00"))
+            .receivables(ZERO)
+            .payables(ZERO)
+            .pendingSubscriptions(ZERO)
+            .pendingRedemptions(ZERO)
+            .managementFeeAccrual(ZERO)
+            .depotFeeAccrual(ZERO)
+            .blackrockAdjustment(ZERO)
+            .unitsOutstanding(new BigDecimal("1000.000"))
+            .navPerUnit(new BigDecimal("1.0000"))
+            .aum(new BigDecimal("1020.00"))
+            .build();
+
+    var rows = navReportMapper.map(result);
+
+    var securityRow = rows.get(0);
+    assertThat(securityRow.getAccountType()).isEqualTo("SECURITY");
+    assertThat(securityRow.getAccountId()).isEqualTo("IE00UNKNOWN01");
+    assertThat(securityRow.getAccountName()).isEqualTo("IE00UNKNOWN01");
   }
 
   @Test

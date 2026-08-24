@@ -14,12 +14,14 @@ import ee.tuleva.onboarding.banking.seb.processor.PensionFundEntryClassifier.Tra
 import ee.tuleva.onboarding.banking.seb.processor.PensionFundEntryClassifier.Unclassified
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry
 import ee.tuleva.onboarding.banking.statement.TransactionType
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker
+import ee.tuleva.onboarding.instrument.InstrumentReference
+import ee.tuleva.onboarding.instrument.InstrumentReferenceService
 import spock.lang.Specification
 import java.math.BigDecimal
 import spock.lang.Unroll
 
 import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR
+import static ee.tuleva.onboarding.instrument.InstrumentReferenceFixture.anInstrument
 
 class PensionFundEntryClassifierSpec extends Specification {
 
@@ -32,10 +34,24 @@ class PensionFundEntryClassifierSpec extends Specification {
   static final String REDM_SALE =
       "DLA0695877/BDWTEIA/59145/33.295/Sale/ BlackRock Asset Management Ireland Ltd"
 
+  static final InstrumentReference DEVELOPED_WORLD = anInstrument()
+      .isin("IE00BFG1TM61")
+      .displayName("iShares Developed World Screened Index Fund")
+      .yahooTicker("0P000152G5.F")
+      .bloombergTicker("BDWTEIA")
+      .build()
+
   def configuration = new SebAccountConfiguration(
       [(DEPOSIT_EUR): "EE001234567890123456"], "Tuleva Fondid AS", [REGISTRAR_IBAN],
       [OWN_ACCOUNT_IBAN], [BANK_FEE_IBAN])
-  def classifier = new PensionFundEntryClassifier(new TradeSettlementParser(), configuration)
+  def instrumentReferenceService = Stub(InstrumentReferenceService) {
+    findByTicker(_) >> Optional.empty()
+    findByBloombergTicker(_) >> { String ticker ->
+      ticker == "BDWTEIA" ? Optional.of(DEVELOPED_WORLD) : Optional.empty()
+    }
+  }
+  def classifier = new PensionFundEntryClassifier(
+      new TradeSettlementParser(instrumentReferenceService), configuration)
 
   @Unroll
   def "classifies #description"() {
@@ -49,8 +65,8 @@ class PensionFundEntryClassifierSpec extends Specification {
     "commission as bank fee"                 | entry("COMM", -0.48, null, null, "komisjonitasu")                                  | new BankFee()
     "detail-less adjustment"                 | entry("ADJT", 0.50, null, null, "korrektsioon")                                    | new BankAdjustment()
     "detail-less other as adjustment"        | entry("OTHR", 262.53, null, null, "Penalty CRED")                                  | new BankAdjustment()
-    "bare subfund subscription"              | entry("SUBS", -1071209.00, null, null, SUBS_BUY)                                   | new TradeSettlement(FundTicker.ISHARES_DEVELOPED_WORLD_ESG_SCREENED, 31426.66)
-    "enriched subfund subscription"          | entry("SUBS", -1071209.00, "BlackRock AM", OTHER_IBAN, SUBS_BUY)                   | new TradeSettlement(FundTicker.ISHARES_DEVELOPED_WORLD_ESG_SCREENED, 31426.66)
+    "bare subfund subscription"              | entry("SUBS", -1071209.00, null, null, SUBS_BUY)                                   | new TradeSettlement(DEVELOPED_WORLD, 31426.66)
+    "enriched subfund subscription"          | entry("SUBS", -1071209.00, "BlackRock AM", OTHER_IBAN, SUBS_BUY)                   | new TradeSettlement(DEVELOPED_WORLD, 31426.66)
     "trade with unknown ticker"              | entry("TRAD", -100.00, null, null, "DLA1/ZZZZ GY/1/1/Buy/")                        | new Unclassified("unknown ticker")
     "kickback booking"                       | entry("BOOK", 4370.58, null, null, "Management fee kickback VP00001 02/2026")      | new ManagementFeeRebate()
     "registrar credit"                       | entry("RCDT", 1000000.00, "AS Pensionikeskus", REGISTRAR_IBAN, "osakute laekumine") | new RegistrarContribution()
@@ -67,7 +83,7 @@ class PensionFundEntryClassifierSpec extends Specification {
     "management company rebate transfer"     | entry("ESCT", 34720.54, "Tuleva Fondid AS", OTHER_IBAN, "TUK75 BR rebate")         | new ManagementFeeRebate()
     "management company expense debit"       | entry("BOOK", -1500.00, "Tuleva Fondid AS", OTHER_IBAN, "BR tasud")                | new ManagementFeePayment()
     "damage compensation from manager"       | entry("BOOK", 250.00, "Tuleva Fondid AS", OTHER_IBAN, "Kahju hüvitamine fondile")  | new ManagementFeeRebate()
-    "subfund redemption settlement"          | entry("REDM", 993343.12, null, null, REDM_SALE)                                    | new TradeSettlement(FundTicker.ISHARES_DEVELOPED_WORLD_ESG_SCREENED, new BigDecimal("59145"))
+    "subfund redemption settlement"          | entry("REDM", 993343.12, null, null, REDM_SALE)                                    | new TradeSettlement(DEVELOPED_WORLD, new BigDecimal("59145"))
     "own account transfer in"                | entry("ESCT", 1633975.32, "TULEVA MAAILMA AKTSIATE PENSIONIFOND", OWN_ACCOUNT_IBAN, "Ülekanne fondi teisele kontole") | new OwnAccountTransfer()
     "own account transfer out"               | entry("ICDT", -50000.00, "TULEVA MAAILMA AKTSIATE PENSIONIFOND", OWN_ACCOUNT_IBAN, "Ülekanne fondi teisele kontole") | new OwnAccountTransfer()
     "legacy bank service invoice"            | entry("ESCT", -140.00, "Swedbank AS", BANK_FEE_IBAN, "Arve nr 03-03-2026-3")       | new BankFee()

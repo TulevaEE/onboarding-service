@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.banking.processor;
 import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.instrument.InstrumentReferenceFixture.anInstrument;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.INTEREST_RECEIVED;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.MANAGEMENT_FEE_REBATE;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
@@ -15,6 +16,7 @@ import static org.mockito.Mockito.*;
 import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.banking.statement.TransactionType;
+import ee.tuleva.onboarding.instrument.InstrumentReference;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.LedgerTransaction;
 import java.math.BigDecimal;
@@ -34,6 +36,22 @@ class BankOperationProcessorTest {
       new BankAccount("EE123456789012345678", DEPOSIT_EUR, TKF100, "gw-test");
   private static final BankAccount FUND_INVESTMENT_ACCOUNT =
       new BankAccount("EE123456789012345678", FUND_INVESTMENT_EUR, TKF100, "gw-test");
+
+  private static final InstrumentReference BNP_JAPAN =
+      anInstrument()
+          .isin("LU1291102447")
+          .displayName("BNP Paribas Easy MSCI Japan Min TE UCITS ETF")
+          .yahooTicker("EJAP.DE")
+          .bloombergTicker("EJAP")
+          .build();
+
+  private static final InstrumentReference DEVELOPED_WORLD =
+      anInstrument()
+          .isin("IE00BFG1TM61")
+          .displayName("iShares Developed World Screened Index Fund")
+          .yahooTicker("0P000152G5.F")
+          .bloombergTicker("BDWTEIA")
+          .build();
 
   @Mock FundBankLedger fundBankLedger;
   @Mock TradeSettlementParser tradeSettlementParser;
@@ -241,10 +259,8 @@ class BankOperationProcessorTest {
     var amount = new BigDecimal("-209080.26");
     var remittanceInfo = "DLA0553690/EJAP GY/11704/17.864/Buy/ Euroclear, ABNCNL2AXXX, 14448";
     var entry = createBankOperationEntry("TRAD", amount, remittanceInfo);
-    var fundTicker =
-        ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker.BNP_JAPAN_ESG_FILTERED;
     var tradeInfo =
-        new TradeSettlementParser.TradeSettlementInfo(fundTicker, new BigDecimal("11704"));
+        new TradeSettlementParser.TradeSettlementInfo(BNP_JAPAN, new BigDecimal("11704"));
 
     when(tradeSettlementParser.parse(remittanceInfo)).thenReturn(java.util.Optional.of(tradeInfo));
 
@@ -291,11 +307,8 @@ class BankOperationProcessorTest {
     var remittanceInfo =
         "DLA0544429/BDWTEIA/31426.66/34.085995776/Buy/ BlackRock Asset Management Ireland Ltd";
     var entry = createBankOperationEntry("SUBS", amount, remittanceInfo);
-    var fundTicker =
-        ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker
-            .ISHARES_DEVELOPED_WORLD_ESG_SCREENED;
     var tradeInfo =
-        new TradeSettlementParser.TradeSettlementInfo(fundTicker, new BigDecimal("31426.66"));
+        new TradeSettlementParser.TradeSettlementInfo(DEVELOPED_WORLD, new BigDecimal("31426.66"));
 
     when(tradeSettlementParser.parse(remittanceInfo)).thenReturn(java.util.Optional.of(tradeInfo));
 
@@ -320,11 +333,8 @@ class BankOperationProcessorTest {
     var remittanceInfo =
         "DLA0553691/BDWTEIA/1450.25/34.477/Sell/ BlackRock Asset Management Ireland Ltd";
     var entry = createBankOperationEntry("SUBS", amount, remittanceInfo);
-    var fundTicker =
-        ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker
-            .ISHARES_DEVELOPED_WORLD_ESG_SCREENED;
     var tradeInfo =
-        new TradeSettlementParser.TradeSettlementInfo(fundTicker, new BigDecimal("1450.25"));
+        new TradeSettlementParser.TradeSettlementInfo(DEVELOPED_WORLD, new BigDecimal("1450.25"));
 
     when(tradeSettlementParser.parse(remittanceInfo)).thenReturn(java.util.Optional.of(tradeInfo));
 

@@ -4,20 +4,25 @@ import static ee.tuleva.onboarding.savings.fund.nav.NavReportAccountNames.*;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker;
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.instrument.InstrumentReference;
+import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult.SecurityDetail;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 class NavReportMapper {
 
   private static final BigDecimal ONE = new BigDecimal("1.00");
+
+  private final InstrumentReferenceService instrumentReferenceService;
 
   List<NavReportRow> map(NavCalculationResult result) {
     var rows = new ArrayList<NavReportRow>();
@@ -89,7 +94,10 @@ class NavReportMapper {
 
   private NavReportRow securityRow(LocalDate navDate, String fundCode, SecurityDetail detail) {
     var displayName =
-        FundTicker.findByIsin(detail.isin()).map(FundTicker::getDisplayName).orElse(detail.isin());
+        instrumentReferenceService
+            .findByIsin(detail.isin())
+            .map(InstrumentReference::getDisplayName)
+            .orElse(detail.isin());
 
     return NavReportRow.builder()
         .navDate(navDate)

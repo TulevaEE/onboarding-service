@@ -65,8 +65,8 @@ class OpenSanctionsServiceTest {
     String firstName = "Peeter";
     String lastName = "Meeter";
     String fullName = firstName + " " + lastName;
-    LocalDate birthDate = LocalDate.parse("1960-04-08");
-    String personalCode = "36004081234";
+    LocalDate birthDate = LocalDate.parse("1903-03-03");
+    String personalCode = "30303039816";
     Person person = new PersonImpl(personalCode, firstName, lastName);
     String countryCode = "ee";
     Set<Country> country = Countries.of(countryCode);
@@ -227,8 +227,8 @@ class OpenSanctionsServiceTest {
     String firstName = "Peeter";
     String lastName = "Meeter";
     String fullName = firstName + " " + lastName;
-    LocalDate birthDate = LocalDate.parse("1960-04-08");
-    String personalCode = "36004081234";
+    LocalDate birthDate = LocalDate.parse("1903-03-03");
+    String personalCode = "30303039816";
     Person person = new PersonImpl(personalCode, firstName, lastName);
     Set<Country> country = Countries.<String>of();
 
@@ -285,8 +285,8 @@ class OpenSanctionsServiceTest {
     String firstName = "Peeter";
     String lastName = "Meeter";
     String fullName = firstName + " " + lastName;
-    LocalDate birthDate = LocalDate.parse("1960-04-08");
-    String personalCode = "36004081234";
+    LocalDate birthDate = LocalDate.parse("1903-03-03");
+    String personalCode = "30303039816";
     Person person = new PersonImpl(personalCode, firstName, lastName);
     Set<Country> country = Countries.of("fi");
 
@@ -341,8 +341,8 @@ class OpenSanctionsServiceTest {
     String firstName = "Peeter";
     String lastName = "Meeter";
     String fullName = firstName + " " + lastName;
-    LocalDate birthDate = LocalDate.parse("1960-04-08");
-    String personalCode = "36004081234";
+    LocalDate birthDate = LocalDate.parse("1903-03-03");
+    String personalCode = "30303039816";
     Person person = new PersonImpl(personalCode, firstName, lastName);
     // Country is a mutable bean, so a null code is constructible even though Countries.of filters
     // it. Sending it would put a literal "null" in the outbound body.
@@ -465,13 +465,13 @@ class OpenSanctionsServiceTest {
     String firstName = "Peeter";
     String lastName = "Meeter";
     String fullName = firstName + " " + lastName;
-    LocalDate birthDate = LocalDate.parse("1960-04-08");
-    String personalCode = "36004081234";
+    LocalDate birthDate = LocalDate.parse("1903-03-03");
+    String personalCode = "30303039816";
     Person person = new PersonImpl(personalCode, firstName, lastName);
     Set<Country> country = Countries.of("ee");
 
     String malformedMockApiResponseJson =
-        "{ \"responses\": { \"36004081234\": { \"status\": 200, \"results\": [{\"id\":\"test\"], \"query\": {} } }";
+        "{ \"responses\": { \"30303039816\": { \"status\": 200, \"results\": [{\"id\":\"test\"], \"query\": {} } }";
 
     List<String> countriesForRequest = List.of("ee");
     String gender = "male";
@@ -496,17 +496,17 @@ class OpenSanctionsServiceTest {
 
   @Test
   void sendsEveryCitizenshipAsAQueryCountrySoDualCitizensMatchBothListings() {
-    Person person = new PersonImpl("36004081234", "Peeter", "Meeter");
+    Person person = new PersonImpl("30303039816", "Peeter", "Meeter");
 
     String expectedRequestBodyJson =
         """
         {
           "queries": {
-            "36004081234": {
+            "30303039816": {
               "schema": "Person",
               "properties": {
                 "name": ["Peeter Meeter"],
-                "birthDate": ["1960-04-08"],
+                "birthDate": ["1903-03-03"],
                 "country": ["ee", "lv", "ru"],
                 "gender": ["male"]
               }
@@ -521,7 +521,7 @@ class OpenSanctionsServiceTest {
         .andRespond(
             withSuccess(
                 """
-                {"responses": {"36004081234": {"results": [], "query": {}}}}""",
+                {"responses": {"30303039816": {"results": [], "query": {}}}}""",
                 MediaType.APPLICATION_JSON));
 
     openSanctionsService.match(person, Countries.of("RU", "LV"));
@@ -529,17 +529,17 @@ class OpenSanctionsServiceTest {
 
   @Test
   void normalisesCountryCasingSoAnEstonianCitizenIsNotSentTwice() {
-    Person person = new PersonImpl("36004081234", "Peeter", "Meeter");
+    Person person = new PersonImpl("30303039816", "Peeter", "Meeter");
 
     String expectedRequestBodyJson =
         """
         {
           "queries": {
-            "36004081234": {
+            "30303039816": {
               "schema": "Person",
               "properties": {
                 "name": ["Peeter Meeter"],
-                "birthDate": ["1960-04-08"],
+                "birthDate": ["1903-03-03"],
                 "country": ["ee"],
                 "gender": ["male"]
               }
@@ -553,7 +553,7 @@ class OpenSanctionsServiceTest {
         .andRespond(
             withSuccess(
                 """
-                {"responses": {"36004081234": {"results": [], "query": {}}}}""",
+                {"responses": {"30303039816": {"results": [], "query": {}}}}""",
                 MediaType.APPLICATION_JSON));
 
     openSanctionsService.match(person, Countries.of("EE"));

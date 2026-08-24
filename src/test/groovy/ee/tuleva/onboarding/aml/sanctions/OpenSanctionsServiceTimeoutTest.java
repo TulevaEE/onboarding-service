@@ -30,7 +30,7 @@ class OpenSanctionsServiceTimeoutTest {
               "http://127.0.0.1:" + unresponsiveServer.getLocalPort(),
               Duration.ofMillis(500),
               Duration.ofMillis(250));
-      var person = new PersonImpl("36004081234", "Peeter", "Meeter");
+      var person = new PersonImpl("30303039816", "Peeter", "Meeter");
 
       Throwable thrown = catchThrowable(() -> service.match(person, Countries.of("ee")));
 

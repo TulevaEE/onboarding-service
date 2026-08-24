@@ -27,17 +27,7 @@
         </mj-text>
       </mj-column>
     </mj-section>
-    <mj-section padding="12px 24px 0">
-      <mj-column>
-        <mj-text font-size="13px" line-height="150%" font-style="italic">
-          Please read the terms, prospectus and key information at
-          <a href="https://tuleva.ee">tuleva.ee</a> and consult an expert at
-          <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> or
-          <a href="tel:+3726445100">+372 644&nbsp;5100</a>. Past performance is not a guarantee
-          of future returns.
-        </mj-text>
-      </mj-column>
-    </mj-section>
+    <mj-include path="./partials/disclaimer_savings_short_en.mjml" />
     <mj-include path="./partials/footer_bottom_fund.mjml" />
   </mj-body>
 </mjml>

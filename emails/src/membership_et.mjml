@@ -51,14 +51,7 @@
         </mj-text>
       </mj-column>
     </mj-section>
-    <mj-section padding="12px 24px 0">
-      <mj-column>
-        <mj-text font-size="13px" line-height="150%" font-style="italic">
-          Finantsteenust pakub Tuleva Fondid AS. Tutvu pensionifondi tingimuste, prospekti ja
-          põhiteabega tuleva.ee ning küsi nõu asjatundjalt. Tootlus ei ole garanteeritud.
-        </mj-text>
-      </mj-column>
-    </mj-section>
+    <mj-include path="./partials/disclaimer_pension_et.mjml" />
     <mj-include path="./partials/footer_bottom_coop.mjml" />
   </mj-body>
 </mjml>

@@ -1,12 +1,14 @@
 <mj-section padding="12px 24px 0">
   <mj-column>
     <mj-text font-size="13px" line-height="150%" font-style="italic">
-      Maksustamine oleneb isikuga seotud asjaoludest, sh residentsusest. Maksuseadused muutuvad
-      ajas. Tulumaksu tagasisaamiseks tuleb esitada tuludeklaratsioon. Finantsteenust pakub
-      Tuleva Fondid AS. Tutvu tingimuste, prospekti, investori õiguste kokkuvõtte ja põhiteabega
+      Finantsteenust pakub Tuleva Fondid AS. Tutvu tingimuste, prospekti, investori õiguste
+      kokkuvõtte ja põhiteabega
       <a href="https://tuleva.ee">tuleva.ee</a> ning küsi nõu asjatundjalt
       <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> või
-      <a href="tel:+3726445100">644&nbsp;5100</a>.
+      <a href="tel:+3726445100">644&nbsp;5100</a>. Mineviku tootlus ei taga sarnast tootlust
+      tulevikus. Tootlus ei ole garanteeritud. Investeeringu väärtus võib nii kasvada kui
+      kahaneda. Tulumaksu tagasisaamiseks tuleb esitada tuludeklaratsioon. Maksustamine oleneb
+      isikuga seotud asjaoludest, sh residentsusest. Maksuseadused muutuvad ajas.
     </mj-text>
   </mj-column>
 </mj-section>

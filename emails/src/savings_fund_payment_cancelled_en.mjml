@@ -26,7 +26,7 @@
         </mj-text>
       </mj-column>
     </mj-section>
-    <mj-include path="./partials/disclaimer_savings_en.mjml" />
+    <mj-include path="./partials/disclaimer_savings_short_en.mjml" />
     <mj-include path="./partials/footer_bottom_fund.mjml" />
   </mj-body>
 </mjml>

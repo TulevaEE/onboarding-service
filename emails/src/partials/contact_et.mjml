@@ -2,8 +2,7 @@
   <mj-column>
     <mj-text>
       Küsimuste korral võta ühendust
-      <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> või
-      <a href="tel:+3726445100">644&nbsp;5100</a>.
+      <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> või&nbsp;<a href="tel:+3726445100">644&nbsp;5100</a>.
     </mj-text>
   </mj-column>
 </mj-section>

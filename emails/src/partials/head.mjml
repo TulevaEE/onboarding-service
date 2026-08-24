@@ -1,5 +1,6 @@
 <mj-head>
   <mj-font name="Roboto" href="https://fonts.googleapis.com/css?family=Roboto:400,400i,500,700,700i" />
+  <mj-font name="Merriweather" href="https://fonts.googleapis.com/css?family=Merriweather:700" />
   <mj-attributes>
     <mj-all font-family="Roboto, Helvetica Neue, Helvetica, Arial, sans-serif" />
     <mj-text font-size="16px" line-height="150%" color="#212529" padding="8px 0" />

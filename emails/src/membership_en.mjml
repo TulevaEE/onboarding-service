@@ -5,11 +5,11 @@
 
     <mj-section padding-top="12px">
       <mj-column>
-        <mj-text font-size="24px" font-weight="bold">
+        <mj-text font-family="Merriweather, Georgia, serif" font-size="26px" font-weight="700" line-height="130%">
           Tuleva membership number&nbsp;*|memberNumber|*
         </mj-text>
         <mj-text>
-          &nbsp;<strong>*|FNAME|*&nbsp;*|LNAME|*</strong><br />
+          <strong>*|FNAME|*&nbsp;*|LNAME|*</strong><br />
           is accepted by Tulundusühistu Tuleva as a member at&nbsp;*|memberDate|*.
         </mj-text>
         <mj-text>

@@ -140,8 +140,8 @@ class SrriCalculatorTest {
 
   @Test
   void publishesAClassAtExactlyTheMinimumObservationCount() {
-    var navs = fiveYearsOfNavs(202);
-    var evalDate = navs.get(200).date();
+    var navs = seriesCoveringTheWindowWithExactlyMinimumObservations();
+    var evalDate = navs.getLast().date().minusWeeks(1);
 
     var point = calculator.calculate(navs, evalDate, evalDate).getFirst();
 
@@ -150,7 +150,7 @@ class SrriCalculatorTest {
   }
 
   @Test
-  void publishesAClassOnceTheFiveYearWindowHasEnoughObservations() {
+  void publishesAClassOnceTheHistoryReachesBackFiveYears() {
     var navs = fiveYearsOfNavs(300);
     var evalDate = navs.getLast().date().minusWeeks(1);
 
@@ -161,7 +161,7 @@ class SrriCalculatorTest {
   }
 
   @Test
-  void publishesAClassOnObservationCountAloneEvenWhenTheWindowReachesPastTheFirstNav() {
+  void publishesNoClassWhileTheHistoryFallsShortOfFiveYearsEvenWithPlentyOfObservations() {
     var navs = fiveYearsOfNavs(250);
     var evalDate = navs.getLast().date().minusWeeks(1);
 
@@ -169,7 +169,8 @@ class SrriCalculatorTest {
 
     assertThat(point.observationCount()).isGreaterThanOrEqualTo(200);
     assertThat((LocalDate) point.metrics().get("windowStart")).isBefore(navs.getFirst().date());
-    assertThat(point.riskClass()).isNotNull();
+    assertThat(point.riskClass()).isNull();
+    assertThat(point.volatility()).isPositive();
   }
 
   @Test
@@ -196,6 +197,26 @@ class SrriCalculatorTest {
     var navs = new ArrayList<FundValue>();
     for (int i = 0; i < values.size(); i++) {
       navs.add(nav(weekEnd(firstMonday.plusWeeks(i)), values.get(i)));
+    }
+    return navs;
+  }
+
+  /**
+   * Coverage and count are separate gates, so pinning the count floor takes a series that clears
+   * coverage first: a run of weeks starting at the window's near edge, a gap, then a run ending on
+   * the evaluation date. 200 contiguous weeks would reach back under four years and be withheld for
+   * coverage before the count was ever consulted. Week 261 is five years on from the first Monday,
+   * so the window opens between weeks 0 and 1; the two runs yield 99 and 101 returns. Week 262
+   * carries no return of its own — it is there so week 261 counts as a complete week.
+   */
+  private static ArrayList<FundValue> seriesCoveringTheWindowWithExactlyMinimumObservations() {
+    var navs = new ArrayList<FundValue>();
+    var value = 1.0;
+    for (int week = 0; week <= 262; week++) {
+      value *= 1 + 0.01 * Math.sin(week);
+      if (week <= 99 || week >= 160) {
+        navs.add(nav(weekEnd(FIRST_MONDAY.plusWeeks(week)), value));
+      }
     }
     return navs;
   }

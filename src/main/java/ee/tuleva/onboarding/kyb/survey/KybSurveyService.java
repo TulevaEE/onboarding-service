@@ -85,6 +85,11 @@ class KybSurveyService {
     return new FieldError(field, new ValidationError(code, message));
   }
 
+  private static FieldError fieldError(
+      String field, String code, String message, List<RelatedPersonData> persons) {
+    return new FieldError(field, new ValidationError(code, message, persons));
+  }
+
   private static Stream<FieldError> relatedPersonsKycErrors(
       KybCheck check, String userPersonalCode, List<RelatedPersonData> relatedPersons) {
     var incompletePersonalCodes = RelatedPersonsKycMetadata.incompletePersonalCodes(check);
@@ -101,7 +106,8 @@ class KybSurveyService {
           fieldError(
               "relatedPersons",
               "OTHER_RELATED_PERSONS_KYC",
-              kycMessageWithNames(otherPersonalCodes, relatedPersons)));
+              KYC_MESSAGE,
+              personsFor(otherPersonalCodes, relatedPersons)));
     }
     if (errors.isEmpty()) {
       errors.add(fieldError("relatedPersons", "OTHER_RELATED_PERSONS_KYC", KYC_MESSAGE));
@@ -109,18 +115,19 @@ class KybSurveyService {
     return errors.stream();
   }
 
-  private static String kycMessageWithNames(
+  private static List<RelatedPersonData> personsFor(
       List<String> personalCodes, List<RelatedPersonData> relatedPersons) {
-    var namesByPersonalCode =
+    var personsByPersonalCode =
         relatedPersons.stream()
-            .filter(person -> person.personalCode() != null && person.name() != null)
-            .collect(toMap(RelatedPersonData::personalCode, RelatedPersonData::name, (a, b) -> a));
-    var names =
-        personalCodes.stream()
-            .map(personalCode -> namesByPersonalCode.getOrDefault(personalCode, personalCode))
-            .distinct()
-            .collect(joining(", "));
-    return names.isBlank() ? KYC_MESSAGE : KYC_MESSAGE + ": " + names;
+            .filter(person -> person.personalCode() != null)
+            .collect(toMap(RelatedPersonData::personalCode, identity(), (a, b) -> a));
+    return personalCodes.stream()
+        .distinct()
+        .map(
+            personalCode ->
+                personsByPersonalCode.getOrDefault(
+                    personalCode, new RelatedPersonData(personalCode, null)))
+        .toList();
   }
 
   private static ValidationError blockedReasonError(BlockedReason reason) {

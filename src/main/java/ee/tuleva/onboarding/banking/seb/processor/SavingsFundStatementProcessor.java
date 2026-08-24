@@ -2,13 +2,17 @@ package ee.tuleva.onboarding.banking.seb.processor;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ZERO;
 
+import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.BankAccountType;
+import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.processor.BankOperationProcessor;
 import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
+import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
@@ -26,44 +30,37 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @RequiredArgsConstructor
-public class SebBankStatementProcessor {
+public class SavingsFundStatementProcessor {
 
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
 
   private final SavingFundPaymentExtractor paymentExtractor;
   private final SavingFundPaymentUpsertionService paymentService;
   private final SebAccountConfiguration sebAccountConfiguration;
+  private final BankAccounts bankAccounts;
   private final SavingsFundLedger savingsFundLedger;
+  private final FundBankLedger fundBankLedger;
   private final UserService userService;
   private final RedemptionRequestRepository redemptionRequestRepository;
   private final RedemptionStatusService redemptionStatusService;
   private final EndToEndIdConverter endToEndIdConverter;
   private final BankOperationProcessor bankOperationProcessor;
 
-  public void processStatement(BankStatement bankStatement) {
+  public void process(BankStatement bankStatement, BankAccount account) {
     log.info(
         "Processing bank statement: type={}, entries={}",
         bankStatement.getType(),
         bankStatement.getEntries().size());
 
-    var accountIban = bankStatement.getBankStatementAccount().iban();
-    var accountType = sebAccountConfiguration.getAccountType(accountIban);
-
-    if (accountType == null) {
-      log.warn("Unknown account type: iban={}", accountIban);
-      return;
-    }
-
     var payments = paymentExtractor.extractPayments(bankStatement);
     log.info("Extracted payments: count={}", payments.size());
 
-    payments.forEach(payment -> processPayment(payment, accountType));
-    log.info("Processed payments: count={}, accountType={}", payments.size(), accountType);
+    payments.forEach(payment -> processPayment(payment, account.type()));
+    log.info("Processed payments: count={}, account={}", payments.size(), account);
 
     bankStatement.getEntries().stream()
         .filter(entry -> entry.details() == null)
-        .forEach(
-            entry -> bankOperationProcessor.processBankOperation(entry, accountIban, accountType));
+        .forEach(entry -> bankOperationProcessor.processBankOperation(entry, account));
   }
 
   private SavingFundPayment.Status resolveDepositAccountStatus(SavingFundPayment payment) {
@@ -107,8 +104,7 @@ public class SebBankStatementProcessor {
   }
 
   private boolean isInternalTransferIncoming(SavingFundPayment payment) {
-    return isIncomingPayment(payment)
-        && sebAccountConfiguration.getAccountType(payment.getRemitterIban()) != null;
+    return isIncomingPayment(payment) && isSavingsFundAccount(payment.getRemitterIban());
   }
 
   private void handleDepositAccountPayment(SavingFundPayment payment) {
@@ -203,7 +199,7 @@ public class SebBankStatementProcessor {
 
   private boolean isIncomingFromFundInvestment(SavingFundPayment payment) {
     return isIncomingPayment(payment)
-        && sebAccountConfiguration.getAccountType(payment.getRemitterIban()) == FUND_INVESTMENT_EUR;
+        && isSavingsFundAccount(payment.getRemitterIban(), FUND_INVESTMENT_EUR);
   }
 
   private void handleFundInvestmentAccountPayment(SavingFundPayment payment) {
@@ -214,8 +210,8 @@ public class SebBankStatementProcessor {
     } else if (isManagementFeePayment(payment)) {
       var amount = payment.getAmount().negate();
       log.info("Creating ledger entry for management fee payment: amount={}", amount);
-      savingsFundLedger.recordManagementFeePayment(
-          amount, payment.getId(), payment.getDescription(), bookingDate(payment));
+      fundBankLedger.recordManagementFeePayment(
+          TKF100, amount, payment.getId(), payment.getDescription(), bookingDate(payment));
     } else {
       log.error(
           "Unhandled FUND_INVESTMENT_EUR payment: paymentId={}, amount={}, beneficiaryIban={}",
@@ -234,19 +230,25 @@ public class SebBankStatementProcessor {
 
   private boolean isOutgoingToWithdrawalAccount(SavingFundPayment payment) {
     return isOutgoingPayment(payment)
-        && sebAccountConfiguration.getAccountType(payment.getBeneficiaryIban()) == WITHDRAWAL_EUR;
+        && isSavingsFundAccount(payment.getBeneficiaryIban(), WITHDRAWAL_EUR);
   }
 
   private boolean isOutgoingToFundAccount(SavingFundPayment payment) {
     return payment.getAmount().compareTo(ZERO) < 0
-        && sebAccountConfiguration.getAccountType(payment.getBeneficiaryIban())
-            == FUND_INVESTMENT_EUR;
+        && isSavingsFundAccount(payment.getBeneficiaryIban(), FUND_INVESTMENT_EUR);
   }
 
   private boolean isOutgoingReturn(SavingFundPayment payment) {
     return payment.getAmount().compareTo(ZERO) < 0
-        && sebAccountConfiguration.getAccountType(payment.getBeneficiaryIban())
-            != FUND_INVESTMENT_EUR;
+        && !isSavingsFundAccount(payment.getBeneficiaryIban(), FUND_INVESTMENT_EUR);
+  }
+
+  private boolean isSavingsFundAccount(String iban) {
+    return bankAccounts.find(iban).filter(account -> account.belongsTo(TKF100)).isPresent();
+  }
+
+  private boolean isSavingsFundAccount(String iban, BankAccountType type) {
+    return bankAccounts.find(iban).filter(account -> account.matches(TKF100, type)).isPresent();
   }
 
   private static LocalDate bookingDate(SavingFundPayment payment) {

@@ -1,10 +1,15 @@
 package ee.tuleva.onboarding.payment.email;
 
+import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
+import static ee.tuleva.onboarding.party.ParentChildLinkStatus.PENDING_KYC;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static java.util.Locale.ENGLISH;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.company.Company;
@@ -14,6 +19,7 @@ import ee.tuleva.onboarding.party.PartyResolver;
 import ee.tuleva.onboarding.payment.event.SavingsPaymentCreatedEvent;
 import ee.tuleva.onboarding.user.User;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -44,22 +50,27 @@ class SavingsFundSuccessEmailResolverTest {
   }
 
   @Test
-  void paymentForRepresentedChildResolvesToChildEmailWithChildName() {
+  void paymentForRepresentedChildResolvesToChildEmailRegardlessOfTheRepresentativesKycStatus() {
     String childCode = "51111111111";
     User child = User.builder().personalCode(childCode).firstName("Kid").lastName("Tester").build();
-    given(parentChildLinkService.isActiveRepresentation(payer.getPersonalCode(), childCode))
+    given(
+            parentChildLinkService.isRepresentation(
+                payer.getPersonalCode(), childCode, Set.of(ACTIVE, PENDING_KYC)))
         .willReturn(true);
     given(partyResolver.resolve(new PartyId(PERSON, childCode))).willReturn(Optional.of(child));
 
     var resolved = resolver.resolve(event(new PartyId(PERSON, childCode)));
 
     assertThat(resolved).isEqualTo(SavingsFundPaymentEmail.childSuccess(child.name()));
+    verify(parentChildLinkService, never()).isActiveRepresentation(any(), any());
   }
 
   @Test
   void paymentForAnotherPersonWhoIsNotARepresentedChildResolvesToPersonEmail() {
     String otherCode = "49001010001";
-    given(parentChildLinkService.isActiveRepresentation(payer.getPersonalCode(), otherCode))
+    given(
+            parentChildLinkService.isRepresentation(
+                payer.getPersonalCode(), otherCode, Set.of(ACTIVE, PENDING_KYC)))
         .willReturn(false);
 
     var resolved = resolver.resolve(event(new PartyId(PERSON, otherCode)));

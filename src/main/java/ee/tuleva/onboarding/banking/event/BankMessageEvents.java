@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.banking.event;
 
-import ee.tuleva.onboarding.banking.BankAccountType;
+import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.BankType;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import java.time.LocalDate;
@@ -12,12 +12,12 @@ public final class BankMessageEvents {
 
   public record BankStatementReceived(UUID messageId, BankType bankType, BankStatement statement) {}
 
-  public record FetchSebCurrentDayTransactionsRequested(BankAccountType accountType) {}
+  public record FetchSebCurrentDayTransactionsRequested(BankAccount account) {}
 
-  public record FetchSebEodTransactionsRequested(BankAccountType accountType) {}
+  public record FetchSebEodTransactionsRequested(BankAccount account) {}
 
   public record FetchSebHistoricTransactionsRequested(
-      BankAccountType accountType, LocalDate dateFrom, LocalDate dateTo) {}
+      BankAccount account, LocalDate dateFrom, LocalDate dateTo) {}
 
   public record ProcessBankMessagesRequested() {}
 

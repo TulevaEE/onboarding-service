@@ -1,0 +1,4 @@
+ALTER TYPE ledger.transaction_type ADD VALUE 'REGISTRAR_CONTRIBUTION';
+ALTER TYPE ledger.transaction_type ADD VALUE 'REGISTRAR_PAYOUT';
+ALTER TYPE ledger.transaction_type ADD VALUE 'UNCLASSIFIED_BANK_ENTRY';
+ALTER TYPE ledger.transaction_type ADD VALUE 'OPENING_BALANCE';

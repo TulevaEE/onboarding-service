@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.party.ParentChildLinkStatus.PENDING_KYC;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -25,10 +26,16 @@ public class ParentChildLinkService {
         .toList();
   }
 
-  public boolean isActiveRepresentation(String parentPersonalCode, String childPersonalCode) {
+  public boolean isRepresentation(
+      String parentPersonalCode, String childPersonalCode, Set<ParentChildLinkStatus> statuses) {
     return parentChildLinkRepository
-        .existsByParentPersonalCodeAndChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
-            parentPersonalCode, childPersonalCode, ACTIVE, today());
+        .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+            parentPersonalCode, childPersonalCode, statuses, today());
+  }
+
+  // The parent acting *as* the child: requires the parent to have cleared their own KYC.
+  public boolean isActiveRepresentation(String parentPersonalCode, String childPersonalCode) {
+    return isRepresentation(parentPersonalCode, childPersonalCode, Set.of(ACTIVE));
   }
 
   // AML screening scope, not an authorization check: suspended and PENDING_KYC links count,

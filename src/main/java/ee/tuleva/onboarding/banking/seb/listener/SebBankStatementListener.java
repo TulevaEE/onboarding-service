@@ -4,7 +4,7 @@ import static ee.tuleva.onboarding.banking.BankType.SEB;
 import static ee.tuleva.onboarding.banking.seb.listener.SebEventListenerOrder.PROCESS_STATEMENT;
 
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankStatementReceived;
-import ee.tuleva.onboarding.banking.seb.processor.SebBankStatementProcessor;
+import ee.tuleva.onboarding.banking.seb.processor.SebStatementRouter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -15,7 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class SebBankStatementListener {
 
-  private final SebBankStatementProcessor processor;
+  private final SebStatementRouter router;
 
   @Order(PROCESS_STATEMENT)
   @EventListener
@@ -24,6 +24,6 @@ public class SebBankStatementListener {
     if (event.bankType() != SEB) {
       return;
     }
-    processor.processStatement(event.statement());
+    router.route(event.statement());
   }
 }

@@ -21,16 +21,17 @@ public class SebGatewayClient {
   private final SebHttpSignature sebHttpSignature;
   private final RetryTemplate sebGatewayRetryTemplate;
 
-  public String getEodTransactions(String iban) {
+  public String getEodTransactions(String iban, String orgId) {
     log.info("Fetching EOD transactions: iban={}", iban);
     return sebGatewayRestClient
         .get()
         .uri("/v1/accounts/{iban}/eod-transactions", iban)
+        .header("OrgId", orgId)
         .retrieve()
         .body(String.class);
   }
 
-  public String getCurrentTransactions(String iban) {
+  public String getCurrentTransactions(String iban, String orgId) {
     log.info("Fetching current day transactions: iban={}", iban);
     return sebGatewayRestClient
         .get()
@@ -41,11 +42,12 @@ public class SebGatewayClient {
                     .queryParam("page", 1)
                     .queryParam("size", 3000)
                     .build(iban))
+        .header("OrgId", orgId)
         .retrieve()
         .body(String.class);
   }
 
-  public String getTransactions(String iban, LocalDate dateFrom, LocalDate dateTo) {
+  public String getTransactions(String iban, String orgId, LocalDate dateFrom, LocalDate dateTo) {
     log.info("Fetching transactions: iban={}, dateFrom={}, dateTo={}", iban, dateFrom, dateTo);
     return sebGatewayRestClient
         .get()
@@ -58,24 +60,27 @@ public class SebGatewayClient {
                     .queryParam("page", 1)
                     .queryParam("size", 3000)
                     .build(iban))
+        .header("OrgId", orgId)
         .retrieve()
         .body(String.class);
   }
 
-  public String getBalances(String iban) {
+  public String getBalances(String iban, String orgId) {
     log.info("Fetching balances: iban={}", iban);
     return sebGatewayRestClient
         .get()
         .uri("/v1/accounts/{iban}/balances", iban)
+        .header("OrgId", orgId)
         .retrieve()
         .body(String.class);
   }
 
-  public String submitPaymentFile(String paymentXml, String idempotencyKey) {
-    return sebGatewayRetryTemplate.invoke(() -> doSubmitPaymentFile(paymentXml, idempotencyKey));
+  public String submitPaymentFile(String paymentXml, String idempotencyKey, String orgId) {
+    return sebGatewayRetryTemplate.invoke(
+        () -> doSubmitPaymentFile(paymentXml, idempotencyKey, orgId));
   }
 
-  private String doSubmitPaymentFile(String paymentXml, String idempotencyKey) {
+  private String doSubmitPaymentFile(String paymentXml, String idempotencyKey, String orgId) {
     log.info("Submitting payment file: idempotencyKey={}", idempotencyKey);
     byte[] body = paymentXml.getBytes(UTF_8);
     String digest = sebHttpSignature.createDigest(body);
@@ -88,6 +93,7 @@ public class SebGatewayClient {
         .post()
         .uri("/v1/imported-payment-files")
         .contentType(APPLICATION_XML_UTF8)
+        .header("OrgId", orgId)
         .header("Idempotency-Key", idempotencyKey)
         .header("Digest", digest)
         .header("Signature", signature)

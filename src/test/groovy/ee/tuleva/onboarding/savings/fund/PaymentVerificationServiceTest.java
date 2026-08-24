@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
+import static ee.tuleva.onboarding.party.ParentChildLinkStatus.PENDING_KYC;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.TO_BE_RETURNED;
@@ -27,6 +29,7 @@ import java.time.LocalDate;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
 
@@ -626,7 +629,9 @@ class PaymentVerificationServiceTest {
             .build();
     when(userRepository.findByPersonalCode(parentCode)).thenReturn(Optional.of(parent));
     when(userRepository.findByPersonalCode(childCode)).thenReturn(Optional.of(child));
-    when(parentChildLinkService.isActiveRepresentation(parentCode, childCode)).thenReturn(false);
+    when(parentChildLinkService.isRepresentation(
+            parentCode, childCode, Set.of(ACTIVE, PENDING_KYC)))
+        .thenReturn(false);
 
     service.process(payment);
 
@@ -674,7 +679,9 @@ class PaymentVerificationServiceTest {
             .build();
     when(userRepository.findByPersonalCode(remitterCode)).thenReturn(Optional.empty());
     when(userRepository.findByPersonalCode(childCode)).thenReturn(Optional.of(child));
-    when(parentChildLinkService.isActiveRepresentation(remitterCode, childCode)).thenReturn(false);
+    when(parentChildLinkService.isRepresentation(
+            remitterCode, childCode, Set.of(ACTIVE, PENDING_KYC)))
+        .thenReturn(false);
 
     service.process(payment);
 
@@ -715,7 +722,7 @@ class PaymentVerificationServiceTest {
   }
 
   @Test
-  void process_parentRepresentingChild_activeLink_paymentVerifiedForChild() {
+  void process_parentRepresentingChild_validLink_paymentVerifiedForChild() {
     var parentCode = "38812121215";
     var childCode = "61506150006";
     var payment = createPayment(parentCode, "for child " + childCode);
@@ -729,7 +736,9 @@ class PaymentVerificationServiceTest {
     when(userRepository.findByPersonalCode(childCode)).thenReturn(Optional.of(child));
     when(savingsFundOnboardingService.isOnboardingCompleted(new PartyId(PERSON, childCode)))
         .thenReturn(true);
-    when(parentChildLinkService.isActiveRepresentation(parentCode, childCode)).thenReturn(true);
+    when(parentChildLinkService.isRepresentation(
+            parentCode, childCode, Set.of(ACTIVE, PENDING_KYC)))
+        .thenReturn(true);
 
     service.process(payment);
 
@@ -758,14 +767,17 @@ class PaymentVerificationServiceTest {
                     payment.getId(),
                     "amount",
                     payment.getAmount())));
+    verify(parentChildLinkService, never()).isActiveRepresentation(any(), any());
   }
 
   @Test
-  void process_parentRepresentingChild_noActiveLink_bouncesAsCodeMismatch() {
+  void process_parentRepresentingChild_noValidLink_bouncesAsCodeMismatch() {
     var parentCode = "38812121215";
     var childCode = "61506150006";
     var payment = createPayment(parentCode, "for child " + childCode);
-    when(parentChildLinkService.isActiveRepresentation(parentCode, childCode)).thenReturn(false);
+    when(parentChildLinkService.isRepresentation(
+            parentCode, childCode, Set.of(ACTIVE, PENDING_KYC)))
+        .thenReturn(false);
 
     service.process(payment);
 

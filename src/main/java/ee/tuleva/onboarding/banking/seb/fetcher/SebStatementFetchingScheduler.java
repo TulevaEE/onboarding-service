@@ -1,6 +1,9 @@
 package ee.tuleva.onboarding.banking.seb.fetcher;
 
-import ee.tuleva.onboarding.banking.BankAccountType;
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
+
+import ee.tuleva.onboarding.banking.BankAccount;
+import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebCurrentDayTransactionsRequested;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebEodTransactionsRequested;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +17,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 public class SebStatementFetchingScheduler {
 
   private final ApplicationEventPublisher eventPublisher;
+  private final BankAccounts bankAccounts;
 
   @Scheduled(cron = "0 */5 9-17 * * MON-FRI", zone = "Europe/Tallinn")
   @SchedulerLock(
@@ -22,7 +26,7 @@ public class SebStatementFetchingScheduler {
       lockAtLeastFor = "30m")
   public void fetchCurrentDayTransactions() {
     log.info("Running SEB current day transactions fetching scheduler");
-    for (BankAccountType account : BankAccountType.values()) {
+    for (BankAccount account : bankAccounts.findAll(TKF100)) {
       try {
         eventPublisher.publishEvent(new FetchSebCurrentDayTransactionsRequested(account));
       } catch (Exception exception) {
@@ -38,7 +42,7 @@ public class SebStatementFetchingScheduler {
       lockAtLeastFor = "30m")
   public void fetchEodTransactions() {
     log.info("Running SEB end-of-day transactions fetching scheduler");
-    for (BankAccountType account : BankAccountType.values()) {
+    for (BankAccount account : bankAccounts.findAll()) {
       try {
         eventPublisher.publishEvent(new FetchSebEodTransactionsRequested(account));
       } catch (Exception exception) {

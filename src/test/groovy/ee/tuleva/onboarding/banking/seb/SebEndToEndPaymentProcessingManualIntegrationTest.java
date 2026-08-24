@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.BankType;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.ProcessBankMessagesRequested;
 import ee.tuleva.onboarding.banking.message.BankingMessage;
@@ -78,7 +79,7 @@ class SebEndToEndPaymentProcessingManualIntegrationTest {
   @Autowired private SavingsFundLedger savingsFundLedger;
   @Autowired private SavingsFundOnboardingRepository savingsFundOnboardingRepository;
   @Autowired private PaymentVerificationJob paymentVerificationJob;
-  @Autowired private SebAccountConfiguration sebAccountConfiguration;
+  @Autowired private BankAccounts bankAccounts;
   @Autowired private PaymentReturningJob paymentReturningJob;
   @MockitoBean private SebGatewayClient sebGatewayClient;
 
@@ -121,7 +122,7 @@ class SebEndToEndPaymentProcessingManualIntegrationTest {
       statementIndex++;
 
       String accountIban = extractAccountIban(xml);
-      var accountType = sebAccountConfiguration.getAccountType(accountIban);
+      var account = bankAccounts.find(accountIban).orElse(null);
 
       // Extract statement date and set clock so ledger entries match the statement period
       statementDate = extractStatementDate(xml);
@@ -139,7 +140,7 @@ class SebEndToEndPaymentProcessingManualIntegrationTest {
 
       extractClosingBalance(xml).ifPresent(balance -> closingBalances.put(accountIban, balance));
 
-      String accountName = accountType != null ? accountType.name() : "UNKNOWN";
+      String accountName = account != null ? account.toString() : "UNKNOWN";
       String messageType = xml.contains("camt.053") ? "camt.053" : "camt.052";
       String closingInfo =
           extractClosingBalance(xml).map(b -> ", closing: " + b).orElse(" (no closing balance)");
@@ -207,22 +208,22 @@ class SebEndToEndPaymentProcessingManualIntegrationTest {
     for (var entry : closingBalances.entrySet()) {
       String iban = entry.getKey();
       BigDecimal expectedBalance = entry.getValue();
-      var accountType = sebAccountConfiguration.getAccountType(iban);
+      var account = bankAccounts.find(iban).orElse(null);
 
-      if (accountType == null) {
+      if (account == null) {
         System.out.println("SKIP: Unknown account " + iban);
         continue;
       }
 
       LedgerAccount ledgerAccount =
-          ledgerService.getSystemAccount(accountType.getLedgerAccount(), TKF100);
+          ledgerService.getSystemAccount(account.ledgerAccount(), account.fund());
       BigDecimal ledgerBalance = ledgerAccount.getBalanceAt(endOfLastStatement);
 
       boolean matches = ledgerBalance.compareTo(expectedBalance) == 0;
       String status = matches ? "OK" : "MISMATCH";
 
       System.out.println(
-          accountType
+          account
               + ": expected="
               + expectedBalance
               + ", ledger="

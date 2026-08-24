@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.banking.seb;
 
+import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.payment.PaymentMessageGenerator;
 import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
 import lombok.RequiredArgsConstructor;
@@ -11,19 +12,21 @@ import org.springframework.context.event.EventListener;
 public class SebPaymentRequestListener {
 
   private final SebGatewayClient sebGatewayClient;
-  private final SebAccountConfiguration sebAccountConfiguration;
+  private final BankAccounts bankAccounts;
   private final PaymentMessageGenerator paymentMessageGenerator;
 
   @EventListener
   public void onRequestPayment(RequestPaymentEvent event) {
     String remitterIban = event.paymentRequest().remitterIban();
-    if (sebAccountConfiguration.getAccountType(remitterIban) == null) {
+    var remitterAccount = bankAccounts.find(remitterIban).orElse(null);
+    if (remitterAccount == null) {
       log.debug("Ignoring payment request, remitter IBAN is not a SEB account: {}", remitterIban);
       return;
     }
 
     var paymentXml =
         paymentMessageGenerator.generatePaymentMessage(event.paymentRequest(), Seb.BIC);
-    sebGatewayClient.submitPaymentFile(paymentXml, event.paymentRequest().endToEndId());
+    sebGatewayClient.submitPaymentFile(
+        paymentXml, event.paymentRequest().endToEndId(), remitterAccount.gatewayClientId());
   }
 }

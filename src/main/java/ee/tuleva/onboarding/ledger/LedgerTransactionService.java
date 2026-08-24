@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
 import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -42,6 +43,26 @@ class LedgerTransactionService {
       UUID externalReference, TransactionType transactionType) {
     return ledgerTransactionRepository.existsByExternalReferenceAndTransactionType(
         externalReference, transactionType);
+  }
+
+  public boolean existsByExternalReference(UUID externalReference) {
+    return ledgerTransactionRepository.existsByExternalReference(externalReference);
+  }
+
+  public boolean hasEntriesForAccountName(String accountName) {
+    return ledgerTransactionRepository.countEntriesForAccountName(accountName) > 0;
+  }
+
+  public long countUnresolvedByTransactionTypeAndAccountName(
+      TransactionType transactionType, String accountName) {
+    return ledgerTransactionRepository.countUnresolvedByTransactionTypeAndAccountName(
+        transactionType, accountName);
+  }
+
+  public List<LedgerTransaction> findUnresolvedByTransactionTypeAndAccountName(
+      TransactionType transactionType, String accountName) {
+    return ledgerTransactionRepository.findUnresolvedByTransactionTypeAndAccountName(
+        transactionType, accountName);
   }
 
   Optional<LedgerTransaction> findByExternalReferenceAndTransactionType(

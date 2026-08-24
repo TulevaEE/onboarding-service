@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.ledger;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.ASSET;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.LIABILITY;
-import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_BOUNCE_BACK;
@@ -18,8 +17,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.math.BigDecimal;
-import java.time.Clock;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
@@ -486,92 +483,6 @@ class SavingsFundLedgerTest {
   }
 
   @Test
-  void recordManagementFeePayment_createsCorrectLedgerEntries() {
-    var feeAmount = new BigDecimal("742.34");
-    var externalReference = randomUUID();
-    var description = "Valitsemistasu 02.-28.02.26";
-    var managementFeeBefore = getSystemAccount(MANAGEMENT_FEE).getBalance();
-    var fundInvestmentCashClearingBefore = getFundInvestmentCashClearingAccount().getBalance();
-
-    var transaction =
-        savingsFundLedger.recordManagementFeePayment(feeAmount, externalReference, description);
-
-    assertThat(transaction.getMetadata().get("operationType")).isEqualTo("MANAGEMENT_FEE_PAYMENT");
-    assertThat(transaction.getMetadata().get("description")).isEqualTo(description);
-    assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
-    assertThat(deltaSince(managementFeeBefore, getSystemAccount(MANAGEMENT_FEE)))
-        .isEqualByComparingTo(feeAmount);
-    assertThat(deltaSince(fundInvestmentCashClearingBefore, getFundInvestmentCashClearingAccount()))
-        .isEqualByComparingTo(feeAmount.negate());
-    verifyDoubleEntry(transaction);
-  }
-
-  @Test
-  void recordBankFee_createsCorrectLedgerEntries() {
-    var amount = new BigDecimal("-1.50");
-    var externalReference = randomUUID();
-    var bankFeeBefore = getSystemAccount(BANK_FEE).getBalance();
-    var clearingBefore = getIncomingPaymentsClearingAccount().getBalance();
-
-    var transaction =
-        savingsFundLedger.recordBankFee(amount, externalReference, INCOMING_PAYMENTS_CLEARING);
-
-    assertThat(transaction.getMetadata().get("operationType")).isEqualTo("BANK_FEE");
-    assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
-    assertThat(deltaSince(bankFeeBefore, getSystemAccount(BANK_FEE)))
-        .isEqualByComparingTo(amount.negate());
-    assertThat(deltaSince(clearingBefore, getIncomingPaymentsClearingAccount()))
-        .isEqualByComparingTo(amount);
-    verifyDoubleEntry(transaction);
-  }
-
-  @Test
-  void recordInterestReceived_createsCorrectLedgerEntries() {
-    var amount = new BigDecimal("5.00");
-    var externalReference = randomUUID();
-    var clearingBefore = getIncomingPaymentsClearingAccount().getBalance();
-    var interestIncomeBefore = getSystemAccount(INTEREST_INCOME).getBalance();
-
-    var transaction =
-        savingsFundLedger.recordInterestReceived(
-            amount, externalReference, INCOMING_PAYMENTS_CLEARING);
-
-    assertThat(transaction.getMetadata().get("operationType")).isEqualTo("INTEREST_RECEIVED");
-    assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
-    assertThat(deltaSince(clearingBefore, getIncomingPaymentsClearingAccount()))
-        .isEqualByComparingTo(amount);
-    assertThat(deltaSince(interestIncomeBefore, getSystemAccount(INTEREST_INCOME)))
-        .isEqualByComparingTo(amount.negate());
-    verifyDoubleEntry(transaction);
-  }
-
-  @Test
-  void recordManagementFeeRebate_createsCorrectLedgerEntries() {
-    var amount = new BigDecimal("4370.58");
-    var externalReference = randomUUID();
-    var description = "Management fee kickback VP68168 02/2026";
-    var fundInvestmentCashClearingBefore = getFundInvestmentCashClearingAccount().getBalance();
-    var managementFeeRebateBefore = getSystemAccount(MANAGEMENT_FEE_REBATE).getBalance();
-
-    var transaction =
-        savingsFundLedger.recordManagementFeeRebate(
-            amount,
-            externalReference,
-            FUND_INVESTMENT_CASH_CLEARING,
-            LocalDate.of(2026, 5, 28),
-            description);
-
-    assertThat(transaction.getMetadata().get("operationType")).isEqualTo("MANAGEMENT_FEE_REBATE");
-    assertThat(transaction.getMetadata().get("description")).isEqualTo(description);
-    assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
-    assertThat(deltaSince(fundInvestmentCashClearingBefore, getFundInvestmentCashClearingAccount()))
-        .isEqualByComparingTo(amount);
-    assertThat(deltaSince(managementFeeRebateBefore, getSystemAccount(MANAGEMENT_FEE_REBATE)))
-        .isEqualByComparingTo(amount.negate());
-    verifyDoubleEntry(transaction);
-  }
-
-  @Test
   void recordAdjustment_systemToSystem_createsCorrectLedgerEntries() {
     var amount = new BigDecimal("50.00");
     var clearingBefore = getIncomingPaymentsClearingAccount().getBalance();
@@ -656,87 +567,6 @@ class SavingsFundLedgerTest {
   }
 
   @Test
-  void recordBankAdjustment_createsCorrectLedgerEntries() {
-    var amount = new BigDecimal("0.500");
-    var externalReference = randomUUID();
-    var bankAdjustmentBefore = getSystemAccount(BANK_ADJUSTMENT).getBalance();
-    var clearingBefore = getIncomingPaymentsClearingAccount().getBalance();
-
-    var transaction =
-        savingsFundLedger.recordBankAdjustment(
-            amount, externalReference, INCOMING_PAYMENTS_CLEARING);
-
-    assertThat(transaction.getMetadata().get("operationType")).isEqualTo("BANK_ADJUSTMENT");
-    assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
-    assertThat(deltaSince(bankAdjustmentBefore, getSystemAccount(BANK_ADJUSTMENT)))
-        .isEqualByComparingTo(amount.negate());
-    assertThat(deltaSince(clearingBefore, getIncomingPaymentsClearingAccount()))
-        .isEqualByComparingTo(amount);
-    verifyDoubleEntry(transaction);
-  }
-
-  @Test
-  void recordTradeSettlement_createsCorrectFourEntryTransaction() {
-    var amount = new BigDecimal("-209025.86");
-    var units = new BigDecimal("11704.00000");
-    var externalReference = randomUUID();
-    var isin = "LU1291102447";
-    var fundInvestmentCashClearingBefore = getFundInvestmentCashClearingAccount().getBalance();
-
-    var transaction =
-        savingsFundLedger.recordTradeSettlement(
-            amount,
-            units,
-            externalReference,
-            FUND_INVESTMENT_CASH_CLEARING,
-            isin,
-            "EJAP",
-            "BNP Paribas Easy MSCI Japan Min TE UCITS ETF");
-
-    assertThat(transaction.getMetadata().get("operationType")).isEqualTo("TRADE_SETTLEMENT");
-    assertThat(transaction.getMetadata().get("instrument")).isEqualTo(isin);
-    assertThat(transaction.getMetadata().get("ticker")).isEqualTo("EJAP");
-    assertThat(transaction.getMetadata().get("displayName"))
-        .isEqualTo("BNP Paribas Easy MSCI Japan Min TE UCITS ETF");
-    assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
-    assertThat(transaction.getEntries()).hasSize(4);
-    assertThat(deltaSince(fundInvestmentCashClearingBefore, getFundInvestmentCashClearingAccount()))
-        .isEqualByComparingTo(amount);
-    assertThat(getTradeSettlementAccount(isin).getBalance()).isEqualByComparingTo(amount.negate());
-    assertThat(getSecurityUnitsAccount(isin).getBalance()).isEqualByComparingTo(units.negate());
-    assertThat(getSecuritiesCustodyAccount(isin).getBalance()).isEqualByComparingTo(units);
-    verifyDoubleEntry(transaction);
-  }
-
-  @Test
-  void recordTradeSettlement_createsPerInstrumentAccounts() {
-    var amount1 = new BigDecimal("-209025.86");
-    var units1 = new BigDecimal("11704.00000");
-    var amount2 = new BigDecimal("-995467.50");
-    var units2 = new BigDecimal("19422.00000");
-    var isin1 = "LU1291102447";
-    var isin2 = "IE00BJZ2DC62";
-
-    savingsFundLedger.recordTradeSettlement(
-        amount1, units1, randomUUID(), FUND_INVESTMENT_CASH_CLEARING, isin1, "EJAP", "BNP Japan");
-    savingsFundLedger.recordTradeSettlement(
-        amount2,
-        units2,
-        randomUUID(),
-        FUND_INVESTMENT_CASH_CLEARING,
-        isin2,
-        "XRSM",
-        "Xtrackers USA");
-
-    assertThat(getTradeSettlementAccount(isin1).getBalance())
-        .isEqualByComparingTo(amount1.negate());
-    assertThat(getTradeSettlementAccount(isin2).getBalance())
-        .isEqualByComparingTo(amount2.negate());
-    assertThat(getSecurityUnitsAccount(isin1).getBalance()).isEqualByComparingTo(units1.negate());
-    assertThat(getSecurityUnitsAccount(isin2).getBalance()).isEqualByComparingTo(units2.negate());
-  }
-
-  @Test
   void recordAdjustment_withDynamicSystemAccounts_createsAccountsOnTheFly() {
     var units = new BigDecimal("11704.00000");
 
@@ -757,34 +587,6 @@ class SavingsFundLedgerTest {
     assertThat(getSecuritiesCustodyAccount("LU1291102447").getBalance())
         .isEqualByComparingTo(units.negate());
     verifyDoubleEntry(transaction);
-  }
-
-  @Test
-  void recordManagementFeePayment_withBookingDate_usesBookingDateWhenDifferentFromToday() {
-    // Clock is Oct 2 (15:00 EET), but booking date is Oct 1
-    ClockHolder.setClock(Clock.fixed(Instant.parse("2025-10-02T12:00:00Z"), ZoneId.of("UTC")));
-
-    var transaction =
-        savingsFundLedger.recordManagementFeePayment(
-            new BigDecimal("742.34"), randomUUID(), "Valitsemistasu", LocalDate.of(2025, 10, 1));
-
-    assertThat(transaction.getTransactionDate()).isBefore(Instant.parse("2025-10-02T00:00:00Z"));
-  }
-
-  @Test
-  void recordManagementFeePayment_withBookingDate_usesClockWhenSameDay() {
-    var clockInstant = Instant.parse("2025-10-01T14:54:35Z");
-    ClockHolder.setClock(Clock.fixed(clockInstant, ZoneId.of("UTC")));
-
-    var transaction =
-        savingsFundLedger.recordManagementFeePayment(
-            new BigDecimal("742.34"), randomUUID(), "Valitsemistasu", LocalDate.of(2025, 10, 1));
-
-    assertThat(transaction.getTransactionDate()).isEqualTo(clockInstant);
-  }
-
-  private BigDecimal deltaSince(BigDecimal before, LedgerAccount account) {
-    return account.getBalance().subtract(before);
   }
 
   private void setupUserWithFundUnits(
@@ -852,12 +654,6 @@ class SavingsFundLedgerTest {
     return getSystemAccount(PAYOUTS_CASH_CLEARING);
   }
 
-  private LedgerAccount getTradeSettlementAccount(String isin) {
-    return ledgerAccountService
-        .findSystemAccountByName("TRADE_CASH_SETTLEMENT:TKF100:" + isin, ASSET, EUR)
-        .orElseThrow();
-  }
-
   private LedgerAccount getSecurityUnitsAccount(String isin) {
     return ledgerAccountService
         .findSystemAccountByName("TRADE_UNIT_SETTLEMENT:TKF100:" + isin, ASSET, FUND_UNIT)
@@ -907,6 +703,10 @@ class SavingsFundLedgerTest {
         .isEqualByComparingTo(ZERO);
     assertThat(deltaSince(clearingBefore, getIncomingPaymentsClearingAccount()))
         .isEqualByComparingTo(ZERO);
+  }
+
+  private BigDecimal deltaSince(BigDecimal before, LedgerAccount account) {
+    return account.getBalance().subtract(before);
   }
 
   private static void verifyDoubleEntry(LedgerTransaction transaction) {

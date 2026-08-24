@@ -9,17 +9,19 @@ import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYM
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_CANCELLED;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
+import static ee.tuleva.onboarding.party.ParentChildLinkStatus.PENDING_KYC;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
+import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.BankType;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.ProcessBankMessagesRequested;
 import ee.tuleva.onboarding.banking.message.BankingMessage;
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
-import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import ee.tuleva.onboarding.currency.Currency;
@@ -28,6 +30,8 @@ import ee.tuleva.onboarding.ledger.LedgerEntry;
 import ee.tuleva.onboarding.ledger.LedgerParty;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.party.ParentChildLink;
+import ee.tuleva.onboarding.party.ParentChildLinkRepository;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.issuing.FundAccountPaymentJob;
 import ee.tuleva.onboarding.savings.fund.issuing.IssuingJob;
@@ -66,12 +70,13 @@ class SavingsFundPaymentIntegrationTest {
   @Autowired private UserRepository userRepository;
   @Autowired private LedgerService ledgerService;
   @Autowired private SavingsFundOnboardingRepository savingsFundOnboardingRepository;
-  @Autowired private SebAccountConfiguration sebAccountConfiguration;
+  @Autowired private BankAccounts bankAccounts;
   @Autowired private FundValueRepository fundValueRepository;
   @Autowired private SavingsFundConfiguration savingsFundConfiguration;
   @Autowired private JdbcClient jdbcClient;
   @Autowired private SavingsFundLedger savingsFundLedger;
   @Autowired private UnattributedPaymentAttributionService attributionService;
+  @Autowired private ParentChildLinkRepository parentChildLinkRepository;
 
   // Monday 2025-09-29 17:00 EET (15:00 UTC) - after 16:00 cutoff
   private static final Instant NOW = Instant.parse("2025-09-29T15:00:00Z");
@@ -216,7 +221,7 @@ class SavingsFundPaymentIntegrationTest {
     payment = paymentRepository.findById(paymentId).orElseThrow();
     assertThat(payment.getStatus()).isEqualTo(PROCESSED);
 
-    var investmentIban = sebAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR);
+    var investmentIban = bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR);
 
     var outgoingToInvestmentXml =
         createOutgoingToInvestmentAccountXml(investmentIban, paymentAmount);
@@ -406,6 +411,10 @@ class SavingsFundPaymentIntegrationTest {
   private LedgerAccount getUserCashAccount() {
     return ledgerService.getPartyAccount(
         testUser.getPersonalCode(), LedgerParty.PartyType.PERSON, CASH);
+  }
+
+  private LedgerAccount getCashAccount(String personalCode) {
+    return ledgerService.getPartyAccount(personalCode, LedgerParty.PartyType.PERSON, CASH);
   }
 
   private LedgerAccount getUserCashReservedAccount() {
@@ -638,6 +647,99 @@ class SavingsFundPaymentIntegrationTest {
     // Assert final ledger: bounce back recorded, clearing accounts balanced
     assertThat(scopedBalance(getUnreconciledBankReceiptsAccount())).isEqualByComparingTo(ZERO);
     assertThat(scopedBalance(getIncomingPaymentsClearingAccount())).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  @DisplayName(
+      "A legal representative who has not cleared KYC can still fund the child: XML → RECEIVED → VERIFIED for the child")
+  void paymentFromPendingRepresentativeIsVerifiedForTheChild() {
+    var childCode = "61506150006";
+    userRepository.save(
+        User.builder()
+            .firstName("Mari")
+            .lastName("Tamm")
+            .personalCode(childCode)
+            .email("mari.tamm@example.com")
+            .phoneNumber("+372 5555 7777")
+            .build());
+    savingsFundOnboardingRepository.saveOnboardingStatus(childCode, PERSON, COMPLETED);
+    parentChildLinkRepository.save(
+        ParentChildLink.builder()
+            .parentPersonalCode(testUser.getPersonalCode())
+            .childPersonalCode(childCode)
+            .relationshipType(LEGAL_REPRESENTATIVE)
+            .validUntil(LocalDate.of(2033, 6, 15))
+            .status(PENDING_KYC)
+            .build());
+
+    persistXmlMessage(createPaymentForChildXml(childCode), NOW);
+
+    // Step 1: Process XML message → Payment should be RECEIVED
+    eventPublisher.publishEvent(new ProcessBankMessagesRequested());
+
+    var payment = paymentRepository.findByExternalId("2025092909000-2").orElseThrow();
+    assertThat(payment.getStatus()).isEqualTo(RECEIVED);
+    var paymentId = payment.getId();
+    ownedPaymentIds.add(paymentId);
+
+    // Step 2: Run verification job → Payment should be VERIFIED and attached to the child
+    paymentVerificationJob.runJob();
+
+    payment = paymentRepository.findById(paymentId).orElseThrow();
+    assertThat(payment.getStatus()).isEqualTo(VERIFIED);
+    assertThat(payment.getPartyId()).isEqualTo(new PartyId(PERSON, childCode));
+    assertThat(payment.getReturnReason()).isNull();
+
+    // Assert ledger: the cash liability lands on the child, not on the paying parent
+    var paymentAmount = new BigDecimal("50.00");
+    assertThat(scopedBalance(getCashAccount(childCode)))
+        .isEqualByComparingTo(paymentAmount.negate());
+    assertThat(scopedBalance(getUserCashAccount())).isEqualByComparingTo(ZERO);
+    assertThat(scopedBalance(getIncomingPaymentsClearingAccount()))
+        .isEqualByComparingTo(paymentAmount);
+  }
+
+  private String createPaymentForChildXml(String childCode) {
+    return "<?xml version=\"1.0\" encoding=\"UTF-8\"?> "
+        + "<Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:camt.052.001.02\"> "
+        + "<BkToCstmrAcctRpt> "
+        + "<GrpHdr> <MsgId>test-for-child</MsgId> <CreDtTm>2025-09-29T09:00:00</CreDtTm> </GrpHdr> "
+        + "<Rpt> "
+        + "<Id>test-for-child-1</Id> "
+        + "<CreDtTm>2025-09-29T09:00:00</CreDtTm> "
+        + "<FrToDt> "
+        + "<FrDtTm>2025-09-29T00:00:00</FrDtTm> "
+        + "<ToDtTm>2025-09-29T09:00:00</ToDtTm> "
+        + "</FrToDt> "
+        + "<Acct> "
+        + "<Id> <IBAN>EE442200221092874625</IBAN> </Id> "
+        + "<Ownr> <Nm>TULEVA FONDID AS</Nm> "
+        + "<Id> <OrgId> <Othr> <Id>14118923</Id> </Othr> </OrgId> </Id> "
+        + "</Ownr> "
+        + "</Acct> "
+        + "<Ntry> "
+        + "<NtryRef>2025092909000-2</NtryRef>"
+        + "<Amt Ccy=\"EUR\">50.00</Amt> "
+        + "<CdtDbtInd>CRDT</CdtDbtInd> "
+        + "<Sts>BOOK</Sts> "
+        + "<BookgDt> <Dt>2025-09-29</Dt> </BookgDt> "
+        + "<NtryDtls> <TxDtls> "
+        + "<Refs> <AcctSvcrRef>2025092909000-2</AcctSvcrRef> </Refs> "
+        + "<AmtDtls> <TxAmt> <Amt Ccy=\"EUR\">50.00</Amt> </TxAmt> </AmtDtls> "
+        + "<RltdPties> "
+        + "<Dbtr> <Nm>Jüri Tamm</Nm> "
+        + "<Id> <PrvtId> <Othr> <Id>39910273027</Id> </Othr> </PrvtId> </Id> "
+        + "</Dbtr> "
+        + "<DbtrAcct> <Id> <IBAN>EE982200221234567890</IBAN> </Id> </DbtrAcct> "
+        + "</RltdPties> "
+        + "<RmtInf> <Ustrd>Payment for "
+        + childCode
+        + "</Ustrd> </RmtInf> "
+        + "</TxDtls> </NtryDtls> "
+        + "</Ntry> "
+        + "</Rpt> "
+        + "</BkToCstmrAcctRpt> "
+        + "</Document>";
   }
 
   private String createUnverifiablePaymentXml() {

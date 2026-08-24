@@ -1,9 +1,15 @@
 package ee.tuleva.onboarding.banking.seb.fetcher;
 
+import static ee.tuleva.onboarding.banking.BankAccountType.*;
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
-import ee.tuleva.onboarding.banking.BankAccountType;
+import ee.tuleva.onboarding.banking.BankAccount;
+import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebCurrentDayTransactionsRequested;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebEodTransactionsRequested;
 import java.util.List;
@@ -17,28 +23,42 @@ import org.springframework.context.ApplicationEventPublisher;
 @ExtendWith(MockitoExtension.class)
 class SebStatementFetchingSchedulerTest {
 
+  private static final List<BankAccount> SAVINGS_FUND_ACCOUNTS =
+      List.of(
+          new BankAccount("EE001234567890123456", DEPOSIT_EUR, TKF100, "gw-test"),
+          new BankAccount("EE001234567890123457", WITHDRAWAL_EUR, TKF100, "gw-test"),
+          new BankAccount("EE001234567890123458", FUND_INVESTMENT_EUR, TKF100, "gw-test"));
+
+  private static final List<BankAccount> ALL_ACCOUNTS =
+      List.of(
+          SAVINGS_FUND_ACCOUNTS.get(0),
+          SAVINGS_FUND_ACCOUNTS.get(1),
+          SAVINGS_FUND_ACCOUNTS.get(2),
+          new BankAccount("EE001234567890123459", FUND_INVESTMENT_EUR, TUK75, "gw-test-tuk75"),
+          new BankAccount("EE001234567890123460", FUND_INVESTMENT_EUR, TUK00, "gw-test-tuk00"),
+          new BankAccount("EE001234567890123461", FUND_INVESTMENT_EUR, TUV100, "gw-test-tuv100"));
+
   @Mock private ApplicationEventPublisher eventPublisher;
+  @Mock private BankAccounts bankAccounts;
 
   @Test
-  void fetchCurrentDayTransactions_publishesEventsForAllAccounts() {
-    var scheduler = new SebStatementFetchingScheduler(eventPublisher);
+  void fetchCurrentDayTransactions_publishesEventsOnlyForSavingsFundAccounts() {
+    when(bankAccounts.findAll(TKF100)).thenReturn(SAVINGS_FUND_ACCOUNTS);
+    var scheduler = new SebStatementFetchingScheduler(eventPublisher, bankAccounts);
 
     scheduler.fetchCurrentDayTransactions();
 
     var captor = ArgumentCaptor.forClass(FetchSebCurrentDayTransactionsRequested.class);
-    verify(eventPublisher, times(BankAccountType.values().length)).publishEvent(captor.capture());
-
-    List<FetchSebCurrentDayTransactionsRequested> events = captor.getAllValues();
-    assertThat(events).hasSize(BankAccountType.values().length);
-
-    for (BankAccountType accountType : BankAccountType.values()) {
-      assertThat(events).anyMatch(event -> event.accountType() == accountType);
-    }
+    verify(eventPublisher, times(SAVINGS_FUND_ACCOUNTS.size())).publishEvent(captor.capture());
+    assertThat(captor.getAllValues())
+        .extracting(FetchSebCurrentDayTransactionsRequested::account)
+        .containsExactlyElementsOf(SAVINGS_FUND_ACCOUNTS);
   }
 
   @Test
   void fetchCurrentDayTransactions_continuesOnError() {
-    var scheduler = new SebStatementFetchingScheduler(eventPublisher);
+    when(bankAccounts.findAll(TKF100)).thenReturn(SAVINGS_FUND_ACCOUNTS);
+    var scheduler = new SebStatementFetchingScheduler(eventPublisher, bankAccounts);
 
     doThrow(new RuntimeException("Error"))
         .doNothing()
@@ -48,30 +68,28 @@ class SebStatementFetchingSchedulerTest {
 
     scheduler.fetchCurrentDayTransactions();
 
-    verify(eventPublisher, times(BankAccountType.values().length))
+    verify(eventPublisher, times(SAVINGS_FUND_ACCOUNTS.size()))
         .publishEvent(any(FetchSebCurrentDayTransactionsRequested.class));
   }
 
   @Test
-  void fetchEodTransactions_publishesEventsForAllAccounts() {
-    var scheduler = new SebStatementFetchingScheduler(eventPublisher);
+  void fetchEodTransactions_publishesEventsForEveryConfiguredAccountIncludingPensionFunds() {
+    when(bankAccounts.findAll()).thenReturn(ALL_ACCOUNTS);
+    var scheduler = new SebStatementFetchingScheduler(eventPublisher, bankAccounts);
 
     scheduler.fetchEodTransactions();
 
     var captor = ArgumentCaptor.forClass(FetchSebEodTransactionsRequested.class);
-    verify(eventPublisher, times(BankAccountType.values().length)).publishEvent(captor.capture());
-
-    List<FetchSebEodTransactionsRequested> events = captor.getAllValues();
-    assertThat(events).hasSize(BankAccountType.values().length);
-
-    for (BankAccountType accountType : BankAccountType.values()) {
-      assertThat(events).anyMatch(event -> event.accountType() == accountType);
-    }
+    verify(eventPublisher, times(ALL_ACCOUNTS.size())).publishEvent(captor.capture());
+    assertThat(captor.getAllValues())
+        .extracting(FetchSebEodTransactionsRequested::account)
+        .containsExactlyElementsOf(ALL_ACCOUNTS);
   }
 
   @Test
   void fetchEodTransactions_continuesOnError_andPublishesFailureEvent() {
-    var scheduler = new SebStatementFetchingScheduler(eventPublisher);
+    when(bankAccounts.findAll()).thenReturn(ALL_ACCOUNTS);
+    var scheduler = new SebStatementFetchingScheduler(eventPublisher, bankAccounts);
 
     doThrow(new RuntimeException("404 LBR_EOD_STATEMENT_NOT_GENERATED"))
         .when(eventPublisher)
@@ -79,7 +97,7 @@ class SebStatementFetchingSchedulerTest {
 
     scheduler.fetchEodTransactions();
 
-    for (BankAccountType account : BankAccountType.values()) {
+    for (BankAccount account : ALL_ACCOUNTS) {
       verify(eventPublisher)
           .publishEvent(new SebEodFetchFailedEvent(account, "404 LBR_EOD_STATEMENT_NOT_GENERATED"));
     }

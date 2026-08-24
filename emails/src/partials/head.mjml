@@ -12,8 +12,9 @@
       border-radius="8px"
       font-size="20px"
       font-weight="500"
+      line-height="150%"
       color="#FFFFFF"
-      inner-padding="8px 24px"
+      inner-padding="8px 16px"
     />
     <mj-section background-color="#FFFFFF" padding="0 24px" />
     <mj-divider border-width="1px" border-color="#E5E5E5" padding="16px 0" />

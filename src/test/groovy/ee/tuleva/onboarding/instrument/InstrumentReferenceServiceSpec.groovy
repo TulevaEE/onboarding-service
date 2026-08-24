@@ -6,7 +6,6 @@ class InstrumentReferenceServiceSpec extends Specification {
 
   InstrumentReferenceRepository instrumentReferenceRepository = Mock()
   BenchmarkCategoryProxyRepository benchmarkCategoryProxyRepository = Mock()
-  org.springframework.context.ApplicationEventPublisher eventPublisher = Mock()
 
   InstrumentReferenceService service
 
@@ -25,7 +24,7 @@ class InstrumentReferenceServiceSpec extends Specification {
         new BenchmarkCategoryProxy(3L, "BOND_EURO", "IE00B3DKXQ41.XETR", null),
     ]
 
-    service = new InstrumentReferenceService(instrumentReferenceRepository, benchmarkCategoryProxyRepository, eventPublisher)
+    service = new InstrumentReferenceService(instrumentReferenceRepository, benchmarkCategoryProxyRepository)
     service.init()
   }
 
@@ -181,7 +180,7 @@ class InstrumentReferenceServiceSpec extends Specification {
         [instrument("IE00NEW", "NEW.DE", "NEW.XETRA", "NEW", null, null, null, true)]
     ]
     proxyRepo.findAll() >> []
-    def svc = new InstrumentReferenceService(repo, proxyRepo, eventPublisher)
+    def svc = new InstrumentReferenceService(repo, proxyRepo)
     svc.init()
 
     when:
@@ -193,29 +192,15 @@ class InstrumentReferenceServiceSpec extends Specification {
     svc.findByIsin("IE00OLD").isEmpty()
   }
 
-  def "init populates cache without publishing the cache refreshed event"() {
+  def "init populates cache"() {
     given:
-    def publisher = Mock(org.springframework.context.ApplicationEventPublisher)
-    def svc = new InstrumentReferenceService(instrumentReferenceRepository, benchmarkCategoryProxyRepository, publisher)
+    def svc = new InstrumentReferenceService(instrumentReferenceRepository, benchmarkCategoryProxyRepository)
 
     when:
     svc.init()
 
     then:
     svc.findAll().size() == 6
-    0 * publisher.publishEvent(_ as InstrumentCacheRefreshedEvent)
-  }
-
-  def "scheduledRefresh publishes the cache refreshed event"() {
-    given:
-    def publisher = Mock(org.springframework.context.ApplicationEventPublisher)
-    def svc = new InstrumentReferenceService(instrumentReferenceRepository, benchmarkCategoryProxyRepository, publisher)
-
-    when:
-    svc.scheduledRefresh()
-
-    then:
-    1 * publisher.publishEvent(new InstrumentCacheRefreshedEvent(6))
   }
 
   def "refresh handles exceptions gracefully"() {
@@ -227,7 +212,7 @@ class InstrumentReferenceServiceSpec extends Specification {
         { throw new RuntimeException("DB down") }
     ]
     proxyRepo.findAll() >> []
-    def svc = new InstrumentReferenceService(repo, proxyRepo, eventPublisher)
+    def svc = new InstrumentReferenceService(repo, proxyRepo)
     svc.init()
 
     when:

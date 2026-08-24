@@ -16,14 +16,14 @@ import java.time.ZoneId
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75
 
-class InstrumentValidationListenerSpec extends Specification {
+class InstrumentValidationJobSpec extends Specification {
 
   InstrumentDataValidator validator = Mock()
   ModelPortfolioAllocationRepository allocationRepository = Mock()
   EmailService emailService = Mock()
   Clock clock = Clock.fixed(Instant.parse("2026-05-28T10:00:00Z"), ZoneId.of("Europe/Tallinn"))
 
-  InstrumentValidationListener listener = new InstrumentValidationListener(
+  InstrumentValidationJob job = new InstrumentValidationJob(
       validator, allocationRepository, emailService, clock)
 
   def today = LocalDate.of(2026, 5, 28)
@@ -39,7 +39,7 @@ class InstrumentValidationListenerSpec extends Specification {
     ]
 
     when:
-    listener.onCacheRefreshed()
+    job.run()
 
     then:
     (1.._) * emailService.sendSystemEmail(_ as MandrillMessage) >> true
@@ -54,7 +54,7 @@ class InstrumentValidationListenerSpec extends Specification {
     ]
 
     when:
-    listener.onCacheRefreshed()
+    job.run()
 
     then:
     0 * emailService.sendSystemEmail(_)
@@ -67,7 +67,7 @@ class InstrumentValidationListenerSpec extends Specification {
     validator.validate(_ as TulevaFund, _) >> []
 
     when:
-    listener.onCacheRefreshed()
+    job.run()
 
     then:
     0 * emailService.sendSystemEmail(_)
@@ -79,7 +79,7 @@ class InstrumentValidationListenerSpec extends Specification {
     allocationRepository.findFutureEffectiveDates(_ as TulevaFund, today) >> []
 
     when:
-    listener.onCacheRefreshed()
+    job.run()
 
     then:
     0 * validator.validate(_, _)
@@ -96,7 +96,7 @@ class InstrumentValidationListenerSpec extends Specification {
     ]
 
     when:
-    listener.onCacheRefreshed()
+    job.run()
 
     then:
     1 * emailService.sendSystemEmail({ MandrillMessage msg ->
@@ -118,7 +118,7 @@ class InstrumentValidationListenerSpec extends Specification {
     emailService.sendSystemEmail(_) >> false
 
     when:
-    listener.onCacheRefreshed()
+    job.run()
 
     then:
     noExceptionThrown()
@@ -137,7 +137,7 @@ class InstrumentValidationListenerSpec extends Specification {
     ]
 
     when:
-    listener.onCacheRefreshed()
+    job.run()
 
     then:
     1 * emailService.sendSystemEmail({ MandrillMessage msg ->

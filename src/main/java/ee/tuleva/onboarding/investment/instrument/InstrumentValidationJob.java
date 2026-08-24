@@ -1,11 +1,11 @@
 package ee.tuleva.onboarding.investment.instrument;
 
 import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient.Type.TO;
+import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient;
 import ee.tuleva.onboarding.fund.TulevaFund;
-import ee.tuleva.onboarding.instrument.InstrumentCacheRefreshedEvent;
 import ee.tuleva.onboarding.investment.instrument.InstrumentDataValidator.Severity;
 import ee.tuleva.onboarding.investment.instrument.InstrumentDataValidator.ValidationFinding;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
@@ -15,23 +15,39 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
-class InstrumentValidationListener {
+class InstrumentValidationJob {
 
   private final InstrumentDataValidator validator;
   private final ModelPortfolioAllocationRepository allocationRepository;
   private final EmailService emailService;
   private final Clock clock;
 
-  @EventListener(InstrumentCacheRefreshedEvent.class)
-  public void onCacheRefreshed() {
+  @Scheduled(cron = "0 10 * * * *", zone = TIMEZONE)
+  @SchedulerLock(name = "InstrumentValidationJob", lockAtMostFor = "10m", lockAtLeastFor = "1m")
+  void run() {
+    var allFindings = collectFindings();
+
+    var hasFailures =
+        allFindings.stream()
+            .flatMap(fundFindings -> fundFindings.findings().stream())
+            .anyMatch(finding -> finding.severity() == Severity.FAIL);
+
+    if (hasFailures) {
+      sendAlert(allFindings);
+    }
+  }
+
+  private List<FundFindings> collectFindings() {
     var today = LocalDate.now(clock);
     var allFindings = new ArrayList<FundFindings>();
 
@@ -40,15 +56,7 @@ class InstrumentValidationListener {
         continue;
       }
 
-      // Validate the version in effect today plus any upcoming versions, so a scheduled model
-      // switch is checked for price-history readiness before it goes live.
-      var effectiveDates = new LinkedHashSet<LocalDate>();
-      allocationRepository.findLatestByFundAsOf(fund, today).stream()
-          .findFirst()
-          .ifPresent(allocation -> effectiveDates.add(allocation.getEffectiveDate()));
-      effectiveDates.addAll(allocationRepository.findFutureEffectiveDates(fund, today));
-
-      for (var effectiveDate : effectiveDates) {
+      for (var effectiveDate : todaysAndUpcomingEffectiveDates(fund, today)) {
         var findings = validator.validate(fund, effectiveDate);
         if (!findings.isEmpty()) {
           allFindings.add(new FundFindings(fund, effectiveDate, findings));
@@ -56,18 +64,16 @@ class InstrumentValidationListener {
       }
     }
 
-    if (allFindings.isEmpty()) {
-      return;
-    }
+    return allFindings;
+  }
 
-    var hasFailures =
-        allFindings.stream()
-            .flatMap(f -> f.findings().stream())
-            .anyMatch(f -> f.severity() == Severity.FAIL);
-
-    if (hasFailures) {
-      sendAlert(allFindings);
-    }
+  private Set<LocalDate> todaysAndUpcomingEffectiveDates(TulevaFund fund, LocalDate today) {
+    var effectiveDates = new LinkedHashSet<LocalDate>();
+    allocationRepository.findLatestByFundAsOf(fund, today).stream()
+        .findFirst()
+        .ifPresent(allocation -> effectiveDates.add(allocation.getEffectiveDate()));
+    effectiveDates.addAll(allocationRepository.findFutureEffectiveDates(fund, today));
+    return effectiveDates;
   }
 
   private void sendAlert(List<FundFindings> allFindings) {

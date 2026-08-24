@@ -7,9 +7,7 @@ import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.jspecify.annotations.Nullable;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -20,35 +18,23 @@ public class InstrumentReferenceService {
 
   private final InstrumentReferenceRepository instrumentReferenceRepository;
   private final BenchmarkCategoryProxyRepository benchmarkCategoryProxyRepository;
-  private final ApplicationEventPublisher eventPublisher;
 
   private volatile Map<String, InstrumentReference> byIsin = Map.of();
   private volatile Map<String, InstrumentReference> byBloombergTicker = Map.of();
   private volatile Map<String, InstrumentReference> byShortTicker = Map.of();
   private volatile Map<String, BenchmarkCategoryProxy> proxyByCategory = Map.of();
 
-  // Only populate the cache at startup. The cache-refreshed event (which drives validation and
-  // alerting) is published exclusively from the scheduled refresh: publishing it during
-  // @PostConstruct eagerly creates the validation listener whose dependency chain leads back to
-  // this still-in-creation bean (BeanCurrentlyInCreationException), and triggering validation at
-  // every boot also runs background work the test profile deliberately disables.
   @PostConstruct
   void init() {
     loadCache();
   }
 
   @Scheduled(cron = "0 5 * * * *", zone = "Europe/Tallinn")
-  @SchedulerLock(
-      name = "InstrumentReferenceService_refresh",
-      lockAtMostFor = "55m",
-      lockAtLeastFor = "5m")
   void scheduledRefresh() {
-    if (loadCache()) {
-      eventPublisher.publishEvent(new InstrumentCacheRefreshedEvent(byIsin.size()));
-    }
+    loadCache();
   }
 
-  private boolean loadCache() {
+  private void loadCache() {
     try {
       var instruments = instrumentReferenceRepository.findAll();
       var proxies = benchmarkCategoryProxyRepository.findAll();
@@ -92,10 +78,8 @@ public class InstrumentReferenceService {
           instruments.size(),
           proxies.size());
 
-      return true;
     } catch (Exception e) {
       log.error("Failed to refresh instrument reference cache", e);
-      return false;
     }
   }
 

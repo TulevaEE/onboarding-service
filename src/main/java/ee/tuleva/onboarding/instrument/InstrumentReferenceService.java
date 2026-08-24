@@ -155,56 +155,46 @@ public class InstrumentReferenceService {
     return Optional.ofNullable(byBloombergTicker.get(bloombergTicker));
   }
 
-  public List<InstrumentReference> findAll() {
-    return List.copyOf(byIsin.values());
+  public List<InstrumentReference> activeInstruments() {
+    return byIsin.values().stream().filter(InstrumentReference::isActive).toList();
   }
 
   // --- Filtered lists (mirrors FundTicker.getXetraIsins() etc.) ---
 
   public List<String> getXetraIsins() {
-    return byIsin.values().stream()
-        .filter(InstrumentReference::isActive)
+    return activeInstruments().stream()
         .filter(i -> i.getEodhdTicker() != null && i.getEodhdTicker().endsWith(".XETRA"))
         .map(InstrumentReference::getIsin)
         .toList();
   }
 
   public List<String> getEuronextParisIsins() {
-    return byIsin.values().stream()
-        .filter(InstrumentReference::isActive)
+    return activeInstruments().stream()
         .filter(i -> i.getEodhdTicker() != null && i.getEodhdTicker().endsWith(".PA.EODHD"))
         .map(InstrumentReference::getIsin)
         .toList();
   }
 
   public List<String> getEodhdTickers() {
-    return byIsin.values().stream()
-        .filter(InstrumentReference::isActive)
+    return activeInstruments().stream()
         .filter(InstrumentReference::isListedOnEodhd)
         .map(InstrumentReference::getEodhdTicker)
         .toList();
   }
 
   public List<String> getYahooTickers() {
-    return byIsin.values().stream()
-        .filter(InstrumentReference::isActive)
+    return activeInstruments().stream()
         .filter(i -> i.getYahooTicker() != null)
         .map(InstrumentReference::getYahooTicker)
         .toList();
   }
 
   public List<InstrumentReference> getBlackrockFunds() {
-    return byIsin.values().stream()
-        .filter(InstrumentReference::isActive)
-        .filter(i -> i.getBlackrockProductId() != null)
-        .toList();
+    return activeInstruments().stream().filter(i -> i.getBlackrockProductId() != null).toList();
   }
 
   public List<InstrumentReference> getMorningstarFunds() {
-    return byIsin.values().stream()
-        .filter(InstrumentReference::isActive)
-        .filter(i -> i.getMorningstarId() != null)
-        .toList();
+    return activeInstruments().stream().filter(i -> i.getMorningstarId() != null).toList();
   }
 
   // --- Benchmark proxy resolution ---

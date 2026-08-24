@@ -186,6 +186,41 @@ class InstrumentDataValidatorSpec extends Specification {
     findings.any { it.severity() == FAIL && it.message().contains("active=false") }
   }
 
+  def "a deactivated instrument reports only active=false, not the consequences of not fetching"() {
+    given:
+    def futureDate = LocalDate.of(2026, 6, 1)
+    def alloc = ModelPortfolioAllocation.builder()
+        .effectiveDate(futureDate).fund(TUK75).isin(isin1).weight(1.0).ticker("WRONG.DE").build()
+    allocationRepository.findByFundAndEffectiveDate(TUK75, futureDate) >> [alloc]
+    instrumentReferenceService.findByIsin(isin1) >> Optional.of(
+        instrument(active: false, benchmarkCategory: "EQUITY_DM", eodhdTicker: "EUNL.XETRA", yahooTicker: "EUNL.DE"))
+    positionLimitRepository.findLatestByFundAsOf(TUK75, futureDate) >> [positionLimit(isin1)]
+    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.empty()
+    publicHolidays.previousWorkingDay(_) >> { LocalDate d -> d.minusDays(1) }
+    fundValueProvider.getValueForDate(_, _) >> Optional.empty()
+
+    when:
+    def findings = validator.validate(TUK75, futureDate)
+
+    then:
+    findings.collect { it.message() } == [
+        "ISIN %s is active=false in instrument_reference — prices not being fetched".formatted(isin1)
+    ]
+  }
+
+  def "a deactivated instrument is still found, never reported as missing from instrument_reference"() {
+    given:
+    allocationRepository.findByFundAndEffectiveDate(TUK75, effectiveDate) >> [allocation(isin1, 1.0)]
+    instrumentReferenceService.findByIsin(isin1) >> Optional.of(instrument(active: false))
+    positionLimitRepository.findLatestByFundAsOf(TUK75, effectiveDate) >> [positionLimit(isin1)]
+
+    when:
+    def findings = validator.validate(TUK75, effectiveDate)
+
+    then:
+    findings.every { !it.message().contains("not in instrument_reference") }
+  }
+
   def "WARNING when ticker mismatch between allocation and instrument_reference"() {
     given:
     def alloc = ModelPortfolioAllocation.builder()

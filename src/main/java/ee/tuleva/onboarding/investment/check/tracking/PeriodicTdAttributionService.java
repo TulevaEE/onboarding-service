@@ -64,6 +64,7 @@ public class PeriodicTdAttributionService {
   private final InstrumentFeeRepository instrumentFeeRepository;
   private final PlatformTransactionManager transactionManager;
   private final PublicHolidays publicHolidays;
+  private final BenchmarkLegResolver benchmarkLegResolver;
 
   private final TdAttributionCalculator calculator = new TdAttributionCalculator();
 
@@ -306,7 +307,7 @@ public class PeriodicTdAttributionService {
         heldOcf = heldOcf.add(weight.multiply(ocf));
       }
 
-      var leg = BenchmarkLegResolver.resolve(isin).orElse(null);
+      var leg = benchmarkLegResolver.resolve(isin).orElse(null);
       if (leg == null || leg.isIndex()) {
         continue;
       }

@@ -6,9 +6,11 @@ import ee.tuleva.onboarding.investment.instrument.InstrumentDataValidator.Severi
 import ee.tuleva.onboarding.investment.instrument.InstrumentDataValidator.ValidationFinding
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository
+import ee.tuleva.onboarding.instrument.InstrumentDataFinding
 import ee.tuleva.onboarding.instrument.InstrumentReferenceChange
 import ee.tuleva.onboarding.instrument.InstrumentReferenceHistoryRepository
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService
+import ee.tuleva.onboarding.notification.OperationsNotificationService
 import ee.tuleva.onboarding.notification.email.EmailService
 import ee.tuleva.onboarding.time.MutableClock
 import spock.lang.Specification
@@ -19,20 +21,22 @@ import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT
 
 class InstrumentValidationJobSpec extends Specification {
 
   InstrumentDataValidator validator = Mock()
   ModelPortfolioAllocationRepository allocationRepository = Mock()
   EmailService emailService = Mock()
-  InstrumentReferenceService instrumentReferenceService = Mock()
+  InstrumentReferenceService instrumentReferenceService = Stub()
   InstrumentReferenceHistoryRepository historyRepository = Mock()
+  OperationsNotificationService notificationService = Mock()
   InstrumentReferenceChangeDescriber changeDescriber = new InstrumentReferenceChangeDescriber(new JsonMapper())
   MutableClock clock = new MutableClock(Instant.parse("2026-05-28T10:00:00Z"))
 
   InstrumentValidationJob job = new InstrumentValidationJob(
       validator, allocationRepository, emailService, instrumentReferenceService,
-      historyRepository, changeDescriber, clock)
+      historyRepository, changeDescriber, notificationService, clock)
 
   def today = LocalDate.of(2026, 5, 28)
   def effectiveDate = LocalDate.of(2026, 5, 26)
@@ -40,6 +44,89 @@ class InstrumentValidationJobSpec extends Specification {
   def setup() {
     instrumentReferenceService.getLastRefreshedAt() >> { clock.instant() }
     historyRepository.unnotifiedChanges() >> []
+  }
+
+  def "alerts the investment channel when the instrument reference data has findings"() {
+    given:
+    noAllocations()
+    instrumentReferenceService.dataFindings() >> [
+        new InstrumentDataFinding.EodhdListedWithoutTicker("IE00TEST"),
+        new InstrumentDataFinding.AmbiguousLookupKey("shortTicker", "DUP", ["IE00AAA", "IE00BBB"]),
+    ]
+
+    when:
+    job.run()
+
+    then:
+    1 * notificationService.sendMessage(
+        { it.contains("INSTRUMENT REFERENCE DATA BROKEN") && it.contains("IE00TEST") && it.contains("DUP") },
+        INVESTMENT)
+  }
+
+  def "suppresses an unchanged instrument reference data alert on the same day"() {
+    given:
+    noAllocations()
+    instrumentReferenceService.dataFindings() >> [
+        new InstrumentDataFinding.EodhdListedWithoutTicker("IE00TEST")
+    ]
+
+    when:
+    job.run()
+    job.run()
+
+    then:
+    1 * notificationService.sendMessage(_ as String, INVESTMENT)
+  }
+
+  def "re-alerts the next day even when the findings have not changed"() {
+    given:
+    noAllocations()
+    instrumentReferenceService.dataFindings() >> [
+        new InstrumentDataFinding.EodhdListedWithoutTicker("IE00TEST")
+    ]
+
+    when:
+    job.run()
+    clock.tick(1, ChronoUnit.DAYS)
+    job.run()
+
+    then:
+    2 * notificationService.sendMessage(_ as String, INVESTMENT)
+  }
+
+  def "re-alerts on the same day when the findings change"() {
+    given:
+    noAllocations()
+    instrumentReferenceService.dataFindings() >>> [
+        [new InstrumentDataFinding.EodhdListedWithoutTicker("IE00TEST")],
+        [new InstrumentDataFinding.EodhdListedWithoutTicker("IE00OTHER")],
+    ]
+
+    when:
+    job.run()
+    job.run()
+
+    then:
+    2 * notificationService.sendMessage(_ as String, INVESTMENT)
+  }
+
+  def "sends a clearing notice once the reference data problems are gone"() {
+    given:
+    noAllocations()
+    instrumentReferenceService.dataFindings() >>> [
+        [new InstrumentDataFinding.EodhdListedWithoutTicker("IE00TEST")],
+        [],
+        [],
+    ]
+
+    when:
+    job.run()
+    job.run()
+    job.run()
+
+    then:
+    1 * notificationService.sendMessage({ it.contains("INSTRUMENT REFERENCE DATA BROKEN") }, INVESTMENT)
+    1 * notificationService.sendMessage({ it.contains("INSTRUMENT REFERENCE DATA OK") }, INVESTMENT)
   }
 
   def "sends email when FAIL findings exist"() {
@@ -161,11 +248,11 @@ class InstrumentValidationJobSpec extends Specification {
 
   def "alerts when the instrument cache has not refreshed for over three hours"() {
     given:
-    def staleService = Mock(InstrumentReferenceService)
+    def staleService = Stub(InstrumentReferenceService)
     staleService.getLastRefreshedAt() >> { clock.instant().minus(4, ChronoUnit.HOURS) }
     def staleJob = new InstrumentValidationJob(
         validator, allocationRepository, emailService, staleService,
-        historyRepository, changeDescriber, clock)
+        historyRepository, changeDescriber, notificationService, clock)
     allocationRepository.findLatestByFundAsOf(_ as TulevaFund, _ as LocalDate) >> []
     allocationRepository.findFutureEffectiveDates(_ as TulevaFund, _ as LocalDate) >> []
 
@@ -350,7 +437,7 @@ class InstrumentValidationJobSpec extends Specification {
   private InstrumentValidationJob jobWith(InstrumentReferenceHistoryRepository repository) {
     new InstrumentValidationJob(
         validator, allocationRepository, emailService, instrumentReferenceService,
-        repository, changeDescriber, clock)
+        repository, changeDescriber, notificationService, clock)
   }
 
   private InstrumentReferenceChange change(Long id, String operation, String oldValues, String newValues) {

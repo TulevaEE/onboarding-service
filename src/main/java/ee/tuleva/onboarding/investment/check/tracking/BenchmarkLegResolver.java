@@ -8,10 +8,10 @@ import static ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker.IS
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker;
 import java.util.Optional;
 import org.jspecify.annotations.Nullable;
+import org.springframework.stereotype.Component;
 
-final class BenchmarkLegResolver {
-
-  private BenchmarkLegResolver() {}
+@Component
+class BenchmarkLegResolver {
 
   record BenchmarkLeg(String seriesKey, @Nullable FundTicker proxyEtf) {
     boolean isIndex() {
@@ -19,7 +19,7 @@ final class BenchmarkLegResolver {
     }
   }
 
-  static Optional<BenchmarkLeg> resolve(String isin) {
+  Optional<BenchmarkLeg> resolve(String isin) {
     var ticker = FundTicker.findByIsin(isin).orElse(null);
     if (ticker == null) {
       return Optional.empty();

@@ -129,7 +129,8 @@ class TrackingDifferenceServiceTest {
             feeChargedToFundPolicy,
             eventRepository,
             new TrackingDifferenceCalculator(parameterRepository),
-            fundNavQueryService);
+            fundNavQueryService,
+            new BenchmarkLegResolver());
     serviceLogs.start();
     serviceLogger().addAppender(serviceLogs);
   }

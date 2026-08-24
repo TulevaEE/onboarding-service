@@ -1,11 +1,15 @@
 package ee.tuleva.onboarding.instrument;
 
+import ee.tuleva.onboarding.instrument.InstrumentDataFinding.AmbiguousLookupKey;
+import ee.tuleva.onboarding.instrument.InstrumentDataFinding.EodhdListedWithoutTicker;
 import jakarta.annotation.PostConstruct;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,8 +30,10 @@ public class InstrumentReferenceService {
 
   private volatile Map<String, InstrumentReference> byIsin = Map.of();
   private volatile Map<String, InstrumentReference> byBloombergTicker = Map.of();
+  private volatile Map<String, InstrumentReference> byEodhdTicker = Map.of();
   private volatile Map<String, InstrumentReference> byShortTicker = Map.of();
   private volatile Map<String, BenchmarkCategoryProxy> proxyByCategory = Map.of();
+  private volatile List<InstrumentDataFinding> dataFindings = List.of();
   private volatile @Nullable Instant lastRefreshedAt;
 
   @PostConstruct
@@ -66,7 +72,12 @@ public class InstrumentReferenceService {
 
       apply(snapshot);
     } catch (Exception e) {
-      log.error("Failed to refresh instrument reference cache", e);
+      log.error(
+          "Failed to refresh instrument reference cache, keeping the live snapshot:"
+              + " liveInstruments={}, lastRefreshedAt={}",
+          byIsin.size(),
+          lastRefreshedAt,
+          e);
     }
   }
 
@@ -78,64 +89,100 @@ public class InstrumentReferenceService {
     return refreshedAt;
   }
 
+  public List<InstrumentDataFinding> dataFindings() {
+    return dataFindings;
+  }
+
   private void apply(Snapshot snapshot) {
     byIsin = snapshot.byIsin();
     byBloombergTicker = snapshot.byBloombergTicker();
+    byEodhdTicker = snapshot.byEodhdTicker();
     byShortTicker = snapshot.byShortTicker();
     proxyByCategory = snapshot.proxyByCategory();
+    dataFindings = snapshot.findings();
     lastRefreshedAt = clock.instant();
 
     log.info(
-        "Instrument reference cache refreshed: instruments={}, proxies={}",
+        "Instrument reference cache refreshed: instruments={}, proxies={}, dataFindings={}",
         byIsin.size(),
-        proxyByCategory.size());
+        proxyByCategory.size(),
+        dataFindings.size());
+
+    if (!dataFindings.isEmpty()) {
+      log.error(
+          "Instrument reference data problems, cache applied anyway: dataFindings={}, details={}",
+          dataFindings.size(),
+          dataFindings.stream().map(InstrumentDataFinding::describe).toList());
+    }
   }
 
   private Snapshot readSnapshot() {
-    var instruments = instrumentReferenceRepository.findAll();
+    var instruments = instrumentReferenceRepository.findAllByOrderByIdAsc();
     var proxies = benchmarkCategoryProxyRepository.findAll();
 
+    var findings = new ArrayList<InstrumentDataFinding>();
     var newByIsin = new HashMap<String, InstrumentReference>();
     var newByBloomberg = new HashMap<String, InstrumentReference>();
+    var newByEodhdTicker = new HashMap<String, InstrumentReference>();
     var newByShortTicker = new HashMap<String, InstrumentReference>();
 
     for (var instrument : instruments) {
-      newByIsin.put(instrument.getIsin(), instrument);
+      putFirstWins(newByIsin, instrument.getIsin(), instrument, "isin", findings);
 
       if (instrument.getBloombergTicker() != null) {
-        newByBloomberg.put(instrument.getBloombergTicker(), instrument);
+        putFirstWins(
+            newByBloomberg,
+            instrument.getBloombergTicker(),
+            instrument,
+            "bloombergTicker",
+            findings);
+      }
+
+      if (instrument.getEodhdTicker() != null) {
+        putFirstWins(
+            newByEodhdTicker, instrument.getEodhdTicker(), instrument, "eodhdTicker", findings);
+      } else if (instrument.isListedOnEodhd()) {
+        findings.add(new EodhdListedWithoutTicker(instrument.getIsin()));
       }
 
       if (instrument.getYahooTicker() != null) {
-        String shortTicker = extractShortTicker(instrument.getYahooTicker());
-        var shadowed = newByShortTicker.put(shortTicker, instrument);
-        if (shadowed != null) {
-          log.warn(
-              "Short-ticker collision in instrument cache: shortTicker={}, isins=[{}, {}] — findByTicker resolves only the last",
-              shortTicker,
-              shadowed.getIsin(),
-              instrument.getIsin());
-        }
+        putFirstWins(
+            newByShortTicker,
+            extractShortTicker(instrument.getYahooTicker()),
+            instrument,
+            "shortTicker",
+            findings);
       }
     }
 
     var newProxyByCategory = new HashMap<String, BenchmarkCategoryProxy>();
     for (var proxy : proxies) {
-      newProxyByCategory.put(proxy.benchmarkCategory(), proxy);
+      var existing = newProxyByCategory.putIfAbsent(proxy.benchmarkCategory(), proxy);
+      if (existing != null) {
+        findings.add(
+            new AmbiguousLookupKey(
+                "benchmarkCategory",
+                proxy.benchmarkCategory(),
+                List.of(existing.etfProxyIsin(), proxy.etfProxyIsin())));
+      }
     }
 
     return new Snapshot(
         Map.copyOf(newByIsin),
         Map.copyOf(newByBloomberg),
+        Map.copyOf(newByEodhdTicker),
         Map.copyOf(newByShortTicker),
-        Map.copyOf(newProxyByCategory));
+        Map.copyOf(newProxyByCategory),
+        List.copyOf(findings));
   }
 
   private record Snapshot(
       Map<String, InstrumentReference> byIsin,
       Map<String, InstrumentReference> byBloombergTicker,
+      Map<String, InstrumentReference> byEodhdTicker,
       Map<String, InstrumentReference> byShortTicker,
-      Map<String, BenchmarkCategoryProxy> proxyByCategory) {}
+      Map<String, BenchmarkCategoryProxy> proxyByCategory,
+      List<InstrumentDataFinding> findings) {}
 
   // --- Lookup methods (mirrors FundTicker static methods) ---
 
@@ -153,6 +200,10 @@ public class InstrumentReferenceService {
 
   public Optional<InstrumentReference> findByBloombergTicker(String bloombergTicker) {
     return Optional.ofNullable(byBloombergTicker.get(bloombergTicker));
+  }
+
+  public Optional<InstrumentReference> findByEodhdTicker(String eodhdTicker) {
+    return Optional.ofNullable(byEodhdTicker.get(eodhdTicker));
   }
 
   public List<InstrumentReference> activeInstruments() {
@@ -179,6 +230,7 @@ public class InstrumentReferenceService {
     return activeInstruments().stream()
         .filter(InstrumentReference::isListedOnEodhd)
         .map(InstrumentReference::getEodhdTicker)
+        .filter(Objects::nonNull)
         .toList();
   }
 
@@ -199,33 +251,52 @@ public class InstrumentReferenceService {
 
   // --- Benchmark proxy resolution ---
 
-  public Optional<String> resolveBenchmarkProxy(
+  public Optional<BenchmarkProxy> resolveBenchmarkProxy(
       @Nullable String benchmarkCategory, boolean exchangeTraded) {
     if (benchmarkCategory == null) {
       return Optional.empty();
     }
     var proxy = proxyByCategory.get(benchmarkCategory);
     if (proxy == null) {
-      return Optional.empty();
+      throw new UnresolvableBenchmarkProxyException(
+          "No benchmark proxy configured for benchmark category: benchmarkCategory=%s"
+              .formatted(benchmarkCategory));
     }
     if (exchangeTraded) {
-      return exchangeStorageKey(proxy.etfProxyIsin());
+      return Optional.of(proxyInstrument(benchmarkCategory, "etfProxyIsin", proxy.etfProxyIsin()));
     }
     var indexSeriesKey = proxy.indexSeriesKey();
     if (indexSeriesKey != null) {
-      return Optional.of(indexSeriesKey);
+      return Optional.of(new BenchmarkProxy(null, indexSeriesKey));
     }
-    return exchangeStorageKey(proxy.indexProxyIsin());
+    var indexProxyIsin = proxy.indexProxyIsin();
+    if (indexProxyIsin == null) {
+      throw new UnresolvableBenchmarkProxyException(
+          ("Benchmark proxy has neither an index proxy ISIN nor an index series key:"
+                  + " benchmarkCategory=%s")
+              .formatted(benchmarkCategory));
+    }
+    return Optional.of(proxyInstrument(benchmarkCategory, "indexProxyIsin", indexProxyIsin));
   }
 
-  private Optional<String> exchangeStorageKey(@Nullable String isin) {
-    if (isin == null) {
-      return Optional.empty();
+  private BenchmarkProxy proxyInstrument(String benchmarkCategory, String role, String isin) {
+    var instrument =
+        findByIsin(isin)
+            .orElseThrow(
+                () ->
+                    new UnresolvableBenchmarkProxyException(
+                        ("Benchmark proxy instrument is missing from the instrument reference"
+                                + " cache: benchmarkCategory=%s, role=%s, proxyIsin=%s")
+                            .formatted(benchmarkCategory, role, isin)));
+
+    if (instrument.getExchangeStorageKey().isEmpty()) {
+      throw new UnresolvableBenchmarkProxyException(
+          ("Benchmark proxy instrument is listed on neither Xetra nor Euronext Paris, so it has"
+                  + " no price series: benchmarkCategory=%s, role=%s, proxyIsin=%s, eodhdTicker=%s")
+              .formatted(benchmarkCategory, role, isin, instrument.getEodhdTicker()));
     }
-    return findByIsin(isin)
-        .flatMap(
-            instrument ->
-                instrument.getXetraStorageKey().or(instrument::getEuronextParisStorageKey));
+
+    return new BenchmarkProxy(instrument, null);
   }
 
   // --- Storage key helpers ---
@@ -241,8 +312,27 @@ public class InstrumentReferenceService {
         i -> Optional.ofNullable(i.getYahooTicker()));
   }
 
+  private static void putFirstWins(
+      Map<String, InstrumentReference> map,
+      String key,
+      InstrumentReference instrument,
+      String lookup,
+      List<InstrumentDataFinding> findings) {
+    var existing = map.putIfAbsent(key, instrument);
+    if (existing != null) {
+      findings.add(
+          new AmbiguousLookupKey(lookup, key, List.of(existing.getIsin(), instrument.getIsin())));
+    }
+  }
+
   private static String extractShortTicker(String yahooTicker) {
     int dotIndex = yahooTicker.indexOf('.');
     return dotIndex > 0 ? yahooTicker.substring(0, dotIndex) : yahooTicker;
+  }
+
+  public static class UnresolvableBenchmarkProxyException extends IllegalStateException {
+    public UnresolvableBenchmarkProxyException(String message) {
+      super(message);
+    }
   }
 }

@@ -5,6 +5,7 @@ import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient.
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient;
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.instrument.InstrumentCacheRefreshedEvent;
 import ee.tuleva.onboarding.investment.instrument.InstrumentDataValidator.Severity;
 import ee.tuleva.onboarding.investment.instrument.InstrumentDataValidator.ValidationFinding;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;

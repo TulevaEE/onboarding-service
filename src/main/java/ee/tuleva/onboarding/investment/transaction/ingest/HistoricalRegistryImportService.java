@@ -6,8 +6,8 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.time.ZoneOffset.UTC;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
-import ee.tuleva.onboarding.investment.instrument.InstrumentReference;
-import ee.tuleva.onboarding.investment.instrument.InstrumentReferenceService;
+import ee.tuleva.onboarding.instrument.InstrumentReference;
+import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.investment.transaction.BatchStatus;
 import ee.tuleva.onboarding.investment.transaction.HistoricalImportFormatException;
 import ee.tuleva.onboarding.investment.transaction.HistoricalImportResult;

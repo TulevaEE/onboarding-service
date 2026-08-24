@@ -209,9 +209,23 @@ public class InstrumentReferenceService {
       return Optional.empty();
     }
     if (exchangeTraded) {
-      return Optional.ofNullable(proxy.etfProxyStorageKey());
+      return exchangeStorageKey(proxy.etfProxyIsin());
     }
-    return Optional.ofNullable(proxy.indexProxyKey());
+    var indexSeriesKey = proxy.indexSeriesKey();
+    if (indexSeriesKey != null) {
+      return Optional.of(indexSeriesKey);
+    }
+    return exchangeStorageKey(proxy.indexProxyIsin());
+  }
+
+  private Optional<String> exchangeStorageKey(@Nullable String isin) {
+    if (isin == null) {
+      return Optional.empty();
+    }
+    return findByIsin(isin)
+        .flatMap(
+            instrument ->
+                instrument.getXetraStorageKey().or(instrument::getEuronextParisStorageKey));
   }
 
   // --- Storage key helpers ---

@@ -7,6 +7,8 @@ import static java.util.stream.Collectors.toSet;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient;
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.instrument.InstrumentReferenceChange;
+import ee.tuleva.onboarding.instrument.InstrumentReferenceHistoryRepository;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.investment.instrument.InstrumentDataValidator.Severity;
 import ee.tuleva.onboarding.investment.instrument.InstrumentDataValidator.ValidationFinding;
@@ -36,12 +38,15 @@ class InstrumentValidationJob {
   private static final String ALERT_SUBJECT = "[FAIL] Instrument validation findings";
   private static final String CLEARED_SUBJECT = "[OK] Instrument validation findings cleared";
   private static final String STALE_CACHE_SUBJECT = "[STALE] Instrument reference cache";
+  private static final String CHANGE_SUBJECT = "[CHANGED] Instrument reference data";
   private static final String FUNDS_EMAIL = "funds@tuleva.ee";
 
   private final InstrumentDataValidator validator;
   private final ModelPortfolioAllocationRepository allocationRepository;
   private final EmailService emailService;
   private final InstrumentReferenceService instrumentReferenceService;
+  private final InstrumentReferenceHistoryRepository historyRepository;
+  private final InstrumentReferenceChangeDescriber changeDescriber;
   private final Clock clock;
 
   private final AtomicReference<Set<String>> lastAlertedFindings = new AtomicReference<>(Set.of());
@@ -52,7 +57,25 @@ class InstrumentValidationJob {
   @SchedulerLock(name = "InstrumentValidationJob", lockAtMostFor = "10m", lockAtLeastFor = "1m")
   void run() {
     alertOnStaleCache();
+    notifyReferenceDataChanges();
     alertOnFindings(collectFindings());
+  }
+
+  private void notifyReferenceDataChanges() {
+    var changes = historyRepository.unnotifiedChanges();
+    if (changes.isEmpty()) {
+      return;
+    }
+
+    log.info(
+        "Notifying instrument reference data changes: changes={}, firstIsin={}",
+        changes.size(),
+        changes.getFirst().isin());
+
+    if (!sendEmail(CHANGE_SUBJECT, changeDescriber.describe(changes))) {
+      return;
+    }
+    historyRepository.markNotified(changes.stream().map(InstrumentReferenceChange::id).toList());
   }
 
   private void alertOnStaleCache() {
@@ -163,7 +186,7 @@ class InstrumentValidationJob {
     return effectiveDates;
   }
 
-  private void sendEmail(String subject, String body) {
+  private boolean sendEmail(String subject, String body) {
     MandrillMessage message = new MandrillMessage();
     message.setFromEmail(FUNDS_EMAIL);
     message.setFromName("Tuleva");
@@ -182,6 +205,7 @@ class InstrumentValidationJob {
     } else {
       log.error("Failed to send instrument validation email: subject={}", subject);
     }
+    return sent;
   }
 
   private static String buildBody(List<FundFindings> allFindings) {

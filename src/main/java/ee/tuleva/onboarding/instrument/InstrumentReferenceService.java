@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.instrument;
 
 import jakarta.annotation.PostConstruct;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,72 +18,124 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class InstrumentReferenceService {
 
+  private static final int MIN_ACCEPTABLE_ROW_COUNT_PERCENT = 80;
+
   private final InstrumentReferenceRepository instrumentReferenceRepository;
   private final BenchmarkCategoryProxyRepository benchmarkCategoryProxyRepository;
+  private final Clock clock;
 
   private volatile Map<String, InstrumentReference> byIsin = Map.of();
   private volatile Map<String, InstrumentReference> byBloombergTicker = Map.of();
   private volatile Map<String, InstrumentReference> byShortTicker = Map.of();
   private volatile Map<String, BenchmarkCategoryProxy> proxyByCategory = Map.of();
+  private volatile @Nullable Instant lastRefreshedAt;
 
   @PostConstruct
   void init() {
-    loadCache();
+    Snapshot snapshot;
+    try {
+      snapshot = readSnapshot();
+    } catch (Exception e) {
+      throw new IllegalStateException(
+          "Failed to load the instrument reference cache at startup", e);
+    }
+
+    if (snapshot.byIsin().isEmpty()) {
+      throw new IllegalStateException("Instrument reference table holds no rows: instruments=0");
+    }
+
+    apply(snapshot);
   }
 
   @Scheduled(cron = "0 5 * * * *", zone = "Europe/Tallinn")
   void scheduledRefresh() {
-    loadCache();
-  }
-
-  private void loadCache() {
     try {
-      var instruments = instrumentReferenceRepository.findAll();
-      var proxies = benchmarkCategoryProxyRepository.findAll();
+      var snapshot = readSnapshot();
+      var liveCount = byIsin.size();
+      var loadedCount = snapshot.byIsin().size();
 
-      var newByIsin = new HashMap<String, InstrumentReference>();
-      var newByBloomberg = new HashMap<String, InstrumentReference>();
-      var newByShortTicker = new HashMap<String, InstrumentReference>();
-
-      for (var instrument : instruments) {
-        newByIsin.put(instrument.getIsin(), instrument);
-
-        if (instrument.getBloombergTicker() != null) {
-          newByBloomberg.put(instrument.getBloombergTicker(), instrument);
-        }
-
-        if (instrument.getYahooTicker() != null) {
-          String shortTicker = extractShortTicker(instrument.getYahooTicker());
-          var shadowed = newByShortTicker.put(shortTicker, instrument);
-          if (shadowed != null) {
-            log.warn(
-                "Short-ticker collision in instrument cache: shortTicker={}, isins=[{}, {}] — findByTicker resolves only the last",
-                shortTicker,
-                shadowed.getIsin(),
-                instrument.getIsin());
-          }
-        }
+      if (loadedCount * 100 < liveCount * MIN_ACCEPTABLE_ROW_COUNT_PERCENT) {
+        log.error(
+            "Refusing instrument reference cache refresh, row count collapsed: liveInstruments={},"
+                + " loadedInstruments={}, lastRefreshedAt={}",
+            liveCount,
+            loadedCount,
+            lastRefreshedAt);
+        return;
       }
 
-      var newProxyByCategory = new HashMap<String, BenchmarkCategoryProxy>();
-      for (var proxy : proxies) {
-        newProxyByCategory.put(proxy.benchmarkCategory(), proxy);
-      }
-
-      byIsin = Map.copyOf(newByIsin);
-      byBloombergTicker = Map.copyOf(newByBloomberg);
-      byShortTicker = Map.copyOf(newByShortTicker);
-      proxyByCategory = Map.copyOf(newProxyByCategory);
-
-      log.info(
-          "Instrument reference cache refreshed: instruments={}, proxies={}",
-          instruments.size(),
-          proxies.size());
-
+      apply(snapshot);
     } catch (Exception e) {
       log.error("Failed to refresh instrument reference cache", e);
     }
   }
+
+  public Instant getLastRefreshedAt() {
+    var refreshedAt = lastRefreshedAt;
+    if (refreshedAt == null) {
+      throw new IllegalStateException("Instrument reference cache has never been loaded");
+    }
+    return refreshedAt;
+  }
+
+  private void apply(Snapshot snapshot) {
+    byIsin = snapshot.byIsin();
+    byBloombergTicker = snapshot.byBloombergTicker();
+    byShortTicker = snapshot.byShortTicker();
+    proxyByCategory = snapshot.proxyByCategory();
+    lastRefreshedAt = clock.instant();
+
+    log.info(
+        "Instrument reference cache refreshed: instruments={}, proxies={}",
+        byIsin.size(),
+        proxyByCategory.size());
+  }
+
+  private Snapshot readSnapshot() {
+    var instruments = instrumentReferenceRepository.findAll();
+    var proxies = benchmarkCategoryProxyRepository.findAll();
+
+    var newByIsin = new HashMap<String, InstrumentReference>();
+    var newByBloomberg = new HashMap<String, InstrumentReference>();
+    var newByShortTicker = new HashMap<String, InstrumentReference>();
+
+    for (var instrument : instruments) {
+      newByIsin.put(instrument.getIsin(), instrument);
+
+      if (instrument.getBloombergTicker() != null) {
+        newByBloomberg.put(instrument.getBloombergTicker(), instrument);
+      }
+
+      if (instrument.getYahooTicker() != null) {
+        String shortTicker = extractShortTicker(instrument.getYahooTicker());
+        var shadowed = newByShortTicker.put(shortTicker, instrument);
+        if (shadowed != null) {
+          log.warn(
+              "Short-ticker collision in instrument cache: shortTicker={}, isins=[{}, {}] — findByTicker resolves only the last",
+              shortTicker,
+              shadowed.getIsin(),
+              instrument.getIsin());
+        }
+      }
+    }
+
+    var newProxyByCategory = new HashMap<String, BenchmarkCategoryProxy>();
+    for (var proxy : proxies) {
+      newProxyByCategory.put(proxy.benchmarkCategory(), proxy);
+    }
+
+    return new Snapshot(
+        Map.copyOf(newByIsin),
+        Map.copyOf(newByBloomberg),
+        Map.copyOf(newByShortTicker),
+        Map.copyOf(newProxyByCategory));
+  }
+
+  private record Snapshot(
+      Map<String, InstrumentReference> byIsin,
+      Map<String, InstrumentReference> byBloombergTicker,
+      Map<String, InstrumentReference> byShortTicker,
+      Map<String, BenchmarkCategoryProxy> proxyByCategory) {}
 
   // --- Lookup methods (mirrors FundTicker static methods) ---
 

@@ -14,14 +14,15 @@ class BenchmarkCategoryProxyRepository {
   List<BenchmarkCategoryProxy> findAll() {
     return jdbcClient
         .sql(
-            "SELECT id, benchmark_category, etf_proxy_storage_key, index_proxy_key FROM benchmark_category_proxy")
+            "SELECT id, benchmark_category, etf_proxy_isin, index_proxy_isin, index_series_key FROM benchmark_category_proxy")
         .query(
             (rs, rowNum) ->
                 new BenchmarkCategoryProxy(
                     rs.getLong("id"),
                     rs.getString("benchmark_category"),
-                    rs.getString("etf_proxy_storage_key"),
-                    rs.getString("index_proxy_key")))
+                    rs.getString("etf_proxy_isin"),
+                    rs.getString("index_proxy_isin"),
+                    rs.getString("index_series_key")))
         .list();
   }
 }

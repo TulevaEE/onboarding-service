@@ -23,9 +23,10 @@ class InstrumentReferenceServiceSpec extends Specification {
         instrument("IE00BKM4GZ66", null, "EMIM.XETRA", null, null, "F00000Q7RC", "EQUITY_EM", false),
     ]
     benchmarkCategoryProxyRepository.findAll() >> [
-        new BenchmarkCategoryProxy(1L, "EQUITY_DM", "IE00B4L5Y983.XETR", "MSCI_WORLD"),
-        new BenchmarkCategoryProxy(2L, "EQUITY_EM", "IE00B4L5YC18.XETR", "MSCI_EM"),
-        new BenchmarkCategoryProxy(3L, "BOND_EURO", "IE00B3DKXQ41.XETR", null),
+        new BenchmarkCategoryProxy(1L, "EQUITY_DM", "IE00B4L5Y983", null, "MSCI_WORLD"),
+        new BenchmarkCategoryProxy(2L, "EQUITY_EM", "IE00BFNM3P36", null, "MSCI_EM"),
+        new BenchmarkCategoryProxy(3L, "BOND_EURO", "FR0013209921", "FR0013209921", null),
+        new BenchmarkCategoryProxy(4L, "BOND_GLOBAL", "IE00NOTCACHED", "IE00NOTCACHED", null),
     ]
 
     service = new InstrumentReferenceService(instrumentReferenceRepository, benchmarkCategoryProxyRepository, clock)
@@ -160,9 +161,22 @@ class InstrumentReferenceServiceSpec extends Specification {
     service.resolveBenchmarkProxy(null, true).isEmpty()
   }
 
-  def "resolveBenchmarkProxy returns empty when index proxy is null"() {
+  def "resolveBenchmarkProxy derives the index storage key when the index proxy is the ETF itself"() {
     expect:
-    service.resolveBenchmarkProxy("BOND_EURO", false).isEmpty()
+    service.resolveBenchmarkProxy("BOND_EURO", true) == Optional.of("FR0013209921.XPAR")
+    service.resolveBenchmarkProxy("BOND_EURO", false) == Optional.of("FR0013209921.XPAR")
+  }
+
+  def "resolveBenchmarkProxy derives the ETF storage key rather than storing it"() {
+    expect:
+    service.resolveBenchmarkProxy("EQUITY_EM", true) == Optional.of("IE00BFNM3P36.XETR")
+    service.resolveBenchmarkProxy("EQUITY_EM", false) == Optional.of("MSCI_EM")
+  }
+
+  def "resolveBenchmarkProxy returns empty when the proxy instrument is not in the cache"() {
+    expect:
+    service.resolveBenchmarkProxy("BOND_GLOBAL", true).isEmpty()
+    service.resolveBenchmarkProxy("BOND_GLOBAL", false).isEmpty()
   }
 
   def "storageKeyResolvers resolve keys in priority order with EODHD above the exchange feeds"() {

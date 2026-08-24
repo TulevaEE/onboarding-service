@@ -57,7 +57,7 @@ spring:
     activate:
       on-profile: "pg"
   flyway:
-    locations: classpath:/db/migration, classpath:/db/dev
+    locations: classpath:/db/migration, classpath:/db/dev, classpath:/db/pg
 
 ---
 
@@ -70,7 +70,7 @@ spring:
     username: test
     password: test
   flyway:
-    locations: classpath:/db/migration, classpath:/db/dev
+    locations: classpath:/db/migration, classpath:/db/dev, classpath:/db/pg
 
 ---
 

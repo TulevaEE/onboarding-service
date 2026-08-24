@@ -6,10 +6,13 @@ import ee.tuleva.onboarding.investment.instrument.InstrumentDataValidator.Severi
 import ee.tuleva.onboarding.investment.instrument.InstrumentDataValidator.ValidationFinding
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository
+import ee.tuleva.onboarding.instrument.InstrumentReferenceChange
+import ee.tuleva.onboarding.instrument.InstrumentReferenceHistoryRepository
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService
 import ee.tuleva.onboarding.notification.email.EmailService
 import ee.tuleva.onboarding.time.MutableClock
 import spock.lang.Specification
+import tools.jackson.databind.json.JsonMapper
 
 import java.time.Instant
 import java.time.LocalDate
@@ -23,16 +26,20 @@ class InstrumentValidationJobSpec extends Specification {
   ModelPortfolioAllocationRepository allocationRepository = Mock()
   EmailService emailService = Mock()
   InstrumentReferenceService instrumentReferenceService = Mock()
+  InstrumentReferenceHistoryRepository historyRepository = Mock()
+  InstrumentReferenceChangeDescriber changeDescriber = new InstrumentReferenceChangeDescriber(new JsonMapper())
   MutableClock clock = new MutableClock(Instant.parse("2026-05-28T10:00:00Z"))
 
   InstrumentValidationJob job = new InstrumentValidationJob(
-      validator, allocationRepository, emailService, instrumentReferenceService, clock)
+      validator, allocationRepository, emailService, instrumentReferenceService,
+      historyRepository, changeDescriber, clock)
 
   def today = LocalDate.of(2026, 5, 28)
   def effectiveDate = LocalDate.of(2026, 5, 26)
 
   def setup() {
     instrumentReferenceService.getLastRefreshedAt() >> { clock.instant() }
+    historyRepository.unnotifiedChanges() >> []
   }
 
   def "sends email when FAIL findings exist"() {
@@ -157,7 +164,8 @@ class InstrumentValidationJobSpec extends Specification {
     def staleService = Mock(InstrumentReferenceService)
     staleService.getLastRefreshedAt() >> { clock.instant().minus(4, ChronoUnit.HOURS) }
     def staleJob = new InstrumentValidationJob(
-        validator, allocationRepository, emailService, staleService, clock)
+        validator, allocationRepository, emailService, staleService,
+        historyRepository, changeDescriber, clock)
     allocationRepository.findLatestByFundAsOf(_ as TulevaFund, _ as LocalDate) >> []
     allocationRepository.findFutureEffectiveDates(_ as TulevaFund, _ as LocalDate) >> []
 
@@ -264,6 +272,89 @@ class InstrumentValidationJobSpec extends Specification {
     1 * emailService.sendSystemEmail({ MandrillMessage msg ->
       msg.subject == "[OK] Instrument validation findings cleared"
     }) >> true
+  }
+
+  def "mails a detected instrument reference change set and stamps it notified"() {
+    given:
+    noAllocations()
+    def changedRepository = Mock(InstrumentReferenceHistoryRepository)
+    changedRepository.unnotifiedChanges() >> [change(7L, "UPDATE",
+        '{"isin": "IE00B4L5Y983", "benchmark_category": "EQUITY_DM", "active": true}',
+        '{"isin": "IE00B4L5Y983", "benchmark_category": "EQUITY_EM", "active": true}')]
+
+    when:
+    jobWith(changedRepository).run()
+
+    then:
+    1 * emailService.sendSystemEmail({ MandrillMessage msg ->
+      msg.subject == "[CHANGED] Instrument reference data" &&
+          msg.fromEmail == "funds@tuleva.ee" &&
+          msg.to[0].email == "funds@tuleva.ee" &&
+          msg.text.contains("UPDATE IE00B4L5Y983 by ops-console") &&
+          msg.text.contains("benchmark_category: EQUITY_DM -> EQUITY_EM") &&
+          !msg.text.contains("active")
+    }) >> true
+
+    then:
+    1 * changedRepository.markNotified([7L])
+  }
+
+  def "sends a single mail for the whole detected change set"() {
+    given:
+    noAllocations()
+    def changedRepository = Mock(InstrumentReferenceHistoryRepository)
+    changedRepository.unnotifiedChanges() >> [
+        change(7L, "UPDATE", '{"isin": "IE00B4L5Y983", "active": true}', '{"isin": "IE00B4L5Y983", "active": false}'),
+        change(8L, "INSERT", null, '{"isin": "IE00NEW00000", "display_name": "New ETF"}'),
+    ]
+
+    when:
+    jobWith(changedRepository).run()
+
+    then:
+    1 * emailService.sendSystemEmail(_ as MandrillMessage) >> true
+    1 * changedRepository.markNotified([7L, 8L])
+  }
+
+  def "does not mail or stamp anything when no unnotified changes exist"() {
+    given:
+    noAllocations()
+
+    when:
+    job.run()
+
+    then:
+    0 * emailService.sendSystemEmail(_)
+    0 * historyRepository.markNotified(_)
+  }
+
+  def "leaves the change unstamped when the mail fails, so the next run retries it"() {
+    given:
+    noAllocations()
+    def changedRepository = Mock(InstrumentReferenceHistoryRepository)
+    changedRepository.unnotifiedChanges() >> [change(7L, "UPDATE", '{"active": true}', '{"active": false}')]
+    emailService.sendSystemEmail(_) >> false
+
+    when:
+    jobWith(changedRepository).run()
+
+    then:
+    0 * changedRepository.markNotified(_)
+  }
+
+  private void noAllocations() {
+    allocationRepository.findLatestByFundAsOf(_ as TulevaFund, _ as LocalDate) >> []
+    allocationRepository.findFutureEffectiveDates(_ as TulevaFund, _ as LocalDate) >> []
+  }
+
+  private InstrumentValidationJob jobWith(InstrumentReferenceHistoryRepository repository) {
+    new InstrumentValidationJob(
+        validator, allocationRepository, emailService, instrumentReferenceService,
+        repository, changeDescriber, clock)
+  }
+
+  private InstrumentReferenceChange change(Long id, String operation, String oldValues, String newValues) {
+    new InstrumentReferenceChange(id, "IE00B4L5Y983", operation, "ops-console", clock.instant(), oldValues, newValues)
   }
 
   private ModelPortfolioAllocation allocation(LocalDate date) {

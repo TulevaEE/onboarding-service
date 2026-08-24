@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
+import ee.tuleva.onboarding.instrument.InstrumentReferenceService
 import ee.tuleva.onboarding.time.ClockConfig
 import ee.tuleva.onboarding.time.ClockHolder
 import org.springframework.beans.factory.annotation.Autowired
@@ -8,6 +9,7 @@ import org.springframework.boot.restclient.test.autoconfigure.RestClientTest
 import org.springframework.context.annotation.Import
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
+import org.springframework.test.context.bean.override.mockito.MockitoBean
 import org.springframework.test.web.client.MockRestServiceServer
 import spock.lang.Specification
 
@@ -16,6 +18,7 @@ import java.time.Instant
 import java.time.LocalDate
 
 import static java.math.BigDecimal.ZERO
+import static org.mockito.BDDMockito.given
 import static java.time.ZoneOffset.UTC
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus
@@ -31,6 +34,15 @@ class YahooFundValueRetrieverSpec extends Specification {
   @Autowired
   MockRestServiceServer server
 
+  @MockitoBean
+  InstrumentReferenceService instrumentReferenceService
+
+  static final List<String> FUND_TICKERS = ["EUNL.DE", "SGAS.DE", "WLXU.PA"]
+
+  def setup() {
+    given(instrumentReferenceService.getYahooTickers()).willReturn(FUND_TICKERS)
+  }
+
   def cleanup() {
     server.reset()
     ClockHolder.setDefaultClock()
@@ -45,7 +57,16 @@ class YahooFundValueRetrieverSpec extends Specification {
 
   def "it exposes all yahoo tickers as expected storage keys"() {
     expect:
-    retriever.expectedStorageKeys() == Set.copyOf(FundTicker.getYahooTickers())
+    retriever.expectedStorageKeys() == Set.copyOf(FUND_TICKERS)
+  }
+
+  def "it re-reads the yahoo tickers on every call so a cache refresh takes effect"() {
+    given:
+    given(instrumentReferenceService.getYahooTickers()).willReturn(["EUNL.DE"], ["SGAS.DE"])
+
+    expect:
+    retriever.expectedStorageKeys() == Set.of("EUNL.DE")
+    retriever.expectedStorageKeys() == Set.of("SGAS.DE")
   }
 
   def "it successfully fetches quotes for all funds"() {
@@ -71,7 +92,7 @@ class YahooFundValueRetrieverSpec extends Specification {
       }
     """
 
-    YahooFundValueRetriever.FUND_TICKERS.forEach {
+    FUND_TICKERS.forEach {
       fund -> server.expect(requestTo(String.format("https://query1.finance.yahoo.com/v8/finance/chart/%s?interval=1d&events=history&includeAdjustedClose=true&period1=1514764800&period2=1515110400", fund)))
         .andRespond(withSuccess(mockApiResponse, MediaType.APPLICATION_JSON))
     }
@@ -82,10 +103,10 @@ class YahooFundValueRetrieverSpec extends Specification {
     def result = retriever.retrieveValuesForRange(startDate, endDate)
 
     then:
-    result.size() == YahooFundValueRetriever.FUND_TICKERS.size() * 3
+    result.size() == FUND_TICKERS.size() * 3
     result.every { it.provider() == "YAHOO" }
     result.every { it.updatedAt() != null }
-    YahooFundValueRetriever.FUND_TICKERS.each { ticker ->
+    FUND_TICKERS.each { ticker ->
       def tickerValues = result.findAll { it.key() == ticker }
       assert tickerValues.size() == 3
       assert tickerValues[0].date() == LocalDate.of(2018, 1, 2)
@@ -119,7 +140,7 @@ class YahooFundValueRetrieverSpec extends Specification {
       }
     """
 
-    YahooFundValueRetriever.FUND_TICKERS.forEach {
+    FUND_TICKERS.forEach {
       fund -> server.expect(requestTo(String.format("https://query1.finance.yahoo.com/v8/finance/chart/%s?interval=1d&events=history&includeAdjustedClose=true&period1=1514764800&period2=1515283200", fund)))
         .andRespond(withSuccess(mockApiResponseWithZeros, MediaType.APPLICATION_JSON))
     }
@@ -130,10 +151,10 @@ class YahooFundValueRetrieverSpec extends Specification {
     def result = retriever.retrieveValuesForRange(startDate, endDate)
 
     then:
-    result.size() == YahooFundValueRetriever.FUND_TICKERS.size() * 3
+    result.size() == FUND_TICKERS.size() * 3
     result.every { fundValue -> fundValue.value() != ZERO }
     result.every { it.provider() == "YAHOO" }
-    YahooFundValueRetriever.FUND_TICKERS.each { ticker ->
+    FUND_TICKERS.each { ticker ->
       def tickerValues = result.findAll { it.key() == ticker }
       assert tickerValues.size() == 3
       assert tickerValues[0].date() == LocalDate.of(2018, 1, 2)
@@ -167,7 +188,7 @@ class YahooFundValueRetrieverSpec extends Specification {
       }
     """
 
-    YahooFundValueRetriever.FUND_TICKERS.forEach {
+    FUND_TICKERS.forEach {
       fund -> server.expect(requestTo(String.format("https://query1.finance.yahoo.com/v8/finance/chart/%s?interval=1d&events=history&includeAdjustedClose=true&period1=1514764800&period2=1515283200", fund)))
         .andRespond(withSuccess(mockApiResponseWithNulls, MediaType.APPLICATION_JSON))
     }
@@ -178,10 +199,10 @@ class YahooFundValueRetrieverSpec extends Specification {
     def result = retriever.retrieveValuesForRange(startDate, endDate)
 
     then:
-    result.size() == YahooFundValueRetriever.FUND_TICKERS.size() * 3
+    result.size() == FUND_TICKERS.size() * 3
     result.every { fundValue -> fundValue.value() != null }
     result.every { it.provider() == "YAHOO" }
-    YahooFundValueRetriever.FUND_TICKERS.each { ticker ->
+    FUND_TICKERS.each { ticker ->
       def tickerValues = result.findAll { it.key() == ticker }
       assert tickerValues.size() == 3
       assert tickerValues[0].date() == LocalDate.of(2018, 1, 2)
@@ -214,7 +235,7 @@ class YahooFundValueRetrieverSpec extends Specification {
     """
     def notFoundBody = '{"chart":{"result":null,"error":{"code":"Not Found","description":"No data found, symbol may be delisted"}}}'
 
-    def tickers = YahooFundValueRetriever.FUND_TICKERS
+    def tickers = FUND_TICKERS
     def failingTicker = tickers[0]
     tickers.each { fund ->
       def url = String.format(
@@ -280,7 +301,7 @@ class YahooFundValueRetrieverSpec extends Specification {
       }
     """
 
-    def tickers = YahooFundValueRetriever.FUND_TICKERS
+    def tickers = FUND_TICKERS
     def noDataTicker = tickers[0]
     tickers.each { fund ->
       def url = String.format(
@@ -328,7 +349,7 @@ class YahooFundValueRetrieverSpec extends Specification {
       }
     """
 
-    YahooFundValueRetriever.FUND_TICKERS.forEach {
+    FUND_TICKERS.forEach {
       fund -> server.expect(requestTo(String.format("https://query1.finance.yahoo.com/v8/finance/chart/%s?interval=1d&events=history&includeAdjustedClose=true&period1=1514764800&period2=1515110400", fund)))
         .andRespond(withSuccess(mockApiResponse, MediaType.APPLICATION_JSON))
     }

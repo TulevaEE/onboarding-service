@@ -1,11 +1,14 @@
 package ee.tuleva.onboarding.comparisons.fundvalue;
 
+import static ee.tuleva.onboarding.comparisons.fundvalue.InstrumentReferenceFixture.instrument;
 import static ee.tuleva.onboarding.comparisons.fundvalue.PriceSource.EODHD;
 import static ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus.NO_PRICE_DATA;
 import static ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus.OK;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
+import ee.tuleva.onboarding.instrument.InstrumentReference;
+import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -24,12 +27,22 @@ class PositionPriceResolverTest {
   private static final LocalDate DATE = LocalDate.of(2025, 1, 10);
   private static final LocalDate OLDER_DATE = LocalDate.of(2025, 1, 7);
 
+  private static final InstrumentReference INSTRUMENT =
+      instrument(ISIN).eodhdTicker(EODHD_TICKER).yahooTicker("SGAS.DE").build();
+
   @Mock private PriorityPriceProvider priorityPriceProvider;
+
+  @Mock private InstrumentReferenceService instrumentReferenceService;
 
   @InjectMocks private PositionPriceResolver resolver;
 
+  private void givenKnownIsin() {
+    when(instrumentReferenceService.findByIsin(ISIN)).thenReturn(Optional.of(INSTRUMENT));
+  }
+
   @Test
   void resolve_withPriceAvailable_returnsOkStatus() {
+    givenKnownIsin();
     BigDecimal price = new BigDecimal("100.00");
     FundValue fundValue = new FundValue(EODHD_TICKER, DATE, price, "EODHD", null);
     when(priorityPriceProvider.resolve(ISIN, DATE, null)).thenReturn(Optional.of(fundValue));
@@ -47,6 +60,7 @@ class PositionPriceResolverTest {
 
   @Test
   void resolve_withNoPriceData_returnsNoPriceDataStatus() {
+    givenKnownIsin();
     when(priorityPriceProvider.resolve(ISIN, DATE, null)).thenReturn(Optional.empty());
 
     Optional<ResolvedPrice> result = resolver.resolve(ISIN, DATE);
@@ -60,6 +74,7 @@ class PositionPriceResolverTest {
 
   @Test
   void resolve_withOlderPriceDate_returnsPriceDateFromProvider() {
+    givenKnownIsin();
     BigDecimal price = new BigDecimal("99.00");
     FundValue fundValue = new FundValue(EODHD_TICKER, OLDER_DATE, price, "EODHD", null);
     when(priorityPriceProvider.resolve(ISIN, DATE, null)).thenReturn(Optional.of(fundValue));
@@ -72,6 +87,7 @@ class PositionPriceResolverTest {
 
   @Test
   void resolve_withUpdatedBeforeCutoff_passesThrough() {
+    givenKnownIsin();
     Instant cutoff = Instant.parse("2025-01-11T09:30:00Z");
     BigDecimal price = new BigDecimal("100.00");
     FundValue fundValue = new FundValue(EODHD_TICKER, DATE, price, "EODHD", null);
@@ -94,6 +110,7 @@ class PositionPriceResolverTest {
 
   @Test
   void resolve_mapsProviderToPriceSource() {
+    givenKnownIsin();
     FundValue fundValue = new FundValue("key", DATE, new BigDecimal("150.00"), "BLACKROCK", null);
     when(priorityPriceProvider.resolve(ISIN, DATE, null)).thenReturn(Optional.of(fundValue));
 

@@ -6,6 +6,7 @@ import static java.util.stream.Collectors.toSet;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
+import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -36,10 +37,15 @@ public class DeutscheBoerseValueRetriever implements ComparisonIndexRetriever {
 
   private final RestClient restClient;
   private final Clock clock;
+  private final InstrumentReferenceService instrumentReferenceService;
 
-  public DeutscheBoerseValueRetriever(RestClient.Builder restClientBuilder, Clock clock) {
+  public DeutscheBoerseValueRetriever(
+      RestClient.Builder restClientBuilder,
+      Clock clock,
+      InstrumentReferenceService instrumentReferenceService) {
     this.restClient = restClientBuilder.build();
     this.clock = clock;
+    this.instrumentReferenceService = instrumentReferenceService;
   }
 
   @Override
@@ -49,7 +55,7 @@ public class DeutscheBoerseValueRetriever implements ComparisonIndexRetriever {
 
   @Override
   public Set<String> expectedStorageKeys() {
-    return FundTicker.getXetraIsins().stream()
+    return instrumentReferenceService.getXetraIsins().stream()
         .map(isin -> isin + "." + XETRA_MARKET_IDENTIFIER_CODE)
         .collect(toSet());
   }
@@ -61,7 +67,7 @@ public class DeutscheBoerseValueRetriever implements ComparisonIndexRetriever {
 
   @Override
   public List<FundValue> retrieveValuesForRange(LocalDate startDate, LocalDate endDate) {
-    return FundTicker.getXetraIsins().stream()
+    return instrumentReferenceService.getXetraIsins().stream()
         .flatMap(isin -> retrieveValuesForIsin(isin, startDate, endDate).stream())
         .toList();
   }

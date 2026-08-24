@@ -5,6 +5,8 @@ import static java.util.Comparator.comparing;
 import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
+import ee.tuleva.onboarding.instrument.InstrumentReference;
+import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -38,10 +40,15 @@ public class BlackRockFundValueRetriever implements ComparisonIndexRetriever {
 
   private final RestClient restClient;
   private final Clock clock;
+  private final InstrumentReferenceService instrumentReferenceService;
 
-  public BlackRockFundValueRetriever(RestClient.Builder restClientBuilder, Clock clock) {
+  public BlackRockFundValueRetriever(
+      RestClient.Builder restClientBuilder,
+      Clock clock,
+      InstrumentReferenceService instrumentReferenceService) {
     this.restClient = restClientBuilder.build();
     this.clock = clock;
+    this.instrumentReferenceService = instrumentReferenceService;
   }
 
   @Override
@@ -51,7 +58,7 @@ public class BlackRockFundValueRetriever implements ComparisonIndexRetriever {
 
   @Override
   public Set<String> expectedStorageKeys() {
-    return FundTicker.getBlackrockFunds().stream()
+    return instrumentReferenceService.getBlackrockFunds().stream()
         .map(fund -> fund.getBlackrockStorageKey().orElseThrow())
         .collect(toSet());
   }
@@ -63,13 +70,13 @@ public class BlackRockFundValueRetriever implements ComparisonIndexRetriever {
 
   @Override
   public List<FundValue> retrieveValuesForRange(LocalDate startDate, LocalDate endDate) {
-    return FundTicker.getBlackrockFunds().stream()
+    return instrumentReferenceService.getBlackrockFunds().stream()
         .flatMap(fund -> retrieveValuesForFund(fund, startDate, endDate).stream())
         .toList();
   }
 
   private List<FundValue> retrieveValuesForFund(
-      FundTicker fund, LocalDate startDate, LocalDate endDate) {
+      InstrumentReference fund, LocalDate startDate, LocalDate endDate) {
     var url =
         "https://www.blackrock.com/nl/particuliere-beleggers/produkten/"
             + fund.getBlackrockProductId()
@@ -81,8 +88,8 @@ public class BlackRockFundValueRetriever implements ComparisonIndexRetriever {
       responseBody = restClient.get().uri(url).retrieve().body(String.class);
     } catch (Exception e) {
       log.error(
-          "Failed to retrieve values: fund={}, productId={}",
-          fund.name(),
+          "Failed to retrieve values: isin={}, productId={}",
+          fund.getIsin(),
           fund.getBlackrockProductId(),
           e);
       return List.of();

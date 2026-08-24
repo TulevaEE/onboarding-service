@@ -66,6 +66,7 @@ class TransactionCommandControllerTest {
         new BigDecimal("8.500000"),
         SEB,
         DRAFT,
+        OrderType.MOC,
         ORDER_UUID,
         null,
         "operator note");

@@ -177,7 +177,7 @@ public class TransactionExportService {
         row.createCell(1).setCellValue(fundAccounts.securitiesAccount(order.getFund()));
         row.createCell(2).setCellValue(order.getInstrumentIsin());
         row.createCell(3).setCellValue(ricByIsin.getOrDefault(order.getInstrumentIsin(), ""));
-        row.createCell(4).setCellValue("MOC");
+        row.createCell(4).setCellValue(order.getOrderType().name());
         if (order.getOrderQuantity() != null) {
           row.createCell(6).setCellValue(order.getOrderQuantity().doubleValue());
         }

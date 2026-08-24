@@ -64,6 +64,17 @@ class FeeChargedToFundPolicyTest {
   }
 
   @Test
+  void chargedToFund_throwsWhenTheFirstRowStartsAfterTheFundDid() {
+    jdbcClient.sql("DELETE FROM investment_fee_policy").update();
+    insertPolicy(TUK75, DEPOT, false, TUK75.getInceptionDate().plusYears(1), null);
+
+    assertThatThrownBy(
+            () -> policy.chargedToFund(TUK75, DEPOT, TUK75.getInceptionDate().plusMonths(1)))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("Gap in the fee policy");
+  }
+
+  @Test
   void chargedToFund_readsDatesBeforeTheFundExistedAsTheFoundingPolicy() {
     assertThat(policy.chargedToFund(TUK75, DEPOT, LocalDate.of(2017, 3, 27))).isFalse();
     assertThat(policy.chargedToFund(TUK75, DEPOT, LocalDate.of(2017, 3, 28))).isFalse();

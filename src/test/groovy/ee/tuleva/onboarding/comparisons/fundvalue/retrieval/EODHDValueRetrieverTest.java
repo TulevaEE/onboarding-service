@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
+import static ee.tuleva.onboarding.comparisons.fundvalue.InstrumentReferenceFixture.instrument;
 import static java.math.BigDecimal.ZERO;
 import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -12,6 +13,8 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
+import ee.tuleva.onboarding.instrument.InstrumentReference;
+import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.time.ClockConfig;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.math.BigDecimal;
@@ -21,6 +24,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.restclient.test.autoconfigure.RestClientTest;
@@ -41,6 +45,29 @@ class EODHDValueRetrieverTest {
 
   @MockitoBean FundValueProvider fundValueProvider;
 
+  @MockitoBean InstrumentReferenceService instrumentReferenceService;
+
+  private static final InstrumentReference SGAS =
+      instrument("IE00BFNM3G45").eodhdTicker("SGAS.XETRA").build();
+  private static final InstrumentReference USAS =
+      instrument("IE000F60HVH9").eodhdTicker("USAS.PA.EODHD").build();
+  private static final InstrumentReference GAGH =
+      instrument("LU1708330318").eodhdTicker("GAGH.PA.EODHD").build();
+
+  private static final List<String> EODHD_TICKERS =
+      List.of("SGAS.XETRA", "USAS.PA.EODHD", "GAGH.PA.EODHD");
+
+  @BeforeEach
+  void setUpInstruments() {
+    given(instrumentReferenceService.getEodhdTickers()).willReturn(EODHD_TICKERS);
+    given(instrumentReferenceService.findByEodhdTicker("SGAS.XETRA"))
+        .willReturn(Optional.of(SGAS));
+    given(instrumentReferenceService.findByEodhdTicker("USAS.PA.EODHD"))
+        .willReturn(Optional.of(USAS));
+    given(instrumentReferenceService.findByEodhdTicker("GAGH.PA.EODHD"))
+        .willReturn(Optional.of(GAGH));
+  }
+
   @AfterEach
   void cleanup() {
     server.reset();
@@ -55,7 +82,7 @@ class EODHDValueRetrieverTest {
   @Test
   void exposesAllEodhdTickersAndForexAsExpectedStorageKeys() {
     assertThat(retriever.expectedStorageKeys())
-        .containsAll(FundTicker.getEodhdTickers())
+        .containsAll(EODHD_TICKERS)
         .contains("EURUSD.FOREX");
   }
 
@@ -68,8 +95,7 @@ class EODHDValueRetrieverTest {
         ]
         """;
 
-    FundTicker.getEodhdTickers()
-        .forEach(
+    EODHD_TICKERS.forEach(
             ticker ->
                 server
                     .expect(
@@ -104,8 +130,7 @@ class EODHDValueRetrieverTest {
         ]
         """;
 
-    FundTicker.getEodhdTickers()
-        .forEach(
+    EODHD_TICKERS.forEach(
             ticker ->
                 server
                     .expect(
@@ -148,8 +173,7 @@ class EODHDValueRetrieverTest {
         ]
         """;
 
-    FundTicker.getEodhdTickers()
-        .forEach(
+    EODHD_TICKERS.forEach(
             ticker ->
                 server
                     .expect(
@@ -169,7 +193,7 @@ class EODHDValueRetrieverTest {
 
     List<FundValue> result = retriever.retrieveValuesForRange(startDate, endDate);
 
-    assertThat(result).hasSize(FundTicker.values().length * 3);
+    assertThat(result).hasSize(EODHD_TICKERS.size() * 3);
     assertThat(result).allSatisfy(fv -> assertThat(fv.provider()).isEqualTo("EODHD"));
     assertThat(result).allSatisfy(fv -> assertThat(fv.updatedAt()).isNotNull());
   }
@@ -185,8 +209,7 @@ class EODHDValueRetrieverTest {
         ]
         """;
 
-    FundTicker.getEodhdTickers()
-        .forEach(
+    EODHD_TICKERS.forEach(
             ticker ->
                 server
                     .expect(
@@ -206,7 +229,7 @@ class EODHDValueRetrieverTest {
 
     List<FundValue> result = retriever.retrieveValuesForRange(startDate, endDate);
 
-    assertThat(result).hasSize(FundTicker.values().length * 2);
+    assertThat(result).hasSize(EODHD_TICKERS.size() * 2);
     assertThat(result).allSatisfy(fv -> assertThat(fv.value()).isNotEqualTo(ZERO));
   }
 
@@ -219,13 +242,13 @@ class EODHDValueRetrieverTest {
         ]
         """;
 
-    var firstTicker = FundTicker.getEodhdTickers().getFirst();
+    var firstTicker = EODHD_TICKERS.getFirst();
     server
         .expect(
             requestTo(expectedUri(firstTicker, LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 2))))
         .andRespond(withSuccess(mockResponse, MediaType.APPLICATION_JSON));
 
-    FundTicker.getEodhdTickers().stream()
+    EODHD_TICKERS.stream()
         .skip(1)
         .forEach(
             ticker ->
@@ -255,8 +278,7 @@ class EODHDValueRetrieverTest {
 
   @Test
   void returnsEmptyListOnApiError() {
-    FundTicker.getEodhdTickers()
-        .forEach(
+    EODHD_TICKERS.forEach(
             ticker ->
                 server
                     .expect(
@@ -291,8 +313,7 @@ class EODHDValueRetrieverTest {
         ]
         """;
 
-    FundTicker.getEodhdTickers()
-        .forEach(
+    EODHD_TICKERS.forEach(
             ticker ->
                 server
                     .expect(
@@ -536,8 +557,7 @@ class EODHDValueRetrieverTest {
 
   private void expectRequests(
       String targetTicker, String targetResponse, LocalDate startDate, LocalDate endDate) {
-    FundTicker.getEodhdTickers()
-        .forEach(
+    EODHD_TICKERS.forEach(
             ticker ->
                 server
                     .expect(requestTo(expectedUri(ticker, startDate, endDate)))

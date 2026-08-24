@@ -14,7 +14,6 @@ import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.PriceSource;
 import ee.tuleva.onboarding.comparisons.fundvalue.PriorityPriceProvider;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.YahooFundValueRetriever;
 import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.Discrepancy;
 import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.MissingData;
@@ -23,6 +22,8 @@ import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResul
 import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.SourceValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.StaleSource;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.instrument.InstrumentReference;
+import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -58,11 +59,12 @@ public class FundValueIntegrityChecker {
   private final FundValueRepository fundValueRepository;
   private final PriorityPriceProvider priorityPriceProvider;
   private final PublicHolidays publicHolidays;
+  private final InstrumentReferenceService instrumentReferenceService;
   private final Clock clock;
   private final OperationsNotificationService notificationService;
 
-  record TickerCheckResult(
-      FundTicker ticker,
+  record InstrumentCheckResult(
+      InstrumentReference instrument,
       IntegrityCheckResult yahooVsDbResult,
       Set<String> configuredSources,
       Set<String> sourcesWithData,
@@ -102,71 +104,82 @@ public class FundValueIntegrityChecker {
             ? CROSS_PROVIDER_CHECK_START_DATE
             : endDate.minusDays(30);
 
-    List<TickerCheckResult> results = collectAllResults(crossProviderStartDate, endDate);
+    List<InstrumentCheckResult> results = collectAllResults(crossProviderStartDate, endDate);
     String summary = buildSummary(crossProviderStartDate, endDate, results);
     logSummary(summary, results);
     notifyIfCritical(results);
     return summary;
   }
 
-  private List<TickerCheckResult> collectAllResults(LocalDate startDate, LocalDate endDate) {
-    return Arrays.stream(FundTicker.values())
+  private List<InstrumentCheckResult> collectAllResults(LocalDate startDate, LocalDate endDate) {
+    return instrumentReferenceService.activeInstruments().stream()
         .map(
-            ticker -> {
+            instrument -> {
               IntegrityCheckResult yahooVsDbResult =
-                  verifyFundDataIntegrity(ticker.getYahooTicker(), startDate, endDate);
-              List<SourceValues> sources = loadSources(ticker, startDate, endDate);
+                  yahooVsDatabaseResult(instrument, startDate, endDate);
+              List<SourceValues> sources = loadSources(instrument, startDate, endDate);
 
-              return new TickerCheckResult(
-                  ticker,
+              return new InstrumentCheckResult(
+                  instrument,
                   yahooVsDbResult,
-                  tickerSources(ticker).stream().map(TickerSource::name).collect(toSet()),
+                  instrumentSources(instrument).stream()
+                      .map(InstrumentSource::name)
+                      .collect(toSet()),
                   sources.stream().map(values -> values.source().name()).collect(toSet()),
-                  checkSourceFreshness(ticker, endDate),
-                  crossProviderDiscrepancies(ticker, sources));
+                  checkSourceFreshness(instrument, endDate),
+                  crossProviderDiscrepancies(instrument, sources));
             })
         .toList();
   }
 
-  List<Discrepancy> checkCrossProviderIntegrity(
-      FundTicker ticker, LocalDate startDate, LocalDate endDate) {
-    return crossProviderDiscrepancies(ticker, loadSources(ticker, startDate, endDate));
+  private IntegrityCheckResult yahooVsDatabaseResult(
+      InstrumentReference instrument, LocalDate startDate, LocalDate endDate) {
+    String yahooTicker = instrument.getYahooTicker();
+    if (yahooTicker == null) {
+      return IntegrityCheckResult.empty();
+    }
+    return verifyFundDataIntegrity(yahooTicker, startDate, endDate);
   }
 
-  private record TickerSource(String name, String displayName, String storageKey, int scale) {}
+  List<Discrepancy> checkCrossProviderIntegrity(
+      InstrumentReference instrument, LocalDate startDate, LocalDate endDate) {
+    return crossProviderDiscrepancies(instrument, loadSources(instrument, startDate, endDate));
+  }
 
-  private record SourceValues(TickerSource source, Map<LocalDate, BigDecimal> valuesByDate) {}
+  private record InstrumentSource(String name, String displayName, String storageKey, int scale) {}
 
-  private List<TickerSource> tickerSources(FundTicker ticker) {
+  private record SourceValues(InstrumentSource source, Map<LocalDate, BigDecimal> valuesByDate) {}
+
+  private List<InstrumentSource> instrumentSources(InstrumentReference instrument) {
     return PriorityPriceProvider.priceFeeds().stream()
         .flatMap(
             feed ->
-                feed.storageKey().apply(ticker).stream()
-                    .map(storageKey -> tickerSource(feed.source(), storageKey)))
+                feed.storageKey().apply(instrument).stream()
+                    .map(storageKey -> instrumentSource(feed.source(), storageKey)))
         .toList();
   }
 
-  private TickerSource tickerSource(PriceSource source, String storageKey) {
+  private InstrumentSource instrumentSource(PriceSource source, String storageKey) {
     return switch (source) {
-      case BLACKROCK -> new TickerSource("BlackRock", "BlackRock", storageKey, DATABASE_SCALE);
+      case BLACKROCK -> new InstrumentSource("BlackRock", "BlackRock", storageKey, DATABASE_SCALE);
       case MORNINGSTAR ->
-          new TickerSource("Morningstar", "Morningstar", storageKey, MORNINGSTAR_SCALE);
+          new InstrumentSource("Morningstar", "Morningstar", storageKey, MORNINGSTAR_SCALE);
       case EODHD ->
-          new TickerSource(
+          new InstrumentSource(
               "EODHD",
               "EODHD",
               storageKey,
               storageKey.endsWith(".EUFUND") ? EUFUND_SCALE : DATABASE_SCALE);
       case DEUTSCHE_BOERSE ->
-          new TickerSource("Exchange", "Deutsche Börse", storageKey, DATABASE_SCALE);
-      case EURONEXT -> new TickerSource("Exchange", "Euronext", storageKey, DATABASE_SCALE);
-      case YAHOO -> new TickerSource("Yahoo", "Yahoo", storageKey, DATABASE_SCALE);
+          new InstrumentSource("Exchange", "Deutsche Börse", storageKey, DATABASE_SCALE);
+      case EURONEXT -> new InstrumentSource("Exchange", "Euronext", storageKey, DATABASE_SCALE);
+      case YAHOO -> new InstrumentSource("Yahoo", "Yahoo", storageKey, DATABASE_SCALE);
     };
   }
 
   private List<SourceValues> loadSources(
-      FundTicker ticker, LocalDate startDate, LocalDate endDate) {
-    return tickerSources(ticker).stream()
+      InstrumentReference instrument, LocalDate startDate, LocalDate endDate) {
+    return instrumentSources(instrument).stream()
         .map(
             source ->
                 new SourceValues(
@@ -179,12 +192,12 @@ public class FundValueIntegrityChecker {
   }
 
   private List<Discrepancy> crossProviderDiscrepancies(
-      FundTicker ticker, List<SourceValues> sources) {
+      InstrumentReference instrument, List<SourceValues> sources) {
     if (sources.size() < 2) {
       return List.of();
     }
     return allDates(sources).stream()
-        .flatMap(date -> discrepanciesOnDate(ticker, sources, date).stream())
+        .flatMap(date -> discrepanciesOnDate(instrument, sources, date).stream())
         .toList();
   }
 
@@ -195,7 +208,7 @@ public class FundValueIntegrityChecker {
   }
 
   private List<Discrepancy> discrepanciesOnDate(
-      FundTicker ticker, List<SourceValues> sources, LocalDate date) {
+      InstrumentReference instrument, List<SourceValues> sources, LocalDate date) {
     List<SourceValues> present =
         sources.stream().filter(source -> source.valuesByDate().containsKey(date)).toList();
     if (present.size() < 2) {
@@ -208,13 +221,13 @@ public class FundValueIntegrityChecker {
     SourceValues anchor = present.getFirst();
     return present.stream()
         .skip(1)
-        .map(compared -> compareOnDate(ticker, date, anchor, compared, allSourceValues))
+        .map(compared -> compareOnDate(instrument, date, anchor, compared, allSourceValues))
         .flatMap(Optional::stream)
         .toList();
   }
 
   private Optional<Discrepancy> compareOnDate(
-      FundTicker ticker,
+      InstrumentReference instrument,
       LocalDate date,
       SourceValues anchor,
       SourceValues compared,
@@ -232,7 +245,7 @@ public class FundValueIntegrityChecker {
     BigDecimal difference = anchorValue.subtract(comparedValue).abs();
     return Optional.of(
         new Discrepancy(
-            ticker.getDisplayName()
+            instrument.getDisplayName()
                 + " ("
                 + anchor.source().displayName()
                 + " vs "
@@ -248,22 +261,22 @@ public class FundValueIntegrityChecker {
             allSourceValues));
   }
 
-  List<StaleSource> checkSourceFreshness(FundTicker ticker, LocalDate endDate) {
-    return tickerSources(ticker).stream()
-        .map(source -> staleSourceFor(ticker, source, endDate))
+  List<StaleSource> checkSourceFreshness(InstrumentReference instrument, LocalDate endDate) {
+    return instrumentSources(instrument).stream()
+        .map(source -> staleSourceFor(instrument, source, endDate))
         .flatMap(Optional::stream)
         .toList();
   }
 
   private Optional<StaleSource> staleSourceFor(
-      FundTicker ticker, TickerSource source, LocalDate endDate) {
+      InstrumentReference instrument, InstrumentSource source, LocalDate endDate) {
     return fundValueRepository
         .findLastValueForFund(source.storageKey())
         .map(FundValue::date)
         .map(
             lastDate ->
                 new StaleSource(
-                    ticker.getDisplayName(),
+                    instrument.getDisplayName(),
                     source.name(),
                     source.storageKey(),
                     lastDate,
@@ -378,7 +391,7 @@ public class FundValueIntegrityChecker {
         .toList();
   }
 
-  String buildSummary(LocalDate startDate, LocalDate endDate, List<TickerCheckResult> results) {
+  String buildSummary(LocalDate startDate, LocalDate endDate, List<InstrumentCheckResult> results) {
     StringBuilder summary = new StringBuilder();
     summary.append(
         String.format("Fund Value Integrity Check Summary (%s to %s):%n%n", startDate, endDate));
@@ -419,8 +432,8 @@ public class FundValueIntegrityChecker {
     return summary.toString();
   }
 
-  void notifyIfCritical(List<TickerCheckResult> results) {
-    boolean hasCriticalIssues = results.stream().anyMatch(TickerCheckResult::hasCriticalIssues);
+  void notifyIfCritical(List<InstrumentCheckResult> results) {
+    boolean hasCriticalIssues = results.stream().anyMatch(InstrumentCheckResult::hasCriticalIssues);
     if (!hasCriticalIssues) {
       return;
     }
@@ -431,7 +444,7 @@ public class FundValueIntegrityChecker {
     }
   }
 
-  private String buildCriticalAlert(List<TickerCheckResult> results) {
+  private String buildCriticalAlert(List<InstrumentCheckResult> results) {
     StringBuilder sb =
         new StringBuilder(
             "SUSPICIOUS PRICE DATA — verify instruments/sources before NAV calculation at 11:00\n");
@@ -462,8 +475,8 @@ public class FundValueIntegrityChecker {
     return sb.toString().stripTrailing();
   }
 
-  private void logSummary(String summary, List<TickerCheckResult> results) {
-    boolean hasCriticalIssues = results.stream().anyMatch(TickerCheckResult::hasCriticalIssues);
+  private void logSummary(String summary, List<InstrumentCheckResult> results) {
+    boolean hasCriticalIssues = results.stream().anyMatch(InstrumentCheckResult::hasCriticalIssues);
     if (hasCriticalIssues) {
       log.error("{}", summary);
     } else {
@@ -471,7 +484,7 @@ public class FundValueIntegrityChecker {
     }
   }
 
-  private String buildStaleSourcesSummary(List<TickerCheckResult> results) {
+  private String buildStaleSourcesSummary(List<InstrumentCheckResult> results) {
     List<StaleSource> staleSources =
         results.stream().flatMap(result -> result.staleSources().stream()).toList();
     if (staleSources.isEmpty()) {
@@ -495,7 +508,7 @@ public class FundValueIntegrityChecker {
     return summary.toString();
   }
 
-  private String buildLatestDaySummary(LocalDate latestDate, List<TickerCheckResult> results) {
+  private String buildLatestDaySummary(LocalDate latestDate, List<InstrumentCheckResult> results) {
     StringBuilder summary = new StringBuilder();
     summary.append(String.format("Latest Day (%s):%n", latestDate));
 
@@ -546,7 +559,7 @@ public class FundValueIntegrityChecker {
     return summary.toString();
   }
 
-  private String sourceStatus(TickerCheckResult result, String sourceName, LocalDate endDate) {
+  private String sourceStatus(InstrumentCheckResult result, String sourceName, LocalDate endDate) {
     if (!result.configuredSources().contains(sourceName)) {
       return NOT_APPLICABLE;
     }
@@ -559,13 +572,13 @@ public class FundValueIntegrityChecker {
     return hasCriticalDiscrepancyOn(result, endDate, sourceName) ? CROSS_MARK : CHECK_MARK;
   }
 
-  private boolean hasDiscrepancyOn(TickerCheckResult result, LocalDate date, String sourceName) {
+  private boolean hasDiscrepancyOn(InstrumentCheckResult result, LocalDate date, String sourceName) {
     return result.crossProviderDiscrepancies().stream()
         .anyMatch(d -> d.date().equals(date) && involves(d, sourceName));
   }
 
   private boolean hasCriticalDiscrepancyOn(
-      TickerCheckResult result, LocalDate date, String sourceName) {
+      InstrumentCheckResult result, LocalDate date, String sourceName) {
     return result.crossProviderDiscrepancies().stream()
         .anyMatch(
             d -> d.date().equals(date) && d.severity() == CRITICAL && involves(d, sourceName));
@@ -584,7 +597,7 @@ public class FundValueIntegrityChecker {
   }
 
   private String buildCrossProviderSummaryTable(
-      LocalDate startDate, LocalDate endDate, List<TickerCheckResult> results) {
+      LocalDate startDate, LocalDate endDate, List<InstrumentCheckResult> results) {
     StringBuilder table = new StringBuilder();
     table.append(String.format("Cross-Provider Comparison (%s):%n", endDate));
     table.append(
@@ -594,30 +607,30 @@ public class FundValueIntegrityChecker {
     table.append(formatCrossProviderHeader());
     table.append(formatCrossProviderSeparator());
 
-    for (TickerCheckResult result : results) {
+    for (InstrumentCheckResult result : results) {
       table.append(
           formatCrossProviderRow(
-              truncateFundName(result.ticker().getDisplayName()),
+              truncateFundName(result.instrument().getDisplayName()),
               sourceStatus(result, "EODHD", endDate),
               sourceStatus(result, "Exchange", endDate),
               sourceStatus(result, "BlackRock", endDate),
               sourceStatus(result, "Morningstar", endDate),
               sourceStatus(result, "Yahoo", endDate),
-              formatLastPrice(result.ticker(), endDate)));
+              formatLastPrice(result.instrument(), endDate)));
     }
     table.append(formatCrossProviderFooter());
 
     return table.toString();
   }
 
-  private List<Discrepancy> collectCriticalIssues(List<TickerCheckResult> results) {
+  private List<Discrepancy> collectCriticalIssues(List<InstrumentCheckResult> results) {
     return results.stream()
         .flatMap(r -> r.crossProviderDiscrepancies().stream())
         .filter(d -> d.severity() == CRITICAL)
         .toList();
   }
 
-  private List<Discrepancy> collectInfoIssues(List<TickerCheckResult> results) {
+  private List<Discrepancy> collectInfoIssues(List<InstrumentCheckResult> results) {
     return results.stream()
         .flatMap(r -> r.crossProviderDiscrepancies().stream())
         .filter(d -> d.severity() == INFO)
@@ -682,9 +695,9 @@ public class FundValueIntegrityChecker {
     return name.substring(0, FUND_NAME_WIDTH - 3) + "...";
   }
 
-  private String formatLastPrice(FundTicker ticker, LocalDate endDate) {
+  private String formatLastPrice(InstrumentReference instrument, LocalDate endDate) {
     return priorityPriceProvider
-        .resolve(ticker.getIsin(), endDate)
+        .resolve(instrument.getIsin(), endDate)
         .map(
             fundValue -> {
               long daysBehind = publicHolidays.countWorkingDaysBehind(fundValue.date(), endDate);

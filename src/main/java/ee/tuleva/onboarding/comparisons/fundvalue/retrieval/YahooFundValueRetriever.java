@@ -8,6 +8,7 @@ import static org.springframework.http.MediaType.APPLICATION_JSON;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.YahooFundValueRetriever.YahooFinanceResponse.Result;
+import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -32,17 +33,20 @@ public class YahooFundValueRetriever implements ComparisonIndexRetriever {
   @ToString.Include public static final String KEY = "NAV_CHECK_VALUE";
   public static final String PROVIDER = "YAHOO";
 
-  public static final List<String> FUND_TICKERS = FundTicker.getYahooTickers();
-
   private static final ZoneId EUROPE_BERLIN = ZoneId.of("Europe/Berlin");
   private static final LocalTime CLOSING_PRICE_FINALIZED_TIME = LocalTime.of(6, 0);
 
   private final RestClient restClient;
   private final Clock clock;
+  private final InstrumentReferenceService instrumentReferenceService;
 
-  public YahooFundValueRetriever(RestClient.Builder restClientBuilder, Clock clock) {
+  public YahooFundValueRetriever(
+      RestClient.Builder restClientBuilder,
+      Clock clock,
+      InstrumentReferenceService instrumentReferenceService) {
     this.restClient = restClientBuilder.build();
     this.clock = clock;
+    this.instrumentReferenceService = instrumentReferenceService;
   }
 
   @Override
@@ -52,7 +56,7 @@ public class YahooFundValueRetriever implements ComparisonIndexRetriever {
 
   @Override
   public Set<String> expectedStorageKeys() {
-    return Set.copyOf(FUND_TICKERS);
+    return Set.copyOf(instrumentReferenceService.getYahooTickers());
   }
 
   @Override
@@ -62,7 +66,7 @@ public class YahooFundValueRetriever implements ComparisonIndexRetriever {
 
   @Override
   public List<FundValue> retrieveValuesForRange(LocalDate startDate, LocalDate endDate) {
-    return FUND_TICKERS.stream()
+    return instrumentReferenceService.getYahooTickers().stream()
         .map(fundName -> retrieveValuesForFundSafely(fundName, startDate, endDate))
         .flatMap(List::stream)
         .toList();

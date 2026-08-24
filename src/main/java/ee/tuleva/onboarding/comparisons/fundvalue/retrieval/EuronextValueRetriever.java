@@ -5,6 +5,7 @@ import static java.util.Comparator.comparing;
 import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
+import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import java.io.BufferedReader;
 import java.io.StringReader;
 import java.math.BigDecimal;
@@ -39,10 +40,15 @@ public class EuronextValueRetriever implements ComparisonIndexRetriever {
 
   private final RestClient restClient;
   private final Clock clock;
+  private final InstrumentReferenceService instrumentReferenceService;
 
-  public EuronextValueRetriever(RestClient.Builder restClientBuilder, Clock clock) {
+  public EuronextValueRetriever(
+      RestClient.Builder restClientBuilder,
+      Clock clock,
+      InstrumentReferenceService instrumentReferenceService) {
     this.restClient = restClientBuilder.build();
     this.clock = clock;
+    this.instrumentReferenceService = instrumentReferenceService;
   }
 
   @Override
@@ -52,7 +58,7 @@ public class EuronextValueRetriever implements ComparisonIndexRetriever {
 
   @Override
   public Set<String> expectedStorageKeys() {
-    return FundTicker.getEuronextParisIsins().stream()
+    return instrumentReferenceService.getEuronextParisIsins().stream()
         .map(isin -> isin + "." + EURONEXT_PARIS_MARKET_IDENTIFIER_CODE)
         .collect(toSet());
   }
@@ -64,7 +70,7 @@ public class EuronextValueRetriever implements ComparisonIndexRetriever {
 
   @Override
   public List<FundValue> retrieveValuesForRange(LocalDate startDate, LocalDate endDate) {
-    return FundTicker.getEuronextParisIsins().stream()
+    return instrumentReferenceService.getEuronextParisIsins().stream()
         .flatMap(isin -> retrieveValuesForIsin(isin, startDate, endDate).stream())
         .toList();
   }

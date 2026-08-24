@@ -1,24 +1,31 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
+import static ee.tuleva.onboarding.comparisons.fundvalue.InstrumentReferenceFixture.instrument;
 import static java.math.BigDecimal.ZERO;
 import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
 import static org.springframework.http.MediaType.TEXT_HTML;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import ee.tuleva.onboarding.instrument.InstrumentReference;
+import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.time.ClockConfig;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.restclient.test.autoconfigure.RestClientTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.client.MockRestServiceServer;
 
 @RestClientTest(BlackRockFundValueRetriever.class)
@@ -28,6 +35,18 @@ class BlackRockFundValueRetrieverTest {
   @Autowired BlackRockFundValueRetriever retriever;
 
   @Autowired MockRestServiceServer server;
+
+  @MockitoBean InstrumentReferenceService instrumentReferenceService;
+
+  private static final List<InstrumentReference> BLACKROCK_FUNDS =
+      List.of(
+          instrument("IE00B4L5Y983").blackrockProductId("251882").build(),
+          instrument("IE00BFNM3G45").blackrockProductId("291392").build());
+
+  @BeforeEach
+  void setUpInstruments() {
+    given(instrumentReferenceService.getBlackrockFunds()).willReturn(BLACKROCK_FUNDS);
+  }
 
   @AfterEach
   void cleanup() {
@@ -44,14 +63,14 @@ class BlackRockFundValueRetrieverTest {
   void exposesBlackrockStorageKeysAsExpectedStorageKeys() {
     assertThat(retriever.expectedStorageKeys())
         .containsExactlyInAnyOrderElementsOf(
-            FundTicker.getBlackrockFunds().stream()
+            BLACKROCK_FUNDS.stream()
                 .map(fund -> fund.getBlackrockStorageKey().orElseThrow())
                 .toList());
   }
 
   @Test
   void parsesNavDataWithCorrectMonthOffset() {
-    var fund = FundTicker.getBlackrockFunds().getFirst();
+    var fund = BLACKROCK_FUNDS.getFirst();
     var storageKey = fund.getBlackrockStorageKey().orElseThrow();
 
     mockAllFunds(mockNavDataResponse());
@@ -98,8 +117,7 @@ class BlackRockFundValueRetrieverTest {
 
   @Test
   void returnsEmptyListOnApiError() {
-    FundTicker.getBlackrockFunds()
-        .forEach(
+    BLACKROCK_FUNDS.forEach(
             fund ->
                 server
                     .expect(
@@ -180,8 +198,7 @@ class BlackRockFundValueRetrieverTest {
   }
 
   private void mockAllFunds(String responseBody) {
-    FundTicker.getBlackrockFunds()
-        .forEach(
+    BLACKROCK_FUNDS.forEach(
             fund ->
                 server
                     .expect(

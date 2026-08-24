@@ -3,12 +3,14 @@ package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 import static java.math.BigDecimal.ZERO;
 import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
 import static org.springframework.http.MediaType.TEXT_PLAIN;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
+import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.time.ClockConfig;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.math.BigDecimal;
@@ -17,10 +19,12 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.restclient.test.autoconfigure.RestClientTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.client.MockRestServiceServer;
 
 @RestClientTest(EuronextValueRetriever.class)
@@ -30,6 +34,16 @@ class EuronextValueRetrieverTest {
   @Autowired EuronextValueRetriever retriever;
 
   @Autowired MockRestServiceServer server;
+
+  @MockitoBean InstrumentReferenceService instrumentReferenceService;
+
+  private static final List<String> EURONEXT_PARIS_ISINS =
+      List.of("IE000F60HVH9", "LU1708330318");
+
+  @BeforeEach
+  void setUpInstruments() {
+    given(instrumentReferenceService.getEuronextParisIsins()).willReturn(EURONEXT_PARIS_ISINS);
+  }
 
   @AfterEach
   void cleanup() {
@@ -46,13 +60,12 @@ class EuronextValueRetrieverTest {
   void exposesEuronextParisStorageKeysAsExpectedStorageKeys() {
     assertThat(retriever.expectedStorageKeys())
         .containsExactlyInAnyOrderElementsOf(
-            FundTicker.getEuronextParisIsins().stream().map(isin -> isin + ".XPAR").toList());
+            EURONEXT_PARIS_ISINS.stream().map(isin -> isin + ".XPAR").toList());
   }
 
   @Test
   void retrievesFundValuesFromEuronextApi() {
-    FundTicker.getEuronextParisIsins()
-        .forEach(
+    EURONEXT_PARIS_ISINS.forEach(
             isin ->
                 server
                     .expect(
@@ -79,10 +92,9 @@ class EuronextValueRetrieverTest {
 
   @Test
   void usesIsinAsKeyWithXparSuffix() {
-    var isin = FundTicker.getEuronextParisIsins().getFirst();
+    var isin = EURONEXT_PARIS_ISINS.getFirst();
 
-    FundTicker.getEuronextParisIsins()
-        .forEach(
+    EURONEXT_PARIS_ISINS.forEach(
             parisIsin ->
                 server
                     .expect(
@@ -107,8 +119,7 @@ class EuronextValueRetrieverTest {
 
   @Test
   void filtersOutZeroValues() {
-    FundTicker.getEuronextParisIsins()
-        .forEach(
+    EURONEXT_PARIS_ISINS.forEach(
             isin ->
                 server
                     .expect(
@@ -128,8 +139,7 @@ class EuronextValueRetrieverTest {
 
   @Test
   void returnsEmptyListOnApiError() {
-    FundTicker.getEuronextParisIsins()
-        .forEach(
+    EURONEXT_PARIS_ISINS.forEach(
             isin ->
                 server
                     .expect(
@@ -147,8 +157,7 @@ class EuronextValueRetrieverTest {
 
   @Test
   void handlesEmptyDataResponse() {
-    FundTicker.getEuronextParisIsins()
-        .forEach(
+    EURONEXT_PARIS_ISINS.forEach(
             isin ->
                 server
                     .expect(
@@ -169,8 +178,7 @@ class EuronextValueRetrieverTest {
     // 2024-01-05 04:00 UTC = 05:00 CET (before 06:00 CET cutoff)
     ClockHolder.setClock(Clock.fixed(Instant.parse("2024-01-05T04:00:00Z"), UTC));
 
-    FundTicker.getEuronextParisIsins()
-        .forEach(
+    EURONEXT_PARIS_ISINS.forEach(
             isin ->
                 server
                     .expect(
@@ -196,8 +204,7 @@ class EuronextValueRetrieverTest {
     // 2024-01-05 05:00 UTC = 06:00 CET (at/after 06:00 CET cutoff)
     ClockHolder.setClock(Clock.fixed(Instant.parse("2024-01-05T05:00:00Z"), UTC));
 
-    FundTicker.getEuronextParisIsins()
-        .forEach(
+    EURONEXT_PARIS_ISINS.forEach(
             isin ->
                 server
                     .expect(
@@ -223,8 +230,7 @@ class EuronextValueRetrieverTest {
     // 2024-01-04 20:00 UTC = 21:00 CET (well after any market close)
     ClockHolder.setClock(Clock.fixed(Instant.parse("2024-01-04T20:00:00Z"), UTC));
 
-    FundTicker.getEuronextParisIsins()
-        .forEach(
+    EURONEXT_PARIS_ISINS.forEach(
             isin ->
                 server
                     .expect(

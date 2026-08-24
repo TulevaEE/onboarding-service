@@ -3,8 +3,9 @@ package ee.tuleva.onboarding.comparisons.fundvalue;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.instrument.InstrumentReference;
+import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -28,6 +29,7 @@ public class PriceDataFreshnessAlertJob {
   private final FundValueRepository fundValueRepository;
   private final OperationsNotificationService notificationService;
   private final PublicHolidays publicHolidays;
+  private final InstrumentReferenceService instrumentReferenceService;
   private final Clock clock;
 
   private final AtomicReference<LocalDate> lastAlertSentDate = new AtomicReference<>();
@@ -51,8 +53,8 @@ public class PriceDataFreshnessAlertJob {
 
   void runFreshnessCheck(LocalDate today) {
     LocalDate expectedDate = publicHolidays.previousWorkingDay(today);
-    List<FundTicker> etfTickers = getEtfTickers();
-    Map<String, ProviderKey> keyToProvider = buildKeyToProviderMap(etfTickers);
+    List<InstrumentReference> etfInstruments = getEtfInstruments();
+    Map<String, ProviderKey> keyToProvider = buildKeyToProviderMap(etfInstruments);
 
     if (keyToProvider.isEmpty()) {
       return;
@@ -92,25 +94,26 @@ public class PriceDataFreshnessAlertJob {
     lastAlertSentDate.set(today);
   }
 
-  static List<FundTicker> getEtfTickers() {
-    return Arrays.stream(FundTicker.values())
+  List<InstrumentReference> getEtfInstruments() {
+    return instrumentReferenceService.activeInstruments().stream()
         .filter(
-            ticker ->
-                ticker.getXetraStorageKey().isPresent()
-                    || ticker.getEuronextParisStorageKey().isPresent())
+            instrument ->
+                instrument.getXetraStorageKey().isPresent()
+                    || instrument.getEuronextParisStorageKey().isPresent())
         .toList();
   }
 
-  static Map<String, ProviderKey> buildKeyToProviderMap(List<FundTicker> etfTickers) {
+  Map<String, ProviderKey> buildKeyToProviderMap(List<InstrumentReference> etfInstruments) {
     Map<String, ProviderKey> map = new LinkedHashMap<>();
-    for (FundTicker ticker : etfTickers) {
-      ticker
+    for (InstrumentReference instrument : etfInstruments) {
+      instrument
           .getXetraStorageKey()
           .ifPresent(key -> map.put(key, new ProviderKey("DEUTSCHE_BOERSE", key)));
-      ticker
+      instrument
           .getEuronextParisStorageKey()
           .ifPresent(key -> map.put(key, new ProviderKey("EURONEXT", key)));
-      map.put(ticker.getEodhdTicker(), new ProviderKey("EODHD", ticker.getEodhdTicker()));
+      String eodhdTicker = instrument.getEodhdTicker();
+      map.put(eodhdTicker, new ProviderKey("EODHD", eodhdTicker));
     }
     return map;
   }

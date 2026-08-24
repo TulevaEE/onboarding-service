@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.comparisons.fundvalue;
 import static ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus.NO_PRICE_DATA;
 import static ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus.OK;
 
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker;
+import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Optional;
@@ -15,13 +15,14 @@ import org.springframework.stereotype.Component;
 public class PositionPriceResolver {
 
   private final PriorityPriceProvider priorityPriceProvider;
+  private final InstrumentReferenceService instrumentReferenceService;
 
   public Optional<ResolvedPrice> resolve(String isin, LocalDate date) {
     return resolve(isin, date, null);
   }
 
   public Optional<ResolvedPrice> resolve(String isin, LocalDate date, Instant updatedBefore) {
-    if (FundTicker.findByIsin(isin).isEmpty()) {
+    if (instrumentReferenceService.findByIsin(isin).isEmpty()) {
       return Optional.empty();
     }
 

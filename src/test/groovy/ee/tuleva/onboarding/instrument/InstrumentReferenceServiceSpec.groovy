@@ -65,9 +65,19 @@ class InstrumentReferenceServiceSpec extends Specification {
     service.findByBloombergTicker("NONEXISTENT").isEmpty()
   }
 
-  def "findAll returns all instruments"() {
+  def "findByIsin returns a deactivated instrument so history keeps resolving"() {
     expect:
-    service.findAll().size() == 6
+    service.findByIsin("IE00BKM4GZ66").isPresent()
+    !service.findByIsin("IE00BKM4GZ66").get().active
+  }
+
+  def "activeInstruments excludes deactivated instruments"() {
+    when:
+    def isins = service.activeInstruments().collect { it.isin }
+
+    then:
+    isins.size() == 5
+    !isins.contains("IE00BKM4GZ66")
   }
 
   def "getXetraIsins returns only active instruments with .XETRA eodhd ticker"() {
@@ -191,7 +201,7 @@ class InstrumentReferenceServiceSpec extends Specification {
     svc.scheduledRefresh()
 
     then:
-    svc.findAll().size() == 1
+    svc.activeInstruments().size() == 1
     svc.findByIsin("IE00NEW").isPresent()
     svc.findByIsin("IE00OLD").isEmpty()
   }
@@ -204,7 +214,8 @@ class InstrumentReferenceServiceSpec extends Specification {
     svc.init()
 
     then:
-    svc.findAll().size() == 6
+    svc.activeInstruments().size() == 5
+    svc.findByIsin("IE00BKM4GZ66").isPresent()
   }
 
   def "refresh handles exceptions gracefully"() {
@@ -224,7 +235,7 @@ class InstrumentReferenceServiceSpec extends Specification {
 
     then:
     noExceptionThrown()
-    svc.findAll().size() == 1
+    svc.activeInstruments().size() == 1
   }
 
   def "init fails fast when the instrument table is empty"() {
@@ -272,7 +283,7 @@ class InstrumentReferenceServiceSpec extends Specification {
     svc.scheduledRefresh()
 
     then:
-    svc.findAll().size() == 10
+    svc.activeInstruments().size() == 10
     svc.lastRefreshedAt == refreshedAtBoot
   }
 
@@ -290,7 +301,7 @@ class InstrumentReferenceServiceSpec extends Specification {
     svc.scheduledRefresh()
 
     then:
-    svc.findAll().size() == 8
+    svc.activeInstruments().size() == 8
     svc.lastRefreshedAt == clock.instant()
   }
 

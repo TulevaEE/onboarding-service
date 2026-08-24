@@ -17,6 +17,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -154,7 +155,7 @@ public class InstrumentDataValidator {
 
   private void checkBenchmarkProxies(Set<String> isins, List<ValidationFinding> findings) {
     for (var isin : isins) {
-      var instrument = instrumentReferenceService.findByIsin(isin).orElse(null);
+      var instrument = fetchedInstrument(isin).orElse(null);
       if (instrument == null || instrument.getBenchmarkCategory() == null) {
         continue;
       }
@@ -184,13 +185,17 @@ public class InstrumentDataValidator {
     }
   }
 
+  private Optional<InstrumentReference> fetchedInstrument(String isin) {
+    return instrumentReferenceService.findByIsin(isin).filter(InstrumentReference::isActive);
+  }
+
   private void checkTickerConsistency(
       List<ModelPortfolioAllocation> allocations, List<ValidationFinding> findings) {
     for (var allocation : allocations) {
       if (allocation.getIsin() == null || allocation.getTicker() == null) {
         continue;
       }
-      var instrument = instrumentReferenceService.findByIsin(allocation.getIsin()).orElse(null);
+      var instrument = fetchedInstrument(allocation.getIsin()).orElse(null);
       if (instrument != null
           && instrument.getYahooTicker() != null
           && !allocation.getTicker().equals(instrument.getYahooTicker())) {
@@ -209,7 +214,7 @@ public class InstrumentDataValidator {
   private void checkPriceHistory(Set<String> isins, List<ValidationFinding> findings) {
     var today = LocalDate.now(clock);
     for (var isin : isins) {
-      var instrument = instrumentReferenceService.findByIsin(isin).orElse(null);
+      var instrument = fetchedInstrument(isin).orElse(null);
       if (instrument == null) {
         continue;
       }

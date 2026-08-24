@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
-import static ee.tuleva.onboarding.comparisons.fundvalue.InstrumentReferenceFixture.instrument;
+import static ee.tuleva.onboarding.instrument.InstrumentReferenceFixture.instrument;
 import static java.math.BigDecimal.ZERO;
 import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -118,14 +118,14 @@ class BlackRockFundValueRetrieverTest {
   @Test
   void returnsEmptyListOnApiError() {
     BLACKROCK_FUNDS.forEach(
-            fund ->
-                server
-                    .expect(
-                        requestTo(
-                            "https://www.blackrock.com/nl/particuliere-beleggers/produkten/"
-                                + fund.getBlackrockProductId()
-                                + "/"))
-                    .andRespond(withServerError()));
+        fund ->
+            server
+                .expect(
+                    requestTo(
+                        "https://www.blackrock.com/nl/particuliere-beleggers/produkten/"
+                            + fund.getBlackrockProductId()
+                            + "/"))
+                .andRespond(withServerError()));
 
     var result =
         retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4));
@@ -199,14 +199,14 @@ class BlackRockFundValueRetrieverTest {
 
   private void mockAllFunds(String responseBody) {
     BLACKROCK_FUNDS.forEach(
-            fund ->
-                server
-                    .expect(
-                        requestTo(
-                            "https://www.blackrock.com/nl/particuliere-beleggers/produkten/"
-                                + fund.getBlackrockProductId()
-                                + "/"))
-                    .andRespond(withSuccess(responseBody, TEXT_HTML)));
+        fund ->
+            server
+                .expect(
+                    requestTo(
+                        "https://www.blackrock.com/nl/particuliere-beleggers/produkten/"
+                            + fund.getBlackrockProductId()
+                            + "/"))
+                .andRespond(withSuccess(responseBody, TEXT_HTML)));
   }
 
   private String mockNavDataResponse() {

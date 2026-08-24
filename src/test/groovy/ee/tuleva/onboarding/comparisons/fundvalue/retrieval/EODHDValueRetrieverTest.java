@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
-import static ee.tuleva.onboarding.comparisons.fundvalue.InstrumentReferenceFixture.instrument;
+import static ee.tuleva.onboarding.instrument.InstrumentReferenceFixture.instrument;
 import static java.math.BigDecimal.ZERO;
 import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -60,8 +60,7 @@ class EODHDValueRetrieverTest {
   @BeforeEach
   void setUpInstruments() {
     given(instrumentReferenceService.getEodhdTickers()).willReturn(EODHD_TICKERS);
-    given(instrumentReferenceService.findByEodhdTicker("SGAS.XETRA"))
-        .willReturn(Optional.of(SGAS));
+    given(instrumentReferenceService.findByEodhdTicker("SGAS.XETRA")).willReturn(Optional.of(SGAS));
     given(instrumentReferenceService.findByEodhdTicker("USAS.PA.EODHD"))
         .willReturn(Optional.of(USAS));
     given(instrumentReferenceService.findByEodhdTicker("GAGH.PA.EODHD"))
@@ -81,9 +80,7 @@ class EODHDValueRetrieverTest {
 
   @Test
   void exposesAllEodhdTickersAndForexAsExpectedStorageKeys() {
-    assertThat(retriever.expectedStorageKeys())
-        .containsAll(EODHD_TICKERS)
-        .contains("EURUSD.FOREX");
+    assertThat(retriever.expectedStorageKeys()).containsAll(EODHD_TICKERS).contains("EURUSD.FOREX");
   }
 
   @Test
@@ -96,13 +93,12 @@ class EODHDValueRetrieverTest {
         """;
 
     EODHD_TICKERS.forEach(
-            ticker ->
-                server
-                    .expect(
-                        requestTo(
-                            expectedUri(
-                                ticker, LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 2))))
-                    .andRespond(withSuccess(mockResponse, MediaType.APPLICATION_JSON)));
+        ticker ->
+            server
+                .expect(
+                    requestTo(
+                        expectedUri(ticker, LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 2))))
+                .andRespond(withSuccess(mockResponse, MediaType.APPLICATION_JSON)));
 
     server
         .expect(
@@ -131,13 +127,12 @@ class EODHDValueRetrieverTest {
         """;
 
     EODHD_TICKERS.forEach(
-            ticker ->
-                server
-                    .expect(
-                        requestTo(
-                            expectedUri(
-                                ticker, LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4))))
-                    .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON)));
+        ticker ->
+            server
+                .expect(
+                    requestTo(
+                        expectedUri(ticker, LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4))))
+                .andRespond(withSuccess("[]", MediaType.APPLICATION_JSON)));
 
     server
         .expect(
@@ -174,13 +169,12 @@ class EODHDValueRetrieverTest {
         """;
 
     EODHD_TICKERS.forEach(
-            ticker ->
-                server
-                    .expect(
-                        requestTo(
-                            expectedUri(
-                                ticker, LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4))))
-                    .andRespond(withSuccess(mockResponse, MediaType.APPLICATION_JSON)));
+        ticker ->
+            server
+                .expect(
+                    requestTo(
+                        expectedUri(ticker, LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4))))
+                .andRespond(withSuccess(mockResponse, MediaType.APPLICATION_JSON)));
 
     server
         .expect(
@@ -210,13 +204,12 @@ class EODHDValueRetrieverTest {
         """;
 
     EODHD_TICKERS.forEach(
-            ticker ->
-                server
-                    .expect(
-                        requestTo(
-                            expectedUri(
-                                ticker, LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4))))
-                    .andRespond(withSuccess(mockResponseWithZeros, MediaType.APPLICATION_JSON)));
+        ticker ->
+            server
+                .expect(
+                    requestTo(
+                        expectedUri(ticker, LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4))))
+                .andRespond(withSuccess(mockResponseWithZeros, MediaType.APPLICATION_JSON)));
 
     server
         .expect(
@@ -279,13 +272,12 @@ class EODHDValueRetrieverTest {
   @Test
   void returnsEmptyListOnApiError() {
     EODHD_TICKERS.forEach(
-            ticker ->
-                server
-                    .expect(
-                        requestTo(
-                            expectedUri(
-                                ticker, LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4))))
-                    .andRespond(withServerError()));
+        ticker ->
+            server
+                .expect(
+                    requestTo(
+                        expectedUri(ticker, LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4))))
+                .andRespond(withServerError()));
 
     server
         .expect(
@@ -314,13 +306,12 @@ class EODHDValueRetrieverTest {
         """;
 
     EODHD_TICKERS.forEach(
-            ticker ->
-                server
-                    .expect(
-                        requestTo(
-                            expectedUri(
-                                ticker, LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4))))
-                    .andRespond(withSuccess(mockResponse, MediaType.APPLICATION_JSON)));
+        ticker ->
+            server
+                .expect(
+                    requestTo(
+                        expectedUri(ticker, LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4))))
+                .andRespond(withSuccess(mockResponse, MediaType.APPLICATION_JSON)));
 
     server
         .expect(
@@ -558,13 +549,13 @@ class EODHDValueRetrieverTest {
   private void expectRequests(
       String targetTicker, String targetResponse, LocalDate startDate, LocalDate endDate) {
     EODHD_TICKERS.forEach(
-            ticker ->
-                server
-                    .expect(requestTo(expectedUri(ticker, startDate, endDate)))
-                    .andRespond(
-                        withSuccess(
-                            ticker.equals(targetTicker) ? targetResponse : "[]",
-                            MediaType.APPLICATION_JSON)));
+        ticker ->
+            server
+                .expect(requestTo(expectedUri(ticker, startDate, endDate)))
+                .andRespond(
+                    withSuccess(
+                        ticker.equals(targetTicker) ? targetResponse : "[]",
+                        MediaType.APPLICATION_JSON)));
 
     server
         .expect(requestTo(expectedUri("EURUSD.FOREX", startDate, endDate)))

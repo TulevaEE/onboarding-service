@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.PriorityPriceProvider.PriceFee
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -192,15 +193,23 @@ class FundTickerParityTest {
     var resolvers = service.storageKeyResolvers();
     assertThat(resolvers).hasSameSizeAs(feeds);
 
+    List<Function<FundTicker, Optional<String>>> enumResolvers =
+        List.of(
+            FundTicker::getBlackrockStorageKey,
+            FundTicker::getMorningstarStorageKey,
+            ticker -> Optional.of(ticker.getEodhdTicker()),
+            FundTicker::getXetraStorageKey,
+            FundTicker::getEuronextParisStorageKey,
+            ticker -> Optional.of(ticker.getYahooTicker()));
+    assertThat(enumResolvers).hasSameSizeAs(feeds);
+
     for (var ticker : FundTicker.values()) {
       var instrument = instrument(ticker);
 
       for (var index = 0; index < feeds.size(); index++) {
-        Optional<String> feedKey = feeds.get(index).storageKey().apply(ticker);
-
         assertThat(resolvers.get(index).apply(instrument))
             .as("storage key: feed=%s, isin=%s", feeds.get(index).source(), ticker.getIsin())
-            .isEqualTo(feedKey);
+            .isEqualTo(enumResolvers.get(index).apply(ticker));
       }
     }
   }

@@ -37,8 +37,7 @@ class EuronextValueRetrieverTest {
 
   @MockitoBean InstrumentReferenceService instrumentReferenceService;
 
-  private static final List<String> EURONEXT_PARIS_ISINS =
-      List.of("IE000F60HVH9", "LU1708330318");
+  private static final List<String> EURONEXT_PARIS_ISINS = List.of("IE000F60HVH9", "LU1708330318");
 
   @BeforeEach
   void setUpInstruments() {
@@ -66,14 +65,14 @@ class EuronextValueRetrieverTest {
   @Test
   void retrievesFundValuesFromEuronextApi() {
     EURONEXT_PARIS_ISINS.forEach(
-            isin ->
-                server
-                    .expect(
-                        requestTo(
-                            "https://live.euronext.com/en/ajax/AwlHistoricalPrice/getFullDownloadAjax/"
-                                + isin
-                                + "-XPAR?format=csv&decimal_separator=.&date_form=d/m/Y&adjusted=Y&startdate=2024-01-02&enddate=2024-01-04"))
-                    .andRespond(withSuccess(mockCsvResponseForIsin(isin), TEXT_PLAIN)));
+        isin ->
+            server
+                .expect(
+                    requestTo(
+                        "https://live.euronext.com/en/ajax/AwlHistoricalPrice/getFullDownloadAjax/"
+                            + isin
+                            + "-XPAR?format=csv&decimal_separator=.&date_form=d/m/Y&adjusted=Y&startdate=2024-01-02&enddate=2024-01-04"))
+                .andRespond(withSuccess(mockCsvResponseForIsin(isin), TEXT_PLAIN)));
 
     var startDate = LocalDate.of(2024, 1, 2);
     var endDate = LocalDate.of(2024, 1, 4);
@@ -95,14 +94,14 @@ class EuronextValueRetrieverTest {
     var isin = EURONEXT_PARIS_ISINS.getFirst();
 
     EURONEXT_PARIS_ISINS.forEach(
-            parisIsin ->
-                server
-                    .expect(
-                        requestTo(
-                            "https://live.euronext.com/en/ajax/AwlHistoricalPrice/getFullDownloadAjax/"
-                                + parisIsin
-                                + "-XPAR?format=csv&decimal_separator=.&date_form=d/m/Y&adjusted=Y&startdate=2024-01-02&enddate=2024-01-02"))
-                    .andRespond(withSuccess(singleRowCsvResponse(parisIsin), TEXT_PLAIN)));
+        parisIsin ->
+            server
+                .expect(
+                    requestTo(
+                        "https://live.euronext.com/en/ajax/AwlHistoricalPrice/getFullDownloadAjax/"
+                            + parisIsin
+                            + "-XPAR?format=csv&decimal_separator=.&date_form=d/m/Y&adjusted=Y&startdate=2024-01-02&enddate=2024-01-02"))
+                .andRespond(withSuccess(singleRowCsvResponse(parisIsin), TEXT_PLAIN)));
 
     var result =
         retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 2));
@@ -120,14 +119,14 @@ class EuronextValueRetrieverTest {
   @Test
   void filtersOutZeroValues() {
     EURONEXT_PARIS_ISINS.forEach(
-            isin ->
-                server
-                    .expect(
-                        requestTo(
-                            "https://live.euronext.com/en/ajax/AwlHistoricalPrice/getFullDownloadAjax/"
-                                + isin
-                                + "-XPAR?format=csv&decimal_separator=.&date_form=d/m/Y&adjusted=Y&startdate=2024-01-02&enddate=2024-01-04"))
-                    .andRespond(withSuccess(mockCsvResponseWithZero(isin), TEXT_PLAIN)));
+        isin ->
+            server
+                .expect(
+                    requestTo(
+                        "https://live.euronext.com/en/ajax/AwlHistoricalPrice/getFullDownloadAjax/"
+                            + isin
+                            + "-XPAR?format=csv&decimal_separator=.&date_form=d/m/Y&adjusted=Y&startdate=2024-01-02&enddate=2024-01-04"))
+                .andRespond(withSuccess(mockCsvResponseWithZero(isin), TEXT_PLAIN)));
 
     var result =
         retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4));
@@ -140,14 +139,14 @@ class EuronextValueRetrieverTest {
   @Test
   void returnsEmptyListOnApiError() {
     EURONEXT_PARIS_ISINS.forEach(
-            isin ->
-                server
-                    .expect(
-                        requestTo(
-                            "https://live.euronext.com/en/ajax/AwlHistoricalPrice/getFullDownloadAjax/"
-                                + isin
-                                + "-XPAR?format=csv&decimal_separator=.&date_form=d/m/Y&adjusted=Y&startdate=2024-01-02&enddate=2024-01-04"))
-                    .andRespond(withServerError()));
+        isin ->
+            server
+                .expect(
+                    requestTo(
+                        "https://live.euronext.com/en/ajax/AwlHistoricalPrice/getFullDownloadAjax/"
+                            + isin
+                            + "-XPAR?format=csv&decimal_separator=.&date_form=d/m/Y&adjusted=Y&startdate=2024-01-02&enddate=2024-01-04"))
+                .andRespond(withServerError()));
 
     var result =
         retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4));
@@ -158,14 +157,14 @@ class EuronextValueRetrieverTest {
   @Test
   void handlesEmptyDataResponse() {
     EURONEXT_PARIS_ISINS.forEach(
-            isin ->
-                server
-                    .expect(
-                        requestTo(
-                            "https://live.euronext.com/en/ajax/AwlHistoricalPrice/getFullDownloadAjax/"
-                                + isin
-                                + "-XPAR?format=csv&decimal_separator=.&date_form=d/m/Y&adjusted=Y&startdate=2024-01-02&enddate=2024-01-02"))
-                    .andRespond(withSuccess(emptyCsvResponse(isin), TEXT_PLAIN)));
+        isin ->
+            server
+                .expect(
+                    requestTo(
+                        "https://live.euronext.com/en/ajax/AwlHistoricalPrice/getFullDownloadAjax/"
+                            + isin
+                            + "-XPAR?format=csv&decimal_separator=.&date_form=d/m/Y&adjusted=Y&startdate=2024-01-02&enddate=2024-01-02"))
+                .andRespond(withSuccess(emptyCsvResponse(isin), TEXT_PLAIN)));
 
     var result =
         retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 2));
@@ -179,14 +178,14 @@ class EuronextValueRetrieverTest {
     ClockHolder.setClock(Clock.fixed(Instant.parse("2024-01-05T04:00:00Z"), UTC));
 
     EURONEXT_PARIS_ISINS.forEach(
-            isin ->
-                server
-                    .expect(
-                        requestTo(
-                            "https://live.euronext.com/en/ajax/AwlHistoricalPrice/getFullDownloadAjax/"
-                                + isin
-                                + "-XPAR?format=csv&decimal_separator=.&date_form=d/m/Y&adjusted=Y&startdate=2024-01-02&enddate=2024-01-04"))
-                    .andRespond(withSuccess(mockCsvResponseForIsin(isin), TEXT_PLAIN)));
+        isin ->
+            server
+                .expect(
+                    requestTo(
+                        "https://live.euronext.com/en/ajax/AwlHistoricalPrice/getFullDownloadAjax/"
+                            + isin
+                            + "-XPAR?format=csv&decimal_separator=.&date_form=d/m/Y&adjusted=Y&startdate=2024-01-02&enddate=2024-01-04"))
+                .andRespond(withSuccess(mockCsvResponseForIsin(isin), TEXT_PLAIN)));
 
     var result =
         retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4));
@@ -205,14 +204,14 @@ class EuronextValueRetrieverTest {
     ClockHolder.setClock(Clock.fixed(Instant.parse("2024-01-05T05:00:00Z"), UTC));
 
     EURONEXT_PARIS_ISINS.forEach(
-            isin ->
-                server
-                    .expect(
-                        requestTo(
-                            "https://live.euronext.com/en/ajax/AwlHistoricalPrice/getFullDownloadAjax/"
-                                + isin
-                                + "-XPAR?format=csv&decimal_separator=.&date_form=d/m/Y&adjusted=Y&startdate=2024-01-02&enddate=2024-01-04"))
-                    .andRespond(withSuccess(mockCsvResponseForIsin(isin), TEXT_PLAIN)));
+        isin ->
+            server
+                .expect(
+                    requestTo(
+                        "https://live.euronext.com/en/ajax/AwlHistoricalPrice/getFullDownloadAjax/"
+                            + isin
+                            + "-XPAR?format=csv&decimal_separator=.&date_form=d/m/Y&adjusted=Y&startdate=2024-01-02&enddate=2024-01-04"))
+                .andRespond(withSuccess(mockCsvResponseForIsin(isin), TEXT_PLAIN)));
 
     var result =
         retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4));
@@ -231,14 +230,14 @@ class EuronextValueRetrieverTest {
     ClockHolder.setClock(Clock.fixed(Instant.parse("2024-01-04T20:00:00Z"), UTC));
 
     EURONEXT_PARIS_ISINS.forEach(
-            isin ->
-                server
-                    .expect(
-                        requestTo(
-                            "https://live.euronext.com/en/ajax/AwlHistoricalPrice/getFullDownloadAjax/"
-                                + isin
-                                + "-XPAR?format=csv&decimal_separator=.&date_form=d/m/Y&adjusted=Y&startdate=2024-01-02&enddate=2024-01-04"))
-                    .andRespond(withSuccess(mockCsvResponseForIsin(isin), TEXT_PLAIN)));
+        isin ->
+            server
+                .expect(
+                    requestTo(
+                        "https://live.euronext.com/en/ajax/AwlHistoricalPrice/getFullDownloadAjax/"
+                            + isin
+                            + "-XPAR?format=csv&decimal_separator=.&date_form=d/m/Y&adjusted=Y&startdate=2024-01-02&enddate=2024-01-04"))
+                .andRespond(withSuccess(mockCsvResponseForIsin(isin), TEXT_PLAIN)));
 
     var result =
         retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4));

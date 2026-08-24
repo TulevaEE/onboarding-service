@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.comparisons.fundvalue;
 
-import static ee.tuleva.onboarding.comparisons.fundvalue.InstrumentReferenceFixture.instrument;
 import static ee.tuleva.onboarding.comparisons.fundvalue.PriceSource.EODHD;
 import static ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus.NO_PRICE_DATA;
 import static ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus.OK;
+import static ee.tuleva.onboarding.instrument.InstrumentReferenceFixture.instrument;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 

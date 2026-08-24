@@ -16,7 +16,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 
 import static ee.tuleva.onboarding.comparisons.fundvalue.FundValueFixture.aFundValue
-import static ee.tuleva.onboarding.comparisons.fundvalue.InstrumentReferenceFixture.instrument
+import static ee.tuleva.onboarding.instrument.InstrumentReferenceFixture.instrument
 import static ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.Severity
 
 class FundValueIntegrityCheckerSpec extends Specification {

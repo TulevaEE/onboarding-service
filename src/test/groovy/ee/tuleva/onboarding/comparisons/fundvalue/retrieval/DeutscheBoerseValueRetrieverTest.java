@@ -65,16 +65,16 @@ class DeutscheBoerseValueRetrieverTest {
   @Test
   void retrievesFundValuesFromDeutscheBoerseApi() {
     XETRA_ISINS.forEach(
-            isin -> {
-              server
-                  .expect(requestTo(priceHistoryUrl(isin, "2024-01-02", "2024-01-04")))
-                  .andRespond(
-                      withSuccess(
-                          mockResponseForIsin(isin, "2024-01-02", "2024-01-04"), APPLICATION_JSON));
-              server
-                  .expect(requestTo(quoteBoxUrl(isin)))
-                  .andRespond(withSuccess("{}", APPLICATION_JSON));
-            });
+        isin -> {
+          server
+              .expect(requestTo(priceHistoryUrl(isin, "2024-01-02", "2024-01-04")))
+              .andRespond(
+                  withSuccess(
+                      mockResponseForIsin(isin, "2024-01-02", "2024-01-04"), APPLICATION_JSON));
+          server
+              .expect(requestTo(quoteBoxUrl(isin)))
+              .andRespond(withSuccess("{}", APPLICATION_JSON));
+        });
 
     var startDate = LocalDate.of(2024, 1, 2);
     var endDate = LocalDate.of(2024, 1, 4);
@@ -144,14 +144,14 @@ class DeutscheBoerseValueRetrieverTest {
   @Test
   void filtersOutZeroValues() {
     XETRA_ISINS.forEach(
-            isin -> {
-              server
-                  .expect(requestTo(priceHistoryUrl(isin, "2024-01-02", "2024-01-04")))
-                  .andRespond(withSuccess(mockResponseWithZero(isin), APPLICATION_JSON));
-              server
-                  .expect(requestTo(quoteBoxUrl(isin)))
-                  .andRespond(withSuccess("{}", APPLICATION_JSON));
-            });
+        isin -> {
+          server
+              .expect(requestTo(priceHistoryUrl(isin, "2024-01-02", "2024-01-04")))
+              .andRespond(withSuccess(mockResponseWithZero(isin), APPLICATION_JSON));
+          server
+              .expect(requestTo(quoteBoxUrl(isin)))
+              .andRespond(withSuccess("{}", APPLICATION_JSON));
+        });
 
     var result =
         retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4));
@@ -164,15 +164,15 @@ class DeutscheBoerseValueRetrieverTest {
   @Test
   void returnsEmptyListOnApiError() {
     XETRA_ISINS.forEach(
-            isin ->
-                server
-                    .expect(
-                        requestTo(
-                            "https://mobile-api.live.deutsche-boerse.com/v1/data/price_history"
-                                + "?isin="
-                                + isin
-                                + "&mic=XETR&minDate=2024-01-02&maxDate=2024-01-04"))
-                    .andRespond(withServerError()));
+        isin ->
+            server
+                .expect(
+                    requestTo(
+                        "https://mobile-api.live.deutsche-boerse.com/v1/data/price_history"
+                            + "?isin="
+                            + isin
+                            + "&mic=XETR&minDate=2024-01-02&maxDate=2024-01-04"))
+                .andRespond(withServerError()));
 
     var result =
         retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4));
@@ -183,14 +183,14 @@ class DeutscheBoerseValueRetrieverTest {
   @Test
   void handlesEmptyDataResponse() {
     XETRA_ISINS.forEach(
-            isin -> {
-              server
-                  .expect(requestTo(priceHistoryUrl(isin, "2024-01-02", "2024-01-02")))
-                  .andRespond(withSuccess(emptyResponse(isin), APPLICATION_JSON));
-              server
-                  .expect(requestTo(quoteBoxUrl(isin)))
-                  .andRespond(withSuccess("{}", APPLICATION_JSON));
-            });
+        isin -> {
+          server
+              .expect(requestTo(priceHistoryUrl(isin, "2024-01-02", "2024-01-02")))
+              .andRespond(withSuccess(emptyResponse(isin), APPLICATION_JSON));
+          server
+              .expect(requestTo(quoteBoxUrl(isin)))
+              .andRespond(withSuccess("{}", APPLICATION_JSON));
+        });
 
     var result =
         retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 2));
@@ -204,19 +204,18 @@ class DeutscheBoerseValueRetrieverTest {
     ClockHolder.setClock(Clock.fixed(Instant.parse("2024-01-05T04:00:00Z"), UTC));
 
     XETRA_ISINS.forEach(
-            isin -> {
-              server
-                  .expect(requestTo(priceHistoryUrl(isin, "2024-01-02", "2024-01-04")))
-                  .andRespond(
-                      withSuccess(
-                          mockResponseForIsin(isin, "2024-01-02", "2024-01-04"), APPLICATION_JSON));
-              server
-                  .expect(requestTo(quoteBoxUrl(isin)))
-                  .andRespond(
-                      withSuccess(
-                          quoteBoxResponse(isin, "102.00", "2024-01-04T16:35:00Z"),
-                          APPLICATION_JSON));
-            });
+        isin -> {
+          server
+              .expect(requestTo(priceHistoryUrl(isin, "2024-01-02", "2024-01-04")))
+              .andRespond(
+                  withSuccess(
+                      mockResponseForIsin(isin, "2024-01-02", "2024-01-04"), APPLICATION_JSON));
+          server
+              .expect(requestTo(quoteBoxUrl(isin)))
+              .andRespond(
+                  withSuccess(
+                      quoteBoxResponse(isin, "102.00", "2024-01-04T16:35:00Z"), APPLICATION_JSON));
+        });
 
     var result =
         retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4));
@@ -235,19 +234,18 @@ class DeutscheBoerseValueRetrieverTest {
     ClockHolder.setClock(Clock.fixed(Instant.parse("2024-01-05T05:00:00Z"), UTC));
 
     XETRA_ISINS.forEach(
-            isin -> {
-              server
-                  .expect(requestTo(priceHistoryUrl(isin, "2024-01-02", "2024-01-04")))
-                  .andRespond(
-                      withSuccess(
-                          mockResponseForIsin(isin, "2024-01-02", "2024-01-04"), APPLICATION_JSON));
-              server
-                  .expect(requestTo(quoteBoxUrl(isin)))
-                  .andRespond(
-                      withSuccess(
-                          quoteBoxResponse(isin, "102.00", "2024-01-04T16:35:00Z"),
-                          APPLICATION_JSON));
-            });
+        isin -> {
+          server
+              .expect(requestTo(priceHistoryUrl(isin, "2024-01-02", "2024-01-04")))
+              .andRespond(
+                  withSuccess(
+                      mockResponseForIsin(isin, "2024-01-02", "2024-01-04"), APPLICATION_JSON));
+          server
+              .expect(requestTo(quoteBoxUrl(isin)))
+              .andRespond(
+                  withSuccess(
+                      quoteBoxResponse(isin, "102.00", "2024-01-04T16:35:00Z"), APPLICATION_JSON));
+        });
 
     var result =
         retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4));
@@ -266,19 +264,18 @@ class DeutscheBoerseValueRetrieverTest {
     ClockHolder.setClock(Clock.fixed(Instant.parse("2024-01-04T20:00:00Z"), UTC));
 
     XETRA_ISINS.forEach(
-            isin -> {
-              server
-                  .expect(requestTo(priceHistoryUrl(isin, "2024-01-02", "2024-01-04")))
-                  .andRespond(
-                      withSuccess(
-                          mockResponseForIsin(isin, "2024-01-02", "2024-01-04"), APPLICATION_JSON));
-              server
-                  .expect(requestTo(quoteBoxUrl(isin)))
-                  .andRespond(
-                      withSuccess(
-                          quoteBoxResponse(isin, "102.00", "2024-01-04T16:35:00Z"),
-                          APPLICATION_JSON));
-            });
+        isin -> {
+          server
+              .expect(requestTo(priceHistoryUrl(isin, "2024-01-02", "2024-01-04")))
+              .andRespond(
+                  withSuccess(
+                      mockResponseForIsin(isin, "2024-01-02", "2024-01-04"), APPLICATION_JSON));
+          server
+              .expect(requestTo(quoteBoxUrl(isin)))
+              .andRespond(
+                  withSuccess(
+                      quoteBoxResponse(isin, "102.00", "2024-01-04T16:35:00Z"), APPLICATION_JSON));
+        });
 
     var result =
         retriever.retrieveValuesForRange(LocalDate.of(2024, 1, 2), LocalDate.of(2024, 1, 4));

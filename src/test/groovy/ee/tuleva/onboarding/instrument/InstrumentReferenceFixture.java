@@ -12,6 +12,10 @@ public class InstrumentReferenceFixture {
     return new InstrumentReferenceFixture();
   }
 
+  public static InstrumentReferenceFixture instrument(String isin) {
+    return anInstrument().isin(isin).displayName(isin).active(true);
+  }
+
   public static InstrumentReference create(
       String isin, String displayName, String fundManager, String country) {
     return anInstrument()
@@ -64,6 +68,10 @@ public class InstrumentReferenceFixture {
 
   public InstrumentReferenceFixture benchmarkCategory(String benchmarkCategory) {
     return set("benchmarkCategory", benchmarkCategory);
+  }
+
+  public InstrumentReferenceFixture eodhdListed(boolean eodhdListed) {
+    return set("eodhdListed", eodhdListed);
   }
 
   public InstrumentReferenceFixture active(boolean active) {

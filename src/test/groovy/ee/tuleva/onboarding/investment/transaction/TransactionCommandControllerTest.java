@@ -560,6 +560,97 @@ class TransactionCommandControllerTest {
   }
 
   @Test
+  void setOrderType_validType_invokesServiceAndReturnsOrder() throws Exception {
+    given(adminService.setOrderType(100L, OrderType.NAV, "operator-7")).willReturn(orderResponse());
+
+    mockMvc
+        .perform(
+            post("/admin/transaction-orders/100/order-type")
+                .with(csrf())
+                .header("X-Admin-Token", "operator-7-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"orderType": "NAV"}
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(100))
+        .andExpect(jsonPath("$.orderType").value("MOC"));
+
+    then(adminService).should().setOrderType(100L, OrderType.NAV, "operator-7");
+  }
+
+  @Test
+  void setOrderType_withoutActor_defaultsToAdmin() throws Exception {
+    given(adminService.setOrderType(100L, OrderType.RISK, "shared-admin-token"))
+        .willReturn(orderResponse());
+
+    mockMvc
+        .perform(
+            post("/admin/transaction-orders/100/order-type")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"orderType": "RISK"}
+                    """))
+        .andExpect(status().isOk());
+
+    then(adminService).should().setOrderType(100L, OrderType.RISK, "shared-admin-token");
+  }
+
+  @Test
+  void setOrderType_unknownType_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/transaction-orders/100/order-type")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"orderType": "VWAP"}
+                    """))
+        .andExpect(status().isBadRequest());
+
+    then(adminService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void setOrderType_missingType_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/transaction-orders/100/order-type")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .contentType(APPLICATION_JSON)
+                .content("{}"))
+        .andExpect(status().isBadRequest());
+
+    then(adminService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void setOrderType_notDraftOrder_returnsConflict() throws Exception {
+    given(adminService.setOrderType(100L, OrderType.NAV, "shared-admin-token"))
+        .willThrow(
+            new ResponseStatusException(CONFLICT, "Only DRAFT orders can change order type"));
+
+    mockMvc
+        .perform(
+            post("/admin/transaction-orders/100/order-type")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"orderType": "NAV"}
+                    """))
+        .andExpect(status().isConflict());
+  }
+
+  @Test
   void cancelOrder_blankReason_returnsBadRequest() throws Exception {
     mockMvc
         .perform(

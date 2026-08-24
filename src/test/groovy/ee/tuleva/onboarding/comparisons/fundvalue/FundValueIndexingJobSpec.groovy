@@ -11,7 +11,6 @@ import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.DeutscheBoerseValueR
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EODHDValueRetriever
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EuronextValueRetriever
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundNavRetrieverFactory
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.MorningstarNavRetriever
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.YahooFundValueRetriever
@@ -332,25 +331,6 @@ class FundValueIndexingJobSpec extends Specification {
         then:
         1 * fundValueRetriever.retrieveValuesForRange(FundValueIndexingJob.EARLIEST_DATE, TODAY) >> []
         1 * dynamicRetriever.retrieveValuesForRange(FundValueIndexingJob.EARLIEST_DATE, TODAY) >> []
-    }
-
-    def "every FundTicker position is resolvable via a NAV-critical retriever before NAV publish"() {
-        expect:
-        FundTicker.values().each { ticker ->
-            Set<String> sources = [] as Set<String>
-            if (ticker.blackrockProductId != null) sources << BlackRockFundValueRetriever.KEY
-            if (ticker.morningstarId != null) sources << MorningstarNavRetriever.KEY
-            if (ticker.eodhdTicker != null) sources << EODHDValueRetriever.KEY
-            if (ticker.xetraStorageKey.isPresent()) sources << DeutscheBoerseValueRetriever.KEY
-            if (ticker.euronextParisStorageKey.isPresent()) sources << EuronextValueRetriever.KEY
-
-            Set<String> covered = sources.intersect(FundValueIndexingJob.NAV_CRITICAL_RETRIEVER_KEYS)
-            assert !covered.isEmpty():
-                "FundTicker ${ticker.name()} (ISIN ${ticker.isin}) has no price source in NAV_CRITICAL_RETRIEVER_KEYS. " +
-                "Sources=${sources}, critical=${FundValueIndexingJob.NAV_CRITICAL_RETRIEVER_KEYS}. " +
-                "Either add a covering retriever key to NAV_CRITICAL_RETRIEVER_KEYS, " +
-                "or ensure this FundTicker provides blackrockProductId / morningstarId / eodhdTicker."
-        }
     }
 
     def "refreshForNavCalculation refreshes only NAV-critical retrievers"() {

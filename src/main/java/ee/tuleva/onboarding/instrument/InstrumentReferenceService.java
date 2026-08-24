@@ -184,8 +184,6 @@ public class InstrumentReferenceService {
       Map<String, BenchmarkCategoryProxy> proxyByCategory,
       List<InstrumentDataFinding> findings) {}
 
-  // --- Lookup methods (mirrors FundTicker static methods) ---
-
   public Optional<InstrumentReference> findByIsin(String isin) {
     return Optional.ofNullable(byIsin.get(isin));
   }
@@ -209,8 +207,6 @@ public class InstrumentReferenceService {
   public List<InstrumentReference> activeInstruments() {
     return byIsin.values().stream().filter(InstrumentReference::isActive).toList();
   }
-
-  // --- Filtered lists (mirrors FundTicker.getXetraIsins() etc.) ---
 
   public List<String> getXetraIsins() {
     return activeInstruments().stream()
@@ -248,8 +244,6 @@ public class InstrumentReferenceService {
   public List<InstrumentReference> getMorningstarFunds() {
     return activeInstruments().stream().filter(i -> i.getMorningstarId() != null).toList();
   }
-
-  // --- Benchmark proxy resolution ---
 
   public Optional<BenchmarkProxy> resolveBenchmarkProxy(
       @Nullable String benchmarkCategory, boolean exchangeTraded) {
@@ -298,8 +292,6 @@ public class InstrumentReferenceService {
 
     return new BenchmarkProxy(instrument, null);
   }
-
-  // --- Storage key helpers ---
 
   public List<java.util.function.Function<InstrumentReference, Optional<String>>>
       storageKeyResolvers() {

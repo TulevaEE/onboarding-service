@@ -1283,7 +1283,7 @@ class TrackingDifferenceServiceTest {
     given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
         .willReturn(Optional.of(new BigDecimal("10.00")));
 
-    // Unknown ISIN not in FundTicker → resolveBenchmarkKey returns null → skipped
+    // Unknown ISIN not in instrument_reference → resolveBenchmarkKey returns null → skipped
     var unknownIsin = "IE00UNKNOWN00";
     var allocation =
         ModelPortfolioAllocation.builder()

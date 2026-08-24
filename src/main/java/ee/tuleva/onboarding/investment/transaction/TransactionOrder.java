@@ -73,7 +73,10 @@ public class TransactionOrder {
   @Builder.Default
   private OrderStatus orderStatus = OrderStatus.DRAFT;
 
-  @NotNull @Builder.Default private String orderType = "MOC";
+  @NotNull
+  @Enumerated(STRING)
+  @Builder.Default
+  private OrderType orderType = OrderType.MOC;
 
   @Nullable private Instant orderTimestamp;
 

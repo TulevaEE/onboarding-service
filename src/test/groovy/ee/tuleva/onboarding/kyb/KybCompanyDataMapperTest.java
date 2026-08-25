@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import ee.tuleva.onboarding.aml.AmlCheck;
 import ee.tuleva.onboarding.aml.AmlCheckRepository;
 import ee.tuleva.onboarding.aml.AmlCheckType;
 import ee.tuleva.onboarding.ariregister.AddressDetails;
@@ -18,6 +19,7 @@ import ee.tuleva.onboarding.ariregister.CompanyRelationship;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class KybCompanyDataMapperTest {
@@ -464,9 +466,9 @@ class KybCompanyDataMapperTest {
 
   @Test
   void resolvesCompletedKycStatusFromDatabase() {
-    when(amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
-            eq("38501010002"), eq(AmlCheckType.KYC_CHECK), eq(true), any()))
-        .thenReturn(true);
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDesc(
+            eq("38501010002"), eq(AmlCheckType.KYC_CHECK), any()))
+        .thenReturn(Optional.of(kycCheck(true)));
 
     var relationship = boardMemberRelationship("38501010002");
     var detail =
@@ -481,12 +483,37 @@ class KybCompanyDataMapperTest {
 
   @Test
   void resolvesRejectedKycStatusFromDatabase() {
-    when(amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
-            eq("38501010002"), eq(AmlCheckType.KYC_CHECK), eq(true), any()))
-        .thenReturn(false);
-    when(amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
-            eq("38501010002"), eq(AmlCheckType.KYC_CHECK), eq(false), any()))
-        .thenReturn(true);
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDesc(
+            eq("38501010002"), eq(AmlCheckType.KYC_CHECK), any()))
+        .thenReturn(Optional.of(kycCheck(false)));
+
+    var relationship = boardMemberRelationship("38501010002");
+    var detail =
+        new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
+
+    var result =
+        mapper.toKybCompanyData(
+            detail, PERSONAL_CODE, List.of(relationship), NO_BENEFICIAL_OWNERS, SELF_CERT);
+
+    assertThat(result.relatedPersons().getFirst().kycStatus()).isEqualTo(KybKycStatus.REJECTED);
+  }
+
+  private AmlCheck kycCheck(boolean success) {
+    return AmlCheck.builder()
+        .personalCode("38501010002")
+        .type(AmlCheckType.KYC_CHECK)
+        .success(success)
+        .build();
+  }
+
+  // A screening that has since failed must not be outranked by an older pass. The
+  // repository returns the most recent check, so a failed latest check rejects even
+  // though a successful one exists earlier in the same year.
+  @Test
+  void resolvesRejectedWhenTheLatestCheckFailedDespiteAnEarlierSuccess() {
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDesc(
+            eq("38501010002"), eq(AmlCheckType.KYC_CHECK), any()))
+        .thenReturn(Optional.of(kycCheck(false)));
 
     var relationship = boardMemberRelationship("38501010002");
     var detail =

@@ -192,10 +192,8 @@ class KybSurveyService {
       throw e;
     }
 
-    // Stored only once the submission is allowed. A rejected attempt used to leave
-    // the latest survey behind, and re-screening reads the latest survey, so a
-    // forbidden submission could have supplied the inputs a later automatic
-    // completion ran on.
+    // LatestKybSurveyInputs reads the newest survey for a company, so a rejected
+    // submission must not leave one behind.
     kybSurveyRepository.save(
         KybSurvey.builder()
             .userId(userId)

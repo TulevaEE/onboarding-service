@@ -58,7 +58,7 @@ public class ThirdPillarPaymentArrivedEmailService {
         "lname", payment.getLastName(),
         "amount", payment.amount(),
         "paymentDate", payment.firstPaymentDate().format(PAYMENT_DATE_FORMAT),
-        "hasAccount", payment.hasAccount(),
+        "hasTulevaUser", payment.hasTulevaUser(),
         "suggestSecondPillar", payment.suggestSecondPillar(),
         "suggestPaymentRate", payment.suggestPaymentRate(),
         "suggestMembership", payment.suggestMembership());

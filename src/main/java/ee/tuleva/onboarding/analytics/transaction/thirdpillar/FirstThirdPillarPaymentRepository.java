@@ -59,7 +59,7 @@ public class FirstThirdPillarPaymentRepository {
                COALESCE(uo.language_preference, 'EST') AS language_preference,
                fa.amount,
                fa.first_payment_date,
-               (u.id IS NOT NULL) AS has_account,
+               (u.id IS NOT NULL) AS has_tuleva_user,
                (uo.personal_id IS NULL
                  OR uo.p2_choice IS NULL
                  OR uo.p2_choice NOT IN ('TUK75', 'TUK00')) AS suggest_second_pillar,
@@ -98,7 +98,7 @@ public class FirstThirdPillarPaymentRepository {
                     rs.getString("language_preference"),
                     rs.getBigDecimal("amount"),
                     rs.getObject("first_payment_date", LocalDate.class),
-                    rs.getBoolean("has_account"),
+                    rs.getBoolean("has_tuleva_user"),
                     rs.getBoolean("suggest_second_pillar"),
                     rs.getBoolean("suggest_payment_rate"),
                     rs.getBoolean("suggest_membership")))

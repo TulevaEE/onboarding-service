@@ -210,6 +210,26 @@ class SavingsFundTaxReportServiceTest {
   }
 
   @Test
+  void splitsThePoolsWhenAPurchaseAndARedemptionShareTheSameInstant() {
+    given(savingsFundTransactionService.getTransactionsWithCounterpartyIbans(person))
+        .willReturn(
+            new Statement()
+                .facing(sold("2025-06-10T10:00:00Z", "100", "150.00"), ORDINARY_IBAN)
+                .facing(sold("2025-02-10T10:00:00Z", "100", "260.00"), INVESTMENT_IBAN)
+                .facing(bought("2025-02-10T10:00:00Z", "100", "200.00"), INVESTMENT_IBAN)
+                .facing(bought("2025-01-10T10:00:00Z", "100", "100.00"), ORDINARY_IBAN)
+                .build());
+    given(investmentAccountService.declaredIban(person.getRoleCode()))
+        .willReturn(Optional.of(INVESTMENT_IBAN));
+
+    SavingsFundTaxReport report = savingsFundTaxReportService.getTaxReport(person, 2025, FIFO);
+
+    assertThat(report.investmentAccount().totalGain()).isEqualByComparingTo("60.00");
+    assertThat(report.totalGain()).isEqualByComparingTo("50.00");
+    assertThat(report.redemptions()).hasSize(1);
+  }
+
+  @Test
   void doesNotPickAPoolForSomeoneWhoRedeemedToAnotherAccountThanTheyBoughtFrom() {
     given(savingsFundTransactionService.getTransactionsWithCounterpartyIbans(person))
         .willReturn(

@@ -257,7 +257,8 @@ public class InstrumentReferenceService {
               .formatted(benchmarkCategory));
     }
     if (exchangeTraded) {
-      return Optional.of(proxyInstrument(benchmarkCategory, "etfProxyIsin", proxy.etfProxyIsin()));
+      return Optional.of(
+          proxyInstrument(benchmarkCategory, ProxyRole.ETF_PROXY_ISIN, proxy.etfProxyIsin()));
     }
     var indexSeriesKey = proxy.indexSeriesKey();
     if (indexSeriesKey != null) {
@@ -270,10 +271,11 @@ public class InstrumentReferenceService {
                   + " benchmarkCategory=%s")
               .formatted(benchmarkCategory));
     }
-    return Optional.of(proxyInstrument(benchmarkCategory, "indexProxyIsin", indexProxyIsin));
+    return Optional.of(
+        proxyInstrument(benchmarkCategory, ProxyRole.INDEX_PROXY_ISIN, indexProxyIsin));
   }
 
-  private BenchmarkProxy proxyInstrument(String benchmarkCategory, String role, String isin) {
+  private BenchmarkProxy proxyInstrument(String benchmarkCategory, ProxyRole role, String isin) {
     var instrument =
         findByIsin(isin)
             .orElseThrow(
@@ -293,17 +295,6 @@ public class InstrumentReferenceService {
     return new BenchmarkProxy(instrument, null);
   }
 
-  public List<java.util.function.Function<InstrumentReference, Optional<String>>>
-      storageKeyResolvers() {
-    return List.of(
-        InstrumentReference::getBlackrockStorageKey,
-        InstrumentReference::getMorningstarStorageKey,
-        i -> Optional.ofNullable(i.getEodhdTicker()),
-        InstrumentReference::getXetraStorageKey,
-        InstrumentReference::getEuronextParisStorageKey,
-        i -> Optional.ofNullable(i.getYahooTicker()));
-  }
-
   private static void putFirstWins(
       Map<String, InstrumentReference> map,
       String key,
@@ -320,6 +311,22 @@ public class InstrumentReferenceService {
   private static String extractShortTicker(String yahooTicker) {
     int dotIndex = yahooTicker.indexOf('.');
     return dotIndex > 0 ? yahooTicker.substring(0, dotIndex) : yahooTicker;
+  }
+
+  private enum ProxyRole {
+    ETF_PROXY_ISIN("etfProxyIsin"),
+    INDEX_PROXY_ISIN("indexProxyIsin");
+
+    private final String fieldName;
+
+    ProxyRole(String fieldName) {
+      this.fieldName = fieldName;
+    }
+
+    @Override
+    public String toString() {
+      return fieldName;
+    }
   }
 
   public static class UnresolvableBenchmarkProxyException extends IllegalStateException {

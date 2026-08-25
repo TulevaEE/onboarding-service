@@ -178,16 +178,18 @@ public class SavingsFundTransactionService {
   }
 
   private Map<UUID, String> payerIbans(List<LedgerEntry> subscriptionEntries, PartyId partyId) {
-    if (externalReferences(subscriptionEntries).isEmpty()) {
+    Set<UUID> paymentIds = externalReferences(subscriptionEntries);
+
+    if (paymentIds.isEmpty()) {
       return Map.of();
     }
 
     Map<UUID, String> byPaymentId = new HashMap<>();
     savingFundPaymentRepository
-        .findPayments(partyId)
+        .findAllById(paymentIds)
         .forEach(
             payment -> {
-              if (payment.getId() != null && payment.getRemitterIban() != null) {
+              if (partyId.equals(payment.getPartyId()) && payment.getRemitterIban() != null) {
                 byPaymentId.put(payment.getId(), payment.getRemitterIban());
               }
             });

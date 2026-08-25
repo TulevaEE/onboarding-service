@@ -333,6 +333,24 @@ class SavingFundPaymentRepositoryTest {
   }
 
   @Test
+  void findAllById() {
+    var id1 = repository.savePaymentData(createPayment().externalId("1").build());
+    var id2 = repository.savePaymentData(createPayment().externalId("2").build());
+    repository.savePaymentData(createPayment().externalId("3").build());
+
+    assertThat(repository.findAllById(List.of(id1, id2, UUID.randomUUID())))
+        .extracting("id")
+        .containsExactlyInAnyOrder(id1, id2);
+  }
+
+  @Test
+  void findAllByIdWithoutIds() {
+    repository.savePaymentData(createPayment().build());
+
+    assertThat(repository.findAllById(List.of())).isEmpty();
+  }
+
+  @Test
   void returnReason() {
     var id = repository.savePaymentData(createPayment().build());
 

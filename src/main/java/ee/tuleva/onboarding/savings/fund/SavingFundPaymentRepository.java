@@ -31,6 +31,16 @@ public class SavingFundPaymentRepository {
     return result.isEmpty() ? Optional.empty() : Optional.of(result.getFirst());
   }
 
+  public List<SavingFundPayment> findAllById(Collection<UUID> ids) {
+    if (ids.isEmpty()) {
+      return List.of();
+    }
+    return jdbcTemplate.query(
+        "select * from saving_fund_payment where id in (:ids)",
+        Map.of("ids", ids),
+        this::rowMapper);
+  }
+
   public UUID savePaymentData(SavingFundPayment payment) {
     var id = UUID.randomUUID();
     var parameters =

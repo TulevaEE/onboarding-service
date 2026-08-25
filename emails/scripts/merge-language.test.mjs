@@ -22,15 +22,15 @@ test('first satisfied branch wins even when several are true', () => {
   assert.equal(renderMergeLanguage(html, { x: true, y: true }), 'X');
 });
 
-test('handles nested conditionals like the hasAccount wrapper', () => {
+test('handles nested conditionals like the hasTulevaUser wrapper', () => {
   const html =
-    '*|IF:hasAccount|*konto:*|IF:suggestSecondPillar|*II*|ELSE:|*muu*|END:IF|**|ELSE:|*logi sisse*|END:IF|*';
+    '*|IF:hasTulevaUser|*konto:*|IF:suggestSecondPillar|*II*|ELSE:|*muu*|END:IF|**|ELSE:|*logi sisse*|END:IF|*';
   assert.equal(
-    renderMergeLanguage(html, { hasAccount: true, suggestSecondPillar: true }),
+    renderMergeLanguage(html, { hasTulevaUser: true, suggestSecondPillar: true }),
     'konto:II',
   );
-  assert.equal(renderMergeLanguage(html, { hasAccount: true }), 'konto:muu');
-  assert.equal(renderMergeLanguage(html, { hasAccount: false }), 'logi sisse');
+  assert.equal(renderMergeLanguage(html, { hasTulevaUser: true }), 'konto:muu');
+  assert.equal(renderMergeLanguage(html, { hasTulevaUser: false }), 'logi sisse');
 });
 
 test('a false outer branch suppresses true inner branches', () => {

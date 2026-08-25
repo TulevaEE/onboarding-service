@@ -25,8 +25,6 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @RequiredArgsConstructor
 public class LegalEntityOnboardedEmailSender {
 
-  // Sent from a background event with no request behind it, so there is no locale
-  // to read.
   private static final Locale LOCALE = Locale.of("et");
   private static final List<String> TAGS = List.of("savings_fund");
 
@@ -35,8 +33,6 @@ public class LegalEntityOnboardedEmailSender {
   private final UserService userService;
   private final LatestKybSurveyInputs latestKybSurveyInputs;
 
-  // After commit: the account is only open once the status change is durable, and
-  // an email cannot be recalled if the transaction rolls back.
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
   public void onLegalEntityOnboarded(LegalEntityOnboardedEvent event) {
     var registryCode = event.getCompany().registryCode().value();

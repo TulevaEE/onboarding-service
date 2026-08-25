@@ -56,8 +56,6 @@ class LegalEntityOnboardingEventListener {
           registryCode,
           personalCode,
           oldStatus);
-      // Only a company that was waiting gets told: one that completed on the spot
-      // has the applicant sitting in front of the success page already.
       if (oldStatus == PENDING) {
         eventPublisher.publishEvent(new LegalEntityOnboardedEvent(this, event.getCompany()));
       }
@@ -83,10 +81,6 @@ class LegalEntityOnboardingEventListener {
     }
   }
 
-  // A company whose only outstanding gate is an unverified related person has not
-  // failed, it is waiting for that person, and it completes on its own once they are
-  // verified. An account that is already open is different: losing a verification
-  // there is an alarm, so it still rejects.
   private SavingsFundOnboardingStatus statusFor(
       List<KybCheck> failedGateChecks, SavingsFundOnboardingStatus oldStatus) {
     if (failedGateChecks.isEmpty()) {

@@ -21,10 +21,8 @@ class WaitingLegalEntityCompletionListener {
   private final SavingsFundOnboardingRepository savingsFundOnboardingRepository;
   private final LegalEntityScreener legalEntityScreener;
 
-  // A company waiting on an unverified related person has no way of noticing that
-  // the person has since verified, so every waiting company is re-screened when
-  // anyone becomes verified. Screening republishes KybCheckPerformedEvent, which is
-  // what actually completes the onboarding.
+  // LegalEntityScreener.screenLatest republishes KybCheckPerformedEvent, which is what
+  // completes the onboarding.
   @Order(COMPLETE_WAITING_COMPANIES)
   @EventListener
   @Transactional
@@ -45,7 +43,6 @@ class WaitingLegalEntityCompletionListener {
     return riskLevel == LOW || riskLevel == NONE;
   }
 
-  // One company failing to re-screen must not stop the others from completing.
   private void rescreen(String registryCode) {
     try {
       legalEntityScreener.screenLatest(registryCode);

@@ -21,11 +21,13 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.concurrent.ScheduledFuture;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.boot.convert.DurationStyle;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.Trigger;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -298,11 +300,17 @@ class NavSelfHealJobTest {
                 .getMethod("scheduledPillar2Retry")
                 .getAnnotation(Scheduled.class)
                 .cron());
+    var calculationLockAtMostFor =
+        DurationStyle.detectAndParse(
+            NavCalculationJob.class
+                .getMethod("calculatePillar2Nav")
+                .getAnnotation(SchedulerLock.class)
+                .lockAtMostFor());
 
     var pillar2CalculationJobFireTime = LocalDateTime.of(2025, 1, 15, 11, 0);
 
     assertThat(cron.next(pillar2CalculationJobFireTime))
-        .isEqualTo(LocalDateTime.of(2025, 1, 15, 11, 15));
+        .isAfter(pillar2CalculationJobFireTime.plus(calculationLockAtMostFor));
   }
 
   private void stubAllPublished(LocalDate today) {

@@ -39,8 +39,6 @@ spring:
   sql:
     init:
       mode: never
-  flyway:
-    locations: classpath:/db/migration, classpath:/db/pg
   jpa:
     show-sql: false
     hibernate:
@@ -326,7 +324,7 @@ seb-gateway:
 ---
 spring:
   flyway:
-    locations: classpath:/db/migration, classpath:/db/dev, classpath:/db/pg
+    locations: classpath:/db/migration, classpath:/db/dev
   config:
     activate:
       on-profile:

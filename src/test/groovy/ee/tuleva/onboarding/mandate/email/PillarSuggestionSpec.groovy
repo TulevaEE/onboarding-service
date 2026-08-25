@@ -65,4 +65,25 @@ class PillarSuggestionSpec extends Specification {
     true     | false
 
   }
+
+  def "never suggests the pillar the email itself concerns"() {
+    when:
+    contactDetails.isSecondPillarActive() >> false
+    contactDetails.isThirdPillarActive() >> false
+    conversion.isSecondPillarPartiallyConverted() >> false
+    conversion.isThirdPillarPartiallyConverted() >> false
+    def pillarSuggestion =
+        new PillarSuggestion(user, contactDetails, conversion, paymentRates, mandatePillars)
+
+    then:
+    pillarSuggestion.isSuggestSecondPillar() == suggestSecondPillar
+    pillarSuggestion.isSuggestThirdPillar() == suggestThirdPillar
+
+    where:
+    mandatePillars    | suggestSecondPillar | suggestThirdPillar
+    [] as Set         | true                | true
+    [2] as Set        | false               | true
+    [3] as Set        | true                | false
+    [2, 3] as Set     | false               | false
+  }
 }

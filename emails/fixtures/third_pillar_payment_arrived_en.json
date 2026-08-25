@@ -4,34 +4,34 @@
       "FNAME": "Mari",
       "amount": "300.00",
       "paymentDate": "12.08.2026",
-      "hasAccount": true,
+      "hasTulevaUser": true,
       "suggestSecondPillar": true
     },
     "has account, raise the rate": {
       "FNAME": "Mari",
       "amount": "300.00",
       "paymentDate": "12.08.2026",
-      "hasAccount": true,
+      "hasTulevaUser": true,
       "suggestPaymentRate": true
     },
     "has account, membership": {
       "FNAME": "Mari",
       "amount": "300.00",
       "paymentDate": "12.08.2026",
-      "hasAccount": true,
+      "hasTulevaUser": true,
       "suggestMembership": true
     },
     "has account, recurring": {
       "FNAME": "Mari",
       "amount": "300.00",
       "paymentDate": "12.08.2026",
-      "hasAccount": true
+      "hasTulevaUser": true
     },
     "no account": {
       "FNAME": "Mari",
       "amount": "300.00",
       "paymentDate": "12.08.2026",
-      "hasAccount": false,
+      "hasTulevaUser": false,
       "suggestSecondPillar": true
     }
   }

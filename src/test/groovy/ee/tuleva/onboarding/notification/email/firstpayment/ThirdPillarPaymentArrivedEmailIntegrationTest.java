@@ -102,7 +102,7 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
             argThat(
                 mergeVars ->
                     Boolean.TRUE.equals(mergeVars.get("suggestSecondPillar"))
-                        && Boolean.TRUE.equals(mergeVars.get("hasAccount"))
+                        && Boolean.TRUE.equals(mergeVars.get("hasTulevaUser"))
                         && LocalDate.now()
                             .minusDays(1)
                             .format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy"))
@@ -184,7 +184,7 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
             argThat(
                 mergeVars ->
                     Boolean.TRUE.equals(mergeVars.get("suggestSecondPillar"))
-                        && Boolean.FALSE.equals(mergeVars.get("hasAccount"))),
+                        && Boolean.FALSE.equals(mergeVars.get("hasTulevaUser"))),
             any(),
             any());
     verify(emailService, times(1))

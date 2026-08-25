@@ -13,7 +13,7 @@ public record FirstThirdPillarPayment(
     String languagePreference,
     BigDecimal amount,
     LocalDate firstPaymentDate,
-    boolean hasAccount,
+    boolean hasTulevaUser,
     boolean suggestSecondPillar,
     boolean suggestPaymentRate,
     boolean suggestMembership)

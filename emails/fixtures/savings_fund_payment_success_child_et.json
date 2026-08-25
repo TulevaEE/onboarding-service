@@ -1,0 +1,23 @@
+{
+  "variants": {
+    "soovita III sammast": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Jaan Tamm",
+      "suggestThirdPillar": true
+    },
+    "soovita II sammast mujal": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Jaan Tamm",
+      "suggestSecondPillar": true
+    },
+    "soovita tõsta määra": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Jaan Tamm",
+      "suggestPaymentRate": true
+    },
+    "soovita püsimakset": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Jaan Tamm"
+    }
+  }
+}

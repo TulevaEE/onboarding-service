@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "soovita II sammast": {
+      "FNAME": "Mari",
+      "suggestSecondPillar": true
+    },
+    "soovita tõsta määra": {
+      "FNAME": "Mari",
+      "suggestPaymentRate": true
+    },
+    "soovita liikmeks astuda": {
+      "FNAME": "Mari",
+      "suggestMembership": true
+    },
+    "soovita püsimakset": {
+      "FNAME": "Mari"
+    }
+  }
+}

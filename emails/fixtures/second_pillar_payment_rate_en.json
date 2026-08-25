@@ -1,0 +1,31 @@
+{
+  "variants": {
+    "increased, suggest third pillar": {
+      "FNAME": "Mari",
+      "increased": true,
+      "paymentRateFulfillmentDate": "01.01.2027",
+      "newPaymentRate": "4",
+      "suggestThirdPillar": true
+    },
+    "decreased, suggest second pillar": {
+      "FNAME": "Jaan",
+      "increased": false,
+      "paymentRateFulfillmentDate": "01.01.2027",
+      "newPaymentRate": "2",
+      "suggestSecondPillar": true
+    },
+    "increased, suggest membership": {
+      "FNAME": "Mari",
+      "increased": true,
+      "paymentRateFulfillmentDate": "01.01.2027",
+      "newPaymentRate": "6",
+      "suggestMembership": true
+    },
+    "decreased, recurring payment fallback": {
+      "FNAME": "Jaan",
+      "increased": false,
+      "paymentRateFulfillmentDate": "01.01.2027",
+      "newPaymentRate": "2"
+    }
+  }
+}

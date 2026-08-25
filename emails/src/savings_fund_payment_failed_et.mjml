@@ -1,0 +1,31 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
+        <mj-text>
+          Sinu sissemakse Tuleva Kogumisfondi ebaõnnestus ja me saadame selle tagasi samale
+          kontole, kust see tuli tänase päeva jooksul. Tõenäoliselt valisid makse tegemisel oma
+          kontode seast sellise, mille nimi ei ühti sinu omaga. Makse vastuvõtmiseks peab see
+          tulema kontolt, mille omanikuks oled sina ise. Proovi uuesti siin:
+        </mj-text>
+        <mj-button href="https://pension.tuleva.ee/savings-fund/payment">Tuleva konto</mj-button>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="./partials/contact_et.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">
+          Tõnu Pekk<br />
+          Tuleva asutaja ja fondijuht
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_savings_short_et.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

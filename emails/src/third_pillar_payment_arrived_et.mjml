@@ -1,0 +1,87 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
+        <mj-text>
+          Sinu sissemakse *|amount|*&nbsp;&euro; jõudis pärale *|paymentDate|*! Sellega oled 30%
+          tublimate Eesti inimeste seas, kes III&nbsp;sambas koguvad. Fondiosakud on sinu
+          pensionikontol olemas.
+        </mj-text>
+
+        <mj-raw>*|IF:hasAccount|*</mj-raw>
+
+        <mj-raw>*|IF:suggestSecondPillar|*</mj-raw>
+        <mj-text>
+          Kui sa ei kogu oma II&nbsp;sammast veel koos meiega Tulevas, siis veendu, et sinu
+          II&nbsp;samba fonditasud jääksid alla 0,5% aastas, sest madalad tasud annavad parimad
+          eeldused parimaks pikaajaliseks tootluseks.
+        </mj-text>
+        <mj-text>
+          <strong>Vaata järele, kui palju maksad täna aastas oma II&nbsp;samba tasudeks:</strong>
+        </mj-text>
+        <mj-button href="https://pension.tuleva.ee/login">Vaata oma tasud üle</mj-button>
+
+        <mj-raw>*|ELSEIF:suggestPaymentRate|*</mj-raw>
+        <mj-text><strong>Ära jää ilma ka II&nbsp;samba maksuvõidust</strong></mj-text>
+        <mj-text>
+          Kuna II&nbsp;samba sissemaksed on tulumaksuvabad, siis mida suurem protsent, seda suurem
+          maksuvõit. Näiteks kui su brutopalk on 2000 eurot, saad maksuvõitu 316 eurot.
+          II&nbsp;samba sissemakse suurust saad muuta kord aastas kuni 6% peale.
+        </mj-text>
+        <mj-text>
+          <strong>
+            Vaata järele, kui suureks kujuneks sinu isiklik tulumaksuvõit oma II&nbsp;samba panust
+            suurendades:
+          </strong>
+        </mj-text>
+        <mj-button href="https://pension.tuleva.ee/2nd-pillar-tax-win">Vaata järele</mj-button>
+
+        <mj-raw>*|ELSEIF:suggestMembership|*</mj-raw>
+        <mj-text><strong>Kuidas saaksid Tulevas kogumisest maksimaalselt kasu?</strong></mj-text>
+        <mj-text>
+          Tuleva kuulub Eesti inimestele, kes ka ise neis fondides koguvad. Tulevas kogujana ei ole
+          sul mingit kohustust Tuleva ühistu liikmeks astuda, meiega koos võivad koguda kõik Eesti
+          inimesed. Aga kutsun sind liikmeks astumist kaaluma, sest kõige rohkem saad Tulevast
+          kasu, olles ise kaasomanik.
+        </mj-text>
+        <mj-button href="https://tuleva.ee/liikmetele/31-marts-korduma-kippuvad-kusimused/">
+          Uuri lähemalt
+        </mj-button>
+
+        <mj-raw>*|ELSE:|*</mj-raw>
+        <mj-text>
+          Nutikas on III&nbsp;sambas kogumine teha automaatseks ja seadistada Tuleva lehel sisse
+          logides püsimakse. Nii on kindel, et sa kiires elurütmis ei jää ilma maksuvõidust. Kui
+          püsimakse on juba seadistatud, on aeg-ajalt mõistlik vaadata üle, kas saad püsimakse
+          summat suurendada.
+        </mj-text>
+        <mj-text><strong>Arvuta oma maksuvõit ja seadista püsimakse:</strong></mj-text>
+        <mj-button href="https://tuleva.ee/iii-sammas/">Vaata kalkulaatorist järele</mj-button>
+        <mj-raw>*|END:IF|*</mj-raw>
+
+        <mj-raw>*|ELSE:|*</mj-raw>
+        <mj-text>
+          Näed kõiki oma kogumisi ühest kohast, kui logid sisse Tuleva kontole:
+        </mj-text>
+        <mj-button href="https://pension.tuleva.ee/login">Logi sisse</mj-button>
+        <mj-raw>*|END:IF|*</mj-raw>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="./partials/contact_et.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">
+          Tõnu Pekk<br />
+          Tuleva asutaja ja fondijuht
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_pension_et.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

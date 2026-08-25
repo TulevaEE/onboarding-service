@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "suggest second pillar": {
+      "FNAME": "Mari",
+      "suggestSecondPillar": true
+    },
+    "suggest raising the rate": {
+      "FNAME": "Mari",
+      "suggestPaymentRate": true
+    },
+    "suggest membership": {
+      "FNAME": "Mari",
+      "suggestMembership": true
+    },
+    "suggest recurring payment": {
+      "FNAME": "Mari"
+    }
+  }
+}

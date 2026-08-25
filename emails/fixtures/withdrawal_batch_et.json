@@ -1,0 +1,27 @@
+{
+  "variants": {
+    "II samba fondipension": {
+      "FNAME": "Mari",
+      "fundPensionSecondPillar": true
+    },
+    "III samba fondipension": {
+      "FNAME": "Mari",
+      "fundPensionThirdPillar": true
+    },
+    "II samba osaline väljamakse": {
+      "FNAME": "Mari",
+      "partialWithdrawalSecondPillar": true
+    },
+    "III samba osaline väljamakse": {
+      "FNAME": "Mari",
+      "partialWithdrawalThirdPillar": true
+    },
+    "kõik avaldused korraga": {
+      "FNAME": "Mari",
+      "fundPensionSecondPillar": true,
+      "fundPensionThirdPillar": true,
+      "partialWithdrawalSecondPillar": true,
+      "partialWithdrawalThirdPillar": true
+    }
+  }
+}

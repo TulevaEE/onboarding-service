@@ -1,0 +1,27 @@
+{
+  "variants": {
+    "second pillar fund pension": {
+      "FNAME": "Mari",
+      "fundPensionSecondPillar": true
+    },
+    "third pillar fund pension": {
+      "FNAME": "Mari",
+      "fundPensionThirdPillar": true
+    },
+    "second pillar partial withdrawal": {
+      "FNAME": "Mari",
+      "partialWithdrawalSecondPillar": true
+    },
+    "third pillar partial withdrawal": {
+      "FNAME": "Mari",
+      "partialWithdrawalThirdPillar": true
+    },
+    "all applications combined": {
+      "FNAME": "Mari",
+      "fundPensionSecondPillar": true,
+      "fundPensionThirdPillar": true,
+      "partialWithdrawalSecondPillar": true,
+      "partialWithdrawalThirdPillar": true
+    }
+  }
+}

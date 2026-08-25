@@ -1,0 +1,77 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
+        <mj-text>
+          You are now saving for your pension alongside me and other Tuleva members. Your
+          payments will be directed to the chosen pension fund from the next payment made. If
+          you wish to swap any existing shares, the exchange of units will take effect
+          on&nbsp;*|transferDate|*.
+        </mj-text>
+
+        <mj-raw>*|IF:suggestThirdPillar|*</mj-raw>
+        <mj-text>
+          Next, it's smart to set up the third pillar. For example, if you make a monthly
+          contribution of 100 euros, the state will refund you 264 euros in income tax next
+          spring.
+        </mj-text>
+        <mj-text><strong>Check how much you could save on taxes:</strong></mj-text>
+        <mj-button href="https://tuleva.ee/en/third-pillar/">
+          Calculate&nbsp;your&nbsp;tax&nbsp;benefit
+        </mj-button>
+
+        <mj-raw>*|ELSEIF:suggestPaymentRate|*</mj-raw>
+        <mj-text><strong>Don't miss out on the second pillar tax benefit.</strong></mj-text>
+        <mj-text>
+          Since second pillar contributions are exempt from income tax,
+          <strong>the higher the percentage, the greater the tax benefit</strong>. For
+          example, if your gross salary is 2000 euros, you could gain a tax benefit of 316
+          euros. You can change the size of your second pillar contribution once a year up to
+          6%.
+        </mj-text>
+        <mj-text>
+          <strong>
+            Check how much your personal income tax savings could be by increasing your
+            second pillar contribution:
+          </strong>
+        </mj-text>
+        <mj-button href="https://pension.tuleva.ee/2nd-pillar-tax-win">Check out</mj-button>
+
+        <mj-raw>*|ELSEIF:suggestMembership|*</mj-raw>
+        <mj-text>
+          <strong>How can you maximize the benefits of saving with Tuleva?</strong>
+        </mj-text>
+        <mj-text>
+          Tuleva's owners are the pension savers themselves. As a Tuleva pension fund client,
+          you have no obligation to become a member of Tuleva. All Estonian citizens are able
+          to save together with us in our modern, low-cost pension funds. Having said that, I
+          would still welcome you to think about becoming a member, since you benefit the
+          most from Tuleva whilst being a co-owner yourself.
+        </mj-text>
+        <mj-button href="http://https://tuleva.ee/en/faq/">Read&nbsp;more</mj-button>
+        <mj-raw>*|END:IF|*</mj-raw>
+
+        <mj-text>
+          Attached is a copy of the application you just made on our website and which we
+          have sent to Pensionikeskus.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="./partials/contact_en.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">
+          Tõnu Pekk<br />
+          Tuleva Founder and Fund Manager
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_pension_en.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

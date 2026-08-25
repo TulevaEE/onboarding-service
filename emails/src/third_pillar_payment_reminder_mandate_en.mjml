@@ -1,0 +1,46 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Welcome&nbsp;*|FNAME|*,</mj-text>
+        <mj-text>
+          I’m glad you’ve decided to start saving in the third pillar with us.
+        </mj-text>
+        <mj-text>
+          Your contribution has not reached the Tuleva III Pillar Pension Fund yet. If you made
+          a payment from your internet bank or set up a recurring payment, your contribution
+          will show up on your pension account two working days after payment.
+        </mj-text>
+        <mj-text>
+          As a reminder: why should you save in the third pillar? Because the state offers a
+          22% tax benefit on contributions, providing a significant advantage over other
+          investment options. For example, if you make a monthly contribution of 100 euros, the
+          state will give you back 264 euros in income tax in the spring.
+        </mj-text>
+        <mj-text>
+          <strong>See how you can maximize your tax savings with the third pillar:</strong>
+        </mj-text>
+        <mj-button href="https://tuleva.ee/en/third-pillar/">Calculate your tax saving</mj-button>
+        <mj-text>
+          Attached is a copy of your third pillar application, which we have sent to the
+          Pension Registry.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="./partials/contact_en.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">
+          Tõnu Pekk<br />
+          Tuleva Founder and Fund Manager
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_pension_en.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

@@ -1,0 +1,27 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Hello *|FNAME|*</mj-text>
+        <mj-text>
+          *|buyerFullName|* signed the application and confirmed the payment was made. Once
+          you’ve received the money, please confirm you’ve received it as well.
+        </mj-text>
+        <mj-button href="https://pension.tuleva.ee/capital/transfer/*|contractId|*?language=en">
+          Confirm payment received
+        </mj-button>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="./partials/contact_en.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">Tuleva</mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/footer_bottom_coop.mjml" />
+  </mj-body>
+</mjml>

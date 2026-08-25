@@ -1,0 +1,36 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
+        <mj-text>
+          Sinu sissemakse ettevõtte (*|RECIPIENTNAME|*) Tuleva Täiendavasse Kogumisfondi on
+          tehtud. Osakud jõuavad ettevõtte kontole kahe tööpäeva jooksul.
+        </mj-text>
+        <mj-text>
+          Täiendavasse Kogumisfondi saab koguda ka püsimaksega. Nii kasvab ettevõtte portfell iga
+          kuu ilma, et peaksid sellele eraldi mõtlema.
+        </mj-text>
+        <mj-text><strong>Püsimakse saad seadistada oma Tuleva kontol:</strong></mj-text>
+        <mj-button href="https://pension.tuleva.ee/savings-fund/payment">
+          Seadistan püsimakse
+        </mj-button>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="./partials/contact_et.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">
+          Tõnu Pekk<br />
+          Tuleva asutaja ja fondijuht
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_savings_et.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

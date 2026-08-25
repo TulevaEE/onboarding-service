@@ -1,0 +1,10 @@
+{
+  "variants": {
+    "one application failed": {
+      "FNAME": "Mari",
+      "totalMandateCount": "3",
+      "failedMandateCount": "1",
+      "successfulMandateCount": "2"
+    }
+  }
+}

@@ -1,0 +1,53 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Tere,&nbsp;*|FNAME|*.</mj-text>
+        <mj-text>
+          Alustasid kogumist Tuleva madalate tasudega III&nbsp;samba fondis. Märkasin, et
+          II&nbsp;sambasse sa veel koos meiega ei kogu.
+        </mj-text>
+        <mj-text>
+          Kui kogud täna oma II&nbsp;sammast pangafondis, siis tasub vaadata üle, kas kogud ikka
+          madalate tasudega ja hästi hajutatud indeksfondis.
+        </mj-text>
+        <mj-text>
+          <strong>
+            Vaata järele, kui palju oleks sinu II&nbsp;sammas suurem, kui koguksid madala tasuga
+            indeksfondis:
+          </strong>
+        </mj-text>
+        <mj-button href="https://pension.tuleva.ee/login">Arvuta oma võit</mj-button>
+
+        <mj-text>
+          <strong>Kas riskide hajutamiseks pole parem koguda II&nbsp;sambasse mujal?</strong>
+        </mj-text>
+        <mj-text>
+          Kõigi Eesti pensionifondide - nii II&nbsp;kui III&nbsp;samba fondide - vara on
+          maailmaturu sadade instrumentide vahel väga hästi hajutatud. Lisaks on pensionikoguja
+          kõigis pensionifondides kaitstud fondivalitseja äririski eest. Seda tagab seadus ja
+          pensionikoguja ise ei pea riski maandamiseks raha mitme fondivalitseja vahel laiali
+          jagama.
+        </mj-text>
+        <mj-text>
+          Oluline on ka meeles pidada, et sinu raha on kõigis pensionifondides avatud
+          tururiskile. Kui maailma väärtpaberiturud langevad, siis langevad kõigi
+          pensionifondide osakute hinnad. Siin vara jagamine erinevate fondivalitsejate
+          aktsiatesse investeerivate fondide vahel ei aita.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="./partials/contact_et.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">Tõnu Pekk<br />Tuleva asutaja ja fondijuht</mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_pension_et.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

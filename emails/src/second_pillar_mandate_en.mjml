@@ -13,22 +13,7 @@
           on&nbsp;*|transferDate|*.
         </mj-text>
 
-        <mj-raw>*|IF:suggestThirdPillar|*</mj-raw>
-        <mj-text>
-          Next, it's smart to set up the third pillar. For example, if you make a monthly
-          contribution of 100 euros, the state will refund you 264 euros in income tax next
-          spring.
-        </mj-text>
-        <mj-text><strong>Check how much you could save on taxes:</strong></mj-text>
-        <mj-button href="https://tuleva.ee/en/third-pillar/">
-          Calculate&nbsp;your&nbsp;tax&nbsp;benefit
-        </mj-button>
-
-        <mj-raw>*|ELSEIF:suggestPaymentRate|*</mj-raw>
-        <mj-include path="./partials/suggest_payment_rate_en.mjml" />
-
-        <mj-raw>*|ELSEIF:suggestMembership|*</mj-raw>
-        <mj-include path="./partials/suggest_membership_en.mjml" />
+        <mj-include path="./partials/suggest_chain_open_en.mjml" />
         <mj-raw>*|END:IF|*</mj-raw>
 
         <mj-text>

@@ -5,6 +5,11 @@
       "transferDate": "12.08.2026",
       "suggestThirdPillar": true
     },
+    "suggest second pillar elsewhere": {
+      "FNAME": "Mari",
+      "transferDate": "12.08.2026",
+      "suggestSecondPillar": true
+    },
     "suggest payment rate": {
       "FNAME": "Mari",
       "transferDate": "12.08.2026",

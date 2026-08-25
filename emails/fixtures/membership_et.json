@@ -1,5 +1,12 @@
 {
   "variants": {
+    "seadista III sammas": {
+      "FNAME": "Kati",
+      "LNAME": "Ilves",
+      "memberNumber": "731",
+      "memberDate": "14.02.2026",
+      "suggestThirdPillar": true
+    },
     "II sammas mujal": {
       "FNAME": "Mari",
       "LNAME": "Maasikas",
@@ -13,6 +20,13 @@
       "memberNumber": "615",
       "memberDate": "03.07.2026",
       "suggestPaymentRate": true
+    },
+    "astu liikmeks": {
+      "FNAME": "Toomas",
+      "LNAME": "Rebane",
+      "memberNumber": "902",
+      "memberDate": "09.11.2026",
+      "suggestMembership": true
     },
     "ilma lisasoovituseta": {
       "FNAME": "Liina",

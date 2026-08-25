@@ -20,11 +20,7 @@
           Facebooki pole. Olulistest teemadest kirjutame alati sulle ka e-kirja teel.
         </mj-text>
 
-        <mj-raw>*|IF:suggestSecondPillar|*</mj-raw>
-        <mj-include path="./partials/suggest_second_pillar_et.mjml" />
-
-        <mj-raw>*|ELSEIF:suggestPaymentRate|*</mj-raw>
-        <mj-include path="./partials/suggest_payment_rate_et.mjml" />
+        <mj-include path="./partials/suggest_chain_open_et.mjml" />
         <mj-raw>*|END:IF|*</mj-raw>
       </mj-column>
     </mj-section>

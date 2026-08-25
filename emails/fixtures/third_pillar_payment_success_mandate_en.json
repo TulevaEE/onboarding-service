@@ -1,5 +1,9 @@
 {
   "variants": {
+    "suggest third pillar": {
+      "FNAME": "Mari",
+      "suggestThirdPillar": true
+    },
     "suggest second pillar": {
       "FNAME": "Mari",
       "suggestSecondPillar": true

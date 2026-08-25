@@ -11,27 +11,7 @@
           Osakud jõuavad lapse kontole kahe tööpäeva jooksul.
         </mj-text>
 
-        <mj-raw>*|IF:suggestThirdPillar|*</mj-raw>
-        <mj-text><strong>Vaata üle ka oma enda III&nbsp;sammas.</strong></mj-text>
-        <mj-text>
-          III&nbsp;sambasse tehtud sissemaksetelt tagastab riik tulumaksu. Tulumaksu saad tagasi
-          kuni 15% ulatuses oma brutotulust, aga mitte rohkem kui 6000&nbsp;eurot aastas. Lapse
-          kontole tehtud sissemakse sellist soodustust ei anna.
-        </mj-text>
-        <mj-text>
-          <strong>Seetõttu tasub kogumist alustada hoopis oma III&nbsp;sambast.</strong>
-        </mj-text>
-        <mj-button href="https://tuleva.ee/analuusid/miks-voiks-lapsele-kogumist-alustada-hoopis-oma-iii-sambast/">
-          Loe blogist lähemalt
-        </mj-button>
-
-        <mj-raw>*|ELSEIF:suggestSecondPillar|*</mj-raw>
-        <mj-include path="./partials/suggest_second_pillar_et.mjml" />
-
-        <mj-raw>*|ELSEIF:suggestPaymentRate|*</mj-raw>
-        <mj-include path="./partials/suggest_payment_rate_et.mjml" />
-
-        <mj-raw>*|ELSE:|*</mj-raw>
+        <mj-include path="./partials/suggest_chain_open_et.mjml" />
         <mj-text>
           Täiendavasse Kogumisfondi saab koguda ka püsimaksega. Nii kasvab lapse vara iga kuu
           ilma, et peaksid sellele eraldi mõtlema.

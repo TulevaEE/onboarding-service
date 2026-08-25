@@ -14,16 +14,7 @@
 
         <mj-raw>*|IF:hasTulevaUser|*</mj-raw>
 
-        <mj-raw>*|IF:suggestSecondPillar|*</mj-raw>
-        <mj-include path="./partials/suggest_second_pillar_et.mjml" />
-
-        <mj-raw>*|ELSEIF:suggestPaymentRate|*</mj-raw>
-        <mj-include path="./partials/suggest_payment_rate_et.mjml" />
-
-        <mj-raw>*|ELSEIF:suggestMembership|*</mj-raw>
-        <mj-include path="./partials/suggest_membership_et.mjml" />
-
-        <mj-raw>*|ELSE:|*</mj-raw>
+        <mj-include path="./partials/suggest_chain_open_et.mjml" />
         <mj-text>
           Nutikas on III&nbsp;sambas kogumine teha automaatseks ja seadistada Tuleva lehel sisse
           logides püsimakse. Nii on kindel, et sa kiires elurütmis ei jää ilma maksuvõidust. Kui

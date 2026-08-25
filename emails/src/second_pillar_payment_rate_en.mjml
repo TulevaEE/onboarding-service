@@ -19,30 +19,7 @@
           sent to Pensionikeskus.
         </mj-text>
 
-        <mj-raw>*|IF:suggestThirdPillar|*</mj-raw>
-        <mj-text>
-          <strong>What else could you do to ensure you don't miss out on this year's tax
-          benefit?</strong>
-        </mj-text>
-        <mj-text>
-          To take advantage of this year's tax benefit, it's smart to also start saving in the
-          third pillar. For example, if you make a monthly contribution of 100 euros, the state
-          will give you back 264 euros in income tax in the spring.
-        </mj-text>
-        <mj-text>
-          <strong>Check how much you could save on taxes:</strong>
-        </mj-text>
-        <mj-button href="https://tuleva.ee/en/third-pillar/">
-          Calculate&nbsp;your&nbsp;tax&nbsp;benefit
-        </mj-button>
-
-        <mj-raw>*|ELSEIF:suggestSecondPillar|*</mj-raw>
-        <mj-include path="./partials/suggest_second_pillar_en.mjml" />
-
-        <mj-raw>*|ELSEIF:suggestMembership|*</mj-raw>
-        <mj-include path="./partials/suggest_membership_en.mjml" />
-
-        <mj-raw>*|ELSE:|*</mj-raw>
+        <mj-include path="./partials/suggest_chain_open_en.mjml" />
         <mj-text>
           The smartest move is to automate your third pillar savings by setting up a
           <strong>recurring payment</strong>. This ensures that in the hustle and bustle of life,

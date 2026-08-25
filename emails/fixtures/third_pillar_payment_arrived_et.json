@@ -1,5 +1,12 @@
 {
   "variants": {
+    "konto olemas, seadista III sammas": {
+      "FNAME": "Mari",
+      "amount": "300.00",
+      "paymentDate": "12.08.2026",
+      "hasTulevaUser": true,
+      "suggestThirdPillar": true
+    },
     "konto olemas, II sammas mujal": {
       "FNAME": "Mari",
       "amount": "300.00",

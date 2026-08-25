@@ -1,5 +1,12 @@
 {
   "variants": {
+    "has account, set up third pillar": {
+      "FNAME": "Mari",
+      "amount": "300.00",
+      "paymentDate": "12.08.2026",
+      "hasTulevaUser": true,
+      "suggestThirdPillar": true
+    },
     "has account, II pillar elsewhere": {
       "FNAME": "Mari",
       "amount": "300.00",

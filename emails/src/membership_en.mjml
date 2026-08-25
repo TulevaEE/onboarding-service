@@ -21,11 +21,7 @@
           updates via email as well.
         </mj-text>
 
-        <mj-raw>*|IF:suggestSecondPillar|*</mj-raw>
-        <mj-include path="./partials/suggest_second_pillar_en.mjml" />
-
-        <mj-raw>*|ELSEIF:suggestPaymentRate|*</mj-raw>
-        <mj-include path="./partials/suggest_payment_rate_en.mjml" />
+        <mj-include path="./partials/suggest_chain_open_en.mjml" />
         <mj-raw>*|END:IF|*</mj-raw>
       </mj-column>
     </mj-section>

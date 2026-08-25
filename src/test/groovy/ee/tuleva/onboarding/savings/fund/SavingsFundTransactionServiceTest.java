@@ -159,14 +159,14 @@ class SavingsFundTransactionServiceTest {
         RedemptionRequest.builder()
             .id(refA)
             .partyType(PartyId.Type.PERSON)
-            .partyCode("38888888888")
+            .partyCode(personalCode)
             .processedAt(processedAtA)
             .build();
     RedemptionRequest requestB =
         RedemptionRequest.builder()
             .id(refB)
             .partyType(PartyId.Type.PERSON)
-            .partyCode("38888888888")
+            .partyCode(personalCode)
             .build();
     when(redemptionRequestRepository.findAllById(Set.of(refA, refB, danglingRef)))
         .thenReturn(List.of(requestA, requestB));
@@ -237,7 +237,7 @@ class SavingsFundTransactionServiceTest {
                 RedemptionRequest.builder()
                     .id(requestId)
                     .partyType(PartyId.Type.PERSON)
-                    .partyCode("38888888888")
+                    .partyCode(personalCode)
                     .customerIban("EE342200221020145685")
                     .build()));
 

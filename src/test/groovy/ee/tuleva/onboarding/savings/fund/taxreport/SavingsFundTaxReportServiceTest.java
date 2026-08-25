@@ -111,6 +111,41 @@ class SavingsFundTaxReportServiceTest {
   }
 
   @Test
+  void leavesAClosedYearAloneWhenALaterRedemptionGoesElsewhere() {
+    given(savingsFundTransactionService.getTransactions(person))
+        .willReturn(
+            List.of(
+                bought("2025-02-10T10:00:00Z", "100", "200.00", INVESTMENT_IBAN),
+                sold("2025-07-10T10:00:00Z", "100", "260.00", INVESTMENT_IBAN),
+                bought("2026-02-10T10:00:00Z", "100", "200.00", INVESTMENT_IBAN),
+                sold("2026-07-10T10:00:00Z", "100", "300.00", ORDINARY_IBAN)));
+    given(investmentAccountService.declaredIban(person.getRoleCode()))
+        .willReturn(Optional.of(INVESTMENT_IBAN));
+
+    SavingsFundTaxReport report = savingsFundTaxReportService.getTaxReport(person, 2025, FIFO);
+
+    assertThat(report.investmentAccount().redeemedOutsideTheAccount()).isFalse();
+    assertThat(report.investmentAccount().totalGain()).isEqualByComparingTo("60.00");
+    assertThat(report.totalGain()).isEqualByComparingTo("0.00");
+  }
+
+  @Test
+  void doesNotCallATransactionOrdinaryJustBecauseItsAccountIsUnknown() {
+    given(savingsFundTransactionService.getTransactions(person))
+        .willReturn(
+            List.of(
+                bought("2025-02-10T10:00:00Z", "100", "200.00", null),
+                sold("2025-07-10T10:00:00Z", "100", "260.00", INVESTMENT_IBAN)));
+    given(investmentAccountService.declaredIban(person.getRoleCode()))
+        .willReturn(Optional.of(INVESTMENT_IBAN));
+
+    SavingsFundTaxReport report = savingsFundTaxReportService.getTaxReport(person, 2025, FIFO);
+
+    assertThat(report.investmentAccount().redeemedOutsideTheAccount()).isTrue();
+    assertThat(report.investmentAccount().redemptions()).isEmpty();
+  }
+
+  @Test
   void recognisesTheDeclaredAccountHoweverTheBankSpacedIt() {
     given(savingsFundTransactionService.getTransactions(person))
         .willReturn(

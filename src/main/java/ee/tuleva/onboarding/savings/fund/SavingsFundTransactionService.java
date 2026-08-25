@@ -65,7 +65,8 @@ public class SavingsFundTransactionService {
             .toList();
 
     List<LedgerEntry> redemptionEntries = entries(ownerCode, partyType, REDEMPTIONS);
-    List<RedemptionRequest> redemptionRequests = redemptionRequests(redemptionEntries);
+    List<RedemptionRequest> redemptionRequests =
+        redemptionRequests(redemptionEntries, person.toPartyId());
     Map<UUID, Instant> payoutTimes = payoutTimes(redemptionRequests);
     Map<UUID, String> payoutIbans = payoutIbans(redemptionRequests);
     List<Transaction> redemptions =
@@ -84,7 +85,8 @@ public class SavingsFundTransactionService {
         ledgerService.getPartyAccount(ownerCode, partyType, userAccount).getEntries());
   }
 
-  private List<RedemptionRequest> redemptionRequests(List<LedgerEntry> redemptionEntries) {
+  private List<RedemptionRequest> redemptionRequests(
+      List<LedgerEntry> redemptionEntries, PartyId partyId) {
     Set<UUID> requestIds = externalReferences(redemptionEntries);
 
     if (requestIds.isEmpty()) {
@@ -92,8 +94,20 @@ public class SavingsFundTransactionService {
     }
 
     List<RedemptionRequest> requests = new ArrayList<>();
-    redemptionRequestRepository.findAllById(requestIds).forEach(requests::add);
+    redemptionRequestRepository
+        .findAllById(requestIds)
+        .forEach(
+            request -> {
+              if (belongsTo(request, partyId)) {
+                requests.add(request);
+              }
+            });
     return List.copyOf(requests);
+  }
+
+  private static boolean belongsTo(RedemptionRequest request, PartyId partyId) {
+    return partyId.type() == request.getPartyType()
+        && partyId.code().equals(request.getPartyCode());
   }
 
   private static Map<UUID, Instant> payoutTimes(List<RedemptionRequest> redemptionRequests) {

@@ -8,21 +8,27 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.capital.transfer.iban.IbanValidator;
 import ee.tuleva.onboarding.savings.fund.SavingsFundTransactionService;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
 public class SavingsFundTaxReportService {
 
+  private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
+
   private final SavingsFundTransactionService savingsFundTransactionService;
   private final SavingsFundCostBasisCalculator costBasisCalculator;
   private final InvestmentAccountService investmentAccountService;
 
+  @Transactional(readOnly = true)
   public SavingsFundTaxReport getTaxReport(
       AuthenticatedPerson person, int year, CostBasisMethod method) {
     List<Transaction> transactions = savingsFundTransactionService.getTransactions(person);
@@ -39,8 +45,7 @@ public class SavingsFundTaxReportService {
     List<Transaction> investmentAccountTransactions = fundedFrom(transactions, iban, true);
     List<Transaction> ordinaryTransactions = fundedFrom(transactions, iban, false);
 
-    if (!holdsEnoughUnits(investmentAccountTransactions)
-        || !holdsEnoughUnits(ordinaryTransactions)) {
+    if (!canBeSplit(transactions, investmentAccountTransactions, ordinaryTransactions, to)) {
       return report(
           year,
           method,
@@ -98,6 +103,26 @@ public class SavingsFundTaxReportService {
     String counterpartyIban = transaction.counterpartyIban();
     return counterpartyIban != null
         && canonicalIban.equals(IbanValidator.canonicalize(counterpartyIban));
+  }
+
+  private static boolean canBeSplit(
+      List<Transaction> transactions,
+      List<Transaction> investmentAccountTransactions,
+      List<Transaction> ordinaryTransactions,
+      LocalDate to) {
+    return transactions.stream().noneMatch(transaction -> transaction.counterpartyIban() == null)
+        && holdsEnoughUnits(upTo(investmentAccountTransactions, to))
+        && holdsEnoughUnits(upTo(ordinaryTransactions, to));
+  }
+
+  private static List<Transaction> upTo(List<Transaction> transactions, LocalDate to) {
+    return transactions.stream()
+        .filter(transaction -> !dayOf(transaction.time()).isAfter(to))
+        .toList();
+  }
+
+  private static LocalDate dayOf(Instant time) {
+    return time.atZone(ESTONIAN_ZONE).toLocalDate();
   }
 
   private static boolean holdsEnoughUnits(List<Transaction> transactions) {

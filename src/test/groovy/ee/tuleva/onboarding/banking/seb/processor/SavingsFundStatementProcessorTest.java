@@ -13,6 +13,7 @@ import static org.mockito.Mockito.*;
 import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.BankAccounts;
+import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.processor.BankOperationProcessor;
 import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration;
@@ -60,6 +61,7 @@ class SavingsFundStatementProcessorTest {
   RedemptionStatusService redemptionStatusService = mock(RedemptionStatusService.class);
   EndToEndIdConverter endToEndIdConverter = new EndToEndIdConverter();
   BankOperationProcessor bankOperationProcessor = mock(BankOperationProcessor.class);
+  PaymentCheckService paymentCheckService = mock(PaymentCheckService.class);
 
   SavingsFundStatementProcessor processor =
       new SavingsFundStatementProcessor(
@@ -73,7 +75,8 @@ class SavingsFundStatementProcessorTest {
           redemptionRequestRepository,
           redemptionStatusService,
           endToEndIdConverter,
-          bankOperationProcessor);
+          bankOperationProcessor,
+          paymentCheckService);
 
   @Test
   void outgoingToFundAccount_createsLedgerTransferEntryWithBookingDate() {

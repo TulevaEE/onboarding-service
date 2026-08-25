@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.banking.event.BankMessageEvents.ProcessBankMessagesR
 import ee.tuleva.onboarding.banking.message.BankMessageType;
 import ee.tuleva.onboarding.banking.message.BankingMessage;
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
+import ee.tuleva.onboarding.banking.payment.PaymentStatusReportHandler;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatementExtractor;
 import java.io.StringReader;
@@ -31,6 +32,7 @@ public class BankMessageDelegator {
 
   private final Clock clock;
   private final BankingMessageRepository bankingMessageRepository;
+  private final PaymentStatusReportHandler paymentStatusReportHandler;
   private final BankStatementExtractor bankStatementExtractor;
   private final ApplicationEventPublisher eventPublisher;
 
@@ -54,10 +56,7 @@ public class BankMessageDelegator {
       var messageType = BankMessageType.fromXmlType(messageName);
 
       if (messageType == PAYMENT_ORDER_CONFIRMATION) {
-        log.info(
-            "Payment order confirmation received: messageId={}, bankType={}",
-            message.getId(),
-            message.getBankType());
+        paymentStatusReportHandler.handle(message.getRawResponse());
       } else {
         var bankStatement =
             extractBankStatement(message.getRawResponse(), messageType, message.getTimezoneId());

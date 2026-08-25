@@ -2,12 +2,18 @@ package ee.tuleva.onboarding.banking.seb.processor;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.HOLD;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.WARNING;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.DUPLICATE_PAYOUT;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.PAYOUT_WITHOUT_REQUEST;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.UNMODELLED_DEBIT;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.BankAccounts;
+import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.processor.BankOperationProcessor;
 import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration;
@@ -45,6 +51,7 @@ public class SavingsFundStatementProcessor {
   private final RedemptionStatusService redemptionStatusService;
   private final EndToEndIdConverter endToEndIdConverter;
   private final BankOperationProcessor bankOperationProcessor;
+  private final PaymentCheckService paymentCheckService;
 
   public void process(BankStatement bankStatement, BankAccount account) {
     log.info(
@@ -127,6 +134,11 @@ public class SavingsFundStatementProcessor {
     } else {
       log.error(
           "Unhandled payment type: paymentId={}, amount={}", payment.getId(), payment.getAmount());
+      paymentCheckService.record(
+          UNMODELLED_DEBIT,
+          WARNING,
+          String.valueOf(payment.getId()),
+          "money moved in a shape the system does not model");
     }
   }
 
@@ -150,6 +162,11 @@ public class SavingsFundStatementProcessor {
           "Unhandled WITHDRAWAL_EUR payment: amount={}, remitterIban={}",
           payment.getAmount(),
           payment.getRemitterIban());
+      paymentCheckService.record(
+          UNMODELLED_DEBIT,
+          WARNING,
+          String.valueOf(payment.getId()),
+          "an unmodelled movement on the payout account");
     }
   }
 
@@ -157,18 +174,31 @@ public class SavingsFundStatementProcessor {
     findRedemptionRequestByEndToEndId(payment.getEndToEndId())
         .ifPresentOrElse(
             request -> processRedemptionPayout(request, payment),
-            () ->
-                log.error(
-                    "No matching RedemptionRequest found for outgoing payment: endToEndId={}, beneficiaryIban={}, amount={}",
-                    payment.getEndToEndId(),
-                    payment.getBeneficiaryIban(),
-                    payment.getAmount()));
+            () -> {
+              log.error(
+                  "No matching RedemptionRequest found for outgoing payment: endToEndId={}, beneficiaryIban={}, amount={}",
+                  payment.getEndToEndId(),
+                  payment.getBeneficiaryIban(),
+                  payment.getAmount());
+              // Money left the payout account and we cannot say who authorised it. Until now this
+              // reached Sentry only, where it looks like any other stack trace.
+              paymentCheckService.record(
+                  PAYOUT_WITHOUT_REQUEST,
+                  HOLD,
+                  String.valueOf(payment.getEndToEndId()),
+                  "a debit from the payout account matches no redemption request");
+            });
   }
 
   private void processRedemptionPayout(RedemptionRequest request, SavingFundPayment payment) {
     if (savingsFundLedger.hasPayoutEntry(request.getId())) {
       log.error(
           "Ledger payout entry already exists but status is REDEEMED: id={}", request.getId());
+      paymentCheckService.record(
+          DUPLICATE_PAYOUT,
+          HOLD,
+          request.getId().toString(),
+          "a payout entry already exists for this redemption, so it looks paid twice");
     } else {
       var user = userService.getByIdOrThrow(request.getUserId());
       var party = new PartyId(PartyId.Type.PERSON, user.getPersonalCode());

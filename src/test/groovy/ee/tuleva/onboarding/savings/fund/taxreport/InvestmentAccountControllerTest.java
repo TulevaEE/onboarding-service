@@ -30,7 +30,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @AutoConfigureMockMvc
 class InvestmentAccountControllerTest {
 
-  private static final String IBAN = "EE471000001020145685";
+  private static final String IBAN = "EE651010220306497226";
 
   @Autowired private MockMvc mvc;
 
@@ -75,6 +75,19 @@ class InvestmentAccountControllerTest {
                 .with(csrf()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.iban").value(IBAN));
+  }
+
+  @Test
+  void refusesAnAccountNumberThatIsNotOne() throws Exception {
+    mvc.perform(
+            put("/v1/savings-fund/investment-account")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"iban\":\"EE001\"}")
+                .with(authentication(authentication))
+                .with(csrf()))
+        .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(investmentAccountService);
   }
 
   @Test

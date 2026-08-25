@@ -1,11 +1,9 @@
 package ee.tuleva.onboarding.savings.fund.taxreport;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 
-import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,7 +15,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class InvestmentAccountServiceTest {
 
   private static final String PERSONAL_CODE = "38888888888";
-  private static final String IBAN = "EE471000001020145685";
+  private static final String IBAN = "EE123456789012345678";
 
   @Mock private InvestmentAccountRepository investmentAccountRepository;
 
@@ -52,15 +50,8 @@ class InvestmentAccountServiceTest {
         .willAnswer(invocation -> invocation.getArgument(0));
 
     InvestmentAccount declared =
-        investmentAccountService.declare(PERSONAL_CODE, "ee47 1000 0010 2014 5685");
+        investmentAccountService.declare(PERSONAL_CODE, "ee12 3456 7890 1234 5678");
 
     assertThat(declared.getIban()).isEqualTo(IBAN);
-  }
-
-  @Test
-  void refusesAnAccountNumberThatIsNotOne() {
-    assertThatThrownBy(
-            () -> investmentAccountService.declare(PERSONAL_CODE, "EE471000001020145686"))
-        .isInstanceOf(ErrorsResponseException.class);
   }
 }

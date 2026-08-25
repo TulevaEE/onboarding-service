@@ -25,8 +25,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class SavingsFundTaxReportServiceTest {
 
-  private static final String INVESTMENT_IBAN = "EE471000001020145685";
-  private static final String ORDINARY_IBAN = "EE342200221020145685";
+  private static final String INVESTMENT_IBAN = "EE123456789012345678";
+  private static final String ORDINARY_IBAN = "EE111111111111111111";
 
   @Mock private SavingsFundTransactionService savingsFundTransactionService;
   @Mock private InvestmentAccountService investmentAccountService;
@@ -148,7 +148,7 @@ class SavingsFundTaxReportServiceTest {
     given(savingsFundTransactionService.getTransactions(person))
         .willReturn(
             List.of(
-                bought("2025-02-10T10:00:00Z", "100", "200.00", "ee47 1000 0010 2014 5685"),
+                bought("2025-02-10T10:00:00Z", "100", "200.00", "ee12 3456 7890 1234 5678"),
                 sold("2025-07-10T10:00:00Z", "100", "260.00", INVESTMENT_IBAN)));
     given(investmentAccountService.declaredIban(person.getRoleCode()))
         .willReturn(Optional.of(INVESTMENT_IBAN));

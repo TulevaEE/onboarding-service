@@ -18,6 +18,7 @@ import ee.tuleva.onboarding.payment.event.SavingsPaymentFailedEvent;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
 import ee.tuleva.onboarding.user.User;
 import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -51,7 +52,7 @@ public class PaymentEmailSender {
             emailService.sendThirdPillarPaymentSuccessEmail(
                 event.getUser(),
                 event.getPayment(),
-                pillarSuggestionFor(event.getUser()),
+                thirdPillarSuggestionFor(event.getUser()),
                 event.getLocale()));
   }
 
@@ -86,6 +87,15 @@ public class PaymentEmailSender {
         contactDetailsService.getContactDetails(user),
         conversionService.getConversion(user),
         paymentRateService.getPaymentRates(user));
+  }
+
+  private PillarSuggestion thirdPillarSuggestionFor(User user) {
+    return new PillarSuggestion(
+        user,
+        contactDetailsService.getContactDetails(user),
+        conversionService.getConversion(user),
+        paymentRateService.getPaymentRates(user),
+        Set.of(3));
   }
 
   private void withSecurityContext(User user, Runnable action) {

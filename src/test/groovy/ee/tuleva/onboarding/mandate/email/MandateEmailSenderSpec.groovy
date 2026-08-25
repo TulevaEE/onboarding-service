@@ -14,6 +14,8 @@ import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService
 import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
 
+import java.util.Set
+
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notFullyConverted
 import static ee.tuleva.onboarding.mandate.MandateFixture.aFundPensionOpeningMandateDetails
@@ -43,7 +45,7 @@ class MandateEmailSenderSpec extends Specification {
     ContactDetails contactDetails = new ContactDetails()
     ConversionResponse conversion = notFullyConverted()
     PaymentRates paymentRates = samplePaymentRates()
-    PillarSuggestion pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    PillarSuggestion pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates, Set.of(mandate.getPillar()))
 
     AfterMandateSignedEvent event = new AfterMandateSignedEvent(this, user, mandate, Locale.ENGLISH)
 
@@ -65,7 +67,7 @@ class MandateEmailSenderSpec extends Specification {
     ContactDetails contactDetails = new ContactDetails()
     ConversionResponse conversion = notFullyConverted()
     PaymentRates paymentRates = samplePaymentRates()
-    PillarSuggestion pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    PillarSuggestion pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates, Set.of(mandate.getPillar()))
 
     AfterMandateSignedEvent event = new AfterMandateSignedEvent(this, user, mandate, Locale.ENGLISH)
 
@@ -92,7 +94,7 @@ class MandateEmailSenderSpec extends Specification {
     ContactDetails contactDetails = new ContactDetails()
     ConversionResponse conversion = notFullyConverted()
     PaymentRates paymentRates = samplePaymentRates()
-    PillarSuggestion pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    PillarSuggestion pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates, [fundPensionMandate.getPillar(), withdrawalMandate.getPillar()] as Set)
 
     AfterMandateBatchSignedEvent event = new AfterMandateBatchSignedEvent(this, user, mandateBatch, Locale.ENGLISH)
 

@@ -14,13 +14,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 
 class LegalEntityOnboardingEventListenerTest {
 
   private final SavingsFundOnboardingRepository repository =
       mock(SavingsFundOnboardingRepository.class);
+  private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
   private final LegalEntityOnboardingEventListener listener =
-      new LegalEntityOnboardingEventListener(repository);
+      new LegalEntityOnboardingEventListener(repository, eventPublisher);
 
   private final CompanyDto company =
       new CompanyDto(new RegistryCode("12345678"), "Test OÜ", "62011", LegalForm.OÜ);

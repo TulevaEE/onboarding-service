@@ -18,7 +18,8 @@ public class InvestmentAccountService {
 
   @Transactional
   public InvestmentAccount declare(String personalCode, String iban) {
-    return investmentAccountRepository.save(
-        new InvestmentAccount(personalCode, IbanValidator.canonicalize(iban)));
+    String canonicalIban = IbanValidator.canonicalize(iban);
+    investmentAccountRepository.declareIban(personalCode, canonicalIban);
+    return new InvestmentAccount(personalCode, canonicalIban);
   }
 }

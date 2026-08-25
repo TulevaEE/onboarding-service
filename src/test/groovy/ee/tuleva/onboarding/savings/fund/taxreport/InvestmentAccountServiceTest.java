@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.savings.fund.taxreport;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,23 +35,18 @@ class InvestmentAccountServiceTest {
 
   @Test
   void keepsTheAccountThatWasDeclared() {
-    given(investmentAccountRepository.save(any(InvestmentAccount.class)))
-        .willAnswer(invocation -> invocation.getArgument(0));
-
     InvestmentAccount declared = investmentAccountService.declare(PERSONAL_CODE, IBAN);
 
-    assertThat(declared.getPersonalCode()).isEqualTo(PERSONAL_CODE);
-    assertThat(declared.getIban()).isEqualTo(IBAN);
+    assertThat(declared).isEqualTo(new InvestmentAccount(PERSONAL_CODE, IBAN));
+    then(investmentAccountRepository).should().declareIban(PERSONAL_CODE, IBAN);
   }
 
   @Test
   void writesAnAccountDownWithoutTheSpacesPeopleTypeIntoIt() {
-    given(investmentAccountRepository.save(any(InvestmentAccount.class)))
-        .willAnswer(invocation -> invocation.getArgument(0));
-
     InvestmentAccount declared =
         investmentAccountService.declare(PERSONAL_CODE, "ee12 3456 7890 1234 5678");
 
     assertThat(declared.getIban()).isEqualTo(IBAN);
+    then(investmentAccountRepository).should().declareIban(PERSONAL_CODE, IBAN);
   }
 }

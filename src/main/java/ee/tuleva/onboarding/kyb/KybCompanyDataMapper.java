@@ -149,15 +149,15 @@ class KybCompanyDataMapper {
     return new KybRelatedPerson(null, true, false, false, true, BigDecimal.ZERO, UNKNOWN);
   }
 
+  // The most recent check within the validity window decides. Asking whether any
+  // successful check exists would let a screening that has since failed be
+  // outranked by an older pass, which matters most where a company completes
+  // without anyone at Tuleva looking at it.
   private KybKycStatus resolveKycStatus(String personalCode) {
-    if (amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
-        personalCode, KYC_CHECK, true, aYearAgo())) {
-      return COMPLETED;
-    }
-    if (amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
-        personalCode, KYC_CHECK, false, aYearAgo())) {
-      return REJECTED;
-    }
-    return UNKNOWN;
+    return amlCheckRepository
+        .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDesc(
+            personalCode, KYC_CHECK, aYearAgo())
+        .map(check -> check.isSuccess() ? COMPLETED : REJECTED)
+        .orElse(UNKNOWN);
   }
 }

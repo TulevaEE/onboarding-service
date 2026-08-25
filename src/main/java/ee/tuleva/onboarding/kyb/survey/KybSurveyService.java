@@ -177,13 +177,6 @@ class KybSurveyService {
 
     log.info("Submitting KYB survey: registryCode={}, personalCode={}", registryCode, personalCode);
 
-    kybSurveyRepository.save(
-        KybSurvey.builder()
-            .userId(userId)
-            .registryCode(registryCode)
-            .survey(surveyResponse)
-            .build());
-
     List<CompanyRelationship> relationships;
     try {
       relationships = fetchAndVerifyBoardMember(registryCode, personalCode);
@@ -198,6 +191,17 @@ class KybSurveyService {
       auditBlocked(registryCode, personalCode, e.getReason());
       throw e;
     }
+
+    // Stored only once the submission is allowed. A rejected attempt used to leave
+    // the latest survey behind, and re-screening reads the latest survey, so a
+    // forbidden submission could have supplied the inputs a later automatic
+    // completion ran on.
+    kybSurveyRepository.save(
+        KybSurvey.builder()
+            .userId(userId)
+            .registryCode(registryCode)
+            .survey(surveyResponse)
+            .build());
 
     legalEntityScreener.screen(
         registryCode, new PersonalCode(personalCode), selfCertification, relationships);

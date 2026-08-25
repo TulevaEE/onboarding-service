@@ -1,0 +1,41 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
+        <mj-text>
+          Tuleva ühistu juhatus kinnitas liikmekapitali võõrandamise liikmete
+          *|sellerFullName|* ja *|buyerFullName|* vahel. Registrikanded on tehtud ja uus
+          liikmekapitali seis on näha sinu kontovaatel:
+        </mj-text>
+        <mj-button href="https://pension.tuleva.ee/account">Vaata liikmekapitali</mj-button>
+        <mj-text>
+          Kuna tehing on juba toimunud, palume kuulutajal oma kuulutuse kustutada, et
+          huvilised ei näeks enam müüdud liikmekapitali ega saadaks uusi pöördumisi.
+        </mj-text>
+        <mj-text>
+          Pane tähele, et liikmekapitali võõrandamisel tekkinud müügitulu kuulub
+          tulumaksuga maksustamisele. Seega kulub see deklareerimisele järgmise aasta
+          tuludeklaratsioonis (30. aprilliks).
+          <a href="https://drive.google.com/file/d/14bv2QED8fPiC56kixkoAA81_Pi2G5XZt/view?usp=sharing"
+            >Täpsemalt oleme kirjeldanud maksukohustusi eraldi juhises</a
+          >.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="./partials/contact_et.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">
+          Tulundusühistu Tuleva juhatuse liikmed<br />
+          Annika Uudelepp ja Tõnu Pekk
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/footer_bottom_coop.mjml" />
+  </mj-body>
+</mjml>

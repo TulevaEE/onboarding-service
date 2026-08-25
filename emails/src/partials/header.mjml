@@ -1,0 +1,12 @@
+<mj-section padding="24px 24px 12px">
+  <mj-column>
+    <mj-image
+      align="left"
+      padding="0"
+      width="110px"
+      src="https://mcusercontent.com/594cafb01e6f3b0087743e6f5/images/c6afb3ae-6240-3ba5-c597-b7eb932ce296.png"
+      alt="Tuleva"
+      href="https://tuleva.ee"
+    />
+  </mj-column>
+</mj-section>

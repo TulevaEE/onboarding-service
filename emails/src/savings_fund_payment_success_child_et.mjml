@@ -1,0 +1,82 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
+        <mj-text>
+          Sinu sissemakse lapse (*|RECIPIENTNAME|*) Tuleva Täiendavasse Kogumisfondi on tehtud.
+          Osakud jõuavad lapse kontole kahe tööpäeva jooksul.
+        </mj-text>
+
+        <mj-raw>*|IF:suggestThirdPillar|*</mj-raw>
+        <mj-text><strong>Vaata üle ka oma enda III&nbsp;sammas.</strong></mj-text>
+        <mj-text>
+          III&nbsp;sambasse tehtud sissemaksetelt tagastab riik tulumaksu. Tulumaksu saad tagasi
+          kuni 15% ulatuses oma brutotulust, aga mitte rohkem kui 6000&nbsp;eurot aastas. Lapse
+          kontole tehtud sissemakse sellist soodustust ei anna.
+        </mj-text>
+        <mj-text>
+          <strong>Seetõttu tasub kogumist alustada hoopis oma III&nbsp;sambast.</strong>
+        </mj-text>
+        <mj-button href="https://tuleva.ee/analuusid/miks-voiks-lapsele-kogumist-alustada-hoopis-oma-iii-sambast/">
+          Loe blogist lähemalt
+        </mj-button>
+
+        <mj-raw>*|ELSEIF:suggestSecondPillar|*</mj-raw>
+        <mj-text>
+          Kui sa ei kogu oma II&nbsp;sammast veel koos meiega Tulevas, siis
+          <strong>veendu, et sinu II&nbsp;samba fonditasud jääksid&nbsp;alla&nbsp;0,3% aastas, </strong>
+          sest madalad tasud annavad parimad eeldused parimaks&nbsp;pikaajaliseks&nbsp;tootluseks.
+        </mj-text>
+        <mj-text>
+          <strong>Vaata järele, kui palju maksad täna aastas oma II&nbsp;samba tasudeks:</strong>
+        </mj-text>
+        <mj-button href="https://pension.tuleva.ee/login">Vaata oma tasud üle</mj-button>
+
+        <mj-raw>*|ELSEIF:suggestPaymentRate|*</mj-raw>
+        <mj-text><strong>Ära jää ilma ka II&nbsp;samba maksuvõidust</strong></mj-text>
+        <mj-text>
+          Kuna II&nbsp;samba sissemaksed on tulumaksuvabad, siis
+          <strong>mida suurem protsent, seda suurem maksuvõit</strong>. Näiteks kui su brutopalk
+          on 2000&nbsp;eurot, saad maksuvõitu 316&nbsp;eurot. II&nbsp;samba sissemakse suurust
+          saad muuta kord aastas kuni 6% peale.
+        </mj-text>
+        <mj-text>
+          <strong>
+            Vaata järele, kui suureks kujuneks sinu isiklik tulumaksuvõit oma II&nbsp;samba panust
+            suurendades:
+          </strong>
+        </mj-text>
+        <mj-button href="https://pension.tuleva.ee/2nd-pillar-tax-win">Vaata järele</mj-button>
+
+        <mj-raw>*|ELSE:|*</mj-raw>
+        <mj-text>
+          Täiendavasse Kogumisfondi saab koguda ka püsimaksega. Nii kasvab lapse vara iga kuu
+          ilma, et peaksid sellele eraldi mõtlema.
+        </mj-text>
+        <mj-text>
+          <strong>Püsimakse saad seadistada Tuleva kontol, kui lähed lapse rolli vaatesse.</strong>
+        </mj-text>
+        <mj-button href="https://pension.tuleva.ee/savings-fund/payment">
+          Seadistan püsimakse
+        </mj-button>
+        <mj-raw>*|END:IF|*</mj-raw>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="./partials/contact_et.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">
+          Tõnu Pekk<br />
+          Tuleva asutaja ja fondijuht
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_savings_et.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

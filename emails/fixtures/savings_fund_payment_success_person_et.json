@@ -1,0 +1,23 @@
+{
+  "variants": {
+    "II sammas mujal": {
+      "FNAME": "Mari",
+      "suggestSecondPillar": true
+    },
+    "tõsta II samba määra": {
+      "FNAME": "Mari",
+      "suggestPaymentRate": true
+    },
+    "seadista III sammas": {
+      "FNAME": "Mari",
+      "suggestThirdPillar": true
+    },
+    "astu liikmeks": {
+      "FNAME": "Mari",
+      "suggestMembership": true
+    },
+    "seadista püsimakse": {
+      "FNAME": "Mari"
+    }
+  }
+}

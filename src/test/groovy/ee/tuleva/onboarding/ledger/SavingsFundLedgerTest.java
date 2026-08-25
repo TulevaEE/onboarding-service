@@ -56,6 +56,8 @@ class SavingsFundLedgerTest {
   void recordPaymentReceived_createsCorrectLedgerEntries() {
     var amount = new BigDecimal("1000.00");
     var externalReference = randomUUID();
+    var userCashBefore = getUserCashAccount().getBalance();
+    var clearingBefore = getIncomingPaymentsClearingAccount().getBalance();
 
     var transaction = savingsFundLedger.recordPaymentReceived(testParty, amount, externalReference);
 
@@ -63,8 +65,10 @@ class SavingsFundLedgerTest {
     assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
     assertThat(transaction.getMetadata().get("partyCode")).isEqualTo(testParty.code());
     assertThat(transaction.getMetadata().get("partyType")).isEqualTo("PERSON");
-    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(amount.negate());
-    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(amount);
+    assertThat(deltaSince(userCashBefore, getUserCashAccount()))
+        .isEqualByComparingTo(amount.negate());
+    assertThat(deltaSince(clearingBefore, getIncomingPaymentsClearingAccount()))
+        .isEqualByComparingTo(amount);
     verifyDoubleEntry(transaction);
   }
 
@@ -72,14 +76,17 @@ class SavingsFundLedgerTest {
   void recordUnattributedPayment_recordsToUnreconciledAccount() {
     var amount = new BigDecimal("500.00");
     var externalReference = randomUUID();
+    var unreconciledBefore = getUnreconciledBankReceiptsAccount().getBalance();
+    var clearingBefore = getIncomingPaymentsClearingAccount().getBalance();
 
     var transaction = savingsFundLedger.recordUnattributedPayment(amount, externalReference);
 
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("UNATTRIBUTED_PAYMENT");
     assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
-    assertThat(getUnreconciledBankReceiptsAccount().getBalance())
+    assertThat(deltaSince(unreconciledBefore, getUnreconciledBankReceiptsAccount()))
         .isEqualByComparingTo(amount.negate());
-    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(amount);
+    assertThat(deltaSince(clearingBefore, getIncomingPaymentsClearingAccount()))
+        .isEqualByComparingTo(amount);
     verifyDoubleEntry(transaction);
   }
 
@@ -87,6 +94,9 @@ class SavingsFundLedgerTest {
   void reconcileUnattributedPayment_creditsPartyAndClearsParking() {
     var amount = new BigDecimal("1000.00");
     var externalReference = randomUUID();
+    var unreconciledBefore = getUnreconciledBankReceiptsAccount().getBalance();
+    var clearingBefore = getIncomingPaymentsClearingAccount().getBalance();
+    var userCashBefore = getUserCashAccount().getBalance();
     savingsFundLedger.recordUnattributedPayment(amount, externalReference);
 
     var transaction =
@@ -97,9 +107,12 @@ class SavingsFundLedgerTest {
     assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
     assertThat(transaction.getMetadata().get("partyCode")).isEqualTo(testParty.code());
     assertThat(transaction.getMetadata().get("partyType")).isEqualTo("PERSON");
-    assertThat(getUnreconciledBankReceiptsAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(amount);
-    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(amount.negate());
+    assertThat(deltaSince(unreconciledBefore, getUnreconciledBankReceiptsAccount()))
+        .isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(clearingBefore, getIncomingPaymentsClearingAccount()))
+        .isEqualByComparingTo(amount);
+    assertThat(deltaSince(userCashBefore, getUserCashAccount()))
+        .isEqualByComparingTo(amount.negate());
     assertThat(savingsFundLedger.hasLedgerEntry(externalReference, PAYMENT_RECEIVED)).isTrue();
     verifyDoubleEntry(transaction);
   }
@@ -108,6 +121,8 @@ class SavingsFundLedgerTest {
   void reconcileUnattributedPayment_isIdempotent() {
     var amount = new BigDecimal("1000.00");
     var externalReference = randomUUID();
+    var unreconciledBefore = getUnreconciledBankReceiptsAccount().getBalance();
+    var userCashBefore = getUserCashAccount().getBalance();
     savingsFundLedger.recordUnattributedPayment(amount, externalReference);
 
     var first =
@@ -116,8 +131,10 @@ class SavingsFundLedgerTest {
         savingsFundLedger.reconcileUnattributedPayment(testParty, amount, externalReference);
 
     assertThat(second).isEqualTo(first);
-    assertThat(getUnreconciledBankReceiptsAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(amount.negate());
+    assertThat(deltaSince(unreconciledBefore, getUnreconciledBankReceiptsAccount()))
+        .isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(userCashBefore, getUserCashAccount()))
+        .isEqualByComparingTo(amount.negate());
   }
 
   @Test
@@ -139,30 +156,41 @@ class SavingsFundLedgerTest {
   void recordPaymentCancelled_afterReconciliation_doesNotBounceBack() {
     var amount = new BigDecimal("1000.00");
     var externalReference = randomUUID();
+    var unreconciledBefore = getUnreconciledBankReceiptsAccount().getBalance();
+    var userCashBefore = getUserCashAccount().getBalance();
+    var userCashReservedBefore = getUserCashReservedAccount().getBalance();
+    var clearingBefore = getIncomingPaymentsClearingAccount().getBalance();
     savingsFundLedger.recordUnattributedPayment(amount, externalReference);
     savingsFundLedger.reconcileUnattributedPayment(testParty, amount, externalReference);
 
     savingsFundLedger.recordPaymentCancelled(testParty, amount, externalReference);
 
     assertThat(savingsFundLedger.hasLedgerEntry(externalReference, PAYMENT_BOUNCE_BACK)).isFalse();
-    assertThat(getUnreconciledBankReceiptsAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(unreconciledBefore, getUnreconciledBankReceiptsAccount()))
+        .isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(userCashBefore, getUserCashAccount())).isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(userCashReservedBefore, getUserCashReservedAccount()))
+        .isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(clearingBefore, getIncomingPaymentsClearingAccount()))
+        .isEqualByComparingTo(ZERO);
   }
 
   @Test
   void bounceBackUnattributedPayment_reversesUnattributedPayment() {
     var amount = new BigDecimal("300.00");
     var externalReference = randomUUID();
+    var unreconciledBefore = getUnreconciledBankReceiptsAccount().getBalance();
+    var clearingBefore = getIncomingPaymentsClearingAccount().getBalance();
     savingsFundLedger.recordUnattributedPayment(amount, externalReference);
 
     var transaction = savingsFundLedger.bounceBackUnattributedPayment(amount, externalReference);
 
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("PAYMENT_BOUNCE_BACK");
     assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
-    assertThat(getUnreconciledBankReceiptsAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(unreconciledBefore, getUnreconciledBankReceiptsAccount()))
+        .isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(clearingBefore, getIncomingPaymentsClearingAccount()))
+        .isEqualByComparingTo(ZERO);
     verifyDoubleEntry(transaction);
   }
 
@@ -170,18 +198,25 @@ class SavingsFundLedgerTest {
   void bounceBackUnattributedPayment_createsUnattributedRecordWhenMissing() {
     var amount = new BigDecimal("300.00");
     var externalReference = randomUUID();
+    var unreconciledBefore = getUnreconciledBankReceiptsAccount().getBalance();
+    var clearingBefore = getIncomingPaymentsClearingAccount().getBalance();
     // No recordUnattributedPayment call — simulates direct bounce back
 
     savingsFundLedger.bounceBackUnattributedPayment(amount, externalReference);
 
-    assertThat(getUnreconciledBankReceiptsAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(unreconciledBefore, getUnreconciledBankReceiptsAccount()))
+        .isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(clearingBefore, getIncomingPaymentsClearingAccount()))
+        .isEqualByComparingTo(ZERO);
   }
 
   @Test
   void reservePaymentForCancellation_movesCashToReserved() {
     var amount = new BigDecimal("500.00");
     var externalReference = randomUUID();
+    var userCashBefore = getUserCashAccount().getBalance();
+    var userCashReservedBefore = getUserCashReservedAccount().getBalance();
+    var clearingBefore = getIncomingPaymentsClearingAccount().getBalance();
     savingsFundLedger.recordPaymentReceived(testParty, amount, externalReference);
 
     var transaction =
@@ -192,9 +227,11 @@ class SavingsFundLedgerTest {
     assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
     assertThat(transaction.getMetadata().get("partyCode")).isEqualTo(testParty.code());
     assertThat(transaction.getMetadata().get("partyType")).isEqualTo("PERSON");
-    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(amount.negate());
-    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(amount);
+    assertThat(deltaSince(userCashBefore, getUserCashAccount())).isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(userCashReservedBefore, getUserCashReservedAccount()))
+        .isEqualByComparingTo(amount.negate());
+    assertThat(deltaSince(clearingBefore, getIncomingPaymentsClearingAccount()))
+        .isEqualByComparingTo(amount);
     verifyDoubleEntry(transaction);
   }
 
@@ -202,6 +239,9 @@ class SavingsFundLedgerTest {
   void recordPaymentCancelled_clearsReservedAndBankAsset() {
     var amount = new BigDecimal("500.00");
     var externalReference = randomUUID();
+    var userCashBefore = getUserCashAccount().getBalance();
+    var userCashReservedBefore = getUserCashReservedAccount().getBalance();
+    var clearingBefore = getIncomingPaymentsClearingAccount().getBalance();
     savingsFundLedger.recordPaymentReceived(testParty, amount, externalReference);
     savingsFundLedger.reservePaymentForCancellation(testParty, amount, externalReference);
 
@@ -212,9 +252,11 @@ class SavingsFundLedgerTest {
     assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
     assertThat(transaction.getMetadata().get("partyCode")).isEqualTo(testParty.code());
     assertThat(transaction.getMetadata().get("partyType")).isEqualTo("PERSON");
-    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(userCashBefore, getUserCashAccount())).isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(userCashReservedBefore, getUserCashReservedAccount()))
+        .isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(clearingBefore, getIncomingPaymentsClearingAccount()))
+        .isEqualByComparingTo(ZERO);
     verifyDoubleEntry(transaction);
   }
 
@@ -222,42 +264,59 @@ class SavingsFundLedgerTest {
   void recordPaymentCancelled_createsReservationWhenMissing() {
     var amount = new BigDecimal("500.00");
     var externalReference = randomUUID();
+    var userCashBefore = getUserCashAccount().getBalance();
+    var userCashReservedBefore = getUserCashReservedAccount().getBalance();
+    var clearingBefore = getIncomingPaymentsClearingAccount().getBalance();
     savingsFundLedger.recordPaymentReceived(testParty, amount, externalReference);
     // No reservePaymentForCancellation call — simulates manual return
 
     savingsFundLedger.recordPaymentCancelled(testParty, amount, externalReference);
 
-    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(userCashBefore, getUserCashAccount())).isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(userCashReservedBefore, getUserCashReservedAccount()))
+        .isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(clearingBefore, getIncomingPaymentsClearingAccount()))
+        .isEqualByComparingTo(ZERO);
   }
 
   @Test
   void recordPaymentCancelled_bouncesBackWhenUnattributedPaymentExists() {
     var amount = new BigDecimal("500.00");
     var externalReference = randomUUID();
+    var unreconciledBefore = getUnreconciledBankReceiptsAccount().getBalance();
+    var clearingBefore = getIncomingPaymentsClearingAccount().getBalance();
+    var userCashBefore = getUserCashAccount().getBalance();
+    var userCashReservedBefore = getUserCashReservedAccount().getBalance();
 
     savingsFundLedger.recordUnattributedPayment(amount, externalReference);
     savingsFundLedger.recordPaymentCancelled(testParty, amount, externalReference);
 
     assertThat(savingsFundLedger.hasLedgerEntry(externalReference, PAYMENT_RECEIVED)).isFalse();
-    assertThat(getUnreconciledBankReceiptsAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(unreconciledBefore, getUnreconciledBankReceiptsAccount()))
+        .isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(clearingBefore, getIncomingPaymentsClearingAccount()))
+        .isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(userCashBefore, getUserCashAccount())).isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(userCashReservedBefore, getUserCashReservedAccount()))
+        .isEqualByComparingTo(ZERO);
   }
 
   @Test
   void recordPaymentCancelled_createsPaymentReceivedWhenMissing() {
     var amount = new BigDecimal("500.00");
     var externalReference = randomUUID();
+    var userCashBefore = getUserCashAccount().getBalance();
+    var userCashReservedBefore = getUserCashReservedAccount().getBalance();
+    var clearingBefore = getIncomingPaymentsClearingAccount().getBalance();
     // No recordPaymentReceived call — simulates cancellation without prior PAYMENT_RECEIVED
 
     savingsFundLedger.recordPaymentCancelled(testParty, amount, externalReference);
 
-    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(userCashBefore, getUserCashAccount())).isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(userCashReservedBefore, getUserCashReservedAccount()))
+        .isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(clearingBefore, getIncomingPaymentsClearingAccount()))
+        .isEqualByComparingTo(ZERO);
   }
 
   @Test
@@ -266,6 +325,13 @@ class SavingsFundLedgerTest {
     var fundUnits = new BigDecimal("10.00000");
     var navPerUnit = new BigDecimal("100.00");
     var paymentId = randomUUID();
+    var userCashBefore = getUserCashAccount().getBalance();
+    var userCashReservedBefore = getUserCashReservedAccount().getBalance();
+    var userUnitsBefore = getUserUnitsAccount().getBalance();
+    var fundInvestmentCashClearingBefore = getFundInvestmentCashClearingAccount().getBalance();
+    var clearingBefore = getIncomingPaymentsClearingAccount().getBalance();
+    var userSubscriptionsBefore = getUserSubscriptionsAccount().getBalance();
+    var fundUnitsOutstandingBefore = getFundUnitsOutstandingAccount().getBalance();
 
     var paymentTx = savingsFundLedger.recordPaymentReceived(testParty, cashAmount, paymentId);
     var reserveTx =
@@ -280,15 +346,19 @@ class SavingsFundLedgerTest {
     verifyDoubleEntry(subscriptionTx);
     verifyDoubleEntry(transferTx);
 
-    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getUserUnitsAccount().getBalance()).isEqualByComparingTo(fundUnits.negate());
-    assertThat(getFundInvestmentCashClearingAccount().getBalance())
+    assertThat(deltaSince(userCashBefore, getUserCashAccount())).isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(userCashReservedBefore, getUserCashReservedAccount()))
+        .isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(userUnitsBefore, getUserUnitsAccount()))
+        .isEqualByComparingTo(fundUnits.negate());
+    assertThat(deltaSince(fundInvestmentCashClearingBefore, getFundInvestmentCashClearingAccount()))
         .isEqualByComparingTo(cashAmount);
-    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getUserSubscriptionsAccount().getBalance())
+    assertThat(deltaSince(clearingBefore, getIncomingPaymentsClearingAccount()))
+        .isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(userSubscriptionsBefore, getUserSubscriptionsAccount()))
         .isEqualByComparingTo(cashAmount.negate());
-    assertThat(getFundUnitsOutstandingAccount().getBalance()).isEqualByComparingTo(fundUnits);
+    assertThat(deltaSince(fundUnitsOutstandingBefore, getFundUnitsOutstandingAccount()))
+        .isEqualByComparingTo(fundUnits);
   }
 
   @Test
@@ -301,6 +371,10 @@ class SavingsFundLedgerTest {
     var customerIban = "EE777888999000111222";
     var paymentId = randomUUID();
     setupUserWithFundUnits(initialAmount, initialUnits, navPerUnit, paymentId);
+    var userUnitsBefore = getUserUnitsAccount().getBalance();
+    var userReservedUnitsBefore = getUserReservedUnitsAccount().getBalance();
+    var userRedemptionsBefore = getUserRedemptionsAccount().getBalance();
+    var payoutsCashClearingBefore = getPayoutsCashClearingAccount().getBalance();
 
     var redemptionRequestId = randomUUID();
     var reserveTx =
@@ -320,11 +394,14 @@ class SavingsFundLedgerTest {
     verifyDoubleEntry(cashTransferTx);
     verifyDoubleEntry(payoutTx);
 
-    assertThat(getUserUnitsAccount().getBalance())
-        .isEqualByComparingTo(initialUnits.negate().add(redeemUnits));
-    assertThat(getUserReservedUnitsAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getUserRedemptionsAccount().getBalance()).isEqualByComparingTo(redeemAmount);
-    assertThat(getPayoutsCashClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(userUnitsBefore, getUserUnitsAccount()))
+        .isEqualByComparingTo(redeemUnits);
+    assertThat(deltaSince(userReservedUnitsBefore, getUserReservedUnitsAccount()))
+        .isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(userRedemptionsBefore, getUserRedemptionsAccount()))
+        .isEqualByComparingTo(redeemAmount);
+    assertThat(deltaSince(payoutsCashClearingBefore, getPayoutsCashClearingAccount()))
+        .isEqualByComparingTo(ZERO);
   }
 
   @Test
@@ -348,6 +425,17 @@ class SavingsFundLedgerTest {
     var fundUnits = new BigDecimal("10.00000");
     var navPerUnit = new BigDecimal("100.00");
     var customerIban = "EE123456789012345678";
+    var userCashBefore = getUserCashAccount().getBalance();
+    var userCashReservedBefore = getUserCashReservedAccount().getBalance();
+    var userCashRedemptionBefore = getUserCashRedemptionAccount().getBalance();
+    var userUnitsBefore = getUserUnitsAccount().getBalance();
+    var userReservedUnitsBefore = getUserReservedUnitsAccount().getBalance();
+    var fundUnitsOutstandingBefore = getFundUnitsOutstandingAccount().getBalance();
+    var clearingBefore = getIncomingPaymentsClearingAccount().getBalance();
+    var fundInvestmentCashClearingBefore = getFundInvestmentCashClearingAccount().getBalance();
+    var payoutsCashClearingBefore = getPayoutsCashClearingAccount().getBalance();
+    var userSubscriptionsBefore = getUserSubscriptionsAccount().getBalance();
+    var userRedemptionsBefore = getUserRedemptionsAccount().getBalance();
 
     var paymentId = randomUUID();
     savingsFundLedger.recordPaymentReceived(testParty, cashAmount, paymentId);
@@ -356,9 +444,11 @@ class SavingsFundLedgerTest {
         testParty, cashAmount, fundUnits, navPerUnit, paymentId);
     savingsFundLedger.transferToFundAccount(cashAmount, paymentId);
 
-    assertThat(getUserUnitsAccount().getBalance()).isEqualByComparingTo(fundUnits.negate());
-    assertThat(getFundUnitsOutstandingAccount().getBalance()).isEqualByComparingTo(fundUnits);
-    assertThat(getUserSubscriptionsAccount().getBalance())
+    assertThat(deltaSince(userUnitsBefore, getUserUnitsAccount()))
+        .isEqualByComparingTo(fundUnits.negate());
+    assertThat(deltaSince(fundUnitsOutstandingBefore, getFundUnitsOutstandingAccount()))
+        .isEqualByComparingTo(fundUnits);
+    assertThat(deltaSince(userSubscriptionsBefore, getUserSubscriptionsAccount()))
         .isEqualByComparingTo(cashAmount.negate());
 
     var redemptionRequestId = randomUUID();
@@ -369,24 +459,34 @@ class SavingsFundLedgerTest {
     savingsFundLedger.recordRedemptionPayout(
         testParty, cashAmount, customerIban, redemptionRequestId);
 
-    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getUserCashRedemptionAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getUserUnitsAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getUserReservedUnitsAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getFundUnitsOutstandingAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getFundInvestmentCashClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getPayoutsCashClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(userCashBefore, getUserCashAccount())).isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(userCashReservedBefore, getUserCashReservedAccount()))
+        .isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(userCashRedemptionBefore, getUserCashRedemptionAccount()))
+        .isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(userUnitsBefore, getUserUnitsAccount())).isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(userReservedUnitsBefore, getUserReservedUnitsAccount()))
+        .isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(fundUnitsOutstandingBefore, getFundUnitsOutstandingAccount()))
+        .isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(clearingBefore, getIncomingPaymentsClearingAccount()))
+        .isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(fundInvestmentCashClearingBefore, getFundInvestmentCashClearingAccount()))
+        .isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(payoutsCashClearingBefore, getPayoutsCashClearingAccount()))
+        .isEqualByComparingTo(ZERO);
 
-    assertThat(getUserSubscriptionsAccount().getBalance())
+    assertThat(deltaSince(userSubscriptionsBefore, getUserSubscriptionsAccount()))
         .isEqualByComparingTo(cashAmount.negate());
-    assertThat(getUserRedemptionsAccount().getBalance()).isEqualByComparingTo(cashAmount);
+    assertThat(deltaSince(userRedemptionsBefore, getUserRedemptionsAccount()))
+        .isEqualByComparingTo(cashAmount);
   }
 
   @Test
   void recordAdjustment_systemToSystem_createsCorrectLedgerEntries() {
     var amount = new BigDecimal("50.00");
+    var clearingBefore = getIncomingPaymentsClearingAccount().getBalance();
+    var bankAdjustmentBefore = getSystemAccount(BANK_ADJUSTMENT).getBalance();
 
     var transaction =
         savingsFundLedger.recordAdjustment(
@@ -400,8 +500,9 @@ class SavingsFundLedgerTest {
 
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("ADJUSTMENT");
     assertThat(transaction.getMetadata().get("description")).isEqualTo("Test adjustment");
-    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(amount);
-    assertThat(getSystemAccount(BANK_ADJUSTMENT).getBalance())
+    assertThat(deltaSince(clearingBefore, getIncomingPaymentsClearingAccount()))
+        .isEqualByComparingTo(amount);
+    assertThat(deltaSince(bankAdjustmentBefore, getSystemAccount(BANK_ADJUSTMENT)))
         .isEqualByComparingTo(amount.negate());
     verifyDoubleEntry(transaction);
   }
@@ -569,20 +670,27 @@ class SavingsFundLedgerTest {
   void bounceBackUnattributedPayment_isIdempotent() {
     var amount = new BigDecimal("300.00");
     var externalReference = randomUUID();
+    var unreconciledBefore = getUnreconciledBankReceiptsAccount().getBalance();
+    var clearingBefore = getIncomingPaymentsClearingAccount().getBalance();
     savingsFundLedger.recordUnattributedPayment(amount, externalReference);
 
     var first = savingsFundLedger.bounceBackUnattributedPayment(amount, externalReference);
     var second = savingsFundLedger.bounceBackUnattributedPayment(amount, externalReference);
 
     assertThat(second).isEqualTo(first);
-    assertThat(getUnreconciledBankReceiptsAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(unreconciledBefore, getUnreconciledBankReceiptsAccount()))
+        .isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(clearingBefore, getIncomingPaymentsClearingAccount()))
+        .isEqualByComparingTo(ZERO);
   }
 
   @Test
   void recordPaymentCancelled_isIdempotent() {
     var amount = new BigDecimal("500.00");
     var externalReference = randomUUID();
+    var userCashBefore = getUserCashAccount().getBalance();
+    var userCashReservedBefore = getUserCashReservedAccount().getBalance();
+    var clearingBefore = getIncomingPaymentsClearingAccount().getBalance();
     savingsFundLedger.recordPaymentReceived(testParty, amount, externalReference);
     savingsFundLedger.reservePaymentForCancellation(testParty, amount, externalReference);
 
@@ -590,9 +698,15 @@ class SavingsFundLedgerTest {
     var second = savingsFundLedger.recordPaymentCancelled(testParty, amount, externalReference);
 
     assertThat(second).isEqualTo(first);
-    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(userCashBefore, getUserCashAccount())).isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(userCashReservedBefore, getUserCashReservedAccount()))
+        .isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(clearingBefore, getIncomingPaymentsClearingAccount()))
+        .isEqualByComparingTo(ZERO);
+  }
+
+  private BigDecimal deltaSince(BigDecimal before, LedgerAccount account) {
+    return account.getBalance().subtract(before);
   }
 
   private static void verifyDoubleEntry(LedgerTransaction transaction) {

@@ -1,0 +1,32 @@
+<mj-head>
+  <mj-font name="Roboto" href="https://fonts.googleapis.com/css?family=Roboto:400,400i,500,700,700i" />
+  <mj-font name="Merriweather" href="https://fonts.googleapis.com/css?family=Merriweather:700" />
+  <mj-attributes>
+    <mj-all font-family="Roboto, Helvetica Neue, Helvetica, Arial, sans-serif" />
+    <mj-text font-size="16px" line-height="150%" color="#212529" padding="8px 0" />
+    <mj-image target="_self" />
+    <mj-social-element target="_self" />
+    <mj-button
+      css-class="cta"
+      target="_self"
+      padding="10px 0"
+      background-color="#006CE6"
+      border-radius="8px"
+      font-size="20px"
+      font-weight="450"
+      line-height="150%"
+      color="#FFFFFF"
+      inner-padding="8px 48px"
+    />
+    <mj-section background-color="#FFFFFF" padding="0 24px" />
+    <mj-divider border-width="1px" border-color="#E5E5E5" padding="16px 0" />
+  </mj-attributes>
+  <mj-style>
+    body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+    a { color: #006CE6; }
+    @media only screen and (max-width: 480px) {
+      .cta table { width: 100% !important; }
+      .cta a { display: block !important; width: 100% !important; box-sizing: border-box; }
+    }
+  </mj-style>
+</mj-head>

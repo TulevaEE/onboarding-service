@@ -1,0 +1,45 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Tere tulemast,&nbsp;*|FNAME|*</mj-text>
+        <mj-text>Mul on hea meel, et kogud koos meiega III&nbsp;sambasse.</mj-text>
+        <mj-text>
+          Sinu sissemakse pole veel Tuleva III&nbsp;Samba Pensionifondi jõudnud. Kui tegid
+          makse oma internetipangast või seadsid üles püsimakse, siis jõuab sinu raha fondi üks
+          tööpäev pärast makse tegemist. Siis näed makset ka oma pensionikontol.
+        </mj-text>
+        <mj-text>
+          Meeldetuletuseks: miks tasub III&nbsp;sambasse koguda? Sest riik pakub sissemaksetele
+          22% maksusoodustust, mis annab suure eelise kõikide teiste investeerimisvõimaluste
+          ees. Näiteks kui teed igal kuul 100-eurose sissemakse, annab riik sulle kevadel
+          264&nbsp;eurot tulumaksu tagasi.
+        </mj-text>
+        <mj-text>
+          <strong>
+            Vaata, kui palju saad maksimaalselt&nbsp;III&nbsp;sambaga maksudelt võita:
+          </strong>
+        </mj-text>
+        <mj-button href="https://tuleva.ee/iii-sammas/">Arvuta oma võit</mj-button>
+        <mj-text>
+          Manuses on koopia sinu tehtud avaldustest, mille edastasime Pensionikeskusele.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="./partials/contact_et.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">
+          Tõnu Pekk<br />
+          Tuleva asutaja ja fondijuht
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_pension_et.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

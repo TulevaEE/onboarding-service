@@ -1,0 +1,11 @@
+<mj-section padding="12px 24px 0">
+  <mj-column>
+    <mj-text font-size="13px" line-height="150%" font-style="italic">
+      Financial services are provided by Tuleva Fondid AS. Please review the terms and
+      conditions, prospectus, summary of investor rights and key information document at
+      <a href="https://tuleva.ee">tuleva.ee</a>, and consult an advisor at
+      <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> or
+      <a href="tel:+3726445100">644&nbsp;5100</a>.
+    </mj-text>
+  </mj-column>
+</mj-section>

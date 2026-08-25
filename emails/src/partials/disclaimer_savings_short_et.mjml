@@ -1,0 +1,11 @@
+<mj-section padding="12px 24px 0">
+  <mj-column>
+    <mj-text font-size="13px" line-height="150%" font-style="italic">
+      Finantsteenust pakub Tuleva Fondid AS. Tutvu tingimuste, prospekti, investori õiguste
+      kokkuvõtte ja põhiteabega
+      <a href="https://tuleva.ee">tuleva.ee</a> ning küsi nõu asjatundjalt
+      <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> või
+      <a href="tel:+3726445100">644&nbsp;5100</a>.
+    </mj-text>
+  </mj-column>
+</mj-section>

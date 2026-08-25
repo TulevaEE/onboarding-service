@@ -1,0 +1,44 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
+        <mj-text>The withdrawal applications have been submitted!</mj-text>
+        <mj-text>Soon you will be able to use your collected pension holdings.</mj-text>
+        <mj-text><strong>Submitted applications:</strong></mj-text>
+
+        <mj-raw>*|IF:fundPensionSecondPillar|*</mj-raw>
+        <mj-text>II pillar fund pension application</mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+
+        <mj-raw>*|IF:fundPensionThirdPillar|*</mj-raw>
+        <mj-text>III pillar fund pension application</mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+
+        <mj-raw>*|IF:partialWithdrawalSecondPillar|*</mj-raw>
+        <mj-text>II pillar partial withdrawal application</mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+
+        <mj-raw>*|IF:partialWithdrawalThirdPillar|*</mj-raw>
+        <mj-text>III pillar partial withdrawal application</mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+
+        <mj-text>
+          Attached is a copy of the application you just made on our website and which we have
+          sent to Pensionikeskus.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="./partials/contact_en.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">Tuleva</mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

@@ -1,0 +1,53 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text font-size="24px" font-weight="bold">
+          You&rsquo;re registered for the Tuleva hackathon
+        </mj-text>
+        <mj-text>Hi *|FNAME|*!</mj-text>
+        <mj-text>
+          Thanks for signing up for the Tuleva hackathon on 9&ndash;11&nbsp;October. Over three
+          days we&rsquo;ll form teams and build the first solutions. The winning idea gets a
+          budget and support from Tuleva so it can grow into our next product or service.
+        </mj-text>
+        <mj-text>
+          <strong>When:</strong> 9&ndash;11&nbsp;October 2026, Friday evening to Sunday<br />
+          <strong>Where:</strong> Roheline saal, Telliskivi Loomelinnak, Tallinn<br />
+          <strong>Taking part:</strong> free. Food and drinks are on us.
+        </mj-text>
+        <mj-text>
+          You can change your answers until 20&nbsp;September. At the end of September
+          we&rsquo;ll send you the full schedule and practical details.
+        </mj-text>
+        <mj-button href="https://pension.tuleva.ee/hackathon">View your registration</mj-button>
+        <mj-text>
+          If you have any questions, write to
+          <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a>.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">
+          See you there!<br />
+          <strong>Annika Uudelepp</strong><br />
+          Member of the Management Board, Tuleva cooperative
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-section padding="12px 24px 0">
+      <mj-column>
+        <mj-text font-size="13px" line-height="150%" font-style="italic">
+          The hackathon challenges describe problems we are exploring together with our members.
+          They are not offers of Tuleva products or services.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/footer_bottom_coop.mjml" />
+  </mj-body>
+</mjml>

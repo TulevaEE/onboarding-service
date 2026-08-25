@@ -62,3 +62,4 @@ CLAUDE.local.md
 
 # Transient git worktrees used by coding agents
 .claude/worktrees/
+

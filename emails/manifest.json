@@ -1,0 +1,264 @@
+{
+  "templates": {
+    "batch_failed_en": {
+      "subject": "Important information about your withdrawal applications",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "batch_failed_et": {
+      "subject": "Tähtis info sinu väljamakse avalduste kohta",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "capital_transfer_approved_by_board_en": {
+      "subject": "Tuleva cooperative board approves transfer of member capital",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "capital_transfer_approved_by_board_et": {
+      "subject": "Tuleva ühistu juhatus kinnitas liikmekapitali võõrandamise",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "capital_transfer_buyer_to_sign_en": {
+      "subject": "Action required: sign member capital transfer application",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "capital_transfer_buyer_to_sign_et": {
+      "subject": "Liikmekapitali võõrandamise avaldus on sinu allkirja ootel",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "capital_transfer_confirmed_by_buyer_en": {
+      "subject": "Member capital transfer: please confirm payment receipt",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "capital_transfer_confirmed_by_buyer_et": {
+      "subject": "Liikmekapitali võõrandamise avaldus ootab sinu kinnitust raha laekumise kohta",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "capital_transfer_confirmed_by_seller_en": {
+      "subject": "Member capital transfer application sent to Tuleva cooperative board for approval",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "capital_transfer_confirmed_by_seller_et": {
+      "subject": "Liikmekapitali võõrandamise avaldus on saadetud Tuleva ühistu juhatusele kinnitamiseks",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "capital_transfer_seller_to_confirm_en": {
+      "subject": "Member capital transfer: please confirm payment receipt",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "capital_transfer_seller_to_confirm_et": {
+      "subject": "Liikmekapitali võõrandamine ootab sinu kinnitust raha laekumise kohta",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "hackathon_registration_en": {
+      "subject": "You’re registered for the Tuleva hackathon",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "hackathon_registration_et": {
+      "subject": "Oled Tuleva häkatonile registreerunud",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "listing_expires_en": {
+      "subject": "Your listing to transfer member capital has expired",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "listing_expires_et": {
+      "subject": "Sinu liikmekapitali võõrandamise kuulutus aegus",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "listing_reply_to_buyer_en": {
+      "subject": "Interest in selling member capital",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "listing_reply_to_buyer_et": {
+      "subject": "Soov müüa liikmekapitali",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "listing_reply_to_seller_en": {
+      "subject": "Interest in purchasing member capital",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "listing_reply_to_seller_et": {
+      "subject": "Soov osta liikmekapitali",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "membership_en": {
+      "subject": "Tuleva membership certificate",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "membership_et": {
+      "subject": "Tuleva liikmetunnistus",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_payment_cancelled_en": {
+      "subject": "Tuleva Savings Fund payment cancellation succeeded",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_payment_cancelled_et": {
+      "subject": "Tuleva kogumisfondi sissemakse katkestamine õnnestus",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_payment_failed_en": {
+      "subject": "Your payment to Tuleva Savings Fund failed",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_payment_failed_et": {
+      "subject": "Sinu makse Tuleva Kogumisfondi ebaõnnestus",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_payment_success_child_en": {
+      "subject": "Contribution to Tuleva Savings Fund is done!",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_payment_success_child_et": {
+      "subject": "Sissemakse täiendavasse kogumisfondi on tehtud",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_payment_success_company_en": {
+      "subject": "Contribution to Tuleva Savings Fund is done!",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_payment_success_company_et": {
+      "subject": "Sissemakse täiendavasse kogumisfondi on tehtud",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_payment_success_en": {
+      "subject": "Contribution to Tuleva Savings Fund is done!",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_payment_success_et": {
+      "subject": "Sissemakse täiendavasse kogumisfondi on tehtud",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_payment_success_person_en": {
+      "subject": "Contribution to Tuleva Savings Fund is done!",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_payment_success_person_et": {
+      "subject": "Sissemakse täiendavasse kogumisfondi on tehtud",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "second_pillar_mandate_en": {
+      "subject": "Important information about your 2nd pillar and a copy of the application",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "second_pillar_mandate_et": {
+      "subject": "Sinu II samba tähtis info ja avalduse koopia",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "second_pillar_payment_rate_en": {
+      "subject": "Your second pillar contribution rate",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "second_pillar_payment_rate_et": {
+      "subject": "Sinu II samba sissemakse suurus",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "second_pillar_transfer_cancellation_en": {
+      "subject": "Pension fund application",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "second_pillar_transfer_cancellation_et": {
+      "subject": "Pensionifondi avaldus",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "second_pillar_withdrawal_cancellation_en": {
+      "subject": "Pension fund application",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "second_pillar_withdrawal_cancellation_et": {
+      "subject": "Pensionifondi avaldus",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "third_pillar_payment_arrived_en": {
+      "subject": "Your payment has arrived",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "third_pillar_payment_arrived_et": {
+      "subject": "Sinu sissemakse on kohal",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "third_pillar_payment_reminder_mandate_en": {
+      "subject": "Important information about your 3rd pillar and a copy of the application",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "third_pillar_payment_reminder_mandate_et": {
+      "subject": "Sinu 3. samba tähtis info ja avalduse koopia",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "third_pillar_payment_success_mandate_en": {
+      "subject": "3rd pillar payment",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "third_pillar_payment_success_mandate_et": {
+      "subject": "Sissemakse on tehtud",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "third_pillar_suggest_second_en": {
+      "subject": "Check where your second pillar is invested!",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "third_pillar_suggest_second_et": {
+      "subject": "Vaata oma teine sammas üle!",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "withdrawal_batch_en": {
+      "subject": "Your withdrawal application",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "withdrawal_batch_et": {
+      "subject": "Sinu väljamaksete avaldus",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    }
+  }
+}

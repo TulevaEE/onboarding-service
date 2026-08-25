@@ -205,14 +205,14 @@ class SavingsFundTransactionServiceTest {
             List.of(
                 SavingFundPayment.builder()
                     .id(paymentId)
-                    .remitterIban("EE471000001020145685")
+                    .remitterIban("EE123456789012345678")
                     .build()));
 
     List<Transaction> transactions = service.getTransactions(person);
 
     assertThat(transactions)
         .extracting(Transaction::counterpartyIban)
-        .containsExactly("EE471000001020145685");
+        .containsExactly("EE123456789012345678");
   }
 
   @Test
@@ -238,14 +238,14 @@ class SavingsFundTransactionServiceTest {
                     .id(requestId)
                     .partyType(PartyId.Type.PERSON)
                     .partyCode(personalCode)
-                    .customerIban("EE342200221020145685")
+                    .customerIban("EE111111111111111111")
                     .build()));
 
     List<Transaction> transactions = service.getTransactions(person);
 
     assertThat(transactions)
         .extracting(Transaction::counterpartyIban)
-        .containsExactly("EE342200221020145685");
+        .containsExactly("EE111111111111111111");
   }
 
   @Test

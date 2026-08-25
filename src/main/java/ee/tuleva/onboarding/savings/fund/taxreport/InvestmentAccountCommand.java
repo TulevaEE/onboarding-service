@@ -1,5 +1,5 @@
 package ee.tuleva.onboarding.savings.fund.taxreport;
 
-import jakarta.validation.constraints.NotBlank;
+import ee.tuleva.onboarding.capital.transfer.iban.ValidIban;
 
-public record InvestmentAccountCommand(@NotBlank String iban) {}
+public record InvestmentAccountCommand(@ValidIban String iban) {}

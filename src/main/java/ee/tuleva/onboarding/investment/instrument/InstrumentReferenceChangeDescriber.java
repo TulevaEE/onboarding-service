@@ -5,14 +5,12 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
-@Slf4j
 @Component
 @NullMarked
 @RequiredArgsConstructor
@@ -36,22 +34,24 @@ class InstrumentReferenceChangeDescriber {
   }
 
   private List<String> fieldLines(InstrumentReferenceChange change) {
-    var before = read(change.oldValues());
-    var after = read(change.newValues());
+    var before = read(change, change.oldValues());
+    var after = read(change, change.newValues());
 
-    if (before == null) {
+    if (before != null && after != null) {
+      return differences(before, after);
+    }
+    if (after != null) {
       return presentValues(after);
     }
-    if (after == null) {
+    if (before != null) {
       return presentValues(before);
     }
-    return differences(before, after);
+    throw new IllegalStateException(
+        "Instrument reference history row has neither old nor new values: historyId=%s, isin=%s"
+            .formatted(change.id(), change.isin()));
   }
 
-  private static List<String> presentValues(@Nullable JsonNode node) {
-    if (node == null) {
-      return List.of();
-    }
+  private static List<String> presentValues(JsonNode node) {
     var lines = new ArrayList<String>();
     for (var fieldName : node.propertyNames()) {
       var value = node.path(fieldName);
@@ -81,15 +81,17 @@ class InstrumentReferenceChangeDescriber {
     return node.isMissingNode() || node.isNull() ? "null" : node.asString();
   }
 
-  private @Nullable JsonNode read(@Nullable String json) {
+  private @Nullable JsonNode read(InstrumentReferenceChange change, @Nullable String json) {
     if (json == null) {
       return null;
     }
     try {
       return objectMapper.readTree(json);
     } catch (Exception e) {
-      log.error("Failed to parse instrument reference history values: json={}", json, e);
-      return null;
+      throw new IllegalStateException(
+          "Failed to parse instrument reference history values: historyId=%s, isin=%s, json=%s"
+              .formatted(change.id(), change.isin(), json),
+          e);
     }
   }
 }

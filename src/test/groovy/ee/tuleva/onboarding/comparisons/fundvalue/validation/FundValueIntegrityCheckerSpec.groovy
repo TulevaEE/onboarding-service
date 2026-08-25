@@ -53,6 +53,13 @@ class FundValueIntegrityCheckerSpec extends Specification {
       .eodhdTicker("GAGH.PA.EODHD")
       .build()
 
+  static final InstrumentReference NO_LONGER_LISTED_ON_EODHD = instrument("IE000I9HGDZ4")
+      .displayName("Xtrackers MSCI World Screened UCITS ETF 2C")
+      .yahooTicker("XWSD.DE")
+      .eodhdTicker("XWSD.XETRA")
+      .eodhdListed(false)
+      .build()
+
   static final List<InstrumentReference> INSTRUMENTS = [
       ISHARES_DEVELOPED_WORLD_ESG_SCREENED,
       ISHARES_USA_ESG_SCREENED,
@@ -300,6 +307,24 @@ class FundValueIntegrityCheckerSpec extends Specification {
 
     then:
     staleSources.isEmpty()
+  }
+
+  def "does not expect an EODHD series for an instrument no longer listed on EODHD"() {
+    given:
+    def ticker = NO_LONGER_LISTED_ON_EODHD
+    LocalDate endDate = LocalDate.of(2026, 6, 9)
+    LocalDate frozenDate = LocalDate.of(2026, 5, 26)
+    def xetraKey = ticker.isin + ".XETR"
+    fundValueRepository.findLastValueForFund(_) >> { String key -> Optional.of(aFundValue(key, frozenDate, 100.0)) }
+
+    when:
+    def staleSources = checker.checkSourceFreshness(ticker, endDate)
+
+    then:
+    staleSources == [
+        new IntegrityCheckResult.StaleSource(ticker.displayName, "Exchange", xetraKey, frozenDate, 10),
+        new IntegrityCheckResult.StaleSource(ticker.displayName, "Yahoo", ticker.yahooTicker, frozenDate, 10),
+    ]
   }
 
   def "includes stale sources in the integrity summary"() {
@@ -633,11 +658,16 @@ class FundValueIntegrityCheckerSpec extends Specification {
     criticalDiscrepancies.isEmpty()
   }
 
-  def "should log summary table with all tickers"() {
+  def "the hourly check covers every active instrument for the previous day"() {
     given:
     LocalDate date = LocalDate.of(2024, 1, 15)
+    LocalDate yesterday = LocalDate.of(2026, 2, 11)
+    Set<String> resolvedForDate = [] as Set
 
-    priorityPriceProvider.resolve(_, _) >> Optional.empty()
+    priorityPriceProvider.resolve(_, _) >> { String isin, LocalDate resolveDate ->
+      resolvedForDate.add(isin + "@" + resolveDate)
+      Optional.empty()
+    }
 
     yahooFundValueRetriever.retrieveValuesForRange(_, _) >> INSTRUMENTS.collect {
       aFundValue(it.yahooTicker, date, 100.00)
@@ -668,10 +698,11 @@ class FundValueIntegrityCheckerSpec extends Specification {
     checker.performIntegrityCheck()
 
     then:
-    noExceptionThrown()
+    resolvedForDate == INSTRUMENTS.collect { it.isin + "@" + yesterday }.toSet()
+    0 * notificationService.sendMessage(_, _)
   }
 
-  def "runIntegrityCheck returns summary string"() {
+  def "runIntegrityCheck renders a summary row for every active instrument"() {
     given:
     LocalDate endDate = LocalDate.of(2024, 1, 15)
 
@@ -706,7 +737,14 @@ class FundValueIntegrityCheckerSpec extends Specification {
     String summary = checker.runIntegrityCheck(endDate)
 
     then:
-    summary.contains("Fund Value Integrity Check Summary")
+    summary.contains("Fund Value Integrity Check Summary (2026-02-11 to 2024-01-15)")
+    summary.contains("✅ All funds have consistent prices across providers")
+    summary.contains("│ iShares Developed World Screened Index Fund")
+    summary.contains("│ iShares MSCI USA Screened UCITS ETF")
+    summary.contains("│ Xtrackers MSCI World Screened UCITS ETF 1C")
+    summary.contains("│ ICAV Amundi MSCI USA Screened UCITS ETF")
+    summary.contains("│ Amundi Core Global Aggregate Bond UCITS ETF EU...")
+    !summary.contains("Stale price sources")
   }
 
   def "should include Last Price column in cross-provider summary table"() {
@@ -811,7 +849,7 @@ class FundValueIntegrityCheckerSpec extends Specification {
     def staleSource = new IntegrityCheckResult.StaleSource(
         "World ETF", "EODHD", "IWDA.XETRA", LocalDate.of(2026, 2, 9), 3L)
     def result = new FundValueIntegrityChecker.InstrumentCheckResult(
-        INSTRUMENTS[0], IntegrityCheckResult.empty(), [] as Set, [] as Set, [staleSource], [])
+        INSTRUMENTS[0], [] as Set, [] as Set, [staleSource], [])
 
     when:
     checker.notifyIfCritical([result])
@@ -834,7 +872,7 @@ class FundValueIntegrityCheckerSpec extends Specification {
             new IntegrityCheckResult.SourceValue("Yahoo", 99.50),
         ])
     def result = new FundValueIntegrityChecker.InstrumentCheckResult(
-        INSTRUMENTS[0], IntegrityCheckResult.empty(), [] as Set, [] as Set, [], [discrepancy])
+        INSTRUMENTS[0], [] as Set, [] as Set, [], [discrepancy])
 
     when:
     checker.notifyIfCritical([result])
@@ -853,7 +891,7 @@ class FundValueIntegrityCheckerSpec extends Specification {
   def "does not send a Slack alert when there are no critical issues"() {
     given:
     def clean = new FundValueIntegrityChecker.InstrumentCheckResult(
-        INSTRUMENTS[0], IntegrityCheckResult.empty(), [] as Set, [] as Set, [], [])
+        INSTRUMENTS[0], [] as Set, [] as Set, [], [])
 
     when:
     checker.notifyIfCritical([clean])

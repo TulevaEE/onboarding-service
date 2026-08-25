@@ -8,6 +8,10 @@ public class InstrumentReferenceFixture {
   private final InstrumentReference instrument =
       BeanUtils.instantiateClass(InstrumentReference.class);
 
+  public InstrumentReferenceFixture() {
+    eodhdListed(true);
+  }
+
   public static InstrumentReferenceFixture anInstrument() {
     return new InstrumentReferenceFixture();
   }

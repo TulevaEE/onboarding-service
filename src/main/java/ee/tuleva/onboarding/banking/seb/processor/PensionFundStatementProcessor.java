@@ -97,16 +97,20 @@ public class PensionFundStatementProcessor {
       case PensionFundEntryClassifier.OwnAccountTransfer() ->
           fundBankLedger.recordOwnAccountTransfer(
               fund, amount, externalReference, bookingDate, entry.remittanceInformation());
-      case PensionFundEntryClassifier.TradeSettlement(var ticker, var units) ->
+      case PensionFundEntryClassifier.TradeSettlement(
+              var isin,
+              var ticker,
+              var displayName,
+              var units) ->
           fundBankLedger.recordTradeSettlement(
               fund,
               amount,
               signedUnits(units, amount),
               externalReference,
               account.ledgerAccount(),
-              ticker.getIsin(),
-              ticker.getYahooTicker().split("\\.")[0],
-              ticker.getDisplayName(),
+              isin,
+              ticker,
+              displayName,
               bookingDate);
       case PensionFundEntryClassifier.Unclassified(var reason) -> {
         log.error(

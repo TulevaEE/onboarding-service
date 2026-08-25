@@ -70,6 +70,7 @@ class InstrumentReferenceServiceClusterRefreshTest {
     ReflectionTestUtils.setField(reference, "isin", isin);
     ReflectionTestUtils.setField(reference, "displayName", isin);
     ReflectionTestUtils.setField(reference, "eodhdTicker", isin + ".XETRA");
+    ReflectionTestUtils.setField(reference, "eodhdListed", true);
     ReflectionTestUtils.setField(reference, "active", true);
     return reference;
   }

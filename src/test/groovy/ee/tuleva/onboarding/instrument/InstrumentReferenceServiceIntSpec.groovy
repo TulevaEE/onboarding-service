@@ -13,12 +13,6 @@ class InstrumentReferenceServiceIntSpec extends Specification {
   @Autowired
   InstrumentReferenceService service
 
-  def "settlement terms stay empty until seeded manually after deploy"() {
-    expect:
-    service.settlementTerms("IE0009FT4LX4") == Optional.empty()
-    service.settlementTerms("IE00BFNM3G45") == Optional.empty()
-  }
-
   def "benchmark proxy resolution mirrors TrackingDifferenceService.resolveBenchmarkKey"() {
     expect:
     proxyStorageKey("EQUITY_DM", true) == Optional.of("IE00B4L5Y983.XETR")

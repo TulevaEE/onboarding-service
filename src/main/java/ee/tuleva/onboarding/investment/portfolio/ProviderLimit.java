@@ -49,6 +49,10 @@ public class ProviderLimit {
 
   private Instant createdAt;
 
+  public String providerName() {
+    return provider.name();
+  }
+
   @PrePersist
   protected void onCreate() {
     createdAt = Instant.now();

@@ -65,19 +65,10 @@ public class FundValueIntegrityChecker {
 
   record InstrumentCheckResult(
       InstrumentReference instrument,
-      IntegrityCheckResult yahooVsDbResult,
       Set<String> configuredSources,
       Set<String> sourcesWithData,
       List<StaleSource> staleSources,
       List<Discrepancy> crossProviderDiscrepancies) {
-
-    boolean hasYahooVsDbIssues() {
-      return yahooVsDbResult != null && yahooVsDbResult.hasIssues();
-    }
-
-    boolean hasCrossProviderIssues() {
-      return !crossProviderDiscrepancies.isEmpty();
-    }
 
     boolean isSourceStale(String source) {
       return staleSources.stream().anyMatch(staleSource -> staleSource.source().equals(source));
@@ -115,13 +106,10 @@ public class FundValueIntegrityChecker {
     return instrumentReferenceService.activeInstruments().stream()
         .map(
             instrument -> {
-              IntegrityCheckResult yahooVsDbResult =
-                  yahooVsDatabaseResult(instrument, startDate, endDate);
               List<SourceValues> sources = loadSources(instrument, startDate, endDate);
 
               return new InstrumentCheckResult(
                   instrument,
-                  yahooVsDbResult,
                   instrumentSources(instrument).stream()
                       .map(InstrumentSource::name)
                       .collect(toSet()),
@@ -130,15 +118,6 @@ public class FundValueIntegrityChecker {
                   crossProviderDiscrepancies(instrument, sources));
             })
         .toList();
-  }
-
-  private IntegrityCheckResult yahooVsDatabaseResult(
-      InstrumentReference instrument, LocalDate startDate, LocalDate endDate) {
-    String yahooTicker = instrument.getYahooTicker();
-    if (yahooTicker == null) {
-      return IntegrityCheckResult.empty();
-    }
-    return verifyFundDataIntegrity(yahooTicker, startDate, endDate);
   }
 
   List<Discrepancy> checkCrossProviderIntegrity(

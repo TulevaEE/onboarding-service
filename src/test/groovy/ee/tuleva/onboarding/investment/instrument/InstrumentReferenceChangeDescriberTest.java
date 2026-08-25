@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.instrument;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import ee.tuleva.onboarding.instrument.InstrumentReferenceChange;
 import java.time.Instant;
@@ -84,6 +85,48 @@ class InstrumentReferenceChangeDescriberTest {
               display_name: Retired ETF
 
             """);
+  }
+
+  @Test
+  void failsInsteadOfDescribingAnUpdateWhoseOldValuesCannotBeParsed() {
+    var change =
+        new InstrumentReferenceChange(
+            1L,
+            "IE00B4L5Y983",
+            "UPDATE",
+            "ops-console",
+            CHANGED_AT,
+            "{\"benchmark_category\":",
+            "{\"benchmark_category\": \"EQUITY_EM\"}");
+
+    assertThatThrownBy(() -> describer.describe(List.of(change)))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void failsInsteadOfDescribingAnUpdateWhoseNewValuesCannotBeParsed() {
+    var change =
+        new InstrumentReferenceChange(
+            1L,
+            "IE00B4L5Y983",
+            "UPDATE",
+            "ops-console",
+            CHANGED_AT,
+            "{\"benchmark_category\": \"EQUITY_DM\"}",
+            "{\"benchmark_category\":");
+
+    assertThatThrownBy(() -> describer.describe(List.of(change)))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void failsOnAHistoryRowThatHasNeitherOldNorNewValues() {
+    var change =
+        new InstrumentReferenceChange(
+            1L, "IE00B4L5Y983", "UPDATE", "ops-console", CHANGED_AT, null, null);
+
+    assertThatThrownBy(() -> describer.describe(List.of(change)))
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test

@@ -13,7 +13,8 @@ public class TradeSettlementParser {
 
   private final InstrumentReferenceService instrumentReferenceService;
 
-  public record TradeSettlementInfo(InstrumentReference ticker, BigDecimal units) {}
+  public record TradeSettlementInfo(
+      String isin, String ticker, String displayName, BigDecimal units) {}
 
   public Optional<TradeSettlementInfo> parse(String remittanceInfo) {
     if (remittanceInfo == null || remittanceInfo.isEmpty()) {
@@ -34,7 +35,22 @@ public class TradeSettlementParser {
             .findByTicker(ticker)
             .or(() -> instrumentReferenceService.findByBloombergTicker(ticker));
 
-    return instrument.map(
-        found -> new TradeSettlementInfo(found, new BigDecimal(segments[2].trim())));
+    return instrument.map(found -> settlementInfo(found, new BigDecimal(segments[2].trim())));
+  }
+
+  private static TradeSettlementInfo settlementInfo(
+      InstrumentReference instrument, BigDecimal units) {
+    return new TradeSettlementInfo(
+        instrument.getIsin(), shortTicker(instrument), instrument.getDisplayName(), units);
+  }
+
+  private static String shortTicker(InstrumentReference instrument) {
+    var yahooTicker = instrument.getYahooTicker();
+    if (yahooTicker == null) {
+      throw new IllegalStateException(
+          "Instrument has no yahoo ticker to settle a trade against: isin=%s, displayName=%s"
+              .formatted(instrument.getIsin(), instrument.getDisplayName()));
+    }
+    return yahooTicker.split("\\.")[0];
   }
 }

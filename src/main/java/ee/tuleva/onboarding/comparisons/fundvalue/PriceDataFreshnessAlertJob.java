@@ -112,8 +112,7 @@ public class PriceDataFreshnessAlertJob {
       instrument
           .getEuronextParisStorageKey()
           .ifPresent(key -> map.put(key, new ProviderKey("EURONEXT", key)));
-      String eodhdTicker = instrument.getEodhdTicker();
-      map.put(eodhdTicker, new ProviderKey("EODHD", eodhdTicker));
+      instrument.getEodhdStorageKey().ifPresent(key -> map.put(key, new ProviderKey("EODHD", key)));
     }
     return map;
   }

@@ -63,10 +63,18 @@ class InstrumentValidationJob {
   @Scheduled(cron = "0 10 * * * *", zone = TIMEZONE)
   @SchedulerLock(name = "InstrumentValidationJob", lockAtMostFor = "10m", lockAtLeastFor = "1m")
   void run() {
-    alertOnStaleCache();
-    alertOnInstrumentDataFindings();
-    notifyReferenceDataChanges();
-    alertOnFindings(collectFindings());
+    runStep("instrumentDataFindings", this::alertOnInstrumentDataFindings);
+    runStep("staleCache", this::alertOnStaleCache);
+    runStep("referenceDataChanges", this::notifyReferenceDataChanges);
+    runStep("fundValidation", () -> alertOnFindings(collectFindings()));
+  }
+
+  private void runStep(String step, Runnable action) {
+    try {
+      action.run();
+    } catch (Exception e) {
+      log.error("Instrument validation job step failed: step={}", step, e);
+    }
   }
 
   private void alertOnInstrumentDataFindings() {

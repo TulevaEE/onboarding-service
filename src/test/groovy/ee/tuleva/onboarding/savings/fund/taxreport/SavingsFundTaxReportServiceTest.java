@@ -10,10 +10,15 @@ import static org.mockito.BDDMockito.given;
 
 import ee.tuleva.onboarding.account.transaction.Transaction;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.epis.cashflows.CashFlow;
 import ee.tuleva.onboarding.savings.fund.SavingsFundTransactionService;
+import ee.tuleva.onboarding.savings.fund.TransactionsWithCounterparties;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,20 +49,16 @@ class SavingsFundTaxReportServiceTest {
             investmentAccountService);
   }
 
-  private static Transaction bought(String time, String units, String amount, String iban) {
-    return transaction(time, units, amount, iban, CONTRIBUTION_CASH);
+  private static Transaction bought(String time, String units, String amount) {
+    return transaction(time, units, amount, CONTRIBUTION_CASH);
   }
 
-  private static Transaction sold(String time, String units, String amount, String iban) {
-    return transaction(time, units, amount, iban, SUBTRACTION);
+  private static Transaction sold(String time, String units, String amount) {
+    return transaction(time, units, amount, SUBTRACTION);
   }
 
   private static Transaction transaction(
-      String time,
-      String units,
-      String amount,
-      String iban,
-      ee.tuleva.onboarding.epis.cashflows.CashFlow.Type type) {
+      String time, String units, String amount, CashFlow.Type type) {
     Instant at = Instant.parse(time);
     return Transaction.builder()
         .id(UUID.randomUUID())
@@ -70,17 +71,39 @@ class SavingsFundTaxReportServiceTest {
         .type(type)
         .units(new BigDecimal(units))
         .nav(new BigDecimal("1.00"))
-        .counterpartyIban(iban)
         .build();
+  }
+
+  private static final class Statement {
+
+    private final List<Transaction> transactions = new ArrayList<>();
+    private final Map<UUID, String> counterpartyIbans = new HashMap<>();
+
+    Statement facing(Transaction transaction, String iban) {
+      transactions.add(transaction);
+      counterpartyIbans.put(transaction.id(), iban);
+      return this;
+    }
+
+    Statement fromAnUnknownAccount(Transaction transaction) {
+      transactions.add(transaction);
+      return this;
+    }
+
+    TransactionsWithCounterparties build() {
+      return new TransactionsWithCounterparties(
+          List.copyOf(transactions), Map.copyOf(counterpartyIbans));
+    }
   }
 
   @Test
   void reportsOnePoolWhenNoInvestmentAccountWasDeclared() {
-    given(savingsFundTransactionService.getTransactions(person))
+    given(savingsFundTransactionService.getTransactionsWithCounterpartyIbans(person))
         .willReturn(
-            List.of(
-                bought("2025-01-10T10:00:00Z", "100", "100.00", ORDINARY_IBAN),
-                sold("2025-06-10T10:00:00Z", "100", "150.00", ORDINARY_IBAN)));
+            new Statement()
+                .facing(bought("2025-01-10T10:00:00Z", "100", "100.00"), ORDINARY_IBAN)
+                .facing(sold("2025-06-10T10:00:00Z", "100", "150.00"), ORDINARY_IBAN)
+                .build());
     given(investmentAccountService.declaredIban(person.getRoleCode())).willReturn(Optional.empty());
 
     SavingsFundTaxReport report = savingsFundTaxReportService.getTaxReport(person, 2025, FIFO);
@@ -91,13 +114,14 @@ class SavingsFundTaxReportServiceTest {
 
   @Test
   void keepsInvestmentAccountGainsOutOfTheGainsSomeoneDeclares() {
-    given(savingsFundTransactionService.getTransactions(person))
+    given(savingsFundTransactionService.getTransactionsWithCounterpartyIbans(person))
         .willReturn(
-            List.of(
-                bought("2025-01-10T10:00:00Z", "100", "100.00", ORDINARY_IBAN),
-                bought("2025-02-10T10:00:00Z", "100", "200.00", INVESTMENT_IBAN),
-                sold("2025-06-10T10:00:00Z", "100", "150.00", ORDINARY_IBAN),
-                sold("2025-07-10T10:00:00Z", "100", "260.00", INVESTMENT_IBAN)));
+            new Statement()
+                .facing(bought("2025-01-10T10:00:00Z", "100", "100.00"), ORDINARY_IBAN)
+                .facing(bought("2025-02-10T10:00:00Z", "100", "200.00"), INVESTMENT_IBAN)
+                .facing(sold("2025-06-10T10:00:00Z", "100", "150.00"), ORDINARY_IBAN)
+                .facing(sold("2025-07-10T10:00:00Z", "100", "260.00"), INVESTMENT_IBAN)
+                .build());
     given(investmentAccountService.declaredIban(person.getRoleCode()))
         .willReturn(Optional.of(INVESTMENT_IBAN));
 
@@ -111,13 +135,14 @@ class SavingsFundTaxReportServiceTest {
 
   @Test
   void leavesAClosedYearAloneWhenALaterRedemptionGoesElsewhere() {
-    given(savingsFundTransactionService.getTransactions(person))
+    given(savingsFundTransactionService.getTransactionsWithCounterpartyIbans(person))
         .willReturn(
-            List.of(
-                bought("2025-02-10T10:00:00Z", "100", "200.00", INVESTMENT_IBAN),
-                sold("2025-07-10T10:00:00Z", "100", "260.00", INVESTMENT_IBAN),
-                bought("2026-02-10T10:00:00Z", "100", "200.00", INVESTMENT_IBAN),
-                sold("2026-07-10T10:00:00Z", "100", "300.00", ORDINARY_IBAN)));
+            new Statement()
+                .facing(bought("2025-02-10T10:00:00Z", "100", "200.00"), INVESTMENT_IBAN)
+                .facing(sold("2025-07-10T10:00:00Z", "100", "260.00"), INVESTMENT_IBAN)
+                .facing(bought("2026-02-10T10:00:00Z", "100", "200.00"), INVESTMENT_IBAN)
+                .facing(sold("2026-07-10T10:00:00Z", "100", "300.00"), ORDINARY_IBAN)
+                .build());
     given(investmentAccountService.declaredIban(person.getRoleCode()))
         .willReturn(Optional.of(INVESTMENT_IBAN));
 
@@ -130,11 +155,12 @@ class SavingsFundTaxReportServiceTest {
 
   @Test
   void doesNotCallATransactionOrdinaryJustBecauseItsAccountIsUnknown() {
-    given(savingsFundTransactionService.getTransactions(person))
+    given(savingsFundTransactionService.getTransactionsWithCounterpartyIbans(person))
         .willReturn(
-            List.of(
-                bought("2025-02-10T10:00:00Z", "100", "200.00", null),
-                sold("2025-07-10T10:00:00Z", "100", "260.00", INVESTMENT_IBAN)));
+            new Statement()
+                .fromAnUnknownAccount(bought("2025-02-10T10:00:00Z", "100", "200.00"))
+                .facing(sold("2025-07-10T10:00:00Z", "100", "260.00"), INVESTMENT_IBAN)
+                .build());
     given(investmentAccountService.declaredIban(person.getRoleCode()))
         .willReturn(Optional.of(INVESTMENT_IBAN));
 
@@ -145,11 +171,12 @@ class SavingsFundTaxReportServiceTest {
 
   @Test
   void recognisesTheDeclaredAccountHoweverTheBankSpacedIt() {
-    given(savingsFundTransactionService.getTransactions(person))
+    given(savingsFundTransactionService.getTransactionsWithCounterpartyIbans(person))
         .willReturn(
-            List.of(
-                bought("2025-02-10T10:00:00Z", "100", "200.00", "ee12 3456 7890 1234 5678"),
-                sold("2025-07-10T10:00:00Z", "100", "260.00", INVESTMENT_IBAN)));
+            new Statement()
+                .facing(bought("2025-02-10T10:00:00Z", "100", "200.00"), "ee12 3456 7890 1234 5678")
+                .facing(sold("2025-07-10T10:00:00Z", "100", "260.00"), INVESTMENT_IBAN)
+                .build());
     given(investmentAccountService.declaredIban(person.getRoleCode()))
         .willReturn(Optional.of(INVESTMENT_IBAN));
 
@@ -162,11 +189,12 @@ class SavingsFundTaxReportServiceTest {
 
   @Test
   void doesNotPickAPoolForSomeoneWhoRedeemedToAnotherAccountThanTheyBoughtFrom() {
-    given(savingsFundTransactionService.getTransactions(person))
+    given(savingsFundTransactionService.getTransactionsWithCounterpartyIbans(person))
         .willReturn(
-            List.of(
-                bought("2025-02-10T10:00:00Z", "100", "200.00", INVESTMENT_IBAN),
-                sold("2025-07-10T10:00:00Z", "100", "260.00", ORDINARY_IBAN)));
+            new Statement()
+                .facing(bought("2025-02-10T10:00:00Z", "100", "200.00"), INVESTMENT_IBAN)
+                .facing(sold("2025-07-10T10:00:00Z", "100", "260.00"), ORDINARY_IBAN)
+                .build());
     given(investmentAccountService.declaredIban(person.getRoleCode()))
         .willReturn(Optional.of(INVESTMENT_IBAN));
 

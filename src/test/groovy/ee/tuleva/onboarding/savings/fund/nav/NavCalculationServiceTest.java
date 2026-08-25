@@ -19,7 +19,6 @@ import ee.tuleva.onboarding.investment.fees.FeeBases;
 import ee.tuleva.onboarding.investment.fees.FeeCalculationService;
 import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
 import ee.tuleva.onboarding.investment.fees.FeeResult;
-import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.ledger.LedgerAccountFixture.EntryFixture;
 import ee.tuleva.onboarding.ledger.LedgerService;
@@ -140,7 +139,7 @@ class NavCalculationServiceTest {
   }
 
   @Test
-  void calculate_keepsAnExcludedDepotFeeOutOfNavWhileTheAccrualStillHappens() {
+  void calculate_takesTheFeeResultAsGivenBecauseThePolicyIsAppliedPerAccrualDateUpstream() {
     LocalDate calcDate = LocalDate.of(2025, 1, 15);
     LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
 
@@ -158,9 +157,12 @@ class NavCalculationServiceTest {
     when(redemptionsComponent.calculate(any())).thenReturn(ZERO);
     when(feeCalculationService.calculateFeesForNav(
             eq(TKF100), eq(previousWorkingDay), any(), any(), any()))
-        .thenReturn(new FeeResult(new BigDecimal("52.08"), new BigDecimal("6.85")));
-    when(feeChargedToFundPolicy.chargedToFund(TKF100, FeeType.DEPOT, previousWorkingDay))
-        .thenReturn(false);
+        .thenReturn(new FeeResult(new BigDecimal("52.08"), ZERO));
+    // The charged-to-fund decision now lives in FeeCalculationService, which applies it PER
+    // ACCRUAL DATE — so a depot fee Tuleva bears arrives here already zeroed. Re-gating the summed
+    // figure on one day's answer was the bug: a month the policy flips in would be taken whole or
+    // dropped whole. FeeChargedToFundPolicyTest pins the split; this pins that NAV does not
+    // second-guess it.
 
     NavCalculationResult result = service.calculate(TKF100, calcDate);
 

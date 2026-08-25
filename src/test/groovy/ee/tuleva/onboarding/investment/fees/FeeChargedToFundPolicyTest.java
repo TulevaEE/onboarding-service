@@ -8,7 +8,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
@@ -23,6 +25,41 @@ class FeeChargedToFundPolicyTest {
 
   @Autowired private JdbcClient jdbcClient;
   @Autowired private FeeChargedToFundPolicy policy;
+
+  @Test
+  void sumChargedDays_splitsAMonthThePolicyFlipsInsteadOfTakingOneDaysAnswer() {
+    // The whole point of the per-date sum. Tuleva bears the fee to 14.09, the fund from 15.09.
+    // Asking "charged?" once for the 30th would admit the ENTIRE month into NAV; asking once for
+    // the 1st would admit none of it. Only the post-flip days belong.
+    jdbcClient.sql("DELETE FROM investment_fee_policy").update();
+    insertPolicy(TUK75, DEPOT, false, LocalDate.of(2017, 3, 28), LocalDate.of(2026, 9, 14));
+    insertPolicy(TUK75, DEPOT, true, LocalDate.of(2026, 9, 15), null);
+
+    var resolver = policy.resolverFor(TUK75, DEPOT);
+    var byDate =
+        Map.of(
+            LocalDate.of(2026, 9, 13), new BigDecimal("1.00"),
+            LocalDate.of(2026, 9, 14), new BigDecimal("2.00"),
+            LocalDate.of(2026, 9, 15), new BigDecimal("4.00"),
+            LocalDate.of(2026, 9, 16), new BigDecimal("8.00"));
+
+    assertThat(resolver.sumChargedDays(byDate)).isEqualByComparingTo("12.00");
+  }
+
+  @Test
+  void sumChargedDays_stillRefusesAGapRatherThanSkippingTheDay() {
+    // A day no row covers is not "not charged" — it is unknown, and a sum that quietly dropped it
+    // would understate the fee with no signal.
+    jdbcClient.sql("DELETE FROM investment_fee_policy").update();
+    insertPolicy(TUK75, DEPOT, false, LocalDate.of(2017, 3, 28), LocalDate.of(2026, 6, 30));
+    insertPolicy(TUK75, DEPOT, true, LocalDate.of(2026, 9, 1), null);
+
+    var resolver = policy.resolverFor(TUK75, DEPOT);
+    var byDate = Map.of(LocalDate.of(2026, 7, 15), new BigDecimal("1.00"));
+
+    assertThatThrownBy(() -> resolver.sumChargedDays(byDate))
+        .isInstanceOf(IllegalStateException.class);
+  }
 
   @Test
   void chargedToFund_throwsWhenTheFundAndFeeTypeAreNotConfiguredAtAll() {

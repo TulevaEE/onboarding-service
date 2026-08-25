@@ -1,8 +1,10 @@
 package ee.tuleva.onboarding.investment.fees;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
@@ -73,6 +75,22 @@ public class FeeChargedToFundPolicy {
               + feeType
               + ", date="
               + date);
+    }
+
+    /**
+     * Sum only the days this policy actually charges to the fund.
+     *
+     * <p>The reason this exists: a month-to-date accrual is a sum over many days, and asking
+     * "charged?" once — for the last of them — silently applies that answer to every earlier day. A
+     * policy that flips mid-month then puts NAV and the ledger out of step for the whole month.
+     * Per-day evaluation also keeps the gap and overlap validation in {@link #chargedOn}, which a
+     * single lookup would only apply to one date.
+     */
+    public BigDecimal sumChargedDays(Map<LocalDate, BigDecimal> amountsByDate) {
+      return amountsByDate.entrySet().stream()
+          .filter(entry -> chargedOn(entry.getKey()))
+          .map(Map.Entry::getValue)
+          .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     private boolean predatesTheFoundingPolicy(LocalDate date) {

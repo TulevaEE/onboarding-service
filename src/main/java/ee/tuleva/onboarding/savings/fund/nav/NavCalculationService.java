@@ -12,7 +12,6 @@ import ee.tuleva.onboarding.investment.fees.FeeBases;
 import ee.tuleva.onboarding.investment.fees.FeeCalculationService;
 import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
 import ee.tuleva.onboarding.investment.fees.FeeResult;
-import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
@@ -113,10 +112,11 @@ public class NavCalculationService {
     FeeResult fees =
         feeCalculationService.calculateFeesForNav(
             fund, positionReportDate, feeBases, feeCutoff, context.getSecurityPrices());
-    BigDecimal managementFeeAccrual =
-        navFacingAccrual(fund, FeeType.MANAGEMENT, positionReportDate, fees.managementFeeAccrual());
-    BigDecimal depotFeeAccrual =
-        navFacingAccrual(fund, FeeType.DEPOT, positionReportDate, fees.depotFeeAccrual());
+    // FeeCalculationService already applies charged-to-fund per accrual date, so these are
+    // NAV-facing as they stand. Re-gating the summed figure on one day's answer here would undo
+    // that: a month with a mid-month flip would be zeroed or admitted whole.
+    BigDecimal managementFeeAccrual = fees.managementFeeAccrual();
+    BigDecimal depotFeeAccrual = fees.depotFeeAccrual();
 
     BigDecimal aum =
         calculateAum(
@@ -226,11 +226,6 @@ public class NavCalculationService {
             .add(blackrockAdjustment.min(ZERO).negate());
 
     return assets.subtract(liabilities);
-  }
-
-  private BigDecimal navFacingAccrual(
-      TulevaFund fund, FeeType feeType, LocalDate navDate, BigDecimal accrual) {
-    return feeChargedToFundPolicy.chargedToFund(fund, feeType, navDate) ? accrual : ZERO;
   }
 
   private BigDecimal calculateNavPerUnit(

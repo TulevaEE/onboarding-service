@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import ee.tuleva.onboarding.ledger.SystemAccount;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -120,11 +121,26 @@ public class FeeCalculationService {
       previousFeeMonth = feeMonth;
     }
 
+    // Charged-to-fund is applied PER ACCRUAL DATE. Gating the whole month-to-date sum on the
+    // policy's answer for one day would misstate every month in which the policy flips: the days
+    // before the flip would take the answer belonging to the days after it.
     BigDecimal mgmtFee =
-        feeAccrualRepository.getUnsettledAccrual(fund, FeeType.MANAGEMENT, positionReportDate);
-    BigDecimal depotFee =
-        feeAccrualRepository.getUnsettledAccrual(fund, FeeType.DEPOT, positionReportDate);
+        chargedAccrual(chargedPolicies, fund, FeeType.MANAGEMENT, positionReportDate);
+    BigDecimal depotFee = chargedAccrual(chargedPolicies, fund, FeeType.DEPOT, positionReportDate);
     return new FeeResult(mgmtFee, depotFee);
+  }
+
+  private BigDecimal chargedAccrual(
+      Map<FeeType, FeeChargedToFundPolicy.Resolver> policies,
+      TulevaFund fund,
+      FeeType feeType,
+      LocalDate positionReportDate) {
+    Map<LocalDate, BigDecimal> byDate =
+        feeAccrualRepository.getUnsettledAccrualByDate(fund, feeType, positionReportDate);
+    // Rounded once at the end, exactly where getUnsettledAccrual's ROUND(SUM(...), 2) sat.
+    BigDecimal charged = policies.get(feeType).sumChargedDays(byDate);
+    // Scale mirrors the ROUND(SUM(...), 2) this replaced, including its plain 0 for no rows.
+    return charged.signum() == 0 ? BigDecimal.ZERO : charged.setScale(2, RoundingMode.HALF_UP);
   }
 
   private void recordDailyFees(

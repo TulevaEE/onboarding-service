@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.kyb.KybCheckPerformedEvent;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 class LegalEntityOnboardingEventListener {
 
   private final SavingsFundOnboardingRepository savingsFundOnboardingRepository;
+  private final ApplicationEventPublisher eventPublisher;
 
   @EventListener
   @Transactional
@@ -54,6 +56,11 @@ class LegalEntityOnboardingEventListener {
           registryCode,
           personalCode,
           oldStatus);
+      // Only a company that was waiting gets told: one that completed on the spot
+      // has the applicant sitting in front of the success page already.
+      if (oldStatus == PENDING) {
+        eventPublisher.publishEvent(new LegalEntityOnboardedEvent(this, event.getCompany()));
+      }
     } else if (newStatus == PENDING) {
       log.info(
           "Legal entity onboarding waiting for related persons: registryCode={}, personalCode={}, oldStatus={}",

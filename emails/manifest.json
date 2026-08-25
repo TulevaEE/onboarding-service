@@ -110,6 +110,16 @@
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
+    "savings_fund_company_onboarded_en": {
+      "subject": "The company's Additional Savings Fund account is open",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_company_onboarded_et": {
+      "subject": "Ettevõtte Täiendava Kogumisfondi konto on avatud",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
     "savings_fund_payment_cancelled_en": {
       "subject": "Tuleva Savings Fund payment cancellation succeeded",
       "from_email": "tuleva@tuleva.ee",

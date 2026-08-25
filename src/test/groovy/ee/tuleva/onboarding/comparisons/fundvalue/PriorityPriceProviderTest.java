@@ -100,6 +100,29 @@ class PriorityPriceProviderTest {
   }
 
   @Test
+  void resolve_morningstarSameDateAsEodhd_prefersMorningstar() {
+    InstrumentReference instrument = givenKnown(BLACKROCK_FUND);
+    String blackrockKey = instrument.getBlackrockStorageKey().orElseThrow();
+    String morningstarKey = instrument.getMorningstarStorageKey().orElseThrow();
+    String eodhdTicker = instrument.getEodhdTicker();
+
+    when(fundValueProvider.getLatestValue(blackrockKey, DATE)).thenReturn(Optional.empty());
+    when(fundValueProvider.getLatestValue(morningstarKey, DATE))
+        .thenReturn(
+            Optional.of(
+                new FundValue(
+                    morningstarKey, DATE, new BigDecimal("149.50"), "MORNINGSTAR", null)));
+    when(fundValueProvider.getLatestValue(eodhdTicker, DATE))
+        .thenReturn(
+            Optional.of(new FundValue(eodhdTicker, DATE, new BigDecimal("149.80"), "EODHD", null)));
+
+    Optional<FundValue> result = provider.resolve(BLACKROCK_ISIN, DATE);
+
+    assertThat(result).isPresent();
+    assertThat(result.get().provider()).isEqualTo("MORNINGSTAR");
+  }
+
+  @Test
   void resolve_blackrockOlderDate_eodhdCurrentDate_returnsEodhd() {
     InstrumentReference instrument = givenKnown(XETRA_ETF);
     String xetraKey = instrument.getXetraStorageKey().orElseThrow();

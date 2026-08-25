@@ -154,6 +154,28 @@ class SavingsFundTaxReportServiceTest {
   }
 
   @Test
+  void leavesAClosedYearAloneWhenALaterTransactionFacesAnUnknownAccount() {
+    given(savingsFundTransactionService.getTransactionsWithCounterpartyIbans(person))
+        .willReturn(
+            new Statement()
+                .facing(bought("2025-01-10T10:00:00Z", "100", "100.00"), ORDINARY_IBAN)
+                .facing(bought("2025-02-10T10:00:00Z", "100", "200.00"), INVESTMENT_IBAN)
+                .facing(sold("2025-06-10T10:00:00Z", "100", "150.00"), ORDINARY_IBAN)
+                .facing(sold("2025-07-10T10:00:00Z", "100", "260.00"), INVESTMENT_IBAN)
+                .fromAnUnknownAccount(bought("2026-03-10T10:00:00Z", "100", "300.00"))
+                .build());
+    given(investmentAccountService.declaredIban(person.getRoleCode()))
+        .willReturn(Optional.of(INVESTMENT_IBAN));
+
+    SavingsFundTaxReport report = savingsFundTaxReportService.getTaxReport(person, 2025, FIFO);
+
+    assertThat(report.investmentAccount().totalGain()).isNotNull();
+    assertThat(report.investmentAccount().totalGain()).isEqualByComparingTo("60.00");
+    assertThat(report.totalGain()).isEqualByComparingTo("50.00");
+    assertThat(report.redemptions()).hasSize(1);
+  }
+
+  @Test
   void doesNotCallATransactionOrdinaryJustBecauseItsAccountIsUnknown() {
     given(savingsFundTransactionService.getTransactionsWithCounterpartyIbans(person))
         .willReturn(

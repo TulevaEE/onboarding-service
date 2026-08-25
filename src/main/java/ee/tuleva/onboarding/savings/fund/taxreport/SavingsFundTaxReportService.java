@@ -105,9 +105,14 @@ public class SavingsFundTaxReportService {
       List<Transaction> ordinary,
       LocalDate to) {
     return transactions.stream()
+            .filter(transaction -> happenedBy(transaction, to))
             .allMatch(transaction -> counterpartyIbans.containsKey(transaction.id()))
         && holdsEnoughUnits(fromTheAccount, to)
         && holdsEnoughUnits(ordinary, to);
+  }
+
+  private static boolean happenedBy(Transaction transaction, LocalDate to) {
+    return !transaction.time().atZone(ESTONIAN_ZONE).toLocalDate().isAfter(to);
   }
 
   private static boolean holdsEnoughUnits(List<Transaction> transactions, LocalDate to) {
@@ -115,7 +120,7 @@ public class SavingsFundTaxReportService {
 
     for (Transaction transaction :
         transactions.stream().sorted(comparing(Transaction::time)).toList()) {
-      if (transaction.time().atZone(ESTONIAN_ZONE).toLocalDate().isAfter(to)) {
+      if (!happenedBy(transaction, to)) {
         continue;
       }
       BigDecimal units = requireUnits(transaction).abs();

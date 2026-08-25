@@ -21,6 +21,9 @@ public class WordPressMediaClient {
       Pattern.compile(
           "^https://tuleva\\.ee/wp-content/uploads/\\d{4}/\\d{2}/[A-Za-z0-9._-]+\\.pdf$");
 
+  private static final String DEFAULT_EXTENSION = "pdf";
+  private static final int MAX_BASE_SLUG_LENGTH = 100;
+
   private final RestClient restClient;
   private final RetryTemplate retryTemplate;
 
@@ -141,14 +144,32 @@ public class WordPressMediaClient {
   static String toWordPressSlug(String filename) {
     var dotIndex = filename.lastIndexOf('.');
     var base = dotIndex > 0 ? filename.substring(0, dotIndex) : filename;
-    var extension = dotIndex > 0 ? filename.substring(dotIndex + 1) : "pdf";
-    var slug =
-        Normalizer.normalize(base, Normalizer.Form.NFD)
-            .replaceAll("\\p{M}+", "")
-            .toLowerCase(Locale.ROOT)
-            .replaceAll("[^a-z0-9]+", "-")
-            .replaceAll("(^-+)|(-+$)", "");
-    return slug + "." + extension.toLowerCase(Locale.ROOT);
+    var extension = dotIndex > 0 ? filename.substring(dotIndex + 1) : DEFAULT_EXTENSION;
+    var baseSlug = toHyphenatedWords(base);
+    if (baseSlug.isEmpty()) {
+      throw new IllegalArgumentException(
+          "Filename sanitises to an empty slug: filename=" + filename);
+    }
+    var extensionSlug = toSingleWord(extension);
+    return baseSlug + "." + (extensionSlug.isEmpty() ? DEFAULT_EXTENSION : extensionSlug);
+  }
+
+  private static String toHyphenatedWords(String value) {
+    var hyphenated = asciiSlug(value);
+    return hyphenated
+        .substring(0, Math.min(hyphenated.length(), MAX_BASE_SLUG_LENGTH))
+        .replaceAll("(^-+)|(-+$)", "");
+  }
+
+  private static String toSingleWord(String value) {
+    return asciiSlug(value).replace("-", "");
+  }
+
+  private static String asciiSlug(String value) {
+    return Normalizer.normalize(value, Normalizer.Form.NFD)
+        .replaceAll("\\p{M}+", "")
+        .toLowerCase(Locale.ROOT)
+        .replaceAll("[^a-z0-9]+", "-");
   }
 
   private static String truncate(String s, int maxLen) {

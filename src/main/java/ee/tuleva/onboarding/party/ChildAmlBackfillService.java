@@ -11,7 +11,7 @@ import static ee.tuleva.onboarding.party.ChildAmlBackfillResult.Outcome.WOULD_PR
 import static ee.tuleva.onboarding.party.ChildAmlBackfillResult.ScreeningStatus.SCREENED;
 import static ee.tuleva.onboarding.party.ChildAmlBackfillResult.ScreeningStatus.SCREENING_FAILED;
 import static ee.tuleva.onboarding.party.ChildAmlBackfillResult.ScreeningStatus.SKIPPED;
-import static ee.tuleva.onboarding.party.CustodyVerification.CITIZENSHIP;
+import static ee.tuleva.onboarding.party.CustodyVerification.CITIZENSHIPS;
 import static ee.tuleva.onboarding.party.CustodyVerification.Outcome.CHILD_NOT_ALIVE;
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
 import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE;
@@ -23,7 +23,7 @@ import static java.util.stream.Collectors.toList;
 import ee.tuleva.onboarding.aml.AmlCheckRepository;
 import ee.tuleva.onboarding.aml.AmlService;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
-import ee.tuleva.onboarding.country.Country;
+import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.party.ChildAmlBackfillResult.ChildResult;
 import ee.tuleva.onboarding.party.ChildAmlBackfillResult.Outcome;
 import ee.tuleva.onboarding.party.ChildAmlBackfillResult.ScreeningStatus;
@@ -94,7 +94,7 @@ public class ChildAmlBackfillService {
     boolean hasUser = false;
     try {
       hasUser = userRepository.existsByPersonalCode(childCode);
-      if (hasEverRecordedCitizenship(childCode) && hasRecentSanctionRow(childCode)) {
+      if (hasRecordedEveryCitizenship(childCode) && hasRecentSanctionRow(childCode)) {
         return ChildResult.reported(childCode, ALREADY_BACKFILLED, hasUser);
       }
       if (!PersonalCode.isMinor(childCode, today)) {
@@ -130,7 +130,7 @@ public class ChildAmlBackfillService {
     CustodyVerification verification =
         verifyAgainstAnyParent(requesterPersonalCode, childCode, parentCodes);
     amlService.addCustodyRightCheck(
-        childCode, verification.isVerified(), verification.evidenceWithCitizenship());
+        childCode, verification.isVerified(), verification.evidenceWithCitizenships());
 
     Outcome outcome = verification.isVerified() ? BACKFILLED : CUSTODY_NOT_VERIFIED;
     if (verification.outcome() == CHILD_NOT_ALIVE) {
@@ -183,7 +183,7 @@ public class ChildAmlBackfillService {
   private ScreeningStatus screenAndConfirmBySanctionRow(PopulationRegisterPerson child) {
     amlService.addSanctionAndPepCheckIfMissing(
         new PersonImpl(child.personalCode(), child.firstName(), child.lastName()),
-        new Country(child.citizenship()));
+        Countries.of(child.citizenships()));
     return hasRecentSanctionRow(child.personalCode()) ? SCREENED : SCREENING_FAILED;
   }
 
@@ -192,8 +192,8 @@ public class ChildAmlBackfillService {
         childCode, SANCTION, aYearAgo());
   }
 
-  private boolean hasEverRecordedCitizenship(String childCode) {
+  private boolean hasRecordedEveryCitizenship(String childCode) {
     return amlCheckRepository.findAllByPersonalCodeAndType(childCode, CUSTODY_RIGHT).stream()
-        .anyMatch(check -> check.hasMetadata(CITIZENSHIP));
+        .anyMatch(check -> check.hasMetadata(CITIZENSHIPS));
   }
 }

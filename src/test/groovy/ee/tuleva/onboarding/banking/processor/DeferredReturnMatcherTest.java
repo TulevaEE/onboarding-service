@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.banking.processor;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.*;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
@@ -9,8 +10,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
-import ee.tuleva.onboarding.banking.BankAccountConfiguration;
 import ee.tuleva.onboarding.banking.BankAccountType;
+import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankMessagesProcessingCompleted;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.PartyId;
@@ -37,14 +38,14 @@ class DeferredReturnMatcherTest {
   @Mock SavingFundPaymentRepository savingFundPaymentRepository;
   @Mock SavingsFundLedger savingsFundLedger;
   @Mock ApplicationEventPublisher eventPublisher;
-  @Mock BankAccountConfiguration bankAccountConfiguration;
+  @Mock BankAccounts bankAccounts;
 
   @InjectMocks DeferredReturnMatcher deferredReturnMatcher;
 
   @BeforeEach
   void setUp() {
     lenient()
-        .when(bankAccountConfiguration.getAccountIban(BankAccountType.DEPOSIT_EUR))
+        .when(bankAccounts.getIban(TKF100, BankAccountType.DEPOSIT_EUR))
         .thenReturn(DEPOSIT_IBAN);
   }
 

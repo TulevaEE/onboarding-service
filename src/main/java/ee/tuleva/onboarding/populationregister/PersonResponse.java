@@ -13,6 +13,7 @@ record PersonResponse(
     @JsonProperty("synniKuupaev") @Nullable String dateOfBirth,
     @JsonProperty("isikuStaatus") @Nullable Code status,
     @JsonProperty("pohiKodakondsus") @Nullable Citizenship citizenship,
+    @JsonProperty("kodakondsused") @Nullable List<Citizenship> citizenships,
     @JsonProperty("hooldusoigused") @Nullable List<Custody> custodyRights) {
 
   @JsonIgnoreProperties(ignoreUnknown = true)

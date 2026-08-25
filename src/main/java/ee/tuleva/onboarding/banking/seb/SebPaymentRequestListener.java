@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.banking.seb;
 
+import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.payment.PaymentBlockedEvent;
 import ee.tuleva.onboarding.banking.payment.PaymentFileIntegrityValidator;
 import ee.tuleva.onboarding.banking.payment.PaymentIntegrityException;
@@ -17,7 +18,7 @@ import org.springframework.context.event.EventListener;
 public class SebPaymentRequestListener {
 
   private final SebGatewayClient sebGatewayClient;
-  private final SebAccountConfiguration sebAccountConfiguration;
+  private final BankAccounts bankAccounts;
   private final PaymentMessageGenerator paymentMessageGenerator;
   private final PaymentFileIntegrityValidator paymentFileIntegrityValidator;
   private final ApplicationEventPublisher eventPublisher;
@@ -26,7 +27,8 @@ public class SebPaymentRequestListener {
   public void onRequestPayment(RequestPaymentEvent event) {
     var paymentRequest = event.paymentRequest();
 
-    if (sebAccountConfiguration.getAccountType(paymentRequest.remitterIban()) == null) {
+    var remitterAccount = bankAccounts.find(paymentRequest.remitterIban()).orElse(null);
+    if (remitterAccount == null) {
       log.error(
           "Payment request dropped, remitter IBAN is not a SEB account: endToEndId={}",
           paymentRequest.endToEndId());
@@ -46,6 +48,7 @@ public class SebPaymentRequestListener {
       throw new PaymentIntegrityException(paymentRequest.endToEndId(), violations);
     }
 
-    sebGatewayClient.submitPaymentFile(paymentXml, paymentRequest.endToEndId());
+    sebGatewayClient.submitPaymentFile(
+        paymentXml, paymentRequest.endToEndId(), remitterAccount.gatewayClientId());
   }
 }

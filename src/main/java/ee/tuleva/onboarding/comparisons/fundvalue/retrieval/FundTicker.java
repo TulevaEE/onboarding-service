@@ -337,6 +337,12 @@ public enum FundTicker {
         .findFirst();
   }
 
+  public static Optional<FundTicker> findByEodhdTicker(String eodhdTicker) {
+    return Arrays.stream(values())
+        .filter(fundTicker -> fundTicker.getEodhdTicker().equals(eodhdTicker))
+        .findFirst();
+  }
+
   public static Optional<FundTicker> findByBloombergTicker(String bloombergTicker) {
     return Arrays.stream(values())
         .filter(fundTicker -> bloombergTicker.equals(fundTicker.getBloombergTicker()))

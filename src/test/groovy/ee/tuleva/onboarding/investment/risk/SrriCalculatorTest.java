@@ -126,6 +126,18 @@ class SrriCalculatorTest {
   }
 
   @Test
+  void publishesAClassOnObservationCountAloneEvenWhenTheWindowReachesPastTheFirstNav() {
+    var navs = fiveYearsOfNavs(250);
+    var evalDate = navs.getLast().date().minusWeeks(1);
+
+    var point = calculator.calculate(navs, evalDate, evalDate).getFirst();
+
+    assertThat(point.observationCount()).isGreaterThanOrEqualTo(200);
+    assertThat((LocalDate) point.metrics().get("windowStart")).isBefore(navs.getFirst().date());
+    assertThat(point.riskClass()).isNotNull();
+  }
+
+  @Test
   void oneMissingWeekDoesNotBlankTheClassAndTheWindowStaysFiveCalendarYears() {
     var navs = fiveYearsOfNavs(300);
     var dropped = navs.get(150).date();

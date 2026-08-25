@@ -10,6 +10,7 @@ import ee.tuleva.onboarding.banking.message.BankingMessage;
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
 import ee.tuleva.onboarding.banking.seb.reconciliation.ReconciliationCompletedEvent;
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.ledger.SystemAccount;
@@ -36,6 +37,7 @@ class SebReconciliationIntegrationTest {
   @Autowired private BankingMessageRepository bankingMessageRepository;
   @Autowired private ApplicationEventPublisher eventPublisher;
   @Autowired private SavingsFundLedger savingsFundLedger;
+  @Autowired private FundBankLedger fundBankLedger;
   @Autowired private LedgerService ledgerService;
 
   private static final Instant NOW = Instant.parse("2025-10-01T12:00:00Z");
@@ -124,8 +126,12 @@ class SebReconciliationIntegrationTest {
     ClockHolder.setClock(Clock.fixed(Instant.parse("2025-10-02T12:00:00Z"), ZoneId.of("UTC")));
 
     // Create an intraday entry that lands on Oct 2
-    savingsFundLedger.recordInterestReceived(
-        new BigDecimal("50.00"), randomUUID(), SystemAccount.FUND_INVESTMENT_CASH_CLEARING);
+    fundBankLedger.recordInterestReceived(
+        TulevaFund.TKF100,
+        new BigDecimal("50.00"),
+        randomUUID(),
+        SystemAccount.FUND_INVESTMENT_CASH_CLEARING,
+        LocalDate.of(2025, 10, 2));
 
     // Bank statement for Oct 1 with closing balance = 1000.00 (no change)
     var xml = createFundInvestmentStatementWithClosingBalance("1000.00", "2025-10-01");

@@ -1,0 +1,23 @@
+# Personal ID codes approved to appear in this repository. Only codes that
+# identify no real person may be listed: SK ID Solutions' published demo/test
+# identities, and synthetic codes invented for this repo's fixtures that are
+# long public on master. They carry a valid mod-11 check digit because parts
+# of the code base validate it, so the detector cannot tell them apart from
+# real codes on its own.
+#
+# Never add a real person's code. A new fixture should prefer an official SK
+# demo code below, or a code the detector ignores anyway (38888888888); grow
+# this list only when a test genuinely needs a new checksum-valid code.
+# One code per line; anything else is ignored.
+#
+# SK ID Solutions published test identities:
+30303039816
+38001085718
+39901019992
+40404049996
+60001019906
+#
+# Invented fixtures long public in this repo (no official demo code exists
+# for a minor, and the sample user is baked into snapshots repo-wide):
+38812121215
+61506150006

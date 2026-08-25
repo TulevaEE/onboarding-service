@@ -1,25 +1,29 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
-import static ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker.*;
 import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.BENCHMARK;
 import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.BENCHMARK_MODEL;
 import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
 import static java.math.BigDecimal.ZERO;
+import static java.util.function.Function.identity;
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.mapping;
+import static java.util.stream.Collectors.toMap;
+import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.comparisons.fundvalue.PriorityPriceProvider;
 import ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus;
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.PriceSnapshot;
 import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.SecurityData;
 import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.TrackingInput;
-import ee.tuleva.onboarding.investment.fees.FeeRate;
-import ee.tuleva.onboarding.investment.fees.FeeRateRepository;
+import ee.tuleva.onboarding.investment.fees.FeeAccrual;
+import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
+import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
 import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
@@ -39,6 +43,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -73,7 +78,8 @@ class TrackingDifferenceService {
   private final PriorityPriceProvider priorityPriceProvider;
   private final PositionPriceResolver positionPriceResolver;
   private final PublicHolidays publicHolidays;
-  private final FeeRateRepository feeRateRepository;
+  private final FeeAccrualRepository feeAccrualRepository;
+  private final FeeChargedToFundPolicy feeChargedToFundPolicy;
   private final TrackingDifferenceEventRepository eventRepository;
   private final TrackingDifferenceCalculator calculator;
   private final FundNavQueryService fundNavQueryService;
@@ -179,12 +185,6 @@ class TrackingDifferenceService {
             .filter(Objects::nonNull)
             .reduce(ZERO, BigDecimal::add);
 
-    var annualFeeRate =
-        feeRateRepository
-            .findValidRate(fund, FeeType.MANAGEMENT, checkDate)
-            .map(FeeRate::annualRate)
-            .orElse(ZERO);
-
     var securities =
         buildSecurityData(
             fund,
@@ -236,17 +236,20 @@ class TrackingDifferenceService {
             .map(FundPosition::getMarketValue)
             .filter(Objects::nonNull)
             .reduce(ZERO, BigDecimal::add);
-    var bodTotalNav =
+    var previousTotalNav =
         fundPositionRepository.sumMarketValueByFundAndAccountTypes(
             fund, previousDate, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY));
 
     List<TrackingDifferenceCalculator.BodHolding> bodHoldings = null;
     BigDecimal bodSecuritiesFraction = null;
-    if (bodTotalNav != null && bodTotalNav.signum() > 0 && bodTotalSecurities.signum() > 0) {
+    if (previousTotalNav != null
+        && previousTotalNav.signum() > 0
+        && bodTotalSecurities.signum() > 0) {
       bodHoldings =
           buildBodHoldings(fund, checkDate, previousDate, bodPositions, bodTotalSecurities);
       if (bodHoldings != null) {
-        bodSecuritiesFraction = bodTotalSecurities.divide(bodTotalNav, SCALE, RoundingMode.HALF_UP);
+        bodSecuritiesFraction =
+            bodTotalSecurities.divide(previousTotalNav, SCALE, RoundingMode.HALF_UP);
       }
     } else {
       log.warn(
@@ -254,9 +257,12 @@ class TrackingDifferenceService {
           fund,
           checkDate,
           previousDate,
-          bodTotalNav,
+          previousTotalNav,
           bodTotalSecurities);
     }
+
+    var accruedFeeFraction =
+        accruedFeeFraction(fund, previousDate, checkDate, previousTotalNav, totalNav);
 
     var priorBreaches = countConsecutiveBreaches(fund, MODEL_PORTFOLIO, checkDate);
 
@@ -269,7 +275,7 @@ class TrackingDifferenceService {
             .yesterdayNav(yesterdayNav.value())
             .securities(blendedSecurities)
             .cashWeight(cashWeight)
-            .annualFeeRate(annualFeeRate)
+            .accruedFeeFraction(accruedFeeFraction)
             .consecutiveBreachDays(priorBreaches.count())
             .bodHoldings(bodHoldings)
             .bodSecuritiesFraction(bodSecuritiesFraction)
@@ -299,6 +305,122 @@ class TrackingDifferenceService {
             });
 
     return results;
+  }
+
+  private BigDecimal accruedFeeFraction(
+      TulevaFund fund,
+      LocalDate previousDate,
+      LocalDate checkDate,
+      @Nullable BigDecimal previousTotalNav,
+      BigDecimal totalNav) {
+    var base = feeFractionBase(fund, previousDate, checkDate, previousTotalNav, totalNav);
+    if (base.signum() <= 0) {
+      return ZERO;
+    }
+    var accruals =
+        feeAccrualRepository.findByFundAndDateRange(fund, previousDate.plusDays(1), checkDate);
+    var chargedResolvers =
+        accruals.stream()
+            .map(FeeAccrual::feeType)
+            .distinct()
+            .collect(
+                toMap(identity(), feeType -> feeChargedToFundPolicy.resolverFor(fund, feeType)));
+    var chargedAccruals =
+        accruals.stream()
+            .filter(a -> chargedResolvers.get(a.feeType()).chargedOn(a.accrualDate()))
+            .toList();
+    warnOnIncompleteAccrualCoverage(
+        fund, previousDate, checkDate, chargedResolvers, chargedAccruals);
+    var accrued =
+        chargedAccruals.stream().map(FeeAccrual::dailyAmountGross).reduce(ZERO, BigDecimal::add);
+    return accrued.divide(base, SCALE, RoundingMode.HALF_UP);
+  }
+
+  private BigDecimal feeFractionBase(
+      TulevaFund fund,
+      LocalDate previousDate,
+      LocalDate checkDate,
+      @Nullable BigDecimal previousTotalNav,
+      BigDecimal totalNav) {
+    if (previousTotalNav != null && previousTotalNav.signum() > 0) {
+      return previousTotalNav;
+    }
+    log.warn(
+        "No positions on the previous NAV date, dividing the fee accrual by the check date NAV instead: fund={}, previousDate={}, checkDate={}",
+        fund,
+        previousDate,
+        checkDate);
+    return totalNav;
+  }
+
+  private void warnOnIncompleteAccrualCoverage(
+      TulevaFund fund,
+      LocalDate previousDate,
+      LocalDate checkDate,
+      Map<FeeType, FeeChargedToFundPolicy.Resolver> chargedResolvers,
+      List<FeeAccrual> chargedAccruals) {
+    if (chargedResolvers.isEmpty()) {
+      log.warn(
+          "No fee accruals for the check window, the uncovered fee will surface as tracking residual: fund={}, previousDate={}, checkDate={}, windowDays={}",
+          fund,
+          previousDate,
+          checkDate,
+          windowDates(previousDate, checkDate).size());
+      return;
+    }
+    var coveredDatesByFeeType =
+        chargedAccruals.stream()
+            .collect(groupingBy(FeeAccrual::feeType, mapping(FeeAccrual::accrualDate, toSet())));
+    chargedResolvers.forEach(
+        (feeType, resolver) ->
+            warnOnIncompleteFeeTypeCoverage(
+                fund,
+                previousDate,
+                checkDate,
+                feeType,
+                resolver,
+                coveredDatesByFeeType.getOrDefault(feeType, Set.of()).size()));
+  }
+
+  private void warnOnIncompleteFeeTypeCoverage(
+      TulevaFund fund,
+      LocalDate previousDate,
+      LocalDate checkDate,
+      FeeType feeType,
+      FeeChargedToFundPolicy.Resolver resolver,
+      int coveredDays) {
+    var chargedDays = 0;
+    for (var date : windowDates(previousDate, checkDate)) {
+      try {
+        if (resolver.chargedOn(date)) {
+          chargedDays++;
+        }
+      } catch (IllegalStateException e) {
+        log.warn(
+            "Fee accrual coverage undetermined, the fee policy does not resolve for a day of the check window: fund={}, feeType={}, previousDate={}, checkDate={}, unresolvedDate={}",
+            fund,
+            feeType,
+            previousDate,
+            checkDate,
+            date,
+            e);
+        return;
+      }
+    }
+    if (coveredDays < chargedDays) {
+      log.warn(
+          "Fee accruals incomplete for the check window, the uncovered fee will surface as tracking residual: fund={}, feeType={}, previousDate={}, checkDate={}, chargedDays={}, coveredDays={}",
+          fund,
+          feeType,
+          previousDate,
+          checkDate,
+          chargedDays,
+          coveredDays);
+    }
+  }
+
+  private List<LocalDate> windowDates(LocalDate previousDate, LocalDate checkDate) {
+    return previousDate.plusDays(1).datesUntil(checkDate.plusDays(1)).toList();
   }
 
   private Optional<TrackingDifferenceResult> buildBenchmarkCheck(
@@ -505,26 +627,9 @@ class TrackingDifferenceService {
   }
 
   private String resolveBenchmarkKey(String isin) {
-    var ticker = FundTicker.findByIsin(isin).orElse(null);
-    if (ticker == null) {
-      return null;
-    }
-
-    var category = ticker.getBenchmarkCategory();
-    if (category == null) {
-      return null;
-    }
-
-    var isEtf =
-        ticker.getEodhdTicker().endsWith(".XETRA") || ticker.getEodhdTicker().endsWith(".PA.EODHD");
-
-    return switch (category) {
-      case EQUITY_DM ->
-          isEtf ? ISHARES_CORE_MSCI_WORLD.getXetraStorageKey().orElseThrow() : "MSCI_WORLD";
-      case EQUITY_EM -> isEtf ? ISHARES_MSCI_EM.getXetraStorageKey().orElseThrow() : "MSCI_EM";
-      case BOND_EURO -> ISHARES_EURO_AGG_BOND_ETF.getXetraStorageKey().orElseThrow();
-      case BOND_GLOBAL -> ISHARES_GLOBAL_AGG_BOND_ETF.getXetraStorageKey().orElseThrow();
-    };
+    return BenchmarkLegResolver.resolve(isin)
+        .map(BenchmarkLegResolver.BenchmarkLeg::seriesKey)
+        .orElse(null);
   }
 
   private Optional<BigDecimal> lookupReturn(

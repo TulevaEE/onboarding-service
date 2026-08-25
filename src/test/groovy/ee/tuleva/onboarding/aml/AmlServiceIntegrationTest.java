@@ -14,6 +14,7 @@ import static org.mockito.Mockito.when;
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
 import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
 import ee.tuleva.onboarding.conversion.UserConversionService;
+import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.user.User;
 import jakarta.persistence.EntityManager;
@@ -21,6 +22,7 @@ import jakarta.persistence.PersistenceContext;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -116,7 +118,7 @@ public class AmlServiceIntegrationTest {
   void shouldAddPepAndSanctionChecks() {
     // given
     User user = sampleUser().build();
-    Country country = new Country("EE");
+    Set<Country> country = Countries.of("EE");
 
     // when
     List<AmlCheck> checks = amlService.addSanctionAndPepCheckIfMissing(user, country);
@@ -131,7 +133,7 @@ public class AmlServiceIntegrationTest {
   @Transactional
   void pepMatchResultsArePersistedAsArrayNotBeanSerializedBlob() {
     User user = sampleUser().build();
-    Country country = new Country("EE");
+    Set<Country> country = Countries.of("EE");
 
     JsonMapper objectMapper = JsonMapper.builder().build();
     ArrayNode results = objectMapper.createArrayNode();
@@ -182,7 +184,7 @@ public class AmlServiceIntegrationTest {
   void shouldVerifyAllChecksPassForThirdPillar() {
     // given
     User user = sampleUser().build();
-    Country country = new Country("EE");
+    Set<Country> country = Countries.of("EE");
 
     amlService.checkUserBeforeLogin(user, user, true);
     amlService.addSanctionAndPepCheckIfMissing(user, country);
@@ -226,7 +228,7 @@ public class AmlServiceIntegrationTest {
   void shouldFailWhenSanctionMatchIsFound() {
     // given
     User user = sampleUser().build();
-    Country country = new Country("EE");
+    Set<Country> country = Countries.of("EE");
 
     JsonMapper objectMapper = JsonMapper.builder().build();
     ArrayNode results = objectMapper.createArrayNode();

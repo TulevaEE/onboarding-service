@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.party;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -21,10 +22,10 @@ public interface ParentChildLinkRepository extends JpaRepository<ParentChildLink
       ParentChildLinkStatus status, LocalDate date);
 
   boolean
-      existsByParentPersonalCodeAndChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
+      existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
           String parentPersonalCode,
           String childPersonalCode,
-          ParentChildLinkStatus status,
+          Collection<ParentChildLinkStatus> statuses,
           LocalDate date);
 
   Optional<ParentChildLink> findByParentPersonalCodeAndChildPersonalCodeAndRelationshipType(

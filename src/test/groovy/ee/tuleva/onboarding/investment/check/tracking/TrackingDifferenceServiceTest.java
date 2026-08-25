@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.B
 import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
 import static java.math.BigDecimal.ZERO;
+import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -17,6 +18,10 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
@@ -27,8 +32,9 @@ import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.config.InvestmentParameter;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
-import ee.tuleva.onboarding.investment.fees.FeeRate;
-import ee.tuleva.onboarding.investment.fees.FeeRateRepository;
+import ee.tuleva.onboarding.investment.fees.FeeAccrual;
+import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
+import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
 import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
@@ -42,11 +48,13 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.LoggerFactory;
 
 @ExtendWith(MockitoExtension.class)
 class TrackingDifferenceServiceTest {
@@ -57,12 +65,14 @@ class TrackingDifferenceServiceTest {
   @Mock PriorityPriceProvider priorityPriceProvider;
   @Mock PositionPriceResolver positionPriceResolver;
   final PublicHolidays publicHolidays = new PublicHolidays();
-  @Mock FeeRateRepository feeRateRepository;
+  @Mock FeeAccrualRepository feeAccrualRepository;
+  @Mock FeeChargedToFundPolicy feeChargedToFundPolicy;
   @Mock TrackingDifferenceEventRepository eventRepository;
   @Mock InvestmentParameterRepository parameterRepository;
   @Mock ee.tuleva.onboarding.savings.fund.nav.FundNavQueryService fundNavQueryService;
 
   private TrackingDifferenceService service;
+  private final ListAppender<ILoggingEvent> serviceLogs = new ListAppender<>();
 
   private static final LocalDate CHECK_DATE = LocalDate.of(2026, 4, 10);
   private static final LocalDate PREVIOUS_DATE = LocalDate.of(2026, 4, 9);
@@ -105,6 +115,7 @@ class TrackingDifferenceServiceTest {
             parameterRepository.findLatestValue(
                 eq(InvestmentParameter.ESCALATION_NET_TD_THRESHOLD), any(LocalDate.class)))
         .thenReturn(new BigDecimal("0.005"));
+    chargeEveryFeeToTheFund();
     service =
         new TrackingDifferenceService(
             FIXED_CLOCK,
@@ -114,10 +125,50 @@ class TrackingDifferenceServiceTest {
             priorityPriceProvider,
             positionPriceResolver,
             publicHolidays,
-            feeRateRepository,
+            feeAccrualRepository,
+            feeChargedToFundPolicy,
             eventRepository,
             new TrackingDifferenceCalculator(parameterRepository),
             fundNavQueryService);
+    serviceLogs.start();
+    serviceLogger().addAppender(serviceLogs);
+  }
+
+  @AfterEach
+  void detachServiceLogs() {
+    serviceLogger().detachAppender(serviceLogs);
+  }
+
+  private static Logger serviceLogger() {
+    return (Logger) LoggerFactory.getLogger(TrackingDifferenceService.class);
+  }
+
+  private void chargeEveryFeeToTheFund() {
+    for (TulevaFund fund : TulevaFund.values()) {
+      for (FeeType feeType : FeeType.values()) {
+        lenient()
+            .when(feeChargedToFundPolicy.resolverFor(fund, feeType))
+            .thenReturn(policy(fund, feeType, true));
+      }
+    }
+  }
+
+  private FeeChargedToFundPolicy.Resolver policy(
+      TulevaFund fund, FeeType feeType, boolean chargedToFund) {
+    return new FeeChargedToFundPolicy.Resolver(
+        fund,
+        feeType,
+        List.of(new FeeChargedToFundPolicy.Policy(chargedToFund, fund.getInceptionDate(), null)));
+  }
+
+  private FeeChargedToFundPolicy.Resolver depotPolicyWithAGapAfter(
+      LocalDate lastChargedDay, LocalDate resumesOn) {
+    return new FeeChargedToFundPolicy.Resolver(
+        TUK75,
+        FeeType.DEPOT,
+        List.of(
+            new FeeChargedToFundPolicy.Policy(true, TUK75.getInceptionDate(), lastChargedDay),
+            new FeeChargedToFundPolicy.Policy(true, resumesOn, null)));
   }
 
   @Test
@@ -220,8 +271,6 @@ class TrackingDifferenceServiceTest {
             fundPositionRepository.sumMarketValueByFundAndAccountTypes(
                 TUK75, CHECK_DATE, List.of(CASH)))
         .willReturn(new BigDecimal("50000"));
-    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
-        .willReturn(Optional.empty());
     given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(2)))
         .willReturn(List.of());
 
@@ -335,8 +384,6 @@ class TrackingDifferenceServiceTest {
             fundPositionRepository.sumMarketValueByFundAndAccountTypes(
                 TUK75, friday, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
         .willReturn(new BigDecimal("1000000"));
-    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, monday))
-        .willReturn(Optional.empty());
     lenient()
         .when(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(monday), eq(10)))
         .thenReturn(List.of());
@@ -353,6 +400,281 @@ class TrackingDifferenceServiceTest {
         .findByNavDateAndFundAndAccountType(saturday, TUK75, SECURITY);
     verify(fundPositionRepository, never())
         .findByNavDateAndFundAndAccountType(sunday, TUK75, SECURITY);
+  }
+
+  @Test
+  void feeDragUsesActualAccrualsCoveringManagementAndDepot() {
+    setupFundData(TUK75);
+    given(feeAccrualRepository.findByFundAndDateRange(TUK75, CHECK_DATE, CHECK_DATE))
+        .willReturn(
+            List.of(
+                accrual(FeeType.MANAGEMENT, CHECK_DATE, new BigDecimal("9.00")),
+                accrual(FeeType.DEPOT, CHECK_DATE, new BigDecimal("3.00"))));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var model =
+        results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst().orElseThrow();
+    assertThat(model.feeDrag()).isEqualByComparingTo(new BigDecimal("-0.000012"));
+  }
+
+  @Test
+  void feeDragSpansEveryCalendarDaySincePreviousNavDate() {
+    var monday = LocalDate.of(2026, 4, 13);
+    var saturday = LocalDate.of(2026, 4, 11);
+    setupFundDataForMonday(monday);
+    given(feeAccrualRepository.findByFundAndDateRange(TUK75, saturday, monday))
+        .willReturn(
+            List.of(
+                accrual(FeeType.MANAGEMENT, saturday, new BigDecimal("9.00")),
+                accrual(FeeType.MANAGEMENT, saturday.plusDays(1), new BigDecimal("9.00")),
+                accrual(FeeType.MANAGEMENT, monday, new BigDecimal("9.00"))));
+
+    var results = service.runChecksAsOf(monday);
+
+    var model =
+        results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst().orElseThrow();
+    assertThat(model.feeDrag()).isEqualByComparingTo(new BigDecimal("-0.000027"));
+    verify(feeAccrualRepository).findByFundAndDateRange(TUK75, saturday, monday);
+  }
+
+  @Test
+  void feeDragExcludesAFeeTheFundIsNotCharged() {
+    setupFundData(TUK75);
+    given(feeChargedToFundPolicy.resolverFor(TUK75, FeeType.DEPOT))
+        .willReturn(policy(TUK75, FeeType.DEPOT, false));
+    given(feeAccrualRepository.findByFundAndDateRange(TUK75, CHECK_DATE, CHECK_DATE))
+        .willReturn(
+            List.of(
+                accrual(FeeType.MANAGEMENT, CHECK_DATE, new BigDecimal("9.00")),
+                accrual(FeeType.DEPOT, CHECK_DATE, new BigDecimal("3.00"))));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var model =
+        results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst().orElseThrow();
+    assertThat(model.feeDrag()).isEqualByComparingTo(new BigDecimal("-0.000009"));
+  }
+
+  @Test
+  void feeDragFollowsThePolicyInForceOnEachAccrualDate() {
+    var monday = LocalDate.of(2026, 4, 13);
+    var saturday = LocalDate.of(2026, 4, 11);
+    var sunday = LocalDate.of(2026, 4, 12);
+    setupFundDataForMonday(monday);
+    given(feeChargedToFundPolicy.resolverFor(TUK75, FeeType.DEPOT))
+        .willReturn(
+            new FeeChargedToFundPolicy.Resolver(
+                TUK75,
+                FeeType.DEPOT,
+                List.of(
+                    new FeeChargedToFundPolicy.Policy(true, TUK75.getInceptionDate(), saturday),
+                    new FeeChargedToFundPolicy.Policy(false, sunday, null))));
+    given(feeAccrualRepository.findByFundAndDateRange(TUK75, saturday, monday))
+        .willReturn(
+            List.of(
+                accrual(FeeType.DEPOT, saturday, new BigDecimal("3.00")),
+                accrual(FeeType.DEPOT, sunday, new BigDecimal("3.00")),
+                accrual(FeeType.DEPOT, monday, new BigDecimal("3.00"))));
+
+    var results = service.runChecksAsOf(monday);
+
+    var model =
+        results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst().orElseThrow();
+    assertThat(model.feeDrag()).isEqualByComparingTo(new BigDecimal("-0.000003"));
+  }
+
+  @Test
+  void feeDragIsMeasuredAgainstThePreviousNavDatesTotal() {
+    setupFundData(TUK75);
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, PREVIOUS_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(new BigDecimal("900000"));
+    given(feeAccrualRepository.findByFundAndDateRange(TUK75, CHECK_DATE, CHECK_DATE))
+        .willReturn(List.of(accrual(FeeType.MANAGEMENT, CHECK_DATE, new BigDecimal("9.00"))));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var model =
+        results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst().orElseThrow();
+    assertThat(model.feeDrag()).isEqualByComparingTo(new BigDecimal("-0.000010"));
+  }
+
+  @Test
+  void feeDragIsZeroWhenTheWindowHasNoAccrualsAtAll() {
+    setupFundData(TUK75);
+    given(feeAccrualRepository.findByFundAndDateRange(TUK75, CHECK_DATE, CHECK_DATE))
+        .willReturn(List.of());
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var model =
+        results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst().orElseThrow();
+    assertThat(model.feeDrag()).isEqualByComparingTo(BigDecimal.ZERO);
+  }
+
+  @Test
+  void aFeeTypeCoveringEveryDayDoesNotMaskAnotherFeeTypesMissingAccrualDay() {
+    var monday = LocalDate.of(2026, 4, 13);
+    var saturday = LocalDate.of(2026, 4, 11);
+    var sunday = LocalDate.of(2026, 4, 12);
+    setupFundDataForMonday(monday);
+    given(feeAccrualRepository.findByFundAndDateRange(TUK75, saturday, monday))
+        .willReturn(
+            List.of(
+                accrual(FeeType.DEPOT, saturday, new BigDecimal("1.00")),
+                accrual(FeeType.DEPOT, sunday, new BigDecimal("1.00")),
+                accrual(FeeType.DEPOT, monday, new BigDecimal("1.00")),
+                accrual(FeeType.MANAGEMENT, saturday, new BigDecimal("9.00")),
+                accrual(FeeType.MANAGEMENT, monday, new BigDecimal("9.00"))));
+
+    service.runChecksAsOf(monday);
+
+    assertThat(serviceLogs.list)
+        .filteredOn(event -> event.getLevel() == Level.WARN)
+        .anyMatch(event -> asList(event.getArgumentArray()).contains(FeeType.MANAGEMENT))
+        .noneMatch(event -> asList(event.getArgumentArray()).contains(FeeType.DEPOT));
+  }
+
+  @Test
+  void aFeeTypeChargedOnOnlyPartOfTheWindowByPolicyIsNotAnIncompleteAccrual() {
+    var monday = LocalDate.of(2026, 4, 13);
+    var saturday = LocalDate.of(2026, 4, 11);
+    var sunday = LocalDate.of(2026, 4, 12);
+    setupFundDataForMonday(monday);
+    given(feeChargedToFundPolicy.resolverFor(TUK75, FeeType.DEPOT))
+        .willReturn(
+            new FeeChargedToFundPolicy.Resolver(
+                TUK75,
+                FeeType.DEPOT,
+                List.of(
+                    new FeeChargedToFundPolicy.Policy(true, TUK75.getInceptionDate(), saturday),
+                    new FeeChargedToFundPolicy.Policy(false, sunday, null))));
+    given(feeAccrualRepository.findByFundAndDateRange(TUK75, saturday, monday))
+        .willReturn(
+            List.of(
+                accrual(FeeType.DEPOT, saturday, new BigDecimal("3.00")),
+                accrual(FeeType.DEPOT, sunday, new BigDecimal("3.00")),
+                accrual(FeeType.DEPOT, monday, new BigDecimal("3.00")),
+                accrual(FeeType.MANAGEMENT, saturday, new BigDecimal("9.00")),
+                accrual(FeeType.MANAGEMENT, sunday, new BigDecimal("9.00")),
+                accrual(FeeType.MANAGEMENT, monday, new BigDecimal("9.00"))));
+
+    service.runChecksAsOf(monday);
+
+    assertThat(serviceLogs.list)
+        .filteredOn(event -> event.getLevel() == Level.WARN)
+        .noneMatch(event -> asList(event.getArgumentArray()).contains(FeeType.DEPOT))
+        .noneMatch(event -> asList(event.getArgumentArray()).contains(FeeType.MANAGEMENT));
+  }
+
+  @Test
+  void aFeePolicyGapOnAnAccrualDateFailsTheFeeDragCalculation() {
+    var monday = LocalDate.of(2026, 4, 13);
+    var saturday = LocalDate.of(2026, 4, 11);
+    var sunday = LocalDate.of(2026, 4, 12);
+    setupFundDataForMonday(monday);
+    given(feeChargedToFundPolicy.resolverFor(TUK75, FeeType.DEPOT))
+        .willReturn(depotPolicyWithAGapAfter(saturday, monday));
+    given(feeAccrualRepository.findByFundAndDateRange(TUK75, saturday, monday))
+        .willReturn(
+            List.of(
+                accrual(FeeType.DEPOT, saturday, new BigDecimal("3.00")),
+                accrual(FeeType.DEPOT, sunday, new BigDecimal("3.00")),
+                accrual(FeeType.DEPOT, monday, new BigDecimal("3.00"))));
+
+    assertThatThrownBy(() -> service.runChecksAsOf(monday))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void aFeePolicyGapOnADayWithNoAccrualIsReportedByTheCoverageWarningNotThrown() {
+    var monday = LocalDate.of(2026, 4, 13);
+    var saturday = LocalDate.of(2026, 4, 11);
+    var sunday = LocalDate.of(2026, 4, 12);
+    setupFundDataForMonday(monday);
+    given(feeChargedToFundPolicy.resolverFor(TUK75, FeeType.DEPOT))
+        .willReturn(depotPolicyWithAGapAfter(saturday, monday));
+    given(feeAccrualRepository.findByFundAndDateRange(TUK75, saturday, monday))
+        .willReturn(
+            List.of(
+                accrual(FeeType.DEPOT, saturday, new BigDecimal("3.00")),
+                accrual(FeeType.DEPOT, monday, new BigDecimal("3.00"))));
+
+    var results = service.runChecksAsOf(monday);
+
+    assertThat(results).isNotEmpty();
+    assertThat(serviceLogs.list)
+        .filteredOn(event -> event.getLevel() == Level.WARN)
+        .anyMatch(
+            event -> asList(event.getArgumentArray()).containsAll(List.of(FeeType.DEPOT, sunday)));
+  }
+
+  private void setupFundDataForMonday(LocalDate monday) {
+    var friday = publicHolidays.previousWorkingDay(monday);
+    var isin = "IE00B4L5Y983";
+
+    given(fundNavQueryService.findLatestNavDateOnOrBefore(TUK75.getCode(), monday))
+        .willReturn(Optional.of(monday));
+    for (var f : TulevaFund.values()) {
+      if (f != TUK75) {
+        lenient()
+            .when(fundNavQueryService.findLatestNavDateOnOrBefore(f.getCode(), monday))
+            .thenReturn(Optional.empty());
+      }
+    }
+    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), monday))
+        .willReturn(Optional.of(new BigDecimal("10.10")));
+    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), friday))
+        .willReturn(Optional.of(new BigDecimal("10.00")));
+
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, monday))
+        .willReturn(
+            List.of(
+                ModelPortfolioAllocation.builder()
+                    .fund(TUK75)
+                    .isin(isin)
+                    .weight(new BigDecimal("1.00"))
+                    .effectiveDate(LocalDate.of(2026, 1, 1))
+                    .build()));
+    given(positionPriceResolver.resolve(eq(isin), eq(monday), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("102.00")));
+    given(positionPriceResolver.resolve(eq(isin), eq(friday), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("100.00")));
+
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(monday, TUK75, SECURITY))
+        .willReturn(
+            List.of(
+                FundPosition.builder()
+                    .fund(TUK75)
+                    .navDate(monday)
+                    .accountType(SECURITY)
+                    .accountId(isin)
+                    .marketValue(new BigDecimal("950000"))
+                    .build()));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, monday, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(new BigDecimal("1000000"));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, friday, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(new BigDecimal("1000000"));
+    given(fundPositionRepository.sumMarketValueByFundAndAccountTypes(TUK75, monday, List.of(CASH)))
+        .willReturn(new BigDecimal("50000"));
+    lenient()
+        .when(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(monday), eq(10)))
+        .thenReturn(List.of());
+  }
+
+  private FeeAccrual accrual(FeeType feeType, LocalDate date, BigDecimal amount) {
+    return FeeAccrual.builder()
+        .fund(TUK75)
+        .feeType(feeType)
+        .accrualDate(date)
+        .dailyAmountGross(amount)
+        .build();
   }
 
   @Test
@@ -477,8 +799,6 @@ class TrackingDifferenceServiceTest {
                 TulevaFund.TUK00, CHECK_DATE, List.of(CASH)))
         .willReturn(BigDecimal.ZERO);
 
-    given(feeRateRepository.findValidRate(TulevaFund.TUK00, FeeType.MANAGEMENT, CHECK_DATE))
-        .willReturn(Optional.empty());
     lenient()
         .when(
             eventRepository.findMostRecentEvents(
@@ -593,11 +913,6 @@ class TrackingDifferenceServiceTest {
             fundPositionRepository.sumMarketValueByFundAndAccountTypes(
                 TUK75, CHECK_DATE, List.of(CASH)))
         .willReturn(new BigDecimal("50000"));
-    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
-        .willReturn(
-            Optional.of(
-                new FeeRate(
-                    1L, TUK75, FeeType.MANAGEMENT, new BigDecimal("0.0034"), CHECK_DATE, null)));
     given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
@@ -682,8 +997,6 @@ class TrackingDifferenceServiceTest {
             fundPositionRepository.sumMarketValueByFundAndAccountTypes(
                 TUK00, CHECK_DATE, List.of(CASH)))
         .willReturn(new BigDecimal("50000"));
-    given(feeRateRepository.findValidRate(TUK00, FeeType.MANAGEMENT, CHECK_DATE))
-        .willReturn(Optional.empty());
     given(eventRepository.findMostRecentEvents(eq(TUK00), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
@@ -756,8 +1069,6 @@ class TrackingDifferenceServiceTest {
             fundPositionRepository.sumMarketValueByFundAndAccountTypes(
                 TUK75, CHECK_DATE, List.of(CASH)))
         .willReturn(new BigDecimal("50000"));
-    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
-        .willReturn(Optional.empty());
     given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
@@ -829,8 +1140,6 @@ class TrackingDifferenceServiceTest {
             fundPositionRepository.sumMarketValueByFundAndAccountTypes(
                 TUK75, CHECK_DATE, List.of(CASH)))
         .willReturn(new BigDecimal("50000"));
-    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
-        .willReturn(Optional.empty());
     given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
@@ -913,8 +1222,6 @@ class TrackingDifferenceServiceTest {
             fundPositionRepository.sumMarketValueByFundAndAccountTypes(
                 TUK75, CHECK_DATE, List.of(CASH)))
         .willReturn(new BigDecimal("50000"));
-    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
-        .willReturn(Optional.empty());
     given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
@@ -986,8 +1293,6 @@ class TrackingDifferenceServiceTest {
             fundPositionRepository.sumMarketValueByFundAndAccountTypes(
                 TUK75, CHECK_DATE, List.of(CASH)))
         .willReturn(new BigDecimal("50000"));
-    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
-        .willReturn(Optional.empty());
     given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
@@ -1054,8 +1359,6 @@ class TrackingDifferenceServiceTest {
             fundPositionRepository.sumMarketValueByFundAndAccountTypes(
                 TUK00, CHECK_DATE, List.of(CASH)))
         .willReturn(new BigDecimal("50000"));
-    given(feeRateRepository.findValidRate(TUK00, FeeType.MANAGEMENT, CHECK_DATE))
-        .willReturn(Optional.empty());
     given(eventRepository.findMostRecentEvents(eq(TUK00), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
@@ -1492,9 +1795,6 @@ class TrackingDifferenceServiceTest {
     given(positionPriceResolver.resolve(eq("IE00B4L5Y983"), eq(PREVIOUS_DATE), any(Instant.class)))
         .willReturn(Optional.of(resolvedPrice("100.00")));
 
-    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
-        .willReturn(Optional.empty());
-
     given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
@@ -1558,9 +1858,6 @@ class TrackingDifferenceServiceTest {
                 TUK75, CHECK_DATE, List.of(CASH)))
         .willReturn(new BigDecimal("50000"));
 
-    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
-        .willReturn(Optional.empty());
-
     given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
@@ -1616,9 +1913,6 @@ class TrackingDifferenceServiceTest {
     given(positionPriceResolver.resolve(eq("IE00MISSING1"), any(LocalDate.class), any()))
         .willReturn(Optional.empty());
 
-    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
-        .willReturn(Optional.empty());
-
     assertThatThrownBy(() -> service.runChecksAsOf(CHECK_DATE))
         .isInstanceOf(TrackingDifferenceService.IncompletePriceDataException.class)
         .hasMessageContaining("IE00MISSING1");
@@ -1662,16 +1956,15 @@ class TrackingDifferenceServiceTest {
             fundPositionRepository.sumMarketValueByFundAndAccountTypes(
                 fund, CHECK_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
         .willReturn(new BigDecimal("1000000"));
+    lenient()
+        .when(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                fund, PREVIOUS_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .thenReturn(new BigDecimal("1000000"));
     given(
             fundPositionRepository.sumMarketValueByFundAndAccountTypes(
                 fund, CHECK_DATE, List.of(CASH)))
         .willReturn(new BigDecimal("50000"));
-
-    given(feeRateRepository.findValidRate(fund, FeeType.MANAGEMENT, CHECK_DATE))
-        .willReturn(
-            Optional.of(
-                new FeeRate(
-                    1L, fund, FeeType.MANAGEMENT, new BigDecimal("0.0034"), CHECK_DATE, null)));
 
     lenient()
         .when(eventRepository.findMostRecentEvents(eq(fund), any(), eq(CHECK_DATE), eq(10)))
@@ -1713,9 +2006,6 @@ class TrackingDifferenceServiceTest {
             fundPositionRepository.sumMarketValueByFundAndAccountTypes(
                 fund, CHECK_DATE, List.of(CASH)))
         .willReturn(new BigDecimal("50000"));
-
-    given(feeRateRepository.findValidRate(fund, FeeType.MANAGEMENT, CHECK_DATE))
-        .willReturn(Optional.empty());
 
     given(eventRepository.findMostRecentEvents(eq(fund), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
@@ -1801,8 +2091,6 @@ class TrackingDifferenceServiceTest {
                 TUK75, PREVIOUS_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
         .willReturn(new BigDecimal("1000000"));
 
-    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
-        .willReturn(Optional.empty());
     lenient()
         .when(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .thenReturn(List.of());
@@ -1965,8 +2253,6 @@ class TrackingDifferenceServiceTest {
     given(positionPriceResolver.resolve(eq("IE00OLD"), eq(PREVIOUS_DATE), any(Instant.class)))
         .willReturn(Optional.of(resolvedPrice("50.00")));
 
-    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
-        .willReturn(Optional.empty());
     given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
@@ -2051,8 +2337,6 @@ class TrackingDifferenceServiceTest {
     given(positionPriceResolver.resolve(eq("IE00OLD"), any(LocalDate.class), any()))
         .willReturn(Optional.empty());
 
-    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
-        .willReturn(Optional.empty());
     given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
@@ -2135,8 +2419,6 @@ class TrackingDifferenceServiceTest {
     given(positionPriceResolver.resolve(eq("IE00OLD"), eq(PREVIOUS_DATE), any(Instant.class)))
         .willReturn(Optional.of(resolvedPrice("50.00")));
 
-    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
-        .willReturn(Optional.empty());
     given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
@@ -2243,8 +2525,6 @@ class TrackingDifferenceServiceTest {
     given(positionPriceResolver.resolve(eq("IE00OLD"), eq(PREVIOUS_DATE), any(Instant.class)))
         .willReturn(Optional.of(resolvedPrice("29.50")));
 
-    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
-        .willReturn(Optional.empty());
     given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
@@ -2332,8 +2612,6 @@ class TrackingDifferenceServiceTest {
     given(positionPriceResolver.resolve(eq("IE00NEW"), eq(PREVIOUS_DATE), any(Instant.class)))
         .willReturn(Optional.of(resolvedPrice("100.00")));
 
-    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
-        .willReturn(Optional.empty());
     given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
@@ -2394,8 +2672,6 @@ class TrackingDifferenceServiceTest {
     given(positionPriceResolver.resolve(eq("IE00A"), eq(PREVIOUS_DATE), any(Instant.class)))
         .willReturn(Optional.of(resolvedPrice("100.00")));
 
-    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
-        .willReturn(Optional.empty());
     given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 
@@ -2487,8 +2763,6 @@ class TrackingDifferenceServiceTest {
     given(positionPriceResolver.resolve(eq("IE00B"), eq(PREVIOUS_DATE), any(Instant.class)))
         .willReturn(Optional.of(resolvedPrice("50.00")));
 
-    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, CHECK_DATE))
-        .willReturn(Optional.empty());
     given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
 

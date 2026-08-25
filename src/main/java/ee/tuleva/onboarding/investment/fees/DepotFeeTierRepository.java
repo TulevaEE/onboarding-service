@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.fees;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -12,7 +13,7 @@ public class DepotFeeTierRepository {
 
   private final JdbcClient jdbcClient;
 
-  public BigDecimal findRateForAum(BigDecimal totalAum, LocalDate date) {
+  public Optional<BigDecimal> findRateForAum(BigDecimal totalAum, LocalDate date) {
     return jdbcClient
         .sql(
             """
@@ -27,10 +28,6 @@ public class DepotFeeTierRepository {
         .param("totalAum", totalAum)
         .param("date", date)
         .query(BigDecimal.class)
-        .optional()
-        .orElseThrow(
-            () ->
-                new IllegalStateException(
-                    "No depot fee tier found: totalAum=" + totalAum + ", date=" + date));
+        .optional();
   }
 }

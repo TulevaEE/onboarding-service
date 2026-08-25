@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
-import ee.tuleva.onboarding.country.Country;
+import ee.tuleva.onboarding.country.Countries;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
@@ -30,9 +30,9 @@ class OpenSanctionsServiceTimeoutTest {
               "http://127.0.0.1:" + unresponsiveServer.getLocalPort(),
               Duration.ofMillis(500),
               Duration.ofMillis(250));
-      var person = new PersonImpl("36004081234", "Peeter", "Meeter");
+      var person = new PersonImpl("30303039816", "Peeter", "Meeter");
 
-      Throwable thrown = catchThrowable(() -> service.match(person, new Country("ee")));
+      Throwable thrown = catchThrowable(() -> service.match(person, Countries.of("ee")));
 
       assertThat(thrown).isInstanceOf(ResourceAccessException.class);
     }

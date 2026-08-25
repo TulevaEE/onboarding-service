@@ -13,6 +13,8 @@ import ee.tuleva.onboarding.investment.event.FundPositionsImported;
 import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.investment.event.RunFeeAccrualPositionSyncRequested;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
+import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
+import ee.tuleva.onboarding.investment.fees.FeeType;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -33,6 +35,7 @@ import org.springframework.stereotype.Component;
 public class FeeAccrualPositionSyncJob {
 
   private final FeeAccrualRepository feeAccrualRepository;
+  private final FeeChargedToFundPolicy feeChargedToFundPolicy;
   private final FundPositionImportService fundPositionImportService;
   private final FundPositionRepository fundPositionRepository;
   private final Clock clock;
@@ -80,9 +83,12 @@ public class FeeAccrualPositionSyncJob {
               .filter(date -> !date.isBefore(cutoffDate))
               .toList();
 
+      var managementPolicy = feeChargedToFundPolicy.resolverFor(fund, MANAGEMENT);
+      var depotPolicy = feeChargedToFundPolicy.resolverFor(fund, DEPOT);
+
       for (var navDate : navDates) {
-        var mgmtAccrual = feeAccrualRepository.getUnsettledAccrual(fund, MANAGEMENT, navDate);
-        var depotAccrual = feeAccrualRepository.getUnsettledAccrual(fund, DEPOT, navDate);
+        var mgmtAccrual = chargedAccrual(managementPolicy, fund, MANAGEMENT, navDate);
+        var depotAccrual = chargedAccrual(depotPolicy, fund, DEPOT, navDate);
 
         var positions =
             List.of(
@@ -95,6 +101,13 @@ public class FeeAccrualPositionSyncJob {
     }
 
     return total;
+  }
+
+  private BigDecimal chargedAccrual(
+      FeeChargedToFundPolicy.Resolver policy, TulevaFund fund, FeeType feeType, LocalDate navDate) {
+    return policy.chargedOn(navDate)
+        ? feeAccrualRepository.getUnsettledAccrual(fund, feeType, navDate)
+        : BigDecimal.ZERO;
   }
 
   private FundPosition feeAccrualPosition(

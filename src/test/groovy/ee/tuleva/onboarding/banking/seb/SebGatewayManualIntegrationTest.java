@@ -6,7 +6,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
 import ee.tuleva.onboarding.LoadDotEnv;
-import ee.tuleva.onboarding.banking.BankAccountType;
+import ee.tuleva.onboarding.banking.BankAccount;
+import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankStatementReceived;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebCurrentDayTransactionsRequested;
@@ -76,12 +77,20 @@ import org.springframework.transaction.annotation.Transactional;
 class SebGatewayManualIntegrationTest {
 
   @Autowired private ApplicationEventPublisher eventPublisher;
+  @Autowired private BankAccounts bankAccounts;
 
   @Autowired private ApplicationEvents applicationEvents;
 
+  private BankAccount depositAccount() {
+    return bankAccounts.findAll().stream()
+        .filter(account -> account.type() == DEPOSIT_EUR)
+        .findFirst()
+        .orElseThrow();
+  }
+
   @Test
   void fetchAndProcessCurrentDayTransactions() {
-    eventPublisher.publishEvent(new FetchSebCurrentDayTransactionsRequested(DEPOSIT_EUR));
+    eventPublisher.publishEvent(new FetchSebCurrentDayTransactionsRequested(depositAccount()));
     eventPublisher.publishEvent(new ProcessBankMessagesRequested());
 
     List<BankStatementReceived> receivedEvents =
@@ -99,7 +108,7 @@ class SebGatewayManualIntegrationTest {
 
   @Test
   void fetchJanuaryTransactions() {
-    for (BankAccountType account : BankAccountType.values()) {
+    for (BankAccount account : bankAccounts.findAll()) {
       eventPublisher.publishEvent(
           new BankMessageEvents.FetchSebHistoricTransactionsRequested(
               account, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 28)));
@@ -111,7 +120,7 @@ class SebGatewayManualIntegrationTest {
 
   @Test
   void fetchAndProcessEodTransactions() {
-    eventPublisher.publishEvent(new FetchSebEodTransactionsRequested(DEPOSIT_EUR));
+    eventPublisher.publishEvent(new FetchSebEodTransactionsRequested(depositAccount()));
     eventPublisher.publishEvent(new ProcessBankMessagesRequested());
 
     List<BankStatementReceived> receivedEvents =

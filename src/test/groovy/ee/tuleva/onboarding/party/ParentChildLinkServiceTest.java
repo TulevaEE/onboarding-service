@@ -5,12 +5,14 @@ import static ee.tuleva.onboarding.party.ParentChildLinkStatus.PENDING_KYC;
 import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -54,14 +56,44 @@ class ParentChildLinkServiceTest {
   }
 
   @Test
-  void isActiveRepresentationWhenActiveLinkExistsAsOfToday() {
+  void isRepresentationWhenALinkWithOneOfTheRequestedStatusesExistsAsOfToday() {
     given(
             parentChildLinkRepository
-                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
-                    PARENT, CHILD, ACTIVE, TODAY))
+                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                    PARENT, CHILD, Set.of(ACTIVE, PENDING_KYC), TODAY))
+        .willReturn(true);
+
+    assertThat(service.isRepresentation(PARENT, CHILD, Set.of(ACTIVE, PENDING_KYC))).isTrue();
+  }
+
+  @Test
+  void isNotRepresentationWhenNoLinkHasOneOfTheRequestedStatuses() {
+    assertThat(service.isRepresentation(PARENT, CHILD, Set.of(ACTIVE, PENDING_KYC))).isFalse();
+  }
+
+  @Test
+  void isRepresentationPassesTheRequestedStatusSetStraightToTheQuery() {
+    given(
+            parentChildLinkRepository
+                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                    PARENT, CHILD, Set.of(ACTIVE), TODAY))
+        .willReturn(true);
+
+    assertThat(service.isRepresentation(PARENT, CHILD, Set.of(ACTIVE))).isTrue();
+  }
+
+  @Test
+  void isActiveRepresentationDelegatesWithTheActiveStatusOnly() {
+    given(
+            parentChildLinkRepository
+                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                    PARENT, CHILD, Set.of(ACTIVE), TODAY))
         .willReturn(true);
 
     assertThat(service.isActiveRepresentation(PARENT, CHILD)).isTrue();
+    verify(parentChildLinkRepository)
+        .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+            PARENT, CHILD, Set.of(ACTIVE), TODAY);
   }
 
   @Test

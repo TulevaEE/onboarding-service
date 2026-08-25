@@ -324,6 +324,90 @@ class SebFundPositionParserTest {
     assertThat(positions.get(1).getAccountId()).isEqualTo("IE00BMDBMY19");
   }
 
+  @Test
+  void parse_readsPlainNumbersAsAmounts() {
+    Map<String, Object> row = new HashMap<>();
+    row.put("Client name", "TKF100");
+    row.put("Account", "VP68168");
+    row.put("Name", "Invesco MSCI ETF");
+    row.put("Quantity", 15000.5);
+    row.put("Market price", 35);
+    row.put("Currency", "EUR");
+    row.put("Market Value (EUR)", 528888.44);
+
+    List<FundPosition> positions = parser.parse(List.of(row), REPORT_DATE);
+
+    assertThat(positions).hasSize(1);
+    assertThat(positions.getFirst().getQuantity()).isEqualByComparingTo(new BigDecimal("15000.5"));
+    assertThat(positions.getFirst().getMarketPrice()).isEqualByComparingTo(new BigDecimal("35"));
+    assertThat(positions.getFirst().getMarketValue())
+        .isEqualByComparingTo(new BigDecimal("528888.44"));
+  }
+
+  @Test
+  void parse_readsAmountsWrittenWithGroupingSeparators() {
+    Map<String, Object> row = new HashMap<>();
+    row.put("Client name", "TKF100");
+    row.put("Account", "VP68168");
+    row.put("Name", "Invesco MSCI ETF");
+    row.put("Quantity", "15 000,523");
+    row.put("Market price", "1.234,56");
+    row.put("Currency", "EUR");
+    row.put("Market Value (EUR)", "528 888.44");
+
+    List<FundPosition> positions = parser.parse(List.of(row), REPORT_DATE);
+
+    assertThat(positions).hasSize(1);
+    assertThat(positions.getFirst().getQuantity())
+        .isEqualByComparingTo(new BigDecimal("15000.523"));
+    assertThat(positions.getFirst().getMarketPrice())
+        .isEqualByComparingTo(new BigDecimal("1234.56"));
+    assertThat(positions.getFirst().getMarketValue())
+        .isEqualByComparingTo(new BigDecimal("528888.44"));
+  }
+
+  @Test
+  void parse_leavesAmountsNullWhenTheyAreBlankOrUnreadable() {
+    Map<String, Object> row = new HashMap<>();
+    row.put("Client name", "TKF100");
+    row.put("Account", "VP68168");
+    row.put("Name", "Invesco MSCI ETF");
+    row.put("Quantity", "   ");
+    row.put("Market price", "n/a");
+    row.put("Currency", "EUR");
+    row.put("Market Value (EUR)", "-");
+
+    List<FundPosition> positions = parser.parse(List.of(row), REPORT_DATE);
+
+    assertThat(positions).hasSize(1);
+    assertThat(positions.getFirst().getQuantity()).isNull();
+    assertThat(positions.getFirst().getMarketPrice()).isNull();
+    assertThat(positions.getFirst().getMarketValue()).isNull();
+  }
+
+  @Test
+  void parse_skipsAnUnreadableRowInsteadOfFailingTheWholeReport() {
+    Map<String, Object> unreadable = new HashMap<>();
+    unreadable.put("Client name", "TKF100");
+    unreadable.put("Account", "VP68168");
+    unreadable.put(
+        "Name",
+        new Object() {
+          @Override
+          public String toString() {
+            throw new IllegalStateException("unreadable cell");
+          }
+        });
+
+    List<Map<String, Object>> rawData =
+        List.of(unreadable, createDataRow("TKF100", "Cash account in SEB Pank", "1000"));
+
+    List<FundPosition> positions = parser.parse(rawData, REPORT_DATE);
+
+    assertThat(positions).hasSize(1);
+    assertThat(positions.getFirst().getAccountName()).isEqualTo("Cash account in SEB Pank");
+  }
+
   private Map<String, Object> createDataRow(String fundCode, String name, String marketValue) {
     return Map.of(
         "Client name",

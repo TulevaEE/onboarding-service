@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLE
 import static ee.tuleva.onboarding.ledger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.BankType;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.ProcessBankMessagesRequested;
 import ee.tuleva.onboarding.banking.message.BankingMessage;
@@ -37,7 +38,7 @@ class SebSavingFundPaymentUpsertionServiceIntegrationTest {
   @Autowired private BankingMessageRepository bankingMessageRepository;
   @Autowired private ApplicationEventPublisher eventPublisher;
   @Autowired private LedgerService ledgerService;
-  @Autowired private SebAccountConfiguration sebAccountConfiguration;
+  @Autowired private BankAccounts bankAccounts;
 
   private static final Instant NOW = Instant.parse("2025-10-01T12:00:00Z");
 
@@ -272,8 +273,7 @@ class SebSavingFundPaymentUpsertionServiceIntegrationTest {
   void paymentsFromNonDepositAccountsAreAlsoSavedButDirectlyProcessed() {
     // given - XML with WITHDRAWAL_EUR account IBAN
     var withdrawalAccountIban =
-        sebAccountConfiguration.getAccountIban(
-            ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR);
+        bankAccounts.getIban(TKF100, ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR);
     var withdrawalAccountXml =
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?> "
             + "<Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:camt.052.001.02\"> "
@@ -381,7 +381,7 @@ class SebSavingFundPaymentUpsertionServiceIntegrationTest {
   @Test
   void outgoingPaymentToInvestmentAccountCreatesLedgerEntry() {
     // given - get the actual INVESTMENT_EUR IBAN from configuration
-    var investmentIban = sebAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR);
+    var investmentIban = bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR);
 
     // and - XML with outgoing DEBIT transaction to INVESTMENT_EUR account
     var outgoingToInvestmentXml =

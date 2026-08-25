@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.kyb.survey;
 
 import static ee.tuleva.onboarding.auth.authority.Authority.USER;
 import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.willThrow;
@@ -11,6 +12,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
@@ -103,7 +105,81 @@ class KybSurveyControllerTest {
             content()
                 .json(
                     "{\"relatedPersons\":{\"errors\":[{\"code\":\"USER_KYC\","
-                        + "\"message\":\"Sinu isikusamasuse tuvastamine on lõpetamata\"}]}}"));
+                        + "\"message\":\"Sinu isikusamasuse tuvastamine on lõpetamata\"}]}}"))
+        .andExpect(jsonPath("$.relatedPersons.errors[0].persons").doesNotExist());
+  }
+
+  @Test
+  void initialValidation_serializesUnverifiedRelatedPersonsAsStructuredData() throws Exception {
+    var data =
+        new LegalEntityData(
+            ValidatedField.valid("Test OÜ"),
+            ValidatedField.valid(REGISTRY_CODE),
+            ValidatedField.valid("OÜ"),
+            ValidatedField.valid(LocalDate.of(2020, 1, 15)),
+            ValidatedField.valid(LegalEntityStatus.REGISTERED),
+            ValidatedField.valid(
+                new LegalEntityAddress(
+                    "Pärnu mnt 123, 11313 Tallinn", "Pärnu mnt 123", "Tallinn", "11313", "EST")),
+            ValidatedField.valid("Fondide valitsemine"),
+            ValidatedField.valid("6630"),
+            ValidatedField.withErrors(
+                List.of(),
+                List.of(
+                    new ValidationError(
+                        "OTHER_RELATED_PERSONS_KYC",
+                        "Isikusamasuse tuvastamine on lõpetamata",
+                        List.of(
+                            new RelatedPersonData("38501010003", "Mari Maasikas"),
+                            new RelatedPersonData("38501010004", "Peeter Kask"))))));
+    when(kybSurveyService.initialValidation(REGISTRY_CODE, PERSONAL_CODE)).thenReturn(data);
+
+    mvc.perform(
+            get("/v1/kyb/surveys/initial-validation")
+                .param("registry-code", REGISTRY_CODE)
+                .with(authentication(personAuth())))
+        .andExpect(status().isOk())
+        .andExpect(
+            content()
+                .json(
+                    "{\"relatedPersons\":{\"errors\":[{\"code\":\"OTHER_RELATED_PERSONS_KYC\","
+                        + "\"message\":\"Isikusamasuse tuvastamine on lõpetamata\","
+                        + "\"persons\":[{\"personalCode\":\"38501010003\",\"name\":\"Mari Maasikas\"},"
+                        + "{\"personalCode\":\"38501010004\",\"name\":\"Peeter Kask\"}]}]}}"));
+  }
+
+  @Test
+  void initialValidation_serializesPersonWithoutNameAsExplicitNull() throws Exception {
+    var data =
+        new LegalEntityData(
+            ValidatedField.valid("Test OÜ"),
+            ValidatedField.valid(REGISTRY_CODE),
+            ValidatedField.valid("OÜ"),
+            ValidatedField.valid(LocalDate.of(2020, 1, 15)),
+            ValidatedField.valid(LegalEntityStatus.REGISTERED),
+            ValidatedField.valid(
+                new LegalEntityAddress(
+                    "Pärnu mnt 123, 11313 Tallinn", "Pärnu mnt 123", "Tallinn", "11313", "EST")),
+            ValidatedField.valid("Fondide valitsemine"),
+            ValidatedField.valid("6630"),
+            ValidatedField.withErrors(
+                List.of(),
+                List.of(
+                    new ValidationError(
+                        "OTHER_RELATED_PERSONS_KYC",
+                        "Isikusamasuse tuvastamine on lõpetamata",
+                        List.of(new RelatedPersonData("38501010005", null))))));
+    when(kybSurveyService.initialValidation(REGISTRY_CODE, PERSONAL_CODE)).thenReturn(data);
+
+    mvc.perform(
+            get("/v1/kyb/surveys/initial-validation")
+                .param("registry-code", REGISTRY_CODE)
+                .with(authentication(personAuth())))
+        .andExpect(status().isOk())
+        .andExpect(
+            jsonPath("$.relatedPersons.errors[0].persons[0].personalCode").value("38501010005"))
+        .andExpect(jsonPath("$.relatedPersons.errors[0].persons[0].name").hasJsonPath())
+        .andExpect(jsonPath("$.relatedPersons.errors[0].persons[0].name").value(nullValue()));
   }
 
   @Test

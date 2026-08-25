@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.aml.sanctions
 
 import tools.jackson.databind.json.JsonMapper
 import ee.tuleva.onboarding.auth.principal.PersonImpl
+import ee.tuleva.onboarding.country.Countries
 import ee.tuleva.onboarding.country.Country
 import spock.lang.Specification
 
@@ -18,10 +19,10 @@ class DevSanctionCheckServiceSpec extends Specification {
     def "match returns empty response regardless of input"() {
         given:
         def person = new PersonImpl("38501010002", "John", "Doe")
-        def country = new Country("ee")
+        def countries = Countries.of("ee")
 
         when:
-        def response = service.match(person, country)
+        def response = service.match(person, countries)
 
         then:
         response.results().isEmpty()

@@ -6,11 +6,11 @@ import java.util.Optional;
 import org.springframework.stereotype.Component;
 
 @Component
-class TradeSettlementParser {
+public class TradeSettlementParser {
 
-  record TradeSettlementInfo(FundTicker ticker, BigDecimal units) {}
+  public record TradeSettlementInfo(FundTicker ticker, BigDecimal units) {}
 
-  Optional<TradeSettlementInfo> parse(String remittanceInfo) {
+  public Optional<TradeSettlementInfo> parse(String remittanceInfo) {
     if (remittanceInfo == null || remittanceInfo.isEmpty()) {
       return Optional.empty();
     }

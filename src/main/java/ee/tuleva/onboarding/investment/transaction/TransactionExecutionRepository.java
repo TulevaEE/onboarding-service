@@ -19,8 +19,6 @@ public interface TransactionExecutionRepository extends JpaRepository<Transactio
 
   List<TransactionExecution> findByOrderIdIn(Collection<Long> orderIds);
 
-  // Half-open range [fromInclusive, toExclusive) so a trade-date window
-  // converted to instants does not double-count midnight rows.
   @Query(
       """
       SELECT e FROM TransactionExecution e
@@ -31,10 +29,6 @@ public interface TransactionExecutionRepository extends JpaRepository<Transactio
   List<TransactionExecution> findByOrderIdInAndExecutionTimestampInRange(
       Collection<Long> orderIds, Instant fromInclusive, Instant toExclusive);
 
-  // Report sanity check: how much of an instrument we ourselves traded into a position over a
-  // window, per side. A trade moves the custodian position when it SETTLES, so the window is
-  // anchored on the settlement date, falling back to the trade date when the custodian gave us
-  // none.
   @Query(
       value =
           """
@@ -48,19 +42,15 @@ public interface TransactionExecutionRepository extends JpaRepository<Transactio
           WHERE o.fund_code = :fundCode
             AND o.order_status NOT IN ('CANCELLED', 'DISCARDED')
             AND e.executed_quantity IS NOT NULL
-            AND COALESCE(e.scheduled_settlement_date, CAST(e.execution_timestamp AS DATE))
-                  > :fromExclusive
-            AND COALESCE(e.scheduled_settlement_date, CAST(e.execution_timestamp AS DATE))
-                  <= :toInclusive
+            AND e.source <> 'HISTORICAL_IMPORT'
+            AND e.reported_date > :fromExclusive
+            AND e.reported_date <= :toInclusive
           GROUP BY o.instrument_isin
           """,
       nativeQuery = true)
   List<ExecutedQuantitySummary> sumExecutedQuantitiesByIsin(
       String fundCode, LocalDate fromExclusive, LocalDate toInclusive);
 
-  // Trade-date cost attribution: a trade's commission and settlement fee count in the
-  // period it executes. Half-open [fromInclusive, toExclusive) on the execution timestamp
-  // so last-day intraday trades are included rather than dropped at a date boundary.
   @Query(
       value =
           """

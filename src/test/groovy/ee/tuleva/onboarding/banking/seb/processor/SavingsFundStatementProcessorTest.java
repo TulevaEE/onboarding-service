@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.banking.seb.processor;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.banking.BankAccountType.*;
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPaymentFixture.aPayment;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.REDEEMED;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -9,13 +10,16 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.BankAccountType;
+import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.processor.BankOperationProcessor;
 import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType;
 import ee.tuleva.onboarding.banking.statement.BankStatementAccount;
+import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
@@ -36,7 +40,9 @@ import java.util.UUID;
 import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 
-class SebBankStatementProcessorTest {
+class SavingsFundStatementProcessorTest {
+
+  private BankAccount statementAccount;
 
   private static final String DEPOSIT_ACCOUNT_IBAN = "EE442200221092874625";
   private static final String FUND_INVESTMENT_IBAN = "EE552200221055544433";
@@ -46,19 +52,23 @@ class SebBankStatementProcessorTest {
   SavingFundPaymentExtractor paymentExtractor = mock(SavingFundPaymentExtractor.class);
   SavingFundPaymentUpsertionService paymentService = mock(SavingFundPaymentUpsertionService.class);
   SebAccountConfiguration sebAccountConfiguration = mock(SebAccountConfiguration.class);
+  BankAccounts bankAccounts = mock(BankAccounts.class);
   SavingsFundLedger savingsFundLedger = mock(SavingsFundLedger.class);
+  FundBankLedger fundBankLedger = mock(FundBankLedger.class);
   UserService userService = mock(UserService.class);
   RedemptionRequestRepository redemptionRequestRepository = mock(RedemptionRequestRepository.class);
   RedemptionStatusService redemptionStatusService = mock(RedemptionStatusService.class);
   EndToEndIdConverter endToEndIdConverter = new EndToEndIdConverter();
   BankOperationProcessor bankOperationProcessor = mock(BankOperationProcessor.class);
 
-  SebBankStatementProcessor processor =
-      new SebBankStatementProcessor(
+  SavingsFundStatementProcessor processor =
+      new SavingsFundStatementProcessor(
           paymentExtractor,
           paymentService,
           sebAccountConfiguration,
+          bankAccounts,
           savingsFundLedger,
+          fundBankLedger,
           userService,
           redemptionRequestRepository,
           redemptionStatusService,
@@ -75,10 +85,12 @@ class SebBankStatementProcessorTest {
             .receivedBefore(receivedBefore)
             .build();
     var bankStatement = setupMocksForPayment(outgoingPayment);
-    when(sebAccountConfiguration.getAccountType(FUND_INVESTMENT_IBAN))
-        .thenReturn(FUND_INVESTMENT_EUR);
+    when(bankAccounts.find(FUND_INVESTMENT_IBAN))
+        .thenReturn(
+            Optional.of(
+                new BankAccount(FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR, TKF100, "gw-test")));
 
-    processor.processStatement(bankStatement);
+    processor.process(bankStatement, statementAccount);
 
     verify(savingsFundLedger)
         .transferToFundAccount(
@@ -94,12 +106,37 @@ class SebBankStatementProcessorTest {
             .endToEndId("nonexistent12345678901234567890")
             .build();
     var bankStatement = setupMocksForPayment(returnPayment);
-    when(sebAccountConfiguration.getAccountType(EXTERNAL_ACCOUNT_IBAN)).thenReturn(null);
+    when(bankAccounts.find(EXTERNAL_ACCOUNT_IBAN)).thenReturn(Optional.empty());
 
-    processor.processStatement(bankStatement);
+    processor.process(bankStatement, statementAccount);
 
     verify(savingsFundLedger, never()).recordPaymentCancelled(any(), any(), any());
     verify(savingsFundLedger, never()).bounceBackUnattributedPayment(any(), any());
+  }
+
+  @Test
+  void outgoingPaymentToPensionFundAccount_isNotBookedAsInternalFundTransfer() {
+    var pensionIban = "EE001234567890123475";
+    var outgoingPayment =
+        aPayment()
+            .amount(new BigDecimal("-100000.00"))
+            .beneficiaryIban(pensionIban)
+            .endToEndId("nonexistent12345678901234567890")
+            .build();
+    var bankStatement = setupMocksForPayment(outgoingPayment);
+    when(bankAccounts.find(pensionIban))
+        .thenReturn(
+            Optional.of(
+                new BankAccount(
+                    pensionIban,
+                    FUND_INVESTMENT_EUR,
+                    ee.tuleva.onboarding.fund.TulevaFund.TUK75,
+                    "gw-test")));
+
+    processor.process(bankStatement, statementAccount);
+
+    verify(savingsFundLedger, never()).transferToFundAccount(any(), any(), any());
+    verify(savingsFundLedger, never()).transferToFundAccount(any(), any());
   }
 
   @Test
@@ -107,7 +144,7 @@ class SebBankStatementProcessorTest {
     var incomingPayment = aPayment().amount(new BigDecimal("200.00")).build();
     var bankStatement = setupMocksForPayment(incomingPayment);
 
-    processor.processStatement(bankStatement);
+    processor.process(bankStatement, statementAccount);
 
     verify(savingsFundLedger, never()).transferToFundAccount(any(), any());
     verify(savingsFundLedger, never()).recordPaymentCancelled(any(), any(), any());
@@ -126,7 +163,7 @@ class SebBankStatementProcessorTest {
             new BankStatementAccount(accountIban, "Tuleva Fondid AS", "14118923"),
             List.of(),
             List.of());
-    when(sebAccountConfiguration.getAccountType(accountIban)).thenReturn(accountType);
+    statementAccount = new BankAccount(accountIban, accountType, TKF100, "gw-test");
     when(paymentExtractor.extractPayments(bankStatement)).thenReturn(List.of(payment));
 
     doAnswer(
@@ -181,7 +218,7 @@ class SebBankStatementProcessorTest {
     when(savingsFundLedger.hasPayoutEntry(redemptionRequestId)).thenReturn(false);
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
 
-    processor.processStatement(bankStatement);
+    processor.process(bankStatement, statementAccount);
 
     var expectedParty = new PartyId(PartyId.Type.PERSON, user.getPersonalCode());
     verify(savingsFundLedger)
@@ -220,7 +257,7 @@ class SebBankStatementProcessorTest {
         .thenReturn(Optional.of(redemptionRequest));
     when(savingsFundLedger.hasPayoutEntry(redemptionRequestId)).thenReturn(true);
 
-    processor.processStatement(bankStatement);
+    processor.process(bankStatement, statementAccount);
 
     verify(savingsFundLedger, never()).recordRedemptionPayout(any(), any(), any(), any());
     verify(redemptionStatusService)
@@ -253,7 +290,8 @@ class SebBankStatementProcessorTest {
     when(savingsFundLedger.hasPayoutEntry(redemptionRequestId)).thenReturn(false);
     when(userService.getByIdOrThrow(missingUserId)).thenThrow(new NoSuchElementException());
 
-    assertThrows(NoSuchElementException.class, () -> processor.processStatement(bankStatement));
+    assertThrows(
+        NoSuchElementException.class, () -> processor.process(bankStatement, statementAccount));
   }
 
   @Test
@@ -270,7 +308,7 @@ class SebBankStatementProcessorTest {
     when(redemptionRequestRepository.findByIdAndStatus(any(), eq(REDEEMED)))
         .thenReturn(Optional.empty());
 
-    processor.processStatement(bankStatement);
+    processor.process(bankStatement, statementAccount);
 
     verifyNoInteractions(redemptionStatusService);
   }
@@ -281,10 +319,12 @@ class SebBankStatementProcessorTest {
         aPayment().amount(new BigDecimal("1000.00")).remitterIban(FUND_INVESTMENT_IBAN).build();
     var bankStatement =
         setupMocksForPaymentWithAccount(incomingPayment, WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR);
-    when(sebAccountConfiguration.getAccountType(FUND_INVESTMENT_IBAN))
-        .thenReturn(FUND_INVESTMENT_EUR);
+    when(bankAccounts.find(FUND_INVESTMENT_IBAN))
+        .thenReturn(
+            Optional.of(
+                new BankAccount(FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR, TKF100, "gw-test")));
 
-    processor.processStatement(bankStatement);
+    processor.process(bankStatement, statementAccount);
 
     verifyNoInteractions(redemptionStatusService);
   }
@@ -300,10 +340,12 @@ class SebBankStatementProcessorTest {
             .build();
     var bankStatement =
         setupMocksForPaymentWithAccount(outgoingPayment, FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR);
-    when(sebAccountConfiguration.getAccountType(WITHDRAWAL_ACCOUNT_IBAN))
-        .thenReturn(WITHDRAWAL_EUR);
+    when(bankAccounts.find(WITHDRAWAL_ACCOUNT_IBAN))
+        .thenReturn(
+            Optional.of(
+                new BankAccount(WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR, TKF100, "gw-test")));
 
-    processor.processStatement(bankStatement);
+    processor.process(bankStatement, statementAccount);
 
     verify(savingsFundLedger)
         .transferFromFundAccount(
@@ -318,9 +360,11 @@ class SebBankStatementProcessorTest {
         aPayment().amount(new BigDecimal("1000.00")).remitterIban(DEPOSIT_ACCOUNT_IBAN).build();
     var bankStatement =
         setupMocksForPaymentWithAccount(incomingPayment, FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR);
-    when(sebAccountConfiguration.getAccountType(DEPOSIT_ACCOUNT_IBAN)).thenReturn(DEPOSIT_EUR);
+    when(bankAccounts.find(DEPOSIT_ACCOUNT_IBAN))
+        .thenReturn(
+            Optional.of(new BankAccount(DEPOSIT_ACCOUNT_IBAN, DEPOSIT_EUR, TKF100, "gw-test")));
 
-    processor.processStatement(bankStatement);
+    processor.process(bankStatement, statementAccount);
 
     verify(paymentService, never()).upsert(any(), any());
     verify(paymentService, never()).upsert(any(), any(), any());
@@ -332,10 +376,12 @@ class SebBankStatementProcessorTest {
         aPayment().amount(new BigDecimal("1000.00")).remitterIban(FUND_INVESTMENT_IBAN).build();
     var bankStatement =
         setupMocksForPaymentWithAccount(incomingPayment, WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR);
-    when(sebAccountConfiguration.getAccountType(FUND_INVESTMENT_IBAN))
-        .thenReturn(FUND_INVESTMENT_EUR);
+    when(bankAccounts.find(FUND_INVESTMENT_IBAN))
+        .thenReturn(
+            Optional.of(
+                new BankAccount(FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR, TKF100, "gw-test")));
 
-    processor.processStatement(bankStatement);
+    processor.process(bankStatement, statementAccount);
 
     verify(paymentService, never()).upsert(any(), any());
     verify(paymentService, never()).upsert(any(), any(), any());
@@ -347,10 +393,12 @@ class SebBankStatementProcessorTest {
         aPayment().amount(new BigDecimal("1000.00")).remitterIban(FUND_INVESTMENT_IBAN).build();
     var bankStatement =
         setupMocksForPaymentWithAccount(incomingPayment, DEPOSIT_ACCOUNT_IBAN, DEPOSIT_EUR);
-    when(sebAccountConfiguration.getAccountType(FUND_INVESTMENT_IBAN))
-        .thenReturn(FUND_INVESTMENT_EUR);
+    when(bankAccounts.find(FUND_INVESTMENT_IBAN))
+        .thenReturn(
+            Optional.of(
+                new BankAccount(FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR, TKF100, "gw-test")));
 
-    processor.processStatement(bankStatement);
+    processor.process(bankStatement, statementAccount);
 
     verify(paymentService, never()).upsert(any(), any());
     verify(paymentService, never()).upsert(any(), any(), any());
@@ -361,9 +409,9 @@ class SebBankStatementProcessorTest {
     var incomingPayment =
         aPayment().amount(new BigDecimal("200.00")).remitterIban(EXTERNAL_ACCOUNT_IBAN).build();
     var bankStatement = setupMocksForPayment(incomingPayment);
-    when(sebAccountConfiguration.getAccountType(EXTERNAL_ACCOUNT_IBAN)).thenReturn(null);
+    when(bankAccounts.find(EXTERNAL_ACCOUNT_IBAN)).thenReturn(Optional.empty());
 
-    processor.processStatement(bankStatement);
+    processor.process(bankStatement, statementAccount);
 
     verify(paymentService).upsert(eq(incomingPayment), any(), any());
   }
@@ -385,10 +433,11 @@ class SebBankStatementProcessorTest {
         setupMocksForPaymentWithAccount(outgoingPayment, FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR);
     when(sebAccountConfiguration.isManagementCompany(managementCompanyName)).thenReturn(true);
 
-    processor.processStatement(bankStatement);
+    processor.process(bankStatement, statementAccount);
 
-    verify(savingsFundLedger)
+    verify(fundBankLedger)
         .recordManagementFeePayment(
+            TKF100,
             new BigDecimal("742.34"),
             outgoingPayment.getId(),
             description,
@@ -406,12 +455,12 @@ class SebBankStatementProcessorTest {
             .build();
     var bankStatement =
         setupMocksForPaymentWithAccount(outgoingPayment, FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR);
-    when(sebAccountConfiguration.getAccountType(EXTERNAL_ACCOUNT_IBAN)).thenReturn(null);
+    when(bankAccounts.find(EXTERNAL_ACCOUNT_IBAN)).thenReturn(Optional.empty());
     when(sebAccountConfiguration.isManagementCompany("Unknown Company")).thenReturn(false);
 
-    processor.processStatement(bankStatement);
+    processor.process(bankStatement, statementAccount);
 
-    verify(savingsFundLedger, never()).recordManagementFeePayment(any(), any(), any());
+    verify(fundBankLedger, never()).recordManagementFeePayment(any(), any(), any(), any(), any());
     verify(savingsFundLedger, never()).transferFromFundAccount(any(), any());
   }
 
@@ -426,10 +475,12 @@ class SebBankStatementProcessorTest {
             .receivedBefore(receivedBefore)
             .build();
     var bankStatement = setupMocksForPayment(outgoingPayment);
-    when(sebAccountConfiguration.getAccountType(FUND_INVESTMENT_IBAN))
-        .thenReturn(FUND_INVESTMENT_EUR);
+    when(bankAccounts.find(FUND_INVESTMENT_IBAN))
+        .thenReturn(
+            Optional.of(
+                new BankAccount(FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR, TKF100, "gw-test")));
 
-    processor.processStatement(bankStatement);
+    processor.process(bankStatement, statementAccount);
 
     verify(paymentService).upsert(eq(outgoingPayment), any(), any());
     verify(savingsFundLedger)

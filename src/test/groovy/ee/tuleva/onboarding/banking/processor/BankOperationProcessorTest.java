@@ -2,17 +2,21 @@ package ee.tuleva.onboarding.banking.processor;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.INTEREST_RECEIVED;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.MANAGEMENT_FEE_REBATE;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
 import static ee.tuleva.onboarding.ledger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.banking.statement.TransactionType;
-import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.ledger.FundBankLedger;
+import ee.tuleva.onboarding.ledger.LedgerTransaction;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -26,7 +30,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class BankOperationProcessorTest {
 
-  @Mock SavingsFundLedger savingsFundLedger;
+  private static final BankAccount DEPOSIT_ACCOUNT =
+      new BankAccount("EE123456789012345678", DEPOSIT_EUR, TKF100, "gw-test");
+  private static final BankAccount FUND_INVESTMENT_ACCOUNT =
+      new BankAccount("EE123456789012345678", FUND_INVESTMENT_EUR, TKF100, "gw-test");
+
+  @Mock FundBankLedger fundBankLedger;
   @Mock TradeSettlementParser tradeSettlementParser;
 
   @InjectMocks BankOperationProcessor processor;
@@ -35,9 +44,9 @@ class BankOperationProcessorTest {
   void processBankOperation_skipsEntriesWithCounterparty() {
     var entry = createEntryWithCounterparty();
 
-    processor.processBankOperation(entry, "EE123456789012345678", DEPOSIT_EUR);
+    processor.processBankOperation(entry, DEPOSIT_ACCOUNT);
 
-    verifyNoInteractions(savingsFundLedger);
+    verifyNoInteractions(fundBankLedger);
   }
 
   @Test
@@ -45,10 +54,11 @@ class BankOperationProcessorTest {
     var amount = new BigDecimal("5.00");
     var entry = createBankOperationEntry("INTR", amount);
 
-    processor.processBankOperation(entry, "EE123456789012345678", DEPOSIT_EUR);
+    processor.processBankOperation(entry, DEPOSIT_ACCOUNT);
 
-    verify(savingsFundLedger)
+    verify(fundBankLedger)
         .recordInterestReceived(
+            eq(TKF100),
             eq(amount),
             any(UUID.class),
             eq(INCOMING_PAYMENTS_CLEARING),
@@ -60,10 +70,11 @@ class BankOperationProcessorTest {
     var amount = new BigDecimal("-1.00");
     var entry = createBankOperationEntry("FEES", amount);
 
-    processor.processBankOperation(entry, "EE123456789012345678", DEPOSIT_EUR);
+    processor.processBankOperation(entry, DEPOSIT_ACCOUNT);
 
-    verify(savingsFundLedger)
+    verify(fundBankLedger)
         .recordBankFee(
+            eq(TKF100),
             eq(amount),
             any(UUID.class),
             eq(INCOMING_PAYMENTS_CLEARING),
@@ -75,10 +86,11 @@ class BankOperationProcessorTest {
     var amount = new BigDecimal("0.50");
     var entry = createBankOperationEntry("ADJT", amount);
 
-    processor.processBankOperation(entry, "EE123456789012345678", DEPOSIT_EUR);
+    processor.processBankOperation(entry, DEPOSIT_ACCOUNT);
 
-    verify(savingsFundLedger)
+    verify(fundBankLedger)
         .recordBankAdjustment(
+            eq(TKF100),
             eq(amount),
             any(UUID.class),
             eq(INCOMING_PAYMENTS_CLEARING),
@@ -88,22 +100,41 @@ class BankOperationProcessorTest {
   @Test
   void processBankOperation_skipsAlreadyRecordedEntry() {
     var entry = createBankOperationEntry("INTR", new BigDecimal("5.00"));
-    when(savingsFundLedger.hasLedgerEntry(any(UUID.class), eq(INTEREST_RECEIVED))).thenReturn(true);
+    when(fundBankLedger.hasLedgerEntry(any(UUID.class), eq(INTEREST_RECEIVED))).thenReturn(true);
 
-    processor.processBankOperation(entry, "EE123456789012345678", DEPOSIT_EUR);
+    processor.processBankOperation(entry, DEPOSIT_ACCOUNT);
 
-    verify(savingsFundLedger, never()).recordInterestReceived(any(), any(), any());
+    verify(fundBankLedger, never()).recordInterestReceived(any(), any(), any(), any(), any());
   }
 
   @Test
-  void processBankOperation_doesNotRecordUnknownSubFamilyCode() {
+  void processBankOperation_parksUnknownSubFamilyCodeInSuspense() {
     var entry = createBankOperationEntry("UNKN", new BigDecimal("10.00"));
 
-    processor.processBankOperation(entry, "EE123456789012345678", DEPOSIT_EUR);
+    processor.processBankOperation(entry, DEPOSIT_ACCOUNT);
 
-    verify(savingsFundLedger, never()).recordInterestReceived(any(), any(), any());
-    verify(savingsFundLedger, never()).recordBankFee(any(), any(), any());
-    verify(savingsFundLedger, never()).recordBankAdjustment(any(), any(), any());
+    verify(fundBankLedger)
+        .recordUnclassifiedBankEntry(
+            eq(TKF100),
+            eq(new BigDecimal("10.00")),
+            any(UUID.class),
+            eq(INCOMING_PAYMENTS_CLEARING),
+            eq(LocalDate.of(2025, 10, 1)),
+            eq(new FundBankLedger.UnclassifiedEntryDetails(null, null, "Bank operation", "UNKN")));
+    verify(fundBankLedger, never()).recordBankAdjustment(any(), any(), any(), any(), any());
+  }
+
+  @Test
+  void processBankOperation_skipsAlreadyParkedUnknownSubFamilyCode() {
+    var entry = createBankOperationEntry("UNKN", new BigDecimal("10.00"));
+    when(fundBankLedger.hasLedgerEntry(
+            any(UUID.class), eq(LedgerTransaction.TransactionType.UNCLASSIFIED_BANK_ENTRY)))
+        .thenReturn(true);
+
+    processor.processBankOperation(entry, DEPOSIT_ACCOUNT);
+
+    verify(fundBankLedger, never())
+        .recordUnclassifiedBankEntry(any(), any(), any(), any(), any(), any());
   }
 
   @Test
@@ -113,10 +144,11 @@ class BankOperationProcessorTest {
         createBankOperationEntry(
             "OTHR", amount, "Penalty CRED/VP68168/MGTCBEBEECL/2026-02/262.53 EUR");
 
-    processor.processBankOperation(entry, "EE123456789012345678", FUND_INVESTMENT_EUR);
+    processor.processBankOperation(entry, FUND_INVESTMENT_ACCOUNT);
 
-    verify(savingsFundLedger)
+    verify(fundBankLedger)
         .recordBankAdjustment(
+            eq(TKF100),
             eq(amount),
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
@@ -128,10 +160,11 @@ class BankOperationProcessorTest {
     var amount = new BigDecimal("4370.58");
     var entry = createBankOperationEntry("BOOK", amount, "Management fee kickback VP68168 02/2026");
 
-    processor.processBankOperation(entry, "EE123456789012345678", FUND_INVESTMENT_EUR);
+    processor.processBankOperation(entry, FUND_INVESTMENT_ACCOUNT);
 
-    verify(savingsFundLedger)
+    verify(fundBankLedger)
         .recordManagementFeeRebate(
+            eq(TKF100),
             eq(amount),
             any(UUID.class),
             eq(FUND_INVESTMENT_CASH_CLEARING),
@@ -140,12 +173,21 @@ class BankOperationProcessorTest {
   }
 
   @Test
-  void processBankOperation_doesNotRecordBookTransferWithoutKickback() {
+  void processBankOperation_parksBookTransferWithoutKickbackInSuspense() {
     var entry = createBankOperationEntry("BOOK", new BigDecimal("100.00"), "Internal transfer");
 
-    processor.processBankOperation(entry, "EE123456789012345678", FUND_INVESTMENT_EUR);
+    processor.processBankOperation(entry, FUND_INVESTMENT_ACCOUNT);
 
-    verifyNoInteractions(savingsFundLedger);
+    verify(fundBankLedger)
+        .recordUnclassifiedBankEntry(
+            eq(TKF100),
+            eq(new BigDecimal("100.00")),
+            any(UUID.class),
+            eq(FUND_INVESTMENT_CASH_CLEARING),
+            eq(LocalDate.of(2025, 10, 1)),
+            eq(
+                new FundBankLedger.UnclassifiedEntryDetails(
+                    null, null, "Internal transfer", "BOOK")));
   }
 
   @Test
@@ -153,12 +195,13 @@ class BankOperationProcessorTest {
     var entry =
         createBankOperationEntry(
             "BOOK", new BigDecimal("4370.58"), "Management fee kickback VP68168 02/2026");
-    when(savingsFundLedger.hasLedgerEntry(any(UUID.class), eq(MANAGEMENT_FEE_REBATE)))
+    when(fundBankLedger.hasLedgerEntry(any(UUID.class), eq(MANAGEMENT_FEE_REBATE)))
         .thenReturn(true);
 
-    processor.processBankOperation(entry, "EE123456789012345678", FUND_INVESTMENT_EUR);
+    processor.processBankOperation(entry, FUND_INVESTMENT_ACCOUNT);
 
-    verify(savingsFundLedger, never()).recordManagementFeeRebate(any(), any(), any(), any(), any());
+    verify(fundBankLedger, never())
+        .recordManagementFeeRebate(any(), any(), any(), any(), any(), any());
   }
 
   @Test
@@ -166,10 +209,11 @@ class BankOperationProcessorTest {
     var amount = new BigDecimal("-0.48");
     var entry = createBankOperationEntry("COMM", amount);
 
-    processor.processBankOperation(entry, "EE123456789012345678", DEPOSIT_EUR);
+    processor.processBankOperation(entry, DEPOSIT_ACCOUNT);
 
-    verify(savingsFundLedger)
+    verify(fundBankLedger)
         .recordBankFee(
+            eq(TKF100),
             eq(amount),
             any(UUID.class),
             eq(INCOMING_PAYMENTS_CLEARING),
@@ -177,12 +221,19 @@ class BankOperationProcessorTest {
   }
 
   @Test
-  void processBankOperation_handlesNullSubFamilyCode() {
+  void processBankOperation_parksNullSubFamilyCodeInSuspense() {
     var entry = createBankOperationEntry(null, new BigDecimal("10.00"));
 
-    processor.processBankOperation(entry, "EE123456789012345678", DEPOSIT_EUR);
+    processor.processBankOperation(entry, DEPOSIT_ACCOUNT);
 
-    verifyNoInteractions(savingsFundLedger);
+    verify(fundBankLedger)
+        .recordUnclassifiedBankEntry(
+            eq(TKF100),
+            eq(new BigDecimal("10.00")),
+            any(UUID.class),
+            eq(INCOMING_PAYMENTS_CLEARING),
+            eq(LocalDate.of(2025, 10, 1)),
+            eq(new FundBankLedger.UnclassifiedEntryDetails(null, null, "Bank operation", null)));
   }
 
   @Test
@@ -197,10 +248,11 @@ class BankOperationProcessorTest {
 
     when(tradeSettlementParser.parse(remittanceInfo)).thenReturn(java.util.Optional.of(tradeInfo));
 
-    processor.processBankOperation(entry, "EE123456789012345678", FUND_INVESTMENT_EUR);
+    processor.processBankOperation(entry, FUND_INVESTMENT_ACCOUNT);
 
-    verify(savingsFundLedger)
+    verify(fundBankLedger)
         .recordTradeSettlement(
+            eq(TKF100),
             eq(amount),
             eq(new BigDecimal("11704.00000")),
             any(UUID.class),
@@ -212,17 +264,25 @@ class BankOperationProcessorTest {
   }
 
   @Test
-  void processBankOperation_skipsTradeSettlementWithUnknownTicker() {
+  void processBankOperation_parksUnknownTickerTradeInSuspense() {
     var amount = new BigDecimal("-100000.00");
     var remittanceInfo = "DLA0553690/ZZZZ GY/11704/17.864/Buy/ Euroclear, ABNCNL2AXXX, 14448";
     var entry = createBankOperationEntry("TRAD", amount, remittanceInfo);
 
     when(tradeSettlementParser.parse(remittanceInfo)).thenReturn(java.util.Optional.empty());
 
-    processor.processBankOperation(entry, "EE123456789012345678", FUND_INVESTMENT_EUR);
+    processor.processBankOperation(entry, FUND_INVESTMENT_ACCOUNT);
 
-    verify(savingsFundLedger, never())
-        .recordTradeSettlement(any(), any(), any(), any(), any(), any(), any());
+    verify(fundBankLedger, never())
+        .recordTradeSettlement(any(), any(), any(), any(), any(), any(), any(), any(), any());
+    verify(fundBankLedger)
+        .recordUnclassifiedBankEntry(
+            eq(TKF100),
+            eq(new BigDecimal("-100000.00")),
+            any(UUID.class),
+            eq(FUND_INVESTMENT_CASH_CLEARING),
+            eq(LocalDate.of(2025, 10, 1)),
+            eq(new FundBankLedger.UnclassifiedEntryDetails(null, null, remittanceInfo, "TRAD")));
   }
 
   @Test
@@ -239,10 +299,11 @@ class BankOperationProcessorTest {
 
     when(tradeSettlementParser.parse(remittanceInfo)).thenReturn(java.util.Optional.of(tradeInfo));
 
-    processor.processBankOperation(entry, "EE123456789012345678", FUND_INVESTMENT_EUR);
+    processor.processBankOperation(entry, FUND_INVESTMENT_ACCOUNT);
 
-    verify(savingsFundLedger)
+    verify(fundBankLedger)
         .recordTradeSettlement(
+            eq(TKF100),
             eq(amount),
             eq(new BigDecimal("31426.66000")),
             any(UUID.class),
@@ -251,6 +312,74 @@ class BankOperationProcessorTest {
             eq("0P000152G5"),
             eq("iShares Developed World Screened Index Fund"),
             eq(LocalDate.of(2025, 10, 1)));
+  }
+
+  @Test
+  void processBankOperation_recordsSellSettlementWithNegativeUnits() {
+    var amount = new BigDecimal("50000.00");
+    var remittanceInfo =
+        "DLA0553691/BDWTEIA/1450.25/34.477/Sell/ BlackRock Asset Management Ireland Ltd";
+    var entry = createBankOperationEntry("SUBS", amount, remittanceInfo);
+    var fundTicker =
+        ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker
+            .ISHARES_DEVELOPED_WORLD_ESG_SCREENED;
+    var tradeInfo =
+        new TradeSettlementParser.TradeSettlementInfo(fundTicker, new BigDecimal("1450.25"));
+
+    when(tradeSettlementParser.parse(remittanceInfo)).thenReturn(java.util.Optional.of(tradeInfo));
+
+    processor.processBankOperation(entry, FUND_INVESTMENT_ACCOUNT);
+
+    verify(fundBankLedger)
+        .recordTradeSettlement(
+            eq(TKF100),
+            eq(amount),
+            eq(new BigDecimal("-1450.25000")),
+            any(UUID.class),
+            eq(FUND_INVESTMENT_CASH_CLEARING),
+            eq("IE00BFG1TM61"),
+            eq("0P000152G5"),
+            eq("iShares Developed World Screened Index Fund"),
+            eq(LocalDate.of(2025, 10, 1)));
+  }
+
+  @Test
+  void processBankOperation_failsOnMissingExternalId() {
+    var entry =
+        new BankStatementEntry(
+            null,
+            new BigDecimal("10.00"),
+            "EUR",
+            TransactionType.CREDIT,
+            "tundmatu",
+            null,
+            null,
+            "OTHR",
+            Instant.parse("2025-10-01T20:59:59.999999Z"));
+
+    assertThatThrownBy(() -> processor.processBankOperation(entry, DEPOSIT_ACCOUNT))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("external id");
+    verifyNoInteractions(fundBankLedger);
+  }
+
+  @Test
+  void processBankOperation_failsOnMissingBookingTime() {
+    var entry =
+        new BankStatementEntry(
+            null,
+            new BigDecimal("5.00"),
+            "EUR",
+            TransactionType.CREDIT,
+            "intress",
+            "bank-op-ref",
+            null,
+            "INTR",
+            null);
+
+    assertThatThrownBy(() -> processor.processBankOperation(entry, DEPOSIT_ACCOUNT))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("booking time");
   }
 
   private BankStatementEntry createEntryWithCounterparty() {

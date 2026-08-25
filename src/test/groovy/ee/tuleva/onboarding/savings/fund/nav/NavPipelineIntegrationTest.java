@@ -17,6 +17,7 @@ import static java.util.stream.Collectors.toMap;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.fees.FeeBases;
 import ee.tuleva.onboarding.investment.fees.FeeCalculationService;
 import ee.tuleva.onboarding.investment.fees.FeeResult;
 import ee.tuleva.onboarding.investment.position.AccountType;
@@ -100,7 +101,7 @@ class NavPipelineIntegrationTest {
       assertThat(result.receivables()).isEqualByComparingTo(navData.tradeReceivables);
       assertThat(result.payables()).isEqualByComparingTo(navData.tradePayables.negate());
       assertThat(result.managementFeeAccrual()).isPositive();
-      assertThat(result.depotFeeAccrual()).isPositive();
+      assertThat(result.depotFeeAccrual()).isEqualByComparingTo(navData.depotFeeAccrual.negate());
       assertThat(result.unitsOutstanding().setScale(3, HALF_UP))
           .isEqualByComparingTo(navData.unitsOutstanding.setScale(3, HALF_UP));
       assertThat(result.pendingSubscriptions()).isEqualByComparingTo(ZERO);
@@ -175,14 +176,14 @@ class NavPipelineIntegrationTest {
     // Establish first accrual at Feb 25
     Instant feb26Cutoff = LocalDate.of(2026, 2, 26).atStartOfDay(eet).toInstant();
     feeCalculationService.calculateFeesForNav(
-        TKF100, LocalDate.of(2026, 2, 25), aum, feb26Cutoff, null);
+        TKF100, LocalDate.of(2026, 2, 25), new FeeBases(aum, aum), feb26Cutoff, null);
 
     // Monday: fees for Feb 26-27 added, feeCutoff=Feb 28 00:00 EET
     // Accumulated balance visible: Feb 25, 26, 27 = 3 days
     Instant mondayCutoff = LocalDate.of(2026, 2, 28).atStartOfDay(eet).toInstant();
     FeeResult mondayResult =
         feeCalculationService.calculateFeesForNav(
-            TKF100, LocalDate.of(2026, 2, 27), aum, mondayCutoff, null);
+            TKF100, LocalDate.of(2026, 2, 27), new FeeBases(aum, aum), mondayCutoff, null);
 
     // Tuesday: fees for Feb 28, Mar 1, 2 added
     // Feb settlement triggered when recording Mar 1
@@ -190,7 +191,7 @@ class NavPipelineIntegrationTest {
     Instant tuesdayCutoff = LocalDate.of(2026, 3, 3).atStartOfDay(eet).toInstant();
     FeeResult tuesdayResult =
         feeCalculationService.calculateFeesForNav(
-            TKF100, LocalDate.of(2026, 3, 2), aum, tuesdayCutoff, null);
+            TKF100, LocalDate.of(2026, 3, 2), new FeeBases(aum, aum), tuesdayCutoff, null);
 
     // Daily management: 50,000,000 × 0.0029 / 365 → ledger 397.26/day
     // Daily depot:      50,000,000 × 0.01   / 365 → ledger 1369.86/day
@@ -235,7 +236,7 @@ class NavPipelineIntegrationTest {
 
     var result = navCalculationService.computeFeeBaseValue(TKF100, inceptionDate);
     assertThat(result).isPresent();
-    assertThat(result.get().baseValue()).isEqualByComparingTo(inceptionCash);
+    assertThat(result.get().bases().navFeeBase()).isEqualByComparingTo(inceptionCash);
   }
 
   @Test
@@ -269,7 +270,7 @@ class NavPipelineIntegrationTest {
     // Feb 3's fee should use only Feb 2's position (5M), NOT cumulative (6M)
     var feb3Result = navCalculationService.computeFeeBaseValue(TKF100, feb3);
     assertThat(feb3Result).isPresent();
-    assertThat(feb3Result.get().baseValue()).isEqualByComparingTo(feb2Cash);
+    assertThat(feb3Result.get().bases().navFeeBase()).isEqualByComparingTo(feb2Cash);
   }
 
   @Test
@@ -295,7 +296,7 @@ class NavPipelineIntegrationTest {
 
     var result = navCalculationService.computeFeeBaseValue(TKF100, saturday);
     assertThat(result).isPresent();
-    assertThat(result.get().baseValue()).isEqualByComparingTo(friCash);
+    assertThat(result.get().bases().navFeeBase()).isEqualByComparingTo(friCash);
   }
 
   @Test
@@ -360,7 +361,7 @@ class NavPipelineIntegrationTest {
 
     var day2FeeBase = navCalculationService.computeFeeBaseValue(TKF100, day2);
     assertThat(day2FeeBase).isPresent();
-    assertThat(day2FeeBase.get().baseValue()).isEqualByComparingTo(day1Cash);
+    assertThat(day2FeeBase.get().bases().navFeeBase()).isEqualByComparingTo(day1Cash);
   }
 
   @Test
@@ -394,7 +395,7 @@ class NavPipelineIntegrationTest {
 
     var result = navCalculationService.computeFeeBaseValue(TKF100, calcDate);
     assertThat(result).isPresent();
-    assertThat(result.get().baseValue()).isEqualByComparingTo(cash.add(pendingSubs));
+    assertThat(result.get().bases().navFeeBase()).isEqualByComparingTo(cash.add(pendingSubs));
   }
 
   @Test
@@ -408,12 +409,18 @@ class NavPipelineIntegrationTest {
 
     insertFeeRate(TKF100, "MANAGEMENT", new BigDecimal("0.0025"));
     insertFeeRate(TUK75, "MANAGEMENT", new BigDecimal("0.0025"));
+    insertDepotTierRate(TKF100);
+    insertDepotTierRate(TUK75);
     insertDepotFeeTier(new BigDecimal("0.01"));
+
+    insertFeePolicy(TKF100, "DEPOT", true, LocalDate.of(2025, 1, 1), LocalDate.of(2026, 2, 1));
 
     Instant feeCutoff =
         date.plusDays(1).atStartOfDay().atZone(ZoneId.of("Europe/Tallinn")).toInstant();
-    feeCalculationService.calculateFeesForNav(TKF100, date, tkf100Aum, feeCutoff, null);
-    feeCalculationService.calculateFeesForNav(TUK75, date, tuk75Aum, feeCutoff, null);
+    feeCalculationService.calculateFeesForNav(
+        TKF100, date, new FeeBases(tkf100Aum, tkf100Aum), feeCutoff, null);
+    feeCalculationService.calculateFeesForNav(
+        TUK75, date, new FeeBases(tuk75Aum, tuk75Aum), feeCutoff, null);
 
     BigDecimal tkf100MgmtBalance = getSystemAccountBalance(MANAGEMENT_FEE_ACCRUAL, TKF100);
     BigDecimal tuk75MgmtBalance = getSystemAccountBalance(MANAGEMENT_FEE_ACCRUAL, TUK75);
@@ -423,7 +430,7 @@ class NavPipelineIntegrationTest {
         jdbcClient
             .sql(
                 """
-                SELECT daily_amount_net FROM investment_fee_accrual
+                SELECT daily_amount_gross FROM investment_fee_accrual
                 WHERE fund_code = 'TKF100' AND fee_type = 'MANAGEMENT' AND accrual_date = :date
                 """)
             .param("date", date)
@@ -434,7 +441,7 @@ class NavPipelineIntegrationTest {
         jdbcClient
             .sql(
                 """
-                SELECT daily_amount_net FROM investment_fee_accrual
+                SELECT daily_amount_gross FROM investment_fee_accrual
                 WHERE fund_code = 'TUK75' AND fee_type = 'MANAGEMENT' AND accrual_date = :date
                 """)
             .param("date", date)
@@ -447,6 +454,40 @@ class NavPipelineIntegrationTest {
         .isEqualByComparingTo(tuk75ManagementFee.setScale(2, HALF_UP));
     assertThat(tkf100DepotBalance).isNotEqualByComparingTo(ZERO);
     assertThat(tkf100MgmtBalance).isNotEqualByComparingTo(tuk75MgmtBalance);
+
+    assertThat(getSystemAccountBalance(DEPOT_FEE_ACCRUAL, TUK75)).isEqualByComparingTo(ZERO);
+    assertThat(
+            jdbcClient
+                .sql(
+                    """
+                    SELECT COUNT(*) FROM investment_fee_accrual
+                    WHERE fund_code = 'TUK75' AND fee_type = 'DEPOT' AND accrual_date = :date
+                    """)
+                .param("date", date)
+                .query(Integer.class)
+                .single())
+        .isEqualTo(1);
+  }
+
+  private void insertFeePolicy(
+      TulevaFund fund,
+      String feeType,
+      boolean chargedToFund,
+      LocalDate validFrom,
+      LocalDate validTo) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO investment_fee_policy
+                (fund_code, fee_type, charged_to_fund, valid_from, valid_to, created_by)
+            VALUES (:fundCode, :feeType, :chargedToFund, :validFrom, :validTo, 'TEST')
+            """)
+        .param("fundCode", fund.name())
+        .param("feeType", feeType)
+        .param("chargedToFund", chargedToFund)
+        .param("validFrom", validFrom)
+        .param("validTo", validTo)
+        .update();
   }
 
   private void insertSecurityPosition(TulevaFund fund, LocalDate date, BigDecimal marketValue) {
@@ -489,6 +530,19 @@ class NavPipelineIntegrationTest {
         .param("fundCode", fund.name())
         .param("feeType", feeType)
         .param("annualRate", annualRate)
+        .param("validFrom", LocalDate.of(2025, 1, 1))
+        .update();
+  }
+
+  private void insertDepotTierRate(TulevaFund fund) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO investment_fee_rate
+                (fund_code, fee_type, annual_rate, rate_source, valid_from, created_by)
+            VALUES (:fundCode, 'DEPOT', 0, 'TIER', :validFrom, 'TEST')
+            """)
+        .param("fundCode", fund.name())
         .param("validFrom", LocalDate.of(2025, 1, 1))
         .update();
   }

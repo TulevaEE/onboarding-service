@@ -37,7 +37,7 @@ record PersonQueryRequest(
               "IsikuStaatus",
               "PohiKodakondsus"),
           EXCLUDED,
-          EXCLUDED,
+          List.of("Riik"),
           EXCLUDED,
           EXCLUDED,
           EXCLUDED,

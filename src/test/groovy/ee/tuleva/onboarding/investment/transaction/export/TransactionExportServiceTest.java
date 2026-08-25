@@ -11,6 +11,7 @@ import static ee.tuleva.onboarding.time.TestClockHolder.now;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.fund.FundAccounts;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.transaction.*;
 import java.io.ByteArrayInputStream;
@@ -24,7 +25,19 @@ import org.junit.jupiter.api.Test;
 
 class TransactionExportServiceTest {
 
-  private final TransactionExportService service = new TransactionExportService();
+  private final FundAccounts fundAccounts = testFundAccounts();
+  private final TransactionExportService service = new TransactionExportService(fundAccounts);
+
+  private static FundAccounts testFundAccounts() {
+    var accounts = new java.util.EnumMap<TulevaFund, FundAccounts.Account>(TulevaFund.class);
+    accounts.put(TKF100, new FundAccounts.Account("EE861010220306591229", "VP68168", "gw"));
+    accounts.put(TUV100, new FundAccounts.Account("EE001234567890123410", "VP00003", "gw"));
+    accounts.put(TUK75, new FundAccounts.Account("EE001234567890123475", "VP00001", "gw"));
+    accounts.put(TUK00, new FundAccounts.Account("EE001234567890123400", "VP00002", "gw"));
+    var fundAccounts = new FundAccounts();
+    fundAccounts.setFunds(accounts);
+    return fundAccounts;
+  }
 
   @Test
   void generateOrdersExport_createsValidXlsx() throws Exception {
@@ -128,8 +141,44 @@ class TransactionExportServiceTest {
     assertThat(lines.get(3))
         .isEqualTo(
             sellOrder.getOrderUuid()
-                + ";Tuleva III Samba Pensionifond;VP68959;EE691010220306737229;EUR;REDM;;;"
-                + "SEB Fund X;LU00FUND;2400;;;;");
+                + ";Tuleva III Samba Pensionifond;"
+                + fundAccounts.securitiesAccount(TUV100)
+                + ";"
+                + fundAccounts.cashAccount(TUV100)
+                + ";EUR;REDM;;;SEB Fund X;LU00FUND;2400;;;;");
+  }
+
+  @Test
+  void generateSebFundExport_writesPensionFundCustodyAccounts() {
+    var batch = buildBatch();
+    var tuk75Order =
+        buildOrder(batch, TUK75, "IE00FUND1", BUY, FUND, SEB, new BigDecimal("75000"), null);
+    var tuk00Order =
+        buildOrder(batch, TUK00, "IE00FUND2", BUY, FUND, SEB, new BigDecimal("50000"), null);
+
+    byte[] csv =
+        service.generateSebFundExport(
+            List.of(tuk75Order, tuk00Order),
+            Map.of("IE00FUND1", "SEB Fund X", "IE00FUND2", "SEB Fund Y"));
+
+    List<String> lines = csvLines(csv);
+
+    assertThat(lines.get(3))
+        .isEqualTo(
+            tuk75Order.getOrderUuid()
+                + ";Tuleva Maailma Aktsiate Pensionifond;"
+                + fundAccounts.securitiesAccount(TUK75)
+                + ";"
+                + fundAccounts.cashAccount(TUK75)
+                + ";EUR;SUBS;;;SEB Fund X;IE00FUND1;;;75000;;");
+    assertThat(lines.get(4))
+        .isEqualTo(
+            tuk00Order.getOrderUuid()
+                + ";Tuleva Maailma Võlakirjade Pensionifond;"
+                + fundAccounts.securitiesAccount(TUK00)
+                + ";"
+                + fundAccounts.cashAccount(TUK00)
+                + ";EUR;SUBS;;;SEB Fund Y;IE00FUND2;;;50000;;");
   }
 
   private List<String> csvLines(byte[] csv) {

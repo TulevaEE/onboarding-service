@@ -67,12 +67,12 @@ echo "Exporting: fund=$FUND date=$TARGET_DATE isin=$FUND_ISIN"
   # -- 3. Fee accruals --
   sql_section "investment_fee_accrual" "
     SELECT '-- investment_fee_accrual' || E'\n' ||
-           'INSERT INTO investment_fee_accrual (fund_code, fee_type, accrual_date, fee_month, base_value, annual_rate, daily_amount_net, daily_amount_gross, vat_rate, days_in_year, reference_date)' || E'\n' ||
+           'INSERT INTO investment_fee_accrual (fund_code, fee_type, accrual_date, fee_month, base_value, annual_rate, daily_amount_gross, vat_rate, days_in_year, reference_date)' || E'\n' ||
            'VALUES' || E'\n' ||
            string_agg(
-             format('  (%L, %L, DATE %L, DATE %L, %s, %s, %s, %s, %s, %s, %s)',
+             format('  (%L, %L, DATE %L, DATE %L, %s, %s, %s, %s, %s, %s)',
                fund_code, fee_type, accrual_date::text, fee_month::text,
-               base_value, annual_rate, daily_amount_net, daily_amount_gross,
+               base_value, annual_rate, daily_amount_gross,
                COALESCE(vat_rate::text, 'NULL'), days_in_year,
                CASE WHEN reference_date IS NOT NULL
                     THEN 'DATE ' || quote_literal(reference_date::text)

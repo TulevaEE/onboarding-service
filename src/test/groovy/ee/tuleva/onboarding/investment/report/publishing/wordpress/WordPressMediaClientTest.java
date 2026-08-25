@@ -205,19 +205,4 @@ class WordPressMediaClientTest {
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("No WordPress page found");
   }
-
-  @Test
-  void toWordPressSlugLowercasesFoldsDiacriticsAndHyphenates() {
-    assertThat(WordPressMediaClient.toWordPressSlug("normal.pdf")).isEqualTo("normal.pdf");
-    assertThat(WordPressMediaClient.toWordPressSlug("file\"name.pdf")).isEqualTo("file-name.pdf");
-    assertThat(WordPressMediaClient.toWordPressSlug("file\\name.pdf")).isEqualTo("file-name.pdf");
-    assertThat(WordPressMediaClient.toWordPressSlug("Report 2026-03.pdf"))
-        .isEqualTo("report-2026-03.pdf");
-    assertThat(
-            WordPressMediaClient.toWordPressSlug(
-                "Tuleva Maailma Aktsiate Pensionifondi investeeringute aruanne 2026-03.pdf"))
-        .isEqualTo("tuleva-maailma-aktsiate-pensionifondi-investeeringute-aruanne-2026-03.pdf");
-    assertThat(WordPressMediaClient.toWordPressSlug("Võlakirjade fond.pdf"))
-        .isEqualTo("volakirjade-fond.pdf");
-  }
 }

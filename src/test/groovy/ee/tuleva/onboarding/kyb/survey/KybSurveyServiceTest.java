@@ -128,7 +128,7 @@ class KybSurveyServiceTest {
   }
 
   @Test
-  void initialValidation_codesOtherRelatedPersonsKycAndNamesThem() {
+  void initialValidation_codesOtherRelatedPersonsKycWithPersons() {
     stubInitialValidation(
         boardMemberWithTwoOwners(),
         sampleDetail(),
@@ -149,7 +149,34 @@ class KybSurveyServiceTest {
         .containsExactly(
             new ValidationError(
                 "OTHER_RELATED_PERSONS_KYC",
-                "Isikusamasuse tuvastamine on lõpetamata: Mari Maasikas, Peeter Kask"));
+                "Isikusamasuse tuvastamine on lõpetamata",
+                List.of(
+                    new RelatedPersonData("38501010003", "Mari Maasikas"),
+                    new RelatedPersonData("38501010004", "Peeter Kask"))));
+  }
+
+  @Test
+  void initialValidation_codesOtherRelatedPersonsKycWithoutNameWhenPersonNotInRelatedPersons() {
+    stubInitialValidation(
+        sampleRelationships(),
+        sampleDetail(),
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(
+                RELATED_PERSONS_KYC,
+                false,
+                Map.of(
+                    "incompletePersons",
+                    List.of(Map.of("personalCode", "38501010005", "kycStatus", "PENDING"))))));
+
+    var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
+
+    assertThat(result.relatedPersons().errors())
+        .containsExactly(
+            new ValidationError(
+                "OTHER_RELATED_PERSONS_KYC",
+                "Isikusamasuse tuvastamine on lõpetamata",
+                List.of(new RelatedPersonData("38501010005", null))));
   }
 
   @Test
@@ -197,7 +224,10 @@ class KybSurveyServiceTest {
             new ValidationError("USER_KYC", "Sinu isikusamasuse tuvastamine on lõpetamata"),
             new ValidationError(
                 "OTHER_RELATED_PERSONS_KYC",
-                "Isikusamasuse tuvastamine on lõpetamata: Mari Maasikas, Peeter Kask"));
+                "Isikusamasuse tuvastamine on lõpetamata",
+                List.of(
+                    new RelatedPersonData("38501010003", "Mari Maasikas"),
+                    new RelatedPersonData("38501010004", "Peeter Kask"))));
   }
 
   private List<CompanyRelationship> boardMemberWithTwoOwners() {

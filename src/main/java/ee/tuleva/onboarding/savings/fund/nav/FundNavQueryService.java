@@ -7,15 +7,22 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-// Reads aggregated NAV values from nav_report. Tuleva-internal source of truth for fund-level
-// NAV per unit. Used by tracking-difference checks so they don't depend on index_values, which
-// is the channel for external feeds (PENSIONIKESKUS, MSCI, etc.) and lags by ~1 day for pillar 2.
 @Service
 @RequiredArgsConstructor
 public class FundNavQueryService {
 
-  // Matches NavReportMapper.navRow which writes account_type='NAV' on every published calculation.
+  // Written by NavReportMapper.navRow on every published calculation.
   private static final String NAV_ACCOUNT_TYPE = "NAV";
+
+  // Fee base per Tingimused 18.2.1: every asset less every non-fee liability.
+  private static final List<String> FEE_BASE_ACCOUNT_TYPES =
+      List.of("SECURITY", "CASH", "RECEIVABLES", "LIABILITY");
+
+  private static final List<String> ASSET_ACCOUNT_TYPES =
+      List.of("SECURITY", "CASH", "RECEIVABLES");
+
+  private static final List<String> CUSTODIAN_SOURCED_ACCOUNT_TYPES =
+      List.of("CASH", "RECEIVABLES", "LIABILITY");
 
   private final NavReportRepository navReportRepository;
 
@@ -42,20 +49,14 @@ public class FundNavQueryService {
     return navReportRepository.sumPublishedMarketValueByAccountType(fundCode, navDate, "CASH");
   }
 
-  // The fee base is every asset less every non-fee liability, per Tingimused 18.2.1. Summing these
-  // four account types over the latest calculation for the date reproduces NavCalculationService's
-  // feeBaseValue exactly, because NavReportMapper writes each term as its own row and negates
-  // liabilities. Deliberately not published-only: an unpublished calculation still has to have
-  // charged the right base, and falling back to an older calculation would compare across dates.
   public Optional<BigDecimal> findFeeBaseComponentTotal(String fundCode, LocalDate navDate) {
-    return sumForLatestCalculation(
-        fundCode, navDate, List.of("SECURITY", "CASH", "RECEIVABLES", "LIABILITY"));
+    return sumForLatestCalculationIncludingUnpublished(fundCode, navDate, FEE_BASE_ACCOUNT_TYPES);
   }
 
-  // What the custodian position report is the source of truth for: cash and unsettled trades.
-  // Excluding the register-sourced and manually-adjusted rows makes the remainder comparable to
-  // investment_fund_position, so a custodian row the ledger never recognised shows up as a
-  // difference instead of hiding inside a fee base that recomputes consistently from itself.
+  public Optional<BigDecimal> findAssetTotal(String fundCode, LocalDate navDate) {
+    return sumForLatestCalculationIncludingUnpublished(fundCode, navDate, ASSET_ACCOUNT_TYPES);
+  }
+
   public Optional<BigDecimal> findCustodianComparableTotal(String fundCode, LocalDate navDate) {
     if (!navReportRepository.existsByFundCodeAndNavDate(fundCode, navDate)) {
       return Optional.empty();
@@ -64,11 +65,11 @@ public class FundNavQueryService {
         navReportRepository.sumLatestCalculationMarketValueExcludingAccountNames(
             fundCode,
             navDate,
-            List.of("CASH", "RECEIVABLES", "LIABILITY"),
+            CUSTODIAN_SOURCED_ACCOUNT_TYPES,
             NavReportAccountNames.NOT_SOURCED_FROM_CUSTODIAN));
   }
 
-  private Optional<BigDecimal> sumForLatestCalculation(
+  private Optional<BigDecimal> sumForLatestCalculationIncludingUnpublished(
       String fundCode, LocalDate navDate, List<String> accountTypes) {
     if (!navReportRepository.existsByFundCodeAndNavDate(fundCode, navDate)) {
       return Optional.empty();

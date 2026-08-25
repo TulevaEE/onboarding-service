@@ -112,10 +112,7 @@ class TdAttributionCalculator {
             .map(acc -> acc.toAttribution(periodCoefficient))
             .toList();
 
-    var etfOcfDrag = orZero(input.etfOcfDragPeriod()).setScale(8, HALF_UP);
-    var etfTrackingResidual = orZero(input.etfTrackingResidualArithmetic()).setScale(8, HALF_UP);
-    var tdVsBenchmark =
-        tdGeometricRounded.add(etfOcfDrag).add(etfTrackingResidual).setScale(8, HALF_UP);
+    var etfLayer = computeEtfLayer(input, tdGeometricRounded);
 
     return TdAttributionResult.builder()
         .fund(input.fund())
@@ -133,15 +130,33 @@ class TdAttributionCalculator {
         .weightDeviation(weightDeviation)
         .transactionCosts(transactionCosts)
         .residual(residual)
-        .etfOcfDrag(etfOcfDrag)
-        .etfTrackingResidual(etfTrackingResidual)
-        .tdVsBenchmark(tdVsBenchmark)
+        .etfOcfDrag(etfLayer.ocfDrag())
+        .etfTrackingResidual(etfLayer.trackingResidual())
+        .tdVsBenchmark(etfLayer.tdVsBenchmark())
         .navEventCount(navEventCount)
         .avgAum(avgAum)
         .avgCashPct(avgCashPct.setScale(6, HALF_UP))
         .instrumentDetails(instrumentDetails)
         .checks(checks)
         .build();
+  }
+
+  private record EtfLayer(
+      BigDecimal ocfDrag, BigDecimal trackingResidual, BigDecimal tdVsBenchmark) {}
+
+  private EtfLayer computeEtfLayer(TdAttributionInput input, BigDecimal tdGeometric) {
+    if (input.benchmarkModelSumPeriod() == null) {
+      return new EtfLayer(ZERO, ZERO, tdGeometric);
+    }
+    var ocfDrag = orZero(input.etfOcfDragPeriod()).setScale(8, HALF_UP);
+    var modelVsIndex =
+        input
+            .benchmarkModelSumPeriod()
+            .add(orZero(input.benchmarkProxyOcfDragPeriod()))
+            .setScale(8, HALF_UP);
+    var trackingResidual = modelVsIndex.subtract(ocfDrag).setScale(8, HALF_UP);
+    return new EtfLayer(
+        ocfDrag, trackingResidual, tdGeometric.add(modelVsIndex).setScale(8, HALF_UP));
   }
 
   private BigDecimal carinoCoefficient(BigDecimal portfolioReturn, BigDecimal benchmarkReturn) {
@@ -227,7 +242,13 @@ class TdAttributionCalculator {
         "feeXcheck", feeXcheck.setScale(8, HALF_UP),
         "scalingFactor", periodLink.setScale(8, HALF_UP),
         "residualBps", residualBps.setScale(2, HALF_UP),
-        "seriesGapDays", input.seriesGapDays());
+        "seriesGapDays", input.seriesGapDays(),
+        "etfLayerMeasured", input.benchmarkModelSumPeriod() != null,
+        "etfLayerCoveredDays", input.etfLayerCoveredDays(),
+        "etfLayerUnbenchmarkedWeight",
+            orZero(input.etfLayerUnbenchmarkedWeight()).setScale(6, HALF_UP),
+        "etfLayerUnrestoredProxyWeight",
+            orZero(input.etfLayerUnrestoredProxyWeight()).setScale(6, HALF_UP));
   }
 
   private TdAttributionResult emptyResult(TdAttributionInput input) {
@@ -254,7 +275,7 @@ class TdAttributionCalculator {
         .avgAum(ZERO)
         .avgCashPct(ZERO)
         .instrumentDetails(List.of())
-        .checks(Map.of())
+        .checks(Map.of("etfLayerMeasured", false))
         .build();
   }
 
@@ -273,9 +294,13 @@ class TdAttributionCalculator {
       BigDecimal depotFeeDragPeriod,
       BigDecimal transactionCostsPeriod,
       BigDecimal etfOcfDragPeriod,
-      BigDecimal etfTrackingResidualArithmetic,
+      @Nullable BigDecimal benchmarkModelSumPeriod,
+      @Nullable BigDecimal benchmarkProxyOcfDragPeriod,
       BigDecimal expectedAnnualFeeRate,
       int seriesGapDays,
+      int etfLayerCoveredDays,
+      BigDecimal etfLayerUnbenchmarkedWeight,
+      BigDecimal etfLayerUnrestoredProxyWeight,
       List<DailyRecord> dailyRecords) {}
 
   @Builder

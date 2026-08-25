@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.kyc.*;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
@@ -161,7 +162,8 @@ class KycSurveyControllerIntegrationTest {
 
     var beforeKycEvent = beforeKycEvents.getFirst();
     assertThat(beforeKycEvent.person().getPersonalCode()).isEqualTo(user.getPersonalCode());
-    assertThat(beforeKycEvent.country().getCountryCode()).isEqualTo("EE");
+    assertThat(beforeKycEvent.countries())
+        .containsExactlyInAnyOrder(new Country("EE"), new Country("FI"));
 
     var events = applicationEvents.stream(KycCheckPerformedEvent.class).toList();
     assertThat(events).hasSize(1);

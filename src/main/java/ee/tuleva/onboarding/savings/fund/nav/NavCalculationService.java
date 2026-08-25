@@ -8,8 +8,11 @@ import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.fees.FeeBases;
 import ee.tuleva.onboarding.investment.fees.FeeCalculationService;
+import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
 import ee.tuleva.onboarding.investment.fees.FeeResult;
+import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
@@ -50,6 +53,7 @@ public class NavCalculationService {
   private final BlackrockAdjustmentComponent blackrockAdjustmentComponent;
   private final PositionPriceResolver positionPriceResolver;
   private final FeeCalculationService feeCalculationService;
+  private final FeeChargedToFundPolicy feeChargedToFundPolicy;
   private final Clock clock;
 
   @Transactional
@@ -96,20 +100,23 @@ public class NavCalculationService {
       pendingRedemptions = redemptionsComponent.calculate(context);
     }
 
-    BigDecimal feeBaseValue =
-        securitiesValue
-            .add(cashPosition)
-            .add(receivables)
-            .add(pendingSubscriptions)
-            .add(blackrockAdjustment)
-            .subtract(payables)
-            .subtract(pendingRedemptions);
+    FeeBases feeBases =
+        feeBases(
+            securitiesValue,
+            cashPosition,
+            receivables,
+            pendingSubscriptions,
+            blackrockAdjustment,
+            payables,
+            pendingRedemptions);
     Instant feeCutoff = positionReportDate.plusDays(1).atStartOfDay(ESTONIAN_ZONE).toInstant();
     FeeResult fees =
         feeCalculationService.calculateFeesForNav(
-            fund, positionReportDate, feeBaseValue, feeCutoff, context.getSecurityPrices());
-    BigDecimal managementFeeAccrual = fees.managementFeeAccrual();
-    BigDecimal depotFeeAccrual = fees.depotFeeAccrual();
+            fund, positionReportDate, feeBases, feeCutoff, context.getSecurityPrices());
+    BigDecimal managementFeeAccrual =
+        navFacingAccrual(fund, FeeType.MANAGEMENT, positionReportDate, fees.managementFeeAccrual());
+    BigDecimal depotFeeAccrual =
+        navFacingAccrual(fund, FeeType.DEPOT, positionReportDate, fees.depotFeeAccrual());
 
     BigDecimal aum =
         calculateAum(
@@ -221,6 +228,11 @@ public class NavCalculationService {
     return assets.subtract(liabilities);
   }
 
+  private BigDecimal navFacingAccrual(
+      TulevaFund fund, FeeType feeType, LocalDate navDate, BigDecimal accrual) {
+    return feeChargedToFundPolicy.chargedToFund(fund, feeType, navDate) ? accrual : ZERO;
+  }
+
   private BigDecimal calculateNavPerUnit(
       BigDecimal aum, BigDecimal unitsOutstanding, TulevaFund fund) {
     if (unitsOutstanding.signum() == 0) {
@@ -250,7 +262,7 @@ public class NavCalculationService {
             .toList();
   }
 
-  private BigDecimal calculateFeeBaseValue(NavComponentContext context) {
+  private FeeBases calculateFeeBases(NavComponentContext context) {
     BigDecimal securitiesValue = securitiesValueComponent.calculate(context);
     BigDecimal cashPosition = cashPositionComponent.calculate(context);
     BigDecimal receivables = receivablesComponent.calculate(context);
@@ -258,19 +270,35 @@ public class NavCalculationService {
     BigDecimal pendingSubscriptions = subscriptionsComponent.calculate(context);
     BigDecimal blackrockAdjustment = blackrockAdjustmentComponent.calculate(context);
     BigDecimal pendingRedemptions = redemptionsComponent.calculate(context);
-    return securitiesValue
-        .add(cashPosition)
-        .add(receivables)
-        .add(pendingSubscriptions)
-        .add(blackrockAdjustment)
-        .subtract(payables)
-        .subtract(pendingRedemptions);
+    return feeBases(
+        securitiesValue,
+        cashPosition,
+        receivables,
+        pendingSubscriptions,
+        blackrockAdjustment,
+        payables,
+        pendingRedemptions);
+  }
+
+  private FeeBases feeBases(
+      BigDecimal securitiesValue,
+      BigDecimal cashPosition,
+      BigDecimal receivables,
+      BigDecimal pendingSubscriptions,
+      BigDecimal blackrockAdjustment,
+      BigDecimal payables,
+      BigDecimal pendingRedemptions) {
+    BigDecimal assetValue =
+        securitiesValue
+            .add(cashPosition)
+            .add(receivables)
+            .add(pendingSubscriptions)
+            .add(blackrockAdjustment);
+    return new FeeBases(assetValue.subtract(payables).subtract(pendingRedemptions), assetValue);
   }
 
   public record FeeBaseValueResult(
-      BigDecimal baseValue,
-      LocalDate positionReportDate,
-      Map<String, ResolvedPrice> securityPrices) {}
+      FeeBases bases, LocalDate positionReportDate, Map<String, ResolvedPrice> securityPrices) {}
 
   public Optional<FeeBaseValueResult> computeFeeBaseValue(
       TulevaFund fund, LocalDate calculationDate) {
@@ -295,9 +323,9 @@ public class NavCalculationService {
             .cutoff(cutoff)
             .priceCutoff(priceCutoff)
             .build();
-    BigDecimal baseValue = calculateFeeBaseValue(context);
     return Optional.of(
-        new FeeBaseValueResult(baseValue, positionReportDate, context.getSecurityPrices()));
+        new FeeBaseValueResult(
+            calculateFeeBases(context), positionReportDate, context.getSecurityPrices()));
   }
 
   @Transactional
@@ -311,7 +339,7 @@ public class NavCalculationService {
       var result = optional.get();
       Instant feeCutoff = navDate.atTime(fund.getNavCutoffTime()).atZone(ESTONIAN_ZONE).toInstant();
       feeCalculationService.calculateFeesForNav(
-          fund, navDate, result.baseValue(), feeCutoff, result.securityPrices());
+          fund, navDate, result.bases(), feeCutoff, result.securityPrices());
     }
     log.info("Fee backfill completed: fund={}, from={}, to={}", fund, from, to);
   }

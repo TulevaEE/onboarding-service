@@ -23,6 +23,7 @@ public enum EmailType {
   THIRD_PILLAR_SUGGEST_SECOND("third_pillar_suggest_second"),
   THIRD_PILLAR_PAYMENT_REMINDER_MANDATE("third_pillar_payment_reminder_mandate"),
   THIRD_PILLAR_PAYMENT_SUCCESS_MANDATE("third_pillar_payment_success_mandate"),
+  THIRD_PILLAR_PAYMENT_ARRIVED("third_pillar_payment_arrived"),
 
   MEMBERSHIP("membership"),
   BATCH_FAILED("batch_failed"),

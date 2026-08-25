@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
+import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 import static java.math.BigDecimal.ZERO;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.time.ZoneOffset.UTC;
@@ -30,6 +31,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -66,6 +68,8 @@ public class HistoricalRegistryImportService {
           "order_status",
           "expected_settlement_date",
           "comment");
+
+  private static final ZoneId TALLINN = ZoneId.of(TIMEZONE);
 
   static final String SOURCE_HISTORICAL_IMPORT = "HISTORICAL_IMPORT";
   static final String CREATED_BY_HISTORICAL_IMPORT = "historical-import";
@@ -331,9 +335,16 @@ public class HistoricalRegistryImportService {
         .settlementAmount(row.settlementAmount())
         .commissionAmount(row.commissionAmount())
         .scheduledSettlementDate(row.actualSettlementDate())
+        .reportedDate(reportedDate(row))
         .source(SOURCE_HISTORICAL_IMPORT)
         .modifiedBy(CREATED_BY_HISTORICAL_IMPORT)
         .build();
+  }
+
+  private @Nullable LocalDate reportedDate(ParsedRow row) {
+    Instant known =
+        row.executionTimestamp() == null ? row.orderTimestamp() : row.executionTimestamp();
+    return known == null ? row.actualSettlementDate() : LocalDate.ofInstant(known, TALLINN);
   }
 
   private HistoricalImportResult abortedResult(

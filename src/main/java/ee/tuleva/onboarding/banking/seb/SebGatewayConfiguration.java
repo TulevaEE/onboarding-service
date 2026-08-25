@@ -6,7 +6,11 @@ import ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetcher;
 import ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler;
 import ee.tuleva.onboarding.banking.seb.listener.SebBankStatementListener;
 import ee.tuleva.onboarding.banking.seb.listener.SebReconciliationListener;
-import ee.tuleva.onboarding.banking.seb.processor.SebBankStatementProcessor;
+import ee.tuleva.onboarding.banking.seb.processor.PensionFundEntryClassifier;
+import ee.tuleva.onboarding.banking.seb.processor.PensionFundStatementProcessor;
+import ee.tuleva.onboarding.banking.seb.processor.SavingsFundStatementProcessor;
+import ee.tuleva.onboarding.banking.seb.processor.SebStatementRouter;
+import ee.tuleva.onboarding.banking.seb.processor.SuspenseReclassificationService;
 import ee.tuleva.onboarding.banking.seb.reconciliation.SebReconciliator;
 import java.io.File;
 import java.security.KeyStore;
@@ -51,9 +55,14 @@ import org.springframework.web.client.RestClient;
 @ConditionalOnProperty(prefix = "seb-gateway", name = "enabled", havingValue = "true")
 @Import({
   SebGatewayClient.class,
+  SebBankAccounts.class,
   SebPaymentRequestListener.class,
   SebBankStatementListener.class,
-  SebBankStatementProcessor.class,
+  SavingsFundStatementProcessor.class,
+  PensionFundEntryClassifier.class,
+  PensionFundStatementProcessor.class,
+  SuspenseReclassificationService.class,
+  SebStatementRouter.class,
   SebReconciliator.class,
   SebStatementFetcher.class
 })
@@ -145,7 +154,6 @@ public class SebGatewayConfiguration {
     return RestClient.builder()
         .baseUrl(properties.url())
         .requestFactory(requestFactory)
-        .defaultHeader("OrgId", properties.orgId())
         .defaultHeader("Accept", APPLICATION_XML_VALUE)
         .requestInterceptor(
             (request, body, execution) -> {
@@ -179,8 +187,8 @@ public class SebGatewayConfiguration {
   @Bean
   @Profile("!staging")
   SebStatementFetchingScheduler sebStatementFetchingScheduler(
-      ApplicationEventPublisher eventPublisher) {
-    return new SebStatementFetchingScheduler(eventPublisher);
+      ApplicationEventPublisher eventPublisher, SebBankAccounts sebBankAccounts) {
+    return new SebStatementFetchingScheduler(eventPublisher, sebBankAccounts);
   }
 
   @Bean
@@ -193,7 +201,7 @@ public class SebGatewayConfiguration {
 
 @ConfigurationProperties(prefix = "seb-gateway")
 record SebGatewayProperties(
-    boolean enabled, String url, String orgId, Keystore keystore, Duration reconciliationDelay) {
+    boolean enabled, String url, Keystore keystore, Duration reconciliationDelay) {
   record Keystore(String path, String password) {}
 }
 

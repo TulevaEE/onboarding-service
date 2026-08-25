@@ -61,6 +61,8 @@ public class TransactionExecution {
 
   private LocalDate scheduledSettlementDate;
 
+  private LocalDate reportedDate;
+
   private LocalDate navDate;
 
   private String comment;

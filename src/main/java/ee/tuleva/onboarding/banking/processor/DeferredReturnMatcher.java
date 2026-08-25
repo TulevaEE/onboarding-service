@@ -1,13 +1,14 @@
 package ee.tuleva.onboarding.banking.processor;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
+import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_BOUNCE_BACK;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_CANCELLED;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.UNATTRIBUTED_PAYMENT_RECONCILED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
 import static java.math.BigDecimal.ZERO;
 
-import ee.tuleva.onboarding.banking.BankAccountConfiguration;
+import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankMessagesProcessingCompleted;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
@@ -30,12 +31,12 @@ public class DeferredReturnMatcher {
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final SavingsFundLedger savingsFundLedger;
   private final ApplicationEventPublisher eventPublisher;
-  private final BankAccountConfiguration bankAccountConfiguration;
+  private final BankAccounts bankAccounts;
 
   @EventListener
   @Transactional
   public void onBankMessagesProcessed(BankMessagesProcessingCompleted event) {
-    var depositIban = bankAccountConfiguration.getAccountIban(DEPOSIT_EUR);
+    var depositIban = bankAccounts.getIban(TKF100, DEPOSIT_EUR);
     var unmatchedReturns =
         savingFundPaymentRepository.findUnmatchedOutgoingReturns(depositIban).stream()
             .filter(returnPayment -> !hasReturnLedgerEntry(returnPayment))

@@ -18,8 +18,12 @@ import ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.Objects;
+import java.util.stream.Stream;
+import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 
+@Slf4j
 class PersonMapper {
 
   private static final String ALIVE_CODE = "E";
@@ -34,7 +38,8 @@ class PersonMapper {
         capitalizeFully(require(response.lastName(), "perekonnanimi"), ' ', '-'),
         parseDate(response.dateOfBirth()),
         toStatus(response.status()),
-        toCitizenship(response.citizenship()));
+        toCitizenship(response.citizenship()),
+        toCitizenships(response));
   }
 
   static List<CustodyRight> toCustodyRights(PersonResponse response) {
@@ -99,11 +104,32 @@ class PersonMapper {
     };
   }
 
+  private static List<String> toCitizenships(PersonResponse response) {
+    Stream<@Nullable Citizenship> all =
+        Stream.concat(
+            Stream.of(response.citizenship()),
+            response.citizenships() == null ? Stream.of() : response.citizenships().stream());
+    return all.map(PersonMapper::toCitizenship).filter(Objects::nonNull).distinct().toList();
+  }
+
   private static @Nullable String toCitizenship(@Nullable Citizenship citizenship) {
-    if (citizenship == null || citizenship.country() == null) {
+    Code country = citizenship == null ? null : citizenship.country();
+    if (country == null) {
       return null;
     }
-    return CountryCodes.numericToAlpha2(citizenship.country().code());
+    String alpha2 = CountryCodes.numericToAlpha2(country.code());
+    if (alpha2 == null) {
+      return null;
+    }
+    if (isUnmappedNumericCode(alpha2)) {
+      log.warn("Dropping unmapped population register citizenship: code={}", country.code());
+      return null;
+    }
+    return alpha2;
+  }
+
+  private static boolean isUnmappedNumericCode(String code) {
+    return code.chars().allMatch(Character::isDigit);
   }
 
   private static boolean hasCode(@Nullable Code value, String expected) {

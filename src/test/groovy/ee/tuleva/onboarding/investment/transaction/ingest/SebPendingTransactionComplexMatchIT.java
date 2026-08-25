@@ -103,6 +103,7 @@ class SebPendingTransactionComplexMatchIT {
             .executedQuantity(new BigDecimal("10000"))
             .totalConsideration(new BigDecimal("345000.00"))
             .source("SEB_OOTEL")
+            .reportedDate(LocalDate.of(2026, 5, 11))
             .build());
     order.setOrderStatus(EXECUTED);
     orderRepository.save(order);

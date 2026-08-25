@@ -442,6 +442,9 @@ class SebPendingTransactionReconciliationIT {
             .executionTimestamp(Instant.parse("2026-02-10T10:00:00Z"))
             .executedQuantity(new BigDecimal("100"))
             .source("SEB_OOTEL")
+            .reportedDate(
+                LocalDate.ofInstant(
+                    Instant.parse("2026-02-10T10:00:00Z"), java.time.ZoneOffset.UTC))
             .build());
     entityManager.flush();
     return absentOrder;

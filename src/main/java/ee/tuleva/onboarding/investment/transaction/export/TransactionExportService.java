@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static java.math.BigDecimal.ZERO;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import ee.tuleva.onboarding.fund.FundAccounts;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.transaction.OrderVenue;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
@@ -21,6 +22,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.DateUtil;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -29,7 +31,10 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 
 @Service
+@RequiredArgsConstructor
 public class TransactionExportService {
+
+  private final FundAccounts fundAccounts;
 
   private static final String[] GENERIC_HEADERS = {
     "Fund", "ISIN", "Type", "Instrument", "Venue", "Amount", "Quantity", "Settlement Date"
@@ -136,8 +141,8 @@ public class TransactionExportService {
     Arrays.fill(cells, "");
     cells[0] = order.getOrderUuid().toString();
     cells[1] = order.getFund().getDisplayName();
-    cells[2] = order.getFund().getSecuritiesAccount();
-    cells[3] = order.getFund().getCashAccount();
+    cells[2] = fundAccounts.securitiesAccount(order.getFund());
+    cells[3] = fundAccounts.cashAccount(order.getFund());
     cells[4] = "EUR";
     cells[5] = isSell ? "REDM" : "SUBS";
     cells[8] = labelsByIsin.getOrDefault(order.getInstrumentIsin(), "");
@@ -169,7 +174,7 @@ public class TransactionExportService {
       for (var order : sebEtfOrders) {
         Row row = sheet.createRow(rowIndex++);
         row.createCell(0).setCellValue(order.getFund().getDisplayName());
-        row.createCell(1).setCellValue(order.getFund().getSecuritiesAccount());
+        row.createCell(1).setCellValue(fundAccounts.securitiesAccount(order.getFund()));
         row.createCell(2).setCellValue(order.getInstrumentIsin());
         row.createCell(3).setCellValue(ricByIsin.getOrDefault(order.getInstrumentIsin(), ""));
         row.createCell(4).setCellValue("MOC");

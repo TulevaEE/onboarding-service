@@ -17,7 +17,7 @@ public class FeeRateRepository {
     return jdbcClient
         .sql(
             """
-            SELECT id, fund_code, fee_type, annual_rate, valid_from, valid_to
+            SELECT id, fund_code, fee_type, annual_rate, rate_source, valid_from, valid_to
             FROM investment_fee_rate
             WHERE fund_code = :fundCode
               AND fee_type = :feeType

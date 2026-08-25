@@ -38,7 +38,7 @@ class SebGatewayClientTest {
                     + "/transactions?from=2026-01-01&to=2026-01-31&page=1&size=3000"))
         .andRespond(withSuccess("<xml/>", MediaType.APPLICATION_XML));
 
-    String result = client.getTransactions(IBAN, dateFrom, dateTo);
+    String result = client.getTransactions(IBAN, "1162", dateFrom, dateTo);
 
     assertThat(result).isEqualTo("<xml/>");
     server.verify();
@@ -50,7 +50,7 @@ class SebGatewayClientTest {
         .expect(requestTo("/v1/accounts/" + IBAN + "/eod-transactions"))
         .andRespond(withSuccess("<eod/>", MediaType.APPLICATION_XML));
 
-    String result = client.getEodTransactions(IBAN);
+    String result = client.getEodTransactions(IBAN, "1162");
 
     assertThat(result).isEqualTo("<eod/>");
     server.verify();
@@ -62,7 +62,7 @@ class SebGatewayClientTest {
         .expect(requestTo("/v1/accounts/" + IBAN + "/current-transactions?page=1&size=3000"))
         .andRespond(withSuccess("<current/>", MediaType.APPLICATION_XML));
 
-    String result = client.getCurrentTransactions(IBAN);
+    String result = client.getCurrentTransactions(IBAN, "1162");
 
     assertThat(result).isEqualTo("<current/>");
     server.verify();
@@ -74,7 +74,7 @@ class SebGatewayClientTest {
         .expect(requestTo("/v1/accounts/" + IBAN + "/balances"))
         .andRespond(withSuccess("<balances/>", MediaType.APPLICATION_XML));
 
-    String result = client.getBalances(IBAN);
+    String result = client.getBalances(IBAN, "1162");
 
     assertThat(result).isEqualTo("<balances/>");
     server.verify();

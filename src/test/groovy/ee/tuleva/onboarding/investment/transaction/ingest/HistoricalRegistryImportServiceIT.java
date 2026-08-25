@@ -505,6 +505,230 @@ class HistoricalRegistryImportServiceIT {
     assertThat(order.getInstrumentType()).isEqualTo(InstrumentType.FUND);
   }
 
+  @Test
+  void reportedDateComesFromTheTradeDate() {
+    importService.importCsv(FULL_CSV);
+
+    TransactionExecution execution =
+        executionRepository.findByBrokerTransactionId("BR-1001").orElseThrow();
+
+    assertThat(execution.getReportedDate()).isEqualTo(LocalDate.of(2025, 3, 10));
+  }
+
+  @Test
+  void reportedDateFallsBackToTheOrderTimestampWhenThereIsNoTradeDate() {
+    String csv =
+        """
+        order_id,fund_isin,instrument_isin,transaction_id,transaction_type,instrument_type,order_amount,order_quantity,order_timestamp,order_status,expected_settlement_date,actual_settlement_date,execution_timestamp,executed_quantity,unit_price,total_consideration,net_settlement_amount,commission_amount,comment
+        GAS-9201,EE3600109435,IE00BFG1TM61,BR-9201,BUY,ETF,25000.00,250.000000,2025-03-10 09:00:00,EXECUTED,2025-03-12,,,250.000000,100.10,25025.00,25030.00,5.00,
+        """;
+
+    HistoricalImportResult result = importService.importCsv(csv);
+
+    assertThat(result.errors()).isEmpty();
+    TransactionExecution execution =
+        executionRepository.findByBrokerTransactionId("BR-9201").orElseThrow();
+    assertThat(execution.getReportedDate()).isEqualTo(LocalDate.of(2025, 3, 10));
+  }
+
+  @Test
+  void reportedDateFallsBackToTheSettlementDateWhenThereIsNoTimestampAtAll() {
+    String csv =
+        """
+        order_id,fund_isin,instrument_isin,transaction_id,transaction_type,instrument_type,order_amount,order_quantity,order_timestamp,order_status,expected_settlement_date,actual_settlement_date,execution_timestamp,executed_quantity,unit_price,total_consideration,net_settlement_amount,commission_amount,comment
+        GAS-9202,EE3600109435,IE00BFG1TM61,BR-9202,BUY,ETF,25000.00,250.000000,,SENT,2025-03-12,2025-03-14,,250.000000,100.10,25025.00,25030.00,5.00,
+        """;
+
+    HistoricalImportResult result = importService.importCsv(csv);
+
+    assertThat(result.errors()).isEmpty();
+    TransactionExecution execution =
+        executionRepository.findByBrokerTransactionId("BR-9202").orElseThrow();
+    assertThat(execution.getReportedDate()).isEqualTo(LocalDate.of(2025, 3, 14));
+  }
+
+  @Test
+  void reportedDateIsLeftUnsetWhenTheRowCarriesNoDateAtAll() {
+    String csv =
+        """
+        order_id,fund_isin,instrument_isin,transaction_id,transaction_type,instrument_type,order_amount,order_quantity,order_timestamp,order_status,expected_settlement_date,actual_settlement_date,execution_timestamp,executed_quantity,unit_price,total_consideration,net_settlement_amount,commission_amount,comment
+        GAS-9203,EE3600109435,IE00BFG1TM61,BR-9203,BUY,ETF,25000.00,250.000000,,SENT,,,,250.000000,100.10,25025.00,25030.00,5.00,
+        """;
+
+    HistoricalImportResult result = importService.importCsv(csv);
+
+    assertThat(result.errors()).isEmpty();
+    TransactionExecution execution =
+        executionRepository.findByBrokerTransactionId("BR-9203").orElseThrow();
+    assertThat(execution.getReportedDate()).isNull();
+  }
+
+  @Test
+  void importReadsTimestampsInIsoInstantIsoLocalAndDateOnlyForms() {
+    String csv =
+        """
+        order_id,fund_isin,instrument_isin,transaction_id,transaction_type,instrument_type,order_amount,order_quantity,order_timestamp,order_status,expected_settlement_date,actual_settlement_date,execution_timestamp,executed_quantity,unit_price,total_consideration,net_settlement_amount,commission_amount,comment
+        GAS-9204,EE3600109435,IE00BFG1TM61,BR-9204,BUY,ETF,25000.00,250.000000,2025-03-10T09:00:00Z,EXECUTED,2025-03-12,,2025-03-10T14:30:00Z,250.000000,100.10,25025.00,25030.00,5.00,
+        GAS-9205,EE3600109435,IE00BFG1TM61,BR-9205,BUY,ETF,25000.00,250.000000,2025-03-11T09:00:00,EXECUTED,2025-03-13,,2025-03-11T14:30:00,250.000000,100.10,25025.00,25030.00,5.00,
+        GAS-9206,EE3600109435,IE00BFG1TM61,BR-9206,BUY,ETF,25000.00,250.000000,2025-03-12,EXECUTED,2025-03-14,,2025-03-12,250.000000,100.10,25025.00,25030.00,5.00,
+        """;
+
+    HistoricalImportResult result = importService.importCsv(csv);
+
+    assertThat(result.errors()).isEmpty();
+    assertThat(
+            executionRepository
+                .findByBrokerTransactionId("BR-9204")
+                .orElseThrow()
+                .getExecutionTimestamp())
+        .isEqualTo(Instant.parse("2025-03-10T14:30:00Z"));
+    assertThat(
+            executionRepository
+                .findByBrokerTransactionId("BR-9205")
+                .orElseThrow()
+                .getExecutionTimestamp())
+        .isEqualTo(Instant.parse("2025-03-11T14:30:00Z"));
+    assertThat(
+            executionRepository
+                .findByBrokerTransactionId("BR-9206")
+                .orElseThrow()
+                .getExecutionTimestamp())
+        .isEqualTo(Instant.parse("2025-03-12T00:00:00Z"));
+  }
+
+  @Test
+  void importReadsEstonianDates() {
+    String csv =
+        """
+        order_id,fund_isin,instrument_isin,transaction_id,transaction_type,instrument_type,order_amount,order_quantity,order_timestamp,order_status,expected_settlement_date,actual_settlement_date,execution_timestamp,executed_quantity,unit_price,total_consideration,net_settlement_amount,commission_amount,comment
+        GAS-9207,EE3600109435,IE00BFG1TM61,BR-9207,BUY,ETF,25000.00,250.000000,2025-03-10 09:00:00,EXECUTED,12.03.2025,,2025-03-10 14:30:00,250.000000,100.10,25025.00,25030.00,5.00,
+        """;
+
+    HistoricalImportResult result = importService.importCsv(csv);
+
+    assertThat(result.errors()).isEmpty();
+    TransactionOrder order = findByComment("BR-9207");
+    assertThat(order.getExpectedSettlementDate()).isEqualTo(LocalDate.of(2025, 3, 12));
+  }
+
+  @Test
+  void importRejectsAnUnreadableDate() {
+    String csv =
+        """
+        order_id,fund_isin,instrument_isin,transaction_id,transaction_type,instrument_type,order_amount,order_quantity,order_timestamp,order_status,expected_settlement_date,actual_settlement_date,execution_timestamp,executed_quantity,unit_price,total_consideration,net_settlement_amount,commission_amount,comment
+        GAS-9208,EE3600109435,IE00BFG1TM61,,BUY,ETF,25000.00,250.000000,,SENT,2025/03/12,,,,,,,,
+        """;
+
+    HistoricalImportResult result = importService.importCsv(csv);
+
+    assertThat(result.errors())
+        .containsExactly(
+            new HistoricalImportResult.RowError(
+                2, "Invalid date: column=expected_settlement_date, value=2025/03/12"));
+    assertThat(result.ordersCreated()).isZero();
+  }
+
+  @Test
+  void importRejectsAnUnreadableNumber() {
+    String csv =
+        """
+        order_id,fund_isin,instrument_isin,transaction_id,transaction_type,instrument_type,order_amount,order_quantity,order_timestamp,order_status,expected_settlement_date,actual_settlement_date,execution_timestamp,executed_quantity,unit_price,total_consideration,net_settlement_amount,commission_amount,comment
+        GAS-9209,EE3600109435,IE00BFG1TM61,,BUY,ETF,not a number,250.000000,,SENT,2025-03-12,,,,,,,,
+        """;
+
+    HistoricalImportResult result = importService.importCsv(csv);
+
+    assertThat(result.errors())
+        .containsExactly(
+            new HistoricalImportResult.RowError(
+                2, "Invalid number: column=order_amount, value=not a number"));
+    assertThat(result.ordersCreated()).isZero();
+  }
+
+  @Test
+  void importRejectsAnUnknownOrderStatus() {
+    String csv =
+        """
+        order_id,fund_isin,instrument_isin,transaction_id,transaction_type,instrument_type,order_amount,order_quantity,order_timestamp,order_status,expected_settlement_date,actual_settlement_date,execution_timestamp,executed_quantity,unit_price,total_consideration,net_settlement_amount,commission_amount,comment
+        GAS-9210,EE3600109435,IE00BFG1TM61,,BUY,ETF,25000.00,250.000000,,PARTIALLY_FILLED,2025-03-12,,,,,,,,
+        """;
+
+    HistoricalImportResult result = importService.importCsv(csv);
+
+    assertThat(result.errors())
+        .containsExactly(
+            new HistoricalImportResult.RowError(
+                2, "Invalid value: column=order_status, value=PARTIALLY_FILLED"));
+    assertThat(result.ordersCreated()).isZero();
+  }
+
+  @Test
+  void importRejectsARowWithNoOrderId() {
+    String csv =
+        """
+        order_id,fund_isin,instrument_isin,transaction_id,transaction_type,instrument_type,order_amount,order_quantity,order_timestamp,order_status,expected_settlement_date,actual_settlement_date,execution_timestamp,executed_quantity,unit_price,total_consideration,net_settlement_amount,commission_amount,comment
+        ,EE3600109435,IE00BFG1TM61,,BUY,ETF,25000.00,250.000000,,SENT,2025-03-12,,,,,,,,
+        """;
+
+    HistoricalImportResult result = importService.importCsv(csv);
+
+    assertThat(result.errors())
+        .containsExactly(new HistoricalImportResult.RowError(2, "Missing value: column=order_id"));
+    assertThat(result.ordersCreated()).isZero();
+  }
+
+  @Test
+  void importRejectsASettledRowWithNoSettlementDateOnEitherSide() {
+    String csv =
+        """
+        order_id,fund_isin,instrument_isin,transaction_id,transaction_type,instrument_type,order_amount,order_quantity,order_timestamp,order_status,expected_settlement_date,actual_settlement_date,execution_timestamp,executed_quantity,unit_price,total_consideration,net_settlement_amount,commission_amount,comment
+        GAS-9211,EE3600109435,IE00BFG1TM61,BR-9211,BUY,ETF,25000.00,250.000000,2025-03-10 09:00:00,SETTLED,,,2025-03-10 14:30:00,250.000000,100.10,25025.00,25030.00,5.00,
+        """;
+
+    HistoricalImportResult result = importService.importCsv(csv);
+
+    assertThat(result.errors())
+        .containsExactly(
+            new HistoricalImportResult.RowError(
+                2,
+                "Settled row missing both actual and expected settlement date: orderId=GAS-9211"));
+    assertThat(result.ordersCreated()).isZero();
+  }
+
+  @Test
+  void importRejectsAFundSubscriptionWithNoTotalConsideration() {
+    String csv =
+        """
+        order_id,fund_isin,instrument_isin,transaction_id,transaction_type,instrument_type,order_amount,order_quantity,order_timestamp,order_status,expected_settlement_date,actual_settlement_date,execution_timestamp,executed_quantity,unit_price,total_consideration,net_settlement_amount,commission_amount,comment
+        GAS-9212,EE3600109443,LU0826455353,BR-9212,BUY,FUND,5000.00,,2025-05-05 09:00:00,EXECUTED,2025-05-09,,2025-05-05 14:30:00,,100.00,,,,
+        """;
+
+    HistoricalImportResult result = importService.importCsv(csv);
+
+    assertThat(result.errors())
+        .containsExactly(
+            new HistoricalImportResult.RowError(
+                2, "Missing value: column=total_consideration, orderId=GAS-9212"));
+    assertThat(result.ordersCreated()).isZero();
+  }
+
+  @Test
+  void importRejectsTheFileWhenTheSameOrderIdAppearsTwice() {
+    String csv =
+        """
+        order_id,fund_isin,instrument_isin,transaction_id,transaction_type,instrument_type,order_amount,order_quantity,order_timestamp,order_status,expected_settlement_date,actual_settlement_date,execution_timestamp,executed_quantity,unit_price,total_consideration,net_settlement_amount,commission_amount,comment
+        GAS-9213,EE3600109435,IE00BFG1TM61,,BUY,ETF,25000.00,250.000000,,SENT,2025-03-12,,,,,,,,
+        GAS-9213,EE3600109435,IE00BFG1TM61,,BUY,ETF,25000.00,250.000000,,SENT,2025-03-12,,,,,,,,
+        """;
+
+    HistoricalImportResult result = importService.importCsv(csv);
+
+    assertThat(result.errors())
+        .containsExactly(
+            new HistoricalImportResult.RowError(3, "Duplicate order_id in file: orderId=GAS-9213"));
+    assertThat(result.ordersCreated()).isZero();
+  }
+
   private TransactionOrder findByComment(String brokerTransactionId) {
     TransactionExecution execution =
         executionRepository.findByBrokerTransactionId(brokerTransactionId).orElseThrow();

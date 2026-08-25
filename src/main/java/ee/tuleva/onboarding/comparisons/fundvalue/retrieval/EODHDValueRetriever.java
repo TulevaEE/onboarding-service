@@ -7,6 +7,7 @@ import static org.springframework.http.MediaType.APPLICATION_JSON;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -16,7 +17,9 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
@@ -35,18 +38,22 @@ public class EODHDValueRetriever implements ComparisonIndexRetriever {
   private static final List<String> FOREX_TICKERS = List.of("EURUSD.FOREX");
   private static final ZoneId EUROPE_BERLIN = ZoneId.of("Europe/Berlin");
   private static final LocalTime CLOSING_PRICE_FINALIZED_TIME = LocalTime.of(6, 0);
+  private static final int EURONEXT_PARIS_BASELINE_DAYS = 7;
 
   private final RestClient restClient;
   private final Clock clock;
   private final String apiToken;
+  private final FundValueProvider fundValueProvider;
 
   public EODHDValueRetriever(
       RestClient.Builder restClientBuilder,
       Clock clock,
-      @Value("${eodhd.api-token:}") String apiToken) {
+      @Value("${eodhd.api-token:}") String apiToken,
+      FundValueProvider fundValueProvider) {
     this.restClient = restClientBuilder.build();
     this.clock = clock;
     this.apiToken = apiToken;
+    this.fundValueProvider = fundValueProvider;
   }
 
   @Override
@@ -75,7 +82,7 @@ public class EODHDValueRetriever implements ComparisonIndexRetriever {
   private List<FundValue> retrieveValuesForTicker(
       String ticker, LocalDate startDate, LocalDate endDate) {
     var apiTicker = stripProviderSuffix(ticker);
-    var uri = buildUri(apiTicker, startDate, endDate);
+    var uri = buildUri(apiTicker, fetchStartDate(ticker, startDate), endDate);
 
     EODHDResponse[] response;
     try {
@@ -112,7 +119,70 @@ public class EODHDValueRetriever implements ComparisonIndexRetriever {
     ZonedDateTime nowInCET = ZonedDateTime.now(clock).withZoneSameInstant(EUROPE_BERLIN);
     LocalDate cutoff = latestFinalizedDate(nowInCET);
 
-    return nonZeroValues.stream().filter(fundValue -> !fundValue.date().isAfter(cutoff)).toList();
+    List<FundValue> freshValues =
+        isEuronextParisTicker(ticker)
+            ? dropCarriedForwardCloses(ticker, nonZeroValues, startDate)
+            : nonZeroValues;
+
+    return freshValues.stream()
+        .filter(fundValue -> !fundValue.date().isAfter(cutoff))
+        .filter(fundValue -> !fundValue.date().isBefore(startDate))
+        .toList();
+  }
+
+  private LocalDate fetchStartDate(String ticker, LocalDate startDate) {
+    return isEuronextParisTicker(ticker)
+        ? startDate.minusDays(EURONEXT_PARIS_BASELINE_DAYS)
+        : startDate;
+  }
+
+  private boolean isEuronextParisTicker(String ticker) {
+    return ticker.endsWith(".PA." + PROVIDER);
+  }
+
+  private List<FundValue> dropCarriedForwardCloses(
+      String ticker, List<FundValue> values, LocalDate startDate) {
+    List<FundValue> sorted = values.stream().sorted(comparing(FundValue::date)).toList();
+    return IntStream.range(0, sorted.size())
+        .filter(
+            index ->
+                index == 0
+                    || sorted.get(index).date().isBefore(startDate)
+                    || isFreshClose(ticker, sorted.get(index), sorted.get(index - 1)))
+        .mapToObj(sorted::get)
+        .toList();
+  }
+
+  private boolean isFreshClose(String ticker, FundValue current, FundValue previous) {
+    if (current.value().compareTo(previous.value()) != 0) {
+      return true;
+    }
+    Optional<FundValue> euronextValue = euronextValueOn(ticker, current.date());
+    if (euronextValue.isEmpty()) {
+      log.warn(
+          "Skipping repeated EODHD close, no Euronext value to confirm it yet: ticker={}, date={}, value={}",
+          ticker,
+          current.date(),
+          current.value());
+      return false;
+    }
+    if (euronextValue.get().value().compareTo(current.value()) == 0) {
+      return true;
+    }
+    log.error(
+        "Skipping stale carried-forward EODHD close contradicted by Euronext: ticker={}, date={}, eodhdValue={}, euronextValue={}",
+        ticker,
+        current.date(),
+        current.value(),
+        euronextValue.get().value());
+    return false;
+  }
+
+  private Optional<FundValue> euronextValueOn(String ticker, LocalDate date) {
+    return FundTicker.findByEodhdTicker(ticker)
+        .flatMap(FundTicker::getEuronextParisStorageKey)
+        .flatMap(storageKey -> fundValueProvider.getLatestValue(storageKey, date))
+        .filter(euronextValue -> euronextValue.date().equals(date));
   }
 
   private String stripProviderSuffix(String ticker) {

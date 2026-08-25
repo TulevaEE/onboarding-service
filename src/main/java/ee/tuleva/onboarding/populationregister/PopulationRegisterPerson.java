@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.populationregister;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.ALIVE;
 
 import java.time.LocalDate;
+import java.util.List;
 import org.jspecify.annotations.Nullable;
 
 public record PopulationRegisterPerson(
@@ -11,7 +12,8 @@ public record PopulationRegisterPerson(
     String lastName,
     @Nullable LocalDate dateOfBirth,
     Status status,
-    @Nullable String citizenship) {
+    @Nullable String citizenship,
+    List<String> citizenships) {
 
   public enum Status {
     ALIVE,

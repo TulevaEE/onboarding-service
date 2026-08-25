@@ -31,11 +31,7 @@ public class RiskIndicatorService {
   private final PersistencePublicationRule persistenceRule;
   private final Clock clock;
 
-  /**
-   * Deliberately not transactional: each fund is caught individually so that one failure cannot
-   * take the run down, and a shared transaction would be marked rollback-only by the very exception
-   * we just swallowed, failing every other fund at commit.
-   */
+  // Not @Transactional: a caught exception would mark a shared transaction rollback-only.
   RiskIndicatorRun evaluateAllFunds(int lookbackMonths) {
     var outcomes = new ArrayList<RiskIndicatorOutcome>();
     var failures = new ArrayList<String>();
@@ -45,12 +41,17 @@ public class RiskIndicatorService {
       try {
         outcomes.add(evaluate(fund, indicatorType, lookbackMonths));
       } catch (Exception e) {
-        log.error("Risk indicator evaluation failed: fund={}, type={}", fund, indicatorType, e);
-        failures.add("%s %s: %s".formatted(fund, indicatorType, e.getMessage()));
+        failures.add(failureOfOneFundThatMustNotFailTheRest(fund, indicatorType, e));
       }
     }
 
     return new RiskIndicatorRun(LocalDate.now(clock), outcomes, failures);
+  }
+
+  private String failureOfOneFundThatMustNotFailTheRest(
+      TulevaFund fund, RiskIndicatorType indicatorType, Exception e) {
+    log.error("Risk indicator evaluation failed: fund={}, type={}", fund, indicatorType, e);
+    return "%s %s: %s".formatted(fund, indicatorType, e.getMessage());
   }
 
   private List<TulevaFund> configuredFunds() {
@@ -66,14 +67,20 @@ public class RiskIndicatorService {
       throw new IllegalStateException("no reference points stored");
     }
 
-    var previous = snapshotOfLastNotifiedPublication(fund, indicatorType);
+    var previous = snapshotOfLastPublicationTheReaderSaw(fund, indicatorType);
     var published = rule(indicatorType).publish(storedSeries);
     var indicator =
         published.isEmpty()
             ? insufficientData(fund, indicatorType, storedSeries)
             : published.analyse(fund, indicatorType, storedSeries);
 
-    return new RiskIndicatorOutcome(indicator, previous, save(indicator), refresh.driftedDates());
+    return new RiskIndicatorOutcome(
+        indicator,
+        previous,
+        save(indicator),
+        refresh.driftedDates(),
+        refresh.redefinitions(),
+        refresh.skippedDates());
   }
 
   private PublishedRiskIndicator insufficientData(
@@ -102,12 +109,7 @@ public class RiskIndicatorService {
     return indicatorType == SRI ? majorityRule : persistenceRule;
   }
 
-  /**
-   * The baseline for a transition alert is the last publication we actually got out to Slack, not
-   * merely the last one stored. If a send failed, the alert has to still be pending against the
-   * state the reader last saw.
-   */
-  private @Nullable PublicationSnapshot snapshotOfLastNotifiedPublication(
+  private @Nullable PublicationSnapshot snapshotOfLastPublicationTheReaderSaw(
       TulevaFund fund, RiskIndicatorType indicatorType) {
     return publicationRepository
         .findFirstByIndicatorTypeAndFundAndNotifiedTrueOrderByEvaluationDateDesc(
@@ -135,7 +137,7 @@ public class RiskIndicatorService {
                         .evaluationDate(indicator.evaluationDate())
                         .build());
 
-    resetNotifiedStateIfChanged(publication, indicator);
+    clearNotifiedStateWhenContentMoved(publication, indicator);
 
     publication.setPublishedClass(indicator.publishedClass());
     publication.setRawLatestClass(indicator.rawLatestClass());
@@ -165,20 +167,15 @@ public class RiskIndicatorService {
     return saved;
   }
 
-  /**
-   * A row whose content moved has not been notified, whatever it said before. SRRI keeps one
-   * evaluation date for a whole week, so recomputing it must not inherit yesterday's "already told
-   * Slack", or a failed send would have nothing left to retry against.
-   */
-  private void resetNotifiedStateIfChanged(
+  private void clearNotifiedStateWhenContentMoved(
       RiskIndicatorPublication publication, PublishedRiskIndicator indicator) {
-    if (hasChanged(publication, indicator)) {
+    if (contentMovedSinceLastPublication(publication, indicator)) {
       publication.setNotified(false);
       publication.setNotifiedDisclosedClass(null);
     }
   }
 
-  private boolean hasChanged(
+  private boolean contentMovedSinceLastPublication(
       RiskIndicatorPublication publication, PublishedRiskIndicator indicator) {
     return !Objects.equals(publication.getPublishedClass(), indicator.publishedClass())
         || publication.getStatus() != indicator.status();
@@ -203,7 +200,9 @@ public class RiskIndicatorService {
       PublishedRiskIndicator indicator,
       @Nullable PublicationSnapshot previous,
       RiskIndicatorPublication publication,
-      List<LocalDate> driftedDates) {}
+      List<LocalDate> driftedDates,
+      List<Redefinition> redefinitions,
+      List<LocalDate> skippedDates) {}
 
   record RiskIndicatorRun(
       LocalDate runDate, List<RiskIndicatorOutcome> outcomes, List<String> failures) {}

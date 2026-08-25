@@ -357,6 +357,9 @@ class TransactionRegistryViewsIT {
             .commissionAmount(new BigDecimal("0.00"))
             .scheduledSettlementDate(LocalDate.now().minusDays(1))
             .source("SEB_OOTEL")
+            .reportedDate(
+                LocalDate.ofInstant(
+                    Instant.parse("2026-05-11T10:26:04Z"), java.time.ZoneOffset.UTC))
             .build());
   }
 

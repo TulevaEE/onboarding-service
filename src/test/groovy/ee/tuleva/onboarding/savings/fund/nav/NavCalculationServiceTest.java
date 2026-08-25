@@ -15,8 +15,11 @@ import static org.mockito.Mockito.*;
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.investment.fees.FeeBases;
 import ee.tuleva.onboarding.investment.fees.FeeCalculationService;
+import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
 import ee.tuleva.onboarding.investment.fees.FeeResult;
+import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.ledger.LedgerAccountFixture.EntryFixture;
 import ee.tuleva.onboarding.ledger.LedgerService;
@@ -54,12 +57,16 @@ class NavCalculationServiceTest {
   @Mock private PositionPriceResolver positionPriceResolver;
   @Mock private FeeCalculationService feeCalculationService;
 
+  @Mock(strictness = Mock.Strictness.LENIENT)
+  private FeeChargedToFundPolicy feeChargedToFundPolicy;
+
   private NavCalculationService service;
   private Clock fixedClock;
 
   @BeforeEach
   void setUp() {
     fixedClock = Clock.fixed(Instant.parse("2025-01-15T14:00:00Z"), ZoneOffset.UTC);
+    when(feeChargedToFundPolicy.chargedToFund(any(), any(), any())).thenReturn(true);
     service =
         new NavCalculationService(
             fundPositionRepository,
@@ -75,6 +82,7 @@ class NavCalculationServiceTest {
             blackrockAdjustmentComponent,
             positionPriceResolver,
             feeCalculationService,
+            feeChargedToFundPolicy,
             fixedClock);
   }
 
@@ -95,9 +103,9 @@ class NavCalculationServiceTest {
     when(subscriptionsComponent.calculate(any())).thenReturn(new BigDecimal("25000.00"));
     when(blackrockAdjustmentComponent.calculate(any())).thenReturn(new BigDecimal("500.00"));
     when(redemptionsComponent.calculate(any())).thenReturn(new BigDecimal("10500.00"));
-    BigDecimal expectedBaseValue = new BigDecimal("970000.00");
+    FeeBases expectedBases = new FeeBases(new BigDecimal("970000.00"), new BigDecimal("985500.00"));
     when(feeCalculationService.calculateFeesForNav(
-            eq(TKF100), eq(previousWorkingDay), eq(expectedBaseValue), any(), any()))
+            eq(TKF100), eq(previousWorkingDay), eq(expectedBases), any(), any()))
         .thenReturn(new FeeResult(new BigDecimal("52.08"), new BigDecimal("6.85")));
 
     NavCalculationResult result = service.calculate(TKF100, calcDate);
@@ -129,6 +137,40 @@ class NavCalculationServiceTest {
 
     assertThat(result.aum()).isEqualByComparingTo(expectedTotalNav);
     assertThat(result.navPerUnit().compareTo(ZERO)).isGreaterThan(0);
+  }
+
+  @Test
+  void calculate_keepsAnExcludedDepotFeeOutOfNavWhileTheAccrualStillHappens() {
+    LocalDate calcDate = LocalDate.of(2025, 1, 15);
+    LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
+
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
+        .thenReturn(Optional.of(previousWorkingDay));
+    when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100))
+        .thenReturn(fundUnitsOutstandingAccount(new BigDecimal("100000.00000")));
+
+    when(securitiesValueComponent.calculate(any())).thenReturn(new BigDecimal("900000.00"));
+    when(cashPositionComponent.calculate(any())).thenReturn(new BigDecimal("50000.00"));
+    when(receivablesComponent.calculate(any())).thenReturn(ZERO);
+    when(payablesComponent.calculate(any())).thenReturn(ZERO);
+    when(subscriptionsComponent.calculate(any())).thenReturn(ZERO);
+    when(blackrockAdjustmentComponent.calculate(any())).thenReturn(ZERO);
+    when(redemptionsComponent.calculate(any())).thenReturn(ZERO);
+    when(feeCalculationService.calculateFeesForNav(
+            eq(TKF100), eq(previousWorkingDay), any(), any(), any()))
+        .thenReturn(new FeeResult(new BigDecimal("52.08"), new BigDecimal("6.85")));
+    when(feeChargedToFundPolicy.chargedToFund(TKF100, FeeType.DEPOT, previousWorkingDay))
+        .thenReturn(false);
+
+    NavCalculationResult result = service.calculate(TKF100, calcDate);
+
+    assertThat(result.depotFeeAccrual()).isEqualByComparingTo(ZERO);
+    assertThat(result.managementFeeAccrual()).isEqualByComparingTo("52.08");
+    assertThat(result.aum())
+        .isEqualByComparingTo(
+            new BigDecimal("900000.00")
+                .add(new BigDecimal("50000.00"))
+                .subtract(new BigDecimal("52.08")));
   }
 
   @Test
@@ -396,7 +438,12 @@ class NavCalculationServiceTest {
     service.backfillFees(TKF100, friday, sunday);
 
     verify(feeCalculationService, times(3))
-        .calculateFeesForNav(eq(TKF100), any(), eq(new BigDecimal("1000000")), any(), any());
+        .calculateFeesForNav(
+            eq(TKF100),
+            any(),
+            eq(new FeeBases(new BigDecimal("1000000"), new BigDecimal("1000000"))),
+            any(),
+            any());
     verify(feeCalculationService).calculateFeesForNav(eq(TKF100), eq(friday), any(), any(), any());
     verify(feeCalculationService)
         .calculateFeesForNav(eq(TKF100), eq(LocalDate.of(2026, 3, 7)), any(), any(), any());
@@ -426,7 +473,12 @@ class NavCalculationServiceTest {
 
     // Fee date is Monday, base value uses Monday's position (950M)
     verify(feeCalculationService)
-        .calculateFeesForNav(eq(TUK75), eq(monday), eq(new BigDecimal("950000000")), any(), any());
+        .calculateFeesForNav(
+            eq(TUK75),
+            eq(monday),
+            eq(new FeeBases(new BigDecimal("950000000"), new BigDecimal("950000000"))),
+            any(),
+            any());
   }
 
   @Test
@@ -461,7 +513,7 @@ class NavCalculationServiceTest {
 
     assertThat(result).isPresent();
     assertThat(result.get().positionReportDate()).isEqualTo(inceptionDate);
-    assertThat(result.get().baseValue()).isEqualByComparingTo("5500000.00");
+    assertThat(result.get().bases().navFeeBase()).isEqualByComparingTo("5500000.00");
     verify(publicHolidays, never()).previousWorkingDay(any());
   }
 
@@ -483,7 +535,7 @@ class NavCalculationServiceTest {
     var result = service.computeFeeBaseValue(TUK75, calcDate);
 
     assertThat(result).isPresent();
-    assertThat(result.get().baseValue()).isEqualByComparingTo("979816.87");
+    assertThat(result.get().bases().navFeeBase()).isEqualByComparingTo("979816.87");
   }
 
   @Test

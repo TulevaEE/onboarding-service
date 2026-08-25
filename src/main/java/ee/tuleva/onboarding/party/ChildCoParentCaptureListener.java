@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.party;
 import static org.springframework.transaction.event.TransactionPhase.AFTER_COMMIT;
 
 import ee.tuleva.onboarding.aml.AmlService;
-import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -64,7 +63,7 @@ public class ChildCoParentCaptureListener {
       userService
           .findByPersonalCode(coParentPersonalCode)
           .ifPresentOrElse(
-              coParent -> amlService.addSanctionAndPepCheckIfMissing(coParent, new Country(null)),
+              amlService::addSanctionAndPepCheckIfMissing,
               () ->
                   log.info(
                       "Co-parent has no user account, skipping sanction/PEP screening: coParentCode={}, childCode={}",

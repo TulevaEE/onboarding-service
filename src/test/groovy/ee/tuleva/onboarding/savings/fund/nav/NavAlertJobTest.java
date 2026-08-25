@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
@@ -56,7 +57,7 @@ class NavAlertJobTest {
 
     job.alertPillar2IfMissing();
 
-    verify(notificationService).sendMessage(contains("TUK75"), eq(INVESTMENT));
+    verify(notificationService).sendMessage(contains("TUK75"), eq(INVESTMENT), eq(ERROR));
   }
 
   @Test
@@ -72,7 +73,8 @@ class NavAlertJobTest {
         .sendMessage(
             org.mockito.ArgumentMatchers.argThat(
                 (String msg) -> msg.contains("TUK75") && msg.contains("TUK00")),
-            eq(INVESTMENT));
+            eq(INVESTMENT),
+            eq(ERROR));
   }
 
   @Test
@@ -128,8 +130,8 @@ class NavAlertJobTest {
 
     job.alertSavingsPillar3IfMissing();
 
-    verify(notificationService).sendMessage(contains("TKF100"), eq(INVESTMENT));
-    verify(notificationService, never()).sendMessage(contains("TUV100"), eq(INVESTMENT));
+    verify(notificationService).sendMessage(contains("TKF100"), eq(INVESTMENT), eq(ERROR));
+    verify(notificationService, never()).sendMessage(contains("TUV100"), eq(INVESTMENT), eq(ERROR));
   }
 
   @Test
@@ -145,7 +147,8 @@ class NavAlertJobTest {
         .sendMessage(
             org.mockito.ArgumentMatchers.argThat(
                 (String msg) -> msg.contains("TKF100") && msg.contains("TUV100")),
-            eq(INVESTMENT));
+            eq(INVESTMENT),
+            eq(ERROR));
   }
 
   @Test
@@ -194,7 +197,8 @@ class NavAlertJobTest {
             org.mockito.ArgumentMatchers.argThat(
                 (String msg) ->
                     msg.contains("URGENT") && msg.contains("TUK75") && msg.contains("TUK00")),
-            eq(INVESTMENT));
+            eq(INVESTMENT),
+            eq(ERROR));
   }
 
   @Test
@@ -243,7 +247,8 @@ class NavAlertJobTest {
             org.mockito.ArgumentMatchers.argThat(
                 (String msg) ->
                     msg.contains("URGENT") && msg.contains("TKF100") && msg.contains("TUV100")),
-            eq(INVESTMENT));
+            eq(INVESTMENT),
+            eq(ERROR));
   }
 
   @Test

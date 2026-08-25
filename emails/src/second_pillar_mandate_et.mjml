@@ -12,19 +12,7 @@
           olemasolevad osakud vahetada, siis osakute vahetus jõustub *|transferDate|*.
         </mj-text>
 
-        <mj-raw>*|IF:suggestThirdPillar|*</mj-raw>
-        <mj-text>
-          Järgmisena on kaval üles seada III&nbsp;sammas. Näiteks kui teed igal kuul
-          100‑eurose sissemakse, annab riik sulle kevadel 264 eurot tulumaksu tagasi.
-        </mj-text>
-        <mj-text><strong>Vaata järele, kui palju sina võidaksid maksudelt:</strong></mj-text>
-        <mj-button href="https://tuleva.ee/iii-sammas/">Arvuta oma võit</mj-button>
-
-        <mj-raw>*|ELSEIF:suggestPaymentRate|*</mj-raw>
-        <mj-include path="./partials/suggest_payment_rate_et.mjml" />
-
-        <mj-raw>*|ELSEIF:suggestMembership|*</mj-raw>
-        <mj-include path="./partials/suggest_membership_et.mjml" />
+        <mj-include path="./partials/suggest_chain_open_et.mjml" />
         <mj-raw>*|END:IF|*</mj-raw>
 
         <mj-text>

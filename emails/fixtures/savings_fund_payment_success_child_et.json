@@ -15,6 +15,11 @@
       "RECIPIENTNAME": "Jaan Tamm",
       "suggestPaymentRate": true
     },
+    "soovita liikmeks astuda": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Jaan Tamm",
+      "suggestMembership": true
+    },
     "soovita püsimakset": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Jaan Tamm"

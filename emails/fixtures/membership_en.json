@@ -1,5 +1,12 @@
 {
   "variants": {
+    "set up third pillar": {
+      "FNAME": "Kati",
+      "LNAME": "Ilves",
+      "memberNumber": "731",
+      "memberDate": "14.02.2026",
+      "suggestThirdPillar": true
+    },
     "II pillar elsewhere": {
       "FNAME": "Mari",
       "LNAME": "Maasikas",
@@ -13,6 +20,13 @@
       "memberNumber": "615",
       "memberDate": "03.07.2026",
       "suggestPaymentRate": true
+    },
+    "join as member": {
+      "FNAME": "Toomas",
+      "LNAME": "Rebane",
+      "memberNumber": "902",
+      "memberDate": "09.11.2026",
+      "suggestMembership": true
     },
     "no extra suggestion": {
       "FNAME": "Liina",

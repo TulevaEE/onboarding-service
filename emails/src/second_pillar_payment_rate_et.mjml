@@ -18,27 +18,7 @@
           Oma valikut saad muuta igal aastal novembri lõpuni.
         </mj-text>
 
-        <mj-raw>*|IF:suggestThirdPillar|*</mj-raw>
-        <mj-text>
-          <strong>Mida saaksid veel teha, et selle aasta maksuvõidust mitte ilma jääda?</strong>
-        </mj-text>
-        <mj-text>
-          Selle aasta maksuvõidu kasutamiseks on kaval alustada kogumist ka III&nbsp;sambas.
-          Näiteks kui teed igal kuul 100‑eurose sissemakse, annab riik sulle kevadel 264 eurot
-          tulumaksu tagasi.
-        </mj-text>
-        <mj-text>
-          <strong>Vaata järele, kui palju sina võidaksid maksudelt:</strong>
-        </mj-text>
-        <mj-button href="https://tuleva.ee/iii-sammas/">Arvuta oma võit</mj-button>
-
-        <mj-raw>*|ELSEIF:suggestSecondPillar|*</mj-raw>
-        <mj-include path="./partials/suggest_second_pillar_et.mjml" />
-
-        <mj-raw>*|ELSEIF:suggestMembership|*</mj-raw>
-        <mj-include path="./partials/suggest_membership_et.mjml" />
-
-        <mj-raw>*|ELSE:|*</mj-raw>
+        <mj-include path="./partials/suggest_chain_open_et.mjml" />
         <mj-text>
           Kõige kavalam on teha ka III&nbsp;sambas kogumine <strong>automaatseks</strong> ja
           seada üles püsimakse. Nii on kindel, et sa kiires elurütmis ei jää ilma maksuvõidust.

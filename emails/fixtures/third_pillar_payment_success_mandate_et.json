@@ -1,5 +1,9 @@
 {
   "variants": {
+    "soovita III sammast": {
+      "FNAME": "Mari",
+      "suggestThirdPillar": true
+    },
     "soovita II sammast": {
       "FNAME": "Mari",
       "suggestSecondPillar": true

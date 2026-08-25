@@ -30,7 +30,22 @@ class InstrumentReferenceSpec extends Specification {
     eodhdListed | expected
     true        | true
     false       | false
-    null        | true
+  }
+
+  def "getEodhdStorageKey returns the eodhd ticker for an instrument listed on EODHD"() {
+    expect:
+    instrument(eodhdListed: true, eodhdTicker: "EUNL.XETRA").getEodhdStorageKey() ==
+        Optional.of("EUNL.XETRA")
+  }
+
+  def "getEodhdStorageKey returns empty for an instrument that has a ticker but is not listed on EODHD"() {
+    expect:
+    instrument(eodhdListed: false, eodhdTicker: "EUNL.XETRA").getEodhdStorageKey() == Optional.empty()
+  }
+
+  def "getEodhdStorageKey returns empty for an instrument listed on EODHD without a ticker"() {
+    expect:
+    instrument(eodhdListed: true, eodhdTicker: null).getEodhdStorageKey() == Optional.empty()
   }
 
   def "getXetraStorageKey returns ISIN.XETR for Xetra instruments"() {

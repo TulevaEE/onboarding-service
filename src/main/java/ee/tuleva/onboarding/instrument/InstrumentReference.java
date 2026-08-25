@@ -39,10 +39,10 @@ public class InstrumentReference {
   private @Nullable LocalTime settlementCutoffTime;
   private @Nullable String settlementCutoffZone;
   private @Nullable Integer settlementDaysFromAcceptance;
-  private @Nullable Boolean eodhdListed;
+  private boolean eodhdListed;
   private boolean active;
-  private @Nullable Instant createdAt;
-  private @Nullable Instant updatedAt;
+  private Instant createdAt;
+  private Instant updatedAt;
 
   protected InstrumentReference() {}
 
@@ -52,7 +52,14 @@ public class InstrumentReference {
   }
 
   public boolean isListedOnEodhd() {
-    return !Boolean.FALSE.equals(eodhdListed);
+    return eodhdListed;
+  }
+
+  public Optional<String> getEodhdStorageKey() {
+    if (isListedOnEodhd() && eodhdTicker != null) {
+      return Optional.of(eodhdTicker);
+    }
+    return Optional.empty();
   }
 
   public Optional<String> getXetraStorageKey() {

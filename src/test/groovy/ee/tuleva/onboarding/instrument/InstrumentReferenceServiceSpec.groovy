@@ -29,6 +29,7 @@ class InstrumentReferenceServiceSpec extends Specification {
         new BenchmarkCategoryProxy(3L, "BOND_EURO", "FR0013209921", "FR0013209921", null),
         new BenchmarkCategoryProxy(4L, "BOND_GLOBAL", "IE00NOTCACHED", "IE00NOTCACHED", null),
         new BenchmarkCategoryProxy(5L, "FUND_ONLY", "IE00FUND0001", "IE00FUND0001", null),
+        new BenchmarkCategoryProxy(6L, "NO_INDEX_TARGET", "IE00B4L5Y983", null, null),
     ]
 
     service = new InstrumentReferenceService(instrumentReferenceRepository, benchmarkCategoryProxyRepository, clock)
@@ -91,13 +92,19 @@ class InstrumentReferenceServiceSpec extends Specification {
     !service.findByIsin("IE00BKM4GZ66").get().active
   }
 
-  def "activeInstruments excludes deactivated instruments"() {
+  def "activeInstruments excludes deactivated instruments and keeps the table row order"() {
     when:
     def isins = service.activeInstruments().collect { it.isin }
 
     then:
-    isins.size() == 6
-    !isins.contains("IE00BKM4GZ66")
+    isins == [
+        "IE00B4L5Y983",
+        "IE00BFNM3G45",
+        "FR0013209921",
+        "IE00BFNM3P36",
+        "LU0290358497",
+        "IE00FUND0001",
+    ]
   }
 
   def "getXetraIsins returns only active instruments with .XETRA eodhd ticker"() {
@@ -122,14 +129,41 @@ class InstrumentReferenceServiceSpec extends Specification {
     !isins.contains("IE00B4L5Y983")
   }
 
-  def "getEodhdTickers returns tickers for active instruments"() {
+  def "getEodhdTickers returns tickers for active instruments in table row order"() {
     when:
     def tickers = service.getEodhdTickers()
 
     then:
-    tickers.contains("EUNL.XETRA")
-    tickers.contains("WLXU.PA.EODHD")
-    !tickers.contains("EMIM.XETRA")
+    tickers == [
+        "EUNL.XETRA",
+        "SGAS.XETRA",
+        "WLXU.PA.EODHD",
+        "AYEM.XETRA",
+        "DBXE.XETRA",
+        "IE00FUND0001.EUFUND",
+    ]
+  }
+
+  def "getEodhdTickers skips an instrument that has a ticker but is no longer listed on EODHD"() {
+    given:
+    def repo = Mock(InstrumentReferenceRepository)
+    def proxyRepo = Mock(BenchmarkCategoryProxyRepository)
+    def delisted = instrument("IE00DELIST1", "DELISTED.DE", "DELISTED.XETRA", "DELISTED", null, null, null, true)
+    setField(delisted, "eodhdListed", false)
+    repo.findAllByOrderByIdAsc() >> [
+        instrument("IE00OK00001", "OK.DE", "OK.XETRA", "OK", null, null, null, true),
+        delisted,
+    ]
+    proxyRepo.findAll() >> []
+    def svc = new InstrumentReferenceService(repo, proxyRepo, clock)
+
+    when:
+    svc.init()
+
+    then:
+    svc.getEodhdTickers() == ["OK.XETRA"]
+    svc.findByEodhdTicker("DELISTED.XETRA").get().isin == "IE00DELIST1"
+    svc.dataFindings() == []
   }
 
   def "getYahooTickers returns tickers for active instruments excluding nulls"() {
@@ -215,6 +249,14 @@ class InstrumentReferenceServiceSpec extends Specification {
 
     where:
     exchangeTraded << [true, false]
+  }
+
+  def "resolveBenchmarkProxy fails loudly when the proxy names neither an index proxy ISIN nor an index series key"() {
+    when:
+    service.resolveBenchmarkProxy("NO_INDEX_TARGET", false)
+
+    then:
+    thrown(InstrumentReferenceService.UnresolvableBenchmarkProxyException)
   }
 
   def "resolveBenchmarkProxy fails loudly when the proxy instrument has no exchange listing"() {
@@ -518,6 +560,7 @@ class InstrumentReferenceServiceSpec extends Specification {
     setField(inst, "blackrockProductId", blackrockProductId)
     setField(inst, "morningstarId", morningstarId)
     setField(inst, "benchmarkCategory", benchmarkCategory)
+    setField(inst, "eodhdListed", true)
     setField(inst, "active", active)
     return inst
   }

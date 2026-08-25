@@ -23,6 +23,7 @@ import java.time.ZoneId
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75
+import static ee.tuleva.onboarding.instrument.InstrumentReferenceFixture.anInstrument
 import static ee.tuleva.onboarding.investment.instrument.InstrumentDataValidator.Severity.FAIL
 import static ee.tuleva.onboarding.investment.instrument.InstrumentDataValidator.Severity.WARNING
 
@@ -312,6 +313,24 @@ class InstrumentDataValidatorSpec extends Specification {
     findings.any { it.severity() == FAIL && it.message().contains("business days of prices") }
   }
 
+  def "does not count EODHD prices for an instrument that is not listed on EODHD"() {
+    given:
+    def futureDate = LocalDate.of(2026, 6, 1)
+    allocationRepository.findByFundAndEffectiveDate(TUK75, futureDate) >> [allocation(isin1, 1.0)]
+    instrumentReferenceService.findByIsin(isin1) >> Optional.of(
+        instrument(active: true, isin: isin1, eodhdTicker: "EUNL.LSE", eodhdListed: false))
+    positionLimitRepository.findLatestByFundAsOf(TUK75, futureDate) >> [positionLimit(isin1)]
+    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of(new BenchmarkProxy(null, "MSCI_WORLD"))
+    publicHolidays.previousWorkingDay(_) >> { LocalDate d -> d.minusDays(1) }
+
+    when:
+    def findings = validator.validate(TUK75, futureDate)
+
+    then:
+    0 * fundValueProvider.getValueForDate(_, _)
+    findings.any { it.severity() == FAIL && it.message().contains("business days of prices") }
+  }
+
   def "no price history check when effective date is today or past"() {
     given:
     allocationRepository.findByFundAndEffectiveDate(TUK75, effectiveDate) >> [allocation(isin1, 1.0)]
@@ -372,19 +391,13 @@ class InstrumentDataValidatorSpec extends Specification {
   }
 
   private InstrumentReference instrument(Map props = [:]) {
-    def inst = new InstrumentReference()
-    def fields = InstrumentReference.getDeclaredFields()
-    setField(inst, "active", props.containsKey("active") ? props.active : true)
-    if (props.benchmarkCategory) setField(inst, "benchmarkCategory", props.benchmarkCategory)
-    if (props.eodhdTicker) setField(inst, "eodhdTicker", props.eodhdTicker)
-    if (props.yahooTicker) setField(inst, "yahooTicker", props.yahooTicker)
-    if (props.isin) setField(inst, "isin", props.isin)
-    return inst
-  }
-
-  private static void setField(Object obj, String fieldName, Object value) {
-    def field = InstrumentReference.getDeclaredField(fieldName)
-    field.setAccessible(true)
-    field.set(obj, value)
+    def fixture = anInstrument()
+        .active(props.containsKey("active") ? props.active : true)
+        .eodhdListed(props.containsKey("eodhdListed") ? props.eodhdListed : true)
+    if (props.benchmarkCategory) fixture.benchmarkCategory(props.benchmarkCategory)
+    if (props.eodhdTicker) fixture.eodhdTicker(props.eodhdTicker)
+    if (props.yahooTicker) fixture.yahooTicker(props.yahooTicker)
+    if (props.isin) fixture.isin(props.isin)
+    return fixture.build()
   }
 }

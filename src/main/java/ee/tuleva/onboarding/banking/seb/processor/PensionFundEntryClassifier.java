@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.banking.seb.processor;
 import ee.tuleva.onboarding.banking.processor.TradeSettlementParser;
 import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
-import ee.tuleva.onboarding.instrument.InstrumentReference;
 import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NullMarked;
@@ -44,7 +43,7 @@ public class PensionFundEntryClassifier {
 
   public record OwnAccountTransfer() implements Classification {}
 
-  public record TradeSettlement(InstrumentReference ticker, BigDecimal units)
+  public record TradeSettlement(String isin, String ticker, String displayName, BigDecimal units)
       implements Classification {}
 
   public record Unclassified(String reason) implements Classification {}
@@ -96,7 +95,9 @@ public class PensionFundEntryClassifier {
   private Classification classifyTradeSettlement(BankStatementEntry entry) {
     return tradeSettlementParser
         .parse(entry.remittanceInformation())
-        .<Classification>map(info -> new TradeSettlement(info.ticker(), info.units()))
+        .<Classification>map(
+            info ->
+                new TradeSettlement(info.isin(), info.ticker(), info.displayName(), info.units()))
         .orElseGet(() -> new Unclassified("unknown ticker"));
   }
 

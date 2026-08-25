@@ -52,8 +52,19 @@ class PriceDataFreshnessAlertJobTest {
           .yahooTicker("0P000152G5.F")
           .build();
 
+  private static final InstrumentReference NO_LONGER_LISTED_ON_EODHD_ETF =
+      instrument("IE000I9HGDZ3")
+          .eodhdTicker("XWSC.XETRA")
+          .yahooTicker("XWSC.DE")
+          .eodhdListed(false)
+          .build();
+
   private static final List<InstrumentReference> ACTIVE_INSTRUMENTS =
       List.of(XETRA_ETF, PARIS_ETF, MUTUAL_FUND);
+
+  private static final String XETRA_ETF_XETRA_KEY = "IE00BFNM3G45.XETR";
+  private static final String PARIS_ETF_EURONEXT_KEY = "LU1708330318.XPAR";
+  private static final String DELISTED_ETF_XETRA_KEY = "IE000I9HGDZ3.XETR";
 
   @Mock private FundValueRepository fundValueRepository;
   @Mock private OperationsNotificationService notificationService;
@@ -261,16 +272,9 @@ class PriceDataFreshnessAlertJobTest {
   void getEtfInstruments_excludesMutualFunds() {
     var job = jobOn(WED_0800_UTC);
 
-    List<InstrumentReference> etfInstruments = job.getEtfInstruments();
-
-    for (InstrumentReference etfInstrument : etfInstruments) {
-      assertThat(etfInstrument.getEodhdTicker()).doesNotEndWith(".EUFUND");
-      assertThat(
-              etfInstrument.getXetraStorageKey().isPresent()
-                  || etfInstrument.getEuronextParisStorageKey().isPresent())
-          .isTrue();
-    }
-    assertThat(etfInstruments.size()).isGreaterThan(0);
+    assertThat(job.getEtfInstruments())
+        .containsExactly(XETRA_ETF, PARIS_ETF)
+        .doesNotContain(MUTUAL_FUND);
   }
 
   @Test
@@ -288,24 +292,59 @@ class PriceDataFreshnessAlertJobTest {
     Map<String, PriceDataFreshnessAlertJob.ProviderKey> map =
         job.buildKeyToProviderMap(job.getEtfInstruments());
 
-    Set<String> providers = new HashSet<>();
-    map.values().forEach(pk -> providers.add(pk.provider()));
-
-    assertThat(providers).containsExactlyInAnyOrder("DEUTSCHE_BOERSE", "EURONEXT", "EODHD");
+    assertThat(map)
+        .containsExactlyInAnyOrderEntriesOf(
+            Map.of(
+                XETRA_ETF_XETRA_KEY,
+                new PriceDataFreshnessAlertJob.ProviderKey("DEUTSCHE_BOERSE", XETRA_ETF_XETRA_KEY),
+                "SGAS.XETRA",
+                new PriceDataFreshnessAlertJob.ProviderKey("EODHD", "SGAS.XETRA"),
+                PARIS_ETF_EURONEXT_KEY,
+                new PriceDataFreshnessAlertJob.ProviderKey("EURONEXT", PARIS_ETF_EURONEXT_KEY),
+                "GAGH.PA.EODHD",
+                new PriceDataFreshnessAlertJob.ProviderKey("EODHD", "GAGH.PA.EODHD")));
   }
 
   @Test
   void buildKeyToProviderMap_excludesYahoo() {
     var job = jobOn(WED_0800_UTC);
 
-    List<InstrumentReference> etfInstruments = job.getEtfInstruments();
     Map<String, PriceDataFreshnessAlertJob.ProviderKey> map =
-        job.buildKeyToProviderMap(etfInstruments);
+        job.buildKeyToProviderMap(job.getEtfInstruments());
 
-    assertThat(map.values()).noneMatch(pk -> pk.provider().equals("YAHOO"));
-    assertThat(map.keySet())
-        .doesNotContainAnyElementsOf(
-            etfInstruments.stream().map(InstrumentReference::getYahooTicker).toList());
+    assertThat(map.keySet()).doesNotContain("SGAS.DE", "GAGH.PA");
+    assertThat(map.values())
+        .extracting(PriceDataFreshnessAlertJob.ProviderKey::provider)
+        .doesNotContain("YAHOO");
+  }
+
+  @Test
+  void buildKeyToProviderMap_omitsEodhdForInstrumentNoLongerListedOnEodhd() {
+    var job = jobOn(WED_0800_UTC);
+
+    Map<String, PriceDataFreshnessAlertJob.ProviderKey> map =
+        job.buildKeyToProviderMap(List.of(NO_LONGER_LISTED_ON_EODHD_ETF));
+
+    assertThat(map)
+        .containsExactlyInAnyOrderEntriesOf(
+            Map.of(
+                DELISTED_ETF_XETRA_KEY,
+                new PriceDataFreshnessAlertJob.ProviderKey(
+                    "DEUTSCHE_BOERSE", DELISTED_ETF_XETRA_KEY)));
+  }
+
+  @Test
+  void frozenEodhdSeries_forInstrumentNoLongerListedOnEodhd_doesNotAlert() {
+    when(instrumentReferenceService.activeInstruments())
+        .thenReturn(List.of(NO_LONGER_LISTED_ON_EODHD_ETF));
+    var job = jobOn(WED_0800_UTC);
+    LocalDate tuesday = LocalDate.of(2026, 1, 13);
+    when(fundValueRepository.findLatestDateByKeys(any()))
+        .thenReturn(Map.of(DELISTED_ETF_XETRA_KEY, tuesday));
+
+    job.checkAfterIndexing();
+
+    verifyNoInteractions(notificationService);
   }
 
   private void stubAllKeysWithDate(PriceDataFreshnessAlertJob job, LocalDate date) {
@@ -325,7 +364,11 @@ class PriceDataFreshnessAlertJobTest {
   private void makeEodhdStale(
       PriceDataFreshnessAlertJob job, Map<String, LocalDate> latestDates, LocalDate staleDate) {
     job.getEtfInstruments()
-        .forEach(etfInstrument -> latestDates.put(etfInstrument.getEodhdTicker(), staleDate));
+        .forEach(
+            etfInstrument ->
+                etfInstrument
+                    .getEodhdStorageKey()
+                    .ifPresent(key -> latestDates.put(key, staleDate)));
   }
 
   private void makeXetraStale(

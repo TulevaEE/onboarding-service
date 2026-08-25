@@ -1,5 +1,5 @@
 -- =============================================================================
--- Give the database the invariants the FundTicker enum used to give the compiler.
+-- Give the database the invariants that instrument metadata used to get from the compiler.
 -- After the cutover an instrument change is an UPDATE typed into a console, so
 -- a mistyped benchmark category, instrument type or asset class has to fail at
 -- the moment of the change instead of silently re-pointing a live benchmark.

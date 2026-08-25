@@ -10,7 +10,9 @@ import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService.UnresolvableBenchmarkProxyException;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
+import ee.tuleva.onboarding.investment.portfolio.PositionLimit;
 import ee.tuleva.onboarding.investment.portfolio.PositionLimitRepository;
+import ee.tuleva.onboarding.investment.portfolio.ProviderLimit;
 import ee.tuleva.onboarding.investment.portfolio.ProviderLimitRepository;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -114,7 +116,7 @@ public class InstrumentDataValidator {
       LocalDate effectiveDate,
       List<ValidationFinding> findings) {
     var limits = positionLimitRepository.findLatestByFundAsOf(fund, effectiveDate);
-    var limitIsins = limits.stream().map(l -> l.getIsin()).collect(Collectors.toSet());
+    var limitIsins = limits.stream().map(PositionLimit::getIsin).collect(Collectors.toSet());
 
     for (var isin : isins) {
       if (!limitIsins.contains(isin)) {
@@ -143,7 +145,7 @@ public class InstrumentDataValidator {
 
     var providerLimits = providerLimitRepository.findLatestByFundAsOf(fund, effectiveDate);
     var limitProviders =
-        providerLimits.stream().map(l -> l.getProvider().name()).collect(Collectors.toSet());
+        providerLimits.stream().map(ProviderLimit::providerName).collect(Collectors.toSet());
 
     for (var provider : providers) {
       if (!limitProviders.contains(provider)) {
@@ -156,7 +158,7 @@ public class InstrumentDataValidator {
 
   private void checkBenchmarkProxies(Set<String> isins, List<ValidationFinding> findings) {
     for (var isin : isins) {
-      var instrument = fetchedInstrument(isin).orElse(null);
+      var instrument = activeInstrument(isin).orElse(null);
       if (instrument == null || instrument.getBenchmarkCategory() == null) {
         continue;
       }
@@ -186,7 +188,7 @@ public class InstrumentDataValidator {
     }
   }
 
-  private Optional<InstrumentReference> fetchedInstrument(String isin) {
+  private Optional<InstrumentReference> activeInstrument(String isin) {
     return instrumentReferenceService.findByIsin(isin).filter(InstrumentReference::isActive);
   }
 
@@ -196,7 +198,7 @@ public class InstrumentDataValidator {
       if (allocation.getIsin() == null || allocation.getTicker() == null) {
         continue;
       }
-      var instrument = fetchedInstrument(allocation.getIsin()).orElse(null);
+      var instrument = activeInstrument(allocation.getIsin()).orElse(null);
       if (instrument != null
           && instrument.getYahooTicker() != null
           && !allocation.getTicker().equals(instrument.getYahooTicker())) {
@@ -215,7 +217,7 @@ public class InstrumentDataValidator {
   private void checkPriceHistory(Set<String> isins, List<ValidationFinding> findings) {
     var today = LocalDate.now(clock);
     for (var isin : isins) {
-      var instrument = fetchedInstrument(isin).orElse(null);
+      var instrument = activeInstrument(isin).orElse(null);
       if (instrument == null) {
         continue;
       }
@@ -244,18 +246,14 @@ public class InstrumentDataValidator {
   }
 
   private boolean hasAnyPrice(InstrumentReference instrument, LocalDate date) {
-    return instrument
-            .getXetraStorageKey()
-            .flatMap(k -> fundValueProvider.getValueForDate(k, date))
-            .isPresent()
-        || instrument
-            .getEuronextParisStorageKey()
-            .flatMap(k -> fundValueProvider.getValueForDate(k, date))
-            .isPresent()
-        || (instrument.getEodhdTicker() != null
-            && fundValueProvider.getValueForDate(instrument.getEodhdTicker(), date).isPresent())
-        || (instrument.getYahooTicker() != null
-            && fundValueProvider.getValueForDate(instrument.getYahooTicker(), date).isPresent());
+    return hasPrice(instrument.getXetraStorageKey(), date)
+        || hasPrice(instrument.getEuronextParisStorageKey(), date)
+        || hasPrice(instrument.getEodhdStorageKey(), date)
+        || hasPrice(Optional.ofNullable(instrument.getYahooTicker()), date);
+  }
+
+  private boolean hasPrice(Optional<String> storageKey, LocalDate date) {
+    return storageKey.flatMap(key -> fundValueProvider.getValueForDate(key, date)).isPresent();
   }
 
   public record ValidationFinding(Severity severity, String message) {}

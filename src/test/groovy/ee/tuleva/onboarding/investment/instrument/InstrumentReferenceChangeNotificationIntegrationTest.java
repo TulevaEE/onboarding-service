@@ -13,14 +13,15 @@ import ee.tuleva.onboarding.instrument.InstrumentReferenceHistoryRepository;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import java.sql.SQLException;
 import javax.sql.DataSource;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
+@Transactional
 class InstrumentReferenceChangeNotificationIntegrationTest {
 
   private static final String ISIN = "IE00B4L5Y983";
@@ -33,22 +34,6 @@ class InstrumentReferenceChangeNotificationIntegrationTest {
   @Autowired private DataSource dataSource;
 
   @MockitoBean private EmailService emailService;
-
-  @AfterEach
-  void restoreInstrument() throws SQLException {
-    if (!isPostgres()) {
-      return;
-    }
-    jdbcClient
-        .sql("UPDATE instrument_reference SET display_name = :name WHERE isin = :isin")
-        .param("name", ORIGINAL_NAME)
-        .param("isin", ISIN)
-        .update();
-    jdbcClient
-        .sql(
-            "UPDATE instrument_reference_history SET notified_at = now() WHERE notified_at IS NULL")
-        .update();
-  }
 
   @Test
   void changingAnInstrumentLeavesAnAttributedHistoryRowAndProducesExactlyOneMail()

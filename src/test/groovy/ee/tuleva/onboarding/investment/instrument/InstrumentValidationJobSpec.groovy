@@ -429,6 +429,77 @@ class InstrumentValidationJobSpec extends Specification {
     0 * changedRepository.markNotified(_)
   }
 
+  def "leaves an undescribable change unstamped and unmailed, and reports it once it can be described"() {
+    given:
+    noAllocations()
+    def changedRepository = Mock(InstrumentReferenceHistoryRepository)
+    changedRepository.unnotifiedChanges() >>> [
+        [change(7L, "UPDATE", '{"active":', '{"active": false}')],
+        [change(7L, "UPDATE", '{"active": true}', '{"active": false}')],
+    ]
+    def jobUnderTest = jobWith(changedRepository)
+
+    when:
+    jobUnderTest.run()
+
+    then:
+    0 * emailService.sendSystemEmail(_)
+    0 * changedRepository.markNotified(_)
+
+    when:
+    jobUnderTest.run()
+
+    then:
+    1 * emailService.sendSystemEmail({ MandrillMessage msg ->
+      msg.subject == "[CHANGED] Instrument reference data" &&
+          msg.text.contains("active: true -> false")
+    }) >> true
+    1 * changedRepository.markNotified([7L])
+  }
+
+  def "validates the funds even when the stale cache check blows up"() {
+    given:
+    def brokenService = Stub(InstrumentReferenceService)
+    brokenService.getLastRefreshedAt() >> { throw new IllegalStateException("cache has never been loaded") }
+    def brokenJob = new InstrumentValidationJob(
+        validator, allocationRepository, emailService, brokenService,
+        historyRepository, changeDescriber, notificationService, clock)
+    allocationRepository.findLatestByFundAsOf(TUK75, today) >> [allocation(effectiveDate)]
+    allocationRepository.findLatestByFundAsOf(_ as TulevaFund, today) >> []
+    allocationRepository.findFutureEffectiveDates(_ as TulevaFund, today) >> []
+    validator.validate(TUK75, effectiveDate) >> [
+        new ValidationFinding(Severity.FAIL, "IE00TEST not in instrument_reference")
+    ]
+
+    when:
+    brokenJob.run()
+
+    then:
+    1 * emailService.sendSystemEmail({ MandrillMessage msg ->
+      msg.subject == "[FAIL] Instrument validation findings"
+    }) >> true
+  }
+
+  def "validates the funds even when the change notification blows up"() {
+    given:
+    def changedRepository = Mock(InstrumentReferenceHistoryRepository)
+    changedRepository.unnotifiedChanges() >> { throw new IllegalStateException("history unreadable") }
+    allocationRepository.findLatestByFundAsOf(TUK75, today) >> [allocation(effectiveDate)]
+    allocationRepository.findLatestByFundAsOf(_ as TulevaFund, today) >> []
+    allocationRepository.findFutureEffectiveDates(_ as TulevaFund, today) >> []
+    validator.validate(TUK75, effectiveDate) >> [
+        new ValidationFinding(Severity.FAIL, "IE00TEST not in instrument_reference")
+    ]
+
+    when:
+    jobWith(changedRepository).run()
+
+    then:
+    1 * emailService.sendSystemEmail({ MandrillMessage msg ->
+      msg.subject == "[FAIL] Instrument validation findings"
+    }) >> true
+  }
+
   private void noAllocations() {
     allocationRepository.findLatestByFundAsOf(_ as TulevaFund, _ as LocalDate) >> []
     allocationRepository.findFutureEffectiveDates(_ as TulevaFund, _ as LocalDate) >> []

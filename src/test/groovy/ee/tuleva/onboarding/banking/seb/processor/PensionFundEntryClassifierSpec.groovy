@@ -65,8 +65,8 @@ class PensionFundEntryClassifierSpec extends Specification {
     "commission as bank fee"                 | entry("COMM", -0.48, null, null, "komisjonitasu")                                  | new BankFee()
     "detail-less adjustment"                 | entry("ADJT", 0.50, null, null, "korrektsioon")                                    | new BankAdjustment()
     "detail-less other as adjustment"        | entry("OTHR", 262.53, null, null, "Penalty CRED")                                  | new BankAdjustment()
-    "bare subfund subscription"              | entry("SUBS", -1071209.00, null, null, SUBS_BUY)                                   | new TradeSettlement(DEVELOPED_WORLD, 31426.66)
-    "enriched subfund subscription"          | entry("SUBS", -1071209.00, "BlackRock AM", OTHER_IBAN, SUBS_BUY)                   | new TradeSettlement(DEVELOPED_WORLD, 31426.66)
+    "bare subfund subscription"              | entry("SUBS", -1071209.00, null, null, SUBS_BUY)                                   | developedWorldSettlement(31426.66)
+    "enriched subfund subscription"          | entry("SUBS", -1071209.00, "BlackRock AM", OTHER_IBAN, SUBS_BUY)                   | developedWorldSettlement(31426.66)
     "trade with unknown ticker"              | entry("TRAD", -100.00, null, null, "DLA1/ZZZZ GY/1/1/Buy/")                        | new Unclassified("unknown ticker")
     "kickback booking"                       | entry("BOOK", 4370.58, null, null, "Management fee kickback VP00001 02/2026")      | new ManagementFeeRebate()
     "registrar credit"                       | entry("RCDT", 1000000.00, "AS Pensionikeskus", REGISTRAR_IBAN, "osakute laekumine") | new RegistrarContribution()
@@ -83,13 +83,18 @@ class PensionFundEntryClassifierSpec extends Specification {
     "management company rebate transfer"     | entry("ESCT", 34720.54, "Tuleva Fondid AS", OTHER_IBAN, "TUK75 BR rebate")         | new ManagementFeeRebate()
     "management company expense debit"       | entry("BOOK", -1500.00, "Tuleva Fondid AS", OTHER_IBAN, "BR tasud")                | new ManagementFeePayment()
     "damage compensation from manager"       | entry("BOOK", 250.00, "Tuleva Fondid AS", OTHER_IBAN, "Kahju hüvitamine fondile")  | new ManagementFeeRebate()
-    "subfund redemption settlement"          | entry("REDM", 993343.12, null, null, REDM_SALE)                                    | new TradeSettlement(DEVELOPED_WORLD, new BigDecimal("59145"))
+    "subfund redemption settlement"          | entry("REDM", 993343.12, null, null, REDM_SALE)                                    | developedWorldSettlement(new BigDecimal("59145"))
     "own account transfer in"                | entry("ESCT", 1633975.32, "TULEVA MAAILMA AKTSIATE PENSIONIFOND", OWN_ACCOUNT_IBAN, "Ülekanne fondi teisele kontole") | new OwnAccountTransfer()
     "own account transfer out"               | entry("ICDT", -50000.00, "TULEVA MAAILMA AKTSIATE PENSIONIFOND", OWN_ACCOUNT_IBAN, "Ülekanne fondi teisele kontole") | new OwnAccountTransfer()
     "legacy bank service invoice"            | entry("ESCT", -140.00, "Swedbank AS", BANK_FEE_IBAN, "Arve nr 03-03-2026-3")       | new BankFee()
     "detailed ADJT from unknown party"       | entry("ADJT", 12.34, "Random Company OU", OTHER_IBAN, "korrektsioon")              | new Unclassified("unknown counterparty")
     "enriched kickback booking"              | entry("BOOK", 4370.58, "BlackRock AM", OTHER_IBAN, "Management fee kickback VP00001") | new ManagementFeeRebate()
     "entry with null remittance"             | entry("XXXX", 10.00, null, null, null)                                             | new Unclassified("subFamilyCode=XXXX")
+  }
+
+  static TradeSettlement developedWorldSettlement(BigDecimal units) {
+    new TradeSettlement("IE00BFG1TM61", "0P000152G5",
+        "iShares Developed World Screened Index Fund", units)
   }
 
   static BankStatementEntry entry(

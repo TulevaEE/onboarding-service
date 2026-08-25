@@ -2,8 +2,10 @@ package ee.tuleva.onboarding.banking.processor;
 
 import static ee.tuleva.onboarding.instrument.InstrumentReferenceFixture.anInstrument;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 
+import ee.tuleva.onboarding.banking.processor.TradeSettlementParser.TradeSettlementInfo;
 import ee.tuleva.onboarding.instrument.InstrumentReference;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import java.math.BigDecimal;
@@ -41,6 +43,13 @@ class TradeSettlementParserTest {
           .bloombergTicker("BDWTEIA")
           .build();
 
+  private static final InstrumentReference WITHOUT_YAHOO_TICKER =
+      anInstrument()
+          .isin("IE00NOTICKER0")
+          .displayName("Instrument without a yahoo ticker")
+          .bloombergTicker("NOYAHOO")
+          .build();
+
   @Mock private InstrumentReferenceService instrumentReferenceService;
 
   @InjectMocks private TradeSettlementParser parser;
@@ -51,9 +60,13 @@ class TradeSettlementParserTest {
 
     var result = parser.parse("DLA0553690/EJAP GY/11704/17.864/Buy/ Euroclear, ABNCNL2AXXX, 14448");
 
-    assertThat(result).isPresent();
-    assertThat(result.get().ticker()).isEqualTo(BNP_JAPAN);
-    assertThat(result.get().units()).isEqualByComparingTo(new BigDecimal("11704"));
+    assertThat(result)
+        .contains(
+            new TradeSettlementInfo(
+                "LU1291102447",
+                "EJAP",
+                "BNP Paribas Easy MSCI Japan Min TE UCITS ETF",
+                new BigDecimal("11704")));
   }
 
   @Test
@@ -62,9 +75,13 @@ class TradeSettlementParserTest {
 
     var result = parser.parse("DLA0553685/XRSM GY/19422/51.25/Buy/ Euroclear, ABNCNL2AXXX, 14448");
 
-    assertThat(result).isPresent();
-    assertThat(result.get().ticker()).isEqualTo(XTRACKERS_USA);
-    assertThat(result.get().units()).isEqualByComparingTo(new BigDecimal("19422"));
+    assertThat(result)
+        .contains(
+            new TradeSettlementInfo(
+                "IE00BJZ2DC62",
+                "XRSM",
+                "Xtrackers MSCI USA Screened UCITS ETF",
+                new BigDecimal("19422")));
   }
 
   @Test
@@ -86,9 +103,24 @@ class TradeSettlementParserTest {
     var result =
         parser.parse("DLA0553698/BDWTEIA ID/24.4021/32765.6/Buy/ SNORAS, AGBLLT2XXXX, 14448");
 
-    assertThat(result).isPresent();
-    assertThat(result.get().ticker()).isEqualTo(DEVELOPED_WORLD);
-    assertThat(result.get().units()).isEqualByComparingTo(new BigDecimal("24.4021"));
+    assertThat(result)
+        .contains(
+            new TradeSettlementInfo(
+                "IE00BFG1TM61",
+                "0P000152G5",
+                "iShares Developed World Screened Index Fund",
+                new BigDecimal("24.4021")));
+  }
+
+  @Test
+  void parse_failsWhenTheResolvedInstrumentHasNoYahooTicker() {
+    given(instrumentReferenceService.findByTicker("NOYAHOO")).willReturn(Optional.empty());
+    given(instrumentReferenceService.findByBloombergTicker("NOYAHOO"))
+        .willReturn(Optional.of(WITHOUT_YAHOO_TICKER));
+
+    assertThatThrownBy(
+            () -> parser.parse("DLA0553698/NOYAHOO ID/24.4021/32765.6/Buy/ SNORAS, AGBLLT2XXXX"))
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test

@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.banking.seb.processor;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
-import static ee.tuleva.onboarding.instrument.InstrumentReferenceFixture.anInstrument;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -16,7 +15,6 @@ import ee.tuleva.onboarding.banking.statement.BankStatementAccount;
 import ee.tuleva.onboarding.banking.statement.BankStatementBalance;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.banking.statement.TransactionType;
-import ee.tuleva.onboarding.instrument.InstrumentReference;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -35,14 +33,6 @@ class PensionFundStatementProcessorTest {
   private static final String TUK75_IBAN = "EE001234567890123475";
   private static final BankAccount TUK75_ACCOUNT =
       new BankAccount(TUK75_IBAN, FUND_INVESTMENT_EUR, TUK75, "gw-test");
-
-  private static final InstrumentReference DEVELOPED_WORLD =
-      anInstrument()
-          .isin("IE00BFG1TM61")
-          .displayName("iShares Developed World Screened Index Fund")
-          .yahooTicker("0P000152G5.F")
-          .bloombergTicker("BDWTEIA")
-          .build();
 
   @Mock private PensionFundEntryClassifier classifier;
   @Mock private FundBankLedger fundBankLedger;
@@ -121,7 +111,10 @@ class PensionFundStatementProcessorTest {
     when(classifier.classify(entry))
         .thenReturn(
             new PensionFundEntryClassifier.TradeSettlement(
-                DEVELOPED_WORLD, new BigDecimal("1450.25")));
+                "IE00BFG1TM61",
+                "0P000152G5",
+                "iShares Developed World Screened Index Fund",
+                new BigDecimal("1450.25")));
 
     processor.process(statementWith(entry), TUK75_ACCOUNT);
 
@@ -216,7 +209,10 @@ class PensionFundStatementProcessorTest {
     when(classifier.classify(entry))
         .thenReturn(
             new PensionFundEntryClassifier.TradeSettlement(
-                DEVELOPED_WORLD, new BigDecimal("29000")));
+                "IE00BFG1TM61",
+                "0P000152G5",
+                "iShares Developed World Screened Index Fund",
+                new BigDecimal("29000")));
 
     processor.process(statementWith(entry), TUK75_ACCOUNT);
 

@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +27,7 @@ public class InstrumentReferenceService {
   private final BenchmarkCategoryProxyRepository benchmarkCategoryProxyRepository;
   private final Clock clock;
 
+  private volatile List<InstrumentReference> instruments = List.of();
   private volatile Map<String, InstrumentReference> byIsin = Map.of();
   private volatile Map<String, InstrumentReference> byBloombergTicker = Map.of();
   private volatile Map<String, InstrumentReference> byEodhdTicker = Map.of();
@@ -46,7 +46,7 @@ public class InstrumentReferenceService {
           "Failed to load the instrument reference cache at startup", e);
     }
 
-    if (snapshot.byIsin().isEmpty()) {
+    if (snapshot.instruments().isEmpty()) {
       throw new IllegalStateException("Instrument reference table holds no rows: instruments=0");
     }
 
@@ -57,8 +57,8 @@ public class InstrumentReferenceService {
   void scheduledRefresh() {
     try {
       var snapshot = readSnapshot();
-      var liveCount = byIsin.size();
-      var loadedCount = snapshot.byIsin().size();
+      var liveCount = instruments.size();
+      var loadedCount = snapshot.instruments().size();
 
       if (loadedCount * 100 < liveCount * MIN_ACCEPTABLE_ROW_COUNT_PERCENT) {
         log.error(
@@ -75,7 +75,7 @@ public class InstrumentReferenceService {
       log.error(
           "Failed to refresh instrument reference cache, keeping the live snapshot:"
               + " liveInstruments={}, lastRefreshedAt={}",
-          byIsin.size(),
+          instruments.size(),
           lastRefreshedAt,
           e);
     }
@@ -94,6 +94,7 @@ public class InstrumentReferenceService {
   }
 
   private void apply(Snapshot snapshot) {
+    instruments = snapshot.instruments();
     byIsin = snapshot.byIsin();
     byBloombergTicker = snapshot.byBloombergTicker();
     byEodhdTicker = snapshot.byEodhdTicker();
@@ -104,7 +105,7 @@ public class InstrumentReferenceService {
 
     log.info(
         "Instrument reference cache refreshed: instruments={}, proxies={}, dataFindings={}",
-        byIsin.size(),
+        instruments.size(),
         proxyByCategory.size(),
         dataFindings.size());
 
@@ -117,7 +118,7 @@ public class InstrumentReferenceService {
   }
 
   private Snapshot readSnapshot() {
-    var instruments = instrumentReferenceRepository.findAllByOrderByIdAsc();
+    var orderedInstruments = instrumentReferenceRepository.findAllByOrderByIdAsc();
     var proxies = benchmarkCategoryProxyRepository.findAll();
 
     var findings = new ArrayList<InstrumentDataFinding>();
@@ -126,7 +127,7 @@ public class InstrumentReferenceService {
     var newByEodhdTicker = new HashMap<String, InstrumentReference>();
     var newByShortTicker = new HashMap<String, InstrumentReference>();
 
-    for (var instrument : instruments) {
+    for (var instrument : orderedInstruments) {
       putFirstWins(newByIsin, instrument.getIsin(), instrument, "isin", findings);
 
       if (instrument.getBloombergTicker() != null) {
@@ -168,6 +169,7 @@ public class InstrumentReferenceService {
     }
 
     return new Snapshot(
+        List.copyOf(orderedInstruments),
         Map.copyOf(newByIsin),
         Map.copyOf(newByBloomberg),
         Map.copyOf(newByEodhdTicker),
@@ -177,6 +179,7 @@ public class InstrumentReferenceService {
   }
 
   private record Snapshot(
+      List<InstrumentReference> instruments,
       Map<String, InstrumentReference> byIsin,
       Map<String, InstrumentReference> byBloombergTicker,
       Map<String, InstrumentReference> byEodhdTicker,
@@ -205,7 +208,7 @@ public class InstrumentReferenceService {
   }
 
   public List<InstrumentReference> activeInstruments() {
-    return byIsin.values().stream().filter(InstrumentReference::isActive).toList();
+    return instruments.stream().filter(InstrumentReference::isActive).toList();
   }
 
   public List<String> getXetraIsins() {
@@ -224,9 +227,8 @@ public class InstrumentReferenceService {
 
   public List<String> getEodhdTickers() {
     return activeInstruments().stream()
-        .filter(InstrumentReference::isListedOnEodhd)
-        .map(InstrumentReference::getEodhdTicker)
-        .filter(Objects::nonNull)
+        .map(InstrumentReference::getEodhdStorageKey)
+        .flatMap(Optional::stream)
         .toList();
   }
 

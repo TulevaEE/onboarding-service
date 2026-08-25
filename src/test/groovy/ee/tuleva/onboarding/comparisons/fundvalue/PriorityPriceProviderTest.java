@@ -1,7 +1,14 @@
 package ee.tuleva.onboarding.comparisons.fundvalue;
 
+import static ee.tuleva.onboarding.comparisons.fundvalue.PriceSource.DEUTSCHE_BOERSE;
+import static ee.tuleva.onboarding.comparisons.fundvalue.PriceSource.EODHD;
+import static ee.tuleva.onboarding.comparisons.fundvalue.PriceSource.YAHOO;
 import static ee.tuleva.onboarding.instrument.InstrumentReferenceFixture.instrument;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.instrument.InstrumentReference;
@@ -9,6 +16,7 @@ import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,6 +35,7 @@ class PriorityPriceProviderTest {
   private static final String BLACKROCK_ISIN = "IE00BFG1TM61";
   private static final String ETF_ISIN = "IE00BFNM3G45";
   private static final String GAGH_ISIN = "LU1708330318";
+  private static final String XWSC_ISIN = "IE000I9HGDZ3";
 
   private static final InstrumentReference BLACKROCK_FUND =
       instrument(BLACKROCK_ISIN)
@@ -42,6 +51,14 @@ class PriorityPriceProviderTest {
           .displayName("iShares MSCI USA Screened UCITS ETF")
           .yahooTicker("SGAS.DE")
           .eodhdTicker("SGAS.XETRA")
+          .build();
+
+  private static final InstrumentReference NO_LONGER_LISTED_ON_EODHD_ETF =
+      instrument(XWSC_ISIN)
+          .displayName("Xtrackers MSCI World Screened UCITS ETF 1C")
+          .yahooTicker("XWSC.DE")
+          .eodhdTicker("XWSC.XETRA")
+          .eodhdListed(false)
           .build();
 
   private static final InstrumentReference EURONEXT_ETF =
@@ -344,5 +361,46 @@ class PriorityPriceProviderTest {
 
     assertThat(result).isPresent();
     assertThat(result.get().provider()).isEqualTo("EURONEXT");
+  }
+
+  @Test
+  void priceFeeds_forEodhdListedInstrument_yieldEodhdKeyAheadOfTheExchange() {
+    assertThat(sourcesWithStorageKey(XETRA_ETF)).containsExactly(EODHD, DEUTSCHE_BOERSE, YAHOO);
+  }
+
+  @Test
+  void priceFeeds_forInstrumentNoLongerListedOnEodhd_yieldNoEodhdKey() {
+    assertThat(NO_LONGER_LISTED_ON_EODHD_ETF.getEodhdTicker()).isNotNull();
+
+    assertThat(sourcesWithStorageKey(NO_LONGER_LISTED_ON_EODHD_ETF))
+        .containsExactly(DEUTSCHE_BOERSE, YAHOO);
+  }
+
+  @Test
+  void resolve_instrumentNoLongerListedOnEodhd_fallsBackToTheExchange() {
+    InstrumentReference instrument = givenKnown(NO_LONGER_LISTED_ON_EODHD_ETF);
+    String xetraKey = instrument.getXetraStorageKey().orElseThrow();
+    String yahooTicker = instrument.getYahooTicker();
+
+    when(fundValueProvider.getLatestValue(xetraKey, DATE))
+        .thenReturn(
+            Optional.of(
+                new FundValue(xetraKey, DATE, new BigDecimal("100.50"), "DEUTSCHE_BOERSE", null)));
+    when(fundValueProvider.getLatestValue(yahooTicker, DATE))
+        .thenReturn(
+            Optional.of(new FundValue(yahooTicker, DATE, new BigDecimal("100.40"), "YAHOO", null)));
+
+    Optional<FundValue> result = provider.resolve(XWSC_ISIN, DATE);
+
+    assertThat(result).isPresent();
+    assertThat(result.get().provider()).isEqualTo("DEUTSCHE_BOERSE");
+    verify(fundValueProvider, never()).getLatestValue(eq("XWSC.XETRA"), any(LocalDate.class));
+  }
+
+  private List<PriceSource> sourcesWithStorageKey(InstrumentReference instrument) {
+    return PriorityPriceProvider.priceFeeds().stream()
+        .filter(feed -> feed.storageKey().apply(instrument).isPresent())
+        .map(PriorityPriceProvider.PriceFeed::source)
+        .toList();
   }
 }

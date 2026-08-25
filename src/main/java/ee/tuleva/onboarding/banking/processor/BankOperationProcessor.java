@@ -108,26 +108,25 @@ public class BankOperationProcessor {
           parkInSuspense(entry, account, externalReference, amount, "unknown ticker");
           return;
         }
-        var info = tradeInfo.get();
-        var ticker = info.ticker();
-        var units = signedUnits(info.units(), amount);
+        var settlement = tradeInfo.get();
+        var units = signedUnits(settlement.units(), amount);
         log.info(
             "Trade settlement: amount={}, units={}, externalRef={}, account={}, ticker={}, isin={}",
             amount,
             units,
             externalReference,
             account,
-            ticker.getYahooTicker(),
-            ticker.getIsin());
+            settlement.ticker(),
+            settlement.isin());
         fundBankLedger.recordTradeSettlement(
             account.fund(),
             amount,
             units,
             externalReference,
             clearingAccount,
-            ticker.getIsin(),
-            ticker.getYahooTicker().split("\\.")[0],
-            ticker.getDisplayName(),
+            settlement.isin(),
+            settlement.ticker(),
+            settlement.displayName(),
             bookingDate);
       }
       case BOOK -> {

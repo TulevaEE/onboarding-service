@@ -7,8 +7,8 @@ import ee.tuleva.onboarding.investment.instrument.InstrumentDataValidator.Valida
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository
 import ee.tuleva.onboarding.instrument.InstrumentDataFinding
-import ee.tuleva.onboarding.instrument.InstrumentReferenceChange
-import ee.tuleva.onboarding.instrument.InstrumentReferenceHistoryRepository
+import ee.tuleva.onboarding.instrument.ReferenceDataChange
+import ee.tuleva.onboarding.instrument.ReferenceDataHistoryRepository
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService
 import ee.tuleva.onboarding.notification.OperationsNotificationService
 import ee.tuleva.onboarding.notification.email.EmailService
@@ -29,9 +29,9 @@ class InstrumentValidationJobSpec extends Specification {
   ModelPortfolioAllocationRepository allocationRepository = Mock()
   EmailService emailService = Mock()
   InstrumentReferenceService instrumentReferenceService = Stub()
-  InstrumentReferenceHistoryRepository historyRepository = Mock()
+  ReferenceDataHistoryRepository historyRepository = Mock()
   OperationsNotificationService notificationService = Mock()
-  InstrumentReferenceChangeDescriber changeDescriber = new InstrumentReferenceChangeDescriber(new JsonMapper())
+  ReferenceDataChangeDescriber changeDescriber = new ReferenceDataChangeDescriber(new JsonMapper())
   MutableClock clock = new MutableClock(Instant.parse("2026-05-28T10:00:00Z"))
 
   InstrumentValidationJob job = new InstrumentValidationJob(
@@ -364,7 +364,7 @@ class InstrumentValidationJobSpec extends Specification {
   def "mails a detected instrument reference change set and stamps it notified"() {
     given:
     noAllocations()
-    def changedRepository = Mock(InstrumentReferenceHistoryRepository)
+    def changedRepository = Mock(ReferenceDataHistoryRepository)
     changedRepository.unnotifiedChanges() >> [change(7L, "UPDATE",
         '{"isin": "IE00B4L5Y983", "benchmark_category": "EQUITY_DM", "active": true}',
         '{"isin": "IE00B4L5Y983", "benchmark_category": "EQUITY_EM", "active": true}')]
@@ -377,7 +377,7 @@ class InstrumentValidationJobSpec extends Specification {
       msg.subject == "[CHANGED] Instrument reference data" &&
           msg.fromEmail == "funds@tuleva.ee" &&
           msg.to[0].email == "funds@tuleva.ee" &&
-          msg.text.contains("UPDATE IE00B4L5Y983 by ops-console") &&
+          msg.text.contains("UPDATE instrument_reference IE00B4L5Y983 by ops-console") &&
           msg.text.contains("benchmark_category: EQUITY_DM -> EQUITY_EM") &&
           !msg.text.contains("active")
     }) >> true
@@ -386,13 +386,37 @@ class InstrumentValidationJobSpec extends Specification {
     1 * changedRepository.markNotified([7L])
   }
 
+  def "mails a re-pointed benchmark proxy the same way it mails an instrument change"() {
+    given:
+    noAllocations()
+    def changedRepository = Mock(ReferenceDataHistoryRepository)
+    changedRepository.unnotifiedChanges() >> [proxyChange(9L,
+        '{"benchmark_category": "BOND_GLOBAL", "etf_proxy_isin": "IE00BDBRDM35"}',
+        '{"benchmark_category": "BOND_GLOBAL", "etf_proxy_isin": "LU1708330318"}')]
+
+    when:
+    jobWith(changedRepository).run()
+
+    then:
+    1 * emailService.sendSystemEmail({ MandrillMessage msg ->
+      msg.subject == "[CHANGED] Instrument reference data" &&
+          msg.to[0].email == "funds@tuleva.ee" &&
+          msg.text.contains("UPDATE benchmark_category_proxy BOND_GLOBAL by ops-console") &&
+          msg.text.contains("etf_proxy_isin: IE00BDBRDM35 -> LU1708330318")
+    }) >> true
+
+    then:
+    1 * changedRepository.markNotified([9L])
+  }
+
   def "sends a single mail for the whole detected change set"() {
     given:
     noAllocations()
-    def changedRepository = Mock(InstrumentReferenceHistoryRepository)
+    def changedRepository = Mock(ReferenceDataHistoryRepository)
     changedRepository.unnotifiedChanges() >> [
         change(7L, "UPDATE", '{"isin": "IE00B4L5Y983", "active": true}', '{"isin": "IE00B4L5Y983", "active": false}'),
         change(8L, "INSERT", null, '{"isin": "IE00NEW00000", "display_name": "New ETF"}'),
+        proxyChange(9L, '{"etf_proxy_isin": "IE00BDBRDM35"}', '{"etf_proxy_isin": "LU1708330318"}'),
     ]
 
     when:
@@ -400,7 +424,7 @@ class InstrumentValidationJobSpec extends Specification {
 
     then:
     1 * emailService.sendSystemEmail(_ as MandrillMessage) >> true
-    1 * changedRepository.markNotified([7L, 8L])
+    1 * changedRepository.markNotified([7L, 8L, 9L])
   }
 
   def "does not mail or stamp anything when no unnotified changes exist"() {
@@ -418,7 +442,7 @@ class InstrumentValidationJobSpec extends Specification {
   def "leaves the change unstamped when the mail fails, so the next run retries it"() {
     given:
     noAllocations()
-    def changedRepository = Mock(InstrumentReferenceHistoryRepository)
+    def changedRepository = Mock(ReferenceDataHistoryRepository)
     changedRepository.unnotifiedChanges() >> [change(7L, "UPDATE", '{"active": true}', '{"active": false}')]
     emailService.sendSystemEmail(_) >> false
 
@@ -432,7 +456,7 @@ class InstrumentValidationJobSpec extends Specification {
   def "leaves an undescribable change unstamped and unmailed, and reports it once it can be described"() {
     given:
     noAllocations()
-    def changedRepository = Mock(InstrumentReferenceHistoryRepository)
+    def changedRepository = Mock(ReferenceDataHistoryRepository)
     changedRepository.unnotifiedChanges() >>> [
         [change(7L, "UPDATE", '{"active":', '{"active": false}')],
         [change(7L, "UPDATE", '{"active": true}', '{"active": false}')],
@@ -482,7 +506,7 @@ class InstrumentValidationJobSpec extends Specification {
 
   def "validates the funds even when the change notification blows up"() {
     given:
-    def changedRepository = Mock(InstrumentReferenceHistoryRepository)
+    def changedRepository = Mock(ReferenceDataHistoryRepository)
     changedRepository.unnotifiedChanges() >> { throw new IllegalStateException("history unreadable") }
     allocationRepository.findLatestByFundAsOf(TUK75, today) >> [allocation(effectiveDate)]
     allocationRepository.findLatestByFundAsOf(_ as TulevaFund, today) >> []
@@ -505,14 +529,20 @@ class InstrumentValidationJobSpec extends Specification {
     allocationRepository.findFutureEffectiveDates(_ as TulevaFund, _ as LocalDate) >> []
   }
 
-  private InstrumentValidationJob jobWith(InstrumentReferenceHistoryRepository repository) {
+  private InstrumentValidationJob jobWith(ReferenceDataHistoryRepository repository) {
     new InstrumentValidationJob(
         validator, allocationRepository, emailService, instrumentReferenceService,
         repository, changeDescriber, notificationService, clock)
   }
 
-  private InstrumentReferenceChange change(Long id, String operation, String oldValues, String newValues) {
-    new InstrumentReferenceChange(id, "IE00B4L5Y983", operation, "ops-console", clock.instant(), oldValues, newValues)
+  private ReferenceDataChange change(Long id, String operation, String oldValues, String newValues) {
+    new ReferenceDataChange(id, "instrument_reference", "IE00B4L5Y983", operation, "ops-console",
+        clock.instant(), oldValues, newValues)
+  }
+
+  private ReferenceDataChange proxyChange(Long id, String oldValues, String newValues) {
+    new ReferenceDataChange(id, "benchmark_category_proxy", "BOND_GLOBAL", "UPDATE", "ops-console",
+        clock.instant(), oldValues, newValues)
   }
 
   private ModelPortfolioAllocation allocation(LocalDate date) {

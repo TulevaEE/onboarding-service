@@ -9,9 +9,9 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.instrument.InstrumentDataFinding;
-import ee.tuleva.onboarding.instrument.InstrumentReferenceChange;
-import ee.tuleva.onboarding.instrument.InstrumentReferenceHistoryRepository;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
+import ee.tuleva.onboarding.instrument.ReferenceDataChange;
+import ee.tuleva.onboarding.instrument.ReferenceDataHistoryRepository;
 import ee.tuleva.onboarding.investment.instrument.InstrumentDataValidator.Severity;
 import ee.tuleva.onboarding.investment.instrument.InstrumentDataValidator.ValidationFinding;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
@@ -48,8 +48,8 @@ class InstrumentValidationJob {
   private final ModelPortfolioAllocationRepository allocationRepository;
   private final EmailService emailService;
   private final InstrumentReferenceService instrumentReferenceService;
-  private final InstrumentReferenceHistoryRepository historyRepository;
-  private final InstrumentReferenceChangeDescriber changeDescriber;
+  private final ReferenceDataHistoryRepository historyRepository;
+  private final ReferenceDataChangeDescriber changeDescriber;
   private final OperationsNotificationService notificationService;
   private final Clock clock;
 
@@ -125,14 +125,15 @@ class InstrumentValidationJob {
     }
 
     log.info(
-        "Notifying instrument reference data changes: changes={}, firstIsin={}",
+        "Notifying instrument reference data changes: changes={}, firstTable={}, firstRecordKey={}",
         changes.size(),
-        changes.getFirst().isin());
+        changes.getFirst().tableName(),
+        changes.getFirst().recordKey());
 
     if (!sendEmail(CHANGE_SUBJECT, changeDescriber.describe(changes))) {
       return;
     }
-    historyRepository.markNotified(changes.stream().map(InstrumentReferenceChange::id).toList());
+    historyRepository.markNotified(changes.stream().map(ReferenceDataChange::id).toList());
   }
 
   private void alertOnStaleCache() {

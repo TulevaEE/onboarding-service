@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.instrument;
 
-import ee.tuleva.onboarding.instrument.InstrumentReferenceChange;
+import ee.tuleva.onboarding.instrument.ReferenceDataChange;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -14,17 +14,21 @@ import tools.jackson.databind.ObjectMapper;
 @Component
 @NullMarked
 @RequiredArgsConstructor
-class InstrumentReferenceChangeDescriber {
+class ReferenceDataChangeDescriber {
 
   private final ObjectMapper objectMapper;
 
-  String describe(List<InstrumentReferenceChange> changes) {
+  String describe(List<ReferenceDataChange> changes) {
     var body = new StringBuilder("Instrument reference data changed:\n\n");
     for (var change : changes) {
       body.append(
-          "%s %s by %s at %s\n"
+          "%s %s %s by %s at %s\n"
               .formatted(
-                  change.operation(), change.isin(), change.changedBy(), change.changedAt()));
+                  change.operation(),
+                  change.tableName(),
+                  change.recordKey(),
+                  change.changedBy(),
+                  change.changedAt()));
       for (var line : fieldLines(change)) {
         body.append("  ").append(line).append('\n');
       }
@@ -33,7 +37,7 @@ class InstrumentReferenceChangeDescriber {
     return body.toString();
   }
 
-  private List<String> fieldLines(InstrumentReferenceChange change) {
+  private List<String> fieldLines(ReferenceDataChange change) {
     var before = read(change, change.oldValues());
     var after = read(change, change.newValues());
 
@@ -47,8 +51,8 @@ class InstrumentReferenceChangeDescriber {
       return presentValues(before);
     }
     throw new IllegalStateException(
-        "Instrument reference history row has neither old nor new values: historyId=%s, isin=%s"
-            .formatted(change.id(), change.isin()));
+        "Reference data history row has neither old nor new values: historyId=%s, table=%s, recordKey=%s"
+            .formatted(change.id(), change.tableName(), change.recordKey()));
   }
 
   private static List<String> presentValues(JsonNode node) {
@@ -81,7 +85,7 @@ class InstrumentReferenceChangeDescriber {
     return node.isMissingNode() || node.isNull() ? "null" : node.asString();
   }
 
-  private @Nullable JsonNode read(InstrumentReferenceChange change, @Nullable String json) {
+  private @Nullable JsonNode read(ReferenceDataChange change, @Nullable String json) {
     if (json == null) {
       return null;
     }
@@ -89,8 +93,8 @@ class InstrumentReferenceChangeDescriber {
       return objectMapper.readTree(json);
     } catch (Exception e) {
       throw new IllegalStateException(
-          "Failed to parse instrument reference history values: historyId=%s, isin=%s, json=%s"
-              .formatted(change.id(), change.isin(), json),
+          "Failed to parse reference data history values: historyId=%s, table=%s, recordKey=%s, json=%s"
+              .formatted(change.id(), change.tableName(), change.recordKey(), json),
           e);
     }
   }

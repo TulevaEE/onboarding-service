@@ -7,6 +7,7 @@ import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.banking.BankAccounts;
+import ee.tuleva.onboarding.banking.seb.SebAccountBalanceReader;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -30,6 +31,7 @@ public class PaymentApprovalBriefService {
 
   private final OutgoingPaymentRepository outgoingPaymentRepository;
   private final BankAccounts bankAccounts;
+  private final SebAccountBalanceReader balanceReader;
   private final Clock clock;
 
   public PaymentApprovalBrief build(LocalDate date, List<PaymentHold> holds) {
@@ -67,11 +69,21 @@ public class PaymentApprovalBriefService {
         accounts,
         holds.size(),
         holds.stream().map(PaymentHold::reason).distinct().toList(),
-        !holds.isEmpty() || inFlight > 0);
+        !holds.isEmpty()
+            || inFlight > 0
+            || accounts.stream().anyMatch(PaymentApprovalBrief.AccountSummary::goesNegative));
   }
 
   private PaymentApprovalBrief.AccountSummary summarise(
       String accountName, List<OutgoingPayment> payments) {
+    var projected =
+        payments.stream()
+            .map(OutgoingPayment::getRemitterIban)
+            .findFirst()
+            .flatMap(bankAccounts::find)
+            .flatMap(balanceReader::available)
+            .map(balance -> balance.subtract(sum(payments)))
+            .orElse(null);
     var flows =
         payments.stream()
             .collect(groupingBy(OutgoingPayment::getPaymentType, LinkedHashMap::new, toList()))
@@ -85,7 +97,7 @@ public class PaymentApprovalBriefService {
             .toList();
 
     return new PaymentApprovalBrief.AccountSummary(
-        accountName, flows, payments.size(), sum(payments));
+        accountName, flows, payments.size(), sum(payments), projected);
   }
 
   private static BigDecimal sum(List<OutgoingPayment> payments) {

@@ -31,6 +31,13 @@ class PaymentApprovalBriefFormatterTest {
   }
 
   @Test
+  void anAccountThatWouldGoNegativeIsCalledOut() {
+    var text = formatter.format(brief(true, 0));
+
+    assertThat(text).contains("after execution", "would go negative");
+  }
+
+  @Test
   void namesAHoldRatherThanQuietlyShowingOneFewerPayment() {
     var text = formatter.format(brief(true, 1));
 
@@ -56,14 +63,16 @@ class PaymentApprovalBriefFormatterTest {
                     new PaymentApprovalBrief.FlowSummary(
                         "to withdrawal account", 1, new BigDecimal("12345.67"))),
                 1,
-                new BigDecimal("12345.67")),
+                new BigDecimal("12345.67"),
+                null),
             new PaymentApprovalBrief.AccountSummary(
                 "WITHDRAWAL_EUR",
                 List.of(
                     new PaymentApprovalBrief.FlowSummary(
                         "payouts to clients", 7, new BigDecimal("12345.67"))),
                 7,
-                new BigDecimal("12345.67"))),
+                new BigDecimal("12345.67"),
+                new BigDecimal("-1.00"))),
         held,
         held > 0 ? List.of("PAYMENT_BLOCKED: file does not match the request") : List.of(),
         attention);

@@ -1,7 +1,10 @@
 package ee.tuleva.onboarding.banking.processor;
 
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.HOLD;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.STATEMENT_UNPROCESSABLE;
 import static ee.tuleva.onboarding.banking.message.BankMessageType.PAYMENT_ORDER_CONFIRMATION;
 
+import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankMessagesProcessingCompleted;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankStatementReceived;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.ProcessBankMessagesRequested;
@@ -33,6 +36,7 @@ public class BankMessageDelegator {
   private final Clock clock;
   private final BankingMessageRepository bankingMessageRepository;
   private final PaymentStatusReportHandler paymentStatusReportHandler;
+  private final PaymentCheckService paymentCheckService;
   private final BankStatementExtractor bankStatementExtractor;
   private final ApplicationEventPublisher eventPublisher;
 
@@ -69,6 +73,14 @@ public class BankMessageDelegator {
       bankingMessageRepository.save(message);
     } catch (Exception e) {
       log.error("Failed to process message: messageId={}", message.getId(), e);
+      // Includes the statement integrity failure: BankStatement refuses to build when SEB's own
+      // declared entry count or credit/debit sums disagree with what we parsed, and a truncated
+      // statement is exactly how a payment goes missing from every downstream check.
+      paymentCheckService.record(
+          STATEMENT_UNPROCESSABLE,
+          HOLD,
+          String.valueOf(message.getId()),
+          "a bank message could not be processed: " + e.getClass().getSimpleName());
       message.setFailedAt(clock.instant());
       bankingMessageRepository.save(message);
     }

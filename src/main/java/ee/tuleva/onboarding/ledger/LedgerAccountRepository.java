@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.ledger;
 import ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose;
 import ee.tuleva.onboarding.ledger.LedgerAccount.AccountType;
 import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -29,4 +30,14 @@ interface LedgerAccountRepository extends CrudRepository<LedgerAccount, UUID> {
         AND a IN (SELECT e.account FROM LedgerEntry e GROUP BY e.account HAVING SUM(e.amount) < 0)
       """)
   int countWithPositiveBalance(String name, AccountPurpose purpose);
+
+  /**
+   * The account's committed balance, summed in the database.
+   *
+   * <p>Not {@code LedgerAccount.getBalance()}: that walks the account's whole in-memory entry
+   * collection, so calling it on every write would be O(history) per transaction and would get
+   * slower forever.
+   */
+  @Query("SELECT COALESCE(SUM(e.amount), 0) FROM LedgerEntry e WHERE e.account = :account")
+  BigDecimal balanceOf(LedgerAccount account);
 }

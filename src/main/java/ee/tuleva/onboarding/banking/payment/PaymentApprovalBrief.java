@@ -19,8 +19,22 @@ public record PaymentApprovalBrief(
     List<String> heldReasons,
     boolean attention) {
 
+  /**
+   * @param projectedBalance what the account is left with once these payments execute, or null when
+   *     the bank could not tell us its balance. Informational: it has never been watched against
+   *     reality, so nothing is gated on it.
+   */
   public record AccountSummary(
-      String accountName, List<FlowSummary> flows, int paymentCount, BigDecimal total) {}
+      String accountName,
+      List<FlowSummary> flows,
+      int paymentCount,
+      BigDecimal total,
+      @org.jspecify.annotations.Nullable BigDecimal projectedBalance) {
+
+    public boolean goesNegative() {
+      return projectedBalance != null && projectedBalance.signum() < 0;
+    }
+  }
 
   public record FlowSummary(String label, int paymentCount, BigDecimal total) {}
 

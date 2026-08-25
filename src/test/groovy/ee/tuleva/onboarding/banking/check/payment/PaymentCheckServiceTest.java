@@ -8,8 +8,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
@@ -20,6 +20,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class PaymentCheckServiceTest {
@@ -28,25 +29,43 @@ class PaymentCheckServiceTest {
 
   @Mock private PaymentCheckEventRepository paymentCheckEventRepository;
   @Mock private OperationsNotificationService notificationService;
+  @Mock private ApplicationEventPublisher eventPublisher;
 
   private final MutableClock clock = new MutableClock();
 
   private PaymentCheckService service() {
-    return new PaymentCheckService(paymentCheckEventRepository, notificationService, clock);
+    return new PaymentCheckService(
+        paymentCheckEventRepository, notificationService, eventPublisher, clock);
   }
 
   @Test
-  void anewFindingIsRecordedAndAlerted() {
+  void aNewFindingIsRecorded() {
     when(paymentCheckEventRepository.findByCheckTypeAndExternalKey(
             PAYOUT_WITHOUT_REQUEST, ENTRY_KEY))
         .thenReturn(Optional.empty());
+    when(paymentCheckEventRepository.save(any())).thenAnswer(call -> call.getArgument(0));
 
     service().record(PAYOUT_WITHOUT_REQUEST, HOLD, ENTRY_KEY, "no matching redemption request");
 
-    verify(notificationService).sendMessage(any(), eq(INVESTMENT));
     var saved = ArgumentCaptor.forClass(PaymentCheckEvent.class);
     verify(paymentCheckEventRepository).save(saved.capture());
     assertThat(saved.getValue().isAlertFailed()).isFalse();
+  }
+
+  @Test
+  void theAlertIsNotSentUntilTheFindingItselfHasCommitted() {
+    // A detector firing inside a transaction that later rolls back would otherwise announce
+    // something that did not happen -- and the row recording it would be gone, so the dedupe would
+    // be lost too and it would announce it again next time.
+    when(paymentCheckEventRepository.findByCheckTypeAndExternalKey(
+            PAYOUT_WITHOUT_REQUEST, ENTRY_KEY))
+        .thenReturn(Optional.empty());
+    when(paymentCheckEventRepository.save(any())).thenAnswer(call -> call.getArgument(0));
+
+    service().record(PAYOUT_WITHOUT_REQUEST, HOLD, ENTRY_KEY, "no matching redemption request");
+
+    verify(notificationService, never()).sendMessage(any(), any());
+    verify(eventPublisher).publishEvent(any(PaymentCheckRecorded.class));
   }
 
   @Test
@@ -59,7 +78,7 @@ class PaymentCheckServiceTest {
 
     service().record(PAYOUT_WITHOUT_REQUEST, HOLD, ENTRY_KEY, "no matching redemption request");
 
-    verify(notificationService, never()).sendMessage(any(), any());
+    verifyNoInteractions(eventPublisher);
     verify(paymentCheckEventRepository, never()).save(any());
   }
 
@@ -68,22 +87,39 @@ class PaymentCheckServiceTest {
     when(paymentCheckEventRepository.findByCheckTypeAndExternalKey(
             PAYOUT_WITHOUT_REQUEST, ENTRY_KEY))
         .thenReturn(Optional.of(existing(true)));
+    when(paymentCheckEventRepository.save(any())).thenAnswer(call -> call.getArgument(0));
 
     service().record(PAYOUT_WITHOUT_REQUEST, HOLD, ENTRY_KEY, "no matching redemption request");
 
-    verify(notificationService, times(1)).sendMessage(any(), eq(INVESTMENT));
+    verify(eventPublisher).publishEvent(any(PaymentCheckRecorded.class));
+  }
+
+  @Test
+  void alertingSendsTheFindingToTheOpsChannel() {
+    service().alert(new PaymentCheckRecorded(1L, PAYOUT_WITHOUT_REQUEST, HOLD, "detail"));
+
+    verify(notificationService).sendMessage(any(), eq(INVESTMENT));
+  }
+
+  @Test
+  void anInfoFindingIsRecordedWithoutBotheringAnyone() {
+    service()
+        .alert(
+            new PaymentCheckRecorded(1L, PAYOUT_WITHOUT_REQUEST, PaymentCheckSeverity.INFO, "d"));
+
+    verifyNoInteractions(notificationService);
   }
 
   @Test
   void anUndeliverableAlertIsRememberedAsUndelivered() {
-    when(paymentCheckEventRepository.findByCheckTypeAndExternalKey(
-            PAYOUT_WITHOUT_REQUEST, ENTRY_KEY))
-        .thenReturn(Optional.empty());
-    doThrow(new RuntimeException("slack is down"))
+    var event = existing(false);
+    event.setId(1L);
+    when(paymentCheckEventRepository.findById(1L)).thenReturn(Optional.of(event));
+    doThrow(new RuntimeException("chat is down"))
         .when(notificationService)
         .sendMessage(any(), any());
 
-    service().record(PAYOUT_WITHOUT_REQUEST, HOLD, ENTRY_KEY, "no matching redemption request");
+    service().alert(new PaymentCheckRecorded(1L, PAYOUT_WITHOUT_REQUEST, HOLD, "detail"));
 
     var saved = ArgumentCaptor.forClass(PaymentCheckEvent.class);
     verify(paymentCheckEventRepository).save(saved.capture());

@@ -34,6 +34,12 @@ public class PaymentApprovalBriefFormatter {
           .append("  ")
           .append(amount(account.total()))
           .append(" EUR\n");
+      if (account.projectedBalance() != null) {
+        text.append("      after execution: ")
+            .append(amount(account.projectedBalance()))
+            .append(account.goesNegative() ? "  ⚠️ would go negative" : "")
+            .append("\n");
+      }
       for (var flow : account.flows()) {
         text.append("      ")
             .append(flow.label())

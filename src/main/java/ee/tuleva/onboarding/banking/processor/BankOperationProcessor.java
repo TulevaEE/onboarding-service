@@ -1,9 +1,12 @@
 package ee.tuleva.onboarding.banking.processor;
 
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.WARNING;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.UNCLASSIFIED_BANK_OPERATION;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.*;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import ee.tuleva.onboarding.banking.BankAccount;
+import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
@@ -32,6 +35,7 @@ public class BankOperationProcessor {
   private static final String BOOK = "BOOK";
 
   private final FundBankLedger fundBankLedger;
+  private final PaymentCheckService paymentCheckService;
   private final TradeSettlementParser tradeSettlementParser;
 
   public void processBankOperation(BankStatementEntry entry, BankAccount account) {
@@ -182,6 +186,14 @@ public class BankOperationProcessor {
         entry.amount(),
         entry.subFamilyCode(),
         reason);
+    // Parked in suspense rather than lost, but suspense is not a resting place: cash sitting there
+    // is cash the NAV does not account for.
+    paymentCheckService.record(
+        UNCLASSIFIED_BANK_OPERATION,
+        WARNING,
+        String.valueOf(entry.externalId()),
+        "cash parked in suspense, subFamilyCode=%s, reason=%s"
+            .formatted(entry.subFamilyCode(), reason));
     fundBankLedger.recordUnclassifiedBankEntry(
         account.fund(),
         amount,

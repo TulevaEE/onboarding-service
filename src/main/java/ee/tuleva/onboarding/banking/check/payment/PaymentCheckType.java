@@ -15,6 +15,14 @@ public enum PaymentCheckType {
   UNMODELLED_DEBIT,
   /** The statement's own declared totals disagree with the entries we parsed. */
   STATEMENT_DOES_NOT_ADD_UP,
+  /** A bank message we could not process at all, including a statement that does not add up. */
+  STATEMENT_UNPROCESSABLE,
+  /** Cash that reached the bank but has no place in the ledger, which corrupts NAV. */
+  UNCLASSIFIED_BANK_OPERATION,
+  /** An inbound payment that has not moved on in far too long. */
+  PAYMENT_STUCK,
+  /** A payment about to be issued units at a NAV that is not the one it is due. */
+  WRONG_NAV_ISSUANCE,
   /** A submitted payment with no matching debit past its deadline. */
   PAYMENT_NOT_EXECUTED,
   /** A debit with no outgoing payment row behind it. */

@@ -202,11 +202,12 @@ class SavingsFundTransactionServiceTest {
                         paymentId))));
     when(ledgerService.getPartyAccount(personalCode, PERSON, REDEMPTIONS))
         .thenReturn(redemptionsAccountWithEntries(List.of()));
-    when(savingFundPaymentRepository.findPayments(any(PartyId.class)))
+    when(savingFundPaymentRepository.findAllById(Set.of(paymentId)))
         .thenReturn(
             List.of(
                 SavingFundPayment.builder()
                     .id(paymentId)
+                    .partyId(person.toPartyId())
                     .remitterIban("EE123456789012345678")
                     .build()));
 
@@ -215,6 +216,59 @@ class SavingsFundTransactionServiceTest {
     assertThat(result.transactions()).hasSize(1);
     assertThat(result.counterpartyIbans())
         .containsExactly(entry(result.transactions().getFirst().id(), "EE123456789012345678"));
+  }
+
+  @Test
+  void leavesOutTheAccountOfAPaymentBelongingToAnotherParty() {
+    UUID paymentId = UUID.randomUUID();
+    Instant bookingTime = Instant.parse("2025-03-01T10:00:00Z");
+
+    when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
+    when(savingsFundConfiguration.getIsin()).thenReturn("EE0000003283");
+    when(ledgerService.getPartyAccount(personalCode, PERSON, SUBSCRIPTIONS))
+        .thenReturn(
+            subscriptionsAccountWithEntries(
+                List.of(
+                    new EntryFixture(
+                        new BigDecimal("-100.00"),
+                        bookingTime,
+                        new BigDecimal("10.0"),
+                        paymentId))));
+    when(ledgerService.getPartyAccount(personalCode, PERSON, REDEMPTIONS))
+        .thenReturn(redemptionsAccountWithEntries(List.of()));
+    when(savingFundPaymentRepository.findAllById(Set.of(paymentId)))
+        .thenReturn(
+            List.of(
+                SavingFundPayment.builder()
+                    .id(paymentId)
+                    .partyId(new PartyId(PartyId.Type.PERSON, "38888888888"))
+                    .remitterIban("EE123456789012345678")
+                    .build()));
+
+    TransactionsWithCounterparties result = service.getTransactionsWithCounterpartyIbans(person);
+
+    assertThat(result.transactions()).hasSize(1);
+    assertThat(result.counterpartyIbans()).isEmpty();
+  }
+
+  @Test
+  void doesNotLookUpPaymentsWhenNoSubscriptionCarriesAReference() {
+    Instant bookingTime = Instant.parse("2025-03-01T10:00:00Z");
+
+    when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
+    when(savingsFundConfiguration.getIsin()).thenReturn("EE0000003283");
+    when(ledgerService.getPartyAccount(personalCode, PERSON, SUBSCRIPTIONS))
+        .thenReturn(
+            subscriptionsAccountWithEntries(
+                List.of(new EntryFixture(new BigDecimal("-100.00"), bookingTime))));
+    when(ledgerService.getPartyAccount(personalCode, PERSON, REDEMPTIONS))
+        .thenReturn(redemptionsAccountWithEntries(List.of()));
+
+    TransactionsWithCounterparties result = service.getTransactionsWithCounterpartyIbans(person);
+
+    assertThat(result.transactions()).hasSize(1);
+    assertThat(result.counterpartyIbans()).isEmpty();
+    verifyNoInteractions(savingFundPaymentRepository);
   }
 
   @Test

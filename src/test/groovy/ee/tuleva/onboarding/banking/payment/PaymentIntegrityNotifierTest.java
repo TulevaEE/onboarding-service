@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.banking.payment;
 
 import static ee.tuleva.onboarding.banking.payment.PaymentIntegrityCheck.FIELD_MISMATCH;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
+import static java.math.BigDecimal.ONE;
 import static java.math.BigDecimal.TEN;
 import static java.time.temporal.ChronoUnit.MINUTES;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -11,6 +12,7 @@ import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.time.MutableClock;
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -64,6 +66,17 @@ class PaymentIntegrityNotifierTest {
   }
 
   @Test
+  void aDifferentPaymentFailingTheSameCheckIsNotifiedWithinTheCooldown() {
+    var notifier = notifier();
+
+    notifier.onPaymentBlocked(blockedEvent());
+    clock.tick(1, MINUTES);
+    notifier.onPaymentBlocked(blockedEvent("EE333333333333333333", ONE));
+
+    verify(notificationService, times(2)).sendMessage(argThat(m -> true), eq(SAVINGS));
+  }
+
+  @Test
   void misroutedPaymentIsNotified() {
     notifier().onPaymentMisrouted(new PaymentMisroutedEvent(paymentRequest()));
 
@@ -72,19 +85,27 @@ class PaymentIntegrityNotifierTest {
   }
 
   private PaymentBlockedEvent blockedEvent() {
+    return blockedEvent(BENEFICIARY_IBAN, TEN);
+  }
+
+  private PaymentBlockedEvent blockedEvent(String beneficiaryIban, BigDecimal amount) {
     return new PaymentBlockedEvent(
-        paymentRequest(),
+        paymentRequest(beneficiaryIban, amount),
         List.of(new PaymentIntegrityViolation(FIELD_MISMATCH, "beneficiaryIban")));
   }
 
   private PaymentRequest paymentRequest() {
+    return paymentRequest(BENEFICIARY_IBAN, TEN);
+  }
+
+  private PaymentRequest paymentRequest(String beneficiaryIban, BigDecimal amount) {
     return PaymentRequest.builder()
         .remitterName("Tuleva Täiendav Kogumisfond")
         .remitterId("1162")
         .remitterIban("EE111111111111111111")
         .beneficiaryName("John Doe")
-        .beneficiaryIban(BENEFICIARY_IBAN)
-        .amount(TEN)
+        .beneficiaryIban(beneficiaryIban)
+        .amount(amount)
         .description("test payment")
         .ourId("123")
         .endToEndId("end-to-end-123")

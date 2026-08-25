@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.banking.payment;
 
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.ATTEMPTED;
+import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.EXECUTED;
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.FAILED;
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.SUBMITTED;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -77,6 +78,15 @@ public class OutgoingPaymentService {
   @Transactional(propagation = REQUIRES_NEW)
   public void recordFailed(String endToEndId, String reason) {
     resolve(endToEndId, FAILED, reason);
+  }
+
+  /**
+   * The money actually left the account. Without this the reconciler could only ever see
+   * "submitted", and would report every payment as unexecuted once its deadline passed.
+   */
+  @Transactional(propagation = REQUIRES_NEW)
+  public void recordExecuted(String endToEndId) {
+    resolve(endToEndId, EXECUTED, null);
   }
 
   private void resolve(String endToEndId, OutgoingPaymentStatus status, @Nullable String reason) {

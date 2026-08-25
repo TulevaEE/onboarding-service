@@ -6,6 +6,9 @@ public enum OutgoingPaymentStatus {
    * payment may or may not have executed. Never assume it did not.
    */
   ATTEMPTED,
+  /** The bank accepted the file. It has not necessarily moved the money yet. */
   SUBMITTED,
+  /** A matching debit was seen on the statement: the money actually left. */
+  EXECUTED,
   FAILED
 }

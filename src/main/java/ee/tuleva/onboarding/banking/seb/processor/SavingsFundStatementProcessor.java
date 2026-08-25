@@ -4,7 +4,6 @@ import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.HOLD;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.WARNING;
-import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.DEBIT_MISMATCH;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.DUPLICATE_PAYOUT;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.PAYOUT_WITHOUT_REQUEST;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.UNMODELLED_DEBIT;
@@ -14,6 +13,7 @@ import static java.math.BigDecimal.ZERO;
 import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.BankAccounts;
+import ee.tuleva.onboarding.banking.check.payment.OutgoingPaymentMatcher;
 import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.processor.BankOperationProcessor;
@@ -53,6 +53,7 @@ public class SavingsFundStatementProcessor {
   private final EndToEndIdConverter endToEndIdConverter;
   private final BankOperationProcessor bankOperationProcessor;
   private final PaymentCheckService paymentCheckService;
+  private final OutgoingPaymentMatcher outgoingPaymentMatcher;
 
   public void process(BankStatement bankStatement, BankAccount account) {
     log.info(
@@ -100,6 +101,11 @@ public class SavingsFundStatementProcessor {
           payment.getRemitterIban());
       return;
     }
+
+    // Every debit on any of our accounts, not only the payouts: a transfer or a return that the
+    // bank executed differently, or a debit with nothing behind it at all, would otherwise only
+    // ever surface as an aggregate discrepancy the next morning.
+    outgoingPaymentMatcher.match(payment);
 
     switch (accountType) {
       case DEPOSIT_EUR ->
@@ -204,17 +210,6 @@ public class SavingsFundStatementProcessor {
       var user = userService.getByIdOrThrow(request.getUserId());
       var party = new PartyId(PartyId.Type.PERSON, user.getPersonalCode());
       var amount = payment.getAmount().negate();
-      // The ledger books what the bank actually debited. If that is not what we asked it to pay,
-      // the client's redemption cash account will not clear -- and nothing else compares the two:
-      // the bank balance and the ledger both moved by the bank's figure, so the aggregate
-      // reconciliation agrees with itself and stays silent.
-      if (request.getCashAmount() != null && amount.compareTo(request.getCashAmount()) != 0) {
-        paymentCheckService.record(
-            DEBIT_MISMATCH,
-            HOLD,
-            request.getId().toString(),
-            "the bank debited an amount other than the one we authorised");
-      }
       log.info(
           "Creating ledger entry for redemption payout: redemptionId={}, amount={}",
           request.getId(),

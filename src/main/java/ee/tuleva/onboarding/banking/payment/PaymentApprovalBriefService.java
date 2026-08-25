@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.banking.payment;
 
-import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.FAILED;
+import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.SUBMITTED;
 import static java.math.BigDecimal.ZERO;
 import static java.util.Comparator.comparing;
 import static java.util.stream.Collectors.groupingBy;
@@ -38,7 +38,10 @@ public class PaymentApprovalBriefService {
         outgoingPaymentRepository
             .findByAttemptedAtBetween(dayStart.toInstant(), dayStart.plusDays(1).toInstant())
             .stream()
-            .filter(payment -> payment.getStatus() != FAILED)
+            // Pending approval means sent and not yet known to have moved. A payment already
+            // executed was approved earlier and is no longer on the bank's pending screen, so
+            // counting it would make the brief disagree with what the signatory is looking at.
+            .filter(payment -> payment.getStatus() == SUBMITTED || payment.isPending())
             .toList();
 
     Map<String, List<OutgoingPayment>> byAccount =

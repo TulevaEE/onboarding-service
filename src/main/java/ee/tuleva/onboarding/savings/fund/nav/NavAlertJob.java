@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
@@ -84,7 +85,7 @@ public class NavAlertJob {
             + missingCodes
             + ", autoRetriesContinueUntil=17:45 Tallinn";
     log.error("{}", message);
-    notificationService.sendMessage(message, INVESTMENT);
+    notificationService.sendMessage(message, INVESTMENT, ERROR);
   }
 
   private void alertIfMissing(
@@ -117,7 +118,7 @@ public class NavAlertJob {
             + autoRetriesContinueUntil
             + " Tallinn";
     log.warn("{}", message);
-    notificationService.sendMessage(message, INVESTMENT);
+    notificationService.sendMessage(message, INVESTMENT, ERROR);
   }
 
   private boolean isNavMissingForToday(TulevaFund fund, LocalDate today) {

@@ -10,6 +10,8 @@ import spock.lang.Specification
 
 import static org.mockito.Mockito.when
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.AML
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR
 import static ee.tuleva.onboarding.notification.slack.SlackService.SlackChannel
 import static org.springframework.http.HttpMethod.POST
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.*
@@ -53,6 +55,27 @@ class SlackServiceSpec extends Specification {
 
     when:
     slackService.sendMessage(testMessage, AML)
+
+    then:
+    server.verify()
+  }
+
+  def "should send error message as a red attachment"() {
+    given:
+    def testMessage = "NAV publish still missing"
+
+    when(webhookConfiguration.getWebhookUrl(SlackChannel.INVESTMENT)).thenReturn(dummyWebhookUrl)
+
+    server.expect(requestTo(dummyWebhookUrl))
+        .andExpect(method(POST))
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath('$.attachments[0].color').value("danger"))
+        .andExpect(jsonPath('$.attachments[0].text').value(testMessage))
+        .andExpect(jsonPath('$.attachments[0].fallback').value(testMessage))
+        .andRespond(withSuccess("ok", MediaType.TEXT_PLAIN))
+
+    when:
+    slackService.sendMessage(testMessage, INVESTMENT, ERROR)
 
     then:
     server.verify()

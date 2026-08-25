@@ -1083,6 +1083,11 @@ class RiskIndicatorNotifierTest {
       messages.add(message);
     }
 
+    @Override
+    public void sendMessage(String message, Channel channel, Severity severity) {
+      sendMessage(message, channel);
+    }
+
     String lastMessage() {
       return messages.getLast();
     }

@@ -6,7 +6,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 
 import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
-import ee.tuleva.onboarding.time.TestClockHolder;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,14 +25,12 @@ class InvestmentAccountServiceTest {
 
   @BeforeEach
   void setUp() {
-    investmentAccountService =
-        new InvestmentAccountService(investmentAccountRepository, TestClockHolder.clock);
+    investmentAccountService = new InvestmentAccountService(investmentAccountRepository);
   }
 
   @Test
   void hasNoAccountUntilOneIsDeclared() {
-    given(investmentAccountRepository.findByPersonalCode(PERSONAL_CODE))
-        .willReturn(Optional.empty());
+    given(investmentAccountRepository.findById(PERSONAL_CODE)).willReturn(Optional.empty());
 
     assertThat(investmentAccountService.declaredIban(PERSONAL_CODE)).isEmpty();
   }
@@ -47,8 +44,6 @@ class InvestmentAccountServiceTest {
 
     assertThat(declared.getPersonalCode()).isEqualTo(PERSONAL_CODE);
     assertThat(declared.getIban()).isEqualTo(IBAN);
-    assertThat(declared.getCreatedAt()).isEqualTo(TestClockHolder.now);
-    assertThat(declared.getUpdatedAt()).isEqualTo(TestClockHolder.now);
   }
 
   @Test
@@ -67,26 +62,5 @@ class InvestmentAccountServiceTest {
     assertThatThrownBy(
             () -> investmentAccountService.declare(PERSONAL_CODE, "EE471000001020145686"))
         .isInstanceOf(ErrorsResponseException.class);
-  }
-
-  @Test
-  void keepsTheDayTheAccountWasFirstDeclaredWhenItChanges() {
-    InvestmentAccount existing =
-        InvestmentAccount.builder()
-            .personalCode(PERSONAL_CODE)
-            .iban("EE342200221020145685")
-            .createdAt(TestClockHolder.now.minusSeconds(86400))
-            .updatedAt(TestClockHolder.now.minusSeconds(86400))
-            .build();
-    given(investmentAccountRepository.findByPersonalCode(PERSONAL_CODE))
-        .willReturn(Optional.of(existing));
-    given(investmentAccountRepository.save(any(InvestmentAccount.class)))
-        .willAnswer(invocation -> invocation.getArgument(0));
-
-    InvestmentAccount declared = investmentAccountService.declare(PERSONAL_CODE, IBAN);
-
-    assertThat(declared.getIban()).isEqualTo(IBAN);
-    assertThat(declared.getCreatedAt()).isEqualTo(TestClockHolder.now.minusSeconds(86400));
-    assertThat(declared.getUpdatedAt()).isEqualTo(TestClockHolder.now);
   }
 }

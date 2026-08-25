@@ -3,9 +3,10 @@ package ee.tuleva.onboarding.instrument;
 import java.time.Instant;
 import org.jspecify.annotations.Nullable;
 
-public record InstrumentReferenceChange(
+public record ReferenceDataChange(
     Long id,
-    String isin,
+    String tableName,
+    String recordKey,
     String operation,
     String changedBy,
     Instant changedAt,

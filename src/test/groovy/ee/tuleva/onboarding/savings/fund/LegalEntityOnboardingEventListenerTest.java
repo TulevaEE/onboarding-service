@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.kyb.KybCheckType.*;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOwner;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
+import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.PENDING;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.REJECTED;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -233,6 +234,72 @@ class LegalEntityOnboardingEventListenerTest {
         List.of(
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
             new KybCheck(COMPANY_STRUCTURE, true, Map.of()));
+
+    listener.onKybCheckPerformed(eventWith(checks));
+
+    verify(repository, never()).saveOnboardingStatus(any(), any(), any());
+  }
+
+  @Test
+  void setsStatusPendingWhenOnlyRelatedPersonsKycFails() {
+    var checks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(RELATED_PERSONS_KYC, false, Map.of()));
+
+    listener.onKybCheckPerformed(eventWith(checks));
+
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, PENDING);
+  }
+
+  @Test
+  void setsStatusRejectedWhenRelatedPersonsKycFailsAlongsideAnotherGateCheck() {
+    var checks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(RELATED_PERSONS_KYC, false, Map.of()),
+            new KybCheck(COMPANY_STRUCTURE, false, Map.of()));
+
+    listener.onKybCheckPerformed(eventWith(checks));
+
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
+  }
+
+  // An account that is already open losing a related person's verification is an
+  // alarm, not a company waiting to be onboarded, so it must not soften to pending.
+  @Test
+  void setsStatusRejectedWhenRelatedPersonsKycFailsAfterCompletion() {
+    when(repository.findStatus("12345678", LEGAL_ENTITY)).thenReturn(Optional.of(COMPLETED));
+    var checks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(RELATED_PERSONS_KYC, false, Map.of()));
+
+    listener.onKybCheckPerformed(eventWith(checks));
+
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
+  }
+
+  @Test
+  void completesAPendingCompanyOnceRelatedPersonsAreVerified() {
+    when(repository.findStatus("12345678", LEGAL_ENTITY)).thenReturn(Optional.of(PENDING));
+    var checks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(RELATED_PERSONS_KYC, true, Map.of()));
+
+    listener.onKybCheckPerformed(eventWith(checks));
+
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, COMPLETED);
+  }
+
+  @Test
+  void leavesAPendingCompanyAloneWhileRelatedPersonsAreStillMissing() {
+    when(repository.findStatus("12345678", LEGAL_ENTITY)).thenReturn(Optional.of(PENDING));
+    var checks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(RELATED_PERSONS_KYC, false, Map.of()));
 
     listener.onKybCheckPerformed(eventWith(checks));
 

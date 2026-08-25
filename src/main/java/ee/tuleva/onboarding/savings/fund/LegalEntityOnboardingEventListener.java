@@ -1,7 +1,9 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static ee.tuleva.onboarding.kyb.KybCheckType.RELATED_PERSONS_KYC;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
+import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.PENDING;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.REJECTED;
 import static java.util.stream.Collectors.joining;
 
@@ -29,7 +31,7 @@ class LegalEntityOnboardingEventListener {
     var oldStatus =
         savingsFundOnboardingRepository.findStatus(registryCode, LEGAL_ENTITY).orElse(null);
     var failedGateChecks = failedGateChecks(event);
-    var newStatus = failedGateChecks.isEmpty() ? COMPLETED : REJECTED;
+    var newStatus = statusFor(failedGateChecks, oldStatus);
 
     if (newStatus == oldStatus) {
       return;
@@ -52,6 +54,12 @@ class LegalEntityOnboardingEventListener {
           registryCode,
           personalCode,
           oldStatus);
+    } else if (newStatus == PENDING) {
+      log.info(
+          "Legal entity onboarding waiting for related persons: registryCode={}, personalCode={}, oldStatus={}",
+          registryCode,
+          personalCode,
+          oldStatus);
     } else if (oldStatus == COMPLETED) {
       log.error(
           "Legal entity onboarding rejected after being completed: registryCode={}, personalCode={}, failedChecks={}",
@@ -66,6 +74,25 @@ class LegalEntityOnboardingEventListener {
           oldStatus,
           formatFailedChecks(event.getChecks()));
     }
+  }
+
+  // A company whose only outstanding gate is an unverified related person has not
+  // failed, it is waiting for that person, and it completes on its own once they are
+  // verified. An account that is already open is different: losing a verification
+  // there is an alarm, so it still rejects.
+  private SavingsFundOnboardingStatus statusFor(
+      List<KybCheck> failedGateChecks, SavingsFundOnboardingStatus oldStatus) {
+    if (failedGateChecks.isEmpty()) {
+      return COMPLETED;
+    }
+    if (oldStatus != COMPLETED && onlyRelatedPersonsKycFailed(failedGateChecks)) {
+      return PENDING;
+    }
+    return REJECTED;
+  }
+
+  private boolean onlyRelatedPersonsKycFailed(List<KybCheck> failedGateChecks) {
+    return failedGateChecks.stream().allMatch(check -> check.type() == RELATED_PERSONS_KYC);
   }
 
   private List<KybCheck> failedGateChecks(KybCheckPerformedEvent event) {

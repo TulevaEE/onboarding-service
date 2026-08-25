@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.taxreport;
 
+import static ee.tuleva.onboarding.savings.fund.taxreport.TransactionOrder.ACQUISITIONS_FIRST_WITHIN_AN_INSTANT;
 import static java.math.RoundingMode.HALF_UP;
-import static java.util.Comparator.comparing;
 
 import ee.tuleva.onboarding.account.transaction.Transaction;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
@@ -119,7 +119,7 @@ public class SavingsFundTaxReportService {
     BigDecimal held = BigDecimal.ZERO;
 
     for (Transaction transaction :
-        transactions.stream().sorted(comparing(Transaction::time)).toList()) {
+        transactions.stream().sorted(ACQUISITIONS_FIRST_WITHIN_AN_INSTANT).toList()) {
       if (!happenedBy(transaction, to)) {
         continue;
       }

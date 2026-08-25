@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.savings.fund.taxreport;
 
 import static ee.tuleva.onboarding.savings.fund.taxreport.CostBasisMethod.WEIGHTED_AVERAGE;
+import static ee.tuleva.onboarding.savings.fund.taxreport.TransactionOrder.ACQUISITIONS_FIRST_WITHIN_AN_INSTANT;
 import static java.math.RoundingMode.HALF_UP;
-import static java.util.Comparator.comparing;
 
 import ee.tuleva.onboarding.account.transaction.Transaction;
 import java.math.BigDecimal;
@@ -40,7 +40,7 @@ public class SavingsFundCostBasisCalculator {
 
     transactions.stream()
         .filter(transaction -> !dayOf(transaction.time()).isAfter(to))
-        .sorted(comparing(Transaction::time))
+        .sorted(ACQUISITIONS_FIRST_WITHIN_AN_INSTANT)
         .forEach(
             transaction -> {
               BigDecimal units = requireUnits(transaction);

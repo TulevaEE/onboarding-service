@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.taxreport;
 
 import static java.math.RoundingMode.HALF_UP;
+import static java.util.Comparator.comparing;
 
 import ee.tuleva.onboarding.account.transaction.Transaction;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
@@ -95,11 +96,8 @@ public class SavingsFundTaxReportService {
     BigDecimal held = BigDecimal.ZERO;
 
     for (Transaction transaction :
-        transactions.stream().sorted(java.util.Comparator.comparing(Transaction::time)).toList()) {
-      BigDecimal units = transaction.units();
-      if (units == null) {
-        return false;
-      }
+        transactions.stream().sorted(comparing(Transaction::time)).toList()) {
+      BigDecimal units = requireUnits(transaction);
       held = transaction.isAcquisition() ? held.add(units.abs()) : held.subtract(units.abs());
       if (held.signum() < 0) {
         return false;
@@ -107,6 +105,18 @@ public class SavingsFundTaxReportService {
     }
 
     return true;
+  }
+
+  private static BigDecimal requireUnits(Transaction transaction) {
+    BigDecimal units = transaction.units();
+
+    if (units == null) {
+      throw new IllegalStateException(
+          "Savings fund transaction missing units: id=%s, time=%s"
+              .formatted(transaction.id(), transaction.time()));
+    }
+
+    return units;
   }
 
   private static BigDecimal sumOfGains(List<RealisedGain> redemptions) {

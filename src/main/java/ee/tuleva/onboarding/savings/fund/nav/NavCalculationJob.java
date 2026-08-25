@@ -40,7 +40,7 @@ public class NavCalculationJob {
   @Scheduled(
       cron = "#{T(ee.tuleva.onboarding.fund.TulevaFund).TKF100.navCronExpression()}",
       zone = "Europe/Tallinn")
-  @SchedulerLock(name = "NavCalculationJob_TKF100", lockAtMostFor = "10m", lockAtLeastFor = "1m")
+  @SchedulerLock(name = "NavCalculationJob_TKF100", lockAtMostFor = "5m", lockAtLeastFor = "1m")
   public void calculateDailyNav() {
     runPipeline(TKF100, List.of(TKF100), PipelineRun.TriggerSource.SCHEDULED);
   }
@@ -48,7 +48,7 @@ public class NavCalculationJob {
   @Scheduled(
       cron = "#{T(ee.tuleva.onboarding.fund.TulevaFund).TUK75.navCronExpression()}",
       zone = "Europe/Tallinn")
-  @SchedulerLock(name = "NavCalculationJob_Pillar2", lockAtMostFor = "10m", lockAtLeastFor = "1m")
+  @SchedulerLock(name = "NavCalculationJob_Pillar2", lockAtMostFor = "5m", lockAtLeastFor = "1m")
   public void calculatePillar2Nav() {
     TulevaFund.getPillar2Funds()
         .forEach(fund -> runPipeline(fund, List.of(fund), PipelineRun.TriggerSource.SCHEDULED));
@@ -57,7 +57,7 @@ public class NavCalculationJob {
   @Scheduled(
       cron = "#{T(ee.tuleva.onboarding.fund.TulevaFund).TUV100.navCronExpression()}",
       zone = "Europe/Tallinn")
-  @SchedulerLock(name = "NavCalculationJob_Pillar3", lockAtMostFor = "10m", lockAtLeastFor = "1m")
+  @SchedulerLock(name = "NavCalculationJob_Pillar3", lockAtMostFor = "5m", lockAtLeastFor = "1m")
   public void calculatePillar3Nav() {
     TulevaFund.getPillar3Funds()
         .forEach(fund -> runPipeline(fund, List.of(fund), PipelineRun.TriggerSource.SCHEDULED));

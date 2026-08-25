@@ -25,34 +25,10 @@
         </mj-button>
 
         <mj-raw>*|ELSEIF:suggestPaymentRate|*</mj-raw>
-        <mj-text><strong>Don't miss out on the second pillar tax benefit.</strong></mj-text>
-        <mj-text>
-          Since second pillar contributions are exempt from income tax,
-          <strong>the higher the percentage, the greater the tax benefit</strong>. For
-          example, if your gross salary is 2000 euros, you could gain a tax benefit of 316
-          euros. You can change the size of your second pillar contribution once a year up to
-          6%.
-        </mj-text>
-        <mj-text>
-          <strong>
-            Check how much your personal income tax savings could be by increasing your
-            second pillar contribution:
-          </strong>
-        </mj-text>
-        <mj-button href="https://pension.tuleva.ee/2nd-pillar-tax-win">Check out</mj-button>
+        <mj-include path="./partials/suggest_payment_rate_en.mjml" />
 
         <mj-raw>*|ELSEIF:suggestMembership|*</mj-raw>
-        <mj-text>
-          <strong>How can you maximize the benefits of saving with Tuleva?</strong>
-        </mj-text>
-        <mj-text>
-          Tuleva's owners are the pension savers themselves. As a Tuleva pension fund client,
-          you have no obligation to become a member of Tuleva. All Estonian citizens are able
-          to save together with us in our modern, low-cost pension funds. Having said that, I
-          would still welcome you to think about becoming a member, since you benefit the
-          most from Tuleva whilst being a co-owner yourself.
-        </mj-text>
-        <mj-button href="http://https://tuleva.ee/en/faq/">Read&nbsp;more</mj-button>
+        <mj-include path="./partials/suggest_membership_en.mjml" />
         <mj-raw>*|END:IF|*</mj-raw>
 
         <mj-text>

@@ -37,30 +37,10 @@
         </mj-button>
 
         <mj-raw>*|ELSEIF:suggestSecondPillar|*</mj-raw>
-        <mj-text>
-          If you're not yet saving in the II&nbsp;pillar with us at Tuleva,
-          <strong>make sure that your II&nbsp;pillar fund fees are below 0.5% per year</strong>,
-          as low fees provide the best conditions for optimal long-term returns.
-        </mj-text>
-        <mj-text>
-          <strong>Check how much you are currently paying annually in fees for your
-          II&nbsp;pillar:</strong>
-        </mj-text>
-        <mj-button href="https://pension.tuleva.ee/login?language=en">
-          Check&nbsp;out&nbsp;your&nbsp;savings
-        </mj-button>
+        <mj-include path="./partials/suggest_second_pillar_en.mjml" />
 
         <mj-raw>*|ELSEIF:suggestMembership|*</mj-raw>
-        <mj-text>
-          <strong>How can you maximize the benefits of saving with Tuleva?</strong>
-        </mj-text>
-        <mj-text>
-          Tuleva belongs to Estonian people who also save in these funds. As a Tuleva saver, you
-          are not obligated to join the Tuleva association – anyone in Estonia can save with us.
-          However, I invite you to consider becoming a member, as you can benefit the most from
-          Tuleva by being a co-owner yourself.
-        </mj-text>
-        <mj-button href="https://tuleva.ee/en/faq/">Read&nbsp;more</mj-button>
+        <mj-include path="./partials/suggest_membership_en.mjml" />
 
         <mj-raw>*|ELSE:|*</mj-raw>
         <mj-text>

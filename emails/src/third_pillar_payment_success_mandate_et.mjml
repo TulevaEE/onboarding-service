@@ -14,43 +14,13 @@
         </mj-text>
 
         <mj-raw>*|IF:suggestSecondPillar|*</mj-raw>
-        <mj-text>
-          Kui sa ei kogu oma II&nbsp;sammast veel koos meiega Tulevas, siis
-          <strong>veendu, et sinu II&nbsp;samba fonditasud jääksid alla 0,5% aastas,</strong>
-          sest madalad tasud annavad parimad eeldused parimaks pikaajaliseks tootluseks.
-        </mj-text>
-        <mj-text>
-          <strong>Vaata järele, kui palju maksad täna aastas oma II&nbsp;samba tasudeks:</strong>
-        </mj-text>
-        <mj-button href="https://pension.tuleva.ee/login">Vaata oma tasud üle</mj-button>
+        <mj-include path="./partials/suggest_second_pillar_et.mjml" />
 
         <mj-raw>*|ELSEIF:suggestPaymentRate|*</mj-raw>
-        <mj-text><strong>Ära jää ilma ka II&nbsp;samba maksuvõidust</strong></mj-text>
-        <mj-text>
-          Kuna II&nbsp;samba sissemaksed on tulumaksuvabad, siis
-          <strong>mida suurem protsent, seda suurem maksuvõit</strong>. Näiteks kui su brutopalk
-          on 2000 eurot, saad maksuvõitu 316 eurot. II&nbsp;samba sissemakse suurust saad muuta
-          kord aastas kuni 6% peale.
-        </mj-text>
-        <mj-text>
-          <strong>
-            Vaata järele, kui suureks kujuneks sinu isiklik tulumaksuvõit oma II&nbsp;samba
-            panust suurendades:
-          </strong>
-        </mj-text>
-        <mj-button href="https://pension.tuleva.ee/2nd-pillar-tax-win">Vaata järele</mj-button>
+        <mj-include path="./partials/suggest_payment_rate_et.mjml" />
 
         <mj-raw>*|ELSEIF:suggestMembership|*</mj-raw>
-        <mj-text><strong>Kuidas saaksid Tulevas kogumisest maksimaalselt kasu?</strong></mj-text>
-        <mj-text>
-          Tuleva kuulub Eesti inimestele, kes ka ise neis fondides koguvad. Tulevas kogujana ei
-          ole sul mingit kohustust Tuleva ühistu liikmeks astuda, meiega koos võivad koguda kõik
-          Eesti inimesed. Aga kutsun sind liikmeks astumist kaaluma, sest kõige rohkem saad
-          Tulevast kasu, olles ise kaasomanik.
-        </mj-text>
-        <mj-button href="https://tuleva.ee/liikmetele/31-marts-korduma-kippuvad-kusimused/">
-          Uuri lähemalt
-        </mj-button>
+        <mj-include path="./partials/suggest_membership_et.mjml" />
 
         <mj-raw>*|ELSE:|*</mj-raw>
         <mj-text>

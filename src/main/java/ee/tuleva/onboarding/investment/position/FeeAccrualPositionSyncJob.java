@@ -16,6 +16,7 @@ import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.pipeline.PipelineTracker;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
@@ -105,9 +106,13 @@ public class FeeAccrualPositionSyncJob {
 
   private BigDecimal chargedAccrual(
       FeeChargedToFundPolicy.Resolver policy, TulevaFund fund, FeeType feeType, LocalDate navDate) {
-    return policy.chargedOn(navDate)
-        ? feeAccrualRepository.getUnsettledAccrual(fund, feeType, navDate)
-        : BigDecimal.ZERO;
+    // Per accrual date. Asking once for navDate would apply that day's policy to the whole
+    // month-to-date sum, so a mid-month flip would put this position out of step with the ledger.
+    BigDecimal charged =
+        policy.sumChargedDays(
+            feeAccrualRepository.getUnsettledAccrualByDate(fund, feeType, navDate));
+    // Scale mirrors the ROUND(SUM(...), 2) this replaced, including its plain 0 for no rows.
+    return charged.signum() == 0 ? BigDecimal.ZERO : charged.setScale(2, RoundingMode.HALF_UP);
   }
 
   private FundPosition feeAccrualPosition(

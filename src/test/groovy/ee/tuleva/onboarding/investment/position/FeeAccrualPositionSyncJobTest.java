@@ -25,6 +25,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,6 +37,8 @@ import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class FeeAccrualPositionSyncJobTest {
+
+  private static final LocalDate ACCRUAL_DAY = LocalDate.of(2000, 1, 2);
 
   private static final Instant NOW = Instant.parse("2025-03-12T10:00:00Z");
   private static final ZoneId ZONE = ZoneId.of("Europe/Tallinn");
@@ -94,10 +97,10 @@ class FeeAccrualPositionSyncJobTest {
     given(fundPositionRepository.findDistinctNavDatesByFund(any())).willReturn(List.of());
     given(fundPositionRepository.findDistinctNavDatesByFund(TKF100)).willReturn(List.of(navDate));
 
-    given(feeAccrualRepository.getUnsettledAccrual(TKF100, MANAGEMENT, navDate))
-        .willReturn(new BigDecimal("52.08"));
-    given(feeAccrualRepository.getUnsettledAccrual(TKF100, DEPOT, navDate))
-        .willReturn(new BigDecimal("6.85"));
+    given(feeAccrualRepository.getUnsettledAccrualByDate(TKF100, MANAGEMENT, navDate))
+        .willReturn(Map.of(ACCRUAL_DAY, new BigDecimal("52.08")));
+    given(feeAccrualRepository.getUnsettledAccrualByDate(TKF100, DEPOT, navDate))
+        .willReturn(Map.of(ACCRUAL_DAY, new BigDecimal("6.85")));
 
     syncJob.sync(7);
 
@@ -131,17 +134,17 @@ class FeeAccrualPositionSyncJobTest {
     given(fundPositionRepository.findDistinctNavDatesByFund(any()))
         .willReturn(List.of(oldDate, recentDate));
 
-    given(feeAccrualRepository.getUnsettledAccrual(any(), any(), eq(recentDate)))
-        .willReturn(BigDecimal.ZERO);
+    given(feeAccrualRepository.getUnsettledAccrualByDate(any(), any(), eq(recentDate)))
+        .willReturn(Map.of());
 
     syncJob.sync(7);
 
-    verify(feeAccrualRepository).getUnsettledAccrual(TKF100, MANAGEMENT, recentDate);
-    verify(feeAccrualRepository, never()).getUnsettledAccrual(any(), any(), eq(oldDate));
+    verify(feeAccrualRepository).getUnsettledAccrualByDate(TKF100, MANAGEMENT, recentDate);
+    verify(feeAccrualRepository, never()).getUnsettledAccrualByDate(any(), any(), eq(oldDate));
   }
 
   @Test
-  void sync_reportsZeroForAFeeTheFundIsNotChargedAndDoesNotReadTheAccrual() {
+  void sync_reportsZeroForAFeeTheFundIsNotCharged() {
     given(clock.instant()).willReturn(NOW);
     given(clock.getZone()).willReturn(ZONE);
     given(feeChargedToFundPolicy.resolverFor(TKF100, DEPOT))
@@ -150,8 +153,8 @@ class FeeAccrualPositionSyncJobTest {
     var navDate = LocalDate.of(2025, 3, 10);
     given(fundPositionRepository.findDistinctNavDatesByFund(any())).willReturn(List.of());
     given(fundPositionRepository.findDistinctNavDatesByFund(TKF100)).willReturn(List.of(navDate));
-    given(feeAccrualRepository.getUnsettledAccrual(TKF100, MANAGEMENT, navDate))
-        .willReturn(new BigDecimal("52.08"));
+    given(feeAccrualRepository.getUnsettledAccrualByDate(TKF100, MANAGEMENT, navDate))
+        .willReturn(Map.of(ACCRUAL_DAY, new BigDecimal("52.08")));
 
     syncJob.sync(7);
 
@@ -160,7 +163,9 @@ class FeeAccrualPositionSyncJobTest {
             List.of(
                 feeAccrualPosition(navDate, "Management Fee Accrual", new BigDecimal("-52.08")),
                 feeAccrualPosition(navDate, "Depot Fee Accrual", BigDecimal.ZERO)));
-    verify(feeAccrualRepository, never()).getUnsettledAccrual(TKF100, DEPOT, navDate);
+    // The accrual IS read now; the policy is applied per accrual date afterwards. Skipping the
+    // read was only safe while one day's answer stood for the whole month.
+    verify(feeAccrualRepository).getUnsettledAccrualByDate(TKF100, DEPOT, navDate);
   }
 
   @Test
@@ -173,8 +178,7 @@ class FeeAccrualPositionSyncJobTest {
         .willReturn(
             List.of(
                 LocalDate.of(2025, 3, 10), LocalDate.of(2025, 3, 11), LocalDate.of(2025, 3, 12)));
-    given(feeAccrualRepository.getUnsettledAccrual(any(), any(), any()))
-        .willReturn(BigDecimal.ZERO);
+    given(feeAccrualRepository.getUnsettledAccrualByDate(any(), any(), any())).willReturn(Map.of());
 
     syncJob.sync(7);
 

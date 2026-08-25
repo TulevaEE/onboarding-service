@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.investment.fees;
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.savings.fund.nav.NavFeeBases;
 import ee.tuleva.onboarding.savings.fund.nav.NavFeeResult;
-import ee.tuleva.onboarding.savings.fund.nav.NavFeeType;
 import ee.tuleva.onboarding.savings.fund.nav.NavFees;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Instant;
@@ -14,11 +13,10 @@ import org.springframework.stereotype.Component;
 @Component
 class NavFeesAdapter implements NavFees {
 
-  private final Delegates delegates;
+  private final FeeCalculationService feeCalculationService;
 
-  NavFeesAdapter(
-      FeeCalculationService feeCalculationService, FeeChargedToFundPolicy feeChargedToFundPolicy) {
-    this.delegates = new Delegates(feeCalculationService, feeChargedToFundPolicy);
+  NavFeesAdapter(FeeCalculationService feeCalculationService) {
+    this.feeCalculationService = feeCalculationService;
   }
 
   @Override
@@ -29,30 +27,12 @@ class NavFeesAdapter implements NavFees {
       Instant feeCutoff,
       Map<String, ResolvedPrice> securityPrices) {
     FeeResult result =
-        delegates
-            .feeCalculationService()
-            .calculateFeesForNav(
-                fund,
-                positionReportDate,
-                new FeeBases(bases.navFeeBase(), bases.assetValue()),
-                feeCutoff,
-                securityPrices);
+        feeCalculationService.calculateFeesForNav(
+            fund,
+            positionReportDate,
+            new FeeBases(bases.navFeeBase(), bases.assetValue()),
+            feeCutoff,
+            securityPrices);
     return new NavFeeResult(result.managementFeeAccrual(), result.depotFeeAccrual());
   }
-
-  @Override
-  public boolean chargedToFund(TulevaFund fund, NavFeeType feeType, LocalDate date) {
-    return delegates
-        .feeChargedToFundPolicy()
-        .chargedToFund(
-            fund,
-            switch (feeType) {
-              case MANAGEMENT -> FeeType.MANAGEMENT;
-              case DEPOT -> FeeType.DEPOT;
-            },
-            date);
-  }
-
-  private record Delegates(
-      FeeCalculationService feeCalculationService, FeeChargedToFundPolicy feeChargedToFundPolicy) {}
 }

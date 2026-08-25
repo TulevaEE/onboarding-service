@@ -3,8 +3,8 @@ package ee.tuleva.onboarding.savings.fund.taxreport;
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonNonMember;
 import static ee.tuleva.onboarding.auth.authority.Authority.USER;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -43,8 +43,8 @@ class InvestmentAccountControllerTest {
 
   @Test
   void answersWithNothingWhenNoAccountWasDeclared() throws Exception {
-    when(investmentAccountService.declaredIban(eq(authPerson.getRoleCode())))
-        .thenReturn(Optional.empty());
+    given(investmentAccountService.declaredIban(eq(authPerson.getRoleCode())))
+        .willReturn(Optional.empty());
 
     mvc.perform(get("/v1/savings-fund/investment-account").with(authentication(authentication)))
         .andExpect(status().isOk())
@@ -53,8 +53,8 @@ class InvestmentAccountControllerTest {
 
   @Test
   void answersWithTheDeclaredAccount() throws Exception {
-    when(investmentAccountService.declaredIban(eq(authPerson.getRoleCode())))
-        .thenReturn(Optional.of(IBAN));
+    given(investmentAccountService.declaredIban(eq(authPerson.getRoleCode())))
+        .willReturn(Optional.of(IBAN));
 
     mvc.perform(get("/v1/savings-fund/investment-account").with(authentication(authentication)))
         .andExpect(status().isOk())
@@ -63,8 +63,8 @@ class InvestmentAccountControllerTest {
 
   @Test
   void keepsTheAccountThatWasDeclared() throws Exception {
-    when(investmentAccountService.declare(eq(authPerson.getRoleCode()), eq(IBAN)))
-        .thenReturn(
+    given(investmentAccountService.declare(eq(authPerson.getRoleCode()), eq(IBAN)))
+        .willReturn(
             InvestmentAccount.builder().personalCode(authPerson.getRoleCode()).iban(IBAN).build());
 
     mvc.perform(

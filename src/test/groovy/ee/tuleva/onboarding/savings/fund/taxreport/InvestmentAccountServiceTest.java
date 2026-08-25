@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings.fund.taxreport;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 
 import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
@@ -10,7 +11,6 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -40,7 +40,7 @@ class InvestmentAccountServiceTest {
 
   @Test
   void keepsTheAccountThatWasDeclared() {
-    given(investmentAccountRepository.save(ArgumentMatchers.any(InvestmentAccount.class)))
+    given(investmentAccountRepository.save(any(InvestmentAccount.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
 
     InvestmentAccount declared = investmentAccountService.declare(PERSONAL_CODE, IBAN);
@@ -53,7 +53,7 @@ class InvestmentAccountServiceTest {
 
   @Test
   void writesAnAccountDownWithoutTheSpacesPeopleTypeIntoIt() {
-    given(investmentAccountRepository.save(ArgumentMatchers.any(InvestmentAccount.class)))
+    given(investmentAccountRepository.save(any(InvestmentAccount.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
 
     InvestmentAccount declared =
@@ -80,7 +80,7 @@ class InvestmentAccountServiceTest {
             .build();
     given(investmentAccountRepository.findByPersonalCode(PERSONAL_CODE))
         .willReturn(Optional.of(existing));
-    given(investmentAccountRepository.save(ArgumentMatchers.any(InvestmentAccount.class)))
+    given(investmentAccountRepository.save(any(InvestmentAccount.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
 
     InvestmentAccount declared = investmentAccountService.declare(PERSONAL_CODE, IBAN);

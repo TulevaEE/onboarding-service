@@ -12,49 +12,16 @@
           in your pension account.
         </mj-text>
 
-        <mj-raw>*|IF:hasAccount|*</mj-raw>
+        <mj-raw>*|IF:hasTulevaUser|*</mj-raw>
 
         <mj-raw>*|IF:suggestSecondPillar|*</mj-raw>
-        <mj-text>
-          If you're not saving your second pillar with us at Tuleva, make sure your second pillar
-          fund fees are below 0.5% per year, as low fees provide the best foundation for optimal
-          long-term returns.
-        </mj-text>
-        <mj-text>
-          <strong>Check how much you're currently paying annually in fees for your second
-          pillar:</strong>
-        </mj-text>
-        <mj-button href="https://pension.tuleva.ee/login">Check out your fees</mj-button>
+        <mj-include path="./partials/suggest_second_pillar_en.mjml" />
 
         <mj-raw>*|ELSEIF:suggestPaymentRate|*</mj-raw>
-        <mj-text><strong>Don't miss out on the second pillar tax benefit</strong></mj-text>
-        <mj-text>
-          Since second pillar contributions are exempt from income tax, the higher the percentage,
-          the greater the tax benefit. For example, if your gross salary is 2,000 euros, you could
-          gain a tax benefit of 316 euros. You can change the size of your second pillar
-          contribution once a year up to 6%.
-        </mj-text>
-        <mj-text>
-          <strong>
-            Check how much your personal income tax savings could be by increasing your second
-            pillar contribution:
-          </strong>
-        </mj-text>
-        <mj-button href="https://pension.tuleva.ee/2nd-pillar-tax-win">Check it out</mj-button>
+        <mj-include path="./partials/suggest_payment_rate_en.mjml" />
 
         <mj-raw>*|ELSEIF:suggestMembership|*</mj-raw>
-        <mj-text>
-          <strong>How can you maximize the benefits of saving with Tuleva?</strong>
-        </mj-text>
-        <mj-text>
-          Tuleva belongs to Estonian people who also save in these funds. As a Tuleva saver, you
-          are not obligated to join the Tuleva association, anyone in Estonia can save with us.
-          However, I invite you to consider becoming a member, as you can benefit the most from
-          Tuleva by being a co-owner yourself.
-        </mj-text>
-        <mj-button href="https://tuleva.ee/liikmetele/31-marts-korduma-kippuvad-kusimused/">
-          Learn more
-        </mj-button>
+        <mj-include path="./partials/suggest_membership_en.mjml" />
 
         <mj-raw>*|ELSE:|*</mj-raw>
         <mj-text>

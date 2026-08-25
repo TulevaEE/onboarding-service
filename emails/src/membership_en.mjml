@@ -22,26 +22,10 @@
         </mj-text>
 
         <mj-raw>*|IF:suggestSecondPillar|*</mj-raw>
-        <mj-text>
-          Next, make sure that the fees on your current second pillar do not excessively reduce
-          your asset returns and stay below <strong>0.5%</strong> per year. You can see your
-          second pillar fees on the Tuleva website:
-        </mj-text>
-        <mj-button href="https://pension.tuleva.ee/login?language=en">
-          Log in to your pension account
-        </mj-button>
+        <mj-include path="./partials/suggest_second_pillar_en.mjml" />
 
         <mj-raw>*|ELSEIF:suggestPaymentRate|*</mj-raw>
-        <mj-text><strong>Don't miss out on the second pillar tax benefit.</strong></mj-text>
-        <mj-text>
-          Since second pillar contributions are exempt from income tax,
-          <strong>the higher the percentage, the greater the tax benefit</strong>. For example, if
-          your gross salary is 2000 euros, you could gain a tax benefit of 316 euros. You can
-          change the size of your second pillar contribution once a year up to 6%.
-        </mj-text>
-        <mj-button href="https://tuleva.ee/en/increase-ii-pillar-payments/">
-          Calculate&nbsp;your&nbsp;gain
-        </mj-button>
+        <mj-include path="./partials/suggest_payment_rate_en.mjml" />
         <mj-raw>*|END:IF|*</mj-raw>
       </mj-column>
     </mj-section>

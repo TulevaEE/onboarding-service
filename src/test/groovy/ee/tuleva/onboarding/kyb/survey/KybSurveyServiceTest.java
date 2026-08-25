@@ -585,14 +585,16 @@ class KybSurveyServiceTest {
   void submit_throwsWhenAlreadyOnboarded() {
     when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE))
         .thenReturn(sampleRelationships());
-    when(kybSurveyRepository.save(any(KybSurvey.class)))
-        .thenAnswer(invocation -> invocation.getArgument(0));
     when(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
         .thenReturn(Optional.of(SavingsFundOnboardingStatus.COMPLETED));
 
     assertThatThrownBy(
             () -> service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, sampleSurveyResponse()))
         .isInstanceOf(OnboardingNotAllowedException.class);
+
+    // Re-screening reads the latest stored survey, so a blocked submission must
+    // not leave one behind.
+    verify(kybSurveyRepository, never()).save(any(KybSurvey.class));
   }
 
   @Test
@@ -628,8 +630,6 @@ class KybSurveyServiceTest {
   void submit_publishesAuditEventWhenAlreadyOnboarded() {
     when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE))
         .thenReturn(sampleRelationships());
-    when(kybSurveyRepository.save(any(KybSurvey.class)))
-        .thenAnswer(invocation -> invocation.getArgument(0));
     when(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
         .thenReturn(Optional.of(SavingsFundOnboardingStatus.COMPLETED));
 

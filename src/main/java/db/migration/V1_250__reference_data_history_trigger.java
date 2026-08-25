@@ -5,7 +5,7 @@ import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 
 // Java rather than SQL because H2 cannot parse plpgsql
-public class V1_249_1__reference_data_history_trigger extends BaseJavaMigration {
+public class V1_250__reference_data_history_trigger extends BaseJavaMigration {
 
   private static final String POSTGRESQL = "PostgreSQL";
 

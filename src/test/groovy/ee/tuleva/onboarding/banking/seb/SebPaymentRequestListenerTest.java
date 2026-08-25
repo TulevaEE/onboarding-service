@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.banking.seb;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
+import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.PAYOUT;
 import static ee.tuleva.onboarding.banking.payment.PaymentIntegrityCheck.FIELD_MISMATCH;
 import static ee.tuleva.onboarding.banking.seb.Seb.BIC;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
@@ -12,6 +13,7 @@ import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.BankAccounts;
+import ee.tuleva.onboarding.banking.payment.OutgoingPaymentService;
 import ee.tuleva.onboarding.banking.payment.PaymentBlockedEvent;
 import ee.tuleva.onboarding.banking.payment.PaymentFileIntegrityValidator;
 import ee.tuleva.onboarding.banking.payment.PaymentIntegrityException;
@@ -39,6 +41,7 @@ class SebPaymentRequestListenerTest {
   @Mock private BankAccounts bankAccounts;
   @Mock private PaymentMessageGenerator paymentMessageGenerator;
   @Mock private PaymentFileIntegrityValidator paymentFileIntegrityValidator;
+  @Mock private OutgoingPaymentService outgoingPaymentService;
   @Mock private ApplicationEventPublisher eventPublisher;
 
   @InjectMocks private SebPaymentRequestListener listener;
@@ -46,7 +49,7 @@ class SebPaymentRequestListenerTest {
   @Test
   void onRequestPayment_sendsPaymentToSebGateway() {
     var paymentRequest = paymentRequest(SEB_IBAN);
-    var event = new RequestPaymentEvent(paymentRequest, UUID.randomUUID());
+    var event = new RequestPaymentEvent(paymentRequest, UUID.randomUUID(), PAYOUT);
 
     when(bankAccounts.find(SEB_IBAN))
         .thenReturn(Optional.of(new BankAccount(SEB_IBAN, WITHDRAWAL_EUR, TKF100, "1162")));
@@ -63,7 +66,7 @@ class SebPaymentRequestListenerTest {
   @Test
   void onRequestPayment_doesNotSubmitAndAlertsWhenFileDoesNotMatchTheRequest() {
     var paymentRequest = paymentRequest(SEB_IBAN);
-    var event = new RequestPaymentEvent(paymentRequest, UUID.randomUUID());
+    var event = new RequestPaymentEvent(paymentRequest, UUID.randomUUID(), PAYOUT);
     var violations = List.of(new PaymentIntegrityViolation(FIELD_MISMATCH, "beneficiaryIban"));
 
     when(bankAccounts.find(SEB_IBAN))
@@ -81,10 +84,54 @@ class SebPaymentRequestListenerTest {
   }
 
   @Test
+  void onRequestPayment_recordsWhatWasSentBeforeCallingTheBank() {
+    var paymentRequest = paymentRequest(SEB_IBAN);
+    var sourceId = UUID.randomUUID();
+    var event = new RequestPaymentEvent(paymentRequest, sourceId, PAYOUT);
+
+    when(bankAccounts.find(SEB_IBAN))
+        .thenReturn(Optional.of(new BankAccount(SEB_IBAN, WITHDRAWAL_EUR, TKF100, "1162")));
+    when(paymentMessageGenerator.generatePaymentMessage(paymentRequest, BIC))
+        .thenReturn("<xml>payment</xml>");
+    when(paymentFileIntegrityValidator.validate("<xml>payment</xml>", paymentRequest))
+        .thenReturn(List.of());
+
+    listener.onRequestPayment(event);
+
+    var inOrder = inOrder(outgoingPaymentService, sebGatewayClient);
+    inOrder
+        .verify(outgoingPaymentService)
+        .recordAttempt(paymentRequest, PAYOUT, sourceId, null, "<xml>payment</xml>");
+    inOrder
+        .verify(sebGatewayClient)
+        .submitPaymentFile("<xml>payment</xml>", "end-to-end-123", "1162");
+    inOrder.verify(outgoingPaymentService).recordSubmitted("end-to-end-123");
+  }
+
+  @Test
+  void onRequestPayment_aBlockedPaymentIsNeverRecordedAsSent() {
+    var paymentRequest = paymentRequest(SEB_IBAN);
+    var event = new RequestPaymentEvent(paymentRequest, UUID.randomUUID(), PAYOUT);
+    var violations = List.of(new PaymentIntegrityViolation(FIELD_MISMATCH, "beneficiaryIban"));
+
+    when(bankAccounts.find(SEB_IBAN))
+        .thenReturn(Optional.of(new BankAccount(SEB_IBAN, WITHDRAWAL_EUR, TKF100, "1162")));
+    when(paymentMessageGenerator.generatePaymentMessage(paymentRequest, BIC))
+        .thenReturn("<xml>tampered</xml>");
+    when(paymentFileIntegrityValidator.validate("<xml>tampered</xml>", paymentRequest))
+        .thenReturn(violations);
+
+    assertThatThrownBy(() -> listener.onRequestPayment(event))
+        .isInstanceOf(PaymentIntegrityException.class);
+
+    verifyNoInteractions(outgoingPaymentService);
+  }
+
+  @Test
   void onRequestPayment_alertsWhenRemitterIsNotASebAccount() {
     var nonSebIban = "EE333333333333333333";
     var paymentRequest = paymentRequest(nonSebIban);
-    var event = new RequestPaymentEvent(paymentRequest, UUID.randomUUID());
+    var event = new RequestPaymentEvent(paymentRequest, UUID.randomUUID(), PAYOUT);
 
     when(bankAccounts.find(nonSebIban)).thenReturn(Optional.empty());
 

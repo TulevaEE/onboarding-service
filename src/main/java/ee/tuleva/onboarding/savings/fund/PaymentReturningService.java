@@ -1,12 +1,12 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.RETURN;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RETURNED;
 
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.payment.PaymentRequest;
 import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -42,7 +42,9 @@ public class PaymentReturningService {
             .amount(payment.getAmount())
             .description(description)
             .build();
-    eventPublisher.publishEvent(new RequestPaymentEvent(paymentRequest, UUID.randomUUID()));
+    // The endToEndId is already the payment's own id, so a retry after a failed commit reaches
+    // the bank under the same Idempotency-Key and is recognised as the same money.
+    eventPublisher.publishEvent(new RequestPaymentEvent(paymentRequest, payment.getId(), RETURN));
   }
 
   private boolean isUserCancelledPayment(SavingFundPayment payment) {

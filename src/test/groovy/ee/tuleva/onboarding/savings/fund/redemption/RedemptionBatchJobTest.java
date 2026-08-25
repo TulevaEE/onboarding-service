@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
+import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.PAYOUT;
+import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.REDEMPTION_TRANSFER;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestFixture.redemptionRequestFixture;
@@ -56,12 +58,15 @@ class RedemptionBatchJobTest {
   @Mock private SavingFundPaymentRepository savingFundPaymentRepository;
   @Mock private CompanyRepository companyRepository;
   @Mock private UserRepository userRepository;
+  @Mock private RedemptionPayoutValidator payoutValidator;
 
   @BeforeEach
   void setUp() {
     lenient()
         .when(navProvider.getVerifiedNavForIssuingAndRedeeming(any(), any()))
         .thenReturn(BigDecimal.ONE);
+    lenient().when(payoutValidator.findBlockingReason(any())).thenReturn(Optional.empty());
+    lenient().when(payoutValidator.amountReconciles(any())).thenReturn(true);
   }
 
   private RedemptionBatchJob createBatchJob(Instant now) {
@@ -79,7 +84,8 @@ class RedemptionBatchJobTest {
         savingFundPaymentRepository,
         new EndToEndIdConverter(),
         companyRepository,
-        userRepository);
+        userRepository,
+        payoutValidator);
   }
 
   @Test
@@ -183,6 +189,97 @@ class RedemptionBatchJobTest {
     verify(redemptionRequestRepository, atLeast(2)).save(savedRequestCaptor.capture());
     var lastSaved = savedRequestCaptor.getAllValues().getLast();
     assertThat(lastSaved.getProcessedAt()).isNotNull();
+  }
+
+  @Test
+  void runJob_anUnpayableRequestIsFailedBeforeItsUnitsAreRedeemed() {
+    var now = Instant.parse("2025-01-15T15:00:00Z");
+    var requestId = UUID.randomUUID();
+    var request = redemptionRequestFixture().id(requestId).status(VERIFIED).build();
+
+    when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
+        .thenReturn(List.of(request));
+    when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(payoutValidator.findBlockingReason(request))
+        .thenReturn(Optional.of("Beneficiary IBAN no longer belongs to the party"));
+
+    createBatchJob(now).runJob();
+
+    // The whole point of validating first: nothing is priced, no units leave the party's account,
+    // and no cash is moved to the withdrawal account for a payout that cannot happen.
+    verify(savingsFundLedger, never())
+        .redeemFundUnitsFromReserved(any(), any(), any(), any(), any());
+    verify(eventPublisher, never()).publishEvent(any(RequestPaymentEvent.class));
+    verify(redemptionStatusService).changeStatus(requestId, FAILED);
+  }
+
+  @Test
+  void runJob_transfersOnlyWhatThePricedPayoutsNeed() {
+    var now = Instant.parse("2025-01-15T15:00:00Z");
+    var payable = redemptionRequestFixture().id(UUID.randomUUID()).status(VERIFIED).build();
+    var blocked = redemptionRequestFixture().id(UUID.randomUUID()).status(VERIFIED).build();
+
+    when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
+        .thenReturn(List.of(payable, blocked));
+    when(redemptionRequestRepository.findById(payable.getId())).thenReturn(Optional.of(payable));
+    when(redemptionRequestRepository.findById(blocked.getId())).thenReturn(Optional.of(blocked));
+    when(payoutValidator.findBlockingReason(payable)).thenReturn(Optional.empty());
+    when(payoutValidator.findBlockingReason(blocked))
+        .thenReturn(Optional.of("Redemption already has a payout entry in the ledger"));
+    when(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR)).thenReturn("EE111111111111111111");
+    when(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR)).thenReturn("EE222222222222222222");
+    when(savingFundPaymentRepository.findRemitterNameByIban(any(), any()))
+        .thenReturn(Optional.of("Mari Maasikas"));
+    doAnswer(
+            invocation -> {
+              TransactionCallback<?> callback = invocation.getArgument(0);
+              return callback.doInTransaction(null);
+            })
+        .when(transactionTemplate)
+        .execute(any());
+
+    createBatchJob(now).runJob();
+
+    var eventCaptor = ArgumentCaptor.forClass(RequestPaymentEvent.class);
+    verify(eventPublisher, times(2)).publishEvent(eventCaptor.capture());
+    var transfer =
+        eventCaptor.getAllValues().stream()
+            .filter(e -> e.paymentType() == REDEMPTION_TRANSFER)
+            .findFirst()
+            .orElseThrow();
+    // 10 units at a NAV of 1 -> 10.00, the payable one only. The blocked one never contributed.
+    assertThat(transfer.paymentRequest().amount()).isEqualByComparingTo(new BigDecimal("10.00"));
+  }
+
+  @Test
+  void runJob_aTransferAndThePayoutsItFundsShareABatchId() {
+    var now = Instant.parse("2025-01-15T15:00:00Z");
+    var requestId = UUID.randomUUID();
+    var request = redemptionRequestFixture().id(requestId).status(VERIFIED).build();
+
+    when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
+        .thenReturn(List.of(request));
+    when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR)).thenReturn("EE111111111111111111");
+    when(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR)).thenReturn("EE222222222222222222");
+    when(savingFundPaymentRepository.findRemitterNameByIban(any(), any()))
+        .thenReturn(Optional.of("Mari Maasikas"));
+    doAnswer(
+            invocation -> {
+              TransactionCallback<?> callback = invocation.getArgument(0);
+              return callback.doInTransaction(null);
+            })
+        .when(transactionTemplate)
+        .execute(any());
+
+    createBatchJob(now).runJob();
+
+    var eventCaptor = ArgumentCaptor.forClass(RequestPaymentEvent.class);
+    verify(eventPublisher, times(2)).publishEvent(eventCaptor.capture());
+    var batchIds = eventCaptor.getAllValues().stream().map(RequestPaymentEvent::batchId).toList();
+    // Without this the fund-to-withdrawal transfer cannot be tied to the payouts it funds, and
+    // "transfer == sum of payouts" is not computable from the outgoing payment log.
+    assertThat(batchIds).doesNotContainNull().containsOnly(batchIds.getFirst());
   }
 
   @Test
@@ -423,7 +520,7 @@ class RedemptionBatchJobTest {
 
     var capturedEvents = eventCaptor.getAllValues();
     // Second payment (individual payout) should use the request ID
-    assertThat(capturedEvents.get(1).requestId()).isEqualTo(requestId);
+    assertThat(capturedEvents.get(1).sourceId()).isEqualTo(requestId);
   }
 
   @Test
@@ -586,7 +683,8 @@ class RedemptionBatchJobTest {
             .amount(cashAmount)
             .description("Fondi tagasivõtmine")
             .build();
-    verify(eventPublisher).publishEvent(new RequestPaymentEvent(expectedPayment, requestId));
+    verify(eventPublisher)
+        .publishEvent(new RequestPaymentEvent(expectedPayment, requestId, PAYOUT));
     verify(redemptionStatusService).changeStatus(requestId, REDEEMED);
     assertThat(request.getErrorReason()).isNull();
   }
@@ -684,7 +782,7 @@ class RedemptionBatchJobTest {
     verify(eventPublisher, times(2)).publishEvent(eventCaptor.capture());
     var payoutEvent =
         eventCaptor.getAllValues().stream()
-            .filter(e -> requestId.equals(e.requestId()))
+            .filter(e -> requestId.equals(e.sourceId()))
             .findFirst()
             .orElseThrow();
     assertThat(payoutEvent.paymentRequest().beneficiaryName()).isEqualTo(companyName);
@@ -734,7 +832,7 @@ class RedemptionBatchJobTest {
     verify(eventPublisher, times(2)).publishEvent(eventCaptor.capture());
     var payoutEvent =
         eventCaptor.getAllValues().stream()
-            .filter(e -> requestId.equals(e.requestId()))
+            .filter(e -> requestId.equals(e.sourceId()))
             .findFirst()
             .orElseThrow();
     assertThat(payoutEvent.paymentRequest().beneficiaryName()).isEqualTo("Mari Maasikas");

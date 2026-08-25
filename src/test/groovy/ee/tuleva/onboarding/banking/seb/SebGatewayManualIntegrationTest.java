@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.banking.seb;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
 import static ee.tuleva.onboarding.banking.BankType.SEB;
+import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.PAYOUT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
@@ -153,7 +154,7 @@ class SebGatewayManualIntegrationTest {
     assertThatCode(
             () ->
                 eventPublisher.publishEvent(
-                    new RequestPaymentEvent(paymentRequest, UUID.randomUUID())))
+                    new RequestPaymentEvent(paymentRequest, UUID.randomUUID(), PAYOUT)))
         .doesNotThrowAnyException();
   }
 }

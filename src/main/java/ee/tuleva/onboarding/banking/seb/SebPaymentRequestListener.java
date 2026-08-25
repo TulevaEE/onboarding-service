@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.banking.seb;
 
 import ee.tuleva.onboarding.banking.BankAccounts;
+import ee.tuleva.onboarding.banking.payment.OutgoingPaymentService;
 import ee.tuleva.onboarding.banking.payment.PaymentBlockedEvent;
 import ee.tuleva.onboarding.banking.payment.PaymentFileIntegrityValidator;
 import ee.tuleva.onboarding.banking.payment.PaymentIntegrityException;
@@ -21,6 +22,7 @@ public class SebPaymentRequestListener {
   private final BankAccounts bankAccounts;
   private final PaymentMessageGenerator paymentMessageGenerator;
   private final PaymentFileIntegrityValidator paymentFileIntegrityValidator;
+  private final OutgoingPaymentService outgoingPaymentService;
   private final ApplicationEventPublisher eventPublisher;
 
   @EventListener
@@ -48,7 +50,24 @@ public class SebPaymentRequestListener {
       throw new PaymentIntegrityException(paymentRequest.endToEndId(), violations);
     }
 
-    sebGatewayClient.submitPaymentFile(
-        paymentXml, paymentRequest.endToEndId(), remitterAccount.gatewayClientId());
+    outgoingPaymentService.recordAttempt(
+        paymentRequest, event.paymentType(), event.sourceId(), event.batchId(), paymentXml);
+
+    try {
+      sebGatewayClient.submitPaymentFile(
+          paymentXml, paymentRequest.endToEndId(), remitterAccount.gatewayClientId());
+    } catch (RuntimeException e) {
+      // The row stays ATTEMPTED for anything that might still have reached the bank; only a
+      // definitive rejection is recorded as failed.
+      if (isDefinitiveRejection(e)) {
+        outgoingPaymentService.recordFailed(paymentRequest.endToEndId(), e.getMessage());
+      }
+      throw e;
+    }
+    outgoingPaymentService.recordSubmitted(paymentRequest.endToEndId());
+  }
+
+  private static boolean isDefinitiveRejection(RuntimeException e) {
+    return e instanceof org.springframework.web.client.HttpClientErrorException;
   }
 }

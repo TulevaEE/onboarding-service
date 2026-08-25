@@ -105,9 +105,8 @@ class SavingsFundTaxReportServiceTest {
 
     assertThat(report.totalGain()).isEqualByComparingTo("50.00");
     assertThat(report.redemptions()).hasSize(1);
-    assertThat(report.investmentAccount().iban()).isEqualTo(INVESTMENT_IBAN);
     assertThat(report.investmentAccount().totalGain()).isEqualByComparingTo("60.00");
-    assertThat(report.investmentAccount().redeemedOutsideTheAccount()).isFalse();
+    assertThat(report.investmentAccount().totalGain()).isNotNull();
   }
 
   @Test
@@ -124,7 +123,7 @@ class SavingsFundTaxReportServiceTest {
 
     SavingsFundTaxReport report = savingsFundTaxReportService.getTaxReport(person, 2025, FIFO);
 
-    assertThat(report.investmentAccount().redeemedOutsideTheAccount()).isFalse();
+    assertThat(report.investmentAccount().totalGain()).isNotNull();
     assertThat(report.investmentAccount().totalGain()).isEqualByComparingTo("60.00");
     assertThat(report.totalGain()).isEqualByComparingTo("0.00");
   }
@@ -141,8 +140,7 @@ class SavingsFundTaxReportServiceTest {
 
     SavingsFundTaxReport report = savingsFundTaxReportService.getTaxReport(person, 2025, FIFO);
 
-    assertThat(report.investmentAccount().redeemedOutsideTheAccount()).isTrue();
-    assertThat(report.investmentAccount().redemptions()).isEmpty();
+    assertThat(report.investmentAccount().totalGain()).isNull();
   }
 
   @Test
@@ -157,7 +155,7 @@ class SavingsFundTaxReportServiceTest {
 
     SavingsFundTaxReport report = savingsFundTaxReportService.getTaxReport(person, 2025, FIFO);
 
-    assertThat(report.investmentAccount().redeemedOutsideTheAccount()).isFalse();
+    assertThat(report.investmentAccount().totalGain()).isNotNull();
     assertThat(report.investmentAccount().totalGain()).isEqualByComparingTo("60.00");
     assertThat(report.totalGain()).isEqualByComparingTo("0.00");
   }
@@ -175,7 +173,6 @@ class SavingsFundTaxReportServiceTest {
     SavingsFundTaxReport report = savingsFundTaxReportService.getTaxReport(person, 2025, FIFO);
 
     assertThat(report.totalGain()).isEqualByComparingTo("60.00");
-    assertThat(report.investmentAccount().redeemedOutsideTheAccount()).isTrue();
-    assertThat(report.investmentAccount().redemptions()).isEmpty();
+    assertThat(report.investmentAccount().totalGain()).isNull();
   }
 }

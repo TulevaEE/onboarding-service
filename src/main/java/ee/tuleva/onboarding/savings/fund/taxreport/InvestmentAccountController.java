@@ -7,7 +7,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -38,14 +37,6 @@ public class InvestmentAccountController {
       @Valid @RequestBody InvestmentAccountCommand command) {
     return new InvestmentAccountResponse(
         investmentAccountService.declare(naturalPersonCodeOf(person), command.iban()).getIban());
-  }
-
-  @Operation(summary = "Take back a declared investment account")
-  @DeleteMapping("/savings-fund/investment-account")
-  public InvestmentAccountResponse forgetInvestmentAccount(
-      @AuthenticationPrincipal AuthenticatedPerson person) {
-    investmentAccountService.forget(naturalPersonCodeOf(person));
-    return new InvestmentAccountResponse(null);
   }
 
   private static String naturalPersonCodeOf(AuthenticatedPerson person) {

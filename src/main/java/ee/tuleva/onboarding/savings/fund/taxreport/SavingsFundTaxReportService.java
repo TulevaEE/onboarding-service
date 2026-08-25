@@ -8,7 +8,6 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.capital.transfer.iban.IbanValidator;
 import ee.tuleva.onboarding.savings.fund.SavingsFundTransactionService;
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
@@ -35,47 +34,38 @@ public class SavingsFundTaxReportService {
     LocalDate from = LocalDate.of(year, 1, 1);
     LocalDate to = LocalDate.of(year, 12, 31);
 
-    Optional<String> declaredIban = investmentAccountService.declaredIban(person.getRoleCode());
+    Optional<String> declared = investmentAccountService.declaredIban(person.getRoleCode());
 
-    if (declaredIban.isEmpty()) {
-      return report(year, method, gainsOf(transactions, from, to, method), null);
-    }
-
-    String iban = IbanValidator.canonicalize(declaredIban.get());
-    List<Transaction> investmentAccountTransactions = fundedFrom(transactions, iban, true);
-    List<Transaction> ordinaryTransactions = fundedFrom(transactions, iban, false);
-
-    if (!canBeSplit(transactions, investmentAccountTransactions, ordinaryTransactions, to)) {
+    if (declared.isEmpty()) {
       return report(
           year,
           method,
-          gainsOf(transactions, from, to, method),
-          InvestmentAccountGains.builder()
-              .iban(iban)
-              .totalGain(BigDecimal.ZERO.setScale(2, HALF_UP))
-              .redemptions(List.of())
-              .redeemedOutsideTheAccount(true)
-              .build());
+          costBasisCalculator.realisedGainsBetween(transactions, from, to, method),
+          null);
     }
 
-    List<RealisedGain> investmentAccountGains =
-        gainsOf(investmentAccountTransactions, from, to, method);
+    String iban = IbanValidator.canonicalize(declared.get());
+    List<Transaction> fromTheAccount =
+        transactions.stream().filter(transaction -> facedTheAccount(transaction, iban)).toList();
+    List<Transaction> ordinary =
+        transactions.stream().filter(transaction -> !facedTheAccount(transaction, iban)).toList();
+
+    if (!canBeSplit(transactions, fromTheAccount, ordinary, to)) {
+      return report(
+          year,
+          method,
+          costBasisCalculator.realisedGainsBetween(transactions, from, to, method),
+          InvestmentAccountGains.builder().build());
+    }
+
+    List<RealisedGain> gainsFromTheAccount =
+        costBasisCalculator.realisedGainsBetween(fromTheAccount, from, to, method);
 
     return report(
         year,
         method,
-        gainsOf(ordinaryTransactions, from, to, method),
-        InvestmentAccountGains.builder()
-            .iban(iban)
-            .totalGain(sumOfGains(investmentAccountGains))
-            .redemptions(investmentAccountGains)
-            .redeemedOutsideTheAccount(false)
-            .build());
-  }
-
-  private List<RealisedGain> gainsOf(
-      List<Transaction> transactions, LocalDate from, LocalDate to, CostBasisMethod method) {
-    return costBasisCalculator.realisedGainsBetween(transactions, from, to, method);
+        costBasisCalculator.realisedGainsBetween(ordinary, from, to, method),
+        InvestmentAccountGains.builder().totalGain(sumOfGains(gainsFromTheAccount)).build());
   }
 
   private static SavingsFundTaxReport report(
@@ -92,46 +82,31 @@ public class SavingsFundTaxReportService {
         .build();
   }
 
-  private static List<Transaction> fundedFrom(
-      List<Transaction> transactions, String iban, boolean fromTheAccount) {
-    return transactions.stream()
-        .filter(transaction -> facedTheAccount(transaction, iban) == fromTheAccount)
-        .toList();
-  }
-
-  private static boolean facedTheAccount(Transaction transaction, String canonicalIban) {
+  private static boolean facedTheAccount(Transaction transaction, String iban) {
     String counterpartyIban = transaction.counterpartyIban();
-    return counterpartyIban != null
-        && canonicalIban.equals(IbanValidator.canonicalize(counterpartyIban));
+    return counterpartyIban != null && iban.equals(IbanValidator.canonicalize(counterpartyIban));
   }
 
   private static boolean canBeSplit(
       List<Transaction> transactions,
-      List<Transaction> investmentAccountTransactions,
-      List<Transaction> ordinaryTransactions,
+      List<Transaction> fromTheAccount,
+      List<Transaction> ordinary,
       LocalDate to) {
-    return transactions.stream().noneMatch(transaction -> transaction.counterpartyIban() == null)
-        && holdsEnoughUnits(upTo(investmentAccountTransactions, to))
-        && holdsEnoughUnits(upTo(ordinaryTransactions, to));
+    return transactions.stream().allMatch(transaction -> transaction.counterpartyIban() != null)
+        && holdsEnoughUnits(fromTheAccount, to)
+        && holdsEnoughUnits(ordinary, to);
   }
 
-  private static List<Transaction> upTo(List<Transaction> transactions, LocalDate to) {
-    return transactions.stream()
-        .filter(transaction -> !dayOf(transaction.time()).isAfter(to))
-        .toList();
-  }
-
-  private static LocalDate dayOf(Instant time) {
-    return time.atZone(ESTONIAN_ZONE).toLocalDate();
-  }
-
-  private static boolean holdsEnoughUnits(List<Transaction> transactions) {
+  private static boolean holdsEnoughUnits(List<Transaction> transactions, LocalDate to) {
     BigDecimal held = BigDecimal.ZERO;
 
     for (Transaction transaction :
         transactions.stream().sorted(comparing(Transaction::time)).toList()) {
-      BigDecimal units = requireUnits(transaction);
-      held = transaction.isAcquisition() ? held.add(units.abs()) : held.subtract(units.abs());
+      if (transaction.time().atZone(ESTONIAN_ZONE).toLocalDate().isAfter(to)) {
+        continue;
+      }
+      BigDecimal units = requireUnits(transaction).abs();
+      held = transaction.isAcquisition() ? held.add(units) : held.subtract(units);
       if (held.signum() < 0) {
         return false;
       }

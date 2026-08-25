@@ -5,7 +5,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotNull;
-import java.time.Instant;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -27,12 +26,4 @@ public class InvestmentAccount {
   @NotNull
   @Column(nullable = false)
   private String iban;
-
-  @NotNull
-  @Column(nullable = false, updatable = false)
-  private Instant createdAt;
-
-  @NotNull
-  @Column(nullable = false)
-  private Instant updatedAt;
 }

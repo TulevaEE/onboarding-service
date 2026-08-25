@@ -111,6 +111,23 @@ class SavingsFundTaxReportServiceTest {
   }
 
   @Test
+  void recognisesTheDeclaredAccountHoweverTheBankSpacedIt() {
+    given(savingsFundTransactionService.getTransactions(person))
+        .willReturn(
+            List.of(
+                bought("2025-02-10T10:00:00Z", "100", "200.00", "ee47 1000 0010 2014 5685"),
+                sold("2025-07-10T10:00:00Z", "100", "260.00", INVESTMENT_IBAN)));
+    given(investmentAccountService.declaredIban(person.getRoleCode()))
+        .willReturn(Optional.of(INVESTMENT_IBAN));
+
+    SavingsFundTaxReport report = savingsFundTaxReportService.getTaxReport(person, 2025, FIFO);
+
+    assertThat(report.investmentAccount().redeemedOutsideTheAccount()).isFalse();
+    assertThat(report.investmentAccount().totalGain()).isEqualByComparingTo("60.00");
+    assertThat(report.totalGain()).isEqualByComparingTo("0.00");
+  }
+
+  @Test
   void doesNotPickAPoolForSomeoneWhoRedeemedToAnotherAccountThanTheyBoughtFrom() {
     given(savingsFundTransactionService.getTransactions(person))
         .willReturn(

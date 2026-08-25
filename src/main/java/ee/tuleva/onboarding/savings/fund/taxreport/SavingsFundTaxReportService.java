@@ -5,12 +5,14 @@ import static java.util.Comparator.comparing;
 
 import ee.tuleva.onboarding.account.transaction.Transaction;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.capital.transfer.iban.IbanValidator;
 import ee.tuleva.onboarding.savings.fund.SavingsFundTransactionService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -33,7 +35,7 @@ public class SavingsFundTaxReportService {
       return report(year, method, gainsOf(transactions, from, to, method), null);
     }
 
-    String iban = declaredIban.get();
+    String iban = IbanValidator.canonicalize(declaredIban.get());
     List<Transaction> investmentAccountTransactions = fundedFrom(transactions, iban, true);
     List<Transaction> ordinaryTransactions = fundedFrom(transactions, iban, false);
 
@@ -75,7 +77,7 @@ public class SavingsFundTaxReportService {
       int year,
       CostBasisMethod method,
       List<RealisedGain> redemptions,
-      InvestmentAccountGains investmentAccount) {
+      @Nullable InvestmentAccountGains investmentAccount) {
     return SavingsFundTaxReport.builder()
         .year(year)
         .method(method)
@@ -88,8 +90,14 @@ public class SavingsFundTaxReportService {
   private static List<Transaction> fundedFrom(
       List<Transaction> transactions, String iban, boolean fromTheAccount) {
     return transactions.stream()
-        .filter(transaction -> iban.equals(transaction.counterpartyIban()) == fromTheAccount)
+        .filter(transaction -> facedTheAccount(transaction, iban) == fromTheAccount)
         .toList();
+  }
+
+  private static boolean facedTheAccount(Transaction transaction, String canonicalIban) {
+    String counterpartyIban = transaction.counterpartyIban();
+    return counterpartyIban != null
+        && canonicalIban.equals(IbanValidator.canonicalize(counterpartyIban));
   }
 
   private static boolean holdsEnoughUnits(List<Transaction> transactions) {

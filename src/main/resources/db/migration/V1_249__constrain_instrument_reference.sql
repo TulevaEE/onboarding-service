@@ -97,7 +97,7 @@ ALTER TABLE instrument_reference
 -- instrument_reference and benchmark_category_proxy alike. Re-pointing a proxy
 -- silently changes what a live model portfolio is measured against, so it is
 -- audited on exactly the same terms as an instrument edit. Written by a
--- PostgreSQL trigger (the V1_249_1 Java migration) -- on H2 the table exists
+-- PostgreSQL trigger (the V1_250 Java migration) -- on H2 the table exists
 -- but stays empty.
 -- record_key holds whatever identifies the row to a human: the isin for
 -- instrument_reference, the benchmark_category for benchmark_category_proxy.

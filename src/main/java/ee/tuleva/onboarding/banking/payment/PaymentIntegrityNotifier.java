@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.banking.payment;
 
-import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.time.Clock;
@@ -39,21 +39,16 @@ public class PaymentIntegrityNotifier {
     var checks = event.violations().stream().map(PaymentIntegrityViolation::summary).toList();
     send(
         cooldownKey("blocked", event.paymentRequest(), checks),
-        "🔴 Payment BLOCKED before sending to SEB — the generated file does not match the payment request. checks=%s, amount=%s EUR, remitter=%s, beneficiary=%s <!channel>"
-            .formatted(
-                checks,
-                event.paymentRequest().amount(),
-                mask(event.paymentRequest().remitterIban()),
-                mask(event.paymentRequest().beneficiaryIban())));
+        "🔴 Payment BLOCKED before sending to SEB — the generated file does not match the payment request. checks=%s, endToEndId=%s <!channel>"
+            .formatted(checks, event.paymentRequest().endToEndId()));
   }
 
   @EventListener
   public void onPaymentMisrouted(PaymentMisroutedEvent event) {
     send(
         cooldownKey("misrouted", event.paymentRequest(), List.of()),
-        "🔴 Payment NOT SENT — remitter is not a known SEB account, so no bank received it. amount=%s EUR, remitter=%s <!channel>"
-            .formatted(
-                event.paymentRequest().amount(), mask(event.paymentRequest().remitterIban())));
+        "🔴 Payment NOT SENT — remitter is not a known SEB account, so no bank received it. endToEndId=%s <!channel>"
+            .formatted(event.paymentRequest().endToEndId()));
   }
 
   // The subscription batch job retries every minute, so an unfixed generator bug would otherwise
@@ -63,13 +58,14 @@ public class PaymentIntegrityNotifier {
   // DIFFERENT payment failing the same check still alerts. endToEndId would not work as the key:
   // the
   // retrying batch mints a fresh UUID every minute.
+  // Held in memory and never published, so the key may use the values the message must not carry.
   private static String cooldownKey(
       String kind, PaymentRequest paymentRequest, List<String> checks) {
     return String.join(
         "|",
         kind,
-        mask(paymentRequest.remitterIban()),
-        mask(paymentRequest.beneficiaryIban()),
+        paymentRequest.remitterIban(),
+        paymentRequest.beneficiaryIban(),
         String.valueOf(paymentRequest.amount()),
         checks.toString());
   }
@@ -83,14 +79,10 @@ public class PaymentIntegrityNotifier {
     lastAlertedAt.entrySet().removeIf(entry -> entry.getValue().plus(cooldown).isBefore(now));
     lastAlertedAt.put(key, now);
     try {
-      notificationService.sendMessage(message, SAVINGS);
+      notificationService.sendMessage(message, INVESTMENT);
     } catch (Exception e) {
       lastAlertedAt.remove(key);
       log.error("Failed to send payment integrity notification", e);
     }
-  }
-
-  private static String mask(String iban) {
-    return iban.length() <= 4 ? "…" : "…" + iban.substring(iban.length() - 4);
   }
 }

@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.banking.payment;
 
 import static ee.tuleva.onboarding.banking.payment.PaymentIntegrityCheck.FIELD_MISMATCH;
-import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static java.math.BigDecimal.ONE;
 import static java.math.BigDecimal.TEN;
 import static java.time.temporal.ChronoUnit.MINUTES;
@@ -24,6 +24,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class PaymentIntegrityNotifierTest {
 
   private static final String BENEFICIARY_IBAN = "EE222222222222222222";
+  private static final String REMITTER_IBAN = "EE111111111111111111";
 
   @Mock private OperationsNotificationService notificationService;
 
@@ -34,13 +35,32 @@ class PaymentIntegrityNotifierTest {
   }
 
   @Test
-  void blockedPaymentNotificationIdentifiesTheAccountWithoutLeakingTheIban() {
+  void blockedPaymentNotificationCarriesNoIbanAtAll() {
     notifier().onPaymentBlocked(blockedEvent());
 
     verify(notificationService)
         .sendMessage(
-            argThat(message -> message.contains("…2222") && !message.contains(BENEFICIARY_IBAN)),
-            eq(SAVINGS));
+            argThat(
+                message ->
+                    message.contains("end-to-end-123")
+                        && message.contains("beneficiaryIban")
+                        && !message.contains(BENEFICIARY_IBAN)
+                        && !message.contains("2222")),
+            eq(INVESTMENT));
+  }
+
+  @Test
+  void misroutedPaymentNotificationCarriesNoIbanAtAll() {
+    notifier().onPaymentMisrouted(new PaymentMisroutedEvent(paymentRequest()));
+
+    verify(notificationService)
+        .sendMessage(
+            argThat(
+                message ->
+                    !message.contains(REMITTER_IBAN)
+                        && !message.contains("1111")
+                        && !message.contains(BENEFICIARY_IBAN)),
+            eq(INVESTMENT));
   }
 
   @Test
@@ -51,7 +71,7 @@ class PaymentIntegrityNotifierTest {
     clock.tick(59, MINUTES);
     notifier.onPaymentBlocked(blockedEvent());
 
-    verify(notificationService, times(1)).sendMessage(argThat(m -> true), eq(SAVINGS));
+    verify(notificationService, times(1)).sendMessage(argThat(m -> true), eq(INVESTMENT));
   }
 
   @Test
@@ -62,7 +82,7 @@ class PaymentIntegrityNotifierTest {
     clock.tick(61, MINUTES);
     notifier.onPaymentBlocked(blockedEvent());
 
-    verify(notificationService, times(2)).sendMessage(argThat(m -> true), eq(SAVINGS));
+    verify(notificationService, times(2)).sendMessage(argThat(m -> true), eq(INVESTMENT));
   }
 
   @Test
@@ -73,7 +93,7 @@ class PaymentIntegrityNotifierTest {
     clock.tick(1, MINUTES);
     notifier.onPaymentBlocked(blockedEvent("EE333333333333333333", ONE));
 
-    verify(notificationService, times(2)).sendMessage(argThat(m -> true), eq(SAVINGS));
+    verify(notificationService, times(2)).sendMessage(argThat(m -> true), eq(INVESTMENT));
   }
 
   @Test
@@ -81,7 +101,7 @@ class PaymentIntegrityNotifierTest {
     notifier().onPaymentMisrouted(new PaymentMisroutedEvent(paymentRequest()));
 
     verify(notificationService)
-        .sendMessage(argThat(message -> message.contains("NOT SENT")), eq(SAVINGS));
+        .sendMessage(argThat(message -> message.contains("NOT SENT")), eq(INVESTMENT));
   }
 
   private PaymentBlockedEvent blockedEvent() {
@@ -102,7 +122,7 @@ class PaymentIntegrityNotifierTest {
     return PaymentRequest.builder()
         .remitterName("Tuleva Täiendav Kogumisfond")
         .remitterId("1162")
-        .remitterIban("EE111111111111111111")
+        .remitterIban(REMITTER_IBAN)
         .beneficiaryName("John Doe")
         .beneficiaryIban(beneficiaryIban)
         .amount(amount)

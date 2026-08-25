@@ -75,7 +75,13 @@ class ReferenceDataMigrationIdempotencyTest {
     assertThat(proxyColumns())
         .isEqualTo(columnsAfterOneRun)
         .containsExactly(
-            "benchmark_category", "etf_proxy_isin", "id", "index_proxy_isin", "index_series_key");
+            "benchmark_category",
+            "etf_proxy_isin",
+            "etf_proxy_storage_key",
+            "id",
+            "index_proxy_isin",
+            "index_proxy_key",
+            "index_series_key");
   }
 
   @Test

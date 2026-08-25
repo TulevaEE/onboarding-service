@@ -59,8 +59,10 @@ UPDATE benchmark_category_proxy
 -- and fails here, rather than surviving as a proxy that points at nothing.
 ALTER TABLE benchmark_category_proxy ALTER COLUMN etf_proxy_isin SET NOT NULL;
 
-ALTER TABLE benchmark_category_proxy DROP COLUMN IF EXISTS etf_proxy_storage_key;
-ALTER TABLE benchmark_category_proxy DROP COLUMN IF EXISTS index_proxy_key;
+-- The legacy etf_proxy_storage_key / index_proxy_key columns are deliberately left in
+-- place: the currently deployed release still selects them, so dropping them here would
+-- break every running instance until the rolling deploy completes. V1_250 drops them in
+-- a later release, once no deployed code reads them.
 
 ALTER TABLE benchmark_category_proxy
     DROP CONSTRAINT IF EXISTS benchmark_category_proxy_etf_proxy_fkey;

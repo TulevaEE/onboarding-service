@@ -177,6 +177,7 @@ class NavPipelineIntegrationTest {
 
     insertFeeRate(TKF100, "MANAGEMENT", new BigDecimal("0.0029"), LocalDate.of(2026, 1, 1));
     insertFeeRate(TKF100, "DEPOT", new BigDecimal("0.01"), LocalDate.of(2026, 1, 1));
+    chargeFeeToFund(TKF100, "DEPOT");
 
     // Establish first accrual at Feb 25
     Instant feb26Cutoff = LocalDate.of(2026, 2, 26).atStartOfDay(eet).toInstant();
@@ -516,6 +517,29 @@ class NavPipelineIntegrationTest {
         .param("fundCode", fund.name())
         .param("accountId", "TEST_ISIN_" + fund.name())
         .param("marketValue", marketValue)
+        .update();
+  }
+
+  /**
+   * Point the charged-to-fund policy at the fund for this test. The depot fee is the vehicle these
+   * settlement assertions ride on, and seeded policy has Tuleva bearing TKF100's depot fee — which
+   * would make every NAV-facing depot figure a correct zero and test nothing about settlement.
+   */
+  private void chargeFeeToFund(TulevaFund fund, String feeType) {
+    jdbcClient
+        .sql(
+            "DELETE FROM investment_fee_policy WHERE fund_code = :fundCode AND fee_type = :feeType")
+        .param("fundCode", fund.name())
+        .param("feeType", feeType)
+        .update();
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO investment_fee_policy (fund_code, fee_type, charged_to_fund, valid_from, created_by)
+            VALUES (:fundCode, :feeType, true, DATE '2000-01-01', 'TEST')
+            """)
+        .param("fundCode", fund.name())
+        .param("feeType", feeType)
         .update();
   }
 

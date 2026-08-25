@@ -108,11 +108,11 @@ public class NavCalculationService implements NavFeeBackfill {
     NavFeeResult fees =
         navFees.calculateFeesForNav(
             fund, positionReportDate, feeBases, feeCutoff, context.getSecurityPrices());
-    BigDecimal managementFeeAccrual =
-        navFacingAccrual(
-            fund, NavFeeType.MANAGEMENT, positionReportDate, fees.managementFeeAccrual());
-    BigDecimal depotFeeAccrual =
-        navFacingAccrual(fund, NavFeeType.DEPOT, positionReportDate, fees.depotFeeAccrual());
+    // NavFees already applies charged-to-fund per accrual date, so these are NAV-facing as they
+    // stand. Re-gating the summed figure on one day's answer here would undo that: a month with a
+    // mid-month flip would be zeroed or admitted whole.
+    BigDecimal managementFeeAccrual = fees.managementFeeAccrual();
+    BigDecimal depotFeeAccrual = fees.depotFeeAccrual();
 
     BigDecimal aum =
         calculateAum(
@@ -222,11 +222,6 @@ public class NavCalculationService implements NavFeeBackfill {
             .add(blackrockAdjustment.min(ZERO).negate());
 
     return assets.subtract(liabilities);
-  }
-
-  private BigDecimal navFacingAccrual(
-      TulevaFund fund, NavFeeType feeType, LocalDate navDate, BigDecimal accrual) {
-    return navFees.chargedToFund(fund, feeType, navDate) ? accrual : ZERO;
   }
 
   private BigDecimal calculateNavPerUnit(

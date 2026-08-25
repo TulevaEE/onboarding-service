@@ -57,7 +57,6 @@ class NavCalculationServiceTest {
   @BeforeEach
   void setUp() {
     fixedClock = Clock.fixed(Instant.parse("2025-01-15T14:00:00Z"), ZoneOffset.UTC);
-    lenient().when(navFees.chargedToFund(any(), any(), any())).thenReturn(true);
     service =
         new NavCalculationService(
             navPositions,
@@ -131,7 +130,7 @@ class NavCalculationServiceTest {
   }
 
   @Test
-  void calculate_keepsAnExcludedDepotFeeOutOfNavWhileTheAccrualStillHappens() {
+  void calculate_takesTheFeeResultAsGivenBecauseThePolicyIsAppliedPerAccrualDateUpstream() {
     LocalDate calcDate = LocalDate.of(2025, 1, 15);
     LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
 
@@ -147,9 +146,12 @@ class NavCalculationServiceTest {
     when(subscriptionsComponent.calculate(any())).thenReturn(ZERO);
     when(blackrockAdjustmentComponent.calculate(any())).thenReturn(ZERO);
     when(redemptionsComponent.calculate(any())).thenReturn(ZERO);
+    // The charged-to-fund decision lives behind NavFees, which applies it PER ACCRUAL DATE - so a
+    // depot fee Tuleva bears arrives here already zeroed. Re-gating the summed figure on one day's
+    // answer was the bug: a month the policy flips in would be taken whole or dropped whole.
+    // FeeChargedToFundPolicyTest pins the split; this pins that NAV does not second-guess it.
     when(navFees.calculateFeesForNav(eq(TKF100), eq(previousWorkingDay), any(), any(), any()))
-        .thenReturn(new NavFeeResult(new BigDecimal("52.08"), new BigDecimal("6.85")));
-    when(navFees.chargedToFund(TKF100, NavFeeType.DEPOT, previousWorkingDay)).thenReturn(false);
+        .thenReturn(new NavFeeResult(new BigDecimal("52.08"), ZERO));
 
     NavCalculationResult result = service.calculate(TKF100, calcDate);
 

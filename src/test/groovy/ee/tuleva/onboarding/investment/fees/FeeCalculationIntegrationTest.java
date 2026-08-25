@@ -86,15 +86,20 @@ class FeeCalculationIntegrationTest {
   }
 
   @Test
-  void calculateFeesForNav_returnsFeeResult() {
+  void calculateFeesForNav_returnsTheNavFacingAccrualNotTheRawOne() {
     Instant feeCutoff = TEST_DATE.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
 
     FeeResult result =
         feeCalculationService.calculateFeesForNav(
             TKF100, TEST_DATE, new FeeBases(BASE_VALUE, BASE_VALUE), feeCutoff, null);
 
+    // FeeResult is NAV-facing: the charged-to-fund policy is applied per accrual date here, so a
+    // fee Tuleva bears comes back as zero even though it was accrued and recorded. TKF100's depot
+    // fee is exactly that case ("tracked but not charged to the fund"); the accrual row still
+    // exists, which the other tests in this class assert.
     assertThat(result.managementFeeAccrual()).isPositive();
-    assertThat(result.depotFeeAccrual()).isPositive();
+    assertThat(result.depotFeeAccrual()).isEqualByComparingTo(java.math.BigDecimal.ZERO);
+    assertThat(findAccrual(TKF100, FeeType.DEPOT, TEST_DATE).dailyAmountGross()).isPositive();
   }
 
   private FeeAccrual findAccrual(TulevaFund fund, FeeType feeType, LocalDate accrualDate) {

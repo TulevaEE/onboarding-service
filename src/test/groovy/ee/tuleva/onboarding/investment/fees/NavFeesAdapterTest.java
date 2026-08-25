@@ -3,12 +3,10 @@ package ee.tuleva.onboarding.investment.fees;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.savings.fund.nav.NavFeeBases;
 import ee.tuleva.onboarding.savings.fund.nav.NavFeeResult;
-import ee.tuleva.onboarding.savings.fund.nav.NavFeeType;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -23,13 +21,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class NavFeesAdapterTest {
 
   @Mock private FeeCalculationService feeCalculationService;
-  @Mock private FeeChargedToFundPolicy feeChargedToFundPolicy;
 
   private NavFeesAdapter adapter;
 
   @BeforeEach
   void setUp() {
-    adapter = new NavFeesAdapter(feeCalculationService, feeChargedToFundPolicy);
+    adapter = new NavFeesAdapter(feeCalculationService);
   }
 
   @Test
@@ -53,26 +50,5 @@ class NavFeesAdapterTest {
         adapter.calculateFeesForNav(TKF100, positionReportDate, bases, feeCutoff, securityPrices);
 
     assertThat(result).isEqualTo(new NavFeeResult(new BigDecimal("52.08"), new BigDecimal("6.85")));
-  }
-
-  @Test
-  void chargedToFund_delegatesWithMappedFeeType() {
-    LocalDate date = LocalDate.of(2025, 1, 15);
-    given(feeChargedToFundPolicy.chargedToFund(TKF100, FeeType.DEPOT, date)).willReturn(false);
-
-    boolean result = adapter.chargedToFund(TKF100, NavFeeType.DEPOT, date);
-
-    assertThat(result).isFalse();
-    verify(feeChargedToFundPolicy).chargedToFund(TKF100, FeeType.DEPOT, date);
-  }
-
-  @Test
-  void chargedToFund_mapsManagementFeeType() {
-    LocalDate date = LocalDate.of(2025, 1, 15);
-    given(feeChargedToFundPolicy.chargedToFund(TKF100, FeeType.MANAGEMENT, date)).willReturn(true);
-
-    boolean result = adapter.chargedToFund(TKF100, NavFeeType.MANAGEMENT, date);
-
-    assertThat(result).isTrue();
   }
 }

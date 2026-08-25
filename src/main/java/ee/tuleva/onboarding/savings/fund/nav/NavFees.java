@@ -14,6 +14,4 @@ public interface NavFees {
       NavFeeBases bases,
       Instant feeCutoff,
       Map<String, ResolvedPrice> securityPrices);
-
-  boolean chargedToFund(TulevaFund fund, NavFeeType feeType, LocalDate date);
 }

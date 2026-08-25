@@ -107,10 +107,34 @@ class PendingOrderImpactService {
       return;
     }
     unreportedValues.merge(isin, signed(order, unfilledValue), BigDecimal::add);
+
+    // Quantity is asymmetric, because the two directions carry different knowledge and different
+    // risk.
+    //
+    // An unfilled SELL is units we have already instructed away. Synthesizing them REDUCES the
+    // holding, which is the safe direction — it stops the same units being sold twice — and the
+    // quantity is one we chose, so it is known.
+    //
+    // An unfilled BUY is not a holding at all. Its quantity is what we asked for, not what we got:
+    // it may fill short, at a different size, or not at all. Synthesizing it INFLATES the position
+    // by units that do not exist, and a later sell sized off that position would dispose of
+    // something we do not own. A position may be sold before it lands — but only once it is
+    // EXECUTED and the real quantity is a fact, which is the fills loop above.
+    if (order.getTransactionType() == BUY) {
+      return;
+    }
     BigDecimal unfilledQuantity = unfilledQuantity(order, executed);
     if (order.getInstrumentType() == ETF && unfilledQuantity.signum() != 0) {
       unreportedQuantities.merge(isin, signed(order, unfilledQuantity), BigDecimal::add);
     }
+  }
+
+  /** Order quantity not yet executed. Used to VALUE the reserved cash, never to add a holding. */
+  private static BigDecimal unfilledQuantity(TransactionOrder order, ExecutedTotals executed) {
+    BigDecimal orderQuantity = order.getOrderQuantity();
+    return orderQuantity == null
+        ? ZERO
+        : orderQuantity.abs().subtract(executed.quantity()).max(ZERO);
   }
 
   private static boolean isMissingFromPositionReport(
@@ -129,13 +153,6 @@ class PendingOrderImpactService {
       return false;
     }
     return reportedDate.isAfter(positionDate);
-  }
-
-  private static BigDecimal unfilledQuantity(TransactionOrder order, ExecutedTotals executed) {
-    BigDecimal orderQuantity = order.getOrderQuantity();
-    return orderQuantity == null
-        ? ZERO
-        : orderQuantity.abs().subtract(executed.quantity()).max(ZERO);
   }
 
   private record ExecutedTotals(BigDecimal consideration, BigDecimal quantity) {

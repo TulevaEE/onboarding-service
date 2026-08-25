@@ -7,11 +7,14 @@ import ee.tuleva.onboarding.account.transaction.Transaction;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.capital.transfer.iban.IbanValidator;
 import ee.tuleva.onboarding.savings.fund.SavingsFundTransactionService;
+import ee.tuleva.onboarding.savings.fund.TransactionsWithCounterparties;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
@@ -30,7 +33,10 @@ public class SavingsFundTaxReportService {
   @Transactional(readOnly = true)
   public SavingsFundTaxReport getTaxReport(
       AuthenticatedPerson person, int year, CostBasisMethod method) {
-    List<Transaction> transactions = savingsFundTransactionService.getTransactions(person);
+    TransactionsWithCounterparties withCounterparties =
+        savingsFundTransactionService.getTransactionsWithCounterpartyIbans(person);
+    List<Transaction> transactions = withCounterparties.transactions();
+    Map<UUID, String> counterpartyIbans = withCounterparties.counterpartyIbans();
     LocalDate from = LocalDate.of(year, 1, 1);
     LocalDate to = LocalDate.of(year, 12, 31);
 
@@ -46,11 +52,15 @@ public class SavingsFundTaxReportService {
 
     String iban = IbanValidator.canonicalize(declared.get());
     List<Transaction> fromTheAccount =
-        transactions.stream().filter(transaction -> facedTheAccount(transaction, iban)).toList();
+        transactions.stream()
+            .filter(transaction -> facedTheAccount(transaction, iban, counterpartyIbans))
+            .toList();
     List<Transaction> ordinary =
-        transactions.stream().filter(transaction -> !facedTheAccount(transaction, iban)).toList();
+        transactions.stream()
+            .filter(transaction -> !facedTheAccount(transaction, iban, counterpartyIbans))
+            .toList();
 
-    if (!canBeSplit(transactions, fromTheAccount, ordinary, to)) {
+    if (!canBeSplit(transactions, counterpartyIbans, fromTheAccount, ordinary, to)) {
       return report(
           year,
           method,
@@ -82,17 +92,20 @@ public class SavingsFundTaxReportService {
         .build();
   }
 
-  private static boolean facedTheAccount(Transaction transaction, String iban) {
-    String counterpartyIban = transaction.counterpartyIban();
+  private static boolean facedTheAccount(
+      Transaction transaction, String iban, Map<UUID, String> counterpartyIbans) {
+    String counterpartyIban = counterpartyIbans.get(transaction.id());
     return counterpartyIban != null && iban.equals(IbanValidator.canonicalize(counterpartyIban));
   }
 
   private static boolean canBeSplit(
       List<Transaction> transactions,
+      Map<UUID, String> counterpartyIbans,
       List<Transaction> fromTheAccount,
       List<Transaction> ordinary,
       LocalDate to) {
-    return transactions.stream().allMatch(transaction -> transaction.counterpartyIban() != null)
+    return transactions.stream()
+            .allMatch(transaction -> counterpartyIbans.containsKey(transaction.id()))
         && holdsEnoughUnits(fromTheAccount, to)
         && holdsEnoughUnits(ordinary, to);
   }

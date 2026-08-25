@@ -48,35 +48,80 @@ public class SavingsFundTransactionService {
 
   @Transactional
   public List<Transaction> getTransactions(AuthenticatedPerson person) {
-    String ownerCode = person.getRoleCode();
-    PartyType partyType = PartyType.from(person.getRoleType());
+    return transactionSources(person).transactions();
+  }
 
+  @Transactional
+  public TransactionsWithCounterparties getTransactionsWithCounterpartyIbans(
+      AuthenticatedPerson person) {
+    TransactionSources sources = transactionSources(person);
+    return new TransactionsWithCounterparties(
+        sources.transactions(), counterpartyIbans(sources, person.toPartyId()));
+  }
+
+  private record TransactionSources(
+      List<Transaction> transactions,
+      List<LedgerEntry> subscriptionEntries,
+      List<LedgerEntry> redemptionEntries,
+      List<RedemptionRequest> redemptionRequests) {
+
+    static TransactionSources empty() {
+      return new TransactionSources(List.of(), List.of(), List.of(), List.of());
+    }
+  }
+
+  private TransactionSources transactionSources(AuthenticatedPerson person) {
     if (!savingsFundOnboardingService.isOnboardingCompleted(person.toPartyId())) {
-      return List.of();
+      return TransactionSources.empty();
     }
 
+    String ownerCode = person.getRoleCode();
+    PartyType partyType = PartyType.from(person.getRoleType());
     String isin = savingsFundConfiguration.getIsin();
 
     List<LedgerEntry> subscriptionEntries = entries(ownerCode, partyType, SUBSCRIPTIONS);
-    Map<UUID, String> payerIbans = payerIbans(subscriptionEntries, person.toPartyId());
-    List<Transaction> subscriptions =
-        subscriptionEntries.stream()
-            .map(entry -> toTransaction(entry, CONTRIBUTION_CASH, isin, Map.of(), payerIbans))
-            .toList();
-
     List<LedgerEntry> redemptionEntries = entries(ownerCode, partyType, REDEMPTIONS);
     List<RedemptionRequest> redemptionRequests =
         redemptionRequests(redemptionEntries, person.toPartyId());
     Map<UUID, Instant> payoutTimes = payoutTimes(redemptionRequests);
-    Map<UUID, String> payoutIbans = payoutIbans(redemptionRequests);
-    List<Transaction> redemptions =
-        redemptionEntries.stream()
-            .map(entry -> toTransaction(entry, SUBTRACTION, isin, payoutTimes, payoutIbans))
+
+    List<Transaction> transactions =
+        Stream.concat(
+                subscriptionEntries.stream()
+                    .map(entry -> toTransaction(entry, CONTRIBUTION_CASH, isin, Map.of())),
+                redemptionEntries.stream()
+                    .map(entry -> toTransaction(entry, SUBTRACTION, isin, payoutTimes)))
+            .sorted(reverseOrder())
             .toList();
 
-    return Stream.concat(subscriptions.stream(), redemptions.stream())
-        .sorted(reverseOrder())
-        .toList();
+    return new TransactionSources(
+        transactions, subscriptionEntries, redemptionEntries, redemptionRequests);
+  }
+
+  private Map<UUID, String> counterpartyIbans(TransactionSources sources, PartyId partyId) {
+    Map<UUID, String> byTransactionId = new HashMap<>();
+    byTransactionId.putAll(
+        byTransactionId(
+            sources.subscriptionEntries(), payerIbans(sources.subscriptionEntries(), partyId)));
+    byTransactionId.putAll(
+        byTransactionId(sources.redemptionEntries(), payoutIbans(sources.redemptionRequests())));
+    return Map.copyOf(byTransactionId);
+  }
+
+  private static Map<UUID, String> byTransactionId(
+      List<LedgerEntry> entries, Map<UUID, String> byExternalReference) {
+    Map<UUID, String> byTransactionId = new HashMap<>();
+    entries.forEach(
+        entry -> {
+          LedgerTransaction ledgerTransaction = entry.getTransaction();
+          UUID externalReference = ledgerTransaction.getExternalReference();
+          String iban =
+              externalReference == null ? null : byExternalReference.get(externalReference);
+          if (iban != null) {
+            byTransactionId.put(ledgerTransaction.getId(), iban);
+          }
+        });
+    return byTransactionId;
   }
 
   private List<LedgerEntry> entries(
@@ -157,11 +202,7 @@ public class SavingsFundTransactionService {
   }
 
   private Transaction toTransaction(
-      LedgerEntry entry,
-      CashFlow.Type type,
-      String isin,
-      Map<UUID, Instant> payoutTimes,
-      Map<UUID, String> counterpartyIbans) {
+      LedgerEntry entry, CashFlow.Type type, String isin, Map<UUID, Instant> payoutTimes) {
     LedgerTransaction ledgerTransaction = entry.getTransaction();
     UUID externalReference = ledgerTransaction.getExternalReference();
 
@@ -172,8 +213,6 @@ public class SavingsFundTransactionService {
         .time(ledgerTransaction.getTransactionDate())
         .priceTime(ledgerTransaction.getTransactionDate())
         .settledTime(externalReference == null ? null : payoutTimes.get(externalReference))
-        .counterpartyIban(
-            externalReference == null ? null : counterpartyIbans.get(externalReference))
         .isin(isin)
         .type(type)
         .units(require(ledgerTransaction.findUserFundUnits(), "fundUnits", ledgerTransaction))

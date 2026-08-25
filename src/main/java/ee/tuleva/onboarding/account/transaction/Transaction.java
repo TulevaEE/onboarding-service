@@ -25,8 +25,7 @@ public record Transaction(
     String isin,
     CashFlow.Type type,
     BigDecimal units,
-    BigDecimal nav,
-    String counterpartyIban)
+    BigDecimal nav)
     implements Comparable<Transaction> {
 
   public Transaction {

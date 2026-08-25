@@ -502,4 +502,29 @@ class R17ReportParserTest {
 
     assertThat(result.get("TUK75").switchingNetUnits()).isEqualByComparingTo("100.000");
   }
+
+  @Test
+  void classifiesPikByTheOperatorColumnEvenWhenTheAmountColumnComesFirst() {
+    // "Summa (PF valitseja)" also contains "pf valitseja". While it sits to the RIGHT of
+    // "PF valitseja/PIK" a contains-match lands on the right column by luck of column order; move
+    // it
+    // left and the operator type would read "0.00", which contains no "pik", so a PIK redemption
+    // would be booked as a switching outflow instead. The units on the row are unchanged, so the
+    // units-vs-amount cross-check cannot catch it — only an exact column match can.
+    String reorderedHeader =
+        "Väärtpaber;NAV;Toiming;Summa (PF valitseja);Hind;Osakud (teenustasuta);Osakud (teenustasuga);Summa;PF valitseja/PIK";
+    String csv =
+        """
+        Staatus;;;;Seisuga;;Valuuta;;
+        Netitud;;;;15.04.2026;;EUR;;
+        %s
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Tagasivõtt;0.00;0.80;40.000;60.000;80.00;PIK
+        """
+            .formatted(reorderedHeader);
+
+    Map<String, R17Result> result = parser.parse(csv, LOCK_DATE, EXEC_DATE);
+
+    assertThat(result.get("TUK75").pikUnits()).isEqualByComparingTo("100.000");
+    assertThat(result.get("TUK75").switchingNetUnits()).isEqualByComparingTo("0");
+  }
 }

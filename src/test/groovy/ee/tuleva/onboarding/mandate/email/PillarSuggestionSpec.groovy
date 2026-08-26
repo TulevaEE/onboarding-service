@@ -73,7 +73,7 @@ class PillarSuggestionSpec extends Specification {
     conversion.isSecondPillarPartiallyConverted() >> false
     conversion.isThirdPillarPartiallyConverted() >> false
     def pillarSuggestion =
-        new PillarSuggestion(user, contactDetails, conversion, paymentRates, mandatePillars)
+        new PillarSuggestion(user, contactDetails, conversion, paymentRates, mandatePillars, false)
 
     then:
     pillarSuggestion.isSuggestSecondPillar() == suggestSecondPillar
@@ -85,5 +85,24 @@ class PillarSuggestionSpec extends Specification {
     [2] as Set        | false               | true
     [3] as Set        | true                | false
     [2, 3] as Set     | false               | false
+  }
+
+  def "never suggests second pillar steps to someone who has left the second pillar"() {
+    when:
+    contactDetails.isSecondPillarActive() >> false
+    conversion.isSecondPillarPartiallyConverted() >> false
+    paymentRates.canIncrease() >> true
+    def pillarSuggestion =
+        new PillarSuggestion(user, contactDetails, conversion, paymentRates, [] as Set, leftSecondPillar)
+
+    then:
+    pillarSuggestion.isSuggestSecondPillar() == suggestSecondPillar
+    pillarSuggestion.isSuggestPaymentRate() == suggestPaymentRate
+    pillarSuggestion.isLeftSecondPillar() == leftSecondPillar
+
+    where:
+    leftSecondPillar | suggestSecondPillar | suggestPaymentRate
+    false            | true                | true
+    true             | false               | false
   }
 }

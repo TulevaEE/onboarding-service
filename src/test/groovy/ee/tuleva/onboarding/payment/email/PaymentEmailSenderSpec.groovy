@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.payment.event.SavingsPaymentCancelledEvent
 import ee.tuleva.onboarding.payment.event.SavingsPaymentCreatedEvent
 import ee.tuleva.onboarding.payment.event.SavingsPaymentFailedEvent
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService
+import ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwnerRepository
 import spock.lang.Specification
 
 import java.util.Set
@@ -36,9 +37,12 @@ class PaymentEmailSenderSpec extends Specification {
   ContactDetailsService contactDetailsService = Mock()
   SecondPillarPaymentRateService paymentRateService = Mock()
   SavingsFundSuccessEmailResolver savingsFundSuccessEmailResolver = Mock()
+  UnitOwnerRepository unitOwnerRepository = Mock() {
+    hasLeftSecondPillar(_) >> false
+  }
 
   def paymentEmailSender = new PaymentEmailSender(paymentEmailService, conversionService, principalService,
-      grantedAuthorityFactory, jwtTokenUtil, contactDetailsService, paymentRateService, savingsFundSuccessEmailResolver)
+      grantedAuthorityFactory, jwtTokenUtil, contactDetailsService, paymentRateService, unitOwnerRepository, savingsFundSuccessEmailResolver)
 
   def "send emails on payment creation"() {
     given:
@@ -48,7 +52,7 @@ class PaymentEmailSenderSpec extends Specification {
     def contactDetails = new ContactDetails()
     def conversion = notFullyConverted()
     def paymentRates = samplePaymentRates()
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates, Set.of(3))
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates, Set.of(3), false)
 
     def paymentCreatedEvent = new PaymentCreatedEvent(this, user, payment, locale)
 

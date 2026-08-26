@@ -112,6 +112,7 @@ public class PaymentEmailService {
       tags.add("suggest_member");
     }
 
+    pillarSuggestion.renderedNudgeTag().ifPresent(tags::add);
     return tags;
   }
 
@@ -127,6 +128,7 @@ public class PaymentEmailService {
     if (pillarSuggestion.isSuggestMembership()) {
       tags.add("suggest_member");
     }
+    pillarSuggestion.renderedNudgeTag().ifPresent(tags::add);
     return tags;
   }
 

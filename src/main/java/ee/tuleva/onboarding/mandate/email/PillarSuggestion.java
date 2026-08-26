@@ -5,6 +5,7 @@ import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.paymentrate.PaymentRates;
 import ee.tuleva.onboarding.user.User;
 import java.math.BigDecimal;
+import java.util.Optional;
 import java.util.Set;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -103,5 +104,14 @@ public class PillarSuggestion {
             && !suggestSecondPillar
             && !suggestPaymentRate
             && !suggestThirdPillar;
+  }
+
+  public Optional<String> renderedNudgeTag() {
+    if (suggestSecondPillar) return Optional.of("nudge_second_pillar");
+    if (suggestPaymentRate) return Optional.of("nudge_payment_rate");
+    if (suggestThirdPillar) return Optional.of("nudge_third_pillar");
+    if (suggestSavingsFund) return Optional.of("nudge_savings_fund");
+    if (suggestMembership) return Optional.of("nudge_membership");
+    return Optional.empty();
   }
 }

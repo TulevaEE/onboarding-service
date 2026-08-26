@@ -83,7 +83,10 @@ class MandateBatchEmailServiceTest {
             Map.entry("partialWithdrawalSecondPillar", true),
             Map.entry("partialWithdrawalThirdPillar", false));
 
-    var tags = List.of("mandate_batch", "pillar_2", "fund_pension_opening", "partial_withdrawal");
+    var tags =
+        new java.util.ArrayList<>(
+            List.of("mandate_batch", "pillar_2", "fund_pension_opening", "partial_withdrawal"));
+    pillarSuggestion.renderedNudgeTag().ifPresent(tags::add);
 
     when(emailPersistenceService.hasEmailsFor(mandateBatch)).thenReturn(false);
     when(emailService.send(user, message, "withdrawal_batch_en"))
@@ -150,8 +153,14 @@ class MandateBatchEmailServiceTest {
             Map.entry("partialWithdrawalThirdPillar", true));
 
     var tags =
-        List.of(
-            "mandate_batch", "pillar_2", "pillar_3", "fund_pension_opening", "partial_withdrawal");
+        new java.util.ArrayList<>(
+            List.of(
+                "mandate_batch",
+                "pillar_2",
+                "pillar_3",
+                "fund_pension_opening",
+                "partial_withdrawal"));
+    pillarSuggestion.renderedNudgeTag().ifPresent(tags::add);
 
     when(emailPersistenceService.hasEmailsFor(mandateBatch)).thenReturn(false);
     when(emailService.send(user, message, "withdrawal_batch_en"))

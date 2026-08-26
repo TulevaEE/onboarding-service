@@ -11,6 +11,8 @@ import ee.tuleva.onboarding.paymentrate.PaymentRates
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService
 import spock.lang.Specification
 
+import java.util.Optional
+
 import java.time.Clock
 import java.time.Instant
 
@@ -66,7 +68,7 @@ class MandateEmailServiceSpec extends Specification {
         leftSecondPillar   : pillarSuggestion.leftSecondPillar,
         suggestSavingsFund : pillarSuggestion.suggestSavingsFund,
     ]
-    def tags = ["mandate", "pillar_2", "suggest_payment_rate", "suggest_3"]
+    def tags = ["mandate", "pillar_2", "suggest_payment_rate", "suggest_3"] + pillarSuggestion.renderedNudgeTag().stream().toList()
     def mandrillResponse = new MandrillMessageStatus().tap {
       _id = "123"
       status = "sent"
@@ -89,6 +91,7 @@ class MandateEmailServiceSpec extends Specification {
     pillarSuggestion.isSuggestThirdPillar() >> suggestThirdPillar
     pillarSuggestion.isSuggestMembership() >> suggestMember
     pillarSuggestion.isSuggestPaymentRate() >> suggestPaymentRate
+    pillarSuggestion.renderedNudgeTag() >> Optional.empty()
 
 
     when:
@@ -262,7 +265,7 @@ class MandateEmailServiceSpec extends Specification {
     mandateDeadlinesService.getDeadlines() >> sampleDeadlines()
     emailPersistenceService.hasEmailsFor(mandate) >> false
 
-    def tags = ["mandate", "pillar_2", "suggest_payment_rate", "suggest_3"]
+    def tags = ["mandate", "pillar_2", "suggest_payment_rate", "suggest_3"] + pillarSuggestion.renderedNudgeTag().stream().toList()
 
     def mandrillResponse = new MandrillMessageStatus().tap {
       _id = "123"
@@ -314,7 +317,7 @@ class MandateEmailServiceSpec extends Specification {
     mandateDeadlinesService.getDeadlines() >> sampleDeadlines()
     emailPersistenceService.hasEmailsFor(mandate) >> false
 
-    def tags = ["mandate", "pillar_2", "suggest_payment_rate", "suggest_3"]
+    def tags = ["mandate", "pillar_2", "suggest_payment_rate", "suggest_3"] + pillarSuggestion.renderedNudgeTag().stream().toList()
 
     def mandrillResponse = new MandrillMessageStatus().tap {
       _id = "123"

@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMP
 import static java.time.temporal.ChronoUnit.DAYS;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.company.Company;
 import ee.tuleva.onboarding.mandate.email.persistence.Email;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.time.ClockConfig;
@@ -18,6 +19,7 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.Locale;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
@@ -49,6 +51,11 @@ class FirstPaymentReminderRepositoryTest {
   @Autowired SavingsFundOnboardingRepository onboardingRepository;
   @Autowired TestEntityManager entityManager;
   @Autowired JdbcClient jdbcClient;
+
+  @BeforeEach
+  void freezeClock() {
+    ClockHolder.setClock(Clock.fixed(NOW, ZoneOffset.UTC));
+  }
 
   @AfterEach
   void resetClock() {
@@ -95,6 +102,66 @@ class FirstPaymentReminderRepositoryTest {
             org.assertj.core.groups.Tuple.tuple(ENGLISH_SPEAKING_SAVER, Locale.ENGLISH));
   }
 
+  @Test
+  void leavesOutMinorsEvenWhenNobodyIsLinkedAsTheirParent() {
+    accountOpened(CHILD, NOW.minus(10, DAYS));
+
+    var reminders = repository.fetch(OPENED_FROM, OPENED_UNTIL);
+
+    assertThat(reminders).isEmpty();
+  }
+
+  @Test
+  void leavesOutBoardMembersOfACompanyThatHasAlreadyPaid() {
+    accountOpened(SAVER, NOW.minus(10, DAYS));
+    var payingCompany = company("11111111");
+    boardMember(payingCompany, SAVER);
+    companyPayment("11111111");
+
+    var reminders = repository.fetch(OPENED_FROM, OPENED_UNTIL);
+
+    assertThat(reminders).isEmpty();
+  }
+
+  @Test
+  void remindsBoardMembersWhoseCompanyHasNotPaidEither() {
+    accountOpened(SAVER, NOW.minus(10, DAYS));
+    var company = company("11111111");
+    boardMember(company, SAVER);
+
+    var reminders = repository.fetch(OPENED_FROM, OPENED_UNTIL);
+
+    assertThat(reminders).extracting(FirstPaymentReminder::personalCode).containsExactly(SAVER);
+  }
+
+  private Company company(String registryCode) {
+    return entityManager.persistAndFlush(
+        Company.builder().registryCode(registryCode).name("Test OU " + registryCode).build());
+  }
+
+  private void boardMember(Company company, String personalCode) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO company_party (party_code, party_type, company_id, relationship_type)
+            VALUES (:personalCode, 'PERSON', :companyId, 'BOARD_MEMBER')
+            """)
+        .param("personalCode", personalCode)
+        .param("companyId", company.getId())
+        .update();
+  }
+
+  private void companyPayment(String registryCode) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO saving_fund_payment (amount, currency, status, party_type, party_code)
+            VALUES (100.00, 'EUR', 'PROCESSED', 'LEGAL_ENTITY', :registryCode)
+            """)
+        .param("registryCode", registryCode)
+        .update();
+  }
+
   private void accountOpened(String personalCode, Instant openedAt) {
     entityManager.persist(
         User.builder()
@@ -108,7 +175,7 @@ class FirstPaymentReminderRepositoryTest {
             .build());
     ClockHolder.setClock(Clock.fixed(openedAt, ZoneOffset.UTC));
     onboardingRepository.saveOnboardingStatus(personalCode, PERSON, COMPLETED);
-    ClockHolder.setDefaultClock();
+    ClockHolder.setClock(Clock.fixed(NOW, ZoneOffset.UTC));
   }
 
   private void payment(String personalCode, String status) {

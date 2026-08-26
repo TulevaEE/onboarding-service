@@ -2,8 +2,11 @@ package ee.tuleva.onboarding.savings.fund.reminder;
 
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON;
 
+import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import java.sql.Timestamp;
+import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +21,7 @@ class FirstPaymentReminderRepository {
   private static final String ENGLISH_PREFERENCE = "ENG";
 
   private final JdbcClient jdbcClient;
+  private final Clock clock;
 
   /**
    * Savers whose own savings fund account was opened within the given window, who have never sent
@@ -60,6 +64,15 @@ class FirstPaymentReminderRepository {
               AND NOT EXISTS (SELECT 1
                               FROM parent_child_link link
                               WHERE link.child_personal_code = onboarding.code)
+              AND NOT EXISTS (SELECT 1
+                              FROM company_party board_membership
+                              JOIN company ON company.id = board_membership.company_id
+                              JOIN saving_fund_payment company_payment
+                                ON company_payment.party_type = 'LEGAL_ENTITY'
+                               AND company_payment.party_code = company.registry_code
+                              WHERE board_membership.party_type = 'PERSON'
+                                AND board_membership.relationship_type = 'BOARD_MEMBER'
+                                AND board_membership.party_code = onboarding.code)
             ORDER BY onboarding.code
             """)
         .param("openedFrom", Timestamp.from(openedFrom))
@@ -73,7 +86,14 @@ class FirstPaymentReminderRepository {
                     rs.getString("last_name"),
                     rs.getString("email"),
                     localeOf(rs.getString("language_preference"))))
-        .list();
+        .list()
+        .stream()
+        .filter(this::isAdult)
+        .toList();
+  }
+
+  private boolean isAdult(FirstPaymentReminder reminder) {
+    return !PersonalCode.isMinor(reminder.personalCode(), LocalDate.now(clock));
   }
 
   private Locale localeOf(String languagePreference) {

@@ -5,7 +5,7 @@
 
     <mj-section padding-top="12px">
       <mj-column>
-        <mj-text>Hello *|FNAME|*</mj-text>
+        <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
           *|sellerFullName|* confirmed that the payment was received and the application was
           sent to the Tuleva cooperative board for approval.

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.payment.email
 
+import ee.tuleva.onboarding.savings.fund.SavingsFundFees
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus
 import ee.tuleva.onboarding.mandate.Mandate
@@ -23,8 +24,11 @@ class PaymentEmailServiceSpec extends Specification {
   EmailService emailService = Mock()
   EmailPersistenceService emailPersistenceService = Mock()
 
+  SavingsFundFees savingsFundFees = Mock() {
+    ongoingChargesPercent(_) >> "0.28"
+  }
   PaymentEmailService paymentEmailService = new PaymentEmailService(emailService,
-      emailPersistenceService)
+      emailPersistenceService, savingsFundFees)
 
   def "send third pillar payment success email"() {
     given:
@@ -50,6 +54,8 @@ class PaymentEmailServiceSpec extends Specification {
         "leftSecondPillar"   : pillarSuggestion.leftSecondPillar,
         "suggestSavingsFund" : pillarSuggestion.suggestSavingsFund,
         "suggestThirdPillarRecurringPayment" : pillarSuggestion.suggestThirdPillarRecurringPayment,
+        "suggestThirdPillarRaise"            : pillarSuggestion.suggestThirdPillarRaise,
+        "savingsFundFee"                     : "0.28",
         "suggestSavingsFundRecurringPayment" : pillarSuggestion.suggestSavingsFundRecurringPayment
     ]
     def tags = ["pillar_3.1", "mandate", "payment", "suggest_payment_rate", "suggest_2"] + pillarSuggestion.renderedNudgeTag().stream().toList()
@@ -96,6 +102,8 @@ class PaymentEmailServiceSpec extends Specification {
         "leftSecondPillar"   : pillarSuggestion.leftSecondPillar,
         "suggestSavingsFund" : pillarSuggestion.suggestSavingsFund,
         "suggestThirdPillarRecurringPayment" : pillarSuggestion.suggestThirdPillarRecurringPayment,
+        "suggestThirdPillarRaise"            : pillarSuggestion.suggestThirdPillarRaise,
+        "savingsFundFee"                     : "0.28",
         "suggestSavingsFundRecurringPayment" : pillarSuggestion.suggestSavingsFundRecurringPayment,
         "suggestAccountRecurringPayment" : false
     ]
@@ -168,6 +176,8 @@ class PaymentEmailServiceSpec extends Specification {
         "leftSecondPillar"   : pillarSuggestion.leftSecondPillar,
         "suggestSavingsFund" : pillarSuggestion.suggestSavingsFund,
         "suggestThirdPillarRecurringPayment" : pillarSuggestion.suggestThirdPillarRecurringPayment,
+        "suggestThirdPillarRaise"            : pillarSuggestion.suggestThirdPillarRaise,
+        "savingsFundFee"                     : "0.28",
         "suggestSavingsFundRecurringPayment" : pillarSuggestion.suggestSavingsFundRecurringPayment,
         "suggestAccountRecurringPayment" : false
     ]

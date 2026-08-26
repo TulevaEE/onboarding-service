@@ -113,6 +113,7 @@ class PaymentIntegrationSpec extends Specification {
     AuthenticatedPerson anAuthenticatedPerson = authenticatedPersonFromUser(aUser).build()
 
     mockEpisContactDetails()
+    mockEpisContributions()
     mockEpisTransactions()
     mockEpisApplications()
     mockEpisAccountStatement()
@@ -194,6 +195,15 @@ class PaymentIntegrationSpec extends Specification {
   private void mockEpisApplications() {
     mockServerClient
         .when(request("/applications"))
+        .respond(response()
+            .withContentType(APPLICATION_JSON)
+            .withBody((mapper.writeValueAsString(List.of())))
+        )
+  }
+
+  private void mockEpisContributions() {
+    mockServerClient
+        .when(request("/contributions"))
         .respond(response()
             .withContentType(APPLICATION_JSON)
             .withBody((mapper.writeValueAsString(List.of())))

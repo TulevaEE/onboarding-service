@@ -16,6 +16,7 @@ import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
 import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
+import ee.tuleva.onboarding.savings.fund.SavingsFundFees;
 import ee.tuleva.onboarding.user.User;
 import java.time.Clock;
 import java.time.Instant;
@@ -37,6 +38,7 @@ public class MandateEmailService {
   private final MandateDeadlinesService mandateDeadlinesService;
   private final SecondPillarPaymentRateService secondPillarPaymentRateService;
   private final AuthenticationHolder authenticationHolder;
+  private final SavingsFundFees savingsFundFees;
 
   public void sendMandate(
       User user, Mandate mandate, PillarSuggestion pillarSuggestion, Locale locale) {
@@ -124,7 +126,9 @@ public class MandateEmailService {
       mergeVars.put("sourceFundName", sourceFundName);
     }
 
-    mergeVars.putAll(getPillarSuggestionMergeVars(pillarSuggestion));
+    mergeVars.putAll(
+        getPillarSuggestionMergeVars(
+            pillarSuggestion, savingsFundFees.ongoingChargesPercent(locale)));
     return mergeVars;
   }
 

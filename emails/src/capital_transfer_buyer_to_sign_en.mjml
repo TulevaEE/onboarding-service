@@ -5,7 +5,7 @@
 
     <mj-section padding-top="12px">
       <mj-column>
-        <mj-text>Hello *|FNAME|*</mj-text>
+        <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
           The application to transfer Tuleva membership capital has been signed by the seller
           *|sellerFullName|* and is awaiting your signature and payment.

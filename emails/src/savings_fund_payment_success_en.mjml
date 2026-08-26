@@ -5,18 +5,10 @@
 
     <mj-section padding-top="12px">
       <mj-column>
-        <mj-text>Hello *|FNAME|*</mj-text>
+        <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
           Your contribution to Tuleva Savings Fund has been received. Fund units will appear on
           your Tuleva account in two business days.
-        </mj-text>
-        <mj-text>
-          Please note that you can see the balance of your investment into Tuleva Savings Fund
-          only by logging in on the Tuleva page.
-        </mj-text>
-        <mj-text>
-          You can see the unit price of the fund and other relevant information
-          <a href="https://tuleva.ee/tuleva-taiendav-kogumisfond-dokumendid/">on this page</a>.
         </mj-text>
       </mj-column>
     </mj-section>

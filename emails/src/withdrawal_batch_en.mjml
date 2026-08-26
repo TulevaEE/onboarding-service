@@ -6,7 +6,7 @@
     <mj-section padding-top="12px">
       <mj-column>
         <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
-        <mj-text>The withdrawal applications have been submitted!</mj-text>
+        <mj-text>The withdrawal applications have been submitted.</mj-text>
         <mj-text>Soon you can start using the pension savings you have accumulated.</mj-text>
         <mj-text><strong>Submitted applications:</strong></mj-text>
 

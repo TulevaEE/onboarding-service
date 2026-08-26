@@ -5,7 +5,7 @@
 
     <mj-section padding-top="12px">
       <mj-column>
-        <mj-text>Tere,&nbsp;*|FNAME|*.</mj-text>
+        <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
           Alustasid kogumist Tuleva madalate tasudega III&nbsp;samba fondis. Märkasin, et
           II&nbsp;sambasse sa veel koos meiega ei kogu.
@@ -21,23 +21,6 @@
           </strong>
         </mj-text>
         <mj-button href="https://pension.tuleva.ee/login">Arvuta oma võit</mj-button>
-
-        <mj-text>
-          <strong>Kas riskide hajutamiseks pole parem koguda II&nbsp;sambasse mujal?</strong>
-        </mj-text>
-        <mj-text>
-          Kõigi Eesti pensionifondide - nii II&nbsp;kui III&nbsp;samba fondide - vara on
-          maailmaturu sadade instrumentide vahel väga hästi hajutatud. Lisaks on pensionikoguja
-          kõigis pensionifondides kaitstud fondivalitseja äririski eest. Seda tagab seadus ja
-          pensionikoguja ise ei pea riski maandamiseks raha mitme fondivalitseja vahel laiali
-          jagama.
-        </mj-text>
-        <mj-text>
-          Oluline on ka meeles pidada, et sinu raha on kõigis pensionifondides avatud
-          tururiskile. Kui maailma väärtpaberiturud langevad, siis langevad kõigi
-          pensionifondide osakute hinnad. Siin vara jagamine erinevate fondivalitsejate
-          aktsiatesse investeerivate fondide vahel ei aita.
-        </mj-text>
       </mj-column>
     </mj-section>
 

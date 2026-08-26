@@ -7,7 +7,7 @@
       <mj-column>
         <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
-          Your payment of *|amount|*&nbsp;&euro; arrived on *|paymentDate|*! This puts you among
+          Your payment of *|amount|*&nbsp;&euro; arrived on *|paymentDate|*. This puts you among
           the 30% of dedicated Estonians who save in the third pillar. The fund units are already
           in your pension account.
         </mj-text>
@@ -20,7 +20,7 @@
 
         <mj-raw>*|ELSE:|*</mj-raw>
         <mj-text>
-          See all your savings in one place by logging in to your Tuleva account:
+          See all your savings in one place by logging in to Tuleva:
         </mj-text>
         <mj-button href="https://pension.tuleva.ee/login">Log in</mj-button>
         <mj-raw>*|END:IF|*</mj-raw>

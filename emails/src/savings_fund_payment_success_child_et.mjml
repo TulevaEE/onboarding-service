@@ -7,8 +7,10 @@
       <mj-column>
         <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
-          Sinu sissemakse lapse (*|RECIPIENTNAME|*) Tuleva Täiendavasse Kogumisfondi on tehtud.
-          Osakud jõuavad lapse kontole kahe tööpäeva jooksul.
+          Sinu sissemakse lapse Tuleva Täiendavasse Kogumisfondi on tehtud.
+          *|IF:RECIPIENTNAME|*Saaja on *|RECIPIENTNAME|* ja osakud jõuavad lapse kontole kahe
+          tööpäeva jooksul.*|ELSE:|*Osakud jõuavad lapse kontole kahe tööpäeva
+          jooksul.*|END:IF|*
         </mj-text>
 
         <mj-raw>*|IF:suggestAccountRecurringPayment|*</mj-raw>

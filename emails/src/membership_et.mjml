@@ -5,15 +5,15 @@
 
     <mj-section padding-top="12px">
       <mj-column>
-        <mj-text font-family="Merriweather, Georgia, serif" font-size="26px" font-weight="700" line-height="130%">
-          Tuleva liikmetunnistus nr *|memberNumber|*
+        <mj-text font-family="Merriweather, Georgia, serif" font-size="20px" font-weight="700" line-height="130%">
+          Liikmetunnistus nr *|memberNumber|*
         </mj-text>
         <mj-text>
           <strong>*|FNAME|*&nbsp;*|LNAME|*</strong><br />
           on Tulundusühistu Tuleva liikmeks vastu võetud&nbsp;*|memberDate|*.
         </mj-text>
         <mj-text>
-          Tere tulemast ühistu liikmeks!<br />
+          Tere tulemast ühistu liikmeks.<br />
           Kuulud nüüd Tuleva omanikeringi ja igapäevaselt suhtleme kinnises
           <a href="https://www.facebook.com/groups/tuleva.ee">Facebooki grupis</a>. Seal jagame
           infot, peame arutelusid ja saad kaasa rääkida Tuleva tegemistes. Ära muretse, kui sul

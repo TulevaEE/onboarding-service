@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.THIRD_PIL
 import ee.tuleva.onboarding.analytics.transaction.thirdpillar.FirstThirdPillarPayment;
 import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.savings.fund.SavingsFundFees;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
@@ -28,6 +29,7 @@ public class ThirdPillarPaymentArrivedEmailService {
   private final ThirdPillarPaymentArrivedClaims claims;
   private final EmailService emailService;
   private final EmailPersistenceService emailPersistenceService;
+  private final SavingsFundFees savingsFundFees;
 
   public boolean send(FirstThirdPillarPayment payment) {
     if (!claims.claim(payment.personalCode())) {
@@ -69,7 +71,11 @@ public class ThirdPillarPaymentArrivedEmailService {
         Map.entry("suggestMembership", payment.suggestMembership()),
         Map.entry("suggestSavingsFund", payment.suggestSavingsFund()),
         Map.entry("suggestThirdPillarRecurringPayment", true),
-        Map.entry("suggestSavingsFundRecurringPayment", false));
+        Map.entry("suggestThirdPillarRaise", false),
+        Map.entry("suggestSavingsFundRecurringPayment", false),
+        Map.entry(
+            "savingsFundFee",
+            savingsFundFees.ongoingChargesPercent(Locale.forLanguageTag(payment.emailLanguage()))));
   }
 
   private String formattedAmount(FirstThirdPillarPayment payment) {

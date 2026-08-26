@@ -12,19 +12,24 @@ import java.util.List;
 import java.util.Map;
 
 public class EmailVariablesAttachments {
+
   public static Map<String, Object> getPillarSuggestionMergeVars(
-      PillarSuggestion pillarSuggestion) {
-    return Map.of(
-        "suggestPaymentRate", pillarSuggestion.isSuggestPaymentRate(),
-        "suggestMembership", pillarSuggestion.isSuggestMembership(),
-        "suggestSecondPillar", pillarSuggestion.isSuggestSecondPillar(),
-        "suggestThirdPillar", pillarSuggestion.isSuggestThirdPillar(),
-        "leftSecondPillar", pillarSuggestion.isLeftSecondPillar(),
-        "suggestSavingsFund", pillarSuggestion.isSuggestSavingsFund(),
-        "suggestThirdPillarRecurringPayment",
-            pillarSuggestion.isSuggestThirdPillarRecurringPayment(),
-        "suggestSavingsFundRecurringPayment",
-            pillarSuggestion.isSuggestSavingsFundRecurringPayment());
+      PillarSuggestion pillarSuggestion, String savingsFundFee) {
+    return Map.ofEntries(
+        Map.entry("savingsFundFee", savingsFundFee),
+        Map.entry("suggestPaymentRate", pillarSuggestion.isSuggestPaymentRate()),
+        Map.entry("suggestMembership", pillarSuggestion.isSuggestMembership()),
+        Map.entry("suggestSecondPillar", pillarSuggestion.isSuggestSecondPillar()),
+        Map.entry("suggestThirdPillar", pillarSuggestion.isSuggestThirdPillar()),
+        Map.entry("leftSecondPillar", pillarSuggestion.isLeftSecondPillar()),
+        Map.entry("suggestSavingsFund", pillarSuggestion.isSuggestSavingsFund()),
+        Map.entry(
+            "suggestThirdPillarRecurringPayment",
+            pillarSuggestion.isSuggestThirdPillarRecurringPayment()),
+        Map.entry("suggestThirdPillarRaise", pillarSuggestion.isSuggestThirdPillarRaise()),
+        Map.entry(
+            "suggestSavingsFundRecurringPayment",
+            pillarSuggestion.isSuggestSavingsFundRecurringPayment()));
   }
 
   public static Map<String, Object> getNameMergeVars(User user) {

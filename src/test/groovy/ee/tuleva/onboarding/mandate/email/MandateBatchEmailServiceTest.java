@@ -6,7 +6,9 @@ import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDet
 import static ee.tuleva.onboarding.mandate.MandateFixture.*;
 import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.getAttachments;
 import static ee.tuleva.onboarding.paymentrate.PaymentRatesFixture.samplePaymentRates;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
@@ -18,10 +20,12 @@ import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
 import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
 import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.savings.fund.SavingsFundFees;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,8 +41,14 @@ class MandateBatchEmailServiceTest {
   @Mock private EmailPersistenceService emailPersistenceService;
 
   @Mock private MandateProcessorService mandateProcessorService;
+  @Mock private SavingsFundFees savingsFundFees;
 
   @InjectMocks private MandateBatchEmailService mandateBatchEmailService;
+
+  @BeforeEach
+  void stubSavingsFundFee() {
+    lenient().when(savingsFundFees.ongoingChargesPercent(any())).thenReturn("0.28");
+  }
 
   private boolean areMergeVarsPresent(Map<String, Object> first, Map<String, Object> second) {
     return first.entrySet().stream().allMatch(e -> e.getValue().equals(second.get(e.getKey())));
@@ -81,6 +91,8 @@ class MandateBatchEmailServiceTest {
             Map.entry(
                 "suggestThirdPillarRecurringPayment",
                 pillarSuggestion.isSuggestThirdPillarRecurringPayment()),
+            Map.entry("suggestThirdPillarRaise", pillarSuggestion.isSuggestThirdPillarRaise()),
+            Map.entry("savingsFundFee", "0.28"),
             Map.entry(
                 "suggestSavingsFundRecurringPayment",
                 pillarSuggestion.isSuggestSavingsFundRecurringPayment()),
@@ -156,6 +168,8 @@ class MandateBatchEmailServiceTest {
             Map.entry(
                 "suggestThirdPillarRecurringPayment",
                 pillarSuggestion.isSuggestThirdPillarRecurringPayment()),
+            Map.entry("suggestThirdPillarRaise", pillarSuggestion.isSuggestThirdPillarRaise()),
+            Map.entry("savingsFundFee", "0.28"),
             Map.entry(
                 "suggestSavingsFundRecurringPayment",
                 pillarSuggestion.isSuggestSavingsFundRecurringPayment()),

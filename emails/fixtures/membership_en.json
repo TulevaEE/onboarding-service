@@ -28,12 +28,20 @@
       "memberDate": "14.02.2026",
       "suggestThirdPillarRecurringPayment": true
     },
+    "third pillar raise suggestion": {
+      "FNAME": "Kati",
+      "LNAME": "Ilves",
+      "memberNumber": "731",
+      "memberDate": "14.02.2026",
+      "suggestThirdPillarRaise": true
+    },
     "savings fund suggestion": {
       "FNAME": "Kati",
       "LNAME": "Ilves",
       "memberNumber": "731",
       "memberDate": "14.02.2026",
-      "suggestSavingsFund": true
+      "suggestSavingsFund": true,
+      "savingsFundFee": "0.28"
     },
     "savings fund recurring suggestion": {
       "FNAME": "Kati",

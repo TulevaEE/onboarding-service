@@ -25,10 +25,16 @@
       "RECIPIENTNAME": "Jaan Tamm",
       "suggestThirdPillarRecurringPayment": true
     },
+    "III samba sissemakse tõstmise soovitus": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Jaan Tamm",
+      "suggestThirdPillarRaise": true
+    },
     "kogumisfondi soovitus (ei esine)": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Jaan Tamm",
-      "suggestSavingsFund": true
+      "suggestSavingsFund": true,
+      "savingsFundFee": "0,28"
     },
     "kogumisfondi püsimakse soovitus": {
       "FNAME": "Mari",

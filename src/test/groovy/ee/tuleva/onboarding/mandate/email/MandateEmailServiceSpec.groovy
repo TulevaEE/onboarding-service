@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService
 import ee.tuleva.onboarding.notification.email.EmailService
 import ee.tuleva.onboarding.paymentrate.PaymentRates
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService
+import ee.tuleva.onboarding.savings.fund.SavingsFundFees
 import spock.lang.Specification
 
 import java.util.Optional
@@ -38,6 +39,9 @@ class MandateEmailServiceSpec extends Specification {
   MandateDeadlinesService mandateDeadlinesService = Mock()
   SecondPillarPaymentRateService secondPillarPaymentRateService = Mock()
   AuthenticationHolder authenticationHolder = Mock()
+  SavingsFundFees savingsFundFees = Mock() {
+    ongoingChargesPercent(_) >> "0.28"
+  }
   def now = Instant.parse("2021-09-01T10:06:01Z")
 
   MandateEmailService mandateEmailService = new MandateEmailService(emailService,
@@ -46,7 +50,8 @@ class MandateEmailServiceSpec extends Specification {
       fundRepository,
       mandateDeadlinesService,
       secondPillarPaymentRateService,
-      authenticationHolder)
+      authenticationHolder,
+      savingsFundFees)
 
   def "Send second pillar mandate email"() {
     given:
@@ -64,12 +69,14 @@ class MandateEmailServiceSpec extends Specification {
         hasFundSelection   : true,
         hasFundTransfer    : true,
         suggestPaymentRate : pillarSuggestion.suggestPaymentRate,
+        savingsFundFee : "0.28",
         suggestSecondPillar: pillarSuggestion.suggestSecondPillar,
         suggestThirdPillar : pillarSuggestion.suggestThirdPillar,
         suggestMembership  : pillarSuggestion.suggestMembership,
         leftSecondPillar   : pillarSuggestion.leftSecondPillar,
         suggestSavingsFund : pillarSuggestion.suggestSavingsFund,
         suggestThirdPillarRecurringPayment : pillarSuggestion.suggestThirdPillarRecurringPayment,
+        suggestThirdPillarRaise : pillarSuggestion.suggestThirdPillarRaise,
         suggestSavingsFundRecurringPayment : pillarSuggestion.suggestSavingsFundRecurringPayment,
     ]
     def tags = ["mandate", "pillar_2", "suggest_payment_rate", "suggest_3"] + pillarSuggestion.renderedNudgeTag().stream().toList()
@@ -256,12 +263,14 @@ class MandateEmailServiceSpec extends Specification {
         decreased                 : false,  // 6 > 2, so not decreased
         increased                 : true,   // 6 > 2, so increased
         suggestPaymentRate        : pillarSuggestion.suggestPaymentRate,
+        savingsFundFee            : "0.28",
         suggestSecondPillar       : pillarSuggestion.suggestSecondPillar,
         suggestThirdPillar        : pillarSuggestion.suggestThirdPillar,
         suggestMembership         : pillarSuggestion.suggestMembership,
         leftSecondPillar   : pillarSuggestion.leftSecondPillar,
         suggestSavingsFund : pillarSuggestion.suggestSavingsFund,
         suggestThirdPillarRecurringPayment : pillarSuggestion.suggestThirdPillarRecurringPayment,
+        suggestThirdPillarRaise : pillarSuggestion.suggestThirdPillarRaise,
         suggestSavingsFundRecurringPayment : pillarSuggestion.suggestSavingsFundRecurringPayment,
     ]
 
@@ -310,12 +319,14 @@ class MandateEmailServiceSpec extends Specification {
         decreased                 : true,   // 2 < 4 and 2 == 2, so decreased
         increased                 : false,  // not increased
         suggestPaymentRate        : pillarSuggestion.suggestPaymentRate,
+        savingsFundFee            : "0.28",
         suggestSecondPillar       : pillarSuggestion.suggestSecondPillar,
         suggestThirdPillar        : pillarSuggestion.suggestThirdPillar,
         suggestMembership         : pillarSuggestion.suggestMembership,
         leftSecondPillar   : pillarSuggestion.leftSecondPillar,
         suggestSavingsFund : pillarSuggestion.suggestSavingsFund,
         suggestThirdPillarRecurringPayment : pillarSuggestion.suggestThirdPillarRecurringPayment,
+        suggestThirdPillarRaise : pillarSuggestion.suggestThirdPillarRaise,
         suggestSavingsFundRecurringPayment : pillarSuggestion.suggestSavingsFundRecurringPayment,
     ]
 

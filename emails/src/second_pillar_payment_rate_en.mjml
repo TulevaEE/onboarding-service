@@ -5,7 +5,7 @@
 
     <mj-section padding-top="12px">
       <mj-column>
-        <mj-text>Hello *|FNAME|*,</mj-text>
+        <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
           Your second pillar contribution rate has been changed. *|IF:increased|*From
           <strong>*|paymentRateFulfillmentDate|*</strong> you will start saving

@@ -232,6 +232,9 @@ public class EmailService {
     if (templateName.contains("payment_rate") || templateName.startsWith("withdrawal_batch")) {
       scrubbed.replace("suggestPaymentRate", false);
     }
+    if (templateName.startsWith("withdrawal_batch")) {
+      scrubbed.replace("suggestThirdPillarRaise", false);
+    }
     if (templateName.startsWith("savings_fund")) {
       scrubbed.replace("suggestSavingsFund", false);
     }

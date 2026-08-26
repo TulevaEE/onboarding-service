@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.analytics.SecondPillarLeavers;
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
+import ee.tuleva.onboarding.contribution.ThirdPillarTaxHeadroom;
 import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
 import ee.tuleva.onboarding.mandate.email.PillarSuggestion;
@@ -44,6 +45,7 @@ public class PaymentEmailSender {
   private final SecondPillarLeavers secondPillarLeavers;
   private final SavingsFundSavers savingsFundSavers;
   private final RecurringSavers recurringSavers;
+  private final ThirdPillarTaxHeadroom thirdPillarTaxHeadroom;
   private final SavingsFundSuccessEmailResolver savingsFundSuccessEmailResolver;
 
   // TODO: can we make these @Async?
@@ -113,7 +115,8 @@ public class PaymentEmailSender {
         secondPillarLeavers.hasLeft(user.getPersonalCode()),
         savingsFundSavers.isSaver(user.getPersonalCode()),
         false,
-        recurringSavers.recurringPaymentsOf(user.getPersonalCode()));
+        recurringSavers.recurringPaymentsOf(user.getPersonalCode()),
+        thirdPillarTaxHeadroom.hasHeadroom(user));
   }
 
   private void withSecurityContext(User user, Runnable action) {

@@ -24,6 +24,7 @@ public class PillarSuggestion {
   private final boolean leftSecondPillar;
   private final boolean suggestSavingsFund;
   private final boolean suggestThirdPillarRecurringPayment;
+  private final boolean suggestThirdPillarRaise;
   private final boolean suggestSavingsFundRecurringPayment;
 
   public PillarSuggestion(
@@ -113,6 +114,30 @@ public class PillarSuggestion {
       boolean savesInSavingsFund,
       boolean concernsPaymentRate,
       RecurringPayments recurringPayments) {
+    this(
+        user,
+        contactDetails,
+        conversion,
+        paymentRates,
+        mandatePillars,
+        leftSecondPillar,
+        savesInSavingsFund,
+        concernsPaymentRate,
+        recurringPayments,
+        false);
+  }
+
+  public PillarSuggestion(
+      User user,
+      ContactDetails contactDetails,
+      ConversionResponse conversion,
+      PaymentRates paymentRates,
+      Set<Integer> mandatePillars,
+      boolean leftSecondPillar,
+      boolean savesInSavingsFund,
+      boolean concernsPaymentRate,
+      RecurringPayments recurringPayments,
+      boolean thirdPillarTaxHeadroom) {
     this.leftSecondPillar = leftSecondPillar;
     boolean adult = user.getAge() >= 18;
     this.suggestPaymentRate =
@@ -144,13 +169,19 @@ public class PillarSuggestion {
     this.suggestMembership = !user.isMember();
     this.suggestThirdPillarRecurringPayment =
         adult && contactDetails.isThirdPillarActive() && !recurringPayments.thirdPillar();
+    this.suggestThirdPillarRaise =
+        adult
+            && contactDetails.isThirdPillarActive()
+            && recurringPayments.thirdPillar()
+            && thirdPillarTaxHeadroom;
     this.suggestSavingsFund =
         adult
             && !savesInSavingsFund
             && !suggestSecondPillar
             && !suggestPaymentRate
             && !suggestThirdPillar
-            && !suggestThirdPillarRecurringPayment;
+            && !suggestThirdPillarRecurringPayment
+            && !suggestThirdPillarRaise;
     this.suggestSavingsFundRecurringPayment =
         adult && savesInSavingsFund && !recurringPayments.savingsFund();
   }
@@ -160,6 +191,7 @@ public class PillarSuggestion {
     if (suggestPaymentRate) return Optional.of("nudge_payment_rate");
     if (suggestThirdPillar) return Optional.of("nudge_third_pillar");
     if (suggestThirdPillarRecurringPayment) return Optional.of("nudge_third_pillar_recurring");
+    if (suggestThirdPillarRaise) return Optional.of("nudge_third_pillar_raise");
     if (suggestSavingsFund) return Optional.of("nudge_savings_fund");
     if (suggestSavingsFundRecurringPayment) return Optional.of("nudge_savings_fund_recurring");
     if (suggestMembership) return Optional.of("nudge_membership");

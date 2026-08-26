@@ -5,7 +5,7 @@
 
     <mj-section padding-top="12px">
       <mj-column>
-        <mj-text>Tere,&nbsp;*|FNAME|*.</mj-text>
+        <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
           Sinu II&nbsp;samba sissemakse suurus on muudetud. *|IF:increased|*Alates
           <strong>*|paymentRateFulfillmentDate|*</strong> hakkad II&nbsp;sambasse maksma
@@ -13,14 +13,14 @@
           <strong>*|paymentRateFulfillmentDate|*</strong> langeb sinu II&nbsp;samba sissemakse suurus
           ja hakkad panustama <strong>*|newPaymentRate|*%</strong> oma brutopalgast.*|END:IF|*
         </mj-text>
-        <mj-text>
-          Lisasime kirjale ka koopia sinu tehtud avaldusest, mis on saadetud Pensionikeskusesse.
-          Oma valikut saad muuta igal aastal novembri lõpuni.
-        </mj-text>
 
         <mj-include path="./partials/suggest_chain_open_et.mjml" />
 
         <mj-raw>*|END:IF|*</mj-raw>
+        <mj-text>
+          Lisasime kirjale ka koopia sinu tehtud avaldusest, mis on saadetud Pensionikeskusesse.
+          Oma valikut saad muuta igal aastal novembri lõpuni.
+        </mj-text>
       </mj-column>
     </mj-section>
 

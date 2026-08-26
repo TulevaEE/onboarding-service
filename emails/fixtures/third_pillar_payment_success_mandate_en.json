@@ -16,9 +16,14 @@
       "FNAME": "Mari",
       "suggestThirdPillarRecurringPayment": true
     },
+    "third pillar raise suggestion": {
+      "FNAME": "Mari",
+      "suggestThirdPillarRaise": true
+    },
     "savings fund suggestion": {
       "FNAME": "Mari",
-      "suggestSavingsFund": true
+      "suggestSavingsFund": true,
+      "savingsFundFee": "0.28"
     },
     "savings fund recurring suggestion": {
       "FNAME": "Mari",

@@ -5,7 +5,7 @@
 
     <mj-section padding-top="12px">
       <mj-column>
-        <mj-text>Welcome&nbsp;*|FNAME|*,</mj-text>
+        <mj-text>Welcome,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
           I’m glad you’ve decided to start saving in the third pillar with us.
         </mj-text>
@@ -21,10 +21,8 @@
           will show up in your pension account one working day after payment.
         </mj-text>
         <mj-text>
-          As a reminder: why should you save in the third pillar? Because the state offers a
-          22% tax benefit on contributions, providing a significant advantage over other
-          investment options. For example, if you make a monthly contribution of 100 euros, the
-          state will give you back 264 euros in income tax in the spring.
+          As a reminder: the state gives back 22% income tax on third pillar contributions.
+          For example, a 100 euro monthly payment brings back 264&nbsp;euros in the spring.
         </mj-text>
         <mj-text>
           <strong>See how you can maximize your tax savings with the third pillar:</strong>

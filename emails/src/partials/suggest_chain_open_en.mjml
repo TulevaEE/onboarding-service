@@ -6,6 +6,8 @@
 <mj-include path="./suggest_third_pillar_en.mjml" />
 <mj-raw>*|ELSEIF:suggestThirdPillarRecurringPayment|*</mj-raw>
 <mj-include path="./suggest_third_pillar_recurring_en.mjml" />
+<mj-raw>*|ELSEIF:suggestThirdPillarRaise|*</mj-raw>
+<mj-include path="./suggest_third_pillar_raise_en.mjml" />
 <mj-raw>*|ELSEIF:suggestSavingsFund|*</mj-raw>
 <mj-include path="./suggest_savings_fund_en.mjml" />
 <mj-raw>*|ELSEIF:suggestSavingsFundRecurringPayment|*</mj-raw>

@@ -131,7 +131,7 @@
       "from_name": "Tuleva"
     },
     "savings_fund_payment_success_child_en": {
-      "subject": "Contribution to Tuleva Savings Fund is done!",
+      "subject": "Contribution to Tuleva Savings Fund is done",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
@@ -141,7 +141,7 @@
       "from_name": "Tuleva"
     },
     "savings_fund_payment_success_company_en": {
-      "subject": "Contribution to Tuleva Savings Fund is done!",
+      "subject": "Contribution to Tuleva Savings Fund is done",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
@@ -151,7 +151,7 @@
       "from_name": "Tuleva"
     },
     "savings_fund_payment_success_en": {
-      "subject": "Contribution to Tuleva Savings Fund is done!",
+      "subject": "Contribution to Tuleva Savings Fund is done",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
@@ -161,7 +161,7 @@
       "from_name": "Tuleva"
     },
     "savings_fund_payment_success_person_en": {
-      "subject": "Contribution to Tuleva Savings Fund is done!",
+      "subject": "Contribution to Tuleva Savings Fund is done",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
@@ -241,12 +241,12 @@
       "from_name": "Tuleva"
     },
     "third_pillar_suggest_second_en": {
-      "subject": "Check where your second pillar is invested!",
+      "subject": "Check where your second pillar is invested",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
     "third_pillar_suggest_second_et": {
-      "subject": "Vaata oma teine sammas üle!",
+      "subject": "Vaata oma teine sammas üle",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },

@@ -1,0 +1,10 @@
+<mj-text>
+  You already save in the third pillar every month and get 22% income tax back on every
+  contribution. The tax benefit covers up to 15% of your gross salary, on at most 6,000
+  euros of contributions per year. If your contributions stay below that limit, raising
+  your recurring payment also raises next spring's tax refund.
+</mj-text>
+<mj-text><strong>Check right away whether you could raise your recurring payment:</strong></mj-text>
+<mj-button href="https://tuleva.ee/iii-sammas/?utm_content=nudge_third_pillar_raise">
+  Calculate your gain
+</mj-button>

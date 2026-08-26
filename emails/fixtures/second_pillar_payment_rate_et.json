@@ -28,12 +28,20 @@
       "newPaymentRate": "4",
       "suggestThirdPillarRecurringPayment": true
     },
+    "III samba sissemakse tõstmise soovitus": {
+      "FNAME": "Mari",
+      "increased": true,
+      "paymentRateFulfillmentDate": "01.01.2027",
+      "newPaymentRate": "4",
+      "suggestThirdPillarRaise": true
+    },
     "kogumisfondi soovitus": {
       "FNAME": "Mari",
       "increased": true,
       "paymentRateFulfillmentDate": "01.01.2027",
       "newPaymentRate": "4",
-      "suggestSavingsFund": true
+      "suggestSavingsFund": true,
+      "savingsFundFee": "0,28"
     },
     "kogumisfondi püsimakse soovitus": {
       "FNAME": "Mari",

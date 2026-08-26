@@ -5,7 +5,7 @@
 
     <mj-section padding-top="12px">
       <mj-column>
-        <mj-text>Hello *|FNAME|*</mj-text>
+        <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
       </mj-column>
     </mj-section>
 

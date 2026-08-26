@@ -17,6 +17,7 @@ import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService
 import ee.tuleva.onboarding.analytics.SecondPillarLeavers
 import ee.tuleva.onboarding.analytics.RecurringPayments
 import ee.tuleva.onboarding.analytics.RecurringSavers
+import ee.tuleva.onboarding.contribution.ThirdPillarTaxHeadroom
 import ee.tuleva.onboarding.savings.fund.SavingsFundSavers
 import spock.lang.Specification
 
@@ -46,13 +47,16 @@ class PaymentEmailSenderSpec extends Specification {
   SavingsFundSavers savingsFundSavers = Mock() {
     isSaver(_) >> false
   }
+  ThirdPillarTaxHeadroom thirdPillarTaxHeadroom = Mock(ThirdPillarTaxHeadroom) {
+    hasHeadroom(_) >> false
+  }
   RecurringSavers recurringSavers = Mock() {
     recurringPaymentsOf(_) >> new RecurringPayments(true, true)
     hasRecurringSavingsFundPayments(_) >> true
   }
 
   def paymentEmailSender = new PaymentEmailSender(paymentEmailService, conversionService, principalService,
-      grantedAuthorityFactory, jwtTokenUtil, contactDetailsService, paymentRateService, secondPillarLeavers, savingsFundSavers, recurringSavers, savingsFundSuccessEmailResolver)
+      grantedAuthorityFactory, jwtTokenUtil, contactDetailsService, paymentRateService, secondPillarLeavers, savingsFundSavers, recurringSavers, thirdPillarTaxHeadroom, savingsFundSuccessEmailResolver)
 
   def "send emails on payment creation"() {
     given:

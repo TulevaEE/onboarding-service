@@ -4,6 +4,7 @@ import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.analytics.RecurringSavers;
 import ee.tuleva.onboarding.analytics.SecondPillarLeavers;
+import ee.tuleva.onboarding.contribution.ThirdPillarTaxHeadroom;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.epis.EpisService;
@@ -35,6 +36,7 @@ public class MandateEmailSender {
   private final SecondPillarLeavers secondPillarLeavers;
   private final SavingsFundSavers savingsFundSavers;
   private final RecurringSavers recurringSavers;
+  private final ThirdPillarTaxHeadroom thirdPillarTaxHeadroom;
 
   @EventListener
   public void sendEmail(AfterMandateSignedEvent event) {
@@ -51,7 +53,8 @@ public class MandateEmailSender {
             secondPillarLeavers.hasLeft(event.getUser().getPersonalCode()),
             savingsFundSavers.isSaver(event.getUser().getPersonalCode()),
             event.getMandate().getMandateType() == MandateType.PAYMENT_RATE_CHANGE,
-            recurringSavers.recurringPaymentsOf(event.getUser().getPersonalCode()));
+            recurringSavers.recurringPaymentsOf(event.getUser().getPersonalCode()),
+            thirdPillarTaxHeadroom.hasHeadroom(event.getUser()));
     if (!event.getMandate().isPartOfBatch()) {
       mandateEmailService.sendMandate(
           event.getUser(), event.getMandate(), pillarSuggestion, event.getLocale());
@@ -79,7 +82,8 @@ public class MandateEmailSender {
             secondPillarLeavers.hasLeft(event.getUser().getPersonalCode()),
             savingsFundSavers.isSaver(event.getUser().getPersonalCode()),
             false,
-            recurringSavers.recurringPaymentsOf(event.getUser().getPersonalCode()));
+            recurringSavers.recurringPaymentsOf(event.getUser().getPersonalCode()),
+            thirdPillarTaxHeadroom.hasHeadroom(event.getUser()));
     mandateBatchEmailService.sendMandateBatch(
         event.getUser(), event.getMandateBatch(), pillarSuggestion, event.getLocale());
   }

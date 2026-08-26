@@ -8,7 +8,7 @@
         <mj-text font-size="24px" font-weight="bold">
           You&rsquo;re registered for the Tuleva hackathon
         </mj-text>
-        <mj-text>Hi *|FNAME|*!</mj-text>
+        <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
           Thanks for signing up for the Tuleva hackathon on 9&ndash;11&nbsp;October. Over three
           days we&rsquo;ll form teams and build the first solutions. The winning idea gets a
@@ -34,7 +34,7 @@
     <mj-section padding="0 24px">
       <mj-column>
         <mj-text padding-top="12px">
-          See you there!<br />
+          See you there.<br />
           <strong>Annika Uudelepp</strong><br />
           Member of the Management Board, Tuleva cooperative
         </mj-text>

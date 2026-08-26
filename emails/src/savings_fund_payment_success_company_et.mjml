@@ -7,8 +7,10 @@
       <mj-column>
         <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
-          Sinu sissemakse ettevõtte (*|RECIPIENTNAME|*) Tuleva Täiendavasse Kogumisfondi on
-          tehtud. Osakud jõuavad ettevõtte kontole kahe tööpäeva jooksul.
+          Sinu sissemakse ettevõtte Tuleva Täiendavasse Kogumisfondi on tehtud.
+          *|IF:RECIPIENTNAME|*Saaja on *|RECIPIENTNAME|* ja osakud jõuavad ettevõtte kontole
+          kahe tööpäeva jooksul.*|ELSE:|*Osakud jõuavad ettevõtte kontole kahe tööpäeva
+          jooksul.*|END:IF|*
         </mj-text>
       </mj-column>
     </mj-section>

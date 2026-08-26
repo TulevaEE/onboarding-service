@@ -16,9 +16,14 @@
       "FNAME": "Mari",
       "suggestThirdPillarRecurringPayment": true
     },
+    "III samba sissemakse tõstmise soovitus": {
+      "FNAME": "Mari",
+      "suggestThirdPillarRaise": true
+    },
     "kogumisfondi soovitus": {
       "FNAME": "Mari",
-      "suggestSavingsFund": true
+      "suggestSavingsFund": true,
+      "savingsFundFee": "0,28"
     },
     "kogumisfondi püsimakse soovitus": {
       "FNAME": "Mari",

@@ -24,23 +24,6 @@
         <mj-button href="https://pension.tuleva.ee/login?language=en">
           Calculate your savings
         </mj-button>
-
-        <mj-text>
-          <strong>Is it better to diversify risks by saving in the second pillar elsewhere?</strong>
-        </mj-text>
-        <mj-text>
-          The assets of all Estonian pension funds—both second and third pillar—are very well
-          diversified among hundreds of instruments on the global market. Additionally, pension
-          savers in all pension funds are protected from the fund manager's business risks.
-          This protection is guaranteed by law, and the pension saver does not need to spread
-          their money across multiple fund managers to hedge this risk.
-        </mj-text>
-        <mj-text>
-          It's also important to remember that your money in all pension funds is exposed to
-          market risk. If global securities markets decline, the unit prices of all pension
-          funds will fall. In this case, spreading your assets across different fund managers
-          who invest in stocks does not help.
-        </mj-text>
       </mj-column>
     </mj-section>
 

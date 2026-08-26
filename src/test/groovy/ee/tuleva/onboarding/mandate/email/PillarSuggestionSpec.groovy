@@ -199,6 +199,52 @@ class PillarSuggestionSpec extends Specification {
     !pillarSuggestion.isSuggestSavingsFund()
   }
 
+  def "suggests raising the third pillar contribution only to regular savers with tax headroom"() {
+    when:
+    user.getAge() >> age
+    contactDetails.isSecondPillarActive() >> true
+    contactDetails.isThirdPillarActive() >> true
+    conversion.isSecondPillarPartiallyConverted() >> true
+    conversion.isThirdPillarPartiallyConverted() >> true
+    conversion.getSecondPillarWeightedAverageFee() >> 0.003
+    conversion.getThirdPillarWeightedAverageFee() >> 0.003
+    paymentRates.canIncrease() >> false
+    def pillarSuggestion =
+        new PillarSuggestion(
+            user, contactDetails, conversion, paymentRates, [] as Set, false, false, false,
+            new RecurringPayments(thirdPillarRecurring, true), taxHeadroom)
+
+    then:
+    pillarSuggestion.isSuggestThirdPillarRaise() == suggestRaise
+    pillarSuggestion.isSuggestSavingsFund() == suggestSavingsFund
+
+    where:
+    age | thirdPillarRecurring | taxHeadroom | suggestRaise | suggestSavingsFund
+    40  | true                 | true        | true         | false
+    40  | true                 | false       | false        | true
+    40  | false                | true        | false        | false
+    17  | true                 | true        | false        | false
+  }
+
+  def "reports the raise nudge between the recurring and savings fund nudges"() {
+    when:
+    user.getAge() >> 40
+    contactDetails.isSecondPillarActive() >> true
+    contactDetails.isThirdPillarActive() >> true
+    conversion.isSecondPillarPartiallyConverted() >> true
+    conversion.isThirdPillarPartiallyConverted() >> true
+    conversion.getSecondPillarWeightedAverageFee() >> 0.003
+    conversion.getThirdPillarWeightedAverageFee() >> 0.003
+    paymentRates.canIncrease() >> false
+    def pillarSuggestion =
+        new PillarSuggestion(
+            user, contactDetails, conversion, paymentRates, [] as Set, false, false, false,
+            new RecurringPayments(true, true), true)
+
+    then:
+    pillarSuggestion.renderedNudgeTag() == Optional.of("nudge_third_pillar_raise")
+  }
+
   def "reports the nudge that actually renders, in chain order"() {
     when:
     user.getAge() >> 40

@@ -5,7 +5,7 @@
 
     <mj-section padding-top="12px">
       <mj-column>
-        <mj-text>Hello *|FNAME|*,</mj-text>
+        <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
           You have submitted a cancellation application through Tuleva. Your second pillar
           assets will stay in *|sourceFundName|*.

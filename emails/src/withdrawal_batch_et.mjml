@@ -6,7 +6,7 @@
     <mj-section padding-top="12px">
       <mj-column>
         <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
-        <mj-text>Väljamaksete avaldused on esitatud!</mj-text>
+        <mj-text>Väljamaksete avaldused on esitatud.</mj-text>
         <mj-text>Peagi saad oma kogutud pensionivara kasutusele võtta.</mj-text>
         <mj-text><strong>Sinu esitatud avaldused:</strong></mj-text>
 

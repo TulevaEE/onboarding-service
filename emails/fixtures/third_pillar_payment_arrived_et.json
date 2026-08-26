@@ -28,12 +28,20 @@
       "hasTulevaUser": true,
       "suggestThirdPillarRecurringPayment": true
     },
+    "III samba sissemakse tõstmise soovitus (ei esine)": {
+      "FNAME": "Mari",
+      "amount": "300",
+      "paymentDate": "12.08.2026",
+      "hasTulevaUser": true,
+      "suggestThirdPillarRaise": true
+    },
     "kogumisfondi soovitus": {
       "FNAME": "Mari",
       "amount": "300",
       "paymentDate": "12.08.2026",
       "hasTulevaUser": true,
-      "suggestSavingsFund": true
+      "suggestSavingsFund": true,
+      "savingsFundFee": "0,28"
     },
     "kogumisfondi püsimakse soovitus": {
       "FNAME": "Mari",

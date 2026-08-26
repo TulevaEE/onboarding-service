@@ -7,18 +7,18 @@
       <mj-column>
         <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
-          You are now saving for your pension alongside me and other Tuleva members.
+          You are now saving in your second pillar alongside me and other Tuleva members.
         </mj-text>
         <mj-raw>*|IF:hasFundSelection|*</mj-raw>
         <mj-raw>*|IF:hasFundTransfer|*</mj-raw>
         <mj-text>
-          Your payments will be directed to the chosen pension fund starting from the next
+          Your payments will be directed to the chosen fund starting from the next
           payment, and the exchange of your existing fund units takes effect
           on&nbsp;*|transferDate|*.
         </mj-text>
         <mj-raw>*|ELSE:|*</mj-raw>
         <mj-text>
-          Your payments will be directed to the chosen pension fund starting from the next
+          Your payments will be directed to the chosen fund starting from the next
           payment.
         </mj-text>
         <mj-raw>*|END:IF|*</mj-raw>

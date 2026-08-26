@@ -5,7 +5,7 @@
 
     <mj-section padding-top="12px">
       <mj-column>
-        <mj-text>Hello *|FNAME|*</mj-text>
+        <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
           *|buyerFullName|* signed the application and confirmed the payment was made. Once
           you’ve received the money, please confirm you’ve received it as well.

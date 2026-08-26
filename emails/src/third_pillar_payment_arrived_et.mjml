@@ -7,7 +7,7 @@
       <mj-column>
         <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
-          Sinu sissemakse *|amount|*&nbsp;&euro; jõudis pärale *|paymentDate|*! Sellega oled 30%
+          Sinu sissemakse *|amount|*&nbsp;&euro; jõudis pärale *|paymentDate|*. Sellega oled 30%
           tublimate Eesti inimeste seas, kes III&nbsp;sambas koguvad. Fondiosakud on sinu
           pensionikontol olemas.
         </mj-text>
@@ -20,7 +20,7 @@
 
         <mj-raw>*|ELSE:|*</mj-raw>
         <mj-text>
-          Näed kõiki oma kogumisi ühest kohast, kui logid sisse Tuleva kontole:
+          Näed kõiki oma kogumisi ühest kohast, kui logid Tulevasse sisse:
         </mj-text>
         <mj-button href="https://pension.tuleva.ee/login">Logi sisse</mj-button>
         <mj-raw>*|END:IF|*</mj-raw>

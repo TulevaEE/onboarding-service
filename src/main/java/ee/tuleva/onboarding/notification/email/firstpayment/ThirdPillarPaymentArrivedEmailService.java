@@ -54,14 +54,24 @@ public class ThirdPillarPaymentArrivedEmailService {
 
   private Map<String, Object> mergeVars(FirstThirdPillarPayment payment) {
     return Map.of(
-        "fname", payment.getFirstName(),
-        "lname", payment.getLastName(),
-        "amount", payment.amount(),
-        "paymentDate", payment.firstPaymentDate().format(PAYMENT_DATE_FORMAT),
-        "hasTulevaUser", payment.hasTulevaUser(),
-        "suggestSecondPillar", payment.suggestSecondPillar(),
-        "suggestPaymentRate", payment.suggestPaymentRate(),
-        "suggestMembership", payment.suggestMembership());
+        "fname",
+        payment.getFirstName(),
+        "lname",
+        payment.getLastName(),
+        "amount",
+        payment.amount(),
+        "paymentDate",
+        payment.firstPaymentDate().format(PAYMENT_DATE_FORMAT),
+        "hasTulevaUser",
+        payment.hasTulevaUser(),
+        "leftSecondPillar",
+        payment.leftSecondPillar(),
+        "suggestSecondPillar",
+        payment.suggestSecondPillar(),
+        "suggestPaymentRate",
+        payment.suggestPaymentRate(),
+        "suggestMembership",
+        payment.suggestMembership());
   }
 
   private List<String> tags(FirstThirdPillarPayment payment) {

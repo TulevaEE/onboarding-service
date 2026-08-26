@@ -9,6 +9,12 @@
         <mj-text>
           I’m glad you’ve decided to start saving in the third pillar with us.
         </mj-text>
+        <mj-raw>*|IF:hasFundTransfer|*</mj-raw>
+        <mj-text>
+          Your application to exchange your existing fund units has been forwarded to
+          Pensionikeskus, and the units are usually exchanged within a few working days.
+        </mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
         <mj-text>
           Your contribution has not reached the Tuleva III Pillar Pension Fund yet. If you made
           a payment from your internet bank or set up a recurring payment, your contribution

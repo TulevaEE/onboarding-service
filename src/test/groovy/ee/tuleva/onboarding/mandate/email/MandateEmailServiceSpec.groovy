@@ -61,6 +61,8 @@ class MandateEmailServiceSpec extends Specification {
         fname              : user.firstName,
         lname              : user.lastName,
         transferDate       : "03.05.2021",
+        hasFundSelection   : true,
+        hasFundTransfer    : true,
         suggestPaymentRate : pillarSuggestion.suggestPaymentRate,
         suggestSecondPillar: pillarSuggestion.suggestSecondPillar,
         suggestThirdPillar : pillarSuggestion.suggestThirdPillar,
@@ -119,7 +121,7 @@ class MandateEmailServiceSpec extends Specification {
     def paymentRates = samplePaymentRates()
     def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
     def message = new MandrillMessage()
-    def mergeVars = [fname: user.firstName, lname: user.lastName]
+    def mergeVars = [fname: user.firstName, lname: user.lastName, hasFundTransfer: true]
     def tags = ["pillar_3.1", "reminder"]
     def locale = Locale.ENGLISH
     def sendAt = now.plus(1, HOURS)
@@ -129,7 +131,6 @@ class MandateEmailServiceSpec extends Specification {
     }
 
     emailPersistenceService.hasEmailsFor(mandate) >> false
-
 
     when:
     mandateEmailService.sendMandate(user, mandate, pillarSuggestion, locale)
@@ -188,7 +189,8 @@ class MandateEmailServiceSpec extends Specification {
       _id = "234"
       status = "sent"
     }
-    1 * emailService.newMandrillMessage(user.email, "third_pillar_payment_reminder_mandate_en", mergeVars, ["pillar_3.1", "reminder"], !null) >> paymentReminder
+    def reminderMergeVars = mergeVars + [hasFundTransfer: true]
+    1 * emailService.newMandrillMessage(user.email, "third_pillar_payment_reminder_mandate_en", reminderMergeVars, ["pillar_3.1", "reminder"], !null) >> paymentReminder
     1 * emailService.send(user, paymentReminder, "third_pillar_payment_reminder_mandate_en", now.plus(1, HOURS)) >> Optional.of(mandrillResponse1)
     1 * emailPersistenceService.save(user, mandrillResponse1.id, THIRD_PILLAR_PAYMENT_REMINDER_MANDATE, mandrillResponse1.status, mandate)
 

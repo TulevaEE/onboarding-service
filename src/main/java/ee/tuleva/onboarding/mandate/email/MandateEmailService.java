@@ -114,6 +114,8 @@ public class MandateEmailService {
       MandateDeadlines deadlines = mandateDeadlinesService.getDeadlines(mandate.getCreatedDate());
       mergeVars.put(
           "transferDate", deadlines.getTransferMandateFulfillmentDate().format(dateTimeFormatter));
+      mergeVars.put("hasFundSelection", mandate.getFutureContributionFundIsin().isPresent());
+      mergeVars.put("hasFundTransfer", !mandate.getFundTransferExchangesBySourceIsin().isEmpty());
     }
 
     if (mandate.isTransferCancellation()) {
@@ -144,6 +146,12 @@ public class MandateEmailService {
     return tags;
   }
 
+  private Map<String, Object> getThirdPillarReminderMergeVars(User user, Mandate mandate) {
+    var mergeVars = new HashMap<String, Object>(getNameMergeVars(user));
+    mergeVars.put("hasFundTransfer", !mandate.getFundTransferExchangesBySourceIsin().isEmpty());
+    return mergeVars;
+  }
+
   private void scheduleThirdPillarPaymentReminderEmail(User user, Mandate mandate, Locale locale) {
     Instant sendAt = Instant.now(clock).plus(1, HOURS);
     EmailType emailType = EmailType.from(mandate);
@@ -162,7 +170,7 @@ public class MandateEmailService {
         emailService.newMandrillMessage(
             user.getEmail(),
             templateName,
-            getNameMergeVars(user),
+            getThirdPillarReminderMergeVars(user, mandate),
             List.of("pillar_3.1", "reminder"),
             getAttachments(user, mandate));
 

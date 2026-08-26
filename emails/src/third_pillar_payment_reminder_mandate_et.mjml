@@ -7,6 +7,12 @@
       <mj-column>
         <mj-text>Tere tulemast,&nbsp;*|FNAME|*</mj-text>
         <mj-text>Mul on hea meel, et kogud koos meiega III&nbsp;sambasse.</mj-text>
+        <mj-raw>*|IF:hasFundTransfer|*</mj-raw>
+        <mj-text>
+          Sinu osakute vahetuse avaldus on edastatud Pensionikeskusele ja osakud vahetatakse
+          tavaliselt mõne tööpäeva jooksul.
+        </mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
         <mj-text>
           Sinu sissemakse pole veel Tuleva III&nbsp;Samba Pensionifondi jõudnud. Kui tegid
           makse oma internetipangast või seadsid üles püsimakse, siis jõuab sinu raha fondi üks

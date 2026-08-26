@@ -14,6 +14,11 @@
         </mj-text>
         <mj-button href="https://pension.tuleva.ee/account?language=en">View member capital</mj-button>
         <mj-text>
+          As the transaction has already taken place, we ask the advertiser to delete their
+          listing so that interested members no longer see the sold membership capital or send
+          new inquiries.
+        </mj-text>
+        <mj-text>
           Please note that the sales proceeds from the transfer of membership capital
           are subject to income tax. Therefore, it must be declared in the following
           year's income tax return (by April 30).
@@ -29,7 +34,7 @@
     <mj-section padding="0 24px">
       <mj-column>
         <mj-text padding-top="12px">
-          TÜ Tuleva members of the board<br />
+          Members of the board of Tulundusühistu Tuleva<br />
           Annika Uudelepp and Tõnu Pekk
         </mj-text>
       </mj-column>

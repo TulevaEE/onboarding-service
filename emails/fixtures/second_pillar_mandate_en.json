@@ -1,6 +1,6 @@
 {
   "variants": {
-    "second pillar suggestion": {
+    "second pillar suggestion (cannot occur)": {
       "FNAME": "Mari",
       "transferDate": "12.08.2026",
       "suggestSecondPillar": true

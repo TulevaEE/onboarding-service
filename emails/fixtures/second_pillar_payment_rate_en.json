@@ -1,13 +1,13 @@
 {
   "variants": {
-    "second pillar suggestion": {
+    "second pillar suggestion (cannot occur)": {
       "FNAME": "Jaan",
       "increased": false,
       "paymentRateFulfillmentDate": "01.01.2027",
       "newPaymentRate": "2",
       "suggestSecondPillar": true
     },
-    "payment rate increase suggestion": {
+    "payment rate increase suggestion (cannot occur)": {
       "FNAME": "Mari",
       "increased": true,
       "paymentRateFulfillmentDate": "01.01.2027",

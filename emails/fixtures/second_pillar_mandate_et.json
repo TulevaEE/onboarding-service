@@ -28,6 +28,16 @@
       "FNAME": "Mari",
       "transferDate": "12.08.2026",
       "suggestSavingsFund": true
+    },
+    "püsimakse soovitus": {
+      "FNAME": "Mari",
+      "transferDate": "12.08.2026",
+      "suggestThirdPillarRecurringPayment": true
+    },
+    "kogumisfondi püsimakse": {
+      "FNAME": "Mari",
+      "transferDate": "12.08.2026",
+      "suggestSavingsFundRecurringPayment": true
     }
   }
 }

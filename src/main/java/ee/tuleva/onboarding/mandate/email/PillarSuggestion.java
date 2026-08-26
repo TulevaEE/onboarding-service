@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.email;
 
+import ee.tuleva.onboarding.analytics.RecurringPayments;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.paymentrate.PaymentRates;
@@ -22,13 +23,24 @@ public class PillarSuggestion {
   private final boolean suggestMembership;
   private final boolean leftSecondPillar;
   private final boolean suggestSavingsFund;
+  private final boolean suggestThirdPillarRecurringPayment;
+  private final boolean suggestSavingsFundRecurringPayment;
 
   public PillarSuggestion(
       User user,
       ContactDetails contactDetails,
       ConversionResponse conversion,
       PaymentRates paymentRates) {
-    this(user, contactDetails, conversion, paymentRates, Set.of(), false, true);
+    this(
+        user,
+        contactDetails,
+        conversion,
+        paymentRates,
+        Set.of(),
+        false,
+        true,
+        false,
+        new RecurringPayments(true, true));
   }
 
   public PillarSuggestion(
@@ -38,7 +50,16 @@ public class PillarSuggestion {
       PaymentRates paymentRates,
       Set<Integer> mandatePillars,
       boolean leftSecondPillar) {
-    this(user, contactDetails, conversion, paymentRates, mandatePillars, leftSecondPillar, true);
+    this(
+        user,
+        contactDetails,
+        conversion,
+        paymentRates,
+        mandatePillars,
+        leftSecondPillar,
+        true,
+        false,
+        new RecurringPayments(true, true));
   }
 
   public PillarSuggestion(
@@ -57,7 +78,8 @@ public class PillarSuggestion {
         mandatePillars,
         leftSecondPillar,
         savesInSavingsFund,
-        false);
+        false,
+        new RecurringPayments(true, true));
   }
 
   public PillarSuggestion(
@@ -69,6 +91,28 @@ public class PillarSuggestion {
       boolean leftSecondPillar,
       boolean savesInSavingsFund,
       boolean concernsPaymentRate) {
+    this(
+        user,
+        contactDetails,
+        conversion,
+        paymentRates,
+        mandatePillars,
+        leftSecondPillar,
+        savesInSavingsFund,
+        concernsPaymentRate,
+        new RecurringPayments(true, true));
+  }
+
+  public PillarSuggestion(
+      User user,
+      ContactDetails contactDetails,
+      ConversionResponse conversion,
+      PaymentRates paymentRates,
+      Set<Integer> mandatePillars,
+      boolean leftSecondPillar,
+      boolean savesInSavingsFund,
+      boolean concernsPaymentRate,
+      RecurringPayments recurringPayments) {
     this.leftSecondPillar = leftSecondPillar;
     boolean adult = user.getAge() >= 18;
     this.suggestPaymentRate =
@@ -98,20 +142,27 @@ public class PillarSuggestion {
                             .compareTo(new BigDecimal("0.005"))
                         > 0));
     this.suggestMembership = !user.isMember();
+    this.suggestThirdPillarRecurringPayment =
+        adult && contactDetails.isThirdPillarActive() && !recurringPayments.thirdPillar();
     this.suggestSavingsFund =
         adult
             && !savesInSavingsFund
             && !suggestSecondPillar
             && !suggestPaymentRate
-            && !suggestThirdPillar;
+            && !suggestThirdPillar
+            && !suggestThirdPillarRecurringPayment;
+    this.suggestSavingsFundRecurringPayment =
+        adult && savesInSavingsFund && !recurringPayments.savingsFund();
   }
 
   public Optional<String> renderedNudgeTag() {
     if (suggestSecondPillar) return Optional.of("nudge_second_pillar");
     if (suggestPaymentRate) return Optional.of("nudge_payment_rate");
     if (suggestThirdPillar) return Optional.of("nudge_third_pillar");
+    if (suggestThirdPillarRecurringPayment) return Optional.of("nudge_third_pillar_recurring");
     if (suggestSavingsFund) return Optional.of("nudge_savings_fund");
+    if (suggestSavingsFundRecurringPayment) return Optional.of("nudge_savings_fund_recurring");
     if (suggestMembership) return Optional.of("nudge_membership");
-    return Optional.empty();
+    return Optional.of("nudge_none");
   }
 }

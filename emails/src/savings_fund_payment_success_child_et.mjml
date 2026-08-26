@@ -12,16 +12,7 @@
         </mj-text>
 
         <mj-include path="./partials/suggest_chain_open_et.mjml" />
-        <mj-text>
-          Täiendavasse Kogumisfondi saab koguda ka püsimaksega. Nii kasvab lapse vara iga kuu
-          ilma, et peaksid sellele eraldi mõtlema.
-        </mj-text>
-        <mj-text>
-          <strong>Püsimakse saad seadistada Tuleva kontol, kui lähed lapse rolli vaatesse.</strong>
-        </mj-text>
-        <mj-button href="https://pension.tuleva.ee/savings-fund/payment">
-          Seadistan püsimakse
-        </mj-button>
+
         <mj-raw>*|END:IF|*</mj-raw>
       </mj-column>
     </mj-section>

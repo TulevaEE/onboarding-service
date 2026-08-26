@@ -4,8 +4,12 @@
 <mj-include path="./suggest_payment_rate_en.mjml" />
 <mj-raw>*|ELSEIF:suggestThirdPillar|*</mj-raw>
 <mj-include path="./suggest_third_pillar_en.mjml" />
+<mj-raw>*|ELSEIF:suggestThirdPillarRecurringPayment|*</mj-raw>
+<mj-include path="./suggest_third_pillar_recurring_en.mjml" />
 <mj-raw>*|ELSEIF:suggestSavingsFund|*</mj-raw>
 <mj-include path="./suggest_savings_fund_en.mjml" />
+<mj-raw>*|ELSEIF:suggestSavingsFundRecurringPayment|*</mj-raw>
+<mj-include path="./suggest_savings_fund_recurring_en.mjml" />
 <mj-raw>*|ELSEIF:suggestMembership|*</mj-raw>
 <mj-include path="./suggest_membership_en.mjml" />
 <mj-raw>*|ELSE:|*</mj-raw>

@@ -28,18 +28,32 @@
       "newPaymentRate": "4",
       "suggestPaymentRate": true
     },
-    "vähenenud, püsimakse": {
-      "FNAME": "Jaan",
-      "increased": false,
-      "paymentRateFulfillmentDate": "01.01.2027",
-      "newPaymentRate": "2"
-    },
     "kogumisfond": {
       "FNAME": "Mari",
       "increased": true,
       "paymentRateFulfillmentDate": "01.01.2027",
       "newPaymentRate": "4",
       "suggestSavingsFund": true
+    },
+    "püsimakse soovitus": {
+      "FNAME": "Mari",
+      "increased": true,
+      "paymentRateFulfillmentDate": "01.01.2027",
+      "newPaymentRate": "4",
+      "suggestThirdPillarRecurringPayment": true
+    },
+    "kogumisfondi püsimakse": {
+      "FNAME": "Mari",
+      "increased": true,
+      "paymentRateFulfillmentDate": "01.01.2027",
+      "newPaymentRate": "4",
+      "suggestSavingsFundRecurringPayment": true
+    },
+    "ilma soovituseta": {
+      "FNAME": "Jaan",
+      "increased": false,
+      "paymentRateFulfillmentDate": "01.01.2027",
+      "newPaymentRate": "2"
     }
   }
 }

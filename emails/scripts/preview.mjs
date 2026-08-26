@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { renderMergeLanguage } from './merge-language.mjs';
@@ -6,6 +6,9 @@ import { renderMergeLanguage } from './merge-language.mjs';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const previewDir = join(root, 'preview');
 mkdirSync(previewDir, { recursive: true });
+readdirSync(previewDir)
+  .filter((f) => f.endsWith('.html'))
+  .forEach((f) => rmSync(join(previewDir, f)));
 
 function collect(dir) {
   if (!existsSync(dir)) {

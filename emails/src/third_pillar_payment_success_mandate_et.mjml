@@ -14,14 +14,7 @@
         </mj-text>
 
         <mj-include path="./partials/suggest_chain_open_et.mjml" />
-        <mj-text>
-          Nutikas on III&nbsp;sambas kogumine teha <strong>automaatseks</strong> ja seadistada
-          Tuleva lehel sisse logides püsimakse. Nii on kindel, et sa kiires elurütmis ei jää ilma
-          maksuvõidust. Kui püsimakse on juba seadistatud, on aeg-ajalt mõistlik vaadata üle, kas
-          saad <strong>püsimakse summat suurendada</strong>.
-        </mj-text>
-        <mj-text><strong>Arvuta oma maksuvõit ja seadista püsimakse:</strong></mj-text>
-        <mj-button href="https://tuleva.ee/iii-sammas/">Vaata kalkulaatorist järele</mj-button>
+
         <mj-raw>*|END:IF|*</mj-raw>
       </mj-column>
     </mj-section>

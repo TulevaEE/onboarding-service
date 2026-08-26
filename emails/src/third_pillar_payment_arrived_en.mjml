@@ -15,15 +15,7 @@
         <mj-raw>*|IF:hasTulevaUser|*</mj-raw>
 
         <mj-include path="./partials/suggest_chain_open_en.mjml" />
-        <mj-text>
-          The smartest move is to make saving in the third pillar automatic by logging into the
-          Tuleva website and setting up a recurring payment. This ensures that in the hustle of
-          daily life, you won't miss out on the tax benefits. If you've already set up a recurring
-          payment, it's a good idea to occasionally check whether you can increase the payment
-          amount.
-        </mj-text>
-        <mj-text><strong>Calculate your tax savings and set up a recurring payment:</strong></mj-text>
-        <mj-button href="https://tuleva.ee/iii-sammas/">Check out our calculator</mj-button>
+
         <mj-raw>*|END:IF|*</mj-raw>
 
         <mj-raw>*|ELSE:|*</mj-raw>

@@ -26,6 +26,8 @@ import static ee.tuleva.onboarding.mandate.MandateFixture.samplePartialWithdrawa
 import static ee.tuleva.onboarding.mandate.MandateFixture.thirdPillarMandate
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchFixture.aMandateBatch
 import ee.tuleva.onboarding.analytics.SecondPillarLeavers
+import ee.tuleva.onboarding.analytics.RecurringPayments
+import ee.tuleva.onboarding.analytics.RecurringSavers
 import ee.tuleva.onboarding.savings.fund.SavingsFundSavers
 
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchFixture.aSavedMandateBatch
@@ -44,8 +46,11 @@ class MandateEmailSenderSpec extends Specification {
   SavingsFundSavers savingsFundSavers = Mock(SavingsFundSavers) {
     isSaver(_) >> false
   }
+  RecurringSavers recurringSavers = Mock(RecurringSavers) {
+    recurringPaymentsOf(_) >> new RecurringPayments(true, true)
+  }
 
-  MandateEmailSender mandateEmailSender = new MandateEmailSender(mandateEmailService, mandateBatchEmailService, episService, conversionService, paymentRateService, secondPillarLeavers, savingsFundSavers)
+  MandateEmailSender mandateEmailSender = new MandateEmailSender(mandateEmailService, mandateBatchEmailService, episService, conversionService, paymentRateService, secondPillarLeavers, savingsFundSavers, recurringSavers)
 
   def "send email when second pillar mandate event was received"() {
     given:

@@ -12,15 +12,7 @@
         </mj-text>
 
         <mj-include path="./partials/suggest_chain_open_et.mjml" />
-        <mj-text>
-          Paljud Tuleva kogujad on seadistanud kogumisfondi püsimakse. Nii ei pea nad edaspidi
-          sissemaksete tegemist pidevalt meeles hoidma. Püsimakse saad seadistada oma Tuleva
-          kontol.
-        </mj-text>
-        <mj-text><strong>Püsimakse saad seadistada oma Tuleva kontol:</strong></mj-text>
-        <mj-button href="https://pension.tuleva.ee/savings-fund/payment">
-          Seadistan püsimakse
-        </mj-button>
+
         <mj-raw>*|END:IF|*</mj-raw>
       </mj-column>
     </mj-section>

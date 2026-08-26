@@ -19,14 +19,7 @@
         </mj-text>
 
         <mj-include path="./partials/suggest_chain_open_et.mjml" />
-        <mj-text>
-          Kõige kavalam on teha ka III&nbsp;sambas kogumine <strong>automaatseks</strong> ja
-          seada üles püsimakse. Nii on kindel, et sa kiires elurütmis ei jää ilma maksuvõidust.
-        </mj-text>
-        <mj-text>
-          <strong>Arvuta oma maksuvõit ja seadista püsimakse:</strong>
-        </mj-text>
-        <mj-button href="https://tuleva.ee/iii-sammas/">Vaata kalkulaatorist järele</mj-button>
+
         <mj-raw>*|END:IF|*</mj-raw>
       </mj-column>
     </mj-section>

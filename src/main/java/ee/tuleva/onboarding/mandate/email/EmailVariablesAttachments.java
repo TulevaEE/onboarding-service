@@ -20,7 +20,11 @@ public class EmailVariablesAttachments {
         "suggestSecondPillar", pillarSuggestion.isSuggestSecondPillar(),
         "suggestThirdPillar", pillarSuggestion.isSuggestThirdPillar(),
         "leftSecondPillar", pillarSuggestion.isLeftSecondPillar(),
-        "suggestSavingsFund", pillarSuggestion.isSuggestSavingsFund());
+        "suggestSavingsFund", pillarSuggestion.isSuggestSavingsFund(),
+        "suggestThirdPillarRecurringPayment",
+            pillarSuggestion.isSuggestThirdPillarRecurringPayment(),
+        "suggestSavingsFundRecurringPayment",
+            pillarSuggestion.isSuggestSavingsFundRecurringPayment());
   }
 
   public static Map<String, Object> getNameMergeVars(User user) {

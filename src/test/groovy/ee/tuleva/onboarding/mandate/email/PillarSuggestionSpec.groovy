@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.email
 
+import ee.tuleva.onboarding.analytics.RecurringPayments
 import ee.tuleva.onboarding.conversion.ConversionResponse
 import ee.tuleva.onboarding.epis.contact.ContactDetails
 import ee.tuleva.onboarding.paymentrate.PaymentRates
@@ -222,6 +223,6 @@ class PillarSuggestionSpec extends Specification {
     true               | true        | true               | false  | "nudge_payment_rate"
     true               | false       | false              | false  | "nudge_savings_fund"
     true               | false       | true               | false  | "nudge_membership"
-    true               | false       | true               | true   | null
+    true               | false       | true               | true   | "nudge_none"
   }
 }

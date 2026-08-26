@@ -16,12 +16,20 @@
       "FNAME": "Mari",
       "suggestMembership": true
     },
-    "seadista püsimakse": {
-      "FNAME": "Mari"
-    },
     "kogumisfond": {
       "FNAME": "Mari",
       "suggestSavingsFund": true
+    },
+    "püsimakse soovitus": {
+      "FNAME": "Mari",
+      "suggestThirdPillarRecurringPayment": true
+    },
+    "kogumisfondi püsimakse": {
+      "FNAME": "Mari",
+      "suggestSavingsFundRecurringPayment": true
+    },
+    "ilma soovituseta": {
+      "FNAME": "Mari"
     }
   }
 }

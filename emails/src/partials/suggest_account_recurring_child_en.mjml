@@ -1,0 +1,11 @@
+<mj-text>
+  You can also contribute to the Additional Savings Fund with a recurring payment. This way
+  your child's savings grow every month without you having to think about it separately.
+</mj-text>
+<mj-text>
+  <strong>You can set up the recurring payment in your Tuleva account by switching to your
+  child's role view.</strong>
+</mj-text>
+<mj-button href="https://pension.tuleva.ee/savings-fund/payment?language=en&utm_content=nudge_savings_fund_recurring">
+  Set up recurring payment
+</mj-button>

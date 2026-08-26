@@ -1,32 +1,36 @@
 {
   "variants": {
-    "II sammas mujal": {
+    "konto püsimakse soovitus": {
+      "FNAME": "Mari",
+      "suggestAccountRecurringPayment": true
+    },
+    "II samba soovitus": {
       "FNAME": "Mari",
       "suggestSecondPillar": true
     },
-    "tõsta II samba määra": {
+    "II samba määra tõstmise soovitus": {
       "FNAME": "Mari",
       "suggestPaymentRate": true
     },
-    "seadista III sammas": {
+    "III samba soovitus": {
       "FNAME": "Mari",
       "suggestThirdPillar": true
     },
-    "astu liikmeks": {
-      "FNAME": "Mari",
-      "suggestMembership": true
-    },
-    "kogumisfond": {
-      "FNAME": "Mari",
-      "suggestSavingsFund": true
-    },
-    "püsimakse soovitus": {
+    "III samba püsimakse soovitus": {
       "FNAME": "Mari",
       "suggestThirdPillarRecurringPayment": true
     },
-    "kogumisfondi püsimakse": {
+    "kogumisfondi soovitus": {
+      "FNAME": "Mari",
+      "suggestSavingsFund": true
+    },
+    "kogumisfondi püsimakse soovitus": {
       "FNAME": "Mari",
       "suggestSavingsFundRecurringPayment": true
+    },
+    "liikmesuse soovitus": {
+      "FNAME": "Mari",
+      "suggestMembership": true
     },
     "ilma soovituseta": {
       "FNAME": "Mari"

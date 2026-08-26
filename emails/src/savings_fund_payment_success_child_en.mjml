@@ -29,6 +29,14 @@
       </mj-column>
     </mj-section>
 
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-raw>*|IF:suggestAccountRecurringPayment|*</mj-raw>
+        <mj-include path="./partials/suggest_account_recurring_child_en.mjml" />
+        <mj-raw>*|END:IF|*</mj-raw>
+      </mj-column>
+    </mj-section>
+
     <mj-include path="./partials/contact_en.mjml" />
     <mj-section padding="0 24px">
       <mj-column>

@@ -1,0 +1,10 @@
+<mj-text>
+  Täiendavasse Kogumisfondi saab koguda ka püsimaksega. Nii kasvab ettevõtte portfell iga kuu
+  ilma, et peaksid sellele eraldi mõtlema.
+</mj-text>
+<mj-text>
+  <strong>Püsimakse saad seadistada Tuleva kontol, kui lähed ettevõtte rolli vaatesse.</strong>
+</mj-text>
+<mj-button href="https://pension.tuleva.ee/savings-fund/payment?utm_content=nudge_savings_fund_recurring">
+  Seadistan püsimakse
+</mj-button>

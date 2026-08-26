@@ -1,21 +1,36 @@
 {
   "variants": {
-    "soovita III sammast": {
-      "FNAME": "Mari",
-      "transferDate": "12.08.2026",
-      "suggestThirdPillar": true
-    },
-    "soovita II sammast mujal": {
+    "II samba soovitus": {
       "FNAME": "Mari",
       "transferDate": "12.08.2026",
       "suggestSecondPillar": true
     },
-    "tõsta makseprotsenti": {
+    "II samba määra tõstmise soovitus": {
       "FNAME": "Mari",
       "transferDate": "12.08.2026",
       "suggestPaymentRate": true
     },
-    "astu liikmeks": {
+    "III samba soovitus": {
+      "FNAME": "Mari",
+      "transferDate": "12.08.2026",
+      "suggestThirdPillar": true
+    },
+    "III samba püsimakse soovitus": {
+      "FNAME": "Mari",
+      "transferDate": "12.08.2026",
+      "suggestThirdPillarRecurringPayment": true
+    },
+    "kogumisfondi soovitus": {
+      "FNAME": "Mari",
+      "transferDate": "12.08.2026",
+      "suggestSavingsFund": true
+    },
+    "kogumisfondi püsimakse soovitus": {
+      "FNAME": "Mari",
+      "transferDate": "12.08.2026",
+      "suggestSavingsFundRecurringPayment": true
+    },
+    "liikmesuse soovitus": {
       "FNAME": "Mari",
       "transferDate": "12.08.2026",
       "suggestMembership": true
@@ -23,21 +38,6 @@
     "muu (harude puudumine)": {
       "FNAME": "Mari",
       "transferDate": "12.08.2026"
-    },
-    "kogumisfond": {
-      "FNAME": "Mari",
-      "transferDate": "12.08.2026",
-      "suggestSavingsFund": true
-    },
-    "püsimakse soovitus": {
-      "FNAME": "Mari",
-      "transferDate": "12.08.2026",
-      "suggestThirdPillarRecurringPayment": true
-    },
-    "kogumisfondi püsimakse": {
-      "FNAME": "Mari",
-      "transferDate": "12.08.2026",
-      "suggestSavingsFundRecurringPayment": true
     }
   }
 }

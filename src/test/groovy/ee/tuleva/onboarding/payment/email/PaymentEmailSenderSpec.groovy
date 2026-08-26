@@ -48,6 +48,7 @@ class PaymentEmailSenderSpec extends Specification {
   }
   RecurringSavers recurringSavers = Mock() {
     recurringPaymentsOf(_) >> new RecurringPayments(true, true)
+    hasRecurringSavingsFundPayments(_) >> true
   }
 
   def paymentEmailSender = new PaymentEmailSender(paymentEmailService, conversionService, principalService,
@@ -111,7 +112,7 @@ class PaymentEmailSenderSpec extends Specification {
     paymentEmailSender.onSavingsPaymentCreated(savingsPaymentCreatedEvent)
 
     then:
-    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.personSuccess(), pillarSuggestion, locale)
+    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.personSuccess(), pillarSuggestion, false, locale)
   }
 
   def "send email on savings payment creation for a child passes the child email with the child name"() {
@@ -134,7 +135,7 @@ class PaymentEmailSenderSpec extends Specification {
     paymentEmailSender.onSavingsPaymentCreated(savingsPaymentCreatedEvent)
 
     then:
-    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.childSuccess("Kid Tester"), pillarSuggestion, locale)
+    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.childSuccess("Kid Tester"), pillarSuggestion, false, locale)
   }
 
   def "send email on savings payment cancel"() {
@@ -156,7 +157,7 @@ class PaymentEmailSenderSpec extends Specification {
     paymentEmailSender.onSavingsPaymentCancelled(savingsPaymentCancelledEvent)
 
     then:
-    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.cancelled(), pillarSuggestion, locale)
+    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.cancelled(), pillarSuggestion, false, locale)
   }
 
   def "send email on savings payment failure without a pillar suggestion"() {

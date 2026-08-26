@@ -1,5 +1,9 @@
 {
   "variants": {
+    "account recurring suggestion": {
+      "FNAME": "Mari",
+      "suggestAccountRecurringPayment": true
+    },
     "company contribution": {
       "FNAME": "Mari"
     }

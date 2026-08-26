@@ -19,6 +19,12 @@ public class RecurringSavers {
   private final SavingFundPaymentRepository savingsFundPayments;
   private final Clock clock;
 
+  public boolean hasRecurringSavingsFundPayments(PartyId party) {
+    LocalDate from = LocalDate.now(clock).withDayOfMonth(1).minusMonths(LOOKBACK_MONTHS - 1);
+    return savingsFundPayments.countIssuedPaymentMonthsSince(party, from)
+        >= MIN_CONTRIBUTION_MONTHS;
+  }
+
   public RecurringPayments recurringPaymentsOf(String personalCode) {
     LocalDate from = LocalDate.now(clock).withDayOfMonth(1).minusMonths(LOOKBACK_MONTHS - 1);
     return new RecurringPayments(

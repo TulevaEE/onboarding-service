@@ -1,53 +1,53 @@
 {
   "variants": {
-    "increased, suggest third pillar": {
-      "FNAME": "Mari",
-      "increased": true,
-      "paymentRateFulfillmentDate": "01.01.2027",
-      "newPaymentRate": "4",
-      "suggestThirdPillar": true
-    },
-    "decreased, suggest second pillar": {
+    "second pillar suggestion": {
       "FNAME": "Jaan",
       "increased": false,
       "paymentRateFulfillmentDate": "01.01.2027",
       "newPaymentRate": "2",
       "suggestSecondPillar": true
     },
-    "increased, suggest membership": {
-      "FNAME": "Mari",
-      "increased": true,
-      "paymentRateFulfillmentDate": "01.01.2027",
-      "newPaymentRate": "6",
-      "suggestMembership": true
-    },
-    "increased, suggest payment rate": {
+    "payment rate increase suggestion": {
       "FNAME": "Mari",
       "increased": true,
       "paymentRateFulfillmentDate": "01.01.2027",
       "newPaymentRate": "4",
       "suggestPaymentRate": true
     },
-    "savings fund": {
+    "third pillar suggestion": {
       "FNAME": "Mari",
       "increased": true,
       "paymentRateFulfillmentDate": "01.01.2027",
       "newPaymentRate": "4",
-      "suggestSavingsFund": true
+      "suggestThirdPillar": true
     },
-    "recurring payment": {
+    "third pillar recurring suggestion": {
       "FNAME": "Mari",
       "increased": true,
       "paymentRateFulfillmentDate": "01.01.2027",
       "newPaymentRate": "4",
       "suggestThirdPillarRecurringPayment": true
     },
-    "savings fund recurring": {
+    "savings fund suggestion": {
+      "FNAME": "Mari",
+      "increased": true,
+      "paymentRateFulfillmentDate": "01.01.2027",
+      "newPaymentRate": "4",
+      "suggestSavingsFund": true
+    },
+    "savings fund recurring suggestion": {
       "FNAME": "Mari",
       "increased": true,
       "paymentRateFulfillmentDate": "01.01.2027",
       "newPaymentRate": "4",
       "suggestSavingsFundRecurringPayment": true
+    },
+    "membership suggestion": {
+      "FNAME": "Mari",
+      "increased": true,
+      "paymentRateFulfillmentDate": "01.01.2027",
+      "newPaymentRate": "6",
+      "suggestMembership": true
     },
     "no nudge": {
       "FNAME": "Jaan",

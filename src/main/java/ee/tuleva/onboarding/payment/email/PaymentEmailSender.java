@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.MEMBER_FEE;
 import static org.springframework.transaction.annotation.Propagation.REQUIRES_NEW;
 import static org.springframework.transaction.event.TransactionPhase.AFTER_COMMIT;
 
+import ee.tuleva.onboarding.analytics.RecurringSavers;
 import ee.tuleva.onboarding.analytics.SecondPillarLeavers;
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
@@ -42,6 +43,7 @@ public class PaymentEmailSender {
   private final SecondPillarPaymentRateService paymentRateService;
   private final SecondPillarLeavers secondPillarLeavers;
   private final SavingsFundSavers savingsFundSavers;
+  private final RecurringSavers recurringSavers;
   private final SavingsFundSuccessEmailResolver savingsFundSuccessEmailResolver;
 
   // TODO: can we make these @Async?
@@ -101,7 +103,9 @@ public class PaymentEmailSender {
         paymentRateService.getPaymentRates(user),
         concernedPillars,
         secondPillarLeavers.hasLeft(user.getPersonalCode()),
-        savingsFundSavers.isSaver(user.getPersonalCode()));
+        savingsFundSavers.isSaver(user.getPersonalCode()),
+        false,
+        recurringSavers.recurringPaymentsOf(user.getPersonalCode()));
   }
 
   private void withSecurityContext(User user, Runnable action) {

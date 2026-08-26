@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.mandate.email;
 
 import static java.util.stream.Collectors.toSet;
 
+import ee.tuleva.onboarding.analytics.RecurringSavers;
 import ee.tuleva.onboarding.analytics.SecondPillarLeavers;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.conversion.UserConversionService;
@@ -33,6 +34,7 @@ public class MandateEmailSender {
   private final SecondPillarPaymentRateService paymentRateService;
   private final SecondPillarLeavers secondPillarLeavers;
   private final SavingsFundSavers savingsFundSavers;
+  private final RecurringSavers recurringSavers;
 
   @EventListener
   public void sendEmail(AfterMandateSignedEvent event) {
@@ -48,7 +50,8 @@ public class MandateEmailSender {
             Set.of(event.getMandate().getPillar()),
             secondPillarLeavers.hasLeft(event.getUser().getPersonalCode()),
             savingsFundSavers.isSaver(event.getUser().getPersonalCode()),
-            event.getMandate().getMandateType() == MandateType.PAYMENT_RATE_CHANGE);
+            event.getMandate().getMandateType() == MandateType.PAYMENT_RATE_CHANGE,
+            recurringSavers.recurringPaymentsOf(event.getUser().getPersonalCode()));
     if (!event.getMandate().isPartOfBatch()) {
       mandateEmailService.sendMandate(
           event.getUser(), event.getMandate(), pillarSuggestion, event.getLocale());
@@ -74,7 +77,9 @@ public class MandateEmailSender {
             paymentRates,
             mandatePillars,
             secondPillarLeavers.hasLeft(event.getUser().getPersonalCode()),
-            savingsFundSavers.isSaver(event.getUser().getPersonalCode()));
+            savingsFundSavers.isSaver(event.getUser().getPersonalCode()),
+            false,
+            recurringSavers.recurringPaymentsOf(event.getUser().getPersonalCode()));
     mandateBatchEmailService.sendMandateBatch(
         event.getUser(), event.getMandateBatch(), pillarSuggestion, event.getLocale());
   }

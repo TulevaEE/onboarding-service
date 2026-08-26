@@ -28,6 +28,16 @@
       "FNAME": "Mari",
       "transferDate": "12.08.2026",
       "suggestSavingsFund": true
+    },
+    "recurring payment": {
+      "FNAME": "Mari",
+      "transferDate": "12.08.2026",
+      "suggestThirdPillarRecurringPayment": true
+    },
+    "savings fund recurring": {
+      "FNAME": "Mari",
+      "transferDate": "12.08.2026",
+      "suggestSavingsFundRecurringPayment": true
     }
   }
 }

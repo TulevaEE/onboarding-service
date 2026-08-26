@@ -40,6 +40,20 @@
       "memberNumber": "731",
       "memberDate": "14.02.2026",
       "suggestSavingsFund": true
+    },
+    "recurring payment": {
+      "FNAME": "Kati",
+      "LNAME": "Ilves",
+      "memberNumber": "731",
+      "memberDate": "14.02.2026",
+      "suggestThirdPillarRecurringPayment": true
+    },
+    "savings fund recurring": {
+      "FNAME": "Kati",
+      "LNAME": "Ilves",
+      "memberNumber": "731",
+      "memberDate": "14.02.2026",
+      "suggestSavingsFundRecurringPayment": true
     }
   }
 }

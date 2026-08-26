@@ -28,12 +28,6 @@
       "hasTulevaUser": true,
       "suggestMembership": true
     },
-    "has account, recurring": {
-      "FNAME": "Mari",
-      "amount": "300.00",
-      "paymentDate": "12.08.2026",
-      "hasTulevaUser": true
-    },
     "no account": {
       "FNAME": "Mari",
       "amount": "300.00",
@@ -47,6 +41,26 @@
       "paymentDate": "12.08.2026",
       "hasTulevaUser": true,
       "suggestSavingsFund": true
+    },
+    "recurring payment": {
+      "FNAME": "Mari",
+      "amount": "300.00",
+      "paymentDate": "12.08.2026",
+      "hasTulevaUser": true,
+      "suggestThirdPillarRecurringPayment": true
+    },
+    "savings fund recurring": {
+      "FNAME": "Mari",
+      "amount": "300.00",
+      "paymentDate": "12.08.2026",
+      "hasTulevaUser": true,
+      "suggestSavingsFundRecurringPayment": true
+    },
+    "no nudge": {
+      "FNAME": "Mari",
+      "amount": "300.00",
+      "paymentDate": "12.08.2026",
+      "hasTulevaUser": true
     }
   }
 }

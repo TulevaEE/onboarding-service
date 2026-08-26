@@ -48,7 +48,9 @@ class PaymentEmailServiceSpec extends Specification {
         "suggestSecondPillar"  : pillarSuggestion.suggestSecondPillar,
         "suggestThirdPillar"   : pillarSuggestion.suggestThirdPillar,
         "leftSecondPillar"   : pillarSuggestion.leftSecondPillar,
-        "suggestSavingsFund" : pillarSuggestion.suggestSavingsFund
+        "suggestSavingsFund" : pillarSuggestion.suggestSavingsFund,
+        "suggestThirdPillarRecurringPayment" : pillarSuggestion.suggestThirdPillarRecurringPayment,
+        "suggestSavingsFundRecurringPayment" : pillarSuggestion.suggestSavingsFundRecurringPayment
     ]
     def tags = ["pillar_3.1", "mandate", "payment", "suggest_payment_rate", "suggest_2"] + pillarSuggestion.renderedNudgeTag().stream().toList()
     def locale = Locale.ENGLISH
@@ -92,7 +94,9 @@ class PaymentEmailServiceSpec extends Specification {
         "suggestSecondPillar": pillarSuggestion.suggestSecondPillar,
         "suggestThirdPillar" : pillarSuggestion.suggestThirdPillar,
         "leftSecondPillar"   : pillarSuggestion.leftSecondPillar,
-        "suggestSavingsFund" : pillarSuggestion.suggestSavingsFund
+        "suggestSavingsFund" : pillarSuggestion.suggestSavingsFund,
+        "suggestThirdPillarRecurringPayment" : pillarSuggestion.suggestThirdPillarRecurringPayment,
+        "suggestSavingsFundRecurringPayment" : pillarSuggestion.suggestSavingsFundRecurringPayment
     ]
     def tags = ["savings_fund", "suggest_payment_rate", "suggest_2"] + pillarSuggestion.renderedNudgeTag().stream().toList()
     def locale = Locale.ENGLISH
@@ -161,7 +165,9 @@ class PaymentEmailServiceSpec extends Specification {
         "suggestSecondPillar": pillarSuggestion.suggestSecondPillar,
         "suggestThirdPillar" : pillarSuggestion.suggestThirdPillar,
         "leftSecondPillar"   : pillarSuggestion.leftSecondPillar,
-        "suggestSavingsFund" : pillarSuggestion.suggestSavingsFund
+        "suggestSavingsFund" : pillarSuggestion.suggestSavingsFund,
+        "suggestThirdPillarRecurringPayment" : pillarSuggestion.suggestThirdPillarRecurringPayment,
+        "suggestSavingsFundRecurringPayment" : pillarSuggestion.suggestSavingsFundRecurringPayment
     ]
     def tags = ["savings_fund", "suggest_payment_rate", "suggest_2"] + pillarSuggestion.renderedNudgeTag().stream().toList()
     def locale = Locale.ENGLISH

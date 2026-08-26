@@ -20,17 +20,7 @@
         </mj-text>
 
         <mj-include path="./partials/suggest_chain_open_en.mjml" />
-        <mj-text>
-          The smartest move is to automate your third pillar savings by setting up a
-          <strong>recurring payment</strong>. This ensures that in the hustle and bustle of life,
-          you won't miss out on the <strong>tax benefits</strong>.
-        </mj-text>
-        <mj-text>
-          <strong>Calculate your tax benefit and set up a recurring payment:</strong>
-        </mj-text>
-        <mj-button href="https://tuleva.ee/en/third-pillar/">
-          Check&nbsp;out&nbsp;our&nbsp;calculator
-        </mj-button>
+
         <mj-raw>*|END:IF|*</mj-raw>
       </mj-column>
     </mj-section>

@@ -67,6 +67,8 @@ class MandateEmailServiceSpec extends Specification {
         suggestMembership  : pillarSuggestion.suggestMembership,
         leftSecondPillar   : pillarSuggestion.leftSecondPillar,
         suggestSavingsFund : pillarSuggestion.suggestSavingsFund,
+        suggestThirdPillarRecurringPayment : pillarSuggestion.suggestThirdPillarRecurringPayment,
+        suggestSavingsFundRecurringPayment : pillarSuggestion.suggestSavingsFundRecurringPayment,
     ]
     def tags = ["mandate", "pillar_2", "suggest_payment_rate", "suggest_3"] + pillarSuggestion.renderedNudgeTag().stream().toList()
     def mandrillResponse = new MandrillMessageStatus().tap {
@@ -257,6 +259,8 @@ class MandateEmailServiceSpec extends Specification {
         suggestMembership         : pillarSuggestion.suggestMembership,
         leftSecondPillar   : pillarSuggestion.leftSecondPillar,
         suggestSavingsFund : pillarSuggestion.suggestSavingsFund,
+        suggestThirdPillarRecurringPayment : pillarSuggestion.suggestThirdPillarRecurringPayment,
+        suggestSavingsFundRecurringPayment : pillarSuggestion.suggestSavingsFundRecurringPayment,
     ]
 
     authenticationHolder.getAuthenticatedPerson() >> authenticatedPerson
@@ -309,6 +313,8 @@ class MandateEmailServiceSpec extends Specification {
         suggestMembership         : pillarSuggestion.suggestMembership,
         leftSecondPillar   : pillarSuggestion.leftSecondPillar,
         suggestSavingsFund : pillarSuggestion.suggestSavingsFund,
+        suggestThirdPillarRecurringPayment : pillarSuggestion.suggestThirdPillarRecurringPayment,
+        suggestSavingsFundRecurringPayment : pillarSuggestion.suggestSavingsFundRecurringPayment,
     ]
 
     authenticationHolder.getAuthenticatedPerson() >> authenticatedPerson

@@ -16,12 +16,20 @@
       "FNAME": "Mari",
       "suggestMembership": true
     },
-    "suggest recurring payment": {
-      "FNAME": "Mari"
-    },
     "savings fund": {
       "FNAME": "Mari",
       "suggestSavingsFund": true
+    },
+    "recurring payment": {
+      "FNAME": "Mari",
+      "suggestThirdPillarRecurringPayment": true
+    },
+    "savings fund recurring": {
+      "FNAME": "Mari",
+      "suggestSavingsFundRecurringPayment": true
+    },
+    "no nudge": {
+      "FNAME": "Mari"
     }
   }
 }

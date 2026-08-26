@@ -53,27 +53,19 @@ public class ThirdPillarPaymentArrivedEmailService {
   }
 
   private Map<String, Object> mergeVars(FirstThirdPillarPayment payment) {
-    return Map.of(
-        "fname",
-        payment.getFirstName(),
-        "lname",
-        payment.getLastName(),
-        "amount",
-        payment.amount(),
-        "paymentDate",
-        payment.firstPaymentDate().format(PAYMENT_DATE_FORMAT),
-        "hasTulevaUser",
-        payment.hasTulevaUser(),
-        "leftSecondPillar",
-        payment.leftSecondPillar(),
-        "suggestSecondPillar",
-        payment.suggestSecondPillar(),
-        "suggestPaymentRate",
-        payment.suggestPaymentRate(),
-        "suggestMembership",
-        payment.suggestMembership(),
-        "suggestSavingsFund",
-        payment.suggestSavingsFund());
+    return Map.ofEntries(
+        Map.entry("fname", payment.getFirstName()),
+        Map.entry("lname", payment.getLastName()),
+        Map.entry("amount", payment.amount()),
+        Map.entry("paymentDate", payment.firstPaymentDate().format(PAYMENT_DATE_FORMAT)),
+        Map.entry("hasTulevaUser", payment.hasTulevaUser()),
+        Map.entry("leftSecondPillar", payment.leftSecondPillar()),
+        Map.entry("suggestSecondPillar", payment.suggestSecondPillar()),
+        Map.entry("suggestPaymentRate", payment.suggestPaymentRate()),
+        Map.entry("suggestMembership", payment.suggestMembership()),
+        Map.entry("suggestSavingsFund", payment.suggestSavingsFund()),
+        Map.entry("suggestThirdPillarRecurringPayment", true),
+        Map.entry("suggestSavingsFundRecurringPayment", false));
   }
 
   private List<String> tags(FirstThirdPillarPayment payment) {
@@ -87,8 +79,6 @@ public class ThirdPillarPaymentArrivedEmailService {
     if (!payment.hasTulevaUser()) return "nudge_log_in";
     if (payment.suggestSecondPillar()) return "nudge_second_pillar";
     if (payment.suggestPaymentRate()) return "nudge_payment_rate";
-    if (payment.suggestSavingsFund()) return "nudge_savings_fund";
-    if (payment.suggestMembership()) return "nudge_membership";
-    return "nudge_recurring_payment";
+    return "nudge_third_pillar_recurring";
   }
 }

@@ -17,8 +17,13 @@ public record FirstThirdPillarPayment(
     boolean suggestSecondPillar,
     boolean suggestPaymentRate,
     boolean suggestMembership,
-    boolean leftSecondPillar)
+    boolean leftSecondPillar,
+    boolean savesInSavingsFund)
     implements Person, Emailable {
+
+  public boolean suggestSavingsFund() {
+    return !suggestSecondPillar && !suggestPaymentRate && !savesInSavingsFund;
+  }
 
   @Override
   public String getPersonalCode() {

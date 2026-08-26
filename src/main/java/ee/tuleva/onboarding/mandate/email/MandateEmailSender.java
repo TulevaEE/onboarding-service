@@ -8,11 +8,13 @@ import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.mandate.MandateType;
 import ee.tuleva.onboarding.mandate.event.AfterMandateBatchSignedEvent;
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
 import ee.tuleva.onboarding.mandate.event.OnMandateBatchFailedEvent;
 import ee.tuleva.onboarding.paymentrate.PaymentRates;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
+import ee.tuleva.onboarding.savings.fund.SavingsFundSavers;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +32,7 @@ public class MandateEmailSender {
   private final UserConversionService conversionService;
   private final SecondPillarPaymentRateService paymentRateService;
   private final SecondPillarLeavers secondPillarLeavers;
+  private final SavingsFundSavers savingsFundSavers;
 
   @EventListener
   public void sendEmail(AfterMandateSignedEvent event) {
@@ -43,7 +46,9 @@ public class MandateEmailSender {
             conversion,
             paymentRates,
             Set.of(event.getMandate().getPillar()),
-            secondPillarLeavers.hasLeft(event.getUser().getPersonalCode()));
+            secondPillarLeavers.hasLeft(event.getUser().getPersonalCode()),
+            savingsFundSavers.isSaver(event.getUser().getPersonalCode()),
+            event.getMandate().getMandateType() == MandateType.PAYMENT_RATE_CHANGE);
     if (!event.getMandate().isPartOfBatch()) {
       mandateEmailService.sendMandate(
           event.getUser(), event.getMandate(), pillarSuggestion, event.getLocale());
@@ -68,7 +73,8 @@ public class MandateEmailSender {
             conversion,
             paymentRates,
             mandatePillars,
-            secondPillarLeavers.hasLeft(event.getUser().getPersonalCode()));
+            secondPillarLeavers.hasLeft(event.getUser().getPersonalCode()),
+            savingsFundSavers.isSaver(event.getUser().getPersonalCode()));
     mandateBatchEmailService.sendMandateBatch(
         event.getUser(), event.getMandateBatch(), pillarSuggestion, event.getLocale());
   }

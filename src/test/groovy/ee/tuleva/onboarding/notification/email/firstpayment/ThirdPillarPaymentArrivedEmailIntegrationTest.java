@@ -60,6 +60,7 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
   private static final String DECEASED = TestPersonalCodes.withValidChecksum("3840101000");
   private static final String SECOND_PILLAR_LEAVER =
       TestPersonalCodes.withValidChecksum("3830101000");
+  private static final String MAXED_OUT = TestPersonalCodes.withValidChecksum("3820101000");
 
   @Autowired private ThirdPillarPaymentArrivedJob job;
   @Autowired private AnalyticsThirdPillarTransactionRepository transactionRepository;
@@ -90,6 +91,7 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
     emailRepository.deleteAll();
     userRepository.deleteAll();
     jdbcClient.sql("DELETE FROM third_pillar_payment_arrived_claim").update();
+    jdbcClient.sql("DELETE FROM saving_fund_payment").update();
   }
 
   @Test
@@ -286,6 +288,7 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
                 true,
                 true,
                 true,
+                false,
                 false));
 
     assertThat(sent).isFalse();
@@ -304,6 +307,47 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
     verify(emailService, times(1)).send(any(Person.class), any(), any());
     assertThat(claimCount()).isEqualTo(1);
     assertThat(sentEmailCount()).isZero();
+  }
+
+  @Test
+  void suggestsTheSavingsFundOnlyToMaxedOutNonSavers() {
+    saveUnitOwner(
+        MAXED_OUT,
+        builder -> builder.email("maxed.out@example.com").p2choice("TUK75").p2nextRate(6));
+    saveOwnPayment(MAXED_OUT, LocalDate.now().minusDays(1), new BigDecimal("400.00"));
+
+    job.run();
+
+    verify(emailService)
+        .newMandrillMessage(
+            eq("maxed.out@example.com"),
+            eq("third_pillar_payment_arrived_et"),
+            argThat(
+                mergeVars ->
+                    Boolean.TRUE.equals(mergeVars.get("suggestSavingsFund"))
+                        && Boolean.FALSE.equals(mergeVars.get("suggestSecondPillar"))
+                        && Boolean.FALSE.equals(mergeVars.get("suggestPaymentRate"))),
+            any(),
+            any());
+  }
+
+  @Test
+  void doesNotSuggestTheSavingsFundToAnExistingSaver() {
+    saveUnitOwner(
+        MAXED_OUT,
+        builder -> builder.email("maxed.out@example.com").p2choice("TUK75").p2nextRate(6));
+    saveIssuedSavingsFundPayment(MAXED_OUT);
+    saveOwnPayment(MAXED_OUT, LocalDate.now().minusDays(1), new BigDecimal("400.00"));
+
+    job.run();
+
+    verify(emailService)
+        .newMandrillMessage(
+            eq("maxed.out@example.com"),
+            eq("third_pillar_payment_arrived_et"),
+            argThat(mergeVars -> Boolean.FALSE.equals(mergeVars.get("suggestSavingsFund"))),
+            any(),
+            any());
   }
 
   @Test
@@ -350,6 +394,20 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
                         && Boolean.FALSE.equals(mergeVars.get("suggestPaymentRate"))),
             any(),
             any());
+  }
+
+  private void saveIssuedSavingsFundPayment(String personalCode) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO saving_fund_payment
+              (id, party_type, party_code, amount, currency, status, created_at, status_changed_at)
+            VALUES
+              (:id, 'PERSON', :code, 100.00, 'EUR', 'ISSUED', now(), now())
+            """)
+        .param("id", java.util.UUID.randomUUID())
+        .param("code", personalCode)
+        .update();
   }
 
   private void saveOwnPayment(String personalCode, LocalDate date, BigDecimal amount) {

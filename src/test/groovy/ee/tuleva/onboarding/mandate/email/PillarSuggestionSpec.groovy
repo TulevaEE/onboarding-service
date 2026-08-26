@@ -70,7 +70,8 @@ class PillarSuggestionSpec extends Specification {
   def "never suggests the pillar the email itself concerns"() {
     when:
     user.getAge() >> 40
-    contactDetails.isSecondPillarActive() >> false
+    paymentRates.canIncrease() >> true
+    contactDetails.isSecondPillarActive() >> true
     contactDetails.isThirdPillarActive() >> false
     conversion.isSecondPillarPartiallyConverted() >> false
     conversion.isThirdPillarPartiallyConverted() >> false
@@ -81,12 +82,30 @@ class PillarSuggestionSpec extends Specification {
     pillarSuggestion.isSuggestSecondPillar() == suggestSecondPillar
     pillarSuggestion.isSuggestThirdPillar() == suggestThirdPillar
 
+    and:
+    pillarSuggestion.isSuggestPaymentRate() == suggestPaymentRate
+
     where:
-    mandatePillars    | suggestSecondPillar | suggestThirdPillar
-    [] as Set         | true                | true
-    [2] as Set        | false               | true
-    [3] as Set        | true                | false
-    [2, 3] as Set     | false               | false
+    mandatePillars    | suggestSecondPillar | suggestThirdPillar | suggestPaymentRate
+    [] as Set         | true                | true               | true
+    [2] as Set        | false               | true               | true
+    [3] as Set        | true                | false              | true
+    [2, 3] as Set     | false               | false              | true
+  }
+
+  def "a payment rate change mandate does not nudge a further rate increase"() {
+    when:
+    user.getAge() >> 40
+    paymentRates.canIncrease() >> true
+    contactDetails.isSecondPillarActive() >> true
+    conversion.isSecondPillarPartiallyConverted() >> true
+    conversion.getSecondPillarWeightedAverageFee() >> 0.003
+    def pillarSuggestion =
+        new PillarSuggestion(
+            user, contactDetails, conversion, paymentRates, [2] as Set, false, true, true)
+
+    then:
+    !pillarSuggestion.isSuggestPaymentRate()
   }
 
   def "never suggests second pillar steps to someone who has left the second pillar"() {
@@ -138,5 +157,42 @@ class PillarSuggestionSpec extends Specification {
     then:
     pillarSuggestion.isSuggestSecondPillar()
     !pillarSuggestion.isSuggestPaymentRate()
+  }
+
+  def "suggests the savings fund only when both pillars are maxed out and the person is not yet a saver"() {
+    when:
+    user.getAge() >> 40
+    contactDetails.isSecondPillarActive() >> true
+    contactDetails.isThirdPillarActive() >> true
+    conversion.isSecondPillarPartiallyConverted() >> true
+    conversion.isThirdPillarPartiallyConverted() >> true
+    conversion.getSecondPillarWeightedAverageFee() >> 0.003
+    conversion.getThirdPillarWeightedAverageFee() >> 0.003
+    paymentRates.canIncrease() >> canIncrease
+    def pillarSuggestion =
+        new PillarSuggestion(
+            user, contactDetails, conversion, paymentRates, [] as Set, false, savesInSavingsFund)
+
+    then:
+    pillarSuggestion.isSuggestSavingsFund() == suggestSavingsFund
+
+    where:
+    canIncrease | savesInSavingsFund | suggestSavingsFund
+    false       | false              | true
+    false       | true               | false
+    true        | false              | false
+  }
+
+  def "does not suggest the savings fund when earlier pillar steps are still open"() {
+    when:
+    user.getAge() >> 40
+    contactDetails.isSecondPillarActive() >> false
+    conversion.isSecondPillarPartiallyConverted() >> false
+    paymentRates.canIncrease() >> false
+    def pillarSuggestion =
+        new PillarSuggestion(user, contactDetails, conversion, paymentRates, [] as Set, false, false)
+
+    then:
+    !pillarSuggestion.isSuggestSavingsFund()
   }
 }

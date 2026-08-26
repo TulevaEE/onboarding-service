@@ -33,6 +33,13 @@
       "LNAME": "Kask",
       "memberNumber": "247",
       "memberDate": "21.05.2026"
+    },
+    "savings fund": {
+      "FNAME": "Kati",
+      "LNAME": "Ilves",
+      "memberNumber": "731",
+      "memberDate": "14.02.2026",
+      "suggestSavingsFund": true
     }
   }
 }

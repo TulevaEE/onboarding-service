@@ -71,7 +71,9 @@ public class ThirdPillarPaymentArrivedEmailService {
         "suggestPaymentRate",
         payment.suggestPaymentRate(),
         "suggestMembership",
-        payment.suggestMembership());
+        payment.suggestMembership(),
+        "suggestSavingsFund",
+        payment.suggestSavingsFund());
   }
 
   private List<String> tags(FirstThirdPillarPayment payment) {

@@ -20,13 +20,14 @@ public class PillarSuggestion {
   private final boolean suggestSecondPillar;
   private final boolean suggestMembership;
   private final boolean leftSecondPillar;
+  private final boolean suggestSavingsFund;
 
   public PillarSuggestion(
       User user,
       ContactDetails contactDetails,
       ConversionResponse conversion,
       PaymentRates paymentRates) {
-    this(user, contactDetails, conversion, paymentRates, Set.of(), false);
+    this(user, contactDetails, conversion, paymentRates, Set.of(), false, true);
   }
 
   public PillarSuggestion(
@@ -36,11 +37,43 @@ public class PillarSuggestion {
       PaymentRates paymentRates,
       Set<Integer> mandatePillars,
       boolean leftSecondPillar) {
+    this(user, contactDetails, conversion, paymentRates, mandatePillars, leftSecondPillar, true);
+  }
+
+  public PillarSuggestion(
+      User user,
+      ContactDetails contactDetails,
+      ConversionResponse conversion,
+      PaymentRates paymentRates,
+      Set<Integer> mandatePillars,
+      boolean leftSecondPillar,
+      boolean savesInSavingsFund) {
+    this(
+        user,
+        contactDetails,
+        conversion,
+        paymentRates,
+        mandatePillars,
+        leftSecondPillar,
+        savesInSavingsFund,
+        false);
+  }
+
+  public PillarSuggestion(
+      User user,
+      ContactDetails contactDetails,
+      ConversionResponse conversion,
+      PaymentRates paymentRates,
+      Set<Integer> mandatePillars,
+      boolean leftSecondPillar,
+      boolean savesInSavingsFund,
+      boolean concernsPaymentRate) {
     this.leftSecondPillar = leftSecondPillar;
     boolean adult = user.getAge() >= 18;
     this.suggestPaymentRate =
         adult
             && !leftSecondPillar
+            && !concernsPaymentRate
             && contactDetails.isSecondPillarActive()
             && paymentRates.canIncrease();
     this.suggestSecondPillar =
@@ -64,5 +97,11 @@ public class PillarSuggestion {
                             .compareTo(new BigDecimal("0.005"))
                         > 0));
     this.suggestMembership = !user.isMember();
+    this.suggestSavingsFund =
+        adult
+            && !savesInSavingsFund
+            && !suggestSecondPillar
+            && !suggestPaymentRate
+            && !suggestThirdPillar;
   }
 }

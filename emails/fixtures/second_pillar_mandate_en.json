@@ -23,6 +23,11 @@
     "no branch": {
       "FNAME": "Mari",
       "transferDate": "12.08.2026"
+    },
+    "savings fund": {
+      "FNAME": "Mari",
+      "transferDate": "12.08.2026",
+      "suggestSavingsFund": true
     }
   }
 }

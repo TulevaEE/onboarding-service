@@ -18,6 +18,7 @@ import org.springframework.stereotype.Component;
 public class ScheduledUnitOwnerSynchronizationJob {
 
   private static final int SNAPSHOT_RETENTION_DAYS = 35;
+  private static final LocalDate PRUNING_FLOOR = LocalDate.of(2026, 8, 26);
 
   private final UnitOwnerSynchronizer unitOwnerSynchronizer;
   private final UnitOwnerRepository unitOwnerRepository;
@@ -49,6 +50,7 @@ public class ScheduledUnitOwnerSynchronizationJob {
     LocalDate cutoff = today.minusDays(SNAPSHOT_RETENTION_DAYS);
     List<LocalDate> prunable =
         unitOwnerRepository.findDistinctSnapshotDates().stream()
+            .filter(date -> date.isAfter(PRUNING_FLOOR))
             .filter(date -> date.isBefore(cutoff))
             .filter(date -> date.getDayOfMonth() != 1)
             .filter(date -> date.getDayOfWeek() != DayOfWeek.MONDAY)

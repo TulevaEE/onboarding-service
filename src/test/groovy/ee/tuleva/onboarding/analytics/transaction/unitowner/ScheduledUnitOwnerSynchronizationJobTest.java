@@ -6,8 +6,11 @@ import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.time.TestClockHolder;
+import java.time.Clock;
 import java.time.DayOfWeek;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
@@ -78,9 +81,15 @@ class ScheduledUnitOwnerSynchronizationJobTest {
     verifyNoMoreInteractions(unitOwnerSynchronizer);
   }
 
+  private static LocalDate fixClockAfterPruningFloor() {
+    ClockHolder.setClock(
+        Clock.fixed(Instant.parse("2026-12-01T10:00:00Z"), ZoneId.of("Europe/Tallinn")));
+    return LocalDate.now(ClockHolder.clock());
+  }
+
   @Test
   void runDailySync_prunesOldSnapshots_keepingFirstOfMonthAndMondays() {
-    LocalDate today = LocalDate.now(TestClockHolder.clock);
+    LocalDate today = fixClockAfterPruningFloor();
     LocalDate oldPrunable = today.minusDays(60).with(TemporalAdjusters.next(DayOfWeek.WEDNESDAY));
     LocalDate oldFirstOfMonth = today.minusDays(60).withDayOfMonth(1);
     LocalDate oldMonday = today.minusDays(60).with(TemporalAdjusters.next(DayOfWeek.MONDAY));
@@ -94,8 +103,20 @@ class ScheduledUnitOwnerSynchronizationJobTest {
   }
 
   @Test
+  void runDailySync_neverPrunesSnapshotsFromBeforeThePruningFloor() {
+    fixClockAfterPruningFloor();
+    LocalDate historicNonKeptWednesday = LocalDate.of(2026, 8, 19);
+    when(unitOwnerRepository.findDistinctSnapshotDates())
+        .thenReturn(List.of(historicNonKeptWednesday));
+
+    job.runDailySync();
+
+    verify(unitOwnerRepository, never()).deleteBySnapshotDateIn(any());
+  }
+
+  @Test
   void runDailySync_deletesNothing_whenAllOldSnapshotsAreKept() {
-    LocalDate today = LocalDate.now(TestClockHolder.clock);
+    LocalDate today = fixClockAfterPruningFloor();
     LocalDate oldFirstOfMonth = today.minusDays(60).withDayOfMonth(1);
     LocalDate recent = today.minusDays(3);
     when(unitOwnerRepository.findDistinctSnapshotDates())

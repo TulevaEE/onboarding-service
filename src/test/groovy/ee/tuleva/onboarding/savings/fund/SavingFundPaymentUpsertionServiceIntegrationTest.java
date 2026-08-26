@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.banking.seb.Seb.SEB_GATEWAY_TIME_ZONE;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
 import static ee.tuleva.onboarding.ledger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
+import static java.util.stream.Collectors.toSet;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.banking.BankAccounts;
@@ -20,8 +21,8 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -97,11 +98,14 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
 
   @Test
   void endToEnd_processesXmlAndStoresPaymentsInDatabase() {
+    // given
+    var paymentIdsBefore = paymentIdsBeforeProcessing();
+
     // when
     processXmlMessage(XML_TEMPLATE);
 
     // then
-    var payments = paymentsUnderTest("2025100112345-1");
+    var payments = paymentsCreatedFromXml(paymentIdsBefore, "EE157700771001802057", "Test payment");
     assertThat(payments).hasSize(1);
     var savedPayment = payments.getFirst();
     assertThat(savedPayment.getAmount()).isEqualByComparingTo(new BigDecimal("100.50"));
@@ -144,6 +148,7 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
             .receivedAt(NOW)
             .build();
     var savedSuccessMessage = bankingMessageRepository.save(successMessage);
+    var paymentIdsBefore = paymentIdsBeforeProcessing();
 
     // when
     eventPublisher.publishEvent(new ProcessBankMessagesRequested());
@@ -161,7 +166,7 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
     assertThat(successMessageAfter.getFailedAt()).isNull();
 
     // and only one payment should be created from the successful message
-    var payments = paymentsUnderTest("2025100112345-1");
+    var payments = paymentsCreatedFromXml(paymentIdsBefore, "EE157700771001802057", "Test payment");
     assertThat(payments).hasSize(1);
     assertThat(payments.getFirst().getExternalId()).isEqualTo("2025100112345-1");
   }
@@ -207,11 +212,15 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
             + "</BkToCstmrAcctRpt> "
             + "</Document>";
 
+    // and
+    var paymentIdsBefore = paymentIdsBeforeProcessing();
+
     // when
     processXmlMessage(debitXml);
 
     // then
-    var payments = paymentsUnderTest("2025100112346-1");
+    var payments =
+        paymentsCreatedFromXml(paymentIdsBefore, "EE442200221092874625", "Outgoing payment");
     assertThat(payments).hasSize(1);
     var savedPayment = payments.getFirst();
     assertThat(savedPayment.getAmount()).isEqualByComparingTo(new BigDecimal("-50.00"));
@@ -266,11 +275,16 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
             + "</BkToCstmrAcctRpt> "
             + "</Document>";
 
+    // and
+    var paymentIdsBefore = paymentIdsBeforeProcessing();
+
     // when
     processXmlMessage(withdrawalAccountXml);
 
     // then - payment is created and directly goes to PROCESSED status
-    var payments = paymentsUnderTest("2025100112348-1");
+    var payments =
+        paymentsCreatedFromXml(
+            paymentIdsBefore, "EE111222333444555666", "Payment to withdrawal account");
     assertThat(payments).hasSize(1);
     var savedPayment = payments.getFirst();
     assertThat(savedPayment.getAmount()).isEqualByComparingTo(new BigDecimal("200.00"));
@@ -318,11 +332,14 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
             + "</BkToCstmrAcctRpt> "
             + "</Document>";
 
+    // and
+    var paymentIdsBefore = paymentIdsBeforeProcessing();
+
     // when
     processXmlMessage(zeroAmountXml);
 
     // then
-    var payments = paymentsUnderTest("2025100112347-1");
+    var payments = paymentsCreatedFromXml(paymentIdsBefore, "EE888888888888888888", "Zero payment");
     assertThat(payments).hasSize(1);
     var savedPayment = payments.getFirst();
     assertThat(savedPayment.getAmount()).isEqualByComparingTo(BigDecimal.ZERO);
@@ -383,12 +400,15 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
         ledgerService.getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TKF100);
     var incomingPaymentsBalanceBefore = incomingPaymentsAccount.getBalance();
     var fundInvestmentBalanceBefore = fundInvestmentAccount.getBalance();
+    var paymentIdsBefore = paymentIdsBeforeProcessing();
 
     // when
     processXmlMessage(outgoingToInvestmentXml);
 
     // then - payment is created and marked as PROCESSED
-    var payments = paymentsUnderTest("2025100112350-1");
+    var payments =
+        paymentsCreatedFromXml(
+            paymentIdsBefore, "EE442200221092874625", "Transfer to investment account");
     assertThat(payments).hasSize(1);
     var savedPayment = payments.getFirst();
     assertThat(savedPayment.getAmount()).isEqualByComparingTo(new BigDecimal("-100.50"));
@@ -419,14 +439,15 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
               .externalId(null) // Montonio payment doesn't have externalId
               .build();
       var existingId = repository.savePaymentData(existingPayment);
+      var paymentIdsBefore = paymentIdsBeforeProcessing();
 
       // when - XML with same IBAN+description but with externalId
       processXmlMessage(XML_TEMPLATE);
 
       // then - existing payment is updated with externalId, not a new one created
-      var payments = paymentsUnderTest("2025100112345-1", existingId);
-      assertThat(payments).hasSize(1);
-      var updated = payments.getFirst();
+      assertThat(paymentsCreatedFromXml(paymentIdsBefore, "EE157700771001802057", "Test payment"))
+          .isEmpty();
+      var updated = repository.findByExternalId("2025100112345-1").orElseThrow();
       assertThat(updated.getId()).isEqualTo(existingId);
       assertThat(updated.getExternalId()).isEqualTo("2025100112345-1");
       assertThat(updated.getDescription()).isEqualTo("Test payment");
@@ -446,12 +467,14 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
               .build();
       var existingId = repository.savePaymentData(existingPayment);
       repository.changeStatus(existingId, SavingFundPayment.Status.RECEIVED);
+      var paymentIdsBefore = paymentIdsBeforeProcessing();
 
       // when - same XML arrives again (duplicate bank statement)
       processXmlMessage(XML_TEMPLATE);
 
       // then - no new payment is created, no update is performed (aborts early)
-      assertThat(paymentsUnderTest("2025100112345-1", existingId)).hasSize(1);
+      assertThat(paymentsCreatedFromXml(paymentIdsBefore, "EE157700771001802057", "Test payment"))
+          .isEmpty();
       var payment = repository.findByExternalId("2025100112345-1");
       assertThat(payment).isPresent();
       assertThat(payment.get().getId()).isEqualTo(existingId);
@@ -465,13 +488,15 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
       // given - existing payment with different IBAN but same description
       var existingPayment =
           paymentMatchingXmlTemplate().externalId(null).remitterIban("EE999DIFFERENT").build();
-      var existingId = repository.savePaymentData(existingPayment);
+      repository.savePaymentData(existingPayment);
+      var paymentIdsBefore = paymentIdsBeforeProcessing();
 
       // when - XML arrives with EE157700771001802057
       var messageId = processXmlMessage(XML_TEMPLATE);
 
       // then - new payment is created and message is processed
-      assertThat(paymentsUnderTest("2025100112345-1", existingId)).hasSize(2);
+      assertThat(paymentsCreatedFromXml(paymentIdsBefore, "EE157700771001802057", "Test payment"))
+          .hasSize(1);
       var message = bankingMessageRepository.findById(messageId).orElseThrow();
       assertThat(message.getProcessedAt()).isNotNull();
     }
@@ -484,13 +509,15 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
               .externalId(null)
               .description("Different description")
               .build();
-      var existingId = repository.savePaymentData(existingPayment);
+      repository.savePaymentData(existingPayment);
+      var paymentIdsBefore = paymentIdsBeforeProcessing();
 
       // when - XML arrives with "Test payment"
       processXmlMessage(XML_TEMPLATE);
 
       // then - new payment is created
-      assertThat(paymentsUnderTest("2025100112345-1", existingId)).hasSize(2);
+      assertThat(paymentsCreatedFromXml(paymentIdsBefore, "EE157700771001802057", "Test payment"))
+          .hasSize(1);
     }
 
     @Test
@@ -507,13 +534,15 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
               .externalId("existing-ext-id")
               .receivedBefore(Instant.parse("2025-09-30T10:00:00Z"))
               .build();
-      var existingId = repository.savePaymentData(existingPayment);
+      repository.savePaymentData(existingPayment);
+      var paymentIdsBefore = paymentIdsBeforeProcessing();
 
       // when - XML arrives
       processXmlMessage(XML_TEMPLATE);
 
       // then - new payment is created (existing one cannot be matched)
-      assertThat(paymentsUnderTest("2025100112345-1", existingId)).hasSize(2);
+      assertThat(paymentsCreatedFromXml(paymentIdsBefore, "EE157700771001802057", "Test payment"))
+          .hasSize(1);
     }
 
     @Test
@@ -521,13 +550,15 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
       // given - existing payment with different amount but same description
       var existingPayment =
           paymentMatchingXmlTemplate().externalId(null).amount(new BigDecimal("50.00")).build();
-      var existingId = repository.savePaymentData(existingPayment);
+      repository.savePaymentData(existingPayment);
+      var paymentIdsBefore = paymentIdsBeforeProcessing();
 
       // when - XML arrives with 100.50
       var messageId = processXmlMessage(XML_TEMPLATE);
 
       // then - new payment is created and message is processed
-      assertThat(paymentsUnderTest("2025100112345-1", existingId)).hasSize(2);
+      assertThat(paymentsCreatedFromXml(paymentIdsBefore, "EE157700771001802057", "Test payment"))
+          .hasSize(1);
       var message = bankingMessageRepository.findById(messageId).orElseThrow();
       assertThat(message.getProcessedAt()).isNotNull();
     }
@@ -538,14 +569,15 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
       var existingPayment =
           paymentMatchingXmlTemplate().externalId(null).remitterName("Kati Karu").build();
       var existingId = repository.savePaymentData(existingPayment);
+      var paymentIdsBefore = paymentIdsBeforeProcessing();
 
       // when - XML arrives with different remitterName
       var messageId = processXmlMessage(XML_TEMPLATE);
 
       // then - the bank statement name wins and the message is processed
-      var payments = paymentsUnderTest("2025100112345-1", existingId);
-      assertThat(payments).hasSize(1);
-      var updated = payments.getFirst();
+      assertThat(paymentsCreatedFromXml(paymentIdsBefore, "EE157700771001802057", "Test payment"))
+          .isEmpty();
+      var updated = repository.findByExternalId("2025100112345-1").orElseThrow();
       assertThat(updated.getId()).isEqualTo(existingId);
       assertThat(updated.getRemitterName()).isEqualTo("Jüri Tamm");
       var message = bankingMessageRepository.findById(messageId).orElseThrow();
@@ -583,12 +615,19 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
     }
   }
 
-  // Scopes assertions to the rows this test created, ignoring rows committed by other test classes
-  // sharing the database
-  private List<SavingFundPayment> paymentsUnderTest(String externalId, UUID... existingPaymentIds) {
-    var ids = new LinkedHashSet<>(List.of(existingPaymentIds));
-    repository.findByExternalId(externalId).map(SavingFundPayment::getId).ifPresent(ids::add);
-    return repository.findAllById(ids);
+  private Set<UUID> paymentIdsBeforeProcessing() {
+    return repository.findAll().stream().map(SavingFundPayment::getId).collect(toSet());
+  }
+
+  // Scopes assertions to the rows processing created from this test's XML entry, ignoring rows
+  // committed by other test classes sharing the database
+  private List<SavingFundPayment> paymentsCreatedFromXml(
+      Set<UUID> paymentIdsBeforeProcessing, String remitterIban, String description) {
+    return repository.findAll().stream()
+        .filter(payment -> !paymentIdsBeforeProcessing.contains(payment.getId()))
+        .filter(payment -> remitterIban.equals(payment.getRemitterIban()))
+        .filter(payment -> description.equals(payment.getDescription()))
+        .toList();
   }
 
   // Returns a builder with all fields matching XML_TEMPLATE

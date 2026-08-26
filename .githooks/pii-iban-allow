@@ -6,6 +6,11 @@
 # Never add a person's account, and never add a live pension fund account -
 # those belong in the gitignored terraform tfvars, not in code.
 # One IBAN per line; anything else is ignored.
+#
+# Repo-invented savings-fund test fixtures, long public in this repository's
+# test files (Juri Tamm demo persona's account and the deposit-account fixture):
+EE157700771001802057
+EE442200221092874625
 EE861010220306591229
 EE651010220306497226
 EE241010220306719221

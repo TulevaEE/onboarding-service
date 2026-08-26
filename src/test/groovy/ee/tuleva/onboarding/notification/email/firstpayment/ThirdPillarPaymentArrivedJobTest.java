@@ -46,6 +46,7 @@ class ThirdPillarPaymentArrivedJobTest {
         true,
         true,
         true,
+        false,
         false);
   }
 
@@ -70,7 +71,9 @@ class ThirdPillarPaymentArrivedJobTest {
   @Test
   void refusesToRunWhenTheAudienceExceedsTheRecipientCap() {
     given(repository.oldestOwnPaymentDate()).willReturn(Optional.of(LocalDate.parse("2020-01-01")));
-    given(repository.fetchUnemailedFirstPayments(LocalDate.parse("2026-07-19")))
+    given(
+            repository.fetchUnemailedFirstPayments(
+                LocalDate.parse("2026-07-19"), LocalDate.parse("2008-08-18")))
         .willReturn(List.of(payment(FIRST_PAYER), payment(SECOND_PAYER)));
 
     job(false, 1).run();
@@ -81,7 +84,9 @@ class ThirdPillarPaymentArrivedJobTest {
   @Test
   void fetchesButDoesNotSendOnADryRun() {
     given(repository.oldestOwnPaymentDate()).willReturn(Optional.of(LocalDate.parse("2020-01-01")));
-    given(repository.fetchUnemailedFirstPayments(LocalDate.parse("2026-07-19")))
+    given(
+            repository.fetchUnemailedFirstPayments(
+                LocalDate.parse("2026-07-19"), LocalDate.parse("2008-08-18")))
         .willReturn(List.of(payment(FIRST_PAYER)));
 
     job(true, 200).run();
@@ -94,7 +99,9 @@ class ThirdPillarPaymentArrivedJobTest {
     var failing = payment(FIRST_PAYER);
     var succeeding = payment(SECOND_PAYER);
     given(repository.oldestOwnPaymentDate()).willReturn(Optional.of(LocalDate.parse("2020-01-01")));
-    given(repository.fetchUnemailedFirstPayments(LocalDate.parse("2026-07-19")))
+    given(
+            repository.fetchUnemailedFirstPayments(
+                LocalDate.parse("2026-07-19"), LocalDate.parse("2008-08-18")))
         .willReturn(List.of(failing, succeeding));
     given(emailService.send(failing)).willThrow(new RuntimeException("mandrill exploded"));
     given(emailService.send(succeeding)).willReturn(true);

@@ -16,7 +16,8 @@ public record FirstThirdPillarPayment(
     boolean hasTulevaUser,
     boolean suggestSecondPillar,
     boolean suggestPaymentRate,
-    boolean suggestMembership)
+    boolean suggestMembership,
+    boolean leftSecondPillar)
     implements Person, Emailable {
 
   @Override

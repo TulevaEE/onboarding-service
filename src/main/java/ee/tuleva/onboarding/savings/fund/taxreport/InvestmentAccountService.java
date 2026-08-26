@@ -18,6 +18,9 @@ public class InvestmentAccountService {
 
   @Transactional
   public InvestmentAccount declare(String personalCode, String iban) {
+    if (!IbanValidator.isValid(iban)) {
+      throw new IllegalArgumentException("Invalid investment account iban");
+    }
     String canonicalIban = IbanValidator.canonicalize(iban);
     investmentAccountRepository.declareIban(personalCode, canonicalIban);
     return new InvestmentAccount(personalCode, canonicalIban);

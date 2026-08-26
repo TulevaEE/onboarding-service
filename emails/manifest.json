@@ -120,6 +120,11 @@
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
+    "savings_fund_first_payment_reminder_person_en": {
+      "subject": "Make your first contribution to Tuleva Savings Fund",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
     "savings_fund_first_payment_reminder_person_et": {
       "subject": "Tee esimene sissemakse Tuleva Kogumisfondi",
       "from_email": "tuleva@tuleva.ee",

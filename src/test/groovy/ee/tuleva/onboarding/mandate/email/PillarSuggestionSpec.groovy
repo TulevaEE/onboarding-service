@@ -15,6 +15,7 @@ class PillarSuggestionSpec extends Specification {
 
   def "suggests second pillar"() {
     when:
+    user.getAge() >> 40
     contactDetails.isSecondPillarActive() >> secondPillarActive
     conversion.isSecondPillarPartiallyConverted() >> secondPillarPartiallyConverted
     conversion.getSecondPillarWeightedAverageFee() >> secondPillarWeightedAverageFee
@@ -68,6 +69,7 @@ class PillarSuggestionSpec extends Specification {
 
   def "never suggests the pillar the email itself concerns"() {
     when:
+    user.getAge() >> 40
     contactDetails.isSecondPillarActive() >> false
     contactDetails.isThirdPillarActive() >> false
     conversion.isSecondPillarPartiallyConverted() >> false
@@ -89,7 +91,8 @@ class PillarSuggestionSpec extends Specification {
 
   def "never suggests second pillar steps to someone who has left the second pillar"() {
     when:
-    contactDetails.isSecondPillarActive() >> false
+    user.getAge() >> 40
+    contactDetails.isSecondPillarActive() >> true
     conversion.isSecondPillarPartiallyConverted() >> false
     paymentRates.canIncrease() >> true
     def pillarSuggestion =
@@ -104,5 +107,36 @@ class PillarSuggestionSpec extends Specification {
     leftSecondPillar | suggestSecondPillar | suggestPaymentRate
     false            | true                | true
     true             | false               | false
+  }
+
+  def "never suggests second pillar steps to an underage person"() {
+    when:
+    user.getAge() >> age
+    contactDetails.isSecondPillarActive() >> true
+    conversion.isSecondPillarPartiallyConverted() >> false
+    paymentRates.canIncrease() >> true
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+
+    then:
+    pillarSuggestion.isSuggestSecondPillar() == suggestSecondPillar
+    pillarSuggestion.isSuggestPaymentRate() == suggestPaymentRate
+
+    where:
+    age | suggestSecondPillar | suggestPaymentRate
+    17  | false               | false
+    18  | true                | true
+  }
+
+  def "does not suggest a payment rate increase without an active second pillar"() {
+    when:
+    user.getAge() >> 40
+    contactDetails.isSecondPillarActive() >> false
+    conversion.isSecondPillarPartiallyConverted() >> false
+    paymentRates.canIncrease() >> true
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+
+    then:
+    pillarSuggestion.isSuggestSecondPillar()
+    !pillarSuggestion.isSuggestPaymentRate()
   }
 }

@@ -37,9 +37,15 @@ public class PillarSuggestion {
       Set<Integer> mandatePillars,
       boolean leftSecondPillar) {
     this.leftSecondPillar = leftSecondPillar;
-    this.suggestPaymentRate = !leftSecondPillar && paymentRates.canIncrease();
+    boolean adult = user.getAge() >= 18;
+    this.suggestPaymentRate =
+        adult
+            && !leftSecondPillar
+            && contactDetails.isSecondPillarActive()
+            && paymentRates.canIncrease();
     this.suggestSecondPillar =
-        !leftSecondPillar
+        adult
+            && !leftSecondPillar
             && !mandatePillars.contains(2)
             && (!contactDetails.isSecondPillarActive()
                 || !conversion.isSecondPillarPartiallyConverted()

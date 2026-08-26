@@ -1,9 +1,13 @@
 package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.ADJUSTMENT;
 import static java.math.BigDecimal.ZERO;
+import static java.util.Comparator.comparing;
 
+import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
 import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -21,8 +25,9 @@ import org.springframework.stereotype.Component;
  * <p><b>The rule is "never positive", not "never negative."</b> The user unit accounts are
  * liabilities, so holding units means a negative balance — {@code
  * RedemptionService.getEffectiveAvailableFundUnits} reads the balance and negates it. Reserving
- * posts a negative amount; redeeming and cancelling post it back positive. Over-redeeming therefore
- * pushes the balance <em>above</em> zero.
+ * moves units out of {@code FUND_UNITS} (a positive delta there) and into {@code
+ * FUND_UNITS_RESERVED}; redeeming and cancelling draw the reserved account back towards zero.
+ * Drawing more than is held therefore pushes the balance <em>above</em> zero.
  *
  * <p>Scoped deliberately to the two user unit accounts, where the invariant is unconditional.
  * Deriving the direction from {@code AccountType} would be tempting and wrong: system accounts
@@ -30,12 +35,17 @@ import org.springframework.stereotype.Component;
  *
  * <p>Checked on the entries about to be posted, <em>before</em> the transaction is built. Querying
  * the balance in the middle of a half-built object graph makes Hibernate auto-flush entries whose
- * transaction does not exist yet, which corrupts the very posting it is meant to protect.
+ * transaction does not exist yet, which corrupts the very posting it is meant to protect. Running
+ * before the build is also what makes the read correct for a caller that posts several transactions
+ * in one unit of work: the earlier ones are complete by then, and the JPQL sum auto-flushes them,
+ * so each posting sees the ones before it.
  *
- * <p><b>This is a read-then-write check and does not serialise concurrent draws.</b> In practice
- * the redemption path is serialised by {@code RedemptionBatchJob}'s {@code @SchedulerLock}; making
- * the guarantee hold for every caller needs a database constraint rather than application code,
- * which is the alternative already named in the issue this came from.
+ * <p><b>Serialising is the point, not a bonus.</b> Without the account row lock this would be a
+ * read-then-write check, and the races it has to stop are exactly the concurrent ones: two
+ * redemption requests from the same party (two devices, a double click) both read the same
+ * available balance and both reserve, and a cancellation interleaving with the batch pricing the
+ * same request. Neither goes through {@code RedemptionBatchJob}'s {@code @SchedulerLock}. Locks are
+ * taken in account-id order so two transactions touching both unit accounts cannot deadlock.
  */
 @Slf4j
 @Component
@@ -51,8 +61,14 @@ public class UserUnitBalanceGuard {
   @Value("${ledger.unit-balance-guard.enforce:false}")
   private boolean enforce;
 
-  public void check(LedgerTransactionService.LedgerEntryDto... entries) {
+  public void check(
+      TransactionType transactionType, LedgerTransactionService.LedgerEntryDto... entries) {
     var deltaByAccount = guardedDeltas(entries);
+    if (deltaByAccount.isEmpty()) {
+      return;
+    }
+
+    lockInDeterministicOrder(deltaByAccount.keySet());
 
     for (var entry : deltaByAccount.entrySet()) {
       var account = entry.getKey();
@@ -66,16 +82,28 @@ public class UserUnitBalanceGuard {
 
       if (resulting.compareTo(ZERO) > 0) {
         var held = balance.negate();
-        if (enforce) {
+        // Admin adjustments are the tool we would reach for to remediate an account that already
+        // sits above zero, and a correction can legitimately move units into an account still in
+        // breach. Blocking those would leave a broken account with no way to fix it, so
+        // POST /admin/adjustments logs and proceeds; it is admin-authenticated and audited.
+        if (enforce && transactionType != ADJUSTMENT) {
           throw new UnitBalanceViolationException(account.getName(), held, delta);
         }
         log.error(
-            "Unit balance invariant violated (not enforced yet): account={}, held={}, requested={}",
+            "Unit balance invariant violated ({}): account={}, transactionType={}, held={}, requested={}",
+            enforce ? "admin adjustment, allowed through" : "not enforced yet",
             account.getName(),
+            transactionType,
             held,
             delta);
       }
     }
+  }
+
+  private void lockInDeterministicOrder(Collection<LedgerAccount> accounts) {
+    accounts.stream()
+        .sorted(comparing(LedgerAccount::getId))
+        .forEach(account -> ledgerAccountRepository.lockAccount(account.getId()));
   }
 
   private Map<LedgerAccount, BigDecimal> guardedDeltas(

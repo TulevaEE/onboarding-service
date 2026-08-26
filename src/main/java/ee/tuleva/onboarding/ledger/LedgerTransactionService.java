@@ -25,7 +25,7 @@ class LedgerTransactionService {
       UUID externalReference,
       Map<String, Object> metadata,
       LedgerEntryDto... ledgerEntryDtos) {
-    userUnitBalanceGuard.check(ledgerEntryDtos);
+    userUnitBalanceGuard.check(transactionType, ledgerEntryDtos);
 
     var transaction =
         LedgerTransaction.builder()

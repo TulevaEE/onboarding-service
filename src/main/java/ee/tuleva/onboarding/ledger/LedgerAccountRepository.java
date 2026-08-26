@@ -3,10 +3,12 @@ package ee.tuleva.onboarding.ledger;
 import ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose;
 import ee.tuleva.onboarding.ledger.LedgerAccount.AccountType;
 import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
+import jakarta.persistence.LockModeType;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
@@ -40,4 +42,16 @@ interface LedgerAccountRepository extends CrudRepository<LedgerAccount, UUID> {
    */
   @Query("SELECT COALESCE(SUM(e.amount), 0) FROM LedgerEntry e WHERE e.account = :account")
   BigDecimal balanceOf(LedgerAccount account);
+
+  /**
+   * Takes the account's row lock, so that a balance read and the write that depends on it cannot be
+   * interleaved by another transaction.
+   *
+   * <p>Deliberately projects the id rather than the entity: locking through {@code findById} loads
+   * and refreshes the managed {@code LedgerAccount}, which discards entries the current unit of
+   * work has not flushed yet and corrupts the posting in progress.
+   */
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("SELECT a.id FROM LedgerAccount a WHERE a.id = :id")
+  Optional<UUID> lockAccount(UUID id);
 }

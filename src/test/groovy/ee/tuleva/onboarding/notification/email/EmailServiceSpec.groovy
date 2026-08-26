@@ -250,4 +250,26 @@ class EmailServiceSpec extends Specification {
     message.googleAnalyticsCampaign == templateName
     message.tags == ["test"]
   }
+
+  def "scrubs self promotion merge variables based on the template name"() {
+    when:
+    MandrillMessage msg = service.newMandrillMessage(
+        user.email, template, [suggestThirdPillar: true, suggestSecondPillar: true, suggestPaymentRate: true], ["test"], null)
+    def vars = msg.mergeVars.first().vars.collectEntries { [it.name, it.content] }
+
+    then:
+    vars.suggestThirdPillar == suggestThirdPillar
+    vars.suggestSecondPillar == suggestSecondPillar
+    vars.suggestPaymentRate == suggestPaymentRate
+
+    where:
+    template                             | suggestThirdPillar | suggestSecondPillar | suggestPaymentRate
+    "third_pillar_payment_arrived_et"    | false              | true                | true
+    "second_pillar_mandate_en"           | true               | false               | false
+    "second_pillar_payment_rate_et"      | true               | false               | false
+    "payment_rate_abandonment_et"        | true               | false               | false
+    "withdrawal_batch_et"                | false              | false               | false
+    "savings_fund_payment_success_et"    | true               | true                | true
+    "membership_et"                      | true               | true                | true
+  }
 }

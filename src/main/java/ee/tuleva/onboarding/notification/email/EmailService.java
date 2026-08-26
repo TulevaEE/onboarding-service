@@ -15,6 +15,7 @@ import ee.tuleva.onboarding.config.EmailConfiguration;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -56,7 +57,7 @@ public class EmailService {
     MergeVarBucket mergeVarBucket = new MergeVarBucket();
     mergeVarBucket.setRcpt(to);
     MergeVar[] vars =
-        mergeVars.entrySet().stream()
+        withoutSelfPromotion(templateName, mergeVars).entrySet().stream()
             .map(entry -> new MergeVar(entry.getKey(), entry.getValue()))
             .toList()
             .toArray(new MergeVar[0]);
@@ -215,5 +216,20 @@ public class EmailService {
       log.error(e.getLocalizedMessage(), e);
     }
     return Optional.empty();
+  }
+
+  private static Map<String, Object> withoutSelfPromotion(
+      String templateName, Map<String, Object> mergeVars) {
+    Map<String, Object> scrubbed = new HashMap<>(mergeVars);
+    if (templateName.startsWith("third_pillar") || templateName.startsWith("withdrawal_batch")) {
+      scrubbed.replace("suggestThirdPillar", false);
+    }
+    if (templateName.startsWith("second_pillar")
+        || templateName.startsWith("payment_rate")
+        || templateName.startsWith("withdrawal_batch")) {
+      scrubbed.replace("suggestSecondPillar", false);
+      scrubbed.replace("suggestPaymentRate", false);
+    }
+    return scrubbed;
   }
 }

@@ -4,7 +4,7 @@ import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.MEMBER_FEE;
 import static org.springframework.transaction.annotation.Propagation.REQUIRES_NEW;
 import static org.springframework.transaction.event.TransactionPhase.AFTER_COMMIT;
 
-import ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwnerRepository;
+import ee.tuleva.onboarding.analytics.SecondPillarLeavers;
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
@@ -39,7 +39,7 @@ public class PaymentEmailSender {
   private final JwtTokenUtil jwtTokenUtil;
   private final ContactDetailsService contactDetailsService;
   private final SecondPillarPaymentRateService paymentRateService;
-  private final UnitOwnerRepository unitOwnerRepository;
+  private final SecondPillarLeavers secondPillarLeavers;
   private final SavingsFundSuccessEmailResolver savingsFundSuccessEmailResolver;
 
   // TODO: can we make these @Async?
@@ -84,21 +84,21 @@ public class PaymentEmailSender {
   }
 
   private PillarSuggestion pillarSuggestionFor(User user) {
-    return new PillarSuggestion(
-        user,
-        contactDetailsService.getContactDetails(user),
-        conversionService.getConversion(user),
-        paymentRateService.getPaymentRates(user));
+    return pillarSuggestionFor(user, Set.of());
   }
 
   private PillarSuggestion thirdPillarSuggestionFor(User user) {
+    return pillarSuggestionFor(user, Set.of(3));
+  }
+
+  private PillarSuggestion pillarSuggestionFor(User user, Set<Integer> concernedPillars) {
     return new PillarSuggestion(
         user,
         contactDetailsService.getContactDetails(user),
         conversionService.getConversion(user),
         paymentRateService.getPaymentRates(user),
-        Set.of(3),
-        unitOwnerRepository.hasLeftSecondPillar(user.getPersonalCode()));
+        concernedPillars,
+        secondPillarLeavers.hasLeft(user.getPersonalCode()));
   }
 
   private void withSecurityContext(User user, Runnable action) {

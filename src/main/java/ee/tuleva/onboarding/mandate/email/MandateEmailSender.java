@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.mandate.email;
 
 import static java.util.stream.Collectors.toSet;
 
-import ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwnerRepository;
+import ee.tuleva.onboarding.analytics.SecondPillarLeavers;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.epis.EpisService;
@@ -29,7 +29,7 @@ public class MandateEmailSender {
   private final EpisService episService;
   private final UserConversionService conversionService;
   private final SecondPillarPaymentRateService paymentRateService;
-  private final UnitOwnerRepository unitOwnerRepository;
+  private final SecondPillarLeavers secondPillarLeavers;
 
   @EventListener
   public void sendEmail(AfterMandateSignedEvent event) {
@@ -43,7 +43,7 @@ public class MandateEmailSender {
             conversion,
             paymentRates,
             Set.of(event.getMandate().getPillar()),
-            unitOwnerRepository.hasLeftSecondPillar(event.getUser().getPersonalCode()));
+            secondPillarLeavers.hasLeft(event.getUser().getPersonalCode()));
     if (!event.getMandate().isPartOfBatch()) {
       mandateEmailService.sendMandate(
           event.getUser(), event.getMandate(), pillarSuggestion, event.getLocale());
@@ -68,7 +68,7 @@ public class MandateEmailSender {
             conversion,
             paymentRates,
             mandatePillars,
-            unitOwnerRepository.hasLeftSecondPillar(event.getUser().getPersonalCode()));
+            secondPillarLeavers.hasLeft(event.getUser().getPersonalCode()));
     mandateBatchEmailService.sendMandateBatch(
         event.getUser(), event.getMandateBatch(), pillarSuggestion, event.getLocale());
   }

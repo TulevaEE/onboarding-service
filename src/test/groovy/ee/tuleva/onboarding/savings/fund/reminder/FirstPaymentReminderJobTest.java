@@ -1,0 +1,76 @@
+package ee.tuleva.onboarding.savings.fund.reminder;
+
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Locale;
+import java.util.stream.IntStream;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+@ExtendWith(MockitoExtension.class)
+class FirstPaymentReminderJobTest {
+
+  private static final Instant NOW = Instant.parse("2026-09-01T12:00:00Z");
+  private static final Instant OPENED_FROM = Instant.parse("2026-08-02T12:00:00Z");
+  private static final Instant OPENED_UNTIL = Instant.parse("2026-08-25T12:00:00Z");
+
+  private final Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
+
+  @Mock private FirstPaymentReminderRepository repository;
+  @Mock private FirstPaymentReminderSender sender;
+
+  private FirstPaymentReminderJob job() {
+    return new FirstPaymentReminderJob(clock, repository, sender);
+  }
+
+  @Test
+  void remindsSaversWhoOpenedAnAccountBetweenThirtyAndSevenDaysAgo() {
+    var firstSaver = reminder("38812121215");
+    var secondSaver = reminder("38001085718");
+    given(repository.fetch(OPENED_FROM, OPENED_UNTIL)).willReturn(List.of(firstSaver, secondSaver));
+
+    job().sendReminders();
+
+    verify(sender).send(firstSaver);
+    verify(sender).send(secondSaver);
+  }
+
+  @Test
+  void sendsNothingWhenThereAreSuspiciouslyManyRecipients() {
+    given(repository.fetch(OPENED_FROM, OPENED_UNTIL)).willReturn(reminders(201));
+
+    job().sendReminders();
+
+    verifyNoInteractions(sender);
+  }
+
+  @Test
+  void keepsRemindingTheRestWhenOneReminderFails() {
+    var failingSaver = reminder("38812121215");
+    var nextSaver = reminder("38001085718");
+    given(repository.fetch(OPENED_FROM, OPENED_UNTIL)).willReturn(List.of(failingSaver, nextSaver));
+    willThrow(new RuntimeException("Mandrill is down")).given(sender).send(failingSaver);
+
+    job().sendReminders();
+
+    verify(sender).send(nextSaver);
+  }
+
+  private List<FirstPaymentReminder> reminders(int count) {
+    return IntStream.range(0, count).mapToObj(index -> reminder("saver-" + index)).toList();
+  }
+
+  private FirstPaymentReminder reminder(String personalCode) {
+    return new FirstPaymentReminder(
+        personalCode, "Saver", "Example", personalCode + "@example.com", Locale.of("et"));
+  }
+}

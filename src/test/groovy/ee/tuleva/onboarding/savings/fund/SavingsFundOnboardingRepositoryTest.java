@@ -9,6 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import ee.tuleva.onboarding.aml.AmlCheck;
 import ee.tuleva.onboarding.aml.AmlCheckType;
 import ee.tuleva.onboarding.company.Company;
+import ee.tuleva.onboarding.time.ClockConfig;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.time.Clock;
 import java.time.Instant;
@@ -21,7 +22,7 @@ import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 import org.springframework.context.annotation.Import;
 
 @DataJpaTest
-@Import(SavingsFundOnboardingRepository.class)
+@Import({SavingsFundOnboardingRepository.class, ClockConfig.class})
 class SavingsFundOnboardingRepositoryTest {
 
   @Autowired SavingsFundOnboardingRepository repository;

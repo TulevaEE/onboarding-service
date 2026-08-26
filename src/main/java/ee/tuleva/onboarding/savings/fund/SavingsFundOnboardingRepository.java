@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMP
 import ee.tuleva.onboarding.kyb.KybCheckType;
 import ee.tuleva.onboarding.party.PartyId;
 import java.sql.Timestamp;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
@@ -19,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class SavingsFundOnboardingRepository {
 
   private final JdbcClient jdbcClient;
+  private final Clock clock;
 
   public List<String> findPersonCodes() {
     return jdbcClient
@@ -79,13 +81,14 @@ public class SavingsFundOnboardingRepository {
     return jdbcClient
             .sql(
                 """
-                INSERT INTO savings_fund_onboarding (code, type, status)
-                VALUES (:code, :type, :status)
+                INSERT INTO savings_fund_onboarding (code, type, status, status_changed_at)
+                VALUES (:code, :type, :status, :statusChangedAt)
                 ON CONFLICT DO NOTHING
                 """)
             .param("code", code)
             .param("type", type.name())
             .param("status", status.name())
+            .param("statusChangedAt", Timestamp.from(clock.instant()))
             .update()
         > 0;
   }
@@ -102,19 +105,28 @@ public class SavingsFundOnboardingRepository {
     int updated =
         jdbcClient
             .sql(
-                "UPDATE savings_fund_onboarding SET status = :status WHERE code = :code AND type = :type")
+                """
+                UPDATE savings_fund_onboarding
+                SET status = :status, status_changed_at = :statusChangedAt
+                WHERE code = :code AND type = :type
+                """)
             .param("code", code)
             .param("type", type.name())
             .param("status", status.name())
+            .param("statusChangedAt", Timestamp.from(clock.instant()))
             .update();
 
     if (updated == 0) {
       jdbcClient
           .sql(
-              "INSERT INTO savings_fund_onboarding (code, type, status) VALUES (:code, :type, :status)")
+              """
+              INSERT INTO savings_fund_onboarding (code, type, status, status_changed_at)
+              VALUES (:code, :type, :status, :statusChangedAt)
+              """)
           .param("code", code)
           .param("type", type.name())
           .param("status", status.name())
+          .param("statusChangedAt", Timestamp.from(clock.instant()))
           .update();
     }
   }

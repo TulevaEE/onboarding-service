@@ -7,7 +7,7 @@
       <mj-column>
         <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
-          Your company's (*|RECIPIENTNAME|*) contribution to Tuleva Savings Fund is well
+          Your company's (*|RECIPIENTNAME|*) contribution to Tuleva Savings Fund has been
           received. Fund units will appear on the company's account within two business days.
         </mj-text>
         <mj-text>

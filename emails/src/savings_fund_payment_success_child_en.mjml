@@ -7,8 +7,7 @@
       <mj-column>
         <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
-          Your contribution to your child's (*|RECIPIENTNAME|*) Tuleva Savings Fund account is
-          well received. Fund units will appear on the child's account within two business days.
+          Your contribution to your child's (*|RECIPIENTNAME|*) Tuleva Savings Fund account has been received. Fund units will appear on the child's account within two business days.
         </mj-text>
         <mj-text>
           Please note that you can see the balance of your investment into Tuleva Savings Fund

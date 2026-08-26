@@ -7,45 +7,45 @@
       <mj-column>
         <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
         <mj-text>The withdrawal applications have been submitted!</mj-text>
-        <mj-text>Soon you will be able to use your collected pension holdings.</mj-text>
+        <mj-text>Soon you can start using the pension savings you have accumulated.</mj-text>
         <mj-text><strong>Submitted applications:</strong></mj-text>
 
         <mj-raw>*|IF:fundPensionSecondPillar|*</mj-raw>
-        <mj-text>II pillar fund pension application</mj-text>
+        <mj-text>second pillar fund pension application</mj-text>
         <mj-raw>*|END:IF|*</mj-raw>
 
         <mj-raw>*|IF:fundPensionThirdPillar|*</mj-raw>
-        <mj-text>III pillar fund pension application</mj-text>
+        <mj-text>third pillar fund pension application</mj-text>
         <mj-raw>*|END:IF|*</mj-raw>
 
         <mj-raw>*|IF:partialWithdrawalSecondPillar|*</mj-raw>
-        <mj-text>II pillar partial withdrawal application</mj-text>
+        <mj-text>second pillar partial withdrawal application</mj-text>
         <mj-raw>*|END:IF|*</mj-raw>
 
         <mj-raw>*|IF:partialWithdrawalThirdPillar|*</mj-raw>
-        <mj-text>III pillar partial withdrawal application</mj-text>
+        <mj-text>third pillar partial withdrawal application</mj-text>
         <mj-raw>*|END:IF|*</mj-raw>
 
         <mj-raw>*|IF:fundPensionSecondPillar|*</mj-raw>
         <mj-text>
-          The first II pillar payout is made by the 20th of next month and monthly by the 20th
+          The first second pillar payout is made by the 20th of next month and monthly by the 20th
           from then on.
         </mj-text>
         <mj-raw>*|END:IF|*</mj-raw>
 
         <mj-raw>*|IF:partialWithdrawalSecondPillar|*</mj-raw>
-        <mj-text>The one-time II pillar payout is made by the 20th of next month.</mj-text>
+        <mj-text>The one-time second pillar payout is made by the 20th of next month.</mj-text>
         <mj-raw>*|END:IF|*</mj-raw>
 
         <mj-raw>*|IF:fundPensionThirdPillar|*</mj-raw>
         <mj-text>
-          The first III pillar payout is made by the 20th of next month and monthly by the 20th
+          The first third pillar payout is made by the 20th of next month and monthly by the 20th
           from then on.
         </mj-text>
         <mj-raw>*|END:IF|*</mj-raw>
 
         <mj-raw>*|IF:partialWithdrawalThirdPillar|*</mj-raw>
-        <mj-text>The one-time III pillar payout is made in four working days.</mj-text>
+        <mj-text>The one-time third pillar payout is made after four working days.</mj-text>
         <mj-raw>*|END:IF|*</mj-raw>
 
         <mj-text>

@@ -140,6 +140,7 @@ public class MandateEmailService {
       tags.add("suggest_member");
     }
 
+    pillarSuggestion.renderedNudgeTag().ifPresent(tags::add);
     return tags;
   }
 

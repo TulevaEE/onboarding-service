@@ -51,7 +51,7 @@ public class MandateBatchEmailService {
             user.getEmail(),
             templateName,
             getMergeVars(user, mandateBatch, pillarSuggestion),
-            getMandateBatchTags(mandateBatch),
+            getMandateBatchTags(mandateBatch, pillarSuggestion),
             getAttachments(user, mandateBatch));
     emailService
         .send(user, mandrillMessage, templateName)
@@ -162,6 +162,12 @@ public class MandateBatchEmailService {
                 ((PartialWithdrawalMandateDetails) mandate.getMandateDto().getDetails())
                     .getPillar())
         .collect(Collectors.toSet());
+  }
+
+  private List<String> getMandateBatchTags(MandateBatch batch, PillarSuggestion pillarSuggestion) {
+    List<String> tags = getMandateBatchTags(batch);
+    pillarSuggestion.renderedNudgeTag().ifPresent(tags::add);
+    return tags;
   }
 
   private List<String> getMandateBatchTags(MandateBatch batch) {

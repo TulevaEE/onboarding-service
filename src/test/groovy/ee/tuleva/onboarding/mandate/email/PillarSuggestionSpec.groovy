@@ -6,6 +6,8 @@ import ee.tuleva.onboarding.paymentrate.PaymentRates
 import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
 
+import java.util.Optional
+
 class PillarSuggestionSpec extends Specification {
 
   User user = Mock()
@@ -194,5 +196,32 @@ class PillarSuggestionSpec extends Specification {
 
     then:
     !pillarSuggestion.isSuggestSavingsFund()
+  }
+
+  def "reports the nudge that actually renders, in chain order"() {
+    when:
+    user.getAge() >> 40
+    user.isMember() >> member
+    contactDetails.isSecondPillarActive() >> secondPillarActive
+    contactDetails.isThirdPillarActive() >> true
+    conversion.isSecondPillarPartiallyConverted() >> secondPillarActive
+    conversion.isThirdPillarPartiallyConverted() >> true
+    conversion.getSecondPillarWeightedAverageFee() >> 0.003
+    conversion.getThirdPillarWeightedAverageFee() >> 0.003
+    paymentRates.canIncrease() >> canIncrease
+    def pillarSuggestion =
+        new PillarSuggestion(
+            user, contactDetails, conversion, paymentRates, [] as Set, false, savesInSavingsFund)
+
+    then:
+    pillarSuggestion.renderedNudgeTag() == Optional.ofNullable(tag)
+
+    where:
+    secondPillarActive | canIncrease | savesInSavingsFund | member | tag
+    false              | false       | true               | false  | "nudge_second_pillar"
+    true               | true        | true               | false  | "nudge_payment_rate"
+    true               | false       | false              | false  | "nudge_savings_fund"
+    true               | false       | true               | false  | "nudge_membership"
+    true               | false       | true               | true   | null
   }
 }

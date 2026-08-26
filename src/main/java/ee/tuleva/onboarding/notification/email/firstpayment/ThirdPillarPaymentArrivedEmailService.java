@@ -79,9 +79,16 @@ public class ThirdPillarPaymentArrivedEmailService {
   private List<String> tags(FirstThirdPillarPayment payment) {
     List<String> tags = new ArrayList<>();
     tags.add("third_pillar_payment_arrived");
-    if (payment.suggestSecondPillar()) {
-      tags.add("suggest_2");
-    }
+    tags.add(renderedNudgeTag(payment));
     return tags;
+  }
+
+  private String renderedNudgeTag(FirstThirdPillarPayment payment) {
+    if (!payment.hasTulevaUser()) return "nudge_log_in";
+    if (payment.suggestSecondPillar()) return "nudge_second_pillar";
+    if (payment.suggestPaymentRate()) return "nudge_payment_rate";
+    if (payment.suggestSavingsFund()) return "nudge_savings_fund";
+    if (payment.suggestMembership()) return "nudge_membership";
+    return "nudge_recurring_payment";
   }
 }

@@ -272,4 +272,5 @@ class EmailServiceSpec extends Specification {
     "savings_fund_payment_success_et"    | true               | true                | true
     "membership_et"                      | true               | true                | true
   }
+
 }

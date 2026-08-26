@@ -114,8 +114,7 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
                             .minusDays(1)
                             .format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy"))
                             .equals(mergeVars.get("paymentDate"))
-                        && new BigDecimal("300.00").compareTo((BigDecimal) mergeVars.get("amount"))
-                            == 0),
+                        && "300".equals(mergeVars.get("amount"))),
             any(),
             any());
     verify(emailService, times(1))

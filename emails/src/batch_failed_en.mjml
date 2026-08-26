@@ -8,10 +8,9 @@
         <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
         <mj-text>You tried to submit applications, but unfortunately a technical problem occurred.</mj-text>
         <mj-text>
-          A technical problem occurred while submitting *|failedMandateCount|* of your
-          *|totalMandateCount|* applications. This means that the remaining
-          *|successfulMandateCount|* applications were submitted to Pensionikeskus and they are
-          being processed.
+          Out of the *|totalMandateCount|* applications you submitted, *|failedMandateCount|* hit
+          a technical problem. The remaining *|successfulMandateCount|* applications reached
+          Pensionikeskus and are being processed.
         </mj-text>
         <mj-text>
           Please contact us so we can fix the problem:

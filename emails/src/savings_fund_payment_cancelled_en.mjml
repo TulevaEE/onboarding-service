@@ -8,7 +8,7 @@
         <mj-text>Hello *|FNAME|*</mj-text>
         <mj-text>
           You requested to cancel your payment to Tuleva Savings Fund. We received your request
-          on time and will send the money back to your account today. If you want to try again,
+          on time and will send the money back to your account today. If you want to make a new contribution,
           click here:
         </mj-text>
         <mj-button href="https://pension.tuleva.ee/savings-fund/payment?language=en">

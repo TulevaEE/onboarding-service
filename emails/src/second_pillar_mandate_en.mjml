@@ -8,8 +8,8 @@
         <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
           You are now saving for your pension alongside me and other Tuleva members. Your
-          payments will be directed to the chosen pension fund from the next payment made. If
-          you wish to swap any existing shares, the exchange of units will take effect
+          payments will be directed to the chosen pension fund starting from the next payment.
+          If you also chose to exchange your existing fund units, the exchange takes effect
           on&nbsp;*|transferDate|*.
         </mj-text>
 

@@ -1,32 +1,59 @@
 {
   "variants": {
-    "has account, set up third pillar": {
-      "FNAME": "Mari",
-      "amount": "300.00",
-      "paymentDate": "12.08.2026",
-      "hasTulevaUser": true,
-      "suggestThirdPillar": true
-    },
-    "has account, II pillar elsewhere": {
+    "second pillar suggestion": {
       "FNAME": "Mari",
       "amount": "300.00",
       "paymentDate": "12.08.2026",
       "hasTulevaUser": true,
       "suggestSecondPillar": true
     },
-    "has account, raise the rate": {
+    "payment rate increase suggestion": {
       "FNAME": "Mari",
       "amount": "300.00",
       "paymentDate": "12.08.2026",
       "hasTulevaUser": true,
       "suggestPaymentRate": true
     },
-    "has account, membership": {
+    "third pillar suggestion": {
+      "FNAME": "Mari",
+      "amount": "300.00",
+      "paymentDate": "12.08.2026",
+      "hasTulevaUser": true,
+      "suggestThirdPillar": true
+    },
+    "third pillar recurring suggestion": {
+      "FNAME": "Mari",
+      "amount": "300.00",
+      "paymentDate": "12.08.2026",
+      "hasTulevaUser": true,
+      "suggestThirdPillarRecurringPayment": true
+    },
+    "savings fund suggestion": {
+      "FNAME": "Mari",
+      "amount": "300.00",
+      "paymentDate": "12.08.2026",
+      "hasTulevaUser": true,
+      "suggestSavingsFund": true
+    },
+    "savings fund recurring suggestion": {
+      "FNAME": "Mari",
+      "amount": "300.00",
+      "paymentDate": "12.08.2026",
+      "hasTulevaUser": true,
+      "suggestSavingsFundRecurringPayment": true
+    },
+    "membership suggestion": {
       "FNAME": "Mari",
       "amount": "300.00",
       "paymentDate": "12.08.2026",
       "hasTulevaUser": true,
       "suggestMembership": true
+    },
+    "no nudge": {
+      "FNAME": "Mari",
+      "amount": "300.00",
+      "paymentDate": "12.08.2026",
+      "hasTulevaUser": true
     },
     "no account": {
       "FNAME": "Mari",
@@ -34,33 +61,6 @@
       "paymentDate": "12.08.2026",
       "hasTulevaUser": false,
       "suggestSecondPillar": true
-    },
-    "savings fund": {
-      "FNAME": "Mari",
-      "amount": "300.00",
-      "paymentDate": "12.08.2026",
-      "hasTulevaUser": true,
-      "suggestSavingsFund": true
-    },
-    "recurring payment": {
-      "FNAME": "Mari",
-      "amount": "300.00",
-      "paymentDate": "12.08.2026",
-      "hasTulevaUser": true,
-      "suggestThirdPillarRecurringPayment": true
-    },
-    "savings fund recurring": {
-      "FNAME": "Mari",
-      "amount": "300.00",
-      "paymentDate": "12.08.2026",
-      "hasTulevaUser": true,
-      "suggestSavingsFundRecurringPayment": true
-    },
-    "no nudge": {
-      "FNAME": "Mari",
-      "amount": "300.00",
-      "paymentDate": "12.08.2026",
-      "hasTulevaUser": true
     }
   }
 }

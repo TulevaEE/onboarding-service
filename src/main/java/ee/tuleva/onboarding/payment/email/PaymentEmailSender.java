@@ -64,12 +64,15 @@ public class PaymentEmailSender {
 
   @EventListener
   public void onSavingsPaymentCreated(SavingsPaymentCreatedEvent event) {
-    sendSavingsFundEmail(event, savingsFundSuccessEmailResolver.resolve(event));
+    boolean suggestAccountRecurringPayment =
+        !recurringSavers.hasRecurringSavingsFundPayments(event.getRecipient());
+    sendSavingsFundEmail(
+        event, savingsFundSuccessEmailResolver.resolve(event), suggestAccountRecurringPayment);
   }
 
   @EventListener
   public void onSavingsPaymentCancelled(SavingsPaymentCancelledEvent event) {
-    sendSavingsFundEmail(event, SavingsFundPaymentEmail.cancelled());
+    sendSavingsFundEmail(event, SavingsFundPaymentEmail.cancelled(), false);
   }
 
   @TransactionalEventListener(phase = AFTER_COMMIT)
@@ -79,12 +82,17 @@ public class PaymentEmailSender {
         event.getUser(), SavingsFundPaymentEmail.failed(), event.getLocale());
   }
 
-  private void sendSavingsFundEmail(PaymentEvent event, SavingsFundPaymentEmail email) {
+  private void sendSavingsFundEmail(
+      PaymentEvent event, SavingsFundPaymentEmail email, boolean suggestAccountRecurringPayment) {
     withSecurityContext(
         event.getUser(),
         () ->
             emailService.sendSavingsFundPaymentEmail(
-                event.getUser(), email, pillarSuggestionFor(event.getUser()), event.getLocale()));
+                event.getUser(),
+                email,
+                pillarSuggestionFor(event.getUser()),
+                suggestAccountRecurringPayment,
+                event.getLocale()));
   }
 
   private PillarSuggestion pillarSuggestionFor(User user) {

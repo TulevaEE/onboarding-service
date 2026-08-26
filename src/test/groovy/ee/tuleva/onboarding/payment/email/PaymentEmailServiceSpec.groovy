@@ -96,7 +96,8 @@ class PaymentEmailServiceSpec extends Specification {
         "leftSecondPillar"   : pillarSuggestion.leftSecondPillar,
         "suggestSavingsFund" : pillarSuggestion.suggestSavingsFund,
         "suggestThirdPillarRecurringPayment" : pillarSuggestion.suggestThirdPillarRecurringPayment,
-        "suggestSavingsFundRecurringPayment" : pillarSuggestion.suggestSavingsFundRecurringPayment
+        "suggestSavingsFundRecurringPayment" : pillarSuggestion.suggestSavingsFundRecurringPayment,
+        "suggestAccountRecurringPayment" : false
     ]
     def tags = ["savings_fund", "suggest_payment_rate", "suggest_2"] + pillarSuggestion.renderedNudgeTag().stream().toList()
     def locale = Locale.ENGLISH
@@ -107,7 +108,7 @@ class PaymentEmailServiceSpec extends Specification {
     }
 
     when:
-    paymentEmailService.sendSavingsFundPaymentEmail(user, email, pillarSuggestion, locale)
+    paymentEmailService.sendSavingsFundPaymentEmail(user, email, pillarSuggestion, false, locale)
 
     then:
     1 * emailService.send(user, message, templateName) >> Optional.of(mandrillResponse)
@@ -167,7 +168,8 @@ class PaymentEmailServiceSpec extends Specification {
         "leftSecondPillar"   : pillarSuggestion.leftSecondPillar,
         "suggestSavingsFund" : pillarSuggestion.suggestSavingsFund,
         "suggestThirdPillarRecurringPayment" : pillarSuggestion.suggestThirdPillarRecurringPayment,
-        "suggestSavingsFundRecurringPayment" : pillarSuggestion.suggestSavingsFundRecurringPayment
+        "suggestSavingsFundRecurringPayment" : pillarSuggestion.suggestSavingsFundRecurringPayment,
+        "suggestAccountRecurringPayment" : false
     ]
     def tags = ["savings_fund", "suggest_payment_rate", "suggest_2"] + pillarSuggestion.renderedNudgeTag().stream().toList()
     def locale = Locale.ENGLISH
@@ -177,7 +179,7 @@ class PaymentEmailServiceSpec extends Specification {
     }
 
     when:
-    paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.childSuccess("Kid Tester"), pillarSuggestion, locale)
+    paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.childSuccess("Kid Tester"), pillarSuggestion, false, locale)
 
     then:
     1 * emailService.send(user, message, "savings_fund_payment_success_child_en") >> Optional.of(mandrillResponse)

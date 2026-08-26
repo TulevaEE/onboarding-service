@@ -1,27 +1,48 @@
 {
   "variants": {
-    "seadista III sammas": {
-      "FNAME": "Kati",
-      "LNAME": "Ilves",
-      "memberNumber": "731",
-      "memberDate": "14.02.2026",
-      "suggestThirdPillar": true
-    },
-    "II sammas mujal": {
+    "II samba soovitus": {
       "FNAME": "Mari",
       "LNAME": "Maasikas",
       "memberNumber": "482",
       "memberDate": "12.08.2026",
       "suggestSecondPillar": true
     },
-    "tõsta makse määra": {
+    "II samba määra tõstmise soovitus": {
       "FNAME": "Jaan",
       "LNAME": "Tamm",
       "memberNumber": "615",
       "memberDate": "03.07.2026",
       "suggestPaymentRate": true
     },
-    "astu liikmeks": {
+    "III samba soovitus": {
+      "FNAME": "Kati",
+      "LNAME": "Ilves",
+      "memberNumber": "731",
+      "memberDate": "14.02.2026",
+      "suggestThirdPillar": true
+    },
+    "III samba püsimakse soovitus": {
+      "FNAME": "Kati",
+      "LNAME": "Ilves",
+      "memberNumber": "731",
+      "memberDate": "14.02.2026",
+      "suggestThirdPillarRecurringPayment": true
+    },
+    "kogumisfondi soovitus": {
+      "FNAME": "Kati",
+      "LNAME": "Ilves",
+      "memberNumber": "731",
+      "memberDate": "14.02.2026",
+      "suggestSavingsFund": true
+    },
+    "kogumisfondi püsimakse soovitus": {
+      "FNAME": "Kati",
+      "LNAME": "Ilves",
+      "memberNumber": "731",
+      "memberDate": "14.02.2026",
+      "suggestSavingsFundRecurringPayment": true
+    },
+    "liikmesuse soovitus": {
       "FNAME": "Toomas",
       "LNAME": "Rebane",
       "memberNumber": "902",
@@ -33,27 +54,6 @@
       "LNAME": "Kask",
       "memberNumber": "247",
       "memberDate": "21.05.2026"
-    },
-    "kogumisfond": {
-      "FNAME": "Kati",
-      "LNAME": "Ilves",
-      "memberNumber": "731",
-      "memberDate": "14.02.2026",
-      "suggestSavingsFund": true
-    },
-    "püsimakse soovitus": {
-      "FNAME": "Kati",
-      "LNAME": "Ilves",
-      "memberNumber": "731",
-      "memberDate": "14.02.2026",
-      "suggestThirdPillarRecurringPayment": true
-    },
-    "kogumisfondi püsimakse": {
-      "FNAME": "Kati",
-      "LNAME": "Ilves",
-      "memberNumber": "731",
-      "memberDate": "14.02.2026",
-      "suggestSavingsFundRecurringPayment": true
     }
   }
 }

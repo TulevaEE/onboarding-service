@@ -1,32 +1,59 @@
 {
   "variants": {
-    "konto olemas, seadista III sammas": {
-      "FNAME": "Mari",
-      "amount": "300.00",
-      "paymentDate": "12.08.2026",
-      "hasTulevaUser": true,
-      "suggestThirdPillar": true
-    },
-    "konto olemas, II sammas mujal": {
+    "II samba soovitus": {
       "FNAME": "Mari",
       "amount": "300.00",
       "paymentDate": "12.08.2026",
       "hasTulevaUser": true,
       "suggestSecondPillar": true
     },
-    "konto olemas, tõsta määra": {
+    "II samba määra tõstmise soovitus": {
       "FNAME": "Mari",
       "amount": "300.00",
       "paymentDate": "12.08.2026",
       "hasTulevaUser": true,
       "suggestPaymentRate": true
     },
-    "konto olemas, astu liikmeks": {
+    "III samba soovitus": {
+      "FNAME": "Mari",
+      "amount": "300.00",
+      "paymentDate": "12.08.2026",
+      "hasTulevaUser": true,
+      "suggestThirdPillar": true
+    },
+    "III samba püsimakse soovitus": {
+      "FNAME": "Mari",
+      "amount": "300.00",
+      "paymentDate": "12.08.2026",
+      "hasTulevaUser": true,
+      "suggestThirdPillarRecurringPayment": true
+    },
+    "kogumisfondi soovitus": {
+      "FNAME": "Mari",
+      "amount": "300.00",
+      "paymentDate": "12.08.2026",
+      "hasTulevaUser": true,
+      "suggestSavingsFund": true
+    },
+    "kogumisfondi püsimakse soovitus": {
+      "FNAME": "Mari",
+      "amount": "300.00",
+      "paymentDate": "12.08.2026",
+      "hasTulevaUser": true,
+      "suggestSavingsFundRecurringPayment": true
+    },
+    "liikmesuse soovitus": {
       "FNAME": "Mari",
       "amount": "300.00",
       "paymentDate": "12.08.2026",
       "hasTulevaUser": true,
       "suggestMembership": true
+    },
+    "ilma soovituseta": {
+      "FNAME": "Mari",
+      "amount": "300.00",
+      "paymentDate": "12.08.2026",
+      "hasTulevaUser": true
     },
     "kontota": {
       "FNAME": "Mari",
@@ -34,33 +61,6 @@
       "paymentDate": "12.08.2026",
       "hasTulevaUser": false,
       "suggestSecondPillar": true
-    },
-    "kogumisfond": {
-      "FNAME": "Mari",
-      "amount": "300.00",
-      "paymentDate": "12.08.2026",
-      "hasTulevaUser": true,
-      "suggestSavingsFund": true
-    },
-    "püsimakse soovitus": {
-      "FNAME": "Mari",
-      "amount": "300.00",
-      "paymentDate": "12.08.2026",
-      "hasTulevaUser": true,
-      "suggestThirdPillarRecurringPayment": true
-    },
-    "kogumisfondi püsimakse": {
-      "FNAME": "Mari",
-      "amount": "300.00",
-      "paymentDate": "12.08.2026",
-      "hasTulevaUser": true,
-      "suggestSavingsFundRecurringPayment": true
-    },
-    "ilma soovituseta": {
-      "FNAME": "Mari",
-      "amount": "300.00",
-      "paymentDate": "12.08.2026",
-      "hasTulevaUser": true
     }
   }
 }

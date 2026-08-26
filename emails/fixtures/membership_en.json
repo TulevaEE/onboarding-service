@@ -1,27 +1,48 @@
 {
   "variants": {
-    "set up third pillar": {
-      "FNAME": "Kati",
-      "LNAME": "Ilves",
-      "memberNumber": "731",
-      "memberDate": "14.02.2026",
-      "suggestThirdPillar": true
-    },
-    "II pillar elsewhere": {
+    "second pillar suggestion": {
       "FNAME": "Mari",
       "LNAME": "Maasikas",
       "memberNumber": "482",
       "memberDate": "12.08.2026",
       "suggestSecondPillar": true
     },
-    "raise the payment rate": {
+    "payment rate increase suggestion": {
       "FNAME": "Jaan",
       "LNAME": "Tamm",
       "memberNumber": "615",
       "memberDate": "03.07.2026",
       "suggestPaymentRate": true
     },
-    "join as member": {
+    "third pillar suggestion": {
+      "FNAME": "Kati",
+      "LNAME": "Ilves",
+      "memberNumber": "731",
+      "memberDate": "14.02.2026",
+      "suggestThirdPillar": true
+    },
+    "third pillar recurring suggestion": {
+      "FNAME": "Kati",
+      "LNAME": "Ilves",
+      "memberNumber": "731",
+      "memberDate": "14.02.2026",
+      "suggestThirdPillarRecurringPayment": true
+    },
+    "savings fund suggestion": {
+      "FNAME": "Kati",
+      "LNAME": "Ilves",
+      "memberNumber": "731",
+      "memberDate": "14.02.2026",
+      "suggestSavingsFund": true
+    },
+    "savings fund recurring suggestion": {
+      "FNAME": "Kati",
+      "LNAME": "Ilves",
+      "memberNumber": "731",
+      "memberDate": "14.02.2026",
+      "suggestSavingsFundRecurringPayment": true
+    },
+    "membership suggestion": {
       "FNAME": "Toomas",
       "LNAME": "Rebane",
       "memberNumber": "902",
@@ -33,27 +54,6 @@
       "LNAME": "Kask",
       "memberNumber": "247",
       "memberDate": "21.05.2026"
-    },
-    "savings fund": {
-      "FNAME": "Kati",
-      "LNAME": "Ilves",
-      "memberNumber": "731",
-      "memberDate": "14.02.2026",
-      "suggestSavingsFund": true
-    },
-    "recurring payment": {
-      "FNAME": "Kati",
-      "LNAME": "Ilves",
-      "memberNumber": "731",
-      "memberDate": "14.02.2026",
-      "suggestThirdPillarRecurringPayment": true
-    },
-    "savings fund recurring": {
-      "FNAME": "Kati",
-      "LNAME": "Ilves",
-      "memberNumber": "731",
-      "memberDate": "14.02.2026",
-      "suggestSavingsFundRecurringPayment": true
     }
   }
 }

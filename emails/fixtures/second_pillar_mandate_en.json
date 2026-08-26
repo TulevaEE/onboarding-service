@@ -1,21 +1,36 @@
 {
   "variants": {
-    "suggest third pillar": {
-      "FNAME": "Mari",
-      "transferDate": "12.08.2026",
-      "suggestThirdPillar": true
-    },
-    "suggest second pillar elsewhere": {
+    "second pillar suggestion": {
       "FNAME": "Mari",
       "transferDate": "12.08.2026",
       "suggestSecondPillar": true
     },
-    "suggest payment rate": {
+    "payment rate increase suggestion": {
       "FNAME": "Mari",
       "transferDate": "12.08.2026",
       "suggestPaymentRate": true
     },
-    "suggest membership": {
+    "third pillar suggestion": {
+      "FNAME": "Mari",
+      "transferDate": "12.08.2026",
+      "suggestThirdPillar": true
+    },
+    "third pillar recurring suggestion": {
+      "FNAME": "Mari",
+      "transferDate": "12.08.2026",
+      "suggestThirdPillarRecurringPayment": true
+    },
+    "savings fund suggestion": {
+      "FNAME": "Mari",
+      "transferDate": "12.08.2026",
+      "suggestSavingsFund": true
+    },
+    "savings fund recurring suggestion": {
+      "FNAME": "Mari",
+      "transferDate": "12.08.2026",
+      "suggestSavingsFundRecurringPayment": true
+    },
+    "membership suggestion": {
       "FNAME": "Mari",
       "transferDate": "12.08.2026",
       "suggestMembership": true
@@ -23,21 +38,6 @@
     "no branch": {
       "FNAME": "Mari",
       "transferDate": "12.08.2026"
-    },
-    "savings fund": {
-      "FNAME": "Mari",
-      "transferDate": "12.08.2026",
-      "suggestSavingsFund": true
-    },
-    "recurring payment": {
-      "FNAME": "Mari",
-      "transferDate": "12.08.2026",
-      "suggestThirdPillarRecurringPayment": true
-    },
-    "savings fund recurring": {
-      "FNAME": "Mari",
-      "transferDate": "12.08.2026",
-      "suggestSavingsFundRecurringPayment": true
     }
   }
 }

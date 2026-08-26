@@ -1,39 +1,44 @@
 {
   "variants": {
-    "soovita III sammast": {
+    "konto püsimakse soovitus": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Jaan Tamm",
-      "suggestThirdPillar": true
+      "suggestAccountRecurringPayment": true
     },
-    "soovita II sammast mujal": {
+    "II samba soovitus": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Jaan Tamm",
       "suggestSecondPillar": true
     },
-    "soovita tõsta määra": {
+    "II samba määra tõstmise soovitus": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Jaan Tamm",
       "suggestPaymentRate": true
     },
-    "soovita liikmeks astuda": {
+    "III samba soovitus": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Jaan Tamm",
-      "suggestMembership": true
+      "suggestThirdPillar": true
     },
-    "kogumisfond": {
-      "FNAME": "Mari",
-      "RECIPIENTNAME": "Jaan Tamm",
-      "suggestSavingsFund": true
-    },
-    "püsimakse soovitus": {
+    "III samba püsimakse soovitus": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Jaan Tamm",
       "suggestThirdPillarRecurringPayment": true
     },
-    "kogumisfondi püsimakse": {
+    "kogumisfondi soovitus": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Jaan Tamm",
+      "suggestSavingsFund": true
+    },
+    "kogumisfondi püsimakse soovitus": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Jaan Tamm",
       "suggestSavingsFundRecurringPayment": true
+    },
+    "liikmesuse soovitus": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Jaan Tamm",
+      "suggestMembership": true
     },
     "ilma soovituseta": {
       "FNAME": "Mari",

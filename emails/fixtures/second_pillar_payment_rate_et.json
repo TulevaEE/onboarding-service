@@ -1,53 +1,53 @@
 {
   "variants": {
-    "suurenenud, soovita III sammas": {
-      "FNAME": "Mari",
-      "increased": true,
-      "paymentRateFulfillmentDate": "01.01.2027",
-      "newPaymentRate": "4",
-      "suggestThirdPillar": true
-    },
-    "vähenenud, soovita II sammas": {
+    "II samba soovitus": {
       "FNAME": "Jaan",
       "increased": false,
       "paymentRateFulfillmentDate": "01.01.2027",
       "newPaymentRate": "2",
       "suggestSecondPillar": true
     },
-    "suurenenud, astu liikmeks": {
-      "FNAME": "Mari",
-      "increased": true,
-      "paymentRateFulfillmentDate": "01.01.2027",
-      "newPaymentRate": "6",
-      "suggestMembership": true
-    },
-    "suurenenud, tõsta makseprotsenti": {
+    "II samba määra tõstmise soovitus": {
       "FNAME": "Mari",
       "increased": true,
       "paymentRateFulfillmentDate": "01.01.2027",
       "newPaymentRate": "4",
       "suggestPaymentRate": true
     },
-    "kogumisfond": {
+    "III samba soovitus": {
       "FNAME": "Mari",
       "increased": true,
       "paymentRateFulfillmentDate": "01.01.2027",
       "newPaymentRate": "4",
-      "suggestSavingsFund": true
+      "suggestThirdPillar": true
     },
-    "püsimakse soovitus": {
+    "III samba püsimakse soovitus": {
       "FNAME": "Mari",
       "increased": true,
       "paymentRateFulfillmentDate": "01.01.2027",
       "newPaymentRate": "4",
       "suggestThirdPillarRecurringPayment": true
     },
-    "kogumisfondi püsimakse": {
+    "kogumisfondi soovitus": {
+      "FNAME": "Mari",
+      "increased": true,
+      "paymentRateFulfillmentDate": "01.01.2027",
+      "newPaymentRate": "4",
+      "suggestSavingsFund": true
+    },
+    "kogumisfondi püsimakse soovitus": {
       "FNAME": "Mari",
       "increased": true,
       "paymentRateFulfillmentDate": "01.01.2027",
       "newPaymentRate": "4",
       "suggestSavingsFundRecurringPayment": true
+    },
+    "liikmesuse soovitus": {
+      "FNAME": "Mari",
+      "increased": true,
+      "paymentRateFulfillmentDate": "01.01.2027",
+      "newPaymentRate": "6",
+      "suggestMembership": true
     },
     "ilma soovituseta": {
       "FNAME": "Jaan",

@@ -1,0 +1,53 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
+        <mj-text>
+          Sinu konto Tuleva Täiendavas Kogumisfondis on avatud. Nüüd saad teha esimese sissemakse:
+        </mj-text>
+        <mj-button href="https://pension.tuleva.ee/savings-fund/payment">
+          Teen esimese sissemakse
+        </mj-button>
+        <mj-text>
+          Sissemakse teed oma pangas Tuleva kontolt leitava juhise järgi. Osakud jõuavad sinu
+          kontole kahe tööpäeva jooksul.
+        </mj-text>
+        <mj-text>
+          Tuleva Täiendav Kogumisfond on laiapõhjaline indeksfond, mis investeerib maailmaturu
+          aktsiatesse. Fondi jooksvad tasud on 0,28% aastas ning lisatasud puuduvad.
+        </mj-text>
+        <mj-text>Kui sul on tekkinud küsimusi, on sulle abiks veel need materjalid:</mj-text>
+        <mj-text>
+          <a href="https://tuleva.ee/analuusid/kuhu-tuleva-taiendav-kogumisfond-investeerib/">
+            Kuhu investeerib Tuleva Täiendav Kogumisfond?
+          </a>
+        </mj-text>
+        <mj-text>
+          <a href="https://tuleva.ee/soovitused/miks-kasutada-kogumisfondi-puhul-investeerimiskontot/">
+            Miks kasutada kogumisfondi puhul investeerimiskontot?
+          </a>
+        </mj-text>
+        <mj-text>
+          Kui sul tekib küsimusi, kirjuta
+          <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> või helista
+          <a href="tel:+3726445100">644&nbsp;5100</a>.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">
+          Tõnu Pekk<br />
+          Tuleva asutaja ja fondijuht
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_savings_et.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

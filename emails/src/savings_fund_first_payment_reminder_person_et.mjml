@@ -1,0 +1,60 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
+        <mj-text>
+          Oled avanud Tuleva Täiendava Kogumisfondi konto, kuid pole veel esimest sissemakset
+          teinud.
+        </mj-text>
+        <mj-text>
+          Tuleva Täiendav Kogumisfond on laiapõhjaline indeksfond, mis investeerib maailmaturu
+          aktsiatesse. Fondi jooksvad tasud on 0,28% aastas ja muid lisatasusid ei ole.
+        </mj-text>
+        <mj-text>
+          Kui soovid kogumisega alustada, vali endale sobiv summa ja tee esimene sissemakse.
+          Investeerimisel ei ole vaja oodata õiget hetke. Olulisem on anda oma varale aega
+          kasvada.
+        </mj-text>
+        <mj-button href="https://pension.tuleva.ee/savings-fund/payment">
+          Teen esimese sissemakse
+        </mj-button>
+        <mj-text>Soovi korral saad kogumisfondi kohta uurida veel neist materjalidest:</mj-text>
+        <mj-text>
+          <a href="https://tuleva.ee/analuusid/kuhu-tuleva-taiendav-kogumisfond-investeerib/">
+            Kuhu investeerib Tuleva Täiendav Kogumisfond?
+          </a>
+        </mj-text>
+        <mj-text>
+          <a href="https://tuleva.ee/taskuhaaling/uus-tuleva-taiendav-kogumisfond-avaneb/">
+            Tuleva Taskuhääling: Tõnu ja Kristi selgitavad, mida võiksid teada uuest fondist
+          </a>
+        </mj-text>
+        <mj-text>
+          <a href="https://tuleva.ee/taiendav-kogumisfond/kas-investeerida-oma-ou-kaudu-kellele-see-sobib-ja-kellele-mitte/">
+            Kellele sobib OÜ kaudu Täiendavasse Kogumisfondi investeerida?
+          </a>
+        </mj-text>
+        <mj-text>
+          Kui sul tekib küsimusi, kirjuta
+          <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> või helista
+          <a href="tel:+3726445100">644&nbsp;5100</a>.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">
+          Tõnu Pekk<br />
+          Tuleva asutaja ja fondijuht
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_savings_et.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

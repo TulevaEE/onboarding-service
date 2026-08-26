@@ -110,6 +110,51 @@
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
+    "savings_fund_first_payment_reminder_child_et": {
+      "subject": "Tee lapse Tuleva Kogumisfondi esimene sissemakse",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_first_payment_reminder_company_et": {
+      "subject": "Tee ettevõtte Tuleva Kogumisfondi esimene sissemakse",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_first_payment_reminder_person_et": {
+      "subject": "Tee esimene sissemakse Tuleva Kogumisfondi",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_onboarding_abandonment_child_et": {
+      "subject": "Lapse Tuleva Kogumisfondi konto avamine jäi pooleli",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_onboarding_abandonment_company_et": {
+      "subject": "Ettevõtte Tuleva Kogumisfondi konto avamine jäi pooleli",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_onboarding_abandonment_person_et": {
+      "subject": "Sinu Tuleva Kogumisfondi konto avamine jäi pooleli",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_onboarding_completed_child_et": {
+      "subject": "Lapse Tuleva Kogumisfondi konto on avatud",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_onboarding_completed_company_et": {
+      "subject": "Ettevõtte Tuleva Kogumisfondi konto on avatud",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_onboarding_completed_person_et": {
+      "subject": "Sinu Tuleva Kogumisfondi konto on avatud",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
     "savings_fund_payment_cancelled_en": {
       "subject": "Tuleva Savings Fund payment cancellation succeeded",
       "from_email": "tuleva@tuleva.ee",

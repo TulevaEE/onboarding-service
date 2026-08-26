@@ -25,6 +25,8 @@ import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 import static ee.tuleva.onboarding.mandate.MandateFixture.samplePartialWithdrawalMandate
 import static ee.tuleva.onboarding.mandate.MandateFixture.thirdPillarMandate
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchFixture.aMandateBatch
+import ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwnerRepository
+
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchFixture.aSavedMandateBatch
 import static ee.tuleva.onboarding.paymentrate.PaymentRatesFixture.samplePaymentRates
 
@@ -35,8 +37,11 @@ class MandateEmailSenderSpec extends Specification {
   UserConversionService conversionService = Mock(UserConversionService)
   SecondPillarPaymentRateService paymentRateService = Mock(SecondPillarPaymentRateService)
   MandateBatchEmailService mandateBatchEmailService = Mock(MandateBatchEmailService)
+  UnitOwnerRepository unitOwnerRepository = Mock(UnitOwnerRepository) {
+    hasLeftSecondPillar(_) >> false
+  }
 
-  MandateEmailSender mandateEmailSender = new MandateEmailSender(mandateEmailService, mandateBatchEmailService, episService, conversionService, paymentRateService)
+  MandateEmailSender mandateEmailSender = new MandateEmailSender(mandateEmailService, mandateBatchEmailService, episService, conversionService, paymentRateService, unitOwnerRepository)
 
   def "send email when second pillar mandate event was received"() {
     given:
@@ -45,7 +50,7 @@ class MandateEmailSenderSpec extends Specification {
     ContactDetails contactDetails = new ContactDetails()
     ConversionResponse conversion = notFullyConverted()
     PaymentRates paymentRates = samplePaymentRates()
-    PillarSuggestion pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates, Set.of(mandate.getPillar()))
+    PillarSuggestion pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates, Set.of(mandate.getPillar()), false)
 
     AfterMandateSignedEvent event = new AfterMandateSignedEvent(this, user, mandate, Locale.ENGLISH)
 
@@ -67,7 +72,7 @@ class MandateEmailSenderSpec extends Specification {
     ContactDetails contactDetails = new ContactDetails()
     ConversionResponse conversion = notFullyConverted()
     PaymentRates paymentRates = samplePaymentRates()
-    PillarSuggestion pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates, Set.of(mandate.getPillar()))
+    PillarSuggestion pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates, Set.of(mandate.getPillar()), false)
 
     AfterMandateSignedEvent event = new AfterMandateSignedEvent(this, user, mandate, Locale.ENGLISH)
 
@@ -94,7 +99,7 @@ class MandateEmailSenderSpec extends Specification {
     ContactDetails contactDetails = new ContactDetails()
     ConversionResponse conversion = notFullyConverted()
     PaymentRates paymentRates = samplePaymentRates()
-    PillarSuggestion pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates, [fundPensionMandate.getPillar(), withdrawalMandate.getPillar()] as Set)
+    PillarSuggestion pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates, [fundPensionMandate.getPillar(), withdrawalMandate.getPillar()] as Set, false)
 
     AfterMandateBatchSignedEvent event = new AfterMandateBatchSignedEvent(this, user, mandateBatch, Locale.ENGLISH)
 

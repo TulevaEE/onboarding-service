@@ -19,13 +19,14 @@ public class PillarSuggestion {
   private final boolean suggestThirdPillar;
   private final boolean suggestSecondPillar;
   private final boolean suggestMembership;
+  private final boolean leftSecondPillar;
 
   public PillarSuggestion(
       User user,
       ContactDetails contactDetails,
       ConversionResponse conversion,
       PaymentRates paymentRates) {
-    this(user, contactDetails, conversion, paymentRates, Set.of());
+    this(user, contactDetails, conversion, paymentRates, Set.of(), false);
   }
 
   public PillarSuggestion(
@@ -33,10 +34,13 @@ public class PillarSuggestion {
       ContactDetails contactDetails,
       ConversionResponse conversion,
       PaymentRates paymentRates,
-      Set<Integer> mandatePillars) {
-    this.suggestPaymentRate = paymentRates.canIncrease();
+      Set<Integer> mandatePillars,
+      boolean leftSecondPillar) {
+    this.leftSecondPillar = leftSecondPillar;
+    this.suggestPaymentRate = !leftSecondPillar && paymentRates.canIncrease();
     this.suggestSecondPillar =
-        !mandatePillars.contains(2)
+        !leftSecondPillar
+            && !mandatePillars.contains(2)
             && (!contactDetails.isSecondPillarActive()
                 || !conversion.isSecondPillarPartiallyConverted()
                 || (conversion.getSecondPillarWeightedAverageFee() != null

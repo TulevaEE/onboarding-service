@@ -232,4 +232,16 @@ class UnitOwnerRepositoryTest {
     assertThat(deleted).isEqualTo(2);
     assertThat(repository.findDistinctSnapshotDates()).containsExactly(SNAPSHOT_DATE_2);
   }
+
+  @Test
+  void hasLeftSecondPillar_checksOnlyTheLatestSnapshot() {
+    repository.save(
+        entityBuilder(PERSON_ID_1, SNAPSHOT_DATE_1, creationTime).p2ravaStatus("R").build());
+    repository.save(entityBuilder(PERSON_ID_1, SNAPSHOT_DATE_2, creationTime).build());
+    repository.save(
+        entityBuilder(PERSON_ID_2, SNAPSHOT_DATE_2, creationTime).p2ravaStatus("R").build());
+
+    assertThat(repository.hasLeftSecondPillar(PERSON_ID_1)).isFalse();
+    assertThat(repository.hasLeftSecondPillar(PERSON_ID_2)).isTrue();
+  }
 }

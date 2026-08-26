@@ -18,6 +18,15 @@ public interface UnitOwnerRepository extends JpaRepository<UnitOwner, Long> {
 
   boolean existsBySnapshotDate(LocalDate snapshotDate);
 
+  @Query(
+      """
+      SELECT COUNT(uo) > 0 FROM UnitOwner uo
+      WHERE uo.personalId = :personalCode
+        AND uo.p2ravaStatus = 'R'
+        AND uo.snapshotDate = (SELECT MAX(latest.snapshotDate) FROM UnitOwner latest)
+      """)
+  boolean hasLeftSecondPillar(String personalCode);
+
   @Query("SELECT DISTINCT uo.snapshotDate FROM UnitOwner uo")
   List<LocalDate> findDistinctSnapshotDates();
 

@@ -18,6 +18,10 @@
     },
     "soovita püsimakset": {
       "FNAME": "Mari"
+    },
+    "kogumisfond": {
+      "FNAME": "Mari",
+      "suggestSavingsFund": true
     }
   }
 }

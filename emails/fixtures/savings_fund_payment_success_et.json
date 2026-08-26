@@ -18,6 +18,10 @@
     },
     "seadista püsimakse": {
       "FNAME": "Mari"
+    },
+    "kogumisfond": {
+      "FNAME": "Mari",
+      "suggestSavingsFund": true
     }
   }
 }

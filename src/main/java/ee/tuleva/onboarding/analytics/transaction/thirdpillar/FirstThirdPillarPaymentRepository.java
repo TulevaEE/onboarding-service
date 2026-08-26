@@ -68,7 +68,12 @@ public class FirstThirdPillarPaymentRepository {
                (COALESCE(uo.p2_rava_status, '') <> 'R'
                  AND COALESCE(uo.p2_next_rate, uo.p2_rate, 2) < 6) AS suggest_payment_rate,
                (m.id IS NULL) AS suggest_membership,
-               (COALESCE(uo.p2_rava_status, '') = 'R') AS left_second_pillar
+               (COALESCE(uo.p2_rava_status, '') = 'R') AS left_second_pillar,
+               EXISTS (
+                 SELECT 1 FROM saving_fund_payment sfp
+                 WHERE sfp.party_type = 'PERSON'
+                   AND sfp.party_code = fa.personal_id
+                   AND sfp.status IN ('ISSUED', 'PROCESSED')) AS saves_in_savings_fund
         FROM first_amounts fa
         LEFT JOIN users u ON u.personal_code = fa.personal_id
         LEFT JOIN latest_unit_owner uo ON uo.personal_id = fa.personal_id
@@ -115,7 +120,8 @@ public class FirstThirdPillarPaymentRepository {
                     rs.getBoolean("suggest_second_pillar"),
                     rs.getBoolean("suggest_payment_rate"),
                     rs.getBoolean("suggest_membership"),
-                    rs.getBoolean("left_second_pillar")))
+                    rs.getBoolean("left_second_pillar"),
+                    rs.getBoolean("saves_in_savings_fund")))
         .list();
   }
 }

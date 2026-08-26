@@ -101,6 +101,19 @@ public class SavingFundPaymentRepository {
         this::rowMapper);
   }
 
+  public boolean existsIssuedPaymentFor(PartyId partyId) {
+    return Boolean.TRUE.equals(
+        jdbcTemplate.queryForObject(
+            """
+            select exists(
+              select 1 from saving_fund_payment
+              where party_type = :party_type and party_code = :party_code
+                and status in ('ISSUED', 'PROCESSED'))
+            """,
+            Map.of("party_type", partyId.type().name(), "party_code", partyId.code()),
+            Boolean.class));
+  }
+
   public List<SavingFundPayment> findPayments(PartyId partyId) {
     return jdbcTemplate.query(
         """

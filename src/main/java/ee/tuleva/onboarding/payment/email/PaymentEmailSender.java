@@ -17,6 +17,7 @@ import ee.tuleva.onboarding.payment.event.SavingsPaymentCancelledEvent;
 import ee.tuleva.onboarding.payment.event.SavingsPaymentCreatedEvent;
 import ee.tuleva.onboarding.payment.event.SavingsPaymentFailedEvent;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
+import ee.tuleva.onboarding.savings.fund.SavingsFundSavers;
 import ee.tuleva.onboarding.user.User;
 import java.util.Map;
 import java.util.Set;
@@ -40,6 +41,7 @@ public class PaymentEmailSender {
   private final ContactDetailsService contactDetailsService;
   private final SecondPillarPaymentRateService paymentRateService;
   private final SecondPillarLeavers secondPillarLeavers;
+  private final SavingsFundSavers savingsFundSavers;
   private final SavingsFundSuccessEmailResolver savingsFundSuccessEmailResolver;
 
   // TODO: can we make these @Async?
@@ -98,7 +100,8 @@ public class PaymentEmailSender {
         conversionService.getConversion(user),
         paymentRateService.getPaymentRates(user),
         concernedPillars,
-        secondPillarLeavers.hasLeft(user.getPersonalCode()));
+        secondPillarLeavers.hasLeft(user.getPersonalCode()),
+        savingsFundSavers.isSaver(user.getPersonalCode()));
   }
 
   private void withSecurityContext(User user, Runnable action) {

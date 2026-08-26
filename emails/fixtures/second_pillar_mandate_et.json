@@ -23,6 +23,11 @@
     "muu (harude puudumine)": {
       "FNAME": "Mari",
       "transferDate": "12.08.2026"
+    },
+    "kogumisfond": {
+      "FNAME": "Mari",
+      "transferDate": "12.08.2026",
+      "suggestSavingsFund": true
     }
   }
 }

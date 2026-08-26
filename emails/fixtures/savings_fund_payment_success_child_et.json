@@ -23,6 +23,11 @@
     "soovita püsimakset": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Jaan Tamm"
+    },
+    "kogumisfond": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Jaan Tamm",
+      "suggestSavingsFund": true
     }
   }
 }

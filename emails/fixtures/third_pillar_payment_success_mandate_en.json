@@ -18,6 +18,10 @@
     },
     "suggest recurring payment": {
       "FNAME": "Mari"
+    },
+    "savings fund": {
+      "FNAME": "Mari",
+      "suggestSavingsFund": true
     }
   }
 }

@@ -46,7 +46,8 @@ class PaymentEmailServiceSpec extends Specification {
         "suggestPaymentRate"   : pillarSuggestion.suggestPaymentRate,
         "suggestMembership"    : pillarSuggestion.suggestMembership,
         "suggestSecondPillar"  : pillarSuggestion.suggestSecondPillar,
-        "suggestThirdPillar"   : pillarSuggestion.suggestThirdPillar
+        "suggestThirdPillar"   : pillarSuggestion.suggestThirdPillar,
+        "leftSecondPillar"   : pillarSuggestion.leftSecondPillar
     ]
     def tags = ["pillar_3.1", "mandate", "payment", "suggest_payment_rate", "suggest_2"]
     def locale = Locale.ENGLISH
@@ -88,7 +89,8 @@ class PaymentEmailServiceSpec extends Specification {
         "suggestPaymentRate" : pillarSuggestion.suggestPaymentRate,
         "suggestMembership"  : pillarSuggestion.suggestMembership,
         "suggestSecondPillar": pillarSuggestion.suggestSecondPillar,
-        "suggestThirdPillar" : pillarSuggestion.suggestThirdPillar
+        "suggestThirdPillar" : pillarSuggestion.suggestThirdPillar,
+        "leftSecondPillar"   : pillarSuggestion.leftSecondPillar
     ]
     def tags = ["savings_fund", "suggest_payment_rate", "suggest_2"]
     def locale = Locale.ENGLISH
@@ -155,7 +157,8 @@ class PaymentEmailServiceSpec extends Specification {
         "suggestPaymentRate" : pillarSuggestion.suggestPaymentRate,
         "suggestMembership"  : pillarSuggestion.suggestMembership,
         "suggestSecondPillar": pillarSuggestion.suggestSecondPillar,
-        "suggestThirdPillar" : pillarSuggestion.suggestThirdPillar
+        "suggestThirdPillar" : pillarSuggestion.suggestThirdPillar,
+        "leftSecondPillar"   : pillarSuggestion.leftSecondPillar
     ]
     def tags = ["savings_fund", "suggest_payment_rate", "suggest_2"]
     def locale = Locale.ENGLISH

@@ -11,14 +11,6 @@
           your Tuleva account within two business days.
         </mj-text>
         <mj-text>
-          Many Tuleva savers have <strong>set up a recurring payment</strong> to their savings
-          fund. This way, they don’t have to remember to make contributions manually every time.
-          You can set up a recurring payment in your Tuleva account:
-        </mj-text>
-        <mj-button href="https://pension.tuleva.ee/savings-fund/payment?language=en">
-          Set up recurring payment
-        </mj-button>
-        <mj-text>
           Please note that you can see the balance of your investment into Tuleva Savings Fund
           only by logging in on the Tuleva page.
         </mj-text>
@@ -33,6 +25,9 @@
       <mj-column>
         <mj-raw>*|IF:suggestAccountRecurringPayment|*</mj-raw>
         <mj-include path="./partials/suggest_savings_fund_recurring_en.mjml" />
+        <mj-raw>*|ELSE:|*</mj-raw>
+        <mj-include path="./partials/suggest_chain_open_en.mjml" />
+        <mj-raw>*|END:IF|*</mj-raw>
         <mj-raw>*|END:IF|*</mj-raw>
       </mj-column>
     </mj-section>

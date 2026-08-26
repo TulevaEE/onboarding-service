@@ -3,9 +3,9 @@
     <mj-text font-size="13px" line-height="150%" font-style="italic">
       Financial services are provided by Tuleva Fondid AS. Please read the terms, prospectus,
       and key information at
-      <a href="https://tuleva.ee/en/">tuleva.ee</a> and consult an expert at
-      <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> or
-      <a href="tel:+3726445100">644&nbsp;5100</a>. Past performance does not guarantee similar
+      <a style="color: #212529;" href="https://tuleva.ee/en/">tuleva.ee</a> and consult an expert at
+      <a style="color: #212529;" href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> or
+      <a style="color: #212529;" href="tel:+3726445100">644&nbsp;5100</a>. Past performance does not guarantee similar
       returns in the future. Returns are not guaranteed. The value of an investment may rise or
       fall. To receive a tax refund, you must file a tax return. Taxation depends on
       circumstances related to the individual, including residency. Tax legislation may change.

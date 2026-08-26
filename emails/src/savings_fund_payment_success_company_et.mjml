@@ -10,14 +10,6 @@
           Sinu sissemakse ettevõtte (*|RECIPIENTNAME|*) Tuleva Täiendavasse Kogumisfondi on
           tehtud. Osakud jõuavad ettevõtte kontole kahe tööpäeva jooksul.
         </mj-text>
-        <mj-text>
-          Täiendavasse Kogumisfondi saab koguda ka püsimaksega. Nii kasvab ettevõtte portfell iga
-          kuu ilma, et peaksid sellele eraldi mõtlema.
-        </mj-text>
-        <mj-text><strong>Püsimakse saad seadistada oma Tuleva kontol:</strong></mj-text>
-        <mj-button href="https://pension.tuleva.ee/savings-fund/payment">
-          Seadistan püsimakse
-        </mj-button>
       </mj-column>
     </mj-section>
 

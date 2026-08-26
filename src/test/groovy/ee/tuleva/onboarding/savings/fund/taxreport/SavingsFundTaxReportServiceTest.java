@@ -7,6 +7,8 @@ import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.SUBTRACTION;
 import static ee.tuleva.onboarding.savings.fund.taxreport.CostBasisMethod.FIFO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.account.transaction.Transaction;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
@@ -30,8 +32,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class SavingsFundTaxReportServiceTest {
 
-  private static final String INVESTMENT_IBAN = "EE123456789012345678";
-  private static final String ORDINARY_IBAN = "EE111111111111111111";
+  private static final String INVESTMENT_IBAN = "EE651010220306497226";
+  private static final String ORDINARY_IBAN = "EE241010220306719221";
 
   @Mock private SavingsFundTransactionService savingsFundTransactionService;
   @Mock private InvestmentAccountService investmentAccountService;
@@ -97,19 +99,19 @@ class SavingsFundTaxReportServiceTest {
   }
 
   @Test
-  void reportsOnePoolWhenNoInvestmentAccountWasDeclared() {
-    given(savingsFundTransactionService.getTransactionsWithCounterpartyIbans(person))
+  void reportsOnePoolWithoutLookingUpCounterpartiesWhenNoInvestmentAccountWasDeclared() {
+    given(savingsFundTransactionService.getTransactions(person))
         .willReturn(
-            new Statement()
-                .facing(bought("2025-01-10T10:00:00Z", "100", "100.00"), ORDINARY_IBAN)
-                .facing(sold("2025-06-10T10:00:00Z", "100", "150.00"), ORDINARY_IBAN)
-                .build());
+            List.of(
+                bought("2025-01-10T10:00:00Z", "100", "100.00"),
+                sold("2025-06-10T10:00:00Z", "100", "150.00")));
     given(investmentAccountService.declaredIban(person.getRoleCode())).willReturn(Optional.empty());
 
     SavingsFundTaxReport report = savingsFundTaxReportService.getTaxReport(person, 2025, FIFO);
 
     assertThat(report.totalGain()).isEqualByComparingTo("50.00");
     assertThat(report.investmentAccount()).isNull();
+    verify(savingsFundTransactionService, never()).getTransactionsWithCounterpartyIbans(person);
   }
 
   @Test
@@ -180,7 +182,9 @@ class SavingsFundTaxReportServiceTest {
     given(savingsFundTransactionService.getTransactionsWithCounterpartyIbans(person))
         .willReturn(
             new Statement()
-                .fromAnUnknownAccount(bought("2025-02-10T10:00:00Z", "100", "200.00"))
+                .facing(bought("2025-01-10T10:00:00Z", "100", "100.00"), ORDINARY_IBAN)
+                .facing(bought("2025-02-10T10:00:00Z", "100", "200.00"), INVESTMENT_IBAN)
+                .fromAnUnknownAccount(sold("2025-06-10T10:00:00Z", "100", "150.00"))
                 .facing(sold("2025-07-10T10:00:00Z", "100", "260.00"), INVESTMENT_IBAN)
                 .build());
     given(investmentAccountService.declaredIban(person.getRoleCode()))
@@ -189,6 +193,26 @@ class SavingsFundTaxReportServiceTest {
     SavingsFundTaxReport report = savingsFundTaxReportService.getTaxReport(person, 2025, FIFO);
 
     assertThat(report.investmentAccount().totalGain()).isNull();
+    assertThat(report.totalGain()).isEqualByComparingTo("110.00");
+  }
+
+  @Test
+  void doesNotCallATransactionOrdinaryJustBecauseItsAccountIsGarbled() {
+    given(savingsFundTransactionService.getTransactionsWithCounterpartyIbans(person))
+        .willReturn(
+            new Statement()
+                .facing(bought("2025-01-10T10:00:00Z", "100", "100.00"), ORDINARY_IBAN)
+                .facing(bought("2025-02-10T10:00:00Z", "100", "200.00"), INVESTMENT_IBAN)
+                .facing(sold("2025-06-10T10:00:00Z", "100", "150.00"), "NOT_AN_IBAN")
+                .facing(sold("2025-07-10T10:00:00Z", "100", "260.00"), INVESTMENT_IBAN)
+                .build());
+    given(investmentAccountService.declaredIban(person.getRoleCode()))
+        .willReturn(Optional.of(INVESTMENT_IBAN));
+
+    SavingsFundTaxReport report = savingsFundTaxReportService.getTaxReport(person, 2025, FIFO);
+
+    assertThat(report.investmentAccount().totalGain()).isNull();
+    assertThat(report.totalGain()).isEqualByComparingTo("110.00");
   }
 
   @Test
@@ -196,7 +220,7 @@ class SavingsFundTaxReportServiceTest {
     given(savingsFundTransactionService.getTransactionsWithCounterpartyIbans(person))
         .willReturn(
             new Statement()
-                .facing(bought("2025-02-10T10:00:00Z", "100", "200.00"), "ee12 3456 7890 1234 5678")
+                .facing(bought("2025-02-10T10:00:00Z", "100", "200.00"), "ee65 1010 2203 0649 7226")
                 .facing(sold("2025-07-10T10:00:00Z", "100", "260.00"), INVESTMENT_IBAN)
                 .build());
     given(investmentAccountService.declaredIban(person.getRoleCode()))

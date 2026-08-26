@@ -33,10 +33,6 @@ public class SavingsFundTaxReportService {
   @Transactional(readOnly = true)
   public SavingsFundTaxReport getTaxReport(
       AuthenticatedPerson person, int year, CostBasisMethod method) {
-    TransactionsWithCounterparties withCounterparties =
-        savingsFundTransactionService.getTransactionsWithCounterpartyIbans(person);
-    List<Transaction> transactions = withCounterparties.transactions();
-    Map<UUID, String> counterpartyIbans = withCounterparties.counterpartyIbans();
     LocalDate from = LocalDate.of(year, 1, 1);
     LocalDate to = LocalDate.of(year, 12, 31);
 
@@ -46,9 +42,15 @@ public class SavingsFundTaxReportService {
       return report(
           year,
           method,
-          costBasisCalculator.realisedGainsBetween(transactions, from, to, method),
+          costBasisCalculator.realisedGainsBetween(
+              savingsFundTransactionService.getTransactions(person), from, to, method),
           null);
     }
+
+    TransactionsWithCounterparties withCounterparties =
+        savingsFundTransactionService.getTransactionsWithCounterpartyIbans(person);
+    List<Transaction> transactions = withCounterparties.transactions();
+    Map<UUID, String> counterpartyIbans = withCounterparties.counterpartyIbans();
 
     String iban = IbanValidator.canonicalize(declared.get());
     List<Transaction> fromTheAccount =
@@ -106,9 +108,15 @@ public class SavingsFundTaxReportService {
       LocalDate to) {
     return transactions.stream()
             .filter(transaction -> happenedBy(transaction, to))
-            .allMatch(transaction -> counterpartyIbans.containsKey(transaction.id()))
+            .allMatch(transaction -> cameFromAKnownAccount(transaction, counterpartyIbans))
         && holdsEnoughUnits(fromTheAccount, to)
         && holdsEnoughUnits(ordinary, to);
+  }
+
+  private static boolean cameFromAKnownAccount(
+      Transaction transaction, Map<UUID, String> counterpartyIbans) {
+    String counterpartyIban = counterpartyIbans.get(transaction.id());
+    return counterpartyIban != null && IbanValidator.isValid(counterpartyIban);
   }
 
   private static boolean happenedBy(Transaction transaction, LocalDate to) {

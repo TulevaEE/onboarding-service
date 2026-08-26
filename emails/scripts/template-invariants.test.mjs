@@ -96,3 +96,15 @@ test('manifest entries have sources, dist output, and fixtures', () => {
     assert.ok(meta.from_email, `${name}: manifest entry needs a from_email`);
   }
 });
+
+test('every template family has a description and no description is orphaned', () => {
+  const families = new Set(
+    Object.keys(manifest.templates).map((name) => name.replace(/_(et|en)$/, '')),
+  );
+  for (const family of families) {
+    assert.ok(manifest.descriptions[family], `${family}: manifest needs a description`);
+  }
+  for (const family of Object.keys(manifest.descriptions)) {
+    assert.ok(families.has(family), `${family}: description has no matching template`);
+  }
+});

@@ -7,10 +7,22 @@
       <mj-column>
         <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
-          Kogud nüüd oma II&nbsp;samba pensioni koos minu ja teiste Tuleva liikmetega. Sinu
-          maksed suunatakse valitud pensionifondi alates järgmisest maksest. Kui sa soovisid
-          olemasolevad osakud vahetada, siis osakute vahetus jõustub *|transferDate|*.
+          Kogud nüüd oma II&nbsp;samba pensioni koos minu ja teiste Tuleva liikmetega.
         </mj-text>
+        <mj-raw>*|IF:hasFundSelection|*</mj-raw>
+        <mj-raw>*|IF:hasFundTransfer|*</mj-raw>
+        <mj-text>
+          Sinu maksed suunatakse valitud pensionifondi alates järgmisest maksest ning osakute
+          vahetus jõustub *|transferDate|*.
+        </mj-text>
+        <mj-raw>*|ELSE:|*</mj-raw>
+        <mj-text>
+          Sinu maksed suunatakse valitud pensionifondi alates järgmisest maksest.
+        </mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+        <mj-raw>*|ELSE:|*</mj-raw>
+        <mj-text>Sinu osakute vahetus jõustub *|transferDate|*.</mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
 
         <mj-include path="./partials/suggest_chain_open_et.mjml" />
         <mj-raw>*|END:IF|*</mj-raw>

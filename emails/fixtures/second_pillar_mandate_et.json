@@ -1,43 +1,69 @@
 {
   "variants": {
+    "ainult valikuavaldus": {
+      "FNAME": "Mari",
+      "transferDate": "12.08.2026",
+      "hasFundSelection": true
+    },
+    "ainult vahetusavaldus": {
+      "FNAME": "Mari",
+      "transferDate": "12.08.2026",
+      "hasFundTransfer": true
+    },
     "II samba soovitus (ei esine)": {
       "FNAME": "Mari",
       "transferDate": "12.08.2026",
-      "suggestSecondPillar": true
+      "suggestSecondPillar": true,
+      "hasFundSelection": true,
+      "hasFundTransfer": true
     },
     "II samba määra tõstmise soovitus": {
       "FNAME": "Mari",
       "transferDate": "12.08.2026",
-      "suggestPaymentRate": true
+      "suggestPaymentRate": true,
+      "hasFundSelection": true,
+      "hasFundTransfer": true
     },
     "III samba soovitus": {
       "FNAME": "Mari",
       "transferDate": "12.08.2026",
-      "suggestThirdPillar": true
+      "suggestThirdPillar": true,
+      "hasFundSelection": true,
+      "hasFundTransfer": true
     },
     "III samba püsimakse soovitus": {
       "FNAME": "Mari",
       "transferDate": "12.08.2026",
-      "suggestThirdPillarRecurringPayment": true
+      "suggestThirdPillarRecurringPayment": true,
+      "hasFundSelection": true,
+      "hasFundTransfer": true
     },
     "kogumisfondi soovitus": {
       "FNAME": "Mari",
       "transferDate": "12.08.2026",
-      "suggestSavingsFund": true
+      "suggestSavingsFund": true,
+      "hasFundSelection": true,
+      "hasFundTransfer": true
     },
     "kogumisfondi püsimakse soovitus": {
       "FNAME": "Mari",
       "transferDate": "12.08.2026",
-      "suggestSavingsFundRecurringPayment": true
+      "suggestSavingsFundRecurringPayment": true,
+      "hasFundSelection": true,
+      "hasFundTransfer": true
     },
     "liikmesuse soovitus": {
       "FNAME": "Mari",
       "transferDate": "12.08.2026",
-      "suggestMembership": true
+      "suggestMembership": true,
+      "hasFundSelection": true,
+      "hasFundTransfer": true
     },
     "muu (harude puudumine)": {
       "FNAME": "Mari",
-      "transferDate": "12.08.2026"
+      "transferDate": "12.08.2026",
+      "hasFundSelection": true,
+      "hasFundTransfer": true
     }
   }
 }

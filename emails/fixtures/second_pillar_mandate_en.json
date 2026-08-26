@@ -1,43 +1,69 @@
 {
   "variants": {
+    "fund selection only": {
+      "FNAME": "Mari",
+      "transferDate": "12.08.2026",
+      "hasFundSelection": true
+    },
+    "fund transfer only": {
+      "FNAME": "Mari",
+      "transferDate": "12.08.2026",
+      "hasFundTransfer": true
+    },
     "second pillar suggestion (cannot occur)": {
       "FNAME": "Mari",
       "transferDate": "12.08.2026",
-      "suggestSecondPillar": true
+      "suggestSecondPillar": true,
+      "hasFundSelection": true,
+      "hasFundTransfer": true
     },
     "payment rate increase suggestion": {
       "FNAME": "Mari",
       "transferDate": "12.08.2026",
-      "suggestPaymentRate": true
+      "suggestPaymentRate": true,
+      "hasFundSelection": true,
+      "hasFundTransfer": true
     },
     "third pillar suggestion": {
       "FNAME": "Mari",
       "transferDate": "12.08.2026",
-      "suggestThirdPillar": true
+      "suggestThirdPillar": true,
+      "hasFundSelection": true,
+      "hasFundTransfer": true
     },
     "third pillar recurring suggestion": {
       "FNAME": "Mari",
       "transferDate": "12.08.2026",
-      "suggestThirdPillarRecurringPayment": true
+      "suggestThirdPillarRecurringPayment": true,
+      "hasFundSelection": true,
+      "hasFundTransfer": true
     },
     "savings fund suggestion": {
       "FNAME": "Mari",
       "transferDate": "12.08.2026",
-      "suggestSavingsFund": true
+      "suggestSavingsFund": true,
+      "hasFundSelection": true,
+      "hasFundTransfer": true
     },
     "savings fund recurring suggestion": {
       "FNAME": "Mari",
       "transferDate": "12.08.2026",
-      "suggestSavingsFundRecurringPayment": true
+      "suggestSavingsFundRecurringPayment": true,
+      "hasFundSelection": true,
+      "hasFundTransfer": true
     },
     "membership suggestion": {
       "FNAME": "Mari",
       "transferDate": "12.08.2026",
-      "suggestMembership": true
+      "suggestMembership": true,
+      "hasFundSelection": true,
+      "hasFundTransfer": true
     },
     "no branch": {
       "FNAME": "Mari",
-      "transferDate": "12.08.2026"
+      "transferDate": "12.08.2026",
+      "hasFundSelection": true,
+      "hasFundTransfer": true
     }
   }
 }

@@ -8,7 +8,7 @@
       "FNAME": "Mari",
       "suggestPaymentRate": true
     },
-    "third pillar suggestion": {
+    "third pillar suggestion (cannot occur)": {
       "FNAME": "Mari",
       "suggestThirdPillar": true
     },

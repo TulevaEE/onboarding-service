@@ -26,9 +26,31 @@
         <mj-text>III pillar partial withdrawal application</mj-text>
         <mj-raw>*|END:IF|*</mj-raw>
 
+        <mj-raw>*|IF:fundPensionSecondPillar|*</mj-raw>
         <mj-text>
-          Attached is a copy of the application you just made on our website and which we have
-          sent to Pensionikeskus.
+          The first II pillar payout is made by the 20th of next month and monthly by the 20th
+          from then on.
+        </mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+
+        <mj-raw>*|IF:partialWithdrawalSecondPillar|*</mj-raw>
+        <mj-text>The one-time II pillar payout is made by the 20th of next month.</mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+
+        <mj-raw>*|IF:fundPensionThirdPillar|*</mj-raw>
+        <mj-text>
+          The first III pillar payout is made by the 20th of next month and monthly by the 20th
+          from then on.
+        </mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+
+        <mj-raw>*|IF:partialWithdrawalThirdPillar|*</mj-raw>
+        <mj-text>The one-time III pillar payout is made in four working days.</mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+
+        <mj-text>
+          Attached is a copy of the applications you made on our website, which we have sent to
+          Pensionikeskus.
         </mj-text>
       </mj-column>
     </mj-section>

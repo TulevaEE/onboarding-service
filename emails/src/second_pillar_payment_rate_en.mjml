@@ -7,10 +7,10 @@
       <mj-column>
         <mj-text>Hello *|FNAME|*,</mj-text>
         <mj-text>
-          Your II&nbsp;pillar contribution rate has been changed. *|IF:increased|*From
+          Your second pillar contribution rate has been changed. *|IF:increased|*From
           <strong>*|paymentRateFulfillmentDate|*</strong> you will start saving
-          <strong>*|newPaymentRate|*%</strong> of your monthly gross income to II pillar.*|ELSE:|*From
-          <strong>*|paymentRateFulfillmentDate|*</strong> your II pillar contribution will
+          <strong>*|newPaymentRate|*%</strong> of your monthly gross income to second pillar.*|ELSE:|*From
+          <strong>*|paymentRateFulfillmentDate|*</strong> your second pillar contribution will
           decrease and you will start contributing <strong>*|newPaymentRate|*%</strong> of your
           gross salary.*|END:IF|*
         </mj-text>

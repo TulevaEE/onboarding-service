@@ -134,7 +134,7 @@ class AmlKybCheckHistoryTest {
 
   @Test
   void returnsThePersonalCodesTheLatestRelatedPersonsCheckIsWaitingFor() {
-    when(repository.findFirstByCompanyIdAndTypeOrderByCreatedTimeDesc(
+    when(repository.findFirstByCompanyIdAndTypeOrderByCreatedTimeDescIdDesc(
             COMPANY_ID, KYB_RELATED_PERSONS_KYC))
         .thenReturn(
             Optional.of(
@@ -150,7 +150,7 @@ class AmlKybCheckHistoryTest {
 
   @Test
   void returnsNoPersonalCodesWhenTheCompanyHasNoRelatedPersonsCheck() {
-    when(repository.findFirstByCompanyIdAndTypeOrderByCreatedTimeDesc(
+    when(repository.findFirstByCompanyIdAndTypeOrderByCreatedTimeDescIdDesc(
             COMPANY_ID, KYB_RELATED_PERSONS_KYC))
         .thenReturn(Optional.empty());
 
@@ -161,7 +161,7 @@ class AmlKybCheckHistoryTest {
 
   @Test
   void returnsNoPersonalCodesWhenTheLatestRelatedPersonsCheckPassed() {
-    when(repository.findFirstByCompanyIdAndTypeOrderByCreatedTimeDesc(
+    when(repository.findFirstByCompanyIdAndTypeOrderByCreatedTimeDescIdDesc(
             COMPANY_ID, KYB_RELATED_PERSONS_KYC))
         .thenReturn(Optional.of(relatedPersonsCheck(List.of())));
 

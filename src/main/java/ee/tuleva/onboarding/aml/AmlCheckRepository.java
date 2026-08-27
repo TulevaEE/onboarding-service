@@ -26,16 +26,16 @@ public interface AmlCheckRepository extends JpaRepository<AmlCheck, Long> {
   List<AmlCheck> findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
       String personalCode, AmlCheckType type, Instant createdTimeAfter);
 
-  Optional<AmlCheck> findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDesc(
+  Optional<AmlCheck> findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDescIdDesc(
       String personalCode, AmlCheckType type, Instant createdTime);
 
-  Optional<AmlCheck> findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
+  Optional<AmlCheck> findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
       String personalCode, AmlCheckType type);
 
-  Optional<AmlCheck> findFirstByCompanyIdAndTypeOrderByCreatedTimeDesc(
+  Optional<AmlCheck> findFirstByCompanyIdAndTypeOrderByCreatedTimeDescIdDesc(
       UUID companyId, AmlCheckType type);
 
-  Optional<AmlCheck> findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDesc(
+  Optional<AmlCheck> findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDescIdDesc(
       String personalCode, Collection<AmlCheckType> types);
 
   List<AmlCheck> findAllByPersonalCodeAndType(String personalCode, AmlCheckType type);

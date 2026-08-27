@@ -151,7 +151,7 @@ class KybCompanyDataMapper {
 
   private KybKycStatus resolveKycStatus(String personalCode) {
     return amlCheckRepository
-        .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDesc(
+        .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDescIdDesc(
             personalCode, KYC_CHECK, aYearAgo())
         .map(check -> check.isSuccess() ? COMPLETED : REJECTED)
         .orElse(UNKNOWN);

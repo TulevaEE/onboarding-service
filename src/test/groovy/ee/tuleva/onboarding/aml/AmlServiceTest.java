@@ -143,7 +143,7 @@ class AmlServiceTest {
   void addKycCheck_persistsFreshPassingCheckWhenOnlyFailedCheckExists() {
     given(
             amlCheckRepository
-                .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDesc(
+                .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDescIdDesc(
                     "38888888888", KYC_CHECK, aYearAgoFromTestClock))
         .willReturn(Optional.of(kycCheck(false, FIXED_INSTANT.minus(30, ChronoUnit.DAYS))));
 
@@ -163,7 +163,7 @@ class AmlServiceTest {
   void addKycCheck_persistsPassingRecheckWhenLatestCheckFailedDespiteEarlierSuccess() {
     given(
             amlCheckRepository
-                .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDesc(
+                .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDescIdDesc(
                     "38888888888", KYC_CHECK, aYearAgoFromTestClock))
         .willReturn(Optional.of(kycCheck(false, FIXED_INSTANT.minus(90, ChronoUnit.DAYS))));
 
@@ -195,7 +195,7 @@ class AmlServiceTest {
   void addKycCheck_persistsStillFailingRecheckWhenNoSuccessfulCheckExists() {
     given(
             amlCheckRepository
-                .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDesc(
+                .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDescIdDesc(
                     "38888888888", KYC_CHECK, aYearAgoFromTestClock))
         .willReturn(Optional.of(kycCheck(false, FIXED_INSTANT.minus(30, ChronoUnit.DAYS))));
 
@@ -214,7 +214,7 @@ class AmlServiceTest {
   void addKycCheck_skipsPassingRecheckWhenRecentSuccessfulCheckExists() {
     given(
             amlCheckRepository
-                .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDesc(
+                .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDescIdDesc(
                     "38888888888", KYC_CHECK, aYearAgoFromTestClock))
         .willReturn(Optional.of(kycCheck(true, FIXED_INSTANT.minus(30, ChronoUnit.DAYS))));
 
@@ -229,7 +229,7 @@ class AmlServiceTest {
   void addKycCheck_persistsAdverseRecheckEvenWhenRecentSuccessfulCheckExists() {
     given(
             amlCheckRepository
-                .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDesc(
+                .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDescIdDesc(
                     "38888888888", KYC_CHECK, aYearAgoFromTestClock))
         .willReturn(Optional.of(kycCheck(true, FIXED_INSTANT.minus(30, ChronoUnit.DAYS))));
 
@@ -1031,7 +1031,7 @@ class AmlServiceTest {
   }
 
   private void latestCheckIs(AmlCheckType type, boolean success) {
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
             anyString(), eq(type)))
         .thenReturn(
             Optional.of(
@@ -1131,7 +1131,7 @@ class AmlServiceTest {
 
   private void givenRecordedCitizenships(String personalCode, List<String> citizenships) {
     given(
-            amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
+            amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
                 personalCode, CUSTODY_RIGHT))
         .willReturn(
             Optional.of(
@@ -1306,11 +1306,12 @@ class AmlServiceTest {
     MatchResponse emptyResponse =
         new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode());
     when(pepAndSanctionCheckService.match(user, country)).thenReturn(emptyResponse);
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc("123", SANCTION))
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
+            "123", SANCTION))
         .thenReturn(
             Optional.of(
                 AmlCheck.builder().personalCode("123").type(SANCTION).success(true).build()));
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
             "123", POLITICALLY_EXPOSED_PERSON_AUTO))
         .thenReturn(
             Optional.of(
@@ -1339,7 +1340,8 @@ class AmlServiceTest {
     results.add(result);
     MatchResponse matchResponse = new MatchResponse(results, objectMapper.createObjectNode());
     when(pepAndSanctionCheckService.match(user, country)).thenReturn(matchResponse);
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc("123", SANCTION))
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
+            "123", SANCTION))
         .thenReturn(
             Optional.of(
                 AmlCheck.builder().personalCode("123").type(SANCTION).success(false).build()));
@@ -1354,7 +1356,7 @@ class AmlServiceTest {
     MatchResponse emptyResponse =
         new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode());
     when(pepAndSanctionCheckService.match(user, country)).thenReturn(emptyResponse);
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
             eq("123"), any(AmlCheckType.class)))
         .thenReturn(Optional.empty());
 
@@ -1365,7 +1367,7 @@ class AmlServiceTest {
   void recordedCitizenships_readsEveryCitizenshipFromTheLatestCustodyCheck() {
     var person = new PersonImpl("61506150006", "Mari", "Maasikas");
     given(
-            amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
+            amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
                 person.getPersonalCode(), CUSTODY_RIGHT))
         .willReturn(
             Optional.of(
@@ -1383,7 +1385,7 @@ class AmlServiceTest {
   void recordedCitizenships_fallsBackToTheSingleCitizenshipOlderChecksRecorded() {
     var person = new PersonImpl("61506150006", "Mari", "Maasikas");
     given(
-            amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
+            amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
                 person.getPersonalCode(), CUSTODY_RIGHT))
         .willReturn(
             Optional.of(
@@ -1401,7 +1403,7 @@ class AmlServiceTest {
   void recordedCitizenships_isEmptyWhenTheCustodyCheckRecordedNoCitizenship() {
     var person = new PersonImpl("61506150006", "Mari", "Maasikas");
     given(
-            amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
+            amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
                 person.getPersonalCode(), CUSTODY_RIGHT))
         .willReturn(
             Optional.of(
@@ -1419,7 +1421,7 @@ class AmlServiceTest {
   void recordedCitizenships_isEmptyWhenThereIsNoCustodyCheck() {
     var person = new PersonImpl("38812121215", "Jaan", "Tamm");
     given(
-            amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
+            amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
                 person.getPersonalCode(), CUSTODY_RIGHT))
         .willReturn(Optional.empty());
 

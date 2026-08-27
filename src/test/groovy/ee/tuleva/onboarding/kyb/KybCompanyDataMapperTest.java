@@ -466,8 +466,9 @@ class KybCompanyDataMapperTest {
 
   @Test
   void resolvesCompletedKycStatusFromDatabase() {
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDesc(
-            eq("38888888888"), eq(AmlCheckType.KYC_CHECK), any()))
+    when(amlCheckRepository
+            .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDescIdDesc(
+                eq("38888888888"), eq(AmlCheckType.KYC_CHECK), any()))
         .thenReturn(Optional.of(kycCheck(true)));
 
     var relationship = boardMemberRelationship("38888888888");
@@ -483,8 +484,9 @@ class KybCompanyDataMapperTest {
 
   @Test
   void resolvesRejectedKycStatusFromDatabase() {
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDesc(
-            eq("38888888888"), eq(AmlCheckType.KYC_CHECK), any()))
+    when(amlCheckRepository
+            .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDescIdDesc(
+                eq("38888888888"), eq(AmlCheckType.KYC_CHECK), any()))
         .thenReturn(Optional.of(kycCheck(false)));
 
     var relationship = boardMemberRelationship("38888888888");

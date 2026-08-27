@@ -59,7 +59,7 @@ class AmlCheckRepositoryTest {
     AmlCheck newerFailure = persistKycCheckAt(personalCode, false, Instant.now().minus(90, DAYS));
 
     var latest =
-        repository.findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDesc(
+        repository.findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDescIdDesc(
             personalCode, KYC_CHECK, Instant.now().minus(365, DAYS));
 
     assertThat(latest).contains(newerFailure);
@@ -71,10 +71,24 @@ class AmlCheckRepositoryTest {
     persistKycCheckAt(personalCode, true, Instant.now().minus(400, DAYS));
 
     var latest =
-        repository.findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDesc(
+        repository.findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDescIdDesc(
             personalCode, KYC_CHECK, Instant.now().minus(365, DAYS));
 
     assertThat(latest).isEmpty();
+  }
+
+  @Test
+  void breaksTiesOnIdenticalCreatedTimeByPreferringTheLaterInsertedCheck() {
+    String personalCode = sampleUser().build().getPersonalCode();
+    Instant sameMoment = Instant.now().minus(10, DAYS);
+    persistKycCheckAt(personalCode, true, sameMoment);
+    AmlCheck newerFailure = persistKycCheckAt(personalCode, false, sameMoment);
+
+    var latest =
+        repository.findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDescIdDesc(
+            personalCode, KYC_CHECK, Instant.now().minus(365, DAYS));
+
+    assertThat(latest).contains(newerFailure);
   }
 
   private AmlCheck persistKycCheckAt(String personalCode, boolean success, Instant createdTime) {

@@ -536,6 +536,8 @@ class KybSurveyServiceTest {
 
     assertThatThrownBy(() -> service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, surveyResponse))
         .isInstanceOf(NotBoardMemberException.class);
+
+    verify(kybSurveyRepository, never()).save(any(KybSurvey.class));
   }
 
   @Test

@@ -8,6 +8,7 @@ import static org.springframework.transaction.event.TransactionPhase.AFTER_COMMI
 import ee.tuleva.onboarding.kyb.LegalEntityScreener;
 import ee.tuleva.onboarding.kyc.KycCheckPerformedEvent;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NullMarked;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -15,6 +16,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 @Slf4j
 @Component
+@NullMarked
 class WaitingLegalEntityCompletionListener {
 
   private final SavingsFundOnboardingRepository savingsFundOnboardingRepository;

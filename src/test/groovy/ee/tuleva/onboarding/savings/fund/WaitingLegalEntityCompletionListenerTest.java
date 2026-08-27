@@ -16,6 +16,7 @@ import ee.tuleva.onboarding.kyc.KycCheckPerformedEvent;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.springframework.transaction.PlatformTransactionManager;
 
 class WaitingLegalEntityCompletionListenerTest {
 
@@ -23,7 +24,8 @@ class WaitingLegalEntityCompletionListenerTest {
       mock(SavingsFundOnboardingRepository.class);
   private final LegalEntityScreener screener = mock(LegalEntityScreener.class);
   private final WaitingLegalEntityCompletionListener listener =
-      new WaitingLegalEntityCompletionListener(repository, screener);
+      new WaitingLegalEntityCompletionListener(
+          repository, screener, mock(PlatformTransactionManager.class));
 
   private KycCheckPerformedEvent event(RiskLevel riskLevel) {
     return new KycCheckPerformedEvent(

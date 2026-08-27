@@ -12,7 +12,7 @@
         </mj-text>
         <mj-text>
           Tuleva Additional Investment Fund is a broadly diversified index fund that invests in world equity
-          markets. The ongoing fees of the fund are 0.28%&nbsp;per year and there are no other fees.
+          markets. The ongoing fees of the fund are *|savingsFundFee|*%&nbsp;per year and there are no other fees.
         </mj-text>
         <mj-text>
           If you would like to start saving, choose an amount that suits you and make your first

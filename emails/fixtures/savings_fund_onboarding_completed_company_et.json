@@ -2,7 +2,8 @@
   "variants": {
     "vaikimisi": {
       "FNAME": "Mari",
-      "RECIPIENTNAME": "Näidis OÜ"
+      "RECIPIENTNAME": "Näidis OÜ",
+      "savingsFundFee": "0,28"
     }
   }
 }

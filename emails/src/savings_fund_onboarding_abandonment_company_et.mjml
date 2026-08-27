@@ -15,7 +15,7 @@
         </mj-button>
         <mj-text>
           Kogumisfond on madala tasuga laiapõhjaline indeksfond. Iga fondi paigutatud euro eest
-          omandad osaluse ligi 2500 maailma suurimas börsiettevõttes. Jooksvad tasud on 0,28%&nbsp;aastas
+          omandad osaluse ligi 2500 maailma suurimas börsiettevõttes. Jooksvad tasud on *|savingsFundFee|*%&nbsp;aastas
            ning sisenemis-, väljumis- ega edukustasu ei lisandu.
         </mj-text>
         <mj-text>

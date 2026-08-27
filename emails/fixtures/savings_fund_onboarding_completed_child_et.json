@@ -2,7 +2,8 @@
   "variants": {
     "vaikimisi": {
       "FNAME": "Mari",
-      "RECIPIENTNAME": "Kati Tamm"
+      "RECIPIENTNAME": "Kati Tamm",
+      "savingsFundFee": "0,28"
     }
   }
 }

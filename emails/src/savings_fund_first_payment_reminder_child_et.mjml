@@ -12,7 +12,7 @@
         </mj-text>
         <mj-text>
           Tuleva Täiendav Kogumisfond on laiapõhjaline indeksfond, mis investeerib maailmaturu
-          aktsiatesse. Fondi jooksvad tasud on 0,28%&nbsp;aastas ja muid lisatasusid ei ole.
+          aktsiatesse. Fondi jooksvad tasud on *|savingsFundFee|*%&nbsp;aastas ja muid lisatasusid ei ole.
         </mj-text>
         <mj-text>
           Alustamiseks ei ole vaja suurt summat. Vali sobiv summa ja anna lapsele kogutavale

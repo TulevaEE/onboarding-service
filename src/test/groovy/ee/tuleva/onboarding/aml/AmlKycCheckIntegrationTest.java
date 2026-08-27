@@ -5,11 +5,17 @@ import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.*;
 import static ee.tuleva.onboarding.kyc.KycSurveyPurpose.IDENTITY_ONLY;
 import static ee.tuleva.onboarding.kyc.KycSurveyPurpose.PERSONAL_ONBOARDING;
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
+import static java.time.ZoneOffset.UTC;
+import static java.time.temporal.ChronoUnit.DAYS;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.kyc.KycCheck;
 import ee.tuleva.onboarding.kyc.KycCheckPerformedEvent;
+import ee.tuleva.onboarding.time.ClockHolder;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.Map;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -24,6 +30,11 @@ class AmlKycCheckIntegrationTest {
 
   @Autowired private ApplicationEventPublisher eventPublisher;
   @Autowired private AmlCheckRepository amlCheckRepository;
+
+  @AfterEach
+  void tearDown() {
+    ClockHolder.setDefaultClock();
+  }
 
   @Test
   void onKycCheckPerformed_noneRisk_createsSuccessfulCheck() {
@@ -174,6 +185,32 @@ class AmlKycCheckIntegrationTest {
   }
 
   @Test
+  void onKycCheckPerformed_afterOlderSuccessAndNewerFailure_persistsFreshPassingCheck() {
+    saveKycCheckAt(true, Instant.now().minus(180, DAYS));
+    saveKycCheckAt(false, Instant.now().minus(90, DAYS));
+
+    eventPublisher.publishEvent(
+        new KycCheckPerformedEvent(
+            this,
+            PERSONAL_CODE,
+            new KycCheck(LOW, Map.of("riskLevel", "LOW")),
+            PERSONAL_ONBOARDING));
+
+    var checks =
+        amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(PERSONAL_CODE, aYearAgo());
+    assertThat(checks).hasSize(3);
+    assertThat(
+            amlCheckRepository
+                .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDesc(
+                    PERSONAL_CODE, KYC_CHECK, aYearAgo()))
+        .hasValueSatisfying(
+            check -> {
+              assertThat(check.isSuccess()).isTrue();
+              assertThat(check.getMetadata()).isEqualTo(Map.of("riskLevel", "LOW"));
+            });
+  }
+
+  @Test
   void onKycCheckPerformed_afterRecentSuccessfulCheck_persistsAdverseRecheck() {
     amlCheckRepository.save(
         AmlCheck.builder().personalCode(PERSONAL_CODE).type(KYC_CHECK).success(true).build());
@@ -219,5 +256,12 @@ class AmlKycCheckIntegrationTest {
               assertThat(check.isSuccess()).isFalse();
               assertThat(check.getMetadata()).isEqualTo(Map.of("score", 99, "riskLevel", "HIGH"));
             });
+  }
+
+  private void saveKycCheckAt(boolean success, Instant createdTime) {
+    ClockHolder.setClock(Clock.fixed(createdTime, UTC));
+    amlCheckRepository.save(
+        AmlCheck.builder().personalCode(PERSONAL_CODE).type(KYC_CHECK).success(success).build());
+    ClockHolder.setDefaultClock();
   }
 }

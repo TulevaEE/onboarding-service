@@ -582,6 +582,42 @@ class KybSurveyServiceTest {
   }
 
   @Test
+  void initialValidation_returnsNameErrorWhenOnboardingPending() {
+    stubInitialValidation(
+        sampleRelationships(),
+        sampleDetail(),
+        List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())));
+    when(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
+        .thenReturn(Optional.of(SavingsFundOnboardingStatus.PENDING));
+
+    var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
+
+    assertThat(result.name().errors())
+        .containsExactly(
+            new ValidationError("ONBOARDING_PENDING", "Ettevõtte liitumine on pooleli"));
+  }
+
+  @Test
+  void submit_throwsWhenOnboardingPending() {
+    when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE))
+        .thenReturn(sampleRelationships());
+    when(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
+        .thenReturn(Optional.of(SavingsFundOnboardingStatus.PENDING));
+
+    assertThatThrownBy(
+            () -> service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, sampleSurveyResponse()))
+        .isInstanceOf(OnboardingNotAllowedException.class)
+        .extracting(e -> ((OnboardingNotAllowedException) e).getReason())
+        .isEqualTo(BlockedReason.ONBOARDING_PENDING);
+
+    verify(kybSurveyRepository, never()).save(any(KybSurvey.class));
+    verify(eventPublisher)
+        .publishEvent(
+            new TrackableSystemEvent(
+                SAVINGS_FUND_ONBOARDING_STATUS_CHANGE, blockedAuditData("ONBOARDING_PENDING")));
+  }
+
+  @Test
   void submit_throwsWhenAlreadyOnboarded() {
     when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE))
         .thenReturn(sampleRelationships());

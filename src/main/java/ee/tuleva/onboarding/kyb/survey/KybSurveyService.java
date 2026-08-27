@@ -4,8 +4,8 @@ import static ee.tuleva.onboarding.event.TrackableEventType.SAVINGS_FUND_ONBOARD
 import static ee.tuleva.onboarding.kyb.KybCheckType.DATA_CHANGED;
 import static ee.tuleva.onboarding.kyb.survey.BlockedReason.ALREADY_ONBOARDED;
 import static ee.tuleva.onboarding.kyb.survey.BlockedReason.NOT_BOARD_MEMBER;
+import static ee.tuleva.onboarding.kyb.survey.BlockedReason.ONBOARDING_PENDING;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
-import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.REJECTED;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.joining;
@@ -18,6 +18,7 @@ import ee.tuleva.onboarding.ariregister.CompanyRelationship;
 import ee.tuleva.onboarding.event.TrackableSystemEvent;
 import ee.tuleva.onboarding.kyb.*;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
+import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -137,6 +138,7 @@ class KybSurveyService {
   private static String blockedReasonMessage(BlockedReason reason) {
     return switch (reason) {
       case ALREADY_ONBOARDED -> "Ettevõte on juba liitunud";
+      case ONBOARDING_PENDING -> "Ettevõtte liitumine on pooleli";
       case NOT_BOARD_MEMBER -> "Isik ei ole ettevõtte juhatuse liige";
     };
   }
@@ -223,11 +225,17 @@ class KybSurveyService {
   }
 
   private Optional<BlockedReason> getBlockedReason(String registryCode) {
-    var status = savingsFundOnboardingRepository.findStatus(registryCode, LEGAL_ENTITY);
-    if (status.filter(s -> s != REJECTED).isPresent()) {
-      return Optional.of(ALREADY_ONBOARDED);
-    }
-    return Optional.empty();
+    return savingsFundOnboardingRepository
+        .findStatus(registryCode, LEGAL_ENTITY)
+        .flatMap(KybSurveyService::blockedReasonFor);
+  }
+
+  private static Optional<BlockedReason> blockedReasonFor(SavingsFundOnboardingStatus status) {
+    return switch (status) {
+      case COMPLETED -> Optional.of(ALREADY_ONBOARDED);
+      case PENDING -> Optional.of(ONBOARDING_PENDING);
+      case REJECTED -> Optional.empty();
+    };
   }
 
   private Optional<ValidationError> getOnboardingError(String registryCode) {

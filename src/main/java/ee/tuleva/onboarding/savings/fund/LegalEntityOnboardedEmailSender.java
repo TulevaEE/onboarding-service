@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.getNameMergeVars;
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SAVINGS_FUND_COMPANY_ONBOARDED;
+import static org.springframework.transaction.annotation.Propagation.REQUIRES_NEW;
 
 import ee.tuleva.onboarding.kyb.survey.LatestKybSurveyInputs;
 import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
@@ -16,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
@@ -34,18 +36,24 @@ public class LegalEntityOnboardedEmailSender {
   private final LatestKybSurveyInputs latestKybSurveyInputs;
 
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+  @Transactional(propagation = REQUIRES_NEW)
   public void onLegalEntityOnboarded(LegalEntityOnboardedEvent event) {
     var registryCode = event.getCompany().registryCode().value();
-    var applicant = findApplicant(registryCode);
 
-    if (applicant.isEmpty()) {
-      log.warn(
-          "Cannot resolve the applicant, skipping the company onboarded email: registryCode={}",
-          registryCode);
-      return;
+    try {
+      var applicant = findApplicant(registryCode);
+
+      if (applicant.isEmpty()) {
+        log.warn(
+            "Cannot resolve the applicant, skipping the company onboarded email: registryCode={}",
+            registryCode);
+        return;
+      }
+
+      send(applicant.get(), event.getCompany().name());
+    } catch (RuntimeException e) {
+      log.error("Failed to send the company onboarded email: registryCode={}", registryCode, e);
     }
-
-    send(applicant.get(), event.getCompany().name());
   }
 
   private Optional<User> findApplicant(String registryCode) {

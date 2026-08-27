@@ -2,10 +2,13 @@ package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember;
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SAVINGS_FUND_COMPANY_ONBOARDED;
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
@@ -20,11 +23,11 @@ import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentCaptor;
 
 class LegalEntityOnboardedEmailSenderTest {
 
@@ -46,8 +49,8 @@ class LegalEntityOnboardedEmailSenderTest {
 
   @BeforeEach
   void setUp() {
-    when(latestKybSurveyInputs.findByRegistryCode("12345678"))
-        .thenReturn(
+    given(latestKybSurveyInputs.findByRegistryCode("12345678"))
+        .willReturn(
             new KybSurveyInputs(
                 new PersonalCode("38888888888"), new SelfCertification(true, true, true)));
   }
@@ -58,13 +61,18 @@ class LegalEntityOnboardedEmailSenderTest {
 
   @Test
   void sendsTheCompanyOnboardedEmailToTheApplicant() {
-    when(userService.findByPersonalCode("38888888888")).thenReturn(Optional.of(applicant));
+    given(userService.findByPersonalCode("38888888888")).willReturn(Optional.of(applicant));
     var message = new MandrillMessage();
-    when(emailService.newMandrillMessage(
-            eq("mari@example.com"), eq("savings_fund_company_onboarded_et"), any(), any(), any()))
-        .thenReturn(message);
-    when(emailService.send(eq(applicant), eq(message), eq("savings_fund_company_onboarded_et")))
-        .thenReturn(Optional.empty());
+    given(
+            emailService.newMandrillMessage(
+                eq("mari@example.com"),
+                eq("savings_fund_company_onboarded_et"),
+                any(),
+                any(),
+                any()))
+        .willReturn(message);
+    given(emailService.send(eq(applicant), eq(message), eq("savings_fund_company_onboarded_et")))
+        .willReturn(Optional.empty());
 
     sender.onLegalEntityOnboarded(event());
 
@@ -75,21 +83,32 @@ class LegalEntityOnboardedEmailSenderTest {
   // Mandrill as merge variables.
   @Test
   void namesTheCompanyInTheMergeVariables() {
-    when(userService.findByPersonalCode("38888888888")).thenReturn(Optional.of(applicant));
-    when(emailService.newMandrillMessage(any(), any(), any(), any(), any()))
-        .thenReturn(new MandrillMessage());
+    given(userService.findByPersonalCode("38888888888")).willReturn(Optional.of(applicant));
+    given(emailService.newMandrillMessage(any(), any(), any(), any(), any()))
+        .willReturn(new MandrillMessage());
 
     sender.onLegalEntityOnboarded(event());
 
-    @SuppressWarnings("unchecked")
-    ArgumentCaptor<Map<String, Object>> mergeVars = ArgumentCaptor.forClass(Map.class);
-    verify(emailService).newMandrillMessage(any(), any(), mergeVars.capture(), any(), any());
-    assertThat(mergeVars.getValue()).containsEntry("recipientName", "Mesila OÜ");
+    Map<String, Object> expectedMergeVars =
+        Map.of(
+            "fname",
+            applicant.getFirstName(),
+            "lname",
+            applicant.getLastName(),
+            "recipientName",
+            "Mesila OÜ");
+    verify(emailService)
+        .newMandrillMessage(
+            "mari@example.com",
+            "savings_fund_company_onboarded_et",
+            expectedMergeVars,
+            List.of("savings_fund"),
+            null);
   }
 
   @Test
   void doesNotSendWhenTheApplicantCannotBeResolved() {
-    when(userService.findByPersonalCode("38888888888")).thenReturn(Optional.empty());
+    given(userService.findByPersonalCode("38888888888")).willReturn(Optional.empty());
 
     sender.onLegalEntityOnboarded(event());
 
@@ -98,8 +117,8 @@ class LegalEntityOnboardedEmailSenderTest {
 
   @Test
   void doesNotSendWhenTheApplicantHasNoEmail() {
-    when(userService.findByPersonalCode("38888888888"))
-        .thenReturn(
+    given(userService.findByPersonalCode("38888888888"))
+        .willReturn(
             Optional.of(sampleUserNonMember().personalCode("38888888888").email(null).build()));
 
     sender.onLegalEntityOnboarded(event());
@@ -110,23 +129,56 @@ class LegalEntityOnboardedEmailSenderTest {
   // A company with no stored survey must not take the whole re-screening down.
   @Test
   void survivesAMissingSurvey() {
-    when(latestKybSurveyInputs.findByRegistryCode("12345678"))
-        .thenThrow(new IllegalStateException("No KYB survey found"));
+    given(latestKybSurveyInputs.findByRegistryCode("12345678"))
+        .willThrow(new IllegalStateException("No KYB survey found"));
 
     sender.onLegalEntityOnboarded(event());
 
     verifyNoInteractions(emailService, emailPersistenceService);
   }
 
+  // A failing send must not abort the after-commit synchronizations of the other companies
+  // onboarded in the same batch.
+  @Test
+  void survivesAFailingSend() {
+    given(userService.findByPersonalCode("38888888888")).willReturn(Optional.of(applicant));
+    given(emailService.newMandrillMessage(any(), any(), any(), any(), any()))
+        .willReturn(new MandrillMessage());
+    given(emailService.send(any(), any(), any()))
+        .willThrow(new IllegalStateException("Mandrill is down"));
+
+    assertThatCode(() -> sender.onLegalEntityOnboarded(event())).doesNotThrowAnyException();
+
+    verifyNoInteractions(emailPersistenceService);
+  }
+
+  // Merge variables are built with Map.of, which rejects a null name.
+  @Test
+  void survivesAnApplicantWithoutAName() {
+    given(userService.findByPersonalCode("38888888888"))
+        .willReturn(
+            Optional.of(
+                sampleUserNonMember()
+                    .personalCode("38888888888")
+                    .email("mari@example.com")
+                    .firstName(null)
+                    .lastName(null)
+                    .build()));
+
+    assertThatCode(() -> sender.onLegalEntityOnboarded(event())).doesNotThrowAnyException();
+
+    verifyNoInteractions(emailPersistenceService);
+  }
+
   @Test
   void recordsTheSentEmail() {
-    when(userService.findByPersonalCode("38888888888")).thenReturn(Optional.of(applicant));
+    given(userService.findByPersonalCode("38888888888")).willReturn(Optional.of(applicant));
     var message = new MandrillMessage();
-    when(emailService.newMandrillMessage(any(), any(), any(), any(), any())).thenReturn(message);
+    given(emailService.newMandrillMessage(any(), any(), any(), any(), any())).willReturn(message);
     var status = mock(MandrillMessageStatus.class);
-    when(status.getId()).thenReturn("msg_1");
-    when(status.getStatus()).thenReturn("sent");
-    when(emailService.send(any(), any(), any())).thenReturn(Optional.of(status));
+    given(status.getId()).willReturn("msg_1");
+    given(status.getStatus()).willReturn("sent");
+    given(emailService.send(any(), any(), any())).willReturn(Optional.of(status));
 
     sender.onLegalEntityOnboarded(event());
 

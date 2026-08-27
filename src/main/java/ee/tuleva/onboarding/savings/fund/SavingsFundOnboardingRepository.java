@@ -104,15 +104,6 @@ public class SavingsFundOnboardingRepository {
   }
 
   @Transactional
-  public void deleteOnboardingStatus(String code, PartyId.Type type) {
-    jdbcClient
-        .sql("DELETE FROM savings_fund_onboarding WHERE code = :code AND type = :type")
-        .param("code", code)
-        .param("type", type.name())
-        .update();
-  }
-
-  @Transactional
   public Optional<SavingsFundOnboardingStatus> saveOnboardingStatus(
       String code, PartyId.Type type, SavingsFundOnboardingStatus status) {
     jdbcClient

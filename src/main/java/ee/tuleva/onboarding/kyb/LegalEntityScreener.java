@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.kyb;
 
 import static ee.tuleva.onboarding.kyb.KybRelationshipRoles.RELATED_PERSON_ROLES;
+import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.RESCREENING;
 
 import ee.tuleva.onboarding.ariregister.AriregisterClient;
 import ee.tuleva.onboarding.ariregister.CompanyDetail;
@@ -34,20 +35,25 @@ public class LegalEntityScreener {
       String registryCode,
       PersonalCode personalCode,
       SelfCertification selfCertification,
-      List<CompanyRelationship> relationships) {
+      List<CompanyRelationship> relationships,
+      KybScreeningTrigger trigger) {
     var detail = fetchCompanyDetail(registryCode);
     var beneficialOwners = ariregisterClient.getBeneficialOwners(registryCode);
     var data =
         kybCompanyDataMapper.toKybCompanyData(
             detail, personalCode, relationships, beneficialOwners, selfCertification);
-    return kybScreeningService.screen(data);
+    return kybScreeningService.screen(data, trigger);
   }
 
   public List<KybCheck> screenLatest(String registryCode) {
     var surveyInputs = latestKybSurveyInputs.findByRegistryCode(registryCode);
     var relationships = fetchActiveRelationships(registryCode);
     return screen(
-        registryCode, surveyInputs.personalCode(), surveyInputs.selfCertification(), relationships);
+        registryCode,
+        surveyInputs.personalCode(),
+        surveyInputs.selfCertification(),
+        relationships,
+        RESCREENING);
   }
 
   public ValidationResult validate(

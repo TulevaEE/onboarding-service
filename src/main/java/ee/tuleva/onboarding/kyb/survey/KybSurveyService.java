@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.kyb.survey;
 
 import static ee.tuleva.onboarding.event.TrackableEventType.SAVINGS_FUND_ONBOARDING_STATUS_CHANGE;
 import static ee.tuleva.onboarding.kyb.KybCheckType.DATA_CHANGED;
+import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.SUBMISSION;
 import static ee.tuleva.onboarding.kyb.survey.BlockedReason.ALREADY_ONBOARDED;
 import static ee.tuleva.onboarding.kyb.survey.BlockedReason.NOT_BOARD_MEMBER;
 import static ee.tuleva.onboarding.kyb.survey.BlockedReason.ONBOARDING_PENDING;
@@ -203,13 +204,10 @@ class KybSurveyService {
             .survey(surveyResponse)
             .build());
 
-    // Only a rejected or unknown company gets this far. The screening below can queue a company
-    // whose related persons are still unverified, but it only does so from a clean slate, so the
-    // stale rejection has to go first.
-    savingsFundOnboardingRepository.deleteOnboardingStatus(registryCode, LEGAL_ENTITY);
-
+    // Only a rejected or unknown company gets this far, and the SUBMISSION trigger is what lets the
+    // screening below queue a rejected company whose related persons are still unverified.
     legalEntityScreener.screen(
-        registryCode, new PersonalCode(personalCode), selfCertification, relationships);
+        registryCode, new PersonalCode(personalCode), selfCertification, relationships, SUBMISSION);
   }
 
   private List<CompanyRelationship> fetchAndVerifyBoardMember(

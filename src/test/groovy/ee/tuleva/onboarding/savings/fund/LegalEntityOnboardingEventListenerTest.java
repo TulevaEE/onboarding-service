@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.kyb.KybCheckType.*;
+import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.RESCREENING;
+import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.SUBMISSION;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOwner;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
@@ -42,7 +44,7 @@ class LegalEntityOnboardingEventListenerTest {
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
             new KybCheck(COMPANY_STRUCTURE, true, Map.of()));
 
-    listener.onKybCheckPerformed(eventWith(checks));
+    listener.onKybCheckPerformed(eventWith(checks, SUBMISSION));
 
     verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, COMPLETED);
   }
@@ -54,7 +56,7 @@ class LegalEntityOnboardingEventListenerTest {
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
             new KybCheck(COMPANY_STRUCTURE, false, Map.of()));
 
-    listener.onKybCheckPerformed(eventWith(checks));
+    listener.onKybCheckPerformed(eventWith(checks, SUBMISSION));
 
     verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
   }
@@ -67,7 +69,7 @@ class LegalEntityOnboardingEventListenerTest {
             new KybCheck(COMPANY_STRUCTURE, true, Map.of()),
             new KybCheck(DATA_CHANGED, false, Map.of()));
 
-    listener.onKybCheckPerformed(eventWith(checks));
+    listener.onKybCheckPerformed(eventWith(checks, SUBMISSION));
 
     verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, COMPLETED);
   }
@@ -80,7 +82,7 @@ class LegalEntityOnboardingEventListenerTest {
             new KybCheck(COMPANY_STRUCTURE, true, Map.of()),
             new KybCheck(COMPANY_AGE, false, Map.of()));
 
-    listener.onKybCheckPerformed(eventWith(checks));
+    listener.onKybCheckPerformed(eventWith(checks, SUBMISSION));
 
     verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, COMPLETED);
   }
@@ -93,7 +95,7 @@ class LegalEntityOnboardingEventListenerTest {
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
             new KybCheck(COMPANY_STRUCTURE, false, Map.of()));
 
-    listener.onKybCheckPerformed(eventWith(checks));
+    listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
     verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
   }
@@ -120,7 +122,7 @@ class LegalEntityOnboardingEventListenerTest {
                             "currentSuccess", false,
                             "metadataChanged", false)))));
 
-    listener.onKybCheckPerformed(eventWith(checks));
+    listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
     verify(repository, never()).saveOnboardingStatus(any(), any(), any());
   }
@@ -133,7 +135,7 @@ class LegalEntityOnboardingEventListenerTest {
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
             new KybCheck(SINGLE_BOARD_MEMBER_OWNERSHIP, false, Map.of()));
 
-    listener.onKybCheckPerformed(eventWith(checks));
+    listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
     verify(repository, never()).saveOnboardingStatus(any(), any(), any());
   }
@@ -160,7 +162,7 @@ class LegalEntityOnboardingEventListenerTest {
                             "currentSuccess", false,
                             "metadataChanged", true)))));
 
-    listener.onKybCheckPerformed(eventWith(checks));
+    listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
     verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
   }
@@ -188,7 +190,7 @@ class LegalEntityOnboardingEventListenerTest {
                             "metadataChanged",
                             true)))));
 
-    listener.onKybCheckPerformed(eventWith(checks));
+    listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
     verify(repository, never()).saveOnboardingStatus(any(), any(), any());
   }
@@ -216,7 +218,7 @@ class LegalEntityOnboardingEventListenerTest {
                             "metadataChanged",
                             true)))));
 
-    listener.onKybCheckPerformed(eventWith(checks));
+    listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
     verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
   }
@@ -229,7 +231,7 @@ class LegalEntityOnboardingEventListenerTest {
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
             new KybCheck(SOLE_MEMBER_OWNERSHIP, false, Map.of()));
 
-    listener.onKybCheckPerformed(eventWith(checks));
+    listener.onKybCheckPerformed(eventWith(checks, SUBMISSION));
 
     verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
   }
@@ -242,7 +244,7 @@ class LegalEntityOnboardingEventListenerTest {
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
             new KybCheck(COMPANY_STRUCTURE, true, Map.of()));
 
-    listener.onKybCheckPerformed(eventWith(checks));
+    listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
     verify(repository, never()).saveOnboardingStatus(any(), any(), any());
   }
@@ -254,7 +256,19 @@ class LegalEntityOnboardingEventListenerTest {
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
             new KybCheck(RELATED_PERSONS_KYC, false, Map.of()));
 
-    listener.onKybCheckPerformed(eventWith(checks));
+    listener.onKybCheckPerformed(eventWith(checks, SUBMISSION));
+
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, PENDING);
+  }
+
+  @Test
+  void setsStatusPendingWhenRescreeningACompanyWithoutAStatusFindsOnlyRelatedPersonsKycFailing() {
+    var checks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(RELATED_PERSONS_KYC, false, Map.of()));
+
+    listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
     verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, PENDING);
   }
@@ -267,7 +281,7 @@ class LegalEntityOnboardingEventListenerTest {
             new KybCheck(RELATED_PERSONS_KYC, false, Map.of()),
             new KybCheck(COMPANY_STRUCTURE, false, Map.of()));
 
-    listener.onKybCheckPerformed(eventWith(checks));
+    listener.onKybCheckPerformed(eventWith(checks, SUBMISSION));
 
     verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
   }
@@ -282,7 +296,7 @@ class LegalEntityOnboardingEventListenerTest {
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
             new KybCheck(RELATED_PERSONS_KYC, false, Map.of()));
 
-    listener.onKybCheckPerformed(eventWith(checks));
+    listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
     verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
   }
@@ -290,16 +304,47 @@ class LegalEntityOnboardingEventListenerTest {
   // Monitoring must not heal a rejection on its own: only a fresh survey submission clears the
   // slate and lets a company back into the waiting queue.
   @Test
-  void keepsRejectedWhenOnlyRelatedPersonsKycFailsForARejectedCompany() {
+  void keepsRejectedWhenRescreeningARejectedCompanyFindsOnlyRelatedPersonsKycFailing() {
     given(repository.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.of(REJECTED));
     var checks =
         List.of(
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
             new KybCheck(RELATED_PERSONS_KYC, false, Map.of()));
 
-    listener.onKybCheckPerformed(eventWith(checks));
+    listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
     verify(repository, never()).saveOnboardingStatus(any(), any(), any());
+  }
+
+  // The mirror image: the applicant fixed what got them rejected and submitted again, so the
+  // company earns its place back in the waiting queue.
+  @Test
+  void queuesARejectedCompanyAgainWhenAFreshSubmissionOnlyLacksRelatedPersonsKyc() {
+    given(repository.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.of(REJECTED));
+    var checks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(RELATED_PERSONS_KYC, false, Map.of()));
+
+    listener.onKybCheckPerformed(eventWith(checks, SUBMISSION));
+
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, PENDING);
+  }
+
+  // Submitting is blocked for a completed company, so this cannot happen through the survey; the
+  // rule is pinned anyway because an open account must never be walked back into the queue.
+  @Test
+  void neverQueuesACompletedCompanyEvenUnderASubmissionTrigger() {
+    given(repository.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.of(COMPLETED));
+    var checks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(RELATED_PERSONS_KYC, false, Map.of()));
+
+    listener.onKybCheckPerformed(eventWith(checks, SUBMISSION));
+
+    verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
+    verify(repository, never()).saveOnboardingStatus("12345678", LEGAL_ENTITY, PENDING);
   }
 
   // The company was open, monitoring demoted it, and the next monitoring run must not walk it
@@ -313,8 +358,8 @@ class LegalEntityOnboardingEventListenerTest {
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
             new KybCheck(RELATED_PERSONS_KYC, false, Map.of()));
 
-    listener.onKybCheckPerformed(eventWith(checks));
-    listener.onKybCheckPerformed(eventWith(checks));
+    listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
+    listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
     verify(repository, times(1)).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
     verify(repository, never()).saveOnboardingStatus("12345678", LEGAL_ENTITY, PENDING);
@@ -328,7 +373,7 @@ class LegalEntityOnboardingEventListenerTest {
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
             new KybCheck(RELATED_PERSONS_KYC, true, Map.of()));
 
-    listener.onKybCheckPerformed(eventWith(checks));
+    listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
     verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, COMPLETED);
   }
@@ -343,7 +388,7 @@ class LegalEntityOnboardingEventListenerTest {
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
             new KybCheck(RELATED_PERSONS_KYC, true, Map.of()));
 
-    listener.onKybCheckPerformed(eventWith(checks));
+    listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
     assertThat(publishedEvents)
         .singleElement(type(LegalEntityOnboardedEvent.class))
@@ -358,7 +403,7 @@ class LegalEntityOnboardingEventListenerTest {
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
             new KybCheck(COMPANY_STRUCTURE, true, Map.of()));
 
-    listener.onKybCheckPerformed(eventWith(checks));
+    listener.onKybCheckPerformed(eventWith(checks, SUBMISSION));
 
     assertThat(publishedEvents).isEmpty();
   }
@@ -373,7 +418,7 @@ class LegalEntityOnboardingEventListenerTest {
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
             new KybCheck(RELATED_PERSONS_KYC, true, Map.of()));
 
-    listener.onKybCheckPerformed(eventWith(checks));
+    listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
     assertThat(publishedEvents).isEmpty();
   }
@@ -386,13 +431,13 @@ class LegalEntityOnboardingEventListenerTest {
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
             new KybCheck(RELATED_PERSONS_KYC, false, Map.of()));
 
-    listener.onKybCheckPerformed(eventWith(checks));
+    listener.onKybCheckPerformed(eventWith(checks, RESCREENING));
 
     verify(repository, never()).saveOnboardingStatus(any(), any(), any());
   }
 
-  private KybCheckPerformedEvent eventWith(List<KybCheck> checks) {
+  private KybCheckPerformedEvent eventWith(List<KybCheck> checks, KybScreeningTrigger trigger) {
     return new KybCheckPerformedEvent(
-        this, company, new PersonalCode("38501010001"), relatedPersons, checks, List.of());
+        this, company, new PersonalCode("38501010001"), relatedPersons, checks, List.of(), trigger);
   }
 }

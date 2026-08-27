@@ -91,7 +91,8 @@ class BeneficialOwnerScreeningIntegrationTest {
         REGISTRY_CODE,
         OWNER,
         new SelfCertification(true, true, true),
-        screener.fetchActiveRelationships(REGISTRY_CODE));
+        screener.fetchActiveRelationships(REGISTRY_CODE),
+        KybScreeningTrigger.SUBMISSION);
   }
 
   private static CompanyRelationship boardMemberRow() {

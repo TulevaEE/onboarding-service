@@ -52,7 +52,7 @@ public class ExchangeTransactionLeaversRepository
             (et.security_from = 'EE3600109435' OR et.security_from = 'EE3600109443') AND
             et.security_to <> 'EE3600109435' AND
             et.security_to <> 'EE3600109443' AND
-            fund.ongoing_charges_figure >= 0.005 AND
+            fund.ongoing_charges_figure >= 0.003 AND
             mcmp.email IS NOT NULL AND TRIM(mcmp.email) <> '' AND
             (mcmp.keel = 'ENG' OR mcmp.keel = 'EST') AND
             et.percentage >= 10

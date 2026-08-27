@@ -55,10 +55,7 @@ class FirstPaymentReminderJob {
     try {
       sender.send(reminder);
     } catch (Exception e) {
-      log.error(
-          "Failed to send savings fund first payment reminder: personalCode={}",
-          reminder.personalCode(),
-          e);
+      log.error("Failed to send a savings fund first payment reminder", e);
     }
   }
 }

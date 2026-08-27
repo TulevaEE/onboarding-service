@@ -12,6 +12,7 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
 import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.savings.fund.SavingsFundFees;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -30,6 +31,7 @@ class FirstPaymentReminderSenderTest {
 
   @Mock private EmailService emailService;
   @Mock private EmailPersistenceService emailPersistenceService;
+  @Mock private SavingsFundFees savingsFundFees;
 
   @InjectMocks private FirstPaymentReminderSender sender;
 
@@ -84,11 +86,12 @@ class FirstPaymentReminderSenderTest {
 
   private MandrillMessage messageFor(FirstPaymentReminder reminder, String templateName) {
     var message = new MandrillMessage();
+    given(savingsFundFees.ongoingChargesPercent(reminder.locale())).willReturn("0.28");
     given(
             emailService.newMandrillMessage(
                 eq(reminder.email()),
                 eq(templateName),
-                eq(Map.of("fname", reminder.firstName())),
+                eq(Map.of("fname", reminder.firstName(), "savingsFundFee", "0.28")),
                 eq(TAGS),
                 isNull()))
         .willReturn(message);

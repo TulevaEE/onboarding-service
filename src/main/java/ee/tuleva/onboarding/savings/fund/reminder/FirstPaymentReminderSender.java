@@ -4,6 +4,8 @@ import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SAVINGS_F
 
 import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.savings.fund.SavingsFundFees;
+import ee.tuleva.onboarding.user.Names;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +19,7 @@ class FirstPaymentReminderSender {
 
   private final EmailService emailService;
   private final EmailPersistenceService emailPersistenceService;
+  private final SavingsFundFees savingsFundFees;
 
   void send(FirstPaymentReminder reminder) {
     String templateName =
@@ -24,7 +27,15 @@ class FirstPaymentReminderSender {
 
     var message =
         emailService.newMandrillMessage(
-            reminder.email(), templateName, Map.of("fname", reminder.firstName()), TAGS, null);
+            reminder.email(),
+            templateName,
+            Map.of(
+                "fname",
+                Names.formatted(reminder.firstName()),
+                "savingsFundFee",
+                savingsFundFees.ongoingChargesPercent(reminder.locale())),
+            TAGS,
+            null);
 
     emailService
         .send(reminder, message, templateName)

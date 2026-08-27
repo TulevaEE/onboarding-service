@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.aml;
 
 import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_ACTIVE;
 import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_STRUCTURE;
+import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.SUBMISSION;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOwner;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -104,6 +105,12 @@ public class AmlKybCheckCompanyAttributionIntegrationTest {
     var company = new CompanyDto(new RegistryCode(registryCode), "Test OÜ", "62011", LegalForm.OÜ);
     var relatedPersons = List.of(boardMemberOwner(personalCode, 100.0).build());
     return new KybCheckPerformedEvent(
-        this, company, new PersonalCode(personalCode), relatedPersons, checks, List.of());
+        this,
+        company,
+        new PersonalCode(personalCode),
+        relatedPersons,
+        checks,
+        List.of(),
+        SUBMISSION);
   }
 }

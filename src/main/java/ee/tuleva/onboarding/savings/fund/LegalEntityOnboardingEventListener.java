@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.kyb.KybCheckType.RELATED_PERSONS_KYC;
+import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.SUBMISSION;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.PENDING;
@@ -9,6 +10,7 @@ import static java.util.stream.Collectors.joining;
 
 import ee.tuleva.onboarding.kyb.KybCheck;
 import ee.tuleva.onboarding.kyb.KybCheckPerformedEvent;
+import ee.tuleva.onboarding.kyb.KybScreeningTrigger;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,7 +35,7 @@ class LegalEntityOnboardingEventListener {
     var oldStatus =
         savingsFundOnboardingRepository.findStatus(registryCode, LEGAL_ENTITY).orElse(null);
     var failedGateChecks = failedGateChecks(event);
-    var newStatus = statusFor(failedGateChecks, oldStatus);
+    var newStatus = statusFor(failedGateChecks, oldStatus, event.getTrigger());
 
     if (newStatus == oldStatus) {
       return;
@@ -85,21 +87,27 @@ class LegalEntityOnboardingEventListener {
   }
 
   private SavingsFundOnboardingStatus statusFor(
-      List<KybCheck> failedGateChecks, SavingsFundOnboardingStatus oldStatus) {
+      List<KybCheck> failedGateChecks,
+      SavingsFundOnboardingStatus oldStatus,
+      KybScreeningTrigger trigger) {
     if (failedGateChecks.isEmpty()) {
       return COMPLETED;
     }
-    if (mayWaitForRelatedPersons(oldStatus) && onlyRelatedPersonsKycFailed(failedGateChecks)) {
+    if (mayWaitForRelatedPersons(oldStatus, trigger)
+        && onlyRelatedPersonsKycFailed(failedGateChecks)) {
       return PENDING;
     }
     return REJECTED;
   }
 
-  // A company only waits ahead of its first completion. Monitoring re-screens rejected companies
-  // too, so letting a rejection soften back to pending would re-open an account that never closed
-  // and email the applicant about it again. Only a fresh survey submission clears the rejection.
-  private static boolean mayWaitForRelatedPersons(SavingsFundOnboardingStatus oldStatus) {
-    return oldStatus == null || oldStatus == PENDING;
+  // A completed company never waits again: softening it back to pending would re-open an account
+  // that never closed and email the applicant about it. A rejected one waits only when the person
+  // resubmits the survey — monitoring re-screens rejected companies too, and must not heal them.
+  private static boolean mayWaitForRelatedPersons(
+      SavingsFundOnboardingStatus oldStatus, KybScreeningTrigger trigger) {
+    return oldStatus == null
+        || oldStatus == PENDING
+        || (oldStatus == REJECTED && trigger == SUBMISSION);
   }
 
   private boolean onlyRelatedPersonsKycFailed(List<KybCheck> failedGateChecks) {

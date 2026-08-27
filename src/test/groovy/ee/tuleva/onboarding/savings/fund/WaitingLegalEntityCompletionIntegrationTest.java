@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.aml.AmlCheckType.KYB_RELATED_PERSONS_KYC;
 import static ee.tuleva.onboarding.aml.AmlCheckType.KYC_CHECK;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember;
 import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_ACTIVE;
+import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.RESCREENING;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.LOW;
 import static ee.tuleva.onboarding.kyc.KycSurveyPurpose.IDENTITY_ONLY;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
@@ -203,7 +204,8 @@ class WaitingLegalEntityCompletionIntegrationTest {
             new PersonalCode(APPLICANT),
             List.of(),
             List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())),
-            List.of()));
+            List.of(),
+            RESCREENING));
     return List.of();
   }
 

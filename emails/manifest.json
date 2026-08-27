@@ -353,7 +353,7 @@
     "savings_fund_onboarding_completed_company": "Planned, but likely superseded: the live savings_fund_company_onboarded email already covers a company account opening after review. Reconcile before wiring.",
     "savings_fund_onboarding_abandonment_person": "Planned: sent to a person who started opening a savings fund account but stopped. No signal exists yet for adults who abandon before submitting the KYC survey.",
     "savings_fund_onboarding_abandonment_child": "Planned: sent to the parent when a child’s account opening was started but the KYC survey was never submitted (PENDING row without kyc_survey). The most ready-to-automate trigger of the batch.",
-    "savings_fund_onboarding_abandonment_company": "Planned: sent when a company’s account opening stalls. The company flow only ever writes COMPLETED or REJECTED, so this state cannot occur today.",
+    "savings_fund_onboarding_abandonment_company": "Planned: sent when a company’s account opening stalls. Since the company-waits flow, PENDING means waiting for related persons to verify, not abandonment, so this trigger needs its own definition before wiring.",
     "savings_fund_first_payment_reminder_person": "Planned: sent to a person whose savings fund account has been open for a while with no contributions. Needs a status-change timestamp before it can be scheduled.",
     "savings_fund_first_payment_reminder_child": "Planned: sent to the parent when a child’s account has been open for a while with no contributions. Trigger not wired yet.",
     "savings_fund_first_payment_reminder_company": "Planned: sent to the representative when a company’s account has been open for a while with no contributions. Trigger not wired yet.",

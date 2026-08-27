@@ -297,6 +297,7 @@
     "third_pillar_payment_reminder_mandate": "Scheduled one hour after signing a third pillar mandate and cancelled if the payment arrives first, so it only reaches people who have not paid yet.",
     "third_pillar_payment_success_mandate": "Sent when the third pillar payment made inside the app is completed, with the signed mandate attached. Cancels the pending payment reminder.",
     "third_pillar_suggest_second": "Scheduled three days after signing a third pillar mandate, only for adults whose second pillar is not with Tuleva.",
-    "withdrawal_batch": "Sent right after signing a batch of withdrawal applications (fund pension or partial withdrawal), with the signed applications attached and the payout timing."
+    "withdrawal_batch": "Sent right after signing a batch of withdrawal applications (fund pension or partial withdrawal), with the signed applications attached and the payout timing.",
+    "savings_fund_company_onboarded": "Sent to the applicant when their company, which was waiting for review, gets its savings fund account opened, inviting the first contribution from the company bank account."
   }
 }

@@ -5,7 +5,7 @@
 
     <mj-section padding-top="12px">
       <mj-column>
-        <mj-text>Hi,&nbsp;*|FNAME|*!</mj-text>
+        <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
           The Tuleva Additional Savings Fund account for your company *|RECIPIENTNAME|* is now
           open.

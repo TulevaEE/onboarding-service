@@ -5,7 +5,7 @@
 
     <mj-section padding-top="12px">
       <mj-column>
-        <mj-text>Tere,&nbsp;*|FNAME|*!</mj-text>
+        <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
           Sinu ettevõtte *|RECIPIENTNAME|* Tuleva Täiendava Kogumisfondi konto on nüüd avatud.
         </mj-text>

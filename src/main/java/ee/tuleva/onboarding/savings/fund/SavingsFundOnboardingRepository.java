@@ -30,7 +30,12 @@ public class SavingsFundOnboardingRepository {
   public List<String> findPendingLegalEntityCodes() {
     return jdbcClient
         .sql(
-            "SELECT code FROM savings_fund_onboarding WHERE type = 'LEGAL_ENTITY' AND status = 'PENDING'")
+            """
+            SELECT code
+            FROM savings_fund_onboarding
+            WHERE type = 'LEGAL_ENTITY' AND status = 'PENDING'
+            ORDER BY code
+            """)
         .query(String.class)
         .list();
   }

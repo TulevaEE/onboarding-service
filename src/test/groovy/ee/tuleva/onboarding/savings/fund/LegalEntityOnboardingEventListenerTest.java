@@ -6,10 +6,14 @@ import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.PENDING;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.REJECTED;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.InstanceOfAssertFactories.type;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.kyb.*;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -20,7 +24,8 @@ class LegalEntityOnboardingEventListenerTest {
 
   private final SavingsFundOnboardingRepository repository =
       mock(SavingsFundOnboardingRepository.class);
-  private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
+  private final List<Object> publishedEvents = new ArrayList<>();
+  private final ApplicationEventPublisher eventPublisher = publishedEvents::add;
   private final LegalEntityOnboardingEventListener listener =
       new LegalEntityOnboardingEventListener(repository, eventPublisher);
 
@@ -82,7 +87,7 @@ class LegalEntityOnboardingEventListenerTest {
 
   @Test
   void setsStatusRejectedEvenIfPreviouslyCompletedWhenNonOwnershipGateCheckFails() {
-    when(repository.findStatus("12345678", LEGAL_ENTITY)).thenReturn(Optional.of(COMPLETED));
+    given(repository.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.of(COMPLETED));
     var checks =
         List.of(
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
@@ -95,7 +100,7 @@ class LegalEntityOnboardingEventListenerTest {
 
   @Test
   void keepsCompletedWhenOwnershipCheckFailsWithoutEvidenceOfChange() {
-    when(repository.findStatus("12345678", LEGAL_ENTITY)).thenReturn(Optional.of(COMPLETED));
+    given(repository.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.of(COMPLETED));
     var checks =
         List.of(
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
@@ -122,7 +127,7 @@ class LegalEntityOnboardingEventListenerTest {
 
   @Test
   void keepsCompletedWhenOwnershipCheckFailsAndNoDataChangedCheckPresent() {
-    when(repository.findStatus("12345678", LEGAL_ENTITY)).thenReturn(Optional.of(COMPLETED));
+    given(repository.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.of(COMPLETED));
     var checks =
         List.of(
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
@@ -135,7 +140,7 @@ class LegalEntityOnboardingEventListenerTest {
 
   @Test
   void setsStatusRejectedWhenOwnershipDataActuallyChanged() {
-    when(repository.findStatus("12345678", LEGAL_ENTITY)).thenReturn(Optional.of(COMPLETED));
+    given(repository.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.of(COMPLETED));
     var checks =
         List.of(
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
@@ -162,7 +167,7 @@ class LegalEntityOnboardingEventListenerTest {
 
   @Test
   void keepsCompletedWhenFailingOwnershipCheckHasNoOwnEvidenceDespiteStaleRemovedCheckEntry() {
-    when(repository.findStatus("12345678", LEGAL_ENTITY)).thenReturn(Optional.of(COMPLETED));
+    given(repository.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.of(COMPLETED));
     var checks =
         List.of(
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
@@ -190,7 +195,7 @@ class LegalEntityOnboardingEventListenerTest {
 
   @Test
   void setsStatusRejectedWhenFailingOwnershipCheckItselfShowsMetadataChange() {
-    when(repository.findStatus("12345678", LEGAL_ENTITY)).thenReturn(Optional.of(COMPLETED));
+    given(repository.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.of(COMPLETED));
     var checks =
         List.of(
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
@@ -218,7 +223,7 @@ class LegalEntityOnboardingEventListenerTest {
 
   @Test
   void setsStatusRejectedForNewCompanyWhenOwnershipCheckFails() {
-    when(repository.findStatus("12345678", LEGAL_ENTITY)).thenReturn(Optional.empty());
+    given(repository.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.empty());
     var checks =
         List.of(
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
@@ -231,7 +236,7 @@ class LegalEntityOnboardingEventListenerTest {
 
   @Test
   void doesNothingWhenStatusUnchanged() {
-    when(repository.findStatus("12345678", LEGAL_ENTITY)).thenReturn(Optional.of(COMPLETED));
+    given(repository.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.of(COMPLETED));
     var checks =
         List.of(
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
@@ -271,7 +276,7 @@ class LegalEntityOnboardingEventListenerTest {
   // alarm, not a company waiting to be onboarded, so it must not soften to pending.
   @Test
   void setsStatusRejectedWhenRelatedPersonsKycFailsAfterCompletion() {
-    when(repository.findStatus("12345678", LEGAL_ENTITY)).thenReturn(Optional.of(COMPLETED));
+    given(repository.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.of(COMPLETED));
     var checks =
         List.of(
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
@@ -284,7 +289,7 @@ class LegalEntityOnboardingEventListenerTest {
 
   @Test
   void completesAPendingCompanyOnceRelatedPersonsAreVerified() {
-    when(repository.findStatus("12345678", LEGAL_ENTITY)).thenReturn(Optional.of(PENDING));
+    given(repository.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.of(PENDING));
     var checks =
         List.of(
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),
@@ -296,8 +301,53 @@ class LegalEntityOnboardingEventListenerTest {
   }
 
   @Test
+  void publishesOnboardedEventWhenAPendingCompanyCompletes() {
+    given(repository.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.of(PENDING));
+    given(repository.saveOnboardingStatus("12345678", LEGAL_ENTITY, COMPLETED))
+        .willReturn(Optional.of(PENDING));
+    var checks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(RELATED_PERSONS_KYC, true, Map.of()));
+
+    listener.onKybCheckPerformed(eventWith(checks));
+
+    assertThat(publishedEvents)
+        .singleElement(type(LegalEntityOnboardedEvent.class))
+        .returns(company, LegalEntityOnboardedEvent::getCompany)
+        .returns(listener, LegalEntityOnboardedEvent::getSource);
+  }
+
+  @Test
+  void publishesNoOnboardedEventWhenACompanyCompletesWithoutEverHavingBeenPending() {
+    var checks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(COMPANY_STRUCTURE, true, Map.of()));
+
+    listener.onKybCheckPerformed(eventWith(checks));
+
+    assertThat(publishedEvents).isEmpty();
+  }
+
+  @Test
+  void publishesNoOnboardedEventWhenAnotherRelatedPersonAlreadyCompletedTheCompany() {
+    given(repository.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.of(PENDING));
+    given(repository.saveOnboardingStatus("12345678", LEGAL_ENTITY, COMPLETED))
+        .willReturn(Optional.of(COMPLETED));
+    var checks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(RELATED_PERSONS_KYC, true, Map.of()));
+
+    listener.onKybCheckPerformed(eventWith(checks));
+
+    assertThat(publishedEvents).isEmpty();
+  }
+
+  @Test
   void leavesAPendingCompanyAloneWhileRelatedPersonsAreStillMissing() {
-    when(repository.findStatus("12345678", LEGAL_ENTITY)).thenReturn(Optional.of(PENDING));
+    given(repository.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.of(PENDING));
     var checks =
         List.of(
             new KybCheck(COMPANY_ACTIVE, true, Map.of()),

@@ -22,6 +22,21 @@
         <mj-button href="https://pension.tuleva.ee/savings-fund/payment?language=en">
           Make my first contribution
         </mj-button>
+        <mj-text>If you would like to read more about the fund, start here:</mj-text>
+        <mj-text>
+          <a
+            href="https://tuleva.ee/en/additional-investment-fund/where-does-the-tuleva-additional-investment-fund-invest/"
+          >
+            Where does the Tuleva Additional Investment Fund invest?
+          </a>
+        </mj-text>
+        <mj-text>
+          <a
+            href="https://tuleva.ee/en/additional-investment-fund/why-use-an-investment-account-for-the-additional-investment-fund/"
+          >
+            Why use an investment account for the Additional Investment Fund?
+          </a>
+        </mj-text>
       </mj-column>
     </mj-section>
 

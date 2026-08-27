@@ -142,12 +142,37 @@ class AmlServiceTest {
   @Test
   void addKycCheck_persistsFreshPassingCheckWhenOnlyFailedCheckExists() {
     given(
-            amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
-                "38501010002", KYC_CHECK, true, aYearAgoFromTestClock))
-        .willReturn(false);
+            amlCheckRepository
+                .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDesc(
+                    "38888888888", KYC_CHECK, aYearAgoFromTestClock))
+        .willReturn(Optional.of(kycCheck(false, FIXED_INSTANT.minus(30, ChronoUnit.DAYS))));
 
     var result =
-        amlService.addKycCheck("38501010002", new KycCheck(LOW, Map.of("riskLevel", "LOW")));
+        amlService.addKycCheck("38888888888", new KycCheck(LOW, Map.of("riskLevel", "LOW")));
+
+    assertThat(result)
+        .hasValueSatisfying(
+            check -> {
+              assertThat(check.getType()).isEqualTo(KYC_CHECK);
+              assertThat(check.isSuccess()).isTrue();
+              assertThat(check.getMetadata()).isEqualTo(Map.of("riskLevel", "LOW"));
+            });
+  }
+
+  @Test
+  void addKycCheck_persistsPassingRecheckWhenLatestCheckFailedDespiteEarlierSuccess() {
+    given(
+            amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
+                "38888888888", KYC_CHECK, true, aYearAgoFromTestClock))
+        .willReturn(true);
+    given(
+            amlCheckRepository
+                .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDesc(
+                    "38888888888", KYC_CHECK, aYearAgoFromTestClock))
+        .willReturn(Optional.of(kycCheck(false, FIXED_INSTANT.minus(90, ChronoUnit.DAYS))));
+
+    var result =
+        amlService.addKycCheck("38888888888", new KycCheck(LOW, Map.of("riskLevel", "LOW")));
 
     assertThat(result)
         .hasValueSatisfying(
@@ -173,12 +198,13 @@ class AmlServiceTest {
   @Test
   void addKycCheck_persistsStillFailingRecheckWhenNoSuccessfulCheckExists() {
     given(
-            amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
-                "38501010002", KYC_CHECK, true, aYearAgoFromTestClock))
-        .willReturn(false);
+            amlCheckRepository
+                .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDesc(
+                    "38888888888", KYC_CHECK, aYearAgoFromTestClock))
+        .willReturn(Optional.of(kycCheck(false, FIXED_INSTANT.minus(30, ChronoUnit.DAYS))));
 
     var result =
-        amlService.addKycCheck("38501010002", new KycCheck(HIGH, Map.of("riskLevel", "HIGH")));
+        amlService.addKycCheck("38888888888", new KycCheck(HIGH, Map.of("riskLevel", "HIGH")));
 
     assertThat(result)
         .hasValueSatisfying(
@@ -191,12 +217,13 @@ class AmlServiceTest {
   @Test
   void addKycCheck_skipsPassingRecheckWhenRecentSuccessfulCheckExists() {
     given(
-            amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
-                "38501010002", KYC_CHECK, true, aYearAgoFromTestClock))
-        .willReturn(true);
+            amlCheckRepository
+                .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDesc(
+                    "38888888888", KYC_CHECK, aYearAgoFromTestClock))
+        .willReturn(Optional.of(kycCheck(true, FIXED_INSTANT.minus(30, ChronoUnit.DAYS))));
 
     var result =
-        amlService.addKycCheck("38501010002", new KycCheck(LOW, Map.of("riskLevel", "LOW")));
+        amlService.addKycCheck("38888888888", new KycCheck(LOW, Map.of("riskLevel", "LOW")));
 
     assertThat(result).isEmpty();
     verify(amlCheckRepository, never()).save(any(AmlCheck.class));
@@ -205,12 +232,13 @@ class AmlServiceTest {
   @Test
   void addKycCheck_persistsAdverseRecheckEvenWhenRecentSuccessfulCheckExists() {
     given(
-            amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
-                "38501010002", KYC_CHECK, true, aYearAgoFromTestClock))
-        .willReturn(true);
+            amlCheckRepository
+                .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDesc(
+                    "38888888888", KYC_CHECK, aYearAgoFromTestClock))
+        .willReturn(Optional.of(kycCheck(true, FIXED_INSTANT.minus(30, ChronoUnit.DAYS))));
 
     var result =
-        amlService.addKycCheck("38501010002", new KycCheck(HIGH, Map.of("riskLevel", "HIGH")));
+        amlService.addKycCheck("38888888888", new KycCheck(HIGH, Map.of("riskLevel", "HIGH")));
 
     assertThat(result)
         .hasValueSatisfying(
@@ -218,6 +246,15 @@ class AmlServiceTest {
               assertThat(check.getType()).isEqualTo(KYC_CHECK);
               assertThat(check.isSuccess()).isFalse();
             });
+  }
+
+  private AmlCheck kycCheck(boolean success, Instant createdTime) {
+    return AmlCheck.builder()
+        .personalCode("38888888888")
+        .type(KYC_CHECK)
+        .success(success)
+        .createdTime(createdTime)
+        .build();
   }
 
   @Test

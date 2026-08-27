@@ -506,26 +506,6 @@ class KybCompanyDataMapperTest {
         .build();
   }
 
-  // A screening that has since failed must not be outranked by an older pass. The
-  // repository returns the most recent check, so a failed latest check rejects even
-  // though a successful one exists earlier in the same year.
-  @Test
-  void resolvesRejectedWhenTheLatestCheckFailedDespiteAnEarlierSuccess() {
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDesc(
-            eq("38888888888"), eq(AmlCheckType.KYC_CHECK), any()))
-        .thenReturn(Optional.of(kycCheck(false)));
-
-    var relationship = boardMemberRelationship("38888888888");
-    var detail =
-        new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
-
-    var result =
-        mapper.toKybCompanyData(
-            detail, PERSONAL_CODE, List.of(relationship), NO_BENEFICIAL_OWNERS, SELF_CERT);
-
-    assertThat(result.relatedPersons().getFirst().kycStatus()).isEqualTo(KybKycStatus.REJECTED);
-  }
-
   @Test
   void resolvesUnknownKycStatusWhenNoCheckExists() {
     var relationship = boardMemberRelationship("38888888888");

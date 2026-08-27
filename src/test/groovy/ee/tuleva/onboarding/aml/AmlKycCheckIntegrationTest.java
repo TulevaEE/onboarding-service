@@ -201,7 +201,7 @@ class AmlKycCheckIntegrationTest {
     assertThat(checks).hasSize(3);
     assertThat(
             amlCheckRepository
-                .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDesc(
+                .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDescIdDesc(
                     PERSONAL_CODE, KYC_CHECK, aYearAgo()))
         .hasValueSatisfying(
             check -> {

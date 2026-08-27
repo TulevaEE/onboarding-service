@@ -64,7 +64,7 @@ public class AmlKybCheckHistory implements KybCheckHistory {
         .findByRegistryCode(registryCode.value())
         .flatMap(
             company ->
-                amlCheckRepository.findFirstByCompanyIdAndTypeOrderByCreatedTimeDesc(
+                amlCheckRepository.findFirstByCompanyIdAndTypeOrderByCreatedTimeDescIdDesc(
                     company.getId(), AmlCheckType.KYB_RELATED_PERSONS_KYC))
         .map(this::toKybCheck)
         .map(RelatedPersonsKycMetadata::incompletePersonalCodes)

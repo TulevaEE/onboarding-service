@@ -287,6 +287,39 @@ class LegalEntityOnboardingEventListenerTest {
     verify(repository).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
   }
 
+  // Monitoring must not heal a rejection on its own: only a fresh survey submission clears the
+  // slate and lets a company back into the waiting queue.
+  @Test
+  void keepsRejectedWhenOnlyRelatedPersonsKycFailsForARejectedCompany() {
+    given(repository.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.of(REJECTED));
+    var checks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(RELATED_PERSONS_KYC, false, Map.of()));
+
+    listener.onKybCheckPerformed(eventWith(checks));
+
+    verify(repository, never()).saveOnboardingStatus(any(), any(), any());
+  }
+
+  // The company was open, monitoring demoted it, and the next monitoring run must not walk it
+  // back into the queue and re-send an account-opened email for an account that never closed.
+  @Test
+  void neverQueuesACompanyThatMonitoringDemotedFromCompleted() {
+    given(repository.findStatus("12345678", LEGAL_ENTITY))
+        .willReturn(Optional.of(COMPLETED), Optional.of(REJECTED));
+    var checks =
+        List.of(
+            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
+            new KybCheck(RELATED_PERSONS_KYC, false, Map.of()));
+
+    listener.onKybCheckPerformed(eventWith(checks));
+    listener.onKybCheckPerformed(eventWith(checks));
+
+    verify(repository, times(1)).saveOnboardingStatus("12345678", LEGAL_ENTITY, REJECTED);
+    verify(repository, never()).saveOnboardingStatus("12345678", LEGAL_ENTITY, PENDING);
+  }
+
   @Test
   void completesAPendingCompanyOnceRelatedPersonsAreVerified() {
     given(repository.findStatus("12345678", LEGAL_ENTITY)).willReturn(Optional.of(PENDING));

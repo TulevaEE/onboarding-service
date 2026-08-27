@@ -151,6 +151,24 @@ class SavingsFundOnboardingRepositoryTest {
   }
 
   @Test
+  void deleteOnboardingStatus_removesOnlyTheGivenPartysRecord() {
+    repository.saveOnboardingStatus("14118923", LEGAL_ENTITY, REJECTED);
+    repository.saveOnboardingStatus("14118923", PERSON, COMPLETED);
+
+    repository.deleteOnboardingStatus("14118923", LEGAL_ENTITY);
+
+    assertThat(repository.findStatus("14118923", LEGAL_ENTITY)).isEmpty();
+    assertThat(repository.findStatus("14118923", PERSON)).contains(COMPLETED);
+  }
+
+  @Test
+  void deleteOnboardingStatus_toleratesAnAbsentRecord() {
+    repository.deleteOnboardingStatus("87654321", LEGAL_ENTITY);
+
+    assertThat(repository.findStatus("87654321", LEGAL_ENTITY)).isEmpty();
+  }
+
+  @Test
   void insertOnboardingStatusIfAbsent_insertsNewRecord() {
     repository.insertOnboardingStatusIfAbsent("60001019906", PERSON, PENDING);
 

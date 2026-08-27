@@ -54,7 +54,7 @@ class SavingsFundOnboardingServiceTest {
   }
 
   @Test
-  void updateOnboardingStatusIfNeeded_doesNotPublishCompletedEventWhenWriteFoundAlreadyCompleted() {
+  void updateOnboardingStatusIfNeeded_publishesNothingWhenWriteFoundAlreadyCompleted() {
     given(savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON))
         .willReturn(Optional.of(PENDING));
     given(
@@ -66,12 +66,7 @@ class SavingsFundOnboardingServiceTest {
     savingsFundOnboardingService.updateOnboardingStatusIfNeeded(user, kycCheck);
 
     verify(eventPublisher, never()).publishEvent(any(SavingsFundOnboardingCompletedEvent.class));
-    verify(eventPublisher)
-        .publishEvent(
-            new TrackableEvent(
-                user,
-                SAVINGS_FUND_ONBOARDING_STATUS_CHANGE,
-                Map.of("oldStatus", COMPLETED, "newStatus", COMPLETED)));
+    verify(eventPublisher, never()).publishEvent(any(TrackableEvent.class));
   }
 
   @Test

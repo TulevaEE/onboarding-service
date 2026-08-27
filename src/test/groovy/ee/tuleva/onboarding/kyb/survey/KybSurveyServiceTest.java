@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -514,6 +515,31 @@ class KybSurveyServiceTest {
         .screen(REGISTRY_CODE, new PersonalCode(PERSONAL_CODE), selfCert, relationships);
   }
 
+  // Screening only queues a company whose status is absent, so a rejected company's fresh
+  // submission has to clear the old rejection before the screening it triggers reads it.
+  @Test
+  void submit_clearsAPreviousRejectionBeforeScreening() {
+    var selfCert = new SelfCertification(true, true, true);
+    var surveyResponse = sampleSurveyResponse();
+    when(kybSurveyResponseMapper.extractSelfCertification(surveyResponse)).thenReturn(selfCert);
+    var relationships = sampleRelationships();
+    when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE)).thenReturn(relationships);
+    when(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
+        .thenReturn(Optional.of(SavingsFundOnboardingStatus.REJECTED));
+    when(kybSurveyRepository.save(any(KybSurvey.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, surveyResponse);
+
+    var inOrder = inOrder(savingsFundOnboardingRepository, legalEntityScreener);
+    inOrder
+        .verify(savingsFundOnboardingRepository)
+        .deleteOnboardingStatus(REGISTRY_CODE, LEGAL_ENTITY);
+    inOrder
+        .verify(legalEntityScreener)
+        .screen(REGISTRY_CODE, new PersonalCode(PERSONAL_CODE), selfCert, relationships);
+  }
+
   @Test
   void submit_throwsWhenPersonIsNotBoardMember() {
     var surveyResponse = sampleSurveyResponse();
@@ -633,6 +659,7 @@ class KybSurveyServiceTest {
     // Re-screening reads the latest stored survey, so a blocked submission must
     // not leave one behind.
     verify(kybSurveyRepository, never()).save(any(KybSurvey.class));
+    verify(savingsFundOnboardingRepository, never()).deleteOnboardingStatus(any(), any());
   }
 
   @Test

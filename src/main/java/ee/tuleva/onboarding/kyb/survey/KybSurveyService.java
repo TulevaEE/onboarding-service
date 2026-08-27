@@ -203,6 +203,11 @@ class KybSurveyService {
             .survey(surveyResponse)
             .build());
 
+    // Only a rejected or unknown company gets this far. The screening below can queue a company
+    // whose related persons are still unverified, but it only does so from a clean slate, so the
+    // stale rejection has to go first.
+    savingsFundOnboardingRepository.deleteOnboardingStatus(registryCode, LEGAL_ENTITY);
+
     legalEntityScreener.screen(
         registryCode, new PersonalCode(personalCode), selfCertification, relationships);
   }

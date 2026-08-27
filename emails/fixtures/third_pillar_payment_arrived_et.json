@@ -2,42 +2,36 @@
   "variants": {
     "II samba soovitus": {
       "FNAME": "Mari",
-      "amount": "300",
       "paymentDate": "12.08.2026",
       "hasTulevaUser": true,
       "suggestSecondPillar": true
     },
     "II samba määra tõstmise soovitus": {
       "FNAME": "Mari",
-      "amount": "300",
       "paymentDate": "12.08.2026",
       "hasTulevaUser": true,
       "suggestPaymentRate": true
     },
     "III samba soovitus (ei esine)": {
       "FNAME": "Mari",
-      "amount": "300",
       "paymentDate": "12.08.2026",
       "hasTulevaUser": true,
       "suggestThirdPillar": true
     },
     "III samba püsimakse soovitus": {
       "FNAME": "Mari",
-      "amount": "300",
       "paymentDate": "12.08.2026",
       "hasTulevaUser": true,
       "suggestThirdPillarRecurringPayment": true
     },
     "III samba sissemakse tõstmise soovitus (ei esine)": {
       "FNAME": "Mari",
-      "amount": "300",
       "paymentDate": "12.08.2026",
       "hasTulevaUser": true,
       "suggestThirdPillarRaise": true
     },
     "kogumisfondi soovitus": {
       "FNAME": "Mari",
-      "amount": "300",
       "paymentDate": "12.08.2026",
       "hasTulevaUser": true,
       "suggestSavingsFund": true,
@@ -45,27 +39,23 @@
     },
     "kogumisfondi püsimakse soovitus": {
       "FNAME": "Mari",
-      "amount": "300",
       "paymentDate": "12.08.2026",
       "hasTulevaUser": true,
       "suggestSavingsFundRecurringPayment": true
     },
     "liikmesuse soovitus": {
       "FNAME": "Mari",
-      "amount": "300",
       "paymentDate": "12.08.2026",
       "hasTulevaUser": true,
       "suggestMembership": true
     },
     "ilma soovituseta": {
       "FNAME": "Mari",
-      "amount": "300",
       "paymentDate": "12.08.2026",
       "hasTulevaUser": true
     },
     "kontota": {
       "FNAME": "Mari",
-      "amount": "300",
       "paymentDate": "12.08.2026",
       "hasTulevaUser": false,
       "suggestSecondPillar": true

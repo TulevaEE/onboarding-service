@@ -20,11 +20,11 @@ class NamesTest {
     "Mari-Liis, Mari-Liis",
     "mari, Mari",
     "mari-liis, Mari-Liis",
-    "erko risthein, Erko Risthein",
+    "mari maasikas, Mari Maasikas",
     "McGregor, McGregor",
     "van der Berg, Van Der Berg",
   })
-  void formatsOnlyAllCapsNames(String input, String expected) {
+  void capitalizesNamePartsAndKeepsDeliberateCasing(String input, String expected) {
     assertThat(Names.formatted(input)).isEqualTo(expected);
   }
 

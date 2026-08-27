@@ -33,9 +33,8 @@
         <mj-text>
           Please note: you chose a fund whose ongoing charges are
           <strong>*|selectedFundFee|*% per year</strong>.
-          Low fees provide the best foundation for optimal long-term returns. You can compare
-          fund fees at
-          <a href="https://www.pensionikeskus.ee/en/ii-pillar/funds/fund-fee-comparison/">Pensionikeskus</a>.
+          Low fees provide the best foundation for optimal long-term returns. You can compare fund fees in the
+          <a href="https://tuleva.ee/vaata/pensionifondide-vordlus/?utm_content=warning_high_fee">pension fund comparison</a>.
         </mj-text>
         <mj-raw>*|END:IF|*</mj-raw>
         <mj-raw>*|IF:selectedConservativeFund|*</mj-raw>
@@ -43,8 +42,8 @@
           Please note: you chose a <strong>low-risk fund</strong>. With many years to go until
           retirement,
           equity funds have historically delivered considerably better returns than bond
-          funds. You can compare funds at
-          <a href="https://www.pensionikeskus.ee/en/ii-pillar/funds/fund-fee-comparison/">Pensionikeskus</a>.
+          funds. You can compare funds in the
+          <a href="https://tuleva.ee/vaata/pensionifondide-vordlus/?utm_content=warning_conservative">pension fund comparison</a>.
         </mj-text>
         <mj-raw>*|END:IF|*</mj-raw>
 

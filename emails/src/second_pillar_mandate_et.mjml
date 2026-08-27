@@ -28,9 +28,8 @@
         <mj-text>
           Pane tähele: valisid fondi, mille jooksvad tasud on
           <strong>*|selectedFundFee|*% aastas</strong>. Madalad tasud
-          annavad parimad eeldused parimaks pikaajaliseks tootluseks. Fondide tasusid saad
-          võrrelda
-          <a href="https://www.pensionikeskus.ee/ii-sammas/kohustuslikud-pensionifondid/fonditasude-vordlus/">Pensionikeskuses</a>.
+          annavad parimad eeldused parimaks pikaajaliseks tootluseks. Fondide tasusid saad võrrelda
+          <a href="https://tuleva.ee/vaata/pensionifondide-vordlus/?utm_content=warning_high_fee">pensionifondide võrdluses</a>.
         </mj-text>
         <mj-raw>*|END:IF|*</mj-raw>
         <mj-raw>*|IF:selectedConservativeFund|*</mj-raw>
@@ -39,7 +38,7 @@
           aega, on
           aktsiafondid ajalooliselt andnud võlakirjafondidest oluliselt parema tootluse.
           Fonde saad võrrelda
-          <a href="https://www.pensionikeskus.ee/ii-sammas/kohustuslikud-pensionifondid/fonditasude-vordlus/">Pensionikeskuses</a>.
+          <a href="https://tuleva.ee/vaata/pensionifondide-vordlus/?utm_content=warning_conservative">pensionifondide võrdluses</a>.
         </mj-text>
         <mj-raw>*|END:IF|*</mj-raw>
 

@@ -2,8 +2,10 @@ package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 
+import ee.tuleva.onboarding.instrument.InstrumentReference;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.instrument.SettlementTerms;
+import ee.tuleva.onboarding.investment.calendar.Domicile;
 import ee.tuleva.onboarding.investment.calendar.DomicileCalendar;
 import ee.tuleva.onboarding.investment.calendar.Target2Calendar;
 import ee.tuleva.onboarding.investment.calendar.TradingCalendar;
@@ -14,6 +16,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -89,17 +92,44 @@ public class SettlementDateCalculator {
     };
   }
 
+  /**
+   * A fund deals on its own domicile's calendar, so the domicile has to come from the instrument.
+   * {@code instrument_reference.country} holds it per instrument; the provider is only a fallback
+   * for instruments that have no country recorded. Note that a provider is a fund <em>manager</em>
+   * and a manager can run funds in more than one domicile (BlackRock has both Irish and Luxembourg
+   * entities), so the fallback is a guess, not an answer.
+   */
   private TradingCalendar fundCalendar(String isin, LocalDate tradeDate) {
+    return instrumentDomicile(isin)
+        .or(() -> providerDomicile(isin, tradeDate))
+        .map(domicileCalendar::forDomicile)
+        .orElseGet(
+            () -> {
+              log.warn("No domicile found for fund, falling back to TARGET2: isin={}", isin);
+              return target2Calendar;
+            });
+  }
+
+  private Optional<Domicile> instrumentDomicile(String isin) {
+    return instrumentReferenceService
+        .findByIsin(isin)
+        .map(InstrumentReference::getCountry)
+        .flatMap(Domicile::forCountryCode);
+  }
+
+  private Optional<Domicile> providerDomicile(String isin, LocalDate tradeDate) {
     return allocationRepository
         .findFirstByIsinAndProviderIsNotNullAndEffectiveDateLessThanEqualOrderByEffectiveDateDesc(
             isin, tradeDate)
         .map(ModelPortfolioAllocation::getProvider)
         .map(Provider::getDomicile)
-        .map(domicileCalendar::forDomicile)
-        .orElseGet(
-            () -> {
-              log.warn("No provider found for fund, falling back to TARGET2: isin={}", isin);
-              return target2Calendar;
+        .map(
+            domicile -> {
+              log.warn(
+                  "No country in instrument_reference, using the provider's domicile: isin={}, domicile={}",
+                  isin,
+                  domicile);
+              return domicile;
             });
   }
 }

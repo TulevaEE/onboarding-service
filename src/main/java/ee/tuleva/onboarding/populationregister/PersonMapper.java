@@ -8,7 +8,7 @@ import static ee.tuleva.onboarding.populationregister.CustodyValidity.VALID;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.ALIVE;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.INACTIVE;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.UNKNOWN;
-import static org.apache.commons.lang3.text.WordUtils.capitalizeFully;
+import static ee.tuleva.onboarding.user.Names.formatted;
 
 import ee.tuleva.onboarding.country.CountryCodes;
 import ee.tuleva.onboarding.populationregister.PersonResponse.Citizenship;
@@ -34,8 +34,8 @@ class PersonMapper {
   static PopulationRegisterPerson toPerson(PersonResponse response) {
     return new PopulationRegisterPerson(
         require(response.personalCode(), "isikukood"),
-        capitalizeFully(require(response.firstName(), "eesnimi"), ' ', '-'),
-        capitalizeFully(require(response.lastName(), "perekonnanimi"), ' ', '-'),
+        formatted(require(response.firstName(), "eesnimi")),
+        formatted(require(response.lastName(), "perekonnanimi")),
         parseDate(response.dateOfBirth()),
         toStatus(response.status()),
         toCitizenship(response.citizenship()),
@@ -85,7 +85,7 @@ class PersonMapper {
   // The register returns names in uppercase (JÕEORG); present them the same way the rest of the
   // app stores names (Jõeorg), matching ParentChildLinkRegistrationService.
   private static @Nullable String capitalizeName(@Nullable String name) {
-    return name == null ? null : capitalizeFully(name, ' ', '-');
+    return formatted(name);
   }
 
   private static CustodyRight.Type toCustodyType(@Nullable Code type) {

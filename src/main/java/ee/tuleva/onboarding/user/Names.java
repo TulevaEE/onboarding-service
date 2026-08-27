@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.user;
 
 import java.util.Locale;
-import org.apache.commons.lang3.text.WordUtils;
 
 public class Names {
 
@@ -11,9 +10,28 @@ public class Names {
     if (name == null || name.isBlank()) {
       return name;
     }
-    if (!name.equals(name.toUpperCase(ESTONIAN))) {
-      return name;
+    StringBuilder result = new StringBuilder(name.length());
+    StringBuilder token = new StringBuilder();
+    for (char c : name.toCharArray()) {
+      if (c == ' ' || c == '-' || c == '\'') {
+        result.append(formattedToken(token.toString())).append(c);
+        token.setLength(0);
+      } else {
+        token.append(c);
+      }
     }
-    return WordUtils.capitalizeFully(name, ' ', '-', '\'');
+    return result.append(formattedToken(token.toString())).toString();
+  }
+
+  private static String formattedToken(String token) {
+    if (token.isEmpty()) {
+      return token;
+    }
+    boolean allLower = token.equals(token.toLowerCase(ESTONIAN));
+    boolean allUpper = token.equals(token.toUpperCase(ESTONIAN));
+    if (!allLower && !allUpper) {
+      return token;
+    }
+    return token.substring(0, 1).toUpperCase(ESTONIAN) + token.substring(1).toLowerCase(ESTONIAN);
   }
 }

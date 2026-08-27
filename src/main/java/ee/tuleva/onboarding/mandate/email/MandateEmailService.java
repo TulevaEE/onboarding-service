@@ -162,12 +162,10 @@ public class MandateEmailService {
                         fund.getEquityShare() != null
                             && fund.getEquityShare().compareTo(conservativeEquityShare) < 0);
     mergeVars.put("selectedConservativeFund", youngInConservativeFund);
-    if (selectedTulevaFund) {
-      return mergeVars;
-    }
     BigDecimal highFeeThreshold = new BigDecimal("0.003");
     BigDecimal highestFee =
         selectedFunds.stream()
+            .filter(fund -> !fund.isOwnFund())
             .map(Fund::getOngoingChargesFigure)
             .filter(Objects::nonNull)
             .max(BigDecimal::compareTo)

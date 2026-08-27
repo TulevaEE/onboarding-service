@@ -31,7 +31,8 @@
         <mj-raw>*|END:IF|*</mj-raw>
         <mj-raw>*|IF:selectedHighFeeFund|*</mj-raw>
         <mj-text>
-          Please note: the chosen fund's ongoing charges are *|selectedFundFee|*% per year.
+          Please note: you chose a fund whose ongoing charges are
+          <strong>*|selectedFundFee|*% per year</strong>.
           A high fee takes a considerable share of your long-term return. You can compare
           fund fees at
           <a href="https://www.pensionikeskus.ee/en/ii-pillar/funds/fund-fee-comparison/">Pensionikeskus</a>.
@@ -39,7 +40,8 @@
         <mj-raw>*|END:IF|*</mj-raw>
         <mj-raw>*|IF:selectedConservativeFund|*</mj-raw>
         <mj-text>
-          Please note: you chose a low-risk fund. With many years to go until retirement,
+          Please note: you chose a <strong>low-risk fund</strong>. With many years to go until
+          retirement,
           equity funds have historically delivered considerably better returns than bond
           funds. You can compare funds at
           <a href="https://www.pensionikeskus.ee/en/ii-pillar/funds/fund-fee-comparison/">Pensionikeskus</a>.

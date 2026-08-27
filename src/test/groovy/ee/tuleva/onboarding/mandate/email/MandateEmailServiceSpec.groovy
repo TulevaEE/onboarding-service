@@ -72,6 +72,7 @@ class MandateEmailServiceSpec extends Specification {
         hasFundTransfer    : true,
         selectedTulevaFund : true,
         selectedConservativeFund : false,
+        selectedHighFeeFund : false,
         suggestPaymentRate : pillarSuggestion.suggestPaymentRate,
         savingsFundFee : "0.28",
         suggestSecondPillar: pillarSuggestion.suggestSecondPillar,
@@ -125,6 +126,35 @@ class MandateEmailServiceSpec extends Specification {
     then:
     1 * emailService.newMandrillMessage(user.email, "second_pillar_mandate_en",
         { it.selectedTulevaFund == false && it.selectedHighFeeFund == true && it.selectedFundFee == "1" },
+        _, !null) >> message
+    1 * emailService.send(user, message, "second_pillar_mandate_en") >> Optional.of(mandrillResponse)
+  }
+
+  def "still warns about an expensive fund when the mandate splits between Tuleva and another manager"() {
+    given:
+    def user = sampleUser().build()
+    def conversion = notConverted()
+    def contactDetails = contactDetailsFixture()
+    def mandate = sampleMandate()
+    mandate.fundTransferExchanges.last().targetFundIsin = "EE0000EXPENSIVE"
+    def paymentRates = samplePaymentRates()
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    def message = new MandrillMessage()
+    def mandrillResponse = new MandrillMessageStatus().tap {
+      _id = "123"
+      status = "sent"
+    }
+
+    mandateDeadlinesService.getDeadlines(mandate.createdDate) >> sampleDeadlines()
+    fundRepository.findByIsin("EE0000EXPENSIVE") >> lhv2ndPillarFund()
+    fundRepository.findByIsin(futureContibutionFundIsin) >> tuleva2ndPillarStockFund()
+
+    when:
+    mandateEmailService.sendMandate(user, mandate, pillarSuggestion, Locale.ENGLISH)
+
+    then:
+    1 * emailService.newMandrillMessage(user.email, "second_pillar_mandate_en",
+        { it.selectedTulevaFund == true && it.selectedHighFeeFund == true && it.selectedFundFee == "1" },
         _, !null) >> message
     1 * emailService.send(user, message, "second_pillar_mandate_en") >> Optional.of(mandrillResponse)
   }

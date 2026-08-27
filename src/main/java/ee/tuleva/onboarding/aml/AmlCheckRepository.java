@@ -32,6 +32,9 @@ public interface AmlCheckRepository extends JpaRepository<AmlCheck, Long> {
   Optional<AmlCheck> findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
       String personalCode, AmlCheckType type);
 
+  Optional<AmlCheck> findFirstByCompanyIdAndTypeOrderByCreatedTimeDesc(
+      UUID companyId, AmlCheckType type);
+
   Optional<AmlCheck> findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDesc(
       String personalCode, Collection<AmlCheckType> types);
 

@@ -5,7 +5,9 @@ import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.NONE;
 import static org.springframework.transaction.TransactionDefinition.PROPAGATION_REQUIRES_NEW;
 import static org.springframework.transaction.event.TransactionPhase.AFTER_COMMIT;
 
+import ee.tuleva.onboarding.kyb.KybCheckHistory;
 import ee.tuleva.onboarding.kyb.LegalEntityScreener;
+import ee.tuleva.onboarding.kyb.RegistryCode;
 import ee.tuleva.onboarding.kyc.KycCheckPerformedEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
@@ -21,14 +23,17 @@ class WaitingLegalEntityCompletionListener {
 
   private final SavingsFundOnboardingRepository savingsFundOnboardingRepository;
   private final LegalEntityScreener legalEntityScreener;
+  private final KybCheckHistory kybCheckHistory;
   private final TransactionTemplate rescreenTransaction;
 
   WaitingLegalEntityCompletionListener(
       SavingsFundOnboardingRepository savingsFundOnboardingRepository,
       LegalEntityScreener legalEntityScreener,
+      KybCheckHistory kybCheckHistory,
       PlatformTransactionManager transactionManager) {
     this.savingsFundOnboardingRepository = savingsFundOnboardingRepository;
     this.legalEntityScreener = legalEntityScreener;
+    this.kybCheckHistory = kybCheckHistory;
     this.rescreenTransaction = new TransactionTemplate(transactionManager);
     this.rescreenTransaction.setPropagationBehavior(PROPAGATION_REQUIRES_NEW);
   }
@@ -41,17 +46,48 @@ class WaitingLegalEntityCompletionListener {
     if (!isVerified(event)) {
       return;
     }
-    var waiting = savingsFundOnboardingRepository.findPendingLegalEntityCodes();
+    var personalCode = event.getPersonalCode();
+    var waiting =
+        savingsFundOnboardingRepository.findPendingLegalEntityCodes().stream()
+            .filter(registryCode -> isWaitingFor(registryCode, personalCode))
+            .toList();
     if (waiting.isEmpty()) {
       return;
     }
-    log.info("Re-screening companies waiting for related persons: count={}", waiting.size());
+    log.info(
+        "Re-screening companies waiting for related persons: personalCode={}, count={}",
+        personalCode,
+        waiting.size());
     waiting.forEach(this::rescreen);
   }
 
   private boolean isVerified(KycCheckPerformedEvent event) {
     var riskLevel = event.getKycCheck().riskLevel();
     return riskLevel == LOW || riskLevel == NONE;
+  }
+
+  // Screening a company costs three registry round trips, so only the companies whose latest
+  // related persons check named this person are re-screened. Whenever that check cannot say whom
+  // the company is waiting for, it is re-screened anyway: a gap in the metadata must not strand a
+  // company, and the nightly monitoring job would pick it up regardless.
+  private boolean isWaitingFor(String registryCode, String personalCode) {
+    try {
+      var incompleteKycPersonalCodes =
+          kybCheckHistory.findIncompleteKycPersonalCodes(new RegistryCode(registryCode));
+      if (incompleteKycPersonalCodes.isEmpty()) {
+        log.info(
+            "Waiting company names nobody with incomplete KYC, re-screening it: registryCode={}",
+            registryCode);
+        return true;
+      }
+      return incompleteKycPersonalCodes.contains(personalCode);
+    } catch (Exception e) {
+      log.error(
+          "Failed to read whom a waiting company waits for, re-screening it: registryCode={}",
+          registryCode,
+          e);
+      return true;
+    }
   }
 
   private void rescreen(String registryCode) {

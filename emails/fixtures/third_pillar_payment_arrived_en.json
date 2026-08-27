@@ -69,6 +69,14 @@
       "paymentDate": "12.08.2026",
       "hasTulevaUser": false,
       "suggestSecondPillar": true
+    },
+    "third pillar fees suggestion (cannot occur)": {
+      "FNAME": "Mari",
+      "amount": "300",
+      "paymentDate": "12.08.2026",
+      "hasTulevaUser": true,
+      "suggestThirdPillar": true,
+      "thirdPillarActive": true
     }
   }
 }

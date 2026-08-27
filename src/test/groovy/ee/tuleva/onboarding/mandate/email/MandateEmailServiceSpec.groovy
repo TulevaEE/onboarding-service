@@ -23,6 +23,8 @@ import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyCon
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notConverted
 import static ee.tuleva.onboarding.deadline.MandateDeadlinesFixture.sampleDeadlines
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
+import static ee.tuleva.onboarding.fund.FundFixture.lhv2ndPillarFund
+import static ee.tuleva.onboarding.fund.FundFixture.tuleva2ndPillarStockFund
 import static ee.tuleva.onboarding.mandate.MandateFixture.*
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.*
 import static ee.tuleva.onboarding.paymentrate.PaymentRatesFixture.samplePaymentRates
@@ -68,10 +70,13 @@ class MandateEmailServiceSpec extends Specification {
         transferDate       : "03.05.2021",
         hasFundSelection   : true,
         hasFundTransfer    : true,
+        selectedTulevaFund : true,
+        selectedConservativeFund : false,
         suggestPaymentRate : pillarSuggestion.suggestPaymentRate,
         savingsFundFee : "0.28",
         suggestSecondPillar: pillarSuggestion.suggestSecondPillar,
         suggestThirdPillar : pillarSuggestion.suggestThirdPillar,
+        thirdPillarActive : pillarSuggestion.thirdPillarActive,
         suggestMembership  : pillarSuggestion.suggestMembership,
         leftSecondPillar   : pillarSuggestion.leftSecondPillar,
         suggestSavingsFund : pillarSuggestion.suggestSavingsFund,
@@ -86,6 +91,7 @@ class MandateEmailServiceSpec extends Specification {
     }
 
     mandateDeadlinesService.getDeadlines(mandate.createdDate) >> sampleDeadlines()
+    fundRepository.findByIsin(_) >> tuleva2ndPillarStockFund()
 
     when:
     mandateEmailService.sendMandate(user, mandate, pillarSuggestion, Locale.ENGLISH)
@@ -94,6 +100,33 @@ class MandateEmailServiceSpec extends Specification {
     1 * emailService.newMandrillMessage(user.email, "second_pillar_mandate_en", mergeVars, tags, !null) >> message
     1 * emailService.send(user, message, "second_pillar_mandate_en") >> Optional.of(mandrillResponse)
     1 * emailPersistenceService.save(user, mandrillResponse.id, SECOND_PILLAR_MANDATE, mandrillResponse.status, mandate)
+  }
+
+  def "warns about a high fee fund when the mandate chose another manager's expensive fund"() {
+    given:
+    def user = sampleUser().build()
+    def conversion = notConverted()
+    def contactDetails = contactDetailsFixture()
+    def mandate = sampleMandate()
+    def paymentRates = samplePaymentRates()
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    def message = new MandrillMessage()
+    def mandrillResponse = new MandrillMessageStatus().tap {
+      _id = "123"
+      status = "sent"
+    }
+
+    mandateDeadlinesService.getDeadlines(mandate.createdDate) >> sampleDeadlines()
+    fundRepository.findByIsin(_) >> lhv2ndPillarFund()
+
+    when:
+    mandateEmailService.sendMandate(user, mandate, pillarSuggestion, Locale.ENGLISH)
+
+    then:
+    1 * emailService.newMandrillMessage(user.email, "second_pillar_mandate_en",
+        { it.selectedTulevaFund == false && it.selectedHighFeeFund == true && it.selectedFundFee == "1" },
+        _, !null) >> message
+    1 * emailService.send(user, message, "second_pillar_mandate_en") >> Optional.of(mandrillResponse)
   }
 
   def "mandate tagging for 2nd pillar mandates"() {
@@ -266,6 +299,7 @@ class MandateEmailServiceSpec extends Specification {
         savingsFundFee            : "0.28",
         suggestSecondPillar       : pillarSuggestion.suggestSecondPillar,
         suggestThirdPillar        : pillarSuggestion.suggestThirdPillar,
+        thirdPillarActive         : pillarSuggestion.thirdPillarActive,
         suggestMembership         : pillarSuggestion.suggestMembership,
         leftSecondPillar   : pillarSuggestion.leftSecondPillar,
         suggestSavingsFund : pillarSuggestion.suggestSavingsFund,
@@ -322,6 +356,7 @@ class MandateEmailServiceSpec extends Specification {
         savingsFundFee            : "0.28",
         suggestSecondPillar       : pillarSuggestion.suggestSecondPillar,
         suggestThirdPillar        : pillarSuggestion.suggestThirdPillar,
+        thirdPillarActive         : pillarSuggestion.thirdPillarActive,
         suggestMembership         : pillarSuggestion.suggestMembership,
         leftSecondPillar   : pillarSuggestion.leftSecondPillar,
         suggestSavingsFund : pillarSuggestion.suggestSavingsFund,

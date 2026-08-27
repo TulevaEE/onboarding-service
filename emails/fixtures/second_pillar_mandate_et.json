@@ -3,53 +3,61 @@
     "ainult valikuavaldus": {
       "FNAME": "Mari",
       "transferDate": "04.01.2027",
-      "hasFundSelection": true
+      "hasFundSelection": true,
+      "selectedTulevaFund": true
     },
     "ainult vahetusavaldus": {
       "FNAME": "Mari",
       "transferDate": "04.01.2027",
-      "hasFundTransfer": true
+      "hasFundTransfer": true,
+      "selectedTulevaFund": true
     },
     "valikuavaldus ja vahetusavaldus": {
       "FNAME": "Mari",
       "transferDate": "04.01.2027",
       "hasFundTransfer": true,
-      "hasFundSelection": true
+      "hasFundSelection": true,
+      "selectedTulevaFund": true
     },
     "II samba soovitus (ei esine)": {
       "FNAME": "Mari",
       "transferDate": "04.01.2027",
       "suggestSecondPillar": true,
       "hasFundSelection": true,
-      "hasFundTransfer": true
+      "hasFundTransfer": true,
+      "selectedTulevaFund": true
     },
     "II samba määra tõstmise soovitus": {
       "FNAME": "Mari",
       "transferDate": "04.01.2027",
       "suggestPaymentRate": true,
       "hasFundSelection": true,
-      "hasFundTransfer": true
+      "hasFundTransfer": true,
+      "selectedTulevaFund": true
     },
     "III samba soovitus": {
       "FNAME": "Mari",
       "transferDate": "04.01.2027",
       "suggestThirdPillar": true,
       "hasFundSelection": true,
-      "hasFundTransfer": true
+      "hasFundTransfer": true,
+      "selectedTulevaFund": true
     },
     "III samba püsimakse soovitus": {
       "FNAME": "Mari",
       "transferDate": "04.01.2027",
       "suggestThirdPillarRecurringPayment": true,
       "hasFundSelection": true,
-      "hasFundTransfer": true
+      "hasFundTransfer": true,
+      "selectedTulevaFund": true
     },
     "III samba sissemakse tõstmise soovitus": {
       "FNAME": "Mari",
       "transferDate": "04.01.2027",
       "hasFundSelection": true,
       "hasFundTransfer": true,
-      "suggestThirdPillarRaise": true
+      "suggestThirdPillarRaise": true,
+      "selectedTulevaFund": true
     },
     "kogumisfondi soovitus": {
       "FNAME": "Mari",
@@ -57,27 +65,61 @@
       "suggestSavingsFund": true,
       "hasFundSelection": true,
       "hasFundTransfer": true,
-      "savingsFundFee": "0,28"
+      "savingsFundFee": "0,28",
+      "selectedTulevaFund": true
     },
     "kogumisfondi püsimakse soovitus": {
       "FNAME": "Mari",
       "transferDate": "04.01.2027",
       "suggestSavingsFundRecurringPayment": true,
       "hasFundSelection": true,
-      "hasFundTransfer": true
+      "hasFundTransfer": true,
+      "selectedTulevaFund": true
     },
     "liikmesuse soovitus": {
       "FNAME": "Mari",
       "transferDate": "04.01.2027",
       "suggestMembership": true,
       "hasFundSelection": true,
-      "hasFundTransfer": true
+      "hasFundTransfer": true,
+      "selectedTulevaFund": true
     },
     "muu (harude puudumine)": {
       "FNAME": "Mari",
       "transferDate": "04.01.2027",
       "hasFundSelection": true,
-      "hasFundTransfer": true
+      "hasFundTransfer": true,
+      "selectedTulevaFund": true
+    },
+    "muu fondivalitseja fond": {
+      "FNAME": "Mari",
+      "transferDate": "04.01.2027",
+      "hasFundSelection": true,
+      "selectedTulevaFund": false
+    },
+    "kõrge tasuga fond": {
+      "FNAME": "Mari",
+      "transferDate": "04.01.2027",
+      "hasFundSelection": true,
+      "selectedTulevaFund": false,
+      "selectedHighFeeFund": true,
+      "selectedFundFee": "1,2"
+    },
+    "konservatiivne fond noorele": {
+      "FNAME": "Mari",
+      "transferDate": "04.01.2027",
+      "hasFundSelection": true,
+      "selectedTulevaFund": true,
+      "selectedConservativeFund": true
+    },
+    "III samba tasude soovitus": {
+      "FNAME": "Mari",
+      "transferDate": "04.01.2027",
+      "suggestThirdPillar": true,
+      "hasFundSelection": true,
+      "hasFundTransfer": true,
+      "selectedTulevaFund": true,
+      "thirdPillarActive": true
     }
   }
 }

@@ -57,6 +57,10 @@ public class User implements Person, Emailable, Serializable, Party {
     return PersonalCode.getAge(personalCode);
   }
 
+  public boolean hasReachedRetirementAge() {
+    return PersonalCode.getAge(personalCode) >= PersonalCode.getRetirementAge(personalCode);
+  }
+
   public Optional<Member> getMember() {
     return Optional.ofNullable(member);
   }

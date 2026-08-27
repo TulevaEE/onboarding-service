@@ -35,6 +35,11 @@
     },
     "no nudge": {
       "FNAME": "Mari"
+    },
+    "third pillar fees suggestion (cannot occur)": {
+      "FNAME": "Mari",
+      "suggestThirdPillar": true,
+      "thirdPillarActive": true
     }
   }
 }

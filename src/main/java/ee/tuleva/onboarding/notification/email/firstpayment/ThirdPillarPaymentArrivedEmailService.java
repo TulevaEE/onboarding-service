@@ -72,6 +72,7 @@ public class ThirdPillarPaymentArrivedEmailService {
         Map.entry("suggestSavingsFund", payment.suggestSavingsFund()),
         Map.entry("suggestThirdPillarRecurringPayment", true),
         Map.entry("suggestThirdPillarRaise", false),
+        Map.entry("thirdPillarActive", true),
         Map.entry("suggestSavingsFundRecurringPayment", false),
         Map.entry(
             "savingsFundFee",

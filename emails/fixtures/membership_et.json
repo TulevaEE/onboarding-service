@@ -62,6 +62,14 @@
       "LNAME": "Kask",
       "memberNumber": "247",
       "memberDate": "21.05.2026"
+    },
+    "III samba tasude soovitus": {
+      "FNAME": "Kati",
+      "LNAME": "Ilves",
+      "memberNumber": "731",
+      "memberDate": "14.02.2026",
+      "suggestThirdPillar": true,
+      "thirdPillarActive": true
     }
   }
 }

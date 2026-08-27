@@ -35,6 +35,11 @@
     },
     "ilma soovituseta": {
       "FNAME": "Mari"
+    },
+    "III samba tasude soovitus (ei esine)": {
+      "FNAME": "Mari",
+      "suggestThirdPillar": true,
+      "thirdPillarActive": true
     }
   }
 }

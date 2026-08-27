@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
-import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.WITHDRAWALS;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static org.mockito.ArgumentMatchers.contains;
@@ -59,7 +59,7 @@ class RedemptionAlertJobTest {
 
     job.checkRedemptionAlerts();
 
-    verify(notificationService).sendMessage(contains("PAYOUT WARNING"), eq(WITHDRAWALS));
+    verify(notificationService).sendMessage(contains("PAYOUT WARNING"), eq(INVESTMENT));
     verifyNoMoreInteractions(notificationService);
   }
 
@@ -79,7 +79,7 @@ class RedemptionAlertJobTest {
 
     job.checkRedemptionAlerts();
 
-    verify(notificationService).sendMessage(contains("LIQUIDITY WARNING"), eq(WITHDRAWALS));
+    verify(notificationService).sendMessage(contains("LIQUIDITY WARNING"), eq(INVESTMENT));
     verifyNoMoreInteractions(notificationService);
   }
 
@@ -99,8 +99,8 @@ class RedemptionAlertJobTest {
 
     job.checkRedemptionAlerts();
 
-    verify(notificationService).sendMessage(contains("PAYOUT WARNING"), eq(WITHDRAWALS));
-    verify(notificationService).sendMessage(contains("LIQUIDITY WARNING"), eq(WITHDRAWALS));
+    verify(notificationService).sendMessage(contains("PAYOUT WARNING"), eq(INVESTMENT));
+    verify(notificationService).sendMessage(contains("LIQUIDITY WARNING"), eq(INVESTMENT));
   }
 
   @Test
@@ -178,7 +178,7 @@ class RedemptionAlertJobTest {
 
     job.checkRedemptionAlerts();
 
-    verify(notificationService).sendMessage(contains("PAYOUT WARNING"), eq(WITHDRAWALS));
+    verify(notificationService).sendMessage(contains("PAYOUT WARNING"), eq(INVESTMENT));
     verifyNoMoreInteractions(notificationService);
   }
 
@@ -198,7 +198,7 @@ class RedemptionAlertJobTest {
 
     job.checkRedemptionAlerts();
 
-    verify(notificationService).sendMessage(contains("PAYOUT WARNING"), eq(WITHDRAWALS));
+    verify(notificationService).sendMessage(contains("PAYOUT WARNING"), eq(INVESTMENT));
     verifyNoMoreInteractions(notificationService);
   }
 

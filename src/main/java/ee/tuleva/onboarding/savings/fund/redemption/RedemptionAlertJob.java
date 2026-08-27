@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
-import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.WITHDRAWALS;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionCutoff.TALLINN;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
@@ -69,7 +69,7 @@ public class RedemptionAlertJob {
           "PAYOUT WARNING: TKF100 pending redemption payouts: totalAmount=%s EUR, requests=%d. WITHDRAWAL_EUR credit limit increase may be needed."
               .formatted(totalAmount, requestCount);
       log.info("{}", message);
-      notificationService.sendMessage(message, WITHDRAWALS);
+      notificationService.sendMessage(message, INVESTMENT);
     }
   }
 
@@ -94,7 +94,7 @@ public class RedemptionAlertJob {
           "LIQUIDITY WARNING: TKF100 pending withdrawals totalAmount=%s EUR (%s%% of AUM), requests=%d, AUM=%s EUR. Exceeds 1%% threshold."
               .formatted(totalAmount, percentage, requestCount, aumValue);
       log.info("{}", message);
-      notificationService.sendMessage(message, WITHDRAWALS);
+      notificationService.sendMessage(message, INVESTMENT);
     }
   }
 }

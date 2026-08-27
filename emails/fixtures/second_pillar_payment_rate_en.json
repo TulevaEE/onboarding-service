@@ -21,6 +21,14 @@
       "newPaymentRate": "4",
       "suggestThirdPillar": true
     },
+    "third pillar fees suggestion": {
+      "FNAME": "Mari",
+      "increased": true,
+      "paymentRateFulfillmentDate": "01.01.2027",
+      "newPaymentRate": "4",
+      "suggestThirdPillar": true,
+      "thirdPillarActive": true
+    },
     "third pillar recurring suggestion": {
       "FNAME": "Mari",
       "increased": true,
@@ -62,14 +70,6 @@
       "increased": false,
       "paymentRateFulfillmentDate": "01.01.2027",
       "newPaymentRate": "2"
-    },
-    "third pillar fees suggestion": {
-      "FNAME": "Mari",
-      "increased": true,
-      "paymentRateFulfillmentDate": "01.01.2027",
-      "newPaymentRate": "4",
-      "suggestThirdPillar": true,
-      "thirdPillarActive": true
     }
   }
 }

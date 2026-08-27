@@ -1,5 +1,11 @@
 {
   "variants": {
+    "no extra suggestion": {
+      "FNAME": "Liina",
+      "LNAME": "Kask",
+      "memberNumber": "247",
+      "memberDate": "21.05.2026"
+    },
     "second pillar suggestion": {
       "FNAME": "Mari",
       "LNAME": "Maasikas",
@@ -20,6 +26,14 @@
       "memberNumber": "731",
       "memberDate": "14.02.2026",
       "suggestThirdPillar": true
+    },
+    "third pillar fees suggestion": {
+      "FNAME": "Kati",
+      "LNAME": "Ilves",
+      "memberNumber": "731",
+      "memberDate": "14.02.2026",
+      "suggestThirdPillar": true,
+      "thirdPillarActive": true
     },
     "third pillar recurring suggestion": {
       "FNAME": "Kati",
@@ -56,20 +70,6 @@
       "memberNumber": "902",
       "memberDate": "09.11.2026",
       "suggestMembership": true
-    },
-    "no extra suggestion": {
-      "FNAME": "Liina",
-      "LNAME": "Kask",
-      "memberNumber": "247",
-      "memberDate": "21.05.2026"
-    },
-    "third pillar fees suggestion": {
-      "FNAME": "Kati",
-      "LNAME": "Ilves",
-      "memberNumber": "731",
-      "memberDate": "14.02.2026",
-      "suggestThirdPillar": true,
-      "thirdPillarActive": true
     }
   }
 }

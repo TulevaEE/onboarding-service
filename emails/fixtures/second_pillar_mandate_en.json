@@ -19,6 +19,27 @@
       "hasFundSelection": true,
       "selectedTulevaFund": true
     },
+    "another manager's fund": {
+      "FNAME": "Mari",
+      "transferDate": "04.01.2027",
+      "hasFundSelection": true,
+      "selectedTulevaFund": false
+    },
+    "high fee fund": {
+      "FNAME": "Mari",
+      "transferDate": "04.01.2027",
+      "hasFundSelection": true,
+      "selectedTulevaFund": false,
+      "selectedHighFeeFund": true,
+      "selectedFundFee": "1.2"
+    },
+    "conservative fund for a young saver": {
+      "FNAME": "Mari",
+      "transferDate": "04.01.2027",
+      "hasFundSelection": true,
+      "selectedTulevaFund": true,
+      "selectedConservativeFund": true
+    },
     "second pillar suggestion (cannot occur)": {
       "FNAME": "Mari",
       "transferDate": "04.01.2027",
@@ -42,6 +63,15 @@
       "hasFundSelection": true,
       "hasFundTransfer": true,
       "selectedTulevaFund": true
+    },
+    "third pillar fees suggestion": {
+      "FNAME": "Mari",
+      "transferDate": "04.01.2027",
+      "suggestThirdPillar": true,
+      "hasFundSelection": true,
+      "hasFundTransfer": true,
+      "selectedTulevaFund": true,
+      "thirdPillarActive": true
     },
     "third pillar recurring suggestion": {
       "FNAME": "Mari",
@@ -90,36 +120,6 @@
       "hasFundSelection": true,
       "hasFundTransfer": true,
       "selectedTulevaFund": true
-    },
-    "another manager's fund": {
-      "FNAME": "Mari",
-      "transferDate": "04.01.2027",
-      "hasFundSelection": true,
-      "selectedTulevaFund": false
-    },
-    "high fee fund": {
-      "FNAME": "Mari",
-      "transferDate": "04.01.2027",
-      "hasFundSelection": true,
-      "selectedTulevaFund": false,
-      "selectedHighFeeFund": true,
-      "selectedFundFee": "1.2"
-    },
-    "conservative fund for a young saver": {
-      "FNAME": "Mari",
-      "transferDate": "04.01.2027",
-      "hasFundSelection": true,
-      "selectedTulevaFund": true,
-      "selectedConservativeFund": true
-    },
-    "third pillar fees suggestion": {
-      "FNAME": "Mari",
-      "transferDate": "04.01.2027",
-      "suggestThirdPillar": true,
-      "hasFundSelection": true,
-      "hasFundTransfer": true,
-      "selectedTulevaFund": true,
-      "thirdPillarActive": true
     }
   }
 }

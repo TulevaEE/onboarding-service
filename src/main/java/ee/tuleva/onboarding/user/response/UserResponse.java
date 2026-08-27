@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.user.response;
 
-import static ee.tuleva.onboarding.auth.principal.Person.capitalize;
+import static ee.tuleva.onboarding.user.Names.formatted;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.role.Role;
@@ -85,8 +85,8 @@ public class UserResponse implements Person, Emailable {
   private static UserResponseBuilder responseBuilder(@NotNull User user) {
     return builder()
         .id(user.getId())
-        .firstName(capitalize(user.getFirstName()))
-        .lastName(capitalize(user.getLastName()))
+        .firstName(formatted(user.getFirstName()))
+        .lastName(formatted(user.getLastName()))
         .personalCode(user.getPersonalCode())
         .email(user.getEmail())
         .phoneNumber(user.getPhoneNumber())

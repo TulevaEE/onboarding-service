@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.auth.principal;
 
-import static ee.tuleva.onboarding.auth.principal.Person.capitalize;
 import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
+import static ee.tuleva.onboarding.user.Names.formatted;
 
 import ee.tuleva.onboarding.auth.role.Role;
 import ee.tuleva.onboarding.user.User;
@@ -33,7 +33,7 @@ public class PrincipalService {
     return getFrom(
         person,
         attributes,
-        new Role(PERSON, person.getPersonalCode(), capitalize(person.getFullName())));
+        new Role(PERSON, person.getPersonalCode(), formatted(person.getFullName())));
   }
 
   public AuthenticatedPerson getFrom(
@@ -49,8 +49,8 @@ public class PrincipalService {
     }
 
     return AuthenticatedPerson.builder()
-        .firstName(capitalize(person.getFirstName()))
-        .lastName(capitalize(person.getLastName()))
+        .firstName(formatted(person.getFirstName()))
+        .lastName(formatted(person.getLastName()))
         .personalCode(person.getPersonalCode())
         .userId(user.getId())
         .attributes(attributes)
@@ -72,8 +72,8 @@ public class PrincipalService {
   private User createUser(Person person) {
     return userService.createNewUser(
         User.builder()
-            .firstName(capitalize(person.getFirstName()))
-            .lastName(capitalize(person.getLastName()))
+            .firstName(formatted(person.getFirstName()))
+            .lastName(formatted(person.getLastName()))
             .personalCode(person.getPersonalCode())
             .active(true)
             .build());

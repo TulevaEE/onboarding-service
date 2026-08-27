@@ -89,10 +89,17 @@ class LegalEntityOnboardingEventListener {
     if (failedGateChecks.isEmpty()) {
       return COMPLETED;
     }
-    if (oldStatus != COMPLETED && onlyRelatedPersonsKycFailed(failedGateChecks)) {
+    if (mayWaitForRelatedPersons(oldStatus) && onlyRelatedPersonsKycFailed(failedGateChecks)) {
       return PENDING;
     }
     return REJECTED;
+  }
+
+  // A company only waits ahead of its first completion. Monitoring re-screens rejected companies
+  // too, so letting a rejection soften back to pending would re-open an account that never closed
+  // and email the applicant about it again. Only a fresh survey submission clears the rejection.
+  private static boolean mayWaitForRelatedPersons(SavingsFundOnboardingStatus oldStatus) {
+    return oldStatus == null || oldStatus == PENDING;
   }
 
   private boolean onlyRelatedPersonsKycFailed(List<KybCheck> failedGateChecks) {

@@ -62,6 +62,9 @@ public class SavingsFundOnboardingService {
     if (newStatus == COMPLETED && previousStatus != COMPLETED) {
       eventPublisher.publishEvent(new SavingsFundOnboardingCompletedEvent(user));
     }
+    if (previousStatus == newStatus) {
+      return;
+    }
     Map<String, Object> eventData = new HashMap<>();
     if (previousStatus != null) {
       eventData.put("oldStatus", previousStatus);

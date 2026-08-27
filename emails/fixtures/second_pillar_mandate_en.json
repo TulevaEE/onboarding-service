@@ -33,6 +33,14 @@
       "selectedHighFeeFund": true,
       "selectedFundFee": "1.2"
     },
+    "Tuleva and a high fee fund together": {
+      "FNAME": "Mari",
+      "transferDate": "04.01.2027",
+      "hasFundSelection": true,
+      "selectedTulevaFund": true,
+      "selectedHighFeeFund": true,
+      "selectedFundFee": "1.2"
+    },
     "conservative fund for a young saver": {
       "FNAME": "Mari",
       "transferDate": "04.01.2027",

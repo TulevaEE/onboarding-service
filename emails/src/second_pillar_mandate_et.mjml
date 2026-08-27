@@ -26,14 +26,16 @@
         <mj-raw>*|END:IF|*</mj-raw>
         <mj-raw>*|IF:selectedHighFeeFund|*</mj-raw>
         <mj-text>
-          Pane tähele: valitud fondi jooksvad tasud on *|selectedFundFee|*% aastas. Kõrge tasu
+          Pane tähele: valisid fondi, mille jooksvad tasud on
+          <strong>*|selectedFundFee|*% aastas</strong>. Kõrge tasu
           vähendab pikas plaanis tootlust märkimisväärselt. Fondide tasusid saad võrrelda
           <a href="https://www.pensionikeskus.ee/ii-sammas/kohustuslikud-pensionifondid/fonditasude-vordlus/">Pensionikeskuses</a>.
         </mj-text>
         <mj-raw>*|END:IF|*</mj-raw>
         <mj-raw>*|IF:selectedConservativeFund|*</mj-raw>
         <mj-text>
-          Pane tähele: valisid madala riskiga fondi. Kui pensionini on veel palju aega, on
+          Pane tähele: valisid <strong>madala riskiga fondi</strong>. Kui pensionini on veel palju
+          aega, on
           aktsiafondid ajalooliselt andnud võlakirjafondidest oluliselt parema tootluse.
           Fonde saad võrrelda
           <a href="https://www.pensionikeskus.ee/ii-sammas/kohustuslikud-pensionifondid/fonditasude-vordlus/">Pensionikeskuses</a>.

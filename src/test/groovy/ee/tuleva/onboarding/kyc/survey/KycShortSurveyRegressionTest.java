@@ -199,9 +199,10 @@ class KycShortSurveyRegressionTest {
 
   private void assertThatKybRelatedPersonsKycRequirementIsSatisfied() {
     assertThat(
-            amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
-                user.getPersonalCode(), KYC_CHECK, true, aYearAgo()))
-        .isTrue();
+            amlCheckRepository
+                .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDesc(
+                    user.getPersonalCode(), KYC_CHECK, aYearAgo()))
+        .hasValueSatisfying(check -> assertThat(check.isSuccess()).isTrue());
   }
 
   private void assertThatKycCheckAmlCheckIsPersisted() {

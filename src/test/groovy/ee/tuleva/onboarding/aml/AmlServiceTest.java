@@ -162,10 +162,6 @@ class AmlServiceTest {
   @Test
   void addKycCheck_persistsPassingRecheckWhenLatestCheckFailedDespiteEarlierSuccess() {
     given(
-            amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
-                "38888888888", KYC_CHECK, true, aYearAgoFromTestClock))
-        .willReturn(true);
-    given(
             amlCheckRepository
                 .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDesc(
                     "38888888888", KYC_CHECK, aYearAgoFromTestClock))

@@ -99,13 +99,15 @@ public class SavingsFundOnboardingRepository {
   }
 
   @Transactional
-  public void saveOnboardingStatus(
+  public Optional<SavingsFundOnboardingStatus> saveOnboardingStatus(
       String code, PartyId.Type type, SavingsFundOnboardingStatus status) {
     jdbcClient
         .sql("SELECT pg_advisory_xact_lock(:key)")
         .param("key", (long) ("onboarding:" + code).hashCode())
         .query((rs, rowNum) -> 0)
         .optional();
+
+    var previousStatus = findStatus(code, type);
 
     int updated =
         jdbcClient
@@ -125,5 +127,7 @@ public class SavingsFundOnboardingRepository {
           .param("status", status.name())
           .update();
     }
+
+    return previousStatus;
   }
 }

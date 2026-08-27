@@ -106,6 +106,19 @@ class SavingsFundOnboardingRepositoryTest {
   }
 
   @Test
+  void saveOnboardingStatus_returnsEmptyWhenNoRecordExisted() {
+    assertThat(repository.saveOnboardingStatus("87654321", LEGAL_ENTITY, PENDING)).isEmpty();
+  }
+
+  @Test
+  void saveOnboardingStatus_returnsThePreviousStatusWhenRecordExisted() {
+    repository.saveOnboardingStatus("12121212", LEGAL_ENTITY, PENDING);
+
+    assertThat(repository.saveOnboardingStatus("12121212", LEGAL_ENTITY, COMPLETED))
+        .contains(PENDING);
+  }
+
+  @Test
   void findPersonCodes_returnsEveryOnboardedPersonRegardlessOfStatus() {
     repository.saveOnboardingStatus("60001019906", PERSON, COMPLETED);
     repository.saveOnboardingStatus("38888888888", PERSON, PENDING);

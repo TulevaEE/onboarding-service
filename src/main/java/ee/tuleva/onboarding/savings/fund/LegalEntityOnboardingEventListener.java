@@ -48,15 +48,18 @@ class LegalEntityOnboardingEventListener {
       return;
     }
 
-    savingsFundOnboardingRepository.saveOnboardingStatus(registryCode, LEGAL_ENTITY, newStatus);
+    var previousStatus =
+        savingsFundOnboardingRepository
+            .saveOnboardingStatus(registryCode, LEGAL_ENTITY, newStatus)
+            .orElse(null);
 
     if (newStatus == COMPLETED) {
       log.info(
           "Legal entity onboarding completed: registryCode={}, personalCode={}, oldStatus={}",
           registryCode,
           personalCode,
-          oldStatus);
-      if (oldStatus == PENDING) {
+          previousStatus);
+      if (previousStatus == PENDING) {
         eventPublisher.publishEvent(new LegalEntityOnboardedEvent(this, event.getCompany()));
       }
     } else if (newStatus == PENDING) {
@@ -64,8 +67,8 @@ class LegalEntityOnboardingEventListener {
           "Legal entity onboarding waiting for related persons: registryCode={}, personalCode={}, oldStatus={}",
           registryCode,
           personalCode,
-          oldStatus);
-    } else if (oldStatus == COMPLETED) {
+          previousStatus);
+    } else if (previousStatus == COMPLETED) {
       log.error(
           "Legal entity onboarding rejected after being completed: registryCode={}, personalCode={}, failedChecks={}",
           registryCode,
@@ -76,7 +79,7 @@ class LegalEntityOnboardingEventListener {
           "Legal entity onboarding rejected: registryCode={}, personalCode={}, oldStatus={}, failedChecks={}",
           registryCode,
           personalCode,
-          oldStatus,
+          previousStatus,
           formatFailedChecks(event.getChecks()));
     }
   }

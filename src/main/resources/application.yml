@@ -556,3 +556,8 @@ sentry:
 population-register:
   url: ${POPULATION_REGISTER_URL:https://xroad-consumer.tuleva.ee/r1/EE/GOV/70008440/rr/domesticDataExchange/v1}
   client-id: ${POPULATION_REGISTER_CLIENT_ID:EE/COM/14118923/tuleva-fund-management}
+
+third-pillar-payment-arrived:
+  cron: "0 0 12 * * *"
+  dry-run: false
+  max-recipients: 200

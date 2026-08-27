@@ -12,6 +12,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
@@ -55,6 +56,11 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
   private static final String LONG_TIME_SAVER = TestPersonalCodes.withValidChecksum("3881212121");
   private static final String EMPLOYER_PAID = TestPersonalCodes.withValidChecksum("3900101000");
   private static final String REGISTRY_ONLY = TestPersonalCodes.withValidChecksum("3870101000");
+  private static final String UNDERAGE = TestPersonalCodes.withValidChecksum("5160101000");
+  private static final String DECEASED = TestPersonalCodes.withValidChecksum("3840101000");
+  private static final String SECOND_PILLAR_LEAVER =
+      TestPersonalCodes.withValidChecksum("3830101000");
+  private static final String MAXED_OUT = TestPersonalCodes.withValidChecksum("3820101000");
 
   @Autowired private ThirdPillarPaymentArrivedJob job;
   @Autowired private AnalyticsThirdPillarTransactionRepository transactionRepository;
@@ -85,6 +91,7 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
     emailRepository.deleteAll();
     userRepository.deleteAll();
     jdbcClient.sql("DELETE FROM third_pillar_payment_arrived_claim").update();
+    jdbcClient.sql("DELETE FROM saving_fund_payment").update();
   }
 
   @Test
@@ -102,13 +109,12 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
             argThat(
                 mergeVars ->
                     Boolean.TRUE.equals(mergeVars.get("suggestSecondPillar"))
-                        && Boolean.TRUE.equals(mergeVars.get("hasAccount"))
+                        && Boolean.TRUE.equals(mergeVars.get("hasTulevaUser"))
                         && LocalDate.now()
                             .minusDays(1)
                             .format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy"))
                             .equals(mergeVars.get("paymentDate"))
-                        && new BigDecimal("300.00").compareTo((BigDecimal) mergeVars.get("amount"))
-                            == 0),
+                        && "300".equals(mergeVars.get("amount"))),
             any(),
             any());
     verify(emailService, times(1))
@@ -184,7 +190,7 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
             argThat(
                 mergeVars ->
                     Boolean.TRUE.equals(mergeVars.get("suggestSecondPillar"))
-                        && Boolean.FALSE.equals(mergeVars.get("hasAccount"))),
+                        && Boolean.FALSE.equals(mergeVars.get("hasTulevaUser"))),
             any(),
             any());
     verify(emailService, times(1))
@@ -280,7 +286,9 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
                 false,
                 true,
                 true,
-                true));
+                true,
+                false,
+                false));
 
     assertThat(sent).isFalse();
     verify(emailService, never()).send(any(Person.class), any(), any());
@@ -298,6 +306,107 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
     verify(emailService, times(1)).send(any(Person.class), any(), any());
     assertThat(claimCount()).isEqualTo(1);
     assertThat(sentEmailCount()).isZero();
+  }
+
+  @Test
+  void suggestsTheSavingsFundOnlyToMaxedOutNonSavers() {
+    saveUnitOwner(
+        MAXED_OUT,
+        builder -> builder.email("maxed.out@example.com").p2choice("TUK75").p2nextRate(6));
+    saveOwnPayment(MAXED_OUT, LocalDate.now().minusDays(1), new BigDecimal("400.00"));
+
+    job.run();
+
+    verify(emailService)
+        .newMandrillMessage(
+            eq("maxed.out@example.com"),
+            eq("third_pillar_payment_arrived_et"),
+            argThat(
+                mergeVars ->
+                    Boolean.TRUE.equals(mergeVars.get("suggestSavingsFund"))
+                        && Boolean.FALSE.equals(mergeVars.get("suggestSecondPillar"))
+                        && Boolean.FALSE.equals(mergeVars.get("suggestPaymentRate"))),
+            any(),
+            any());
+  }
+
+  @Test
+  void doesNotSuggestTheSavingsFundToAnExistingSaver() {
+    saveUnitOwner(
+        MAXED_OUT,
+        builder -> builder.email("maxed.out@example.com").p2choice("TUK75").p2nextRate(6));
+    saveIssuedSavingsFundPayment(MAXED_OUT);
+    saveOwnPayment(MAXED_OUT, LocalDate.now().minusDays(1), new BigDecimal("400.00"));
+
+    job.run();
+
+    verify(emailService)
+        .newMandrillMessage(
+            eq("maxed.out@example.com"),
+            eq("third_pillar_payment_arrived_et"),
+            argThat(mergeVars -> Boolean.FALSE.equals(mergeVars.get("suggestSavingsFund"))),
+            any(),
+            any());
+  }
+
+  @Test
+  void skipsAnUnderagePayerWithoutClaiming() {
+    saveUser(UNDERAGE, "child@example.com");
+    saveOwnPayment(UNDERAGE, LocalDate.now().minusDays(1), new BigDecimal("50.00"));
+
+    job.run();
+
+    verifyNoInteractions(emailService);
+    assertThat(claimCount()).isZero();
+  }
+
+  @Test
+  void skipsADeceasedRegistryPersonWithoutClaiming() {
+    saveUnitOwner(
+        DECEASED,
+        builder -> builder.email("estate@example.com").deathDate(LocalDate.now().minusMonths(1)));
+    saveOwnPayment(DECEASED, LocalDate.now().minusDays(1), new BigDecimal("100.00"));
+
+    job.run();
+
+    verifyNoInteractions(emailService);
+    assertThat(claimCount()).isZero();
+  }
+
+  @Test
+  void marksASecondPillarLeaverAndSuppressesSecondPillarNudges() {
+    saveUnitOwner(
+        SECOND_PILLAR_LEAVER,
+        builder -> builder.email("leaver@example.com").p2ravaStatus("R").p2choice("LXK00"));
+    saveOwnPayment(SECOND_PILLAR_LEAVER, LocalDate.now().minusDays(1), new BigDecimal("200.00"));
+
+    job.run();
+
+    verify(emailService)
+        .newMandrillMessage(
+            eq("leaver@example.com"),
+            eq("third_pillar_payment_arrived_et"),
+            argThat(
+                mergeVars ->
+                    Boolean.TRUE.equals(mergeVars.get("leftSecondPillar"))
+                        && Boolean.FALSE.equals(mergeVars.get("suggestSecondPillar"))
+                        && Boolean.FALSE.equals(mergeVars.get("suggestPaymentRate"))),
+            any(),
+            any());
+  }
+
+  private void saveIssuedSavingsFundPayment(String personalCode) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO saving_fund_payment
+              (id, party_type, party_code, amount, currency, status, created_at, status_changed_at)
+            VALUES
+              (:id, 'PERSON', :code, 100.00, 'EUR', 'ISSUED', now(), now())
+            """)
+        .param("id", java.util.UUID.randomUUID())
+        .param("code", personalCode)
+        .update();
   }
 
   private void saveOwnPayment(String personalCode, LocalDate date, BigDecimal amount) {
@@ -323,16 +432,23 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
   }
 
   private void saveUnitOwner(String personalCode, String email, String language, String p2Choice) {
+    saveUnitOwner(
+        personalCode,
+        builder -> builder.email(email).languagePreference(language).p2choice(p2Choice));
+  }
+
+  private void saveUnitOwner(
+      String personalCode,
+      java.util.function.UnaryOperator<UnitOwner.UnitOwnerBuilder> customizer) {
     unitOwnerRepository.save(
-        UnitOwner.builder()
-            .personalId(personalCode)
-            .snapshotDate(LocalDate.now())
-            .dateCreated(java.time.LocalDateTime.now())
-            .firstName("Registry")
-            .lastName("Person")
-            .email(email)
-            .languagePreference(language)
-            .p2choice(p2Choice)
+        customizer
+            .apply(
+                UnitOwner.builder()
+                    .personalId(personalCode)
+                    .snapshotDate(LocalDate.now())
+                    .dateCreated(java.time.LocalDateTime.now())
+                    .firstName("Registry")
+                    .lastName("Person"))
             .build());
   }
 

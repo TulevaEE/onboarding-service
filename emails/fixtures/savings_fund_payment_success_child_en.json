@@ -1,7 +1,54 @@
 {
   "variants": {
-    "default": {
-      "FNAME": "Mari"
+    "account recurring suggestion": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Mari Maasikas",
+      "suggestAccountRecurringPayment": true
+    },
+    "second pillar suggestion": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Mari Maasikas",
+      "suggestSecondPillar": true
+    },
+    "payment rate increase suggestion": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Mari Maasikas",
+      "suggestPaymentRate": true
+    },
+    "third pillar suggestion": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Mari Maasikas",
+      "suggestThirdPillar": true
+    },
+    "third pillar recurring suggestion": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Mari Maasikas",
+      "suggestThirdPillarRecurringPayment": true
+    },
+    "third pillar raise suggestion": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Mari Maasikas",
+      "suggestThirdPillarRaise": true
+    },
+    "savings fund suggestion (cannot occur)": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Mari Maasikas",
+      "suggestSavingsFund": true,
+      "savingsFundFee": "0.28"
+    },
+    "savings fund recurring suggestion": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Mari Maasikas",
+      "suggestSavingsFundRecurringPayment": true
+    },
+    "membership suggestion": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Mari Maasikas",
+      "suggestMembership": true
+    },
+    "no nudge": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Mari Maasikas"
     }
   }
 }

@@ -27,7 +27,8 @@ public class FirstThirdPillarPaymentRepository {
         .optional();
   }
 
-  public List<FirstThirdPillarPayment> fetchUnemailedFirstPayments(LocalDate windowStart) {
+  public List<FirstThirdPillarPayment> fetchUnemailedFirstPayments(
+      LocalDate windowStart, LocalDate adultBirthDateCutoff) {
     String sql =
         """
         WITH own_payments AS (
@@ -59,12 +60,20 @@ public class FirstThirdPillarPaymentRepository {
                COALESCE(uo.language_preference, 'EST') AS language_preference,
                fa.amount,
                fa.first_payment_date,
-               (u.id IS NOT NULL) AS has_account,
-               (uo.personal_id IS NULL
-                 OR uo.p2_choice IS NULL
-                 OR uo.p2_choice NOT IN ('TUK75', 'TUK00')) AS suggest_second_pillar,
-               (COALESCE(uo.p2_next_rate, uo.p2_rate, 2) < 6) AS suggest_payment_rate,
-               (m.id IS NULL) AS suggest_membership
+               (u.id IS NOT NULL) AS has_tuleva_user,
+               (COALESCE(uo.p2_rava_status, '') <> 'R'
+                 AND (uo.personal_id IS NULL
+                   OR uo.p2_choice IS NULL
+                   OR uo.p2_choice NOT IN ('TUK75', 'TUK00'))) AS suggest_second_pillar,
+               (COALESCE(uo.p2_rava_status, '') <> 'R'
+                 AND COALESCE(uo.p2_next_rate, uo.p2_rate, 2) < 6) AS suggest_payment_rate,
+               (m.id IS NULL) AS suggest_membership,
+               (COALESCE(uo.p2_rava_status, '') = 'R') AS left_second_pillar,
+               EXISTS (
+                 SELECT 1 FROM saving_fund_payment sfp
+                 WHERE sfp.party_type = 'PERSON'
+                   AND sfp.party_code = fa.personal_id
+                   AND sfp.status IN ('ISSUED', 'PROCESSED')) AS saves_in_savings_fund
         FROM first_amounts fa
         LEFT JOIN users u ON u.personal_code = fa.personal_id
         LEFT JOIN latest_unit_owner uo ON uo.personal_id = fa.personal_id
@@ -72,6 +81,14 @@ public class FirstThirdPillarPaymentRepository {
         WHERE COALESCE(NULLIF(u.email, ''), NULLIF(uo.email, '')) IS NOT NULL
           AND COALESCE(NULLIF(u.first_name, ''), NULLIF(uo.first_name, '')) IS NOT NULL
           AND COALESCE(NULLIF(u.last_name, ''), NULLIF(uo.last_name, '')) IS NOT NULL
+          AND uo.death_date IS NULL
+          AND CAST(CONCAT(
+                CASE WHEN SUBSTRING(fa.personal_id, 1, 1) IN ('1', '2') THEN '18'
+                     WHEN SUBSTRING(fa.personal_id, 1, 1) IN ('3', '4') THEN '19'
+                     ELSE '20' END,
+                SUBSTRING(fa.personal_id, 2, 2), '-',
+                SUBSTRING(fa.personal_id, 4, 2), '-',
+                SUBSTRING(fa.personal_id, 6, 2)) AS DATE) <= :adultBirthDateCutoff
           AND NOT EXISTS (
             SELECT 1 FROM email e
             WHERE e.personal_code = fa.personal_id
@@ -88,6 +105,7 @@ public class FirstThirdPillarPaymentRepository {
         .sql(sql)
         .param("ownMoneySource", OWN_MONEY_SOURCE)
         .param("windowStart", windowStart)
+        .param("adultBirthDateCutoff", adultBirthDateCutoff)
         .query(
             (rs, rowNum) ->
                 new FirstThirdPillarPayment(
@@ -98,10 +116,12 @@ public class FirstThirdPillarPaymentRepository {
                     rs.getString("language_preference"),
                     rs.getBigDecimal("amount"),
                     rs.getObject("first_payment_date", LocalDate.class),
-                    rs.getBoolean("has_account"),
+                    rs.getBoolean("has_tuleva_user"),
                     rs.getBoolean("suggest_second_pillar"),
                     rs.getBoolean("suggest_payment_rate"),
-                    rs.getBoolean("suggest_membership")))
+                    rs.getBoolean("suggest_membership"),
+                    rs.getBoolean("left_second_pillar"),
+                    rs.getBoolean("saves_in_savings_fund")))
         .list();
   }
 }

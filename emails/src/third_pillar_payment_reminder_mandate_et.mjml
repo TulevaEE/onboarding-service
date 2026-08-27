@@ -7,16 +7,20 @@
       <mj-column>
         <mj-text>Tere tulemast,&nbsp;*|FNAME|*</mj-text>
         <mj-text>Mul on hea meel, et kogud koos meiega III&nbsp;sambasse.</mj-text>
+        <mj-raw>*|IF:hasFundTransfer|*</mj-raw>
+        <mj-text>
+          Sinu osakute vahetuse avaldus on edastatud Pensionikeskusele ja osakud vahetatakse
+          tavaliselt mõne tööpäeva jooksul.
+        </mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
         <mj-text>
           Sinu sissemakse pole veel Tuleva III&nbsp;Samba Pensionifondi jõudnud. Kui tegid
           makse oma internetipangast või seadsid üles püsimakse, siis jõuab sinu raha fondi üks
           tööpäev pärast makse tegemist. Siis näed makset ka oma pensionikontol.
         </mj-text>
         <mj-text>
-          Meeldetuletuseks: miks tasub III&nbsp;sambasse koguda? Sest riik pakub sissemaksetele
-          22% maksusoodustust, mis annab suure eelise kõikide teiste investeerimisvõimaluste
-          ees. Näiteks kui teed igal kuul 100-eurose sissemakse, annab riik sulle kevadel
-          264&nbsp;eurot tulumaksu tagasi.
+          Meeldetuletuseks: riik annab III&nbsp;samba sissemaksetelt 22% tulumaksu tagasi.
+          Näiteks 100-eurose kuumakse pealt saad kevadel tagasi 264&nbsp;eurot.
         </mj-text>
         <mj-text>
           <strong>

@@ -14,7 +14,14 @@ import ee.tuleva.onboarding.payment.event.SavingsPaymentCancelledEvent
 import ee.tuleva.onboarding.payment.event.SavingsPaymentCreatedEvent
 import ee.tuleva.onboarding.payment.event.SavingsPaymentFailedEvent
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService
+import ee.tuleva.onboarding.analytics.SecondPillarLeavers
+import ee.tuleva.onboarding.analytics.RecurringPayments
+import ee.tuleva.onboarding.analytics.RecurringSavers
+import ee.tuleva.onboarding.contribution.ThirdPillarTaxHeadroom
+import ee.tuleva.onboarding.savings.fund.SavingsFundSavers
 import spock.lang.Specification
+
+import java.util.Set
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notFullyConverted
@@ -34,9 +41,22 @@ class PaymentEmailSenderSpec extends Specification {
   ContactDetailsService contactDetailsService = Mock()
   SecondPillarPaymentRateService paymentRateService = Mock()
   SavingsFundSuccessEmailResolver savingsFundSuccessEmailResolver = Mock()
+  SecondPillarLeavers secondPillarLeavers = Mock() {
+    hasLeft(_) >> false
+  }
+  SavingsFundSavers savingsFundSavers = Mock() {
+    isSaver(_) >> false
+  }
+  ThirdPillarTaxHeadroom thirdPillarTaxHeadroom = Mock(ThirdPillarTaxHeadroom) {
+    hasHeadroom(_) >> false
+  }
+  RecurringSavers recurringSavers = Mock() {
+    recurringPaymentsOf(_) >> new RecurringPayments(true, true)
+    hasRecurringSavingsFundPayments(_) >> true
+  }
 
   def paymentEmailSender = new PaymentEmailSender(paymentEmailService, conversionService, principalService,
-      grantedAuthorityFactory, jwtTokenUtil, contactDetailsService, paymentRateService, savingsFundSuccessEmailResolver)
+      grantedAuthorityFactory, jwtTokenUtil, contactDetailsService, paymentRateService, secondPillarLeavers, savingsFundSavers, recurringSavers, thirdPillarTaxHeadroom, savingsFundSuccessEmailResolver)
 
   def "send emails on payment creation"() {
     given:
@@ -46,7 +66,7 @@ class PaymentEmailSenderSpec extends Specification {
     def contactDetails = new ContactDetails()
     def conversion = notFullyConverted()
     def paymentRates = samplePaymentRates()
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates, Set.of(3), false, false)
 
     def paymentCreatedEvent = new PaymentCreatedEvent(this, user, payment, locale)
 
@@ -83,7 +103,7 @@ class PaymentEmailSenderSpec extends Specification {
     def contactDetails = new ContactDetails()
     def conversion = notFullyConverted()
     def paymentRates = samplePaymentRates()
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates, [] as Set, false, false)
 
     def savingsPaymentCreatedEvent = new SavingsPaymentCreatedEvent(this, user, locale, new PartyId(PERSON, user.personalCode))
 
@@ -96,7 +116,7 @@ class PaymentEmailSenderSpec extends Specification {
     paymentEmailSender.onSavingsPaymentCreated(savingsPaymentCreatedEvent)
 
     then:
-    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.personSuccess(), pillarSuggestion, locale)
+    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.personSuccess(), pillarSuggestion, false, locale)
   }
 
   def "send email on savings payment creation for a child passes the child email with the child name"() {
@@ -106,7 +126,7 @@ class PaymentEmailSenderSpec extends Specification {
     def contactDetails = new ContactDetails()
     def conversion = notFullyConverted()
     def paymentRates = samplePaymentRates()
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates, [] as Set, false, false)
 
     def savingsPaymentCreatedEvent = new SavingsPaymentCreatedEvent(this, user, locale, new PartyId(PERSON, "51111111111"))
 
@@ -119,7 +139,7 @@ class PaymentEmailSenderSpec extends Specification {
     paymentEmailSender.onSavingsPaymentCreated(savingsPaymentCreatedEvent)
 
     then:
-    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.childSuccess("Kid Tester"), pillarSuggestion, locale)
+    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.childSuccess("Kid Tester"), pillarSuggestion, false, locale)
   }
 
   def "send email on savings payment cancel"() {
@@ -129,7 +149,7 @@ class PaymentEmailSenderSpec extends Specification {
     def contactDetails = new ContactDetails()
     def conversion = notFullyConverted()
     def paymentRates = samplePaymentRates()
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates, [] as Set, false, false)
 
     def savingsPaymentCancelledEvent = new SavingsPaymentCancelledEvent(this, user, locale)
 
@@ -141,7 +161,7 @@ class PaymentEmailSenderSpec extends Specification {
     paymentEmailSender.onSavingsPaymentCancelled(savingsPaymentCancelledEvent)
 
     then:
-    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.cancelled(), pillarSuggestion, locale)
+    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.cancelled(), pillarSuggestion, false, locale)
   }
 
   def "send email on savings payment failure without a pillar suggestion"() {

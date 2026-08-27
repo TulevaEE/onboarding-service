@@ -16,6 +16,7 @@ import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
 import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
+import ee.tuleva.onboarding.savings.fund.SavingsFundFees;
 import ee.tuleva.onboarding.user.User;
 import java.time.Clock;
 import java.time.Instant;
@@ -37,6 +38,7 @@ public class MandateEmailService {
   private final MandateDeadlinesService mandateDeadlinesService;
   private final SecondPillarPaymentRateService secondPillarPaymentRateService;
   private final AuthenticationHolder authenticationHolder;
+  private final SavingsFundFees savingsFundFees;
 
   public void sendMandate(
       User user, Mandate mandate, PillarSuggestion pillarSuggestion, Locale locale) {
@@ -114,6 +116,8 @@ public class MandateEmailService {
       MandateDeadlines deadlines = mandateDeadlinesService.getDeadlines(mandate.getCreatedDate());
       mergeVars.put(
           "transferDate", deadlines.getTransferMandateFulfillmentDate().format(dateTimeFormatter));
+      mergeVars.put("hasFundSelection", mandate.getFutureContributionFundIsin().isPresent());
+      mergeVars.put("hasFundTransfer", !mandate.getFundTransferExchangesBySourceIsin().isEmpty());
     }
 
     if (mandate.isTransferCancellation()) {
@@ -122,7 +126,9 @@ public class MandateEmailService {
       mergeVars.put("sourceFundName", sourceFundName);
     }
 
-    mergeVars.putAll(getPillarSuggestionMergeVars(pillarSuggestion));
+    mergeVars.putAll(
+        getPillarSuggestionMergeVars(
+            pillarSuggestion, savingsFundFees.ongoingChargesPercent(locale)));
     return mergeVars;
   }
 
@@ -140,7 +146,14 @@ public class MandateEmailService {
       tags.add("suggest_member");
     }
 
+    pillarSuggestion.renderedNudgeTag().ifPresent(tags::add);
     return tags;
+  }
+
+  private Map<String, Object> getThirdPillarReminderMergeVars(User user, Mandate mandate) {
+    var mergeVars = new HashMap<String, Object>(getNameMergeVars(user));
+    mergeVars.put("hasFundTransfer", !mandate.getFundTransferExchangesBySourceIsin().isEmpty());
+    return mergeVars;
   }
 
   private void scheduleThirdPillarPaymentReminderEmail(User user, Mandate mandate, Locale locale) {
@@ -161,7 +174,7 @@ public class MandateEmailService {
         emailService.newMandrillMessage(
             user.getEmail(),
             templateName,
-            getNameMergeVars(user),
+            getThirdPillarReminderMergeVars(user, mandate),
             List.of("pillar_3.1", "reminder"),
             getAttachments(user, mandate));
 

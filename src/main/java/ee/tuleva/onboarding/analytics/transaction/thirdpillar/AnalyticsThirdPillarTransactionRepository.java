@@ -11,6 +11,16 @@ import org.springframework.data.repository.query.Param;
 public interface AnalyticsThirdPillarTransactionRepository
     extends JpaRepository<AnalyticsThirdPillarTransaction, Long> {
 
+  @Query(
+      """
+      SELECT COUNT(DISTINCT FUNCTION('to_char', t.reportingDate, 'YYYY-MM'))
+      FROM AnalyticsThirdPillarTransaction t
+      WHERE t.personalId = :personalCode
+        AND t.transactionSource = 'Osakute väljalase isikult laekumiste alusel'
+        AND t.reportingDate >= :fromDate
+      """)
+  int countOwnContributionMonthsSince(String personalCode, LocalDate fromDate);
+
   @Query("SELECT MAX(t.reportingDate) FROM AnalyticsThirdPillarTransaction t")
   Optional<LocalDate> findLatestReportingDate();
 

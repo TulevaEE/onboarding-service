@@ -60,7 +60,9 @@ public class ThirdPillarPaymentArrivedJob {
     }
 
     LocalDate windowStart = LocalDate.now(clock).minusDays(windowDays);
-    List<FirstThirdPillarPayment> audience = repository.fetchUnemailedFirstPayments(windowStart);
+    LocalDate adultBirthDateCutoff = LocalDate.now(clock).minusYears(18);
+    List<FirstThirdPillarPayment> audience =
+        repository.fetchUnemailedFirstPayments(windowStart, adultBirthDateCutoff);
 
     if (audience.size() > maxRecipients) {
       log.error(

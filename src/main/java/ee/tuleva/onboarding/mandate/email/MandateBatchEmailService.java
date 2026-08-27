@@ -17,6 +17,7 @@ import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.pillar.Pillar;
+import ee.tuleva.onboarding.savings.fund.SavingsFundFees;
 import ee.tuleva.onboarding.user.User;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -32,6 +33,7 @@ public class MandateBatchEmailService {
   private final EmailService emailService;
   private final EmailPersistenceService emailPersistenceService;
   private final MandateProcessorService mandateProcessor;
+  private final SavingsFundFees savingsFundFees;
 
   public void sendMandateBatch(
       User user, MandateBatch mandateBatch, PillarSuggestion pillarSuggestion, Locale locale) {
@@ -50,8 +52,8 @@ public class MandateBatchEmailService {
         emailService.newMandrillMessage(
             user.getEmail(),
             templateName,
-            getMergeVars(user, mandateBatch, pillarSuggestion),
-            getMandateBatchTags(mandateBatch),
+            getMergeVars(user, mandateBatch, pillarSuggestion, locale),
+            getMandateBatchTags(mandateBatch, pillarSuggestion),
             getAttachments(user, mandateBatch));
     emailService
         .send(user, mandrillMessage, templateName)
@@ -94,10 +96,12 @@ public class MandateBatchEmailService {
   }
 
   private Map<String, Object> getMergeVars(
-      User user, MandateBatch batch, PillarSuggestion pillarSuggestion) {
+      User user, MandateBatch batch, PillarSuggestion pillarSuggestion, Locale locale) {
     var map = new HashMap<String, Object>();
     map.putAll(getNameMergeVars(user));
-    map.putAll(getPillarSuggestionMergeVars(pillarSuggestion));
+    map.putAll(
+        getPillarSuggestionMergeVars(
+            pillarSuggestion, savingsFundFees.ongoingChargesPercent(locale)));
     map.putAll(getWithdrawalMandateMergeVars(batch));
 
     return map;
@@ -162,6 +166,12 @@ public class MandateBatchEmailService {
                 ((PartialWithdrawalMandateDetails) mandate.getMandateDto().getDetails())
                     .getPillar())
         .collect(Collectors.toSet());
+  }
+
+  private List<String> getMandateBatchTags(MandateBatch batch, PillarSuggestion pillarSuggestion) {
+    List<String> tags = getMandateBatchTags(batch);
+    pillarSuggestion.renderedNudgeTag().ifPresent(tags::add);
+    return tags;
   }
 
   private List<String> getMandateBatchTags(MandateBatch batch) {

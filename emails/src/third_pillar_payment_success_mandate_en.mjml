@@ -7,68 +7,14 @@
       <mj-column>
         <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
-          Your contribution is complete! This puts you among the 30% of dedicated Estonians who
+          Your contribution is complete. This puts you among the 30% of dedicated Estonians who
           save in the third pillar. Your new units will appear in your pension account by the
           end of the next working day. If you made the transfer over the weekend, you’ll see the
           new units in your pension account by Tuesday evening.
         </mj-text>
 
-        <mj-raw>*|IF:suggestSecondPillar|*</mj-raw>
-        <mj-text>
-          If you're not saving your second pillar with us at Tuleva,
-          <strong>make sure your second pillar fund fees are below 0.5% per year</strong>, as low
-          fees provide the best foundation for optimal long-term returns.
-        </mj-text>
-        <mj-text>
-          <strong>Check how much you're currently paying annually in fees for your second
-          pillar:</strong>
-        </mj-text>
-        <mj-button href="https://pension.tuleva.ee/login?language=en">
-          Check out your fees
-        </mj-button>
+        <mj-include path="./partials/suggest_chain_open_en.mjml" />
 
-        <mj-raw>*|ELSEIF:suggestPaymentRate|*</mj-raw>
-        <mj-text><strong>Don't miss out on the second pillar tax benefit</strong></mj-text>
-        <mj-text>
-          Since second pillar contributions are exempt from income tax,
-          <strong>the higher the percentage, the greater the tax benefit</strong>. For example,
-          if your gross salary is 2,000 euros, you could gain a tax benefit of 316 euros. You can
-          change the size of your second pillar contribution once a year up to 6%.
-        </mj-text>
-        <mj-text>
-          <strong>
-            Check how much your personal income tax savings could be by increasing your second
-            pillar contribution:
-          </strong>
-        </mj-text>
-        <mj-button href="https://pension.tuleva.ee/2nd-pillar-tax-win">Check out</mj-button>
-
-        <mj-raw>*|ELSEIF:suggestMembership|*</mj-raw>
-        <mj-text>
-          <strong>How can you maximize the benefits of saving with Tuleva?</strong>
-        </mj-text>
-        <mj-text>
-          Tuleva belongs to Estonian people who also save in these funds. As a Tuleva saver, you
-          are not obligated to join the Tuleva association, anyone in Estonia can save with us.
-          However, I invite you to consider becoming a member, as you can benefit the most from
-          Tuleva by being a co-owner yourself.
-        </mj-text>
-        <mj-button href="https://tuleva.ee/en/faq/">Learn more</mj-button>
-
-        <mj-raw>*|ELSE:|*</mj-raw>
-        <mj-text>
-          The smartest move is to make saving in the third pillar <strong>automatic</strong> by
-          logging into the Tuleva website and setting up a recurring payment. This ensures that
-          in the hustle of daily life, you won’t miss out on the tax benefits. If you’ve already
-          set up <strong>a recurring payment,</strong> it’s a good idea to occasionally check
-          whether you can increase the payment amount.
-        </mj-text>
-        <mj-text>
-          <strong>Calculate your tax savings and set up a recurring payment:</strong>
-        </mj-text>
-        <mj-button href="https://tuleva.ee/en/third-pillar/">
-          Check out our calculator
-        </mj-button>
         <mj-raw>*|END:IF|*</mj-raw>
       </mj-column>
     </mj-section>

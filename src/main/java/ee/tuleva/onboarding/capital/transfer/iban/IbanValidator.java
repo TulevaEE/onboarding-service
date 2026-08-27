@@ -143,7 +143,8 @@ public class IbanValidator implements ConstraintValidator<ValidIban, String> {
       }
     }
     boolean ok = mod == 1;
-    if (!ok && log.isDebugEnabled()) log.debug("IBAN failed checksum: {}", iban);
+    if (!ok && log.isDebugEnabled())
+      log.debug("IBAN failed checksum: country={}, length={}", cc, len);
     return ok;
   }
 }

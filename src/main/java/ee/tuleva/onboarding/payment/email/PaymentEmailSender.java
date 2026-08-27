@@ -4,9 +4,12 @@ import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.MEMBER_FEE;
 import static org.springframework.transaction.annotation.Propagation.REQUIRES_NEW;
 import static org.springframework.transaction.event.TransactionPhase.AFTER_COMMIT;
 
+import ee.tuleva.onboarding.analytics.RecurringSavers;
+import ee.tuleva.onboarding.analytics.SecondPillarLeavers;
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
+import ee.tuleva.onboarding.contribution.ThirdPillarTaxHeadroom;
 import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
 import ee.tuleva.onboarding.mandate.email.PillarSuggestion;
@@ -16,8 +19,10 @@ import ee.tuleva.onboarding.payment.event.SavingsPaymentCancelledEvent;
 import ee.tuleva.onboarding.payment.event.SavingsPaymentCreatedEvent;
 import ee.tuleva.onboarding.payment.event.SavingsPaymentFailedEvent;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
+import ee.tuleva.onboarding.savings.fund.SavingsFundSavers;
 import ee.tuleva.onboarding.user.User;
 import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -37,6 +42,10 @@ public class PaymentEmailSender {
   private final JwtTokenUtil jwtTokenUtil;
   private final ContactDetailsService contactDetailsService;
   private final SecondPillarPaymentRateService paymentRateService;
+  private final SecondPillarLeavers secondPillarLeavers;
+  private final SavingsFundSavers savingsFundSavers;
+  private final RecurringSavers recurringSavers;
+  private final ThirdPillarTaxHeadroom thirdPillarTaxHeadroom;
   private final SavingsFundSuccessEmailResolver savingsFundSuccessEmailResolver;
 
   // TODO: can we make these @Async?
@@ -51,18 +60,21 @@ public class PaymentEmailSender {
             emailService.sendThirdPillarPaymentSuccessEmail(
                 event.getUser(),
                 event.getPayment(),
-                pillarSuggestionFor(event.getUser()),
+                thirdPillarSuggestionFor(event.getUser()),
                 event.getLocale()));
   }
 
   @EventListener
   public void onSavingsPaymentCreated(SavingsPaymentCreatedEvent event) {
-    sendSavingsFundEmail(event, savingsFundSuccessEmailResolver.resolve(event));
+    boolean suggestAccountRecurringPayment =
+        !recurringSavers.hasRecurringSavingsFundPayments(event.getRecipient());
+    sendSavingsFundEmail(
+        event, savingsFundSuccessEmailResolver.resolve(event), suggestAccountRecurringPayment);
   }
 
   @EventListener
   public void onSavingsPaymentCancelled(SavingsPaymentCancelledEvent event) {
-    sendSavingsFundEmail(event, SavingsFundPaymentEmail.cancelled());
+    sendSavingsFundEmail(event, SavingsFundPaymentEmail.cancelled(), false);
   }
 
   @TransactionalEventListener(phase = AFTER_COMMIT)
@@ -72,20 +84,39 @@ public class PaymentEmailSender {
         event.getUser(), SavingsFundPaymentEmail.failed(), event.getLocale());
   }
 
-  private void sendSavingsFundEmail(PaymentEvent event, SavingsFundPaymentEmail email) {
+  private void sendSavingsFundEmail(
+      PaymentEvent event, SavingsFundPaymentEmail email, boolean suggestAccountRecurringPayment) {
     withSecurityContext(
         event.getUser(),
         () ->
             emailService.sendSavingsFundPaymentEmail(
-                event.getUser(), email, pillarSuggestionFor(event.getUser()), event.getLocale()));
+                event.getUser(),
+                email,
+                pillarSuggestionFor(event.getUser()),
+                suggestAccountRecurringPayment,
+                event.getLocale()));
   }
 
   private PillarSuggestion pillarSuggestionFor(User user) {
+    return pillarSuggestionFor(user, Set.of());
+  }
+
+  private PillarSuggestion thirdPillarSuggestionFor(User user) {
+    return pillarSuggestionFor(user, Set.of(3));
+  }
+
+  private PillarSuggestion pillarSuggestionFor(User user, Set<Integer> concernedPillars) {
     return new PillarSuggestion(
         user,
         contactDetailsService.getContactDetails(user),
         conversionService.getConversion(user),
-        paymentRateService.getPaymentRates(user));
+        paymentRateService.getPaymentRates(user),
+        concernedPillars,
+        secondPillarLeavers.hasLeft(user.getPersonalCode()),
+        savingsFundSavers.isSaver(user.getPersonalCode()),
+        false,
+        recurringSavers.recurringPaymentsOf(user.getPersonalCode()),
+        thirdPillarTaxHeadroom.hasHeadroom(user));
   }
 
   private void withSecurityContext(User user, Runnable action) {

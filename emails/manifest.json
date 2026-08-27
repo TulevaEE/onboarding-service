@@ -181,7 +181,7 @@
       "from_name": "Tuleva"
     },
     "savings_fund_payment_success_child_en": {
-      "subject": "Contribution to Tuleva Savings Fund is done!",
+      "subject": "Contribution to Tuleva Savings Fund is done",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
@@ -191,7 +191,7 @@
       "from_name": "Tuleva"
     },
     "savings_fund_payment_success_company_en": {
-      "subject": "Contribution to Tuleva Savings Fund is done!",
+      "subject": "Contribution to Tuleva Savings Fund is done",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
@@ -201,7 +201,7 @@
       "from_name": "Tuleva"
     },
     "savings_fund_payment_success_en": {
-      "subject": "Contribution to Tuleva Savings Fund is done!",
+      "subject": "Contribution to Tuleva Savings Fund is done",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
@@ -211,7 +211,7 @@
       "from_name": "Tuleva"
     },
     "savings_fund_payment_success_person_en": {
-      "subject": "Contribution to Tuleva Savings Fund is done!",
+      "subject": "Contribution to Tuleva Savings Fund is done",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
@@ -291,12 +291,12 @@
       "from_name": "Tuleva"
     },
     "third_pillar_suggest_second_en": {
-      "subject": "Check where your second pillar is invested!",
+      "subject": "Check where your second pillar is invested",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
     "third_pillar_suggest_second_et": {
-      "subject": "Vaata oma teine sammas üle!",
+      "subject": "Vaata oma teine sammas üle",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
@@ -310,5 +310,33 @@
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     }
+  },
+  "descriptions": {
+    "batch_failed": "Sent right away when some applications in a signed withdrawal batch fail to reach the pension registry. Goes to the person who signed the batch and lists which applications need to be redone.",
+    "capital_transfer_approved_by_board": "Sent to both the buyer and the seller when the Tuleva board approves the member capital transfer and it is executed.",
+    "capital_transfer_buyer_to_sign": "Sent to the buyer as soon as the seller signs the member capital transfer contract, asking the buyer to sign next.",
+    "capital_transfer_confirmed_by_buyer": "Sent to the seller when the buyer confirms they have paid, asking the seller to confirm that the money arrived.",
+    "capital_transfer_confirmed_by_seller": "Sent to the buyer when the seller confirms receiving the payment. The contract then goes to the board for approval.",
+    "capital_transfer_seller_to_confirm": "Published in Mandrill but currently unused: no code path in the service sends this template. The confirmed_by_buyer email covers this step.",
+    "hackathon_registration": "Confirmation sent immediately after registering for the Tuleva hackathon.",
+    "listing_expires": "Published in Mandrill but currently unused: no code path in the service sends this template yet.",
+    "listing_reply_to_buyer": "Sent to the owner of a member capital buy listing when another member responds, with the responder's contact details.",
+    "listing_reply_to_seller": "Sent to the owner of a member capital sell listing when another member responds, with the responder's contact details.",
+    "membership": "Sent as soon as a person becomes a Tuleva member, right after the membership application is completed.",
+    "savings_fund_payment_cancelled": "Sent when a savings fund payment is cancelled before units are issued and the money is sent back to the payer.",
+    "savings_fund_payment_failed": "Sent when a savings fund payment fails our checks and the money is returned to the payer.",
+    "savings_fund_payment_success": "Sent when a savings fund payment made inside the app is completed. Bank transfer payments use the person, child, or company variants instead.",
+    "savings_fund_payment_success_child": "Sent to the parent when their bank transfer to a child's savings fund account is matched and units are issued.",
+    "savings_fund_payment_success_company": "Sent to the representative when a bank transfer to a company's savings fund account is matched and units are issued.",
+    "savings_fund_payment_success_person": "Sent when a bank transfer to the saver's own savings fund account is matched and units are issued.",
+    "second_pillar_mandate": "Sent right after signing a second pillar fund transfer or fund selection application, with the signed application attached.",
+    "second_pillar_payment_rate": "Sent right after signing a second pillar contribution rate change application, with the signed application attached.",
+    "second_pillar_transfer_cancellation": "Sent right after signing an application that cancels a pending second pillar fund transfer, with the signed application attached.",
+    "second_pillar_withdrawal_cancellation": "Sent right after signing an application that cancels a pending second pillar withdrawal, with the signed application attached.",
+    "third_pillar_payment_arrived": "Sent by the daily noon job to people whose first ever own contribution has reached the third pillar fund, including payers who have never logged in. Each person gets it once; capped at 200 recipients per day.",
+    "third_pillar_payment_reminder_mandate": "Scheduled one hour after signing a third pillar mandate and cancelled if the payment arrives first, so it only reaches people who have not paid yet.",
+    "third_pillar_payment_success_mandate": "Sent when the third pillar payment made inside the app is completed, with the signed mandate attached. Cancels the pending payment reminder.",
+    "third_pillar_suggest_second": "Scheduled three days after signing a third pillar mandate, only for adults whose second pillar is not with Tuleva.",
+    "withdrawal_batch": "Sent right after signing a batch of withdrawal applications (fund pension or partial withdrawal), with the signed applications attached and the payout timing."
   }
 }

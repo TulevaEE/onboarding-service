@@ -1,18 +1,61 @@
 {
   "variants": {
-    "II sammas mujal": {
+    "II samba soovitus": {
       "FNAME": "Mari",
       "LNAME": "Maasikas",
       "memberNumber": "482",
       "memberDate": "12.08.2026",
       "suggestSecondPillar": true
     },
-    "tõsta makse määra": {
+    "II samba määra tõstmise soovitus": {
       "FNAME": "Jaan",
       "LNAME": "Tamm",
       "memberNumber": "615",
       "memberDate": "03.07.2026",
       "suggestPaymentRate": true
+    },
+    "III samba soovitus": {
+      "FNAME": "Kati",
+      "LNAME": "Ilves",
+      "memberNumber": "731",
+      "memberDate": "14.02.2026",
+      "suggestThirdPillar": true
+    },
+    "III samba püsimakse soovitus": {
+      "FNAME": "Kati",
+      "LNAME": "Ilves",
+      "memberNumber": "731",
+      "memberDate": "14.02.2026",
+      "suggestThirdPillarRecurringPayment": true
+    },
+    "III samba sissemakse tõstmise soovitus": {
+      "FNAME": "Kati",
+      "LNAME": "Ilves",
+      "memberNumber": "731",
+      "memberDate": "14.02.2026",
+      "suggestThirdPillarRaise": true
+    },
+    "kogumisfondi soovitus": {
+      "FNAME": "Kati",
+      "LNAME": "Ilves",
+      "memberNumber": "731",
+      "memberDate": "14.02.2026",
+      "suggestSavingsFund": true,
+      "savingsFundFee": "0,28"
+    },
+    "kogumisfondi püsimakse soovitus": {
+      "FNAME": "Kati",
+      "LNAME": "Ilves",
+      "memberNumber": "731",
+      "memberDate": "14.02.2026",
+      "suggestSavingsFundRecurringPayment": true
+    },
+    "liikmesuse soovitus (ei esine)": {
+      "FNAME": "Toomas",
+      "LNAME": "Rebane",
+      "memberNumber": "902",
+      "memberDate": "09.11.2026",
+      "suggestMembership": true
     },
     "ilma lisasoovituseta": {
       "FNAME": "Liina",

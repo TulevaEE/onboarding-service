@@ -5,7 +5,7 @@
 
     <mj-section padding-top="12px">
       <mj-column>
-        <mj-text>Tere,&nbsp;*|FNAME|*.</mj-text>
+        <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
           Tühistasid Tuleva kaudu oma II&nbsp;sambast lahkumise avalduse ja sa jätkad kogumist
           II&nbsp;sambas nii nagu seni.

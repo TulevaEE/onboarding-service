@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
 import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.payment.Payment;
+import ee.tuleva.onboarding.savings.fund.SavingsFundFees;
 import ee.tuleva.onboarding.user.User;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +28,7 @@ public class PaymentEmailService {
 
   private final EmailService emailService;
   private final EmailPersistenceService emailPersistenceService;
+  private final SavingsFundFees savingsFundFees;
 
   void sendThirdPillarPaymentSuccessEmail(
       User user, Payment payment, PillarSuggestion pillarSuggestion, Locale locale) {
@@ -37,7 +39,7 @@ public class PaymentEmailService {
         emailService.newMandrillMessage(
             user.getEmail(),
             emailType.getTemplateName(locale),
-            getMergeVars(user, payment, pillarSuggestion),
+            getMergeVars(user, payment, pillarSuggestion, locale),
             getTags(pillarSuggestion),
             cancelReminderEmailsAndGetMandateAttachment(user));
     emailService
@@ -49,12 +51,23 @@ public class PaymentEmailService {
   }
 
   void sendSavingsFundPaymentEmail(
-      User user, SavingsFundPaymentEmail email, PillarSuggestion pillarSuggestion, Locale locale) {
+      User user,
+      SavingsFundPaymentEmail email,
+      PillarSuggestion pillarSuggestion,
+      boolean suggestAccountRecurringPayment,
+      Locale locale) {
     Map<String, Object> mergeVars = new HashMap<>(getNameMergeVars(user));
-    mergeVars.putAll(getPillarSuggestionMergeVars(pillarSuggestion));
+    mergeVars.putAll(
+        getPillarSuggestionMergeVars(
+            pillarSuggestion, savingsFundFees.ongoingChargesPercent(locale)));
+    mergeVars.put("suggestAccountRecurringPayment", suggestAccountRecurringPayment);
     mergeVars.putAll(email.mergeVars());
 
-    sendSavingsFundEmail(user, email, mergeVars, getSavingsFundTags(pillarSuggestion), locale);
+    List<String> tags =
+        suggestAccountRecurringPayment
+            ? List.of(SAVINGS_FUND_TAG, "nudge_savings_fund_recurring")
+            : getSavingsFundTags(pillarSuggestion);
+    sendSavingsFundEmail(user, email, mergeVars, tags, locale);
   }
 
   void sendSavingsFundPaymentEmail(User user, SavingsFundPaymentEmail email, Locale locale) {
@@ -83,7 +96,7 @@ public class PaymentEmailService {
   }
 
   private Map<String, Object> getMergeVars(
-      User user, Payment payment, PillarSuggestion pillarSuggestion) {
+      User user, Payment payment, PillarSuggestion pillarSuggestion, Locale locale) {
     Map<String, Object> variables =
         new HashMap<>(
             Map.of(
@@ -92,7 +105,9 @@ public class PaymentEmailService {
                 "senderPersonalCode", user.getPersonalCode(),
                 "recipientPersonalCode", payment.getRecipientPersonalCode()));
     variables.putAll(getNameMergeVars(user));
-    variables.putAll(getPillarSuggestionMergeVars(pillarSuggestion));
+    variables.putAll(
+        getPillarSuggestionMergeVars(
+            pillarSuggestion, savingsFundFees.ongoingChargesPercent(locale)));
 
     return variables;
   }
@@ -112,6 +127,7 @@ public class PaymentEmailService {
       tags.add("suggest_member");
     }
 
+    pillarSuggestion.renderedNudgeTag().ifPresent(tags::add);
     return tags;
   }
 
@@ -127,6 +143,7 @@ public class PaymentEmailService {
     if (pillarSuggestion.isSuggestMembership()) {
       tags.add("suggest_member");
     }
+    pillarSuggestion.renderedNudgeTag().ifPresent(tags::add);
     return tags;
   }
 

@@ -14,6 +14,8 @@ import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService
 import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
 
+import java.util.Set
+
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notFullyConverted
 import static ee.tuleva.onboarding.mandate.MandateFixture.aFundPensionOpeningMandateDetails
@@ -23,6 +25,12 @@ import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 import static ee.tuleva.onboarding.mandate.MandateFixture.samplePartialWithdrawalMandate
 import static ee.tuleva.onboarding.mandate.MandateFixture.thirdPillarMandate
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchFixture.aMandateBatch
+import ee.tuleva.onboarding.analytics.SecondPillarLeavers
+import ee.tuleva.onboarding.analytics.RecurringPayments
+import ee.tuleva.onboarding.analytics.RecurringSavers
+import ee.tuleva.onboarding.contribution.ThirdPillarTaxHeadroom
+import ee.tuleva.onboarding.savings.fund.SavingsFundSavers
+
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchFixture.aSavedMandateBatch
 import static ee.tuleva.onboarding.paymentrate.PaymentRatesFixture.samplePaymentRates
 
@@ -33,8 +41,20 @@ class MandateEmailSenderSpec extends Specification {
   UserConversionService conversionService = Mock(UserConversionService)
   SecondPillarPaymentRateService paymentRateService = Mock(SecondPillarPaymentRateService)
   MandateBatchEmailService mandateBatchEmailService = Mock(MandateBatchEmailService)
+  SecondPillarLeavers secondPillarLeavers = Mock(SecondPillarLeavers) {
+    hasLeft(_) >> false
+  }
+  SavingsFundSavers savingsFundSavers = Mock(SavingsFundSavers) {
+    isSaver(_) >> false
+  }
+  RecurringSavers recurringSavers = Mock(RecurringSavers) {
+    recurringPaymentsOf(_) >> new RecurringPayments(true, true)
+  }
 
-  MandateEmailSender mandateEmailSender = new MandateEmailSender(mandateEmailService, mandateBatchEmailService, episService, conversionService, paymentRateService)
+  ThirdPillarTaxHeadroom thirdPillarTaxHeadroom = Mock(ThirdPillarTaxHeadroom) {
+    hasHeadroom(_) >> false
+  }
+  MandateEmailSender mandateEmailSender = new MandateEmailSender(mandateEmailService, mandateBatchEmailService, episService, conversionService, paymentRateService, secondPillarLeavers, savingsFundSavers, recurringSavers, thirdPillarTaxHeadroom)
 
   def "send email when second pillar mandate event was received"() {
     given:
@@ -43,7 +63,7 @@ class MandateEmailSenderSpec extends Specification {
     ContactDetails contactDetails = new ContactDetails()
     ConversionResponse conversion = notFullyConverted()
     PaymentRates paymentRates = samplePaymentRates()
-    PillarSuggestion pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    PillarSuggestion pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates, Set.of(mandate.getPillar()), false, false)
 
     AfterMandateSignedEvent event = new AfterMandateSignedEvent(this, user, mandate, Locale.ENGLISH)
 
@@ -65,7 +85,7 @@ class MandateEmailSenderSpec extends Specification {
     ContactDetails contactDetails = new ContactDetails()
     ConversionResponse conversion = notFullyConverted()
     PaymentRates paymentRates = samplePaymentRates()
-    PillarSuggestion pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    PillarSuggestion pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates, Set.of(mandate.getPillar()), false, false)
 
     AfterMandateSignedEvent event = new AfterMandateSignedEvent(this, user, mandate, Locale.ENGLISH)
 
@@ -92,7 +112,7 @@ class MandateEmailSenderSpec extends Specification {
     ContactDetails contactDetails = new ContactDetails()
     ConversionResponse conversion = notFullyConverted()
     PaymentRates paymentRates = samplePaymentRates()
-    PillarSuggestion pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    PillarSuggestion pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates, [fundPensionMandate.getPillar(), withdrawalMandate.getPillar()] as Set, false, false)
 
     AfterMandateBatchSignedEvent event = new AfterMandateBatchSignedEvent(this, user, mandateBatch, Locale.ENGLISH)
 

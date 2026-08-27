@@ -1,7 +1,13 @@
 {
   "variants": {
+    "account recurring suggestion": {
+      "FNAME": "Mari",
+      "suggestAccountRecurringPayment": true,
+      "RECIPIENTNAME": "Mesila OÜ"
+    },
     "company contribution": {
-      "FNAME": "Mari"
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Mesila OÜ"
     }
   }
 }

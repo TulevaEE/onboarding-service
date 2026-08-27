@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.analytics.transaction.thirdpillar.FirstThirdPillarPa
 import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.savings.fund.SavingsFundFees;
+import ee.tuleva.onboarding.user.Names;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -57,8 +58,8 @@ public class ThirdPillarPaymentArrivedEmailService {
 
   private Map<String, Object> mergeVars(FirstThirdPillarPayment payment) {
     return Map.ofEntries(
-        Map.entry("fname", payment.getFirstName()),
-        Map.entry("lname", payment.getLastName()),
+        Map.entry("fname", Names.formatted(payment.getFirstName())),
+        Map.entry("lname", Names.formatted(payment.getLastName())),
         Map.entry("paymentDate", payment.firstPaymentDate().format(PAYMENT_DATE_FORMAT)),
         Map.entry("hasTulevaUser", payment.hasTulevaUser()),
         Map.entry("leftSecondPillar", payment.leftSecondPillar()),

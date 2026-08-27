@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SAVINGS_F
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SAVINGS_FUND_PAYMENT_SUCCESS_PERSON;
 
 import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
+import ee.tuleva.onboarding.user.Names;
 import java.util.Map;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -42,6 +43,7 @@ record SavingsFundPaymentEmail(EmailType emailType, Map<String, Object> mergeVar
       EmailType emailType, @Nullable String recipientName) {
     return recipientName == null
         ? withoutRecipient(emailType)
-        : new SavingsFundPaymentEmail(emailType, Map.of("recipientName", recipientName));
+        : new SavingsFundPaymentEmail(
+            emailType, Map.of("recipientName", Names.formatted(recipientName)));
   }
 }

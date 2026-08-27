@@ -18,10 +18,17 @@ class ProviderSpec extends Specification {
     Provider.ISHARES     | IRELAND
     Provider.VANGUARD    | IRELAND
     Provider.XTRACKERS   | IRELAND
+    Provider.XTRACKERS_IE | IRELAND
+    Provider.XTRACKERS_LU | LUXEMBOURG
     Provider.INVESCO     | IRELAND
     Provider.CCF         | IRELAND
     Provider.AMUNDI      | LUXEMBOURG
     Provider.BNP_PARIBAS | LUXEMBOURG
+  }
+
+  def "the two Xtrackers issuers are told apart by domicile, which is what the settlement calendar needs"() {
+    expect:
+    Provider.XTRACKERS_IE.domicile != Provider.XTRACKERS_LU.domicile
   }
 
   def "the legacy CCF label shares the domicile of ISHARES, both labelling the same Irish BlackRock fund"() {

@@ -56,6 +56,7 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
   private static final String LONG_TIME_SAVER = TestPersonalCodes.withValidChecksum("3881212121");
   private static final String EMPLOYER_PAID = TestPersonalCodes.withValidChecksum("3900101000");
   private static final String REGISTRY_ONLY = TestPersonalCodes.withValidChecksum("3870101000");
+  private static final String PENSIONER = TestPersonalCodes.withValidChecksum("3550101000");
   private static final String UNDERAGE = TestPersonalCodes.withValidChecksum("5160101000");
   private static final String DECEASED = TestPersonalCodes.withValidChecksum("3840101000");
   private static final String SECOND_PILLAR_LEAVER =
@@ -123,6 +124,22 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
             eq("third_pillar_payment_arrived_et"));
     assertThat(sentEmailCount()).isEqualTo(1);
     assertThat(claimCount()).isEqualTo(1);
+  }
+
+  @Test
+  void neverSuggestsTheSecondPillarToSomeoneAtRetirementAge() {
+    saveUser(PENSIONER, "pensioner@example.com");
+    saveOwnPayment(PENSIONER, LocalDate.now().minusDays(1), new BigDecimal("100.00"));
+
+    job.run();
+
+    verify(emailService)
+        .newMandrillMessage(
+            eq("pensioner@example.com"),
+            eq("third_pillar_payment_arrived_et"),
+            argThat(mergeVars -> Boolean.FALSE.equals(mergeVars.get("suggestSecondPillar"))),
+            any(),
+            any());
   }
 
   @Test

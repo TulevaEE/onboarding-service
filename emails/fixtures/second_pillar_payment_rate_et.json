@@ -1,6 +1,6 @@
 {
   "variants": {
-    "II samba soovitus (ei esine)": {
+    "II samba soovitus": {
       "FNAME": "Jaan",
       "increased": false,
       "paymentRateFulfillmentDate": "01.01.2027",
@@ -62,6 +62,14 @@
       "increased": false,
       "paymentRateFulfillmentDate": "01.01.2027",
       "newPaymentRate": "2"
+    },
+    "III samba tasude soovitus": {
+      "FNAME": "Mari",
+      "increased": true,
+      "paymentRateFulfillmentDate": "01.01.2027",
+      "newPaymentRate": "4",
+      "suggestThirdPillar": true,
+      "thirdPillarActive": true
     }
   }
 }

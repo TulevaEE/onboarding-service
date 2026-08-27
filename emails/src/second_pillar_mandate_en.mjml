@@ -7,7 +7,9 @@
       <mj-column>
         <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
-          You are now saving in your second pillar alongside me and other Tuleva members.
+          *|IF:selectedTulevaFund|*You are now saving in your second pillar alongside me and
+          other Tuleva members.*|ELSE:|*Your second pillar application has been
+          submitted.*|END:IF|*
         </mj-text>
         <mj-raw>*|IF:hasFundSelection|*</mj-raw>
         <mj-raw>*|IF:hasFundTransfer|*</mj-raw>
@@ -25,6 +27,22 @@
         <mj-raw>*|ELSE:|*</mj-raw>
         <mj-text>
           The exchange of your existing fund units takes effect on&nbsp;*|transferDate|*.
+        </mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+        <mj-raw>*|IF:selectedHighFeeFund|*</mj-raw>
+        <mj-text>
+          Please note: the chosen fund's ongoing charges are *|selectedFundFee|*% per year.
+          A high fee takes a considerable share of your long-term return. You can compare
+          fund fees at
+          <a href="https://www.pensionikeskus.ee/en/ii-pillar/funds/fund-fee-comparison/">Pensionikeskus</a>.
+        </mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+        <mj-raw>*|IF:selectedConservativeFund|*</mj-raw>
+        <mj-text>
+          Please note: you chose a low-risk fund. With many years to go until retirement,
+          equity funds have historically delivered considerably better returns than bond
+          funds. You can compare funds at
+          <a href="https://www.pensionikeskus.ee/en/ii-pillar/funds/fund-fee-comparison/">Pensionikeskus</a>.
         </mj-text>
         <mj-raw>*|END:IF|*</mj-raw>
 

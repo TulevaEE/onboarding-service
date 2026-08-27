@@ -21,6 +21,7 @@ public class EmailVariablesAttachments {
         Map.entry("suggestMembership", pillarSuggestion.isSuggestMembership()),
         Map.entry("suggestSecondPillar", pillarSuggestion.isSuggestSecondPillar()),
         Map.entry("suggestThirdPillar", pillarSuggestion.isSuggestThirdPillar()),
+        Map.entry("thirdPillarActive", pillarSuggestion.isThirdPillarActive()),
         Map.entry("leftSecondPillar", pillarSuggestion.isLeftSecondPillar()),
         Map.entry("suggestSavingsFund", pillarSuggestion.isSuggestSavingsFund()),
         Map.entry(

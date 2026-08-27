@@ -59,6 +59,14 @@
       "paymentDate": "12.08.2026",
       "hasTulevaUser": false,
       "suggestSecondPillar": true
+    },
+    "III samba tasude soovitus (ei esine)": {
+      "FNAME": "Mari",
+      "amount": "300",
+      "paymentDate": "12.08.2026",
+      "hasTulevaUser": true,
+      "suggestThirdPillar": true,
+      "thirdPillarActive": true
     }
   }
 }

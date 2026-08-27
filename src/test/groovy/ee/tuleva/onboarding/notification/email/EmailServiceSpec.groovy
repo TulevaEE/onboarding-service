@@ -266,7 +266,7 @@ class EmailServiceSpec extends Specification {
     template                             | suggestThirdPillar | suggestSecondPillar | suggestPaymentRate
     "third_pillar_payment_arrived_et"    | false              | true                | true
     "second_pillar_mandate_en"           | true               | false               | true
-    "second_pillar_payment_rate_et"      | true               | false               | false
+    "second_pillar_payment_rate_et"      | true               | true                | false
     "payment_rate_abandonment_et"        | true               | false               | false
     "withdrawal_batch_et"                | false              | false               | false
     "savings_fund_payment_success_et"    | true               | true                | true

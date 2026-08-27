@@ -49,6 +49,12 @@
     "no nudge": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Mari Maasikas"
+    },
+    "third pillar fees suggestion": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Mari Maasikas",
+      "suggestThirdPillar": true,
+      "thirdPillarActive": true
     }
   }
 }

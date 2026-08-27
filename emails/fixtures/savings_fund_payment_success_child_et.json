@@ -49,6 +49,12 @@
     "ilma soovituseta": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Jaan Tamm"
+    },
+    "III samba tasude soovitus": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Jaan Tamm",
+      "suggestThirdPillar": true,
+      "thirdPillarActive": true
     }
   }
 }

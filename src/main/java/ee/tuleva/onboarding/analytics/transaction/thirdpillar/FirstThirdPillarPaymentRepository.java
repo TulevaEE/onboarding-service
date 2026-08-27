@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.analytics.transaction.thirdpillar;
 
+import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -117,11 +118,16 @@ public class FirstThirdPillarPaymentRepository {
                     rs.getBigDecimal("amount"),
                     rs.getObject("first_payment_date", LocalDate.class),
                     rs.getBoolean("has_tuleva_user"),
-                    rs.getBoolean("suggest_second_pillar"),
+                    rs.getBoolean("suggest_second_pillar")
+                        && !hasReachedRetirementAge(rs.getString("personal_id")),
                     rs.getBoolean("suggest_payment_rate"),
                     rs.getBoolean("suggest_membership"),
                     rs.getBoolean("left_second_pillar"),
                     rs.getBoolean("saves_in_savings_fund")))
         .list();
+  }
+
+  private static boolean hasReachedRetirementAge(String personalCode) {
+    return PersonalCode.getAge(personalCode) >= PersonalCode.getRetirementAge(personalCode);
   }
 }

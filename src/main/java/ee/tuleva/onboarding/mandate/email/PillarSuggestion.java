@@ -23,6 +23,7 @@ public class PillarSuggestion {
   private final boolean suggestMembership;
   private final boolean leftSecondPillar;
   private final boolean suggestSavingsFund;
+  private final boolean thirdPillarActive;
   private final boolean suggestThirdPillarRecurringPayment;
   private final boolean suggestThirdPillarRaise;
   private final boolean suggestSavingsFundRecurringPayment;
@@ -148,25 +149,29 @@ public class PillarSuggestion {
             && paymentRates.canIncrease();
     this.suggestSecondPillar =
         adult
+            && !user.hasReachedRetirementAge()
             && !leftSecondPillar
             && !mandatePillars.contains(2)
             && (!contactDetails.isSecondPillarActive()
                 || !conversion.isSecondPillarPartiallyConverted()
-                || (conversion.getSecondPillarWeightedAverageFee() != null
+                || (!conversion.isSecondPillarFullyConverted()
+                    && conversion.getSecondPillarWeightedAverageFee() != null
                     && conversion
                             .getSecondPillarWeightedAverageFee()
-                            .compareTo(new BigDecimal("0.005"))
+                            .compareTo(new BigDecimal("0.003"))
                         > 0));
     this.suggestThirdPillar =
         !mandatePillars.contains(3)
             && (!contactDetails.isThirdPillarActive()
                 || !conversion.isThirdPillarPartiallyConverted()
-                || (conversion.getThirdPillarWeightedAverageFee() != null
+                || (!conversion.isThirdPillarFullyConverted()
+                    && conversion.getThirdPillarWeightedAverageFee() != null
                     && conversion
                             .getThirdPillarWeightedAverageFee()
-                            .compareTo(new BigDecimal("0.005"))
+                            .compareTo(new BigDecimal("0.003"))
                         > 0));
     this.suggestMembership = !user.isMember();
+    this.thirdPillarActive = contactDetails.isThirdPillarActive();
     this.suggestThirdPillarRecurringPayment =
         adult && contactDetails.isThirdPillarActive() && !recurringPayments.thirdPillar();
     this.suggestThirdPillarRaise =

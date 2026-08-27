@@ -1,6 +1,18 @@
+<mj-raw>*|IF:thirdPillarActive|*</mj-raw>
+<mj-text>
+  Kui sa ei kogu oma III&nbsp;sammast veel koos meiega Tulevas, siis veendu, et sinu
+  III&nbsp;samba fonditasud jääksid alla 0,3% aastas, sest madalad tasud annavad parimad
+  eeldused parimaks pikaajaliseks tootluseks.
+</mj-text>
+<mj-text><strong>Vaata järele, kui palju maksad täna aastas oma III&nbsp;samba tasudeks:</strong></mj-text>
+<mj-button href="https://pension.tuleva.ee/login?utm_content=nudge_third_pillar">
+  Vaata oma tasud üle
+</mj-button>
+<mj-raw>*|ELSE:|*</mj-raw>
 <mj-text>
   Järgmisena on kaval üles seada III&nbsp;sammas. Näiteks kui teed igal kuul
   100‑eurose sissemakse, annab riik sulle kevadel 264 eurot tulumaksu tagasi.
 </mj-text>
 <mj-text><strong>Vaata järele, kui palju sina võidaksid maksudelt:</strong></mj-text>
 <mj-button href="https://tuleva.ee/iii-sammas/?utm_content=nudge_third_pillar">Arvuta&nbsp;oma&nbsp;maksuvõit</mj-button>
+<mj-raw>*|END:IF|*</mj-raw>

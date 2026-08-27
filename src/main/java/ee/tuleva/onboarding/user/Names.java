@@ -1,37 +1,45 @@
 package ee.tuleva.onboarding.user;
 
+import static java.util.stream.Collectors.joining;
+
+import java.util.Arrays;
 import java.util.Locale;
 
 public class Names {
 
   private static final Locale ESTONIAN = Locale.of("et");
+  private static final String NAME_PART_SEPARATORS = " -'";
+  private static final String SPLIT_KEEPING_SEPARATORS = "(?<=[ \\-'])|(?=[ \\-'])";
 
   public static String formatted(String name) {
     if (name == null || name.isBlank()) {
       return name;
     }
-    StringBuilder result = new StringBuilder(name.length());
-    StringBuilder token = new StringBuilder();
-    for (char c : name.toCharArray()) {
-      if (c == ' ' || c == '-' || c == '\'') {
-        result.append(formattedToken(token.toString())).append(c);
-        token.setLength(0);
-      } else {
-        token.append(c);
-      }
-    }
-    return result.append(formattedToken(token.toString())).toString();
+    return Arrays.stream(name.split(SPLIT_KEEPING_SEPARATORS))
+        .map(Names::formattedPart)
+        .collect(joining());
   }
 
-  private static String formattedToken(String token) {
-    if (token.isEmpty()) {
-      return token;
+  private static String formattedPart(String part) {
+    if (part.isEmpty() || isSeparator(part) || hasDeliberateCasing(part)) {
+      return part;
     }
-    boolean allLower = token.equals(token.toLowerCase(ESTONIAN));
-    boolean allUpper = token.equals(token.toUpperCase(ESTONIAN));
-    if (!allLower && !allUpper) {
-      return token;
-    }
-    return token.substring(0, 1).toUpperCase(ESTONIAN) + token.substring(1).toLowerCase(ESTONIAN);
+    return capitalized(part);
+  }
+
+  private static boolean isSeparator(String part) {
+    return part.length() == 1 && NAME_PART_SEPARATORS.contains(part);
+  }
+
+  private static boolean hasDeliberateCasing(String part) {
+    boolean isAllLowerCase = part.equals(part.toLowerCase(ESTONIAN));
+    boolean isAllUpperCase = part.equals(part.toUpperCase(ESTONIAN));
+    return !isAllLowerCase && !isAllUpperCase;
+  }
+
+  private static String capitalized(String part) {
+    String firstLetter = part.substring(0, 1);
+    String rest = part.substring(1);
+    return firstLetter.toUpperCase(ESTONIAN) + rest.toLowerCase(ESTONIAN);
   }
 }

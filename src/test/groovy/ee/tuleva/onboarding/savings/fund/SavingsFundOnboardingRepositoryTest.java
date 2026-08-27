@@ -107,6 +107,19 @@ class SavingsFundOnboardingRepositoryTest {
   }
 
   @Test
+  void saveOnboardingStatus_returnsEmptyWhenNoRecordExisted() {
+    assertThat(repository.saveOnboardingStatus("87654321", LEGAL_ENTITY, PENDING)).isEmpty();
+  }
+
+  @Test
+  void saveOnboardingStatus_returnsThePreviousStatusWhenRecordExisted() {
+    repository.saveOnboardingStatus("12121212", LEGAL_ENTITY, PENDING);
+
+    assertThat(repository.saveOnboardingStatus("12121212", LEGAL_ENTITY, COMPLETED))
+        .contains(PENDING);
+  }
+
+  @Test
   void findPersonCodes_returnsEveryOnboardedPersonRegardlessOfStatus() {
     repository.saveOnboardingStatus("60001019906", PERSON, COMPLETED);
     repository.saveOnboardingStatus("38888888888", PERSON, PENDING);
@@ -114,6 +127,20 @@ class SavingsFundOnboardingRepositoryTest {
 
     assertThat(repository.findPersonCodes())
         .containsExactlyInAnyOrder("60001019906", "38888888888");
+  }
+
+  // Concurrent verifications re-screen the same waiting set. Taking the companies in a stable
+  // order keeps their per-company locks in a consistent sequence.
+  @Test
+  void findPendingLegalEntityCodes_returnsOnlyPendingLegalEntitiesOrderedByCode() {
+    repository.saveOnboardingStatus("33333333", LEGAL_ENTITY, PENDING);
+    repository.saveOnboardingStatus("11111111", LEGAL_ENTITY, PENDING);
+    repository.saveOnboardingStatus("22222222", LEGAL_ENTITY, COMPLETED);
+    repository.saveOnboardingStatus("44444444", LEGAL_ENTITY, PENDING);
+    repository.saveOnboardingStatus("38888888888", PERSON, PENDING);
+
+    assertThat(repository.findPendingLegalEntityCodes())
+        .containsExactly("11111111", "33333333", "44444444");
   }
 
   @Test

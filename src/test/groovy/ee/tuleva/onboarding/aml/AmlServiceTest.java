@@ -142,12 +142,33 @@ class AmlServiceTest {
   @Test
   void addKycCheck_persistsFreshPassingCheckWhenOnlyFailedCheckExists() {
     given(
-            amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
-                "38501010002", KYC_CHECK, true, aYearAgoFromTestClock))
-        .willReturn(false);
+            amlCheckRepository
+                .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDescIdDesc(
+                    "38888888888", KYC_CHECK, aYearAgoFromTestClock))
+        .willReturn(Optional.of(kycCheck(false, FIXED_INSTANT.minus(30, ChronoUnit.DAYS))));
 
     var result =
-        amlService.addKycCheck("38501010002", new KycCheck(LOW, Map.of("riskLevel", "LOW")));
+        amlService.addKycCheck("38888888888", new KycCheck(LOW, Map.of("riskLevel", "LOW")));
+
+    assertThat(result)
+        .hasValueSatisfying(
+            check -> {
+              assertThat(check.getType()).isEqualTo(KYC_CHECK);
+              assertThat(check.isSuccess()).isTrue();
+              assertThat(check.getMetadata()).isEqualTo(Map.of("riskLevel", "LOW"));
+            });
+  }
+
+  @Test
+  void addKycCheck_persistsPassingRecheckWhenLatestCheckFailedDespiteEarlierSuccess() {
+    given(
+            amlCheckRepository
+                .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDescIdDesc(
+                    "38888888888", KYC_CHECK, aYearAgoFromTestClock))
+        .willReturn(Optional.of(kycCheck(false, FIXED_INSTANT.minus(90, ChronoUnit.DAYS))));
+
+    var result =
+        amlService.addKycCheck("38888888888", new KycCheck(LOW, Map.of("riskLevel", "LOW")));
 
     assertThat(result)
         .hasValueSatisfying(
@@ -173,12 +194,13 @@ class AmlServiceTest {
   @Test
   void addKycCheck_persistsStillFailingRecheckWhenNoSuccessfulCheckExists() {
     given(
-            amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
-                "38501010002", KYC_CHECK, true, aYearAgoFromTestClock))
-        .willReturn(false);
+            amlCheckRepository
+                .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDescIdDesc(
+                    "38888888888", KYC_CHECK, aYearAgoFromTestClock))
+        .willReturn(Optional.of(kycCheck(false, FIXED_INSTANT.minus(30, ChronoUnit.DAYS))));
 
     var result =
-        amlService.addKycCheck("38501010002", new KycCheck(HIGH, Map.of("riskLevel", "HIGH")));
+        amlService.addKycCheck("38888888888", new KycCheck(HIGH, Map.of("riskLevel", "HIGH")));
 
     assertThat(result)
         .hasValueSatisfying(
@@ -191,12 +213,13 @@ class AmlServiceTest {
   @Test
   void addKycCheck_skipsPassingRecheckWhenRecentSuccessfulCheckExists() {
     given(
-            amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
-                "38501010002", KYC_CHECK, true, aYearAgoFromTestClock))
-        .willReturn(true);
+            amlCheckRepository
+                .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDescIdDesc(
+                    "38888888888", KYC_CHECK, aYearAgoFromTestClock))
+        .willReturn(Optional.of(kycCheck(true, FIXED_INSTANT.minus(30, ChronoUnit.DAYS))));
 
     var result =
-        amlService.addKycCheck("38501010002", new KycCheck(LOW, Map.of("riskLevel", "LOW")));
+        amlService.addKycCheck("38888888888", new KycCheck(LOW, Map.of("riskLevel", "LOW")));
 
     assertThat(result).isEmpty();
     verify(amlCheckRepository, never()).save(any(AmlCheck.class));
@@ -205,12 +228,13 @@ class AmlServiceTest {
   @Test
   void addKycCheck_persistsAdverseRecheckEvenWhenRecentSuccessfulCheckExists() {
     given(
-            amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
-                "38501010002", KYC_CHECK, true, aYearAgoFromTestClock))
-        .willReturn(true);
+            amlCheckRepository
+                .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDescIdDesc(
+                    "38888888888", KYC_CHECK, aYearAgoFromTestClock))
+        .willReturn(Optional.of(kycCheck(true, FIXED_INSTANT.minus(30, ChronoUnit.DAYS))));
 
     var result =
-        amlService.addKycCheck("38501010002", new KycCheck(HIGH, Map.of("riskLevel", "HIGH")));
+        amlService.addKycCheck("38888888888", new KycCheck(HIGH, Map.of("riskLevel", "HIGH")));
 
     assertThat(result)
         .hasValueSatisfying(
@@ -218,6 +242,15 @@ class AmlServiceTest {
               assertThat(check.getType()).isEqualTo(KYC_CHECK);
               assertThat(check.isSuccess()).isFalse();
             });
+  }
+
+  private AmlCheck kycCheck(boolean success, Instant createdTime) {
+    return AmlCheck.builder()
+        .personalCode("38888888888")
+        .type(KYC_CHECK)
+        .success(success)
+        .createdTime(createdTime)
+        .build();
   }
 
   @Test
@@ -998,7 +1031,7 @@ class AmlServiceTest {
   }
 
   private void latestCheckIs(AmlCheckType type, boolean success) {
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
             anyString(), eq(type)))
         .thenReturn(
             Optional.of(
@@ -1098,7 +1131,7 @@ class AmlServiceTest {
 
   private void givenRecordedCitizenships(String personalCode, List<String> citizenships) {
     given(
-            amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
+            amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
                 personalCode, CUSTODY_RIGHT))
         .willReturn(
             Optional.of(
@@ -1273,11 +1306,12 @@ class AmlServiceTest {
     MatchResponse emptyResponse =
         new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode());
     when(pepAndSanctionCheckService.match(user, country)).thenReturn(emptyResponse);
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc("123", SANCTION))
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
+            "123", SANCTION))
         .thenReturn(
             Optional.of(
                 AmlCheck.builder().personalCode("123").type(SANCTION).success(true).build()));
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
             "123", POLITICALLY_EXPOSED_PERSON_AUTO))
         .thenReturn(
             Optional.of(
@@ -1306,7 +1340,8 @@ class AmlServiceTest {
     results.add(result);
     MatchResponse matchResponse = new MatchResponse(results, objectMapper.createObjectNode());
     when(pepAndSanctionCheckService.match(user, country)).thenReturn(matchResponse);
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc("123", SANCTION))
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
+            "123", SANCTION))
         .thenReturn(
             Optional.of(
                 AmlCheck.builder().personalCode("123").type(SANCTION).success(false).build()));
@@ -1321,7 +1356,7 @@ class AmlServiceTest {
     MatchResponse emptyResponse =
         new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode());
     when(pepAndSanctionCheckService.match(user, country)).thenReturn(emptyResponse);
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
             eq("123"), any(AmlCheckType.class)))
         .thenReturn(Optional.empty());
 
@@ -1332,7 +1367,7 @@ class AmlServiceTest {
   void recordedCitizenships_readsEveryCitizenshipFromTheLatestCustodyCheck() {
     var person = new PersonImpl("61506150006", "Mari", "Maasikas");
     given(
-            amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
+            amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
                 person.getPersonalCode(), CUSTODY_RIGHT))
         .willReturn(
             Optional.of(
@@ -1350,7 +1385,7 @@ class AmlServiceTest {
   void recordedCitizenships_fallsBackToTheSingleCitizenshipOlderChecksRecorded() {
     var person = new PersonImpl("61506150006", "Mari", "Maasikas");
     given(
-            amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
+            amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
                 person.getPersonalCode(), CUSTODY_RIGHT))
         .willReturn(
             Optional.of(
@@ -1368,7 +1403,7 @@ class AmlServiceTest {
   void recordedCitizenships_isEmptyWhenTheCustodyCheckRecordedNoCitizenship() {
     var person = new PersonImpl("61506150006", "Mari", "Maasikas");
     given(
-            amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
+            amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
                 person.getPersonalCode(), CUSTODY_RIGHT))
         .willReturn(
             Optional.of(
@@ -1386,7 +1421,7 @@ class AmlServiceTest {
   void recordedCitizenships_isEmptyWhenThereIsNoCustodyCheck() {
     var person = new PersonImpl("38812121215", "Jaan", "Tamm");
     given(
-            amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
+            amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
                 person.getPersonalCode(), CUSTODY_RIGHT))
         .willReturn(Optional.empty());
 

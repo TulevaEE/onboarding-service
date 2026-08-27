@@ -20,6 +20,12 @@
       "RECIPIENTNAME": "Mari Maasikas",
       "suggestThirdPillar": true
     },
+    "third pillar fees suggestion": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Mari Maasikas",
+      "suggestThirdPillar": true,
+      "thirdPillarActive": true
+    },
     "third pillar recurring suggestion": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Mari Maasikas",

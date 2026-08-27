@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.party;
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.PENDING_KYC;
 import static ee.tuleva.onboarding.party.RepresentationType.GUARDIAN;
 import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE;
-import static org.apache.commons.lang3.text.WordUtils.capitalizeFully;
+import static ee.tuleva.onboarding.user.Names.formatted;
 import static org.springframework.transaction.annotation.Propagation.REQUIRES_NEW;
 
 import ee.tuleva.onboarding.user.User;
@@ -155,16 +155,16 @@ public class ParentChildLinkRegistrationService {
         .findByPersonalCode(personalCode)
         .ifPresentOrElse(
             existing -> {
-              existing.setFirstName(capitalizeFully(firstName, ' ', '-'));
-              existing.setLastName(capitalizeFully(lastName, ' ', '-'));
+              existing.setFirstName(formatted(firstName));
+              existing.setLastName(formatted(lastName));
               userService.save(existing);
             },
             () ->
                 userService.createNewUser(
                     User.builder()
                         .personalCode(personalCode)
-                        .firstName(capitalizeFully(firstName, ' ', '-'))
-                        .lastName(capitalizeFully(lastName, ' ', '-'))
+                        .firstName(formatted(firstName))
+                        .lastName(formatted(lastName))
                         .active(true)
                         .build()));
   }

@@ -43,7 +43,7 @@ public class RiskLevelService {
 
   private boolean latestLevelIsHigh(String personalCode, List<AmlCheckType> types) {
     return amlCheckRepository
-        .findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDesc(personalCode, types)
+        .findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDescIdDesc(personalCode, types)
         .map(this::isHighRiskLevel)
         .orElse(false);
   }

@@ -12,6 +12,11 @@
       "FNAME": "Mari",
       "suggestThirdPillar": true
     },
+    "third pillar fees suggestion (cannot occur)": {
+      "FNAME": "Mari",
+      "suggestThirdPillar": true,
+      "thirdPillarActive": true
+    },
     "third pillar recurring suggestion": {
       "FNAME": "Mari",
       "suggestThirdPillarRecurringPayment": true

@@ -1,6 +1,6 @@
 {
   "variants": {
-    "second pillar suggestion (cannot occur)": {
+    "second pillar suggestion": {
       "FNAME": "Jaan",
       "increased": false,
       "paymentRateFulfillmentDate": "01.01.2027",
@@ -20,6 +20,14 @@
       "paymentRateFulfillmentDate": "01.01.2027",
       "newPaymentRate": "4",
       "suggestThirdPillar": true
+    },
+    "third pillar fees suggestion": {
+      "FNAME": "Mari",
+      "increased": true,
+      "paymentRateFulfillmentDate": "01.01.2027",
+      "newPaymentRate": "4",
+      "suggestThirdPillar": true,
+      "thirdPillarActive": true
     },
     "third pillar recurring suggestion": {
       "FNAME": "Mari",

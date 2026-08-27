@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.kyb.survey;
 
 import static ee.tuleva.onboarding.event.TrackableEventType.SAVINGS_FUND_ONBOARDING_STATUS_CHANGE;
 import static ee.tuleva.onboarding.kyb.KybCheckType.*;
+import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.SUBMISSION;
 import static ee.tuleva.onboarding.kyb.survey.KybSurveyResponseItem.CompanyIncomeSource.*;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -511,7 +512,29 @@ class KybSurveyServiceTest {
 
     verify(kybSurveyRepository).save(any(KybSurvey.class));
     verify(legalEntityScreener)
-        .screen(REGISTRY_CODE, new PersonalCode(PERSONAL_CODE), selfCert, relationships);
+        .screen(
+            REGISTRY_CODE, new PersonalCode(PERSONAL_CODE), selfCert, relationships, SUBMISSION);
+  }
+
+  // The SUBMISSION trigger is what lets the screening queue a company that monitoring had
+  // rejected, so a rejected company's resubmission must screen under it and not as a re-screening.
+  @Test
+  void submit_screensARejectedCompanyUnderTheSubmissionTrigger() {
+    var selfCert = new SelfCertification(true, true, true);
+    var surveyResponse = sampleSurveyResponse();
+    when(kybSurveyResponseMapper.extractSelfCertification(surveyResponse)).thenReturn(selfCert);
+    var relationships = sampleRelationships();
+    when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE)).thenReturn(relationships);
+    when(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
+        .thenReturn(Optional.of(SavingsFundOnboardingStatus.REJECTED));
+    when(kybSurveyRepository.save(any(KybSurvey.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, surveyResponse);
+
+    verify(legalEntityScreener)
+        .screen(
+            REGISTRY_CODE, new PersonalCode(PERSONAL_CODE), selfCert, relationships, SUBMISSION);
   }
 
   @Test
@@ -536,6 +559,8 @@ class KybSurveyServiceTest {
 
     assertThatThrownBy(() -> service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, surveyResponse))
         .isInstanceOf(NotBoardMemberException.class);
+
+    verify(kybSurveyRepository, never()).save(any(KybSurvey.class));
   }
 
   @Test
@@ -582,17 +607,56 @@ class KybSurveyServiceTest {
   }
 
   @Test
+  void initialValidation_returnsNameErrorWhenOnboardingPending() {
+    stubInitialValidation(
+        sampleRelationships(),
+        sampleDetail(),
+        List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())));
+    when(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
+        .thenReturn(Optional.of(SavingsFundOnboardingStatus.PENDING));
+
+    var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
+
+    assertThat(result.name().errors())
+        .containsExactly(
+            new ValidationError("ONBOARDING_PENDING", "Ettevõtte liitumine on pooleli"));
+  }
+
+  @Test
+  void submit_throwsWhenOnboardingPending() {
+    when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE))
+        .thenReturn(sampleRelationships());
+    when(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
+        .thenReturn(Optional.of(SavingsFundOnboardingStatus.PENDING));
+
+    assertThatThrownBy(
+            () -> service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, sampleSurveyResponse()))
+        .isInstanceOf(OnboardingNotAllowedException.class)
+        .extracting(e -> ((OnboardingNotAllowedException) e).getReason())
+        .isEqualTo(BlockedReason.ONBOARDING_PENDING);
+
+    verify(kybSurveyRepository, never()).save(any(KybSurvey.class));
+    verify(eventPublisher)
+        .publishEvent(
+            new TrackableSystemEvent(
+                SAVINGS_FUND_ONBOARDING_STATUS_CHANGE, blockedAuditData("ONBOARDING_PENDING")));
+  }
+
+  @Test
   void submit_throwsWhenAlreadyOnboarded() {
     when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE))
         .thenReturn(sampleRelationships());
-    when(kybSurveyRepository.save(any(KybSurvey.class)))
-        .thenAnswer(invocation -> invocation.getArgument(0));
     when(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
         .thenReturn(Optional.of(SavingsFundOnboardingStatus.COMPLETED));
 
     assertThatThrownBy(
             () -> service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, sampleSurveyResponse()))
         .isInstanceOf(OnboardingNotAllowedException.class);
+
+    // Re-screening reads the latest stored survey, so a blocked submission must
+    // not leave one behind.
+    verify(kybSurveyRepository, never()).save(any(KybSurvey.class));
+    verify(legalEntityScreener, never()).screen(any(), any(), any(), any(), any());
   }
 
   @Test
@@ -628,8 +692,6 @@ class KybSurveyServiceTest {
   void submit_publishesAuditEventWhenAlreadyOnboarded() {
     when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE))
         .thenReturn(sampleRelationships());
-    when(kybSurveyRepository.save(any(KybSurvey.class)))
-        .thenAnswer(invocation -> invocation.getArgument(0));
     when(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
         .thenReturn(Optional.of(SavingsFundOnboardingStatus.COMPLETED));
 

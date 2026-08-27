@@ -224,7 +224,7 @@ public class EmailService {
     if (templateName.startsWith("third_pillar") || templateName.startsWith("withdrawal_batch")) {
       scrubbed.replace("suggestThirdPillar", false);
     }
-    if (templateName.startsWith("second_pillar")
+    if ((templateName.startsWith("second_pillar") && !templateName.contains("payment_rate"))
         || templateName.startsWith("payment_rate")
         || templateName.startsWith("withdrawal_batch")) {
       scrubbed.replace("suggestSecondPillar", false);

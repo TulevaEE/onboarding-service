@@ -150,14 +150,10 @@ class KybCompanyDataMapper {
   }
 
   private KybKycStatus resolveKycStatus(String personalCode) {
-    if (amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
-        personalCode, KYC_CHECK, true, aYearAgo())) {
-      return COMPLETED;
-    }
-    if (amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
-        personalCode, KYC_CHECK, false, aYearAgo())) {
-      return REJECTED;
-    }
-    return UNKNOWN;
+    return amlCheckRepository
+        .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDescIdDesc(
+            personalCode, KYC_CHECK, aYearAgo())
+        .map(check -> check.isSuccess() ? COMPLETED : REJECTED)
+        .orElse(UNKNOWN);
   }
 }

@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.kyb;
 
+import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.RESCREENING;
+import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.SUBMISSION;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
@@ -98,12 +100,13 @@ class LegalEntityScreenerTest {
                 detail, PERSONAL_CODE, relationships, BENEFICIAL_OWNERS, SELF_CERT))
         .willReturn(companyData);
     var checks = List.of(new KybCheck(KybCheckType.COMPANY_ACTIVE, true, Map.of()));
-    given(kybScreeningService.screen(companyData)).willReturn(checks);
+    given(kybScreeningService.screen(companyData, SUBMISSION)).willReturn(checks);
 
-    var result = screener.screen(REGISTRY_CODE, PERSONAL_CODE, SELF_CERT, relationships);
+    var result =
+        screener.screen(REGISTRY_CODE, PERSONAL_CODE, SELF_CERT, relationships, SUBMISSION);
 
     assertThat(result).isEqualTo(checks);
-    verify(kybScreeningService).screen(companyData);
+    verify(kybScreeningService).screen(companyData, SUBMISSION);
   }
 
   @Test
@@ -165,19 +168,20 @@ class LegalEntityScreenerTest {
                 detail, PERSONAL_CODE, List.of(boardMember), BENEFICIAL_OWNERS, SELF_CERT))
         .willReturn(companyData);
     var checks = List.of(new KybCheck(KybCheckType.COMPANY_ACTIVE, true, Map.of()));
-    given(kybScreeningService.screen(companyData)).willReturn(checks);
+    given(kybScreeningService.screen(companyData, RESCREENING)).willReturn(checks);
 
     var result = screener.screenLatest(REGISTRY_CODE);
 
     assertThat(result).isEqualTo(checks);
-    verify(kybScreeningService).screen(companyData);
+    verify(kybScreeningService).screen(companyData, RESCREENING);
   }
 
   @Test
   void screenThrowsWhenCompanyNotFoundInAriregister() {
     given(ariregisterClient.getCompanyDetails(REGISTRY_CODE)).willReturn(Optional.empty());
 
-    assertThatThrownBy(() -> screener.screen(REGISTRY_CODE, PERSONAL_CODE, SELF_CERT, List.of()))
+    assertThatThrownBy(
+            () -> screener.screen(REGISTRY_CODE, PERSONAL_CODE, SELF_CERT, List.of(), SUBMISSION))
         .isInstanceOf(IllegalStateException.class);
   }
 

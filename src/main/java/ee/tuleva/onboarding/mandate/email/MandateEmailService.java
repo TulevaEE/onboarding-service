@@ -10,7 +10,9 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.auth.principal.AuthenticationHolder;
 import ee.tuleva.onboarding.deadline.MandateDeadlines;
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
+import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
+import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
 import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
@@ -18,10 +20,12 @@ import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
 import ee.tuleva.onboarding.savings.fund.SavingsFundFees;
 import ee.tuleva.onboarding.user.User;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -118,6 +122,7 @@ public class MandateEmailService {
           "transferDate", deadlines.getTransferMandateFulfillmentDate().format(dateTimeFormatter));
       mergeVars.put("hasFundSelection", mandate.getFutureContributionFundIsin().isPresent());
       mergeVars.put("hasFundTransfer", !mandate.getFundTransferExchangesBySourceIsin().isEmpty());
+      mergeVars.putAll(selectedFundMergeVars(user, mandate, locale));
     }
 
     if (mandate.isTransferCancellation()) {
@@ -129,6 +134,50 @@ public class MandateEmailService {
     mergeVars.putAll(
         getPillarSuggestionMergeVars(
             pillarSuggestion, savingsFundFees.ongoingChargesPercent(locale)));
+    return mergeVars;
+  }
+
+  private Map<String, Object> selectedFundMergeVars(User user, Mandate mandate, Locale locale) {
+    List<Fund> selectedFunds =
+        Stream.concat(
+                mandate.getFutureContributionFundIsin().stream(),
+                mandate.getFundTransferExchangesBySourceIsin().values().stream()
+                    .flatMap(List::stream)
+                    .map(FundTransferExchange::getTargetFundIsin))
+            .filter(Objects::nonNull)
+            .distinct()
+            .map(fundRepository::findByIsin)
+            .filter(Objects::nonNull)
+            .toList();
+    boolean selectedTulevaFund = selectedFunds.stream().anyMatch(Fund::isOwnFund);
+    var mergeVars = new HashMap<String, Object>();
+    mergeVars.put("selectedTulevaFund", selectedTulevaFund);
+    BigDecimal conservativeEquityShare = new BigDecimal("0.25");
+    boolean youngInConservativeFund =
+        user.getAge() < 55
+            && !selectedFunds.isEmpty()
+            && selectedFunds.stream()
+                .anyMatch(
+                    fund ->
+                        fund.getEquityShare() != null
+                            && fund.getEquityShare().compareTo(conservativeEquityShare) < 0);
+    mergeVars.put("selectedConservativeFund", youngInConservativeFund);
+    BigDecimal highFeeThreshold = new BigDecimal("0.003");
+    BigDecimal highestFee =
+        selectedFunds.stream()
+            .filter(fund -> !fund.isOwnFund())
+            .map(Fund::getOngoingChargesFigure)
+            .filter(Objects::nonNull)
+            .max(BigDecimal::compareTo)
+            .orElse(BigDecimal.ZERO);
+    boolean selectedHighFeeFund = highestFee.compareTo(highFeeThreshold) > 0;
+    mergeVars.put("selectedHighFeeFund", selectedHighFeeFund);
+    if (selectedHighFeeFund) {
+      String fee =
+          highestFee.multiply(BigDecimal.valueOf(100)).stripTrailingZeros().toPlainString();
+      mergeVars.put(
+          "selectedFundFee", "et".equals(locale.getLanguage()) ? fee.replace('.', ',') : fee);
+    }
     return mergeVars;
   }
 

@@ -7,7 +7,9 @@
       <mj-column>
         <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
-          You are now saving in your second pillar alongside me and other Tuleva members.
+          *|IF:selectedTulevaFund|*You are now saving in your second pillar alongside me and
+          other Tuleva members.*|ELSE:|*Your second pillar application has been
+          submitted.*|END:IF|*
         </mj-text>
         <mj-raw>*|IF:hasFundSelection|*</mj-raw>
         <mj-raw>*|IF:hasFundTransfer|*</mj-raw>
@@ -25,6 +27,23 @@
         <mj-raw>*|ELSE:|*</mj-raw>
         <mj-text>
           The exchange of your existing fund units takes effect on&nbsp;*|transferDate|*.
+        </mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+        <mj-raw>*|IF:selectedHighFeeFund|*</mj-raw>
+        <mj-text>
+          Please note: you chose a fund whose ongoing charges are
+          <strong>*|selectedFundFee|*% per year</strong>.
+          Low fees provide the best foundation for optimal long-term returns. You can compare fund fees in the
+          <a href="https://tuleva.ee/vaata/pensionifondide-vordlus/?utm_content=warning_high_fee">pension fund comparison</a>.
+        </mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+        <mj-raw>*|IF:selectedConservativeFund|*</mj-raw>
+        <mj-text>
+          Please note: you chose a <strong>low-risk fund</strong>. With many years to go until
+          retirement,
+          equity funds have historically delivered considerably better returns than bond
+          funds. You can compare funds in the
+          <a href="https://tuleva.ee/vaata/pensionifondide-vordlus/?utm_content=warning_conservative">pension fund comparison</a>.
         </mj-text>
         <mj-raw>*|END:IF|*</mj-raw>
 

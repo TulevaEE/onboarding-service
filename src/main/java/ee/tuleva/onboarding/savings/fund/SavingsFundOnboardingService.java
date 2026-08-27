@@ -55,13 +55,19 @@ public class SavingsFundOnboardingService {
     if (newStatus == oldStatus) {
       return;
     }
-    savingsFundOnboardingRepository.saveOnboardingStatus(user.getPersonalCode(), PERSON, newStatus);
-    if (newStatus == COMPLETED) {
+    SavingsFundOnboardingStatus previousStatus =
+        savingsFundOnboardingRepository
+            .saveOnboardingStatus(user.getPersonalCode(), PERSON, newStatus)
+            .orElse(null);
+    if (newStatus == COMPLETED && previousStatus != COMPLETED) {
       eventPublisher.publishEvent(new SavingsFundOnboardingCompletedEvent(user));
     }
+    if (previousStatus == newStatus) {
+      return;
+    }
     Map<String, Object> eventData = new HashMap<>();
-    if (oldStatus != null) {
-      eventData.put("oldStatus", oldStatus);
+    if (previousStatus != null) {
+      eventData.put("oldStatus", previousStatus);
     }
     eventData.put("newStatus", newStatus);
     eventPublisher.publishEvent(

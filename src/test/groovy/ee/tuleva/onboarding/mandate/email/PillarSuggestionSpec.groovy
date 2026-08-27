@@ -55,6 +55,25 @@ class PillarSuggestionSpec extends Specification {
     true              | true                          | 0.006                         | true
   }
 
+  def "high fees only matter while the pillar is not fully converted"() {
+    when:
+    contactDetails.isSecondPillarActive() >> true
+    conversion.isSecondPillarPartiallyConverted() >> true
+    conversion.isSecondPillarFullyConverted() >> fullyConverted
+    conversion.getSecondPillarWeightedAverageFee() >> fee
+    user.getAge() >> 40
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+
+    then:
+    pillarSuggestion.isSuggestSecondPillar() == suggestSecondPillar
+
+    where:
+    fullyConverted | fee   | suggestSecondPillar
+    false          | 0.004 | true
+    false          | 0.003 | false
+    true           | 0.006 | false
+  }
+
   def "suggests membership"() {
     when:
     user.isMember() >> isMember
@@ -147,6 +166,20 @@ class PillarSuggestionSpec extends Specification {
     age | suggestSecondPillar | suggestPaymentRate
     17  | false               | false
     18  | true                | true
+  }
+
+  def "never suggests the second pillar to someone at retirement age"() {
+    when:
+    user.getAge() >> 66
+    user.hasReachedRetirementAge() >> true
+    contactDetails.isSecondPillarActive() >> true
+    conversion.isSecondPillarPartiallyConverted() >> false
+    paymentRates.canIncrease() >> true
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+
+    then:
+    !pillarSuggestion.isSuggestSecondPillar()
+    pillarSuggestion.isSuggestPaymentRate()
   }
 
   def "does not suggest a payment rate increase without an active second pillar"() {

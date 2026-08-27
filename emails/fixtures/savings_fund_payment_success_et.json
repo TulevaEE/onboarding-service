@@ -16,6 +16,11 @@
       "FNAME": "Mari",
       "suggestThirdPillar": true
     },
+    "III samba tasude soovitus": {
+      "FNAME": "Mari",
+      "suggestThirdPillar": true,
+      "thirdPillarActive": true
+    },
     "III samba püsimakse soovitus": {
       "FNAME": "Mari",
       "suggestThirdPillarRecurringPayment": true

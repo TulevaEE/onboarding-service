@@ -20,6 +20,12 @@
       "RECIPIENTNAME": "Jaan Tamm",
       "suggestThirdPillar": true
     },
+    "III samba tasude soovitus": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Jaan Tamm",
+      "suggestThirdPillar": true,
+      "thirdPillarActive": true
+    },
     "III samba püsimakse soovitus": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Jaan Tamm",

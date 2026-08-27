@@ -7,7 +7,8 @@
       <mj-column>
         <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
-          Kogud nüüd oma II&nbsp;sambasse koos minu ja teiste Tuleva liikmetega.
+          *|IF:selectedTulevaFund|*Kogud nüüd oma II&nbsp;sambasse koos minu ja teiste Tuleva
+          liikmetega.*|ELSE:|*Sinu II&nbsp;samba avaldus on esitatud.*|END:IF|*
         </mj-text>
         <mj-raw>*|IF:hasFundSelection|*</mj-raw>
         <mj-raw>*|IF:hasFundTransfer|*</mj-raw>
@@ -22,6 +23,23 @@
         <mj-raw>*|END:IF|*</mj-raw>
         <mj-raw>*|ELSE:|*</mj-raw>
         <mj-text>Sinu osakute vahetus jõustub *|transferDate|*.</mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+        <mj-raw>*|IF:selectedHighFeeFund|*</mj-raw>
+        <mj-text>
+          Pane tähele: valisid fondi, mille jooksvad tasud on
+          <strong>*|selectedFundFee|*% aastas</strong>. Madalad tasud
+          annavad parimad eeldused parimaks pikaajaliseks tootluseks. Fondide tasusid saad võrrelda
+          <a href="https://tuleva.ee/vaata/pensionifondide-vordlus/?utm_content=warning_high_fee">pensionifondide võrdluses</a>.
+        </mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+        <mj-raw>*|IF:selectedConservativeFund|*</mj-raw>
+        <mj-text>
+          Pane tähele: valisid <strong>madala riskiga fondi</strong>. Kui pensionini on veel palju
+          aega, on
+          aktsiafondid ajalooliselt andnud võlakirjafondidest oluliselt parema tootluse.
+          Fonde saad võrrelda
+          <a href="https://tuleva.ee/vaata/pensionifondide-vordlus/?utm_content=warning_conservative">pensionifondide võrdluses</a>.
+        </mj-text>
         <mj-raw>*|END:IF|*</mj-raw>
 
         <mj-include path="./partials/suggest_chain_open_et.mjml" />

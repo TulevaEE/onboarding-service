@@ -53,7 +53,7 @@ public class KybScreeningService {
     return new KybCheck(check.type(), override.isForcedSuccess(), metadata);
   }
 
-  public List<KybCheck> screen(KybCompanyData companyData) {
+  public List<KybCheck> screen(KybCompanyData companyData, KybScreeningTrigger trigger) {
     var screenerResults = validate(companyData);
 
     var dataChangedCheck =
@@ -69,7 +69,8 @@ public class KybScreeningService {
             companyData.personalCode(),
             companyData.relatedPersons(),
             results,
-            companyData.representationRights()));
+            companyData.representationRights(),
+            trigger));
 
     return results;
   }

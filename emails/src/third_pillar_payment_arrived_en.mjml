@@ -7,7 +7,7 @@
       <mj-column>
         <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
-          Your payment of *|amount|*&nbsp;&euro; arrived on *|paymentDate|*. This puts you among
+          Your payment arrived on *|paymentDate|*. This puts you among
           the 30% of dedicated Estonians who save in the third pillar. The fund units are already
           in your pension account.
         </mj-text>

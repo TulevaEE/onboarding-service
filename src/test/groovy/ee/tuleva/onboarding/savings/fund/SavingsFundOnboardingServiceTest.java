@@ -1,13 +1,16 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
+import static ee.tuleva.onboarding.event.TrackableEventType.SAVINGS_FUND_ONBOARDING_STATUS_CHANGE;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.*;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.kyc.KycCheck;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.user.User;
@@ -15,8 +18,6 @@ import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -29,29 +30,68 @@ class SavingsFundOnboardingServiceTest {
   @Mock private ApplicationEventPublisher eventPublisher;
   @InjectMocks private SavingsFundOnboardingService savingsFundOnboardingService;
 
-  @Captor private ArgumentCaptor<Object> eventCaptor;
-
   User user = sampleUser().build();
 
   @Test
-  void updateOnboardingStatusIfNeeded_publishesCompletedEventWhenStatusBecomesCompleted() {
-    when(savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON))
-        .thenReturn(Optional.of(PENDING));
+  void updateOnboardingStatusIfNeeded_publishesCompletedEventOnceWhenStatusBecomesCompleted() {
+    given(savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON))
+        .willReturn(Optional.of(PENDING));
+    given(
+            savingsFundOnboardingRepository.saveOnboardingStatus(
+                user.getPersonalCode(), PERSON, COMPLETED))
+        .willReturn(Optional.of(PENDING));
     var kycCheck = new KycCheck(LOW, Map.of());
 
     savingsFundOnboardingService.updateOnboardingStatusIfNeeded(user, kycCheck);
 
-    verify(eventPublisher, atLeastOnce()).publishEvent(eventCaptor.capture());
-    assertThat(eventCaptor.getAllValues())
-        .filteredOn(SavingsFundOnboardingCompletedEvent.class::isInstance)
-        .singleElement()
-        .isEqualTo(new SavingsFundOnboardingCompletedEvent(user));
+    verify(eventPublisher).publishEvent(new SavingsFundOnboardingCompletedEvent(user));
+    verify(eventPublisher)
+        .publishEvent(
+            new TrackableEvent(
+                user,
+                SAVINGS_FUND_ONBOARDING_STATUS_CHANGE,
+                Map.of("oldStatus", PENDING, "newStatus", COMPLETED)));
+  }
+
+  @Test
+  void updateOnboardingStatusIfNeeded_publishesNothingWhenWriteFoundAlreadyCompleted() {
+    given(savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON))
+        .willReturn(Optional.of(PENDING));
+    given(
+            savingsFundOnboardingRepository.saveOnboardingStatus(
+                user.getPersonalCode(), PERSON, COMPLETED))
+        .willReturn(Optional.of(COMPLETED));
+    var kycCheck = new KycCheck(LOW, Map.of());
+
+    savingsFundOnboardingService.updateOnboardingStatusIfNeeded(user, kycCheck);
+
+    verify(eventPublisher, never()).publishEvent(any(SavingsFundOnboardingCompletedEvent.class));
+    verify(eventPublisher, never()).publishEvent(any(TrackableEvent.class));
+  }
+
+  @Test
+  void updateOnboardingStatusIfNeeded_recordsAbsentOldStatusWhenPartyWasNotOnboardedBefore() {
+    given(savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON))
+        .willReturn(Optional.empty());
+    given(
+            savingsFundOnboardingRepository.saveOnboardingStatus(
+                user.getPersonalCode(), PERSON, COMPLETED))
+        .willReturn(Optional.empty());
+    var kycCheck = new KycCheck(NONE, Map.of());
+
+    savingsFundOnboardingService.updateOnboardingStatusIfNeeded(user, kycCheck);
+
+    verify(eventPublisher).publishEvent(new SavingsFundOnboardingCompletedEvent(user));
+    verify(eventPublisher)
+        .publishEvent(
+            new TrackableEvent(
+                user, SAVINGS_FUND_ONBOARDING_STATUS_CHANGE, Map.of("newStatus", COMPLETED)));
   }
 
   @Test
   void updateOnboardingStatusIfNeeded_doesNotPublishCompletedEventForNonCompletedStatus() {
-    when(savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON))
-        .thenReturn(Optional.empty());
+    given(savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON))
+        .willReturn(Optional.empty());
     var kycCheck = new KycCheck(MEDIUM, Map.of());
 
     savingsFundOnboardingService.updateOnboardingStatusIfNeeded(user, kycCheck);
@@ -61,8 +101,8 @@ class SavingsFundOnboardingServiceTest {
 
   @Test
   void updateOnboardingStatusIfNeeded_doesNotPublishWhenAlreadyCompleted() {
-    when(savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON))
-        .thenReturn(Optional.of(COMPLETED));
+    given(savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON))
+        .willReturn(Optional.of(COMPLETED));
     var kycCheck = new KycCheck(LOW, Map.of());
 
     savingsFundOnboardingService.updateOnboardingStatusIfNeeded(user, kycCheck);
@@ -72,16 +112,16 @@ class SavingsFundOnboardingServiceTest {
 
   @Test
   void isOnboardingCompleted_delegatesToRepository() {
-    when(savingsFundOnboardingRepository.isOnboardingCompleted("38501010001", PERSON))
-        .thenReturn(true);
+    given(savingsFundOnboardingRepository.isOnboardingCompleted("38501010001", PERSON))
+        .willReturn(true);
 
     assertThat(savingsFundOnboardingService.isOnboardingCompleted("38501010001", PERSON)).isTrue();
   }
 
   @Test
   void getOnboardingStatus_delegatesToRepository() {
-    when(savingsFundOnboardingRepository.findStatus("38501010001", PERSON))
-        .thenReturn(Optional.of(COMPLETED));
+    given(savingsFundOnboardingRepository.findStatus("38501010001", PERSON))
+        .willReturn(Optional.of(COMPLETED));
 
     assertThat(savingsFundOnboardingService.getOnboardingStatus(new PartyId(PERSON, "38501010001")))
         .isEqualTo(COMPLETED);

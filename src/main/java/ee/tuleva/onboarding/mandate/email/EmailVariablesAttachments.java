@@ -6,6 +6,7 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
+import ee.tuleva.onboarding.user.Names;
 import ee.tuleva.onboarding.user.User;
 import java.util.Base64;
 import java.util.List;
@@ -21,6 +22,7 @@ public class EmailVariablesAttachments {
         Map.entry("suggestMembership", pillarSuggestion.isSuggestMembership()),
         Map.entry("suggestSecondPillar", pillarSuggestion.isSuggestSecondPillar()),
         Map.entry("suggestThirdPillar", pillarSuggestion.isSuggestThirdPillar()),
+        Map.entry("thirdPillarActive", pillarSuggestion.isThirdPillarActive()),
         Map.entry("leftSecondPillar", pillarSuggestion.isLeftSecondPillar()),
         Map.entry("suggestSavingsFund", pillarSuggestion.isSuggestSavingsFund()),
         Map.entry(
@@ -33,7 +35,11 @@ public class EmailVariablesAttachments {
   }
 
   public static Map<String, Object> getNameMergeVars(User user) {
-    return Map.of("fname", user.getFirstName(), "lname", user.getLastName());
+    return Map.of(
+        "fname",
+        Names.formatted(user.getFirstName()),
+        "lname",
+        Names.formatted(user.getLastName()));
   }
 
   public static List<MandrillMessage.MessageContent> getAttachments(User user, Mandate mandate) {

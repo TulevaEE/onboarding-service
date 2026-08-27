@@ -7,8 +7,8 @@
       <mj-column>
         <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
-          Your contribution to Tuleva Savings Fund has been received. Fund units will appear on
-          your Tuleva account within two business days.
+          Your contribution to Tuleva Additional Investment Fund has been received. Fund units
+          will appear on your Tuleva account within two business days.
         </mj-text>
       </mj-column>
     </mj-section>

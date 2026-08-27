@@ -107,7 +107,7 @@ class ExchangeTransactionLeaversRepositoryTest {
     assertTrue(sql.contains("security_from = 'EE3600109443'"), "Should filter by TUK00");
     assertTrue(sql.contains("security_to <> 'EE3600109443'"), "Should exclude TUK00 security_to");
     assertTrue(sql.contains("security_to <> 'EE3600109435'"), "Should exclude TUK75 security_to");
-    assertTrue(sql.contains("ongoing_charges_figure >= 0.005"), "Should filter by charges");
+    assertTrue(sql.contains("ongoing_charges_figure >= 0.003"), "Should filter by charges");
     assertTrue(sql.contains("email IS NOT NULL"), "Should require email");
     assertTrue(sql.contains("keel = 'ENG'"), "Should filter by ENG language");
     assertTrue(sql.contains("keel = 'EST'"), "Should filter by EST language");

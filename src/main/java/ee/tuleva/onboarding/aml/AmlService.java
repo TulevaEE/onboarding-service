@@ -124,7 +124,7 @@ public class AmlService {
 
   public Set<Country> recordedCitizenships(Person person) {
     return amlCheckRepository
-        .findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
+        .findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
             person.getPersonalCode(), CUSTODY_RIGHT)
         .map(AmlCheck::getMetadata)
         .map(AmlService::citizenshipsFrom)
@@ -152,7 +152,7 @@ public class AmlService {
 
   private boolean latestCheckPassed(Person person, AmlCheckType type) {
     return amlCheckRepository
-        .findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(person.getPersonalCode(), type)
+        .findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(person.getPersonalCode(), type)
         .map(AmlCheck::isSuccess)
         .orElse(false);
   }
@@ -216,7 +216,7 @@ public class AmlService {
 
   private boolean outcomeUnchanged(AmlCheck screeningCheck) {
     return amlCheckRepository
-        .findFirstByPersonalCodeAndTypeOrderByCreatedTimeDesc(
+        .findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
             screeningCheck.getPersonalCode(), screeningCheck.getType())
         .map(latest -> latest.isSuccess() == screeningCheck.isSuccess())
         .orElse(false);
@@ -387,7 +387,7 @@ public class AmlService {
             .success(kycCheck.riskLevel() == LOW || kycCheck.riskLevel() == NONE)
             .metadata(kycCheck.metadata())
             .build();
-    if (check.isSuccess() && hasSuccessfulCheck(personalCode, KYC_CHECK)) {
+    if (check.isSuccess() && latestCheckIsSuccessful(personalCode, KYC_CHECK)) {
       return Optional.empty();
     }
     return Optional.of(addCheck(check));
@@ -438,9 +438,12 @@ public class AmlService {
         personalCode, checkType, aYearAgo());
   }
 
-  private boolean hasSuccessfulCheck(String personalCode, AmlCheckType checkType) {
-    return amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
-        personalCode, checkType, true, aYearAgo());
+  private boolean latestCheckIsSuccessful(String personalCode, AmlCheckType checkType) {
+    return amlCheckRepository
+        .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDescIdDesc(
+            personalCode, checkType, aYearAgo())
+        .filter(AmlCheck::isSuccess)
+        .isPresent();
   }
 
   public List<AmlCheck> getChecks(Person person) {

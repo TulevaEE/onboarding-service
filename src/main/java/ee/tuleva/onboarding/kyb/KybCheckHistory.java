@@ -5,4 +5,6 @@ import java.util.List;
 public interface KybCheckHistory {
 
   List<KybCheck> getLatestChecks(PersonalCode personalCode, RegistryCode registryCode);
+
+  List<String> findIncompleteKycPersonalCodes(RegistryCode registryCode);
 }

@@ -10,6 +10,7 @@ import ee.tuleva.onboarding.kyb.KybCheckHistory;
 import ee.tuleva.onboarding.kyb.KybCheckType;
 import ee.tuleva.onboarding.kyb.PersonalCode;
 import ee.tuleva.onboarding.kyb.RegistryCode;
+import ee.tuleva.onboarding.kyb.RelatedPersonsKycMetadata;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -55,6 +56,19 @@ public class AmlKybCheckHistory implements KybCheckHistory {
         .sorted(Comparator.comparing(AmlCheck::getCreatedTime).reversed())
         .map(this::toKybCheck)
         .toList();
+  }
+
+  @Override
+  public List<String> findIncompleteKycPersonalCodes(RegistryCode registryCode) {
+    return companyRepository
+        .findByRegistryCode(registryCode.value())
+        .flatMap(
+            company ->
+                amlCheckRepository.findFirstByCompanyIdAndTypeOrderByCreatedTimeDescIdDesc(
+                    company.getId(), AmlCheckType.KYB_RELATED_PERSONS_KYC))
+        .map(this::toKybCheck)
+        .map(RelatedPersonsKycMetadata::incompletePersonalCodes)
+        .orElse(List.of());
   }
 
   private UUID resolveCompanyId(RegistryCode registryCode) {

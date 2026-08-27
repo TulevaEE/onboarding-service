@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.aml;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
 import static ee.tuleva.onboarding.kyb.KybCheckType.*;
+import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.SUBMISSION;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOwner;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
@@ -101,6 +102,7 @@ class AmlKybCheckEventListenerTest {
         new PersonalCode(personalCode),
         relatedPersons,
         checks,
-        List.of());
+        List.of(),
+        SUBMISSION);
   }
 }

@@ -133,6 +133,69 @@ class AmlKybCheckHistoryTest {
   }
 
   @Test
+  void returnsThePersonalCodesTheLatestRelatedPersonsCheckIsWaitingFor() {
+    when(repository.findFirstByCompanyIdAndTypeOrderByCreatedTimeDescIdDesc(
+            COMPANY_ID, KYB_RELATED_PERSONS_KYC))
+        .thenReturn(
+            Optional.of(
+                relatedPersonsCheck(
+                    List.of(
+                        Map.of("personalCode", "38501010003", "kycStatus", "PENDING"),
+                        Map.of("personalCode", "38501010004", "kycStatus", "UNKNOWN")))));
+
+    var result = history.findIncompleteKycPersonalCodes(REGISTRY_CODE);
+
+    assertThat(result).containsExactly("38501010003", "38501010004");
+  }
+
+  @Test
+  void returnsNoPersonalCodesWhenTheCompanyHasNoRelatedPersonsCheck() {
+    when(repository.findFirstByCompanyIdAndTypeOrderByCreatedTimeDescIdDesc(
+            COMPANY_ID, KYB_RELATED_PERSONS_KYC))
+        .thenReturn(Optional.empty());
+
+    var result = history.findIncompleteKycPersonalCodes(REGISTRY_CODE);
+
+    assertThat(result).isEmpty();
+  }
+
+  @Test
+  void returnsNoPersonalCodesWhenTheLatestRelatedPersonsCheckPassed() {
+    when(repository.findFirstByCompanyIdAndTypeOrderByCreatedTimeDescIdDesc(
+            COMPANY_ID, KYB_RELATED_PERSONS_KYC))
+        .thenReturn(Optional.of(relatedPersonsCheck(List.of())));
+
+    var result = history.findIncompleteKycPersonalCodes(REGISTRY_CODE);
+
+    assertThat(result).isEmpty();
+  }
+
+  @Test
+  void returnsNoPersonalCodesWhenTheCompanyIsNotYetPersisted() {
+    when(companyRepository.findByRegistryCode("12345678")).thenReturn(Optional.empty());
+
+    var result = history.findIncompleteKycPersonalCodes(REGISTRY_CODE);
+
+    assertThat(result).isEmpty();
+  }
+
+  private static AmlCheck relatedPersonsCheck(List<Map<String, String>> incompletePersons) {
+    var check =
+        AmlCheck.builder()
+            .personalCode("38501010001")
+            .companyId(COMPANY_ID)
+            .type(KYB_RELATED_PERSONS_KYC)
+            .success(incompletePersons.isEmpty())
+            .metadata(
+                incompletePersons.isEmpty()
+                    ? Map.of()
+                    : Map.of("incompletePersons", incompletePersons))
+            .build();
+    check.setCreatedTime(Instant.now());
+    return check;
+  }
+
+  @Test
   void everyScreenerCheckTypeRoundTripsThroughHistory() {
     // AML #78 guard: every screener check type (KybCheckType, except the DATA_CHANGED result type)
     // must reverse-map, otherwise it is dropped from history, stays forever "new", and a real

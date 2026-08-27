@@ -7,12 +7,12 @@
       <mj-column>
         <mj-text>Hello&nbsp;*|FNAME|*</mj-text>
         <mj-text>
-          You have opened a Tuleva Savings Fund account, but you have not made your first
+          You have opened a Tuleva Additional Investment Fund account, but you have not made your first
           contribution yet.
         </mj-text>
         <mj-text>
-          Tuleva Savings Fund is a broadly diversified index fund that invests in world equity
-          markets. The ongoing fees of the fund are 0.28% per year and there are no other fees.
+          Tuleva Additional Investment Fund is a broadly diversified index fund that invests in world equity
+          markets. The ongoing fees of the fund are 0.28%&nbsp;per year and there are no other fees.
         </mj-text>
         <mj-text>
           If you would like to start saving, choose an amount that suits you and make your first
@@ -22,10 +22,6 @@
         <mj-button href="https://pension.tuleva.ee/savings-fund/payment?language=en">
           Make my first contribution
         </mj-button>
-        <mj-text>
-          You can see the unit price of the fund and other relevant information
-          <a href="https://tuleva.ee/tuleva-taiendav-kogumisfond-dokumendid/">on this page</a>.
-        </mj-text>
       </mj-column>
     </mj-section>
 

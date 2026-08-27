@@ -7,10 +7,10 @@
       <mj-column>
         <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
-          *|IF:RECIPIENTNAME|*Your contribution to *|RECIPIENTNAME|*'s Tuleva Savings Fund
-          account has been received.*|ELSE:|*Your company's contribution to Tuleva Savings
-          Fund has been received.*|END:IF|* Fund units will appear on the company's account
-          within two business days.
+          *|IF:RECIPIENTNAME|*Your contribution to *|RECIPIENTNAME|*'s Tuleva Additional
+          Investment Fund account has been received.*|ELSE:|*Your company's contribution to
+          Tuleva Additional Investment Fund has been received.*|END:IF|* Fund units will appear
+          on the company's account within two business days.
         </mj-text>
       </mj-column>
     </mj-section>

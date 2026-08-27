@@ -121,7 +121,7 @@
       "from_name": "Tuleva"
     },
     "savings_fund_payment_cancelled_en": {
-      "subject": "Tuleva Savings Fund payment cancellation succeeded",
+      "subject": "Tuleva Additional Investment Fund payment cancellation succeeded",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
@@ -131,7 +131,7 @@
       "from_name": "Tuleva"
     },
     "savings_fund_payment_failed_en": {
-      "subject": "Your payment to Tuleva Savings Fund failed",
+      "subject": "Your payment to Tuleva Additional Investment Fund failed",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
@@ -141,7 +141,7 @@
       "from_name": "Tuleva"
     },
     "savings_fund_payment_success_child_en": {
-      "subject": "Contribution to Tuleva Savings Fund is done",
+      "subject": "Contribution to Tuleva Additional Investment Fund is done",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
@@ -151,7 +151,7 @@
       "from_name": "Tuleva"
     },
     "savings_fund_payment_success_company_en": {
-      "subject": "Contribution to Tuleva Savings Fund is done",
+      "subject": "Contribution to Tuleva Additional Investment Fund is done",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
@@ -161,7 +161,7 @@
       "from_name": "Tuleva"
     },
     "savings_fund_payment_success_en": {
-      "subject": "Contribution to Tuleva Savings Fund is done",
+      "subject": "Contribution to Tuleva Additional Investment Fund is done",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
@@ -171,7 +171,7 @@
       "from_name": "Tuleva"
     },
     "savings_fund_payment_success_person_en": {
-      "subject": "Contribution to Tuleva Savings Fund is done",
+      "subject": "Contribution to Tuleva Additional Investment Fund is done",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },

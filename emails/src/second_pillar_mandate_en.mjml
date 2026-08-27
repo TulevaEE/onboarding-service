@@ -33,7 +33,7 @@
         <mj-text>
           Please note: you chose a fund whose ongoing charges are
           <strong>*|selectedFundFee|*% per year</strong>.
-          A high fee takes a considerable share of your long-term return. You can compare
+          Low fees provide the best foundation for optimal long-term returns. You can compare
           fund fees at
           <a href="https://www.pensionikeskus.ee/en/ii-pillar/funds/fund-fee-comparison/">Pensionikeskus</a>.
         </mj-text>

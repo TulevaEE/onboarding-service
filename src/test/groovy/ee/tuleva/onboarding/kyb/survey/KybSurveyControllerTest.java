@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.kyb.survey;
 
 import static ee.tuleva.onboarding.auth.authority.Authority.USER;
 import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -295,6 +296,24 @@ class KybSurveyControllerTest {
                 .with(authentication(personAuth())))
         .andExpect(status().isForbidden())
         .andExpect(content().json("{\"error\":\"ONBOARDING_NOT_ALLOWED\"}"));
+  }
+
+  @Test
+  void submit_returns403WhenOnboardingPending() throws Exception {
+    willThrow(new OnboardingNotAllowedException(REGISTRY_CODE, BlockedReason.ONBOARDING_PENDING))
+        .given(kybSurveyService)
+        .submit(eq(1L), eq(PERSONAL_CODE), eq(REGISTRY_CODE), any(KybSurveyResponse.class));
+
+    mvc.perform(
+            post("/v1/kyb/surveys")
+                .param("registry-code", REGISTRY_CODE)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(SURVEY_JSON)
+                .with(csrf())
+                .with(authentication(personAuth())))
+        .andExpect(status().isForbidden())
+        .andExpect(content().json("{\"error\":\"ONBOARDING_NOT_ALLOWED\"}"))
+        .andExpect(jsonPath("$.error_description").value(containsString("ONBOARDING_PENDING")));
   }
 
   @Test

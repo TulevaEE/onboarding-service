@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static ee.tuleva.onboarding.aml.AmlCheckType.KYB_RELATED_PERSONS_KYC;
 import static ee.tuleva.onboarding.aml.AmlCheckType.KYC_CHECK;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember;
 import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_ACTIVE;
@@ -12,11 +13,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
+import ee.tuleva.onboarding.aml.AmlCheck;
 import ee.tuleva.onboarding.aml.AmlCheckRepository;
+import ee.tuleva.onboarding.company.Company;
+import ee.tuleva.onboarding.company.CompanyRepository;
 import ee.tuleva.onboarding.kyb.CompanyDto;
 import ee.tuleva.onboarding.kyb.KybCheck;
 import ee.tuleva.onboarding.kyb.KybCheckPerformedEvent;
@@ -61,8 +66,11 @@ class WaitingLegalEntityCompletionIntegrationTest {
   private static final String POISONED_NAME = "Kärbes OÜ";
   private static final String HEALTHY = "22222222";
   private static final String HEALTHY_NAME = "Mesila OÜ";
+  private static final String UNRELATED = "33333333";
+  private static final String UNRELATED_NAME = "Sipelgas OÜ";
   private static final String APPLICANT = "40404049996";
   private static final String APPLICANT_EMAIL = "mesila@example.com";
+  private static final String ANOTHER_BOARD_MEMBER = "38001010001";
   private static final String TEMPLATE = "savings_fund_company_onboarded_et";
 
   @TestConfiguration
@@ -89,6 +97,7 @@ class WaitingLegalEntityCompletionIntegrationTest {
   @Autowired private TransactionTemplate transactionTemplate;
   @Autowired private SavingsFundOnboardingRepository savingsFundOnboardingRepository;
   @Autowired private AmlCheckRepository amlCheckRepository;
+  @Autowired private CompanyRepository companyRepository;
   @Autowired private UserRepository userRepository;
   @Autowired private JdbcClient jdbcClient;
 
@@ -106,6 +115,10 @@ class WaitingLegalEntityCompletionIntegrationTest {
             sampleUserNonMember().id(null).personalCode(APPLICANT).email(APPLICANT_EMAIL).build());
     savingsFundOnboardingRepository.saveOnboardingStatus(POISONED, LEGAL_ENTITY, PENDING);
     savingsFundOnboardingRepository.saveOnboardingStatus(HEALTHY, LEGAL_ENTITY, PENDING);
+    savingsFundOnboardingRepository.saveOnboardingStatus(UNRELATED, LEGAL_ENTITY, PENDING);
+    awaitKycOf(POISONED, APPLICANT);
+    awaitKycOf(HEALTHY, APPLICANT);
+    awaitKycOf(UNRELATED, ANOTHER_BOARD_MEMBER);
 
     given(latestKybSurveyInputs.findByRegistryCode(any()))
         .willReturn(
@@ -129,6 +142,17 @@ class WaitingLegalEntityCompletionIntegrationTest {
         .contains(PENDING);
     assertThat(savingsFundOnboardingRepository.findStatus(HEALTHY, LEGAL_ENTITY))
         .contains(COMPLETED);
+  }
+
+  // Every waiting company would otherwise cost three registry round trips on every successful
+  // personal KYC check, whether or not it waits for that person.
+  @Test
+  void leavesAloneTheCompanyWaitingForSomebodyElse() {
+    performKycCheckInATransaction();
+
+    verify(legalEntityScreener, never()).screenLatest(UNRELATED);
+    assertThat(savingsFundOnboardingRepository.findStatus(UNRELATED, LEGAL_ENTITY))
+        .contains(PENDING);
   }
 
   // The whole point: the person who submitted the survey keeps their own KYC check.
@@ -184,11 +208,32 @@ class WaitingLegalEntityCompletionIntegrationTest {
   }
 
   private String nameOf(String registryCode) {
-    return POISONED.equals(registryCode) ? POISONED_NAME : HEALTHY_NAME;
+    return switch (registryCode) {
+      case POISONED -> POISONED_NAME;
+      case UNRELATED -> UNRELATED_NAME;
+      default -> HEALTHY_NAME;
+    };
+  }
+
+  private void awaitKycOf(String registryCode, String awaitedPersonalCode) {
+    var company =
+        companyRepository.save(
+            Company.builder().registryCode(registryCode).name(nameOf(registryCode)).build());
+    amlCheckRepository.save(
+        AmlCheck.builder()
+            .personalCode(APPLICANT)
+            .companyId(company.getId())
+            .type(KYB_RELATED_PERSONS_KYC)
+            .success(false)
+            .metadata(
+                Map.of(
+                    "incompletePersons",
+                    List.of(Map.of("personalCode", awaitedPersonalCode, "kycStatus", "PENDING"))))
+            .build());
   }
 
   private void cleanUp() {
-    var codes = List.of(POISONED, HEALTHY);
+    var codes = List.of(POISONED, HEALTHY, UNRELATED);
     jdbcClient
         .sql("DELETE FROM aml_check WHERE personal_code = :personalCode")
         .param("personalCode", APPLICANT)

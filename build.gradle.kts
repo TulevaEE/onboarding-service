@@ -22,7 +22,7 @@ buildscript {
     }
 }
 
-val springModulithVersion = "2.1.0"
+val springModulithVersion = "2.1.1"
 
 plugins {
     java
@@ -92,7 +92,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-aspectj")
     implementation("org.springframework.boot:spring-boot-starter-jackson")
     implementation("org.springframework.boot:spring-boot-starter-validation")
-    compileOnly("org.jspecify:jspecify:1.0.0")
+    compileOnly("org.jspecify:jspecify:1.0.1")
     errorprone("com.google.errorprone:error_prone_core:2.50.0")
     errorprone("com.uber.nullaway:nullaway:0.14.0")
 

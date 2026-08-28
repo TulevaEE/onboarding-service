@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.comparisons.overview
 
 import ee.tuleva.onboarding.account.CashFlowService
 import ee.tuleva.onboarding.auth.principal.Person
-import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement
+import ee.tuleva.onboarding.epis.CashFlowStatement
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.time.TestClockHolder
@@ -15,7 +15,7 @@ import java.time.LocalDateTime
 import java.time.ZoneOffset
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
-import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowFixture
+import static ee.tuleva.onboarding.epis.CashFlowFixture.cashFlowFixture
 import static java.time.temporal.ChronoUnit.DAYS
 
 class AccountOverviewProviderSpec extends Specification {

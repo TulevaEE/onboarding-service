@@ -6,7 +6,7 @@ import spock.lang.Specification
 import java.time.LocalDate
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
-import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowFixture
+import static ee.tuleva.onboarding.epis.CashFlowFixture.cashFlowFixture
 
 class CashFlowServiceSpec extends Specification {
 

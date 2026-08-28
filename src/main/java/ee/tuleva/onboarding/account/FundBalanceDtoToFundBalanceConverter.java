@@ -3,8 +3,8 @@ package ee.tuleva.onboarding.account;
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.epis.CashFlow;
 import ee.tuleva.onboarding.epis.account.FundBalanceDto;
-import ee.tuleva.onboarding.epis.cashflows.CashFlow;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import java.math.BigDecimal;

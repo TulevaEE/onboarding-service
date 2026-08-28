@@ -6,7 +6,7 @@ import static ee.tuleva.onboarding.account.portfolio.PortfolioGroup.THIRD_PILLAR
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonNonMember;
 import static ee.tuleva.onboarding.comparisons.returns.Returns.Return.Type.PERSONAL;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.CONTRIBUTION_CASH;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;

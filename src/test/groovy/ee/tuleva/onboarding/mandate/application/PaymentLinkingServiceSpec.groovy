@@ -2,8 +2,8 @@ package ee.tuleva.onboarding.mandate.application
 
 import ee.tuleva.onboarding.account.CashFlowService
 import ee.tuleva.onboarding.deadline.PublicHolidays
-import ee.tuleva.onboarding.epis.cashflows.CashFlow
-import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement
+import ee.tuleva.onboarding.epis.CashFlow
+import ee.tuleva.onboarding.epis.CashFlowStatement
 import ee.tuleva.onboarding.epis.mandate.ApplicationStatus
 import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.locale.LocaleService
@@ -20,7 +20,7 @@ import java.time.Instant
 import static ee.tuleva.onboarding.payment.application.PaymentLinkingService.TULEVA_3RD_PILLAR_FUND_ISIN
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.currency.Currency.EUR
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.*
+import static ee.tuleva.onboarding.epis.CashFlow.Type.*
 import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.COMPLETE
 import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.FAILED
 import static ee.tuleva.onboarding.fund.ApiFundResponseFixture.tuleva3rdPillarApiFundResponse

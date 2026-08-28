@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.account;
 
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.epis.CashFlowStatement;
 import ee.tuleva.onboarding.epis.EpisService;
-import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

@@ -5,7 +5,7 @@ import static ee.tuleva.onboarding.currency.Currency.EUR;
 import ee.tuleva.onboarding.account.CashFlowService;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
-import ee.tuleva.onboarding.epis.cashflows.CashFlow;
+import ee.tuleva.onboarding.epis.CashFlow;
 import ee.tuleva.onboarding.epis.mandate.ApplicationStatus;
 import ee.tuleva.onboarding.fund.ApiFundResponse;
 import ee.tuleva.onboarding.fund.FundRepository;

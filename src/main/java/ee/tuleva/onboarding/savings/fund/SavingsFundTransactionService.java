@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.currency.Currency.EUR;
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH;
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.SUBTRACTION;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.CONTRIBUTION_CASH;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.SUBTRACTION;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.UserAccount.REDEMPTIONS;
 import static ee.tuleva.onboarding.ledger.UserAccount.SUBSCRIPTIONS;
@@ -12,7 +12,7 @@ import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.account.transaction.Transaction;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.epis.cashflows.CashFlow;
+import ee.tuleva.onboarding.epis.CashFlow;
 import ee.tuleva.onboarding.ledger.LedgerEntry;
 import ee.tuleva.onboarding.ledger.LedgerParty.PartyType;
 import ee.tuleva.onboarding.ledger.LedgerService;

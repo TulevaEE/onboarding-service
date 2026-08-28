@@ -4,8 +4,8 @@ import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthent
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonLegalEntity;
 import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.*;
-import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowFixture;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.*;
+import static ee.tuleva.onboarding.epis.CashFlowFixture.cashFlowFixture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -117,7 +117,7 @@ class TransactionServiceTest {
   @Test
   void returnsEmptyListWhenNoTransactions() {
     var person = sampleAuthenticatedPersonAndMember().build();
-    var emptyStatement = ee.tuleva.onboarding.epis.cashflows.CashFlowStatement.builder().build();
+    var emptyStatement = ee.tuleva.onboarding.epis.CashFlowStatement.builder().build();
 
     when(cashFlowService.getCashFlowStatement(person)).thenReturn(emptyStatement);
     when(savingsFundTransactionService.getTransactions(person)).thenReturn(List.of());

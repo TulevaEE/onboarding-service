@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.epis.cashflows;
+package ee.tuleva.onboarding.epis;
 
 import java.util.ArrayList;
 import java.util.HashMap;

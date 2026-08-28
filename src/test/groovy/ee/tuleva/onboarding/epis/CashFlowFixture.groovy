@@ -1,11 +1,11 @@
-package ee.tuleva.onboarding.epis.cashflows
+package ee.tuleva.onboarding.epis
 
 import ee.tuleva.onboarding.payment.Payment
 
 import java.time.Instant
 
 import static ee.tuleva.onboarding.currency.Currency.EUR
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.*
+import static ee.tuleva.onboarding.epis.CashFlow.Type.*
 
 class CashFlowFixture {
   private static final String TULEVA_3RD_PILLAR_FUND_ISIN = "EE3600001707"

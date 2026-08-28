@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.epis;
 
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CASH;
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.CASH;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.CONTRIBUTION_CASH;
 import static ee.tuleva.onboarding.epis.fund.FundDto.FundStatus.ACTIVE;
 import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.COMPLETE;
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.SELECTION;
@@ -12,8 +12,6 @@ import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.epis.account.FundBalanceDto;
 import ee.tuleva.onboarding.epis.application.ApplicationResponse;
-import ee.tuleva.onboarding.epis.cashflows.CashFlow;
-import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
 import ee.tuleva.onboarding.epis.fund.FundDto;
 import ee.tuleva.onboarding.epis.fund.NavDto;
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;

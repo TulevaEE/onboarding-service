@@ -2,8 +2,8 @@ package ee.tuleva.onboarding.conversion
 
 import ee.tuleva.onboarding.account.AccountStatementService
 import ee.tuleva.onboarding.account.CashFlowService
-import ee.tuleva.onboarding.epis.cashflows.CashFlow
-import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement
+import ee.tuleva.onboarding.epis.CashFlow
+import ee.tuleva.onboarding.epis.CashFlowStatement
 import ee.tuleva.onboarding.fund.ApiFundResponse
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.fund.FundRepository
@@ -21,7 +21,7 @@ import java.time.ZoneOffset
 import static ee.tuleva.onboarding.account.AccountStatementFixture.*
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.currency.Currency.EUR
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.*
+import static ee.tuleva.onboarding.epis.CashFlow.Type.*
 import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.PENDING
 import static ee.tuleva.onboarding.fund.FundFixture.*
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND

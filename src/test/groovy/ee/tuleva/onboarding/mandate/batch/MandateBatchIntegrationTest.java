@@ -16,8 +16,8 @@ import static org.mockito.Mockito.when;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
 import ee.tuleva.onboarding.aml.AmlAutoChecker;
+import ee.tuleva.onboarding.epis.CashFlowStatement;
 import ee.tuleva.onboarding.epis.EpisService;
-import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
 import ee.tuleva.onboarding.mandate.MandateFixture;
 import ee.tuleva.onboarding.mandate.MandateRepository;
 import ee.tuleva.onboarding.mandate.generic.MandateDto;

@@ -1,13 +1,13 @@
-package ee.tuleva.onboarding.epis.cashflows;
+package ee.tuleva.onboarding.epis;
 
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CASH;
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION;
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH;
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH_WORKPLACE;
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.REFUND;
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.SUBTRACTION;
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.TRANSFER_FROM_PIK;
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.TRANSFER_TO_PIK;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.CASH;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.CONTRIBUTION;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.CONTRIBUTION_CASH;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.CONTRIBUTION_CASH_WORKPLACE;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.REFUND;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.SUBTRACTION;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.TRANSFER_FROM_PIK;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.TRANSFER_TO_PIK;
 import static java.util.Comparator.comparing;
 import static java.util.Comparator.nullsLast;
 

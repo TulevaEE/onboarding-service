@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.epis
 
 import ee.tuleva.onboarding.epis.account.FundBalanceDto
 import ee.tuleva.onboarding.epis.application.ApplicationResponse
-import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement
+import ee.tuleva.onboarding.epis.CashFlowStatement
 import ee.tuleva.onboarding.epis.ContactDetails
 import ee.tuleva.onboarding.epis.fund.FundDto
 import ee.tuleva.onboarding.epis.fund.NavDto

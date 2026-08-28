@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.user
 
-import ee.tuleva.onboarding.member.listener.MemberCreatedEvent
+import ee.tuleva.onboarding.user.MemberCreatedEvent
 import ee.tuleva.onboarding.user.exception.DuplicateEmailException
 import ee.tuleva.onboarding.user.exception.UserAlreadyAMemberException
 import ee.tuleva.onboarding.user.member.MemberRepository

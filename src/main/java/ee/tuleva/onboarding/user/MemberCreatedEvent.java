@@ -1,7 +1,6 @@
-package ee.tuleva.onboarding.member.listener;
+package ee.tuleva.onboarding.user;
 
 import ee.tuleva.onboarding.locale.LocaleConfiguration;
-import ee.tuleva.onboarding.user.User;
 import java.util.Locale;
 import lombok.AllArgsConstructor;
 import lombok.Getter;

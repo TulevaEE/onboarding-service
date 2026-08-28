@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.error;
 import static ee.tuleva.onboarding.error.SentryErrorCodeFingerprint.ERROR_CODE;
 import static org.springframework.http.HttpStatus.*;
 
-import ee.tuleva.onboarding.account.PensionRegistryAccountStatementConnectionException;
 import ee.tuleva.onboarding.auth.ExpiredRefreshJwtException;
 import ee.tuleva.onboarding.auth.idcard.exception.IdCardSessionNotFoundException;
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
@@ -43,7 +42,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 */
 @Slf4j
 @ControllerAdvice
-@Order(Ordered.HIGHEST_PRECEDENCE)
+@Order(Ordered.HIGHEST_PRECEDENCE + 1)
 public class ErrorHandlingControllerAdvice {
 
   private final ErrorResponseEntityFactory errorResponseEntityFactory =
@@ -73,13 +72,6 @@ public class ErrorHandlingControllerAdvice {
     return new ResponseEntity<>(
         ErrorsResponse.ofSingleError("auth.session.not.found", exception.getMessage()),
         UNAUTHORIZED);
-  }
-
-  @ExceptionHandler(PensionRegistryAccountStatementConnectionException.class)
-  public ResponseEntity<ErrorsResponse> handleErrors(
-      PensionRegistryAccountStatementConnectionException exception) {
-    log.error("PensionRegistryAccountStatementConnectionException {}", exception.toString());
-    return new ResponseEntity<>(exception.getErrorsResponse(), GATEWAY_TIMEOUT);
   }
 
   @ExceptionHandler({

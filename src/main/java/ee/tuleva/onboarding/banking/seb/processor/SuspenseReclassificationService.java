@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.MANA
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.OWN_ACCOUNT_TRANSFER;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.REGISTRAR_CONTRIBUTION;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.REGISTRAR_PAYOUT;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry.CounterPartyDetails;
@@ -98,7 +99,8 @@ public class SuspenseReclassificationService {
         cashAmount,
         "EUR",
         cashAmount.signum() >= 0 ? TransactionType.CREDIT : TransactionType.DEBIT,
-        (String) metadata.get("description"),
+        (String)
+            requireNonNull(metadata.get("description"), "Suspense metadata missing description"),
         "suspense-reclassification",
         null,
         (String) metadata.get("subFamilyCode"),

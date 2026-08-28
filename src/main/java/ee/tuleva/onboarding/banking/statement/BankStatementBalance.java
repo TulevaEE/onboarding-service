@@ -9,8 +9,10 @@ import ee.tuleva.onboarding.banking.iso20022.camt053.CreditDebitCode;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Arrays;
+import org.jspecify.annotations.Nullable;
 
-public record BankStatementBalance(StatementBalanceType type, LocalDate time, BigDecimal balance) {
+public record BankStatementBalance(
+    @Nullable StatementBalanceType type, LocalDate time, BigDecimal balance) {
 
   public enum StatementBalanceType {
     OPEN(
@@ -64,7 +66,8 @@ public record BankStatementBalance(StatementBalanceType type, LocalDate time, Bi
       this.statementBalanceCode = statementBalanceCode;
     }
 
-    public static StatementBalanceType fromBalanceCode(BalanceType12Code balanceTypeCode) {
+    public static @Nullable StatementBalanceType fromBalanceCode(
+        BalanceType12Code balanceTypeCode) {
       return Arrays.stream(StatementBalanceType.values())
           .filter(balanceType -> balanceType.reportBalanceCode.equals(balanceTypeCode))
           .findFirst()
@@ -73,7 +76,7 @@ public record BankStatementBalance(StatementBalanceType type, LocalDate time, Bi
       () -> new IllegalArgumentException("Cannot match balance type " + balanceTypeCode));*/
     }
 
-    public static StatementBalanceType fromBalanceCode(
+    public static @Nullable StatementBalanceType fromBalanceCode(
         ee.tuleva.onboarding.banking.iso20022.camt053.BalanceType12Code balanceTypeCode) {
       return Arrays.stream(StatementBalanceType.values())
           .filter(balanceType -> balanceType.statementBalanceCode.equals(balanceTypeCode))

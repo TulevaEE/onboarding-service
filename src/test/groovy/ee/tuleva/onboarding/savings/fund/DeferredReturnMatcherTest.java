@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.banking.processor;
+package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
@@ -15,7 +15,6 @@ import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankMessagesProcessingCompleted;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.PartyId;
-import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.notification.DeferredReturnMatchingCompletedEvent;
 import ee.tuleva.onboarding.user.User;
 import java.math.BigDecimal;

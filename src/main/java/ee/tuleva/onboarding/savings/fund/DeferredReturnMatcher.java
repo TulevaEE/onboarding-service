@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.banking.processor;
+package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
@@ -11,13 +11,13 @@ import static java.math.BigDecimal.ZERO;
 import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankMessagesProcessingCompleted;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
-import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
-import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.notification.DeferredReturnMatchingCompletedEvent;
 import java.math.BigDecimal;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NullMarked;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Component
+@NullMarked
 @RequiredArgsConstructor
 public class DeferredReturnMatcher {
 
@@ -85,7 +86,7 @@ public class DeferredReturnMatcher {
         .orElse(false);
   }
 
-  private BigDecimal matchReturn(SavingFundPayment returnPayment) {
+  private @Nullable BigDecimal matchReturn(SavingFundPayment returnPayment) {
     var original =
         savingFundPaymentRepository
             .findOriginalPaymentForReturn(returnPayment.getEndToEndId())

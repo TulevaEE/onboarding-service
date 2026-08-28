@@ -4,7 +4,7 @@ import static java.math.RoundingMode.HALF_UP;
 import static java.math.RoundingMode.UNNECESSARY;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
-import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValueQueries;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import java.math.BigDecimal;
@@ -23,7 +23,7 @@ public class FundNavProvider {
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
   private static final BigDecimal MAX_DAILY_CHANGE = new BigDecimal("0.20");
 
-  private final FundValueRepository fundValueRepository;
+  private final FundValueQueries fundValueQueries;
   private final PublicHolidays publicHolidays;
   private final Clock clock;
 
@@ -31,7 +31,7 @@ public class FundNavProvider {
     String isin = fund.getIsin();
     LocalDate safeDate = safeMaxNavDate();
     BigDecimal nav =
-        fundValueRepository
+        fundValueQueries
             .getLatestValue(isin, safeDate)
             .orElseThrow(
                 () ->
@@ -47,7 +47,7 @@ public class FundNavProvider {
   public BigDecimal getVerifiedNavForIssuingAndRedeeming(TulevaFund fund, LocalDate dealingDate) {
     String isin = fund.getIsin();
     FundValue fundValue =
-        fundValueRepository
+        fundValueQueries
             .getLatestValue(isin, dealingDate)
             .orElseThrow(
                 () ->
@@ -87,7 +87,7 @@ public class FundNavProvider {
 
   private void validateReasonableChange(String isin, BigDecimal nav, LocalDate navDate) {
     LocalDate previousDate = publicHolidays.previousWorkingDay(navDate);
-    fundValueRepository
+    fundValueQueries
         .getLatestValue(isin, previousDate)
         .ifPresent(
             previousValue -> {

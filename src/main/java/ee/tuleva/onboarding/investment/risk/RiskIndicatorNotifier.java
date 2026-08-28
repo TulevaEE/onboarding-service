@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.investment.risk;
 import static ee.tuleva.onboarding.investment.risk.RiskIndicatorType.SRI;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 
-import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValueQueries;
 import ee.tuleva.onboarding.deadline.BusinessDays;
 import ee.tuleva.onboarding.investment.risk.RiskIndicatorService.PublicationSnapshot;
 import ee.tuleva.onboarding.investment.risk.RiskIndicatorService.RiskIndicatorOutcome;
@@ -41,7 +41,7 @@ class RiskIndicatorNotifier {
   private final RiskIndicatorDigestRepository digestRepository;
   private final RiskIndicatorPublicationRepository publicationRepository;
   private final RiskIndicatorProperties properties;
-  private final FundValueRepository fundValueRepository;
+  private final FundValueQueries fundValueQueries;
   private final BusinessDays businessDays;
   private final Clock clock;
 
@@ -569,7 +569,7 @@ class RiskIndicatorNotifier {
       if (activeSourceKey.equals(review.ownHistoryKey())) {
         continue;
       }
-      var earliest = fundValueRepository.findEarliestDateForKey(review.ownHistoryKey());
+      var earliest = fundValueQueries.findEarliestDateForKey(review.ownHistoryKey());
       if (earliest.isEmpty()) {
         continue;
       }

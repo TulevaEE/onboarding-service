@@ -11,7 +11,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
-import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValueQueries;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.math.BigDecimal;
@@ -39,7 +39,7 @@ class RedemptionAlertJobTest {
   private static final Instant WED_CUTOFF = Instant.parse("2025-01-15T14:00:00Z");
 
   @Mock private RedemptionRequestRepository redemptionRequestRepository;
-  @Mock private FundValueRepository fundValueRepository;
+  @Mock private FundValueQueries fundValueQueries;
   @Mock private OperationsNotificationService notificationService;
   @Mock private PublicHolidays publicHolidays;
 
@@ -54,7 +54,7 @@ class RedemptionAlertJobTest {
                 requestWithAmount(new BigDecimal("25000.00")),
                 requestWithAmount(new BigDecimal("20000.00"))));
 
-    given(fundValueRepository.findLastValueForFund(TKF100.getAumKey()))
+    given(fundValueQueries.findLastValueForFund(TKF100.getAumKey()))
         .willReturn(Optional.of(aumValue(new BigDecimal("50000000.00"))));
 
     job.checkRedemptionAlerts();
@@ -74,7 +74,7 @@ class RedemptionAlertJobTest {
                 requestWithAmount(new BigDecimal("3000.00")),
                 requestWithAmount(new BigDecimal("2500.00"))));
 
-    given(fundValueRepository.findLastValueForFund(TKF100.getAumKey()))
+    given(fundValueQueries.findLastValueForFund(TKF100.getAumKey()))
         .willReturn(Optional.of(aumValue(new BigDecimal("500000.00"))));
 
     job.checkRedemptionAlerts();
@@ -94,7 +94,7 @@ class RedemptionAlertJobTest {
                 requestWithAmount(new BigDecimal("25000.00")),
                 requestWithAmount(new BigDecimal("20000.00"))));
 
-    given(fundValueRepository.findLastValueForFund(TKF100.getAumKey()))
+    given(fundValueQueries.findLastValueForFund(TKF100.getAumKey()))
         .willReturn(Optional.of(aumValue(new BigDecimal("500000.00"))));
 
     job.checkRedemptionAlerts();
@@ -114,7 +114,7 @@ class RedemptionAlertJobTest {
                 requestWithAmount(new BigDecimal("2000.00")),
                 requestWithAmount(new BigDecimal("2000.00"))));
 
-    given(fundValueRepository.findLastValueForFund(TKF100.getAumKey()))
+    given(fundValueQueries.findLastValueForFund(TKF100.getAumKey()))
         .willReturn(Optional.of(aumValue(new BigDecimal("500000.00"))));
 
     job.checkRedemptionAlerts();
@@ -130,7 +130,7 @@ class RedemptionAlertJobTest {
     given(redemptionRequestRepository.findAcceptedBefore(VERIFIED, WED_CUTOFF))
         .willReturn(List.of(requestWithAmount(new BigDecimal("40000.00"))));
 
-    given(fundValueRepository.findLastValueForFund(TKF100.getAumKey()))
+    given(fundValueQueries.findLastValueForFund(TKF100.getAumKey()))
         .willReturn(Optional.of(aumValue(new BigDecimal("50000000.00"))));
 
     job.checkRedemptionAlerts();
@@ -160,7 +160,7 @@ class RedemptionAlertJobTest {
     job.checkRedemptionAlerts();
 
     verifyNoInteractions(notificationService);
-    verifyNoInteractions(fundValueRepository);
+    verifyNoInteractions(fundValueQueries);
   }
 
   @Test
@@ -174,8 +174,7 @@ class RedemptionAlertJobTest {
                 requestWithAmount(new BigDecimal("25000.00")),
                 requestWithAmount(new BigDecimal("20000.00"))));
 
-    given(fundValueRepository.findLastValueForFund(TKF100.getAumKey()))
-        .willReturn(Optional.empty());
+    given(fundValueQueries.findLastValueForFund(TKF100.getAumKey())).willReturn(Optional.empty());
 
     job.checkRedemptionAlerts();
 
@@ -194,7 +193,7 @@ class RedemptionAlertJobTest {
                 requestWithAmount(new BigDecimal("25000.00")),
                 requestWithAmount(new BigDecimal("20000.00"))));
 
-    given(fundValueRepository.findLastValueForFund(TKF100.getAumKey()))
+    given(fundValueQueries.findLastValueForFund(TKF100.getAumKey()))
         .willReturn(Optional.of(aumValue(BigDecimal.ZERO)));
 
     job.checkRedemptionAlerts();
@@ -206,11 +205,7 @@ class RedemptionAlertJobTest {
   private RedemptionAlertJob jobOn(String instant) {
     Clock clock = Clock.fixed(Instant.parse(instant), TALLINN);
     return new RedemptionAlertJob(
-        clock,
-        publicHolidays,
-        redemptionRequestRepository,
-        fundValueRepository,
-        notificationService);
+        clock, publicHolidays, redemptionRequestRepository, fundValueQueries, notificationService);
   }
 
   private RedemptionRequest requestWithAmount(BigDecimal amount) {

@@ -9,7 +9,7 @@ import static java.util.stream.StreamSupport.stream;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
-import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValueQueries;
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatistics;
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatisticsService;
 import ee.tuleva.onboarding.ledger.LedgerService;
@@ -40,7 +40,7 @@ class FundService {
 
   private final FundRepository fundRepository;
   private final PensionFundStatisticsService pensionFundStatisticsService;
-  private final FundValueRepository fundValueRepository;
+  private final FundValueQueries fundValueQueries;
   private final LocaleService localeService;
   private final LedgerService ledgerService;
   private final SavingsFundConfiguration savingsFundConfiguration;
@@ -68,8 +68,8 @@ class FundService {
     boolean isSavingsFund = savingsFundConfiguration.getIsin().equals(fund.getIsin());
     Optional<FundValue> latestValue =
         isSavingsFund
-            ? fundValueRepository.getLatestValue(fund.getIsin(), fundNavProvider.safeMaxNavDate())
-            : fundValueRepository.findLastValueForFund(fund.getIsin());
+            ? fundValueQueries.getLatestValue(fund.getIsin(), fundNavProvider.safeMaxNavDate())
+            : fundValueQueries.findLastValueForFund(fund.getIsin());
     return latestValue
         .map(fundValue -> buildSavingsFundStatistics(fund, fundValue))
         .orElseGet(PensionFundStatistics::getNull);
@@ -101,7 +101,7 @@ class FundService {
 
     var previousNav =
         toNavScale(
-            fundValueRepository
+            fundValueQueries
                 .getLatestValue(fund.getIsin(), latestFundValue.date().minusDays(1))
                 .map(FundValue::value)
                 .orElse(latestFundValue.value()));
@@ -148,7 +148,7 @@ class FundService {
     if (start.isAfter(end)) {
       return List.of();
     }
-    return fundValueRepository.findValuesBetweenDates(fund.getIsin(), start, end).stream()
+    return fundValueQueries.findValuesBetweenDates(fund.getIsin(), start, end).stream()
         .map(fv -> new NavValueResponse(fv.date(), fv.value()))
         .toList();
   }

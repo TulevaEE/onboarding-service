@@ -11,7 +11,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
-import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValueWriter;
 import ee.tuleva.onboarding.investment.check.tracking.NavTrackingDifferenceGate;
 import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
@@ -32,7 +32,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 @ExtendWith(MockitoExtension.class)
 class NavPublisherTest {
 
-  @Mock private FundValueRepository fundValueRepository;
+  @Mock private FundValueWriter fundValueWriter;
   @Mock private NavReportMapper navReportMapper;
   @Mock private NavReportRepository navReportRepository;
   @Mock private NavReportEmailSender navReportEmailSender;
@@ -58,7 +58,7 @@ class NavPublisherTest {
     navPublisher.publish(result);
 
     ArgumentCaptor<FundValue> captor = forClass(FundValue.class);
-    verify(fundValueRepository, times(2)).save(captor.capture());
+    verify(fundValueWriter, times(2)).save(captor.capture());
 
     var savedValues = captor.getAllValues();
 
@@ -157,7 +157,7 @@ class NavPublisherTest {
 
     navPublisher.publish(result);
 
-    verifyNoInteractions(fundValueRepository);
+    verifyNoInteractions(fundValueWriter);
     verify(navNotifier).notify(result);
     verify(navReportEmailSender).send(any(), eq(result));
   }
@@ -197,7 +197,7 @@ class NavPublisherTest {
 
     navPublisher.publish(result);
 
-    verify(fundValueRepository, times(2)).save(any());
+    verify(fundValueWriter, times(2)).save(any());
     verifyNoInteractions(navReportEmailSender);
     verify(navReportRepository, never()).markAsPublished(any(UUID.class));
     verify(notificationService).sendMessage(contains("has no rows"), eq(SAVINGS));

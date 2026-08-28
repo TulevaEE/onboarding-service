@@ -6,7 +6,7 @@ import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionCutoff.TALL
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
-import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValueQueries;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.math.BigDecimal;
@@ -35,7 +35,7 @@ public class RedemptionAlertJob {
   private final Clock clock;
   private final PublicHolidays publicHolidays;
   private final RedemptionRequestRepository redemptionRequestRepository;
-  private final FundValueRepository fundValueRepository;
+  private final FundValueQueries fundValueQueries;
   private final OperationsNotificationService notificationService;
 
   @Scheduled(cron = "0 5 16 * * MON-FRI", zone = "Europe/Tallinn")
@@ -74,7 +74,7 @@ public class RedemptionAlertJob {
   }
 
   private void checkLiquidityRisk(BigDecimal totalAmount, int requestCount) {
-    Optional<FundValue> aum = fundValueRepository.findLastValueForFund(TKF100.getAumKey());
+    Optional<FundValue> aum = fundValueQueries.findLastValueForFund(TKF100.getAumKey());
     if (aum.isEmpty()) {
       log.warn("AUM not available for TKF100, skipping liquidity risk check");
       return;

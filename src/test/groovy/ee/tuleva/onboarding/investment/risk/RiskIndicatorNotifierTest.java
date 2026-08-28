@@ -13,7 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 
-import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValueQueries;
 import ee.tuleva.onboarding.deadline.BusinessDays;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
@@ -51,7 +51,7 @@ class RiskIndicatorNotifierTest {
       Mockito.mock(DisclosedRiskIndicatorRepository.class);
   private final RiskIndicatorDigestRepository digests =
       Mockito.mock(RiskIndicatorDigestRepository.class);
-  private final FundValueRepository fundValues = Mockito.mock(FundValueRepository.class);
+  private final FundValueQueries fundValues = Mockito.mock(FundValueQueries.class);
   private final RiskIndicatorPublicationRepository publications =
       Mockito.mock(RiskIndicatorPublicationRepository.class);
   private final Map<TulevaFund, ProxyReview> proxyReviews = new HashMap<>();

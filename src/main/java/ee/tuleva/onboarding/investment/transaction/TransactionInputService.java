@@ -15,7 +15,7 @@ import static java.math.RoundingMode.CEILING;
 import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
-import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValueQueries;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.epis.FundCycleTimeline;
@@ -74,7 +74,7 @@ public class TransactionInputService {
   private final FundLimitRepository fundLimitRepository;
   private final PositionLimitRepository positionLimitRepository;
   private final NavLedgerRepository navLedgerRepository;
-  private final FundValueRepository fundValueRepository;
+  private final FundValueQueries fundValueQueries;
   private final TransactionOrderRepository orderRepository;
   private final PevaRavaPeriodService pevaRavaPeriodService;
   private final PevaRavaFlowService pevaRavaFlowService;
@@ -418,10 +418,7 @@ public class TransactionInputService {
       return ZERO;
     }
     BigDecimal nav =
-        fundValueRepository
-            .findLastValueForFund(TKF100.getIsin())
-            .map(FundValue::value)
-            .orElse(ZERO);
+        fundValueQueries.findLastValueForFund(TKF100.getIsin()).map(FundValue::value).orElse(ZERO);
     return units.multiply(nav);
   }
 

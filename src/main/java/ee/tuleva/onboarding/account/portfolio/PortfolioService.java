@@ -8,7 +8,7 @@ import static java.util.stream.Collectors.toMap;
 import ee.tuleva.onboarding.account.transaction.Transaction;
 import ee.tuleva.onboarding.account.transaction.TransactionService;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValueQueries;
 import ee.tuleva.onboarding.comparisons.returns.Returns;
 import ee.tuleva.onboarding.comparisons.returns.ReturnsService;
 import ee.tuleva.onboarding.comparisons.returns.provider.PersonalReturnProvider;
@@ -42,7 +42,7 @@ public class PortfolioService {
 
   private final TransactionService transactionService;
   private final FundRepository fundRepository;
-  private final FundValueRepository fundValueRepository;
+  private final FundValueQueries fundValueQueries;
   private final SavingsFundConfiguration savingsFundConfiguration;
   private final ReturnsService returnsService;
   private final FundNavProvider fundNavProvider;
@@ -121,10 +121,10 @@ public class PortfolioService {
         isin -> {
           LocalDate end = latestVisibleDate(isin, to);
           Map<LocalDate, BigDecimal> prices = new HashMap<>();
-          fundValueRepository
+          fundValueQueries
               .getLatestValue(isin, earlierOf(from.minusDays(1), end))
               .ifPresent(value -> prices.put(value.date(), value.value()));
-          fundValueRepository
+          fundValueQueries
               .findValuesBetweenDates(isin, from, end)
               .forEach(value -> prices.put(value.date(), value.value()));
           history.put(isin, prices);

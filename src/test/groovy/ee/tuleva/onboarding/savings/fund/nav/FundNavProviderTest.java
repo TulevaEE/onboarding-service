@@ -6,7 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
-import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValueQueries;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -25,13 +25,13 @@ class FundNavProviderTest {
   private static final String ISIN = "EE0000003283";
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
 
-  @Mock private FundValueRepository fundValueRepository;
+  @Mock private FundValueQueries fundValueQueries;
   private final PublicHolidays publicHolidays = new PublicHolidays();
 
   private FundNavProvider provider(String timeInTallinn) {
     var instant = java.time.LocalDateTime.parse(timeInTallinn).atZone(TALLINN).toInstant();
     var clock = Clock.fixed(instant, TALLINN);
-    return new FundNavProvider(fundValueRepository, publicHolidays, clock);
+    return new FundNavProvider(fundValueQueries, publicHolidays, clock);
   }
 
   @Test
@@ -89,7 +89,7 @@ class FundNavProviderTest {
     LocalDate yesterday = LocalDate.of(2025, 1, 14);
     var fundValue =
         new FundValue(ISIN, yesterday, new BigDecimal("9.69940"), "TULEVA", Instant.now());
-    when(fundValueRepository.getLatestValue(ISIN, yesterday)).thenReturn(Optional.of(fundValue));
+    when(fundValueQueries.getLatestValue(ISIN, yesterday)).thenReturn(Optional.of(fundValue));
 
     assertThat(provider.getDisplayNav(TKF100)).isEqualByComparingTo("9.6994");
   }
@@ -99,7 +99,7 @@ class FundNavProviderTest {
     var provider = provider("2025-01-15T17:00:00");
     LocalDate today = LocalDate.of(2025, 1, 15);
     LocalDate yesterday = LocalDate.of(2025, 1, 14);
-    when(fundValueRepository.getLatestValue(ISIN, yesterday)).thenReturn(Optional.empty());
+    when(fundValueQueries.getLatestValue(ISIN, yesterday)).thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> provider.getDisplayNav(TKF100))
         .isInstanceOf(IllegalStateException.class);
@@ -114,8 +114,8 @@ class FundNavProviderTest {
         new FundValue(ISIN, dealingDate, new BigDecimal("9.6994"), "TULEVA", Instant.now());
     var previousValue =
         new FundValue(ISIN, previousDealingDate, new BigDecimal("9.6500"), "TULEVA", Instant.now());
-    when(fundValueRepository.getLatestValue(ISIN, dealingDate)).thenReturn(Optional.of(fundValue));
-    when(fundValueRepository.getLatestValue(ISIN, previousDealingDate))
+    when(fundValueQueries.getLatestValue(ISIN, dealingDate)).thenReturn(Optional.of(fundValue));
+    when(fundValueQueries.getLatestValue(ISIN, previousDealingDate))
         .thenReturn(Optional.of(previousValue));
 
     assertThat(provider.getVerifiedNavForIssuingAndRedeeming(TKF100, dealingDate))
@@ -129,7 +129,7 @@ class FundNavProviderTest {
     var staleValue =
         new FundValue(
             ISIN, LocalDate.of(2025, 1, 10), new BigDecimal("9.6994"), "TULEVA", Instant.now());
-    when(fundValueRepository.getLatestValue(ISIN, dealingDate)).thenReturn(Optional.of(staleValue));
+    when(fundValueQueries.getLatestValue(ISIN, dealingDate)).thenReturn(Optional.of(staleValue));
 
     assertThatThrownBy(() -> provider.getVerifiedNavForIssuingAndRedeeming(TKF100, dealingDate))
         .isInstanceOf(IllegalStateException.class);
@@ -139,7 +139,7 @@ class FundNavProviderTest {
   void getVerifiedNav_throwsWhenNoNavExistsOnOrBeforeTheDealingDate() {
     var provider = provider("2025-01-15T17:00:00");
     LocalDate dealingDate = LocalDate.of(2025, 1, 14);
-    when(fundValueRepository.getLatestValue(ISIN, dealingDate)).thenReturn(Optional.empty());
+    when(fundValueQueries.getLatestValue(ISIN, dealingDate)).thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> provider.getVerifiedNavForIssuingAndRedeeming(TKF100, dealingDate))
         .isInstanceOf(IllegalStateException.class);
@@ -154,8 +154,8 @@ class FundNavProviderTest {
         new FundValue(ISIN, dealingDate, new BigDecimal("9.6500"), "TULEVA", Instant.now());
     var previousValue =
         new FundValue(ISIN, previousDealingDate, new BigDecimal("9.6000"), "TULEVA", Instant.now());
-    when(fundValueRepository.getLatestValue(ISIN, dealingDate)).thenReturn(Optional.of(fundValue));
-    when(fundValueRepository.getLatestValue(ISIN, previousDealingDate))
+    when(fundValueQueries.getLatestValue(ISIN, dealingDate)).thenReturn(Optional.of(fundValue));
+    when(fundValueQueries.getLatestValue(ISIN, previousDealingDate))
         .thenReturn(Optional.of(previousValue));
 
     assertThat(provider.getVerifiedNavForIssuingAndRedeeming(TKF100, dealingDate))
@@ -172,8 +172,8 @@ class FundNavProviderTest {
     var previousNav =
         new FundValue(
             ISIN, previousDealingDate, new BigDecimal("10.0000"), "TULEVA", Instant.now());
-    when(fundValueRepository.getLatestValue(ISIN, dealingDate)).thenReturn(Optional.of(currentNav));
-    when(fundValueRepository.getLatestValue(ISIN, previousDealingDate))
+    when(fundValueQueries.getLatestValue(ISIN, dealingDate)).thenReturn(Optional.of(currentNav));
+    when(fundValueQueries.getLatestValue(ISIN, previousDealingDate))
         .thenReturn(Optional.of(previousNav));
 
     assertThatThrownBy(() -> provider.getVerifiedNavForIssuingAndRedeeming(TKF100, dealingDate))
@@ -190,8 +190,8 @@ class FundNavProviderTest {
     var previousNav =
         new FundValue(
             ISIN, previousDealingDate, new BigDecimal("10.0000"), "TULEVA", Instant.now());
-    when(fundValueRepository.getLatestValue(ISIN, dealingDate)).thenReturn(Optional.of(currentNav));
-    when(fundValueRepository.getLatestValue(ISIN, previousDealingDate))
+    when(fundValueQueries.getLatestValue(ISIN, dealingDate)).thenReturn(Optional.of(currentNav));
+    when(fundValueQueries.getLatestValue(ISIN, previousDealingDate))
         .thenReturn(Optional.of(previousNav));
 
     assertThat(provider.getVerifiedNavForIssuingAndRedeeming(TKF100, dealingDate))

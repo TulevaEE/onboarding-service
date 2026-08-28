@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.investment.risk;
 import static ee.tuleva.onboarding.investment.risk.RiskIndicatorType.SRI;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
-import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValueQueries;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.risk.RiskIndicatorProperties.Source;
 import java.time.Clock;
@@ -31,7 +31,7 @@ class RiskIndicatorSeriesService {
   private static final Period SRRI_PRECEDING_PRICE_BUFFER = Period.ofMonths(1);
 
   private final Clock clock;
-  private final FundValueRepository fundValueRepository;
+  private final FundValueQueries fundValueQueries;
   private final RiskIndicatorPointRepository pointRepository;
   private final RiskIndicatorProperties properties;
   private final SriCalculator sriCalculator;
@@ -93,7 +93,7 @@ class RiskIndicatorSeriesService {
         continue;
       }
       prices.addAll(
-          fundValueRepository.findValuesBetweenDates(segment.key(), segmentStart, segmentEnd));
+          fundValueQueries.findValuesBetweenDates(segment.key(), segmentStart, segmentEnd));
     }
     return prices;
   }
@@ -116,7 +116,7 @@ class RiskIndicatorSeriesService {
 
   private @Nullable LocalDate anchorDate(List<Source> segments) {
     var activeKey = segments.getLast().key();
-    return fundValueRepository.findLastValueForFund(activeKey).map(FundValue::date).orElse(null);
+    return fundValueQueries.findLastValueForFund(activeKey).map(FundValue::date).orElse(null);
   }
 
   private String sourceKeys(List<Source> segments) {

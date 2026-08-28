@@ -5,7 +5,7 @@ import static ee.tuleva.onboarding.investment.event.PipelineStep.REPORT_PERSIST;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
-import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValueWriter;
 import ee.tuleva.onboarding.investment.check.tracking.NavTrackingDifferenceGate;
 import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
@@ -23,7 +23,7 @@ public class NavPublisher {
 
   private static final String NAV_PROVIDER = "TULEVA";
 
-  private final FundValueRepository fundValueRepository;
+  private final FundValueWriter fundValueWriter;
   private final NavReportMapper navReportMapper;
   private final NavReportRepository navReportRepository;
   private final NavReportEmailSender navReportEmailSender;
@@ -203,7 +203,7 @@ public class NavPublisher {
             NAV_PROVIDER,
             result.calculatedAt());
 
-    fundValueRepository.save(navValue);
+    fundValueWriter.save(navValue);
   }
 
   private void publishAum(NavCalculationResult result) {
@@ -215,6 +215,6 @@ public class NavPublisher {
             NAV_PROVIDER,
             result.calculatedAt());
 
-    fundValueRepository.save(aumValue);
+    fundValueWriter.save(aumValue);
   }
 }

@@ -20,7 +20,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
-import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValueQueries;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.epis.FundCycleTimeline;
@@ -76,7 +76,7 @@ class TransactionInputServiceTest {
   @Mock private FundLimitRepository fundLimitRepository;
   @Mock private PositionLimitRepository positionLimitRepository;
   @Mock private NavLedgerRepository navLedgerRepository;
-  @Mock private FundValueRepository fundValueRepository;
+  @Mock private FundValueQueries fundValueQueries;
   @Mock private TransactionOrderRepository orderRepository;
   @Mock private PevaRavaPeriodService pevaRavaPeriodService;
   @Mock private PevaRavaFlowService pevaRavaFlowService;
@@ -635,7 +635,7 @@ class TransactionInputServiceTest {
         .thenReturn(new BigDecimal("2000"));
     when(navLedgerRepository.getFundUnitsBalance("FUND_UNITS_RESERVED"))
         .thenReturn(new BigDecimal("100"));
-    when(fundValueRepository.findLastValueForFund("EE0000003283"))
+    when(fundValueQueries.findLastValueForFund("EE0000003283"))
         .thenReturn(
             Optional.of(new FundValue("EE0000003283", null, new BigDecimal("50"), null, null)));
 

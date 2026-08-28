@@ -1,9 +1,9 @@
 {
-  "branchCoverage": 85.12,
-  "lineCoverage": 82.5,
-  "meanInstability": 0.489,
+  "branchCoverage": 85.11,
+  "lineCoverage": 82.45,
+  "meanInstability": 0.483,
   "moduleCycles": 37,
-  "modulithViolations": 1631,
+  "modulithViolations": 1546,
   "pmdViolations": 177,
   "pmdViolationsByRule": {
     "CognitiveComplexity": 24,
@@ -14,7 +14,7 @@
     "TooManyMethods": 10
   },
   "springBootTests": 97,
-  "top15ClassLines": 9915,
-  "totalPackages": 219,
+  "top15ClassLines": 9692,
+  "totalPackages": 223,
   "unmarkedPackages": 181
 }

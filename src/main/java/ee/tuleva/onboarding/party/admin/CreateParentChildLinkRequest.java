@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.admin;
+package ee.tuleva.onboarding.party.admin;
 
 import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
 import jakarta.validation.constraints.NotBlank;

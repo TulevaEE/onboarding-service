@@ -21,3 +21,9 @@
 # for a minor, and the sample user is baked into snapshots repo-wide):
 38812121215
 61506150006
+
+# Repo-invented admin test fixtures, long public on master (moved between
+# test files by the admin controller split)
+39107050268
+48709090311
+48806046007

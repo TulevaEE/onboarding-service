@@ -13,7 +13,7 @@
     "NcssCount": 1,
     "TooManyMethods": 10
   },
-  "springBootTests": 97,
+  "springBootTests": 89,
   "top15ClassLines": 9692,
   "totalPackages": 224,
   "unmarkedPackages": 167

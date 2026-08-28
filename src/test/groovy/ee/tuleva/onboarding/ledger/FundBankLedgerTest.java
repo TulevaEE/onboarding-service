@@ -10,6 +10,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.time.ClockConfig;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -20,11 +21,18 @@ import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.context.annotation.Import;
 
-@SpringBootTest
-@Transactional
+@DataJpaTest
+@Import({
+  LedgerService.class,
+  LedgerAccountService.class,
+  LedgerPartyService.class,
+  LedgerTransactionService.class,
+  FundBankLedger.class,
+  ClockConfig.class
+})
 class FundBankLedgerTest {
 
   private static final LocalDate BOOKING_DATE = LocalDate.of(2026, 5, 28);

@@ -15,6 +15,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.time.ClockConfig;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -24,11 +25,18 @@ import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.context.annotation.Import;
 
-@SpringBootTest
-@Transactional
+@DataJpaTest
+@Import({
+  LedgerService.class,
+  LedgerAccountService.class,
+  LedgerPartyService.class,
+  LedgerTransactionService.class,
+  SavingsFundLedger.class,
+  ClockConfig.class
+})
 class SavingsFundLedgerTest {
 
   @Autowired LedgerService ledgerService;

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.country;
 
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toUnmodifiableSet;
 
 import java.util.Arrays;
@@ -24,7 +25,7 @@ public final class Countries {
   public static Set<Country> of(Collection<@Nullable String> countryCodes) {
     return countryCodes.stream()
         .filter(code -> code != null && !code.isBlank())
-        .map(Country::new)
+        .map(code -> new Country(requireNonNull(code)))
         .collect(toUnmodifiableSet());
   }
 }

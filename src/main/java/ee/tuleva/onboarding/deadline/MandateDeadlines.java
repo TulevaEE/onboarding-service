@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.deadline;
 
 import static java.time.temporal.TemporalAdjusters.lastDayOfMonth;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import java.time.Clock;
@@ -61,7 +62,10 @@ public class MandateDeadlines {
     Map<ZonedDateTime, LocalDate> previousDeadlineMap =
         getZonedDateTimeLocalDateMap(applicationYear);
 
-    LocalDate previousDeadline = previousDeadlineMap.get(currentPeriodEnd);
+    LocalDate previousDeadline =
+        requireNonNull(
+            previousDeadlineMap.get(currentPeriodEnd),
+            "No deadline for period end: " + currentPeriodEnd);
 
     return previousDeadline.plusDays(1);
   }

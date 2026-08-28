@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -54,7 +55,7 @@ public class ThirdPillarTaxHeadroom {
     return lastYear.compareTo(confidentCeiling) < 0 && yearBefore.compareTo(confidentCeiling) < 0;
   }
 
-  private BigDecimal deriveMonthlyGross(List<Contribution> contributions) {
+  private @Nullable BigDecimal deriveMonthlyGross(List<Contribution> contributions) {
     List<SecondPillarContribution> secondPillar =
         contributions.stream()
             .filter(SecondPillarContribution.class::isInstance)

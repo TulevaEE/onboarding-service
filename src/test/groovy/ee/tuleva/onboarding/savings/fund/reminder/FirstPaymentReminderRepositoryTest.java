@@ -96,7 +96,7 @@ class FirstPaymentReminderRepositoryTest {
     var reminders = repository.fetch(OPENED_FROM, OPENED_UNTIL);
 
     assertThat(reminders)
-        .extracting(FirstPaymentReminder::personalCode, FirstPaymentReminder::locale)
+        .extracting(FirstPaymentReminder::accountCode, FirstPaymentReminder::locale)
         .containsExactlyInAnyOrder(
             org.assertj.core.groups.Tuple.tuple(SAVER, Locale.of("et")),
             org.assertj.core.groups.Tuple.tuple(ENGLISH_SPEAKING_SAVER, Locale.ENGLISH));
@@ -131,7 +131,7 @@ class FirstPaymentReminderRepositoryTest {
 
     var reminders = repository.fetch(OPENED_FROM, OPENED_UNTIL);
 
-    assertThat(reminders).extracting(FirstPaymentReminder::personalCode).containsExactly(SAVER);
+    assertThat(reminders).extracting(FirstPaymentReminder::accountCode).containsExactly(SAVER);
   }
 
   private Company company(String registryCode) {

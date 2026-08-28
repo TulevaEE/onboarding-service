@@ -4,21 +4,25 @@ import ee.tuleva.onboarding.auth.principal.Person;
 import java.util.Locale;
 
 record FirstPaymentReminder(
-    String personalCode, String firstName, String lastName, String email, Locale locale)
+    String accountCode,
+    String recipientFirstName,
+    String recipientLastName,
+    String recipientEmail,
+    Locale locale)
     implements Person {
 
   @Override
   public String getPersonalCode() {
-    return personalCode;
+    return accountCode;
   }
 
   @Override
   public String getFirstName() {
-    return firstName;
+    return recipientFirstName;
   }
 
   @Override
   public String getLastName() {
-    return lastName;
+    return recipientLastName;
   }
 }

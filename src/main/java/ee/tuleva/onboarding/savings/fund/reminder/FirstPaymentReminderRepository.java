@@ -93,7 +93,7 @@ class FirstPaymentReminderRepository {
   }
 
   private boolean isAdult(FirstPaymentReminder reminder) {
-    return !PersonalCode.isMinor(reminder.personalCode(), LocalDate.now(clock));
+    return !PersonalCode.isMinor(reminder.accountCode(), LocalDate.now(clock));
   }
 
   private Locale localeOf(String languagePreference) {

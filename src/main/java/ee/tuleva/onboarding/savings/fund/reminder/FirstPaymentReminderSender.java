@@ -27,11 +27,11 @@ class FirstPaymentReminderSender {
 
     var message =
         emailService.newMandrillMessage(
-            reminder.email(),
+            reminder.recipientEmail(),
             templateName,
             Map.of(
                 "fname",
-                Names.formatted(reminder.firstName()),
+                Names.formatted(reminder.recipientFirstName()),
                 "savingsFundFee",
                 savingsFundFees.ongoingChargesPercent(reminder.locale())),
             TAGS,

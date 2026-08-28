@@ -89,9 +89,9 @@ class FirstPaymentReminderSenderTest {
     given(savingsFundFees.ongoingChargesPercent(reminder.locale())).willReturn("0.28");
     given(
             emailService.newMandrillMessage(
-                eq(reminder.email()),
+                eq(reminder.recipientEmail()),
                 eq(templateName),
-                eq(Map.of("fname", reminder.firstName(), "savingsFundFee", "0.28")),
+                eq(Map.of("fname", reminder.recipientFirstName(), "savingsFundFee", "0.28")),
                 eq(TAGS),
                 isNull()))
         .willReturn(message);

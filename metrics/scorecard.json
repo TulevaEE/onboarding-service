@@ -1,9 +1,9 @@
 {
-  "branchCoverage": 85.11,
+  "branchCoverage": 85.12,
   "lineCoverage": 82.45,
   "meanInstability": 0.483,
   "moduleCycles": 37,
-  "modulithViolations": 1546,
+  "modulithViolations": 1376,
   "pmdViolations": 177,
   "pmdViolationsByRule": {
     "CognitiveComplexity": 24,

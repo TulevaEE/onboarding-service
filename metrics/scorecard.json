@@ -1,0 +1,20 @@
+{
+  "branchCoverage": 85.12,
+  "lineCoverage": 82.48,
+  "meanInstability": 0.489,
+  "moduleCycles": 43,
+  "modulithViolations": 3789,
+  "pmdViolations": 177,
+  "pmdViolationsByRule": {
+    "CognitiveComplexity": 24,
+    "CouplingBetweenObjects": 41,
+    "CyclomaticComplexity": 83,
+    "GodClass": 18,
+    "NcssCount": 1,
+    "TooManyMethods": 10
+  },
+  "springBootTests": 97,
+  "top15ClassLines": 10008,
+  "totalPackages": 221,
+  "unmarkedPackages": 200
+}

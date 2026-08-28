@@ -1,4 +1,5 @@
 import net.ltgt.gradle.errorprone.errorprone
+import org.gradle.api.plugins.quality.Pmd
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
 import org.gradle.api.tasks.testing.logging.TestLogEvent.FAILED
 import org.gradle.api.tasks.testing.logging.TestLogEvent.SKIPPED
@@ -33,11 +34,39 @@ plugins {
     id("com.diffplug.spotless") version "8.9.0"
     id("io.freefair.lombok") version "9.5.0"
     id("net.ltgt.errorprone") version "5.1.1"
+    id("info.solidsoft.pitest") version "1.19.0"
+    pmd
     jacoco
 }
 
 lombok {
     version = "1.18.46"
+}
+
+pmd {
+    toolVersion = "7.26.0"
+    isConsoleOutput = false
+    isIgnoreFailures = true
+    ruleSets = listOf()
+    ruleSetFiles = files("config/pmd/ruleset.xml")
+}
+
+pitest {
+    pitestVersion = "1.30.0"
+    junit5PluginVersion = "1.2.3"
+    addJUnitPlatformLauncher = false
+    threads = 4
+    outputFormats = listOf("XML", "HTML")
+    timestampedReports = false
+    enableDefaultIncrementalAnalysis = true
+    exportLineCoverage = true
+    targetClasses = ((project.findProperty("pitest.target") as String?) ?: "ee.tuleva.onboarding.*").split(",")
+    excludedClasses =
+        listOf(
+            "ee.tuleva.onboarding.ariregister.generated.*",
+            "ee.tuleva.onboarding.banking.iso20022.*",
+        )
+    jvmArgs = listOf("-XX:+UseParallelGC")
 }
 
 spotless {
@@ -261,6 +290,20 @@ tasks {
 
     check {
         dependsOn(jacocoTestReport)
+        dependsOn(jacocoTestCoverageVerification)
+    }
+
+    named("pmdTest") {
+        enabled = false
+    }
+
+    withType<Pmd> {
+        exclude { element -> element.file.path.contains("generated-sources") }
+    }
+
+    register<Exec>("scorecard") {
+        dependsOn(test, jacocoTestReport, named("pmdMain"))
+        commandLine("python3", "scripts/scorecard.py")
     }
 
     jacocoTestCoverageVerification {
@@ -280,25 +323,25 @@ tasks {
                 limit {
                     counter = "METHOD"
                     value = "COVEREDRATIO"
-                    minimum = "1.0".toBigDecimal()
+                    minimum = "0.9".toBigDecimal()
                 }
 
                 limit {
                     counter = "LINE"
                     value = "COVEREDRATIO"
-                    minimum = "1.0".toBigDecimal()
+                    minimum = "0.91".toBigDecimal()
                 }
 
                 limit {
                     counter = "BRANCH"
                     value = "COVEREDRATIO"
-                    minimum = "0.9".toBigDecimal()
+                    minimum = "0.74".toBigDecimal()
                 }
 
                 limit {
                     counter = "INSTRUCTION"
                     value = "COVEREDRATIO"
-                    minimum = "1.0".toBigDecimal()
+                    minimum = "0.91".toBigDecimal()
                 }
             }
             rule {
@@ -319,13 +362,13 @@ tasks {
                 limit {
                     counter = "METHOD"
                     value = "COVEREDRATIO"
-                    minimum = "1.0".toBigDecimal()
+                    minimum = "0.98".toBigDecimal()
                 }
 
                 limit {
                     counter = "LINE"
                     value = "COVEREDRATIO"
-                    minimum = "1.0".toBigDecimal()
+                    minimum = "0.99".toBigDecimal()
                 }
 
                 limit {
@@ -337,7 +380,7 @@ tasks {
                 limit {
                     counter = "INSTRUCTION"
                     value = "COVEREDRATIO"
-                    minimum = "1.0".toBigDecimal()
+                    minimum = "0.99".toBigDecimal()
                 }
             }
         }

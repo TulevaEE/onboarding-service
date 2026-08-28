@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ruleset name="complexity-and-cohesion-scorecard"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+  <description>
+    Complexity, size, cohesion, and coupling rules feeding the refactoring scorecard.
+    Violation counts are ratcheted down over time; thresholds stay fixed so trends stay comparable.
+  </description>
+
+  <rule ref="category/java/design.xml/CyclomaticComplexity">
+    <properties>
+      <property name="methodReportLevel" value="10"/>
+      <property name="classReportLevel" value="40"/>
+    </properties>
+  </rule>
+
+  <rule ref="category/java/design.xml/CognitiveComplexity">
+    <properties>
+      <property name="reportLevel" value="15"/>
+    </properties>
+  </rule>
+
+  <rule ref="category/java/design.xml/NcssCount">
+    <properties>
+      <property name="methodReportLevel" value="60"/>
+      <property name="classReportLevel" value="500"/>
+    </properties>
+  </rule>
+
+  <rule ref="category/java/design.xml/TooManyMethods">
+    <properties>
+      <property name="maxmethods" value="25"/>
+    </properties>
+  </rule>
+
+  <rule ref="category/java/design.xml/GodClass"/>
+
+  <rule ref="category/java/design.xml/CouplingBetweenObjects">
+    <properties>
+      <property name="threshold" value="20"/>
+    </properties>
+  </rule>
+</ruleset>

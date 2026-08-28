@@ -58,7 +58,6 @@ pitest {
     threads = 4
     outputFormats = listOf("XML", "HTML")
     timestampedReports = false
-    enableDefaultIncrementalAnalysis = true
     exportLineCoverage = true
     targetClasses = ((project.findProperty("pitest.target") as String?) ?: "ee.tuleva.onboarding.*").split(",")
     excludedClasses =

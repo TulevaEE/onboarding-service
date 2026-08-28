@@ -22,7 +22,7 @@ public final class Countries {
     return country == null ? Set.of() : of(country.getCountryCode());
   }
 
-  public static Set<Country> of(Collection<@Nullable String> countryCodes) {
+  public static Set<Country> of(Collection<? extends @Nullable String> countryCodes) {
     return countryCodes.stream()
         .filter(code -> code != null && !code.isBlank())
         .map(code -> new Country(requireNonNull(code)))

@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.jspecify.annotations.Nullable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface AmlCheckRepository extends JpaRepository<AmlCheck, Long> {
@@ -16,7 +17,7 @@ public interface AmlCheckRepository extends JpaRepository<AmlCheck, Long> {
       String personalCode, Instant createdAfter);
 
   List<AmlCheck> findAllByPersonalCodeAndCompanyIdAndCreatedTimeAfter(
-      String personalCode, UUID companyId, Instant createdAfter);
+      String personalCode, @Nullable UUID companyId, Instant createdAfter);
 
   List<AmlCheck> findAllByTypeIn(List<AmlCheckType> types);
 

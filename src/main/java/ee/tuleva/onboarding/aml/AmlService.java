@@ -40,6 +40,7 @@ import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.JsonNode;
@@ -67,7 +68,7 @@ public class AmlService {
   private final OperationsNotificationService notificationService;
   private final KycCountryService kycCountryService;
 
-  public void checkUserBeforeLogin(User user, Person person, Boolean isResident) {
+  public void checkUserBeforeLogin(User user, Person person, @Nullable Boolean isResident) {
     addDocumentCheck(user);
     addResidencyCheck(user, isResident);
     addSkNameCheck(user, person);
@@ -83,7 +84,7 @@ public class AmlService {
     addCheckIfMissing(documentCheck);
   }
 
-  private void addResidencyCheck(Person person, Boolean isResident) {
+  private void addResidencyCheck(Person person, @Nullable Boolean isResident) {
     if (isResident != null) {
       AmlCheck check =
           AmlCheck.builder()
@@ -311,15 +312,6 @@ public class AmlService {
           batch.population,
           e);
     }
-  }
-
-  @RequiredArgsConstructor
-  private enum ScreeningBatch {
-    THIRD_PILLAR("third-pillar", "batch"),
-    SAVINGS_FUND("savings fund", "savings-fund-batch");
-
-    private final String population;
-    private final String metricPhase;
   }
 
   private Map<String, Object> metadata(JsonNode results, JsonNode query) {

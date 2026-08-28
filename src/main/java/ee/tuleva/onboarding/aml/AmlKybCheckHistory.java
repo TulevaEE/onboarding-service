@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.aml;
 
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 import static java.util.Map.entry;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.company.Company;
 import ee.tuleva.onboarding.company.CompanyRepository;
@@ -16,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -71,7 +73,7 @@ public class AmlKybCheckHistory implements KybCheckHistory {
         .orElse(List.of());
   }
 
-  private UUID resolveCompanyId(RegistryCode registryCode) {
+  private @Nullable UUID resolveCompanyId(RegistryCode registryCode) {
     return companyRepository
         .findByRegistryCode(registryCode.value())
         .map(Company::getId)
@@ -80,6 +82,8 @@ public class AmlKybCheckHistory implements KybCheckHistory {
 
   private KybCheck toKybCheck(AmlCheck amlCheck) {
     return new KybCheck(
-        REVERSE_TYPE_MAPPING.get(amlCheck.getType()), amlCheck.isSuccess(), amlCheck.getMetadata());
+        requireNonNull(REVERSE_TYPE_MAPPING.get(amlCheck.getType()), "Unmapped AML check type"),
+        amlCheck.isSuccess(),
+        amlCheck.getMetadata());
   }
 }

@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.UUID;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
+import org.jspecify.annotations.Nullable;
 import org.springframework.data.annotation.CreatedDate;
 
 @Entity
@@ -28,7 +29,7 @@ public class AmlCheck {
 
   @ValidPersonalCode private String personalCode;
 
-  private UUID companyId;
+  private @Nullable UUID companyId;
 
   @Enumerated(value = EnumType.STRING)
   @NotNull

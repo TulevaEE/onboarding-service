@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.aml;
 
 import static ee.tuleva.onboarding.kyb.KybCheckPerformedEventOrder.ATTRIBUTE_AML_CHECKS;
 import static java.util.Map.entry;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.company.Company;
 import ee.tuleva.onboarding.company.CompanyRepository;
@@ -13,6 +14,7 @@ import ee.tuleva.onboarding.kyb.PersonalCode;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -57,18 +59,19 @@ public class AmlKybCheckEventListener {
             check -> amlService.addCheck(toAmlCheck(event.getPersonalCode(), companyId, check)));
   }
 
-  private UUID resolveCompanyId(CompanyDto company) {
+  private @Nullable UUID resolveCompanyId(CompanyDto company) {
     return companyRepository
         .findByRegistryCode(company.registryCode().value())
         .map(Company::getId)
         .orElse(null);
   }
 
-  private AmlCheck toAmlCheck(PersonalCode personalCode, UUID companyId, KybCheck kybCheck) {
+  private AmlCheck toAmlCheck(
+      PersonalCode personalCode, @Nullable UUID companyId, KybCheck kybCheck) {
     return AmlCheck.builder()
         .personalCode(personalCode.value())
         .companyId(companyId)
-        .type(TYPE_MAPPING.get(kybCheck.type()))
+        .type(requireNonNull(TYPE_MAPPING.get(kybCheck.type()), "Unmapped KYB check type"))
         .success(kybCheck.success())
         .metadata(kybCheck.metadata())
         .build();

@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -70,7 +71,7 @@ public class RiskLevelService {
     return type == RISK_LEVEL_OVERRIDE || type == TKF_RISK_LEVEL_OVERRIDE;
   }
 
-  private Integer parseLevel(Object level) {
+  private @Nullable Integer parseLevel(Object level) {
     if (level instanceof Number number) {
       return number.intValue();
     }

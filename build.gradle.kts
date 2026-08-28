@@ -466,7 +466,6 @@ tasks.test {
 
 tasks.withType<JavaCompile> {
     options.compilerArgs.add("-parameters")
-    options.compilerArgs.add("--enable-preview")
     options.compilerArgs.add("-Xlint:all")
     options.compilerArgs.add("-Xlint:-processing")
     options.compilerArgs.add("-Xlint:-path")
@@ -476,13 +475,8 @@ tasks.withType<JavaCompile> {
 //    options.compilerArgs.add("-Werror")
 }
 
-tasks.withType<JavaExec> {
-    jvmArgs("--enable-preview")
-}
-
 tasks.withType<Test> {
     jvmArgs(
-        "--enable-preview",
         "-XX:+UseParallelGC",
         "-XX:+HeapDumpOnOutOfMemoryError",
         "-XX:HeapDumpPath=/tmp/heapdump.hprof",

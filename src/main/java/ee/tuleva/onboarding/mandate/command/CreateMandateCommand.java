@@ -23,7 +23,7 @@ public class CreateMandateCommand {
   @AssertTrue(
       message = "either futureContributionFundIsin or fundTransferExchanges must be present")
   private boolean isSourceIsinPresent() {
-    return futureContributionFundIsin != null
+    return (futureContributionFundIsin != null && !futureContributionFundIsin.isBlank())
         || (fundTransferExchanges != null && !fundTransferExchanges.isEmpty());
   }
 }

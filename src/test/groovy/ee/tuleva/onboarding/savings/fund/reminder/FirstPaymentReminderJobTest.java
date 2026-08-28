@@ -1,13 +1,18 @@
 package ee.tuleva.onboarding.savings.fund.reminder;
 
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -30,9 +35,10 @@ class FirstPaymentReminderJobTest {
 
   @Mock private FirstPaymentReminderRepository repository;
   @Mock private FirstPaymentReminderSender sender;
+  @Mock private OperationsNotificationService notificationService;
 
   private FirstPaymentReminderJob job() {
-    return new FirstPaymentReminderJob(clock, repository, sender);
+    return new FirstPaymentReminderJob(clock, repository, sender, notificationService);
   }
 
   @Test
@@ -63,7 +69,7 @@ class FirstPaymentReminderJobTest {
 
   @Test
   void sendsNothingWhenThereAreSuspiciouslyManyRecipients() {
-    given(repository.fetchForAdults(OPENED_FROM, OPENED_UNTIL)).willReturn(reminders(201));
+    given(repository.fetchForAdults(OPENED_FROM, OPENED_UNTIL)).willReturn(reminders(51));
 
     job().sendReminders();
 
@@ -71,10 +77,19 @@ class FirstPaymentReminderJobTest {
   }
 
   @Test
+  void tellsOperationsWhenASegmentTripsTheCap() {
+    given(repository.fetchForAdults(OPENED_FROM, OPENED_UNTIL)).willReturn(reminders(51));
+
+    job().sendReminders();
+
+    verify(notificationService).sendMessage(contains("adults"), eq(SAVINGS), eq(ERROR));
+  }
+
+  @Test
   void oneSegmentGoingWrongDoesNotHoldUpTheOther() {
     var adult = reminder("38812121215");
     given(repository.fetchForAdults(OPENED_FROM, OPENED_UNTIL)).willReturn(List.of(adult));
-    given(repository.fetchForChildren(OPENED_FROM, OPENED_UNTIL)).willReturn(reminders(201));
+    given(repository.fetchForChildren(OPENED_FROM, OPENED_UNTIL)).willReturn(reminders(51));
 
     job().sendReminders();
 
@@ -103,7 +118,8 @@ class FirstPaymentReminderJobTest {
     given(repository.fetchForAdults(campaignCutoff, Instant.parse("2026-08-25T12:00:00Z")))
         .willReturn(List.of(saver));
 
-    new FirstPaymentReminderJob(justAfterTheCampaign, repository, sender).sendReminders();
+    new FirstPaymentReminderJob(justAfterTheCampaign, repository, sender, notificationService)
+        .sendReminders();
 
     verify(sender).send(saver);
   }

@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.PENDING;
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND;
 import static ee.tuleva.onboarding.pillar.Pillar.THIRD;
 import static java.math.BigDecimal.ZERO;
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
 
@@ -116,7 +117,13 @@ public class UserConversionService {
     return cashFlowStatement.getTransactions().stream()
             .filter(cashFlow -> cashFlow.isPriceTimeAfter(sameTimeLastYear()))
             .filter(CashFlow::isCashContribution)
-            .filter(cashFlow -> fundRepository.findByIsin(cashFlow.getIsin()).getPillar() == 3)
+            .filter(
+                cashFlow ->
+                    requireNonNull(
+                                fundRepository.findByIsin(cashFlow.getIsin()),
+                                "Unknown fund: isin=" + cashFlow.getIsin())
+                            .getPillar()
+                        == 3)
             .map(CashFlow::getAmount)
             .reduce(ZERO, BigDecimal::add)
             .compareTo(ZERO)

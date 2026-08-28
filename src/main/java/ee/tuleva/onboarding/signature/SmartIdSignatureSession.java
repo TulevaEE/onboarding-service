@@ -7,6 +7,7 @@ import java.util.List;
 import lombok.Data;
 import org.digidoc4j.Container;
 import org.digidoc4j.DataToSign;
+import org.jspecify.annotations.Nullable;
 
 @Data
 public class SmartIdSignatureSession implements Serializable {
@@ -15,10 +16,10 @@ public class SmartIdSignatureSession implements Serializable {
   private final String certificateSessionId;
   private final String personalCode;
   private final List<SignatureFile> files;
-  private String signingSessionId;
-  private String verificationCode;
-  private String documentNumber;
-  private DataToSign dataToSign;
-  private SignableHash signableHash;
-  private Container container;
+  private @Nullable String signingSessionId;
+  private @Nullable String verificationCode;
+  private @Nullable String documentNumber;
+  private @Nullable DataToSign dataToSign;
+  private @Nullable SignableHash signableHash;
+  private @Nullable Container container;
 }

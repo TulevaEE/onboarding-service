@@ -150,7 +150,6 @@ class LimitCheckService {
     var freeCashBreach =
         freeCashLimitChecker.check(fund, cashTotal, liabilityTotal, pendingCashImpact, fundLimit);
 
-    limitCheckEventRepository.deleteByFundAndCheckDate(fund, checkDate);
     saveEvent(fund, checkDate, POSITION, positionBreaches);
     saveEvent(fund, checkDate, PROVIDER, providerBreaches);
     saveEvent(fund, checkDate, RESERVE, reserveBreach);
@@ -235,16 +234,7 @@ class LimitCheckService {
                   return false;
                 });
 
-    var event =
-        LimitCheckEvent.builder()
-            .fund(fund)
-            .checkDate(checkDate)
-            .checkType(checkType)
-            .breachesFound(hasBreaches)
-            .result(Map.of("breaches", breaches))
-            .build();
-
-    limitCheckEventRepository.save(event);
+    replaceEvent(fund, checkDate, checkType, hasBreaches, Map.of("breaches", breaches));
   }
 
   private void saveEvent(
@@ -252,18 +242,12 @@ class LimitCheckService {
       LocalDate checkDate,
       CheckType checkType,
       @org.jspecify.annotations.Nullable ReserveBreach breach) {
-    var hasBreaches = breach != null && breach.severity() != BreachSeverity.OK;
-
-    var event =
-        LimitCheckEvent.builder()
-            .fund(fund)
-            .checkDate(checkDate)
-            .checkType(checkType)
-            .breachesFound(hasBreaches)
-            .result(breach != null ? Map.of("breach", breach) : Map.of())
-            .build();
-
-    limitCheckEventRepository.save(event);
+    replaceEvent(
+        fund,
+        checkDate,
+        checkType,
+        breach != null && breach.severity() != BreachSeverity.OK,
+        breach != null ? Map.of("breach", breach) : Map.of());
   }
 
   private void saveEvent(
@@ -271,17 +255,28 @@ class LimitCheckService {
       LocalDate checkDate,
       CheckType checkType,
       @org.jspecify.annotations.Nullable FreeCashBreach breach) {
-    var hasBreaches = breach != null && breach.severity() != BreachSeverity.OK;
+    replaceEvent(
+        fund,
+        checkDate,
+        checkType,
+        breach != null && breach.severity() != BreachSeverity.OK,
+        breach != null ? Map.of("breach", breach) : Map.of());
+  }
 
-    var event =
+  private void replaceEvent(
+      TulevaFund fund,
+      LocalDate checkDate,
+      CheckType checkType,
+      boolean breachesFound,
+      Map<String, Object> result) {
+    limitCheckEventRepository.deleteByFundAndCheckDateAndCheckType(fund, checkDate, checkType);
+    limitCheckEventRepository.save(
         LimitCheckEvent.builder()
             .fund(fund)
             .checkDate(checkDate)
             .checkType(checkType)
-            .breachesFound(hasBreaches)
-            .result(breach != null ? Map.of("breach", breach) : Map.of())
-            .build();
-
-    limitCheckEventRepository.save(event);
+            .breachesFound(breachesFound)
+            .result(result)
+            .build());
   }
 }

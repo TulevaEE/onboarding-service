@@ -162,6 +162,26 @@ class LimitCheckServiceTest {
   }
 
   @Test
+  void deletesOnlyTheCheckTypesItRewrites() {
+    service = createService();
+    var today = LocalDate.of(2026, 3, 4);
+    var fund = TUK75;
+
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, today))
+        .thenReturn(Optional.of(today));
+    when(navReportPositionProvider.getCalculatedAum(fund, today))
+        .thenReturn(Optional.of(new BigDecimal("1000000")));
+
+    service.runChecks();
+
+    verify(limitCheckEventRepository).deleteByFundAndCheckDateAndCheckType(fund, today, POSITION);
+    verify(limitCheckEventRepository).deleteByFundAndCheckDateAndCheckType(fund, today, PROVIDER);
+    verify(limitCheckEventRepository).deleteByFundAndCheckDateAndCheckType(fund, today, RESERVE);
+    verify(limitCheckEventRepository).deleteByFundAndCheckDateAndCheckType(fund, today, FREE_CASH);
+    verify(limitCheckEventRepository, times(4)).save(any(LimitCheckEvent.class));
+  }
+
+  @Test
   void handlesNoPositionData() {
     service = createService();
     var today = LocalDate.of(2026, 3, 4);

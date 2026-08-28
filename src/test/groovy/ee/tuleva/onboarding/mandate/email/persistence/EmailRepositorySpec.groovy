@@ -64,7 +64,8 @@ class EmailRepositorySpec extends Specification {
   def "can find latest email with mandate"() {
     given:
     def emailType = THIRD_PILLAR_PAYMENT_REMINDER_MANDATE
-    def sampleUser = entityManager.persist(sampleUserNonMember().id(null).build())
+    def sampleUser = entityManager.persist(
+        sampleUserNonMember().id(null).personalCode("30303039816").email("30303039816@example.com").build())
     def sampleMandate = entityManager.persist(emptyMandate().user(sampleUser).build())
     def scheduledEmail1 = entityManager.persist(
         new Email(personalCode: sampleUser.personalCode, mandrillMessageId: "123", type: emailType, mandate: sampleMandate, status: SCHEDULED)
@@ -86,7 +87,8 @@ class EmailRepositorySpec extends Specification {
   def "can find last email sent"() {
     given:
     def emailType = SECOND_PILLAR_EARLY_WITHDRAWAL
-    def sampleUser = entityManager.persist(sampleUserNonMember().id(null).build())
+    def sampleUser = entityManager.persist(
+        sampleUserNonMember().id(null).personalCode("40404049996").email("40404049996@example.com").build())
     def email = entityManager.persist(
         new Email(personalCode: sampleUser.personalCode, type: emailType, status: SCHEDULED)
     )

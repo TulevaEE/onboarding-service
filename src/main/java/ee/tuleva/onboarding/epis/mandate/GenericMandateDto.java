@@ -2,8 +2,8 @@ package ee.tuleva.onboarding.epis.mandate;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.country.Country;
-import ee.tuleva.onboarding.epis.mandate.details.MandateDetails;
 import ee.tuleva.onboarding.mandate.MandateType;
+import ee.tuleva.onboarding.mandate.details.MandateDetails;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import lombok.Builder;

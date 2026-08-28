@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.epis.cancellation
 
 import ee.tuleva.onboarding.epis.mandate.GenericMandateDto
-import ee.tuleva.onboarding.epis.mandate.details.EarlyWithdrawalCancellationMandateDetails
+import ee.tuleva.onboarding.mandate.details.EarlyWithdrawalCancellationMandateDetails
 import ee.tuleva.onboarding.pillar.Pillar
-import ee.tuleva.onboarding.epis.mandate.details.TransferCancellationMandateDetails
-import ee.tuleva.onboarding.epis.mandate.details.WithdrawalCancellationMandateDetails
+import ee.tuleva.onboarding.mandate.details.TransferCancellationMandateDetails
+import ee.tuleva.onboarding.mandate.details.WithdrawalCancellationMandateDetails
 
 import java.time.Instant
 

@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.mandate;
 
-import ee.tuleva.onboarding.epis.mandate.details.*;
+import ee.tuleva.onboarding.mandate.details.*;
 import java.util.EnumSet;
 import lombok.Getter;
 

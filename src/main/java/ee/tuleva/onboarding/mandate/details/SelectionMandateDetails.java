@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.epis.mandate.details;
+package ee.tuleva.onboarding.mandate.details;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;

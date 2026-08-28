@@ -2,10 +2,10 @@ package ee.tuleva.onboarding.mandate.content;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture;
-import static ee.tuleva.onboarding.epis.mandate.details.BankAccountDetails.BankAccountType.ESTONIAN;
 import static ee.tuleva.onboarding.fund.FundFixture.*;
 import static ee.tuleva.onboarding.mandate.MandateFixture.*;
 import static ee.tuleva.onboarding.mandate.MandateType.UNKNOWN;
+import static ee.tuleva.onboarding.mandate.details.BankAccountDetails.BankAccountType.ESTONIAN;
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -15,12 +15,12 @@ import static org.mockito.Mockito.when;
 
 import au.com.origin.snapshots.Expect;
 import au.com.origin.snapshots.junit5.SnapshotExtension;
-import ee.tuleva.onboarding.epis.mandate.details.BankAccountDetails;
-import ee.tuleva.onboarding.epis.mandate.details.PartialWithdrawalMandateDetails;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateType;
+import ee.tuleva.onboarding.mandate.details.BankAccountDetails;
+import ee.tuleva.onboarding.mandate.details.PartialWithdrawalMandateDetails;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;

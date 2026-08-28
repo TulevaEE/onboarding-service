@@ -4,11 +4,11 @@ import static ee.tuleva.onboarding.fund.Fund.FundStatus.ACTIVE;
 import static ee.tuleva.onboarding.mandate.MandateType.PARTIAL_WITHDRAWAL;
 
 import ee.tuleva.onboarding.epis.ContactDetails;
-import ee.tuleva.onboarding.epis.mandate.details.PartialWithdrawalMandateDetails;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateType;
+import ee.tuleva.onboarding.mandate.details.PartialWithdrawalMandateDetails;
 import ee.tuleva.onboarding.user.User;
 import java.util.List;
 import lombok.RequiredArgsConstructor;

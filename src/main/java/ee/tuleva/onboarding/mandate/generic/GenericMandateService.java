@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.mandate.generic;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.epis.mandate.details.MandateDetails;
 import ee.tuleva.onboarding.mandate.*;
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
+import ee.tuleva.onboarding.mandate.details.MandateDetails;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.List;

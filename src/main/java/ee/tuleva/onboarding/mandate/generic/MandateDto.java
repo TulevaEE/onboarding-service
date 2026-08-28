@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.mandate.generic;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import ee.tuleva.onboarding.epis.mandate.details.MandateDetails;
 import ee.tuleva.onboarding.mandate.MandateType;
+import ee.tuleva.onboarding.mandate.details.MandateDetails;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;

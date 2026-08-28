@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.epis.mandate.details;
+package ee.tuleva.onboarding.mandate.details;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.introspect.Annotated;
 import com.fasterxml.jackson.databind.introspect.JacksonAnnotationIntrospector;
 import ee.tuleva.onboarding.mandate.MandateType;
 import java.io.IOException;
+import org.jspecify.annotations.Nullable;
 
 // Used by Hibernate for deserializing MandateDetails JSONB columns.
 // MandateDtoDeserializer (Jackson 3) handles HTTP request deserialization separately.
@@ -17,7 +18,7 @@ public class MandateDetailsDeserializer extends JsonDeserializer<MandateDetails>
   private final JacksonAnnotationIntrospector customIntrospector =
       new JacksonAnnotationIntrospector() {
         @Override
-        public Object findDeserializer(Annotated a) {
+        public @Nullable Object findDeserializer(Annotated a) {
           return null;
         }
       };

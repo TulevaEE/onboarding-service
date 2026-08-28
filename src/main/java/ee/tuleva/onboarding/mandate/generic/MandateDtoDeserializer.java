@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.mandate.generic;
 
-import ee.tuleva.onboarding.epis.mandate.details.MandateDetails;
 import ee.tuleva.onboarding.mandate.MandateType;
+import ee.tuleva.onboarding.mandate.details.MandateDetails;
 import java.time.Instant;
 import tools.jackson.core.JsonParser;
 import tools.jackson.databind.DeserializationContext;

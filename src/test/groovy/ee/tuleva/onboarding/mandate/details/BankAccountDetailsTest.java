@@ -1,11 +1,11 @@
-package ee.tuleva.onboarding.epis.mandate.details;
+package ee.tuleva.onboarding.mandate.details;
 
-import static ee.tuleva.onboarding.epis.mandate.details.BankAccountDetails.Bank.*;
-import static ee.tuleva.onboarding.epis.mandate.details.BankAccountDetails.BankAccountType.ESTONIAN;
+import static ee.tuleva.onboarding.mandate.details.BankAccountDetails.Bank.*;
+import static ee.tuleva.onboarding.mandate.details.BankAccountDetails.BankAccountType.ESTONIAN;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import ee.tuleva.onboarding.epis.mandate.details.BankAccountDetails.Bank;
+import ee.tuleva.onboarding.mandate.details.BankAccountDetails.Bank;
 import org.junit.jupiter.api.Test;
 
 class BankAccountDetailsTest {

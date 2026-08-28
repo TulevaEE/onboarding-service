@@ -1,13 +1,13 @@
-package ee.tuleva.onboarding.epis.mandate.details;
+package ee.tuleva.onboarding.mandate.details;
 
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.CANCELLATION;
 
 import ee.tuleva.onboarding.mandate.MandateType;
 import ee.tuleva.onboarding.mandate.application.ApplicationType;
 
-public class EarlyWithdrawalCancellationMandateDetails extends MandateDetails {
-  public EarlyWithdrawalCancellationMandateDetails() {
-    super(MandateType.EARLY_WITHDRAWAL_CANCELLATION);
+public class WithdrawalCancellationMandateDetails extends MandateDetails {
+  public WithdrawalCancellationMandateDetails() {
+    super(MandateType.WITHDRAWAL_CANCELLATION);
   }
 
   @Override

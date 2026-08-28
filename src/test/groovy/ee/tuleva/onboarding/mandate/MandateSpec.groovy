@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.mandate
 
 import ee.tuleva.onboarding.epis.mandate.GenericMandateDto
-import ee.tuleva.onboarding.epis.mandate.details.EarlyWithdrawalCancellationMandateDetails
-import ee.tuleva.onboarding.epis.mandate.details.TransferCancellationMandateDetails
-import ee.tuleva.onboarding.epis.mandate.details.WithdrawalCancellationMandateDetails
+import ee.tuleva.onboarding.mandate.details.EarlyWithdrawalCancellationMandateDetails
+import ee.tuleva.onboarding.mandate.details.TransferCancellationMandateDetails
+import ee.tuleva.onboarding.mandate.details.WithdrawalCancellationMandateDetails
 import jakarta.validation.ConstraintViolation
 import jakarta.validation.Validation
 import jakarta.validation.Validator

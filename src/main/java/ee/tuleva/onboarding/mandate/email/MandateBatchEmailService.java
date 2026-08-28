@@ -9,9 +9,9 @@ import static ee.tuleva.onboarding.pillar.Pillar.THIRD;
 import static java.util.stream.Stream.concat;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
-import ee.tuleva.onboarding.epis.mandate.details.FundPensionOpeningMandateDetails;
-import ee.tuleva.onboarding.epis.mandate.details.PartialWithdrawalMandateDetails;
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
+import ee.tuleva.onboarding.mandate.details.FundPensionOpeningMandateDetails;
+import ee.tuleva.onboarding.mandate.details.PartialWithdrawalMandateDetails;
 import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
 import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;

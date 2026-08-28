@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.epis.mandate.details;
+package ee.tuleva.onboarding.mandate.details;
 
 import static ee.tuleva.onboarding.pillar.Pillar.THIRD;
 

@@ -1,13 +1,13 @@
 package ee.tuleva.onboarding.mandate.content;
 
 import ee.tuleva.onboarding.epis.ContactDetails;
-import ee.tuleva.onboarding.epis.mandate.details.FundPensionOpeningMandateDetails;
-import ee.tuleva.onboarding.epis.mandate.details.PartialWithdrawalMandateDetails;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import ee.tuleva.onboarding.mandate.content.thymeleaf.ContextBuilder;
+import ee.tuleva.onboarding.mandate.details.FundPensionOpeningMandateDetails;
+import ee.tuleva.onboarding.mandate.details.PartialWithdrawalMandateDetails;
 import ee.tuleva.onboarding.user.User;
 import java.math.BigDecimal;
 import java.math.RoundingMode;

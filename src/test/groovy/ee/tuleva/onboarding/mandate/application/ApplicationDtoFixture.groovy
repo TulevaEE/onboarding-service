@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.application
 
+import ee.tuleva.onboarding.mandate.ApplicationType
 import ee.tuleva.onboarding.time.TestClockHolder
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO.FundPensionDetails
@@ -7,7 +8,7 @@ import ee.tuleva.onboarding.epis.mandate.MandateDto
 
 import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.COMPLETE
 import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.PENDING
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.*
+import static ee.tuleva.onboarding.mandate.ApplicationType.*
 import static ee.tuleva.onboarding.time.TestClockHolder.*
 
 class ApplicationDtoFixture {

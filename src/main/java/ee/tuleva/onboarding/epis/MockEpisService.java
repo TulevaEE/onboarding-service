@@ -4,7 +4,7 @@ import static ee.tuleva.onboarding.epis.CashFlow.Type.CASH;
 import static ee.tuleva.onboarding.epis.CashFlow.Type.CONTRIBUTION_CASH;
 import static ee.tuleva.onboarding.epis.fund.FundDto.FundStatus.ACTIVE;
 import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.COMPLETE;
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.SELECTION;
+import static ee.tuleva.onboarding.mandate.ApplicationType.SELECTION;
 import static java.time.LocalDate.parse;
 import static java.time.temporal.ChronoUnit.DAYS;
 

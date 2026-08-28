@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import ee.tuleva.onboarding.mandate.application.ApplicationType;
+import ee.tuleva.onboarding.mandate.ApplicationType;
 import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.Instant;

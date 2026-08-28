@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.application
 
+import ee.tuleva.onboarding.mandate.ApplicationType
 import ee.tuleva.onboarding.epis.mandate.ApplicationStatus
 import ee.tuleva.onboarding.fund.ApiFundResponse
 import ee.tuleva.onboarding.payment.application.PaymentApplicationDetails

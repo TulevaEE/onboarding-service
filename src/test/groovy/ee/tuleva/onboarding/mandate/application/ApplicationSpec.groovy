@@ -1,13 +1,14 @@
 package ee.tuleva.onboarding.mandate.application
 
+import ee.tuleva.onboarding.mandate.ApplicationType
 import ee.tuleva.onboarding.fund.ApiFundResponse
 import ee.tuleva.onboarding.fund.Fund
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.*
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.EARLY_WITHDRAWAL
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.TRANSFER
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL
+import static ee.tuleva.onboarding.mandate.ApplicationType.EARLY_WITHDRAWAL
+import static ee.tuleva.onboarding.mandate.ApplicationType.TRANSFER
+import static ee.tuleva.onboarding.mandate.ApplicationType.WITHDRAWAL
 
 class ApplicationSpec extends Specification {
 

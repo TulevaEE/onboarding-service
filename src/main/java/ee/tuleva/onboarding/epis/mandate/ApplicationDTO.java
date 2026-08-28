@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.epis.mandate;
 
 import ee.tuleva.onboarding.epis.mandate.MandateDto.MandateFundsTransferExchangeDTO;
-import ee.tuleva.onboarding.mandate.application.ApplicationType;
+import ee.tuleva.onboarding.mandate.ApplicationType;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;

@@ -1,12 +1,12 @@
 package ee.tuleva.onboarding.mandate.details;
 
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.CANCELLATION;
+import static ee.tuleva.onboarding.mandate.ApplicationType.CANCELLATION;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import ee.tuleva.onboarding.mandate.ApplicationType;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.MandateType;
-import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import ee.tuleva.onboarding.pillar.Pillar;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;

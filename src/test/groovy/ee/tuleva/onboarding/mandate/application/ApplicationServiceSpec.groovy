@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.application
 
+import ee.tuleva.onboarding.mandate.ApplicationType
 import ee.tuleva.onboarding.company.BoardMembershipService
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService
 import ee.tuleva.onboarding.epis.EpisService
@@ -32,7 +33,7 @@ import static ee.tuleva.onboarding.fund.ApiFundResponseFixture.tuleva3rdPillarAp
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
 import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.*
 import static ee.tuleva.onboarding.mandate.application.ApplicationFixture.paymentApplication
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.*
+import static ee.tuleva.onboarding.mandate.ApplicationType.*
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND
 import static ee.tuleva.onboarding.pillar.Pillar.THIRD
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED

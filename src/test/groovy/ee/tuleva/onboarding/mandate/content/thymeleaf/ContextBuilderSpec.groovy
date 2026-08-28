@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.content.thymeleaf
 
+import ee.tuleva.onboarding.mandate.ApplicationType
 import ee.tuleva.onboarding.epis.ContactDetails
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.mandate.Mandate
@@ -13,7 +14,7 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL
+import static ee.tuleva.onboarding.mandate.ApplicationType.WITHDRAWAL
 import static ee.tuleva.onboarding.country.CountryFixture.countryFixture
 
 class ContextBuilderSpec extends Specification {

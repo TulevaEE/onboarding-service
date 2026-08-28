@@ -1,7 +1,8 @@
 package ee.tuleva.onboarding.mandate.application;
 
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.*;
+import static ee.tuleva.onboarding.mandate.ApplicationType.*;
 
+import ee.tuleva.onboarding.mandate.ApplicationType;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Set;

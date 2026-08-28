@@ -1,11 +1,11 @@
 package ee.tuleva.onboarding.payment.application;
 
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.PAYMENT;
+import static ee.tuleva.onboarding.mandate.ApplicationType.PAYMENT;
 
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.fund.ApiFundResponse;
+import ee.tuleva.onboarding.mandate.ApplicationType;
 import ee.tuleva.onboarding.mandate.application.ApplicationDetails;
-import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import java.math.BigDecimal;
 import lombok.Builder;
 import lombok.Data;

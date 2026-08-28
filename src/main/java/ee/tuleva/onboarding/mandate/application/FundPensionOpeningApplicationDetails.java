@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.pillar.Pillar.SECOND;
 import static ee.tuleva.onboarding.pillar.Pillar.THIRD;
 
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO.FundPensionDetails;
+import ee.tuleva.onboarding.mandate.ApplicationType;
 import ee.tuleva.onboarding.pillar.Pillar;
 import java.time.Instant;
 import java.time.LocalDate;

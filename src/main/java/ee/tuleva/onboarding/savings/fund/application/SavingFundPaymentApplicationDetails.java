@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.savings.fund.application;
 
 import ee.tuleva.onboarding.currency.Currency;
+import ee.tuleva.onboarding.mandate.ApplicationType;
 import ee.tuleva.onboarding.mandate.application.ApplicationDetails;
-import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;

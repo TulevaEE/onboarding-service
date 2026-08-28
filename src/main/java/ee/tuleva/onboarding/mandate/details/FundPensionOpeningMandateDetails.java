@@ -4,8 +4,8 @@ import static ee.tuleva.onboarding.pillar.Pillar.THIRD;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import ee.tuleva.onboarding.mandate.ApplicationType;
 import ee.tuleva.onboarding.mandate.MandateType;
-import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import ee.tuleva.onboarding.pillar.Pillar;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;

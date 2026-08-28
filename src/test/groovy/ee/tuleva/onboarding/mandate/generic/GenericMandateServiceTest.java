@@ -10,11 +10,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture;
+import ee.tuleva.onboarding.mandate.ApplicationType;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateFixture;
 import ee.tuleva.onboarding.mandate.MandateService;
 import ee.tuleva.onboarding.mandate.MandateType;
-import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import ee.tuleva.onboarding.mandate.details.EarlyWithdrawalCancellationMandateDetails;
 import ee.tuleva.onboarding.mandate.details.MandateDetails;
 import ee.tuleva.onboarding.user.User;

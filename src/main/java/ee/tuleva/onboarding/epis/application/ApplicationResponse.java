@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.epis.application;
 
-import ee.tuleva.onboarding.mandate.application.ApplicationType;
+import ee.tuleva.onboarding.mandate.ApplicationType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

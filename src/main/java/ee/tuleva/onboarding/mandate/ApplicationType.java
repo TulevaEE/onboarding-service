@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.mandate.application;
+package ee.tuleva.onboarding.mandate;
 
 import java.util.EnumSet;
 import lombok.RequiredArgsConstructor;

@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.mandate;
 
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.*;
+import static ee.tuleva.onboarding.mandate.ApplicationType.*;
 import static ee.tuleva.onboarding.signature.SignatureStatus.OUTSTANDING_TRANSACTION;
 import static ee.tuleva.onboarding.signature.SignatureStatus.SIGNATURE;
 import static java.util.Arrays.asList;
@@ -12,7 +12,6 @@ import ee.tuleva.onboarding.epis.ContactDetails;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
-import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import ee.tuleva.onboarding.mandate.builder.CreateMandateCommandToMandateConverter;
 import ee.tuleva.onboarding.mandate.cancellation.CancellationMandateBuilder;
 import ee.tuleva.onboarding.mandate.cancellation.InvalidApplicationTypeException;

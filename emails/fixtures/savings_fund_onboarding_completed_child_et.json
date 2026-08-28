@@ -1,8 +1,12 @@
 {
   "variants": {
-    "vaikimisi": {
+    "lapse nimi teada": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Kati Tamm",
+      "savingsFundFee": "0,28"
+    },
+    "lapse nimi teadmata": {
+      "FNAME": "Mari",
       "savingsFundFee": "0,28"
     }
   }

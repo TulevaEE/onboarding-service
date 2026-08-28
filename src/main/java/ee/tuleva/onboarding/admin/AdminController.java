@@ -1,20 +1,12 @@
 package ee.tuleva.onboarding.admin;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.springframework.format.annotation.DateTimeFormat.ISO.DATE;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
-import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 import ee.tuleva.onboarding.analytics.transaction.fundbalance.FundBalanceSynchronizer;
 import ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwnerSnapshotDateValidator;
 import ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwnerSynchronizer;
-import ee.tuleva.onboarding.banking.BankAccount;
-import ee.tuleva.onboarding.banking.BankAccountType;
-import ee.tuleva.onboarding.banking.BankAccounts;
-import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebHistoricTransactionsRequested;
-import ee.tuleva.onboarding.banking.seb.processor.SuspenseReclassificationService;
 import ee.tuleva.onboarding.capital.transfer.iban.IbanValidator;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
@@ -50,7 +42,6 @@ import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.security.MessageDigest;
 import java.time.Clock;
 import java.time.DateTimeException;
 import java.time.Instant;
@@ -62,8 +53,6 @@ import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Profile;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
@@ -79,9 +68,7 @@ import org.springframework.web.server.ResponseStatusException;
 @Profile("!staging")
 public class AdminController {
 
-  private final ApplicationEventPublisher eventPublisher;
-  private final BankAccounts bankAccounts;
-  private final SuspenseReclassificationService suspenseReclassificationService;
+  private final AdminTokenValidator tokenValidator;
   private final SavingsFundLedger savingsFundLedger;
   private final NavFeeAccrualLedger navFeeAccrualLedger;
   private final FeeAccrualRepository feeAccrualRepository;
@@ -110,68 +97,6 @@ public class AdminController {
   private final Optional<InvestmentReportPublisher> investmentReportPublisher;
   private final InvestmentReportDataService investmentReportDataService;
   private final InvestmentReportPdfGenerator investmentReportPdfGenerator;
-
-  @Value("${admin.api-token:}")
-  private String adminApiToken;
-
-  @Value("${admin.ops-token:}")
-  private String opsToken;
-
-  @PostMapping("/fetch-seb-history")
-  public String fetchSebHistory(
-      @RequestHeader("X-Admin-Token") String token,
-      @RequestParam @DateTimeFormat(iso = DATE) LocalDate from,
-      @RequestParam @DateTimeFormat(iso = DATE) LocalDate to,
-      @RequestParam(required = false) BankAccountType account,
-      @RequestParam(required = false) String fundCode) {
-
-    validateToken(token);
-
-    var fund = fundCode != null ? parseFundCode(fundCode) : TKF100;
-    var accounts =
-        bankAccounts.findAll(fund).stream()
-            .filter(bankAccount -> account == null || bankAccount.type() == account)
-            .toList();
-
-    if (accounts.isEmpty()) {
-      throw new ResponseStatusException(
-          BAD_REQUEST, "No bank accounts match: fund=%s, account=%s".formatted(fund, account));
-    }
-
-    log.info("Admin triggered SEB history fetch: from={}, to={}, accounts={}", from, to, accounts);
-
-    for (BankAccount bankAccount : accounts) {
-      log.info("Fetching SEB history: account={}", bankAccount);
-      eventPublisher.publishEvent(new FetchSebHistoricTransactionsRequested(bankAccount, from, to));
-    }
-
-    return "Fetched SEB history for " + accounts + " from " + from + " to " + to;
-  }
-
-  private static TulevaFund parseFundCode(String fundCode) {
-    try {
-      return TulevaFund.fromCode(fundCode);
-    } catch (IllegalArgumentException e) {
-      throw new ResponseStatusException(BAD_REQUEST, e.getMessage());
-    }
-  }
-
-  @PostMapping("/reclassify-suspense")
-  public Map<String, Object> reclassifySuspense(
-      @RequestHeader("X-Admin-Token") String token, @RequestParam String fundCode) {
-
-    validateToken(token);
-
-    var fund = parseFundCode(fundCode);
-    log.info("Admin triggered suspense reclassification: fund={}", fund);
-
-    var result = suspenseReclassificationService.reclassify(fund);
-
-    return Map.of(
-        "fund", fund.name(),
-        "reclassified", result.reclassified(),
-        "remaining", result.remaining());
-  }
 
   @Transactional
   @PostMapping("/adjustments")
@@ -702,24 +627,11 @@ public class AdminController {
   }
 
   private void validateTokenWithOpsAccess(String token) {
-    boolean matchesAdmin =
-        !adminApiToken.isBlank()
-            && MessageDigest.isEqual(adminApiToken.getBytes(UTF_8), token.getBytes(UTF_8));
-    boolean matchesOps =
-        !opsToken.isBlank()
-            && MessageDigest.isEqual(opsToken.getBytes(UTF_8), token.getBytes(UTF_8));
-    if (!matchesAdmin && !matchesOps) {
-      throw new ResponseStatusException(UNAUTHORIZED, "Invalid admin token");
-    }
+    tokenValidator.validateWithOpsAccess(token);
   }
 
   private void validateToken(String token) {
-    if (adminApiToken.isBlank()) {
-      throw new ResponseStatusException(SERVICE_UNAVAILABLE, "Admin API not configured");
-    }
-    if (!MessageDigest.isEqual(adminApiToken.getBytes(UTF_8), token.getBytes(UTF_8))) {
-      throw new ResponseStatusException(UNAUTHORIZED, "Invalid admin token");
-    }
+    tokenValidator.validate(token);
   }
 
   private YearMonth parseReportMonth(int year, int month) {

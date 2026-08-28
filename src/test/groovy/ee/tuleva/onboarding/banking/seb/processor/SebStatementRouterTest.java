@@ -10,6 +10,8 @@ import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.BankAccounts;
+import ee.tuleva.onboarding.banking.event.BankMessageEvents.SavingsFundStatementReceived;
+import ee.tuleva.onboarding.banking.processor.BankOperationProcessor;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatementAccount;
 import java.util.List;
@@ -19,6 +21,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class SebStatementRouterTest {
@@ -27,7 +30,8 @@ class SebStatementRouterTest {
   private static final String UNKNOWN_IBAN = "EE112233445566778899";
 
   @Mock private BankAccounts bankAccounts;
-  @Mock private SavingsFundStatementProcessor savingsFundStatementProcessor;
+  @Mock private ApplicationEventPublisher eventPublisher;
+  @Mock private BankOperationProcessor bankOperationProcessor;
   @Mock private PensionFundStatementProcessor pensionFundStatementProcessor;
 
   @InjectMocks private SebStatementRouter router;
@@ -40,7 +44,7 @@ class SebStatementRouterTest {
 
     router.route(statement);
 
-    verify(savingsFundStatementProcessor).process(statement, account);
+    verify(eventPublisher).publishEvent(new SavingsFundStatementReceived(statement, account));
     verifyNoInteractions(pensionFundStatementProcessor);
   }
 
@@ -54,7 +58,7 @@ class SebStatementRouterTest {
     router.route(statement);
 
     verify(pensionFundStatementProcessor).process(statement, account);
-    verifyNoInteractions(savingsFundStatementProcessor);
+    verifyNoInteractions(eventPublisher);
   }
 
   @Test
@@ -66,7 +70,7 @@ class SebStatementRouterTest {
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining(UNKNOWN_IBAN);
 
-    verifyNoInteractions(savingsFundStatementProcessor);
+    verifyNoInteractions(eventPublisher);
     verifyNoInteractions(pensionFundStatementProcessor);
   }
 

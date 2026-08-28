@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.banking.seb.processor;
+package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.banking.BankAccountType.*;
@@ -13,18 +13,14 @@ import static org.mockito.Mockito.*;
 import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.BankAccounts;
+import ee.tuleva.onboarding.banking.ManagementCompanies;
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
-import ee.tuleva.onboarding.banking.processor.BankOperationProcessor;
-import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType;
 import ee.tuleva.onboarding.banking.statement.BankStatementAccount;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.PartyId;
-import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
-import ee.tuleva.onboarding.savings.fund.SavingFundPaymentExtractor;
-import ee.tuleva.onboarding.savings.fund.SavingFundPaymentUpsertionService;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestRepository;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionStatusService;
@@ -51,7 +47,7 @@ class SavingsFundStatementProcessorTest {
 
   SavingFundPaymentExtractor paymentExtractor = mock(SavingFundPaymentExtractor.class);
   SavingFundPaymentUpsertionService paymentService = mock(SavingFundPaymentUpsertionService.class);
-  SebAccountConfiguration sebAccountConfiguration = mock(SebAccountConfiguration.class);
+  ManagementCompanies managementCompanies = mock(ManagementCompanies.class);
   BankAccounts bankAccounts = mock(BankAccounts.class);
   SavingsFundLedger savingsFundLedger = mock(SavingsFundLedger.class);
   FundBankLedger fundBankLedger = mock(FundBankLedger.class);
@@ -59,21 +55,19 @@ class SavingsFundStatementProcessorTest {
   RedemptionRequestRepository redemptionRequestRepository = mock(RedemptionRequestRepository.class);
   RedemptionStatusService redemptionStatusService = mock(RedemptionStatusService.class);
   EndToEndIdConverter endToEndIdConverter = new EndToEndIdConverter();
-  BankOperationProcessor bankOperationProcessor = mock(BankOperationProcessor.class);
 
   SavingsFundStatementProcessor processor =
       new SavingsFundStatementProcessor(
           paymentExtractor,
           paymentService,
-          sebAccountConfiguration,
+          managementCompanies,
           bankAccounts,
           savingsFundLedger,
           fundBankLedger,
           userService,
           redemptionRequestRepository,
           redemptionStatusService,
-          endToEndIdConverter,
-          bankOperationProcessor);
+          endToEndIdConverter);
 
   @Test
   void outgoingToFundAccount_createsLedgerTransferEntryWithBookingDate() {
@@ -431,7 +425,7 @@ class SavingsFundStatementProcessorTest {
             .build();
     var bankStatement =
         setupMocksForPaymentWithAccount(outgoingPayment, FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR);
-    when(sebAccountConfiguration.isManagementCompany(managementCompanyName)).thenReturn(true);
+    when(managementCompanies.isManagementCompany(managementCompanyName)).thenReturn(true);
 
     processor.process(bankStatement, statementAccount);
 
@@ -456,7 +450,7 @@ class SavingsFundStatementProcessorTest {
     var bankStatement =
         setupMocksForPaymentWithAccount(outgoingPayment, FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR);
     when(bankAccounts.find(EXTERNAL_ACCOUNT_IBAN)).thenReturn(Optional.empty());
-    when(sebAccountConfiguration.isManagementCompany("Unknown Company")).thenReturn(false);
+    when(managementCompanies.isManagementCompany("Unknown Company")).thenReturn(false);
 
     processor.process(bankStatement, statementAccount);
 

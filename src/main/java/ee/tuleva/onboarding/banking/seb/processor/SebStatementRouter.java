@@ -3,14 +3,18 @@ package ee.tuleva.onboarding.banking.seb.processor;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 
 import ee.tuleva.onboarding.banking.BankAccounts;
+import ee.tuleva.onboarding.banking.event.BankMessageEvents.SavingsFundStatementReceived;
+import ee.tuleva.onboarding.banking.processor.BankOperationProcessor;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 
 @RequiredArgsConstructor
 public class SebStatementRouter {
 
   private final BankAccounts bankAccounts;
-  private final SavingsFundStatementProcessor savingsFundStatementProcessor;
+  private final ApplicationEventPublisher eventPublisher;
+  private final BankOperationProcessor bankOperationProcessor;
   private final PensionFundStatementProcessor pensionFundStatementProcessor;
 
   public void route(BankStatement statement) {
@@ -22,7 +26,10 @@ public class SebStatementRouter {
                 () -> new IllegalStateException("Unknown bank account: iban=%s".formatted(iban)));
 
     if (account.belongsTo(TKF100)) {
-      savingsFundStatementProcessor.process(statement, account);
+      eventPublisher.publishEvent(new SavingsFundStatementReceived(statement, account));
+      statement.getEntries().stream()
+          .filter(entry -> entry.details() == null)
+          .forEach(entry -> bankOperationProcessor.processBankOperation(entry, account));
     } else {
       pensionFundStatementProcessor.process(statement, account);
     }

@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.banking.seb.processor;
+package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
@@ -8,16 +8,13 @@ import static java.math.BigDecimal.ZERO;
 import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.BankAccounts;
+import ee.tuleva.onboarding.banking.ManagementCompanies;
+import ee.tuleva.onboarding.banking.event.BankMessageEvents.SavingsFundStatementReceived;
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
-import ee.tuleva.onboarding.banking.processor.BankOperationProcessor;
-import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.PartyId;
-import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
-import ee.tuleva.onboarding.savings.fund.SavingFundPaymentExtractor;
-import ee.tuleva.onboarding.savings.fund.SavingFundPaymentUpsertionService;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestRepository;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionStatusService;
@@ -27,8 +24,13 @@ import java.time.ZoneId;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.event.EventListener;
+import org.springframework.stereotype.Component;
 
 @Slf4j
+@Component
+@ConditionalOnProperty(prefix = "seb-gateway", name = "enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class SavingsFundStatementProcessor {
 
@@ -36,7 +38,7 @@ public class SavingsFundStatementProcessor {
 
   private final SavingFundPaymentExtractor paymentExtractor;
   private final SavingFundPaymentUpsertionService paymentService;
-  private final SebAccountConfiguration sebAccountConfiguration;
+  private final ManagementCompanies managementCompanies;
   private final BankAccounts bankAccounts;
   private final SavingsFundLedger savingsFundLedger;
   private final FundBankLedger fundBankLedger;
@@ -44,7 +46,11 @@ public class SavingsFundStatementProcessor {
   private final RedemptionRequestRepository redemptionRequestRepository;
   private final RedemptionStatusService redemptionStatusService;
   private final EndToEndIdConverter endToEndIdConverter;
-  private final BankOperationProcessor bankOperationProcessor;
+
+  @EventListener
+  public void onStatementReceived(SavingsFundStatementReceived event) {
+    process(event.statement(), event.account());
+  }
 
   public void process(BankStatement bankStatement, BankAccount account) {
     log.info(
@@ -57,10 +63,6 @@ public class SavingsFundStatementProcessor {
 
     payments.forEach(payment -> processPayment(payment, account.type()));
     log.info("Processed payments: count={}, account={}", payments.size(), account);
-
-    bankStatement.getEntries().stream()
-        .filter(entry -> entry.details() == null)
-        .forEach(entry -> bankOperationProcessor.processBankOperation(entry, account));
   }
 
   private SavingFundPayment.Status resolveDepositAccountStatus(SavingFundPayment payment) {
@@ -223,7 +225,7 @@ public class SavingsFundStatementProcessor {
 
   private boolean isManagementFeePayment(SavingFundPayment payment) {
     return isOutgoingPayment(payment)
-        && sebAccountConfiguration.isManagementCompany(payment.getBeneficiaryName())
+        && managementCompanies.isManagementCompany(payment.getBeneficiaryName())
         && payment.getDescription() != null
         && payment.getDescription().toLowerCase().contains("valitsemistasu");
   }

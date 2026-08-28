@@ -1,11 +1,11 @@
 package ee.tuleva.onboarding.holdings
 
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.ftp.FtpClient
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.ftp.FtpClientFactory
 import ee.tuleva.onboarding.holdings.persistence.HoldingDetail
 import ee.tuleva.onboarding.holdings.persistence.Region
 import ee.tuleva.onboarding.holdings.persistence.Sector
 import ee.tuleva.onboarding.holdings.persistence.HoldingDetailsRepository
-import org.apache.commons.net.ftp.FTPClient
 import org.mockftpserver.fake.FakeFtpServer
 import org.mockftpserver.fake.UserAccount
 import org.mockftpserver.fake.filesystem.DirectoryEntry
@@ -26,7 +26,7 @@ class HoldingDetailsJobSpec extends Specification {
 
     HoldingDetailsRepository repository = Mock(HoldingDetailsRepository)
 
-    HoldingDetailsJob job = new HoldingDetailsJob(repository, ftpClient)
+    HoldingDetailsJob job = new HoldingDetailsJob(repository, ftpClientFactory)
 
     @Shared
     private String ftpUsername = "someUsername"
@@ -38,7 +38,7 @@ class HoldingDetailsJobSpec extends Specification {
     private String ftpHost = "localhost"
 
     @Shared
-    private FtpClient ftpClient
+    private FtpClientFactory ftpClientFactory
 
     private static final String PATH = "/Monthly/AllHoldings/XI_MSTAR"
 
@@ -57,8 +57,8 @@ class HoldingDetailsJobSpec extends Specification {
         fakeFtpServer.setServerControlPort(0)
         fakeFtpServer.start()
 
-        ftpClient = new FtpClient(new FTPClient(), ftpHost, ftpUsername, ftpPassword, fakeFtpServer
-            .getServerControlPort())
+        ftpClientFactory = new FtpClientFactory(ftpHost, ftpUsername, ftpPassword,
+            fakeFtpServer.getServerControlPort())
     }
 
     void cleanupSpec() {
@@ -76,16 +76,24 @@ class HoldingDetailsJobSpec extends Specification {
         return Files.readAllBytes(resource.getFile().toPath())
     }
 
-    def "should be able to reuse ftp client"() {
+    def "creates a fresh ftp client for every run"() {
         given:
-        ftpClient.close()
+        FtpClient firstClient = Mock(FtpClient)
+        FtpClient secondClient = Mock(FtpClient)
+        FtpClientFactory factory = Mock(FtpClientFactory)
+        HoldingDetailsJob jobUnderTest = new HoldingDetailsJob(repository, factory)
         repository.findFirstByOrderByCreatedDateDesc() >> null
+        firstClient.listFiles(_) >> []
+        secondClient.listFiles(_) >> []
 
         when:
-        job.runJob()
+        jobUnderTest.runJob()
+        jobUnderTest.runJob()
 
         then:
-        1 * repository.save(_)
+        2 * factory.create() >>> [firstClient, secondClient]
+        1 * firstClient.close()
+        1 * secondClient.close()
     }
 
     def "should persist holding detail if no entry exist"() {
@@ -154,7 +162,7 @@ class HoldingDetailsJobSpec extends Specification {
     def "fails fast when the ftp download returns no stream"() {
         given:
         FtpClient unreadyClient = Mock(FtpClient)
-        HoldingDetailsJob jobUnderTest = new HoldingDetailsJob(repository, unreadyClient)
+        HoldingDetailsJob jobUnderTest = new HoldingDetailsJob(repository, factoryReturning(unreadyClient))
         repository.findFirstByOrderByCreatedDateDesc() >> null
         unreadyClient.listFiles(_) >> [A_FILE_NAME]
         unreadyClient.downloadFileStream(_) >> null
@@ -169,7 +177,7 @@ class HoldingDetailsJobSpec extends Specification {
     def "closes the ftp session when parsing fails"() {
         given:
         FtpClient failingClient = Mock(FtpClient)
-        HoldingDetailsJob jobUnderTest = new HoldingDetailsJob(repository, failingClient)
+        HoldingDetailsJob jobUnderTest = new HoldingDetailsJob(repository, factoryReturning(failingClient))
         repository.findFirstByOrderByCreatedDateDesc() >> null
         failingClient.listFiles(_) >> [A_FILE_NAME]
         failingClient.downloadFileStream(_) >> gzipOf(TRUNCATED_XML)
@@ -186,7 +194,7 @@ class HoldingDetailsJobSpec extends Specification {
     def "fails when the transfer does not complete"() {
         given:
         FtpClient truncatingClient = Mock(FtpClient)
-        HoldingDetailsJob jobUnderTest = new HoldingDetailsJob(repository, truncatingClient)
+        HoldingDetailsJob jobUnderTest = new HoldingDetailsJob(repository, factoryReturning(truncatingClient))
         repository.findFirstByOrderByCreatedDateDesc() >> null
         truncatingClient.listFiles(_) >> [A_FILE_NAME]
         truncatingClient.downloadFileStream(_) >> gzipOf(readFileAsString('/morningstar/investment_minimal.xml.gz'))
@@ -204,7 +212,7 @@ class HoldingDetailsJobSpec extends Specification {
     def "closes the downloaded stream when gzip initialisation fails"() {
         given:
         FtpClient corruptClient = Mock(FtpClient)
-        HoldingDetailsJob jobUnderTest = new HoldingDetailsJob(repository, corruptClient)
+        HoldingDetailsJob jobUnderTest = new HoldingDetailsJob(repository, factoryReturning(corruptClient))
         def downloadedStream = new ClosingTrackingInputStream("this is not gzipped at all".bytes)
         repository.findFirstByOrderByCreatedDateDesc() >> null
         corruptClient.listFiles(_) >> [A_FILE_NAME]
@@ -222,7 +230,7 @@ class HoldingDetailsJobSpec extends Specification {
     def "parses a file whose accumulated entity references exceed the jdk default limit"() {
         given:
         FtpClient bigFileClient = Mock(FtpClient)
-        HoldingDetailsJob jobUnderTest = new HoldingDetailsJob(repository, bigFileClient)
+        HoldingDetailsJob jobUnderTest = new HoldingDetailsJob(repository, factoryReturning(bigFileClient))
         repository.findFirstByOrderByCreatedDateDesc() >> null
         bigFileClient.listFiles(_) >> [A_FILE_NAME]
         bigFileClient.downloadFileStream(_) >> gzipOf(xmlWithEntityReferencesOverJdkLimit())
@@ -240,7 +248,7 @@ class HoldingDetailsJobSpec extends Specification {
         def externalFile = File.createTempFile("holdings-external-entity", ".txt")
         externalFile.text = "INJECTED"
         FtpClient hostileClient = Mock(FtpClient)
-        HoldingDetailsJob jobUnderTest = new HoldingDetailsJob(repository, hostileClient)
+        HoldingDetailsJob jobUnderTest = new HoldingDetailsJob(repository, factoryReturning(hostileClient))
         repository.findFirstByOrderByCreatedDateDesc() >> null
         hostileClient.listFiles(_) >> [A_FILE_NAME]
         hostileClient.downloadFileStream(_) >> gzipOf(xmlWithExternalEntity(externalFile.toURI().toString()))
@@ -261,7 +269,7 @@ class HoldingDetailsJobSpec extends Specification {
         def externalDtd = File.createTempFile("holdings-external", ".dtd")
         externalDtd.text = ""
         FtpClient hostileClient = Mock(FtpClient)
-        HoldingDetailsJob jobUnderTest = new HoldingDetailsJob(repository, hostileClient)
+        HoldingDetailsJob jobUnderTest = new HoldingDetailsJob(repository, factoryReturning(hostileClient))
         repository.findFirstByOrderByCreatedDateDesc() >> null
         hostileClient.listFiles(_) >> [A_FILE_NAME]
         hostileClient.downloadFileStream(_) >> gzipOf(xmlWithExternalDtd(externalDtd.toURI().toString()))
@@ -281,7 +289,7 @@ class HoldingDetailsJobSpec extends Specification {
     def "rejects a file with runaway internal entity expansion"() {
         given:
         FtpClient hostileClient = Mock(FtpClient)
-        HoldingDetailsJob jobUnderTest = new HoldingDetailsJob(repository, hostileClient)
+        HoldingDetailsJob jobUnderTest = new HoldingDetailsJob(repository, factoryReturning(hostileClient))
         repository.findFirstByOrderByCreatedDateDesc() >> null
         hostileClient.listFiles(_) >> [A_FILE_NAME]
         hostileClient.downloadFileStream(_) >> gzipOf(xmlWithRunawayEntityExpansion())
@@ -310,6 +318,12 @@ class HoldingDetailsJobSpec extends Specification {
     }
 
     private static final String A_FILE_NAME = "AllHoldings25_XI_MSTAR_USA_M_20200506.xml.gz"
+
+    private FtpClientFactory factoryReturning(FtpClient client) {
+        FtpClientFactory factory = Stub(FtpClientFactory)
+        factory.create() >> client
+        return factory
+    }
 
     private static final String TRUNCATED_XML =
         '<Package><PackageBody><InvestmentVehicle _Id="F00000VN9N"><PortfolioList>'

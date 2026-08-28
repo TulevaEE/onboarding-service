@@ -19,9 +19,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class FirstPaymentReminderJobTest {
 
-  private static final Instant NOW = Instant.parse("2026-09-01T12:00:00Z");
-  private static final Instant OPENED_FROM = Instant.parse("2026-08-02T12:00:00Z");
-  private static final Instant OPENED_UNTIL = Instant.parse("2026-08-25T12:00:00Z");
+  private static final Instant NOW = Instant.parse("2026-10-01T12:00:00Z");
+  private static final Instant OPENED_FROM = Instant.parse("2026-09-01T12:00:00Z");
+  private static final Instant OPENED_UNTIL = Instant.parse("2026-09-24T12:00:00Z");
 
   private final Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
 
@@ -63,6 +63,19 @@ class FirstPaymentReminderJobTest {
     job().sendReminders();
 
     verify(sender).send(nextSaver);
+  }
+
+  @Test
+  void doesNotReachBackToSaversTheManualCampaignAlreadyReminded() {
+    var justAfterTheCampaign = Clock.fixed(Instant.parse("2026-09-01T12:00:00Z"), ZoneOffset.UTC);
+    var campaignCutoff = Instant.parse("2026-08-11T21:00:00Z");
+    var saver = reminder("38812121215");
+    given(repository.fetch(campaignCutoff, Instant.parse("2026-08-25T12:00:00Z")))
+        .willReturn(List.of(saver));
+
+    new FirstPaymentReminderJob(justAfterTheCampaign, repository, sender).sendReminders();
+
+    verify(sender).send(saver);
   }
 
   private List<FirstPaymentReminder> reminders(int count) {

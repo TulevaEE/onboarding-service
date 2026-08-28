@@ -2,8 +2,8 @@ package ee.tuleva.onboarding.mandate.generic;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.*;
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.*;
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture;
+import static ee.tuleva.onboarding.epis.ContactDetailsFixture.*;
+import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture;
 import static ee.tuleva.onboarding.mandate.MandateFixture.*;
 import static ee.tuleva.onboarding.mandate.MandateType.*;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;

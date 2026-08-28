@@ -18,7 +18,7 @@ import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.country.Country;
-import ee.tuleva.onboarding.epis.contact.ContactDetails;
+import ee.tuleva.onboarding.epis.ContactDetails;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.kyc.KycCheck;

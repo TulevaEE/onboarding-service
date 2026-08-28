@@ -12,7 +12,7 @@ import java.util.Locale
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.config.JsonMapperFixture.jsonMapper
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsServiceStub.stubContactDetailsService
+import static ee.tuleva.onboarding.epis.ContactDetailsServiceStub.stubContactDetailsService
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.COOP_WEB
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.PARTNER
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.SINGLE

@@ -6,7 +6,7 @@ import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.conversion.UserConversionService;
-import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
+import ee.tuleva.onboarding.epis.ContactDetailsService;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.mandate.builder.ConversionDecorator;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;

@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.epis;
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson;
+import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture;
 import static ee.tuleva.onboarding.epis.MandateCommandResponseFixture.sampleMandateCommandResponse;
 import static ee.tuleva.onboarding.epis.cancellation.CancellationFixture.sampleWithdrawalCancellation;
 import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowFixture;
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture;
 import static ee.tuleva.onboarding.epis.fund.FundDto.FundStatus.ACTIVE;
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate;
 import static ee.tuleva.onboarding.secondpillarassets.SecondPillarAssetsFixture.secondPillarAssetsFixture;
@@ -22,7 +22,6 @@ import ee.tuleva.onboarding.contribution.Contribution;
 import ee.tuleva.onboarding.contribution.ThirdPillarContribution;
 import ee.tuleva.onboarding.epis.account.FundBalanceDto;
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
-import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.epis.fund.FundDto;
 import ee.tuleva.onboarding.epis.fund.NavDto;
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;

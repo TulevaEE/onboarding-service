@@ -5,7 +5,7 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.auth.role.Role
 import ee.tuleva.onboarding.auth.role.RoleType
 import ee.tuleva.onboarding.epis.EpisService
-import ee.tuleva.onboarding.epis.contact.ContactDetailsService
+import ee.tuleva.onboarding.epis.ContactDetailsService
 import ee.tuleva.onboarding.paymentrate.PaymentRates
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService
 import ee.tuleva.onboarding.user.command.UpdateUserCommand
@@ -15,7 +15,7 @@ import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthent
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
 import static ee.tuleva.onboarding.auth.role.RoleType.PERSON
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
+import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.country.CountryFixture.countryFixture
 import static org.hamcrest.Matchers.*
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get

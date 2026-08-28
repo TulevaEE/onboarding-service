@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.mandate.batch;
 
 import static ee.tuleva.onboarding.auth.JwtTokenGenerator.getHeaders;
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture;
+import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture;
 import static ee.tuleva.onboarding.mandate.MandateType.FUND_PENSION_OPENING;
 import static ee.tuleva.onboarding.mandate.MandateType.PARTIAL_WITHDRAWAL;
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.INITIALIZED;

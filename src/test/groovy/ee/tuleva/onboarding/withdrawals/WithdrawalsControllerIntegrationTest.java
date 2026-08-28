@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.withdrawals;
 import static ee.tuleva.onboarding.auth.JwtTokenGenerator.getHeaders;
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson;
 import static ee.tuleva.onboarding.auth.PersonFixture.sampleRetirementAgePerson;
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture;
+import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture;
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND;
 import static ee.tuleva.onboarding.pillar.Pillar.THIRD;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;

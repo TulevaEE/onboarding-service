@@ -2,8 +2,8 @@ package ee.tuleva.onboarding.mandate;
 
 import static java.util.stream.Collectors.toList;
 
+import ee.tuleva.onboarding.epis.ContactDetails;
 import ee.tuleva.onboarding.epis.EpisService;
-import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreator;
 import ee.tuleva.onboarding.signature.SignatureFile;
 import ee.tuleva.onboarding.user.User;

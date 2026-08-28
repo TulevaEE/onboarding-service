@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.mandate
 
 import ee.tuleva.onboarding.epis.EpisService
-import ee.tuleva.onboarding.epis.contact.ContactDetails
+import ee.tuleva.onboarding.epis.ContactDetails
 import ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreator
 import ee.tuleva.onboarding.mandate.content.MandateContentFile
 import ee.tuleva.onboarding.signature.SignatureFile
@@ -10,7 +10,7 @@ import ee.tuleva.onboarding.user.UserService
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
+import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture
 
 class MandateFileServiceSpec extends Specification {
 

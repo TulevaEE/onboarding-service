@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.mandate.content;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture;
+import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture;
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleTransferCancellationMandate;
 import static ee.tuleva.onboarding.mandate.MandateType.*;
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.EARLY_WITHDRAWAL;

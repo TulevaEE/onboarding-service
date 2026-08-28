@@ -1,9 +1,7 @@
-package ee.tuleva.onboarding.epis.contact;
+package ee.tuleva.onboarding.epis;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.country.Country;
-import ee.tuleva.onboarding.epis.EpisService;
-import ee.tuleva.onboarding.epis.contact.event.ContactDetailsUpdatedEvent;
 import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
 import ee.tuleva.onboarding.user.User;
 import lombok.RequiredArgsConstructor;

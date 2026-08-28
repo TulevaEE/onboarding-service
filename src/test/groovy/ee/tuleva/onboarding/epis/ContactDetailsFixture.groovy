@@ -1,8 +1,8 @@
-package ee.tuleva.onboarding.epis.contact
+package ee.tuleva.onboarding.epis
 
 import java.time.Instant
 
-import static ee.tuleva.onboarding.epis.contact.ContactDetails.*
+import static ee.tuleva.onboarding.epis.ContactDetails.*
 
 class ContactDetailsFixture {
 

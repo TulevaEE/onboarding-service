@@ -7,7 +7,7 @@ import static java.util.Collections.singletonList;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
-import ee.tuleva.onboarding.epis.contact.ContactDetails;
+import ee.tuleva.onboarding.epis.ContactDetails;
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
 import ee.tuleva.onboarding.epis.mandate.details.EarlyWithdrawalCancellationMandateDetails;
 import ee.tuleva.onboarding.epis.mandate.details.TransferCancellationMandateDetails;

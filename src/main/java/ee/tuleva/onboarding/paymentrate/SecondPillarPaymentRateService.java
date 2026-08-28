@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.paymentrate;
 
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.epis.contact.ContactDetails;
-import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
+import ee.tuleva.onboarding.epis.ContactDetails;
+import ee.tuleva.onboarding.epis.ContactDetailsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

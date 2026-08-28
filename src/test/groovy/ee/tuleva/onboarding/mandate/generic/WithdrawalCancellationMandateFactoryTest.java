@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.mandate.generic;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyConverted;
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture;
+import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture;
 import static ee.tuleva.onboarding.mandate.MandateType.EARLY_WITHDRAWAL_CANCELLATION;
 import static ee.tuleva.onboarding.mandate.MandateType.WITHDRAWAL_CANCELLATION;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;

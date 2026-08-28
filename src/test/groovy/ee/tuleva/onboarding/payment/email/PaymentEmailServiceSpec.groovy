@@ -13,7 +13,7 @@ import spock.lang.Specification
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notConverted
 import static ee.tuleva.onboarding.currency.Currency.EUR
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
+import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.getAttachments
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.*
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewSinglePayment

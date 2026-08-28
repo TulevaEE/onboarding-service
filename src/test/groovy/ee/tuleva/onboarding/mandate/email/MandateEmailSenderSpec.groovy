@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.mandate.email
 import ee.tuleva.onboarding.conversion.ConversionResponse
 import ee.tuleva.onboarding.conversion.UserConversionService
 import ee.tuleva.onboarding.epis.EpisService
-import ee.tuleva.onboarding.epis.contact.ContactDetails
+import ee.tuleva.onboarding.epis.ContactDetails
 import ee.tuleva.onboarding.mandate.Mandate
 import ee.tuleva.onboarding.mandate.MandateFixture
 import ee.tuleva.onboarding.mandate.batch.MandateBatch

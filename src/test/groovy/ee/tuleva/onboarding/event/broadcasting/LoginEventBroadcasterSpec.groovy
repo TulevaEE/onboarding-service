@@ -4,7 +4,7 @@ import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent
 import ee.tuleva.onboarding.auth.idcard.IdCardSession
 import ee.tuleva.onboarding.conversion.UserConversionService
-import ee.tuleva.onboarding.epis.contact.ContactDetailsService
+import ee.tuleva.onboarding.epis.ContactDetailsService
 import ee.tuleva.onboarding.event.TrackableEvent
 import ee.tuleva.onboarding.mandate.builder.ConversionDecorator
 import ee.tuleva.onboarding.paymentrate.PaymentRates
@@ -20,7 +20,7 @@ import static ee.tuleva.onboarding.auth.idcard.IdDocumentType.*
 import static ee.tuleva.onboarding.auth.mobileid.MobileIdFixture.sampleMobileIdSession
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.sampleSmartIdSession
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyConverted
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
+import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.event.TrackableEventType.LOGIN
 
 class LoginEventBroadcasterSpec extends Specification {

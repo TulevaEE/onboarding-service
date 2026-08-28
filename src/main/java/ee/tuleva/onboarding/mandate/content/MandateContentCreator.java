@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.mandate.content;
 
 import static java.util.stream.Collectors.toList;
 
-import ee.tuleva.onboarding.epis.contact.ContactDetails;
+import ee.tuleva.onboarding.epis.ContactDetails;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;

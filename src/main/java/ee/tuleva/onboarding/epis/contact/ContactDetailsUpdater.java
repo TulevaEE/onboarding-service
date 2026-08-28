@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.epis.contact;
 
+import ee.tuleva.onboarding.epis.ContactDetailsService;
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

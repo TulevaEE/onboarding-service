@@ -1,6 +1,6 @@
-package ee.tuleva.onboarding.epis.contact;
+package ee.tuleva.onboarding.epis;
 
-import static ee.tuleva.onboarding.epis.contact.ContactDetails.LanguagePreferenceType.EST;
+import static ee.tuleva.onboarding.epis.ContactDetails.LanguagePreferenceType.EST;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.country.Country;

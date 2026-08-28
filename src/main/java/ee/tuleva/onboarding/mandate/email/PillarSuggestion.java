@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.mandate.email;
 
 import ee.tuleva.onboarding.analytics.RecurringPayments;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
-import ee.tuleva.onboarding.epis.contact.ContactDetails;
+import ee.tuleva.onboarding.epis.ContactDetails;
 import ee.tuleva.onboarding.paymentrate.PaymentRates;
 import ee.tuleva.onboarding.user.User;
 import java.math.BigDecimal;

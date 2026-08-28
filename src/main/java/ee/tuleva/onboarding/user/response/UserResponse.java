@@ -5,7 +5,7 @@ import static ee.tuleva.onboarding.user.Names.formatted;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.role.Role;
 import ee.tuleva.onboarding.country.Country;
-import ee.tuleva.onboarding.epis.contact.ContactDetails;
+import ee.tuleva.onboarding.epis.ContactDetails;
 import ee.tuleva.onboarding.notification.email.Emailable;
 import ee.tuleva.onboarding.paymentrate.PaymentRates;
 import ee.tuleva.onboarding.user.User;

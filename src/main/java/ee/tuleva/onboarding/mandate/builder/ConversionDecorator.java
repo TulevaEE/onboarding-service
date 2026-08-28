@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.mandate.builder;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
-import ee.tuleva.onboarding.epis.contact.ContactDetails;
+import ee.tuleva.onboarding.epis.ContactDetails;
 import ee.tuleva.onboarding.paymentrate.PaymentRates;
 import java.util.Map;
 import org.springframework.stereotype.Service;

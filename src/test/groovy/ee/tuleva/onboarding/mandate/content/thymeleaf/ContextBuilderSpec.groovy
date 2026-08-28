@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.mandate.content.thymeleaf
 
-import ee.tuleva.onboarding.epis.contact.ContactDetails
+import ee.tuleva.onboarding.epis.ContactDetails
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.mandate.Mandate
 import ee.tuleva.onboarding.user.User
@@ -10,7 +10,7 @@ import spock.lang.Specification
 import java.time.Instant
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
+import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL

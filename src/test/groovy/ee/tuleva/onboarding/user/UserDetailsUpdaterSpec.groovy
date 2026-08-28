@@ -5,13 +5,13 @@ import ee.tuleva.onboarding.auth.AuthenticationTokens
 import ee.tuleva.onboarding.auth.GrantType
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent
 import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent
-import ee.tuleva.onboarding.epis.contact.ContactDetailsService
+import ee.tuleva.onboarding.epis.ContactDetailsService
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.*
 import static ee.tuleva.onboarding.auth.GrantType.SMART_ID
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
+import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture
 
 class UserDetailsUpdaterSpec extends Specification {
 

@@ -1,7 +1,7 @@
-package ee.tuleva.onboarding.epis.contact
+package ee.tuleva.onboarding.epis
 
 import ee.tuleva.onboarding.epis.EpisService
-import ee.tuleva.onboarding.epis.contact.event.ContactDetailsUpdatedEvent
+import ee.tuleva.onboarding.epis.ContactDetailsUpdatedEvent
 import ee.tuleva.onboarding.error.exception.ErrorsResponseException
 import ee.tuleva.onboarding.error.response.ErrorsResponse
 import org.springframework.context.ApplicationEventPublisher
@@ -9,7 +9,7 @@ import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
+import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.country.CountryFixture.countryFixture
 
 class ContactDetailsServiceSpec extends Specification {

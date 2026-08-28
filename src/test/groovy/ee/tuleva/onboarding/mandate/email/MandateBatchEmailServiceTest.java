@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.mandate.email;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notConverted;
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture;
+import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture;
 import static ee.tuleva.onboarding.mandate.MandateFixture.*;
 import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.getAttachments;
 import static ee.tuleva.onboarding.paymentrate.PaymentRatesFixture.samplePaymentRates;

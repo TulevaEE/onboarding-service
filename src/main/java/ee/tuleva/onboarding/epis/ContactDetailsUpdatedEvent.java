@@ -1,6 +1,5 @@
-package ee.tuleva.onboarding.epis.contact.event;
+package ee.tuleva.onboarding.epis;
 
-import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.user.User;
 import lombok.Getter;
 import org.springframework.context.ApplicationEvent;

@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.mandate.content;
 
 import static ee.tuleva.onboarding.mandate.MandateType.FUND_PENSION_OPENING;
 
-import ee.tuleva.onboarding.epis.contact.ContactDetails;
+import ee.tuleva.onboarding.epis.ContactDetails;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateType;
 import ee.tuleva.onboarding.user.User;

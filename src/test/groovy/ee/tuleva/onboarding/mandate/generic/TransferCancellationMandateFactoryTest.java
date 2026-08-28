@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.mandate.generic;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyConverted;
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture;
+import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture;
 import static ee.tuleva.onboarding.fund.FundFixture.lhv3rdPillarFund;
 import static ee.tuleva.onboarding.mandate.MandateType.*;
 import static ee.tuleva.onboarding.pillar.Pillar.*;

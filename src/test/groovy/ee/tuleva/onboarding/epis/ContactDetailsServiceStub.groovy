@@ -1,11 +1,11 @@
-package ee.tuleva.onboarding.epis.contact
+package ee.tuleva.onboarding.epis
 
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.auth.PersonFixture.sampleToken
 import static ee.tuleva.onboarding.auth.UserFixture.getSampleUser
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
+import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.country.CountryFixture.aCountry
 
 class ContactDetailsServiceStub extends Specification {

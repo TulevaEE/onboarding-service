@@ -2,9 +2,9 @@ package ee.tuleva.onboarding.user;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.epis.ContactDetails;
+import ee.tuleva.onboarding.epis.ContactDetailsService;
 import ee.tuleva.onboarding.epis.EpisService;
-import ee.tuleva.onboarding.epis.contact.ContactDetails;
-import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
 import ee.tuleva.onboarding.error.ValidationErrorsException;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
 import ee.tuleva.onboarding.user.command.UpdateUserCommand;

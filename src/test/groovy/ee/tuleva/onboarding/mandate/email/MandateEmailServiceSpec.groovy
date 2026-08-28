@@ -22,7 +22,7 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyConverted
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notConverted
 import static ee.tuleva.onboarding.deadline.MandateDeadlinesFixture.sampleDeadlines
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
+import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.fund.FundFixture.lhv2ndPillarFund
 import static ee.tuleva.onboarding.fund.FundFixture.tuleva2ndPillarStockFund
 import static ee.tuleva.onboarding.mandate.MandateFixture.*

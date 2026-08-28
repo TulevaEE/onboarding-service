@@ -1,12 +1,12 @@
 package ee.tuleva.onboarding.paymentrate
 
 import ee.tuleva.onboarding.auth.principal.Person
-import ee.tuleva.onboarding.epis.contact.ContactDetails
-import ee.tuleva.onboarding.epis.contact.ContactDetailsService
+import ee.tuleva.onboarding.epis.ContactDetails
+import ee.tuleva.onboarding.epis.ContactDetailsService
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
+import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture
 
 class SecondPillarPaymentRateServiceSpec extends Specification {
 

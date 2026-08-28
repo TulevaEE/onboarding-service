@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.mandate.content;
 import static ee.tuleva.onboarding.fund.Fund.FundStatus.ACTIVE;
 import static ee.tuleva.onboarding.mandate.MandateType.UNKNOWN;
 
-import ee.tuleva.onboarding.epis.contact.ContactDetails;
+import ee.tuleva.onboarding.epis.ContactDetails;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.Mandate;

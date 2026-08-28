@@ -17,7 +17,7 @@ import ee.tuleva.onboarding.capital.event.AggregatedCapitalEventRepository;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract.CapitalTransferAmount;
 import ee.tuleva.onboarding.capital.transfer.content.CapitalTransferContractContentService;
-import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
+import ee.tuleva.onboarding.epis.ContactDetailsService;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.listing.MessageResponse;
 import ee.tuleva.onboarding.mandate.email.persistence.Email;

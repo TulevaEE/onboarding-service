@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.capital.transfer;
 
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.CAPITAL_PAYMENT;
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.MEMBERSHIP_BONUS;
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture;
+import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -25,7 +25,7 @@ import ee.tuleva.onboarding.capital.CapitalService;
 import ee.tuleva.onboarding.capital.event.AggregatedCapitalEvent;
 import ee.tuleva.onboarding.capital.event.AggregatedCapitalEventRepository;
 import ee.tuleva.onboarding.currency.Currency;
-import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
+import ee.tuleva.onboarding.epis.ContactDetailsService;
 import ee.tuleva.onboarding.mandate.email.persistence.Email;
 import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;

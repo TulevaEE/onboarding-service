@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.mandate.content;
 
-import ee.tuleva.onboarding.epis.contact.ContactDetails;
+import ee.tuleva.onboarding.epis.ContactDetails;
 import ee.tuleva.onboarding.epis.mandate.details.FundPensionOpeningMandateDetails;
 import ee.tuleva.onboarding.epis.mandate.details.PartialWithdrawalMandateDetails;
 import ee.tuleva.onboarding.fund.Fund;

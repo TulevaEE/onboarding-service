@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.boot.webmvc.error.ErrorAttributes;
 import org.springframework.boot.webmvc.error.ErrorController;
 import org.springframework.core.convert.converter.Converter;
@@ -23,12 +24,12 @@ public class ErrorHandlingController implements ErrorController {
 
   private final ErrorAttributes errorAttributes;
 
-  private final Converter<Map<String, Object>, ErrorsResponse> errorAttributesConverter;
+  private final Converter<Map<String, @Nullable Object>, ErrorsResponse> errorAttributesConverter;
 
   @RequestMapping(value = PATH)
   ErrorsResponse error(HttpServletRequest request) {
     WebRequest webRequest = new ServletWebRequest(request);
-    Map<String, Object> errors =
+    Map<String, @Nullable Object> errors =
         errorAttributes.getErrorAttributes(webRequest, of(STACK_TRACE, MESSAGE, STATUS, ERROR));
     return errorAttributesConverter.convert(errors);
   }

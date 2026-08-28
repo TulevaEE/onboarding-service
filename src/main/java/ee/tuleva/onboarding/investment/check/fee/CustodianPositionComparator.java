@@ -1,0 +1,210 @@
+package ee.tuleva.onboarding.investment.check.fee;
+
+import static ee.tuleva.onboarding.investment.position.AccountType.CASH;
+import static ee.tuleva.onboarding.investment.position.AccountType.LIABILITY;
+import static ee.tuleva.onboarding.investment.position.AccountType.RECEIVABLES;
+import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
+import static java.math.BigDecimal.ZERO;
+import static java.math.RoundingMode.HALF_UP;
+import static java.util.stream.Collectors.toMap;
+
+import ee.tuleva.onboarding.investment.position.AccountType;
+import ee.tuleva.onboarding.investment.position.FundPosition;
+import ee.tuleva.onboarding.investment.position.FundPositionRepository;
+import ee.tuleva.onboarding.savings.FundNavQueryService;
+import ee.tuleva.onboarding.savings.fund.nav.NavAccountLine;
+import ee.tuleva.onboarding.savings.fund.nav.NavCalculation;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.stream.Stream;
+import org.jspecify.annotations.Nullable;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+@Component
+class CustodianPositionComparator {
+
+  private static final List<AccountType> CUSTODIAN_TYPES = List.of(CASH, RECEIVABLES, LIABILITY);
+  private static final BigDecimal BASIS_POINTS = new BigDecimal("10000");
+  private static final int BASIS_POINT_SCALE = 2;
+  private static final int CENTS = 2;
+
+  private final FundPositionRepository fundPositionRepository;
+  private final FundNavQueryService fundNavQueryService;
+  private final BigDecimal tolerance;
+
+  CustodianPositionComparator(
+      FundPositionRepository fundPositionRepository,
+      FundNavQueryService fundNavQueryService,
+      @Value("${investment.fee-check.custodian-tolerance:1.00}") BigDecimal tolerance) {
+    this.fundPositionRepository = fundPositionRepository;
+    this.fundNavQueryService = fundNavQueryService;
+    this.tolerance = tolerance;
+  }
+
+  Optional<CustodianDayComparison> compare(TulevaFund fund, LocalDate navDate) {
+    return fundNavQueryService
+        .findLatestCalculation(fund.getCode(), navDate)
+        .map(calculation -> compare(fund, navDate, calculation));
+  }
+
+  private CustodianDayComparison compare(
+      TulevaFund fund, LocalDate navDate, NavCalculation calculation) {
+    var positions = fundPositionRepository.findCustodianSourced(fund, navDate, fund.getIsin());
+    var reported = reportedValues(positions);
+    var recognised = recognisedValues(calculation);
+
+    var navImpact =
+        totalDifference(reported, recognised)
+            .add(securityDifference(positions, calculation))
+            .setScale(CENTS, HALF_UP);
+
+    return new CustodianDayComparison(
+        navDate,
+        differingLines(reported, recognised),
+        navPredatesReport(fund, navDate, calculation),
+        navImpact,
+        basisPointsOf(navImpact, calculation.fundValue()));
+  }
+
+  private List<CustodianLineDifference> differingLines(
+      Map<String, BigDecimal> reported, Map<String, BigDecimal> recognised) {
+    return accountNames(reported, recognised).stream()
+        .map(
+            name ->
+                new CustodianLineDifference(
+                    name, reported.getOrDefault(name, ZERO), recognised.getOrDefault(name, ZERO)))
+        .filter(difference -> difference.difference().abs().compareTo(tolerance) > 0)
+        .toList();
+  }
+
+  private BigDecimal totalDifference(
+      Map<String, BigDecimal> reported, Map<String, BigDecimal> recognised) {
+    return accountNames(reported, recognised).stream()
+        .map(
+            name -> reported.getOrDefault(name, ZERO).subtract(recognised.getOrDefault(name, ZERO)))
+        .reduce(ZERO, BigDecimal::add);
+  }
+
+  // Securities are matched on ISIN rather than name, because the custodian and the NAV report
+  // publish the same instrument under different display names. Only the quantity is compared, and
+  // it is priced at our own price, so the custodian rounding its prices cannot move the number.
+  private BigDecimal securityDifference(List<FundPosition> positions, NavCalculation calculation) {
+    var reported = reportedQuantities(positions);
+    var recognised = recognisedQuantities(calculation);
+    var prices = pricesByIsin(positions, calculation);
+
+    return accountNames(reported, recognised).stream()
+        .map(
+            isin ->
+                reported
+                    .getOrDefault(isin, ZERO)
+                    .subtract(recognised.getOrDefault(isin, ZERO))
+                    .multiply(prices.getOrDefault(isin, ZERO)))
+        .reduce(ZERO, BigDecimal::add);
+  }
+
+  private Map<String, BigDecimal> reportedValues(List<FundPosition> positions) {
+    return positions.stream()
+        .filter(position -> CUSTODIAN_TYPES.contains(position.getAccountType()))
+        .filter(position -> position.getAccountName() != null)
+        .collect(
+            toMap(
+                FundPosition::getAccountName,
+                position -> value(position.getMarketValue()),
+                BigDecimal::add,
+                LinkedHashMap::new));
+  }
+
+  private Map<String, BigDecimal> recognisedValues(NavCalculation calculation) {
+    return calculation.custodianComparableLines().stream()
+        .collect(
+            toMap(
+                NavAccountLine::accountName,
+                NavAccountLine::value,
+                BigDecimal::add,
+                LinkedHashMap::new));
+  }
+
+  private Map<String, BigDecimal> reportedQuantities(List<FundPosition> positions) {
+    return securities(positions)
+        .collect(
+            toMap(
+                FundPosition::getAccountId,
+                position -> value(position.getQuantity()),
+                BigDecimal::add,
+                LinkedHashMap::new));
+  }
+
+  private Map<String, BigDecimal> recognisedQuantities(NavCalculation calculation) {
+    return calculation.securityLines().stream()
+        .filter(line -> line.accountId() != null)
+        .collect(
+            toMap(
+                line -> requireAccountId(line.accountId()),
+                NavAccountLine::units,
+                BigDecimal::add,
+                LinkedHashMap::new));
+  }
+
+  // Our own price wins where we have one: the custodian publishes prices rounded to fewer decimals
+  // than the NAV values them at, and that rounding must not read as a quantity difference.
+  private Map<String, BigDecimal> pricesByIsin(
+      List<FundPosition> positions, NavCalculation calculation) {
+    var prices = new LinkedHashMap<String, BigDecimal>();
+    securities(positions)
+        .filter(position -> position.getMarketPrice() != null)
+        .forEach(position -> prices.put(position.getAccountId(), position.getMarketPrice()));
+    calculation.securityLines().stream()
+        .filter(line -> line.accountId() != null && line.marketPrice() != null)
+        .forEach(line -> prices.put(requireAccountId(line.accountId()), line.marketPrice()));
+    return prices;
+  }
+
+  private Stream<FundPosition> securities(List<FundPosition> positions) {
+    return positions.stream()
+        .filter(position -> position.getAccountType() == SECURITY)
+        .filter(position -> position.getAccountId() != null);
+  }
+
+  // A position written after the calculation finished is one the calculation could not have read,
+  // so the NAV is not wrong - the custodian sent a newer report than the one it was built on.
+  private boolean navPredatesReport(
+      TulevaFund fund, LocalDate navDate, NavCalculation calculation) {
+    return fundPositionRepository
+        .findLastWrittenAt(fund, navDate)
+        .filter(writtenAt -> writtenAt.isAfter(calculation.calculatedAt()))
+        .isPresent();
+  }
+
+  private BigDecimal basisPointsOf(BigDecimal impact, BigDecimal fundValue) {
+    if (fundValue.signum() == 0) {
+      return ZERO;
+    }
+    return impact.multiply(BASIS_POINTS).divide(fundValue, BASIS_POINT_SCALE, HALF_UP);
+  }
+
+  private Set<String> accountNames(Map<String, BigDecimal> first, Map<String, BigDecimal> second) {
+    var names = new TreeSet<>(first.keySet());
+    names.addAll(second.keySet());
+    return names;
+  }
+
+  private String requireAccountId(@Nullable String accountId) {
+    if (accountId == null) {
+      throw new IllegalStateException("Security line without an ISIN");
+    }
+    return accountId;
+  }
+
+  private BigDecimal value(@Nullable BigDecimal amount) {
+    return amount == null ? ZERO : amount;
+  }
+}

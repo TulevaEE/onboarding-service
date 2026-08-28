@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.savings;
 
-import ee.tuleva.onboarding.savings.fund.nav.NavReportAccountNames;
+import ee.tuleva.onboarding.savings.fund.nav.NavCalculation;
 import ee.tuleva.onboarding.savings.fund.nav.NavReportRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -22,9 +22,6 @@ public class FundNavQueryService {
 
   private static final List<String> ASSET_ACCOUNT_TYPES =
       List.of("SECURITY", "CASH", "RECEIVABLES");
-
-  private static final List<String> CUSTODIAN_SOURCED_ACCOUNT_TYPES =
-      List.of("CASH", "RECEIVABLES", "LIABILITY");
 
   private final NavReportRepository navReportRepository;
 
@@ -64,16 +61,20 @@ public class FundNavQueryService {
     return sumForLatestCalculationIncludingUnpublished(fundCode, navDate, ASSET_ACCOUNT_TYPES);
   }
 
-  public Optional<BigDecimal> findCustodianComparableTotal(String fundCode, LocalDate navDate) {
-    if (!navReportRepository.existsByFundCodeAndNavDate(fundCode, navDate)) {
-      return Optional.empty();
-    }
-    return Optional.of(
-        navReportRepository.sumLatestCalculationMarketValueExcludingAccountNames(
-            fundCode,
-            navDate,
-            CUSTODIAN_SOURCED_ACCOUNT_TYPES,
-            NavReportAccountNames.NOT_SOURCED_FROM_CUSTODIAN));
+  public Optional<NavCalculation> findLatestCalculation(String fundCode, LocalDate navDate) {
+    return navReportRepository
+        .findFirstByFundCodeAndNavDateOrderByIdDesc(fundCode, navDate)
+        .map(NavReportRow::getCalculationId)
+        .flatMap(
+            calculationId ->
+                navReportRepository
+                    .findLastWrittenAtByCalculationId(fundCode, navDate, calculationId)
+                    .map(
+                        calculatedAt ->
+                            new NavCalculation(
+                                calculatedAt,
+                                navReportRepository.findLinesByCalculationId(
+                                    fundCode, navDate, calculationId))));
   }
 
   private Optional<BigDecimal> sumForLatestCalculationIncludingUnpublished(

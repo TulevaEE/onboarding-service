@@ -2,21 +2,15 @@ package ee.tuleva.onboarding.investment.check.fee;
 
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckScope.ALL;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.CUSTODIAN_POSITION_COMPLETENESS;
-import static ee.tuleva.onboarding.investment.position.AccountType.CASH;
-import static ee.tuleva.onboarding.investment.position.AccountType.LIABILITY;
-import static ee.tuleva.onboarding.investment.position.AccountType.RECEIVABLES;
 import static java.math.BigDecimal.ZERO;
 
-import ee.tuleva.onboarding.investment.position.AccountType;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
-import ee.tuleva.onboarding.savings.FundNavQueryService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 // The fee base recomputes cleanly from the NAV components even when a custodian row never made it
@@ -25,20 +19,15 @@ import org.springframework.stereotype.Component;
 @Component
 class CustodianCompletenessChecker {
 
-  private static final List<AccountType> CUSTODIAN_TYPES = List.of(CASH, RECEIVABLES, LIABILITY);
   private static final int MAX_DAYS_IN_MESSAGE = 10;
 
   private final FundPositionRepository fundPositionRepository;
-  private final FundNavQueryService fundNavQueryService;
-  private final BigDecimal custodianTolerance;
+  private final CustodianPositionComparator comparator;
 
   CustodianCompletenessChecker(
-      FundPositionRepository fundPositionRepository,
-      FundNavQueryService fundNavQueryService,
-      @Value("${investment.fee-check.custodian-tolerance:1.00}") BigDecimal custodianTolerance) {
+      FundPositionRepository fundPositionRepository, CustodianPositionComparator comparator) {
     this.fundPositionRepository = fundPositionRepository;
-    this.fundNavQueryService = fundNavQueryService;
-    this.custodianTolerance = custodianTolerance;
+    this.comparator = comparator;
   }
 
   List<FeeCheckFinding> check(TulevaFund fund, LocalDate from, LocalDate to) {
@@ -47,28 +36,28 @@ class CustodianCompletenessChecker {
       return notRun(fund, "No custodian position report between " + from + " and " + to);
     }
 
-    var mismatches = new ArrayList<String>();
     var notComparedDates = new ArrayList<LocalDate>();
-    var totalDeviation = ZERO;
+    var lateCorrections = new ArrayList<CustodianDayComparison>();
+    var mismatches = new ArrayList<CustodianDayComparison>();
 
     for (var navDate : navDates) {
-      var recognised = fundNavQueryService.findCustodianComparableTotal(fund.getCode(), navDate);
-      if (recognised.isEmpty()) {
+      var comparison = comparator.compare(fund, navDate);
+      if (comparison.isEmpty()) {
         notComparedDates.add(navDate);
         continue;
       }
-      var reported =
-          fundPositionRepository.sumCustodianMarketValue(
-              fund, navDate, CUSTODIAN_TYPES, fund.getIsin());
-      var deviation = reported.subtract(recognised.get());
-      if (deviation.abs().compareTo(custodianTolerance) > 0) {
-        mismatches.add(describe(navDate, reported, recognised.get(), deviation));
-        totalDeviation = totalDeviation.add(deviation);
+      var day = comparison.get();
+      if (day.matches()) {
+        continue;
       }
+      (day.navPredatesReport() ? lateCorrections : mismatches).add(day);
     }
 
     if (!mismatches.isEmpty()) {
-      return List.of(unrecognised(fund, mismatches, totalDeviation.abs()));
+      return List.of(mismatch(fund, mismatches));
+    }
+    if (!lateCorrections.isEmpty()) {
+      return List.of(lateCorrection(fund, lateCorrections));
     }
     if (!notComparedDates.isEmpty()) {
       return notRun(
@@ -84,36 +73,77 @@ class CustodianCompletenessChecker {
     return List.of(FeeCheckFinding.pass(fund, CUSTODIAN_POSITION_COMPLETENESS, ALL));
   }
 
-  private String describe(
-      LocalDate navDate, BigDecimal reported, BigDecimal recognised, BigDecimal deviation) {
-    return navDate
-        + " custodian="
-        + reported.toPlainString()
-        + " navRecognised="
-        + recognised.toPlainString()
-        + " unrecognised="
-        + deviation.toPlainString();
+  private FeeCheckFinding mismatch(TulevaFund fund, List<CustodianDayComparison> days) {
+    return finding(
+        fund,
+        FeeCheckSeverity.WARNING,
+        "The SEB position report we have stored and the NAV we published disagree on "
+            + days.size()
+            + " day(s). Read the line(s) below in the SEB report for that date - one side is"
+            + " missing what the other has:\n"
+            + describe(days),
+        days);
   }
 
-  private FeeCheckFinding unrecognised(
-      TulevaFund fund, List<String> mismatches, BigDecimal totalDeviation) {
-    var shown = mismatches.stream().limit(MAX_DAYS_IN_MESSAGE).toList();
+  // Nothing to correct: SEB sends a report, we calculate the NAV from it, and SEB then re-sends the
+  // same date with a trade confirmation that landed later. The NAV was right on the evidence it
+  // had.
+  private FeeCheckFinding lateCorrection(TulevaFund fund, List<CustodianDayComparison> days) {
+    return finding(
+        fund,
+        FeeCheckSeverity.INFO,
+        "SEB re-sent the position report on "
+            + days.size()
+            + " day(s) after we had already calculated the NAV from the earlier version, so the NAV"
+            + " could not have used it. No NAV correction is due - this is what the newer report"
+            + " changed, and what it would have done to that day's NAV:\n"
+            + describe(days),
+        days);
+  }
+
+  private String describe(List<CustodianDayComparison> days) {
+    var shown =
+        days.stream()
+            .limit(MAX_DAYS_IN_MESSAGE)
+            .map(day -> day.describeLines() + "\n" + navEffect(day))
+            .toList();
     var suffix =
-        mismatches.size() > MAX_DAYS_IN_MESSAGE
-            ? " ... (" + (mismatches.size() - MAX_DAYS_IN_MESSAGE) + " more)"
+        days.size() > MAX_DAYS_IN_MESSAGE
+            ? "\n... (" + (days.size() - MAX_DAYS_IN_MESSAGE) + " more day(s))"
             : "";
+    return String.join("\n", shown) + suffix;
+  }
+
+  private String navEffect(CustodianDayComparison day) {
+    return "  → effect on that day's NAV: "
+        + day.navImpact().toPlainString()
+        + " EUR ("
+        + day.navImpactBasisPoints().toPlainString()
+        + " bp)";
+  }
+
+  private FeeCheckFinding finding(
+      TulevaFund fund,
+      FeeCheckSeverity severity,
+      String message,
+      List<CustodianDayComparison> days) {
+    var totalDeviation =
+        days.stream()
+            .map(CustodianDayComparison::totalDifference)
+            .map(BigDecimal::abs)
+            .reduce(ZERO, BigDecimal::add);
     return new FeeCheckFinding(
         fund,
         CUSTODIAN_POSITION_COMPLETENESS,
         ALL,
-        FeeCheckSeverity.WARNING,
-        "Custodian positions do not match what the NAV recognised on "
-            + mismatches.size()
-            + " day(s): "
-            + String.join(" · ", shown)
-            + suffix,
+        severity,
+        message,
         totalDeviation,
-        Map.of("mismatches", mismatches, "totalDeviation", totalDeviation.toPlainString()));
+        Map.of(
+            "days",
+            days.stream().map(day -> day.navDate().toString()).toList(),
+            "totalDeviation",
+            totalDeviation.toPlainString()));
   }
 
   private List<FeeCheckFinding> notRun(TulevaFund fund, String message) {

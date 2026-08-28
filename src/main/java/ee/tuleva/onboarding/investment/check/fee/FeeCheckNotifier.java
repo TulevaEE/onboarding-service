@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.check.fee;
 
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.FAIL;
+import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.INFO;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.NOT_RUN;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.PASS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.WARNING;
@@ -26,7 +27,7 @@ class FeeCheckNotifier {
   private static final Limit PREVIOUS_AND_CURRENT = Limit.of(2);
 
   private static final Map<FeeCheckSeverity, String> EMOJI =
-      Map.of(FAIL, "🛑", WARNING, "⚠️", NOT_RUN, "⏸", PASS, "✅");
+      Map.of(FAIL, "🛑", WARNING, "⚠️", NOT_RUN, "⏸", INFO, "ℹ️", PASS, "✅");
 
   private final FeeCheckEventRepository eventRepository;
   private final OperationsNotificationService notificationService;
@@ -102,13 +103,18 @@ class FeeCheckNotifier {
   }
 
   private String buildMessage(List<Transition> transitions) {
-    var active = transitions.stream().filter(t -> t.severity() != PASS).toList();
-    var deviations = active.stream().filter(t -> t.severity() != NOT_RUN).toList();
-    var blind = active.stream().filter(t -> t.severity() == NOT_RUN).toList();
+    var deviations =
+        transitions.stream().filter(t -> t.severity() == WARNING || t.severity() == FAIL).toList();
+    var notes = transitions.stream().filter(t -> t.severity() == INFO).toList();
+    var blind = transitions.stream().filter(t -> t.severity() == NOT_RUN).toList();
     var cleared = transitions.stream().filter(t -> t.severity() == PASS).toList();
 
-    var message = new StringBuilder(header(deviations, blind));
+    var message = new StringBuilder(header(deviations, notes, blind));
     deviations.forEach(t -> message.append('\n').append(t.render()));
+    if (!notes.isEmpty()) {
+      message.append("\n\nExplained, no action needed:");
+      notes.forEach(t -> message.append('\n').append(t.render()));
+    }
     if (!blind.isEmpty()) {
       message.append("\n\nCould not check:");
       blind.forEach(t -> message.append('\n').append(t.render()));
@@ -123,12 +129,16 @@ class FeeCheckNotifier {
     return message.toString();
   }
 
-  private String header(List<Transition> deviations, List<Transition> blind) {
+  private String header(
+      List<Transition> deviations, List<Transition> notes, List<Transition> blind) {
     if (deviations.stream().anyMatch(t -> t.severity() == FAIL)) {
       return "Fee check FAILED — needs manual correction";
     }
     if (!deviations.isEmpty()) {
       return "Fee check warning";
+    }
+    if (!notes.isEmpty()) {
+      return "Fee check note — nothing to correct";
     }
     if (!blind.isEmpty()) {
       return "Fee check coverage changed";

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -156,26 +157,36 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
       @Param("navDate") LocalDate navDate,
       @Param("accountTypes") List<String> accountTypes);
 
+  Optional<NavReportRow> findFirstByFundCodeAndNavDateOrderByIdDesc(
+      String fundCode, LocalDate navDate);
+
+  // Scoped by fund and date as well as by calculation: one calculation run covers several funds and
+  // is free to carry the same id across them, so the id alone does not identify one day's rows.
   @Query(
-      value =
-          """
-          SELECT COALESCE(SUM(nr.market_value), 0)
-          FROM nav_report nr
-          WHERE nr.fund_code = :fundCode AND nr.nav_date = :navDate
-            AND nr.account_type IN (:accountTypes)
-            AND (nr.account_name IS NULL OR nr.account_name NOT IN (:excludedAccountNames))
-            AND nr.calculation_id = (
-              SELECT calculation_id FROM nav_report
-              WHERE nav_date = :navDate AND fund_code = :fundCode
-              ORDER BY id DESC LIMIT 1
-            )
-          """,
-      nativeQuery = true)
-  BigDecimal sumLatestCalculationMarketValueExcludingAccountNames(
+      """
+      SELECT new ee.tuleva.onboarding.savings.fund.nav.NavAccountLine(
+        row.accountType, row.accountName, row.accountId, row.quantity, row.marketPrice, row.marketValue)
+      FROM NavReportRow row
+      WHERE row.fundCode = :fundCode AND row.navDate = :navDate
+        AND row.calculationId = :calculationId
+      """)
+  List<NavAccountLine> findLinesByCalculationId(
       @Param("fundCode") String fundCode,
       @Param("navDate") LocalDate navDate,
-      @Param("accountTypes") List<String> accountTypes,
-      @Param("excludedAccountNames") List<String> excludedAccountNames);
+      @Param("calculationId") UUID calculationId);
+
+  // The last row the calculation wrote: a position written after it provably could not have been
+  // read by it, which is what separates a stale input from a report SEB re-sent afterwards.
+  @Query(
+      """
+      SELECT MAX(row.createdAt) FROM NavReportRow row
+      WHERE row.fundCode = :fundCode AND row.navDate = :navDate
+        AND row.calculationId = :calculationId
+      """)
+  Optional<Instant> findLastWrittenAtByCalculationId(
+      @Param("fundCode") String fundCode,
+      @Param("navDate") LocalDate navDate,
+      @Param("calculationId") UUID calculationId);
 
   boolean existsByFundCodeAndNavDate(String fundCode, LocalDate navDate);
 }

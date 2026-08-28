@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
@@ -40,7 +41,11 @@ class FirstPaymentReminderJob {
     var openedFrom = notBeforeTheManualCampaign(now.minus(OLDEST_ACCOUNT_IN_DAYS, DAYS));
     var openedUntil = now.minus(REMINDER_DELAY_IN_DAYS, DAYS);
 
-    List<FirstPaymentReminder> reminders = repository.fetch(openedFrom, openedUntil);
+    List<FirstPaymentReminder> reminders =
+        Stream.concat(
+                repository.fetchForAdults(openedFrom, openedUntil).stream(),
+                repository.fetchForChildren(openedFrom, openedUntil).stream())
+            .toList();
 
     if (reminders.size() > MAX_RECIPIENTS) {
       log.error(

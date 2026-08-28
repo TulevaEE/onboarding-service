@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.savings.fund.reminder;
 
+import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SAVINGS_FUND_FIRST_PAYMENT_REMINDER_CHILD;
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -35,10 +36,32 @@ class FirstPaymentReminderSenderTest {
 
   @InjectMocks private FirstPaymentReminderSender sender;
 
+  private static final String CHILD = "61506150006";
+
   private final FirstPaymentReminder estonianSaver =
-      new FirstPaymentReminder(SAVER, "Saver", "Example", "saver@example.com", Locale.of("et"));
+      new FirstPaymentReminder(
+          SAVER,
+          "Saver",
+          "Example",
+          "saver@example.com",
+          Locale.of("et"),
+          SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON);
   private final FirstPaymentReminder englishSpeakingSaver =
-      new FirstPaymentReminder(SAVER, "Saver", "Example", "saver@example.com", Locale.ENGLISH);
+      new FirstPaymentReminder(
+          SAVER,
+          "Saver",
+          "Example",
+          "saver@example.com",
+          Locale.ENGLISH,
+          SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON);
+  private final FirstPaymentReminder childAccount =
+      new FirstPaymentReminder(
+          CHILD,
+          "Parent",
+          "Example",
+          "parent@example.com",
+          Locale.of("et"),
+          SAVINGS_FUND_FIRST_PAYMENT_REMINDER_CHILD);
 
   @Test
   void sendsTheEstonianReminderAndRecordsIt() {
@@ -69,6 +92,19 @@ class FirstPaymentReminderSenderTest {
     verify(emailPersistenceService)
         .save(
             englishSpeakingSaver, "message-id", SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON, "sent");
+  }
+
+  @Test
+  void sendsTheChildReminderToTheParentAndRecordsItAgainstTheChildAccount() {
+    var message = messageFor(childAccount, "savings_fund_first_payment_reminder_child_et");
+    var response = mandrillResponse("message-id", "sent");
+    given(emailService.send(childAccount, message, "savings_fund_first_payment_reminder_child_et"))
+        .willReturn(Optional.of(response));
+
+    sender.send(childAccount);
+
+    verify(emailPersistenceService)
+        .save(childAccount, "message-id", SAVINGS_FUND_FIRST_PAYMENT_REMINDER_CHILD, "sent");
   }
 
   @Test

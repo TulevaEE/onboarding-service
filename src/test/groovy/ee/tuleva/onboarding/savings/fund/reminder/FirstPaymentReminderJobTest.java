@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.savings.fund.reminder;
 
+import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.verify;
@@ -36,7 +37,8 @@ class FirstPaymentReminderJobTest {
   void remindsSaversWhoOpenedAnAccountBetweenThirtyAndSevenDaysAgo() {
     var firstSaver = reminder("38812121215");
     var secondSaver = reminder("38001085718");
-    given(repository.fetch(OPENED_FROM, OPENED_UNTIL)).willReturn(List.of(firstSaver, secondSaver));
+    given(repository.fetchForAdults(OPENED_FROM, OPENED_UNTIL))
+        .willReturn(List.of(firstSaver, secondSaver));
 
     job().sendReminders();
 
@@ -45,8 +47,21 @@ class FirstPaymentReminderJobTest {
   }
 
   @Test
+  void remindsParentsAboutChildAccountsInTheSameRun() {
+    var adult = reminder("38812121215");
+    var childAccount = reminder("61506150006");
+    given(repository.fetchForAdults(OPENED_FROM, OPENED_UNTIL)).willReturn(List.of(adult));
+    given(repository.fetchForChildren(OPENED_FROM, OPENED_UNTIL)).willReturn(List.of(childAccount));
+
+    job().sendReminders();
+
+    verify(sender).send(adult);
+    verify(sender).send(childAccount);
+  }
+
+  @Test
   void sendsNothingWhenThereAreSuspiciouslyManyRecipients() {
-    given(repository.fetch(OPENED_FROM, OPENED_UNTIL)).willReturn(reminders(201));
+    given(repository.fetchForAdults(OPENED_FROM, OPENED_UNTIL)).willReturn(reminders(201));
 
     job().sendReminders();
 
@@ -57,7 +72,8 @@ class FirstPaymentReminderJobTest {
   void keepsRemindingTheRestWhenOneReminderFails() {
     var failingSaver = reminder("38812121215");
     var nextSaver = reminder("38001085718");
-    given(repository.fetch(OPENED_FROM, OPENED_UNTIL)).willReturn(List.of(failingSaver, nextSaver));
+    given(repository.fetchForAdults(OPENED_FROM, OPENED_UNTIL))
+        .willReturn(List.of(failingSaver, nextSaver));
     willThrow(new RuntimeException("Mandrill is down")).given(sender).send(failingSaver);
 
     job().sendReminders();
@@ -70,7 +86,7 @@ class FirstPaymentReminderJobTest {
     var justAfterTheCampaign = Clock.fixed(Instant.parse("2026-09-01T12:00:00Z"), ZoneOffset.UTC);
     var campaignCutoff = Instant.parse("2026-08-11T21:00:00Z");
     var saver = reminder("38812121215");
-    given(repository.fetch(campaignCutoff, Instant.parse("2026-08-25T12:00:00Z")))
+    given(repository.fetchForAdults(campaignCutoff, Instant.parse("2026-08-25T12:00:00Z")))
         .willReturn(List.of(saver));
 
     new FirstPaymentReminderJob(justAfterTheCampaign, repository, sender).sendReminders();
@@ -84,6 +100,11 @@ class FirstPaymentReminderJobTest {
 
   private FirstPaymentReminder reminder(String personalCode) {
     return new FirstPaymentReminder(
-        personalCode, "Saver", "Example", personalCode + "@example.com", Locale.of("et"));
+        personalCode,
+        "Saver",
+        "Example",
+        personalCode + "@example.com",
+        Locale.of("et"),
+        SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON);
   }
 }

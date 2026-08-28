@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.reminder;
 
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
 import java.util.Locale;
 
 record FirstPaymentReminder(
@@ -8,7 +9,8 @@ record FirstPaymentReminder(
     String recipientFirstName,
     String recipientLastName,
     String recipientEmail,
-    Locale locale)
+    Locale locale,
+    EmailType emailType)
     implements Person {
 
   @Override

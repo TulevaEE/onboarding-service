@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.reminder;
 
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailStatus.SENT;
+import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SAVINGS_FUND_FIRST_PAYMENT_REMINDER_CHILD;
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
@@ -77,12 +78,17 @@ class FirstPaymentReminderRepositoryTest {
     accountOpened(CHILD, NOW.minus(10, DAYS));
     childOf(SAVER, CHILD);
 
-    var reminders = repository.fetch(OPENED_FROM, OPENED_UNTIL);
+    var reminders = repository.fetchForAdults(OPENED_FROM, OPENED_UNTIL);
 
     assertThat(reminders)
         .containsExactly(
             new FirstPaymentReminder(
-                SAVER, "Saver " + SAVER, "Example", SAVER + "@example.com", Locale.of("et")));
+                SAVER,
+                "Saver " + SAVER,
+                "Example",
+                SAVER + "@example.com",
+                Locale.of("et"),
+                SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON));
   }
 
   @Test
@@ -93,7 +99,7 @@ class FirstPaymentReminderRepositoryTest {
     accountOpened(ENGLISH_SPEAKING_SAVER, NOW.minus(10, DAYS));
     languagePreference(ENGLISH_SPEAKING_SAVER, "ENG");
 
-    var reminders = repository.fetch(OPENED_FROM, OPENED_UNTIL);
+    var reminders = repository.fetchForAdults(OPENED_FROM, OPENED_UNTIL);
 
     assertThat(reminders)
         .extracting(FirstPaymentReminder::accountCode, FirstPaymentReminder::locale)
@@ -106,7 +112,7 @@ class FirstPaymentReminderRepositoryTest {
   void leavesOutMinorsEvenWhenNobodyIsLinkedAsTheirParent() {
     accountOpened(CHILD, NOW.minus(10, DAYS));
 
-    var reminders = repository.fetch(OPENED_FROM, OPENED_UNTIL);
+    var reminders = repository.fetchForAdults(OPENED_FROM, OPENED_UNTIL);
 
     assertThat(reminders).isEmpty();
   }
@@ -118,7 +124,7 @@ class FirstPaymentReminderRepositoryTest {
     boardMember(payingCompany, SAVER);
     companyPayment("11111111");
 
-    var reminders = repository.fetch(OPENED_FROM, OPENED_UNTIL);
+    var reminders = repository.fetchForAdults(OPENED_FROM, OPENED_UNTIL);
 
     assertThat(reminders).isEmpty();
   }
@@ -129,9 +135,32 @@ class FirstPaymentReminderRepositoryTest {
     var company = company("11111111");
     boardMember(company, SAVER);
 
-    var reminders = repository.fetch(OPENED_FROM, OPENED_UNTIL);
+    var reminders = repository.fetchForAdults(OPENED_FROM, OPENED_UNTIL);
 
     assertThat(reminders).extracting(FirstPaymentReminder::accountCode).containsExactly(SAVER);
+  }
+
+  @Test
+  void remindsTheParentAboutAChildAccountNobodyHasPaidInto() {
+    accountOpened(CHILD, NOW.minus(10, DAYS));
+    childOf(SAVER, CHILD);
+    accountOpened(SAVER, NOW.minus(10, DAYS));
+
+    accountOpened(ALREADY_PAID, NOW.minus(10, DAYS));
+    childOf(SAVER, ALREADY_PAID);
+    payment(ALREADY_PAID, "PROCESSED");
+
+    var reminders = repository.fetchForChildren(OPENED_FROM, OPENED_UNTIL);
+
+    assertThat(reminders)
+        .containsExactly(
+            new FirstPaymentReminder(
+                CHILD,
+                "Saver " + SAVER,
+                "Example",
+                SAVER + "@example.com",
+                Locale.of("et"),
+                SAVINGS_FUND_FIRST_PAYMENT_REMINDER_CHILD));
   }
 
   private Company company(String registryCode) {

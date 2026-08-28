@@ -1,0 +1,14 @@
+ee.tuleva.onboarding.savings.fund.report.TrusteeReportCsvGeneratorGoldenMasterTest.generatesCsvAcrossFundLifecycleFromInceptionThroughRoundingBoundaries=[
+﻿Kuupäev,NAV,Väljalastud osakute kogus,Väljalastud osakute summa,Tagasivõetud osakute kogus,Tagasivõetud osakute summa,Fondi väljalastud osakute arv
+06.02.2026,"0,9985","12345,678","12328,99","200,500","199,70","6100368,885"
+05.02.2026,"1,0000","70981,830","70705,01","500,000","498,00","6088223,707"
+04.02.2026,"0,9960","0,000","0,00","0,000","0,00","6017741,878"
+02.02.2026,"1,0000","6017741,878","6017741,88","0,000","0,00","6017741,878"
+
+]
+
+
+ee.tuleva.onboarding.savings.fund.report.TrusteeReportCsvGeneratorGoldenMasterTest.generatesHeaderOnlyCsvWhenNoRowsExist=[
+﻿Kuupäev,NAV,Väljalastud osakute kogus,Väljalastud osakute summa,Tagasivõetud osakute kogus,Tagasivõetud osakute summa,Fondi väljalastud osakute arv
+
+]

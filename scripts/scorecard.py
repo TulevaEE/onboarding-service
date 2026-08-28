@@ -77,8 +77,10 @@ def pitest_metrics():
     path = ROOT / "build" / "reports" / "pitest" / "mutations.xml"
     if not path.exists():
         return {}
-    tree = ET.parse(path)
-    mutations = tree.getroot().findall("mutation")
+    root = ET.parse(path).getroot()
+    if root.get("partial") == "true":
+        return {}
+    mutations = root.findall("mutation")
     detected = sum(1 for m in mutations if m.get("detected") == "true")
     return {
         "mutationScore": round(100.0 * detected / len(mutations), 2) if mutations else None,

@@ -29,7 +29,7 @@ public class ContactDetailsService {
       updatedContactDetails = episService.updateContactDetails(user, contactDetails);
     } catch (ErrorsResponseException e) {
       updatedContactDetails = contactDetails;
-      log.warn("Contact details update failed: userId={}", user.getId(), e);
+      log.error("Contact details update failed: userId={}", user.getId(), e);
     }
     eventPublisher.publishEvent(new ContactDetailsUpdatedEvent(this, user, updatedContactDetails));
     return updatedContactDetails;

@@ -183,7 +183,7 @@ public class ChildAmlBackfillService {
   private ScreeningStatus screenAndConfirmBySanctionRow(PopulationRegisterPerson child) {
     amlService.addSanctionAndPepCheckIfMissing(
         new PersonImpl(child.personalCode(), child.firstName(), child.lastName()),
-        Countries.of(child.citizenships()));
+        Countries.of(child.citizenships().toArray(new String[0])));
     return hasRecentSanctionRow(child.personalCode()) ? SCREENED : SCREENING_FAILED;
   }
 

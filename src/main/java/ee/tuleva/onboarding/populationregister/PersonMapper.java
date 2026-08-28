@@ -105,7 +105,7 @@ class PersonMapper {
   }
 
   private static List<String> toCitizenships(PersonResponse response) {
-    Stream<@Nullable Citizenship> all =
+    var all =
         Stream.concat(
             Stream.of(response.citizenship()),
             response.citizenships() == null ? Stream.of() : response.citizenships().stream());

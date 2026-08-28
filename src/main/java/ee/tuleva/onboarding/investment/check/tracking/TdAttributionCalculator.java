@@ -279,7 +279,7 @@ class TdAttributionCalculator {
         .build();
   }
 
-  private static BigDecimal orZero(BigDecimal value) {
+  private static BigDecimal orZero(@Nullable BigDecimal value) {
     return value != null ? value : ZERO;
   }
 

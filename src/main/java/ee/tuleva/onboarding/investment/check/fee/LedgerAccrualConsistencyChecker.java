@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -68,7 +69,7 @@ class LedgerAccrualConsistencyChecker {
 
   private Divergence divergenceOn(
       LocalDate date,
-      BigDecimal accrual,
+      @Nullable BigDecimal accrual,
       boolean chargedToFund,
       BigDecimal ledgerAmount,
       long transactionCount) {
@@ -164,7 +165,7 @@ class LedgerAccrualConsistencyChecker {
 
   private record Divergence(
       LocalDate date,
-      BigDecimal accrual,
+      @Nullable BigDecimal accrual,
       BigDecimal expectedLedgerAmount,
       BigDecimal ledgerAmount,
       long transactionCount,

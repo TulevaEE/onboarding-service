@@ -92,7 +92,11 @@ public class FtConfirmationVerificationService {
             confirmation.isin(),
             e.getMessage(),
             e);
-        results.add(FtConfirmationBatchResult.failed(index, confirmation.isin(), e.getMessage()));
+        results.add(
+            FtConfirmationBatchResult.failed(
+                index,
+                confirmation.isin(),
+                e.getMessage() == null ? e.toString() : e.getMessage()));
       }
     }
     digest.publish(outcomes);

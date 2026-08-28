@@ -354,7 +354,7 @@ public class TransactionInputService {
   private BigDecimal getFundLimitValue(
       TulevaFund fund,
       LocalDate asOfDate,
-      Function<FundLimit, BigDecimal> extractor,
+      Function<FundLimit, @Nullable BigDecimal> extractor,
       String fieldName) {
     FundLimit limit =
         fundLimitRepository

@@ -10,6 +10,7 @@ import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -48,13 +49,19 @@ class PositionLimitChecker {
         .filter(p -> limitsByIsin.containsKey(p.getAccountId()))
         .map(
             p -> {
-              var limit = limitsByIsin.get(p.getAccountId());
+              var limit =
+                  Objects.requireNonNull(
+                      limitsByIsin.get(p.getAccountId()),
+                      "Position limit missing: isin=" + p.getAccountId());
               var actualPercent = percentOf(p.getMarketValue(), totalNav);
               var severity = determineSeverity(actualPercent, limit);
+              var label =
+                  Objects.requireNonNull(
+                      limit.getLabel(), "Position limit missing label: isin=" + limit.getIsin());
               return new PositionBreach(
                   fund,
                   p.getAccountId(),
-                  limit.getLabel(),
+                  label,
                   actualPercent,
                   limit.getSoftLimitPercent(),
                   limit.getHardLimitPercent(),
@@ -100,10 +107,18 @@ class PositionLimitChecker {
                       .reduce(BigDecimal.ZERO, BigDecimal::add);
               var actualPercent = percentOf(aggregateValue, totalNav);
               var severity = determineSeverity(actualPercent, indexLimit);
+              var indexGroup =
+                  Objects.requireNonNull(
+                      indexLimit.getIndexGroup(),
+                      "Position limit missing indexGroup: id=" + indexLimit.getId());
+              var label =
+                  Objects.requireNonNull(
+                      indexLimit.getLabel(),
+                      "Position limit missing label: id=" + indexLimit.getId());
               return new PositionBreach(
                   fund,
-                  indexLimit.getIndexGroup(),
-                  indexLimit.getLabel(),
+                  indexGroup,
+                  label,
                   actualPercent,
                   indexLimit.getSoftLimitPercent(),
                   indexLimit.getHardLimitPercent(),

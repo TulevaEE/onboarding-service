@@ -10,6 +10,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
@@ -45,7 +46,10 @@ class ProviderLimitChecker {
         .map(
             e -> {
               var provider = e.getKey();
-              var limit = limitsByProvider.get(provider);
+              var limit =
+                  Objects.requireNonNull(
+                      limitsByProvider.get(provider),
+                      "Provider limit missing: provider=" + provider);
               var actualPercent =
                   e.getValue()
                       .multiply(BigDecimal.valueOf(100))

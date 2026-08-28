@@ -46,7 +46,7 @@ public record FtConfirmation(
         tradeDate,
         quantity,
         grossPrice,
-        type,
+        type == null ? NORMAL : type,
         account,
         Boolean.TRUE.equals(suppressed));
   }

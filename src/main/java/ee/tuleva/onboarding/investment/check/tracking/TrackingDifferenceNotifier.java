@@ -12,6 +12,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -180,7 +181,11 @@ class TrackingDifferenceNotifier {
                   .formatted(
                       attr.isin(),
                       formatPercent(attr.securityReturn()),
-                      formatPercent(attr.benchmarkReturn()),
+                      formatPercent(
+                          Objects.requireNonNull(
+                              attr.benchmarkReturn(),
+                              "Missing benchmark return for BENCHMARK_MODEL attribution: isin="
+                                  + attr.isin())),
                       formatPercent(attr.contribution())));
         }
       } else {
@@ -189,7 +194,10 @@ class TrackingDifferenceNotifier {
               "\n  %s: weight %s%%, return %s%%, impact %s%%"
                   .formatted(
                       attr.isin(),
-                      formatPercent(attr.weightDifference()),
+                      formatPercent(
+                          Objects.requireNonNull(
+                              attr.weightDifference(),
+                              "Missing weight difference for attribution: isin=" + attr.isin())),
                       formatPercent(attr.securityReturn()),
                       formatPercent(attr.contribution())));
         }

@@ -35,6 +35,7 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -307,7 +308,11 @@ public class PeriodicTdAttributionService {
         heldOcf = heldOcf.add(weight.multiply(ocf));
       }
 
-      var proxy = benchmarkLegResolver.resolve(isin).orElse(null);
+      var proxy =
+          benchmarkLegResolver
+              .resolve(
+                  Objects.requireNonNull(isin, "Measured allocation missing isin: fund=" + fund))
+              .orElse(null);
       if (proxy == null) {
         continue;
       }
@@ -491,7 +496,7 @@ public class PeriodicTdAttributionService {
     return records;
   }
 
-  private NavComponents loadNavComponents(TulevaFund fund, LocalDate date) {
+  private @Nullable NavComponents loadNavComponents(TulevaFund fund, LocalDate date) {
     var aum = fundNavQueryService.findAum(fund.getCode(), date);
     if (aum == null || aum.signum() <= 0) {
       return null;
@@ -697,7 +702,7 @@ public class PeriodicTdAttributionService {
     return entity;
   }
 
-  static BigDecimal toBigDecimal(Object value) {
+  static BigDecimal toBigDecimal(@Nullable Object value) {
     if (value instanceof BigDecimal bd) return bd;
     if (value instanceof Number n) return new BigDecimal(n.toString());
     if (value instanceof String s) return new BigDecimal(s);

@@ -13,6 +13,7 @@ import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import lombok.Builder;
 import lombok.RequiredArgsConstructor;
@@ -83,15 +84,20 @@ class TrackingDifferenceCalculator {
 
     var validSecurities =
         input.securities().stream()
-            .filter(s -> s.today().price() != null && s.previous().price() != null)
-            .filter(s -> s.previous().price().signum() != 0)
+            .filter(
+                s ->
+                    s.today().price() != null
+                        && s.previous().price() != null
+                        && s.previous().price().signum() != 0)
             .toList();
 
     var benchmarkReturn =
         validSecurities.stream()
             .map(
                 s -> {
-                  var secReturn = rawDailyReturn(s.today().price(), s.previous().price());
+                  var secReturn =
+                      rawDailyReturn(
+                          s.today().requirePrice(s.isin()), s.previous().requirePrice(s.isin()));
                   return s.modelWeight().multiply(secReturn);
                 })
             .reduce(ZERO, BigDecimal::add)
@@ -104,7 +110,9 @@ class TrackingDifferenceCalculator {
         validSecurities.stream()
             .map(
                 s -> {
-                  var secReturn = rawDailyReturn(s.today().price(), s.previous().price());
+                  var secReturn =
+                      rawDailyReturn(
+                          s.today().requirePrice(s.isin()), s.previous().requirePrice(s.isin()));
                   var weightDiff =
                       s.actualWeight().subtract(s.modelWeight()).setScale(SCALE, HALF_UP);
                   var contribution = weightDiff.multiply(secReturn).setScale(SCALE, HALF_UP);
@@ -163,9 +171,18 @@ class TrackingDifferenceCalculator {
     }
     var impliedSleeveReturn =
         input.bodHoldings().stream()
-            .filter(b -> b.today().price() != null && b.previous().price() != null)
-            .filter(b -> b.previous().price().signum() != 0)
-            .map(b -> b.weight().multiply(rawDailyReturn(b.today().price(), b.previous().price())))
+            .filter(
+                b ->
+                    b.today().price() != null
+                        && b.previous().price() != null
+                        && b.previous().price().signum() != 0)
+            .map(
+                b ->
+                    b.weight()
+                        .multiply(
+                            rawDailyReturn(
+                                b.today().requirePrice(b.isin()),
+                                b.previous().requirePrice(b.isin()))))
             .reduce(ZERO, BigDecimal::add);
     var bodImpliedFundReturn =
         input
@@ -205,7 +222,15 @@ class TrackingDifferenceCalculator {
       @Nullable List<BodHolding> bodHoldings,
       @Nullable BigDecimal bodSecuritiesFraction) {}
 
-  record PriceSnapshot(@Nullable BigDecimal price, @Nullable LocalDate date) {}
+  record PriceSnapshot(@Nullable BigDecimal price, @Nullable LocalDate date) {
+    BigDecimal requirePrice(String isin) {
+      return Objects.requireNonNull(price, "Missing price: isin=" + isin);
+    }
+
+    LocalDate requireDate(String isin) {
+      return Objects.requireNonNull(date, "Missing price date: isin=" + isin);
+    }
+  }
 
   record SecurityData(
       String isin,

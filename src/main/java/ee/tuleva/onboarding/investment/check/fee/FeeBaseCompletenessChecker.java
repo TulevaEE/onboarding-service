@@ -24,6 +24,7 @@ import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.SortedMap;
@@ -90,7 +91,11 @@ class FeeBaseCompletenessChecker {
       }
       var divergent = new TreeMap<String, String>();
       for (var base : bases) {
-        var deviation = expected.get().get(base.feeType()).subtract(base.baseValue());
+        var navComponent =
+            Objects.requireNonNull(
+                expected.get().get(base.feeType()),
+                "Expected fee base missing: feeType=" + base.feeType());
+        var deviation = navComponent.subtract(base.baseValue());
         if (deviation.abs().compareTo(feeBaseTolerance) <= 0) {
           continue;
         }
@@ -99,7 +104,7 @@ class FeeBaseCompletenessChecker {
             "base="
                 + base.baseValue().toPlainString()
                 + " navComponents="
-                + expected.get().get(base.feeType()).toPlainString()
+                + navComponent.toPlainString()
                 + " missing="
                 + deviation.toPlainString());
         totalDeviation = totalDeviation.add(deviation);

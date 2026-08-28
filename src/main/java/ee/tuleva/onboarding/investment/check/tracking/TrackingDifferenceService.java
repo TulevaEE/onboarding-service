@@ -329,7 +329,12 @@ class TrackingDifferenceService {
                 toMap(identity(), feeType -> feeChargedToFundPolicy.resolverFor(fund, feeType)));
     var chargedAccruals =
         accruals.stream()
-            .filter(a -> chargedResolvers.get(a.feeType()).chargedOn(a.accrualDate()))
+            .filter(
+                a ->
+                    Objects.requireNonNull(
+                            chargedResolvers.get(a.feeType()),
+                            "No charged-to-fund resolver: feeType=" + a.feeType())
+                        .chargedOn(a.accrualDate()))
             .toList();
     warnOnIncompleteAccrualCoverage(
         fund, previousDate, checkDate, chargedResolvers, chargedAccruals);
@@ -532,9 +537,13 @@ class TrackingDifferenceService {
 
     var validSecurities =
         securities.stream()
-            .filter(s -> s.today().price() != null && s.previous().price() != null)
-            .filter(s -> s.previous().price().signum() != 0)
-            .filter(s -> s.today().date() != null && s.previous().date() != null)
+            .filter(
+                s ->
+                    s.today().price() != null
+                        && s.previous().price() != null
+                        && s.previous().price().signum() != 0
+                        && s.today().date() != null
+                        && s.previous().date() != null)
             .toList();
 
     if (validSecurities.isEmpty()) {
@@ -553,7 +562,11 @@ class TrackingDifferenceService {
         continue;
       }
       var bmReturn =
-          lookupReturn(benchmarkKey, s.today().date(), s.previous().date(), maxDailyReturn);
+          lookupReturn(
+              benchmarkKey,
+              s.today().requireDate(s.isin()),
+              s.previous().requireDate(s.isin()),
+              maxDailyReturn);
       if (bmReturn.isEmpty()) {
         log.warn(
             "Missing benchmark model data: fund={}, isin={}, benchmarkKey={}",
@@ -563,7 +576,10 @@ class TrackingDifferenceService {
         continue;
       }
       var secReturn =
-          calculator.safeDailyReturn(s.today().price(), s.previous().price(), maxDailyReturn);
+          calculator.safeDailyReturn(
+              s.today().requirePrice(s.isin()),
+              s.previous().requirePrice(s.isin()),
+              maxDailyReturn);
       var weight = s.actualWeight();
       var returnDiff = secReturn.subtract(bmReturn.get()).setScale(SCALE, RoundingMode.HALF_UP);
       var contribution = weight.multiply(returnDiff).setScale(SCALE, RoundingMode.HALF_UP);
@@ -628,7 +644,7 @@ class TrackingDifferenceService {
             .build());
   }
 
-  private String resolveBenchmarkKey(String isin) {
+  private @Nullable String resolveBenchmarkKey(String isin) {
     return benchmarkLegResolver.resolve(isin).map(BenchmarkProxy::storageKey).orElse(null);
   }
 
@@ -690,7 +706,8 @@ class TrackingDifferenceService {
         .map(
             a ->
                 buildOneSecurityData(
-                    a.getIsin(),
+                    Objects.requireNonNull(
+                        a.getIsin(), "Model portfolio allocation missing isin: fund=" + fund),
                     ZERO,
                     todayByIsin,
                     totalSecurities,
@@ -973,7 +990,7 @@ class TrackingDifferenceService {
     return merged;
   }
 
-  private static BigDecimal toBd(Object value) {
+  private static BigDecimal toBd(@Nullable Object value) {
     if (value == null) return ZERO;
     if (value instanceof BigDecimal bd) return bd;
     if (value instanceof Number n) return new BigDecimal(n.toString());
@@ -1096,7 +1113,7 @@ class TrackingDifferenceService {
         navResidualEvaluated);
   }
 
-  record BenchmarkConfig(String singleKey, List<BenchmarkComponent> components) {
+  record BenchmarkConfig(@Nullable String singleKey, List<BenchmarkComponent> components) {
     BenchmarkConfig(String singleKey) {
       this(singleKey, List.of());
     }

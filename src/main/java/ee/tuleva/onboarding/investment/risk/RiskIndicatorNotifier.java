@@ -92,7 +92,7 @@ class RiskIndicatorNotifier {
     var disclosed = disclosedClass(indicator);
     var lines = new ArrayList<String>();
 
-    if (hasPublishedClassChangedSinceLastMessage(previous, indicator)) {
+    if (previous != null && hasPublishedClassChangedSinceLastMessage(previous, indicator)) {
       lines.add(
           "⚠️ %s %s — avaldatav klass muutus %s → %s (kehtib alates %s)"
               .formatted(
@@ -101,7 +101,7 @@ class RiskIndicatorNotifier {
                   previous.publishedClass(),
                   indicator.publishedClass(),
                   indicator.publishedSince()));
-    } else if (hasStatusChangedSinceLastMessage(previous, indicator)) {
+    } else if (previous != null && hasStatusChangedSinceLastMessage(previous, indicator)) {
       lines.add(
           "%s %s %s — staatus %s → %s (arvutatud klass %s, avaldatav klass %s)"
               .formatted(

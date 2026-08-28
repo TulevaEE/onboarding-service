@@ -40,6 +40,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -210,7 +211,7 @@ public class HistoricalRegistryImportService {
         }
         parsedRows.add(row);
       } catch (RowParseException e) {
-        errors.add(new RowError(rowNumber, e.getMessage()));
+        errors.add(new RowError(rowNumber, Objects.requireNonNull(e.getMessage())));
       }
     }
     return parsedRows;

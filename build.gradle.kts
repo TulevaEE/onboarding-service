@@ -1,3 +1,4 @@
+import net.ltgt.gradle.errorprone.errorprone
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
 import org.gradle.api.tasks.testing.logging.TestLogEvent.FAILED
 import org.gradle.api.tasks.testing.logging.TestLogEvent.SKIPPED
@@ -31,6 +32,7 @@ plugins {
     id("com.gorylenko.gradle-git-properties") version "4.0.1"
     id("com.diffplug.spotless") version "8.9.0"
     id("io.freefair.lombok") version "9.5.0"
+    id("net.ltgt.errorprone") version "5.1.1"
     jacoco
 }
 
@@ -91,6 +93,8 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-jackson")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     compileOnly("org.jspecify:jspecify:1.0.0")
+    errorprone("com.google.errorprone:error_prone_core:2.50.0")
+    errorprone("com.uber.nullaway:nullaway:0.14.0")
 
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
@@ -473,6 +477,14 @@ tasks.withType<JavaCompile> {
     options.compilerArgs.add("-Xlint:-deprecation")
     options.compilerArgs.add("-Xdiags:verbose")
 //    options.compilerArgs.add("-Werror")
+    options.errorprone {
+        disableAllChecks = true
+        error("NullAway")
+        option("NullAway:OnlyNullMarked", "true")
+        option("NullAway:JSpecifyMode", "true")
+        option("NullAway:TreatGeneratedAsUnannotated", "true")
+        excludedPaths = ".*/generated-sources/.*"
+    }
 }
 
 tasks.withType<Test> {

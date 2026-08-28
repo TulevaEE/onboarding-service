@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.banking.seb;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.BankAccountType;
@@ -76,7 +77,11 @@ public class SebBankAccounts implements BankAccounts {
         .map(
             type ->
                 new BankAccount(
-                    accounts.get(type), type, TKF100, fundAccounts.gatewayClientId(TKF100)));
+                    requireNonNull(
+                        accounts.get(type), "Missing savings fund bank account: type=" + type),
+                    type,
+                    TKF100,
+                    fundAccounts.gatewayClientId(TKF100)));
   }
 
   private static Stream<BankAccount> pensionFundAccounts(FundAccounts fundAccounts) {

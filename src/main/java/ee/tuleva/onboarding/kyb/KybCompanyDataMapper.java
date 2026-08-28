@@ -38,7 +38,15 @@ class KybCompanyDataMapper {
       BeneficialOwners beneficialOwners,
       SelfCertification selfCertification) {
 
-    var status = detail.getStatus().map(CompanyStatus::valueOf).orElse(null);
+    var status =
+        detail
+            .getStatus()
+            .map(CompanyStatus::valueOf)
+            .orElseThrow(
+                () ->
+                    new IllegalStateException(
+                        "Company detail missing status: registryCode=%s"
+                            .formatted(detail.getRegistryCode())));
     var legalForm = detail.getLegalForm().map(LegalForm::fromString).orElse(null);
 
     var address = detail.getAddress();

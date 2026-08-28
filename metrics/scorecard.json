@@ -3,7 +3,7 @@
   "lineCoverage": 82.49,
   "meanInstability": 0.489,
   "moduleCycles": 39,
-  "modulithViolations": 2146,
+  "modulithViolations": 2006,
   "pmdViolations": 177,
   "pmdViolationsByRule": {
     "CognitiveComplexity": 24,

@@ -78,9 +78,11 @@ def pitest_metrics():
     if not path.exists():
         return {}
     root = ET.parse(path).getroot()
-    if root.get("partial") == "true":
-        return {}
     mutations = root.findall("mutation")
+    # Scoped per-iteration runs (and the generated-code exclusions) mark the report
+    # partial; only a full-codebase run (thousands of mutants) is valid trend data.
+    if len(mutations) < 5000:
+        return {}
     detected = sum(1 for m in mutations if m.get("detected") == "true")
     return {
         "mutationScore": round(100.0 * detected / len(mutations), 2) if mutations else None,

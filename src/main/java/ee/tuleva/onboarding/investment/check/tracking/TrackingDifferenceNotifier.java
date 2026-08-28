@@ -23,8 +23,10 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class TrackingDifferenceNotifier {
 
-  private static final int ESCALATION_THRESHOLD_FALLBACK = 3;
-  private static final BigDecimal ESCALATION_NET_TD_THRESHOLD_FALLBACK = new BigDecimal("0.005");
+  // Sisekord nr 4 p 11.7: escalate once the breach "püsib enam kui kolm (3) tööpäeva", so the
+  // fourth consecutive breach day is the first that escalates.
+  private static final int ESCALATION_THRESHOLD_FALLBACK = 4;
+  private static final BigDecimal ESCALATION_NET_TD_THRESHOLD_FALLBACK = new BigDecimal("0.001");
   private static final BigDecimal HUNDRED = new BigDecimal("100");
 
   private final OperationsNotificationService notificationService;

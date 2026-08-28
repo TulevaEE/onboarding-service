@@ -583,13 +583,31 @@ class TrackingDifferenceNotifierTest {
     given(calculator.escalationNetTdThreshold(any(LocalDate.class)))
         .willThrow(new IllegalStateException("No parameter"));
 
-    var result = result(true, 3, new BigDecimal("0.006"));
+    var result = result(true, 4, new BigDecimal("0.006"));
 
     notifier.notify(List.of(result));
 
     var captor = org.mockito.ArgumentCaptor.forClass(String.class);
     then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
     assertThat(captor.getValue()).contains("TD ESCALATION");
+  }
+
+  // Sisekord nr 4 p 11.7 escalates only once the breach "püsib enam kui kolm (3) tööpäeva", so a
+  // three-day streak is still just a breach - the fallback must not escalate one day early either.
+  @Test
+  void escalationFallbackStreakLengthMatchesTheInternalRule() {
+    given(calculator.escalationThresholdDays(any(LocalDate.class)))
+        .willThrow(new IllegalStateException("No parameter"));
+    given(calculator.escalationNetTdThreshold(any(LocalDate.class)))
+        .willThrow(new IllegalStateException("No parameter"));
+
+    var result = result(true, 3, new BigDecimal("0.006"));
+
+    notifier.notify(List.of(result));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue()).contains("TD BREACH DETECTED").doesNotContain("TD ESCALATION");
   }
 
   @Test
@@ -600,6 +618,20 @@ class TrackingDifferenceNotifierTest {
         .willThrow(new IllegalStateException("No parameter"));
 
     var result = result(true, 4, new BigDecimal("0.003"));
+
+    notifier.notify(List.of(result));
+
+    then(notificationService).should().sendMessage(contains("TD ESCALATION"), eq(INVESTMENT));
+  }
+
+  @Test
+  void escalationFallbackStillFiltersAStreakThatNetsOutBelowTheDailyThreshold() {
+    given(calculator.escalationThresholdDays(any(LocalDate.class)))
+        .willThrow(new IllegalStateException("No parameter"));
+    given(calculator.escalationNetTdThreshold(any(LocalDate.class)))
+        .willThrow(new IllegalStateException("No parameter"));
+
+    var result = result(true, 4, new BigDecimal("0.0002"));
 
     notifier.notify(List.of(result));
 

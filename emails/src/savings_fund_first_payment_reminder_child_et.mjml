@@ -7,8 +7,9 @@
       <mj-column>
         <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
-          Avasid lapse nimel Tuleva Täiendava Kogumisfondi konto. Nüüd saad teha sinna esimese
-          sissemakse.
+          Avasid lapse nimel Tuleva Täiendava Kogumisfondi konto.
+          *|IF:RECIPIENTNAME|*Konto omanik on *|RECIPIENTNAME|*. *|END:IF|*Nüüd saad teha sinna
+          esimese sissemakse.
         </mj-text>
         <mj-text>
           Tuleva Täiendav Kogumisfond on laiapõhjaline indeksfond, mis investeerib maailmaturu

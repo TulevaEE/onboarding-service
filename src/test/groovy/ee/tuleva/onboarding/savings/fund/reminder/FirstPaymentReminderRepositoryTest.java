@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.savings.fund.reminder;
 
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailStatus.SENT;
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SAVINGS_FUND_FIRST_PAYMENT_REMINDER_CHILD;
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
@@ -88,7 +87,8 @@ class FirstPaymentReminderRepositoryTest {
                 "Example",
                 SAVER + "@example.com",
                 Locale.of("et"),
-                SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON));
+                SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON,
+                null));
   }
 
   @Test
@@ -141,10 +141,12 @@ class FirstPaymentReminderRepositoryTest {
   }
 
   @Test
-  void remindsTheParentAboutAChildAccountNobodyHasPaidInto() {
+  void remindsEveryGuardianAboutAChildAccountNobodyHasPaidInto() {
     accountOpened(CHILD, NOW.minus(10, DAYS));
     childOf(SAVER, CHILD);
+    childOf(ENGLISH_SPEAKING_SAVER, CHILD);
     accountOpened(SAVER, NOW.minus(10, DAYS));
+    accountOpened(ENGLISH_SPEAKING_SAVER, NOW.minus(10, DAYS));
 
     accountOpened(ALREADY_PAID, NOW.minus(10, DAYS));
     childOf(SAVER, ALREADY_PAID);
@@ -153,14 +155,23 @@ class FirstPaymentReminderRepositoryTest {
     var reminders = repository.fetchForChildren(OPENED_FROM, OPENED_UNTIL);
 
     assertThat(reminders)
-        .containsExactly(
-            new FirstPaymentReminder(
-                CHILD,
-                "Saver " + SAVER,
-                "Example",
-                SAVER + "@example.com",
-                Locale.of("et"),
-                SAVINGS_FUND_FIRST_PAYMENT_REMINDER_CHILD));
+        .extracting(FirstPaymentReminder::accountCode, FirstPaymentReminder::recipientEmail)
+        .containsExactlyInAnyOrder(
+            org.assertj.core.groups.Tuple.tuple(CHILD, SAVER + "@example.com"),
+            org.assertj.core.groups.Tuple.tuple(CHILD, ENGLISH_SPEAKING_SAVER + "@example.com"));
+  }
+
+  @Test
+  void namesTheChildTheAccountBelongsTo() {
+    accountOpened(CHILD, NOW.minus(10, DAYS));
+    childOf(SAVER, CHILD);
+    accountOpened(SAVER, NOW.minus(10, DAYS));
+
+    var reminders = repository.fetchForChildren(OPENED_FROM, OPENED_UNTIL);
+
+    assertThat(reminders)
+        .extracting(FirstPaymentReminder::accountHolderName)
+        .containsExactly("Saver " + CHILD + " Example");
   }
 
   private Company company(String registryCode) {

@@ -45,6 +45,7 @@ class FirstPaymentReminderRepository {
                 LANGUAGE_PREFERENCES
                     + """
                     SELECT onboarding.code AS account_code,
+                           CAST(NULL AS VARCHAR) AS account_holder_name,
                            users.first_name AS first_name,
                            users.last_name AS last_name,
                            users.email AS email,
@@ -96,6 +97,8 @@ class FirstPaymentReminderRepository {
                 LANGUAGE_PREFERENCES
                     + """
                     SELECT child.code AS account_code,
+                           child_user.first_name || ' ' || child_user.last_name
+                             AS account_holder_name,
                            guardian.first_name AS first_name,
                            guardian.last_name AS last_name,
                            guardian.email AS email,
@@ -106,13 +109,8 @@ class FirstPaymentReminderRepository {
                      AND link.status = 'ACTIVE'
                      AND link.suspended_at IS NULL
                      AND link.valid_until >= :today
-                     AND link.created_date = (SELECT MIN(earlier.created_date)
-                                              FROM parent_child_link earlier
-                                              WHERE earlier.child_personal_code = child.code
-                                                AND earlier.status = 'ACTIVE'
-                                                AND earlier.suspended_at IS NULL
-                                                AND earlier.valid_until >= :today)
                     JOIN users guardian ON guardian.personal_code = link.parent_personal_code
+                    LEFT JOIN users child_user ON child_user.personal_code = child.code
                     LEFT JOIN language_preferences
                       ON language_preferences.personal_id = guardian.personal_code
                     WHERE child.type = 'PERSON'
@@ -128,7 +126,7 @@ class FirstPaymentReminderRepository {
                                       FROM email
                                       WHERE email.personal_code = child.code
                                         AND email.type = :emailType)
-                    ORDER BY child.code
+                    ORDER BY child.code, guardian.personal_code
                     """),
             openedFrom,
             openedUntil)
@@ -152,7 +150,8 @@ class FirstPaymentReminderRepository {
             rs.getString("last_name"),
             rs.getString("email"),
             localeOf(rs.getString("language_preference")),
-            emailType);
+            emailType,
+            rs.getString("account_holder_name"));
   }
 
   private boolean isAdult(FirstPaymentReminder reminder) {

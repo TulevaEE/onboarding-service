@@ -14,6 +14,7 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
 import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.savings.fund.SavingsFundFees;
+import ee.tuleva.onboarding.user.Names;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -45,7 +46,8 @@ class FirstPaymentReminderSenderTest {
           "Example",
           "saver@example.com",
           Locale.of("et"),
-          SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON);
+          SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON,
+          null);
   private final FirstPaymentReminder englishSpeakingSaver =
       new FirstPaymentReminder(
           SAVER,
@@ -53,7 +55,8 @@ class FirstPaymentReminderSenderTest {
           "Example",
           "saver@example.com",
           Locale.ENGLISH,
-          SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON);
+          SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON,
+          null);
   private final FirstPaymentReminder childAccount =
       new FirstPaymentReminder(
           CHILD,
@@ -61,7 +64,8 @@ class FirstPaymentReminderSenderTest {
           "Example",
           "parent@example.com",
           Locale.of("et"),
-          SAVINGS_FUND_FIRST_PAYMENT_REMINDER_CHILD);
+          SAVINGS_FUND_FIRST_PAYMENT_REMINDER_CHILD,
+          "jaan tamm");
 
   @Test
   void sendsTheEstonianReminderAndRecordsIt() {
@@ -127,11 +131,24 @@ class FirstPaymentReminderSenderTest {
             emailService.newMandrillMessage(
                 eq(reminder.recipientEmail()),
                 eq(templateName),
-                eq(Map.of("fname", reminder.recipientFirstName(), "savingsFundFee", "0.28")),
+                eq(expectedMergeVars(reminder)),
                 eq(TAGS),
                 isNull()))
         .willReturn(message);
     return message;
+  }
+
+  private Map<String, Object> expectedMergeVars(FirstPaymentReminder reminder) {
+    if (reminder.accountHolderName() == null) {
+      return Map.of("fname", reminder.recipientFirstName(), "savingsFundFee", "0.28");
+    }
+    return Map.of(
+        "fname",
+        reminder.recipientFirstName(),
+        "savingsFundFee",
+        "0.28",
+        "recipientName",
+        Names.formatted(reminder.accountHolderName()));
   }
 
   private MandrillMessageStatus mandrillResponse(String id, String status) {

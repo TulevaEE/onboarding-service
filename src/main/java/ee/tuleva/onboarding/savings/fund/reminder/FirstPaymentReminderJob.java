@@ -7,7 +7,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
-import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
@@ -41,15 +40,21 @@ class FirstPaymentReminderJob {
     var openedFrom = notBeforeTheManualCampaign(now.minus(OLDEST_ACCOUNT_IN_DAYS, DAYS));
     var openedUntil = now.minus(REMINDER_DELAY_IN_DAYS, DAYS);
 
-    List<FirstPaymentReminder> reminders =
-        Stream.concat(
-                repository.fetchForAdults(openedFrom, openedUntil).stream(),
-                repository.fetchForChildren(openedFrom, openedUntil).stream())
-            .toList();
+    remindSegment(
+        "adults", repository.fetchForAdults(openedFrom, openedUntil), openedFrom, openedUntil);
+    remindSegment(
+        "children", repository.fetchForChildren(openedFrom, openedUntil), openedFrom, openedUntil);
+  }
 
+  private void remindSegment(
+      String segment,
+      List<FirstPaymentReminder> reminders,
+      Instant openedFrom,
+      Instant openedUntil) {
     if (reminders.size() > MAX_RECIPIENTS) {
       log.error(
-          "Too many savings fund first payment reminders, skipping: recipients={}, maxRecipients={}, openedFrom={}, openedUntil={}",
+          "Too many savings fund first payment reminders, skipping segment: segment={}, recipients={}, maxRecipients={}, openedFrom={}, openedUntil={}",
+          segment,
           reminders.size(),
           MAX_RECIPIENTS,
           openedFrom,
@@ -57,7 +62,10 @@ class FirstPaymentReminderJob {
       return;
     }
 
-    log.info("Sending savings fund first payment reminders: recipients={}", reminders.size());
+    log.info(
+        "Sending savings fund first payment reminders: segment={}, recipients={}",
+        segment,
+        reminders.size());
     reminders.forEach(this::remind);
   }
 

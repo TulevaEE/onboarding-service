@@ -1,8 +1,10 @@
 package ee.tuleva.onboarding.savings.fund.reminder;
 
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -69,6 +71,18 @@ class FirstPaymentReminderJobTest {
   }
 
   @Test
+  void oneSegmentGoingWrongDoesNotHoldUpTheOther() {
+    var adult = reminder("38812121215");
+    given(repository.fetchForAdults(OPENED_FROM, OPENED_UNTIL)).willReturn(List.of(adult));
+    given(repository.fetchForChildren(OPENED_FROM, OPENED_UNTIL)).willReturn(reminders(201));
+
+    job().sendReminders();
+
+    verify(sender).send(adult);
+    verify(sender, times(1)).send(any());
+  }
+
+  @Test
   void keepsRemindingTheRestWhenOneReminderFails() {
     var failingSaver = reminder("38812121215");
     var nextSaver = reminder("38001085718");
@@ -105,6 +119,7 @@ class FirstPaymentReminderJobTest {
         "Example",
         personalCode + "@example.com",
         Locale.of("et"),
-        SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON);
+        SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON,
+        null);
   }
 }

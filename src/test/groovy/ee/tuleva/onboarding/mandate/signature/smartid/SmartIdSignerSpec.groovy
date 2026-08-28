@@ -6,7 +6,7 @@ import ee.sk.smartid.rest.dao.SessionStatus
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import ee.tuleva.onboarding.signature.DigiDocFacade
 import ee.tuleva.onboarding.signature.SignatureFile
-import ee.tuleva.onboarding.signature.smartid.SmartIdSignatureSession
+import ee.tuleva.onboarding.signature.SmartIdSignatureSession
 import ee.tuleva.onboarding.signature.smartid.SmartIdSigner
 import org.digidoc4j.Container
 import org.digidoc4j.DataToSign

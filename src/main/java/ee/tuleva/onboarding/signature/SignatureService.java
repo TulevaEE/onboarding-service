@@ -1,10 +1,7 @@
 package ee.tuleva.onboarding.signature;
 
-import ee.tuleva.onboarding.signature.idcard.IdCardSignatureSession;
 import ee.tuleva.onboarding.signature.idcard.IdCardSigner;
-import ee.tuleva.onboarding.signature.mobileid.MobileIdSignatureSession;
 import ee.tuleva.onboarding.signature.mobileid.MobileIdSigner;
-import ee.tuleva.onboarding.signature.smartid.SmartIdSignatureSession;
 import ee.tuleva.onboarding.signature.smartid.SmartIdSigner;
 import java.util.List;
 import lombok.AllArgsConstructor;

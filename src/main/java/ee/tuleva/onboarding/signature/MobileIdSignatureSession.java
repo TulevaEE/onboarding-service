@@ -1,5 +1,6 @@
-package ee.tuleva.onboarding.signature.idcard;
+package ee.tuleva.onboarding.signature;
 
+import java.io.Serial;
 import java.io.Serializable;
 import lombok.Builder;
 import lombok.Getter;
@@ -12,11 +13,12 @@ import org.digidoc4j.DataToSign;
 @RequiredArgsConstructor
 @ToString
 @Builder
-public class IdCardSignatureSession implements Serializable {
+public class MobileIdSignatureSession implements Serializable {
 
-  private static final long serialVersionUID = 8149193185518071327L;
+  @Serial private static final long serialVersionUID = -7443368341567864757L;
 
-  private final String hashToSignInHex;
+  private final String sessionId;
+  private final String verificationCode;
   private final DataToSign dataToSign;
   private final Container container;
 }

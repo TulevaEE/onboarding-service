@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.signature.idcard;
 
 import ee.tuleva.onboarding.auth.ocsp.OCSPUtils;
 import ee.tuleva.onboarding.signature.DigiDocFacade;
+import ee.tuleva.onboarding.signature.IdCardSignatureSession;
 import ee.tuleva.onboarding.signature.SignatureFile;
 import java.security.cert.X509Certificate;
 import java.util.List;

@@ -1,7 +1,6 @@
-package ee.tuleva.onboarding.signature.smartid;
+package ee.tuleva.onboarding.signature;
 
 import ee.sk.smartid.SignableHash;
-import ee.tuleva.onboarding.signature.SignatureFile;
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.List;

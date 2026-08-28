@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.mandate.signature.idcard
 import ee.tuleva.onboarding.auth.ocsp.OCSPUtils
 import ee.tuleva.onboarding.signature.DigiDocFacade
 import ee.tuleva.onboarding.signature.SignatureFile
-import ee.tuleva.onboarding.signature.idcard.IdCardSignatureSession
+import ee.tuleva.onboarding.signature.IdCardSignatureSession
 import ee.tuleva.onboarding.signature.idcard.IdCardSigner
 import org.bouncycastle.util.encoders.Hex
 import org.digidoc4j.Container

@@ -2,11 +2,11 @@ package ee.tuleva.onboarding.mandate.signature
 
 import ee.tuleva.onboarding.signature.SignatureFile
 import ee.tuleva.onboarding.signature.SignatureService
-import ee.tuleva.onboarding.signature.idcard.IdCardSignatureSession
+import ee.tuleva.onboarding.signature.IdCardSignatureSession
 import ee.tuleva.onboarding.signature.idcard.IdCardSigner
-import ee.tuleva.onboarding.signature.mobileid.MobileIdSignatureSession
+import ee.tuleva.onboarding.signature.MobileIdSignatureSession
 import ee.tuleva.onboarding.signature.mobileid.MobileIdSigner
-import ee.tuleva.onboarding.signature.smartid.SmartIdSignatureSession
+import ee.tuleva.onboarding.signature.SmartIdSignatureSession
 import ee.tuleva.onboarding.signature.smartid.SmartIdSigner
 import spock.lang.Specification
 

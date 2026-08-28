@@ -7,9 +7,9 @@ import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
 import ee.tuleva.onboarding.mandate.generic.GenericMandateService
 import ee.tuleva.onboarding.signature.SignatureFile
-import ee.tuleva.onboarding.signature.idcard.IdCardSignatureSession
-import ee.tuleva.onboarding.signature.mobileid.MobileIdSignatureSession
-import ee.tuleva.onboarding.signature.smartid.SmartIdSignatureSession
+import ee.tuleva.onboarding.signature.IdCardSignatureSession
+import ee.tuleva.onboarding.signature.MobileIdSignatureSession
+import ee.tuleva.onboarding.signature.SmartIdSignatureSession
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.MvcResult

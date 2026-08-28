@@ -5,11 +5,11 @@ import static ee.tuleva.onboarding.mandate.batch.MandateBatchController.MANDATE_
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.mandate.command.FinishIdCardSignCommand;
 import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand;
+import ee.tuleva.onboarding.signature.IdCardSignatureResponse;
+import ee.tuleva.onboarding.signature.IdCardSignatureStatusResponse;
+import ee.tuleva.onboarding.signature.MobileSignatureResponse;
+import ee.tuleva.onboarding.signature.MobileSignatureStatusResponse;
 import ee.tuleva.onboarding.signature.SignatureController;
-import ee.tuleva.onboarding.signature.response.IdCardSignatureResponse;
-import ee.tuleva.onboarding.signature.response.IdCardSignatureStatusResponse;
-import ee.tuleva.onboarding.signature.response.MobileSignatureResponse;
-import ee.tuleva.onboarding.signature.response.MobileSignatureStatusResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

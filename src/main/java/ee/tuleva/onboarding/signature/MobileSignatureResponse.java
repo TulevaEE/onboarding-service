@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.signature.response;
+package ee.tuleva.onboarding.signature;
 
 import jakarta.annotation.Nullable;
 import lombok.Builder;

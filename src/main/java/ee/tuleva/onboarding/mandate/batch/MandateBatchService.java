@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.mandate.batch;
 
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND;
-import static ee.tuleva.onboarding.signature.response.SignatureStatus.OUTSTANDING_TRANSACTION;
-import static ee.tuleva.onboarding.signature.response.SignatureStatus.SIGNATURE;
+import static ee.tuleva.onboarding.signature.SignatureStatus.OUTSTANDING_TRANSACTION;
+import static ee.tuleva.onboarding.signature.SignatureStatus.SIGNATURE;
 import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.aml.WithdrawalNotifier;
@@ -18,12 +18,12 @@ import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
 import ee.tuleva.onboarding.mandate.generic.GenericMandateService;
 import ee.tuleva.onboarding.mandate.generic.MandateDto;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
+import ee.tuleva.onboarding.signature.IdCardSignatureSession;
+import ee.tuleva.onboarding.signature.MobileIdSignatureSession;
 import ee.tuleva.onboarding.signature.SignatureFile;
 import ee.tuleva.onboarding.signature.SignatureService;
-import ee.tuleva.onboarding.signature.idcard.IdCardSignatureSession;
-import ee.tuleva.onboarding.signature.mobileid.MobileIdSignatureSession;
-import ee.tuleva.onboarding.signature.response.SignatureStatus;
-import ee.tuleva.onboarding.signature.smartid.SmartIdSignatureSession;
+import ee.tuleva.onboarding.signature.SignatureStatus;
+import ee.tuleva.onboarding.signature.SmartIdSignatureSession;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import ee.tuleva.onboarding.user.personalcode.PersonalCode;

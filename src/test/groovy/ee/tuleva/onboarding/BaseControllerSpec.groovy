@@ -2,8 +2,14 @@ package ee.tuleva.onboarding
 
 import tools.jackson.core.StreamWriteFeature
 import tools.jackson.databind.json.JsonMapper
+import ee.tuleva.onboarding.account.AccountErrorHandler
+import ee.tuleva.onboarding.auth.AuthErrorHandler
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
+import ee.tuleva.onboarding.company.CompanyErrorHandler
 import ee.tuleva.onboarding.error.ErrorHandlingControllerAdvice
+import ee.tuleva.onboarding.hackathon.HackathonErrorHandler
+import ee.tuleva.onboarding.mandate.MandateErrorHandler
+import ee.tuleva.onboarding.party.PartyErrorHandler
 import ee.tuleva.onboarding.error.converter.InputErrorsConverter
 import ee.tuleva.onboarding.error.response.ErrorResponseEntityFactory
 import org.springframework.core.MethodParameter
@@ -51,7 +57,10 @@ class BaseControllerSpec extends Specification {
     private StandaloneMockMvcBuilder getMockMvcWithControllerAdvice(Object... controllers) {
         return standaloneSetup(controllers)
                 .setMessageConverters(jacksonMessageConverter())
-                .setControllerAdvice(new ErrorHandlingControllerAdvice())
+                .setControllerAdvice(new ErrorHandlingControllerAdvice(),
+                        new AuthErrorHandler(), new MandateErrorHandler(),
+                        new CompanyErrorHandler(), new HackathonErrorHandler(),
+                        new PartyErrorHandler(), new AccountErrorHandler())
     }
 
   private JacksonJsonHttpMessageConverter jacksonMessageConverter() {

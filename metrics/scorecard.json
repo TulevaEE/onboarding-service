@@ -3,7 +3,7 @@
   "lineCoverage": 82.45,
   "meanInstability": 0.483,
   "moduleCycles": 37,
-  "modulithViolations": 1376,
+  "modulithViolations": 1344,
   "pmdViolations": 177,
   "pmdViolationsByRule": {
     "CognitiveComplexity": 24,
@@ -15,6 +15,6 @@
   },
   "springBootTests": 89,
   "top15ClassLines": 9692,
-  "totalPackages": 224,
+  "totalPackages": 225,
   "unmarkedPackages": 167
 }

@@ -74,7 +74,7 @@ class TrackingDifferenceServiceTest {
   @Mock FeeChargedToFundPolicy feeChargedToFundPolicy;
   @Mock TrackingDifferenceEventRepository eventRepository;
   @Mock InvestmentParameterRepository parameterRepository;
-  @Mock ee.tuleva.onboarding.savings.fund.nav.FundNavQueryService fundNavQueryService;
+  @Mock ee.tuleva.onboarding.savings.FundNavQueryService fundNavQueryService;
 
   private TrackingDifferenceService service;
   private final ListAppender<ILoggingEvent> serviceLogs = new ListAppender<>();

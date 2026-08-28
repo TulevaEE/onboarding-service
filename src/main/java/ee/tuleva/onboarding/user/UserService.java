@@ -34,14 +34,16 @@ public class UserService {
   }
 
   public User createNewUser(User user) {
-    log.info("Creating new user for personal code {}", user.getPersonalCode());
+    log.info("Creating new user");
     try {
       return userRepository.save(user);
     } catch (DataIntegrityViolationException e) {
+      User existing =
+          userRepository.findByPersonalCode(user.getPersonalCode()).orElseThrow(() -> e);
       log.info(
-          "Personal code already taken by a concurrent login, reusing it: personalCode={}",
-          user.getPersonalCode());
-      return userRepository.findByPersonalCode(user.getPersonalCode()).orElseThrow(() -> e);
+          "Personal code already taken by a concurrent login, reusing it: userId={}",
+          existing.getId());
+      return existing;
     }
   }
 

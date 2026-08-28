@@ -6,16 +6,18 @@ import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 import java.time.format.DateTimeParseException;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 
 @Slf4j
 public class PersonalCodeValidator implements ConstraintValidator<ValidPersonalCode, String> {
 
-  public boolean isValid(String personalCode) {
+  public boolean isValid(@Nullable String personalCode) {
     return isValid(personalCode, null);
   }
 
   @Override
-  public boolean isValid(String personalCode, ConstraintValidatorContext context) {
+  public boolean isValid(
+      @Nullable String personalCode, @Nullable ConstraintValidatorContext context) {
 
     if (isBlank(personalCode)) {
       return false;

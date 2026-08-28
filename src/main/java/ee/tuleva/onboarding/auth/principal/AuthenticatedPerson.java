@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.auth.principal;
 
 import static ee.tuleva.onboarding.auth.role.RoleType.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
+import static java.util.Objects.requireNonNull;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.auth.role.Role;
@@ -15,6 +16,7 @@ import java.io.Serializable;
 import java.util.Map;
 import lombok.Builder;
 import lombok.Value;
+import org.jspecify.annotations.Nullable;
 
 @Builder
 @Value
@@ -28,11 +30,11 @@ public class AuthenticatedPerson implements Person, Serializable {
 
   @NotBlank String lastName;
 
-  Map<String, String> attributes;
+  @Builder.Default Map<String, String> attributes = Map.of();
 
-  Long userId;
+  @Nullable Long userId;
 
-  @NotNull Role role;
+  @NotNull @Nullable Role role;
 
   @Override
   public String toString() {
@@ -44,12 +46,12 @@ public class AuthenticatedPerson implements Person, Serializable {
 
   @JsonIgnore
   public RoleType getRoleType() {
-    return role.type();
+    return requireNonNull(role, "Role missing: personalCode=" + personalCode).type();
   }
 
   @JsonIgnore
   public String getRoleCode() {
-    return role.code();
+    return requireNonNull(role, "Role missing: personalCode=" + personalCode).code();
   }
 
   @JsonIgnore
@@ -76,20 +78,7 @@ public class AuthenticatedPerson implements Person, Serializable {
     return role == null || role.code().equals(personalCode);
   }
 
-  public String getAttribute(String attribute) {
+  public @Nullable String getAttribute(String attribute) {
     return attributes.get(attribute);
-  }
-
-  public static class AuthenticatedPersonBuilder {
-
-    public AuthenticatedPerson build() {
-      return new AuthenticatedPerson(
-          personalCode,
-          firstName,
-          lastName,
-          attributes != null ? attributes : Map.of(),
-          userId,
-          role);
-    }
   }
 }

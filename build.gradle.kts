@@ -524,7 +524,6 @@ tasks.withType<JavaCompile> {
         error("NullAway")
         option("NullAway:OnlyNullMarked", "true")
         option("NullAway:JSpecifyMode", "true")
-        option("NullAway:TreatGeneratedAsUnannotated", "true")
         excludedPaths = ".*/generated-sources/.*"
     }
 }

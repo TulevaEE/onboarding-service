@@ -21,7 +21,7 @@ record TrackingDifferenceResult(
     BigDecimal consecutiveNetTd,
     BigDecimal compoundedFundReturn,
     BigDecimal compoundedBenchmarkReturn,
-    Map<String, BigDecimal> escalationAttributions,
+    @Nullable Map<String, BigDecimal> escalationAttributions,
     BigDecimal escalationCashDrag,
     BigDecimal escalationFeeDrag,
     BigDecimal escalationResidual,

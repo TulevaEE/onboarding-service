@@ -549,7 +549,7 @@ public class PeriodicTdAttributionService {
     var securityDataList = new ArrayList<SecurityDailyData>();
 
     for (var attr : attributions) {
-      var isin = (String) attr.get("isin");
+      var isin = Objects.requireNonNull((String) attr.get("isin"), "Attribution missing isin");
       var securityReturn = toBigDecimal(attr.get("securityReturn"));
 
       var position = positionByIsin.get(isin);

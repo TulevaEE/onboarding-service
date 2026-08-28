@@ -56,7 +56,7 @@ class EmailPersistenceServiceSpec extends Specification {
         new Email(personalCode: person.personalCode, mandrillMessageId: "200", type: type)
     ]
     def scheduledMessageInfo = Optional.of(new MandrillScheduledMessageInfo())
-    emailRepository.findAllByPersonalCodeAndTypeAndStatusInOrderByCreatedDateDesc(person.personalCode, type, [SCHEDULED, QUEUED]) >> emails
+    emailRepository.findAllByPersonalCodeAndTypeAndStatusInOrderByCreatedDateDescIdDesc(person.personalCode, type, [SCHEDULED, QUEUED]) >> emails
     emailService.cancelScheduledEmail("100") >> scheduledMessageInfo
     emailService.cancelScheduledEmail("200") >> scheduledMessageInfo
 
@@ -83,7 +83,7 @@ class EmailPersistenceServiceSpec extends Specification {
         updatedDate: Instant.now(clock)
     )
     def statuses = [SENT, QUEUED, SCHEDULED]
-    emailRepository.findFirstByPersonalCodeAndTypeAndMandateAndStatusInOrderByCreatedDateDesc(
+    emailRepository.findFirstByPersonalCodeAndTypeAndMandateAndStatusInOrderByCreatedDateDescIdDesc(
         person.personalCode, type, mandate, statuses) >> Optional.of(email)
 
     when:
@@ -116,7 +116,7 @@ class EmailPersistenceServiceSpec extends Specification {
         mandateBatch: mandateBatch,
     )
     def statuses = [SENT, QUEUED, SCHEDULED]
-    emailRepository.findFirstByPersonalCodeAndTypeAndMandateBatchAndStatusInOrderByCreatedDateDesc(
+    emailRepository.findFirstByPersonalCodeAndTypeAndMandateBatchAndStatusInOrderByCreatedDateDescIdDesc(
         person.personalCode, type, mandateBatch, statuses) >> Optional.of(email)
 
     when:
@@ -181,7 +181,7 @@ class EmailPersistenceServiceSpec extends Specification {
         createdDate: date,
         updatedDate: date
     )
-    emailRepository.findFirstByPersonalCodeAndTypeOrderByCreatedDateDesc(person.personalCode, type) >> Optional.of(email)
+    emailRepository.findFirstByPersonalCodeAndTypeOrderByCreatedDateDescIdDesc(person.personalCode, type) >> Optional.of(email)
 
     when:
     def lastEmailDate = emailPersistenceService.getLastEmailSendDate(person, type)

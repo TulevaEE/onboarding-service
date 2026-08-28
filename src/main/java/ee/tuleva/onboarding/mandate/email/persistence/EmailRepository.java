@@ -13,19 +13,20 @@ public interface EmailRepository extends CrudRepository<Email, Long> {
 
   List<Email> findAllByMandateBatch(MandateBatch mandate);
 
-  List<Email> findAllByPersonalCodeAndTypeAndStatusInOrderByCreatedDateDesc(
+  List<Email> findAllByPersonalCodeAndTypeAndStatusInOrderByCreatedDateDescIdDesc(
       String personalCode, EmailType type, Collection<EmailStatus> statuses);
 
-  Optional<Email> findFirstByPersonalCodeAndTypeAndMandateAndStatusInOrderByCreatedDateDesc(
+  Optional<Email> findFirstByPersonalCodeAndTypeAndMandateAndStatusInOrderByCreatedDateDescIdDesc(
       String personalCode, EmailType type, Mandate mandate, Collection<EmailStatus> statuses);
 
-  Optional<Email> findFirstByPersonalCodeAndTypeAndMandateBatchAndStatusInOrderByCreatedDateDesc(
-      String personalCode,
-      EmailType type,
-      MandateBatch mandateBatch,
-      Collection<EmailStatus> statuses);
+  Optional<Email>
+      findFirstByPersonalCodeAndTypeAndMandateBatchAndStatusInOrderByCreatedDateDescIdDesc(
+          String personalCode,
+          EmailType type,
+          MandateBatch mandateBatch,
+          Collection<EmailStatus> statuses);
 
-  Optional<Email> findFirstByPersonalCodeAndTypeOrderByCreatedDateDesc(
+  Optional<Email> findFirstByPersonalCodeAndTypeOrderByCreatedDateDescIdDesc(
       String personalCode, EmailType type);
 
   boolean existsByType(EmailType type);

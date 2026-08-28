@@ -32,7 +32,7 @@ class EmailRepositorySpec extends Specification {
 
     when:
     def scheduledEmails =
-        emailRepository.findAllByPersonalCodeAndTypeAndStatusInOrderByCreatedDateDesc(person.personalCode, emailType, [SCHEDULED])
+        emailRepository.findAllByPersonalCodeAndTypeAndStatusInOrderByCreatedDateDescIdDesc(person.personalCode, emailType, [SCHEDULED])
 
     then:
     scheduledEmails == [scheduledEmail]
@@ -53,7 +53,7 @@ class EmailRepositorySpec extends Specification {
     def statuses = [SCHEDULED]
 
     when:
-    Optional<Email> latestEmail = emailRepository.findFirstByPersonalCodeAndTypeAndMandateAndStatusInOrderByCreatedDateDesc(
+    Optional<Email> latestEmail = emailRepository.findFirstByPersonalCodeAndTypeAndMandateAndStatusInOrderByCreatedDateDescIdDesc(
         person.personalCode, emailType, mandate, statuses)
 
     then:
@@ -76,7 +76,7 @@ class EmailRepositorySpec extends Specification {
     def statuses = [SCHEDULED]
 
     when:
-    Optional<Email> latestEmail = emailRepository.findFirstByPersonalCodeAndTypeAndMandateAndStatusInOrderByCreatedDateDesc(
+    Optional<Email> latestEmail = emailRepository.findFirstByPersonalCodeAndTypeAndMandateAndStatusInOrderByCreatedDateDescIdDesc(
         sampleUser.personalCode, emailType, sampleMandate, statuses)
 
     then:
@@ -93,7 +93,7 @@ class EmailRepositorySpec extends Specification {
     entityManager.flush()
 
     when:
-    Optional<Email> latestEmail = emailRepository.findFirstByPersonalCodeAndTypeOrderByCreatedDateDesc(
+    Optional<Email> latestEmail = emailRepository.findFirstByPersonalCodeAndTypeOrderByCreatedDateDescIdDesc(
         sampleUser.personalCode, emailType)
 
     then:

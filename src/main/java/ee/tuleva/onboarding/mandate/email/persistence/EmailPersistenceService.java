@@ -105,27 +105,28 @@ public class EmailPersistenceService {
     if (mandate.isPartOfBatch()) {
       Optional<Email> latestBatchEmail =
           emailRepository
-              .findFirstByPersonalCodeAndTypeAndMandateBatchAndStatusInOrderByCreatedDateDesc(
+              .findFirstByPersonalCodeAndTypeAndMandateBatchAndStatusInOrderByCreatedDateDescIdDesc(
                   person.getPersonalCode(), type, mandate.getMandateBatch(), statuses);
 
       return latestBatchEmail.map(email -> email.isToday(clock)).orElse(false);
     }
 
     Optional<Email> latestMandateEmail =
-        emailRepository.findFirstByPersonalCodeAndTypeAndMandateAndStatusInOrderByCreatedDateDesc(
-            person.getPersonalCode(), type, mandate, statuses);
+        emailRepository
+            .findFirstByPersonalCodeAndTypeAndMandateAndStatusInOrderByCreatedDateDescIdDesc(
+                person.getPersonalCode(), type, mandate, statuses);
 
     return latestMandateEmail.map(email -> email.isToday(clock)).orElse(false);
   }
 
   public Optional<Instant> getLastEmailSendDate(Person person, EmailType type) {
     return emailRepository
-        .findFirstByPersonalCodeAndTypeOrderByCreatedDateDesc(person.getPersonalCode(), type)
+        .findFirstByPersonalCodeAndTypeOrderByCreatedDateDescIdDesc(person.getPersonalCode(), type)
         .map(Email::getCreatedDate);
   }
 
   private List<Email> getScheduledEmails(Person person, EmailType type) {
-    return emailRepository.findAllByPersonalCodeAndTypeAndStatusInOrderByCreatedDateDesc(
+    return emailRepository.findAllByPersonalCodeAndTypeAndStatusInOrderByCreatedDateDescIdDesc(
         person.getPersonalCode(), type, List.of(SCHEDULED, QUEUED));
   }
 

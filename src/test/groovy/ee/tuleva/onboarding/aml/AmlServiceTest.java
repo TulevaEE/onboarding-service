@@ -20,8 +20,8 @@ import ee.tuleva.onboarding.aml.notification.AmlCheckCreatedEvent;
 import ee.tuleva.onboarding.aml.notification.AmlChecksRunEvent;
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
 import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
-import ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsRecentThirdPillar;
-import ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsRecentThirdPillarRepository;
+import ee.tuleva.onboarding.analytics.RecentThirdPillarCustomer;
+import ee.tuleva.onboarding.analytics.ThirdPillarAnalytics;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
@@ -77,7 +77,7 @@ class AmlServiceTest {
   @Mock private AmlCheckRepository amlCheckRepository;
   @Mock private ApplicationEventPublisher eventPublisher;
   @Mock private PepAndSanctionCheckService pepAndSanctionCheckService;
-  @Mock private AnalyticsRecentThirdPillarRepository analyticsRecentThirdPillarRepository;
+  @Mock private ThirdPillarAnalytics thirdPillarAnalytics;
   @Mock private SavingsFundOnboardingRepository savingsFundOnboardingRepository;
   @Mock private UserRepository userRepository;
   @Mock private UserConversionService userConversionService;
@@ -908,10 +908,10 @@ class AmlServiceTest {
   @Test
   void runAmlChecksOnThirdPillarCustomers_sendsSingleAggregatedAlertOnScreeningFailures() {
     // given
-    AnalyticsRecentThirdPillar ok = thirdPillarRecord("ok", "EE");
-    AnalyticsRecentThirdPillar fail1 = thirdPillarRecord("fail1", "EE");
-    AnalyticsRecentThirdPillar fail2 = thirdPillarRecord("fail2", "EE");
-    when(analyticsRecentThirdPillarRepository.findAll()).thenReturn(List.of(fail1, ok, fail2));
+    RecentThirdPillarCustomer ok = thirdPillarRecord("ok", "EE");
+    RecentThirdPillarCustomer fail1 = thirdPillarRecord("fail1", "EE");
+    RecentThirdPillarCustomer fail2 = thirdPillarRecord("fail2", "EE");
+    when(thirdPillarAnalytics.recentCustomers()).thenReturn(List.of(fail1, ok, fail2));
 
     MatchResponse emptyMatchResponse =
         new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode());
@@ -942,9 +942,9 @@ class AmlServiceTest {
   @Test
   void runAmlChecksOnThirdPillarCustomers_slackFailureDoesNotAbortBatch() {
     // given
-    AnalyticsRecentThirdPillar c1 = thirdPillarRecord("c1", "EE");
-    AnalyticsRecentThirdPillar c2 = thirdPillarRecord("c2", "EE");
-    when(analyticsRecentThirdPillarRepository.findAll()).thenReturn(List.of(c1, c2));
+    RecentThirdPillarCustomer c1 = thirdPillarRecord("c1", "EE");
+    RecentThirdPillarCustomer c2 = thirdPillarRecord("c2", "EE");
+    when(thirdPillarAnalytics.recentCustomers()).thenReturn(List.of(c1, c2));
     when(pepAndSanctionCheckService.match(any(Person.class), anySet()))
         .thenThrow(new RuntimeException("Match service error"));
     doThrow(new RuntimeException("Slack is down"))
@@ -960,26 +960,15 @@ class AmlServiceTest {
         "Both customers should have been screened");
   }
 
-  private AnalyticsRecentThirdPillar thirdPillarRecord(String personalCode, String country) {
-    AnalyticsRecentThirdPillar record = mock(AnalyticsRecentThirdPillar.class);
-    when(record.getPersonalCode()).thenReturn(personalCode);
-    when(record.getCountry()).thenReturn(country);
-    when(record.getFirstName()).thenReturn("First");
-    when(record.getLastName()).thenReturn("Last");
-    return record;
+  private RecentThirdPillarCustomer thirdPillarRecord(String personalCode, String country) {
+    return new RecentThirdPillarCustomer(personalCode, "First", "Last", country);
   }
 
   @Test
   void runAmlChecksOnThirdPillarCustomers_processesRecords() {
     // given
-    AnalyticsRecentThirdPillar record1 = mock(AnalyticsRecentThirdPillar.class);
-    when(record1.getPersonalCode()).thenReturn("p1");
-    when(record1.getCountry()).thenReturn("EE");
-    when(record1.getFirstName()).thenReturn("F1");
-    when(record1.getLastName()).thenReturn("L1");
-
-    List<AnalyticsRecentThirdPillar> records = List.of(record1);
-    when(analyticsRecentThirdPillarRepository.findAll()).thenReturn(records);
+    RecentThirdPillarCustomer record1 = new RecentThirdPillarCustomer("p1", "F1", "L1", "EE");
+    when(thirdPillarAnalytics.recentCustomers()).thenReturn(List.of(record1));
 
     MatchResponse emptyMatchResponse =
         new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode());

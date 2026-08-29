@@ -4,8 +4,8 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.ComparisonIndexRetriever;
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.ftp.FtpClient;
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.ftp.FtpClientFactory;
+import ee.tuleva.onboarding.ftp.FtpClient;
+import ee.tuleva.onboarding.ftp.FtpClientFactory;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;

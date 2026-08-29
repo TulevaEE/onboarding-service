@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.ftp;
+package ee.tuleva.onboarding.ftp;
 
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.net.ftp.FTPClient;

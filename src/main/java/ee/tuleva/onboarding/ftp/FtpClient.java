@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.ftp;
+package ee.tuleva.onboarding.ftp;
 
 import static java.util.stream.Collectors.toList;
 
@@ -43,7 +43,12 @@ public class FtpClient {
   }
 
   public InputStream downloadFileStream(String source) throws IOException {
-    return ftp.retrieveFileStream(source);
+    InputStream stream = ftp.retrieveFileStream(source);
+    if (stream == null) {
+      throw new IllegalStateException(
+          "FTP download returned no stream: source=" + source + ", reply=" + ftp.getReplyString());
+    }
+    return stream;
   }
 
   public boolean completePendingCommand() throws IOException {

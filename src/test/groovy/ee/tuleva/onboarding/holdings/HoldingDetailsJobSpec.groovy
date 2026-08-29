@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.holdings
 
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.ftp.FtpClient
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.ftp.FtpClientFactory
+import ee.tuleva.onboarding.ftp.FtpClient
+import ee.tuleva.onboarding.ftp.FtpClientFactory
 import ee.tuleva.onboarding.holdings.persistence.HoldingDetail
 import ee.tuleva.onboarding.holdings.persistence.Region
 import ee.tuleva.onboarding.holdings.persistence.Sector
@@ -165,7 +165,7 @@ class HoldingDetailsJobSpec extends Specification {
         HoldingDetailsJob jobUnderTest = new HoldingDetailsJob(repository, factoryReturning(unreadyClient))
         repository.findFirstByOrderByCreatedDateDesc() >> null
         unreadyClient.listFiles(_) >> [A_FILE_NAME]
-        unreadyClient.downloadFileStream(_) >> null
+        unreadyClient.downloadFileStream(_) >> { throw new IllegalStateException("FTP download returned no stream: source=x, reply=550") }
 
         when:
         jobUnderTest.runJob()

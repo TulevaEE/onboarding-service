@@ -3,8 +3,8 @@ package ee.tuleva.onboarding.holdings;
 import static javax.xml.XMLConstants.ACCESS_EXTERNAL_DTD;
 import static javax.xml.stream.XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES;
 
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.ftp.FtpClient;
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.ftp.FtpClientFactory;
+import ee.tuleva.onboarding.ftp.FtpClient;
+import ee.tuleva.onboarding.ftp.FtpClientFactory;
 import ee.tuleva.onboarding.holdings.converters.HoldingDetailConverter;
 import ee.tuleva.onboarding.holdings.persistence.HoldingDetail;
 import ee.tuleva.onboarding.holdings.persistence.HoldingDetailsRepository;
@@ -97,10 +97,6 @@ public class HoldingDetailsJob {
       throws IOException, JAXBException, XMLStreamException {
     log.info("Parsing file: fileName={}", fileName);
     InputStream fileStream = ftpClient.downloadFileStream(PATH + fileName);
-
-    if (fileStream == null) {
-      throw new IllegalStateException("FTP download returned no stream: path=" + PATH + fileName);
-    }
 
     List<HoldingDetail> parsedDetails = new ArrayList<>();
     try (InputStream downloadedStream = fileStream;

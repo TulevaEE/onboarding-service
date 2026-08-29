@@ -22,13 +22,13 @@ import ee.tuleva.onboarding.mandate.exception.NotFoundException;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.payment.application.PaymentLinkingService;
 import ee.tuleva.onboarding.pillar.Pillar;
+import ee.tuleva.onboarding.savings.PendingRedemption;
+import ee.tuleva.onboarding.savings.RedemptionQueries;
 import ee.tuleva.onboarding.savings.SavingFundDeadlinesService;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentUpsertionService;
 import ee.tuleva.onboarding.savings.fund.application.SavingFundPaymentApplicationDetails;
 import ee.tuleva.onboarding.savings.fund.application.SavingFundWithdrawalApplicationDetails;
-import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest;
-import ee.tuleva.onboarding.savings.fund.redemption.RedemptionService;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -54,7 +54,7 @@ public class ApplicationService {
   private final PaymentLinkingService paymentLinkingService;
   private final SavingFundDeadlinesService savingFundDeadlinesService;
   private final SavingFundPaymentUpsertionService savingFundPaymentUpsertionService;
-  private final RedemptionService savingFundRedemptionService;
+  private final RedemptionQueries savingFundRedemptionQueries;
   private final BoardMembershipService boardMembershipService;
 
   public Application<?> getApplication(Long id, AuthenticatedPerson authenticatedPerson) {
@@ -159,7 +159,7 @@ public class ApplicationService {
       return List.of();
     }
     var payments = savingFundPaymentUpsertionService.getPendingPayments(activeParty);
-    var redemptionRequests = savingFundRedemptionService.getPendingRedemptionsForParty(activeParty);
+    var redemptionRequests = savingFundRedemptionQueries.getPendingRedemptions(activeParty);
     return Stream.concat(
             payments.stream().map(this::convertSavingFundPayment),
             redemptionRequests.stream().map(this::convertSavingFundRedemptionRequest))
@@ -299,26 +299,20 @@ public class ApplicationService {
   }
 
   private Application<SavingFundWithdrawalApplicationDetails> convertSavingFundRedemptionRequest(
-      RedemptionRequest redemptionRequest) {
-    final var applicationBuilder =
-        Application.<SavingFundWithdrawalApplicationDetails>builder()
-            .creationTime(redemptionRequest.getRequestedAt())
-            .status(PENDING)
-            .id(redemptionRequest.getId().getMostSignificantBits());
-
-    var cancellationDeadline =
-        savingFundDeadlinesService.getCancellationDeadline(redemptionRequest).minusSeconds(1);
-    var fulfillmentDeadline = savingFundDeadlinesService.getFulfillmentDeadline(redemptionRequest);
-
-    applicationBuilder.details(
-        SavingFundWithdrawalApplicationDetails.builder()
-            .id(redemptionRequest.getId())
-            .amount(redemptionRequest.getRequestedAmount())
-            .currency(Currency.EUR)
-            .iban(redemptionRequest.getCustomerIban())
-            .cancellationDeadline(cancellationDeadline)
-            .fulfillmentDeadline(fulfillmentDeadline)
-            .build());
-    return applicationBuilder.build();
+      PendingRedemption redemption) {
+    return Application.<SavingFundWithdrawalApplicationDetails>builder()
+        .creationTime(redemption.requestedAt())
+        .status(PENDING)
+        .id(redemption.id().getMostSignificantBits())
+        .details(
+            SavingFundWithdrawalApplicationDetails.builder()
+                .id(redemption.id())
+                .amount(redemption.amount())
+                .currency(Currency.EUR)
+                .iban(redemption.customerIban())
+                .cancellationDeadline(redemption.cancellationDeadline().minusSeconds(1))
+                .fulfillmentDeadline(redemption.fulfillmentDeadline())
+                .build())
+        .build();
   }
 }

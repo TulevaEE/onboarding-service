@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.ftp
+package ee.tuleva.onboarding.ftp
 
 import org.mockftpserver.fake.FakeFtpServer
 import org.mockftpserver.fake.UserAccount

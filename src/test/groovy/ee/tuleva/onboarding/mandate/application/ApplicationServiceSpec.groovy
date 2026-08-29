@@ -14,8 +14,8 @@ import ee.tuleva.onboarding.savings.SavingFundDeadlinesService
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentUpsertionService
 import ee.tuleva.onboarding.savings.fund.application.SavingFundPaymentApplicationDetails
 import ee.tuleva.onboarding.savings.fund.application.SavingFundWithdrawalApplicationDetails
-import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest
-import ee.tuleva.onboarding.savings.fund.redemption.RedemptionService
+import ee.tuleva.onboarding.savings.PendingRedemption
+import ee.tuleva.onboarding.savings.RedemptionQueries
 import ee.tuleva.onboarding.time.TestClockHolder
 import spock.lang.Specification
 
@@ -49,11 +49,11 @@ class ApplicationServiceSpec extends Specification {
   PaymentLinkingService paymentApplicationService = Mock()
   SavingFundDeadlinesService savingFundPaymentDeadlinesService = Mock()
   SavingFundPaymentUpsertionService savingFundPaymentService = Mock()
-  RedemptionService savingFundRedemptionService = Mock()
+  RedemptionQueries savingFundRedemptionQueries = Mock()
   BoardMembershipService boardMembershipService = Mock()
 
   ApplicationService applicationService =
-      new ApplicationService(episService, localeService, fundRepository, mandateDeadlinesService, paymentApplicationService, savingFundPaymentDeadlinesService, savingFundPaymentService, savingFundRedemptionService, boardMembershipService)
+      new ApplicationService(episService, localeService, fundRepository, mandateDeadlinesService, paymentApplicationService, savingFundPaymentDeadlinesService, savingFundPaymentService, savingFundRedemptionQueries, boardMembershipService)
 
   def "gets applications"() {
     given:
@@ -80,7 +80,7 @@ class ApplicationServiceSpec extends Specification {
     mandateDeadlinesService.getDeadlines(_ as Instant) >> sampleDeadlines()
     paymentApplicationService.getPaymentApplications(person) >> [paymentApplication().build()]
     savingFundPaymentService.getPendingPayments(PartyId.from(person.getRole())) >> []
-    savingFundRedemptionService.getPendingRedemptionsForParty(_) >> []
+    savingFundRedemptionQueries.getPendingRedemptions(_) >> []
 
     when:
     def applications = applicationService.getAllApplications(person)
@@ -264,7 +264,7 @@ class ApplicationServiceSpec extends Specification {
     mandateDeadlinesService.getDeadlines(_ as Instant) >> sampleDeadlines()
     paymentApplicationService.getPaymentApplications(person) >> []
     savingFundPaymentService.getPendingPayments(PartyId.from(person.getRole())) >> []
-    savingFundRedemptionService.getPendingRedemptionsForParty(_) >> []
+    savingFundRedemptionQueries.getPendingRedemptions(_) >> []
 
     when:
     def applications = applicationService.getAllApplications(person)
@@ -389,7 +389,7 @@ class ApplicationServiceSpec extends Specification {
     localeService.getCurrentLocale() >> Locale.ENGLISH
     paymentApplicationService.getPaymentApplications(authenticatedPerson) >> []
     savingFundPaymentService.getPendingPayments(PartyId.from(authenticatedPerson.getRole())) >> [payment1, payment2]
-    savingFundRedemptionService.getPendingRedemptionsForParty(PartyId.from(authenticatedPerson.getRole())) >> []
+    savingFundRedemptionQueries.getPendingRedemptions(PartyId.from(authenticatedPerson.getRole())) >> []
 
     savingFundPaymentDeadlinesService.getCancellationDeadline(payment1) >> Instant.parse("2021-03-31T21:00:00.000000000Z")
     savingFundPaymentDeadlinesService.getFulfillmentDeadline(payment1) >> Instant.parse("2021-04-20T10:00:00Z")
@@ -436,36 +436,29 @@ class ApplicationServiceSpec extends Specification {
     def redemption1Id = UUID.fromString("11111111-1111-1111-1111-111111111111")
     def redemption2Id = UUID.fromString("22222222-2222-2222-2222-222222222222")
 
-    def redemption1 = RedemptionRequest.builder()
+    def redemption1 = PendingRedemption.builder()
         .id(redemption1Id)
-        .userId(authenticatedPerson.getUserId())
-        .partyId(authenticatedPerson.toPartyId())
-        .fundUnits(valueOf(10.12345))
-        .requestedAmount(valueOf(150.00))
+        .amount(valueOf(150.00))
         .customerIban("EE123456789012345678")
-        .status(RESERVED)
         .requestedAt(TestClockHolder.now)
+        .cancellationDeadline(Instant.parse("2021-03-31T21:00:00Z"))
+        .fulfillmentDeadline(Instant.parse("2021-04-20T10:00:00Z"))
         .build()
 
-    def redemption2 = RedemptionRequest.builder()
+    def redemption2 = PendingRedemption.builder()
         .id(redemption2Id)
-        .userId(authenticatedPerson.getUserId())
-        .partyId(authenticatedPerson.toPartyId())
-        .fundUnits(valueOf(20.54321))
-        .requestedAmount(valueOf(300.50))
+        .amount(valueOf(300.50))
         .customerIban("EE987654321098765432")
-        .status(VERIFIED)
         .requestedAt(TestClockHolder.now.minusSeconds(7200))
+        .cancellationDeadline(Instant.parse("2021-03-31T21:00:00Z"))
+        .fulfillmentDeadline(Instant.parse("2021-04-20T10:00:00Z"))
         .build()
 
     episService.getApplications(authenticatedPerson) >> []
     localeService.getCurrentLocale() >> Locale.ENGLISH
     paymentApplicationService.getPaymentApplications(authenticatedPerson) >> []
     savingFundPaymentService.getPendingPayments(PartyId.from(authenticatedPerson.getRole())) >> []
-    savingFundRedemptionService.getPendingRedemptionsForParty(PartyId.from(authenticatedPerson.getRole())) >> [redemption1, redemption2]
-
-    savingFundPaymentDeadlinesService.getCancellationDeadline(_ as RedemptionRequest) >> Instant.parse("2021-03-31T21:00:00Z")
-    savingFundPaymentDeadlinesService.getFulfillmentDeadline(_ as RedemptionRequest) >> Instant.parse("2021-04-20T10:00:00Z")
+    savingFundRedemptionQueries.getPendingRedemptions(PartyId.from(authenticatedPerson.getRole())) >> [redemption1, redemption2]
 
     when:
     def applications = applicationService.getAllApplications(authenticatedPerson)
@@ -508,24 +501,20 @@ class ApplicationServiceSpec extends Specification {
     def activeParty = PartyId.from(authenticatedPerson.getRole())
 
     def personRedemptionId = UUID.randomUUID()
-    def personRedemption = RedemptionRequest.builder()
+    def personRedemption = PendingRedemption.builder()
         .id(personRedemptionId)
-        .userId(authenticatedPerson.getUserId())
-        .partyId(activeParty)
-        .fundUnits(valueOf(10.00000))
-        .requestedAmount(valueOf(150.00))
+        .amount(valueOf(150.00))
         .customerIban("EE123456789012345678")
-        .status(RESERVED)
         .requestedAt(TestClockHolder.now)
+        .cancellationDeadline(Instant.parse("2021-03-31T21:00:00Z"))
+        .fulfillmentDeadline(Instant.parse("2021-04-20T10:00:00Z"))
         .build()
 
     episService.getApplications(authenticatedPerson) >> []
     localeService.getCurrentLocale() >> Locale.ENGLISH
     paymentApplicationService.getPaymentApplications(authenticatedPerson) >> []
     savingFundPaymentService.getPendingPayments(activeParty) >> []
-    savingFundRedemptionService.getPendingRedemptionsForParty(activeParty) >> [personRedemption]
-    savingFundPaymentDeadlinesService.getCancellationDeadline(_ as RedemptionRequest) >> Instant.parse("2021-03-31T21:00:00Z")
-    savingFundPaymentDeadlinesService.getFulfillmentDeadline(_ as RedemptionRequest) >> Instant.parse("2021-04-20T10:00:00Z")
+    savingFundRedemptionQueries.getPendingRedemptions(activeParty) >> [personRedemption]
 
     when:
     def applications = applicationService.getAllApplications(authenticatedPerson)
@@ -541,15 +530,13 @@ class ApplicationServiceSpec extends Specification {
     def legalEntityPartyId = PartyId.from(authenticatedPerson.getRole())
 
     def legalEntityRedemptionId = UUID.randomUUID()
-    def legalEntityRedemption = RedemptionRequest.builder()
+    def legalEntityRedemption = PendingRedemption.builder()
         .id(legalEntityRedemptionId)
-        .userId(authenticatedPerson.getUserId())
-        .partyId(legalEntityPartyId)
-        .fundUnits(valueOf(20.00000))
-        .requestedAmount(valueOf(300.00))
+        .amount(valueOf(300.00))
         .customerIban("EE382200221020145685")
-        .status(RESERVED)
         .requestedAt(TestClockHolder.now)
+        .cancellationDeadline(Instant.parse("2021-03-31T21:00:00Z"))
+        .fulfillmentDeadline(Instant.parse("2021-04-20T10:00:00Z"))
         .build()
 
     episService.getApplications(authenticatedPerson) >> []
@@ -557,9 +544,7 @@ class ApplicationServiceSpec extends Specification {
     paymentApplicationService.getPaymentApplications(authenticatedPerson) >> []
     boardMembershipService.isBoardMember(authenticatedPerson.getPersonalCode(), legalEntityPartyId.code()) >> true
     savingFundPaymentService.getPendingPayments(legalEntityPartyId) >> []
-    savingFundRedemptionService.getPendingRedemptionsForParty(legalEntityPartyId) >> [legalEntityRedemption]
-    savingFundPaymentDeadlinesService.getCancellationDeadline(_ as RedemptionRequest) >> Instant.parse("2021-03-31T21:00:00Z")
-    savingFundPaymentDeadlinesService.getFulfillmentDeadline(_ as RedemptionRequest) >> Instant.parse("2021-04-20T10:00:00Z")
+    savingFundRedemptionQueries.getPendingRedemptions(legalEntityPartyId) >> [legalEntityRedemption]
 
     when:
     def applications = applicationService.getAllApplications(authenticatedPerson)
@@ -585,6 +570,6 @@ class ApplicationServiceSpec extends Specification {
     then:
     applications.isEmpty()
     0 * savingFundPaymentService.getPendingPayments(_)
-    0 * savingFundRedemptionService.getPendingRedemptionsForParty(_)
+    0 * savingFundRedemptionQueries.getPendingRedemptions(_)
   }
 }

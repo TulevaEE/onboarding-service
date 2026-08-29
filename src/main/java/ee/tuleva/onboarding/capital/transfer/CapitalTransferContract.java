@@ -14,7 +14,7 @@ import static lombok.AccessLevel.PRIVATE;
 import static org.hibernate.type.SqlTypes.JSON;
 
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType;
-import ee.tuleva.onboarding.capital.transfer.iban.ValidIban;
+import ee.tuleva.onboarding.iban.ValidIban;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.member.Member;

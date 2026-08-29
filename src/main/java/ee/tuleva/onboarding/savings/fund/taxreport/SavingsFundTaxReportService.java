@@ -5,7 +5,7 @@ import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.account.transaction.Transaction;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.capital.transfer.iban.IbanValidator;
+import ee.tuleva.onboarding.iban.IbanValidator;
 import ee.tuleva.onboarding.savings.fund.SavingsFundTransactionService;
 import ee.tuleva.onboarding.savings.fund.TransactionsWithCounterparties;
 import java.math.BigDecimal;

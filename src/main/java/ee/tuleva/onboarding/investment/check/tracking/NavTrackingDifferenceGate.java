@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
-import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.MODEL_PORTFOLIO;
+import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.investment.event.PipelineStep.TRACKING_DIFFERENCE;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.joining;

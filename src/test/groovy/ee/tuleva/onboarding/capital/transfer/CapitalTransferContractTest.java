@@ -243,8 +243,7 @@ class CapitalTransferContractTest {
       assertThat(violations).hasSize(1);
       ConstraintViolation<CapitalTransferContract> violation = violations.iterator().next();
       assertThat(violation.getPropertyPath().toString()).isEqualTo("iban");
-      assertThat(violation.getMessage())
-          .isEqualTo("{ee.tuleva.onboarding.capital.transfer.iban.ValidIban.message}");
+      assertThat(violation.getMessage()).isEqualTo("{ee.tuleva.onboarding.iban.ValidIban.message}");
     }
 
     @Test

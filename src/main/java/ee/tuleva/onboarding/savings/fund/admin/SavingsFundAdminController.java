@@ -4,7 +4,7 @@ import static org.springframework.format.annotation.DateTimeFormat.ISO.DATE;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 
 import ee.tuleva.onboarding.admin.AdminTokenValidator;
-import ee.tuleva.onboarding.capital.transfer.iban.IbanValidator;
+import ee.tuleva.onboarding.iban.IbanValidator;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.IbanWhitelistEntry;
 import ee.tuleva.onboarding.savings.fund.IbanWhitelistService;

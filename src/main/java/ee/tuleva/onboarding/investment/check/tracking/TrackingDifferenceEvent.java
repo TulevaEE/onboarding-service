@@ -5,6 +5,7 @@ import static jakarta.persistence.EnumType.STRING;
 import static org.hibernate.type.SqlTypes.JSON;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.TrackingCheckType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Enumerated;

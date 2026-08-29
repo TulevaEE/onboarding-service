@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
-import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.BENCHMARK;
-import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.BENCHMARK_MODEL;
-import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.MODEL_PORTFOLIO;
+import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK;
+import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK_MODEL;
+import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 
 import ee.tuleva.onboarding.fund.TulevaFund;

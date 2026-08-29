@@ -1,10 +1,11 @@
-package ee.tuleva.onboarding.capital.transfer.iban;
+package ee.tuleva.onboarding.iban;
 
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 import java.util.Map;
 import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 
 @Slf4j
 public class IbanValidator implements ConstraintValidator<ValidIban, String> {
@@ -109,7 +110,7 @@ public class IbanValidator implements ConstraintValidator<ValidIban, String> {
           Map.entry("HN", 28));
 
   @Override
-  public boolean isValid(String iban, ConstraintValidatorContext ctx) {
+  public boolean isValid(@Nullable String iban, ConstraintValidatorContext ctx) {
     return IbanValidator.isValid(iban);
   }
 
@@ -117,7 +118,7 @@ public class IbanValidator implements ConstraintValidator<ValidIban, String> {
     return iban.trim().toUpperCase().replaceAll("\\s+", "");
   }
 
-  public static boolean isValid(String iban) {
+  public static boolean isValid(@Nullable String iban) {
     if (iban == null) return false;
 
     String s = canonicalize(iban);

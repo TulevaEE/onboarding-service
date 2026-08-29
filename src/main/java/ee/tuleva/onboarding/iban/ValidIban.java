@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.capital.transfer.iban;
+package ee.tuleva.onboarding.iban;
 
 import static java.lang.annotation.ElementType.*;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
@@ -19,7 +19,7 @@ import java.lang.annotation.Target;
 @NotBlank
 public @interface ValidIban {
 
-  String message() default "{ee.tuleva.onboarding.capital.transfer.iban.ValidIban.message}";
+  String message() default "{ee.tuleva.onboarding.iban.ValidIban.message}";
 
   Class<?>[] groups() default {};
 

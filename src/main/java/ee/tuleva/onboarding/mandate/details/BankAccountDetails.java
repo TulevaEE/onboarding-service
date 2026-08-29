@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.mandate.details;
 
-import static ee.tuleva.onboarding.capital.transfer.iban.IbanValidator.canonicalize;
-import static ee.tuleva.onboarding.capital.transfer.iban.IbanValidator.isValid;
+import static ee.tuleva.onboarding.iban.IbanValidator.canonicalize;
+import static ee.tuleva.onboarding.iban.IbanValidator.isValid;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.io.Serializable;

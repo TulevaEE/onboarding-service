@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.capital.transfer.iban.ValidIban;
 import ee.tuleva.onboarding.currency.Currency;
+import ee.tuleva.onboarding.iban.ValidIban;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;

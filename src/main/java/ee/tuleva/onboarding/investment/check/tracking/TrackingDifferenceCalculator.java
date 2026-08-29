@@ -9,6 +9,7 @@ import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.TrackingCheckType;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;

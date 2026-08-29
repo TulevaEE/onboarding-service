@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.capital.transfer.iban;
+package ee.tuleva.onboarding.iban;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

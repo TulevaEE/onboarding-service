@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.capital.transfer;
 
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract.CapitalTransferAmount;
-import ee.tuleva.onboarding.capital.transfer.iban.ValidIban;
+import ee.tuleva.onboarding.iban.ValidIban;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import lombok.AllArgsConstructor;

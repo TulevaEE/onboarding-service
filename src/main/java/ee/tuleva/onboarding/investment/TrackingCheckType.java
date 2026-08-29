@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.investment.check.tracking;
+package ee.tuleva.onboarding.investment;
 
 public enum TrackingCheckType {
   MODEL_PORTFOLIO,

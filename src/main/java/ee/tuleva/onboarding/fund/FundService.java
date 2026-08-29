@@ -6,8 +6,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.StreamSupport.stream;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
-import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
-import ee.tuleva.onboarding.comparisons.fundvalue.FundValueQueries;
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatistics;
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatisticsService;
 import ee.tuleva.onboarding.locale.LocaleService;
@@ -37,7 +35,7 @@ class FundService {
 
   private final FundRepository fundRepository;
   private final PensionFundStatisticsService pensionFundStatisticsService;
-  private final FundValueQueries fundValueQueries;
+  private final FundNavValues fundNavValues;
   private final LocaleService localeService;
   private final SavingsFundUnitStats savingsFundUnitStats;
   private final SavingsFundConfiguration savingsFundConfiguration;
@@ -63,10 +61,10 @@ class FundService {
 
   private PensionFundStatistics fallbackNavStatistics(Fund fund) {
     boolean isSavingsFund = savingsFundConfiguration.getIsin().equals(fund.getIsin());
-    Optional<FundValue> latestValue =
+    Optional<FundNavValues.NavPoint> latestValue =
         isSavingsFund
-            ? fundValueQueries.getLatestValue(fund.getIsin(), fundNavProvider.safeMaxNavDate())
-            : fundValueQueries.findLastValueForFund(fund.getIsin());
+            ? fundNavValues.latestValueOnOrBefore(fund.getIsin(), fundNavProvider.safeMaxNavDate())
+            : fundNavValues.lastValue(fund.getIsin());
     return latestValue
         .map(fundValue -> buildSavingsFundStatistics(fund, fundValue))
         .orElseGet(PensionFundStatistics::getNull);
@@ -74,7 +72,8 @@ class FundService {
 
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
 
-  private PensionFundStatistics buildSavingsFundStatistics(Fund fund, FundValue latestFundValue) {
+  private PensionFundStatistics buildSavingsFundStatistics(
+      Fund fund, FundNavValues.NavPoint latestFundValue) {
     if (!savingsFundConfiguration.getIsin().equals(fund.getIsin())) {
       return PensionFundStatistics.builder().nav(latestFundValue.value()).build();
     }
@@ -97,9 +96,9 @@ class FundService {
 
     var previousNav =
         toNavScale(
-            fundValueQueries
-                .getLatestValue(fund.getIsin(), latestFundValue.date().minusDays(1))
-                .map(FundValue::value)
+            fundNavValues
+                .latestValueOnOrBefore(fund.getIsin(), latestFundValue.date().minusDays(1))
+                .map(FundNavValues.NavPoint::value)
                 .orElse(latestFundValue.value()));
     return PensionFundStatistics.builder()
         .nav(previousNav)
@@ -144,8 +143,8 @@ class FundService {
     if (start.isAfter(end)) {
       return List.of();
     }
-    return fundValueQueries.findValuesBetweenDates(fund.getIsin(), start, end).stream()
-        .map(fv -> new NavValueResponse(fv.date(), fv.value()))
+    return fundNavValues.valuesBetween(fund.getIsin(), start, end).stream()
+        .map(navPoint -> new NavValueResponse(navPoint.date(), navPoint.value()))
         .toList();
   }
 

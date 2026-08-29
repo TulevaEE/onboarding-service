@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.fund
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100
 
-import ee.tuleva.onboarding.comparisons.fundvalue.FundValueQueries
+import ee.tuleva.onboarding.fund.FundNavValues
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatistics
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatisticsService
 import ee.tuleva.onboarding.locale.LocaleService
@@ -14,7 +14,6 @@ import spock.lang.Specification
 import java.time.LocalDate
 import java.time.ZoneId
 
-import static ee.tuleva.onboarding.comparisons.fundvalue.FundValueFixture.aFundValue
 import static ee.tuleva.onboarding.fund.FundFixture.additionalSavingsFund
 import static ee.tuleva.onboarding.locale.LocaleConfiguration.DEFAULT_LOCALE
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
@@ -23,14 +22,14 @@ class FundServiceSpec extends Specification {
 
   def fundRepository = Mock(FundRepository)
   def pensionFundStatisticsService = Mock(PensionFundStatisticsService)
-  def fundValueQueries = Mock(FundValueQueries)
+  def fundNavValues = Mock(FundNavValues)
   def localeService = Mock(LocaleService)
   def savingsFundUnitStats = Mock(SavingsFundUnitStats)
   def savingsFundConfiguration = Stub(SavingsFundConfiguration) { getIsin() >> "EE0000003283" }
   def savingsFundNavProvider = Mock(FundNavProvider)
 
   def fundService = new FundService(fundRepository, pensionFundStatisticsService,
-      fundValueQueries, localeService, savingsFundUnitStats, savingsFundConfiguration,
+      fundNavValues, localeService, savingsFundUnitStats, savingsFundConfiguration,
       savingsFundNavProvider)
 
   def "can get funds and statistics"() {
@@ -47,7 +46,7 @@ class FundServiceSpec extends Specification {
     pensionFundStatisticsService.getCachedStatistics() >>
       [new PensionFundStatistics(tulevaFund.isin, volume, nav, peopleCount)]
     localeService.getCurrentLocale() >> DEFAULT_LOCALE
-    fundValueQueries.findLastValueForFund(_ as String) >> Optional.empty()
+    fundNavValues.lastValue(_ as String) >> Optional.empty()
 
     when:
     def response = fundService.getFunds(Optional.of(fundManagerName))
@@ -72,7 +71,7 @@ class FundServiceSpec extends Specification {
 
     def tulevaFund = funds.first()
     pensionFundStatisticsService.getCachedStatistics() >> [PensionFundStatistics.getNull()]
-    fundValueQueries.findLastValueForFund(_ as String) >> Optional.empty()
+    fundNavValues.lastValue(_ as String) >> Optional.empty()
 
     when:
     def response = fundService.getFunds(Optional.of(fundManagerName))
@@ -104,7 +103,7 @@ class FundServiceSpec extends Specification {
     fundRepository.findAllByFundManagerNameIgnoreCase(fundManagerName) >> funds
     pensionFundStatisticsService.getCachedStatistics() >> [PensionFundStatistics.getNull()]
     localeService.getCurrentLocale() >> DEFAULT_LOCALE
-    fundValueQueries.findLastValueForFund(_ as String) >> Optional.empty()
+    fundNavValues.lastValue(_ as String) >> Optional.empty()
 
     when:
     def response = fundService.getFunds(Optional.of(fundManagerName))
@@ -129,9 +128,9 @@ class FundServiceSpec extends Specification {
     def tulevaFund = funds.first()
     pensionFundStatisticsService.getCachedStatistics() >> [PensionFundStatistics.getNull()]
     localeService.getCurrentLocale() >> DEFAULT_LOCALE
-    fundValueQueries.findLastValueForFund(tulevaFund.isin) >> Optional.of(
-        aFundValue(tulevaFund.isin, LocalDate.parse("2023-11-03"),123.0))
-    fundValueQueries.findLastValueForFund(_ as String) >> Optional.empty()
+    fundNavValues.lastValue(tulevaFund.isin) >> Optional.of(
+        new FundNavValues.NavPoint(LocalDate.parse("2023-11-03"), 123.0))
+    fundNavValues.lastValue(_ as String) >> Optional.empty()
 
 
     when:
@@ -155,8 +154,8 @@ class FundServiceSpec extends Specification {
     def navDate = LocalDate.parse("2025-01-20")
     def nav = 1.1234
     savingsFundNavProvider.safeMaxNavDate() >> safeDate
-    fundValueQueries.getLatestValue(savingsFund.isin, safeDate) >> Optional.of(
-        aFundValue(savingsFund.isin, navDate, nav))
+    fundNavValues.latestValueOnOrBefore(savingsFund.isin, safeDate) >> Optional.of(
+        new FundNavValues.NavPoint(navDate, nav))
 
     def cutoff = navDate.plusDays(1).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant()
     savingsFundUnitStats.unitsOutstanding() >> 10500.00000
@@ -183,12 +182,12 @@ class FundServiceSpec extends Specification {
     def navDate = LocalDate.parse("2025-01-20")
     def nav = 1.12345
     savingsFundNavProvider.safeMaxNavDate() >> safeDate
-    fundValueQueries.getLatestValue(savingsFund.isin, safeDate) >> Optional.of(
-        aFundValue(savingsFund.isin, navDate, nav))
+    fundNavValues.latestValueOnOrBefore(savingsFund.isin, safeDate) >> Optional.of(
+        new FundNavValues.NavPoint(navDate, nav))
     def previousNavDate = LocalDate.parse("2025-01-17")
     def previousNav = 1.11000
-    fundValueQueries.getLatestValue(savingsFund.isin, navDate.minusDays(1)) >> Optional.of(
-        aFundValue(savingsFund.isin, previousNavDate, previousNav))
+    fundNavValues.latestValueOnOrBefore(savingsFund.isin, navDate.minusDays(1)) >> Optional.of(
+        new FundNavValues.NavPoint(previousNavDate, previousNav))
 
     def cutoff = navDate.plusDays(1).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant()
     savingsFundUnitStats.unitsOutstanding() >> 10000.00000
@@ -215,12 +214,12 @@ class FundServiceSpec extends Specification {
     def navDate = LocalDate.parse("2025-01-16")
     def nav = 1.1235
     savingsFundNavProvider.safeMaxNavDate() >> safeDate
-    fundValueQueries.getLatestValue(savingsFund.isin, safeDate) >> Optional.of(
-        aFundValue(savingsFund.isin, navDate, nav))
+    fundNavValues.latestValueOnOrBefore(savingsFund.isin, safeDate) >> Optional.of(
+        new FundNavValues.NavPoint(navDate, nav))
     def previousNavDate = LocalDate.parse("2025-01-15")
     def previousNav = 1.1100
-    fundValueQueries.getLatestValue(savingsFund.isin, navDate.minusDays(1)) >> Optional.of(
-        aFundValue(savingsFund.isin, previousNavDate, previousNav))
+    fundNavValues.latestValueOnOrBefore(savingsFund.isin, navDate.minusDays(1)) >> Optional.of(
+        new FundNavValues.NavPoint(previousNavDate, previousNav))
 
     def cutoff = navDate.plusDays(1).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant()
     savingsFundUnitStats.unitsOutstanding() >> 10000.00000
@@ -247,8 +246,8 @@ class FundServiceSpec extends Specification {
     def navDate = LocalDate.parse("2025-01-17")
     def nav = 1.1234
     savingsFundNavProvider.safeMaxNavDate() >> safeDate
-    fundValueQueries.getLatestValue(savingsFund.isin, safeDate) >> Optional.of(
-        aFundValue(savingsFund.isin, navDate, nav))
+    fundNavValues.latestValueOnOrBefore(savingsFund.isin, safeDate) >> Optional.of(
+        new FundNavValues.NavPoint(navDate, nav))
 
     def cutoff = navDate.plusDays(1).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant()
     savingsFundUnitStats.unitsOutstanding() >> 10500.00000
@@ -275,9 +274,9 @@ class FundServiceSpec extends Specification {
     def navDate = LocalDate.parse("2025-01-17")
     def nav = 1.00000
     savingsFundNavProvider.safeMaxNavDate() >> safeDate
-    fundValueQueries.getLatestValue(savingsFund.isin, safeDate) >> Optional.of(
-        aFundValue(savingsFund.isin, navDate, nav))
-    fundValueQueries.getLatestValue(savingsFund.isin, navDate.minusDays(1)) >> Optional.empty()
+    fundNavValues.latestValueOnOrBefore(savingsFund.isin, safeDate) >> Optional.of(
+        new FundNavValues.NavPoint(navDate, nav))
+    fundNavValues.latestValueOnOrBefore(savingsFund.isin, navDate.minusDays(1)) >> Optional.empty()
 
     def cutoff = navDate.plusDays(1).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant()
     savingsFundUnitStats.unitsOutstanding() >> 10000.00000
@@ -304,11 +303,11 @@ class FundServiceSpec extends Specification {
     def navDate = LocalDate.parse("2025-01-16")
     def nav = 1.1235
     savingsFundNavProvider.safeMaxNavDate() >> safeDate
-    fundValueQueries.getLatestValue(savingsFund.isin, safeDate) >> Optional.of(
-        aFundValue(savingsFund.isin, navDate, nav))
+    fundNavValues.latestValueOnOrBefore(savingsFund.isin, safeDate) >> Optional.of(
+        new FundNavValues.NavPoint(navDate, nav))
     def previousNav = 1.1100
-    fundValueQueries.getLatestValue(savingsFund.isin, navDate.minusDays(1)) >> Optional.of(
-        aFundValue(savingsFund.isin, LocalDate.parse("2025-01-15"), previousNav))
+    fundNavValues.latestValueOnOrBefore(savingsFund.isin, navDate.minusDays(1)) >> Optional.of(
+        new FundNavValues.NavPoint(LocalDate.parse("2025-01-15"), previousNav))
 
     def cutoff = navDate.plusDays(1).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant()
     savingsFundUnitStats.unitsOutstanding() >> 0.0
@@ -333,8 +332,8 @@ class FundServiceSpec extends Specification {
     def safeDate = LocalDate.parse("2025-01-17")
     def navDate = LocalDate.parse("2025-01-20")
     savingsFundNavProvider.safeMaxNavDate() >> safeDate
-    fundValueQueries.getLatestValue(savingsFund.isin, safeDate) >> Optional.of(
-        aFundValue(savingsFund.isin, navDate, nav))
+    fundNavValues.latestValueOnOrBefore(savingsFund.isin, safeDate) >> Optional.of(
+        new FundNavValues.NavPoint(navDate, nav))
 
     def cutoff = navDate.plusDays(1).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant()
     savingsFundUnitStats.unitsOutstanding() >> 10500.00000
@@ -364,8 +363,8 @@ class FundServiceSpec extends Specification {
     def safeDate = LocalDate.parse("2025-01-16")
     def safeNav = 1.1000
     savingsFundNavProvider.safeMaxNavDate() >> safeDate
-    fundValueQueries.getLatestValue(savingsFund.isin, safeDate) >> Optional.of(
-        aFundValue(savingsFund.isin, safeDate, safeNav))
+    fundNavValues.latestValueOnOrBefore(savingsFund.isin, safeDate) >> Optional.of(
+        new FundNavValues.NavPoint(safeDate, safeNav))
     def cutoff = safeDate.plusDays(1).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant()
     savingsFundUnitStats.unitsOutstanding() >> 10500.00000
     savingsFundUnitStats.unitsOutstandingAt(cutoff) >> 10000.00000
@@ -377,7 +376,7 @@ class FundServiceSpec extends Specification {
     then:
     def fund = response.first()
     fund.nav == safeNav
-    0 * fundValueQueries.findLastValueForFund(savingsFund.isin)
+    0 * fundNavValues.lastValue(savingsFund.isin)
   }
 
   def "non-savings fund returns null volume"() {
@@ -390,9 +389,9 @@ class FundServiceSpec extends Specification {
     def tulevaFund = funds.first()
     pensionFundStatisticsService.getCachedStatistics() >> [PensionFundStatistics.getNull()]
     localeService.getCurrentLocale() >> DEFAULT_LOCALE
-    fundValueQueries.findLastValueForFund(tulevaFund.isin) >> Optional.of(
-        aFundValue(tulevaFund.isin, LocalDate.parse("2023-11-03"), 123.0))
-    fundValueQueries.findLastValueForFund(_ as String) >> Optional.empty()
+    fundNavValues.lastValue(tulevaFund.isin) >> Optional.of(
+        new FundNavValues.NavPoint(LocalDate.parse("2023-11-03"), 123.0))
+    fundNavValues.lastValue(_ as String) >> Optional.empty()
 
 
     when:

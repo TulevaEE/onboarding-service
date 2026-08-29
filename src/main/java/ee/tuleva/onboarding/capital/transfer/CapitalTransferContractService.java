@@ -18,9 +18,7 @@ import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract.CapitalTran
 import ee.tuleva.onboarding.capital.transfer.content.CapitalTransferContractContentService;
 import ee.tuleva.onboarding.epis.ContactDetailsService;
 import ee.tuleva.onboarding.event.TrackableEvent;
-import ee.tuleva.onboarding.listing.MessageResponse;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
-import ee.tuleva.onboarding.notification.email.Email;
 import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.notification.email.EmailType;
@@ -386,16 +384,12 @@ public class CapitalTransferContractService {
             List.of("capital-transfer"),
             attachments);
 
-    var messageResponse =
-        emailService
-            .send(recipient, message, templateName)
-            .map(
-                response -> {
-                  Email saved =
-                      emailPersistenceService.save(
-                          recipient, response.getId(), emailType, response.getStatus());
-                  return new MessageResponse(saved.getId(), response.getStatus());
-                });
+    emailService
+        .send(recipient, message, templateName)
+        .ifPresent(
+            response ->
+                emailPersistenceService.save(
+                    recipient, response.getId(), emailType, response.getStatus()));
   }
 
   private String getLanguage(User user) {

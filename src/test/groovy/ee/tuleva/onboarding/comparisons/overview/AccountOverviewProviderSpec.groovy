@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.comparisons.overview
 
-import ee.tuleva.onboarding.account.CashFlowService
+import ee.tuleva.onboarding.epis.EpisService
 import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.epis.CashFlowStatement
 import ee.tuleva.onboarding.fund.Fund
@@ -21,7 +21,7 @@ import static java.time.temporal.ChronoUnit.DAYS
 class AccountOverviewProviderSpec extends Specification {
 
     FundRepository fundRepository
-    CashFlowService cashFlowService
+    EpisService episService
     AccountOverviewProvider accountOverviewProvider
 
     Clock clock = TestClockHolder.clock
@@ -35,13 +35,13 @@ class AccountOverviewProviderSpec extends Specification {
 
     def setup() {
         fundRepository = Mock(FundRepository)
-        cashFlowService = Mock(CashFlowService)
-        accountOverviewProvider = new AccountOverviewProvider(fundRepository, cashFlowService, clock)
+        episService = Mock(EpisService)
+        accountOverviewProvider = new AccountOverviewProvider(fundRepository, episService, clock)
         fundRepository.findAllByPillar(pillar) >> [
             Fund.builder().isin("1").build(),
             Fund.builder().isin("2").build(),
         ]
-        cashFlowService.getCashFlowStatement(person, startDate, endDate) >> cashFlowStatement
+        episService.getCashFlowStatement(person, startDate, endDate) >> cashFlowStatement
     }
 
     def "it sets the right start and end times"() {
@@ -79,11 +79,11 @@ class AccountOverviewProviderSpec extends Specification {
         def futureStartDate = LocalDateTime.ofInstant(futureStartTime, ZoneOffset.UTC).toLocalDate()
 
     when:
-        1 * cashFlowService.getCashFlowStatement(person, futureStartDate, futureStartDate) >> cashFlowStatement
+        1 * episService.getCashFlowStatement(person, futureStartDate, futureStartDate) >> cashFlowStatement
         AccountOverview accountOverview = accountOverviewProvider.getAccountOverview(person, futureStartTime, endTime, pillar)
 
     then:
-        0 * cashFlowService.getCashFlowStatement(person, futureStartDate, endDate)
+        0 * episService.getCashFlowStatement(person, futureStartDate, endDate)
         accountOverview.transactions.size() == 2
   }
 

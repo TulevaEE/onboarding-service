@@ -2,10 +2,10 @@ package ee.tuleva.onboarding.comparisons.overview;
 
 import static java.util.stream.Collectors.toList;
 
-import ee.tuleva.onboarding.account.CashFlowService;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.CashFlow;
 import ee.tuleva.onboarding.epis.CashFlowStatement;
+import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import java.math.BigDecimal;
@@ -23,14 +23,14 @@ import org.springframework.stereotype.Service;
 public class AccountOverviewProvider {
 
   private final FundRepository fundRepository;
-  private final CashFlowService cashFlowService;
+  private final EpisService episService;
   private final Clock clock;
 
   public AccountOverview getAccountOverview(
       Person person, Instant startTime, Instant endTime, Integer pillar) {
     endTime = startTime.isAfter(clock.instant()) ? startTime : endTime;
     CashFlowStatement cashFlowStatement =
-        cashFlowService.getCashFlowStatement(person, toLocalDate(startTime), toLocalDate(endTime));
+        episService.getCashFlowStatement(person, toLocalDate(startTime), toLocalDate(endTime));
 
     Predicate<CashFlow> pillarFilter = createPillarFilter(pillar);
 

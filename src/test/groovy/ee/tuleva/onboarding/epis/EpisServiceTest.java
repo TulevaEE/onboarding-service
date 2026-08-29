@@ -30,7 +30,6 @@ import ee.tuleva.onboarding.epis.transaction.*;
 import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto;
-import ee.tuleva.onboarding.secondpillarassets.SecondPillarAssets;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;

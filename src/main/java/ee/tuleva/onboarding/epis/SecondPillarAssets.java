@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.secondpillarassets;
+package ee.tuleva.onboarding.epis;
 
 import java.math.BigDecimal;
 

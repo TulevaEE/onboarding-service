@@ -21,7 +21,6 @@ import ee.tuleva.onboarding.epis.mandate.MandateDto;
 import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto;
-import ee.tuleva.onboarding.secondpillarassets.SecondPillarAssets;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;

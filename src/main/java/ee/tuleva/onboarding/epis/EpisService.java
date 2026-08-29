@@ -19,7 +19,6 @@ import ee.tuleva.onboarding.epis.transaction.*;
 import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto;
-import ee.tuleva.onboarding.secondpillarassets.SecondPillarAssets;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;

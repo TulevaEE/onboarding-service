@@ -13,6 +13,7 @@ import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.epis.CashFlow;
 import ee.tuleva.onboarding.epis.CashFlowStatement;
 import ee.tuleva.onboarding.epis.EpisService;
+import ee.tuleva.onboarding.epis.SecondPillarAssets;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;

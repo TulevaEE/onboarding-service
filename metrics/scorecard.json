@@ -16,7 +16,7 @@
     "TooManyMethods": 10
   },
   "springBootTests": 89,
-  "top15ClassLines": 9344,
+  "top15ClassLines": 9155,
   "totalPackages": 225,
   "unmarkedPackages": 159
 }

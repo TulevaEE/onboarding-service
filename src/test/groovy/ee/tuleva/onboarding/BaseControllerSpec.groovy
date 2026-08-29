@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding
 
+import ee.tuleva.onboarding.country.Country
+import ee.tuleva.onboarding.mandate.CountryViewMixin
 import tools.jackson.core.StreamWriteFeature
 import tools.jackson.databind.json.JsonMapper
 import ee.tuleva.onboarding.account.AccountErrorHandler
@@ -66,6 +68,7 @@ class BaseControllerSpec extends Specification {
   private JacksonJsonHttpMessageConverter jacksonMessageConverter() {
         JsonMapper objectMapper = JsonMapper.builder()
             .enable(StreamWriteFeature.WRITE_BIGDECIMAL_AS_PLAIN)
+            .addMixIn(Country.class, CountryViewMixin.class)
             .build()
         return new JacksonJsonHttpMessageConverter(objectMapper)
     }

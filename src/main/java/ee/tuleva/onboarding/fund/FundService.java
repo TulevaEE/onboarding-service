@@ -9,8 +9,6 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatistics;
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatisticsService;
 import ee.tuleva.onboarding.locale.LocaleService;
-import ee.tuleva.onboarding.savings.FundNavProvider;
-import ee.tuleva.onboarding.savings.SavingsFundConfiguration;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -38,8 +36,7 @@ class FundService {
   private final FundNavValues fundNavValues;
   private final LocaleService localeService;
   private final SavingsFundUnitStats savingsFundUnitStats;
-  private final SavingsFundConfiguration savingsFundConfiguration;
-  private final FundNavProvider fundNavProvider;
+  private final SavingsFundNav savingsFundNav;
 
   List<ExtendedApiFundResponse> getFunds(Optional<String> fundManagerName) {
     return stream(fundsBy(fundManagerName).spliterator(), false)
@@ -60,10 +57,10 @@ class FundService {
   }
 
   private PensionFundStatistics fallbackNavStatistics(Fund fund) {
-    boolean isSavingsFund = savingsFundConfiguration.getIsin().equals(fund.getIsin());
+    boolean isSavingsFund = savingsFundNav.isSavingsFund(fund.getIsin());
     Optional<FundNavValues.NavPoint> latestValue =
         isSavingsFund
-            ? fundNavValues.latestValueOnOrBefore(fund.getIsin(), fundNavProvider.safeMaxNavDate())
+            ? fundNavValues.latestValueOnOrBefore(fund.getIsin(), savingsFundNav.safeMaxNavDate())
             : fundNavValues.lastValue(fund.getIsin());
     return latestValue
         .map(fundValue -> buildSavingsFundStatistics(fund, fundValue))
@@ -74,7 +71,7 @@ class FundService {
 
   private PensionFundStatistics buildSavingsFundStatistics(
       Fund fund, FundNavValues.NavPoint latestFundValue) {
-    if (!savingsFundConfiguration.getIsin().equals(fund.getIsin())) {
+    if (!savingsFundNav.isSavingsFund(fund.getIsin())) {
       return PensionFundStatistics.builder().nav(latestFundValue.value()).build();
     }
 
@@ -134,8 +131,8 @@ class FundService {
   private List<NavValueResponse> navHistoryFor(Fund fund, LocalDate startDate, LocalDate endDate) {
     LocalDate start = startDate != null ? startDate : LocalDate.EPOCH;
     LocalDate end = endDate != null ? endDate : LocalDate.of(9999, 12, 31);
-    if (savingsFundConfiguration.getIsin().equals(fund.getIsin())) {
-      LocalDate safeMaxDate = fundNavProvider.safeMaxNavDate();
+    if (savingsFundNav.isSavingsFund(fund.getIsin())) {
+      LocalDate safeMaxDate = savingsFundNav.safeMaxNavDate();
       if (end.isAfter(safeMaxDate)) {
         end = safeMaxDate;
       }

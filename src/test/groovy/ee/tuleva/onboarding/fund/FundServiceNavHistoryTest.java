@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.fund.FundFixture.tuleva2ndPillarStockFund;
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
@@ -16,8 +17,6 @@ import ee.tuleva.onboarding.fund.FundNavValues.NavPoint;
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatisticsService;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.locale.LocaleService;
-import ee.tuleva.onboarding.savings.FundNavProvider;
-import ee.tuleva.onboarding.savings.SavingsFundConfiguration;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
@@ -40,8 +39,7 @@ class FundServiceNavHistoryTest {
   @Mock private FundNavValues fundNavValues;
   @Mock private LocaleService localeService;
   @Mock private LedgerService ledgerService;
-  @Mock private SavingsFundConfiguration savingsFundConfiguration;
-  @Mock private FundNavProvider fundNavProvider;
+  @Mock private SavingsFundNav savingsFundNav;
 
   @InjectMocks private FundService fundService;
 
@@ -52,7 +50,8 @@ class FundServiceNavHistoryTest {
     Fund bondFund = tuleva2ndPillarBondFund();
     given(fundRepository.findAllByPillarAndStatus(2, ACTIVE))
         .willReturn(List.of(stockFund, bondFund));
-    given(savingsFundConfiguration.getIsin()).willReturn(TKF_ISIN);
+    given(savingsFundNav.isSavingsFund(anyString()))
+        .willAnswer(i -> TKF_ISIN.equals(i.getArgument(0)));
     given(fundNavValues.valuesBetween(stockFund.getIsin(), start, LocalDate.of(9999, 12, 31)))
         .willReturn(List.of(new NavPoint(LocalDate.of(2026, 2, 3), new BigDecimal("1.0000"))));
     given(fundNavValues.valuesBetween(bondFund.getIsin(), start, LocalDate.of(9999, 12, 31)))
@@ -72,9 +71,10 @@ class FundServiceNavHistoryTest {
   void getNavHistory_returnsMappedFundValues() {
     LocalDate start = LocalDate.of(2026, 2, 2);
     LocalDate end = LocalDate.of(2026, 4, 14);
-    given(savingsFundConfiguration.getIsin()).willReturn(TKF_ISIN);
+    given(savingsFundNav.isSavingsFund(anyString()))
+        .willAnswer(i -> TKF_ISIN.equals(i.getArgument(0)));
     given(fundRepository.findByIsin(TKF_ISIN)).willReturn(additionalSavingsFund());
-    given(fundNavProvider.safeMaxNavDate()).willReturn(LocalDate.of(2099, 1, 1));
+    given(savingsFundNav.safeMaxNavDate()).willReturn(LocalDate.of(2099, 1, 1));
     given(fundNavValues.valuesBetween(TKF_ISIN, start, end))
         .willReturn(
             List.of(
@@ -92,9 +92,10 @@ class FundServiceNavHistoryTest {
   @Test
   void getNavHistory_defaultsNullDatesToEpochAndSafeMaxDateForSavingsFund() {
     LocalDate safeMaxDate = LocalDate.of(2026, 4, 19);
-    given(savingsFundConfiguration.getIsin()).willReturn(TKF_ISIN);
+    given(savingsFundNav.isSavingsFund(anyString()))
+        .willAnswer(i -> TKF_ISIN.equals(i.getArgument(0)));
     given(fundRepository.findByIsin(TKF_ISIN)).willReturn(additionalSavingsFund());
-    given(fundNavProvider.safeMaxNavDate()).willReturn(safeMaxDate);
+    given(savingsFundNav.safeMaxNavDate()).willReturn(safeMaxDate);
     given(fundNavValues.valuesBetween(TKF_ISIN, LocalDate.EPOCH, safeMaxDate))
         .willReturn(List.of());
 
@@ -107,7 +108,8 @@ class FundServiceNavHistoryTest {
   void getNavHistory_defaultsNullDatesToEpochAndFarFutureForNonSavingsFund() {
     Fund nonSavingsFund = firstTulevaNonSavingsFund();
     String isin = nonSavingsFund.getIsin();
-    given(savingsFundConfiguration.getIsin()).willReturn(TKF_ISIN);
+    given(savingsFundNav.isSavingsFund(anyString()))
+        .willAnswer(i -> TKF_ISIN.equals(i.getArgument(0)));
     given(fundRepository.findByIsin(isin)).willReturn(nonSavingsFund);
     given(fundNavValues.valuesBetween(isin, LocalDate.EPOCH, LocalDate.of(9999, 12, 31)))
         .willReturn(List.of());
@@ -122,9 +124,10 @@ class FundServiceNavHistoryTest {
   void getNavHistory_capsSavingsFundEndDateToSafeMaxDate() {
     LocalDate safeMaxDate = LocalDate.of(2026, 4, 19);
     LocalDate requestedEnd = LocalDate.of(2026, 4, 20);
-    given(savingsFundConfiguration.getIsin()).willReturn(TKF_ISIN);
+    given(savingsFundNav.isSavingsFund(anyString()))
+        .willAnswer(i -> TKF_ISIN.equals(i.getArgument(0)));
     given(fundRepository.findByIsin(TKF_ISIN)).willReturn(additionalSavingsFund());
-    given(fundNavProvider.safeMaxNavDate()).willReturn(safeMaxDate);
+    given(savingsFundNav.safeMaxNavDate()).willReturn(safeMaxDate);
     given(fundNavValues.valuesBetween(TKF_ISIN, LocalDate.EPOCH, safeMaxDate))
         .willReturn(List.of());
 
@@ -139,13 +142,14 @@ class FundServiceNavHistoryTest {
     Fund nonSavingsFund = firstTulevaNonSavingsFund();
     String isin = nonSavingsFund.getIsin();
     LocalDate requestedEnd = LocalDate.of(2026, 4, 20);
-    given(savingsFundConfiguration.getIsin()).willReturn(TKF_ISIN);
+    given(savingsFundNav.isSavingsFund(anyString()))
+        .willAnswer(i -> TKF_ISIN.equals(i.getArgument(0)));
     given(fundRepository.findByIsin(isin)).willReturn(nonSavingsFund);
     given(fundNavValues.valuesBetween(isin, LocalDate.EPOCH, requestedEnd)).willReturn(List.of());
 
     fundService.getNavHistory(isin, null, requestedEnd);
 
-    then(fundNavProvider).should(never()).safeMaxNavDate();
+    then(savingsFundNav).should(never()).safeMaxNavDate();
     then(fundNavValues).should().valuesBetween(isin, LocalDate.EPOCH, requestedEnd);
   }
 
@@ -154,9 +158,10 @@ class FundServiceNavHistoryTest {
     LocalDate safeMaxDate = LocalDate.of(2026, 4, 19);
     LocalDate requestedStart = LocalDate.of(2026, 4, 20);
     LocalDate requestedEnd = LocalDate.of(2026, 4, 25);
-    given(savingsFundConfiguration.getIsin()).willReturn(TKF_ISIN);
+    given(savingsFundNav.isSavingsFund(anyString()))
+        .willAnswer(i -> TKF_ISIN.equals(i.getArgument(0)));
     given(fundRepository.findByIsin(TKF_ISIN)).willReturn(additionalSavingsFund());
-    given(fundNavProvider.safeMaxNavDate()).willReturn(safeMaxDate);
+    given(savingsFundNav.safeMaxNavDate()).willReturn(safeMaxDate);
 
     List<NavValueResponse> result =
         fundService.getNavHistory(TKF_ISIN, requestedStart, requestedEnd);
@@ -169,9 +174,10 @@ class FundServiceNavHistoryTest {
   void getNavHistory_usesDbFundIsinNotRequestIsinForQueryAndCapCheck() {
     String requestIsin = "ee0000003283";
     LocalDate safeMaxDate = LocalDate.of(2026, 4, 19);
-    given(savingsFundConfiguration.getIsin()).willReturn(TKF_ISIN);
+    given(savingsFundNav.isSavingsFund(anyString()))
+        .willAnswer(i -> TKF_ISIN.equals(i.getArgument(0)));
     given(fundRepository.findByIsin(requestIsin)).willReturn(additionalSavingsFund());
-    given(fundNavProvider.safeMaxNavDate()).willReturn(safeMaxDate);
+    given(savingsFundNav.safeMaxNavDate()).willReturn(safeMaxDate);
     given(fundNavValues.valuesBetween(TKF_ISIN, LocalDate.EPOCH, safeMaxDate))
         .willReturn(List.of());
 
@@ -194,9 +200,10 @@ class FundServiceNavHistoryTest {
   void getNavHistoryCsv_returnsSemicolonDelimitedCsvWithBom() {
     LocalDate start = LocalDate.of(2026, 2, 2);
     LocalDate end = LocalDate.of(2026, 4, 14);
-    given(savingsFundConfiguration.getIsin()).willReturn(TKF_ISIN);
+    given(savingsFundNav.isSavingsFund(anyString()))
+        .willAnswer(i -> TKF_ISIN.equals(i.getArgument(0)));
     given(fundRepository.findByIsin(TKF_ISIN)).willReturn(additionalSavingsFund());
-    given(fundNavProvider.safeMaxNavDate()).willReturn(LocalDate.of(2099, 1, 1));
+    given(savingsFundNav.safeMaxNavDate()).willReturn(LocalDate.of(2099, 1, 1));
     given(fundNavValues.valuesBetween(TKF_ISIN, start, end))
         .willReturn(
             List.of(

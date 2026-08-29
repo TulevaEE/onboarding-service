@@ -1711,6 +1711,214 @@ class TrackingDifferenceServiceTest {
   }
 
   @Test
+  void toBdTreatsMissingJsonbFieldsSameAsExplicitZero() {
+    setupFundData(TUK75);
+
+    var missingCashDragEvent =
+        TrackingDifferenceEvent.builder()
+            .fund(TUK75)
+            .checkDate(LocalDate.of(2026, 4, 9))
+            .checkType(MODEL_PORTFOLIO)
+            .trackingDifference(new BigDecimal("0.0020"))
+            .fundReturn(new BigDecimal("0.01"))
+            .benchmarkReturn(new BigDecimal("0.008"))
+            .breach(true)
+            .consecutiveBreachDays(1)
+            .result(Map.of("feeDrag", new BigDecimal("-0.0007")))
+            .createdAt(java.time.Instant.now())
+            .build();
+
+    given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 10))
+        .willReturn(List.of(missingCashDragEvent));
+    var missingResult =
+        service.runChecksAsOf(CHECK_DATE).stream()
+            .filter(r -> r.checkType() == MODEL_PORTFOLIO)
+            .findFirst()
+            .orElseThrow();
+
+    var explicitZeroEvent =
+        TrackingDifferenceEvent.builder()
+            .fund(TUK75)
+            .checkDate(LocalDate.of(2026, 4, 9))
+            .checkType(MODEL_PORTFOLIO)
+            .trackingDifference(new BigDecimal("0.0020"))
+            .fundReturn(new BigDecimal("0.01"))
+            .benchmarkReturn(new BigDecimal("0.008"))
+            .breach(true)
+            .consecutiveBreachDays(1)
+            .result(
+                Map.of(
+                    "cashDrag", ZERO,
+                    "feeDrag", new BigDecimal("-0.0007"),
+                    "residual", ZERO))
+            .createdAt(java.time.Instant.now())
+            .build();
+    given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 10))
+        .willReturn(List.of(explicitZeroEvent));
+    var explicitResult =
+        service.runChecksAsOf(CHECK_DATE).stream()
+            .filter(r -> r.checkType() == MODEL_PORTFOLIO)
+            .findFirst()
+            .orElseThrow();
+
+    assertThat(missingResult.escalationFeeDrag())
+        .isEqualByComparingTo(explicitResult.escalationFeeDrag());
+    assertThat(missingResult.escalationCashDrag())
+        .isEqualByComparingTo(explicitResult.escalationCashDrag());
+    assertThat(missingResult.escalationResidual())
+        .isEqualByComparingTo(explicitResult.escalationResidual());
+  }
+
+  @Test
+  void toBdParsesAllJsonbRepresentationsOfAttributionContribution() {
+    setupFundData(TUK75);
+
+    var event =
+        TrackingDifferenceEvent.builder()
+            .fund(TUK75)
+            .checkDate(LocalDate.of(2026, 4, 9))
+            .checkType(MODEL_PORTFOLIO)
+            .trackingDifference(new BigDecimal("0.0020"))
+            .fundReturn(new BigDecimal("0.01"))
+            .benchmarkReturn(new BigDecimal("0.008"))
+            .breach(true)
+            .consecutiveBreachDays(1)
+            .result(
+                Map.of(
+                    "securityAttributions",
+                    List.of(
+                        Map.of("isin", "TDBD00001", "contribution", new BigDecimal("0.0011")),
+                        Map.of("isin", "TDNUM0002", "contribution", 3),
+                        Map.of("isin", "TDSTR0003", "contribution", "0.0025"),
+                        Map.of("isin", "TDBAD0004", "contribution", "not-a-number"),
+                        Map.of("isin", "TDBLK0005", "contribution", "   "),
+                        Map.of("isin", "TDBOOL006", "contribution", Boolean.TRUE))))
+            .createdAt(java.time.Instant.now())
+            .build();
+
+    given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 10))
+        .willReturn(List.of(event));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+    var modelResult = results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst();
+    assertThat(modelResult).isPresent();
+    var attributions = modelResult.get().escalationAttributions();
+
+    assertThat(attributions.get("TDBD00001")).isEqualByComparingTo("0.0011");
+    assertThat(attributions.get("TDNUM0002")).isEqualByComparingTo("3");
+    assertThat(attributions.get("TDSTR0003")).isEqualByComparingTo("0.0025");
+    assertThat(attributions.get("TDBAD0004")).isEqualByComparingTo(ZERO);
+    assertThat(attributions.get("TDBLK0005")).isEqualByComparingTo(ZERO);
+    assertThat(attributions.get("TDBOOL006")).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void benchmarkCheckBreachesExactlyAtThreshold() {
+    setupFundData(TUK75);
+
+    given(fundValueProvider.getLatestValue("MSCI_ACWI", CHECK_DATE))
+        .willReturn(Optional.of(fundValue("1005.00")));
+    given(fundValueProvider.getLatestValue("MSCI_ACWI", PREVIOUS_DATE))
+        .willReturn(Optional.of(fundValue("1000.00", PREVIOUS_DATE)));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var bmResult = results.stream().filter(r -> r.checkType() == BENCHMARK).findFirst();
+    assertThat(bmResult).isPresent();
+    // Fund return 0.01 (10.10/10.00), benchmark return 0.005 (1005.00/1000.00), so
+    // TD lands exactly on the 0.005 breach threshold configured in setUp() -> still a breach.
+    assertThat(bmResult.get().trackingDifference()).isEqualByComparingTo("0.005000");
+    assertThat(bmResult.get().breach()).isTrue();
+  }
+
+  @Test
+  void consecutiveBreachDaysResetsToZeroWhenTodayWithinToleranceDespitePriorStreak() {
+    skipOtherFunds(TUK75);
+
+    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), CHECK_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.10")));
+    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.00")));
+
+    var allocation =
+        ModelPortfolioAllocation.builder()
+            .fund(TUK75)
+            .isin("IE00B4L5Y983")
+            .weight(new BigDecimal("1.00"))
+            .effectiveDate(LocalDate.of(2026, 1, 1))
+            .build();
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, CHECK_DATE))
+        .willReturn(List.of(allocation));
+
+    given(positionPriceResolver.resolve(eq("IE00B4L5Y983"), eq(CHECK_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("101.00")));
+    given(positionPriceResolver.resolve(eq("IE00B4L5Y983"), eq(PREVIOUS_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("100.00")));
+
+    var position =
+        FundPosition.builder()
+            .fund(TUK75)
+            .navDate(CHECK_DATE)
+            .accountType(SECURITY)
+            .accountId("IE00B4L5Y983")
+            .marketValue(new BigDecimal("950000"))
+            .build();
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(CHECK_DATE, TUK75, SECURITY))
+        .willReturn(List.of(position));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, CHECK_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(new BigDecimal("1000000"));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, CHECK_DATE, List.of(CASH)))
+        .willReturn(new BigDecimal("50000"));
+
+    var priorBreach = breachEvent(LocalDate.of(2026, 4, 9), new BigDecimal("0.0030"));
+    given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 10))
+        .willReturn(List.of(priorBreach));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var modelResult = results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst();
+    assertThat(modelResult).isPresent();
+    assertThat(modelResult.get().breach()).isFalse();
+    assertThat(modelResult.get().consecutiveBreachDays()).isEqualTo(0);
+    assertThat(modelResult.get().consecutiveNetTd()).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void escalationNavResidualBreachTrueWhenPriorStreakHadNavResidualOnlyBreachDay() {
+    setupFundData(TUK75);
+
+    var navResidualDay = navResidualBreachEvent(LocalDate.of(2026, 4, 9));
+    given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 10))
+        .willReturn(List.of(navResidualDay));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var modelResult = results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst();
+    assertThat(modelResult).isPresent();
+    assertThat(modelResult.get().escalationNavResidualBreach()).isTrue();
+  }
+
+  @Test
+  void escalationNavResidualBreachFalseWhenNoPriorNavResidualBreachAndTodayGateSkipped() {
+    setupFundData(TUK75);
+
+    var priorBreach = breachEvent(LocalDate.of(2026, 4, 9), new BigDecimal("0.0030"));
+    given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 10))
+        .willReturn(List.of(priorBreach));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var modelResult = results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst();
+    assertThat(modelResult).isPresent();
+    assertThat(modelResult.get().navResidualBreach()).isFalse();
+    assertThat(modelResult.get().escalationNavResidualBreach()).isFalse();
+  }
+
+  @Test
   void checkFundReturnsEmptyWhenYesterdayNavMissing() {
     skipOtherFunds(TUK75);
     given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), CHECK_DATE))

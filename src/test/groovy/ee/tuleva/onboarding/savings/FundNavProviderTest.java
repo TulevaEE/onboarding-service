@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.savings.fund.nav;
+package ee.tuleva.onboarding.savings;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static org.assertj.core.api.Assertions.assertThat;

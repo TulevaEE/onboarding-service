@@ -19,11 +19,11 @@ import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.savings.FundNavProvider;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
-import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionBatchJob;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionService;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionStatusService;

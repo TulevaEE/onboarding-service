@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.analytics;
 
 import ee.tuleva.onboarding.analytics.transaction.thirdpillar.AnalyticsThirdPillarTransactionRepository;
 import ee.tuleva.onboarding.party.PartyId;
-import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
+import ee.tuleva.onboarding.savings.SavingFundPaymentQueries;
 import java.time.Clock;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +16,7 @@ public class RecurringSavers {
   private static final int MIN_CONTRIBUTION_MONTHS = 3;
 
   private final AnalyticsThirdPillarTransactionRepository thirdPillarTransactions;
-  private final SavingFundPaymentRepository savingsFundPayments;
+  private final SavingFundPaymentQueries savingsFundPayments;
   private final Clock clock;
 
   public boolean hasRecurringSavingsFundPayments(PartyId party) {

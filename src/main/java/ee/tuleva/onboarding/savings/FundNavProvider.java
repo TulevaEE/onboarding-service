@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.savings.fund.nav;
+package ee.tuleva.onboarding.savings;
 
 import static java.math.RoundingMode.HALF_UP;
 import static java.math.RoundingMode.UNNECESSARY;

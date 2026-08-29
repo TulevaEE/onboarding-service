@@ -5,9 +5,9 @@ import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RESERVE
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.savings.FundNavProvider;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
-import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
 import ee.tuleva.onboarding.savings.fund.notification.IssuingCompletedEvent;
 import java.time.*;
 import java.util.List;

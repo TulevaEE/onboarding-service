@@ -6,7 +6,7 @@ import ee.tuleva.onboarding.ledger.LedgerService
 import ee.tuleva.onboarding.party.PartyId
 import ee.tuleva.onboarding.savings.fund.SavingsFundConfiguration
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService
-import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider
+import ee.tuleva.onboarding.savings.FundNavProvider
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember

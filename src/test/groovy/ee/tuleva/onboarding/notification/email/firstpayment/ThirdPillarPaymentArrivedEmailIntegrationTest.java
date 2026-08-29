@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.notification.email.firstpayment;
 
-import static ee.tuleva.onboarding.analytics.transaction.thirdpillar.AnalyticsThirdPillarTransactionFixture.exampleTransactionBuilder;
+import static ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransactionFixture.exampleTransactionBuilder;
 import static ee.tuleva.onboarding.notification.email.EmailType.THIRD_PILLAR_PAYMENT_ARRIVED;
 import static ee.tuleva.onboarding.notification.email.EmailType.THIRD_PILLAR_PAYMENT_REMINDER_MANDATE;
 import static ee.tuleva.onboarding.notification.email.EmailType.THIRD_PILLAR_PAYMENT_SUCCESS_MANDATE;
@@ -16,8 +16,8 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
+import ee.tuleva.onboarding.analytics.FirstThirdPillarPayment;
 import ee.tuleva.onboarding.analytics.transaction.thirdpillar.AnalyticsThirdPillarTransactionRepository;
-import ee.tuleva.onboarding.analytics.transaction.thirdpillar.FirstThirdPillarPayment;
 import ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwner;
 import ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwnerRepository;
 import ee.tuleva.onboarding.auth.principal.Person;

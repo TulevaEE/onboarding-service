@@ -1,11 +1,11 @@
 package ee.tuleva.onboarding.aml.alert
 
-import ee.tuleva.onboarding.analytics.transaction.thirdpillar.AnalyticsThirdPillarTransaction
+import ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransaction
 import spock.lang.Specification
 import spock.lang.Unroll
 
 import static ee.tuleva.onboarding.aml.alert.AmlAlertType.*
-import static ee.tuleva.onboarding.analytics.transaction.thirdpillar.AnalyticsThirdPillarTransactionFixture.exampleTransactionBuilder
+import static ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransactionFixture.exampleTransactionBuilder
 
 class ThirdPillarAlertEvaluatorSpec extends Specification {
 

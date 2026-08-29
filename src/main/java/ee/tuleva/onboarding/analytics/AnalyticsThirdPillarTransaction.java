@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.analytics.transaction.thirdpillar;
+package ee.tuleva.onboarding.analytics;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;

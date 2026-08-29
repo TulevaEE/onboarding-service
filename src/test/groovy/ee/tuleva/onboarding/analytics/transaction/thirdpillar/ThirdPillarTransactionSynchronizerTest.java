@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransaction;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.transaction.ThirdPillarTransactionDto;
 import ee.tuleva.onboarding.time.FixedClockConfig;

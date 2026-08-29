@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.analytics.transaction.thirdpillar;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransaction;
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.epis.EnableEpisServiceHolder;
 import ee.tuleva.onboarding.epis.EnableEpisServiceHolder.EpisServiceHolder;

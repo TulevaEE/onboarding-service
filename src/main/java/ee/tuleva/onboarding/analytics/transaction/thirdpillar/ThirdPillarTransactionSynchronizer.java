@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.analytics.transaction.thirdpillar;
 
+import ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransaction;
 import ee.tuleva.onboarding.analytics.transaction.generic.AbstractTransactionSynchronizer;
 import ee.tuleva.onboarding.analytics.transaction.generic.SyncContext;
 import ee.tuleva.onboarding.epis.EpisService;

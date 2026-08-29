@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.analytics.transaction.thirdpillar;
+package ee.tuleva.onboarding.analytics;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.notification.email.Emailable;

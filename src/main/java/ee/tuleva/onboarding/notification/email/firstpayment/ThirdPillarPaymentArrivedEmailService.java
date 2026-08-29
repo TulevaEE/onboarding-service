@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.notification.email.firstpayment;
 
 import static ee.tuleva.onboarding.notification.email.EmailType.THIRD_PILLAR_PAYMENT_ARRIVED;
 
-import ee.tuleva.onboarding.analytics.transaction.thirdpillar.FirstThirdPillarPayment;
+import ee.tuleva.onboarding.analytics.FirstThirdPillarPayment;
 import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.savings.fund.SavingsFundFees;

@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,7 +18,7 @@ public class IbanWhitelistService {
   private final SavingFundIbanWhitelistRepository repository;
 
   @Transactional
-  public void add(PartyId partyId, String iban, String comment) {
+  public void add(PartyId partyId, String iban, @Nullable String comment) {
     String canonicalIban = IbanValidator.canonicalize(iban);
     if (repository.existsByPartyTypeAndPartyCodeAndIban(
         partyId.type(), partyId.code(), canonicalIban)) {
@@ -44,7 +45,7 @@ public class IbanWhitelistService {
         "Removed whitelisted IBAN: party={}, iban={}, removed={}", partyId, canonicalIban, removed);
   }
 
-  public List<IbanWhitelistEntry> list(PartyId partyId) {
+  public List<IbanWhitelistEntry> list(@Nullable PartyId partyId) {
     List<SavingFundIbanWhitelist> entries =
         partyId == null
             ? StreamSupport.stream(repository.findAll().spliterator(), false).toList()

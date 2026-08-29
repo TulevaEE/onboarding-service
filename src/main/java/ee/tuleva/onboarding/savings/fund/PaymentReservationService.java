@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RESERVED;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
@@ -22,7 +23,9 @@ public class PaymentReservationService {
     log.info("Processing reservation for payment {}", payment.getId());
 
     savingsFundLedger.reservePaymentForSubscription(
-        payment.getPartyId(), payment.getAmount(), payment.getId());
+        requireNonNull(payment.getPartyId(), "Missing partyId: paymentId=" + payment.getId()),
+        payment.getAmount(),
+        payment.getId());
 
     log.info("Reservation completed for payment {}", payment.getId());
     savingFundPaymentRepository.changeStatus(payment.getId(), RESERVED);

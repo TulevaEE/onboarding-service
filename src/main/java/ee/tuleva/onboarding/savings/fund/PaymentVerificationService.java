@@ -24,11 +24,13 @@ import ee.tuleva.onboarding.user.UserRepository;
 import ee.tuleva.onboarding.user.personalcode.PersonalCodeValidator;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -67,7 +69,8 @@ public class PaymentVerificationService {
                 "see ettevõte ei ole täiendava kogumisfondiga liitunud"));
 
     static VerificationMessages forType(PartyId.Type type) {
-      return BY_TYPE.get(type);
+      return Objects.requireNonNull(
+          BY_TYPE.get(type), "Missing verification messages: type=" + type);
     }
   }
 
@@ -120,7 +123,11 @@ public class PaymentVerificationService {
         "Verification completed for payment {}, attaching to party {}", payment.getId(), partyId);
     savingFundPaymentRepository.changeStatus(payment.getId(), VERIFIED);
     savingsFundLedger.recordPaymentReceived(
-        partyId, payment.getAmount(), payment.getId(), payment.bookingDate());
+        partyId,
+        payment.getAmount(),
+        payment.getId(),
+        Objects.requireNonNull(
+            payment.bookingDate(), "Missing receivedBefore: paymentId=" + payment.getId()));
 
     if (representingChild) {
       applicationEventPublisher.publishEvent(
@@ -140,7 +147,10 @@ public class PaymentVerificationService {
     savingFundPaymentRepository.addReturnReason(payment.getId(), reason);
 
     savingsFundLedger.recordUnattributedPayment(
-        payment.getAmount(), payment.getId(), payment.bookingDate());
+        payment.getAmount(),
+        payment.getId(),
+        Objects.requireNonNull(
+            payment.bookingDate(), "Missing receivedBefore: paymentId=" + payment.getId()));
 
     applicationEventPublisher.publishEvent(
         new UnattributedPaymentEvent(payment.getId(), payment.getAmount(), reason));
@@ -189,7 +199,7 @@ public class PaymentVerificationService {
         .or(() -> extractRegistryCode(text).map(code -> new PartyId(LEGAL_ENTITY, code)));
   }
 
-  Optional<PartyId> parsePartyId(String idCode) {
+  Optional<PartyId> parsePartyId(@Nullable String idCode) {
     if (idCode == null) return Optional.empty();
     if (personalCodeValidator.isValid(idCode)) return Optional.of(new PartyId(PERSON, idCode));
     if (registryCodeValidator.isValid(idCode))

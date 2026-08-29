@@ -499,9 +499,6 @@ public class PeriodicTdAttributionService {
     return new NavComponents(aum, securities, cash, nonSecurityValue);
   }
 
-  private record NavComponents(
-      BigDecimal aum, BigDecimal securities, BigDecimal cash, BigDecimal nonSecurityValue) {}
-
   @SuppressWarnings("unchecked")
   private List<SecurityDailyData> buildSecurityDailyData(
       TulevaFund fund,

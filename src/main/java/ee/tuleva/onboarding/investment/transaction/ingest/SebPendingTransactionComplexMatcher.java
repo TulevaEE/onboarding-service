@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -80,7 +81,8 @@ class SebPendingTransactionComplexMatcher {
     return Optional.of(quantityAmountValidator.buildMismatchEvent(order, row, properties));
   }
 
-  private List<TransactionOrder> sameFundIsinSideCandidates(SebPendingTransactionRow row) {
+  private @Nullable List<TransactionOrder> sameFundIsinSideCandidates(
+      SebPendingTransactionRow row) {
     if (row.isin() == null || row.side() == null) {
       return null;
     }

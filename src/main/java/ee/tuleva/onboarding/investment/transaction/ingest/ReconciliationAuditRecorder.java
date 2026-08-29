@@ -10,6 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -73,7 +74,9 @@ class ReconciliationAuditRecorder {
 
   void recordQuantityAmountMismatch(QuantityAmountMismatchEvent mismatch) {
     TransactionOrder order = mismatch.order();
-    LocalDate reportDate = mismatch.reportDate();
+    LocalDate reportDate =
+        Objects.requireNonNull(
+            mismatch.reportDate(), "Missing reportDate: orderId=" + order.getId());
     if (alreadyRecordedForReportDate(order.getId(), QUANTITY_AMOUNT_MISMATCH, reportDate)) {
       return;
     }
@@ -128,12 +131,16 @@ class ReconciliationAuditRecorder {
     return !auditEventRepository.findByEventTypeAndDedupKey(eventType, dedupKey).isEmpty();
   }
 
-  private void save(String eventType, TransactionOrder order, Map<String, Object> payload) {
+  private void save(
+      String eventType, @Nullable TransactionOrder order, Map<String, Object> payload) {
     save(eventType, order, payload, null);
   }
 
   private void save(
-      String eventType, TransactionOrder order, Map<String, Object> payload, String dedupKey) {
+      String eventType,
+      @Nullable TransactionOrder order,
+      Map<String, Object> payload,
+      @Nullable String dedupKey) {
     auditEventRepository.save(
         TransactionAuditEvent.builder()
             .orderId(order == null ? null : order.getId())
@@ -193,7 +200,8 @@ class ReconciliationAuditRecorder {
     return payload;
   }
 
-  private static void putIfNotNull(Map<String, Object> payload, String key, Object value) {
+  private static void putIfNotNull(
+      Map<String, Object> payload, String key, @Nullable Object value) {
     if (value != null) {
       payload.put(key, value);
     }

@@ -89,7 +89,11 @@ public class FundPositionImportJob {
   private void runImportPipeline() {
     pipelineTracker.stepStarted(POSITION_IMPORT);
     var totals = runImport();
-    pipelineTracker.stepCompleted(POSITION_IMPORT, totals);
+    if (totals == null) {
+      pipelineTracker.stepCompleted(POSITION_IMPORT);
+    } else {
+      pipelineTracker.stepCompleted(POSITION_IMPORT, totals);
+    }
 
     pipelineTracker.stepStarted(HEALTH_CHECK);
     if (healthCheckFailed) {

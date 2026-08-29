@@ -23,6 +23,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.jspecify.annotations.Nullable;
 
 @Data
 @Builder
@@ -55,15 +56,15 @@ public class TransactionOrder {
   @Enumerated(STRING)
   private InstrumentType instrumentType;
 
-  private BigDecimal orderAmount;
+  @Nullable private BigDecimal orderAmount;
 
-  private BigDecimal orderQuantity;
+  @Nullable private BigDecimal orderQuantity;
 
   @NotNull
   @Enumerated(STRING)
   private OrderVenue orderVenue;
 
-  private String traderId;
+  private @Nullable String traderId;
 
   @NotNull @Builder.Default private UUID orderUuid = UUID.randomUUID();
 
@@ -74,11 +75,11 @@ public class TransactionOrder {
 
   @NotNull @Builder.Default private String orderType = "MOC";
 
-  private Instant orderTimestamp;
+  @Nullable private Instant orderTimestamp;
 
-  private LocalDate expectedSettlementDate;
+  @Nullable private LocalDate expectedSettlementDate;
 
-  private String comment;
+  @Nullable private String comment;
 
   private Instant createdAt;
 

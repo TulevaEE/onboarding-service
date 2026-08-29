@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import lombok.Getter;
+import org.jspecify.annotations.Nullable;
 
 @Getter
 public class PipelineRun {
@@ -62,7 +63,7 @@ public class PipelineRun {
     findStep(name).ifPresent(step -> step.complete(clock().instant(), detail));
   }
 
-  public void stepFailed(String name, String error) {
+  public void stepFailed(String name, @Nullable String error) {
     findStep(name).ifPresent(step -> step.fail(clock().instant(), error));
   }
 
@@ -92,10 +93,10 @@ public class PipelineRun {
   public static class StepResult {
     private final String name;
     private final Instant startedAt;
-    private Instant completedAt;
+    @Nullable private Instant completedAt;
     private StepStatus status;
-    private String error;
-    private String detail;
+    @Nullable private String error;
+    @Nullable private String detail;
 
     StepResult(String name, Instant startedAt) {
       this.name = name;
@@ -114,7 +115,7 @@ public class PipelineRun {
       this.detail = detail;
     }
 
-    void fail(Instant at, String error) {
+    void fail(Instant at, @Nullable String error) {
       this.completedAt = at;
       this.status = StepStatus.FAILED;
       this.error = error;

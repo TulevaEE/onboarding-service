@@ -1,6 +1,6 @@
 {
-  "branchCoverage": 85.27,
-  "lineCoverage": 82.59,
+  "branchCoverage": 85.22,
+  "lineCoverage": 82.62,
   "meanInstability": 0.469,
   "moduleCycles": 18,
   "modulithViolations": 109,
@@ -15,7 +15,7 @@
     "TooManyMethods": 7
   },
   "springBootTests": 89,
-  "top15ClassLines": 8120,
+  "top15ClassLines": 8118,
   "totalPackages": 225,
-  "unmarkedPackages": 5
+  "unmarkedPackages": 0
 }

@@ -189,12 +189,16 @@ class SettlementCheckJob {
   }
 
   private @Nullable LocalDate sentDeadline(TransactionOrder order) {
-    if (order.getOrderTimestamp() == null || order.getInstrumentType() == null) {
+    Instant orderTimestamp = order.getOrderTimestamp();
+    if (orderTimestamp == null || order.getInstrumentType() == null) {
       return null;
     }
     InstrumentType instrumentType = order.getInstrumentType();
     return settlementDateCalculator.addBusinessDays(
-        orderDate(order), instrumentType, order.getInstrumentIsin(), thresholdFor(instrumentType));
+        orderDate(orderTimestamp),
+        instrumentType,
+        order.getInstrumentIsin(),
+        thresholdFor(instrumentType));
   }
 
   private @Nullable LocalDate executedDeadline(
@@ -231,8 +235,8 @@ class SettlementCheckJob {
         : FUND_THRESHOLD_BUSINESS_DAYS;
   }
 
-  private static LocalDate orderDate(TransactionOrder order) {
-    return order.getOrderTimestamp().atZone(TALLINN).toLocalDate();
+  private static LocalDate orderDate(Instant orderTimestamp) {
+    return orderTimestamp.atZone(TALLINN).toLocalDate();
   }
 
   private String buildMessage(
@@ -321,7 +325,7 @@ class SettlementCheckJob {
             .append(", ISIN: ")
             .append(order.getInstrumentIsin())
             .append(", saadetud: ")
-            .append(order.getOrderTimestamp() == null ? "?" : orderDate(order))
+            .append(order.getOrderTimestamp() == null ? "?" : orderDate(order.getOrderTimestamp()))
             .append(", tähtaeg: ")
             .append(line.deadline());
       }

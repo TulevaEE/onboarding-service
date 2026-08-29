@@ -43,7 +43,7 @@ public class SavingFundPaymentController {
       @PathVariable("id") UUID paymentId,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     log.info("Cancelling savings fund payment {}", paymentId);
-    var partyId = PartyId.from(authenticatedPerson.getRole());
+    var partyId = authenticatedPerson.toPartyId();
     savingFundPaymentUpsertionService.cancelPayment(partyId, paymentId);
     userService
         .findByPersonalCode(authenticatedPerson.getPersonalCode())
@@ -89,7 +89,7 @@ public class SavingFundPaymentController {
   @GetMapping("/bank-accounts")
   public List<String> getBankAccounts(
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-    PartyId partyId = PartyId.from(authenticatedPerson.getRole());
+    PartyId partyId = authenticatedPerson.toPartyId();
     return Stream.concat(
             savingFundPaymentRepository.findWithdrawableIbans(partyId).stream(),
             ibanWhitelistService.findWhitelistedIbans(partyId).stream())

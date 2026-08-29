@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static java.util.Objects.requireNonNull;
+
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
 import java.time.Clock;
@@ -24,18 +26,26 @@ public class PaymentReservationFilterService {
 
     var paymentsToReserve =
         payments.stream()
-            .filter(payment -> payment.getReceivedBefore() != null)
-            .filter(payment -> payment.getReceivedBefore().isBefore(cutoffTime))
-            .filter(payment -> payment.getCancelledAt() == null)
+            .filter(
+                payment -> {
+                  var receivedBefore = payment.getReceivedBefore();
+                  return receivedBefore != null
+                      && receivedBefore.isBefore(cutoffTime)
+                      && payment.getCancelledAt() == null;
+                })
             .toList();
 
     paymentsToReserve.forEach(
         payment -> {
-          if (payment.getReceivedBefore().isBefore(previousCutoffTime)) {
+          var receivedBefore =
+              requireNonNull(
+                  payment.getReceivedBefore(),
+                  "Missing receivedBefore: paymentId=" + payment.getId());
+          if (receivedBefore.isBefore(previousCutoffTime)) {
             log.error(
                 "Old payment detected: payment {} was received at {} which is before the previous cutoff time {}",
                 payment.getId(),
-                payment.getReceivedBefore(),
+                receivedBefore,
                 cutoffTime);
           }
         });

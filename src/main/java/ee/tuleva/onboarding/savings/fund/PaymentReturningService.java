@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RETURNED;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.payment.PaymentRequest;
@@ -52,6 +53,8 @@ public class PaymentReturningService {
 
   private void reserveUserBalanceForReturn(SavingFundPayment payment) {
     savingsFundLedger.reservePaymentForCancellation(
-        payment.getPartyId(), payment.getAmount(), payment.getId());
+        requireNonNull(payment.getPartyId(), "Missing partyId: paymentId=" + payment.getId()),
+        payment.getAmount(),
+        payment.getId());
   }
 }

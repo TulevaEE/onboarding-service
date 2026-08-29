@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.investment.transaction.ingest.ReconciliationA
 import static ee.tuleva.onboarding.investment.transaction.ingest.ReconciliationAuditRecorder.REASON_ISIN_SIDE_MISMATCH;
 import static ee.tuleva.onboarding.investment.transaction.ingest.ReconciliationAuditRecorder.REASON_MISSING_ISIN;
 import static ee.tuleva.onboarding.investment.transaction.ingest.ReconciliationAuditRecorder.REASON_MISSING_OUR_REF;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
@@ -275,7 +276,8 @@ public class SebPendingTransactionReconciliationService {
       return false;
     }
     Optional<TransactionExecution> existing =
-        executionRepository.findByBrokerTransactionId(row.ourRef());
+        executionRepository.findByBrokerTransactionId(
+            requireNonNull(row.ourRef(), "Missing ourRef: orderId=" + order.getId()));
     if (existing.isPresent()) {
       TransactionExecution execution = existing.get();
       Map<String, Object> before = executionMapper.mutableFieldsForDeltaAudit(execution);

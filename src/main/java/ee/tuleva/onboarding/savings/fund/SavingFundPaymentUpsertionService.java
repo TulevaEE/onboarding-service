@@ -10,6 +10,7 @@ import java.util.*;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -121,7 +122,7 @@ public class SavingFundPaymentUpsertionService {
             mergeAndValidateField(
                 "remitterIban", existing.getRemitterIban(), payment.getRemitterIban()))
         .remitterIdCode(
-            mergeAndValidateField(
+            mergeAndValidateNullableField(
                 "remitterIdCode", existing.getRemitterIdCode(), payment.getRemitterIdCode()))
         .remitterName(
             mergeName(
@@ -133,7 +134,7 @@ public class SavingFundPaymentUpsertionService {
             mergeAndValidateField(
                 "beneficiaryIban", existing.getBeneficiaryIban(), payment.getBeneficiaryIban()))
         .beneficiaryIdCode(
-            mergeAndValidateField(
+            mergeAndValidateNullableField(
                 "beneficiaryIdCode",
                 existing.getBeneficiaryIdCode(),
                 payment.getBeneficiaryIdCode()))
@@ -144,7 +145,8 @@ public class SavingFundPaymentUpsertionService {
                 existing.getBeneficiaryName(),
                 payment.getBeneficiaryName()))
         .externalId(
-            mergeAndValidateField("externalId", existing.getExternalId(), payment.getExternalId()))
+            mergeAndValidateNullableField(
+                "externalId", existing.getExternalId(), payment.getExternalId()))
         .createdAt(existing.getCreatedAt())
         .receivedBefore(payment.getReceivedBefore())
         .status(existing.getStatus())
@@ -165,7 +167,20 @@ public class SavingFundPaymentUpsertionService {
     return existingValue;
   }
 
-  private <T> T mergeAndValidateField(String fieldName, T existingValue, T newValue) {
+  private <T> T mergeAndValidateField(String fieldName, @Nullable T existingValue, T newValue) {
+    if (existingValue == null) {
+      return newValue;
+    } else if (!existingValue.equals(newValue)) {
+      throw new IllegalStateException(
+          String.format(
+              "Payment field mismatch: %s existing='%s', incoming='%s'",
+              fieldName, existingValue, newValue));
+    }
+    return existingValue;
+  }
+
+  private <T> @Nullable T mergeAndValidateNullableField(
+      String fieldName, @Nullable T existingValue, @Nullable T newValue) {
     if (existingValue == null) {
       return newValue;
     } else if (newValue == null) {

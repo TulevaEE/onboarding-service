@@ -282,7 +282,7 @@ public class TransactionInputService {
             position ->
                 new PositionSnapshot(
                     position.getAccountId(),
-                    position.getMarketValue(),
+                    Objects.requireNonNull(position.getMarketValue()),
                     position.getQuantity(),
                     position.getMarketPrice()))
         .toList();
@@ -331,7 +331,12 @@ public class TransactionInputService {
 
   private List<ModelWeight> toModelWeights(List<ModelPortfolioAllocation> allocations) {
     return allocations.stream()
-        .map(allocation -> new ModelWeight(allocation.getIsin(), allocation.getWeight()))
+        .map(
+            allocation ->
+                new ModelWeight(
+                    Objects.requireNonNull(
+                        allocation.getIsin(), "Missing isin: allocationId=" + allocation.getId()),
+                    allocation.getWeight()))
         .toList();
   }
 

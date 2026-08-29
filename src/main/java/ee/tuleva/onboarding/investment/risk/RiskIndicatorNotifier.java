@@ -625,22 +625,6 @@ class RiskIndicatorNotifier {
         && !Objects.equals(disclosed.getDisclosedClass(), indicator.publishedClass());
   }
 
-  private enum Severity {
-    GREEN("✅"),
-    YELLOW("⚠️"),
-    RED("🔴");
-
-    private final String icon;
-
-    Severity(String icon) {
-      this.icon = icon;
-    }
-
-    String icon() {
-      return icon;
-    }
-  }
-
   private Severity severity(
       PublishedRiskIndicator indicator, @Nullable DisclosedRiskIndicator disclosed) {
     if (isMismatched(disclosed, indicator)) {

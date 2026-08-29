@@ -14,6 +14,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -99,7 +100,8 @@ public class PortfolioReconciliationService {
         new PortfolioReconciliationSkippedEvent(fund, asOfDate, ourQuantities, theirQuantities));
   }
 
-  private boolean isMismatch(BigDecimal ourQty, BigDecimal theirQty, BigDecimal delta) {
+  private boolean isMismatch(
+      @Nullable BigDecimal ourQty, @Nullable BigDecimal theirQty, BigDecimal delta) {
     if (ourQty == null || theirQty == null) {
       return true;
     }

@@ -9,6 +9,7 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -25,7 +26,10 @@ public class SavingsFundOnboardingRepository {
     return jdbcClient
         .sql("SELECT code FROM savings_fund_onboarding WHERE type = 'PERSON'")
         .query(String.class)
-        .list();
+        .list()
+        .stream()
+        .map(Objects::requireNonNull)
+        .toList();
   }
 
   public List<String> findPendingLegalEntityCodes() {
@@ -38,7 +42,10 @@ public class SavingsFundOnboardingRepository {
             ORDER BY code
             """)
         .query(String.class)
-        .list();
+        .list()
+        .stream()
+        .map(Objects::requireNonNull)
+        .toList();
   }
 
   public boolean isOnboardingCompleted(String code, PartyId.Type type) {
@@ -77,7 +84,10 @@ public class SavingsFundOnboardingRepository {
         .param("ownershipCheckTypes", ownershipCheckTypeNames())
         .param("since", Timestamp.from(since))
         .query(String.class)
-        .list();
+        .list()
+        .stream()
+        .map(Objects::requireNonNull)
+        .toList();
   }
 
   private static List<String> ownershipCheckTypeNames() {

@@ -9,6 +9,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -18,7 +19,11 @@ public class PipelineNotifier {
 
   private final OperationsNotificationService notificationService;
 
-  public void sendCompleted(PipelineRun pipeline) {
+  public void sendCompleted(@Nullable PipelineRun pipeline) {
+    if (pipeline == null) {
+      log.error("No current pipeline run to send a completion notification for");
+      return;
+    }
     try {
       if (pipeline.hasFailure()) {
         sendFailure(pipeline);

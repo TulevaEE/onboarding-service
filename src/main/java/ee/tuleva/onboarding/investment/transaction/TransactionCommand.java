@@ -23,6 +23,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcTypeCode;
+import org.jspecify.annotations.Nullable;
 
 @Data
 @Builder
@@ -47,7 +48,7 @@ public class TransactionCommand {
 
   @NotNull private LocalDate asOfDate;
 
-  private BigDecimal cash;
+  @Nullable private BigDecimal cash;
 
   @Builder.Default
   @JdbcTypeCode(JSON)
@@ -58,15 +59,15 @@ public class TransactionCommand {
   @Builder.Default
   private CommandStatus status = CommandStatus.PENDING;
 
-  private String errorMessage;
+  @Nullable private String errorMessage;
 
-  private String actor;
+  @Nullable private String actor;
 
-  private Long batchId;
+  @Nullable private Long batchId;
 
-  private Instant createdAt;
+  @Nullable private Instant createdAt;
 
-  private Instant processedAt;
+  @Nullable private Instant processedAt;
 
   @PrePersist
   protected void onCreate() {

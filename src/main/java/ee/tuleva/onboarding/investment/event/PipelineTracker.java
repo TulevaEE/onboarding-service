@@ -54,7 +54,7 @@ public class PipelineTracker {
     }
   }
 
-  public void stepFailed(String name, String error) {
+  public void stepFailed(String name, @Nullable String error) {
     var run = CURRENT.get();
     if (run != null) {
       run.stepFailed(name, error);

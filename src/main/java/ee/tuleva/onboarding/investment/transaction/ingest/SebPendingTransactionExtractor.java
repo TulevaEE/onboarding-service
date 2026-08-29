@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -53,7 +54,7 @@ class SebPendingTransactionExtractor {
         || isNonBlank(raw.get("ISIN"));
   }
 
-  private static boolean isNonBlank(Object value) {
+  private static boolean isNonBlank(@Nullable Object value) {
     return value != null && !value.toString().trim().isEmpty();
   }
 }

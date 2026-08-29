@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ZERO;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.BankAccountType;
@@ -25,6 +26,7 @@ import java.time.ZoneId;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -186,7 +188,8 @@ public class SavingsFundStatementProcessor {
     markRedemptionAsProcessed(request);
   }
 
-  private Optional<RedemptionRequest> findRedemptionRequestByEndToEndId(String endToEndId) {
+  private Optional<RedemptionRequest> findRedemptionRequestByEndToEndId(
+      @Nullable String endToEndId) {
     return endToEndIdConverter
         .toUuid(endToEndId)
         .flatMap(
@@ -255,6 +258,9 @@ public class SavingsFundStatementProcessor {
   }
 
   private static LocalDate bookingDate(SavingFundPayment payment) {
-    return payment.getReceivedBefore().atZone(ESTONIAN_ZONE).toLocalDate();
+    return requireNonNull(
+            payment.getReceivedBefore(), "Missing receivedBefore: paymentId=" + payment.getId())
+        .atZone(ESTONIAN_ZONE)
+        .toLocalDate();
   }
 }

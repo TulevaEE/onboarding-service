@@ -221,9 +221,12 @@ public class FtConfirmationVerificationService {
     }
     List<TransactionOrder> quantityMatches =
         candidates.stream()
-            .filter(order -> order.getOrderQuantity() != null)
             .filter(
-                order -> withinQuantityTolerance(confirmation.quantity(), order.getOrderQuantity()))
+                order -> {
+                  var orderQuantity = order.getOrderQuantity();
+                  return orderQuantity != null
+                      && withinQuantityTolerance(confirmation.quantity(), orderQuantity);
+                })
             .collect(toList());
     if (quantityMatches.size() == 1) {
       return new OrderSelection(quantityMatches.get(0), false, 1);

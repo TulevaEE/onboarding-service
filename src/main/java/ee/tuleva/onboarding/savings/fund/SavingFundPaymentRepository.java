@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.*;
 import static java.time.temporal.ChronoUnit.DAYS;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.party.PartyId;
@@ -16,6 +17,7 @@ import java.time.LocalDate;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -223,7 +225,7 @@ public class SavingFundPaymentRepository {
     return jdbcTemplate.query("select * from saving_fund_payment", this::rowMapper);
   }
 
-  public Optional<SavingFundPayment> findOriginalPaymentForReturn(String endToEndId) {
+  public Optional<SavingFundPayment> findOriginalPaymentForReturn(@Nullable String endToEndId) {
     if (endToEndId == null || endToEndId.length() != 32) {
       return Optional.empty();
     }
@@ -277,7 +279,7 @@ public class SavingFundPaymentRepository {
     return results.isEmpty() ? Optional.empty() : Optional.of(results.getFirst());
   }
 
-  private UUID toUuid(String endToEndId) {
+  private @Nullable UUID toUuid(String endToEndId) {
     try {
       return UUID.fromString(
           endToEndId.substring(0, 8)
@@ -295,8 +297,9 @@ public class SavingFundPaymentRepository {
   }
 
   private SavingFundPayment rowMapper(ResultSet rs, int ignored) throws SQLException {
+    UUID id = UUID.fromString(requireNonNull(rs.getString("id")));
     return SavingFundPayment.builder()
-        .id(UUID.fromString(rs.getString("id")))
+        .id(id)
         .partyId(mapParty(rs))
         .externalId(rs.getString("external_id"))
         .endToEndId(rs.getString("end_to_end_id"))
@@ -310,7 +313,9 @@ public class SavingFundPaymentRepository {
         .beneficiaryIdCode(rs.getString("beneficiary_id_code"))
         .beneficiaryName(rs.getString("beneficiary_name"))
         .status(Status.valueOf(rs.getString("status")))
-        .createdAt(instant(rs, "created_at"))
+        .createdAt(
+            requireNonNull(
+                instant(rs, "created_at"), "Missing value: column=created_at, paymentId=" + id))
         .receivedBefore(instant(rs, "received_before"))
         .statusChangedAt(instant(rs, "status_changed_at"))
         .cancelledAt(instant(rs, "cancelled_at"))
@@ -318,12 +323,12 @@ public class SavingFundPaymentRepository {
         .build();
   }
 
-  private Instant instant(ResultSet rs, String column) throws SQLException {
+  private @Nullable Instant instant(ResultSet rs, String column) throws SQLException {
     var timestamp = rs.getTimestamp(column);
     return timestamp != null ? timestamp.toInstant() : null;
   }
 
-  private PartyId mapParty(ResultSet rs) throws SQLException {
+  private @Nullable PartyId mapParty(ResultSet rs) throws SQLException {
     var type = rs.getString("party_type");
     var code = rs.getString("party_code");
     return type != null && code != null ? new PartyId(PartyId.Type.valueOf(type), code) : null;
@@ -421,9 +426,11 @@ public class SavingFundPaymentRepository {
   }
 
   private Status getAndLockCurrentStatus(UUID paymentId) {
-    return jdbcTemplate.queryForObject(
-        "select status from saving_fund_payment where id=:id for update",
-        Map.of("id", paymentId),
-        Status.class);
+    return requireNonNull(
+        jdbcTemplate.queryForObject(
+            "select status from saving_fund_payment where id=:id for update",
+            Map.of("id", paymentId),
+            Status.class),
+        "Missing payment: paymentId=" + paymentId);
   }
 }

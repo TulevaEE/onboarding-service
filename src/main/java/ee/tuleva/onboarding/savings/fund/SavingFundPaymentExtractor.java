@@ -57,7 +57,9 @@ public class SavingFundPaymentExtractor {
           "Amount has more than 2 significant decimal places: " + entry.amount());
     }
 
-    var counterParty = entry.details();
+    var counterParty =
+        Objects.requireNonNull(
+            entry.details(), "Missing counterparty details: externalId=" + entry.externalId());
 
     // For CREDIT: counterparty is remitter, account holder is beneficiary
     // For DEBIT: account holder is remitter, counterparty is beneficiary

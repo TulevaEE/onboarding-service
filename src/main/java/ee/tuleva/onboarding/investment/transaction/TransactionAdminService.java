@@ -61,7 +61,7 @@ class TransactionAdminService {
         fund,
         mode,
         asOfDate);
-    ProcessCommandResult result = preparationService.processCommand(command);
+    @Nullable ProcessCommandResult result = preparationService.processCommand(command);
     List<TransactionOrder> orders = result == null ? List.of() : result.orders();
     return TransactionCommandResponse.from(command, orders, snapshotOf(command));
   }

@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -64,7 +65,7 @@ public class TransactionPreparationService {
   private final Clock clock;
 
   @Transactional
-  public ProcessCommandResult processCommand(TransactionCommand command) {
+  public @Nullable ProcessCommandResult processCommand(TransactionCommand command) {
     @Nullable FundTransactionInput input = null;
     @Nullable TransactionBatch batch = null;
     try {
@@ -292,46 +293,40 @@ public class TransactionPreparationService {
       TransactionBatch batch, FundCalculationResult result, LocalDate asOfDate, Instant createdAt) {
     var input = result.input();
     List<TransactionOrder> orders = new ArrayList<>();
-    Map<String, ResolvedPrice> priceResolutions = new LinkedHashMap<>();
+    Map<String, @Nullable ResolvedPrice> priceResolutions = new LinkedHashMap<>();
 
     for (TradeCalculation trade : result.trades()) {
       if (trade.tradeAmount().compareTo(ZERO) == 0) {
         continue;
       }
-      var instrumentType = input.instrumentTypes().getOrDefault(trade.isin(), InstrumentType.ETF);
+      String isin =
+          Objects.requireNonNull(
+              trade.isin(), "Trade with non-zero amount is missing isin: fund=" + result.fund());
+      var instrumentType = input.instrumentTypes().getOrDefault(isin, InstrumentType.ETF);
       var transactionType =
           trade.tradeAmount().compareTo(ZERO) > 0 ? TransactionType.BUY : TransactionType.SELL;
       var orderAmount = trade.tradeAmount().abs();
       var orderQuantity =
-          resolveOrderQuantity(
-              instrumentType, transactionType, trade.isin(), orderAmount, asOfDate);
+          resolveOrderQuantity(instrumentType, transactionType, isin, orderAmount, asOfDate);
       if (!isAmountBasedOrder(instrumentType, transactionType)) {
-        priceResolutions.put(trade.isin(), orderQuantity.resolvedPrice());
+        priceResolutions.put(isin, orderQuantity.resolvedPrice());
       }
       orders.add(
           TransactionOrder.builder()
               .batch(batch)
               .fund(result.fund())
-              .instrumentIsin(trade.isin())
+              .instrumentIsin(isin)
               .transactionType(transactionType)
               .instrumentType(instrumentType)
               .orderAmount(orderAmount)
               .orderQuantity(orderQuantity.quantity())
               .comment(orderQuantity.stalePriceComment())
-              .orderVenue(input.orderVenues().getOrDefault(trade.isin(), OrderVenue.SEB))
+              .orderVenue(input.orderVenues().getOrDefault(isin, OrderVenue.SEB))
               .createdAt(createdAt)
               .build());
     }
     return new CalculatedOrders(orders, priceResolutions);
   }
-
-  private record CalculatedOrders(
-      List<TransactionOrder> orders, Map<String, ResolvedPrice> priceResolutions) {}
-
-  private record OrderQuantity(
-      @Nullable BigDecimal quantity,
-      @Nullable String stalePriceComment,
-      @Nullable ResolvedPrice resolvedPrice) {}
 
   private OrderQuantity resolveOrderQuantity(
       InstrumentType instrumentType,
@@ -343,7 +338,15 @@ public class TransactionPreparationService {
       return new OrderQuantity(null, null, null);
     }
     ResolvedPrice resolvedPrice = positionPriceResolver.resolve(isin, asOfDate).orElse(null);
-    BigDecimal price = resolvedPrice == null ? null : resolvedPrice.usedPrice();
+    if (resolvedPrice == null) {
+      log.warn(
+          "No price found for order quantity: isin={}, instrumentType={}, asOfDate={}",
+          isin,
+          instrumentType,
+          asOfDate);
+      return new OrderQuantity(null, null, null);
+    }
+    BigDecimal price = resolvedPrice.usedPrice();
     if (price == null) {
       log.warn(
           "No price found for order quantity: isin={}, instrumentType={}, asOfDate={}",
@@ -630,7 +633,7 @@ public class TransactionPreparationService {
   static List<Map<String, Object>> serializeTrades(
       List<TradeCalculation> trades,
       Map<String, TransactionOrder> ordersByIsin,
-      Map<String, ResolvedPrice> priceResolutions) {
+      Map<String, @Nullable ResolvedPrice> priceResolutions) {
     return trades.stream()
         .map(
             trade ->
@@ -690,7 +693,7 @@ public class TransactionPreparationService {
   }
 
   static List<Map<String, Object>> serializePriceResolutions(
-      Map<String, ResolvedPrice> priceResolutions) {
+      Map<String, @Nullable ResolvedPrice> priceResolutions) {
     return priceResolutions.entrySet().stream()
         .map(entry -> serializePriceResolution(entry.getKey(), entry.getValue()))
         .toList();
@@ -733,7 +736,7 @@ public class TransactionPreparationService {
 
   private Map<String, String> buildLookupMap(
       List<ModelPortfolioAllocation> allocations,
-      Function<ModelPortfolioAllocation, String> valueExtractor) {
+      Function<ModelPortfolioAllocation, @Nullable String> valueExtractor) {
     return allocations.stream()
         .filter(
             allocation -> allocation.getIsin() != null && valueExtractor.apply(allocation) != null)

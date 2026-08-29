@@ -218,7 +218,11 @@ public class SavingsFundTransactionService implements SavingsTransactions {
         .currency(EUR)
         .time(ledgerTransaction.getTransactionDate())
         .priceTime(ledgerTransaction.getTransactionDate())
-        .settledTime(externalReference == null ? null : payoutTimes.get(externalReference))
+        .settledTime(
+            externalReference == null
+                ? ledgerTransaction.getTransactionDate()
+                : payoutTimes.getOrDefault(
+                    externalReference, ledgerTransaction.getTransactionDate()))
         .isin(isin)
         .type(type)
         .units(require(ledgerTransaction.findUserFundUnits(), "fundUnits", ledgerTransaction))

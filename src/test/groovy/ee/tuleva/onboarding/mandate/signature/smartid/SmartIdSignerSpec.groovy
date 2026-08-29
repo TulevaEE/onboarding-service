@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.signature.smartid
 
+import ee.sk.smartid.SignableHash
 import ee.sk.smartid.*
 import ee.sk.smartid.rest.SmartIdConnector
 import ee.sk.smartid.rest.dao.SessionStatus
@@ -116,6 +117,8 @@ class SmartIdSignerSpec extends Specification {
     signatureSession.signingSessionId = signingSessionId
     signatureSession.dataToSign = dataToSign
     signatureSession.container = container
+    signatureSession.documentNumber = documentNumber
+    signatureSession.signableHash = new SignableHash()
     def completeSession = new SessionStatus(state: "COMPLETE")
     def signature = new SmartIdSignature(
         valueInBase64: "IA==",

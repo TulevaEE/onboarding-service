@@ -152,11 +152,7 @@ class UserControllerSpec extends BaseControllerSpec {
     given:
     def contactDetails = contactDetailsFixture()
     def address = countryFixture().build()
-    def command = new UpdateUserCommand(
-        email: "erko@risthein.ee",
-        phoneNumber: "5555555",
-        address: address
-    )
+    def command = new UpdateUserCommand("erko@risthein.ee", "5555555", address)
     def updatedUser = userFrom(sampleAuthenticatedPerson, command)
     def samplePaymentRates = new PaymentRates(2, 6)
 
@@ -195,10 +191,7 @@ class UserControllerSpec extends BaseControllerSpec {
 
   def "can update just email and phone number"() {
     given:
-    def command = new UpdateUserCommand(
-        email: "erko@risthein.ee",
-        phoneNumber: "5555555"
-    )
+    def command = new UpdateUserCommand("erko@risthein.ee", "5555555", null)
     def updatedUser = userFrom(sampleAuthenticatedPerson, command)
 
     1 * userService
@@ -229,7 +222,7 @@ class UserControllerSpec extends BaseControllerSpec {
 
   def "validates a new user before saving"() {
     given:
-    def command = new UpdateUserCommand()
+    def command = new UpdateUserCommand(null, null, null)
     def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
 
     when:

@@ -63,14 +63,12 @@ public class UserController {
 
     User user =
         userService.updateUser(
-            authenticatedPerson.getPersonalCode(),
-            Optional.of(cmd.getEmail()),
-            cmd.getPhoneNumber());
+            authenticatedPerson.getPersonalCode(), Optional.of(cmd.email()), cmd.phoneNumber());
 
-    if (cmd.getAddress() != null) {
+    if (cmd.address() != null) {
       ContactDetails contactDetails =
           contactDetailsService.updateContactDetails(
-              user, user.getEmail(), user.getPhoneNumber(), cmd.getAddress());
+              user, user.getEmail(), user.getPhoneNumber(), cmd.address());
       return UserResponse.from(
           user,
           contactDetails,

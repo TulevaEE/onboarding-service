@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.auth.manager;
 
+import static java.util.Objects.requireNonNull;
+
 import ee.tuleva.onboarding.auth.PersonalCodeAuthentication;
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
@@ -21,7 +23,8 @@ public class RefreshingAuthenticationManager implements AuthenticationManager {
   public Authentication authenticate(Authentication authentication) throws AuthenticationException {
 
     PersonalCodeAuthentication personalCodeAuthentication =
-        (PersonalCodeAuthentication) authentication.getPrincipal();
+        (PersonalCodeAuthentication)
+            requireNonNull(authentication.getPrincipal(), "Principal missing");
     AuthenticatedPerson authenticatedPerson = personalCodeAuthentication.getPrincipal();
 
     List<? extends GrantedAuthority> updatedAuthorities =

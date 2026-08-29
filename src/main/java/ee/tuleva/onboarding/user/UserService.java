@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.user.member.MemberRepository;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -46,7 +47,8 @@ public class UserService {
     }
   }
 
-  public User updateUser(String personalCode, Optional<String> email, String phoneNumber) {
+  public User updateUser(
+      String personalCode, Optional<String> email, @Nullable String phoneNumber) {
     if (isExistingEmail(personalCode, email)) {
       throw DuplicateEmailException.newInstance();
     }

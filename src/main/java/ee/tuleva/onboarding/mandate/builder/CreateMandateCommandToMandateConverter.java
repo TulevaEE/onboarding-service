@@ -20,6 +20,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 
@@ -82,7 +83,7 @@ public class CreateMandateCommandToMandateConverter {
     return fund.getPillar();
   }
 
-  private String getIsin(CreateMandateCommand createMandateCommand) {
+  private @Nullable String getIsin(CreateMandateCommand createMandateCommand) {
     if (createMandateCommand.getFutureContributionFundIsin() != null) {
       return createMandateCommand.getFutureContributionFundIsin();
     }

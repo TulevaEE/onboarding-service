@@ -20,7 +20,7 @@ public class SignatureService {
     return smartIdSigner.startSign(files, personalCode);
   }
 
-  public byte[] getSignedFile(SmartIdSignatureSession session) {
+  public byte @Nullable [] getSignedFile(SmartIdSignatureSession session) {
     return smartIdSigner.getSignedFile(session);
   }
 

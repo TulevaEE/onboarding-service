@@ -5,8 +5,6 @@ import static ee.tuleva.onboarding.fund.TulevaFund.TKF100
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueQueries
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatistics
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatisticsService
-import ee.tuleva.onboarding.ledger.LedgerAccount
-import ee.tuleva.onboarding.ledger.LedgerService
 import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.savings.SavingsFundConfiguration
 import ee.tuleva.onboarding.savings.FundNavProvider
@@ -18,8 +16,6 @@ import java.time.ZoneId
 
 import static ee.tuleva.onboarding.comparisons.fundvalue.FundValueFixture.aFundValue
 import static ee.tuleva.onboarding.fund.FundFixture.additionalSavingsFund
-import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_UNITS_OUTSTANDING
-import static ee.tuleva.onboarding.ledger.UserAccount.FUND_UNITS
 import static ee.tuleva.onboarding.locale.LocaleConfiguration.DEFAULT_LOCALE
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
 
@@ -29,12 +25,12 @@ class FundServiceSpec extends Specification {
   def pensionFundStatisticsService = Mock(PensionFundStatisticsService)
   def fundValueQueries = Mock(FundValueQueries)
   def localeService = Mock(LocaleService)
-  def ledgerService = Mock(LedgerService)
+  def savingsFundUnitStats = Mock(SavingsFundUnitStats)
   def savingsFundConfiguration = Stub(SavingsFundConfiguration) { getIsin() >> "EE0000003283" }
   def savingsFundNavProvider = Mock(FundNavProvider)
 
   def fundService = new FundService(fundRepository, pensionFundStatisticsService,
-      fundValueQueries, localeService, ledgerService, savingsFundConfiguration,
+      fundValueQueries, localeService, savingsFundUnitStats, savingsFundConfiguration,
       savingsFundNavProvider)
 
   def "can get funds and statistics"() {
@@ -163,11 +159,9 @@ class FundServiceSpec extends Specification {
         aFundValue(savingsFund.isin, navDate, nav))
 
     def cutoff = navDate.plusDays(1).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant()
-    def outstandingUnitsAccount = Mock(LedgerAccount)
-    outstandingUnitsAccount.getBalance() >> 10500.00000
-    outstandingUnitsAccount.getBalanceAt(cutoff) >> 10000.00000
-    ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100) >> outstandingUnitsAccount
-    ledgerService.countAccountsWithPositiveBalance(FUND_UNITS) >> 42
+    savingsFundUnitStats.unitsOutstanding() >> 10500.00000
+    savingsFundUnitStats.unitsOutstandingAt(cutoff) >> 10000.00000
+    savingsFundUnitStats.unitHolderCount() >> 42
 
     when:
     def response = fundService.getFunds(Optional.empty())
@@ -197,11 +191,9 @@ class FundServiceSpec extends Specification {
         aFundValue(savingsFund.isin, previousNavDate, previousNav))
 
     def cutoff = navDate.plusDays(1).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant()
-    def outstandingUnitsAccount = Mock(LedgerAccount)
-    outstandingUnitsAccount.getBalance() >> 10000.00000
-    outstandingUnitsAccount.getBalanceAt(cutoff) >> 10000.00000
-    ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100) >> outstandingUnitsAccount
-    ledgerService.countAccountsWithPositiveBalance(FUND_UNITS) >> 42
+    savingsFundUnitStats.unitsOutstanding() >> 10000.00000
+    savingsFundUnitStats.unitsOutstandingAt(cutoff) >> 10000.00000
+    savingsFundUnitStats.unitHolderCount() >> 42
 
     when:
     def response = fundService.getFunds(Optional.empty())
@@ -231,11 +223,9 @@ class FundServiceSpec extends Specification {
         aFundValue(savingsFund.isin, previousNavDate, previousNav))
 
     def cutoff = navDate.plusDays(1).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant()
-    def outstandingUnitsAccount = Mock(LedgerAccount)
-    outstandingUnitsAccount.getBalance() >> 10000.00000
-    outstandingUnitsAccount.getBalanceAt(cutoff) >> 10000.00000
-    ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100) >> outstandingUnitsAccount
-    ledgerService.countAccountsWithPositiveBalance(FUND_UNITS) >> 42
+    savingsFundUnitStats.unitsOutstanding() >> 10000.00000
+    savingsFundUnitStats.unitsOutstandingAt(cutoff) >> 10000.00000
+    savingsFundUnitStats.unitHolderCount() >> 42
 
     when:
     def response = fundService.getFunds(Optional.empty())
@@ -261,11 +251,9 @@ class FundServiceSpec extends Specification {
         aFundValue(savingsFund.isin, navDate, nav))
 
     def cutoff = navDate.plusDays(1).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant()
-    def outstandingUnitsAccount = Mock(LedgerAccount)
-    outstandingUnitsAccount.getBalance() >> 10500.00000
-    outstandingUnitsAccount.getBalanceAt(cutoff) >> 10000.00000
-    ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100) >> outstandingUnitsAccount
-    ledgerService.countAccountsWithPositiveBalance(FUND_UNITS) >> 42
+    savingsFundUnitStats.unitsOutstanding() >> 10500.00000
+    savingsFundUnitStats.unitsOutstandingAt(cutoff) >> 10000.00000
+    savingsFundUnitStats.unitHolderCount() >> 42
 
     when:
     def response = fundService.getFunds(Optional.empty())
@@ -292,11 +280,9 @@ class FundServiceSpec extends Specification {
     fundValueQueries.getLatestValue(savingsFund.isin, navDate.minusDays(1)) >> Optional.empty()
 
     def cutoff = navDate.plusDays(1).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant()
-    def outstandingUnitsAccount = Mock(LedgerAccount)
-    outstandingUnitsAccount.getBalance() >> 10000.00000
-    outstandingUnitsAccount.getBalanceAt(cutoff) >> 10000.00000
-    ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100) >> outstandingUnitsAccount
-    ledgerService.countAccountsWithPositiveBalance(FUND_UNITS) >> 42
+    savingsFundUnitStats.unitsOutstanding() >> 10000.00000
+    savingsFundUnitStats.unitsOutstandingAt(cutoff) >> 10000.00000
+    savingsFundUnitStats.unitHolderCount() >> 42
 
     when:
     def response = fundService.getFunds(Optional.empty())
@@ -325,11 +311,9 @@ class FundServiceSpec extends Specification {
         aFundValue(savingsFund.isin, LocalDate.parse("2025-01-15"), previousNav))
 
     def cutoff = navDate.plusDays(1).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant()
-    def outstandingUnitsAccount = Mock(LedgerAccount)
-    outstandingUnitsAccount.getBalance() >> 0.0
-    outstandingUnitsAccount.getBalanceAt(cutoff) >> 0.0
-    ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100) >> outstandingUnitsAccount
-    ledgerService.countAccountsWithPositiveBalance(FUND_UNITS) >> 42
+    savingsFundUnitStats.unitsOutstanding() >> 0.0
+    savingsFundUnitStats.unitsOutstandingAt(cutoff) >> 0.0
+    savingsFundUnitStats.unitHolderCount() >> 42
 
     when:
     def response = fundService.getFunds(Optional.empty())
@@ -353,11 +337,9 @@ class FundServiceSpec extends Specification {
         aFundValue(savingsFund.isin, navDate, nav))
 
     def cutoff = navDate.plusDays(1).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant()
-    def outstandingUnitsAccount = Mock(LedgerAccount)
-    outstandingUnitsAccount.getBalance() >> 10500.00000
-    outstandingUnitsAccount.getBalanceAt(cutoff) >> 10000.00000
-    ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100) >> outstandingUnitsAccount
-    ledgerService.countAccountsWithPositiveBalance(FUND_UNITS) >> 42
+    savingsFundUnitStats.unitsOutstanding() >> 10500.00000
+    savingsFundUnitStats.unitsOutstandingAt(cutoff) >> 10000.00000
+    savingsFundUnitStats.unitHolderCount() >> 42
 
     when:
     def response = fundService.getFunds(Optional.empty())
@@ -385,11 +367,9 @@ class FundServiceSpec extends Specification {
     fundValueQueries.getLatestValue(savingsFund.isin, safeDate) >> Optional.of(
         aFundValue(savingsFund.isin, safeDate, safeNav))
     def cutoff = safeDate.plusDays(1).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant()
-    def outstandingUnitsAccount = Mock(LedgerAccount)
-    outstandingUnitsAccount.getBalance() >> 10500.00000
-    outstandingUnitsAccount.getBalanceAt(cutoff) >> 10000.00000
-    ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100) >> outstandingUnitsAccount
-    ledgerService.countAccountsWithPositiveBalance(FUND_UNITS) >> 42
+    savingsFundUnitStats.unitsOutstanding() >> 10500.00000
+    savingsFundUnitStats.unitsOutstandingAt(cutoff) >> 10000.00000
+    savingsFundUnitStats.unitHolderCount() >> 42
 
     when:
     def response = fundService.getFunds(Optional.empty())

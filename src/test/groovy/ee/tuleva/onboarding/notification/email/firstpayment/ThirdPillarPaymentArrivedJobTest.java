@@ -7,8 +7,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import ee.tuleva.onboarding.analytics.FirstThirdPillarPayment;
-import ee.tuleva.onboarding.analytics.ThirdPillarAnalytics;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -23,7 +21,7 @@ class ThirdPillarPaymentArrivedJobTest {
   private static final String FIRST_PAYER = TestPersonalCodes.withValidChecksum("3860101000");
   private static final String SECOND_PAYER = TestPersonalCodes.withValidChecksum("3850101000");
 
-  private final ThirdPillarAnalytics repository = mock(ThirdPillarAnalytics.class);
+  private final FirstPaymentAudience repository = mock(FirstPaymentAudience.class);
   private final ThirdPillarPaymentArrivedEmailService emailService =
       mock(ThirdPillarPaymentArrivedEmailService.class);
   private final Clock clock = Clock.fixed(Instant.parse("2026-08-18T10:00:00Z"), ZoneOffset.UTC);

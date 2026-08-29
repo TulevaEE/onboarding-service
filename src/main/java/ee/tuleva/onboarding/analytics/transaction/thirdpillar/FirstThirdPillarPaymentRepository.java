@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.analytics.transaction.thirdpillar;
 
-import ee.tuleva.onboarding.analytics.FirstThirdPillarPayment;
+import ee.tuleva.onboarding.notification.email.firstpayment.FirstThirdPillarPayment;
 import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import java.time.LocalDate;
 import java.util.List;

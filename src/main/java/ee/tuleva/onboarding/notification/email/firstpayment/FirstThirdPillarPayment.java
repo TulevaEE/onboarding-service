@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.analytics;
+package ee.tuleva.onboarding.notification.email.firstpayment;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.notification.email.Emailable;

@@ -89,10 +89,6 @@ public class AmlAutoChecker {
   }
 
   private @Nullable Boolean isResident(BeforeTokenGrantedEvent event) {
-    final var documentType = event.getIdDocumentType();
-    if (documentType == null) {
-      return null;
-    }
-    return documentType.isResident();
+    return event.isResident();
   }
 }

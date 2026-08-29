@@ -7,7 +7,6 @@ import static org.mockito.Mockito.*;
 import ee.tuleva.onboarding.aml.exception.AmlChecksMissingException;
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
-import ee.tuleva.onboarding.auth.idcard.IdDocumentType;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.country.Country;
@@ -40,7 +39,6 @@ class AmlAutoCheckerTest {
   @Mock private ContactDetails mockContactDetails;
   private final Country mandateCountry = new Country("EE");
   private final Set<Country> mockCountries = Countries.of("EE");
-  @Mock private IdDocumentType mockIdDocumentType;
 
   private static AuthenticatedPerson createTestPerson(String personalCode) {
     return AuthenticatedPerson.builder()
@@ -63,8 +61,7 @@ class AmlAutoCheckerTest {
     when(mockEvent.getPerson()).thenReturn(testPerson);
     when(userService.findByPersonalCode(testPerson.getPersonalCode()))
         .thenReturn(Optional.of(mockUser));
-    when(mockEvent.getIdDocumentType()).thenReturn(mockIdDocumentType);
-    when(mockIdDocumentType.isResident()).thenReturn(true);
+    when(mockEvent.isResident()).thenReturn(true);
 
     // when
     amlAutoChecker.beforeLogin(mockEvent);
@@ -85,7 +82,7 @@ class AmlAutoCheckerTest {
     when(mockEvent.getPerson()).thenReturn(testPerson);
     when(userService.findByPersonalCode(testPerson.getPersonalCode()))
         .thenReturn(Optional.of(mockUser));
-    when(mockEvent.getIdDocumentType()).thenReturn(null);
+    when(mockEvent.isResident()).thenReturn(null);
 
     // when
     amlAutoChecker.beforeLogin(mockEvent);

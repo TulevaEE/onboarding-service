@@ -36,7 +36,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentMatcher;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEvent;
@@ -58,10 +57,25 @@ class CapitalTransferContractServiceTest {
   @Mock private ApplicationEventPublisher eventPublisher;
   @Mock private AggregatedCapitalEventRepository aggregatedCapitalEventRepository;
 
-  @InjectMocks private CapitalTransferContractService contractService;
+  private CapitalTransferContractService contractService;
 
   @BeforeEach
   void setUp() {
+    contractService =
+        new CapitalTransferContractService(
+            contractRepository,
+            new ActiveTransferCapital(contractRepository),
+            userService,
+            memberService,
+            emailService,
+            emailPersistenceService,
+            capitalTransferFileService,
+            contractContentService,
+            capitalService,
+            notificationService,
+            contactDetailsService,
+            eventPublisher,
+            aggregatedCapitalEventRepository);
     lenient()
         .when(aggregatedCapitalEventRepository.findTopByOrderByDateDesc())
         .thenReturn(

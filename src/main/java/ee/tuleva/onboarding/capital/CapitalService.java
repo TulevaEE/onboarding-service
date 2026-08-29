@@ -12,6 +12,8 @@ import ee.tuleva.onboarding.capital.event.AggregatedCapitalEventRepository;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEvent;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventRepository;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType;
+import ee.tuleva.onboarding.capital.transfer.ActiveTransferCapital;
+import ee.tuleva.onboarding.user.member.Member;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -26,10 +28,16 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class CapitalService {
   private final MemberCapitalEventRepository memberCapitalEventRepository;
+  private final ActiveTransferCapital activeTransferCapital;
 
   private final AggregatedCapitalEventRepository aggregatedCapitalEventRepository;
 
   private static final BigDecimal CONCENTRATION_LIMIT_COEFFICIENT = new BigDecimal("0.1");
+
+  public Map<MemberCapitalEventType, BigDecimal> getCapitalBeingSoldInOtherTransfers(
+      Member seller) {
+    return activeTransferCapital.beingSoldBy(seller);
+  }
 
   public List<ApiCapitalEvent> getCapitalEvents(Long memberId) {
     return memberCapitalEventRepository.findAllByMemberId(memberId).stream()

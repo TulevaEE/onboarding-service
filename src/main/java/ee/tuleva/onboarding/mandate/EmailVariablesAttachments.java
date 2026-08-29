@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.mandate;
 import static java.util.Collections.singletonList;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
-import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract;
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
 import ee.tuleva.onboarding.user.Names;
 import ee.tuleva.onboarding.user.User;
@@ -54,14 +53,6 @@ public class EmailVariablesAttachments {
         getAttachment(
             getNameSuffix(user) + "_avaldused_" + mandateBatch.getId() + ".bdoc",
             mandateBatch.getFile()));
-  }
-
-  public static List<MandrillMessage.MessageContent> getAttachments(
-      CapitalTransferContract capitalTransferContract) {
-    return singletonList(
-        getAttachment(
-            "liikmekapitali_avaldus" + capitalTransferContract.getId() + ".bdoc",
-            capitalTransferContract.getDigiDocContainer()));
   }
 
   private static MandrillMessage.MessageContent getAttachment(String fileName, byte[] file) {

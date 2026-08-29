@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.capital
 
+import ee.tuleva.onboarding.capital.transfer.ActiveTransferCapital
 import ee.tuleva.onboarding.capital.event.AggregatedCapitalEvent
 import ee.tuleva.onboarding.capital.event.AggregatedCapitalEventRepository
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventRepository
@@ -18,7 +19,8 @@ import static java.math.RoundingMode.HALF_DOWN
 class CapitalServiceSpec extends Specification {
   MemberCapitalEventRepository memberCapitalEventRepository = Mock()
   AggregatedCapitalEventRepository aggregatedCapitalEventRepository = Mock()
-  CapitalService service = new CapitalService(memberCapitalEventRepository, aggregatedCapitalEventRepository)
+  ActiveTransferCapital activeTransferCapital = Mock()
+  CapitalService service = new CapitalService(memberCapitalEventRepository, activeTransferCapital, aggregatedCapitalEventRepository)
 
   def "GetCapitalStatement"() {
     given:

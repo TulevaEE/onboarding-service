@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.capital.transfer;
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.*;
 import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.*;
 import static ee.tuleva.onboarding.event.TrackableEventType.CAPITAL_TRANSFER_STATE_CHANGE;
-import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.getAttachments;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.CAPITAL_TRANSFER;
 import static ee.tuleva.onboarding.notification.email.EmailType.*;
 import static java.util.stream.Stream.concat;
@@ -31,6 +30,7 @@ import ee.tuleva.onboarding.user.UserService;
 import ee.tuleva.onboarding.user.member.Member;
 import ee.tuleva.onboarding.user.member.MemberService;
 import java.math.BigDecimal;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -48,6 +48,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class CapitalTransferContractService {
 
   private final CapitalTransferContractRepository contractRepository;
+  private final ActiveTransferCapital activeTransferCapital;
   private final UserService userService;
   private final MemberService memberService;
   private final EmailService emailService;
@@ -158,30 +159,12 @@ public class CapitalTransferContractService {
 
   public Map<MemberCapitalEventType, BigDecimal> getCapitalBeingAcquiredInOtherTransfers(
       Member buyer) {
-    var userPurchaseTransfers = contractRepository.findAllByBuyerId(buyer.getId());
-
-    return getCapitalSumsOfActiveTransfers(userPurchaseTransfers);
+    return activeTransferCapital.beingBoughtBy(buyer);
   }
 
   public Map<MemberCapitalEventType, BigDecimal> getCapitalBeingSoldInOtherTransfers(
       Member seller) {
-    var userSaleTransfers = contractRepository.findAllBySellerId(seller.getId());
-
-    return getCapitalSumsOfActiveTransfers(userSaleTransfers);
-  }
-
-  private Map<MemberCapitalEventType, BigDecimal> getCapitalSumsOfActiveTransfers(
-      List<CapitalTransferContract> userTransfers) {
-    var activeTransfers =
-        userTransfers.stream().filter(contract -> contract.getState().isInProgress());
-
-    var allTransferAmounts =
-        activeTransfers.flatMap(contract -> contract.getTransferAmounts().stream()).toList();
-
-    return allTransferAmounts.stream()
-        .collect(
-            Collectors.toMap(
-                CapitalTransferAmount::type, CapitalTransferAmount::bookValue, BigDecimal::add));
+    return activeTransferCapital.beingSoldBy(seller);
   }
 
   private boolean hasEnoughMemberCapital(
@@ -392,7 +375,7 @@ public class CapitalTransferContractService {
     var attachments =
         Set.of(CAPITAL_TRANSFER_CONFIRMED_BY_BUYER, CAPITAL_TRANSFER_CONFIRMED_BY_SELLER)
                 .contains(emailType)
-            ? getAttachments(contract)
+            ? contractAttachments(contract)
             : null;
 
     MandrillMessage message =
@@ -432,5 +415,14 @@ public class CapitalTransferContractService {
     }
 
     return latestEvent.getOwnershipUnitPrice();
+  }
+
+  private static List<MandrillMessage.MessageContent> contractAttachments(
+      CapitalTransferContract contract) {
+    MandrillMessage.MessageContent attachment = new MandrillMessage.MessageContent();
+    attachment.setName("liikmekapitali_avaldus" + contract.getId() + ".bdoc");
+    attachment.setType("application/bdoc");
+    attachment.setContent(Base64.getEncoder().encodeToString(contract.getDigiDocContainer()));
+    return List.of(attachment);
   }
 }

@@ -362,7 +362,10 @@ class RiskIndicatorNotifierTest {
     notifier.notify(run(stableSri(), undisclosedSrri()));
 
     assertThat(notifications.lastMessage())
-        .startsWith("✅ Riskiindikaatorite kuuülevaade — seisuga 2026-07-31\n2 korras.");
+        .startsWith("✅ Riskiindikaatorite kuuülevaade — seisuga 2026-07-31\n2 korras.")
+        .contains(
+            "CESR 4-kuu aken: 17/17 nädalat klassile 4; migratsiooniks peab volatiilsus olema"
+                + " kõik neli kuud väljaspool avaldatavat klassi.");
   }
 
   @Test
@@ -450,7 +453,14 @@ class RiskIndicatorNotifierTest {
 
     notifier.notify(run(stableSri()));
 
-    Mockito.verify(digests).delete(any());
+    Mockito.verify(digests)
+        .delete(
+            RiskIndicatorDigest.builder()
+                .id(1L)
+                .digestMonth(DIGEST_MONTH)
+                .complete(true)
+                .version(0L)
+                .build());
   }
 
   @Test
@@ -467,6 +477,7 @@ class RiskIndicatorNotifierTest {
     notifier.notify(run);
 
     assertThat(publication.getNotified()).isTrue();
+    Mockito.verify(publications).saveAll(List.of(publication));
   }
 
   @Test
@@ -691,6 +702,38 @@ class RiskIndicatorNotifierTest {
   }
 
   @Test
+  void theProxyReviewLineAppearsExactlyAtTheRequiredYearBoundary() {
+    proxyReviews.put(TKF100, new ProxyReview(TKF100.getIsin(), 4));
+    given(fundValues.findEarliestDateForKey(TKF100.getIsin()))
+        .willReturn(Optional.of(LocalDate.of(2020, 1, 10)));
+    var indicator = stableSri();
+    var atBoundary =
+        new PublishedRiskIndicator(
+            TKF100,
+            SRI,
+            LocalDate.of(2024, 1, 10),
+            indicator.publishedClass(),
+            indicator.rawLatestClass(),
+            null,
+            indicator.publishedSince(),
+            false,
+            indicator.rawClassSince(),
+            indicator.streakReferencePoints(),
+            indicator.rawStreakReferencePoints(),
+            indicator.windowReferencePoints(),
+            indicator.matchingReferencePoints(),
+            indicator.latestObservationCount(),
+            indicator.latestVolatility(),
+            STABLE);
+
+    notifier(LocalDate.of(2024, 1, 10)).notify(run(atBoundary));
+
+    assertThat(notifications.lastMessage())
+        .contains(
+            "⚠️ TKF100 SRI — võrdlusindeksi proxy vajab ülevaatust", "4,0 aastat oma NAV-ajalugu");
+  }
+
+  @Test
   void aPendingProxyReviewKeepsTheHeaderOffGreenEvenWhenEveryFundIsStable() {
     proxyReviews.put(TKF100, new ProxyReview(TKF100.getIsin(), 2));
     given(fundValues.findEarliestDateForKey(TKF100.getIsin()))
@@ -753,6 +796,15 @@ class RiskIndicatorNotifierTest {
             """
             Riskiindikaatori muutus
             ⚠️ TUK75 SRRI — staatus STABLE → CHANGE_PENDING (arvutatud klass 5, avaldatav klass 4)""");
+  }
+
+  @Test
+  void aRunSpanningExactlyTwelveMonthsIsPrintedInYearsNotMonths() {
+    disclose(SRI, TKF100, 4);
+
+    notifier.notify(run(withPublishedSince(stableSri(), EVALUATION_DATE.minusMonths(12))));
+
+    assertThat(notifications.lastMessage()).contains("1a 0k");
   }
 
   @Test
@@ -940,6 +992,27 @@ class RiskIndicatorNotifierTest {
         indicator.publishedSince(),
         indicator.publishedSinceIsTruncated(),
         rawClassSince,
+        indicator.streakReferencePoints(),
+        indicator.rawStreakReferencePoints(),
+        indicator.windowReferencePoints(),
+        indicator.matchingReferencePoints(),
+        indicator.latestObservationCount(),
+        indicator.latestVolatility(),
+        indicator.status());
+  }
+
+  private PublishedRiskIndicator withPublishedSince(
+      PublishedRiskIndicator indicator, LocalDate publishedSince) {
+    return new PublishedRiskIndicator(
+        indicator.fund(),
+        indicator.indicatorType(),
+        indicator.evaluationDate(),
+        indicator.publishedClass(),
+        indicator.rawLatestClass(),
+        indicator.previousPublishedClass(),
+        publishedSince,
+        indicator.publishedSinceIsTruncated(),
+        indicator.rawClassSince(),
         indicator.streakReferencePoints(),
         indicator.rawStreakReferencePoints(),
         indicator.windowReferencePoints(),

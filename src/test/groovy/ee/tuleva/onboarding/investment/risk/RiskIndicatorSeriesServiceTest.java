@@ -62,7 +62,7 @@ class RiskIndicatorSeriesServiceTest {
 
     var start = ArgumentCaptor.forClass(LocalDate.class);
     verify(fundValueQueries).findValuesBetweenDates(eq(ACWI), start.capture(), eq(ANCHOR));
-    assertThat(start.getValue()).isBefore(ANCHOR.minusMonths(1).minusYears(5));
+    assertThat(start.getValue()).isEqualTo(ANCHOR.minusMonths(1).minusYears(5).minusWeeks(2));
   }
 
   @Test
@@ -121,12 +121,17 @@ class RiskIndicatorSeriesServiceTest {
     var refresh = service.refreshSeries(TKF100, SRI, 1);
 
     assertThat(drifted.getRiskClass()).isNotEqualTo(1);
+    assertThat(drifted.getObservationCount()).isNotEqualTo(1);
+    assertThat(drifted.getVolatility()).isNotEqualByComparingTo(valueOf(0.999));
     assertThat(drifted.getMetrics()).containsKey("driftHistory");
     assertThat(refresh.driftedDates()).containsExactly(ANCHOR);
     assertThat(refresh.redefinitions()).isEmpty();
     assertThat((List<Map<String, String>>) drifted.getMetrics().get("driftHistory"))
         .singleElement()
         .satisfies(entry -> assertThat(entry).containsEntry("detectedAt", ANCHOR.toString()));
+    var saved = ArgumentCaptor.forClass(List.class);
+    verify(pointRepository).saveAll(saved.capture());
+    assertThat((List<RiskIndicatorPoint>) saved.getValue()).contains(drifted);
   }
 
   @Test
@@ -146,6 +151,9 @@ class RiskIndicatorSeriesServiceTest {
     assertThat(stored.getMetrics())
         .doesNotContainKey("driftHistory")
         .containsEntry("holdingPeriodTradingDays", CURRENT_HOLDING_PERIOD);
+    var saved = ArgumentCaptor.forClass(List.class);
+    verify(pointRepository).saveAll(saved.capture());
+    assertThat((List<RiskIndicatorPoint>) saved.getValue()).contains(stored);
   }
 
   @Test
@@ -242,6 +250,30 @@ class RiskIndicatorSeriesServiceTest {
 
     verify(fundValueQueries, never()).findValuesBetweenDates(eq(ACWI), any(), any());
     assertThat(points).isNotEmpty();
+  }
+
+  @Test
+  void querySegmentUsesItsOwnExplicitStartWhenItIsLaterThanTheLoadWindow() {
+    var explicitSegmentStart = ANCHOR.minusYears(2);
+    var navPrices = dailyPrices(TKF_ISIN, explicitSegmentStart, ANCHOR, 1.05);
+    given(fundValueQueries.findLastValueForFund(TKF_ISIN))
+        .willReturn(Optional.of(navPrices.getLast()));
+    given(fundValueQueries.findValuesBetweenDates(eq(TKF_ISIN), any(), any()))
+        .willReturn(navPrices);
+    given(pointRepository.findByIndicatorTypeAndFundOrderByAsOfDateAsc(SRI, TKF100))
+        .willReturn(List.of());
+    var onlyOwnHistory =
+        new RiskIndicatorProperties(
+            Map.of(
+                TKF100,
+                List.of(new RiskIndicatorProperties.Source(TKF_ISIN, explicitSegmentStart))),
+            Map.of());
+
+    serviceWith(onlyOwnHistory).refreshSeries(TKF100, SRI, 1);
+
+    var start = ArgumentCaptor.forClass(LocalDate.class);
+    verify(fundValueQueries).findValuesBetweenDates(eq(TKF_ISIN), start.capture(), eq(ANCHOR));
+    assertThat(start.getValue()).isEqualTo(explicitSegmentStart);
   }
 
   @Test

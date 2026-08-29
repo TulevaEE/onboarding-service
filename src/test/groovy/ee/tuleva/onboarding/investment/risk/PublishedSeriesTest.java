@@ -93,6 +93,19 @@ class PublishedSeriesTest {
   }
 
   @Test
+  void unclassifiedPointsWithinTheTelemetryWindowAreNotCounted() {
+    var published = sameClass(160, 4);
+    var raw = new ArrayList<>(sameClass(155, 4));
+    raw.add(null);
+    raw.addAll(sameClass(4, 4));
+
+    var indicator = analyse(raw, published);
+
+    assertThat(indicator.windowReferencePoints()).isEqualTo(17);
+    assertThat(indicator.matchingReferencePoints()).isEqualTo(17);
+  }
+
+  @Test
   void unclassifiedRawPointsAreExcludedFromTheAnalysis() {
     var raw = new ArrayList<Integer>();
     raw.add(null);

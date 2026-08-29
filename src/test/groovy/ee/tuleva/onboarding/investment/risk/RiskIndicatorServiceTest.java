@@ -179,6 +179,123 @@ class RiskIndicatorServiceTest {
     assertThat(indicator.latestObservationCount()).isEqualTo(260);
   }
 
+  @Test
+  void notifiedStateIsClearedWhenThePublishedClassMoves() {
+    storedPoints(SRI, TKF100, daily(200, 4));
+    var evaluationDate = START.plusDays(199);
+    var existing =
+        RiskIndicatorPublication.builder()
+            .indicatorType(SRI)
+            .fund(TKF100)
+            .evaluationDate(evaluationDate)
+            .publishedClass(5)
+            .status(STABLE)
+            .notified(true)
+            .notifiedDisclosedClass(5)
+            .build();
+    given(
+            publicationRepository.findByIndicatorTypeAndFundAndEvaluationDate(
+                SRI, TKF100, evaluationDate))
+        .willReturn(Optional.of(existing));
+
+    service.evaluateAllFunds(28);
+
+    assertThat(existing.getNotified()).isFalse();
+    assertThat(existing.getNotifiedDisclosedClass()).isNull();
+  }
+
+  @Test
+  void notifiedStateIsClearedWhenOnlyTheStatusChanges() {
+    storedPoints(SRI, TKF100, daily(200, 4));
+    var evaluationDate = START.plusDays(199);
+    var existing =
+        RiskIndicatorPublication.builder()
+            .indicatorType(SRI)
+            .fund(TKF100)
+            .evaluationDate(evaluationDate)
+            .publishedClass(4)
+            .status(RiskIndicatorStatus.CHANGE_CONFIRMED)
+            .notified(true)
+            .build();
+    given(
+            publicationRepository.findByIndicatorTypeAndFundAndEvaluationDate(
+                SRI, TKF100, evaluationDate))
+        .willReturn(Optional.of(existing));
+
+    service.evaluateAllFunds(28);
+
+    assertThat(existing.getNotified()).isFalse();
+  }
+
+  @Test
+  void notifiedStateSurvivesWhenNothingAboutThePublicationChanged() {
+    storedPoints(SRI, TKF100, daily(200, 4));
+    var evaluationDate = START.plusDays(199);
+    var existing =
+        RiskIndicatorPublication.builder()
+            .indicatorType(SRI)
+            .fund(TKF100)
+            .evaluationDate(evaluationDate)
+            .publishedClass(4)
+            .status(STABLE)
+            .notified(true)
+            .notifiedDisclosedClass(7)
+            .build();
+    given(
+            publicationRepository.findByIndicatorTypeAndFundAndEvaluationDate(
+                SRI, TKF100, evaluationDate))
+        .willReturn(Optional.of(existing));
+
+    service.evaluateAllFunds(28);
+
+    assertThat(existing.getNotified()).isTrue();
+    assertThat(existing.getNotifiedDisclosedClass()).isEqualTo(7);
+  }
+
+  @Test
+  void sriFundsAreEvaluatedUnderTheMajorityRuleRatherThanPersistence() {
+    storedPoints(SRI, TKF100, transitioningSeries(200, 4, 90, 5));
+
+    var run = service.evaluateAllFunds(28);
+
+    assertThat(onlyIndicator(run).publishedClass()).isEqualTo(5);
+  }
+
+  @Test
+  void previousPublishedClassIsRecordedOnceAChangeIsConfirmed() {
+    storedPoints(SRI, TKF100, transitioningSeries(200, 4, 90, 5));
+
+    var run = service.evaluateAllFunds(28);
+
+    onlyIndicator(run);
+    var outcome = run.outcomes().getFirst();
+    assertThat(outcome.indicator().previousPublishedClass()).isEqualTo(4);
+    assertThat(outcome.publication()).isNotNull();
+    assertThat(outcome.publication().getPreviousPublishedClass()).isEqualTo(4);
+  }
+
+  private List<RiskIndicatorPoint> transitioningSeries(
+      int firstDays, int firstClass, int secondDays, int secondClass) {
+    var points = new ArrayList<RiskIndicatorPoint>();
+    for (int day = 0; day < firstDays; day++) {
+      points.add(riskIndicatorPoint(START.plusDays(day), firstClass));
+    }
+    for (int day = firstDays; day < firstDays + secondDays; day++) {
+      points.add(riskIndicatorPoint(START.plusDays(day), secondClass));
+    }
+    return points;
+  }
+
+  private RiskIndicatorPoint riskIndicatorPoint(LocalDate date, int riskClass) {
+    return RiskIndicatorPoint.builder()
+        .asOfDate(date)
+        .riskClass(riskClass)
+        .observationCount(260)
+        .volatility(new BigDecimal("0.15"))
+        .metrics(Map.of())
+        .build();
+  }
+
   private PublishedRiskIndicator onlyIndicator(RiskIndicatorService.RiskIndicatorRun run) {
     assertThat(run.outcomes()).hasSize(1);
     return run.outcomes().getFirst().indicator();

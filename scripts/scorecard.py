@@ -7,6 +7,7 @@ Usage:
 
 Inputs (produced by ./gradlew test pmdMain, plus optional pitest):
   build/metrics/modulith.json           ModuleMetricsTest emitter
+  build/metrics/cohesion.json           CohesionMetricsTest emitter (LCOM4)
   build/reports/pmd/main.xml            PMD complexity/cohesion ruleset
   build/reports/jacoco/test/jacocoTestReport.xml
   build/reports/pitest/mutations.xml    optional, full runs only
@@ -34,6 +35,7 @@ LOWER_IS_BETTER = [
     "deepNestingViolations",
     "compilerWarnings",
     "disabledTests",
+    "disconnectedClasses",
     "longClasses",
     "godClasses",
     "modulithViolations",
@@ -184,6 +186,14 @@ def compiler_warning_metrics():
     return {"compilerWarnings": count}
 
 
+def cohesion_metrics():
+    path = ROOT / "build" / "metrics" / "cohesion.json"
+    if not path.exists():
+        return {}
+    data = json.loads(path.read_text())
+    return {"disconnectedClasses": data["disconnectedClasses"]}
+
+
 def previous_scorecard():
     result = subprocess.run(
         ["git", "-C", str(ROOT), "show", "HEAD:metrics/scorecard.json"],
@@ -214,6 +224,7 @@ def main():
         source_metrics,
         convention_metrics,
         compiler_warning_metrics,
+        cohesion_metrics,
     ]:
         current.update(collect())
 
@@ -227,6 +238,9 @@ def main():
 
     if previous and "compilerWarnings" not in current and "compilerWarnings" in previous:
         current["compilerWarnings"] = previous["compilerWarnings"]
+
+    if previous and "disconnectedClasses" not in current and "disconnectedClasses" in previous:
+        current["disconnectedClasses"] = previous["disconnectedClasses"]
 
     if previous and "--init" not in sys.argv:
         for key in sorted(set(previous) | set(current)):

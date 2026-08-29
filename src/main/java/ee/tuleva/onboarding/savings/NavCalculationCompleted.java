@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.savings.fund.nav;
+package ee.tuleva.onboarding.savings;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import java.util.List;

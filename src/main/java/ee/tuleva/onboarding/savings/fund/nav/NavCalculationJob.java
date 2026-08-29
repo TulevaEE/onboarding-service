@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.event.PipelineNotifier;
 import ee.tuleva.onboarding.investment.event.PipelineRun;
 import ee.tuleva.onboarding.investment.event.PipelineTracker;
+import ee.tuleva.onboarding.savings.NavCalculationCompleted;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;

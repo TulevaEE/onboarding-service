@@ -18,7 +18,7 @@ import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.ChildAmlBackfillService;
 import ee.tuleva.onboarding.party.ParentChildLinkRegistrationService;
-import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
+import ee.tuleva.onboarding.savings.SavingsFundOnboardingService;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;

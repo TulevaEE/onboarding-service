@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.payment
 import tools.jackson.databind.json.JsonMapper
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
-import ee.tuleva.onboarding.savings.fund.SavingFundPayment
+import ee.tuleva.onboarding.savings.SavingFundPayment
 import ee.tuleva.onboarding.user.User
 import org.springframework.http.MediaType
 

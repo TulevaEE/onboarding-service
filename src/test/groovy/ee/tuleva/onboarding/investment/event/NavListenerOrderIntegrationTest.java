@@ -5,7 +5,7 @@ import static ee.tuleva.onboarding.investment.event.PipelineStep.LIMIT_CHECK;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.investment.check.limit.LimitCheckJobTestBeans;
-import ee.tuleva.onboarding.savings.fund.nav.NavCalculationCompleted;
+import ee.tuleva.onboarding.savings.NavCalculationCompleted;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;

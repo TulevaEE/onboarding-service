@@ -1,6 +1,6 @@
-package ee.tuleva.onboarding.savings.fund;
+package ee.tuleva.onboarding.savings;
 
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.CREATED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.CREATED;
 
 import java.math.BigDecimal;
 import java.time.Instant;

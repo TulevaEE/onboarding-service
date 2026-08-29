@@ -22,7 +22,7 @@ import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.populationregister.CustodyRight;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterPerson;
-import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
+import ee.tuleva.onboarding.savings.SavingsFundOnboardingService;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;

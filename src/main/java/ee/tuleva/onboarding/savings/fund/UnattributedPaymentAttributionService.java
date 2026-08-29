@@ -4,11 +4,13 @@ import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYM
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_RECEIVED;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.UNATTRIBUTED_PAYMENT;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.UNATTRIBUTED_PAYMENT_RECONCILED;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RETURNED;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.TO_BE_RETURNED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RETURNED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.TO_BE_RETURNED;
 
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.savings.SavingFundPayment;
+import ee.tuleva.onboarding.savings.SavingsFundOnboardingService;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;

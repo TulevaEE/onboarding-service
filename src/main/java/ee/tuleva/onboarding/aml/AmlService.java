@@ -158,8 +158,6 @@ public class AmlService {
         .orElse(false);
   }
 
-  private record ScreeningResult(List<AmlCheck> checks, boolean failed) {}
-
   private ScreeningResult screenForSanctionAndPep(Person person, Set<Country> countries) {
     MatchResponse response;
     try {

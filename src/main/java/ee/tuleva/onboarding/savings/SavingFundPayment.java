@@ -1,11 +1,10 @@
-package ee.tuleva.onboarding.savings.fund;
+package ee.tuleva.onboarding.savings;
 
 import static ee.tuleva.onboarding.currency.Currency.EUR;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.*;
 
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.party.PartyId;
-import jakarta.annotation.Nullable;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -13,6 +12,7 @@ import java.time.ZoneId;
 import java.util.UUID;
 import lombok.Builder;
 import lombok.Value;
+import org.jspecify.annotations.Nullable;
 
 @Value
 @Builder
@@ -39,8 +39,8 @@ public class SavingFundPayment {
 
   @Builder.Default Status status = CREATED;
 
-  Instant statusChangedAt;
-  Instant cancelledAt;
+  @Nullable Instant statusChangedAt;
+  @Nullable Instant cancelledAt;
 
   @Nullable String returnReason;
 

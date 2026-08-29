@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.savings.fund.issuing;
 
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.ISSUED;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RESERVED;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPaymentFixture.aPayment;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.ISSUED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RESERVED;
+import static ee.tuleva.onboarding.savings.SavingFundPaymentFixture.aPayment;
 import static java.math.BigDecimal.ONE;
 import static java.math.BigDecimal.TEN;
 import static java.math.RoundingMode.HALF_DOWN;

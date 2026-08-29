@@ -30,7 +30,7 @@ import ee.tuleva.onboarding.analytics.SecondPillarLeavers
 import ee.tuleva.onboarding.analytics.RecurringPayments
 import ee.tuleva.onboarding.analytics.RecurringSavers
 import ee.tuleva.onboarding.contribution.ThirdPillarTaxHeadroom
-import ee.tuleva.onboarding.savings.fund.SavingsFundSavers
+import ee.tuleva.onboarding.savings.SavingsFundSavers
 
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchFixture.aSavedMandateBatch
 import static ee.tuleva.onboarding.paymentrate.PaymentRatesFixture.samplePaymentRates

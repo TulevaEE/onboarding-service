@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.savings.SavingFundPayment;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;

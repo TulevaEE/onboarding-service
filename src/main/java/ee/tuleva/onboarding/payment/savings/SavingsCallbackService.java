@@ -9,8 +9,8 @@ import ee.tuleva.onboarding.payment.event.SavingsPaymentCreatedEvent;
 import ee.tuleva.onboarding.payment.provider.PaymentReference;
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioOrderToken;
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioTokenParser;
-import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
-import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
+import ee.tuleva.onboarding.savings.SavingFundPayment;
+import ee.tuleva.onboarding.savings.SavingFundPaymentQueries;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +27,7 @@ public class SavingsCallbackService {
   private final UserService userService;
   private final MontonioTokenParser tokenParser;
   private final SavingsChannelConfiguration savingsChannelConfiguration;
-  private final SavingFundPaymentRepository savingFundPaymentRepository;
+  private final SavingFundPaymentQueries savingFundPaymentQueries;
   private final ApplicationEventPublisher eventPublisher;
 
   @SneakyThrows
@@ -46,7 +46,7 @@ public class SavingsCallbackService {
       return Optional.empty();
     }
 
-    if (!savingFundPaymentRepository
+    if (!savingFundPaymentQueries
         .findRecentPayments(token.getMerchantReference().getDescription())
         .isEmpty()) {
       log.info("Saving fund payment already exists for {}", token.getMerchantReference());
@@ -62,11 +62,11 @@ public class SavingsCallbackService {
             .currency(token.getCurrency())
             .build();
 
-    var paymentId = savingFundPaymentRepository.savePaymentData(payment);
+    var paymentId = savingFundPaymentQueries.savePaymentData(payment);
     var ref = token.getMerchantReference();
     var recipient = recipientParty(ref);
 
-    savingFundPaymentRepository.attachParty(paymentId, recipient);
+    savingFundPaymentQueries.attachParty(paymentId, recipient);
 
     userService
         .findByPersonalCode(ref.getPersonalCode())

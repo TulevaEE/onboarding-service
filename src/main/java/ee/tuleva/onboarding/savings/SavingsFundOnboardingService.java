@@ -1,18 +1,21 @@
-package ee.tuleva.onboarding.savings.fund;
+package ee.tuleva.onboarding.savings;
 
 import static ee.tuleva.onboarding.event.TrackableEventType.SAVINGS_FUND_ONBOARDING_STATUS_CHANGE;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
-import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.*;
+import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.*;
 
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.kyc.KycCheck;
 import ee.tuleva.onboarding.kyc.KycCheck.RiskLevel;
 import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingCompletedEvent;
+import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.user.User;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
@@ -32,7 +35,7 @@ public class SavingsFundOnboardingService {
     return savingsFundOnboardingRepository.isOnboardingCompleted(code, type);
   }
 
-  public SavingsFundOnboardingStatus getOnboardingStatus(PartyId partyId) {
+  public @Nullable SavingsFundOnboardingStatus getOnboardingStatus(PartyId partyId) {
     return savingsFundOnboardingRepository.findStatus(partyId.code(), partyId.type()).orElse(null);
   }
 
@@ -65,7 +68,7 @@ public class SavingsFundOnboardingService {
     if (previousStatus == newStatus) {
       return;
     }
-    Map<String, Object> eventData = new HashMap<>();
+    Map<String, @Nullable Object> eventData = new HashMap<>();
     if (previousStatus != null) {
       eventData.put("oldStatus", previousStatus);
     }

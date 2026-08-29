@@ -1,9 +1,10 @@
 package ee.tuleva.onboarding.savings.fund;
 
-import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
+import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
 
 import ee.tuleva.onboarding.kyb.KybCheckType;
 import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Arrays;

@@ -8,7 +8,7 @@ import ee.tuleva.onboarding.fund.statistics.PensionFundStatisticsService
 import ee.tuleva.onboarding.ledger.LedgerAccount
 import ee.tuleva.onboarding.ledger.LedgerService
 import ee.tuleva.onboarding.locale.LocaleService
-import ee.tuleva.onboarding.savings.fund.SavingsFundConfiguration
+import ee.tuleva.onboarding.savings.SavingsFundConfiguration
 import ee.tuleva.onboarding.savings.FundNavProvider
 import org.springframework.web.server.ResponseStatusException
 import spock.lang.Specification

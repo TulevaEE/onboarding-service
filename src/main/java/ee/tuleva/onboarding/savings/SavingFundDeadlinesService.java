@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.savings.fund;
+package ee.tuleva.onboarding.savings;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest;

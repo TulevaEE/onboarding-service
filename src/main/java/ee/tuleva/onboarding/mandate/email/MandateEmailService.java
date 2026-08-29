@@ -20,7 +20,7 @@ import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.notification.email.EmailType;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
-import ee.tuleva.onboarding.savings.fund.SavingsFundFees;
+import ee.tuleva.onboarding.savings.SavingsFundFees;
 import ee.tuleva.onboarding.user.User;
 import java.math.BigDecimal;
 import java.time.Clock;

@@ -5,8 +5,8 @@ import tools.jackson.databind.json.JsonMapper
 import com.nimbusds.jose.JWSObject
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioTokenParser
 import ee.tuleva.onboarding.party.PartyId
-import ee.tuleva.onboarding.savings.fund.SavingFundPayment
-import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository
+import ee.tuleva.onboarding.savings.SavingFundPayment
+import ee.tuleva.onboarding.savings.SavingFundPaymentQueries
 import ee.tuleva.onboarding.user.UserService
 import org.springframework.context.ApplicationEventPublisher
 import spock.lang.Specification
@@ -17,7 +17,7 @@ import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.*
 class SavingsCallbackServiceSpec extends Specification {
   MontonioTokenParser tokenParser = new MontonioTokenParser(JsonMapper.builder().build(), aPaymentProviderConfiguration())
   SavingsCallbackService savingsCallbackService
-  SavingFundPaymentRepository savingFundPaymentRepository = Mock()
+  SavingFundPaymentQueries savingFundPaymentQueries = Mock()
   UserService userService = Mock()
   ApplicationEventPublisher eventPublisher = Mock()
 
@@ -33,7 +33,7 @@ class SavingsCallbackServiceSpec extends Specification {
         userService,
         tokenParser,
         savingsChannelConfiguration,
-        savingFundPaymentRepository,
+        savingFundPaymentQueries,
         eventPublisher,
     )
   }
@@ -42,7 +42,7 @@ class SavingsCallbackServiceSpec extends Specification {
     given:
     def serializedToken = aSerializedSavingsPaymentToken
     def paymentId = UUID.randomUUID()
-    1 * savingFundPaymentRepository.findRecentPayments(
+    1 * savingFundPaymentQueries.findRecentPayments(
         anInternalReference.description
     ) >> []
     1 * userService.findByPersonalCode(anInternalReference.personalCode) >> Optional.empty()
@@ -50,8 +50,8 @@ class SavingsCallbackServiceSpec extends Specification {
     when:
     def returnedPayment = savingsCallbackService.processToken(serializedToken)
     then:
-    1 * savingFundPaymentRepository.savePaymentData(_) >> paymentId
-    1 * savingFundPaymentRepository.attachParty(paymentId, new PartyId(PartyId.Type.PERSON, anInternalReference.recipientPersonalCode))
+    1 * savingFundPaymentQueries.savePaymentData(_) >> paymentId
+    1 * savingFundPaymentQueries.attachParty(paymentId, new PartyId(PartyId.Type.PERSON, anInternalReference.recipientPersonalCode))
     0 * eventPublisher.publishEvent(_)
     def payment = returnedPayment.get()
     payment.amount == token.grandTotal
@@ -66,7 +66,7 @@ class SavingsCallbackServiceSpec extends Specification {
     def serializedToken = aSerializedSavingsPaymentToken
     def mockUser = sampleUser().personalCode("38812121215").build()
     def paymentId = UUID.randomUUID()
-    1 * savingFundPaymentRepository.findRecentPayments(
+    1 * savingFundPaymentQueries.findRecentPayments(
         anInternalReference.description
     ) >> []
     1 * userService.findByPersonalCode(anInternalReference.personalCode) >> Optional.of(mockUser)
@@ -74,8 +74,8 @@ class SavingsCallbackServiceSpec extends Specification {
     when:
     def returnedPayment = savingsCallbackService.processToken(serializedToken)
     then:
-    1 * savingFundPaymentRepository.savePaymentData(_) >> paymentId
-    1 * savingFundPaymentRepository.attachParty(paymentId, new PartyId(PartyId.Type.PERSON, anInternalReference.recipientPersonalCode))
+    1 * savingFundPaymentQueries.savePaymentData(_) >> paymentId
+    1 * savingFundPaymentQueries.attachParty(paymentId, new PartyId(PartyId.Type.PERSON, anInternalReference.recipientPersonalCode))
     1 * eventPublisher.publishEvent(_)
     def payment = returnedPayment.get()
     payment.amount == token.grandTotal
@@ -90,15 +90,15 @@ class SavingsCallbackServiceSpec extends Specification {
     def serializedToken = aSerializedCompanySavingsPaymentToken
     def mockUser = sampleUser().personalCode("38812121215").build()
     def paymentId = UUID.randomUUID()
-    1 * savingFundPaymentRepository.findRecentPayments(
+    1 * savingFundPaymentQueries.findRecentPayments(
         aCompanySavingsInternalReference.description
     ) >> []
     1 * userService.findByPersonalCode(aCompanySavingsInternalReference.personalCode) >> Optional.of(mockUser)
     when:
     def returnedPayment = savingsCallbackService.processToken(serializedToken)
     then:
-    1 * savingFundPaymentRepository.savePaymentData(_) >> paymentId
-    1 * savingFundPaymentRepository.attachParty(paymentId, new PartyId(PartyId.Type.LEGAL_ENTITY, "12345678"))
+    1 * savingFundPaymentQueries.savePaymentData(_) >> paymentId
+    1 * savingFundPaymentQueries.attachParty(paymentId, new PartyId(PartyId.Type.LEGAL_ENTITY, "12345678"))
     1 * eventPublisher.publishEvent(_)
     returnedPayment.isPresent()
   }
@@ -108,15 +108,15 @@ class SavingsCallbackServiceSpec extends Specification {
     def serializedToken = aSerializedLegacyCompanySavingsPaymentToken
     def mockUser = sampleUser().personalCode("38812121215").build()
     def paymentId = UUID.randomUUID()
-    1 * savingFundPaymentRepository.findRecentPayments(
+    1 * savingFundPaymentQueries.findRecentPayments(
         aCompanySavingsInternalReference.description
     ) >> []
     1 * userService.findByPersonalCode(aCompanySavingsInternalReference.personalCode) >> Optional.of(mockUser)
     when:
     def returnedPayment = savingsCallbackService.processToken(serializedToken)
     then:
-    1 * savingFundPaymentRepository.savePaymentData(_) >> paymentId
-    1 * savingFundPaymentRepository.attachParty(paymentId, new PartyId(PartyId.Type.LEGAL_ENTITY, "12345678"))
+    1 * savingFundPaymentQueries.savePaymentData(_) >> paymentId
+    1 * savingFundPaymentQueries.attachParty(paymentId, new PartyId(PartyId.Type.LEGAL_ENTITY, "12345678"))
     1 * eventPublisher.publishEvent({ it.recipient == new PartyId(PartyId.Type.LEGAL_ENTITY, "12345678") })
     returnedPayment.isPresent()
   }
@@ -127,13 +127,13 @@ class SavingsCallbackServiceSpec extends Specification {
     def existingPayment = SavingFundPayment.builder()
         .description(anInternalReference.description)
         .build()
-    1 * savingFundPaymentRepository.findRecentPayments(
+    1 * savingFundPaymentQueries.findRecentPayments(
         anInternalReference.description
     ) >> [existingPayment]
     when:
     def returnedPayment = savingsCallbackService.processToken(serializedToken)
     then:
-    0 * savingFundPaymentRepository.savePaymentData(_)
+    0 * savingFundPaymentQueries.savePaymentData(_)
     returnedPayment.isEmpty()
   }
 
@@ -142,7 +142,7 @@ class SavingsCallbackServiceSpec extends Specification {
     when:
     def returnedPayment = savingsCallbackService.processToken(serializedToken)
     then:
-    0 * savingFundPaymentRepository.savePaymentData(_)
+    0 * savingFundPaymentQueries.savePaymentData(_)
     returnedPayment.isEmpty()
   }
 
@@ -151,7 +151,7 @@ class SavingsCallbackServiceSpec extends Specification {
     when:
     def returnedPayment = savingsCallbackService.processToken(serializedToken)
     then:
-    0 * savingFundPaymentRepository.savePaymentData(_)
+    0 * savingFundPaymentQueries.savePaymentData(_)
     returnedPayment.isEmpty()
   }
 

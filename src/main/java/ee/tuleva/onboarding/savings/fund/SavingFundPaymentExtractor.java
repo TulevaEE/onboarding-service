@@ -5,6 +5,7 @@ import ee.tuleva.onboarding.banking.statement.BankStatementAccount;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.banking.statement.TransactionType;
 import ee.tuleva.onboarding.currency.Currency;
+import ee.tuleva.onboarding.savings.SavingFundPayment;
 import java.math.RoundingMode;
 import java.util.List;
 import java.util.Objects;

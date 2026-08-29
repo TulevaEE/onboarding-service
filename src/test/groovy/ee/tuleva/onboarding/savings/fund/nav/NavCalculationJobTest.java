@@ -10,6 +10,7 @@ import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.event.PipelineNotifier;
 import ee.tuleva.onboarding.investment.event.PipelineTracker;
+import ee.tuleva.onboarding.savings.NavCalculationCompleted;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;

@@ -9,7 +9,7 @@ import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.event.PipelineTracker;
-import ee.tuleva.onboarding.savings.fund.nav.NavCalculationCompleted;
+import ee.tuleva.onboarding.savings.NavCalculationCompleted;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;

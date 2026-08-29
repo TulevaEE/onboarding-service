@@ -5,6 +5,8 @@ import static org.mockito.BDDMockito.given;
 
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
+import ee.tuleva.onboarding.savings.SavingsFundConfiguration;
+import ee.tuleva.onboarding.savings.SavingsFundFees;
 import java.math.BigDecimal;
 import java.util.Locale;
 import org.junit.jupiter.api.BeforeEach;

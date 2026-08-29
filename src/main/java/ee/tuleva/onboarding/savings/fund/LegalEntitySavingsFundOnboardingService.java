@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.savings.fund;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 
 import ee.tuleva.onboarding.company.BoardMembershipService;
+import ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

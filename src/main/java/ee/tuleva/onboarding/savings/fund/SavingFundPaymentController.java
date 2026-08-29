@@ -6,6 +6,8 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.payment.event.SavingsPaymentCancelledEvent;
+import ee.tuleva.onboarding.savings.SavingsFundOnboardingService;
+import ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus;
 import ee.tuleva.onboarding.user.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;

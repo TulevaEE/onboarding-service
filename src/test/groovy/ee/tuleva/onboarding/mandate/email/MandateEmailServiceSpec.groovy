@@ -10,7 +10,7 @@ import ee.tuleva.onboarding.notification.email.EmailPersistenceService
 import ee.tuleva.onboarding.notification.email.EmailService
 import ee.tuleva.onboarding.paymentrate.PaymentRates
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService
-import ee.tuleva.onboarding.savings.fund.SavingsFundFees
+import ee.tuleva.onboarding.savings.SavingsFundFees
 import spock.lang.Specification
 
 import java.util.Optional

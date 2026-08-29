@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.savings.fund.issuing;
 
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.ISSUED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.ISSUED;
 import static java.math.RoundingMode.HALF_DOWN;
 
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
-import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
+import ee.tuleva.onboarding.savings.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;

@@ -26,7 +26,7 @@ import ee.tuleva.onboarding.comparisons.returns.provider.PersonalReturnProvider;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.savings.FundNavProvider;
-import ee.tuleva.onboarding.savings.fund.SavingsFundConfiguration;
+import ee.tuleva.onboarding.savings.SavingsFundConfiguration;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;

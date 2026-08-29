@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.payment.email
 
 import ee.tuleva.onboarding.mandate.MandateRepository
-import ee.tuleva.onboarding.savings.fund.SavingsFundFees
+import ee.tuleva.onboarding.savings.SavingsFundFees
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus
 import ee.tuleva.onboarding.mandate.Mandate

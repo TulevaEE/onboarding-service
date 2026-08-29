@@ -1,13 +1,13 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.CREATED;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.ISSUED;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.PROCESSED;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RECEIVED;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RESERVED;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RETURNED;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.VERIFIED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.CREATED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.ISSUED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.PROCESSED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RECEIVED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RESERVED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RETURNED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.VERIFIED;
 import static java.time.temporal.ChronoUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -16,7 +16,8 @@ import static org.assertj.core.api.Assertions.within;
 import static org.junit.jupiter.params.provider.EnumSource.Mode.EXCLUDE;
 
 import ee.tuleva.onboarding.party.PartyId;
-import ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status;
+import ee.tuleva.onboarding.savings.SavingFundPayment;
+import ee.tuleva.onboarding.savings.SavingFundPayment.Status;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import java.math.BigDecimal;

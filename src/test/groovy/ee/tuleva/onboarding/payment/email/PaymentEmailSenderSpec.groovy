@@ -18,7 +18,7 @@ import ee.tuleva.onboarding.analytics.SecondPillarLeavers
 import ee.tuleva.onboarding.analytics.RecurringPayments
 import ee.tuleva.onboarding.analytics.RecurringSavers
 import ee.tuleva.onboarding.contribution.ThirdPillarTaxHeadroom
-import ee.tuleva.onboarding.savings.fund.SavingsFundSavers
+import ee.tuleva.onboarding.savings.SavingsFundSavers
 import spock.lang.Specification
 
 import java.util.Set

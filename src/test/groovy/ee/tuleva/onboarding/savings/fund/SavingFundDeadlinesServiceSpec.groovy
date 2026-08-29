@@ -1,10 +1,12 @@
 package ee.tuleva.onboarding.savings.fund
 
+
+import ee.tuleva.onboarding.savings.SavingFundDeadlinesService
 import ee.tuleva.onboarding.deadline.PublicHolidays
 import spock.lang.Specification
 import java.time.*
 
-import static ee.tuleva.onboarding.savings.fund.SavingFundPaymentFixture.aPayment
+import static ee.tuleva.onboarding.savings.SavingFundPaymentFixture.aPayment
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestFixture.redemptionRequestFixture
 
 class SavingFundDeadlinesServiceSpec extends Specification {

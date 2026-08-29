@@ -1,5 +1,6 @@
-package ee.tuleva.onboarding.savings.fund;
+package ee.tuleva.onboarding.savings;
 
+import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import java.math.BigDecimal;
 import java.util.Locale;
@@ -14,12 +15,13 @@ public class SavingsFundFees {
   private final SavingsFundConfiguration savingsFundConfiguration;
 
   public String ongoingChargesPercent(Locale locale) {
+    String isin = savingsFundConfiguration.getIsin();
+    Fund fund = fundRepository.findByIsin(isin);
+    if (fund == null) {
+      throw new IllegalStateException("Savings fund not found: isin=" + isin);
+    }
     BigDecimal percent =
-        fundRepository
-            .findByIsin(savingsFundConfiguration.getIsin())
-            .getOngoingChargesFigure()
-            .multiply(BigDecimal.valueOf(100))
-            .stripTrailingZeros();
+        fund.getOngoingChargesFigure().multiply(BigDecimal.valueOf(100)).stripTrailingZeros();
     String formatted = percent.toPlainString();
     return "et".equals(locale.getLanguage()) ? formatted.replace('.', ',') : formatted;
   }

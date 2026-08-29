@@ -1,8 +1,10 @@
 package ee.tuleva.onboarding.savings.fund;
 
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.TO_BE_RETURNED;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.VERIFIED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.TO_BE_RETURNED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.VERIFIED;
 
+import ee.tuleva.onboarding.savings.SavingFundDeadlinesService;
+import ee.tuleva.onboarding.savings.SavingFundPayment;
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

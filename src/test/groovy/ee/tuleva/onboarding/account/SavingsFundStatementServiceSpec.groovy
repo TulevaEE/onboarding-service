@@ -4,8 +4,8 @@ import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.fund.TulevaFund
 import ee.tuleva.onboarding.ledger.LedgerService
 import ee.tuleva.onboarding.party.PartyId
-import ee.tuleva.onboarding.savings.fund.SavingsFundConfiguration
-import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService
+import ee.tuleva.onboarding.savings.SavingsFundConfiguration
+import ee.tuleva.onboarding.savings.SavingsFundOnboardingService
 import ee.tuleva.onboarding.savings.FundNavProvider
 import spock.lang.Specification
 

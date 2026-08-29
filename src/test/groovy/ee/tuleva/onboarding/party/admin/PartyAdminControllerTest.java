@@ -19,7 +19,7 @@ import ee.tuleva.onboarding.party.ChildAmlBackfillResult;
 import ee.tuleva.onboarding.party.ChildAmlBackfillService;
 import ee.tuleva.onboarding.party.ChildIsNotAMinorException;
 import ee.tuleva.onboarding.party.ParentChildLinkRegistrationService;
-import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
+import ee.tuleva.onboarding.savings.SavingsFundOnboardingService;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneOffset;

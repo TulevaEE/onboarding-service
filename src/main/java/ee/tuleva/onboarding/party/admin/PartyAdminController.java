@@ -6,7 +6,7 @@ import ee.tuleva.onboarding.admin.AdminTokenValidator;
 import ee.tuleva.onboarding.party.ChildAmlBackfillResult;
 import ee.tuleva.onboarding.party.ChildAmlBackfillService;
 import ee.tuleva.onboarding.party.ParentChildLinkRegistrationService;
-import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
+import ee.tuleva.onboarding.savings.SavingsFundOnboardingService;
 import jakarta.validation.Valid;
 import java.time.Clock;
 import java.time.LocalDate;

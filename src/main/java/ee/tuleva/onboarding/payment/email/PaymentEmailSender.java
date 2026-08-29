@@ -19,7 +19,7 @@ import ee.tuleva.onboarding.payment.event.SavingsPaymentCancelledEvent;
 import ee.tuleva.onboarding.payment.event.SavingsPaymentCreatedEvent;
 import ee.tuleva.onboarding.payment.event.SavingsPaymentFailedEvent;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
-import ee.tuleva.onboarding.savings.fund.SavingsFundSavers;
+import ee.tuleva.onboarding.savings.SavingsFundSavers;
 import ee.tuleva.onboarding.user.User;
 import java.util.Map;
 import java.util.Set;

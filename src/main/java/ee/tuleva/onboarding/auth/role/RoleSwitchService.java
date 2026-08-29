@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.auth.role;
 import static ee.tuleva.onboarding.auth.role.RoleType.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
 import static ee.tuleva.onboarding.company.RelationshipType.BOARD_MEMBER;
-import static ee.tuleva.onboarding.event.TrackableEventType.ROLE_SWITCH;
 import static java.util.Collections.unmodifiableList;
 
 import ee.tuleva.onboarding.auth.AuthenticationTokens;
@@ -15,14 +14,12 @@ import ee.tuleva.onboarding.company.CompanyNotFoundException;
 import ee.tuleva.onboarding.company.CompanyParty;
 import ee.tuleva.onboarding.company.CompanyPartyRepository;
 import ee.tuleva.onboarding.company.CompanyRepository;
-import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.party.ParentChildLinkService;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -135,10 +132,7 @@ class RoleSwitchService {
   private AuthenticationTokens switchTo(AuthenticatedPerson person, Role role) {
     AuthenticatedPerson switchedPerson = principalService.withRole(person, role);
     AuthenticationTokens tokens = tokenService.generateTokens(switchedPerson);
-    applicationEventPublisher.publishEvent(new RoleSwitchedEvent(switchedPerson));
-    applicationEventPublisher.publishEvent(
-        new TrackableEvent(
-            person, ROLE_SWITCH, Map.of("roleType", role.type().name(), "code", role.code())));
+    applicationEventPublisher.publishEvent(new RoleSwitchedEvent(person, switchedPerson));
     return tokens;
   }
 }

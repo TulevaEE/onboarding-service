@@ -4,7 +4,6 @@ import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthent
 import static ee.tuleva.onboarding.auth.role.RoleType.*;
 import static ee.tuleva.onboarding.company.CompanyFixture.*;
 import static ee.tuleva.onboarding.company.RelationshipType.BOARD_MEMBER;
-import static ee.tuleva.onboarding.event.TrackableEventType.ROLE_SWITCH;
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.PENDING_KYC;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -23,13 +22,11 @@ import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.company.CompanyNotFoundException;
 import ee.tuleva.onboarding.company.CompanyPartyRepository;
 import ee.tuleva.onboarding.company.CompanyRepository;
-import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.party.ParentChildLinkService;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -98,12 +95,7 @@ class RoleSwitchServiceTest {
 
     roleSwitchService.switchRole(person, new SwitchRoleCommand(LEGAL_ENTITY, SAMPLE_REGISTRY_CODE));
 
-    verify(applicationEventPublisher)
-        .publishEvent(
-            new TrackableEvent(
-                person,
-                ROLE_SWITCH,
-                Map.of("roleType", "LEGAL_ENTITY", "code", SAMPLE_REGISTRY_CODE)));
+    verify(applicationEventPublisher).publishEvent(new RoleSwitchedEvent(person, person));
   }
 
   @Test
@@ -147,12 +139,7 @@ class RoleSwitchServiceTest {
 
     roleSwitchService.switchRole(person, new SwitchRoleCommand(PERSON, person.getPersonalCode()));
 
-    verify(applicationEventPublisher)
-        .publishEvent(
-            new TrackableEvent(
-                person,
-                ROLE_SWITCH,
-                Map.of("roleType", "PERSON", "code", person.getPersonalCode())));
+    verify(applicationEventPublisher).publishEvent(new RoleSwitchedEvent(person, person));
   }
 
   @Test
@@ -303,10 +290,7 @@ class RoleSwitchServiceTest {
 
     roleSwitchService.switchRole(person, new SwitchRoleCommand(PERSON, CHILD_CODE));
 
-    verify(applicationEventPublisher)
-        .publishEvent(
-            new TrackableEvent(
-                person, ROLE_SWITCH, Map.of("roleType", "PERSON", "code", CHILD_CODE)));
+    verify(applicationEventPublisher).publishEvent(new RoleSwitchedEvent(person, person));
   }
 
   @Test
@@ -324,7 +308,7 @@ class RoleSwitchServiceTest {
 
     roleSwitchService.switchRole(person, new SwitchRoleCommand(PERSON, CHILD_CODE));
 
-    verify(applicationEventPublisher).publishEvent(new RoleSwitchedEvent(switchedPerson));
+    verify(applicationEventPublisher).publishEvent(new RoleSwitchedEvent(person, switchedPerson));
   }
 
   @Test

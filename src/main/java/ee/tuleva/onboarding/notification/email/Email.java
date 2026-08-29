@@ -4,10 +4,9 @@ import static ee.tuleva.onboarding.time.ClockHolder.clock;
 import static jakarta.persistence.EnumType.STRING;
 import static java.time.temporal.ChronoUnit.DAYS;
 
-import ee.tuleva.onboarding.mandate.Mandate;
-import ee.tuleva.onboarding.mandate.batch.MandateBatch;
 import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
 import jakarta.persistence.*;
+import jakarta.persistence.Column;
 import jakarta.validation.constraints.NotNull;
 import java.time.Clock;
 import java.time.Instant;
@@ -19,7 +18,7 @@ import lombok.*;
 @AllArgsConstructor
 @NoArgsConstructor
 @Data
-@ToString(exclude = {"personalCode", "mandate", "mandateBatch"})
+@ToString(exclude = "personalCode")
 public class Email {
 
   @Id
@@ -40,13 +39,11 @@ public class Email {
   @Enumerated(STRING)
   private EmailStatus status;
 
-  @ManyToOne
-  @JoinColumn(name = "mandate_id")
-  private Mandate mandate;
+  @Column(name = "mandate_id")
+  private Long mandateId;
 
-  @ManyToOne
-  @JoinColumn(name = "mandate_batch_id")
-  private MandateBatch mandateBatch;
+  @Column(name = "mandate_batch_id")
+  private Long mandateBatchId;
 
   @NotNull private Instant createdDate;
 

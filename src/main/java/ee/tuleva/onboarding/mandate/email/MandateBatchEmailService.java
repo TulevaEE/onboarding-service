@@ -38,7 +38,7 @@ public class MandateBatchEmailService {
   public void sendMandateBatch(
       User user, MandateBatch mandateBatch, PillarSuggestion pillarSuggestion, Locale locale) {
 
-    if (emailPersistenceService.hasEmailsFor(mandateBatch)) {
+    if (emailPersistenceService.hasEmailsForMandateBatch(mandateBatch.getId())) {
       log.warn(
           "Skipping mandatebatch (id={}) email as email already present", mandateBatch.getId());
       return;
@@ -46,7 +46,7 @@ public class MandateBatchEmailService {
 
     log.info("Sending mandatebatch (id={}) email", mandateBatch.getId());
 
-    EmailType emailType = EmailType.from(mandateBatch);
+    EmailType emailType = MandateEmailType.emailTypeFor(mandateBatch);
     String templateName = emailType.getTemplateName(locale);
     MandrillMessage mandrillMessage =
         emailService.newMandrillMessage(
@@ -59,13 +59,13 @@ public class MandateBatchEmailService {
         .send(user, mandrillMessage, templateName)
         .ifPresent(
             response ->
-                emailPersistenceService.save(
-                    user, response.getId(), emailType, response.getStatus(), mandateBatch));
+                emailPersistenceService.saveWithMandateBatch(
+                    user, response.getId(), emailType, response.getStatus(), mandateBatch.getId()));
   }
 
   public void sendMandateBatchFailedEmail(User user, MandateBatch mandateBatch, Locale locale) {
 
-    if (emailPersistenceService.hasEmailsFor(mandateBatch)) {
+    if (emailPersistenceService.hasEmailsForMandateBatch(mandateBatch.getId())) {
       log.warn(
           "Skipping mandatebatch (id={}) failed email as email already present",
           mandateBatch.getId());
@@ -91,8 +91,8 @@ public class MandateBatchEmailService {
         .send(user, mandrillMessage, templateName)
         .ifPresent(
             response ->
-                emailPersistenceService.save(
-                    user, response.getId(), emailType, response.getStatus(), mandateBatch));
+                emailPersistenceService.saveWithMandateBatch(
+                    user, response.getId(), emailType, response.getStatus(), mandateBatch.getId()));
   }
 
   private Map<String, Object> getMergeVars(

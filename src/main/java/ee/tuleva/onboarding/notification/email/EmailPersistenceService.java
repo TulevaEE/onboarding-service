@@ -3,8 +3,6 @@ package ee.tuleva.onboarding.notification.email;
 import static ee.tuleva.onboarding.notification.email.EmailStatus.*;
 
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.mandate.Mandate;
-import ee.tuleva.onboarding.mandate.batch.MandateBatch;
 import ee.tuleva.onboarding.notification.email.persistence.EmailRepository;
 import java.time.Clock;
 import java.time.Instant;
@@ -13,6 +11,7 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -25,51 +24,46 @@ public class EmailPersistenceService {
   private final Clock clock;
 
   public Email save(Person person, EmailType type, EmailStatus status) {
-    return save(person, null, type, status.name(), (Mandate) null);
+    return save(person, null, type, status.name(), null, null);
   }
 
   public Email save(Person person, String messageId, EmailType type, String status) {
-    return save(person, messageId, type, status, (Mandate) null);
+    return save(person, messageId, type, status, null, null);
   }
 
-  public boolean hasEmailsFor(Mandate mandate) {
-    return !emailRepository.findAllByMandate(mandate).isEmpty();
+  public boolean hasEmailsForMandate(Long mandateId) {
+    return !emailRepository.findAllByMandateId(mandateId).isEmpty();
   }
 
-  public boolean hasEmailsFor(MandateBatch batch) {
-    return !emailRepository.findAllByMandateBatch(batch).isEmpty();
+  public boolean hasEmailsForMandateBatch(Long mandateBatchId) {
+    return !emailRepository.findAllByMandateBatchId(mandateBatchId).isEmpty();
   }
 
-  public Email save(
-      Person person, String messageId, EmailType type, String status, Mandate mandate) {
+  public Email saveWithMandate(
+      Person person, String messageId, EmailType type, String status, Long mandateId) {
+    return save(person, messageId, type, status, mandateId, null);
+  }
+
+  public Email saveWithMandateBatch(
+      Person person, String messageId, EmailType type, String status, Long mandateBatchId) {
+    return save(person, messageId, type, status, null, mandateBatchId);
+  }
+
+  private Email save(
+      Person person,
+      @Nullable String messageId,
+      EmailType type,
+      String status,
+      @Nullable Long mandateId,
+      @Nullable Long mandateBatchId) {
     Email scheduledEmail =
         Email.builder()
             .personalCode(person.getPersonalCode())
             .mandrillMessageId(messageId)
             .type(type)
             .status(EmailStatus.valueOf(status.toUpperCase()))
-            .mandate(mandate)
-            .build();
-    log.info("Saving an email: email={}", scheduledEmail);
-    try {
-      Email savedEmail = emailRepository.save(scheduledEmail);
-      log.info("Email saved successfully: savedEmail={}", savedEmail);
-      return savedEmail;
-    } catch (Exception e) {
-      log.error("Failed to save email: email={}", scheduledEmail, e);
-      throw e;
-    }
-  }
-
-  public Email save(
-      Person person, String messageId, EmailType type, String status, MandateBatch mandateBatch) {
-    Email scheduledEmail =
-        Email.builder()
-            .personalCode(person.getPersonalCode())
-            .mandrillMessageId(messageId)
-            .type(type)
-            .status(EmailStatus.valueOf(status.toUpperCase()))
-            .mandateBatch(mandateBatch)
+            .mandateId(mandateId)
+            .mandateBatchId(mandateBatchId)
             .build();
     log.info("Saving an email: email={}", scheduledEmail);
     try {
@@ -103,24 +97,22 @@ public class EmailPersistenceService {
     return cancelled;
   }
 
-  public boolean hasEmailsToday(Person person, EmailType type, Mandate mandate) {
+  public boolean hasMandateEmailsToday(Person person, EmailType type, Long mandateId) {
     var statuses = List.of(SENT, QUEUED, SCHEDULED);
+    return emailRepository
+        .findFirstByPersonalCodeAndTypeAndMandateIdAndStatusInOrderByCreatedDateDescIdDesc(
+            person.getPersonalCode(), type, mandateId, statuses)
+        .map(email -> email.isToday(clock))
+        .orElse(false);
+  }
 
-    if (mandate.isPartOfBatch()) {
-      Optional<Email> latestBatchEmail =
-          emailRepository
-              .findFirstByPersonalCodeAndTypeAndMandateBatchAndStatusInOrderByCreatedDateDescIdDesc(
-                  person.getPersonalCode(), type, mandate.getMandateBatch(), statuses);
-
-      return latestBatchEmail.map(email -> email.isToday(clock)).orElse(false);
-    }
-
-    Optional<Email> latestMandateEmail =
-        emailRepository
-            .findFirstByPersonalCodeAndTypeAndMandateAndStatusInOrderByCreatedDateDescIdDesc(
-                person.getPersonalCode(), type, mandate, statuses);
-
-    return latestMandateEmail.map(email -> email.isToday(clock)).orElse(false);
+  public boolean hasMandateBatchEmailsToday(Person person, EmailType type, Long mandateBatchId) {
+    var statuses = List.of(SENT, QUEUED, SCHEDULED);
+    return emailRepository
+        .findFirstByPersonalCodeAndTypeAndMandateBatchIdAndStatusInOrderByCreatedDateDescIdDesc(
+            person.getPersonalCode(), type, mandateBatchId, statuses)
+        .map(email -> email.isToday(clock))
+        .orElse(false);
   }
 
   public Optional<Instant> getLastEmailSendDate(Person person, EmailType type) {

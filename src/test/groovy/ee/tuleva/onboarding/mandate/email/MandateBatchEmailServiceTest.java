@@ -107,7 +107,7 @@ class MandateBatchEmailServiceTest {
             List.of("mandate_batch", "pillar_2", "fund_pension_opening", "partial_withdrawal"));
     pillarSuggestion.renderedNudgeTag().ifPresent(tags::add);
 
-    when(emailPersistenceService.hasEmailsFor(mandateBatch)).thenReturn(false);
+    when(emailPersistenceService.hasEmailsForMandateBatch(mandateBatch.getId())).thenReturn(false);
     when(emailService.send(user, message, "withdrawal_batch_en"))
         .thenReturn(Optional.of(mandrillResponse));
     when(emailService.newMandrillMessage(
@@ -125,7 +125,8 @@ class MandateBatchEmailServiceTest {
     mandateBatchEmailService.sendMandateBatch(user, mandateBatch, pillarSuggestion, Locale.ENGLISH);
 
     verify(emailPersistenceService)
-        .save(user, "123", EmailType.WITHDRAWAL_BATCH, "sent", mandateBatch);
+        .saveWithMandateBatch(
+            user, "123", EmailType.WITHDRAWAL_BATCH, "sent", mandateBatch.getId());
   }
 
   @Test
@@ -190,7 +191,7 @@ class MandateBatchEmailServiceTest {
                 "partial_withdrawal"));
     pillarSuggestion.renderedNudgeTag().ifPresent(tags::add);
 
-    when(emailPersistenceService.hasEmailsFor(mandateBatch)).thenReturn(false);
+    when(emailPersistenceService.hasEmailsForMandateBatch(mandateBatch.getId())).thenReturn(false);
     when(emailService.send(user, message, "withdrawal_batch_en"))
         .thenReturn(Optional.of(mandrillResponse));
     when(emailService.newMandrillMessage(
@@ -208,7 +209,8 @@ class MandateBatchEmailServiceTest {
     mandateBatchEmailService.sendMandateBatch(user, mandateBatch, pillarSuggestion, Locale.ENGLISH);
 
     verify(emailPersistenceService)
-        .save(user, "123", EmailType.WITHDRAWAL_BATCH, "sent", mandateBatch);
+        .saveWithMandateBatch(
+            user, "123", EmailType.WITHDRAWAL_BATCH, "sent", mandateBatch.getId());
   }
 
   @Test
@@ -257,7 +259,7 @@ class MandateBatchEmailServiceTest {
     when(mandateProcessorService.getErrors(eq(mandate4)))
         .thenReturn(ErrorsResponse.ofSingleError("123", "Error"));
 
-    when(emailPersistenceService.hasEmailsFor(mandateBatch)).thenReturn(false);
+    when(emailPersistenceService.hasEmailsForMandateBatch(mandateBatch.getId())).thenReturn(false);
     when(emailService.send(user, message, "batch_failed_en"))
         .thenReturn(Optional.of(mandrillResponse));
 
@@ -275,7 +277,8 @@ class MandateBatchEmailServiceTest {
 
     mandateBatchEmailService.sendMandateBatchFailedEmail(user, mandateBatch, Locale.ENGLISH);
 
-    verify(emailPersistenceService).save(user, "123", EmailType.BATCH_FAILED, "sent", mandateBatch);
+    verify(emailPersistenceService)
+        .saveWithMandateBatch(user, "123", EmailType.BATCH_FAILED, "sent", mandateBatch.getId());
   }
 
   @Test
@@ -298,7 +301,7 @@ class MandateBatchEmailServiceTest {
     var paymentRates = samplePaymentRates();
     var pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates);
 
-    when(emailPersistenceService.hasEmailsFor(mandateBatch)).thenReturn(true);
+    when(emailPersistenceService.hasEmailsForMandateBatch(mandateBatch.getId())).thenReturn(true);
 
     mandateBatchEmailService.sendMandateBatch(user, mandateBatch, pillarSuggestion, Locale.ENGLISH);
 
@@ -325,7 +328,7 @@ class MandateBatchEmailServiceTest {
     var contactDetails = contactDetailsFixture();
     var paymentRates = samplePaymentRates();
 
-    when(emailPersistenceService.hasEmailsFor(mandateBatch)).thenReturn(true);
+    when(emailPersistenceService.hasEmailsForMandateBatch(mandateBatch.getId())).thenReturn(true);
 
     mandateBatchEmailService.sendMandateBatchFailedEmail(user, mandateBatch, Locale.ENGLISH);
 

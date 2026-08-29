@@ -28,7 +28,7 @@ class EmailTest {
             .mandrillMessageId("abc-123")
             .type(THIRD_PILLAR_PAYMENT_REMINDER_MANDATE)
             .status(SCHEDULED)
-            .mandateBatch(mandateBatch)
+            .mandateBatchId(mandateBatch.getId())
             .build();
 
     assertThat(email.toString())

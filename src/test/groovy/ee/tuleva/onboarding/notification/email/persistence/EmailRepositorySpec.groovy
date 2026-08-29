@@ -56,8 +56,8 @@ class EmailRepositorySpec extends Specification {
     def statuses = [SCHEDULED]
 
     when:
-    Optional<Email> latestEmail = emailRepository.findFirstByPersonalCodeAndTypeAndMandateAndStatusInOrderByCreatedDateDescIdDesc(
-        person.personalCode, emailType, mandate, statuses)
+    Optional<Email> latestEmail = emailRepository.findFirstByPersonalCodeAndTypeAndMandateIdAndStatusInOrderByCreatedDateDescIdDesc(
+        person.personalCode, emailType, mandate?.id, statuses)
 
     then:
     latestEmail.get() == scheduledEmail2
@@ -71,17 +71,17 @@ class EmailRepositorySpec extends Specification {
         sampleUserNonMember().id(null).personalCode("30303039816").email("30303039816@example.com").build())
     def sampleMandate = entityManager.persist(emptyMandate().user(sampleUser).build())
     def scheduledEmail1 = entityManager.persist(
-        new Email(personalCode: sampleUser.personalCode, mandrillMessageId: "123", type: emailType, mandate: sampleMandate, status: SCHEDULED)
+        new Email(personalCode: sampleUser.personalCode, mandrillMessageId: "123", type: emailType, mandateId: sampleMandate.id, status: SCHEDULED)
     )
     def scheduledEmail2 = entityManager.persist(
-        new Email(personalCode: sampleUser.personalCode, mandrillMessageId: "234", type: emailType, mandate: sampleMandate, status: SCHEDULED)
+        new Email(personalCode: sampleUser.personalCode, mandrillMessageId: "234", type: emailType, mandateId: sampleMandate.id, status: SCHEDULED)
     )
     entityManager.flush()
     def statuses = [SCHEDULED]
 
     when:
-    Optional<Email> latestEmail = emailRepository.findFirstByPersonalCodeAndTypeAndMandateAndStatusInOrderByCreatedDateDescIdDesc(
-        sampleUser.personalCode, emailType, sampleMandate, statuses)
+    Optional<Email> latestEmail = emailRepository.findFirstByPersonalCodeAndTypeAndMandateIdAndStatusInOrderByCreatedDateDescIdDesc(
+        sampleUser.personalCode, emailType, sampleMandate?.id, statuses)
 
     then:
     latestEmail.get() == scheduledEmail2

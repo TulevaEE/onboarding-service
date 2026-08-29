@@ -5,6 +5,7 @@ import static java.util.Collections.emptyList;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageContent;
+import ee.tuleva.onboarding.mandate.MandateRepository;
 import ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments;
 import ee.tuleva.onboarding.mandate.email.PillarSuggestion;
 import ee.tuleva.onboarding.notification.email.Email;
@@ -26,6 +27,7 @@ public class PaymentEmailService {
 
   private static final String SAVINGS_FUND_TAG = "savings_fund";
 
+  private final MandateRepository mandateRepository;
   private final EmailService emailService;
   private final EmailPersistenceService emailPersistenceService;
   private final SavingsFundFees savingsFundFees;
@@ -156,6 +158,9 @@ public class PaymentEmailService {
     }
 
     Email latestScheduledEmail = cancelledEmails.getFirst();
-    return EmailVariablesAttachments.getAttachments(user, latestScheduledEmail.getMandate());
+    return mandateRepository
+        .findById(latestScheduledEmail.getMandateId())
+        .map(mandate -> EmailVariablesAttachments.getAttachments(user, mandate))
+        .orElse(emptyList());
   }
 }

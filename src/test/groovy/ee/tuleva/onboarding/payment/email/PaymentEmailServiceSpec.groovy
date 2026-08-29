@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.payment.email
 
+import ee.tuleva.onboarding.mandate.MandateRepository
 import ee.tuleva.onboarding.savings.fund.SavingsFundFees
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus
@@ -27,7 +28,8 @@ class PaymentEmailServiceSpec extends Specification {
   SavingsFundFees savingsFundFees = Mock() {
     ongoingChargesPercent(_) >> "0.28"
   }
-  PaymentEmailService paymentEmailService = new PaymentEmailService(emailService,
+  MandateRepository mandateRepository = Mock()
+  PaymentEmailService paymentEmailService = new PaymentEmailService(mandateRepository, emailService,
       emailPersistenceService, savingsFundFees)
 
   def "send third pillar payment success email"() {
@@ -63,11 +65,12 @@ class PaymentEmailServiceSpec extends Specification {
     def locale = Locale.ENGLISH
     def mandrillMessageId = "mandrillMessageId123"
     def mandate = new Mandate(mandate: new byte[0])
+    mandateRepository.findById(42L) >> Optional.of(mandate)
     def mandateAttachments = getAttachments(user, mandate)
 
     emailPersistenceService.cancel(user, THIRD_PILLAR_PAYMENT_REMINDER_MANDATE) >> [new Email(
         personalCode: user.personalCode, mandrillMessageId: mandrillMessageId,
-        type: THIRD_PILLAR_PAYMENT_REMINDER_MANDATE, mandate: mandate
+        type: THIRD_PILLAR_PAYMENT_REMINDER_MANDATE, mandateId: 42L
     )]
     def mandrillResponse = new MandrillMessageStatus().tap {
       _id = "123"

@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.notification.email.persistence;
+package ee.tuleva.onboarding.mandate.email;
 
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
 import ee.tuleva.onboarding.notification.email.EmailPersistenceService;

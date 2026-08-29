@@ -84,11 +84,11 @@ class EmailPersistenceServiceSpec extends Specification {
         updatedDate: Instant.now(clock)
     )
     def statuses = [SENT, QUEUED, SCHEDULED]
-    emailRepository.findFirstByPersonalCodeAndTypeAndMandateAndStatusInOrderByCreatedDateDescIdDesc(
-        person.personalCode, type, mandate, statuses) >> Optional.of(email)
+    emailRepository.findFirstByPersonalCodeAndTypeAndMandateIdAndStatusInOrderByCreatedDateDescIdDesc(
+        person.personalCode, type, mandate.id, statuses) >> Optional.of(email)
 
     when:
-    def hasEmailsToday = emailPersistenceService.hasEmailsToday(person, type, mandate)
+    def hasEmailsToday = emailPersistenceService.hasMandateEmailsToday(person, type, mandate.id)
 
     then:
     hasEmailsToday
@@ -114,14 +114,14 @@ class EmailPersistenceServiceSpec extends Specification {
         status: SCHEDULED,
         createdDate: Instant.now(clock),
         updatedDate: Instant.now(clock),
-        mandateBatch: mandateBatch,
+        mandateBatchId: mandateBatch.id,
     )
     def statuses = [SENT, QUEUED, SCHEDULED]
-    emailRepository.findFirstByPersonalCodeAndTypeAndMandateBatchAndStatusInOrderByCreatedDateDescIdDesc(
-        person.personalCode, type, mandateBatch, statuses) >> Optional.of(email)
+    emailRepository.findFirstByPersonalCodeAndTypeAndMandateBatchIdAndStatusInOrderByCreatedDateDescIdDesc(
+        person.personalCode, type, mandateBatch.id, statuses) >> Optional.of(email)
 
     when:
-    def hasEmailsToday = emailPersistenceService.hasEmailsToday(person, type, mandate1)
+    def hasEmailsToday = emailPersistenceService.hasMandateBatchEmailsToday(person, type, mandateBatch.id)
 
     then:
     hasEmailsToday
@@ -159,12 +159,12 @@ class EmailPersistenceServiceSpec extends Specification {
         mandrillMessageId: null,
         type: SECOND_PILLAR_LEAVERS,
         status: SCHEDULED,
-        mandateBatch: mandateBatch,
+        mandateBatchId: mandateBatch.id,
     )
     emailRepository.save(email) >> email
 
     when:
-    def savedEmail = emailPersistenceService.save(person, null, email.type, email.status.name(), mandateBatch)
+    def savedEmail = emailPersistenceService.saveWithMandateBatch(person, null, email.type, email.status.name(), mandateBatch.id)
 
     then:
     savedEmail == email

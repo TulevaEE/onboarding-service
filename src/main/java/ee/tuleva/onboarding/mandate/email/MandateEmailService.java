@@ -8,6 +8,7 @@ import static java.time.temporal.ChronoUnit.HOURS;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.auth.principal.AuthenticationHolder;
+import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.deadline.MandateDeadlines;
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
 import ee.tuleva.onboarding.fund.Fund;
@@ -46,7 +47,7 @@ public class MandateEmailService {
 
   public void sendMandate(
       User user, Mandate mandate, PillarSuggestion pillarSuggestion, Locale locale) {
-    if (emailPersistenceService.hasEmailsFor(mandate)) {
+    if (emailPersistenceService.hasEmailsForMandate(mandate.getId())) {
       log.warn("Skipping mandate (id={}) email as email already present", mandate.getId());
       return;
     }
@@ -65,7 +66,7 @@ public class MandateEmailService {
 
   private void sendSecondPillarEmail(
       User user, Mandate mandate, PillarSuggestion pillarSuggestion, Locale locale) {
-    EmailType emailType = EmailType.from(mandate);
+    EmailType emailType = MandateEmailType.emailTypeFor(mandate);
     String templateName = emailType.getTemplateName(locale);
     MandrillMessage mandrillMessage =
         emailService.newMandrillMessage(
@@ -78,8 +79,8 @@ public class MandateEmailService {
         .send(user, mandrillMessage, templateName)
         .ifPresent(
             response ->
-                emailPersistenceService.save(
-                    user, response.getId(), emailType, response.getStatus(), mandate));
+                emailPersistenceService.saveWithMandate(
+                    user, response.getId(), emailType, response.getStatus(), mandate.getId()));
   }
 
   private Map<String, Object> getMergeVars(
@@ -207,10 +208,10 @@ public class MandateEmailService {
 
   private void scheduleThirdPillarPaymentReminderEmail(User user, Mandate mandate, Locale locale) {
     Instant sendAt = Instant.now(clock).plus(1, HOURS);
-    EmailType emailType = EmailType.from(mandate);
+    EmailType emailType = MandateEmailType.emailTypeFor(mandate);
     String templateName = emailType.getTemplateName(locale);
 
-    if (emailPersistenceService.hasEmailsToday(user, emailType, mandate)) {
+    if (hasEmailsToday(user, emailType, mandate)) {
       log.info(
           "Already has email today: personalCode={}, emailType={}, mandateId={}",
           user.getPersonalCode(),
@@ -231,21 +232,21 @@ public class MandateEmailService {
         .send(user, message, templateName, sendAt)
         .ifPresent(
             response ->
-                emailPersistenceService.save(
+                emailPersistenceService.saveWithMandate(
                     user,
                     response.getId(),
                     EmailType.THIRD_PILLAR_PAYMENT_REMINDER_MANDATE,
                     response.getStatus(),
-                    mandate));
+                    mandate.getId()));
   }
 
   void scheduleThirdPillarSuggestSecondEmail(
       User user, Mandate mandate, PillarSuggestion pillarSuggestion, Locale locale) {
     Instant sendAt = Instant.now(clock).plus(3, DAYS);
-    EmailType emailType = EmailType.from(mandate, pillarSuggestion);
+    EmailType emailType = MandateEmailType.emailTypeFor(mandate, pillarSuggestion);
     String templateName = emailType.getTemplateName(locale);
 
-    if (emailPersistenceService.hasEmailsToday(user, emailType, mandate)) {
+    if (hasEmailsToday(user, emailType, mandate)) {
       log.info(
           "Already has email today: personalCode={}, emailType={}, mandateId={}",
           user.getPersonalCode(),
@@ -272,5 +273,13 @@ public class MandateEmailService {
 
   boolean isPaymentRateDecreased(Integer oldRate, Integer newRate) {
     return newRate == 2 || newRate < oldRate;
+  }
+
+  private boolean hasEmailsToday(Person person, EmailType emailType, Mandate mandate) {
+    if (mandate.isPartOfBatch()) {
+      return emailPersistenceService.hasMandateBatchEmailsToday(
+          person, emailType, mandate.getMandateBatch().getId());
+    }
+    return emailPersistenceService.hasMandateEmailsToday(person, emailType, mandate.getId());
   }
 }

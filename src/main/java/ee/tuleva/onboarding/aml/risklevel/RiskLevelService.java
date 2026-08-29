@@ -6,6 +6,7 @@ import static java.util.stream.Collectors.toList;
 import ee.tuleva.onboarding.aml.AmlCheck;
 import ee.tuleva.onboarding.aml.AmlCheckRepository;
 import ee.tuleva.onboarding.aml.AmlCheckType;
+import ee.tuleva.onboarding.aml.RiskLevels;
 import ee.tuleva.onboarding.aml.notification.AmlCheckCreatedEvent;
 import ee.tuleva.onboarding.aml.notification.AmlRiskLevelJobRunEvent;
 import ee.tuleva.onboarding.time.ClockHolder;
@@ -24,7 +25,7 @@ import org.springframework.util.StringUtils;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class RiskLevelService {
+public class RiskLevelService implements RiskLevels {
 
   private final AmlRiskReader amlRiskReader;
   private final TkfRiskReader tkfRiskReader;
@@ -37,6 +38,7 @@ public class RiskLevelService {
     scorePillar("III pillar", amlRiskReader, RISK_LEVEL, mediumRiskIndividualSelectionProbability);
   }
 
+  @Override
   public boolean isHighRisk(String personalCode) {
     return latestLevelIsHigh(personalCode, List.of(RISK_LEVEL, RISK_LEVEL_OVERRIDE))
         || latestLevelIsHigh(personalCode, List.of(TKF_RISK_LEVEL, TKF_RISK_LEVEL_OVERRIDE));

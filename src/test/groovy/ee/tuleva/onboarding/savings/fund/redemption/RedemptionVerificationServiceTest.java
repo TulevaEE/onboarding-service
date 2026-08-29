@@ -16,7 +16,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.aml.AmlService;
-import ee.tuleva.onboarding.aml.risklevel.RiskLevelService;
+import ee.tuleva.onboarding.aml.RiskLevels;
 import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.kyb.LegalEntityScreener;
 import ee.tuleva.onboarding.kyc.KycCountryService;
@@ -40,7 +40,7 @@ class RedemptionVerificationServiceTest {
   @Mock private UserService userService;
   @Mock private KycCountryService kycCountryService;
   @Mock private AmlService amlService;
-  @Mock private RiskLevelService riskLevelService;
+  @Mock private RiskLevels riskLevels;
   @Mock private SavingsFundOnboardingRepository savingsFundOnboardingRepository;
   @Mock private LegalEntityScreener legalEntityScreener;
   @Mock private OperationsNotificationService notificationService;
@@ -63,7 +63,7 @@ class RedemptionVerificationServiceTest {
     given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
     given(kycCountryService.getCountries(userId)).willReturn(Optional.of(countries));
     given(amlService.isSanctionAndPepClear(user, countries)).willReturn(true);
-    given(riskLevelService.isHighRisk(user.getPersonalCode())).willReturn(false);
+    given(riskLevels.isHighRisk(user.getPersonalCode())).willReturn(false);
 
     service.process(request);
 
@@ -139,7 +139,7 @@ class RedemptionVerificationServiceTest {
     given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
     given(kycCountryService.getCountries(userId)).willReturn(Optional.of(countries));
     given(amlService.isSanctionAndPepClear(user, countries)).willReturn(true);
-    given(riskLevelService.isHighRisk(user.getPersonalCode())).willReturn(true);
+    given(riskLevels.isHighRisk(user.getPersonalCode())).willReturn(true);
 
     service.process(request);
 
@@ -164,7 +164,7 @@ class RedemptionVerificationServiceTest {
     given(userService.findByPersonalCode(childCode)).willReturn(Optional.of(child));
     given(kycCountryService.getCountries(child.getId())).willReturn(Optional.of(countries));
     given(amlService.isSanctionAndPepClear(child, countries)).willReturn(true);
-    given(riskLevelService.isHighRisk(childCode)).willReturn(false);
+    given(riskLevels.isHighRisk(childCode)).willReturn(false);
 
     service.process(request);
 
@@ -325,7 +325,7 @@ class RedemptionVerificationServiceTest {
     given(kycCountryService.getCountries(userId)).willReturn(Optional.of(Countries.of("EE")));
     given(amlService.recordedCitizenships(user)).willReturn(Countries.of("RU"));
     given(amlService.isSanctionAndPepClear(user, Countries.of("EE", "RU"))).willReturn(true);
-    given(riskLevelService.isHighRisk(user.getPersonalCode())).willReturn(false);
+    given(riskLevels.isHighRisk(user.getPersonalCode())).willReturn(false);
 
     service.process(request);
 

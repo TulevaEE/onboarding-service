@@ -7,7 +7,7 @@ import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Sta
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
 
 import ee.tuleva.onboarding.aml.AmlService;
-import ee.tuleva.onboarding.aml.risklevel.RiskLevelService;
+import ee.tuleva.onboarding.aml.RiskLevels;
 import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.kyb.LegalEntityScreener;
 import ee.tuleva.onboarding.kyc.KycCountryService;
@@ -31,7 +31,7 @@ public class RedemptionVerificationService {
   private final UserService userService;
   private final KycCountryService kycCountryService;
   private final AmlService amlService;
-  private final RiskLevelService riskLevelService;
+  private final RiskLevels riskLevels;
   private final SavingsFundOnboardingRepository savingsFundOnboardingRepository;
   private final LegalEntityScreener legalEntityScreener;
   private final OperationsNotificationService notificationService;
@@ -92,7 +92,7 @@ public class RedemptionVerificationService {
     allCountries.addAll(amlService.recordedCitizenships(user));
 
     boolean screeningClear = amlService.isSanctionAndPepClear(user, allCountries);
-    boolean highRisk = riskLevelService.isHighRisk(user.getPersonalCode());
+    boolean highRisk = riskLevels.isHighRisk(user.getPersonalCode());
     if (highRisk) {
       log.info(
           "Redemption party is high risk: id={}, party={}", request.getId(), request.getPartyId());

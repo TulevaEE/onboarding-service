@@ -14,9 +14,9 @@ import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.authenticated
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyConverted
 import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture
-import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.sampleEarlyWithdrawalApplicationDto
-import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.sampleTransferApplicationDto
-import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.sampleWithdrawalApplicationDto
+import static ee.tuleva.onboarding.mandate.application.ApplicationSnapshotFixture.sampleEarlyWithdrawalApplicationDto
+import static ee.tuleva.onboarding.mandate.application.ApplicationSnapshotFixture.sampleTransferApplicationDto
+import static ee.tuleva.onboarding.mandate.application.ApplicationSnapshotFixture.sampleWithdrawalApplicationDto
 
 class CancellationMandateBuilderSpec extends Specification {
 

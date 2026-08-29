@@ -3,8 +3,8 @@ package ee.tuleva.onboarding.epis;
 import static ee.tuleva.onboarding.epis.CashFlow.Type.CASH;
 import static ee.tuleva.onboarding.epis.CashFlow.Type.CONTRIBUTION_CASH;
 import static ee.tuleva.onboarding.epis.fund.FundDto.FundStatus.ACTIVE;
-import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.COMPLETE;
 import static ee.tuleva.onboarding.mandate.ApplicationType.SELECTION;
+import static ee.tuleva.onboarding.mandate.application.ApplicationStatus.COMPLETE;
 import static java.time.LocalDate.parse;
 import static java.time.temporal.ChronoUnit.DAYS;
 
@@ -15,12 +15,12 @@ import ee.tuleva.onboarding.epis.account.FundBalanceDto;
 import ee.tuleva.onboarding.epis.application.ApplicationResponse;
 import ee.tuleva.onboarding.epis.fund.FundDto;
 import ee.tuleva.onboarding.epis.fund.NavDto;
-import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
 import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO;
 import ee.tuleva.onboarding.epis.mandate.MandateDto;
 import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto;
+import ee.tuleva.onboarding.mandate.application.ApplicationSnapshot;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -42,14 +42,13 @@ public class MockEpisService extends EpisService {
   }
 
   @Override
-  public List<ApplicationDTO> getApplications(Person person) {
+  public List<ApplicationSnapshot> getApplications(Person person) {
     return List.of(
-        ApplicationDTO.builder()
+        ApplicationSnapshot.builder()
             .date(Instant.parse("2001-01-02T01:23:45Z"))
             .type(SELECTION)
             .status(COMPLETE)
             .id(123L)
-            .currency("EUR")
             .sourceFundIsin("source")
             .build());
   }

@@ -7,12 +7,12 @@ import ee.tuleva.onboarding.epis.CashFlowStatement
 import ee.tuleva.onboarding.epis.ContactDetails
 import ee.tuleva.onboarding.epis.fund.FundDto
 import ee.tuleva.onboarding.epis.fund.NavDto
-import ee.tuleva.onboarding.epis.mandate.ApplicationDTO
 import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO
 import ee.tuleva.onboarding.epis.mandate.MandateDto
 import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto
+import ee.tuleva.onboarding.mandate.application.ApplicationSnapshot
 import ee.tuleva.onboarding.withdrawals.FundPensionStatus
 import org.springframework.web.client.RestTemplate
 import spock.lang.Specification
@@ -27,7 +27,7 @@ class MockEpisServiceSpec extends Specification {
 
   def "getApplications has a mock response"() {
     when:
-    List<ApplicationDTO> response = episService.getApplications(samplePerson())
+    List<ApplicationSnapshot> response = episService.getApplications(samplePerson())
     then:
     !response.isEmpty()
   }

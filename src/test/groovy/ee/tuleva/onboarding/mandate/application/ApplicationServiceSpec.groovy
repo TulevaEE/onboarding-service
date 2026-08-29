@@ -27,12 +27,12 @@ import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthent
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.deadline.MandateDeadlinesFixture.sampleDeadlines
-import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.COMPLETE
-import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.PENDING
 import static ee.tuleva.onboarding.fund.ApiFundResponseFixture.tuleva3rdPillarApiFundResponse
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
-import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.*
+import static ee.tuleva.onboarding.mandate.application.ApplicationSnapshotFixture.*
 import static ee.tuleva.onboarding.mandate.application.ApplicationFixture.paymentApplication
+import static ee.tuleva.onboarding.mandate.application.ApplicationStatus.COMPLETE
+import static ee.tuleva.onboarding.mandate.application.ApplicationStatus.PENDING
 import static ee.tuleva.onboarding.mandate.ApplicationType.*
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND
 import static ee.tuleva.onboarding.pillar.Pillar.THIRD
@@ -148,7 +148,7 @@ class ApplicationServiceSpec extends Specification {
         with(exchanges[0]) {
           sourceFund.isin == "AE123232334"
           targetFund == null
-          targetPik == "EE801281685311741971"
+          targetPik == "EE471000001020145685"
           amount == 1.0
         }
         fulfillmentDate == LocalDate.parse("2021-05-03")

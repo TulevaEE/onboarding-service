@@ -5,7 +5,7 @@ import ee.tuleva.onboarding.account.CashFlowService
 import ee.tuleva.onboarding.deadline.PublicHolidays
 import ee.tuleva.onboarding.epis.CashFlow
 import ee.tuleva.onboarding.epis.CashFlowStatement
-import ee.tuleva.onboarding.epis.mandate.ApplicationStatus
+import ee.tuleva.onboarding.mandate.application.ApplicationStatus
 import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.locale.MockLocaleService
@@ -22,8 +22,8 @@ import static ee.tuleva.onboarding.payment.application.PaymentLinkingService.TUL
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.epis.CashFlow.Type.*
-import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.COMPLETE
-import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.FAILED
+import static ee.tuleva.onboarding.mandate.application.ApplicationStatus.COMPLETE
+import static ee.tuleva.onboarding.mandate.application.ApplicationStatus.FAILED
 import static ee.tuleva.onboarding.fund.ApiFundResponseFixture.tuleva3rdPillarApiFundResponse
 import static ee.tuleva.onboarding.fund.FundFixture.tuleva3rdPillarFund
 import static ee.tuleva.onboarding.payment.PaymentFixture.*

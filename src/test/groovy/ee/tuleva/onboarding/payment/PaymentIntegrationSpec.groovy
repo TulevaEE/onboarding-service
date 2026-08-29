@@ -4,8 +4,8 @@ import tools.jackson.databind.json.JsonMapper
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.currency.Currency
 import ee.tuleva.onboarding.epis.account.FundBalanceDto
-import ee.tuleva.onboarding.epis.mandate.ApplicationStatus
 import ee.tuleva.onboarding.event.EventLogRepository
+import ee.tuleva.onboarding.mandate.application.ApplicationStatus
 import ee.tuleva.onboarding.payment.application.PaymentLinkingService
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioApiClient
 import ee.tuleva.onboarding.user.User

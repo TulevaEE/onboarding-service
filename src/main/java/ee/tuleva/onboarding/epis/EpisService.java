@@ -19,6 +19,7 @@ import ee.tuleva.onboarding.epis.transaction.*;
 import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto;
+import ee.tuleva.onboarding.mandate.application.ApplicationSnapshot;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
@@ -73,12 +74,12 @@ public class EpisService {
   private final String episServiceLongRequestUrl;
 
   @Cacheable(value = APPLICATIONS_CACHE_NAME, key = "#person.representedPersonalCode", sync = true)
-  public List<ApplicationDTO> getApplications(Person person) {
+  public List<ApplicationSnapshot> getApplications(Person person) {
     String url = episServiceUrl + "/applications";
 
     log.info("Getting applications from {} for {}", url, person.getPersonalCode());
 
-    return asList(
+    return ApplicationDTO.toSnapshots(
         episRestTemplate.exchange(url, GET, getHeadersEntity(), ApplicationDTO[].class).getBody());
   }
 
@@ -287,7 +288,6 @@ public class EpisService {
       Optional<String> securityFrom,
       Optional<String> securityTo,
       boolean pikFlag) {
-
     log.info(
         "Fetching exchange transactions from EPIS service: startDate={}, securityFrom={}, securityTo={}, pikFlag={}",
         startDate,

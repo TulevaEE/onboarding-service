@@ -4,12 +4,12 @@ import ee.tuleva.onboarding.mandate.ApplicationType
 import ee.tuleva.onboarding.auth.role.Role
 import ee.tuleva.onboarding.epis.ThirdPillarContribution
 import ee.tuleva.onboarding.epis.application.ApplicationResponse
-import ee.tuleva.onboarding.epis.mandate.ApplicationDTO
 import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO
-import ee.tuleva.onboarding.epis.mandate.ApplicationStatus
 import ee.tuleva.onboarding.epis.mandate.MandateDto
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommand
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse
+import ee.tuleva.onboarding.mandate.application.ApplicationSnapshot
+import ee.tuleva.onboarding.mandate.application.ApplicationStatus
 import org.mockserver.client.MockServerClient
 import org.mockserver.matchers.MatchType
 import org.mockserver.model.MediaType
@@ -93,7 +93,7 @@ class EpisServiceIntegrationSpec extends Specification {
                         }]
                         """, MatchType.STRICT)))
     when:
-    List<ApplicationDTO> applications = episService.getApplications(samplePerson())
+    List<ApplicationSnapshot> applications = episService.getApplications(samplePerson())
     then:
     applications.size() == 1
     applications.first().status == ApplicationStatus.PENDING

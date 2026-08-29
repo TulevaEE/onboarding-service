@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.conversion;
 
-import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.PENDING;
+import static ee.tuleva.onboarding.mandate.application.ApplicationStatus.PENDING;
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND;
 import static ee.tuleva.onboarding.pillar.Pillar.THIRD;
 import static java.math.BigDecimal.ZERO;

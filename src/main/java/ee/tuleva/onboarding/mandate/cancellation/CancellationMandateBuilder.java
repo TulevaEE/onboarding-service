@@ -10,11 +10,11 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.conversion.ConversionDecorator;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.epis.ContactDetails;
-import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.mandate.application.ApplicationSnapshot;
 import ee.tuleva.onboarding.mandate.details.EarlyWithdrawalCancellationMandateDetails;
 import ee.tuleva.onboarding.mandate.details.TransferCancellationMandateDetails;
 import ee.tuleva.onboarding.mandate.details.WithdrawalCancellationMandateDetails;
@@ -34,7 +34,7 @@ public class CancellationMandateBuilder {
   private final SecondPillarPaymentRateService secondPillarPaymentRateService;
 
   public Mandate build(
-      ApplicationDTO applicationToCancel,
+      ApplicationSnapshot applicationToCancel,
       AuthenticatedPerson authenticatedPerson,
       User user,
       ConversionResponse conversion,
@@ -76,11 +76,15 @@ public class CancellationMandateBuilder {
   }
 
   private Mandate buildTransferCancellationMandate(
-      ApplicationDTO applicationToCancel, Mandate mandate) {
+      ApplicationSnapshot applicationToCancel, Mandate mandate) {
+    String sourceFundIsin =
+        requireNonNull(
+            applicationToCancel.getSourceFundIsin(),
+            "Source fund isin missing: applicationId=" + applicationToCancel.getId());
     Fund sourceFund =
         requireNonNull(
-            fundRepository.findByIsin(applicationToCancel.getSourceFundIsin()),
-            "Source fund missing: isin=" + applicationToCancel.getSourceFundIsin());
+            fundRepository.findByIsin(sourceFundIsin),
+            "Source fund missing: isin=" + sourceFundIsin);
 
     final var exchange =
         FundTransferExchange.builder()

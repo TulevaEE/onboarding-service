@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.mandate.application;
 
-import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.PENDING;
+import static ee.tuleva.onboarding.mandate.application.ApplicationStatus.PENDING;
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
 
@@ -10,9 +11,6 @@ import ee.tuleva.onboarding.company.BoardMembershipService;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
 import ee.tuleva.onboarding.epis.EpisService;
-import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
-import ee.tuleva.onboarding.epis.mandate.ApplicationStatus;
-import ee.tuleva.onboarding.epis.mandate.MandateDto.MandateFundsTransferExchangeDTO;
 import ee.tuleva.onboarding.error.NotFoundException;
 import ee.tuleva.onboarding.fund.ApiFundResponse;
 import ee.tuleva.onboarding.fund.Fund;
@@ -117,11 +115,12 @@ public class ApplicationService {
 
   private <T extends ApplicationDetails> List<Application<T>> getApplications(
       Person person,
-      Predicate<Entry<ApplicationType, List<ApplicationDTO>>> filterPredicate,
-      Function<Entry<ApplicationType, List<ApplicationDTO>>, Stream<? extends Application<T>>>
+      Predicate<Entry<ApplicationType, List<ApplicationSnapshot>>> filterPredicate,
+      Function<Entry<ApplicationType, List<ApplicationSnapshot>>, Stream<? extends Application<T>>>
           toApplicationMapper) {
     final var applicationsByType =
-        episService.getApplications(person).stream().collect(groupingBy(ApplicationDTO::getType));
+        episService.getApplications(person).stream()
+            .collect(groupingBy(ApplicationSnapshot::getType));
     return applicationsByType.entrySet().stream()
         .filter(filterPredicate)
         .flatMap(toApplicationMapper)
@@ -166,26 +165,32 @@ public class ApplicationService {
   }
 
   private List<Application<TransferApplicationDetails>> groupTransfers(
-      List<ApplicationDTO> transferApplications) {
+      List<ApplicationSnapshot> transferApplications) {
     Locale locale = localeService.getCurrentLocale();
 
     return transferApplications.stream()
         .map(
-            applicationDto -> {
-              final var deadlines = mandateDeadlinesService.getDeadlines(applicationDto.getDate());
+            applicationSnapshot -> {
+              final var deadlines =
+                  mandateDeadlinesService.getDeadlines(applicationSnapshot.getDate());
               final var application = Application.<TransferApplicationDetails>builder();
-              application.id(applicationDto.getId());
-              application.creationTime(applicationDto.getDate());
-              application.status(applicationDto.getStatus());
-              final var sourceFund = fundRepository.findByIsin(applicationDto.getSourceFundIsin());
+              application.id(applicationSnapshot.getId());
+              application.creationTime(applicationSnapshot.getDate());
+              application.status(applicationSnapshot.getStatus());
+              final var sourceFund =
+                  fundRepository.findByIsin(
+                      requireNonNull(
+                          applicationSnapshot.getSourceFundIsin(),
+                          "Source fund isin missing: applicationId="
+                              + applicationSnapshot.getId()));
               final var details =
                   TransferApplicationDetails.builder()
-                      .type(applicationDto.getType())
+                      .type(applicationSnapshot.getType())
                       .sourceFund(new ApiFundResponse(sourceFund, locale))
-                      .fulfillmentDate(deadlines.getFulfillmentDate(applicationDto.getType()))
+                      .fulfillmentDate(deadlines.getFulfillmentDate(applicationSnapshot.getType()))
                       .cancellationDeadline(
-                          deadlines.getCancellationDeadline(applicationDto.getType()));
-              applicationDto
+                          deadlines.getCancellationDeadline(applicationSnapshot.getType()));
+              applicationSnapshot
                   .getFundTransferExchanges()
                   .forEach(
                       fundTransferExchange ->
@@ -193,8 +198,8 @@ public class ApplicationService {
                               new Exchange(
                                   new ApiFundResponse(sourceFund, locale),
                                   getTargetFund(fundTransferExchange, locale),
-                                  fundTransferExchange.getTargetPik(),
-                                  fundTransferExchange.getAmount())));
+                                  fundTransferExchange.targetPik(),
+                                  fundTransferExchange.amount())));
               application.details(details.build());
               return application.build();
             })
@@ -202,8 +207,8 @@ public class ApplicationService {
   }
 
   private @Nullable ApiFundResponse getTargetFund(
-      MandateFundsTransferExchangeDTO exchangeDTO, Locale locale) {
-    String targetFundIsin = exchangeDTO.getTargetFundIsin();
+      ApplicationSnapshot.FundTransfer exchangeDTO, Locale locale) {
+    String targetFundIsin = exchangeDTO.targetFundIsin();
     if (targetFundIsin == null) {
       return null;
     }
@@ -217,59 +222,69 @@ public class ApplicationService {
   }
 
   private Application<WithdrawalApplicationDetails> convertWithdrawal(
-      ApplicationDTO applicationDTO) {
+      ApplicationSnapshot applicationSnapshot) {
     final var applicationBuilder =
         Application.<WithdrawalApplicationDetails>builder()
-            .creationTime(applicationDTO.getDate())
-            .status(applicationDTO.getStatus())
-            .id(applicationDTO.getId());
+            .creationTime(applicationSnapshot.getDate())
+            .status(applicationSnapshot.getStatus())
+            .id(applicationSnapshot.getId());
 
-    final var deadlines = mandateDeadlinesService.getDeadlines(applicationDTO.getDate());
+    final var deadlines = mandateDeadlinesService.getDeadlines(applicationSnapshot.getDate());
     applicationBuilder.details(
         WithdrawalApplicationDetails.builder()
-            .type(applicationDTO.getType())
-            .depositAccountIBAN(applicationDTO.getBankAccount())
-            .fulfillmentDate(deadlines.getFulfillmentDate(applicationDTO.getType()))
-            .cancellationDeadline(deadlines.getCancellationDeadline(applicationDTO.getType()))
+            .type(applicationSnapshot.getType())
+            .depositAccountIBAN(
+                requireNonNull(
+                    applicationSnapshot.getBankAccount(),
+                    "Bank account missing: applicationId=" + applicationSnapshot.getId()))
+            .fulfillmentDate(deadlines.getFulfillmentDate(applicationSnapshot.getType()))
+            .cancellationDeadline(deadlines.getCancellationDeadline(applicationSnapshot.getType()))
             .build());
     return applicationBuilder.build();
   }
 
   private Application<PaymentRateApplicationDetails> convertPaymentRate(
-      ApplicationDTO applicationDTO) {
+      ApplicationSnapshot applicationSnapshot) {
     final var applicationBuilder =
         Application.<PaymentRateApplicationDetails>builder()
-            .creationTime(applicationDTO.getDate())
-            .status(applicationDTO.getStatus())
-            .id(applicationDTO.getId());
+            .creationTime(applicationSnapshot.getDate())
+            .status(applicationSnapshot.getStatus())
+            .id(applicationSnapshot.getId());
 
-    final var deadlines = mandateDeadlinesService.getDeadlines(applicationDTO.getDate());
+    final var deadlines = mandateDeadlinesService.getDeadlines(applicationSnapshot.getDate());
     applicationBuilder.details(
         PaymentRateApplicationDetails.builder()
-            .type(applicationDTO.getType())
-            .paymentRate(applicationDTO.getPaymentRate())
-            .fulfillmentDate(deadlines.getFulfillmentDate(applicationDTO.getType()))
-            .cancellationDeadline(deadlines.getCancellationDeadline(applicationDTO.getType()))
+            .type(applicationSnapshot.getType())
+            .paymentRate(
+                requireNonNull(
+                    applicationSnapshot.getPaymentRate(),
+                    "Payment rate missing: applicationId=" + applicationSnapshot.getId()))
+            .fulfillmentDate(deadlines.getFulfillmentDate(applicationSnapshot.getType()))
+            .cancellationDeadline(deadlines.getCancellationDeadline(applicationSnapshot.getType()))
             .build());
     return applicationBuilder.build();
   }
 
   private Application<FundPensionOpeningApplicationDetails> convertFundPensionOpening(
-      ApplicationDTO applicationDTO) {
+      ApplicationSnapshot applicationSnapshot) {
     final var applicationBuilder =
         Application.<FundPensionOpeningApplicationDetails>builder()
-            .creationTime(applicationDTO.getDate())
-            .status(applicationDTO.getStatus())
-            .id(applicationDTO.getId());
+            .creationTime(applicationSnapshot.getDate())
+            .status(applicationSnapshot.getStatus())
+            .id(applicationSnapshot.getId());
 
-    final var deadlines = mandateDeadlinesService.getDeadlines(applicationDTO.getDate());
+    final var deadlines = mandateDeadlinesService.getDeadlines(applicationSnapshot.getDate());
     applicationBuilder.details(
         new FundPensionOpeningApplicationDetails(
-            applicationDTO.getBankAccount(),
-            deadlines.getCancellationDeadline(applicationDTO.getType()),
-            deadlines.getFulfillmentDate(applicationDTO.getType()),
-            applicationDTO.getType(),
-            applicationDTO.getFundPensionDetails()));
+            requireNonNull(
+                applicationSnapshot.getBankAccount(),
+                "Bank account missing: applicationId=" + applicationSnapshot.getId()),
+            deadlines.getCancellationDeadline(applicationSnapshot.getType()),
+            deadlines.getFulfillmentDate(applicationSnapshot.getType()),
+            applicationSnapshot.getType(),
+            requireNonNull(
+                applicationSnapshot.getFundPensionDetails(),
+                "Fund pension details missing: applicationId=" + applicationSnapshot.getId())));
     return applicationBuilder.build();
   }
 

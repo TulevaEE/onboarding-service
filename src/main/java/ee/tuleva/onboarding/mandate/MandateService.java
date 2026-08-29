@@ -10,8 +10,8 @@ import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.epis.ContactDetails;
 import ee.tuleva.onboarding.epis.EpisService;
-import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
+import ee.tuleva.onboarding.mandate.application.ApplicationSnapshot;
 import ee.tuleva.onboarding.mandate.builder.CreateMandateCommandToMandateConverter;
 import ee.tuleva.onboarding.mandate.cancellation.CancellationMandateBuilder;
 import ee.tuleva.onboarding.mandate.cancellation.InvalidApplicationTypeException;
@@ -68,7 +68,7 @@ public class MandateService {
   }
 
   public Mandate saveCancellation(
-      AuthenticatedPerson authenticatedPerson, ApplicationDTO applicationToCancel) {
+      AuthenticatedPerson authenticatedPerson, ApplicationSnapshot applicationToCancel) {
     ApplicationType applicationTypeToCancel = applicationToCancel.getType();
     if (!asList(WITHDRAWAL, EARLY_WITHDRAWAL, TRANSFER).contains(applicationTypeToCancel)) {
       throw new InvalidApplicationTypeException(

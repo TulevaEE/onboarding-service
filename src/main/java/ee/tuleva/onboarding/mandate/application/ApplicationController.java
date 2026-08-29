@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.mandate.application;
 import static ee.tuleva.onboarding.mandate.application.ApplicationController.APPLICATIONS_URI;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.epis.mandate.ApplicationStatus;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
 import lombok.RequiredArgsConstructor;

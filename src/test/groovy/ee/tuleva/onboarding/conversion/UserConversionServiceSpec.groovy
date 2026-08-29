@@ -22,7 +22,7 @@ import static ee.tuleva.onboarding.account.AccountStatementFixture.*
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.epis.CashFlow.Type.*
-import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.PENDING
+import static ee.tuleva.onboarding.mandate.application.ApplicationStatus.PENDING
 import static ee.tuleva.onboarding.fund.FundFixture.*
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND
 import static ee.tuleva.onboarding.pillar.Pillar.THIRD

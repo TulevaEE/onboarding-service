@@ -23,6 +23,7 @@ import ee.tuleva.onboarding.epis.fund.FundDto;
 import ee.tuleva.onboarding.epis.fund.NavDto;
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
 import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO;
+import ee.tuleva.onboarding.epis.mandate.ApplicationStatus;
 import ee.tuleva.onboarding.epis.mandate.MandateDto;
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommand;
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse;
@@ -30,6 +31,7 @@ import ee.tuleva.onboarding.epis.transaction.*;
 import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto;
+import ee.tuleva.onboarding.mandate.application.ApplicationSnapshot;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -120,7 +122,9 @@ class EpisServiceTest {
   void getApplications() {
     // given
     setupUserAuthentication();
-    ApplicationDTO[] responseBody = {ApplicationDTO.builder().build()};
+    ApplicationDTO[] responseBody = {
+      ApplicationDTO.builder().status(ApplicationStatus.PENDING).build()
+    };
     var resultEntity = new ResponseEntity<>(responseBody, OK);
 
     when(episRestTemplate.exchange(
@@ -131,7 +135,7 @@ class EpisServiceTest {
         .thenReturn(resultEntity);
 
     // when
-    List<ApplicationDTO> transferApplicationDTOList = service.getApplications(samplePerson);
+    List<ApplicationSnapshot> transferApplicationDTOList = service.getApplications(samplePerson);
 
     // then
     assertEquals(1, transferApplicationDTOList.size());

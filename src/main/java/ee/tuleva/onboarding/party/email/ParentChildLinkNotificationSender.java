@@ -93,8 +93,7 @@ public class ParentChildLinkNotificationSender {
     String templateName = emailType.getTemplateName(LOCALE);
     try {
       MandrillMessage message =
-          emailService.newMandrillMessage(
-              recipient.getEmail(), templateName, mergeVars, TAGS, null);
+          emailService.newMandrillMessage(recipient.getEmail(), templateName, mergeVars, TAGS);
       emailService
           .send(recipient, message, templateName)
           .ifPresent(

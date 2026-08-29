@@ -36,16 +36,7 @@ public class MemberEmailService {
             user.getEmail(),
             emailType.getTemplateName(locale),
             getMergeVars(user, member),
-            List.of("memberNumber"),
-            null);
-
-    if (message == null) {
-      log.warn(
-          "Failed to create mandrill message, not sending member number email for userId {}, member #{}",
-          user.getId(),
-          member.getMemberNumber());
-      return;
-    }
+            List.of("memberNumber"));
 
     emailService
         .send(user, message, templateName)

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.notification.email;
 
 import static ee.tuleva.onboarding.notification.email.EmailStatus.*;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.notification.email.persistence.EmailRepository;
@@ -87,7 +88,10 @@ public class EmailPersistenceService {
     scheduledEmails.forEach(
         email ->
             emailService
-                .cancelScheduledEmail(email.getMandrillMessageId())
+                .cancelScheduledEmail(
+                    requireNonNull(
+                        email.getMandrillMessageId(),
+                        "Scheduled email is missing a mandrillMessageId: emailId=" + email.getId()))
                 .ifPresent(
                     info -> {
                       email.setStatus(CANCELLED);

@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.mandate.batch;
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND;
 import static ee.tuleva.onboarding.signature.SignatureStatus.OUTSTANDING_TRANSACTION;
 import static ee.tuleva.onboarding.signature.SignatureStatus.SIGNATURE;
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.aml.WithdrawalNotifier;
@@ -114,7 +115,12 @@ public class MandateBatchService {
               .collect(Collectors.toSet());
 
       withdrawalNotifier.notifyWithdrawalBatchCreated(
-          age, pillars, withdrawalTypes, mandateBatch.getId());
+          age,
+          pillars,
+          withdrawalTypes,
+          requireNonNull(
+              mandateBatch.getId(),
+              "Mandate batch was not assigned an id after save: mandateBatch=" + mandateBatch));
     } catch (Exception e) {
       log.error("Failed to send mandate batch slack message with exception", e);
     }

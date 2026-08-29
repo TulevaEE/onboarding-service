@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.investment.event.PipelineStep.POSITION_IMPORT
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SWEDBANK;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.check.health.HealthCheckNotifier;
@@ -28,6 +29,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.IntStream;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -91,7 +93,9 @@ public class FundPositionImportJob {
 
     pipelineTracker.stepStarted(HEALTH_CHECK);
     if (healthCheckFailed) {
-      pipelineTracker.stepFailed(HEALTH_CHECK, healthCheckFailureDetail);
+      pipelineTracker.stepFailed(
+          HEALTH_CHECK,
+          requireNonNull(healthCheckFailureDetail, "Health check failed without a failure detail"));
     } else {
       pipelineTracker.stepCompleted(HEALTH_CHECK);
     }
@@ -100,9 +104,9 @@ public class FundPositionImportJob {
   }
 
   private boolean healthCheckFailed;
-  private String healthCheckFailureDetail;
+  private @Nullable String healthCheckFailureDetail;
 
-  public String runImport() {
+  public @Nullable String runImport() {
     healthCheckFailed = false;
     healthCheckFailureDetail = null;
     LocalDate today = LocalDate.now(clock);

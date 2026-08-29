@@ -13,6 +13,7 @@ import ee.tuleva.onboarding.investment.fees.FeeRate;
 import ee.tuleva.onboarding.investment.fees.FeeRateRepository;
 import ee.tuleva.onboarding.investment.fees.InstrumentFeeRepository;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
+import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import java.math.BigDecimal;
@@ -159,17 +160,25 @@ public class OcfCalculationService {
     if (positions.isEmpty()) {
       return ZERO;
     }
-    var totalValue = positions.stream().map(p -> p.getMarketValue()).reduce(ZERO, BigDecimal::add);
+    var totalValue =
+        positions.stream()
+            .map(OcfCalculationService::marketValueOrZero)
+            .reduce(ZERO, BigDecimal::add);
     if (totalValue.signum() <= 0) {
       return ZERO;
     }
     return positions.stream()
         .map(
             p -> {
-              var weight = p.getMarketValue().divide(totalValue, SCALE, HALF_UP);
+              var weight = marketValueOrZero(p).divide(totalValue, SCALE, HALF_UP);
               return weight.multiply(rateByIsin.getOrDefault(p.getAccountId(), ZERO));
             })
         .reduce(ZERO, BigDecimal::add);
+  }
+
+  private static BigDecimal marketValueOrZero(FundPosition position) {
+    var marketValue = position.getMarketValue();
+    return marketValue != null ? marketValue : ZERO;
   }
 
   BigDecimal getTransactionCostRate(TulevaFund fund, LocalDate monthEnd) {

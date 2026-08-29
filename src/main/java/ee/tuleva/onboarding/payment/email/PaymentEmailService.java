@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.payment.email;
 
 import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.*;
 import static java.util.Collections.emptyList;
+import static java.util.Objects.requireNonNull;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageContent;
@@ -88,7 +89,7 @@ public class PaymentEmailService {
     String templateName = email.emailType().getTemplateName(locale);
 
     MandrillMessage mandrillMessage =
-        emailService.newMandrillMessage(user.getEmail(), templateName, mergeVars, tags, null);
+        emailService.newMandrillMessage(user.getEmail(), templateName, mergeVars, tags);
     emailService
         .send(user, mandrillMessage, templateName)
         .ifPresent(
@@ -158,8 +159,13 @@ public class PaymentEmailService {
     }
 
     Email latestScheduledEmail = cancelledEmails.getFirst();
+    Long mandateId =
+        requireNonNull(
+            latestScheduledEmail.getMandateId(),
+            "Scheduled reminder email is missing a mandateId: emailId="
+                + latestScheduledEmail.getId());
     return mandateRepository
-        .findById(latestScheduledEmail.getMandateId())
+        .findById(mandateId)
         .map(mandate -> EmailVariablesAttachments.getAttachments(user, mandate))
         .orElse(emptyList());
   }

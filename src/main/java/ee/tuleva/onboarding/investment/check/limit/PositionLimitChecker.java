@@ -49,18 +49,23 @@ class PositionLimitChecker {
         .filter(p -> limitsByIsin.containsKey(p.getAccountId()))
         .map(
             p -> {
+              String isin =
+                  Objects.requireNonNull(
+                      p.getAccountId(), "Position matched a limit but has no isin: position=" + p);
               var limit =
                   Objects.requireNonNull(
-                      limitsByIsin.get(p.getAccountId()),
-                      "Position limit missing: isin=" + p.getAccountId());
-              var actualPercent = percentOf(p.getMarketValue(), totalNav);
+                      limitsByIsin.get(isin), "Position limit missing: isin=" + isin);
+              var marketValue =
+                  Objects.requireNonNull(
+                      p.getMarketValue(), "Position has no market value: isin=" + isin);
+              var actualPercent = percentOf(marketValue, totalNav);
               var severity = determineSeverity(actualPercent, limit);
               var label =
                   Objects.requireNonNull(
                       limit.getLabel(), "Position limit missing label: isin=" + limit.getIsin());
               return new PositionBreach(
                   fund,
-                  p.getAccountId(),
+                  isin,
                   label,
                   actualPercent,
                   limit.getSoftLimitPercent(),

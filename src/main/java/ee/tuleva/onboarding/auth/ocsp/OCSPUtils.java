@@ -29,6 +29,7 @@ import org.bouncycastle.operator.DigestCalculator;
 import org.bouncycastle.operator.DigestCalculatorProvider;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.jcajce.JcaDigestCalculatorProviderBuilder;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -59,8 +60,8 @@ public class OCSPUtils {
     }
   }
 
-  private static ASN1Primitive getExtensionValue(X509Extension x509Extension, String extensionId)
-      throws Exception {
+  private static @Nullable ASN1Primitive getExtensionValue(
+      X509Extension x509Extension, String extensionId) throws Exception {
     byte[] extensionValueBytes = x509Extension.getExtensionValue(extensionId);
     if (extensionValueBytes == null) {
       return null;
@@ -75,7 +76,7 @@ public class OCSPUtils {
   }
 
   private List<String> findUrlsFromAccessDescriptions(
-      AuthorityInformationAccess authInfoAccess, ASN1Primitive accessDescriptionToFind) {
+      @Nullable AuthorityInformationAccess authInfoAccess, ASN1Primitive accessDescriptionToFind) {
     List<String> urls = new ArrayList<>();
 
     if (authInfoAccess != null) {

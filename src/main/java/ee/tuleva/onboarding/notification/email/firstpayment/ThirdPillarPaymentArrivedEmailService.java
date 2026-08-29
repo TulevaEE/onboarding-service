@@ -35,7 +35,7 @@ public class ThirdPillarPaymentArrivedEmailService {
     String templateName = THIRD_PILLAR_PAYMENT_ARRIVED.getTemplateName(payment.emailLanguage());
     var message =
         emailService.newMandrillMessage(
-            payment.getEmail(), templateName, mergeVars(payment), tags(payment), null);
+            payment.getEmail(), templateName, mergeVars(payment), tags(payment));
 
     return emailService
         .send(payment, message, templateName)

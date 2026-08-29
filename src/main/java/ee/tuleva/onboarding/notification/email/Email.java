@@ -11,6 +11,7 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Clock;
 import java.time.Instant;
 import lombok.*;
+import org.jspecify.annotations.Nullable;
 
 @Entity
 @Table(name = "email")
@@ -27,9 +28,9 @@ public class Email {
 
   @ValidPersonalCode private String personalCode;
 
-  private String mandrillMessageId;
+  private @Nullable String mandrillMessageId;
 
-  private String mailchimpCampaign;
+  private @Nullable String mailchimpCampaign;
 
   @NotNull
   @Enumerated(STRING)
@@ -40,10 +41,10 @@ public class Email {
   private EmailStatus status;
 
   @Column(name = "mandate_id")
-  private Long mandateId;
+  private @Nullable Long mandateId;
 
   @Column(name = "mandate_batch_id")
-  private Long mandateBatchId;
+  private @Nullable Long mandateBatchId;
 
   @NotNull private Instant createdDate;
 

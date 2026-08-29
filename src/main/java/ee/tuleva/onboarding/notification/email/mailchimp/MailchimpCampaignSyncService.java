@@ -90,17 +90,7 @@ public class MailchimpCampaignSyncService {
           List<Email> emails =
               recipientsPage.stream()
                   .map(recipient -> buildEmailFromRecipient(recipient, mailchimpCampaign, sendTime))
-                  .filter(
-                      email -> {
-                        if (email.getPersonalCode() == null) {
-                          log.error(
-                              "Skipping email without personal code: mandrillMessageId={}, mailchimpCampaign={}",
-                              email.getMandrillMessageId(),
-                              mailchimpCampaign);
-                          return false;
-                        }
-                        return true;
-                      })
+                  .flatMap(Optional::stream)
                   .collect(toList());
 
           if (!emails.isEmpty()) {
@@ -113,20 +103,28 @@ public class MailchimpCampaignSyncService {
         });
   }
 
-  private Email buildEmailFromRecipient(
+  private Optional<Email> buildEmailFromRecipient(
       SentToRecipient recipient, String mailchimpCampaign, Instant sendTime) {
     String emailAddress = recipient.getEmailAddress();
     String personalCode = findPersonalCodeByEmail(emailAddress);
+    if (personalCode == null) {
+      log.error(
+          "Skipping email without personal code: mandrillMessageId={}, mailchimpCampaign={}",
+          recipient.getEmailId(),
+          mailchimpCampaign);
+      return Optional.empty();
+    }
 
-    return Email.builder()
-        .personalCode(personalCode)
-        .type(MAILCHIMP_CAMPAIGN)
-        .status(SENT)
-        .mailchimpCampaign(mailchimpCampaign)
-        .mandrillMessageId(recipient.getEmailId())
-        .createdDate(sendTime)
-        .updatedDate(sendTime)
-        .build();
+    return Optional.of(
+        Email.builder()
+            .personalCode(personalCode)
+            .type(MAILCHIMP_CAMPAIGN)
+            .status(SENT)
+            .mailchimpCampaign(mailchimpCampaign)
+            .mandrillMessageId(recipient.getEmailId())
+            .createdDate(sendTime)
+            .updatedDate(sendTime)
+            .build());
   }
 
   private @Nullable String findPersonalCodeByEmail(@Nullable String emailAddress) {

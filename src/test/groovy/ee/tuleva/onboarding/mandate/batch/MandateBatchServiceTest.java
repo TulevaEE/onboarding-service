@@ -186,7 +186,12 @@ public class MandateBatchServiceTest {
         .thenReturn(aFundPensionOpeningMandate);
     when(mandateBatchRepository.save(
             argThat(mandateBatch -> mandateBatch.getStatus().equals(INITIALIZED))))
-        .thenReturn(aMandateBatch);
+        .thenAnswer(
+            invocation -> {
+              MandateBatch savedBatch = invocation.getArgument(0);
+              savedBatch.setId(1L);
+              return savedBatch;
+            });
 
     MandateBatch result =
         mandateBatchService.createMandateBatch(authenticatedPerson, aMandateBatchDto);
@@ -232,7 +237,12 @@ public class MandateBatchServiceTest {
         .thenReturn(aFundPensionOpeningMandate);
     when(mandateBatchRepository.save(
             argThat(mandateBatch -> mandateBatch.getStatus().equals(INITIALIZED))))
-        .thenReturn(aMandateBatch);
+        .thenAnswer(
+            invocation -> {
+              MandateBatch savedBatch = invocation.getArgument(0);
+              savedBatch.setId(1L);
+              return savedBatch;
+            });
 
     MandateBatch result =
         mandateBatchService.createMandateBatch(authenticatedPerson, aMandateBatchDto);
@@ -376,7 +386,12 @@ public class MandateBatchServiceTest {
         .thenReturn(aThirdPillarPartialWithdrawalMandate);
     when(mandateBatchRepository.save(
             argThat(mandateBatch -> mandateBatch.getStatus().equals(INITIALIZED))))
-        .thenReturn(aMandateBatch);
+        .thenAnswer(
+            invocation -> {
+              MandateBatch savedBatch = invocation.getArgument(0);
+              savedBatch.setId(1L);
+              return savedBatch;
+            });
 
     MandateBatch result =
         mandateBatchService.createMandateBatch(authenticatedPerson, aMandateBatchDto);
@@ -420,7 +435,12 @@ public class MandateBatchServiceTest {
         .thenReturn(aFundPensionOpeningMandate);
     when(mandateBatchRepository.save(
             argThat(mandateBatch -> mandateBatch.getStatus().equals(INITIALIZED))))
-        .thenReturn(aMandateBatch);
+        .thenAnswer(
+            invocation -> {
+              MandateBatch savedBatch = invocation.getArgument(0);
+              savedBatch.setId(1L);
+              return savedBatch;
+            });
     doThrow(new IllegalStateException())
         .when(withdrawalNotifier)
         .notifyWithdrawalBatchCreated(anyInt(), any(), any(), any());

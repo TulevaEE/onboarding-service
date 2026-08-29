@@ -95,7 +95,9 @@ public class ListingService {
     MandrillMessage message =
         emailService.newMandrillMessage(
             listingOwner.getEmail(),
-            userContacting.getEmail(),
+            requireNonNull(
+                userContacting.getEmail(),
+                "User contacting a listing owner has no email: userId=" + userContacting.getId()),
             templateName,
             mergeVars,
             List.of(),

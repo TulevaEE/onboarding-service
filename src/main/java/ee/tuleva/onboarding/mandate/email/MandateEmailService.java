@@ -272,8 +272,7 @@ public class MandateEmailService {
             user.getEmail(),
             templateName,
             getNameMergeVars(user),
-            List.of("pillar_3.1", "suggest_2"),
-            null);
+            List.of("pillar_3.1", "suggest_2"));
 
     emailService
         .send(user, message, templateName, sendAt)
@@ -290,8 +289,11 @@ public class MandateEmailService {
   private boolean hasEmailsToday(Person person, EmailType emailType, Mandate mandate) {
     MandateBatch mandateBatch = mandate.getMandateBatch();
     if (mandateBatch != null) {
-      return emailPersistenceService.hasMandateBatchEmailsToday(
-          person, emailType, mandateBatch.getId());
+      Long mandateBatchId =
+          requireNonNull(
+              mandateBatch.getId(),
+              "Mandate batch is not yet persisted: mandateBatch=" + mandateBatch);
+      return emailPersistenceService.hasMandateBatchEmailsToday(person, emailType, mandateBatchId);
     }
     return emailPersistenceService.hasMandateEmailsToday(person, emailType, mandate.getId());
   }

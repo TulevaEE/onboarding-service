@@ -79,7 +79,7 @@ public class LegalEntityOnboardedEmailSender {
     mergeVars.put("recipientName", companyName);
 
     var message =
-        emailService.newMandrillMessage(applicant.getEmail(), templateName, mergeVars, TAGS, null);
+        emailService.newMandrillMessage(applicant.getEmail(), templateName, mergeVars, TAGS);
 
     emailService
         .send(applicant, message, templateName)

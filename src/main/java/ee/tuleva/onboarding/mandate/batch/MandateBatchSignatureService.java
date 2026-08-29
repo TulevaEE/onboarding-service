@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.mandate.batch;
 
 import static ee.tuleva.onboarding.auth.mobileid.MobileIDSession.PHONE_NUMBER;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
@@ -36,7 +37,7 @@ public class MandateBatchSignatureService {
   public MobileSignatureResponse startSmartIdSignature(
       Long mandateBatchId, AuthenticatedPerson authenticatedPerson) {
 
-    User user = userService.getById(authenticatedPerson.getUserId()).orElseThrow();
+    User user = userService.getById(authenticatedPerson.getUserIdOrThrow()).orElseThrow();
     List<SignatureFile> files =
         mandateBatchService.getMandateBatchContentFiles(mandateBatchId, user);
 
@@ -59,9 +60,14 @@ public class MandateBatchSignatureService {
 
     SignatureStatus statusCode =
         mandateBatchService.finalizeMobileSignature(
-            authenticatedPerson.getUserId(), mandateBatchId, session, locale);
+            authenticatedPerson.getUserIdOrThrow(), mandateBatchId, session, locale);
 
-    return new MobileSignatureStatusResponse(statusCode, session.getVerificationCode());
+    String verificationCode =
+        requireNonNull(
+            session.getVerificationCode(),
+            "Smart-ID signature session has no verification code: personalCode="
+                + session.getPersonalCode());
+    return new MobileSignatureStatusResponse(statusCode, verificationCode);
   }
 
   public IdCardSignatureResponse startIdCardSign(
@@ -69,7 +75,7 @@ public class MandateBatchSignatureService {
       AuthenticatedPerson authenticatedPerson,
       @Valid @RequestBody StartIdCardSignCommand signCommand) {
 
-    User user = userService.getById(authenticatedPerson.getUserId()).orElseThrow();
+    User user = userService.getById(authenticatedPerson.getUserIdOrThrow()).orElseThrow();
     List<SignatureFile> files =
         mandateBatchService.getMandateBatchContentFiles(mandateBatchId, user);
 
@@ -95,7 +101,7 @@ public class MandateBatchSignatureService {
 
     SignatureStatus statusCode =
         mandateBatchService.persistIdCardSignedFileOrGetBatchProcessingStatus(
-            authenticatedPerson.getUserId(),
+            authenticatedPerson.getUserIdOrThrow(),
             mandateBatchId,
             session,
             signCommand.signedHash(),
@@ -107,13 +113,17 @@ public class MandateBatchSignatureService {
   public MobileSignatureResponse startMobileIdSignature(
       Long mandateBatchId, AuthenticatedPerson authenticatedPerson) {
 
-    User user = userService.getById(authenticatedPerson.getUserId()).orElseThrow();
+    User user = userService.getById(authenticatedPerson.getUserIdOrThrow()).orElseThrow();
     List<SignatureFile> files =
         mandateBatchService.getMandateBatchContentFiles(mandateBatchId, user);
 
+    String phoneNumber =
+        requireNonNull(
+            authenticatedPerson.getAttribute(PHONE_NUMBER),
+            "Missing phone number for mobile ID signing: personalCode="
+                + authenticatedPerson.getPersonalCode());
     MobileIdSignatureSession signatureSession =
-        signService.startMobileIdSign(
-            files, user.getPersonalCode(), authenticatedPerson.getAttribute(PHONE_NUMBER));
+        signService.startMobileIdSign(files, user.getPersonalCode(), phoneNumber);
     sessionStore.save(signatureSession);
 
     return new MobileSignatureResponse(signatureSession.getVerificationCode());
@@ -131,7 +141,7 @@ public class MandateBatchSignatureService {
 
     SignatureStatus statusCode =
         mandateBatchService.finalizeMobileSignature(
-            authenticatedPerson.getUserId(), mandateBatchId, session, locale);
+            authenticatedPerson.getUserIdOrThrow(), mandateBatchId, session, locale);
 
     return new MobileSignatureStatusResponse(statusCode, session.getVerificationCode());
   }

@@ -52,8 +52,7 @@ class HackathonEmailServiceTest {
                 "participant@example.com",
                 "hackathon_registration_et",
                 Map.of("fname", user.getFirstName(), "lname", user.getLastName()),
-                List.of("hackathon"),
-                null))
+                List.of("hackathon")))
         .willReturn(message);
     given(emailService.send(user, message, "hackathon_registration_et")).willReturn(empty());
 
@@ -72,8 +71,7 @@ class HackathonEmailServiceTest {
                 "participant@example.com",
                 "hackathon_registration_et",
                 Map.of("fname", user.getFirstName(), "lname", user.getLastName()),
-                List.of("hackathon"),
-                null))
+                List.of("hackathon")))
         .willReturn(message);
     given(emailService.send(user, message, "hackathon_registration_et")).willReturn(empty());
 

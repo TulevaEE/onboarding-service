@@ -125,7 +125,7 @@ class PaymentEmailServiceSpec extends Specification {
 
     then:
     1 * emailService.send(user, message, templateName) >> Optional.of(mandrillResponse)
-    1 * emailService.newMandrillMessage(user.email, templateName, mergeVars + email.mergeVars(), tags, null) >> message
+    1 * emailService.newMandrillMessage(user.email, templateName, mergeVars + email.mergeVars(), tags) >> message
     1 * emailPersistenceService.save(user, mandrillResponse.id, email.emailType(), mandrillResponse.status)
 
     where:
@@ -157,7 +157,7 @@ class PaymentEmailServiceSpec extends Specification {
     paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.failed(), locale)
 
     then:
-    1 * emailService.newMandrillMessage(user.email, "savings_fund_payment_failed_en", mergeVars, tags, null) >> message
+    1 * emailService.newMandrillMessage(user.email, "savings_fund_payment_failed_en", mergeVars, tags) >> message
     1 * emailService.send(user, message, "savings_fund_payment_failed_en") >> Optional.of(mandrillResponse)
     1 * emailPersistenceService.save(user, mandrillResponse.id, SAVINGS_FUND_PAYMENT_FAIL, mandrillResponse.status)
   }
@@ -199,7 +199,7 @@ class PaymentEmailServiceSpec extends Specification {
 
     then:
     1 * emailService.send(user, message, "savings_fund_payment_success_child_en") >> Optional.of(mandrillResponse)
-    1 * emailService.newMandrillMessage(user.email, "savings_fund_payment_success_child_en", mergeVars, tags, null) >> message
+    1 * emailService.newMandrillMessage(user.email, "savings_fund_payment_success_child_en", mergeVars, tags) >> message
     1 * emailPersistenceService.save(user, mandrillResponse.id, SAVINGS_FUND_PAYMENT_SUCCESS_CHILD, mandrillResponse.status)
   }
 }

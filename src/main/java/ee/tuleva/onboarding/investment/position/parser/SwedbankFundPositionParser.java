@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
 import static java.math.BigDecimal.ONE;
 import static java.math.BigDecimal.ZERO;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.position.AccountType;
@@ -84,10 +85,11 @@ public class SwedbankFundPositionParser implements FundPositionParser {
       }
 
       BigDecimal marketPrice = parseMarketPrice(row, accountType);
+      LocalDate navDate = requireNonNull(getDate(row, "NAVDate"), "Missing NAVDate: row=" + row);
 
       FundPosition position =
           FundPosition.builder()
-              .navDate(getDate(row, "NAVDate"))
+              .navDate(navDate)
               .reportDate(getDate(row, "ReportDate"))
               .fund(fund)
               .accountType(accountType)

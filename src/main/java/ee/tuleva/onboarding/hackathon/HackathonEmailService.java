@@ -27,11 +27,7 @@ public class HackathonEmailService {
 
     MandrillMessage message =
         emailService.newMandrillMessage(
-            registration.getEmail(),
-            templateName,
-            getNameMergeVars(user),
-            List.of("hackathon"),
-            null);
+            registration.getEmail(), templateName, getNameMergeVars(user), List.of("hackathon"));
 
     emailService
         .send(user, message, templateName)

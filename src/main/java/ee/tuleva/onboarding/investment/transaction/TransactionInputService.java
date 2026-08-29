@@ -289,7 +289,11 @@ public class TransactionInputService {
   }
 
   private boolean isTradeableHolding(TulevaFund fund, LocalDate date, FundPosition position) {
-    if (position.getMarketValue().signum() >= 0) {
+    BigDecimal marketValue =
+        Objects.requireNonNull(
+            position.getMarketValue(),
+            "Security position has no market value: fund=" + fund + ", positionDate=" + date);
+    if (marketValue.signum() >= 0) {
       return true;
     }
     log.warn(
@@ -298,7 +302,7 @@ public class TransactionInputService {
         fund,
         date,
         position.getAccountId(),
-        position.getMarketValue().toPlainString());
+        marketValue.toPlainString());
     return false;
   }
 

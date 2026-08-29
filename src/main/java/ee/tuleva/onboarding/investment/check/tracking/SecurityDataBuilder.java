@@ -189,7 +189,8 @@ class SecurityDataBuilder {
     var previous = resolvePriceSnapshot(isin, previousDate, yesterdayCutoff);
 
     var todayPos = todayByIsin.get(isin);
-    var actualMarketValue = todayPos != null ? todayPos.getMarketValue() : ZERO;
+    var todayMarketValue = todayPos != null ? todayPos.getMarketValue() : null;
+    var actualMarketValue = todayMarketValue != null ? todayMarketValue : ZERO;
     var actualWeight =
         totalSecurities.signum() != 0
             ? actualMarketValue.divide(totalSecurities, 6, RoundingMode.HALF_UP)

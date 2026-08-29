@@ -229,19 +229,6 @@ public class PeriodicTdAttributionService {
         fund, LocalDate.of(year, 1, 1), LocalDate.of(year, 12, 31), PeriodType.ANNUAL);
   }
 
-  private record EtfLayer(
-      @Nullable BigDecimal measuredSum,
-      BigDecimal ocfDrag,
-      BigDecimal proxyOcfDrag,
-      int coveredDays,
-      BigDecimal unbenchmarkedWeight,
-      BigDecimal unrestoredProxyWeight) {
-
-    static EtfLayer unmeasured() {
-      return new EtfLayer(null, ZERO, ZERO, 0, ZERO, ZERO);
-    }
-  }
-
   private EtfLayer computeEtfLayer(
       TulevaFund fund,
       List<TrackingDifferenceEvent> bmModelEvents,
@@ -553,7 +540,8 @@ public class PeriodicTdAttributionService {
       var securityReturn = toBigDecimal(attr.get("securityReturn"));
 
       var position = positionByIsin.get(isin);
-      var actualMv = position != null ? position.getMarketValue() : ZERO;
+      var positionMv = position != null ? position.getMarketValue() : null;
+      var actualMv = positionMv != null ? positionMv : ZERO;
       var normalizedActualWeight = actualMv.divide(totalSecurityValue, SCALE, HALF_UP);
 
       var modelWeight =

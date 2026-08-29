@@ -76,7 +76,7 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
 
   @BeforeEach
   void stubMandrill() {
-    given(emailService.newMandrillMessage(any(), any(), any(), any(), any()))
+    given(emailService.newMandrillMessage(any(), any(), any(), any()))
         .willReturn(new MandrillMessage());
     var response = org.mockito.Mockito.mock(MandrillMessageStatus.class);
     given(response.getId()).willReturn("mandrill-id");
@@ -114,7 +114,6 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
                             .minusDays(1)
                             .format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy"))
                             .equals(mergeVars.get("paymentDate"))),
-            any(),
             any());
     verify(emailService, times(1))
         .send(
@@ -137,7 +136,6 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
             eq("pensioner@example.com"),
             eq("third_pillar_payment_arrived_et"),
             argThat(mergeVars -> Boolean.FALSE.equals(mergeVars.get("suggestSecondPillar"))),
-            any(),
             any());
   }
 
@@ -206,7 +204,6 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
                 mergeVars ->
                     Boolean.TRUE.equals(mergeVars.get("suggestSecondPillar"))
                         && Boolean.FALSE.equals(mergeVars.get("hasTulevaUser"))),
-            any(),
             any());
     verify(emailService, times(1))
         .send(
@@ -235,7 +232,6 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
         .newMandrillMessage(
             eq("registry.fallback@example.com"),
             eq("third_pillar_payment_arrived_et"),
-            any(),
             any(),
             any());
   }
@@ -341,7 +337,6 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
                     Boolean.TRUE.equals(mergeVars.get("suggestSavingsFund"))
                         && Boolean.FALSE.equals(mergeVars.get("suggestSecondPillar"))
                         && Boolean.FALSE.equals(mergeVars.get("suggestPaymentRate"))),
-            any(),
             any());
   }
 
@@ -360,7 +355,6 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
             eq("maxed.out@example.com"),
             eq("third_pillar_payment_arrived_et"),
             argThat(mergeVars -> Boolean.FALSE.equals(mergeVars.get("suggestSavingsFund"))),
-            any(),
             any());
   }
 
@@ -406,7 +400,6 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
                     Boolean.TRUE.equals(mergeVars.get("leftSecondPillar"))
                         && Boolean.FALSE.equals(mergeVars.get("suggestSecondPillar"))
                         && Boolean.FALSE.equals(mergeVars.get("suggestPaymentRate"))),
-            any(),
             any());
   }
 

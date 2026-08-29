@@ -235,7 +235,7 @@ class MandateEmailServiceSpec extends Specification {
     mandateEmailService.scheduleThirdPillarSuggestSecondEmail(user, mandate, pillarSuggestion, locale)
 
     then:
-    1 * emailService.newMandrillMessage(user.email, "third_pillar_suggest_second_en", mergeVars, tags, null) >> message
+    1 * emailService.newMandrillMessage(user.email, "third_pillar_suggest_second_en", mergeVars, tags) >> message
     1 * emailService.send(user, message, "third_pillar_suggest_second_en", sendAt) >> Optional.of(mandrillResponse)
     1 * emailPersistenceService.save(user, mandrillResponse.id, THIRD_PILLAR_SUGGEST_SECOND, mandrillResponse.status)
   }
@@ -271,7 +271,7 @@ class MandateEmailServiceSpec extends Specification {
     mandateEmailService.sendMandate(user, mandate, pillarSuggestion, locale)
 
     then:
-    callCount * emailService.newMandrillMessage(user.email, "third_pillar_suggest_second_en", mergeVars, ["pillar_3.1", "suggest_2"], null) >> suggestSecond
+    callCount * emailService.newMandrillMessage(user.email, "third_pillar_suggest_second_en", mergeVars, ["pillar_3.1", "suggest_2"]) >> suggestSecond
     callCount * emailService.send(user, suggestSecond, "third_pillar_suggest_second_en", now.plus(3, DAYS)) >> Optional.of(mandrillResponse2)
     callCount * emailPersistenceService.save(user, mandrillResponse2.id, THIRD_PILLAR_SUGGEST_SECOND, mandrillResponse2.status)
 

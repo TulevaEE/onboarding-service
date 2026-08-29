@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.mandate.MandateType.PARTIAL_WITHDRAWAL;
 import static ee.tuleva.onboarding.notification.email.EmailType.BATCH_FAILED;
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND;
 import static ee.tuleva.onboarding.pillar.Pillar.THIRD;
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.Stream.concat;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
@@ -38,14 +39,14 @@ public class MandateBatchEmailService {
 
   public void sendMandateBatch(
       User user, MandateBatch mandateBatch, PillarSuggestion pillarSuggestion, Locale locale) {
+    Long mandateBatchId = mandateBatchIdOf(mandateBatch);
 
-    if (emailPersistenceService.hasEmailsForMandateBatch(mandateBatch.getId())) {
-      log.warn(
-          "Skipping mandatebatch (id={}) email as email already present", mandateBatch.getId());
+    if (emailPersistenceService.hasEmailsForMandateBatch(mandateBatchId)) {
+      log.warn("Skipping mandatebatch (id={}) email as email already present", mandateBatchId);
       return;
     }
 
-    log.info("Sending mandatebatch (id={}) email", mandateBatch.getId());
+    log.info("Sending mandatebatch (id={}) email", mandateBatchId);
 
     EmailType emailType = MandateEmailType.emailTypeFor(mandateBatch);
     String templateName = emailType.getTemplateName(locale);
@@ -61,19 +62,19 @@ public class MandateBatchEmailService {
         .ifPresent(
             response ->
                 emailPersistenceService.saveWithMandateBatch(
-                    user, response.getId(), emailType, response.getStatus(), mandateBatch.getId()));
+                    user, response.getId(), emailType, response.getStatus(), mandateBatchId));
   }
 
   public void sendMandateBatchFailedEmail(User user, MandateBatch mandateBatch, Locale locale) {
+    Long mandateBatchId = mandateBatchIdOf(mandateBatch);
 
-    if (emailPersistenceService.hasEmailsForMandateBatch(mandateBatch.getId())) {
+    if (emailPersistenceService.hasEmailsForMandateBatch(mandateBatchId)) {
       log.warn(
-          "Skipping mandatebatch (id={}) failed email as email already present",
-          mandateBatch.getId());
+          "Skipping mandatebatch (id={}) failed email as email already present", mandateBatchId);
       return;
     }
 
-    log.info("Sending failed mandatebatch (id={}) email", mandateBatch.getId());
+    log.info("Sending failed mandatebatch (id={}) email", mandateBatchId);
 
     var emailType = BATCH_FAILED;
     String templateName = emailType.getTemplateName(locale);
@@ -93,7 +94,12 @@ public class MandateBatchEmailService {
         .ifPresent(
             response ->
                 emailPersistenceService.saveWithMandateBatch(
-                    user, response.getId(), emailType, response.getStatus(), mandateBatch.getId()));
+                    user, response.getId(), emailType, response.getStatus(), mandateBatchId));
+  }
+
+  private Long mandateBatchIdOf(MandateBatch mandateBatch) {
+    return requireNonNull(
+        mandateBatch.getId(), "Mandate batch is not yet persisted: mandateBatch=" + mandateBatch);
   }
 
   private Map<String, Object> getMergeVars(

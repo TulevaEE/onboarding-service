@@ -121,21 +121,27 @@ class TrackingDifferenceServiceTest {
                 eq(InvestmentParameter.ESCALATION_NET_TD_THRESHOLD), any(LocalDate.class)))
         .thenReturn(new BigDecimal("0.005"));
     chargeEveryFeeToTheFund();
+    var calculator = new TrackingDifferenceCalculator(parameterRepository);
+    var consecutiveBreachTracker = new ConsecutiveBreachTracker(eventRepository, calculator);
     service =
         new TrackingDifferenceService(
             FIXED_CLOCK,
             fundPositionRepository,
             modelPortfolioAllocationRepository,
-            fundValueProvider,
-            priorityPriceProvider,
-            positionPriceResolver,
             publicHolidays,
             feeAccrualRepository,
             feeChargedToFundPolicy,
             eventRepository,
-            new TrackingDifferenceCalculator(parameterRepository),
+            calculator,
             fundNavQueryService,
-            new BenchmarkLegResolver(trackedInstruments()));
+            new SecurityDataBuilder(positionPriceResolver, publicHolidays),
+            consecutiveBreachTracker,
+            new BenchmarkCheckBuilder(
+                calculator,
+                fundValueProvider,
+                priorityPriceProvider,
+                new BenchmarkLegResolver(trackedInstruments()),
+                consecutiveBreachTracker));
     serviceLogs.start();
     serviceLogger().addAppender(serviceLogs);
   }

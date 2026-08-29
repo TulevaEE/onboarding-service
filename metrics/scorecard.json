@@ -6,16 +6,16 @@
   "modulithViolations": 564,
   "mutationScore": 84.43,
   "mutationsTotal": 12781,
-  "pmdViolations": 171,
+  "pmdViolations": 170,
   "pmdViolationsByRule": {
     "CognitiveComplexity": 21,
     "CouplingBetweenObjects": 41,
-    "CyclomaticComplexity": 82,
-    "GodClass": 18,
-    "TooManyMethods": 9
+    "CyclomaticComplexity": 83,
+    "GodClass": 17,
+    "TooManyMethods": 8
   },
   "springBootTests": 89,
-  "top15ClassLines": 9098,
+  "top15ClassLines": 8856,
   "totalPackages": 225,
   "unmarkedPackages": 154
 }

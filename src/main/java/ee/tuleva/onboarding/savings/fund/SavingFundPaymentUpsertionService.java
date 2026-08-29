@@ -72,14 +72,6 @@ public class SavingFundPaymentUpsertionService {
     }
   }
 
-  public List<SavingFundPayment> getPendingPayments(PartyId partyId) {
-    return repository
-        .findPaymentsWithStatus(
-            partyId, CREATED, RECEIVED, VERIFIED, RESERVED, FROZEN, TO_BE_RETURNED)
-        .stream()
-        .toList();
-  }
-
   public void cancelPayment(PartyId partyId, UUID paymentId) {
     var payment = repository.findById(paymentId).orElseThrow();
     if (!partyId.equals(payment.getPartyId()) || payment.getCancelledAt() != null) {

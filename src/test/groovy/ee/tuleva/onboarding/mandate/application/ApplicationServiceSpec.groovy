@@ -11,7 +11,7 @@ import ee.tuleva.onboarding.payment.application.PaymentApplicationDetails
 import ee.tuleva.onboarding.payment.application.PaymentLinkingService
 import ee.tuleva.onboarding.savings.SavingFundPayment
 import ee.tuleva.onboarding.savings.SavingFundDeadlinesService
-import ee.tuleva.onboarding.savings.fund.SavingFundPaymentUpsertionService
+import ee.tuleva.onboarding.savings.SavingFundPaymentQueries
 import ee.tuleva.onboarding.savings.fund.application.SavingFundPaymentApplicationDetails
 import ee.tuleva.onboarding.savings.fund.application.SavingFundWithdrawalApplicationDetails
 import ee.tuleva.onboarding.savings.PendingRedemption
@@ -48,7 +48,7 @@ class ApplicationServiceSpec extends Specification {
   MandateDeadlinesService mandateDeadlinesService = Mock()
   PaymentLinkingService paymentApplicationService = Mock()
   SavingFundDeadlinesService savingFundPaymentDeadlinesService = Mock()
-  SavingFundPaymentUpsertionService savingFundPaymentService = Mock()
+  SavingFundPaymentQueries savingFundPaymentService = Mock()
   RedemptionQueries savingFundRedemptionQueries = Mock()
   BoardMembershipService boardMembershipService = Mock()
 

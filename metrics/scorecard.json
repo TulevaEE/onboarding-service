@@ -3,7 +3,7 @@
   "lineCoverage": 82.56,
   "meanInstability": 0.464,
   "moduleCycles": 35,
-  "modulithViolations": 152,
+  "modulithViolations": 126,
   "mutationScore": 84.43,
   "mutationsTotal": 12781,
   "pmdViolations": 164,

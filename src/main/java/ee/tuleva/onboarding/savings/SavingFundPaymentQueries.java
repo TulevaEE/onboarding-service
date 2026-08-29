@@ -14,6 +14,20 @@ public class SavingFundPaymentQueries {
 
   private final SavingFundPaymentRepository savingFundPaymentRepository;
 
+  public List<SavingFundPayment> getPendingPayments(PartyId partyId) {
+    return savingFundPaymentRepository
+        .findPaymentsWithStatus(
+            partyId,
+            SavingFundPayment.Status.CREATED,
+            SavingFundPayment.Status.RECEIVED,
+            SavingFundPayment.Status.VERIFIED,
+            SavingFundPayment.Status.RESERVED,
+            SavingFundPayment.Status.FROZEN,
+            SavingFundPayment.Status.TO_BE_RETURNED)
+        .stream()
+        .toList();
+  }
+
   public int countIssuedPaymentMonthsSince(PartyId party, LocalDate from) {
     return savingFundPaymentRepository.countIssuedPaymentMonthsSince(party, from);
   }

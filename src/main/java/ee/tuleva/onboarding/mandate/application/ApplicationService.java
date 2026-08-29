@@ -26,7 +26,7 @@ import ee.tuleva.onboarding.savings.PendingRedemption;
 import ee.tuleva.onboarding.savings.RedemptionQueries;
 import ee.tuleva.onboarding.savings.SavingFundDeadlinesService;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
-import ee.tuleva.onboarding.savings.fund.SavingFundPaymentUpsertionService;
+import ee.tuleva.onboarding.savings.SavingFundPaymentQueries;
 import ee.tuleva.onboarding.savings.fund.application.SavingFundPaymentApplicationDetails;
 import ee.tuleva.onboarding.savings.fund.application.SavingFundWithdrawalApplicationDetails;
 import java.util.ArrayList;
@@ -53,7 +53,7 @@ public class ApplicationService {
   private final MandateDeadlinesService mandateDeadlinesService;
   private final PaymentLinkingService paymentLinkingService;
   private final SavingFundDeadlinesService savingFundDeadlinesService;
-  private final SavingFundPaymentUpsertionService savingFundPaymentUpsertionService;
+  private final SavingFundPaymentQueries savingFundPaymentQueries;
   private final RedemptionQueries savingFundRedemptionQueries;
   private final BoardMembershipService boardMembershipService;
 
@@ -158,7 +158,7 @@ public class ApplicationService {
           activeParty.code());
       return List.of();
     }
-    var payments = savingFundPaymentUpsertionService.getPendingPayments(activeParty);
+    var payments = savingFundPaymentQueries.getPendingPayments(activeParty);
     var redemptionRequests = savingFundRedemptionQueries.getPendingRedemptions(activeParty);
     return Stream.concat(
             payments.stream().map(this::convertSavingFundPayment),

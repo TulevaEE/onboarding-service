@@ -14,10 +14,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import ch.qos.logback.classic.Level;
@@ -773,6 +775,7 @@ class TrackingDifferenceServiceTest {
     assertThat(bmResult).isPresent();
     assertThat(bmResult.get().fund()).isEqualTo(TUK75);
     assertThat(bmResult.get().securityAttributions()).isEmpty();
+    verify(eventRepository).save(argThat(e -> e.getCheckType() == BENCHMARK));
   }
 
   @Test
@@ -983,6 +986,7 @@ class TrackingDifferenceServiceTest {
     assertThat(attr.securityReturn()).isEqualByComparingTo(new BigDecimal("0.02"));
     assertThat(attr.benchmarkReturn()).isEqualByComparingTo(new BigDecimal("0.02"));
     assertThat(attr.contribution().abs()).isLessThan(new BigDecimal("0.001"));
+    verify(eventRepository).save(argThat(e -> e.getCheckType() == BENCHMARK_MODEL));
   }
 
   @Test
@@ -1206,6 +1210,7 @@ class TrackingDifferenceServiceTest {
 
     var results = service.runChecksForFunds(List.of(TUK75));
 
+    assertThat(results).isNotEmpty();
     assertThat(results).allMatch(r -> r.fund() == TUK75);
   }
 
@@ -3042,5 +3047,95 @@ class TrackingDifferenceServiceTest {
         .usedPrice(new BigDecimal(value))
         .validationStatus(ValidationStatus.OK)
         .build();
+  }
+
+  @Test
+  void backfillChecksProcessesDaysBackThroughToday() {
+    service.backfillChecks(2);
+
+    verify(fundNavQueryService, times(3 * TulevaFund.values().length))
+        .findLatestNavDateOnOrBefore(anyString(), any(LocalDate.class));
+  }
+
+  @Test
+  void backfillChecksReturnsAggregatedResultsAcrossDays() {
+    setupFundData(TUK75);
+
+    var results = service.backfillChecks(0);
+
+    assertThat(results).isNotEmpty();
+  }
+
+  @Test
+  void runChecksReturnsResultsForAllFunds() {
+    setupFundData(TUK75);
+
+    var results = service.runChecks();
+
+    assertThat(results).isNotEmpty();
+  }
+
+  @Test
+  void navResidualGateSkippedWhenPreviousTotalNavIsExactlyZero() {
+    setupFundData(TUK75);
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, PREVIOUS_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(ZERO);
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(PREVIOUS_DATE, TUK75, SECURITY))
+        .willReturn(List.of(positionFor("IE00B4L5Y983", PREVIOUS_DATE)));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var model =
+        results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst().orElseThrow();
+    assertThat(model.navResidualBreach()).isFalse();
+    assertThat(model.bodImpliedFundReturn()).isNull();
+  }
+
+  @Test
+  void navResidualGateSkippedWhenBodTotalSecuritiesIsExactlyZero() {
+    setupFundData(TUK75);
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(PREVIOUS_DATE, TUK75, SECURITY))
+        .willReturn(
+            List.of(
+                FundPosition.builder()
+                    .fund(TUK75)
+                    .navDate(PREVIOUS_DATE)
+                    .accountType(SECURITY)
+                    .accountId("IE00POSA")
+                    .marketValue(new BigDecimal("500000"))
+                    .build(),
+                FundPosition.builder()
+                    .fund(TUK75)
+                    .navDate(PREVIOUS_DATE)
+                    .accountType(SECURITY)
+                    .accountId("IE00POSB")
+                    .marketValue(new BigDecimal("-500000"))
+                    .build()));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var model =
+        results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst().orElseThrow();
+    assertThat(model.navResidualBreach()).isFalse();
+    assertThat(model.bodImpliedFundReturn()).isNull();
+  }
+
+  @Test
+  void feeFractionFallsBackToTotalNavWhenPreviousTotalNavIsExactlyZero() {
+    setupFundData(TUK75);
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, PREVIOUS_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(ZERO);
+    given(feeAccrualRepository.findByFundAndDateRange(TUK75, CHECK_DATE, CHECK_DATE))
+        .willReturn(List.of(accrual(FeeType.MANAGEMENT, CHECK_DATE, new BigDecimal("9.00"))));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var model =
+        results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst().orElseThrow();
+    assertThat(model.feeDrag()).isEqualByComparingTo(new BigDecimal("-0.000009"));
   }
 }

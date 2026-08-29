@@ -12,7 +12,7 @@ import tools.jackson.databind.json.JsonMapper;
 @Service
 @Profile("dev")
 @RequiredArgsConstructor
-public class DevSanctionCheckService implements PepAndSanctionCheckService {
+class DevSanctionCheckService implements PepAndSanctionCheckService {
 
   private final JsonMapper objectMapper;
 

@@ -1,6 +1,6 @@
 @NullMarked
-@NamedInterface("sanctions")
-package ee.tuleva.onboarding.aml.sanctions;
+@NamedInterface("role")
+package ee.tuleva.onboarding.auth.role;
 
 import org.jspecify.annotations.NullMarked;
 import org.springframework.modulith.NamedInterface;

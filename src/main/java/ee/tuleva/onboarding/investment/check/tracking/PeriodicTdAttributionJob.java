@@ -22,7 +22,7 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 @Profile({"production", "staging"})
-public class PeriodicTdAttributionJob {
+class PeriodicTdAttributionJob {
 
   private final PeriodicTdAttributionService service;
   private final BusinessDays businessDays;

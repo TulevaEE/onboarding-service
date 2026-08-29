@@ -25,7 +25,7 @@ import tools.jackson.databind.node.ArrayNode;
 
 @Service
 @Profile("!dev")
-public class OpenSanctionsService implements PepAndSanctionCheckService {
+class OpenSanctionsService implements PepAndSanctionCheckService {
 
   private static final String ESTONIA = "ee";
 

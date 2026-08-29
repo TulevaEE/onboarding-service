@@ -34,7 +34,7 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 @NullMarked
-public class RoleSwitchService {
+class RoleSwitchService {
 
   private final CompanyRepository companyRepository;
   private final CompanyPartyRepository companyPartyRepository;

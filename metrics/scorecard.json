@@ -3,7 +3,7 @@
   "lineCoverage": 82.56,
   "meanInstability": 0.476,
   "moduleCycles": 36,
-  "modulithViolations": 418,
+  "modulithViolations": 367,
   "mutationScore": 84.43,
   "mutationsTotal": 12781,
   "pmdViolations": 165,
@@ -17,5 +17,5 @@
   "springBootTests": 89,
   "top15ClassLines": 8147,
   "totalPackages": 225,
-  "unmarkedPackages": 150
+  "unmarkedPackages": 149
 }

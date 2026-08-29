@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.mandate.ApplicationType.EARLY_WITHDRAWAL;
 import static ee.tuleva.onboarding.mandate.ApplicationType.TRANSFER;
 import static ee.tuleva.onboarding.mandate.ApplicationType.WITHDRAWAL;
 import static java.util.Collections.singletonList;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.conversion.ConversionDecorator;
@@ -54,7 +55,8 @@ public class CancellationMandateBuilder {
     } else if (applicationToCancel.getType() == TRANSFER) {
       return buildTransferCancellationMandate(applicationToCancel, mandate);
     }
-    return null;
+    throw new IllegalArgumentException(
+        "Cannot cancel application: type=" + applicationToCancel.getType());
   }
 
   public Mandate buildWithdrawalCancellationMandate(Mandate mandate) {
@@ -75,7 +77,10 @@ public class CancellationMandateBuilder {
 
   private Mandate buildTransferCancellationMandate(
       ApplicationDTO applicationToCancel, Mandate mandate) {
-    Fund sourceFund = fundRepository.findByIsin(applicationToCancel.getSourceFundIsin());
+    Fund sourceFund =
+        requireNonNull(
+            fundRepository.findByIsin(applicationToCancel.getSourceFundIsin()),
+            "Source fund missing: isin=" + applicationToCancel.getSourceFundIsin());
 
     final var exchange =
         FundTransferExchange.builder()

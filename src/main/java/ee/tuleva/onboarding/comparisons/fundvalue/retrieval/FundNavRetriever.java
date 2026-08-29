@@ -43,6 +43,6 @@ public class FundNavRetriever implements ComparisonIndexRetriever {
   }
 
   private FundValue toFundValue(NavDto nav) {
-    return new FundValue(nav.getIsin(), nav.getDate(), nav.getValue(), PROVIDER, Instant.now());
+    return new FundValue(nav.isin(), nav.date(), nav.value(), PROVIDER, Instant.now());
   }
 }

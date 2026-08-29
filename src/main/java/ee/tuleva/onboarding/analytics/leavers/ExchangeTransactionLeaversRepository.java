@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.notification.email.EmailType;
 import ee.tuleva.onboarding.notification.email.auto.AutoEmailRepository;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -70,7 +71,10 @@ public class ExchangeTransactionLeaversRepository
         .param("startDate", startDate)
         .param("endDate", endDate)
         .query(ExchangeTransactionLeaver.class)
-        .list();
+        .list()
+        .stream()
+        .map(Objects::requireNonNull)
+        .toList();
   }
 
   @Override

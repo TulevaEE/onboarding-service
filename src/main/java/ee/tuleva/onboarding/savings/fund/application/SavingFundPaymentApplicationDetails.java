@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.util.UUID;
 import lombok.Builder;
 import lombok.Data;
+import org.jspecify.annotations.Nullable;
 
 @Data
 @Builder
@@ -41,7 +42,7 @@ public class SavingFundPaymentApplicationDetails implements ApplicationDetails {
   }
 
   @Override
-  public Integer getPillar() {
+  public @Nullable Integer getPillar() {
     // TODO: Decide what we want to return here
     return null;
   }

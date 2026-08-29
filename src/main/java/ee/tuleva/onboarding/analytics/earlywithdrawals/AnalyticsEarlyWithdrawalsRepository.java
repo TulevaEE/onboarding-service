@@ -9,6 +9,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -64,7 +65,10 @@ public class AnalyticsEarlyWithdrawalsRepository
         .param("startDate", startDate)
         .param("endDate", endDate)
         .query(AnalyticsEarlyWithdrawal.class)
-        .list();
+        .list()
+        .stream()
+        .map(Objects::requireNonNull)
+        .toList();
   }
 
   @Override

@@ -11,6 +11,7 @@ import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;
 import org.aspectj.lang.reflect.MethodSignature;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JavaType;
@@ -35,7 +36,7 @@ public class TrackableAspect {
 
     JavaType type =
         objectMapper.getTypeFactory().constructMapType(Map.class, String.class, Object.class);
-    Map<String, Object> data = objectMapper.convertValue(params, type);
+    Map<String, @Nullable Object> data = objectMapper.convertValue(params, type);
 
     eventPublisher.publishEvent(new TrackableEvent(person, trackable.value(), data));
   }

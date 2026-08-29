@@ -17,8 +17,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 @Builder
 @Getter
@@ -26,41 +25,36 @@ import org.jetbrains.annotations.Nullable;
 @Slf4j
 public class UserResponse implements Person, Emailable {
 
-  private Long id;
+  private @Nullable Long id;
   private String personalCode;
   private String firstName;
   private String lastName;
-  private String email;
-  private String phoneNumber;
-  private Integer memberNumber;
-  private String pensionAccountNumber;
-  private String secondPillarPikNumber;
-  private Country address;
+  private @Nullable String email;
+  private @Nullable String phoneNumber;
+  private @Nullable Integer memberNumber;
+  private @Nullable String pensionAccountNumber;
+  private @Nullable String secondPillarPikNumber;
+  private @Nullable Country address;
   private boolean isSecondPillarActive;
   private boolean isThirdPillarActive;
-  private PaymentRatesResponse secondPillarPaymentRates;
-  private Instant memberJoinDate;
-  private Instant secondPillarOpenDate;
-  private Instant thirdPillarInitDate;
+  private @Nullable PaymentRatesResponse secondPillarPaymentRates;
+  private @Nullable Instant memberJoinDate;
+  private @Nullable Instant secondPillarOpenDate;
+  private @Nullable Instant thirdPillarInitDate;
   @Nullable private Instant contactDetailsLastUpdateDate;
-  private Role role;
+  private @Nullable Role role;
 
-  public static UserResponse from(@NotNull User user) {
+  public static UserResponse from(User user) {
     return responseBuilder(user).build();
   }
 
   public static UserResponse from(
-      @NotNull User user,
-      @NotNull ContactDetails contactDetails,
-      @NotNull PaymentRates paymentRates) {
+      User user, ContactDetails contactDetails, PaymentRates paymentRates) {
     return from(user, contactDetails, paymentRates, null);
   }
 
   public static UserResponse from(
-      @NotNull User user,
-      @NotNull ContactDetails contactDetails,
-      @NotNull PaymentRates paymentRates,
-      @Nullable Role role) {
+      User user, ContactDetails contactDetails, PaymentRates paymentRates, @Nullable Role role) {
     return responseBuilder(user)
         .role(role)
         .pensionAccountNumber(contactDetails.getPensionAccountNumber())
@@ -78,11 +72,11 @@ public class UserResponse implements Person, Emailable {
         .build();
   }
 
-  private static boolean checkIfThirdPillarIsActive(@NotNull ContactDetails contactDetails) {
+  private static boolean checkIfThirdPillarIsActive(ContactDetails contactDetails) {
     return contactDetails.isThirdPillarActive() || contactDetails.getThirdPillarInitDate() != null;
   }
 
-  private static UserResponseBuilder responseBuilder(@NotNull User user) {
+  private static UserResponseBuilder responseBuilder(User user) {
     return builder()
         .id(user.getId())
         .firstName(formatted(user.getFirstName()))

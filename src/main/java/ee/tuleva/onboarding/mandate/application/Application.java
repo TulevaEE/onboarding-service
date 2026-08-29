@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Data;
 import org.apache.commons.lang3.builder.CompareToBuilder;
 import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.Nullable;
 
 @Data
 @Builder
@@ -23,7 +24,7 @@ public class Application<T extends ApplicationDetails> implements Comparable<App
   }
 
   @JsonIgnore
-  public Integer getPillar() {
+  public @Nullable Integer getPillar() {
     return getDetails().getPillar();
   }
 

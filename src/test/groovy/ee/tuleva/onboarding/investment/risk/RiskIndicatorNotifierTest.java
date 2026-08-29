@@ -132,15 +132,15 @@ class RiskIndicatorNotifierTest {
                 TUK00, List.of(new Source(TUK00.getIsin(), null)),
                 TUV100, List.of(new Source(TUV100.getIsin(), null))),
             proxyReviews);
+    var clock = Clock.fixed(today.atStartOfDay(ZoneOffset.UTC).toInstant(), ZoneOffset.UTC);
+    var formatter = new RiskIndicatorDigestFormatter(disclosures, properties, fundValues, clock);
     return new RiskIndicatorNotifier(
         notifications,
-        disclosures,
         digests,
         publications,
-        properties,
-        fundValues,
         new BusinessDays(new PublicHolidays()),
-        Clock.fixed(today.atStartOfDay(ZoneOffset.UTC).toInstant(), ZoneOffset.UTC));
+        clock,
+        formatter);
   }
 
   @Test

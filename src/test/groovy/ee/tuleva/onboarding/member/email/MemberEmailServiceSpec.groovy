@@ -3,8 +3,8 @@ package ee.tuleva.onboarding.member.email
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus
-import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService
-import ee.tuleva.onboarding.mandate.email.persistence.EmailType
+import ee.tuleva.onboarding.notification.email.EmailPersistenceService
+import ee.tuleva.onboarding.notification.email.EmailType
 import ee.tuleva.onboarding.notification.email.EmailService
 import spock.lang.Specification
 

@@ -1,7 +1,10 @@
-package ee.tuleva.onboarding.mandate.email.persistence;
+package ee.tuleva.onboarding.notification.email.persistence;
 
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
+import ee.tuleva.onboarding.notification.email.Email;
+import ee.tuleva.onboarding.notification.email.EmailStatus;
+import ee.tuleva.onboarding.notification.email.EmailType;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;

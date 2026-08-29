@@ -1,11 +1,11 @@
-package ee.tuleva.onboarding.mandate.email.persistence;
+package ee.tuleva.onboarding.notification.email;
 
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailStatus.*;
+import static ee.tuleva.onboarding.notification.email.EmailStatus.*;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
-import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.notification.email.persistence.EmailRepository;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -80,6 +80,10 @@ public class EmailPersistenceService {
       log.error("Failed to save email: email={}", scheduledEmail, e);
       throw e;
     }
+  }
+
+  public Optional<Email> findByMandrillMessageId(String mandrillMessageId) {
+    return emailRepository.findByMandrillMessageId(mandrillMessageId);
   }
 
   public List<Email> cancel(Person person, EmailType type) {

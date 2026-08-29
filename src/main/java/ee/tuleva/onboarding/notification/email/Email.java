@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.mandate.email.persistence;
+package ee.tuleva.onboarding.notification.email;
 
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
 import static jakarta.persistence.EnumType.STRING;

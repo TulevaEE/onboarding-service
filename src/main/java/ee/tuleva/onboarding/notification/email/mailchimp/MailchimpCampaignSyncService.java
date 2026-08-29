@@ -1,13 +1,13 @@
 package ee.tuleva.onboarding.notification.email.mailchimp;
 
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailStatus.SENT;
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.MAILCHIMP_CAMPAIGN;
+import static ee.tuleva.onboarding.notification.email.EmailStatus.SENT;
+import static ee.tuleva.onboarding.notification.email.EmailType.MAILCHIMP_CAMPAIGN;
 import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.event.EventLog;
 import ee.tuleva.onboarding.event.EventLogRepository;
-import ee.tuleva.onboarding.mandate.email.persistence.Email;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailRepository;
+import ee.tuleva.onboarding.notification.email.Email;
+import ee.tuleva.onboarding.notification.email.persistence.EmailRepository;
 import ee.tuleva.onboarding.notification.email.provider.MailchimpService;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;

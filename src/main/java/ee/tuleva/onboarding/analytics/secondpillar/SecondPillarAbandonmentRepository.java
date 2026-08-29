@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.analytics.secondpillar;
 
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SECOND_PILLAR_ABANDONMENT;
+import static ee.tuleva.onboarding.notification.email.EmailType.SECOND_PILLAR_ABANDONMENT;
 
-import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
+import ee.tuleva.onboarding.notification.email.EmailType;
 import ee.tuleva.onboarding.notification.email.auto.AutoEmailRepository;
 import java.time.LocalDate;
 import java.util.List;

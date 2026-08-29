@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember;
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SAVINGS_FUND_COMPANY_ONBOARDED;
+import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_COMPANY_ONBOARDED;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -19,7 +19,7 @@ import ee.tuleva.onboarding.kyb.RegistryCode;
 import ee.tuleva.onboarding.kyb.SelfCertification;
 import ee.tuleva.onboarding.kyb.survey.KybSurveyInputs;
 import ee.tuleva.onboarding.kyb.survey.LatestKybSurveyInputs;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
+import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;

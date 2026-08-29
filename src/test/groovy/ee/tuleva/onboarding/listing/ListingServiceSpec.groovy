@@ -7,8 +7,8 @@ import ee.tuleva.onboarding.capital.CapitalService
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContractService
 import ee.tuleva.onboarding.currency.Currency
 import ee.tuleva.onboarding.locale.LocaleService
-import ee.tuleva.onboarding.mandate.email.persistence.Email
-import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService
+import ee.tuleva.onboarding.notification.email.Email
+import ee.tuleva.onboarding.notification.email.EmailPersistenceService
 import ee.tuleva.onboarding.notification.email.EmailService
 import ee.tuleva.onboarding.time.ClockHolder
 import ee.tuleva.onboarding.time.TestClockHolder
@@ -27,7 +27,7 @@ import static ee.tuleva.onboarding.listing.Listing.State.CANCELLED
 import static ee.tuleva.onboarding.listing.ListingType.BUY
 import static ee.tuleva.onboarding.listing.ListingType.SELL
 import static ee.tuleva.onboarding.listing.ListingsFixture.*
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.LISTING_REPLY_TO_SELLER
+import static ee.tuleva.onboarding.notification.email.EmailType.LISTING_REPLY_TO_SELLER
 
 class ListingServiceSpec extends Specification {
 

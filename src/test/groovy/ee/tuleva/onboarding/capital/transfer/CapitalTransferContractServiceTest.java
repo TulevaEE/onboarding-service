@@ -21,9 +21,9 @@ import ee.tuleva.onboarding.capital.transfer.content.CapitalTransferContractCont
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.epis.ContactDetailsService;
 import ee.tuleva.onboarding.event.TrackableEvent;
-import ee.tuleva.onboarding.mandate.email.persistence.Email;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.notification.email.Email;
+import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;

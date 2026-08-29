@@ -1,5 +1,8 @@
-package ee.tuleva.onboarding.mandate.email.persistence
+package ee.tuleva.onboarding.notification.email.persistence
 
+import ee.tuleva.onboarding.notification.email.EmailStatus
+import ee.tuleva.onboarding.notification.email.EmailType
+import ee.tuleva.onboarding.notification.email.Email
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager
@@ -8,9 +11,9 @@ import spock.lang.Specification
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
 import static ee.tuleva.onboarding.mandate.MandateFixture.emptyMandate
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailStatus.SCHEDULED
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SECOND_PILLAR_EARLY_WITHDRAWAL
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.THIRD_PILLAR_PAYMENT_REMINDER_MANDATE
+import static ee.tuleva.onboarding.notification.email.EmailStatus.SCHEDULED
+import static ee.tuleva.onboarding.notification.email.EmailType.SECOND_PILLAR_EARLY_WITHDRAWAL
+import static ee.tuleva.onboarding.notification.email.EmailType.THIRD_PILLAR_PAYMENT_REMINDER_MANDATE
 
 @DataJpaTest
 class EmailRepositorySpec extends Specification {

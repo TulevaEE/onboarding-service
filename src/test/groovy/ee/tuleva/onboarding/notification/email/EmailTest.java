@@ -1,10 +1,10 @@
-package ee.tuleva.onboarding.mandate.email.persistence;
+package ee.tuleva.onboarding.notification.email;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.mandate.MandateFixture.emptyMandate;
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchFixture.aSavedMandateBatch;
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailStatus.SCHEDULED;
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.THIRD_PILLAR_PAYMENT_REMINDER_MANDATE;
+import static ee.tuleva.onboarding.notification.email.EmailStatus.SCHEDULED;
+import static ee.tuleva.onboarding.notification.email.EmailType.THIRD_PILLAR_PAYMENT_REMINDER_MANDATE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.mandate.Mandate;

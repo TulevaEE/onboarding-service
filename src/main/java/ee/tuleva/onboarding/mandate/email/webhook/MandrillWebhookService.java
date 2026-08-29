@@ -2,9 +2,9 @@ package ee.tuleva.onboarding.mandate.email.webhook;
 
 import ee.tuleva.onboarding.event.EventLog;
 import ee.tuleva.onboarding.event.EventLogRepository;
-import ee.tuleva.onboarding.mandate.email.persistence.Email;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailRepository;
+import ee.tuleva.onboarding.notification.email.Email;
 import ee.tuleva.onboarding.notification.email.EmailDeliveryFailedEvent;
+import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.HashMap;
@@ -26,8 +26,8 @@ import tools.jackson.databind.json.JsonMapper;
 @RequiredArgsConstructor
 public class MandrillWebhookService {
 
-  private final EmailRepository emailRepository;
   private final EventLogRepository eventLogRepository;
+  private final EmailPersistenceService emailPersistenceService;
   private final MandrillSignatureVerifier signatureVerifier;
   private final JsonMapper objectMapper;
   private final ApplicationEventPublisher eventPublisher;
@@ -126,7 +126,7 @@ public class MandrillWebhookService {
 
     String mandrillMessageId = event.msg().id();
 
-    emailRepository
+    emailPersistenceService
         .findByMandrillMessageId(mandrillMessageId)
         .ifPresentOrElse(
             email -> saveEventLog(event, email),

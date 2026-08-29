@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.mandate.email.persistence;
+package ee.tuleva.onboarding.notification.email;
 
 public enum EmailStatus {
   SENT,

@@ -1,6 +1,8 @@
-package ee.tuleva.onboarding.mandate.email.persistence;
+package ee.tuleva.onboarding.notification.email.persistence;
 
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
+import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
+import ee.tuleva.onboarding.notification.email.EmailType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;

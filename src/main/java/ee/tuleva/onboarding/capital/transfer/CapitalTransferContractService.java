@@ -4,8 +4,8 @@ import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.*
 import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.*;
 import static ee.tuleva.onboarding.event.TrackableEventType.CAPITAL_TRANSFER_STATE_CHANGE;
 import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.getAttachments;
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.*;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.CAPITAL_TRANSFER;
+import static ee.tuleva.onboarding.notification.email.EmailType.*;
 import static java.util.stream.Stream.concat;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
@@ -20,11 +20,11 @@ import ee.tuleva.onboarding.capital.transfer.content.CapitalTransferContractCont
 import ee.tuleva.onboarding.epis.ContactDetailsService;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.listing.MessageResponse;
-import ee.tuleva.onboarding.mandate.email.persistence.Email;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.notification.email.Email;
+import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.notification.email.EmailType;
 import ee.tuleva.onboarding.signature.SignatureFile;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;

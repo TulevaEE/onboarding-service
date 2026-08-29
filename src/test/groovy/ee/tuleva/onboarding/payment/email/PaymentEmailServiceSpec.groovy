@@ -5,8 +5,8 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessage
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus
 import ee.tuleva.onboarding.mandate.Mandate
 import ee.tuleva.onboarding.mandate.email.PillarSuggestion
-import ee.tuleva.onboarding.mandate.email.persistence.Email
-import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService
+import ee.tuleva.onboarding.notification.email.Email
+import ee.tuleva.onboarding.notification.email.EmailPersistenceService
 import ee.tuleva.onboarding.notification.email.EmailService
 import spock.lang.Specification
 
@@ -15,7 +15,7 @@ import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notConve
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.getAttachments
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.*
+import static ee.tuleva.onboarding.notification.email.EmailType.*
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewSinglePayment
 import static ee.tuleva.onboarding.paymentrate.PaymentRatesFixture.samplePaymentRates
 

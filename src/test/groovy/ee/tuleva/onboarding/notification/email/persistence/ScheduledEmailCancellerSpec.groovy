@@ -1,5 +1,7 @@
-package ee.tuleva.onboarding.mandate.email.persistence
+package ee.tuleva.onboarding.notification.email.persistence
 
+import ee.tuleva.onboarding.notification.email.EmailPersistenceService
+import ee.tuleva.onboarding.notification.email.EmailType
 import ee.tuleva.onboarding.mandate.Mandate
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent
 import ee.tuleva.onboarding.user.User

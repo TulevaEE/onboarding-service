@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.notification.email.firstpayment;
 
 import static ee.tuleva.onboarding.analytics.transaction.thirdpillar.AnalyticsThirdPillarTransactionFixture.exampleTransactionBuilder;
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.THIRD_PILLAR_PAYMENT_ARRIVED;
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.THIRD_PILLAR_PAYMENT_REMINDER_MANDATE;
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.THIRD_PILLAR_PAYMENT_SUCCESS_MANDATE;
+import static ee.tuleva.onboarding.notification.email.EmailType.THIRD_PILLAR_PAYMENT_ARRIVED;
+import static ee.tuleva.onboarding.notification.email.EmailType.THIRD_PILLAR_PAYMENT_REMINDER_MANDATE;
+import static ee.tuleva.onboarding.notification.email.EmailType.THIRD_PILLAR_PAYMENT_SUCCESS_MANDATE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -21,10 +21,10 @@ import ee.tuleva.onboarding.analytics.transaction.thirdpillar.FirstThirdPillarPa
 import ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwner;
 import ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwnerRepository;
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailRepository;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailStatus;
+import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.notification.email.EmailStatus;
+import ee.tuleva.onboarding.notification.email.persistence.EmailRepository;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import java.math.BigDecimal;

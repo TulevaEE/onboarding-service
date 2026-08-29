@@ -2,11 +2,11 @@ package ee.tuleva.onboarding.notification.email.mailchimp
 
 import ee.tuleva.onboarding.event.EventLog
 import ee.tuleva.onboarding.event.EventLogRepository
-import ee.tuleva.onboarding.mandate.email.persistence.Email
-import ee.tuleva.onboarding.mandate.email.persistence.EmailRepository
+import ee.tuleva.onboarding.notification.email.Email
+import ee.tuleva.onboarding.notification.email.persistence.EmailRepository
 import spock.lang.Specification
 
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailStatus.SENT
+import static ee.tuleva.onboarding.notification.email.EmailStatus.SENT
 import static ee.tuleva.onboarding.notification.email.mailchimp.MailchimpFixture.email
 
 class MailchimpCampaignMetricsServiceSpec extends Specification {
@@ -120,7 +120,7 @@ class MailchimpCampaignMetricsServiceSpec extends Specification {
     final mailchimpEmail = email("39001010000", "msg_1", campaignName)
     final otherEmail = Email.builder()
         .personalCode("39001020000")
-        .type(ee.tuleva.onboarding.mandate.email.persistence.EmailType.SECOND_PILLAR_MANDATE)
+        .type(ee.tuleva.onboarding.notification.email.EmailType.SECOND_PILLAR_MANDATE)
         .status(SENT)
         .mandrillMessageId("msg_2")
         .build()

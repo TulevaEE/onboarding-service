@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.capital.transfer.execution;
 
 import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.APPROVED_AND_NOTIFIED;
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.CAPITAL_TRANSFER_APPROVED_BY_BOARD;
+import static ee.tuleva.onboarding.notification.email.EmailType.CAPITAL_TRANSFER_APPROVED_BY_BOARD;
 
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEvent;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventRepository;

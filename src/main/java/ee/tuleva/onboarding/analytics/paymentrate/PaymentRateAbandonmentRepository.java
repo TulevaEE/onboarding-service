@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.analytics.paymentrate;
 
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.PAYMENT_RATE_ABANDONMENT;
+import static ee.tuleva.onboarding.notification.email.EmailType.PAYMENT_RATE_ABANDONMENT;
 
-import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
+import ee.tuleva.onboarding.notification.email.EmailType;
 import ee.tuleva.onboarding.notification.email.auto.AutoEmailRepository;
 import java.time.LocalDate;
 import java.util.List;

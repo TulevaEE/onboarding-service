@@ -5,7 +5,7 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus
 import ee.tuleva.onboarding.auth.principal.AuthenticationHolder
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService
 import ee.tuleva.onboarding.fund.FundRepository
-import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService
+import ee.tuleva.onboarding.notification.email.EmailPersistenceService
 import ee.tuleva.onboarding.notification.email.EmailService
 import ee.tuleva.onboarding.paymentrate.PaymentRates
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService
@@ -26,7 +26,7 @@ import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixt
 import static ee.tuleva.onboarding.fund.FundFixture.lhv2ndPillarFund
 import static ee.tuleva.onboarding.fund.FundFixture.tuleva2ndPillarStockFund
 import static ee.tuleva.onboarding.mandate.MandateFixture.*
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.*
+import static ee.tuleva.onboarding.notification.email.EmailType.*
 import static ee.tuleva.onboarding.paymentrate.PaymentRatesFixture.samplePaymentRates
 import static java.time.ZoneOffset.UTC
 import static java.time.temporal.ChronoUnit.DAYS

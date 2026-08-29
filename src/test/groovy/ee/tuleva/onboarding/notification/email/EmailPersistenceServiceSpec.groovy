@@ -1,5 +1,6 @@
-package ee.tuleva.onboarding.mandate.email.persistence
+package ee.tuleva.onboarding.notification.email
 
+import ee.tuleva.onboarding.notification.email.persistence.EmailRepository
 import com.microtripit.mandrillapp.lutung.view.MandrillScheduledMessageInfo
 import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.mandate.batch.MandateBatchFixture
@@ -15,10 +16,10 @@ import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFundPensionOpeningMandate
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 import static ee.tuleva.onboarding.mandate.MandateFixture.samplePartialWithdrawalMandate
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailStatus.*
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SECOND_PILLAR_EARLY_WITHDRAWAL
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SECOND_PILLAR_LEAVERS
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.WITHDRAWAL_BATCH
+import static ee.tuleva.onboarding.notification.email.EmailStatus.*
+import static ee.tuleva.onboarding.notification.email.EmailType.SECOND_PILLAR_EARLY_WITHDRAWAL
+import static ee.tuleva.onboarding.notification.email.EmailType.SECOND_PILLAR_LEAVERS
+import static ee.tuleva.onboarding.notification.email.EmailType.WITHDRAWAL_BATCH
 
 class EmailPersistenceServiceSpec extends Specification {
 

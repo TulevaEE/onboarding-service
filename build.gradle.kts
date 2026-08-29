@@ -516,7 +516,6 @@ tasks.withType<JavaCompile> {
     options.compilerArgs.add("-Xlint:-processing")
     options.compilerArgs.add("-Xlint:-path")
     options.compilerArgs.add("-Xlint:-serial")
-    options.compilerArgs.add("-Xlint:-deprecation")
     options.compilerArgs.add("-Xdiags:verbose")
 //    options.compilerArgs.add("-Werror")
     options.errorprone {

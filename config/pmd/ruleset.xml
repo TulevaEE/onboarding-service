@@ -41,4 +41,10 @@
       <property name="threshold" value="20"/>
     </properties>
   </rule>
+
+  <rule ref="category/java/design.xml/AvoidDeeplyNestedIfStmts">
+    <properties>
+      <property name="problemDepth" value="4"/>
+    </properties>
+  </rule>
 </ruleset>

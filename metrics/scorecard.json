@@ -1,6 +1,14 @@
 {
   "branchCoverage": 85.92,
+  "classCouplingViolations": 38,
+  "clockViolations": 30,
+  "cognitiveComplexityViolations": 20,
+  "compilerWarnings": 100,
+  "deepNestingViolations": 0,
+  "disabledTests": 6,
+  "godClasses": 14,
   "lineCoverage": 82.78,
+  "longClasses": 4,
   "meanInstability": 0.469,
   "moduleCycles": 18,
   "modulithViolations": 109,
@@ -14,7 +22,10 @@
     "GodClass": 14,
     "TooManyMethods": 6
   },
+  "slowest10TestClassesSeconds": 99.7,
   "springBootTests": 76,
+  "suiteWallTimeSeconds": 187,
+  "testClassesOver10Seconds": 2,
   "top15ClassLines": 7219,
   "totalPackages": 225,
   "unmarkedPackages": 0

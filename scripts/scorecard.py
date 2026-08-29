@@ -18,6 +18,7 @@ is not blocked). Everything else is informational trend data.
 """
 
 import json
+import re
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
@@ -27,6 +28,14 @@ ROOT = Path(__file__).resolve().parent.parent
 SCORECARD = ROOT / "metrics" / "scorecard.json"
 
 LOWER_IS_BETTER = [
+    "classCouplingViolations",
+    "clockViolations",
+    "cognitiveComplexityViolations",
+    "deepNestingViolations",
+    "compilerWarnings",
+    "disabledTests",
+    "longClasses",
+    "godClasses",
     "modulithViolations",
     "moduleCycles",
     "pmdViolations",
@@ -58,7 +67,14 @@ def pmd_metrics():
     for violation in violations:
         rule = violation.get("rule")
         by_rule[rule] = by_rule.get(rule, 0) + 1
-    return {"pmdViolations": len(violations), "pmdViolationsByRule": dict(sorted(by_rule.items()))}
+    return {
+        "pmdViolations": len(violations),
+        "godClasses": by_rule.get("GodClass", 0),
+        "classCouplingViolations": by_rule.get("CouplingBetweenObjects", 0),
+        "cognitiveComplexityViolations": by_rule.get("CognitiveComplexity", 0),
+        "deepNestingViolations": by_rule.get("AvoidDeeplyNestedIfStmts", 0),
+        "pmdViolationsByRule": dict(sorted(by_rule.items())),
+    }
 
 
 def jacoco_metrics():
@@ -114,6 +130,60 @@ def source_metrics():
     }
 
 
+def convention_metrics():
+    main = ROOT / "src" / "main" / "java"
+    clock_pattern = re.compile(r"\b(Instant|LocalDate|LocalDateTime|ZonedDateTime|LocalTime|OffsetDateTime)\.now\(\)")
+    clock_violations = 0
+    for f in main.rglob("*.java"):
+        if f.name in ("ClockHolder.java", "ClockConfig.java"):
+            continue
+        clock_violations += len(clock_pattern.findall(f.read_text(encoding="utf-8")))
+    disabled = subprocess.run(
+        ["grep", "-rlE", "@Disabled|@Ignore\b", str(ROOT / "src" / "test" / "groovy")],
+        capture_output=True,
+        text=True,
+    ).stdout.splitlines()
+    slow_tests = []
+    results = ROOT / "build" / "test-results" / "test"
+    if results.exists():
+        import xml.etree.ElementTree as ET2
+        for f in results.glob("*.xml"):
+            try:
+                root = ET2.parse(f).getroot()
+                slow_tests.append((float(root.get("time", 0)), root.get("name", f.name)))
+            except ET2.ParseError:
+                continue
+    slow_tests.sort(reverse=True)
+    wall_time = None
+    log = Path("/tmp/test-output.txt")
+    if log.exists():
+        for line in log.open(encoding="utf-8"):
+            match = re.search(r"BUILD SUCCESSFUL in (?:(\d+)m )?(\d+)s", line)
+            if match:
+                wall_time = int(match.group(1) or 0) * 60 + int(match.group(2))
+    long_classes = sum(
+        1
+        for f in main.rglob("*.java")
+        if sum(1 for _ in f.open(encoding="utf-8")) > 500
+    )
+    return {
+        "clockViolations": clock_violations,
+        "longClasses": long_classes,
+        "disabledTests": len(disabled),
+        "suiteWallTimeSeconds": wall_time,
+        "slowest10TestClassesSeconds": round(sum(s for s, _ in slow_tests[:10]), 1),
+        "testClassesOver10Seconds": sum(1 for s, _ in slow_tests if s > 10),
+    }
+
+
+def compiler_warning_metrics():
+    log = Path("/tmp/compile-warnings.txt")
+    if not log.exists():
+        return {}
+    count = sum(1 for line in log.open(encoding="utf-8") if ": warning:" in line)
+    return {"compilerWarnings": count}
+
+
 def previous_scorecard():
     result = subprocess.run(
         ["git", "-C", str(ROOT), "show", "HEAD:metrics/scorecard.json"],
@@ -136,7 +206,15 @@ def compare(current, previous):
 
 def main():
     current = {}
-    for collect in [modulith_metrics, pmd_metrics, jacoco_metrics, pitest_metrics, source_metrics]:
+    for collect in [
+        modulith_metrics,
+        pmd_metrics,
+        jacoco_metrics,
+        pitest_metrics,
+        source_metrics,
+        convention_metrics,
+        compiler_warning_metrics,
+    ]:
         current.update(collect())
 
     SCORECARD.parent.mkdir(exist_ok=True)
@@ -146,6 +224,9 @@ def main():
         for key in ("mutationScore", "mutationsTotal"):
             if key in previous:
                 current[key] = previous[key]
+
+    if previous and "compilerWarnings" not in current and "compilerWarnings" in previous:
+        current["compilerWarnings"] = previous["compilerWarnings"]
 
     if previous and "--init" not in sys.argv:
         for key in sorted(set(previous) | set(current)):

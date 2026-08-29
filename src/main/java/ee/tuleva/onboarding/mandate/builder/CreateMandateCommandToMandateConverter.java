@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.builder;
 
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.account.AccountStatementService;
@@ -50,7 +51,10 @@ public class CreateMandateCommandToMandateConverter {
         mandate.getMetadata(), conversion, contactDetails, authenticatedPerson, paymentRates);
 
     List<FundTransferExchange> fundTransferExchanges =
-        createMandateCommand.getFundTransferExchanges().stream()
+        requireNonNull(
+                createMandateCommand.getFundTransferExchanges(),
+                "fundTransferExchanges must be validated first: command=" + createMandateCommand)
+            .stream()
             .map(
                 exchange ->
                     FundTransferExchange.builder()
@@ -87,7 +91,10 @@ public class CreateMandateCommandToMandateConverter {
     if (createMandateCommand.getFutureContributionFundIsin() != null) {
       return createMandateCommand.getFutureContributionFundIsin();
     }
-    return createMandateCommand.getFundTransferExchanges().stream()
+    return requireNonNull(
+            createMandateCommand.getFundTransferExchanges(),
+            "fundTransferExchanges must be validated first: command=" + createMandateCommand)
+        .stream()
         .map(MandateFundTransferExchangeCommand::getSourceFundIsin)
         .findFirst()
         .orElse(null);

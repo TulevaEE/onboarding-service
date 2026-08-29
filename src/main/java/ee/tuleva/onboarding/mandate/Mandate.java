@@ -68,11 +68,13 @@ public class Mandate implements Serializable {
   @Column(name = "address")
   @NotNull
   @JsonView(MandateView.Default.class)
+  @Nullable
   private Country address;
 
   @JdbcTypeCode(JSON)
   @NotNull
-  private Map<String, Object> metadata = new HashMap<>(); // TODO: refactor this field into details
+  private Map<String, @org.jspecify.annotations.Nullable Object> metadata =
+      new HashMap<>(); // TODO: refactor this field into details
 
   @JdbcTypeCode(JSON)
   @JsonView(MandateView.Default.class)
@@ -98,7 +100,7 @@ public class Mandate implements Serializable {
       List<FundTransferExchange> fundTransferExchanges,
       Integer pillar,
       @Nullable Country address,
-      Map<String, Object> metadata,
+      Map<String, @org.jspecify.annotations.Nullable Object> metadata,
       @Nullable BigDecimal paymentRate,
       MandateDetails details) {
     this.user = user;

@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -102,7 +103,7 @@ public class MandrillWebhookService {
     return msg.state();
   }
 
-  private String latestSmtpDiag(MandrillWebhookEvent.MandrillMessage msg) {
+  private @Nullable String latestSmtpDiag(MandrillWebhookEvent.MandrillMessage msg) {
     if (msg.smtpEvents() == null || msg.smtpEvents().isEmpty()) {
       return null;
     }
@@ -142,7 +143,7 @@ public class MandrillWebhookService {
       return;
     }
 
-    Map<String, Object> eventData = buildEventData(event, email);
+    Map<String, @Nullable Object> eventData = buildEventData(event, email);
     Instant timestamp = Instant.ofEpochSecond(event.ts());
     String eventType = event.event();
 
@@ -164,8 +165,8 @@ public class MandrillWebhookService {
         email.getMandrillMessageId());
   }
 
-  private Map<String, Object> buildEventData(MandrillWebhookEvent event, Email email) {
-    Map<String, Object> data = new HashMap<>();
+  private Map<String, @Nullable Object> buildEventData(MandrillWebhookEvent event, Email email) {
+    Map<String, @Nullable Object> data = new HashMap<>();
 
     data.put("mandrillMessageId", event.msg().id());
     data.put("emailType", email.getType().toString());

@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_UNITS_OUTSTANDING;
 
 import java.util.List;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -60,6 +61,9 @@ class TrusteeReportRepository {
         .sql(sql)
         .param("fundUnitsAccountName", FUND_UNITS_OUTSTANDING.getAccountName(TKF100))
         .query(TrusteeReportRow.class)
-        .list();
+        .list()
+        .stream()
+        .map(Objects::requireNonNull)
+        .toList();
   }
 }

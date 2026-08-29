@@ -81,7 +81,11 @@ public class IssuingJob {
 
   private List<SavingFundPayment> getReservedPaymentsReceivedBefore(Instant cutoff) {
     return savingFundPaymentRepository.findPaymentsWithStatus(RESERVED).stream()
-        .filter(payment -> payment.getReceivedBefore().isBefore(cutoff))
+        .filter(
+            payment -> {
+              var receivedBefore = payment.getReceivedBefore();
+              return receivedBefore != null && receivedBefore.isBefore(cutoff);
+            })
         .toList();
   }
 

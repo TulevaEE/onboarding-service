@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings.fund.issuing;
 
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.ISSUED;
 import static java.math.RoundingMode.HALF_DOWN;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
@@ -25,8 +26,11 @@ class IssuerService {
     var unitsAmount = payment.getAmount().divide(nav, 5, HALF_DOWN); // TODO rounding mode, scale?
     var cashAmount = payment.getAmount();
 
+    var partyId =
+        requireNonNull(
+            payment.getPartyId(), "Payment missing party id: paymentId=" + payment.getId());
     savingsFundLedger.issueFundUnitsFromReserved(
-        payment.getPartyId(), cashAmount, unitsAmount, nav, payment.getId());
+        partyId, cashAmount, unitsAmount, nav, payment.getId());
 
     savingFundPaymentRepository.changeStatus(payment.getId(), ISSUED);
     return new IssuingResult(cashAmount, unitsAmount);

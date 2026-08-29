@@ -4,13 +4,14 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.epis.ContactDetails;
 import ee.tuleva.onboarding.paymentrate.PaymentRates;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Service
 public class ConversionDecorator {
 
   public void addConversionMetadata(
-      Map<String, Object> metadata,
+      Map<String, @Nullable Object> metadata,
       ConversionResponse conversion,
       ContactDetails contactDetails,
       AuthenticatedPerson authenticatedPerson,

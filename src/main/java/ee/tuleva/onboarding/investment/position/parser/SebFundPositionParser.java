@@ -19,6 +19,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -116,7 +117,7 @@ public class SebFundPositionParser implements FundPositionParser {
     }
   }
 
-  private String extractFundCode(Map<String, Object> row) {
+  private @Nullable String extractFundCode(Map<String, Object> row) {
     String clientName = getString(row, "Client name");
     if (clientName != null && FUND_CODES.contains(clientName)) {
       return clientName;
@@ -128,11 +129,11 @@ public class SebFundPositionParser implements FundPositionParser {
         .orElse(null);
   }
 
-  private boolean isTotalRow(String accountColumn) {
+  private boolean isTotalRow(@Nullable String accountColumn) {
     return accountColumn != null && "Total".equalsIgnoreCase(accountColumn.trim());
   }
 
-  private AccountType determineAccountType(String accountName, String accountColumn) {
+  private AccountType determineAccountType(String accountName, @Nullable String accountColumn) {
     String nameLower = accountName.toLowerCase();
 
     if (nameLower.contains("cash account")) {
@@ -151,12 +152,12 @@ public class SebFundPositionParser implements FundPositionParser {
     return AccountType.SECURITY;
   }
 
-  private String getString(Map<String, Object> row, String key) {
+  private @Nullable String getString(Map<String, Object> row, String key) {
     Object value = row.get(key);
     return toString(value);
   }
 
-  private String toString(Object value) {
+  private @Nullable String toString(@Nullable Object value) {
     if (value == null) {
       return null;
     }
@@ -164,7 +165,7 @@ public class SebFundPositionParser implements FundPositionParser {
     return str.isEmpty() ? null : str;
   }
 
-  private BigDecimal getBigDecimal(Map<String, Object> row, String key) {
+  private @Nullable BigDecimal getBigDecimal(Map<String, Object> row, String key) {
     Object value = row.get(key);
     if (value == null) {
       return null;
@@ -192,7 +193,7 @@ public class SebFundPositionParser implements FundPositionParser {
     }
   }
 
-  private BigDecimal parseMarketPrice(Map<String, Object> row, AccountType accountType) {
+  private @Nullable BigDecimal parseMarketPrice(Map<String, Object> row, AccountType accountType) {
     BigDecimal price = getBigDecimal(row, "Market price");
     boolean priceIsNullOrZero = price == null || price.compareTo(ZERO) == 0;
     if (priceIsNullOrZero && UNIT_PRICE_ACCOUNT_TYPES.contains(accountType)) {

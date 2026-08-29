@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.payment.savings;
 
 import static ee.tuleva.onboarding.payment.provider.PaymentInternalReferenceService.inferPartyType;
+import static java.util.Objects.requireNonNull;
 
 import com.nimbusds.jose.JWSObject;
 import ee.tuleva.onboarding.party.PartyId;
@@ -55,8 +56,14 @@ public class SavingsCallbackService {
 
     var payment =
         SavingFundPayment.builder()
-            .remitterName(token.getSenderName())
-            .remitterIban(token.getSenderIban())
+            .remitterName(
+                requireNonNull(
+                    token.getSenderName(),
+                    "Montonio order token missing sender name: token=" + token))
+            .remitterIban(
+                requireNonNull(
+                    token.getSenderIban(),
+                    "Montonio order token missing sender IBAN: token=" + token))
             .description(token.getMerchantReference().getDescription())
             .amount(token.getGrandTotal())
             .currency(token.getCurrency())

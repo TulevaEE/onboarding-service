@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityChe
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toCollection;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
@@ -121,10 +122,6 @@ public class FundValueIntegrityChecker {
     return crossProviderDiscrepancies(instrument, loadSources(instrument, startDate, endDate));
   }
 
-  private record InstrumentSource(String name, String displayName, String storageKey, int scale) {}
-
-  private record SourceValues(InstrumentSource source, Map<LocalDate, BigDecimal> valuesByDate) {}
-
   private List<InstrumentSource> instrumentSources(InstrumentReference instrument) {
     return PriorityPriceProvider.priceFeeds().stream()
         .flatMap(
@@ -191,7 +188,7 @@ public class FundValueIntegrityChecker {
     }
     List<SourceValue> allSourceValues =
         present.stream()
-            .map(source -> new SourceValue(source.source().name(), source.valuesByDate().get(date)))
+            .map(source -> new SourceValue(source.source().name(), source.valueOn(date)))
             .toList();
     SourceValues anchor = present.getFirst();
     return present.stream()
@@ -210,8 +207,8 @@ public class FundValueIntegrityChecker {
     int scale = Math.min(anchor.source().scale(), compared.source().scale());
     BigDecimal thresholdPercent =
         scale < DATABASE_SCALE ? NAV_ROUNDING_THRESHOLD_PERCENT : CROSS_PROVIDER_THRESHOLD_PERCENT;
-    BigDecimal anchorValue = anchor.valuesByDate().get(date).setScale(scale, HALF_UP);
-    BigDecimal comparedValue = compared.valuesByDate().get(date).setScale(scale, HALF_UP);
+    BigDecimal anchorValue = anchor.valueOn(date).setScale(scale, HALF_UP);
+    BigDecimal comparedValue = compared.valueOn(date).setScale(scale, HALF_UP);
     BigDecimal percentageDiff = calculatePercentageDifference(anchorValue, comparedValue);
     if (percentageDiff.compareTo(thresholdPercent) <= 0) {
       return Optional.empty();
@@ -318,7 +315,8 @@ public class FundValueIntegrityChecker {
             entry -> {
               LocalDate date = entry.getKey();
               BigDecimal databaseValue = entry.getValue();
-              BigDecimal yahooValue = yahooValuesByDate.get(date);
+              BigDecimal yahooValue =
+                  requireNonNull(yahooValuesByDate.get(date), "Missing Yahoo value: date=" + date);
 
               BigDecimal normalizedDbValue = databaseValue.setScale(DATABASE_SCALE, HALF_UP);
               BigDecimal normalizedYahooValue = yahooValue.setScale(DATABASE_SCALE, HALF_UP);

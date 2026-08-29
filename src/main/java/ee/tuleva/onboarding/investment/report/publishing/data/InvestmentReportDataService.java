@@ -23,6 +23,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -194,7 +195,8 @@ public class InvestmentReportDataService {
         fundNav);
   }
 
-  private static BigDecimal securitiesTotalCostIfComplete(List<InvestmentReportRow> securityRows) {
+  private static @Nullable BigDecimal securitiesTotalCostIfComplete(
+      List<InvestmentReportRow> securityRows) {
     if (securityRows.isEmpty()
         || securityRows.stream().anyMatch(row -> row.avgCostTotal() == null)) {
       return null;
@@ -365,7 +367,7 @@ public class InvestmentReportDataService {
     return new PrevMonthPercentages(secTotal, cashTotal, recTotal);
   }
 
-  private static BigDecimal sumNullable(BigDecimal a, BigDecimal b) {
+  private static @Nullable BigDecimal sumNullable(@Nullable BigDecimal a, @Nullable BigDecimal b) {
     if (a == null && b == null) return null;
     if (a == null) return b;
     if (b == null) return a;
@@ -385,7 +387,9 @@ public class InvestmentReportDataService {
   record CashAccountInfo(String name, String institution) {}
 
   private record PrevMonthPercentages(
-      BigDecimal securitiesTotal, BigDecimal cashTotal, BigDecimal receivablesTotal) {
+      @Nullable BigDecimal securitiesTotal,
+      @Nullable BigDecimal cashTotal,
+      @Nullable BigDecimal receivablesTotal) {
     static PrevMonthPercentages empty() {
       return new PrevMonthPercentages(null, null, null);
     }

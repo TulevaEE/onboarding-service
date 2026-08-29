@@ -73,6 +73,6 @@ public class AccountOverviewProvider {
   }
 
   private LocalDate toLocalDate(Instant instant) {
-    return instant == null ? null : LocalDateTime.ofInstant(instant, ZoneOffset.UTC).toLocalDate();
+    return LocalDateTime.ofInstant(instant, ZoneOffset.UTC).toLocalDate();
   }
 }

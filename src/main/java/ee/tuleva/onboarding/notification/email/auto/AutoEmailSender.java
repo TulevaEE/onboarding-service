@@ -96,12 +96,21 @@ public class AutoEmailSender {
             emailType);
         continue;
       }
+      String email = emailablePerson.getEmail();
+      if (email == null) {
+        log.info(
+            "Person has no email, skipping auto email: personalCode={}, emailType={}",
+            personalCode,
+            emailType);
+        continue;
+      }
+
       log.info(
           "Sending auto email to person: personalCode={}, emailType={}", personalCode, emailType);
 
       try {
         mailchimpService.sendEvent(
-            emailablePerson.getEmail(),
+            email,
             EmailEvent.getByEmailType(emailType),
             autoEmailRepository.getEmailProperties(emailablePerson));
         emailsSent++;

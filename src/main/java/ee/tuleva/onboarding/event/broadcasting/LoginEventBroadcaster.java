@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -33,7 +34,7 @@ public class LoginEventBroadcaster {
   @EventListener
   public void onAfterTokenGrantedEvent(AfterTokenGrantedEvent event) {
     AuthenticatedPerson person = event.getPerson();
-    Map<String, Object> data = new HashMap<>(person.getAttributes());
+    Map<String, @Nullable Object> data = new HashMap<>(person.getAttributes());
 
     data.put("method", event.getGrantType());
     if (event.isIdCard()) {

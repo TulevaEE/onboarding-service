@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.holdings.persistence;
 
+import static java.util.Objects.requireNonNull;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -22,7 +24,7 @@ public enum Region {
   NOT_CLASSIFIED(16);
 
   private int value;
-  private static Map map = new HashMap<>();
+  private static Map<Integer, Region> map = new HashMap<>();
 
   Region(int value) {
     this.value = value;
@@ -35,7 +37,7 @@ public enum Region {
   }
 
   public static Region valueOf(int value) {
-    return (Region) map.get(value);
+    return requireNonNull(map.get(value), "Unknown region value: value=" + value);
   }
 
   public int getValue() {

@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.payment.recurring;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.SINGLE;
 import static ee.tuleva.onboarding.payment.PaymentDateProvider.format;
 import static ee.tuleva.onboarding.payment.recurring.RecurringPaymentRequest.PaymentInterval.MONTHLY;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.ContactDetails;
@@ -12,6 +13,7 @@ import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.payment.CoopLanguage;
 import ee.tuleva.onboarding.payment.PaymentData;
+import ee.tuleva.onboarding.payment.PaymentData.PaymentChannel;
 import ee.tuleva.onboarding.payment.PaymentDateProvider;
 import ee.tuleva.onboarding.payment.PaymentLink;
 import ee.tuleva.onboarding.payment.PaymentLinkGenerator;
@@ -20,6 +22,7 @@ import ee.tuleva.onboarding.payment.PrefilledLink;
 import java.util.LinkedHashMap;
 import lombok.AllArgsConstructor;
 import lombok.SneakyThrows;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -42,17 +45,18 @@ public class CoopPankPaymentLinkGenerator implements PaymentLinkGenerator {
   @SneakyThrows
   public PaymentLink getPaymentLink(PaymentData paymentData, Person person) {
     ContactDetails contactDetails = contactDetailsService.getContactDetails(person);
+    var channel = paymentData.getPaymentChannel();
     var url =
-        switch (paymentData.getPaymentChannel()) {
-          case COOP -> HOST + recurringPaymentPath(paymentData, contactDetails);
+        switch (channel) {
+          case COOP -> HOST + recurringPaymentPath(paymentData, contactDetails, channel);
           case COOP_WEB ->
               SINGLE == paymentData.getType()
-                  ? singlePaymentPath(paymentData, contactDetails)
-                  : recurringPaymentPath(paymentData, contactDetails);
+                  ? singlePaymentPath(paymentData, contactDetails, channel)
+                  : recurringPaymentPath(paymentData, contactDetails, channel);
           case PARTNER ->
               objectMapper.writeValueAsString(
                   new RecurringPaymentRequest(
-                      thirdPillarConfig.getBankAccounts().get(paymentData.getPaymentChannel()),
+                      bankAccountFor(channel),
                       thirdPillarConfig.getRecipientName(),
                       paymentData.getAmount(),
                       paymentData.getCurrency(),
@@ -60,7 +64,7 @@ public class CoopPankPaymentLinkGenerator implements PaymentLinkGenerator {
                       contactDetails.getPensionAccountNumber(),
                       MONTHLY,
                       paymentDateProvider.tenthDayOfMonth()));
-          default ->
+          case null, default ->
               throw new ErrorsResponseException(
                   ErrorsResponse.ofSingleError(
                       "payment.channel.not.supported",
@@ -70,15 +74,22 @@ public class CoopPankPaymentLinkGenerator implements PaymentLinkGenerator {
     return new PrefilledLink(
         url,
         thirdPillarConfig.getRecipientName(),
-        thirdPillarConfig.getBankAccounts().get(paymentData.getPaymentChannel()),
+        bankAccountFor(channel),
         thirdPillarConfig.getDescription(),
         formattedAmount(paymentData));
   }
 
-  private String singlePaymentPath(PaymentData paymentData, ContactDetails contactDetails) {
+  private String bankAccountFor(@Nullable PaymentChannel channel) {
+    return requireNonNull(
+        thirdPillarConfig.getBankAccounts().get(channel),
+        "Missing bank account for payment channel: channel=" + channel);
+  }
+
+  private String singlePaymentPath(
+      PaymentData paymentData, ContactDetails contactDetails, PaymentChannel channel) {
     var params = new LinkedHashMap<String, String>();
     params.put("bname", thirdPillarConfig.getRecipientName());
-    params.put("bacc", thirdPillarConfig.getBankAccounts().get(paymentData.getPaymentChannel()));
+    params.put("bacc", bankAccountFor(channel));
     if (paymentData.getAmount() != null) {
       params.put("amt", paymentData.getAmount().toPlainString());
     }
@@ -89,10 +100,11 @@ public class CoopPankPaymentLinkGenerator implements PaymentLinkGenerator {
     return SINGLE_PATH + "?" + PaymentUrlEncoder.encode(params);
   }
 
-  private String recurringPaymentPath(PaymentData paymentData, ContactDetails contactDetails) {
+  private String recurringPaymentPath(
+      PaymentData paymentData, ContactDetails contactDetails, PaymentChannel channel) {
     var params = new LinkedHashMap<String, String>();
     params.put("bname", thirdPillarConfig.getRecipientName());
-    params.put("bacc", thirdPillarConfig.getBankAccounts().get(paymentData.getPaymentChannel()));
+    params.put("bacc", bankAccountFor(channel));
     if (paymentData.getAmount() != null) {
       params.put("amt", paymentData.getAmount().toPlainString());
     }
@@ -105,7 +117,7 @@ public class CoopPankPaymentLinkGenerator implements PaymentLinkGenerator {
     return STANDING_ORDER_PATH + "?" + PaymentUrlEncoder.encode(params);
   }
 
-  private static String formattedAmount(PaymentData paymentData) {
+  private static @Nullable String formattedAmount(PaymentData paymentData) {
     return paymentData.getAmount() == null ? null : paymentData.getAmount().toPlainString();
   }
 }

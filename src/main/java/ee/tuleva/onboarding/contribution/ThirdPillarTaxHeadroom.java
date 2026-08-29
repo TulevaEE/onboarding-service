@@ -1,7 +1,10 @@
 package ee.tuleva.onboarding.contribution;
 
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.epis.Contribution;
 import ee.tuleva.onboarding.epis.EpisService;
+import ee.tuleva.onboarding.epis.SecondPillarContribution;
+import ee.tuleva.onboarding.epis.ThirdPillarContribution;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;

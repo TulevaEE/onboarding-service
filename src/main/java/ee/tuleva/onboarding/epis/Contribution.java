@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.contribution;
+package ee.tuleva.onboarding.epis;
 
 import static com.fasterxml.jackson.annotation.JsonSubTypes.*;
 import static com.fasterxml.jackson.annotation.JsonTypeInfo.*;

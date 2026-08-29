@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.epis
 
 import ee.tuleva.onboarding.mandate.ApplicationType
 import ee.tuleva.onboarding.auth.role.Role
-import ee.tuleva.onboarding.contribution.ThirdPillarContribution
+import ee.tuleva.onboarding.epis.ThirdPillarContribution
 import ee.tuleva.onboarding.epis.application.ApplicationResponse
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO
 import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO

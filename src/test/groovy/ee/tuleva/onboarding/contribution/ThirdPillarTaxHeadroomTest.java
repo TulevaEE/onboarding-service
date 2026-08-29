@@ -5,7 +5,10 @@ import static org.mockito.BDDMockito.given;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.currency.Currency;
+import ee.tuleva.onboarding.epis.Contribution;
 import ee.tuleva.onboarding.epis.EpisService;
+import ee.tuleva.onboarding.epis.SecondPillarContribution;
+import ee.tuleva.onboarding.epis.ThirdPillarContribution;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;

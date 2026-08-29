@@ -7,7 +7,6 @@ import static org.springframework.http.HttpMethod.GET;
 
 import ee.tuleva.onboarding.auth.ServiceTokenProvider;
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.contribution.Contribution;
 import ee.tuleva.onboarding.epis.account.FundBalanceDto;
 import ee.tuleva.onboarding.epis.fund.FundDto;
 import ee.tuleva.onboarding.epis.fund.NavDto;

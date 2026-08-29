@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.contribution;
+package ee.tuleva.onboarding.epis;
 
 import ee.tuleva.onboarding.currency.Currency;
 import java.math.BigDecimal;

@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.mandate
 
 import ee.tuleva.onboarding.error.response.ErrorsResponse
-import ee.tuleva.onboarding.mandate.exception.IdSessionException
+import ee.tuleva.onboarding.signature.IdSessionException
 import org.springframework.http.HttpStatus
 import spock.lang.Specification
 

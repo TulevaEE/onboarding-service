@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.mandate.exception;
+package ee.tuleva.onboarding.signature;
 
 import ee.tuleva.onboarding.error.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;

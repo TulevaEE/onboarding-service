@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.capital.transfer;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.mandate.exception.NotFoundException;
+import ee.tuleva.onboarding.error.NotFoundException;
 import ee.tuleva.onboarding.signature.FinishIdCardSignCommand;
 import ee.tuleva.onboarding.signature.IdCardSignatureResponse;
 import ee.tuleva.onboarding.signature.IdCardSignatureStatusResponse;

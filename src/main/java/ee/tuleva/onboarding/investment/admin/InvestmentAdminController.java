@@ -18,7 +18,7 @@ import ee.tuleva.onboarding.investment.report.publishing.InvestmentReportPublish
 import ee.tuleva.onboarding.investment.report.publishing.data.InvestmentReportDataService;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportPdfGenerator;
 import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
-import ee.tuleva.onboarding.savings.fund.nav.NavCalculationService;
+import ee.tuleva.onboarding.savings.NavFeeBackfill;
 import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -57,7 +57,7 @@ public class InvestmentAdminController {
   private final ReportImportJob reportImportJob;
   private final FeeAccrualRepository feeAccrualRepository;
   private final NavFeeAccrualLedger navFeeAccrualLedger;
-  private final NavCalculationService navCalculationService;
+  private final NavFeeBackfill navFeeBackfill;
   private final Optional<InvestmentReportPublisher> investmentReportPublisher;
   private final InvestmentReportDataService investmentReportDataService;
   private final InvestmentReportPdfGenerator investmentReportPdfGenerator;
@@ -97,7 +97,7 @@ public class InvestmentAdminController {
     log.info("Admin triggered position re-record: fund={}, fromDate={}", fund, fromDate);
     fundPositionLedgerService.rerecordPositions(fund, fromDate);
     LocalDate latestNavDate = fundPositionRepository.findLatestNavDateByFund(fund).orElse(fromDate);
-    navCalculationService.backfillFees(fund, fromDate, latestNavDate);
+    navFeeBackfill.backfillFees(fund, fromDate, latestNavDate);
 
     return "Re-recorded positions and fees for " + fundCode + " from " + fromDate;
   }
@@ -118,7 +118,7 @@ public class InvestmentAdminController {
     navFeeAccrualLedger.deleteFeeAccrualsFromDate(fund, fromDate);
     feeAccrualRepository.deleteByFundFromDate(fund, fromDate);
     LocalDate latestNavDate = fundPositionRepository.findLatestNavDateByFund(fund).orElse(fromDate);
-    navCalculationService.backfillFees(fund, fromDate, latestNavDate);
+    navFeeBackfill.backfillFees(fund, fromDate, latestNavDate);
 
     return "Re-recorded positions and fees from " + fromDate + " for " + fundCode;
   }
@@ -158,7 +158,7 @@ public class InvestmentAdminController {
 
     TulevaFund fund = TulevaFund.fromCode(fundCode);
     log.info("Admin triggered fee backfill: fund={}, from={}, to={}", fund, from, to);
-    navCalculationService.backfillFees(fund, from, to);
+    navFeeBackfill.backfillFees(fund, from, to);
 
     return "Backfilled fees for " + fundCode + " from " + from + " to " + to;
   }

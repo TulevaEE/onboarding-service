@@ -28,7 +28,7 @@ import ee.tuleva.onboarding.investment.report.publishing.data.InvestmentReportDa
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportContext;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportPdfGenerator;
 import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
-import ee.tuleva.onboarding.savings.fund.nav.NavCalculationService;
+import ee.tuleva.onboarding.savings.NavFeeBackfill;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -60,7 +60,7 @@ class InvestmentAdminControllerTest {
   @MockitoBean private ReportImportJob reportImportJob;
   @MockitoBean private FeeAccrualRepository feeAccrualRepository;
   @MockitoBean private NavFeeAccrualLedger navFeeAccrualLedger;
-  @MockitoBean private NavCalculationService navCalculationService;
+  @MockitoBean private NavFeeBackfill navFeeBackfill;
   @MockitoBean private InvestmentReportPublisher investmentReportPublisher;
   @MockitoBean private InvestmentReportDataService investmentReportDataService;
   @MockitoBean private InvestmentReportPdfGenerator investmentReportPdfGenerator;
@@ -88,7 +88,7 @@ class InvestmentAdminControllerTest {
         .andExpect(content().string(containsString("TKF100")))
         .andExpect(content().string(containsString("2026-02-03")));
 
-    verify(navCalculationService)
+    verify(navFeeBackfill)
         .backfillFees(TulevaFund.TKF100, LocalDate.of(2026, 2, 3), LocalDate.of(2026, 2, 3));
   }
 
@@ -122,7 +122,7 @@ class InvestmentAdminControllerTest {
         .andExpect(content().string(containsString("2026-03-01")));
 
     verify(fundPositionLedgerService).rerecordPositions(TulevaFund.TUK75, LocalDate.of(2026, 3, 1));
-    verify(navCalculationService)
+    verify(navFeeBackfill)
         .backfillFees(TulevaFund.TUK75, LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 13));
   }
 

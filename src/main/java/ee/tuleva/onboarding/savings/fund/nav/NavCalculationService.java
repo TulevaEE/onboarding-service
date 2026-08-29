@@ -16,6 +16,7 @@ import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
+import ee.tuleva.onboarding.savings.NavFeeBackfill;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult.SecurityDetail;
 import ee.tuleva.onboarding.savings.fund.nav.components.*;
 import java.math.BigDecimal;
@@ -36,7 +37,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class NavCalculationService {
+public class NavCalculationService implements NavFeeBackfill {
 
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
 
@@ -329,6 +330,7 @@ public class NavCalculationService {
   }
 
   @Transactional
+  @Override
   public void backfillFees(TulevaFund fund, LocalDate from, LocalDate to) {
     for (LocalDate navDate = from; !navDate.isAfter(to); navDate = navDate.plusDays(1)) {
       var optional = computeFeeBaseValue(fund, navDate.plusDays(1));

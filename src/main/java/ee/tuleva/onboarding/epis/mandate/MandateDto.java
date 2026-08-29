@@ -14,7 +14,7 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 @Data
 @Builder
@@ -47,10 +47,10 @@ public class MandateDto {
   @Getter
   @Setter
   public static class MandateFundsTransferExchangeDTO {
-    private String processId;
-    private BigDecimal amount;
-    private String sourceFundIsin;
-    private String targetFundIsin;
-    private String targetPik;
+    @Nullable private String processId;
+    @Nullable private BigDecimal amount;
+    @Nullable private String sourceFundIsin;
+    @Nullable private String targetFundIsin;
+    @Nullable private String targetPik;
   }
 }

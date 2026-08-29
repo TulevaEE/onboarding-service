@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.processor;
 
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.epis.EpisService;
@@ -19,7 +20,6 @@ import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -95,8 +95,7 @@ public class MandateProcessorService {
 
   // TODO: delete when all mandates have migrated to GenericMandateTdo
   private void handleApplicationProcessResponse(ApplicationResponseDTO response) {
-    response
-        .getMandateResponses()
+    requireNonNull(response.getMandateResponses(), "Missing mandate responses in EPIS response")
         .forEach(
             mandateProcessResult -> {
               log.info("Process result with id {} received", mandateProcessResult.getProcessId());
@@ -109,7 +108,6 @@ public class MandateProcessorService {
             });
   }
 
-  @NotNull
   private List<MandateDto.MandateFundsTransferExchangeDTO> getFundTransferExchanges(
       Mandate mandate) {
     return mandate.getFundTransferExchangesBySourceIsin().entrySet().stream()

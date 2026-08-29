@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.notification.email.EmailType.THIRD_PILLAR_SUG
 import static java.time.format.DateTimeFormatter.ofPattern;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static java.time.temporal.ChronoUnit.HOURS;
+import static java.util.Objects.requireNonNull;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.auth.principal.AuthenticationHolder;
@@ -16,6 +17,7 @@ import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.PillarSuggestion;
+import ee.tuleva.onboarding.mandate.batch.MandateBatch;
 import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.notification.email.EmailType;
@@ -107,7 +109,10 @@ public class MandateEmailService {
 
       // Add decreased/increased flags for template logic
       Integer newRate = paymentRates.getPending().orElseThrow();
-      Integer oldRate = paymentRates.getCurrent();
+      Integer oldRate =
+          requireNonNull(
+              paymentRates.getCurrent(),
+              "Missing current second pillar payment rate: personalCode=" + user.getPersonalCode());
       boolean decreased = isPaymentRateDecreased(oldRate, newRate);
       mergeVars.put("decreased", decreased);
       mergeVars.put("increased", !decreased);
@@ -128,9 +133,15 @@ public class MandateEmailService {
     }
 
     if (mandate.isTransferCancellation()) {
-      String sourceFundIsin = mandate.getFundTransferExchanges().get(0).getSourceFundIsin();
-      String sourceFundName = fundRepository.findByIsin(sourceFundIsin).getName(locale);
-      mergeVars.put("sourceFundName", sourceFundName);
+      List<FundTransferExchange> fundTransferExchanges =
+          requireNonNull(
+              mandate.getFundTransferExchanges(),
+              "Missing fund transfer exchanges for cancellation: mandateId=" + mandate.getId());
+      String sourceFundIsin = fundTransferExchanges.get(0).getSourceFundIsin();
+      Fund sourceFund =
+          requireNonNull(
+              fundRepository.findByIsin(sourceFundIsin), "Fund not found: isin=" + sourceFundIsin);
+      mergeVars.put("sourceFundName", sourceFund.getName(locale));
     }
 
     mergeVars.putAll(
@@ -277,9 +288,10 @@ public class MandateEmailService {
   }
 
   private boolean hasEmailsToday(Person person, EmailType emailType, Mandate mandate) {
-    if (mandate.isPartOfBatch()) {
+    MandateBatch mandateBatch = mandate.getMandateBatch();
+    if (mandateBatch != null) {
       return emailPersistenceService.hasMandateBatchEmailsToday(
-          person, emailType, mandate.getMandateBatch().getId());
+          person, emailType, mandateBatch.getId());
     }
     return emailPersistenceService.hasMandateEmailsToday(person, emailType, mandate.getId());
   }

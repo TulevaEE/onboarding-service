@@ -6,12 +6,13 @@ import ee.tuleva.onboarding.epis.application.ApplicationResponse;
 import java.util.List;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.jspecify.annotations.Nullable;
 
 @Data
 @NoArgsConstructor
 public class ApplicationResponseDTO {
 
-  private List<ApplicationResponse> mandateResponses;
+  @Nullable private List<ApplicationResponse> mandateResponses;
 
   public ApplicationResponseDTO(ApplicationResponse applicationResponse) {
     this.mandateResponses = singletonList(applicationResponse);

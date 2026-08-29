@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.auth.idcard.IdDocumentType.OID.*;
 import ee.tuleva.onboarding.auth.idcard.exception.UnknownDocumentTypeException;
 import java.util.Arrays;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 
 public enum IdDocumentType {
   ESTONIAN_CITIZEN_ID_CARD(List.of(POLICE_V1 + "1", POLICE_V2 + "1")),
@@ -44,7 +45,7 @@ public enum IdDocumentType {
         .orElseThrow(() -> new UnknownDocumentTypeException(identifier));
   }
 
-  public Boolean isResident() {
+  public @Nullable Boolean isResident() {
     if (List.of(ESTONIAN_CITIZEN_ID_CARD, OLD_ID_CARD).contains(this)) {
       return true;
     } else if (List.of(

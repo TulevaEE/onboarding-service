@@ -69,7 +69,8 @@ public class UserController {
 
     if (cmd.getAddress() != null) {
       ContactDetails contactDetails =
-          contactDetailsService.updateContactDetails(user, cmd.getAddress());
+          contactDetailsService.updateContactDetails(
+              user, user.getEmail(), user.getPhoneNumber(), cmd.getAddress());
       return UserResponse.from(
           user,
           contactDetails,

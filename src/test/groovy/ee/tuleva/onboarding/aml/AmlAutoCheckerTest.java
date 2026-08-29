@@ -166,7 +166,7 @@ class AmlAutoCheckerTest {
   void contactDetailsUpdated_addsCheck() {
     // given
     ContactDetailsUpdatedEvent mockEvent = mock(ContactDetailsUpdatedEvent.class);
-    when(mockEvent.getUser()).thenReturn(mockUser);
+    when(mockEvent.getPerson()).thenReturn(mockUser);
 
     // when
     amlAutoChecker.contactDetailsUpdated(mockEvent);

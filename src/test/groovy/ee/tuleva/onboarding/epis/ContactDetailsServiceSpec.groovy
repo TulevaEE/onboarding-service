@@ -26,7 +26,7 @@ class ContactDetailsServiceSpec extends Specification {
     episService.getContactDetails(user) >> contactDetailsFixture()
 
     when:
-    contactDetailsService.updateContactDetails(user, address)
+    contactDetailsService.updateContactDetails(user, user.email, user.phoneNumber, address)
 
     then:
     1 * episService.updateContactDetails({ person ->
@@ -72,7 +72,7 @@ class ContactDetailsServiceSpec extends Specification {
     }
 
     when:
-    def returnedContactDetails = contactDetailsService.updateContactDetails(user, address)
+    def returnedContactDetails = contactDetailsService.updateContactDetails(user, user.email, user.phoneNumber, address)
 
     then:
     1 * eventPublisher.publishEvent(_ as ContactDetailsUpdatedEvent)

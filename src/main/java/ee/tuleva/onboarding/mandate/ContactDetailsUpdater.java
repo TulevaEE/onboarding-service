@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.epis.contact;
+package ee.tuleva.onboarding.mandate;
 
 import ee.tuleva.onboarding.epis.ContactDetailsService;
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
@@ -16,6 +16,8 @@ public class ContactDetailsUpdater {
 
   @EventListener
   public void updateAddress(AfterMandateSignedEvent event) {
-    contactDetailsService.updateContactDetails(event.getUser(), event.getAddress());
+    var user = event.getUser();
+    contactDetailsService.updateContactDetails(
+        user, user.getEmail(), user.getPhoneNumber(), event.getAddress());
   }
 }

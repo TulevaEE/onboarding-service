@@ -7,7 +7,6 @@ import static java.util.Objects.requireNonNull;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.notification.email.Emailable;
 import ee.tuleva.onboarding.party.Party;
 import ee.tuleva.onboarding.user.exception.NotAMemberException;
 import ee.tuleva.onboarding.user.member.Member;

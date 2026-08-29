@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.notification.email.firstpayment;
 
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.notification.email.Emailable;
+import ee.tuleva.onboarding.user.Emailable;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 

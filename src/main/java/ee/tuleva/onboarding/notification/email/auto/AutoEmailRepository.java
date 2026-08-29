@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.notification.email.auto;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.notification.email.EmailType;
-import ee.tuleva.onboarding.notification.email.Emailable;
+import ee.tuleva.onboarding.user.Emailable;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;

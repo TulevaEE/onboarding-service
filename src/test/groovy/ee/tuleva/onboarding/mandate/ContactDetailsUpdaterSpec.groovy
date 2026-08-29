@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.epis.contact
+package ee.tuleva.onboarding.mandate
 
 import ee.tuleva.onboarding.epis.ContactDetailsService
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent
@@ -24,6 +24,6 @@ class ContactDetailsUpdaterSpec extends Specification {
         contactDetailsUpdater.updateAddress(event)
 
         then:
-        1 * contactDetailsService.updateContactDetails(user, mandate.address)
+        1 * contactDetailsService.updateContactDetails(user, user.email, user.phoneNumber, mandate.address)
     }
 }

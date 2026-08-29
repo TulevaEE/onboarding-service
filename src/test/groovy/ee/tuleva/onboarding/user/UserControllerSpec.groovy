@@ -163,7 +163,7 @@ class UserControllerSpec extends BaseControllerSpec {
     1 * userService
         .updateUser(sampleAuthenticatedPerson.personalCode, Optional.of(command.email), command.phoneNumber) >>
         updatedUser
-    1 * contactDetailsService.updateContactDetails(updatedUser, command.address) >>
+    1 * contactDetailsService.updateContactDetails(updatedUser, updatedUser.email, updatedUser.phoneNumber, command.address) >>
         contactDetails.setAddress(address)
     1 * secondPillarPaymentRateService
         .getPaymentRates(sampleAuthenticatedPerson) >> samplePaymentRates
@@ -204,7 +204,7 @@ class UserControllerSpec extends BaseControllerSpec {
     1 * userService
         .updateUser(sampleAuthenticatedPerson.personalCode, Optional.of(command.email), command.phoneNumber) >>
         updatedUser
-    0 * contactDetailsService.updateContactDetails(_, _)
+    0 * contactDetailsService.updateContactDetails(_, _, _, _)
 
     def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
 

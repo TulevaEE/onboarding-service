@@ -58,7 +58,7 @@ public class AmlAutoChecker {
 
   @EventListener
   public void contactDetailsUpdated(ContactDetailsUpdatedEvent event) {
-    amlService.addContactDetailsCheckIfMissing(event.getUser());
+    amlService.addContactDetailsCheckIfMissing(event.getPerson());
   }
 
   private User getUser(Person person) {

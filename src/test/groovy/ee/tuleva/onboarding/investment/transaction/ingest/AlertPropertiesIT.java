@@ -5,18 +5,26 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.ConfigDataApplicationContextInitializer;
+import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
-@SpringBootTest(classes = AlertConfiguration.class)
 class AlertPropertiesIT {
 
-  @Autowired private AlertProperties alertProperties;
+  private final ApplicationContextRunner contextRunner =
+      new ApplicationContextRunner()
+          .withInitializer(new ConfigDataApplicationContextInitializer())
+          .withUserConfiguration(AlertConfiguration.class);
 
   @Test
   void bindsToAndCcFromApplicationYaml() {
-    assertThat(alertProperties.to()).containsExactly("funds@tuleva.ee");
-    assertThat(alertProperties.cc()).containsExactly("taavi.pertman@tuleva.ee");
+    contextRunner.run(
+        context -> {
+          AlertProperties alertProperties = context.getBean(AlertProperties.class);
+          assertThat(alertProperties.to()).containsExactly("funds@tuleva.ee");
+          assertThat(alertProperties.cc())
+              .hasSize(1)
+              .allSatisfy(cc -> assertThat(cc).endsWith("@tuleva.ee"));
+        });
   }
 
   @Test

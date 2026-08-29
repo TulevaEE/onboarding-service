@@ -2,13 +2,17 @@ package ee.tuleva.onboarding.investment.check.tracking;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
+import ee.tuleva.onboarding.time.ClockConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Import;
 
-@SpringBootTest
-@ActiveProfiles("test")
+@DataJpaTest
+@ComponentScan(basePackageClasses = InstrumentReferenceService.class)
+@Import({ClockConfig.class, BenchmarkLegResolver.class})
 class BenchmarkLegResolverTest {
 
   @Autowired private BenchmarkLegResolver resolver;

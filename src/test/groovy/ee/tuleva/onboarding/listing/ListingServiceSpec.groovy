@@ -256,6 +256,43 @@ class ListingServiceSpec extends Specification {
     message.id() == 1
   }
 
+  def "a phoneless member can contact without opting into phone sharing"() {
+    given:
+    def contacter = sampleUser().phoneNumber(null).build()
+    def contacterPerson = authenticatedPersonFromUser(contacter).build()
+    def sellListing = newListingRequest().type(SELL).bookValue(100.00).totalPrice(200.00).build().toListing(42L, 'et').tap {
+      id = 1L
+      createdTime = Instant.now()
+    }
+    userService.getByIdOrThrow(contacter.getId()) >> contacter
+    listingRepository.findById(1L) >> Optional.of(sellListing)
+
+    when:
+    def message = service.getContactMessage(1L, new ContactMessageRequest(false, false), contacterPerson)
+
+    then:
+    message.contains(contacter.getFullName())
+    !message.contains("null")
+  }
+
+  def "opting into phone sharing without a phone number fails fast"() {
+    given:
+    def contacter = sampleUser().phoneNumber(null).build()
+    def contacterPerson = authenticatedPersonFromUser(contacter).build()
+    def sellListing = newListingRequest().type(SELL).bookValue(100.00).totalPrice(200.00).build().toListing(42L, 'et').tap {
+      id = 1L
+      createdTime = Instant.now()
+    }
+    userService.getByIdOrThrow(contacter.getId()) >> contacter
+    listingRepository.findById(1L) >> Optional.of(sellListing)
+
+    when:
+    service.getContactMessage(1L, new ContactMessageRequest(false, true), contacterPerson)
+
+    then:
+    thrown(NullPointerException)
+  }
+
   def "can get correct messages in estonian"() {
     given:
     def contacter = sampleUser().build()

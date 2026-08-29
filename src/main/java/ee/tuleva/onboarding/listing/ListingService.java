@@ -126,9 +126,13 @@ public class ListingService {
     var interestedUserName = htmlEscape(interestedUser.getFullName());
     var interestedUserEmail =
         htmlEscape(requireNonNull(interestedUser.getEmail(), "Interested user missing email"));
-    var interestedUserPhoneNumber =
-        htmlEscape(
-            requireNonNull(interestedUser.getPhoneNumber(), "Interested user missing phone"));
+    var phoneLine =
+        contactMessageRequest.addPhoneNumber()
+            ? "\n"
+                + htmlEscape(
+                    requireNonNull(
+                        interestedUser.getPhoneNumber(), "Interested user missing phone"))
+            : "";
     var interestedUserPersonalCode = htmlEscape(interestedUser.getPersonalCode());
 
     var bookValue = listing.getBookValue().toString();
@@ -159,9 +163,7 @@ public class ListingService {
                           ? interestedUserName + " (" + interestedUserPersonalCode + ")"
                           : interestedUserName,
                       interestedUserEmail,
-                      contactMessageRequest.addPhoneNumber()
-                          ? "\n" + interestedUserPhoneNumber
-                          : ""))
+                      phoneLine))
           .trim();
     }
 
@@ -189,7 +191,7 @@ public class ListingService {
                         ? interestedUserName + " (" + interestedUserPersonalCode + ")"
                         : interestedUserName,
                     interestedUserEmail,
-                    contactMessageRequest.addPhoneNumber() ? "\n" + interestedUserPhoneNumber : ""))
+                    phoneLine))
         .trim();
   }
 

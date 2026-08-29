@@ -17,8 +17,8 @@ public class SavingFundPaymentApplicationDetails implements ApplicationDetails {
   private final BigDecimal amount;
   private final Currency currency;
   private final UUID paymentId;
-  private final Instant cancelledAt;
-  private final Instant cancellationDeadline;
+  private final @Nullable Instant cancelledAt;
+  private final @Nullable Instant cancellationDeadline;
   private final Instant fulfillmentDeadline;
 
   @Builder.Default private ApplicationType type = ApplicationType.SAVING_FUND_PAYMENT;
@@ -27,8 +27,8 @@ public class SavingFundPaymentApplicationDetails implements ApplicationDetails {
       BigDecimal amount,
       Currency currency,
       UUID paymentId,
-      Instant cancelledAt,
-      Instant cancellationDeadline,
+      @Nullable Instant cancelledAt,
+      @Nullable Instant cancellationDeadline,
       Instant fulfillmentDeadline,
       ApplicationType type) {
     validate(type);

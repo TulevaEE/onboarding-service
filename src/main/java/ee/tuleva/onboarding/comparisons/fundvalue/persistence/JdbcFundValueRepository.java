@@ -159,13 +159,12 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
 
     @Override
     public FundValue mapRow(ResultSet rs, int rowNum) throws SQLException {
-      var timestamp = rs.getTimestamp("updated_at");
       return new FundValue(
           rs.getString("key"),
           rs.getDate("date").toLocalDate(),
           rs.getBigDecimal("value"),
           rs.getString("provider"),
-          timestamp != null ? timestamp.toInstant() : null);
+          rs.getTimestamp("updated_at").toInstant());
     }
   }
 

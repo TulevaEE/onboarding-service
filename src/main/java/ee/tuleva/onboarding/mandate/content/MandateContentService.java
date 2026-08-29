@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.mandate.content;
 
+import static java.util.Objects.requireNonNull;
+
+import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.epis.ContactDetails;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.mandate.ApplicationType;
@@ -37,7 +40,7 @@ class MandateContentService {
         ContextBuilder.builder()
             .mandate(mandate)
             .user(user)
-            .address(mandate.getAddress())
+            .address(requireAddress(mandate))
             .contactDetails(contactDetails)
             .transactionId(transactionId)
             .documentNumber(documentNumber)
@@ -58,11 +61,18 @@ class MandateContentService {
         ContextBuilder.builder()
             .mandate(mandate)
             .user(user)
-            .address(mandate.getAddress())
+            .address(requireAddress(mandate))
             .contactDetails(contactDetails)
             .transactionId(transactionId)
             .documentNumber(documentNumber)
-            .futureContributionFundIsin(mandate.getFutureContributionFundIsin().orElse(null))
+            .futureContributionFundIsin(
+                mandate
+                    .getFutureContributionFundIsin()
+                    .orElseThrow(
+                        () ->
+                            new IllegalStateException(
+                                "Future contribution fund ISIN missing: mandateId="
+                                    + mandate.getId())))
             .funds(funds)
             .build();
 
@@ -82,7 +92,7 @@ class MandateContentService {
         ContextBuilder.builder()
             .mandate(mandate)
             .user(user)
-            .address(mandate.getAddress())
+            .address(requireAddress(mandate))
             .contactDetails(contactDetails)
             .transactionId(transactionId)
             .documentNumber(documentNumber)
@@ -105,7 +115,7 @@ class MandateContentService {
         ContextBuilder.builder()
             .mandate(mandate)
             .user(user)
-            .address(mandate.getAddress())
+            .address(requireAddress(mandate))
             .contactDetails(contactDetails)
             .transactionId(transactionId)
             .documentNumber(documentNumber)
@@ -128,7 +138,7 @@ class MandateContentService {
         ContextBuilder.builder()
             .mandate(mandate)
             .user(user)
-            .address(mandate.getAddress())
+            .address(requireAddress(mandate))
             .contactDetails(contactDetails)
             .transactionId(transactionId)
             .documentNumber(documentNumber)
@@ -149,12 +159,16 @@ class MandateContentService {
             .mandate(mandate)
             .newPaymentRate(flooredRate)
             .user(user)
-            .address(mandate.getAddress())
+            .address(requireAddress(mandate))
             .contactDetails(contactDetails)
             .transactionId(transactionId)
             .documentNumber(documentNumber)
             .build();
 
     return templateEngine.process("payment_rate_change", ctx);
+  }
+
+  private static Country requireAddress(Mandate mandate) {
+    return requireNonNull(mandate.getAddress(), "Address missing: mandateId=" + mandate.getId());
   }
 }

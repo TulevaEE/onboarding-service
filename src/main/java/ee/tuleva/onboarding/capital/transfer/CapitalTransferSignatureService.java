@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.capital.transfer;
 
 import static ee.tuleva.onboarding.auth.mobileid.MobileIDSession.PHONE_NUMBER;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
@@ -37,7 +38,7 @@ public class CapitalTransferSignatureService {
   public MobileSignatureResponse startSmartIdSignature(
       Long contractId, AuthenticatedPerson authenticatedPerson) {
 
-    User user = userService.getByIdOrThrow(authenticatedPerson.getUserId());
+    User user = userService.getByIdOrThrow(authenticatedPerson.getUserIdOrThrow());
     // TODO does this create new container or add container to current?
     List<SignatureFile> files = contractService.getSignatureFiles(contractId, user);
 
@@ -56,19 +57,21 @@ public class CapitalTransferSignatureService {
     SmartIdSignatureSession session =
         signatureSession.orElseThrow(IdSessionException::smartIdSignatureSessionNotFound);
 
-    User user = userService.getByIdOrThrow(authenticatedPerson.getUserId());
+    User user = userService.getByIdOrThrow(authenticatedPerson.getUserIdOrThrow());
     CapitalTransferContract contract = contractService.getContract(contractId, user);
 
     byte[] signedFile = signService.getSignedFile(session);
 
+    String verificationCode =
+        requireNonNull(
+            session.getVerificationCode(), "Verification code missing: contractId=" + contractId);
     if (signedFile != null) {
       finalizeSignature(contract, user, signedFile);
-      return new MobileSignatureStatusResponse(
-          SignatureStatus.SIGNATURE, session.getVerificationCode());
+      return new MobileSignatureStatusResponse(SignatureStatus.SIGNATURE, verificationCode);
     }
 
     return new MobileSignatureStatusResponse(
-        SignatureStatus.OUTSTANDING_TRANSACTION, session.getVerificationCode());
+        SignatureStatus.OUTSTANDING_TRANSACTION, verificationCode);
   }
 
   public IdCardSignatureResponse startIdCardSignature(
@@ -76,7 +79,7 @@ public class CapitalTransferSignatureService {
       AuthenticatedPerson authenticatedPerson,
       StartIdCardSignCommand signCommand) {
 
-    User user = userService.getByIdOrThrow(authenticatedPerson.getUserId());
+    User user = userService.getByIdOrThrow(authenticatedPerson.getUserIdOrThrow());
     List<SignatureFile> files = contractService.getSignatureFiles(contractId, user);
 
     IdCardSignatureSession signatureSession =
@@ -97,7 +100,7 @@ public class CapitalTransferSignatureService {
     IdCardSignatureSession session =
         signatureSession.orElseThrow(IdSessionException::cardSignatureSessionNotFound);
 
-    User user = userService.getByIdOrThrow(authenticatedPerson.getUserId());
+    User user = userService.getByIdOrThrow(authenticatedPerson.getUserIdOrThrow());
     CapitalTransferContract contract = contractService.getContract(contractId, user);
 
     byte[] signedFile = signService.getSignedFile(session, signCommand.signedHash());
@@ -113,12 +116,15 @@ public class CapitalTransferSignatureService {
   public MobileSignatureResponse startMobileIdSignature(
       Long contractId, AuthenticatedPerson authenticatedPerson) {
 
-    User user = userService.getByIdOrThrow(authenticatedPerson.getUserId());
+    User user = userService.getByIdOrThrow(authenticatedPerson.getUserIdOrThrow());
     List<SignatureFile> files = contractService.getSignatureFiles(contractId, user);
 
+    String phoneNumber =
+        requireNonNull(
+            authenticatedPerson.getAttribute(PHONE_NUMBER),
+            "Phone number missing: personalCode=" + authenticatedPerson.getPersonalCode());
     MobileIdSignatureSession signatureSession =
-        signService.startMobileIdSign(
-            files, user.getPersonalCode(), authenticatedPerson.getAttribute(PHONE_NUMBER));
+        signService.startMobileIdSign(files, user.getPersonalCode(), phoneNumber);
     sessionStore.save(signatureSession);
 
     return new MobileSignatureResponse(signatureSession.getVerificationCode());
@@ -132,19 +138,21 @@ public class CapitalTransferSignatureService {
     MobileIdSignatureSession session =
         signatureSession.orElseThrow(IdSessionException::mobileSignatureSessionNotFound);
 
-    User user = userService.getByIdOrThrow(authenticatedPerson.getUserId());
+    User user = userService.getByIdOrThrow(authenticatedPerson.getUserIdOrThrow());
     CapitalTransferContract contract = contractService.getContract(contractId, user);
 
     byte[] signedFile = signService.getSignedFile(session);
 
+    String verificationCode =
+        requireNonNull(
+            session.getVerificationCode(), "Verification code missing: contractId=" + contractId);
     if (signedFile != null) {
       finalizeSignature(contract, user, signedFile);
-      return new MobileSignatureStatusResponse(
-          SignatureStatus.SIGNATURE, session.getVerificationCode());
+      return new MobileSignatureStatusResponse(SignatureStatus.SIGNATURE, verificationCode);
     }
 
     return new MobileSignatureStatusResponse(
-        SignatureStatus.OUTSTANDING_TRANSACTION, session.getVerificationCode());
+        SignatureStatus.OUTSTANDING_TRANSACTION, verificationCode);
   }
 
   private void finalizeSignature(CapitalTransferContract contract, User user, byte[] signedFile) {

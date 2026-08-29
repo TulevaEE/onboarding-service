@@ -653,7 +653,8 @@ class RedemptionBatchJobTest {
     var request =
         redemptionRequestFixture()
             .id(requestId)
-            .partyId(legalEntityParty)
+            .partyType(legalEntityParty.type())
+            .partyCode(legalEntityParty.code())
             .status(VERIFIED)
             .customerIban(customerIban)
             .requestedAt(now.minus(1, DAYS))
@@ -704,7 +705,8 @@ class RedemptionBatchJobTest {
     var request =
         redemptionRequestFixture()
             .id(requestId)
-            .partyId(personParty)
+            .partyType(personParty.type())
+            .partyCode(personParty.code())
             .userId(user.getId())
             .status(VERIFIED)
             .customerIban(customerIban)
@@ -754,7 +756,8 @@ class RedemptionBatchJobTest {
     var request =
         redemptionRequestFixture()
             .id(requestId)
-            .partyId(personParty)
+            .partyType(personParty.type())
+            .partyCode(personParty.code())
             .status(VERIFIED)
             .customerIban(customerIban)
             .cashAmount(new BigDecimal("10.00"))
@@ -794,7 +797,8 @@ class RedemptionBatchJobTest {
     var request =
         redemptionRequestFixture()
             .id(requestId)
-            .partyId(legalEntityParty)
+            .partyType(legalEntityParty.type())
+            .partyCode(legalEntityParty.code())
             .status(VERIFIED)
             .customerIban(customerIban)
             .cashAmount(new BigDecimal("10.00"))

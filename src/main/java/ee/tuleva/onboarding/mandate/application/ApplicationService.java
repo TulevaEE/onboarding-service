@@ -39,7 +39,7 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -83,7 +83,7 @@ public class ApplicationService {
 
   public boolean hasPendingWithdrawals(Person person, Pillar pillar) {
     return !getWithdrawalApplications(PENDING, person).stream()
-        .filter(application -> application.getPillar() == pillar.toInt())
+        .filter(application -> Integer.valueOf(pillar.toInt()).equals(application.getPillar()))
         .toList()
         .isEmpty();
   }
@@ -142,14 +142,13 @@ public class ApplicationService {
         entry -> entry.getValue().stream().map(this::convertFundPensionOpening));
   }
 
-  @NotNull
   private Predicate<Application<?>> byStatus(ApplicationStatus status) {
     return application -> application.hasStatus(status);
   }
 
   private List<Application<? extends ApplicationDetails>> getSavingsFundApplications(
       AuthenticatedPerson person) {
-    var activeParty = PartyId.from(person.getRole());
+    var activeParty = person.toPartyId();
     if (activeParty.type() == PartyId.Type.LEGAL_ENTITY
         && !boardMembershipService.isBoardMember(person.getPersonalCode(), activeParty.code())) {
       log.info(
@@ -202,7 +201,7 @@ public class ApplicationService {
         .collect(toList());
   }
 
-  private ApiFundResponse getTargetFund(
+  private @Nullable ApiFundResponse getTargetFund(
       MandateFundsTransferExchangeDTO exchangeDTO, Locale locale) {
     String targetFundIsin = exchangeDTO.getTargetFundIsin();
     if (targetFundIsin == null) {

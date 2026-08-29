@@ -82,11 +82,11 @@ public class RedemptionVerificationService {
                         "Redemption party user not found: party=" + request.getPartyId()));
     Set<Country> countries =
         kycCountryService
-            .getCountries(user.getId())
+            .getCountries(user.getIdOrThrow())
             .orElseThrow(
                 () ->
                     new IllegalStateException(
-                        "KYC survey with country not found: userId=" + user.getId()));
+                        "KYC survey with country not found: userId=" + user.getIdOrThrow()));
 
     Set<Country> allCountries = new HashSet<>(countries);
     allCountries.addAll(amlService.recordedCitizenships(user));

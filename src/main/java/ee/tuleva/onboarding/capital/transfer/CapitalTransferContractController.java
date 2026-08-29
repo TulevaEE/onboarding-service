@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.capital.transfer;
 
+import static java.util.Objects.requireNonNull;
+
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.error.NotFoundException;
 import ee.tuleva.onboarding.signature.FinishIdCardSignCommand;
@@ -39,7 +41,7 @@ public class CapitalTransferContractController implements SignatureController<Lo
   @GetMapping("/{id}")
   public CapitalTransferContractDto getContract(
       @PathVariable Long id, @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-    var user = userService.getByIdOrThrow(authenticatedPerson.getUserId());
+    var user = userService.getByIdOrThrow(authenticatedPerson.getUserIdOrThrow());
     try {
       return CapitalTransferContractDto.from(contractService.getContract(id, user));
     } catch (IllegalArgumentException e) {
@@ -51,7 +53,7 @@ public class CapitalTransferContractController implements SignatureController<Lo
   @GetMapping
   public List<CapitalTransferContractDto> getContracts(
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-    var user = userService.getByIdOrThrow(authenticatedPerson.getUserId());
+    var user = userService.getByIdOrThrow(authenticatedPerson.getUserIdOrThrow());
     return contractService.getMyContracts(user).stream()
         .map(CapitalTransferContractDto::from)
         .toList();
@@ -65,7 +67,9 @@ public class CapitalTransferContractController implements SignatureController<Lo
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     return CapitalTransferContractDto.from(
         contractService.updateStateByUser(
-            id, command.getState(), userService.getByIdOrThrow(authenticatedPerson.getUserId())));
+            id,
+            requireNonNull(command.getState(), "State missing: contractId=" + id),
+            userService.getByIdOrThrow(authenticatedPerson.getUserIdOrThrow())));
   }
 
   @Override

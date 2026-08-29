@@ -37,20 +37,29 @@ public class SavingsCallbackService {
     tokenParser.verifyToken(jwsObject, savingsChannelConfiguration.getSecretKey());
     var token = tokenParser.parse(jwsObject);
 
-    if (!token.getPaymentStatus().equals(MontonioOrderToken.MontonioOrderStatus.PAID)) {
-      log.info("Montonio order {} not paid", token.getMerchantReference());
+    var paymentStatus =
+        requireNonNull(
+            token.getPaymentStatus(),
+            "Montonio order token missing payment status: token=" + token);
+    var merchantReference =
+        requireNonNull(
+            token.getMerchantReference(),
+            "Montonio order token missing merchant reference: token=" + token);
+
+    if (!paymentStatus.equals(MontonioOrderToken.MontonioOrderStatus.PAID)) {
+      log.info("Montonio order {} not paid", merchantReference);
       return Optional.empty();
     }
 
-    if (!token.getMerchantReference().getPaymentType().equals(PaymentData.PaymentType.SAVINGS)) {
-      log.error("Montonio order {} not SAVINGS type", token.getMerchantReference());
+    if (!merchantReference.getPaymentType().equals(PaymentData.PaymentType.SAVINGS)) {
+      log.error("Montonio order {} not SAVINGS type", merchantReference);
       return Optional.empty();
     }
 
     if (!savingFundPaymentQueries
-        .findRecentPayments(token.getMerchantReference().getDescription())
+        .findRecentPayments(merchantReference.getDescription())
         .isEmpty()) {
-      log.info("Saving fund payment already exists for {}", token.getMerchantReference());
+      log.info("Saving fund payment already exists for {}", merchantReference);
       return Optional.empty();
     }
 
@@ -64,23 +73,28 @@ public class SavingsCallbackService {
                 requireNonNull(
                     token.getSenderIban(),
                     "Montonio order token missing sender IBAN: token=" + token))
-            .description(token.getMerchantReference().getDescription())
-            .amount(token.getGrandTotal())
-            .currency(token.getCurrency())
+            .description(merchantReference.getDescription())
+            .amount(
+                requireNonNull(
+                    token.getGrandTotal(),
+                    "Montonio order token missing grand total: token=" + token))
+            .currency(
+                requireNonNull(
+                    token.getCurrency(), "Montonio order token missing currency: token=" + token))
             .build();
 
     var paymentId = savingFundPaymentQueries.savePaymentData(payment);
-    var ref = token.getMerchantReference();
-    var recipient = recipientParty(ref);
+    var recipient = recipientParty(merchantReference);
 
     savingFundPaymentQueries.attachParty(paymentId, recipient);
 
     userService
-        .findByPersonalCode(ref.getPersonalCode())
+        .findByPersonalCode(merchantReference.getPersonalCode())
         .ifPresent(
             user ->
                 eventPublisher.publishEvent(
-                    new SavingsPaymentCreatedEvent(this, user, ref.getLocale(), recipient)));
+                    new SavingsPaymentCreatedEvent(
+                        this, user, merchantReference.getLocale(), recipient)));
 
     return Optional.of(payment);
   }

@@ -56,7 +56,8 @@ class RedemptionControllerTest {
         redemptionRequestFixture()
             .id(requestId)
             .userId(authPerson.getUserId())
-            .partyId(authPerson.toPartyId())
+            .partyType(authPerson.toPartyId().type())
+            .partyCode(authPerson.toPartyId().code())
             .customerIban("EE471000001020145685")
             .build();
 
@@ -153,7 +154,8 @@ class RedemptionControllerTest {
         redemptionRequestFixture()
             .id(requestId)
             .userId(legalEntityAuthPerson.getUserId())
-            .partyId(legalEntityAuthPerson.toPartyId())
+            .partyType(legalEntityAuthPerson.toPartyId().type())
+            .partyCode(legalEntityAuthPerson.toPartyId().code())
             .customerIban("EE471000001020145685")
             .build();
 

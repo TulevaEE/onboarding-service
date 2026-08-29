@@ -10,6 +10,7 @@ import io.jsonwebtoken.ExpiredJwtException;
 import java.util.List;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
@@ -22,7 +23,8 @@ public class AuthService {
   private final TokenService tokenService;
   private final PrincipalService principalService;
 
-  public AuthenticationTokens authenticate(GrantType grantType, String authenticationHash) {
+  public @Nullable AuthenticationTokens authenticate(
+      GrantType grantType, @Nullable String authenticationHash) {
 
     final var authenticatedPerson =
         providers.stream()

@@ -425,7 +425,8 @@ class NavTransactionImpactAlertJobTest {
   private RedemptionRequest redemption(BigDecimal fundUnits) {
     return RedemptionRequest.builder()
         .userId(1L)
-        .partyId(new PartyId(PartyId.Type.PERSON, "38001010000"))
+        .partyType(PartyId.Type.PERSON)
+        .partyCode("38001010000")
         .fundUnits(fundUnits)
         .requestedAmount(fundUnits.multiply(NAV))
         .customerIban("EE123456789012345678")

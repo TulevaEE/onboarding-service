@@ -7,7 +7,6 @@ import java.time.Instant;
 import lombok.Builder;
 import lombok.Data;
 import org.apache.commons.lang3.builder.CompareToBuilder;
-import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.Nullable;
 
 @Data
@@ -19,7 +18,7 @@ public class Application<T extends ApplicationDetails> implements Comparable<App
   private final ApplicationStatus status;
   private final T details;
 
-  public ApplicationType getType() {
+  public @Nullable ApplicationType getType() {
     return details != null ? details.getType() : null;
   }
 
@@ -54,7 +53,7 @@ public class Application<T extends ApplicationDetails> implements Comparable<App
   }
 
   @Override
-  public int compareTo(@NotNull Application<?> application) {
+  public int compareTo(Application<?> application) {
     return new CompareToBuilder()
         .append(creationTime, application.creationTime)
         .append(getType(), application.getType())

@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
+import ee.tuleva.onboarding.error.NotFoundException;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateService;
 import java.util.List;
@@ -29,6 +30,7 @@ public class ApplicationCancellationService {
     return applications.stream()
         .filter(application -> application.getId().equals(applicationId))
         .findFirst()
-        .orElse(null);
+        .orElseThrow(
+            () -> new NotFoundException("Application not found: applicationId=" + applicationId));
   }
 }

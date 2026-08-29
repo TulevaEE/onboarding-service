@@ -28,6 +28,7 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -345,7 +346,7 @@ public class TransactionExportService {
     final TransactionType transactionType;
     BigDecimal totalQuantity = ZERO;
     BigDecimal totalAmount = ZERO;
-    LocalDate settlementDate;
+    @Nullable LocalDate settlementDate;
     final Map<TulevaFund, BigDecimal> quantityByFund = new LinkedHashMap<>();
 
     AggregatedFtOrder(String isin, TransactionType transactionType) {

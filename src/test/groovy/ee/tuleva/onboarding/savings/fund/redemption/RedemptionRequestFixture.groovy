@@ -9,9 +9,11 @@ class RedemptionRequestFixture {
 
   static RedemptionRequestBuilder redemptionRequestFixture() {
     def user = sampleUser().build()
+    def partyId = new PartyId(PartyId.Type.PERSON, user.personalCode)
     return RedemptionRequest.builder()
         .userId(user.id)
-        .partyId(new PartyId(PartyId.Type.PERSON, user.personalCode))
+        .partyType(partyId.type())
+        .partyCode(partyId.code())
         .fundUnits(new BigDecimal("10.00000"))
         .requestedAmount(new BigDecimal("10.00"))
         .customerIban("EE123456789012345678")

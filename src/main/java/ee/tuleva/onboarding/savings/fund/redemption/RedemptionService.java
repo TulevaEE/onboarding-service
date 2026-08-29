@@ -86,8 +86,9 @@ public class RedemptionService {
 
     RedemptionRequest request =
         RedemptionRequest.builder()
-            .userId(authenticatedPerson.getUserId())
-            .partyId(partyId)
+            .userId(authenticatedPerson.getUserIdOrThrow())
+            .partyType(partyId.type())
+            .partyCode(partyId.code())
             .fundUnits(fundUnits)
             .requestedAmount(amount)
             .customerIban(canonicalIban)
@@ -109,7 +110,7 @@ public class RedemptionService {
 
     applicationEventPublisher.publishEvent(
         new RedemptionRequestedEvent(
-            saved.getId(), authenticatedPerson.getUserId(), partyId, amount, fundUnits));
+            saved.getId(), authenticatedPerson.getUserIdOrThrow(), partyId, amount, fundUnits));
 
     if (!authenticatedPerson.isActingAsSelf() && partyId.type() == PartyId.Type.PERSON) {
       applicationEventPublisher.publishEvent(

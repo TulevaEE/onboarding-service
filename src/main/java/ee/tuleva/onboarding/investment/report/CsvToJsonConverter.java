@@ -15,6 +15,7 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.apache.commons.io.input.BOMInputStream;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -75,7 +76,7 @@ public class CsvToJsonConverter {
     return map;
   }
 
-  private Object parseValue(String value) {
+  private @Nullable Object parseValue(String value) {
     if (value == null || value.isEmpty()) {
       return null;
     }

@@ -1,7 +1,10 @@
 package ee.tuleva.onboarding.payment.provider.montonio;
 
+import static java.util.Objects.requireNonNull;
+
 import com.nimbusds.jose.JWSObject;
 import com.nimbusds.jose.crypto.MACVerifier;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -22,9 +25,12 @@ public class MontonioTokenParser {
 
   @SneakyThrows
   public void verifyToken(JWSObject token) {
-    String accessKey = token.getPayload().toJSONObject().get("accessKey").toString();
+    Object accessKeyValue = token.getPayload().toJSONObject().get("accessKey");
+    String accessKey = requireNonNull(accessKeyValue, "Missing accessKey in token").toString();
     MontonioPaymentChannel paymentChannelConfiguration =
-        montonioPaymentChannelConfiguration.getPaymentProviderChannel(accessKey);
+        Optional.ofNullable(
+                montonioPaymentChannelConfiguration.getPaymentProviderChannel(accessKey))
+            .orElseThrow(() -> new BadCredentialsException("Unknown payment channel"));
     verifyToken(token, paymentChannelConfiguration.getSecretKey());
   }
 

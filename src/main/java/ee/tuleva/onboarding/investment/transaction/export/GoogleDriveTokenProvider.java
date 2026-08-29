@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.investment.transaction.export;
 
+import static java.util.Objects.requireNonNull;
+
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.RSASSASigner;
 import java.security.KeyFactory;
@@ -10,6 +12,7 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.JsonNode;
@@ -28,7 +31,7 @@ class GoogleDriveTokenProvider {
   private final RestClient restClient;
   private final Clock clock;
 
-  private String cachedToken;
+  private @Nullable String cachedToken;
   private Instant tokenExpiry = Instant.EPOCH;
 
   GoogleDriveTokenProvider(String base64ServiceAccountJson, RestClient restClient, Clock clock) {
@@ -53,18 +56,25 @@ class GoogleDriveTokenProvider {
     var body = "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=" + jwt;
 
     Map<String, Object> response =
-        restClient
-            .post()
-            .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-            .body(body)
-            .retrieve()
-            .body(Map.class);
+        requireNonNull(
+            restClient
+                .post()
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .body(body)
+                .retrieve()
+                .body(Map.class),
+            "Empty Google token response");
 
-    cachedToken = (String) response.get("access_token");
-    int expiresIn = (int) response.get("expires_in");
+    String accessToken =
+        requireNonNull(
+            (String) response.get("access_token"), "Missing access_token in Google token response");
+    int expiresIn =
+        requireNonNull(
+            (Integer) response.get("expires_in"), "Missing expires_in in Google token response");
+    cachedToken = accessToken;
     tokenExpiry = Instant.now(clock).plusSeconds(expiresIn - REFRESH_MARGIN_SECONDS);
 
-    return cachedToken;
+    return accessToken;
   }
 
   private String createSignedJwt() {

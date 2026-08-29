@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.mandate.generic;
 
 import static ee.tuleva.onboarding.mandate.MandateType.*;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.conversion.ConversionDecorator;
@@ -44,9 +45,10 @@ public class TransferCancellationMandateFactory
       MandateDto<TransferCancellationMandateDetails> mandateCreationDto) {
     Mandate mandate = this.setupMandate(authenticatedPerson, mandateCreationDto);
 
+    String sourceFundIsin = mandateCreationDto.getDetails().getSourceFundIsinOfTransferToCancel();
     Fund sourceFund =
-        fundRepository.findByIsin(
-            mandateCreationDto.getDetails().getSourceFundIsinOfTransferToCancel());
+        requireNonNull(
+            fundRepository.findByIsin(sourceFundIsin), "Fund not found: isin=" + sourceFundIsin);
 
     final var exchange =
         FundTransferExchange.builder()

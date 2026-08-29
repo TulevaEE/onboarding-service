@@ -61,7 +61,7 @@ public class CapitalTransferContractService {
 
   public CapitalTransferContract create(
       AuthenticatedPerson sellerPerson, CreateCapitalTransferContractCommand command) {
-    User sellerUser = userService.getById(sellerPerson.getUserId()).orElseThrow();
+    User sellerUser = userService.getById(sellerPerson.getUserIdOrThrow()).orElseThrow();
     Member seller = sellerUser.getMemberOrThrow();
     Member buyer = memberService.getById(command.getBuyerMemberId());
 
@@ -374,7 +374,7 @@ public class CapitalTransferContractService {
         Set.of(CAPITAL_TRANSFER_CONFIRMED_BY_BUYER, CAPITAL_TRANSFER_CONFIRMED_BY_SELLER)
                 .contains(emailType)
             ? contractAttachments(contract)
-            : null;
+            : List.<MandrillMessage.MessageContent>of();
 
     MandrillMessage message =
         emailService.newMandrillMessage(

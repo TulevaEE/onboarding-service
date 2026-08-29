@@ -195,7 +195,8 @@ class SavingsFundStatementProcessorTest {
         RedemptionRequest.builder()
             .id(redemptionRequestId)
             .userId(user.getId())
-            .partyId(new PartyId(PartyId.Type.PERSON, user.getPersonalCode()))
+            .partyType(PartyId.Type.PERSON)
+            .partyCode(user.getPersonalCode())
             .customerIban(customerIban)
             .status(REDEEMED)
             .build();
@@ -236,7 +237,8 @@ class SavingsFundStatementProcessorTest {
         RedemptionRequest.builder()
             .id(redemptionRequestId)
             .userId(user.getId())
-            .partyId(new PartyId(PartyId.Type.PERSON, user.getPersonalCode()))
+            .partyType(PartyId.Type.PERSON)
+            .partyCode(user.getPersonalCode())
             .customerIban(EXTERNAL_ACCOUNT_IBAN)
             .status(REDEEMED)
             .build();
@@ -268,7 +270,8 @@ class SavingsFundStatementProcessorTest {
         RedemptionRequest.builder()
             .id(redemptionRequestId)
             .userId(missingUserId)
-            .partyId(new PartyId(PartyId.Type.PERSON, "38812121215"))
+            .partyType(PartyId.Type.PERSON)
+            .partyCode("38812121215")
             .customerIban(EXTERNAL_ACCOUNT_IBAN)
             .status(REDEEMED)
             .build();

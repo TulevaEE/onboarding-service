@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.mandate.application;
 
 import static java.math.BigDecimal.ONE;
 import static java.math.BigDecimal.ZERO;
+import static java.util.Objects.requireNonNull;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.fund.ApiFundResponse;
@@ -9,22 +10,26 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import lombok.Builder;
 import lombok.Data;
+import org.jspecify.annotations.Nullable;
 
 @Data
 @Builder
 public class Exchange {
   private ApiFundResponse sourceFund;
-  private ApiFundResponse targetFund;
-  private String targetPik;
+  private @Nullable ApiFundResponse targetFund;
+  private @Nullable String targetPik;
 
   /*
    * 2nd pillar: Fraction of bookValue (i.e. min 0, max 1).
    * 3rd pillar: Number of bookValue (i.e. min 0, max number of bookValue you have)
    */
-  private BigDecimal amount;
+  private @Nullable BigDecimal amount;
 
   public Exchange(
-      ApiFundResponse sourceFund, ApiFundResponse targetFund, String targetPik, BigDecimal amount) {
+      ApiFundResponse sourceFund,
+      @Nullable ApiFundResponse targetFund,
+      @Nullable String targetPik,
+      @Nullable BigDecimal amount) {
     if (targetFund == null && targetPik == null) {
       throw new IllegalArgumentException("Target fund or target PIK needs to be defined");
     }
@@ -52,9 +57,15 @@ public class Exchange {
   }
 
   public Integer getPillar(
-      ApiFundResponse sourceFund, ApiFundResponse targetFund, String targetPik) {
+      ApiFundResponse sourceFund,
+      @Nullable ApiFundResponse targetFund,
+      @Nullable String targetPik) {
     Integer sourcePillar = sourceFund.getPillar();
-    Integer targetPillar = targetPik != null ? 2 : targetFund.getPillar();
+    Integer targetPillar =
+        targetPik != null
+            ? 2
+            : requireNonNull(targetFund, "Target fund or target PIK needs to be defined")
+                .getPillar();
 
     if (sourcePillar.equals(targetPillar)) {
       return sourcePillar;
@@ -77,7 +88,7 @@ public class Exchange {
     if (getPillar() != 2) {
       throw new IllegalStateException("isFullAmount() is only supported for 2nd pillar");
     }
-    return amount.intValue() == 1; // 100% of bookValue
+    return requireAmount().intValue() == 1; // 100% of bookValue
   }
 
   @JsonIgnore
@@ -86,20 +97,24 @@ public class Exchange {
       throw new IllegalStateException(
           "isFullAmount(fundBalanceUnits) is only supported for 3rd pillar");
     }
-    return amount.compareTo(fundBalanceUnits) == 0;
+    return requireAmount().compareTo(fundBalanceUnits) == 0;
   }
 
   @JsonIgnore
   public BigDecimal getValue(BigDecimal totalValue, BigDecimal totalUnits) {
     if (getPillar() == 2) {
-      return amount.multiply(totalValue);
+      return requireAmount().multiply(totalValue);
     }
     if (getPillar() == 3) {
       return ZERO.compareTo(totalUnits) == 0
           ? ZERO
-          : amount.multiply(totalValue).divide(totalUnits, 2, RoundingMode.HALF_UP);
+          : requireAmount().multiply(totalValue).divide(totalUnits, 2, RoundingMode.HALF_UP);
     }
     throw new IllegalStateException("Unknown pillar: " + getPillar());
+  }
+
+  private BigDecimal requireAmount() {
+    return requireNonNull(amount, "Exchange amount missing: sourceIsin=" + getSourceIsin());
   }
 
   @JsonIgnore
@@ -109,7 +124,8 @@ public class Exchange {
 
   @JsonIgnore
   public String getTargetIsin() {
-    return targetFund.getIsin();
+    return requireNonNull(targetFund, "Target fund missing: sourceIsin=" + getSourceIsin())
+        .getIsin();
   }
 
   @JsonIgnore
@@ -119,7 +135,8 @@ public class Exchange {
 
   @JsonIgnore
   public BigDecimal getTargetFundFees() {
-    return targetFund.getOngoingChargesFigure();
+    return requireNonNull(targetFund, "Target fund missing: sourceIsin=" + getSourceIsin())
+        .getOngoingChargesFigure();
   }
 
   @JsonIgnore

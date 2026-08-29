@@ -49,8 +49,11 @@ public class MandateProcessorService {
   private MandateDto getMandateDto(Mandate mandate) {
     final var mandateDtoBuilder =
         MandateDto.builder()
-            .id(mandate.getId())
-            .createdDate(mandate.getCreatedDate())
+            .id(mandate.getIdOrThrow())
+            .createdDate(
+                requireNonNull(
+                    mandate.getCreatedDate(),
+                    "Mandate createdDate missing: mandateId=" + mandate.getId()))
             .fundTransferExchanges(getFundTransferExchanges(mandate))
             .pillar(mandate.getPillar())
             .address(mandate.getAddress())
@@ -140,7 +143,10 @@ public class MandateProcessorService {
   private void addPaymentRateApplication(Mandate mandate, MandateDto.MandateDtoBuilder mandateDto) {
     if (mandate.isPaymentRateApplication()) {
       final var process = createMandateProcess(mandate, ApplicationType.PAYMENT_RATE);
-      mandateDto.paymentRate(Optional.of(mandate.getPaymentRate()));
+      mandateDto.paymentRate(
+          Optional.of(
+              requireNonNull(
+                  mandate.getPaymentRate(), "Payment rate missing: mandateId=" + mandate.getId())));
       mandateDto.processId(process.getProcessId());
     }
   }
@@ -155,7 +161,11 @@ public class MandateProcessorService {
   private MandateProcess createMandateProcess(
       GenericMandateDto<?> genericMandateDto, ApplicationType type) {
     String processId = UUID.randomUUID().toString().replace("-", "");
-    final Optional<Mandate> mandate = mandateRepository.findById(genericMandateDto.getId());
+    Long mandateId =
+        requireNonNull(
+            genericMandateDto.getId(),
+            "Mandate DTO has no id: type=" + genericMandateDto.getMandateType());
+    final Optional<Mandate> mandate = mandateRepository.findById(mandateId);
 
     if (mandate.isEmpty()) {
       throw new IllegalStateException(

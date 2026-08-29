@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.mandate;
 
 import static ee.tuleva.onboarding.mandate.MandateType.*;
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
+import static java.util.Objects.requireNonNull;
 import static org.hibernate.type.SqlTypes.JSON;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -13,7 +14,6 @@ import ee.tuleva.onboarding.mandate.details.*;
 import ee.tuleva.onboarding.mandate.generic.MandateDto;
 import ee.tuleva.onboarding.mandate.payment.rate.ValidPaymentRate;
 import ee.tuleva.onboarding.user.User;
-import jakarta.annotation.Nullable;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -24,6 +24,7 @@ import java.time.Instant;
 import java.util.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
+import org.jspecify.annotations.Nullable;
 
 @Data
 @Entity
@@ -35,7 +36,7 @@ public class Mandate implements Serializable {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   @JsonView(MandateView.Default.class)
-  private Long id;
+  private @Nullable Long id;
 
   @ManyToOne @NotNull private User user;
 
@@ -52,9 +53,9 @@ public class Mandate implements Serializable {
 
   @NotNull
   @JsonView(MandateView.Default.class)
-  private Instant createdDate;
+  private @Nullable Instant createdDate;
 
-  @Nullable private byte[] mandate;
+  private byte @Nullable [] mandate;
 
   @OneToMany(
       cascade = {CascadeType.ALL},
@@ -73,7 +74,7 @@ public class Mandate implements Serializable {
 
   @JdbcTypeCode(JSON)
   @NotNull
-  private Map<String, @org.jspecify.annotations.Nullable Object> metadata =
+  private Map<String, @Nullable Object> metadata =
       new HashMap<>(); // TODO: refactor this field into details
 
   @JdbcTypeCode(JSON)
@@ -91,7 +92,7 @@ public class Mandate implements Serializable {
   @Deprecated
   @ValidPaymentRate
   @JsonView(MandateView.Default.class)
-  private BigDecimal paymentRate;
+  private @Nullable BigDecimal paymentRate;
 
   @Builder
   Mandate(
@@ -100,7 +101,7 @@ public class Mandate implements Serializable {
       List<FundTransferExchange> fundTransferExchanges,
       Integer pillar,
       @Nullable Country address,
-      Map<String, @org.jspecify.annotations.Nullable Object> metadata,
+      Map<String, @Nullable Object> metadata,
       @Nullable BigDecimal paymentRate,
       MandateDetails details) {
     this.user = user;
@@ -173,7 +174,9 @@ public class Mandate implements Serializable {
   public Map<String, List<FundTransferExchange>> getFundTransferExchangesBySourceIsin() {
     Map<String, List<FundTransferExchange>> exchangeMap = new HashMap<>();
 
-    fundTransferExchanges.stream()
+    List<FundTransferExchange> exchanges =
+        fundTransferExchanges != null ? fundTransferExchanges : List.of();
+    exchanges.stream()
         .filter(
             exchange ->
                 exchange.getAmount() == null || exchange.getAmount().compareTo(BigDecimal.ZERO) > 0)
@@ -220,12 +223,12 @@ public class Mandate implements Serializable {
 
   @JsonIgnore
   public String getEmail() {
-    return user.getEmail();
+    return requireNonNull(user.getEmail(), "User missing email: mandateId=" + id);
   }
 
   @JsonIgnore
   public String getPhoneNumber() {
-    return user.getPhoneNumber();
+    return requireNonNull(user.getPhoneNumber(), "User missing phone number: mandateId=" + id);
   }
 
   public boolean isThirdPillar() {
@@ -238,7 +241,12 @@ public class Mandate implements Serializable {
   }
 
   @JsonIgnore
-  public Country getCountry() {
+  public @Nullable Country getCountry() {
     return address;
+  }
+
+  @JsonIgnore
+  public Long getIdOrThrow() {
+    return requireNonNull(id, "Mandate id missing (not yet persisted)");
   }
 }

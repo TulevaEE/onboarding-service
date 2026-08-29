@@ -38,6 +38,6 @@ class PaymentRateController {
             "Missing payment rate: userId=" + authenticatedPerson.getUserId());
     Mandate savedMandate =
         paymentRateService.savePaymentRateMandate(authenticatedPerson, paymentRate);
-    return PaymentRateResponse.builder().mandateId(savedMandate.getId()).build();
+    return PaymentRateResponse.builder().mandateId(savedMandate.getIdOrThrow()).build();
   }
 }

@@ -62,16 +62,14 @@ public class CapitalTransferSignatureService {
 
     byte[] signedFile = signService.getSignedFile(session);
 
-    String verificationCode =
-        requireNonNull(
-            session.getVerificationCode(), "Verification code missing: contractId=" + contractId);
     if (signedFile != null) {
       finalizeSignature(contract, user, signedFile);
-      return new MobileSignatureStatusResponse(SignatureStatus.SIGNATURE, verificationCode);
+      return new MobileSignatureStatusResponse(
+          SignatureStatus.SIGNATURE, session.getVerificationCode());
     }
 
     return new MobileSignatureStatusResponse(
-        SignatureStatus.OUTSTANDING_TRANSACTION, verificationCode);
+        SignatureStatus.OUTSTANDING_TRANSACTION, session.getVerificationCode());
   }
 
   public IdCardSignatureResponse startIdCardSignature(
@@ -122,7 +120,7 @@ public class CapitalTransferSignatureService {
     String phoneNumber =
         requireNonNull(
             authenticatedPerson.getAttribute(PHONE_NUMBER),
-            "Phone number missing: personalCode=" + authenticatedPerson.getPersonalCode());
+            "Phone number missing: contractId=" + contractId);
     MobileIdSignatureSession signatureSession =
         signService.startMobileIdSign(files, user.getPersonalCode(), phoneNumber);
     sessionStore.save(signatureSession);
@@ -143,16 +141,14 @@ public class CapitalTransferSignatureService {
 
     byte[] signedFile = signService.getSignedFile(session);
 
-    String verificationCode =
-        requireNonNull(
-            session.getVerificationCode(), "Verification code missing: contractId=" + contractId);
     if (signedFile != null) {
       finalizeSignature(contract, user, signedFile);
-      return new MobileSignatureStatusResponse(SignatureStatus.SIGNATURE, verificationCode);
+      return new MobileSignatureStatusResponse(
+          SignatureStatus.SIGNATURE, session.getVerificationCode());
     }
 
     return new MobileSignatureStatusResponse(
-        SignatureStatus.OUTSTANDING_TRANSACTION, verificationCode);
+        SignatureStatus.OUTSTANDING_TRANSACTION, session.getVerificationCode());
   }
 
   private void finalizeSignature(CapitalTransferContract contract, User user, byte[] signedFile) {

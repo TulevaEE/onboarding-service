@@ -22,7 +22,7 @@ class FundPensionOpeningMandateFileCreator implements MandateFileCreator {
 
     String htmlContent =
         mandateContentService.getFundPensionOpeningHtml(user, mandate, contactDetails);
-    String documentNumber = mandate.getId().toString();
+    String documentNumber = mandate.getIdOrThrow().toString();
 
     return List.of(
         MandateContentFile.builder()

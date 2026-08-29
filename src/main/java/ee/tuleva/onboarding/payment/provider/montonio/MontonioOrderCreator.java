@@ -59,16 +59,14 @@ public class MontonioOrderCreator {
     var paymentChannelName =
         requireNonNull(
             paymentData.getPaymentChannel(),
-            "Payment channel missing: recipientPersonalCode="
-                + paymentData.getRecipientPersonalCode());
+            "Payment channel missing: paymentType=" + paymentData.getType());
     var unvalidatedPaymentChannel =
         montonioPaymentChannelConfiguration.getPaymentProviderChannel(paymentChannelName);
 
     BigDecimal amount = getPaymentAmount(paymentData);
     Currency currency =
         requireNonNull(
-            paymentData.getCurrency(),
-            "Currency missing: recipientPersonalCode=" + paymentData.getRecipientPersonalCode());
+            paymentData.getCurrency(), "Currency missing: paymentType=" + paymentData.getType());
     String description = getPaymentDescription(paymentData);
 
     MontonioPaymentChannel paymentChannelConfiguration =

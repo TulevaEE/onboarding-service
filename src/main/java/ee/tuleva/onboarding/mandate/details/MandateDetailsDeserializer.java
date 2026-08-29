@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.mandate.details;
 
+import static java.util.Objects.requireNonNull;
+
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
@@ -47,6 +49,9 @@ public class MandateDetailsDeserializer extends JsonDeserializer<MandateDetails>
     ObjectMapper mapperWithoutAnnotationInspector = mapper.copy();
     mapperWithoutAnnotationInspector.setAnnotationIntrospector(customIntrospector);
 
-    return mapperWithoutAnnotationInspector.treeToValue(root, type.getMandateDetailsClass());
+    return mapperWithoutAnnotationInspector.treeToValue(
+        root,
+        requireNonNull(
+            type.getMandateDetailsClass(), "Mandate type has no details class: type=" + type));
   }
 }

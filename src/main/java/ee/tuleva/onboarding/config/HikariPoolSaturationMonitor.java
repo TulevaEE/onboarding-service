@@ -5,6 +5,7 @@ import com.zaxxer.hikari.HikariPoolMXBean;
 import java.sql.SQLException;
 import javax.sql.DataSource;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -31,6 +32,9 @@ public class HikariPoolSaturationMonitor {
   @Scheduled(fixedRateString = "30s")
   public void monitor() {
     HikariPoolMXBean pool = poolMXBean();
+    if (pool == null) {
+      return;
+    }
     if (isSaturated(pool)) {
       log.error(
           "Hikari pool saturated: pending={}, active={}, total={}, threshold={}",
@@ -41,11 +45,11 @@ public class HikariPoolSaturationMonitor {
     }
   }
 
-  boolean isSaturated(HikariPoolMXBean pool) {
+  boolean isSaturated(@Nullable HikariPoolMXBean pool) {
     return pool != null && pool.getThreadsAwaitingConnection() >= pendingThreshold;
   }
 
-  private HikariPoolMXBean poolMXBean() {
+  private @Nullable HikariPoolMXBean poolMXBean() {
     try {
       return dataSource.unwrap(HikariDataSource.class).getHikariPoolMXBean();
     } catch (SQLException e) {

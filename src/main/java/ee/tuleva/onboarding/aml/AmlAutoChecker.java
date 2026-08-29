@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.aml;
 
+import static java.util.Objects.requireNonNull;
+
 import ee.tuleva.onboarding.aml.exception.AmlChecksMissingException;
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
@@ -72,9 +74,12 @@ public class AmlAutoChecker {
   @EventListener
   public void beforeMandateCreated(BeforeMandateCreatedEvent event) {
     User user = event.getUser();
-    Country country = event.getCountry();
 
     if (amlService.isMandateAmlCheckRequired(user, event.getMandate())) {
+      Country country =
+          requireNonNull(
+              event.getCountry(),
+              "Country missing for mandate: mandateId=" + event.getMandate().getId());
       amlService.addSanctionAndPepCheckIfMissing(user, Countries.of(country));
     }
 

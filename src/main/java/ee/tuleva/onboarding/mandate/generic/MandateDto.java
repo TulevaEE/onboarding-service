@@ -3,11 +3,10 @@ package ee.tuleva.onboarding.mandate.generic;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.mandate.MandateType;
 import ee.tuleva.onboarding.mandate.details.MandateDetails;
-import jakarta.annotation.Nullable;
-import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import lombok.Builder;
 import lombok.Data;
+import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.annotation.JsonDeserialize;
 
 @Data
@@ -16,7 +15,7 @@ import tools.jackson.databind.annotation.JsonDeserialize;
 public class MandateDto<TDetails extends MandateDetails> {
   @Nullable private final Long id;
 
-  @NotNull private final TDetails details;
+  private final TDetails details;
 
   @Nullable private Instant createdDate;
 

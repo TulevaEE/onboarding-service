@@ -29,6 +29,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.annotation.Profile;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -50,7 +51,7 @@ public class NavTransactionImpactAlertJob {
   private final PublicHolidays publicHolidays;
   private final Clock clock;
 
-  private volatile LocalDate lastAlertDate;
+  private volatile @Nullable LocalDate lastAlertDate;
   private final Set<String> sentAlerts = ConcurrentHashMap.newKeySet();
 
   @EventListener(classes = FundPositionsImported.class)

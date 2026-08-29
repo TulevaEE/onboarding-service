@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
+import ee.tuleva.onboarding.mandate.command.MandateFundTransferExchangeCommand;
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
 import java.math.BigDecimal;
 import java.util.HashMap;
@@ -33,12 +34,18 @@ public class MandateValidator {
     }
   }
 
+  private List<MandateFundTransferExchangeCommand> fundTransferExchangesOrEmpty(
+      CreateMandateCommand createMandateCommand) {
+    List<MandateFundTransferExchangeCommand> fundTransferExchanges =
+        createMandateCommand.getFundTransferExchanges();
+    return fundTransferExchanges != null ? fundTransferExchanges : List.of();
+  }
+
   private Map<String, BigDecimal> summariseSourceFundTransferAmounts(
       CreateMandateCommand createMandateCommand) {
     Map<String, BigDecimal> summaryMap = new HashMap<>();
 
-    createMandateCommand
-        .getFundTransferExchanges()
+    fundTransferExchangesOrEmpty(createMandateCommand)
         .forEach(
             exchange -> {
               if (!summaryMap.containsKey(exchange.getSourceFundIsin())) {
@@ -60,7 +67,7 @@ public class MandateValidator {
   }
 
   private boolean isSameSourceToTargetTransferPresent(CreateMandateCommand createMandateCommand) {
-    return createMandateCommand.getFundTransferExchanges().stream()
+    return fundTransferExchangesOrEmpty(createMandateCommand).stream()
         .anyMatch(
             exchange ->
                 exchange.getSourceFundIsin().equalsIgnoreCase(exchange.getTargetFundIsin()));
@@ -69,10 +76,13 @@ public class MandateValidator {
   private boolean isFutureContributionsToSameFund(
       CreateMandateCommand createMandateCommand, Person person) {
     String isin = createMandateCommand.getFutureContributionFundIsin();
+    if (isin == null) {
+      return false;
+    }
+
     List<FundBalance> accountStatement = accountStatementService.getAccountStatement(person);
     Fund fund = fundRepository.findByIsin(isin);
-
-    if (isin == null || fund == null) {
+    if (fund == null) {
       return false;
     }
 

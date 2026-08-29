@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.fees;
 import static ee.tuleva.onboarding.investment.fees.FeeType.*;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static java.math.RoundingMode.HALF_UP;
+import static java.util.Objects.requireNonNull;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
 
@@ -55,7 +56,7 @@ public class FeeCalculationService {
   }
 
   private BigDecimal roundForLedger(BigDecimal amount) {
-    return amount != null ? amount.setScale(2, HALF_UP) : null;
+    return amount.setScale(2, HALF_UP);
   }
 
   private Map<String, Object> buildAccrualMetadata(
@@ -136,7 +137,11 @@ public class FeeCalculationService {
     for (FeeCalculator calculator : feeCalculators) {
       FeeAccrual accrual = calculator.calculate(fund, date, bases);
       feeAccrualRepository.save(accrual);
-      if (!chargedPolicies.get(accrual.feeType()).chargedOn(date)) {
+      FeeChargedToFundPolicy.Resolver resolver =
+          requireNonNull(
+              chargedPolicies.get(accrual.feeType()),
+              "No fee policy resolver: feeType=" + accrual.feeType());
+      if (!resolver.chargedOn(date)) {
         log.info(
             "recordDailyFees: fund={}, date={}, feeType={}, tracked but not charged to the fund",
             fund,

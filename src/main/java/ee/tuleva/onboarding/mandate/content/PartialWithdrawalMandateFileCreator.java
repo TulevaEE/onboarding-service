@@ -39,7 +39,7 @@ class PartialWithdrawalMandateFileCreator implements MandateFileCreator {
   }
 
   public String getFileName(Mandate mandate) {
-    var documentNumber = mandate.getId().toString();
+    var documentNumber = mandate.getIdOrThrow().toString();
     var pillar =
         ((PartialWithdrawalMandateDetails) mandate.getGenericMandateDto().getDetails()).getPillar();
 

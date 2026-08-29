@@ -55,7 +55,7 @@ class MandateContentService {
       User user, Mandate mandate, List<Fund> funds, ContactDetails contactDetails) {
     String transactionId = UUID.randomUUID().toString();
 
-    String documentNumber = mandate.getId().toString();
+    String documentNumber = mandate.getIdOrThrow().toString();
 
     Context ctx =
         ContextBuilder.builder()
@@ -83,7 +83,7 @@ class MandateContentService {
       User user, Mandate mandate, ContactDetails contactDetails, List<Fund> funds) {
     String transactionId = UUID.randomUUID().toString();
 
-    String documentNumber = mandate.getId().toString();
+    String documentNumber = mandate.getIdOrThrow().toString();
 
     PartialWithdrawalMandateDetails mandateDetails =
         (PartialWithdrawalMandateDetails) mandate.getGenericMandateDto().getDetails();
@@ -106,7 +106,7 @@ class MandateContentService {
   String getFundPensionOpeningHtml(User user, Mandate mandate, ContactDetails contactDetails) {
     String transactionId = UUID.randomUUID().toString();
 
-    String documentNumber = mandate.getId().toString();
+    String documentNumber = mandate.getIdOrThrow().toString();
 
     FundPensionOpeningMandateDetails mandateDetails =
         (FundPensionOpeningMandateDetails) mandate.getGenericMandateDto().getDetails();
@@ -132,7 +132,7 @@ class MandateContentService {
       ContactDetails contactDetails,
       ApplicationType applicationTypeToCancel) {
     String transactionId = UUID.randomUUID().toString();
-    String documentNumber = mandate.getId().toString();
+    String documentNumber = mandate.getIdOrThrow().toString();
 
     Context ctx =
         ContextBuilder.builder()
@@ -151,7 +151,7 @@ class MandateContentService {
   String getRateChangeHtml(
       User user, Mandate mandate, ContactDetails contactDetails, BigDecimal rate) {
     String transactionId = UUID.randomUUID().toString();
-    String documentNumber = mandate.getId().toString();
+    String documentNumber = mandate.getIdOrThrow().toString();
 
     BigDecimal flooredRate = rate.setScale(0, RoundingMode.FLOOR);
     Context ctx =

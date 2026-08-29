@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.content;
 
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.epis.ContactDetails;
@@ -39,8 +40,12 @@ class MandateContentCreator {
       User user, Mandate mandate, ContactDetails contactDetails) {
     String htmlContent =
         mandateContentService.getRateChangeHtml(
-            user, mandate, contactDetails, mandate.getPaymentRate());
-    String documentNumber = mandate.getId().toString();
+            user,
+            mandate,
+            contactDetails,
+            requireNonNull(
+                mandate.getPaymentRate(), "Payment rate missing: mandateId=" + mandate.getId()));
+    String documentNumber = mandate.getIdOrThrow().toString();
 
     return MandateContentFile.builder()
         .name("makse_maara_muutmise_avaldus_" + documentNumber + ".html")
@@ -50,7 +55,7 @@ class MandateContentCreator {
 
   private MandateContentFile getFutureContributionsFundMandateContentFile(
       User user, Mandate mandate, List<Fund> funds, ContactDetails contactDetails) {
-    String documentNumber = mandate.getId().toString();
+    String documentNumber = mandate.getIdOrThrow().toString();
 
     String html =
         mandateContentService.getFutureContributionsFundHtml(user, mandate, funds, contactDetails);

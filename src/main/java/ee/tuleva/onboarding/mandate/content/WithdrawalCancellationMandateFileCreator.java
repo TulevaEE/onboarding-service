@@ -24,7 +24,7 @@ class WithdrawalCancellationMandateFileCreator implements MandateFileCreator {
     String htmlContent =
         mandateContentService.getMandateCancellationHtml(
             user, mandate, contactDetails, ApplicationType.WITHDRAWAL);
-    String documentNumber = mandate.getId().toString();
+    String documentNumber = mandate.getIdOrThrow().toString();
 
     return List.of(
         MandateContentFile.builder()

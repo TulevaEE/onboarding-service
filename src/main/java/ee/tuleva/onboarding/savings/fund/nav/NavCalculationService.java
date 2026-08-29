@@ -31,6 +31,7 @@ import java.util.Optional;
 import java.util.TreeMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -173,7 +174,7 @@ public class NavCalculationService implements NavFeeBackfill {
         : publicHolidays.previousWorkingDay(calculationDate);
   }
 
-  private LocalDate getPositionReportDate(TulevaFund fund, LocalDate calculationDate) {
+  private @Nullable LocalDate getPositionReportDate(TulevaFund fund, LocalDate calculationDate) {
     LocalDate expectedDate = expectedPositionReportDate(fund, calculationDate, publicHolidays);
     LocalDate actual =
         fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, expectedDate).orElse(null);
@@ -250,15 +251,27 @@ public class NavCalculationService implements NavFeeBackfill {
                 entry -> {
                   String isin = entry.getKey();
                   BigDecimal units = entry.getValue();
-                  var resolvedPrice = positionPriceResolver.resolve(isin, priceDate, priceCutoff);
-                  String ticker = resolvedPrice.map(ResolvedPrice::storageKey).orElse("UNKNOWN");
-                  BigDecimal price = resolvedPrice.map(ResolvedPrice::usedPrice).orElse(null);
-                  LocalDate resolvedPriceDate =
-                      resolvedPrice.map(ResolvedPrice::priceDate).orElse(null);
-                  BigDecimal marketValue =
-                      price != null ? units.multiply(price).setScale(2, HALF_UP) : null;
+                  ResolvedPrice resolvedPrice =
+                      positionPriceResolver
+                          .resolve(isin, priceDate, priceCutoff)
+                          .orElseThrow(
+                              () ->
+                                  new IllegalStateException(
+                                      "Price not resolved: fund="
+                                          + fund
+                                          + ", isin="
+                                          + isin
+                                          + ", priceDate="
+                                          + priceDate));
+                  BigDecimal price = resolvedPrice.usedPrice();
+                  BigDecimal marketValue = units.multiply(price).setScale(2, HALF_UP);
                   return new SecurityDetail(
-                      isin, ticker, units, price, marketValue, resolvedPriceDate);
+                      isin,
+                      resolvedPrice.storageKey(),
+                      units,
+                      price,
+                      marketValue,
+                      resolvedPrice.priceDate());
                 })
             .toList();
   }

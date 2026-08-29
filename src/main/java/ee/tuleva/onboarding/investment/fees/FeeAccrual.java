@@ -7,6 +7,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import lombok.Builder;
+import org.jspecify.annotations.Nullable;
 
 @Builder
 public record FeeAccrual(
@@ -19,7 +20,7 @@ public record FeeAccrual(
     BigDecimal annualRate,
     BigDecimal dailyAmountGross,
     int daysInYear,
-    LocalDate referenceDate) {
+    @Nullable LocalDate referenceDate) {
 
   public static FeeAccrual fromResultSet(ResultSet rs, int rowNum) throws SQLException {
     Date referenceDateSql = rs.getDate("reference_date");

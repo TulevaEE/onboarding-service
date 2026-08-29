@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.StreamSupport.stream;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 
@@ -42,7 +43,9 @@ public class MsciIndexRetriever implements ComparisonIndexRetriever {
     String fetchUri = buildFetchUri(startDate, endDate);
 
     JsonNode response =
-        restClient.get().uri(fetchUri).accept(APPLICATION_JSON).retrieve().body(JsonNode.class);
+        requireNonNull(
+            restClient.get().uri(fetchUri).accept(APPLICATION_JSON).retrieve().body(JsonNode.class),
+            "MSCI response is null: fetchUri=" + fetchUri);
 
     return parseIndexLevels(response, startDate, endDate);
   }

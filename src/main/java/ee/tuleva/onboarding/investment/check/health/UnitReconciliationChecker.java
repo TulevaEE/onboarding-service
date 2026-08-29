@@ -41,6 +41,14 @@ class UnitReconciliationChecker {
     }
 
     var reported = unitsPositions.getFirst().getQuantity();
+    if (reported == null) {
+      return List.of(
+          finding(
+              fund,
+              WARNING,
+              "Unit reconciliation reported units unavailable: fund=%s, navDate=%s"
+                  .formatted(fund, navDate)));
+    }
     var difference = reported.subtract(authoritativeUnits).abs();
     if (difference.compareTo(threshold.getWarningUnits()) <= 0) {
       return List.of();

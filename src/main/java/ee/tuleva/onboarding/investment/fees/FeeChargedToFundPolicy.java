@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.fund.TulevaFund;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
@@ -84,7 +85,7 @@ public class FeeChargedToFundPolicy {
     }
   }
 
-  public record Policy(boolean chargedToFund, LocalDate validFrom, LocalDate validTo) {
+  public record Policy(boolean chargedToFund, LocalDate validFrom, @Nullable LocalDate validTo) {
     boolean covers(LocalDate date) {
       return !date.isBefore(validFrom) && (validTo == null || !date.isAfter(validTo));
     }

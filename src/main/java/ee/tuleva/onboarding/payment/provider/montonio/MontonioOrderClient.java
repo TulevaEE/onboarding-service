@@ -25,8 +25,7 @@ public class MontonioOrderClient {
     var paymentChannelName =
         requireNonNull(
             paymentData.getPaymentChannel(),
-            "Payment channel missing: recipientPersonalCode="
-                + paymentData.getRecipientPersonalCode());
+            "Payment channel missing: paymentType=" + paymentData.getType());
     MontonioPaymentChannel paymentChannel =
         requireNonNull(
             montonioPaymentChannelConfiguration.getPaymentProviderChannel(paymentChannelName),

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
+import static java.util.Objects.requireNonNull;
 import static org.springframework.http.HttpMethod.GET;
 import static org.springframework.http.HttpStatus.*;
 
@@ -63,7 +64,9 @@ public class PensionikeskusDataDownloader {
   public List<FundValue> downloadData(
       String baseUrl, LocalDate startDate, LocalDate endDate, CsvParserConfig config) {
     var url = buildUrl(baseUrl, startDate, endDate);
-    return restTemplate.execute(url, GET, requestCallback(), responseExtractor(config));
+    return requireNonNull(
+        restTemplate.execute(url, GET, requestCallback(), responseExtractor(config)),
+        "Pensionikeskus response is null: url=" + url);
   }
 
   private String buildUrl(String baseUrl, LocalDate startDate, LocalDate endDate) {

@@ -18,11 +18,16 @@ public class ContactDetailsService {
   private final ApplicationEventPublisher eventPublisher;
 
   public ContactDetails updateContactDetails(
-      Person person, @Nullable String email, @Nullable String phoneNumber, Country address) {
+      Person person,
+      @Nullable String email,
+      @Nullable String phoneNumber,
+      @Nullable Country address) {
     ContactDetails contactDetails = episService.getContactDetails(person);
     contactDetails.setEmail(email);
     contactDetails.setPhoneNumber(phoneNumber);
-    contactDetails.setAddress(address);
+    if (address != null) {
+      contactDetails.setAddress(address);
+    }
     ContactDetails updatedContactDetails = null;
     try {
       updatedContactDetails = episService.updateContactDetails(person, contactDetails);

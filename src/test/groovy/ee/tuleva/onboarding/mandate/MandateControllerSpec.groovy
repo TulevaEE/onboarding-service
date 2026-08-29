@@ -35,7 +35,9 @@ class MandateControllerSpec extends BaseControllerSpec {
   MandateController controller =
       new MandateController(mandateRepository, mandateService, genericMandateService, sessionStore, signatureFileArchiver, mandateFileService,
           localeResolver)
-  AuthenticatedPerson authenticatedPerson = AuthenticatedPersonFixture.sampleAuthenticatedPersonNonMember().build()
+  AuthenticatedPerson authenticatedPerson = AuthenticatedPersonFixture.sampleAuthenticatedPersonNonMember()
+      .attributes(Map.of(PHONE_NUMBER, "5555555"))
+      .build()
   MockMvc mvc = mockMvcWithAuthenticationPrincipal(authenticatedPerson, controller)
 
   def "save a mandate"() {

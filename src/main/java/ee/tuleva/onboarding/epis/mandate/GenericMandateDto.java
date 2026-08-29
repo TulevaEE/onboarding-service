@@ -4,20 +4,19 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.mandate.MandateType;
 import ee.tuleva.onboarding.mandate.details.MandateDetails;
-import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import lombok.Builder;
 import lombok.Data;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 @Data
 @Builder
 public class GenericMandateDto<TDetails extends MandateDetails> {
-  @NotNull private final Long id;
+  private final @Nullable Long id;
 
-  @NotNull private final TDetails details;
+  private final TDetails details;
 
-  @NotNull private Instant createdDate;
+  private @Nullable Instant createdDate;
 
   @Nullable private Country address;
 

@@ -356,6 +356,7 @@ class MandateServiceSpec extends Specification {
 
   User sampleUser() {
     return User.builder()
+        .id(999)
         .personalCode("38501010002")
         .phoneNumber("5555555")
         .build()

@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.mandate.generic;
 
+import static java.util.Objects.requireNonNull;
+
 import ee.tuleva.onboarding.mandate.MandateType;
 import ee.tuleva.onboarding.mandate.details.MandateDetails;
 import java.time.Instant;
@@ -21,7 +23,11 @@ public class MandateDtoDeserializer
       throw new IllegalArgumentException("Unknown mandateType: " + type);
     }
 
-    MandateDetails details = ctxt.readTreeAsValue(detailsNode, type.getMandateDetailsClass());
+    MandateDetails details =
+        ctxt.readTreeAsValue(
+            detailsNode,
+            requireNonNull(
+                type.getMandateDetailsClass(), "Mandate type has no details class: type=" + type));
 
     var mandateDtoBuilder = MandateDto.builder();
 

@@ -23,7 +23,7 @@ class EarlyWithdrawalCancellationMandateFileCreator implements MandateFileCreato
     String htmlContent =
         mandateContentService.getMandateCancellationHtml(
             user, mandate, contactDetails, ApplicationType.EARLY_WITHDRAWAL);
-    String documentNumber = mandate.getId().toString();
+    String documentNumber = mandate.getIdOrThrow().toString();
 
     return List.of(
         MandateContentFile.builder()

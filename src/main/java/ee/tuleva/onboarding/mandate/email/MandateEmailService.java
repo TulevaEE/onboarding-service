@@ -50,7 +50,7 @@ public class MandateEmailService {
 
   public void sendMandate(
       User user, Mandate mandate, PillarSuggestion pillarSuggestion, Locale locale) {
-    if (emailPersistenceService.hasEmailsForMandate(mandate.getId())) {
+    if (emailPersistenceService.hasEmailsForMandate(mandate.getIdOrThrow())) {
       log.warn("Skipping mandate (id={}) email as email already present", mandate.getId());
       return;
     }
@@ -83,7 +83,11 @@ public class MandateEmailService {
         .ifPresent(
             response ->
                 emailPersistenceService.saveWithMandate(
-                    user, response.getId(), emailType, response.getStatus(), mandate.getId()));
+                    user,
+                    response.getId(),
+                    emailType,
+                    response.getStatus(),
+                    mandate.getIdOrThrow()));
   }
 
   private Map<String, Object> getMergeVars(
@@ -124,7 +128,11 @@ public class MandateEmailService {
               .getPaymentRateFulfillmentDate()
               .format(dateTimeFormatter));
     } else {
-      MandateDeadlines deadlines = mandateDeadlinesService.getDeadlines(mandate.getCreatedDate());
+      MandateDeadlines deadlines =
+          mandateDeadlinesService.getDeadlines(
+              requireNonNull(
+                  mandate.getCreatedDate(),
+                  "Mandate createdDate missing: mandateId=" + mandate.getId()));
       mergeVars.put(
           "transferDate", deadlines.getTransferMandateFulfillmentDate().format(dateTimeFormatter));
       mergeVars.put("hasFundSelection", mandate.getFutureContributionFundIsin().isPresent());
@@ -249,7 +257,7 @@ public class MandateEmailService {
                     response.getId(),
                     EmailType.THIRD_PILLAR_PAYMENT_REMINDER_MANDATE,
                     response.getStatus(),
-                    mandate.getId()));
+                    mandate.getIdOrThrow()));
   }
 
   void scheduleThirdPillarSuggestSecondEmail(
@@ -295,6 +303,6 @@ public class MandateEmailService {
               "Mandate batch is not yet persisted: mandateBatch=" + mandateBatch);
       return emailPersistenceService.hasMandateBatchEmailsToday(person, emailType, mandateBatchId);
     }
-    return emailPersistenceService.hasMandateEmailsToday(person, emailType, mandate.getId());
+    return emailPersistenceService.hasMandateEmailsToday(person, emailType, mandate.getIdOrThrow());
   }
 }

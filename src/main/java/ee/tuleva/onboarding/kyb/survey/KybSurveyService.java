@@ -28,6 +28,7 @@ import java.util.Optional;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
@@ -260,7 +261,7 @@ class KybSurveyService {
         personalCode,
         reason);
 
-    var data = new LinkedHashMap<String, Object>();
+    var data = new LinkedHashMap<String, @Nullable Object>();
     data.put("partyType", LEGAL_ENTITY.name());
     data.put("registryCode", registryCode);
     data.put("personalCode", personalCode);
@@ -286,7 +287,7 @@ class KybSurveyService {
             .map(c -> c.type().name())
             .collect(joining(",")));
 
-    var data = new LinkedHashMap<String, Object>();
+    var data = new LinkedHashMap<String, @Nullable Object>();
     data.put("partyType", LEGAL_ENTITY.name());
     data.put("registryCode", registryCode);
     data.put("personalCode", personalCode);
@@ -362,7 +363,8 @@ class KybSurveyService {
         .collect(groupingBy(FieldError::field, mapping(FieldError::error, toList())));
   }
 
-  private static <T> ValidatedField<T> validatedField(T value, List<ValidationError> errors) {
+  private static <T> ValidatedField<T> validatedField(
+      @Nullable T value, List<ValidationError> errors) {
     return errors.isEmpty()
         ? ValidatedField.valid(value)
         : ValidatedField.withErrors(value, errors);

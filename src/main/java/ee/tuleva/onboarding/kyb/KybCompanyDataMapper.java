@@ -34,7 +34,7 @@ class KybCompanyDataMapper {
       PersonalCode personalCode,
       List<CompanyRelationship> relationships,
       BeneficialOwners beneficialOwners,
-      SelfCertification selfCertification) {
+      @Nullable SelfCertification selfCertification) {
 
     var status =
         detail

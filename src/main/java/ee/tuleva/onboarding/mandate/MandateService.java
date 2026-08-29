@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
@@ -56,7 +57,7 @@ public class MandateService {
   public Mandate save(
       AuthenticatedPerson authenticatedPerson, CreateMandateCommand createMandateCommand) {
     mandateValidator.validate(createMandateCommand, authenticatedPerson);
-    User user = userService.getById(authenticatedPerson.getUserId()).orElseThrow();
+    User user = userService.getById(authenticatedPerson.getUserIdOrThrow()).orElseThrow();
     ConversionResponse conversion = conversionService.getConversion(user);
     ContactDetails contactDetails = episService.getContactDetails(user);
     CreateMandateCommandWrapper wrapper =
@@ -74,7 +75,7 @@ public class MandateService {
           "Invalid application type: " + applicationTypeToCancel);
     }
 
-    User user = userService.getById(authenticatedPerson.getUserId()).orElseThrow();
+    User user = userService.getById(authenticatedPerson.getUserIdOrThrow()).orElseThrow();
     ConversionResponse conversion = conversionService.getConversion(user);
     ContactDetails contactDetails = episService.getContactDetails(user);
     Mandate mandate =
@@ -118,7 +119,7 @@ public class MandateService {
     return getStatus(user, mandate, signService.getSignedFile(session));
   }
 
-  private SignatureStatus getStatus(User user, Mandate mandate, byte[] signedFile) {
+  private SignatureStatus getStatus(User user, Mandate mandate, byte @Nullable [] signedFile) {
     if (signedFile != null) {
       persistSignedFile(mandate, signedFile);
       mandateProcessor.start(user, mandate);

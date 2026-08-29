@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
 import static java.time.format.DateTimeFormatter.ofPattern;
+import static java.util.Objects.requireNonNull;
 import static org.springframework.http.HttpMethod.*;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
@@ -76,7 +77,9 @@ public class CpiValueRetriever implements ComparisonIndexRetriever {
           }
         };
 
-    return restTemplate.execute(SOURCE_URL, GET, null, responseExtractor);
+    return requireNonNull(
+        restTemplate.execute(SOURCE_URL, GET, null, responseExtractor),
+        "Eurostat response is null: url=" + SOURCE_URL);
   }
 
   @SneakyThrows

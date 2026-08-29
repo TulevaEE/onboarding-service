@@ -40,11 +40,11 @@ public class SavingsCallbackService {
     var paymentStatus =
         requireNonNull(
             token.getPaymentStatus(),
-            "Montonio order token missing payment status: token=" + token);
+            "Montonio order token missing payment status: uuid=" + token.getUuid());
     var merchantReference =
         requireNonNull(
             token.getMerchantReference(),
-            "Montonio order token missing merchant reference: token=" + token);
+            "Montonio order token missing merchant reference: uuid=" + token.getUuid());
 
     if (!paymentStatus.equals(MontonioOrderToken.MontonioOrderStatus.PAID)) {
       log.info("Montonio order {} not paid", merchantReference);
@@ -68,19 +68,20 @@ public class SavingsCallbackService {
             .remitterName(
                 requireNonNull(
                     token.getSenderName(),
-                    "Montonio order token missing sender name: token=" + token))
+                    "Montonio order token missing sender name: uuid=" + token.getUuid()))
             .remitterIban(
                 requireNonNull(
                     token.getSenderIban(),
-                    "Montonio order token missing sender IBAN: token=" + token))
+                    "Montonio order token missing sender IBAN: uuid=" + token.getUuid()))
             .description(merchantReference.getDescription())
             .amount(
                 requireNonNull(
                     token.getGrandTotal(),
-                    "Montonio order token missing grand total: token=" + token))
+                    "Montonio order token missing grand total: uuid=" + token.getUuid()))
             .currency(
                 requireNonNull(
-                    token.getCurrency(), "Montonio order token missing currency: token=" + token))
+                    token.getCurrency(),
+                    "Montonio order token missing currency: uuid=" + token.getUuid()))
             .build();
 
     var paymentId = savingFundPaymentQueries.savePaymentData(payment);

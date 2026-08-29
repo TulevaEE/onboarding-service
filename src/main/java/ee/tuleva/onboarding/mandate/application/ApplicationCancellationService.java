@@ -22,7 +22,7 @@ public class ApplicationCancellationService {
       AuthenticatedPerson authenticatedPerson, Long applicationId) {
     ApplicationDTO applicationToCancel = getApplication(applicationId, authenticatedPerson);
     Mandate mandate = mandateService.saveCancellation(authenticatedPerson, applicationToCancel);
-    return new ApplicationCancellationResponse(mandate.getId());
+    return new ApplicationCancellationResponse(mandate.getIdOrThrow());
   }
 
   private ApplicationDTO getApplication(Long applicationId, Person person) {

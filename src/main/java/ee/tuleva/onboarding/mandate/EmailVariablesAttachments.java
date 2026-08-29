@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.mandate;
 
 import static java.util.Collections.singletonList;
+import static java.util.Objects.requireNonNull;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
@@ -52,7 +53,9 @@ public class EmailVariablesAttachments {
     return singletonList(
         getAttachment(
             getNameSuffix(user) + "_avaldused_" + mandateBatch.getId() + ".bdoc",
-            mandateBatch.getFile()));
+            requireNonNull(
+                mandateBatch.getFile(),
+                "Mandate batch file missing: mandateBatchId=" + mandateBatch.getId())));
   }
 
   private static MandrillMessage.MessageContent getAttachment(String fileName, byte[] file) {

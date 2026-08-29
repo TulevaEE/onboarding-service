@@ -4,9 +4,9 @@ import ee.tuleva.onboarding.mandate.details.*
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.fund.manager.FundManager
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
-import ee.tuleva.onboarding.mandate.command.FinishIdCardSignCommand
+import ee.tuleva.onboarding.signature.FinishIdCardSignCommand
 import ee.tuleva.onboarding.mandate.command.MandateFundTransferExchangeCommand
-import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand
+import ee.tuleva.onboarding.signature.StartIdCardSignCommand
 import ee.tuleva.onboarding.mandate.generic.MandateDto
 
 import java.time.Instant
@@ -70,11 +70,11 @@ class MandateFixture {
   }
 
   static StartIdCardSignCommand sampleStartIdCardSignCommand(String clientCertificate) {
-    return new StartIdCardSignCommand(clientCertificate: clientCertificate)
+    return new StartIdCardSignCommand(clientCertificate)
   }
 
   static FinishIdCardSignCommand sampleFinishIdCardSignCommand(String signedHash) {
-    return new FinishIdCardSignCommand(signedHash: signedHash)
+    return new FinishIdCardSignCommand(signedHash)
   }
 
   static CreateMandateCommand invalidCreateMandateCommand() {

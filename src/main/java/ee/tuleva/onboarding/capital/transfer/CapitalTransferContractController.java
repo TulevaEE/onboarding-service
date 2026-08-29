@@ -1,14 +1,14 @@
 package ee.tuleva.onboarding.capital.transfer;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.mandate.command.FinishIdCardSignCommand;
-import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand;
 import ee.tuleva.onboarding.mandate.exception.NotFoundException;
+import ee.tuleva.onboarding.signature.FinishIdCardSignCommand;
 import ee.tuleva.onboarding.signature.IdCardSignatureResponse;
 import ee.tuleva.onboarding.signature.IdCardSignatureStatusResponse;
 import ee.tuleva.onboarding.signature.MobileSignatureResponse;
 import ee.tuleva.onboarding.signature.MobileSignatureStatusResponse;
 import ee.tuleva.onboarding.signature.SignatureController;
+import ee.tuleva.onboarding.signature.StartIdCardSignCommand;
 import ee.tuleva.onboarding.user.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;

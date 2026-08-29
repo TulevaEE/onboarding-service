@@ -5,15 +5,15 @@ import static ee.tuleva.onboarding.auth.mobileid.MobileIDSession.PHONE_NUMBER;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import ee.tuleva.onboarding.locale.LocaleService;
-import ee.tuleva.onboarding.mandate.command.FinishIdCardSignCommand;
-import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand;
 import ee.tuleva.onboarding.mandate.exception.IdSessionException;
 import ee.tuleva.onboarding.signature.*;
+import ee.tuleva.onboarding.signature.FinishIdCardSignCommand;
 import ee.tuleva.onboarding.signature.IdCardSignatureSession;
 import ee.tuleva.onboarding.signature.MobileIdSignatureSession;
 import ee.tuleva.onboarding.signature.SignatureFile;
 import ee.tuleva.onboarding.signature.SignatureService;
 import ee.tuleva.onboarding.signature.SmartIdSignatureSession;
+import ee.tuleva.onboarding.signature.StartIdCardSignCommand;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import jakarta.validation.Valid;
@@ -74,7 +74,7 @@ public class MandateBatchSignatureService {
         mandateBatchService.getMandateBatchContentFiles(mandateBatchId, user);
 
     IdCardSignatureSession signatureSession =
-        signService.startIdCardSign(files, signCommand.getClientCertificate());
+        signService.startIdCardSign(files, signCommand.clientCertificate());
 
     sessionStore.save(signatureSession);
 
@@ -98,7 +98,7 @@ public class MandateBatchSignatureService {
             authenticatedPerson.getUserId(),
             mandateBatchId,
             session,
-            signCommand.getSignedHash(),
+            signCommand.signedHash(),
             locale);
 
     return new IdCardSignatureStatusResponse(statusCode);

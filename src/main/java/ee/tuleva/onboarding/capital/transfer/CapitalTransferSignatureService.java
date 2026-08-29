@@ -4,9 +4,8 @@ import static ee.tuleva.onboarding.auth.mobileid.MobileIDSession.PHONE_NUMBER;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
-import ee.tuleva.onboarding.mandate.command.FinishIdCardSignCommand;
-import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand;
 import ee.tuleva.onboarding.mandate.exception.IdSessionException;
+import ee.tuleva.onboarding.signature.FinishIdCardSignCommand;
 import ee.tuleva.onboarding.signature.IdCardSignatureResponse;
 import ee.tuleva.onboarding.signature.IdCardSignatureSession;
 import ee.tuleva.onboarding.signature.IdCardSignatureStatusResponse;
@@ -17,6 +16,7 @@ import ee.tuleva.onboarding.signature.SignatureFile;
 import ee.tuleva.onboarding.signature.SignatureService;
 import ee.tuleva.onboarding.signature.SignatureStatus;
 import ee.tuleva.onboarding.signature.SmartIdSignatureSession;
+import ee.tuleva.onboarding.signature.StartIdCardSignCommand;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
@@ -80,7 +80,7 @@ public class CapitalTransferSignatureService {
     List<SignatureFile> files = contractService.getSignatureFiles(contractId, user);
 
     IdCardSignatureSession signatureSession =
-        signService.startIdCardSign(files, signCommand.getClientCertificate());
+        signService.startIdCardSign(files, signCommand.clientCertificate());
 
     sessionStore.save(signatureSession);
 
@@ -100,7 +100,7 @@ public class CapitalTransferSignatureService {
     User user = userService.getByIdOrThrow(authenticatedPerson.getUserId());
     CapitalTransferContract contract = contractService.getContract(contractId, user);
 
-    byte[] signedFile = signService.getSignedFile(session, signCommand.getSignedHash());
+    byte[] signedFile = signService.getSignedFile(session, signCommand.signedHash());
 
     if (signedFile != null) {
       finalizeSignature(contract, user, signedFile);

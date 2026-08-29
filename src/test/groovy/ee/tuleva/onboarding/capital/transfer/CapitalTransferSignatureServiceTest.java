@@ -13,9 +13,8 @@ import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
-import ee.tuleva.onboarding.mandate.command.FinishIdCardSignCommand;
-import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand;
 import ee.tuleva.onboarding.mandate.exception.IdSessionException;
+import ee.tuleva.onboarding.signature.FinishIdCardSignCommand;
 import ee.tuleva.onboarding.signature.IdCardSignatureResponse;
 import ee.tuleva.onboarding.signature.IdCardSignatureSession;
 import ee.tuleva.onboarding.signature.IdCardSignatureStatusResponse;
@@ -26,6 +25,7 @@ import ee.tuleva.onboarding.signature.SignatureFile;
 import ee.tuleva.onboarding.signature.SignatureService;
 import ee.tuleva.onboarding.signature.SignatureStatus;
 import ee.tuleva.onboarding.signature.SmartIdSignatureSession;
+import ee.tuleva.onboarding.signature.StartIdCardSignCommand;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import ee.tuleva.onboarding.user.member.Member;
@@ -240,8 +240,7 @@ class CapitalTransferSignatureServiceTest {
     User user = sampleUser().build();
     AuthenticatedPerson authenticatedPerson = authenticatedPersonFromUser(user).build();
 
-    StartIdCardSignCommand command = new StartIdCardSignCommand();
-    command.setClientCertificate("test-certificate");
+    StartIdCardSignCommand command = new StartIdCardSignCommand("test-certificate");
 
     SignatureFile signatureFile =
         new SignatureFile("test.pdf", "application/pdf", "test content".getBytes());
@@ -270,8 +269,7 @@ class CapitalTransferSignatureServiceTest {
     User user = sampleUser().build();
     AuthenticatedPerson authenticatedPerson = authenticatedPersonFromUser(user).build();
 
-    FinishIdCardSignCommand command = new FinishIdCardSignCommand();
-    command.setSignedHash("signed-hash");
+    FinishIdCardSignCommand command = new FinishIdCardSignCommand("signed-hash");
 
     Member seller = memberFixture().user(user).build();
     CapitalTransferContract contract =
@@ -307,8 +305,7 @@ class CapitalTransferSignatureServiceTest {
     User user = sampleUser().build();
     AuthenticatedPerson authenticatedPerson = authenticatedPersonFromUser(user).build();
 
-    FinishIdCardSignCommand command = new FinishIdCardSignCommand();
-    command.setSignedHash("signed-hash");
+    FinishIdCardSignCommand command = new FinishIdCardSignCommand("signed-hash");
 
     Member seller = memberFixture().user(user).build();
     CapitalTransferContract contract =

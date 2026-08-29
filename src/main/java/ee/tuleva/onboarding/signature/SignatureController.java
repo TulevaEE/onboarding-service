@@ -1,8 +1,6 @@
 package ee.tuleva.onboarding.signature;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.mandate.command.FinishIdCardSignCommand;
-import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

@@ -8,16 +8,16 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import ee.tuleva.onboarding.error.ValidationErrorsException;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
-import ee.tuleva.onboarding.mandate.command.FinishIdCardSignCommand;
-import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand;
 import ee.tuleva.onboarding.mandate.exception.IdSessionException;
 import ee.tuleva.onboarding.mandate.exception.NotFoundException;
 import ee.tuleva.onboarding.mandate.generic.GenericMandateService;
 import ee.tuleva.onboarding.signature.*;
+import ee.tuleva.onboarding.signature.FinishIdCardSignCommand;
 import ee.tuleva.onboarding.signature.IdCardSignatureSession;
 import ee.tuleva.onboarding.signature.MobileIdSignatureSession;
 import ee.tuleva.onboarding.signature.SignatureFile;
 import ee.tuleva.onboarding.signature.SmartIdSignatureSession;
+import ee.tuleva.onboarding.signature.StartIdCardSignCommand;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.servlet.http.HttpServletRequest;
@@ -182,7 +182,7 @@ public class MandateController {
         request.getSession(false) != null ? request.getSession(false).getId() : "none");
     IdCardSignatureSession signatureSession =
         mandateService.idCardSign(
-            mandateId, authenticatedPerson.getUserId(), signCommand.getClientCertificate());
+            mandateId, authenticatedPerson.getUserId(), signCommand.clientCertificate());
 
     sessionStore.save(signatureSession);
     log.info(
@@ -220,11 +220,7 @@ public class MandateController {
 
     SignatureStatus statusCode =
         mandateService.finalizeIdCardSignature(
-            authenticatedPerson.getUserId(),
-            mandateId,
-            session,
-            signCommand.getSignedHash(),
-            locale);
+            authenticatedPerson.getUserId(), mandateId, session, signCommand.signedHash(), locale);
 
     return new IdCardSignatureStatusResponse(statusCode);
   }

@@ -25,7 +25,6 @@ import ee.tuleva.onboarding.kyc.KycCheck;
 import ee.tuleva.onboarding.kyc.KycCountryService;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
-import ee.tuleva.onboarding.savings.SavingsFundOnboardingService;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -60,7 +59,7 @@ public class AmlService {
   private final ApplicationEventPublisher eventPublisher;
   private final PepAndSanctionCheckService pepAndSanctionCheckService;
   private final ThirdPillarAnalytics thirdPillarAnalytics;
-  private final SavingsFundOnboardingService savingsFundOnboardingService;
+  private final SavingsFundCustomers savingsFundCustomers;
   private final UserRepository userRepository;
   private final UserConversionService userConversionService;
   private final JsonMapper jsonMapper;
@@ -257,7 +256,7 @@ public class AmlService {
   }
 
   public void runAmlChecksOnSavingsFundCustomers() {
-    List<String> personalCodes = savingsFundOnboardingService.findOnboardedPersonCodes();
+    List<String> personalCodes = savingsFundCustomers.personalCodes();
     List<User> customers = userRepository.findAllByPersonalCodeIn(personalCodes);
 
     log.info(

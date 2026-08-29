@@ -12,7 +12,9 @@ import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingCompletedEvent;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.user.User;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
@@ -33,6 +35,14 @@ public class SavingsFundOnboardingService {
 
   public boolean isOnboardingCompleted(String code, PartyId.Type type) {
     return savingsFundOnboardingRepository.isOnboardingCompleted(code, type);
+  }
+
+  public List<String> findOnboardedPersonCodes() {
+    return savingsFundOnboardingRepository.findPersonCodes();
+  }
+
+  public Optional<SavingsFundOnboardingStatus> findStatus(String code, PartyId.Type type) {
+    return savingsFundOnboardingRepository.findStatus(code, type);
   }
 
   public @Nullable SavingsFundOnboardingStatus getOnboardingStatus(PartyId partyId) {

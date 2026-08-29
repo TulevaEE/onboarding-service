@@ -34,7 +34,7 @@ import ee.tuleva.onboarding.kyc.KycCheck;
 import ee.tuleva.onboarding.kyc.KycCountryService;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
-import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
+import ee.tuleva.onboarding.savings.SavingsFundOnboardingService;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
@@ -78,7 +78,7 @@ class AmlServiceTest {
   @Mock private ApplicationEventPublisher eventPublisher;
   @Mock private PepAndSanctionCheckService pepAndSanctionCheckService;
   @Mock private ThirdPillarAnalytics thirdPillarAnalytics;
-  @Mock private SavingsFundOnboardingRepository savingsFundOnboardingRepository;
+  @Mock private SavingsFundOnboardingService savingsFundOnboardingService;
   @Mock private UserRepository userRepository;
   @Mock private UserConversionService userConversionService;
   @Spy private JsonMapper jsonMapper = JsonMapper.builder().build();
@@ -1136,7 +1136,7 @@ class AmlServiceTest {
   void runAmlChecksOnSavingsFundCustomers_screensEachCustomerOnEveryCountryTheyAreTiedTo() {
     User adult = savingsFundCustomer("38888888881", 1L);
     User child = savingsFundCustomer("61506150006", 2L);
-    given(savingsFundOnboardingRepository.findPersonCodes())
+    given(savingsFundOnboardingService.findOnboardedPersonCodes())
         .willReturn(List.of(adult.getPersonalCode(), child.getPersonalCode()));
     given(
             userRepository.findAllByPersonalCodeIn(
@@ -1186,7 +1186,7 @@ class AmlServiceTest {
   void runAmlChecksOnSavingsFundCustomers_screensEveryOnboardedPerson() {
     User first = savingsFundCustomer("38888888881", 11L);
     User second = savingsFundCustomer("38888888882", 12L);
-    when(savingsFundOnboardingRepository.findPersonCodes())
+    when(savingsFundOnboardingService.findOnboardedPersonCodes())
         .thenReturn(List.of(first.getPersonalCode(), second.getPersonalCode()));
     when(userRepository.findAllByPersonalCodeIn(
             List.of(first.getPersonalCode(), second.getPersonalCode())))
@@ -1209,7 +1209,7 @@ class AmlServiceTest {
   void runAmlChecksOnSavingsFundCustomers_sendsSingleAggregatedAlertOnScreeningFailures() {
     User ok = savingsFundCustomer("38888888881", 11L);
     User failing = savingsFundCustomer("38888888882", 12L);
-    when(savingsFundOnboardingRepository.findPersonCodes())
+    when(savingsFundOnboardingService.findOnboardedPersonCodes())
         .thenReturn(List.of(ok.getPersonalCode(), failing.getPersonalCode()));
     when(userRepository.findAllByPersonalCodeIn(any())).thenReturn(List.of(ok, failing));
     when(pepAndSanctionCheckService.match(eq(ok), anySet()))
@@ -1232,7 +1232,7 @@ class AmlServiceTest {
   @Test
   void runAmlChecksOnSavingsFundCustomers_countsCheckPersistenceFailuresAndContinues() {
     User failing = savingsFundCustomer("38888888881", 11L);
-    when(savingsFundOnboardingRepository.findPersonCodes())
+    when(savingsFundOnboardingService.findOnboardedPersonCodes())
         .thenReturn(List.of(failing.getPersonalCode()));
     when(userRepository.findAllByPersonalCodeIn(any())).thenReturn(List.of(failing));
     when(pepAndSanctionCheckService.match(any(Person.class), anySet()))
@@ -1255,7 +1255,7 @@ class AmlServiceTest {
   @Test
   void runAmlChecksOnSavingsFundCustomers_slackFailureDoesNotAbortBatch() {
     User failing = savingsFundCustomer("38888888881", 11L);
-    when(savingsFundOnboardingRepository.findPersonCodes())
+    when(savingsFundOnboardingService.findOnboardedPersonCodes())
         .thenReturn(List.of(failing.getPersonalCode()));
     when(userRepository.findAllByPersonalCodeIn(any())).thenReturn(List.of(failing));
     when(pepAndSanctionCheckService.match(any(Person.class), anySet()))
@@ -1269,7 +1269,7 @@ class AmlServiceTest {
 
   @Test
   void runAmlChecksOnSavingsFundCustomers_doesNothingWhenNobodyIsOnboarded() {
-    when(savingsFundOnboardingRepository.findPersonCodes()).thenReturn(List.of());
+    when(savingsFundOnboardingService.findOnboardedPersonCodes()).thenReturn(List.of());
     when(userRepository.findAllByPersonalCodeIn(List.of())).thenReturn(List.of());
 
     amlService.runAmlChecksOnSavingsFundCustomers();

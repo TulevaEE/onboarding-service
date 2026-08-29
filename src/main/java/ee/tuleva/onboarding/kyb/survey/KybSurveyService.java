@@ -18,8 +18,8 @@ import ee.tuleva.onboarding.ariregister.CompanyDetail;
 import ee.tuleva.onboarding.ariregister.CompanyRelationship;
 import ee.tuleva.onboarding.event.TrackableSystemEvent;
 import ee.tuleva.onboarding.kyb.*;
+import ee.tuleva.onboarding.savings.SavingsFundOnboardingService;
 import ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus;
-import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -39,7 +39,7 @@ class KybSurveyService {
   private final LegalEntityScreener legalEntityScreener;
   private final KybSurveyResponseMapper kybSurveyResponseMapper;
   private final KybSurveyRepository kybSurveyRepository;
-  private final SavingsFundOnboardingRepository savingsFundOnboardingRepository;
+  private final SavingsFundOnboardingService savingsFundOnboardingService;
   private final ApplicationEventPublisher eventPublisher;
 
   private record FieldError(String field, ValidationError error) {}
@@ -228,7 +228,7 @@ class KybSurveyService {
   }
 
   private Optional<BlockedReason> getBlockedReason(String registryCode) {
-    return savingsFundOnboardingRepository
+    return savingsFundOnboardingService
         .findStatus(registryCode, LEGAL_ENTITY)
         .flatMap(KybSurveyService::blockedReasonFor);
   }

@@ -4,7 +4,7 @@ import static java.util.Comparator.reverseOrder;
 
 import ee.tuleva.onboarding.account.CashFlowService;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.savings.fund.SavingsFundTransactionService;
+import ee.tuleva.onboarding.savings.SavingsTransactions;
 import java.util.List;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -15,13 +15,13 @@ import org.springframework.stereotype.Service;
 public class TransactionService {
 
   private final CashFlowService cashFlowService;
-  private final SavingsFundTransactionService savingsFundTransactionService;
+  private final SavingsTransactions savingsTransactions;
 
   public List<Transaction> getTransactions(AuthenticatedPerson person) {
-    List<Transaction> savingsTransactions = savingsFundTransactionService.getTransactions(person);
+    List<Transaction> savingsFundTransactions = savingsTransactions.getTransactions(person);
 
     if (!person.isActingAsSelf()) {
-      return savingsTransactions;
+      return savingsFundTransactions;
     }
 
     List<Transaction> episTransactions =
@@ -30,7 +30,7 @@ public class TransactionService {
             .map(Transaction::from)
             .toList();
 
-    return Stream.concat(episTransactions.stream(), savingsTransactions.stream())
+    return Stream.concat(episTransactions.stream(), savingsFundTransactions.stream())
         .sorted(reverseOrder())
         .toList();
   }

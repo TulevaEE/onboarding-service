@@ -21,6 +21,7 @@ import ee.tuleva.onboarding.ledger.UserAccount;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.SavingsFundConfiguration;
 import ee.tuleva.onboarding.savings.SavingsFundOnboardingService;
+import ee.tuleva.onboarding.savings.SavingsTransactions;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestRepository;
 import java.math.BigDecimal;
@@ -40,7 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class SavingsFundTransactionService {
+public class SavingsFundTransactionService implements SavingsTransactions {
 
   private final LedgerService ledgerService;
   private final SavingsFundOnboardingService savingsFundOnboardingService;
@@ -49,6 +50,7 @@ public class SavingsFundTransactionService {
   private final SavingFundPaymentRepository savingFundPaymentRepository;
 
   @Transactional
+  @Override
   public List<Transaction> getTransactions(AuthenticatedPerson person) {
     return transactionSources(person).transactions();
   }

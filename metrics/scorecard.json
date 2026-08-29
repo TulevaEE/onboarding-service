@@ -1,6 +1,6 @@
 {
-  "branchCoverage": 85.2,
-  "lineCoverage": 82.48,
+  "branchCoverage": 85.39,
+  "lineCoverage": 82.55,
   "meanInstability": 0.483,
   "moduleCycles": 37,
   "modulithViolations": 1098,

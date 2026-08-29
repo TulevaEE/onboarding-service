@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.listing;
 
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.UNVESTED_WORK_COMPENSATION;
 import static ee.tuleva.onboarding.listing.Listing.State.ACTIVE;
-import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.getNameMergeVars;
+import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.getNameMergeVars;
 import static ee.tuleva.onboarding.notification.email.EmailType.LISTING_REPLY_TO_BUYER;
 import static ee.tuleva.onboarding.notification.email.EmailType.LISTING_REPLY_TO_SELLER;
 import static java.math.BigDecimal.ZERO;

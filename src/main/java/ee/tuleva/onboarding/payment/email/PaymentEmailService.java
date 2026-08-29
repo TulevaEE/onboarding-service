@@ -1,13 +1,13 @@
 package ee.tuleva.onboarding.payment.email;
 
-import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.*;
+import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.*;
 import static java.util.Collections.emptyList;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageContent;
+import ee.tuleva.onboarding.mandate.EmailVariablesAttachments;
 import ee.tuleva.onboarding.mandate.MandateRepository;
-import ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments;
-import ee.tuleva.onboarding.mandate.email.PillarSuggestion;
+import ee.tuleva.onboarding.mandate.PillarSuggestion;
 import ee.tuleva.onboarding.notification.email.Email;
 import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;

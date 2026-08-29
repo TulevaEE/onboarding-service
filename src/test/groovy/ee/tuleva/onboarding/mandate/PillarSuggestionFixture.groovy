@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.mandate.email
+package ee.tuleva.onboarding.mandate
 
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser

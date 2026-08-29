@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.savings.fund;
 
-import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.getNameMergeVars;
+import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.getNameMergeVars;
 import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_COMPANY_ONBOARDED;
 import static org.springframework.transaction.annotation.Propagation.REQUIRES_NEW;
 

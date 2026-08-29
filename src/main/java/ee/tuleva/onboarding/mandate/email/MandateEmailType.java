@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.notification.email.EmailType.*;
 
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateType;
+import ee.tuleva.onboarding.mandate.PillarSuggestion;
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
 import ee.tuleva.onboarding.notification.email.EmailType;
 

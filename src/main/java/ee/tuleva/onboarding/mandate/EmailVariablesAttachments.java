@@ -1,10 +1,9 @@
-package ee.tuleva.onboarding.mandate.email;
+package ee.tuleva.onboarding.mandate;
 
 import static java.util.Collections.singletonList;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract;
-import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
 import ee.tuleva.onboarding.user.Names;
 import ee.tuleva.onboarding.user.User;

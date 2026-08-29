@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.capital.transfer;
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.*;
 import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.*;
 import static ee.tuleva.onboarding.event.TrackableEventType.CAPITAL_TRANSFER_STATE_CHANGE;
-import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.getAttachments;
+import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.getAttachments;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.CAPITAL_TRANSFER;
 import static ee.tuleva.onboarding.notification.email.EmailType.*;
 import static java.util.stream.Stream.concat;

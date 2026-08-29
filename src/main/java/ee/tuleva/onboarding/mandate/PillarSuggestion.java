@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.mandate.email;
+package ee.tuleva.onboarding.mandate;
 
 import ee.tuleva.onboarding.analytics.RecurringPayments;
 import ee.tuleva.onboarding.conversion.ConversionResponse;

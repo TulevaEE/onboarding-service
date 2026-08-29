@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.email
 
+import ee.tuleva.onboarding.mandate.PillarSuggestion
 import ee.tuleva.onboarding.conversion.ConversionResponse
 import ee.tuleva.onboarding.conversion.UserConversionService
 import ee.tuleva.onboarding.epis.EpisService

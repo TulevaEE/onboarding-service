@@ -5,7 +5,7 @@ import ee.tuleva.onboarding.savings.fund.SavingsFundFees
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus
 import ee.tuleva.onboarding.mandate.Mandate
-import ee.tuleva.onboarding.mandate.email.PillarSuggestion
+import ee.tuleva.onboarding.mandate.PillarSuggestion
 import ee.tuleva.onboarding.notification.email.Email
 import ee.tuleva.onboarding.notification.email.EmailPersistenceService
 import ee.tuleva.onboarding.notification.email.EmailService
@@ -15,7 +15,7 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notConverted
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture
-import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.getAttachments
+import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.getAttachments
 import static ee.tuleva.onboarding.notification.email.EmailType.*
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewSinglePayment
 import static ee.tuleva.onboarding.paymentrate.PaymentRatesFixture.samplePaymentRates

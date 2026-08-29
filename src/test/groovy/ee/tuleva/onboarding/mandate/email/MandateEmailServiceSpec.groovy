@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.email
 
+import ee.tuleva.onboarding.mandate.PillarSuggestion
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus
 import ee.tuleva.onboarding.auth.principal.AuthenticationHolder

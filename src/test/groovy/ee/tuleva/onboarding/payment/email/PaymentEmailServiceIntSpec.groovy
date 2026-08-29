@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.payment.email
 
-import ee.tuleva.onboarding.mandate.email.PillarSuggestion
+import ee.tuleva.onboarding.mandate.PillarSuggestion
 import ee.tuleva.onboarding.payment.Payment
 import ee.tuleva.onboarding.user.User
 import org.springframework.beans.factory.annotation.Autowired
@@ -9,7 +9,7 @@ import spock.lang.Ignore
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
-import static ee.tuleva.onboarding.mandate.email.PillarSuggestionFixture.secondPillarSuggestion
+import static ee.tuleva.onboarding.mandate.PillarSuggestionFixture.secondPillarSuggestion
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewSinglePayment
 
 @SpringBootTest

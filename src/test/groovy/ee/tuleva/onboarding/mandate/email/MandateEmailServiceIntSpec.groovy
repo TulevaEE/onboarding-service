@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.email
 
+import ee.tuleva.onboarding.mandate.PillarSuggestion
 import ee.tuleva.onboarding.mandate.Mandate
 import ee.tuleva.onboarding.user.User
 import org.springframework.beans.factory.annotation.Autowired
@@ -9,8 +10,8 @@ import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.mandate.MandateFixture.*
-import static ee.tuleva.onboarding.mandate.email.PillarSuggestionFixture.secondPillarSuggestion
-import static ee.tuleva.onboarding.mandate.email.PillarSuggestionFixture.thirdPillarSuggestion
+import static ee.tuleva.onboarding.mandate.PillarSuggestionFixture.secondPillarSuggestion
+import static ee.tuleva.onboarding.mandate.PillarSuggestionFixture.thirdPillarSuggestion
 
 @SpringBootTest
 @Ignore

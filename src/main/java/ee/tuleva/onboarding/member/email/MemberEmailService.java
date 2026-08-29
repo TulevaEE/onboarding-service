@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.member.email;
 
-import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.getNameMergeVars;
+import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.getNameMergeVars;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.notification.email.EmailPersistenceService;

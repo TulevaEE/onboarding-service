@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.hackathon;
 
-import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.getNameMergeVars;
+import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.getNameMergeVars;
 import static ee.tuleva.onboarding.notification.email.EmailType.HACKATHON_REGISTRATION;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;

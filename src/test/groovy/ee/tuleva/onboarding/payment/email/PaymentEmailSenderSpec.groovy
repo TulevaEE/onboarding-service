@@ -7,7 +7,7 @@ import ee.tuleva.onboarding.auth.principal.PrincipalService
 import ee.tuleva.onboarding.conversion.UserConversionService
 import ee.tuleva.onboarding.epis.ContactDetails
 import ee.tuleva.onboarding.epis.ContactDetailsService
-import ee.tuleva.onboarding.mandate.email.PillarSuggestion
+import ee.tuleva.onboarding.mandate.PillarSuggestion
 import ee.tuleva.onboarding.party.PartyId
 import ee.tuleva.onboarding.payment.event.PaymentCreatedEvent
 import ee.tuleva.onboarding.payment.event.SavingsPaymentCancelledEvent

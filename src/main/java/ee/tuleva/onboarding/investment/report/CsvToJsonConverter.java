@@ -38,7 +38,7 @@ public class CsvToJsonConverter {
               .setAllowMissingColumnNames(true)
               .setTrim(true)
               .setIgnoreEmptyLines(true)
-              .build()
+              .get()
               .parse(new StringReader(csvContent))) {
 
         return parser.stream().map(this::recordToMap).toList();

@@ -38,7 +38,7 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -232,7 +232,7 @@ public class AmlService {
     List<String> ids =
         stream(results)
             .filter(result -> result.hasNonNull("id"))
-            .map(result -> result.get("id").asText())
+            .map(result -> result.get("id").asString())
             .toList();
     List<AmlCheck> successOverrides =
         amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(
@@ -323,7 +323,7 @@ public class AmlService {
             .filter(
                 result ->
                     stream(result.get("properties").get("topics"))
-                            .anyMatch(topic -> topic.asText().startsWith(topicNameStartsWith))
+                            .anyMatch(topic -> topic.asString().startsWith(topicNameStartsWith))
                         && result.get("match").asBoolean())
             .toList();
     hits.forEach(
@@ -331,9 +331,9 @@ public class AmlService {
             log.info(
                 "AML screening hit: topic={}, caption={}, score={}, id={}",
                 topicNameStartsWith,
-                hit.path("caption").asText(null),
+                hit.path("caption").asString(null),
                 hit.path("score").isMissingNode() ? null : hit.path("score").asDouble(),
-                hit.path("id").asText(null)));
+                hit.path("id").asString(null)));
     return !hits.isEmpty();
   }
 
@@ -394,13 +394,13 @@ public class AmlService {
   }
 
   private boolean personDataMatches(Person person1, Person person2) {
-    if (!StringUtils.equalsIgnoreCase(person1.getFirstName(), person2.getFirstName())) {
+    if (!Strings.CI.equals(person1.getFirstName(), person2.getFirstName())) {
       return false;
     }
-    if (!StringUtils.equalsIgnoreCase(person1.getLastName(), person2.getLastName())) {
+    if (!Strings.CI.equals(person1.getLastName(), person2.getLastName())) {
       return false;
     }
-    return StringUtils.equalsIgnoreCase(person1.getPersonalCode(), person2.getPersonalCode());
+    return Strings.CI.equals(person1.getPersonalCode(), person2.getPersonalCode());
   }
 
   public Optional<AmlCheck> addCheckIfMissing(AmlCheck amlCheck) {

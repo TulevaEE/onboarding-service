@@ -188,7 +188,7 @@ public class HoldingDetailsJob {
 
       while ((e = xmlEventReader.peek()) != null) {
         boolean wasCursorChanged = false;
-        if (((XMLEvent) e).isStartElement()) {
+        if (e.isStartElement()) {
           wasCursorChanged = processStartElement(xmlEventReader, (StartElement) e);
         } else if (e.isEndElement()) {
           wasCursorChanged = processEndElement(xmlEventReader, (EndElement) e);

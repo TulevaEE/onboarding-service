@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.ftp;
 
+import java.time.Duration;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.net.ftp.FTPClient;
 
@@ -15,7 +16,7 @@ public class FtpClientFactory {
   public FtpClient create() {
     FTPClient ftpClient = new FTPClient();
     ftpClient.setDefaultTimeout(TIMEOUT_MILLISECONDS);
-    ftpClient.setDataTimeout(TIMEOUT_MILLISECONDS);
+    ftpClient.setDataTimeout(Duration.ofMillis(TIMEOUT_MILLISECONDS));
     ftpClient.setConnectTimeout(TIMEOUT_MILLISECONDS);
     return new FtpClient(ftpClient, server, user, password, port);
   }

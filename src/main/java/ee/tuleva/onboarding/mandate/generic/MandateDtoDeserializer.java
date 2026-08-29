@@ -18,7 +18,7 @@ public class MandateDtoDeserializer
     JsonNode root = ctxt.readTree(parser);
 
     JsonNode detailsNode = root.get("details");
-    MandateType type = MandateType.valueOf(detailsNode.get("mandateType").asText());
+    MandateType type = MandateType.valueOf(detailsNode.get("mandateType").asString());
     if (type == MandateType.UNKNOWN) {
       throw new IllegalArgumentException("Unknown mandateType: " + type);
     }
@@ -36,7 +36,7 @@ public class MandateDtoDeserializer
     }
 
     if (root.hasNonNull("createdDate")) {
-      mandateDtoBuilder.createdDate(Instant.parse(root.get("createdDate").asText()));
+      mandateDtoBuilder.createdDate(Instant.parse(root.get("createdDate").asString()));
     }
 
     return mandateDtoBuilder.details(details).build();

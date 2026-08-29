@@ -58,7 +58,7 @@ public class MsciIndexRetriever implements ComparisonIndexRetriever {
     return stream(indexLevels.spliterator(), false)
         .map(
             node -> {
-              String dateString = node.path("calc_date").asText();
+              String dateString = node.path("calc_date").asString();
               LocalDate date = LocalDate.parse(dateString, DATE_FORMATTER);
               BigDecimal value = BigDecimal.valueOf(node.path("level_eod").asDouble());
               return new FundValue(key, date, value, PROVIDER, now);

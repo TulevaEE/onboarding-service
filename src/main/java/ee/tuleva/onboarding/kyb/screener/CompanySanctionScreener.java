@@ -49,7 +49,7 @@ public class CompanySanctionScreener implements KybScreener {
         continue;
       }
       for (JsonNode topic : result.path("properties").path("topics")) {
-        if (topic.asText().startsWith(topicPrefix)) {
+        if (topic.asString().startsWith(topicPrefix)) {
           return true;
         }
       }
@@ -64,7 +64,7 @@ public class CompanySanctionScreener implements KybScreener {
       }
       boolean isPep = false;
       for (JsonNode topic : result.path("properties").path("topics")) {
-        if (topic.asText().startsWith("role")) {
+        if (topic.asString().startsWith("role")) {
           isPep = true;
           break;
         }
@@ -82,7 +82,7 @@ public class CompanySanctionScreener implements KybScreener {
       return true;
     }
     for (JsonNode country : countries) {
-      if (!EU_COUNTRY_CODES.contains(country.asText().toLowerCase())) {
+      if (!EU_COUNTRY_CODES.contains(country.asString().toLowerCase())) {
         return true;
       }
     }

@@ -37,7 +37,7 @@ class TrusteeReportCsvGenerator {
 
       outputStream.write(UTF8_BOM);
 
-      var format = CSVFormat.DEFAULT.builder().setHeader(HEADERS).build();
+      var format = CSVFormat.DEFAULT.builder().setHeader(HEADERS).get();
 
       try (var printer = new CSVPrinter(writer, format)) {
         for (var row : rows) {

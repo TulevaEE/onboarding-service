@@ -39,8 +39,8 @@ class GoogleDriveTokenProvider {
     this.clock = clock;
 
     var serviceAccount = parseServiceAccountJson(base64ServiceAccountJson);
-    this.clientEmail = serviceAccount.get("client_email").asText();
-    this.privateKey = parsePrivateKey(serviceAccount.get("private_key").asText());
+    this.clientEmail = serviceAccount.get("client_email").asString();
+    this.privateKey = parsePrivateKey(serviceAccount.get("private_key").asString());
   }
 
   String getAccessToken() {

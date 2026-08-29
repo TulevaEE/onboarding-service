@@ -22,7 +22,6 @@ import java.math.RoundingMode;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
-import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -34,7 +33,6 @@ public class CreateMandateCommandToMandateConverter {
   private final ConversionDecorator conversionDecorator;
   private final SecondPillarPaymentRateService secondPillarPaymentRateService;
 
-  @NonNull
   public Mandate convert(CreateMandateCommandWrapper wrapper) {
     User user = wrapper.getUser();
     final var createMandateCommand = wrapper.getCreateMandateCommand();

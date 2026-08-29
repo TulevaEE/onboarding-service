@@ -191,6 +191,8 @@ dependencies {
     implementation("software.amazon.awssdk:s3:2.50.2")
     implementation("commons-io:commons-io:2.22.0")
     implementation("org.apache.commons:commons-csv:1.14.1")
+    // commons-csv references this at compile time (annotation-only, no runtime impact)
+    compileOnly("com.github.spotbugs:spotbugs-annotations:4.10.4")
     implementation("org.apache.poi:poi-ooxml:5.5.1")
     implementation("at.datenwort.openhtmltopdf:openhtmltopdf-pdfbox:1.1.4")
     // Pinned to match the PDFBox version openhtmltopdf-pdfbox/digidoc4j already resolve to on
@@ -517,6 +519,8 @@ tasks.withType<JavaCompile> {
     options.compilerArgs.add("-Xlint:-path")
     options.compilerArgs.add("-Xlint:-serial")
     options.compilerArgs.add("-Xdiags:verbose")
+    options.compilerArgs.add("-Xmaxwarns")
+    options.compilerArgs.add("1000")
 //    options.compilerArgs.add("-Werror")
     options.errorprone {
         disableAllChecks = true

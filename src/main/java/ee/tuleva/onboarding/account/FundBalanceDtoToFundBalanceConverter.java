@@ -11,7 +11,6 @@ import java.math.BigDecimal;
 import java.util.function.Predicate;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -22,7 +21,6 @@ public class FundBalanceDtoToFundBalanceConverter {
   private final FundRepository fundRepository;
   private final CashFlowService cashFlowService;
 
-  @NonNull
   public FundBalance convert(FundBalanceDto fundBalanceDto, Person person) {
     FundBalance fundBalance = convert(fundBalanceDto);
 
@@ -37,7 +35,6 @@ public class FundBalanceDtoToFundBalanceConverter {
     return fundBalance;
   }
 
-  @NonNull
   public FundBalance convert(FundBalanceDto fundBalanceDto) {
     Fund fund = fundRepository.findByIsin(fundBalanceDto.getIsin());
 

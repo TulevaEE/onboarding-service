@@ -21,6 +21,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 /**
@@ -497,27 +498,24 @@ public class SavingsFundLedger {
   @Transactional
   public LedgerTransaction recordAdjustment(
       String debitAccountName,
-      PartyId debitParty,
+      @Nullable PartyId debitParty,
       String creditAccountName,
-      PartyId creditParty,
+      @Nullable PartyId creditParty,
       BigDecimal amount,
-      UUID externalReference,
+      @Nullable UUID externalReference,
       String description) {
-    boolean debitIsParty = debitParty != null;
-    boolean creditIsParty = creditParty != null;
-
-    if (debitIsParty && creditIsParty && !debitParty.equals(creditParty)) {
+    if (debitParty != null && creditParty != null && !debitParty.equals(creditParty)) {
       throw new IllegalArgumentException(
           "Both accounts must belong to the same party or at least one must be a system account");
     }
 
     LedgerAccount debitAccount =
-        debitIsParty
+        debitParty != null
             ? resolvePartyAccount(debitParty, UserAccount.valueOf(debitAccountName))
             : resolveSystemAccount(debitAccountName);
 
     LedgerAccount creditAccount =
-        creditIsParty
+        creditParty != null
             ? resolvePartyAccount(creditParty, UserAccount.valueOf(creditAccountName))
             : resolveSystemAccount(creditAccountName);
 

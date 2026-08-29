@@ -19,6 +19,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.Nullable;
 
 @Data
 @Builder
@@ -26,7 +27,7 @@ import org.jetbrains.annotations.NotNull;
 @NoArgsConstructor
 public class CashFlow implements Comparable<CashFlow> {
 
-  private String isin;
+  @Nullable private String isin;
   private Instant time;
   private Instant priceTime;
   private BigDecimal amount;

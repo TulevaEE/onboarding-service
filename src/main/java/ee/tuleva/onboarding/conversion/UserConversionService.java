@@ -118,12 +118,14 @@ public class UserConversionService {
             .filter(cashFlow -> cashFlow.isPriceTimeAfter(sameTimeLastYear()))
             .filter(CashFlow::isCashContribution)
             .filter(
-                cashFlow ->
-                    requireNonNull(
-                                fundRepository.findByIsin(cashFlow.getIsin()),
-                                "Unknown fund: isin=" + cashFlow.getIsin())
-                            .getPillar()
-                        == 3)
+                cashFlow -> {
+                  String isin =
+                      requireNonNull(cashFlow.getIsin(), "Cash contribution missing isin");
+                  return requireNonNull(
+                              fundRepository.findByIsin(isin), "Unknown fund: isin=" + isin)
+                          .getPillar()
+                      == 3;
+                })
             .map(CashFlow::getAmount)
             .reduce(ZERO, BigDecimal::add)
             .compareTo(ZERO)
@@ -161,9 +163,11 @@ public class UserConversionService {
         .filter(filterBy)
         .filter(
             cashFlow -> {
-              Fund fund = fundRepository.findByIsin(cashFlow.getIsin()); // TODO: O(n) queries
+              String isin =
+                  requireNonNull(cashFlow.getIsin(), "Cash flow missing isin: pillar=" + pillar);
+              Fund fund = fundRepository.findByIsin(isin); // TODO: O(n) queries
               if (fund == null) {
-                log.error("We didn't find the fund source: " + cashFlow.getIsin());
+                log.error("We didn't find the fund source: " + isin);
                 return false;
               } else {
                 return fund.getPillar() == pillar;

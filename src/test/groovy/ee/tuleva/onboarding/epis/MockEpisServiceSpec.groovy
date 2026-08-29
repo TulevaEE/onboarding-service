@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.epis
 
+import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil
 import ee.tuleva.onboarding.epis.account.FundBalanceDto
 import ee.tuleva.onboarding.epis.application.ApplicationResponse
 import ee.tuleva.onboarding.epis.CashFlowStatement
@@ -22,7 +23,7 @@ import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 
 class MockEpisServiceSpec extends Specification {
 
-  EpisService episService = new MockEpisService(Mock(RestTemplate))
+  EpisService episService = new MockEpisService(Mock(RestTemplate), Mock(JwtTokenUtil))
 
   def "getApplications has a mock response"() {
     when:

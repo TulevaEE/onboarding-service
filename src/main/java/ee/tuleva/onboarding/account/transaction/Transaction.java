@@ -13,6 +13,7 @@ import java.time.Instant;
 import java.util.UUID;
 import lombok.Builder;
 import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.Nullable;
 
 @Builder
 public record Transaction(
@@ -22,7 +23,7 @@ public record Transaction(
     Instant time,
     Instant priceTime,
     Instant settledTime,
-    String isin,
+    @Nullable String isin,
     CashFlow.Type type,
     BigDecimal units,
     BigDecimal nav)

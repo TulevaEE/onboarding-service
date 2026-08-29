@@ -14,7 +14,7 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 @Getter
 @Setter
@@ -31,7 +31,7 @@ public class ContactDetails implements Person, Emailable {
   @Builder.Default private LanguagePreferenceType languagePreference = EST;
   @Builder.Default private String noticeNeeded = "Y"; // boolean { 'Y', 'N' }
   @Nullable private String email;
-  private String phoneNumber;
+  @Nullable private String phoneNumber;
   private String pensionAccountNumber;
   private List<Distribution> thirdPillarDistribution;
   private String activeSecondPillarFundIsin;

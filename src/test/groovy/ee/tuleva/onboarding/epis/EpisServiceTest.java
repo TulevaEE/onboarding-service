@@ -48,7 +48,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -67,9 +66,13 @@ class EpisServiceTest {
 
   @BeforeEach
   void setUp() {
-    service = new EpisService(episRestTemplate, episLongRequestRestTemplate, jwtTokenUtil);
-    ReflectionTestUtils.setField(service, "episServiceUrl", "http://epis");
-    ReflectionTestUtils.setField(service, "episServiceLongRequestUrl", "http://epis");
+    service =
+        new EpisService(
+            episRestTemplate,
+            episLongRequestRestTemplate,
+            jwtTokenUtil,
+            "http://epis",
+            "http://epis");
   }
 
   @AfterEach

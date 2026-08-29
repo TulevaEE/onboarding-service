@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.auth.role.RoleType.*;
 import static java.time.temporal.ChronoUnit.HOURS;
 import static java.time.temporal.ChronoUnit.MINUTES;
 
+import ee.tuleva.onboarding.auth.ServiceTokenProvider;
 import ee.tuleva.onboarding.auth.partner.CompositeJwtParser;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.Person;
@@ -32,7 +33,7 @@ import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;
 
 @Component
-public class JwtTokenUtil {
+public class JwtTokenUtil implements ServiceTokenProvider {
 
   private static final JsonMapper JSON_MAPPER = JsonMapper.builder().build();
 
@@ -129,6 +130,7 @@ public class JwtTokenUtil {
         ROLE.value, JSON_MAPPER.convertValue(person.getRole(), Map.class));
   }
 
+  @Override
   public String generateServiceToken() {
     return Jwts.builder()
         .claim(TOKEN_TYPE.value, ACCESS)

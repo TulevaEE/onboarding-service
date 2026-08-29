@@ -129,7 +129,7 @@ class UnitOwnerSynchronizerIntegrationTest {
     private List<UnitOwnerDto> unitOwners = new ArrayList<>();
 
     public MockEpisService(RestTemplate restTemplate, JwtTokenUtil jwtTokenUtil) {
-      super(restTemplate, restTemplate, jwtTokenUtil);
+      super(restTemplate, restTemplate, jwtTokenUtil, "http://epis", "http://epis");
     }
 
     @Override

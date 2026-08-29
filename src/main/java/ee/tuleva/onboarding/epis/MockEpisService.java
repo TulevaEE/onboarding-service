@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.mandate.ApplicationType.SELECTION;
 import static java.time.LocalDate.parse;
 import static java.time.temporal.ChronoUnit.DAYS;
 
+import ee.tuleva.onboarding.auth.ServiceTokenProvider;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.epis.account.FundBalanceDto;
@@ -27,6 +28,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -36,8 +38,8 @@ import org.springframework.web.client.RestTemplate;
 @Profile("mock")
 public class MockEpisService extends EpisService {
 
-  public MockEpisService(RestTemplate restTemplate) {
-    super(restTemplate, restTemplate, null);
+  public MockEpisService(RestTemplate restTemplate, ServiceTokenProvider serviceTokenProvider) {
+    super(restTemplate, restTemplate, serviceTokenProvider, "http://mock-epis", "http://mock-epis");
   }
 
   @Override
@@ -146,7 +148,7 @@ public class MockEpisService extends EpisService {
 
   @Override
   public List<FundBalanceDto> getAccountStatement(
-      Person person, LocalDate fromDate, LocalDate toDate) {
+      Person person, @Nullable LocalDate fromDate, @Nullable LocalDate toDate) {
     return List.of(
         FundBalanceDto.builder()
             .isin("EE3600109435")

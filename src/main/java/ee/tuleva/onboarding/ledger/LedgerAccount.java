@@ -19,7 +19,7 @@ import lombok.*;
 import org.hibernate.annotations.Generated;
 import org.hibernate.annotations.JdbcType;
 import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 
 @Entity
 @Table(name = "account", schema = "ledger")
@@ -32,6 +32,7 @@ public class LedgerAccount {
 
   @Id
   @GeneratedValue(strategy = UUID)
+  @Nullable
   private UUID id;
 
   @Nullable
@@ -64,7 +65,7 @@ public class LedgerAccount {
 
   @ManyToOne
   @JoinColumn(name = "owner_party_id")
-  private LedgerParty owner;
+  private @Nullable LedgerParty owner;
 
   @Enumerated(STRING)
   @Column(columnDefinition = "ledger.asset_type")
@@ -91,6 +92,7 @@ public class LedgerAccount {
 
   @Column(nullable = false, updatable = false, insertable = false)
   @Generated(event = INSERT)
+  @Nullable
   private Instant createdAt;
 
   public BigDecimal getBalance() {
@@ -146,7 +148,7 @@ public class LedgerAccount {
       @Nullable String name,
       AccountPurpose purpose,
       AccountType accountType,
-      LedgerParty owner,
+      @Nullable LedgerParty owner,
       AssetType assetType) {
     this.name = name;
     this.purpose = purpose;

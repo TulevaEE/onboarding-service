@@ -65,7 +65,8 @@ public class SuspenseReclassificationService {
       fundBankLedger.reclassifySuspenseEntry(
           fund,
           cashAmount,
-          suspense.getExternalReference(),
+          requireNonNull(
+              suspense.getExternalReference(), "Suspense transaction missing external reference"),
           target,
           suspense.getTransactionDate().atZone(ESTONIAN_ZONE).toLocalDate());
       reclassified++;

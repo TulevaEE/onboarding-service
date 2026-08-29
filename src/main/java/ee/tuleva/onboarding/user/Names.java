@@ -12,7 +12,7 @@ public class Names {
   private static final String SPLIT_KEEPING_SEPARATORS = "(?<=[ \\-'])|(?=[ \\-'])";
 
   public static String formatted(String name) {
-    if (name == null || name.isBlank()) {
+    if (name.isBlank()) {
       return name;
     }
     return Arrays.stream(name.split(SPLIT_KEEPING_SEPARATORS))

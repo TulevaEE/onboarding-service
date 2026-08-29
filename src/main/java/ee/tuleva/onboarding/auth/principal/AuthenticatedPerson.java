@@ -61,7 +61,7 @@ public class AuthenticatedPerson implements Person, Serializable {
 
   @JsonIgnore
   public PartyId toPartyId() {
-    return PartyId.from(role);
+    return PartyId.from(requireNonNull(role, "Role missing: personalCode=" + personalCode));
   }
 
   @JsonIgnore
@@ -76,6 +76,11 @@ public class AuthenticatedPerson implements Person, Serializable {
   @JsonIgnore
   public boolean isActingAsSelf() {
     return role == null || role.code().equals(personalCode);
+  }
+
+  @JsonIgnore
+  public Long getUserIdOrThrow() {
+    return requireNonNull(userId, "User id missing: personalCode=" + personalCode);
   }
 
   public @Nullable String getAttribute(String attribute) {

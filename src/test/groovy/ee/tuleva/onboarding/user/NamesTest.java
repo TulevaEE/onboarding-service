@@ -29,8 +29,7 @@ class NamesTest {
   }
 
   @Test
-  void keepsNullAndBlankAsTheyAre() {
-    assertThat(Names.formatted(null)).isNull();
+  void keepsBlankAsIs() {
     assertThat(Names.formatted("")).isEmpty();
   }
 }

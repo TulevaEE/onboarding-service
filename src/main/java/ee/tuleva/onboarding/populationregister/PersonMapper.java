@@ -85,7 +85,7 @@ class PersonMapper {
   // The register returns names in uppercase (JÕEORG); present them the same way the rest of the
   // app stores names (Jõeorg), matching ParentChildLinkRegistrationService.
   private static @Nullable String capitalizeName(@Nullable String name) {
-    return formatted(name);
+    return name == null ? null : formatted(name);
   }
 
   private static CustodyRight.Type toCustodyType(@Nullable Code type) {

@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.party;
 import static ee.tuleva.onboarding.event.TrackableEventType.MINOR_CUSTODY_VERIFICATION;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static java.util.Collections.unmodifiableMap;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.aml.AmlService;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
@@ -15,6 +16,7 @@ import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -93,7 +95,8 @@ public class ChildOnboardingService {
         custodyVerificationService.verify(parentPersonalCode, childPersonalCode, CUSTODY_MAX_AGE);
 
     applicationEventPublisher.publishEvent(
-        new TrackableEvent(parent, MINOR_CUSTODY_VERIFICATION, verification.evidence()));
+        new TrackableEvent(
+            parent, MINOR_CUSTODY_VERIFICATION, new HashMap<>(verification.evidence())));
     String guardianCitizenship =
         verification.isVerified()
             ? custodyVerificationService.fetchGuardianCitizenship(
@@ -113,7 +116,8 @@ public class ChildOnboardingService {
       return ChildOnboardingResult.underReview();
     }
 
-    PopulationRegisterPerson child = verification.child();
+    PopulationRegisterPerson child =
+        requireNonNull(verification.child(), "Verified custody without child data");
     parentChildLinkRegistrationService.register(
         parentPersonalCode, childPersonalCode, child.firstName(), child.lastName());
     savingsFundOnboardingService.seedPersonOnboardingIfAbsent(childPersonalCode);

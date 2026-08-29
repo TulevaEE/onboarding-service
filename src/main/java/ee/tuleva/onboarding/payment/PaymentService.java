@@ -72,7 +72,7 @@ public class PaymentService {
       return;
     }
 
-    userService.registerAsMember(user.getId());
+    userService.registerAsMember(user.getIdOrThrow());
   }
 
   Optional<SavingFundPayment> processSavingsPaymentToken(String serializedToken) {

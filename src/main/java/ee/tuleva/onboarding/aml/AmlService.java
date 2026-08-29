@@ -118,7 +118,7 @@ public class AmlService {
 
   private Set<Country> knownCountries(User user) {
     return Stream.concat(
-            kycCountryService.getCountries(user.getId()).orElseGet(Set::of).stream(),
+            kycCountryService.getCountries(user.getIdOrThrow()).orElseGet(Set::of).stream(),
             recordedCitizenships(user).stream())
         .collect(toUnmodifiableSet());
   }

@@ -3,7 +3,9 @@ package ee.tuleva.onboarding.user;
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
 import static jakarta.persistence.CascadeType.*;
 import static jakarta.persistence.GenerationType.*;
+import static java.util.Objects.requireNonNull;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.notification.email.Emailable;
 import ee.tuleva.onboarding.party.Party;
@@ -19,6 +21,7 @@ import java.io.Serializable;
 import java.time.Instant;
 import java.util.Optional;
 import lombok.*;
+import org.jspecify.annotations.Nullable;
 
 @Data
 @Builder
@@ -32,16 +35,16 @@ public class User implements Person, Emailable, Serializable, Party {
 
   @Id
   @GeneratedValue(strategy = IDENTITY)
-  private Long id;
+  private @Nullable Long id;
 
   @OneToOne(cascade = ALL, mappedBy = "user")
   Member member;
 
   @ValidPersonalCode private String personalCode;
 
-  @Email private String email;
+  @Email private @Nullable String email;
 
-  private String phoneNumber;
+  private @Nullable String phoneNumber;
 
   @NotBlank private String firstName;
 
@@ -104,5 +107,10 @@ public class User implements Person, Emailable, Serializable, Party {
   @Override
   public String name() {
     return getFullName();
+  }
+
+  @JsonIgnore
+  public Long getIdOrThrow() {
+    return requireNonNull(id, "User id missing: personalCode=" + personalCode);
   }
 }

@@ -35,7 +35,7 @@ public class UserController {
   @Operation(summary = "Get info about the current user")
   @GetMapping("/me")
   public UserResponse me(@AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-    Long userId = authenticatedPerson.getUserId();
+    Long userId = authenticatedPerson.getUserIdOrThrow();
     User user = userService.getById(userId).orElseThrow();
     ContactDetails contactDetails = episService.getContactDetails(authenticatedPerson);
     return UserResponse.from(

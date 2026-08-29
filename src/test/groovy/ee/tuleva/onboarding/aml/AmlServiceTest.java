@@ -1195,8 +1195,8 @@ class AmlServiceTest {
 
   @Test
   void runAmlChecksOnSavingsFundCustomers_screensEveryOnboardedPerson() {
-    User first = savingsFundCustomer("38888888881");
-    User second = savingsFundCustomer("38888888882");
+    User first = savingsFundCustomer("38888888881", 11L);
+    User second = savingsFundCustomer("38888888882", 12L);
     when(savingsFundOnboardingRepository.findPersonCodes())
         .thenReturn(List.of(first.getPersonalCode(), second.getPersonalCode()));
     when(userRepository.findAllByPersonalCodeIn(
@@ -1218,8 +1218,8 @@ class AmlServiceTest {
 
   @Test
   void runAmlChecksOnSavingsFundCustomers_sendsSingleAggregatedAlertOnScreeningFailures() {
-    User ok = savingsFundCustomer("38888888881");
-    User failing = savingsFundCustomer("38888888882");
+    User ok = savingsFundCustomer("38888888881", 11L);
+    User failing = savingsFundCustomer("38888888882", 12L);
     when(savingsFundOnboardingRepository.findPersonCodes())
         .thenReturn(List.of(ok.getPersonalCode(), failing.getPersonalCode()));
     when(userRepository.findAllByPersonalCodeIn(any())).thenReturn(List.of(ok, failing));
@@ -1242,7 +1242,7 @@ class AmlServiceTest {
 
   @Test
   void runAmlChecksOnSavingsFundCustomers_countsCheckPersistenceFailuresAndContinues() {
-    User failing = savingsFundCustomer("38888888881");
+    User failing = savingsFundCustomer("38888888881", 11L);
     when(savingsFundOnboardingRepository.findPersonCodes())
         .thenReturn(List.of(failing.getPersonalCode()));
     when(userRepository.findAllByPersonalCodeIn(any())).thenReturn(List.of(failing));
@@ -1265,7 +1265,7 @@ class AmlServiceTest {
 
   @Test
   void runAmlChecksOnSavingsFundCustomers_slackFailureDoesNotAbortBatch() {
-    User failing = savingsFundCustomer("38888888881");
+    User failing = savingsFundCustomer("38888888881", 11L);
     when(savingsFundOnboardingRepository.findPersonCodes())
         .thenReturn(List.of(failing.getPersonalCode()));
     when(userRepository.findAllByPersonalCodeIn(any())).thenReturn(List.of(failing));

@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.comparisons.fundvalue.retrieval
 
 import ee.tuleva.onboarding.epis.EpisService
 import ee.tuleva.onboarding.epis.fund.NavDto
-import ee.tuleva.onboarding.error.exception.ErrorsResponseException
+import ee.tuleva.onboarding.error.ErrorsResponseException
 import ee.tuleva.onboarding.error.response.ErrorsResponse
 import spock.lang.Specification
 

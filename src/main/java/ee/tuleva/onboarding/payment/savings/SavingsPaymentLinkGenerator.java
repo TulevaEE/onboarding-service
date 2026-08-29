@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.payment.savings;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.currency.Currency;
-import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
+import ee.tuleva.onboarding.error.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.payment.PaymentData;

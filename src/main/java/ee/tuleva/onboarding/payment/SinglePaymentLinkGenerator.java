@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.payment;
 
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
+import ee.tuleva.onboarding.error.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioPaymentLinkGenerator;
 import ee.tuleva.onboarding.payment.recurring.CoopPankPaymentLinkGenerator;

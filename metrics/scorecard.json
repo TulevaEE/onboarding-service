@@ -3,19 +3,19 @@
   "lineCoverage": 82.57,
   "meanInstability": 0.464,
   "moduleCycles": 35,
-  "modulithViolations": 293,
+  "modulithViolations": 250,
   "mutationScore": 84.43,
   "mutationsTotal": 12781,
-  "pmdViolations": 165,
+  "pmdViolations": 164,
   "pmdViolationsByRule": {
     "CognitiveComplexity": 20,
-    "CouplingBetweenObjects": 41,
+    "CouplingBetweenObjects": 40,
     "CyclomaticComplexity": 81,
     "GodClass": 16,
     "TooManyMethods": 7
   },
   "springBootTests": 89,
   "top15ClassLines": 8147,
-  "totalPackages": 225,
-  "unmarkedPackages": 147
+  "totalPackages": 224,
+  "unmarkedPackages": 145
 }

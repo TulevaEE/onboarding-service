@@ -1,9 +1,7 @@
 package ee.tuleva.onboarding.payment.email
 
-import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory
-import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil
+import ee.tuleva.onboarding.auth.SecurityContextRunner
 import ee.tuleva.onboarding.auth.principal.MinorCannotSelfAuthenticateException
-import ee.tuleva.onboarding.auth.principal.PrincipalService
 import ee.tuleva.onboarding.conversion.UserConversionService
 import ee.tuleva.onboarding.epis.ContactDetails
 import ee.tuleva.onboarding.epis.ContactDetailsService
@@ -35,9 +33,9 @@ class PaymentEmailSenderSpec extends Specification {
 
   PaymentEmailService paymentEmailService = Mock()
   UserConversionService conversionService = Mock()
-  PrincipalService principalService = Mock()
-  GrantedAuthorityFactory grantedAuthorityFactory = Mock()
-  JwtTokenUtil jwtTokenUtil = Mock()
+  SecurityContextRunner securityContextRunner = Mock() {
+    runAs(_, _) >> { args -> (args[1] as Runnable).run() }
+  }
   ContactDetailsService contactDetailsService = Mock()
   SecondPillarPaymentRateService paymentRateService = Mock()
   SavingsFundSuccessEmailResolver savingsFundSuccessEmailResolver = Mock()
@@ -55,8 +53,7 @@ class PaymentEmailSenderSpec extends Specification {
     hasRecurringSavingsFundPayments(_) >> true
   }
 
-  def paymentEmailSender = new PaymentEmailSender(paymentEmailService, conversionService, principalService,
-      grantedAuthorityFactory, jwtTokenUtil, contactDetailsService, paymentRateService, secondPillarLeavers, savingsFundSavers, recurringSavers, thirdPillarTaxHeadroom, savingsFundSuccessEmailResolver)
+  def paymentEmailSender = new PaymentEmailSender(paymentEmailService, conversionService, securityContextRunner, contactDetailsService, paymentRateService, secondPillarLeavers, savingsFundSavers, recurringSavers, thirdPillarTaxHeadroom, savingsFundSuccessEmailResolver)
 
   def "send emails on payment creation"() {
     given:
@@ -179,7 +176,7 @@ class PaymentEmailSenderSpec extends Specification {
     0 * contactDetailsService._
     0 * conversionService._
     0 * paymentRateService._
-    0 * principalService._
+    0 * securityContextRunner._
   }
 
   def "send email on savings payment failure for a minor who cannot self authenticate"() {
@@ -189,7 +186,7 @@ class PaymentEmailSenderSpec extends Specification {
 
     def savingsPaymentFailedEvent = new SavingsPaymentFailedEvent(this, minor, locale)
 
-    principalService.getFrom(_, _) >> { throw new MinorCannotSelfAuthenticateException(minor.personalCode) }
+    securityContextRunner.runAs(_, _) >> { throw new MinorCannotSelfAuthenticateException(minor.personalCode) }
 
     when:
     paymentEmailSender.onSavingsPaymentFailed(savingsPaymentFailedEvent)

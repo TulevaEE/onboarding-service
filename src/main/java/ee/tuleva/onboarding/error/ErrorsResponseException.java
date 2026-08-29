@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.error.exception;
+package ee.tuleva.onboarding.error;
 
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import lombok.Getter;

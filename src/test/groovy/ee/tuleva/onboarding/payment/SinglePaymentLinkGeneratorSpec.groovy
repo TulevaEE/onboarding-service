@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.payment
 
-import ee.tuleva.onboarding.error.exception.ErrorsResponseException
+import ee.tuleva.onboarding.error.ErrorsResponseException
 import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioPaymentLinkGenerator
 import ee.tuleva.onboarding.payment.recurring.CoopPankPaymentLinkGenerator

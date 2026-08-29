@@ -6,9 +6,7 @@ import static org.springframework.transaction.event.TransactionPhase.AFTER_COMMI
 
 import ee.tuleva.onboarding.analytics.RecurringSavers;
 import ee.tuleva.onboarding.analytics.SecondPillarLeavers;
-import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
-import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
-import ee.tuleva.onboarding.auth.principal.PrincipalService;
+import ee.tuleva.onboarding.auth.SecurityContextRunner;
 import ee.tuleva.onboarding.contribution.ThirdPillarTaxHeadroom;
 import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.epis.ContactDetailsService;
@@ -21,12 +19,9 @@ import ee.tuleva.onboarding.payment.event.SavingsPaymentFailedEvent;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
 import ee.tuleva.onboarding.savings.SavingsFundSavers;
 import ee.tuleva.onboarding.user.User;
-import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -37,9 +32,7 @@ public class PaymentEmailSender {
 
   private final PaymentEmailService emailService;
   private final UserConversionService conversionService;
-  private final PrincipalService principalService;
-  private final GrantedAuthorityFactory grantedAuthorityFactory;
-  private final JwtTokenUtil jwtTokenUtil;
+  private final SecurityContextRunner securityContextRunner;
   private final ContactDetailsService contactDetailsService;
   private final SecondPillarPaymentRateService paymentRateService;
   private final SecondPillarLeavers secondPillarLeavers;
@@ -54,7 +47,7 @@ public class PaymentEmailSender {
     if (event.getPaymentType() == MEMBER_FEE) {
       return;
     }
-    withSecurityContext(
+    securityContextRunner.runAs(
         event.getUser(),
         () ->
             emailService.sendThirdPillarPaymentSuccessEmail(
@@ -86,7 +79,7 @@ public class PaymentEmailSender {
 
   private void sendSavingsFundEmail(
       PaymentEvent event, SavingsFundPaymentEmail email, boolean suggestAccountRecurringPayment) {
-    withSecurityContext(
+    securityContextRunner.runAs(
         event.getUser(),
         () ->
             emailService.sendSavingsFundPaymentEmail(
@@ -117,25 +110,5 @@ public class PaymentEmailSender {
         false,
         recurringSavers.recurringPaymentsOf(user.getPersonalCode()),
         thirdPillarTaxHeadroom.hasHeadroom(user));
-  }
-
-  private void withSecurityContext(User user, Runnable action) {
-    try {
-      setupSecurityContext(user);
-      action.run();
-    } finally {
-      SecurityContextHolder.clearContext();
-    }
-  }
-
-  private void setupSecurityContext(User user) {
-    final var principal = principalService.getFrom(user, Map.of());
-    final var authorities = grantedAuthorityFactory.from(principal);
-    final var accessToken = jwtTokenUtil.generateAccessToken(principal, authorities);
-
-    final var authenticationToken =
-        new UsernamePasswordAuthenticationToken(principal, accessToken, authorities);
-
-    SecurityContextHolder.getContext().setAuthentication(authenticationToken);
   }
 }

@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.error;
 import static ee.tuleva.onboarding.error.SentryErrorCodeFingerprint.ERROR_CODE;
 import static org.springframework.http.HttpStatus.*;
 
-import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorResponse;
 import ee.tuleva.onboarding.error.response.ErrorResponseEntityFactory;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;

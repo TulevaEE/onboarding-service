@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.payment.savings.recurring;
 import static ee.tuleva.onboarding.payment.PaymentDateProvider.format;
 
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
+import ee.tuleva.onboarding.error.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.payment.CoopLanguage;

@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.fund.NavDto;
-import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
+import ee.tuleva.onboarding.error.ErrorsResponseException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;

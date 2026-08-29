@@ -6,7 +6,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.ContactDetails;
 import ee.tuleva.onboarding.epis.ContactDetailsService;
-import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
+import ee.tuleva.onboarding.error.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.payment.PaymentData;
 import ee.tuleva.onboarding.payment.PaymentData.PaymentChannel;

@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.epis
 
 import ee.tuleva.onboarding.epis.EpisService
 import ee.tuleva.onboarding.epis.ContactDetailsUpdatedEvent
-import ee.tuleva.onboarding.error.exception.ErrorsResponseException
+import ee.tuleva.onboarding.error.ErrorsResponseException
 import ee.tuleva.onboarding.error.response.ErrorsResponse
 import org.springframework.context.ApplicationEventPublisher
 import spock.lang.Specification

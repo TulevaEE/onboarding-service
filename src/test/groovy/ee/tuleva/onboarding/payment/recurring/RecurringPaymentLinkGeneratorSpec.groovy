@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.payment.recurring
 
 
-import ee.tuleva.onboarding.error.exception.ErrorsResponseException
+import ee.tuleva.onboarding.error.ErrorsResponseException
 import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.payment.PaymentData
 import ee.tuleva.onboarding.payment.PaymentDateProvider

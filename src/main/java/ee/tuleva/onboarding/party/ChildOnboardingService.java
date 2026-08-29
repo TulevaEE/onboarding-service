@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.party;
 
 import static ee.tuleva.onboarding.event.TrackableEventType.MINOR_CUSTODY_VERIFICATION;
-import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static java.util.Collections.unmodifiableMap;
 import static java.util.Objects.requireNonNull;
 
@@ -11,7 +10,6 @@ import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterPerson;
-import ee.tuleva.onboarding.savings.SavingsFundOnboardingService;
 import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import java.time.Clock;
 import java.time.Duration;
@@ -36,7 +34,7 @@ public class ChildOnboardingService {
 
   private final CustodyVerificationService custodyVerificationService;
   private final ParentChildLinkRegistrationService parentChildLinkRegistrationService;
-  private final SavingsFundOnboardingService savingsFundOnboardingService;
+  private final ChildSavingsOnboarding childSavingsOnboarding;
   private final AmlService amlService;
   private final ApplicationEventPublisher applicationEventPublisher;
   private final Clock clock;
@@ -84,8 +82,7 @@ public class ChildOnboardingService {
   }
 
   private boolean hasBeenOnboarded(String childPersonalCode) {
-    return savingsFundOnboardingService.isOnboardingCompleted(
-        new PartyId(PERSON, childPersonalCode));
+    return childSavingsOnboarding.isCompleted(childPersonalCode);
   }
 
   @Transactional
@@ -120,7 +117,7 @@ public class ChildOnboardingService {
         requireNonNull(verification.child(), "Verified custody without child data");
     parentChildLinkRegistrationService.register(
         parentPersonalCode, childPersonalCode, child.firstName(), child.lastName());
-    savingsFundOnboardingService.seedPersonOnboardingIfAbsent(childPersonalCode);
+    childSavingsOnboarding.seedIfAbsent(childPersonalCode);
     screenForSanctionsAndPep(child);
     screenGuardian(parent, guardianCitizenship);
 

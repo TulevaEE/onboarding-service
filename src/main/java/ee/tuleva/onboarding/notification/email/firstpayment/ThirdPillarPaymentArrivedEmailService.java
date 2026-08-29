@@ -4,7 +4,6 @@ import static ee.tuleva.onboarding.notification.email.EmailType.THIRD_PILLAR_PAY
 
 import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
-import ee.tuleva.onboarding.savings.SavingsFundFees;
 import ee.tuleva.onboarding.user.Names;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -26,7 +25,7 @@ public class ThirdPillarPaymentArrivedEmailService {
   private final ThirdPillarPaymentArrivedClaims claims;
   private final EmailService emailService;
   private final EmailPersistenceService emailPersistenceService;
-  private final SavingsFundFees savingsFundFees;
+  private final SavingsFundFeeRates savingsFundFees;
 
   public boolean send(FirstThirdPillarPayment payment) {
     if (!claims.claim(payment.personalCode())) {

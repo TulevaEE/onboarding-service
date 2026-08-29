@@ -5,8 +5,8 @@ import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import ee.tuleva.onboarding.admin.AdminTokenValidator;
 import ee.tuleva.onboarding.party.ChildAmlBackfillResult;
 import ee.tuleva.onboarding.party.ChildAmlBackfillService;
+import ee.tuleva.onboarding.party.ChildSavingsOnboarding;
 import ee.tuleva.onboarding.party.ParentChildLinkRegistrationService;
-import ee.tuleva.onboarding.savings.SavingsFundOnboardingService;
 import jakarta.validation.Valid;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -30,7 +30,7 @@ public class PartyAdminController {
   private final AdminTokenValidator tokenValidator;
   private final ParentChildLinkRegistrationService parentChildLinkRegistrationService;
   private final ChildAmlBackfillService childAmlBackfillService;
-  private final SavingsFundOnboardingService savingsFundOnboardingService;
+  private final ChildSavingsOnboarding childSavingsOnboarding;
   private final Clock clock;
 
   @PostMapping("/parent-child-link")
@@ -44,7 +44,7 @@ public class PartyAdminController {
         request.childCode(),
         request.childFirstName(),
         request.childLastName());
-    savingsFundOnboardingService.seedPersonOnboardingIfAbsent(request.childCode());
+    childSavingsOnboarding.seedIfAbsent(request.childCode());
 
     return "Created parent-child link: parentCode="
         + request.parentCode()
@@ -69,7 +69,7 @@ public class PartyAdminController {
         request.wardFirstName(),
         request.wardLastName(),
         request.validUntil());
-    savingsFundOnboardingService.seedPersonOnboardingIfAbsent(request.wardCode());
+    childSavingsOnboarding.seedIfAbsent(request.wardCode());
 
     return "Created guardian link: guardianCode="
         + request.guardianCode()

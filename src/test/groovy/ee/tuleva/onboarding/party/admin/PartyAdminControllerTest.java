@@ -18,8 +18,8 @@ import ee.tuleva.onboarding.admin.AdminTokenValidator;
 import ee.tuleva.onboarding.party.ChildAmlBackfillResult;
 import ee.tuleva.onboarding.party.ChildAmlBackfillService;
 import ee.tuleva.onboarding.party.ChildIsNotAMinorException;
+import ee.tuleva.onboarding.party.ChildSavingsOnboarding;
 import ee.tuleva.onboarding.party.ParentChildLinkRegistrationService;
-import ee.tuleva.onboarding.savings.SavingsFundOnboardingService;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -64,7 +64,7 @@ class PartyAdminControllerTest {
 
   @MockitoBean private ParentChildLinkRegistrationService parentChildLinkRegistrationService;
   @MockitoBean private ChildAmlBackfillService childAmlBackfillService;
-  @MockitoBean private SavingsFundOnboardingService savingsFundOnboardingService;
+  @MockitoBean private ChildSavingsOnboarding childSavingsOnboarding;
   @MockitoBean private Clock clock;
 
   @Test
@@ -154,7 +154,7 @@ class PartyAdminControllerTest {
 
     verify(parentChildLinkRegistrationService)
         .register("38812121215", "61506150006", "Mari", "Maasikas");
-    verify(savingsFundOnboardingService).seedPersonOnboardingIfAbsent("61506150006");
+    verify(childSavingsOnboarding).seedIfAbsent("61506150006");
   }
 
   @Test
@@ -170,7 +170,7 @@ class PartyAdminControllerTest {
 
     verify(parentChildLinkRegistrationService)
         .register("38812121215", "61506150006", "Mari", "Maasikas");
-    verify(savingsFundOnboardingService).seedPersonOnboardingIfAbsent("61506150006");
+    verify(childSavingsOnboarding).seedIfAbsent("61506150006");
   }
 
   private void givenCurrentDate(LocalDate date) {
@@ -195,7 +195,7 @@ class PartyAdminControllerTest {
     verify(parentChildLinkRegistrationService)
         .registerGuardian(
             "38812121215", "48806046007", "Ants", "Haldja", LocalDate.of(2099, 12, 31));
-    verify(savingsFundOnboardingService).seedPersonOnboardingIfAbsent("48806046007");
+    verify(childSavingsOnboarding).seedIfAbsent("48806046007");
     verify(parentChildLinkRegistrationService, never()).register(any(), any(), any(), any());
   }
 
@@ -286,7 +286,7 @@ class PartyAdminControllerTest {
         .andExpect(status().isUnauthorized());
 
     verify(parentChildLinkRegistrationService, never()).register(any(), any(), any(), any());
-    verify(savingsFundOnboardingService, never()).seedPersonOnboardingIfAbsent(any());
+    verify(childSavingsOnboarding, never()).seedIfAbsent(any());
   }
 
   @Test
@@ -304,7 +304,7 @@ class PartyAdminControllerTest {
                 .content(VALID_LINK_BODY))
         .andExpect(status().isBadRequest());
 
-    verify(savingsFundOnboardingService, never()).seedPersonOnboardingIfAbsent(any());
+    verify(childSavingsOnboarding, never()).seedIfAbsent(any());
   }
 
   @Test

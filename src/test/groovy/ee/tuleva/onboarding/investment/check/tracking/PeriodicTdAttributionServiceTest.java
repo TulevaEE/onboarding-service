@@ -89,8 +89,7 @@ class PeriodicTdAttributionServiceTest {
             feeAccrualRepository,
             feeRateRepository,
             feeChargedToFundPolicy,
-            fundPositionRepository,
-            fundNavQueryService,
+            new TdAttributionInputAssembler(fundPositionRepository, fundNavQueryService),
             modelPortfolioAllocationRepository,
             attributionRepository,
             transactionExecutionRepository,
@@ -522,15 +521,15 @@ class PeriodicTdAttributionServiceTest {
 
   @Test
   void toBigDecimalHandlesVariousTypes() {
-    assertThat(PeriodicTdAttributionService.toBigDecimal(new BigDecimal("1.23")))
+    assertThat(TdAttributionInputAssembler.toBigDecimal(new BigDecimal("1.23")))
         .isEqualByComparingTo(new BigDecimal("1.23"));
-    assertThat(PeriodicTdAttributionService.toBigDecimal(42))
+    assertThat(TdAttributionInputAssembler.toBigDecimal(42))
         .isEqualByComparingTo(new BigDecimal("42"));
-    assertThat(PeriodicTdAttributionService.toBigDecimal(1.5))
+    assertThat(TdAttributionInputAssembler.toBigDecimal(1.5))
         .isEqualByComparingTo(new BigDecimal("1.5"));
-    assertThat(PeriodicTdAttributionService.toBigDecimal("0.00123"))
+    assertThat(TdAttributionInputAssembler.toBigDecimal("0.00123"))
         .isEqualByComparingTo(new BigDecimal("0.00123"));
-    assertThat(PeriodicTdAttributionService.toBigDecimal(null)).isEqualByComparingTo(ZERO);
+    assertThat(TdAttributionInputAssembler.toBigDecimal(null)).isEqualByComparingTo(ZERO);
   }
 
   @Test
@@ -1181,7 +1180,7 @@ class PeriodicTdAttributionServiceTest {
 
     // Mon, Tue, Wed — unbroken chain.
     assertThat(
-            PeriodicTdAttributionService.countSeriesGaps(
+            TdAttributionInputAssembler.countSeriesGaps(
                 List.of(
                     LocalDate.of(2026, 6, 15),
                     LocalDate.of(2026, 6, 16),
@@ -1191,13 +1190,13 @@ class PeriodicTdAttributionServiceTest {
 
     // Fri -> Mon spans a weekend, which is not a gap.
     assertThat(
-            PeriodicTdAttributionService.countSeriesGaps(
+            TdAttributionInputAssembler.countSeriesGaps(
                 List.of(LocalDate.of(2026, 6, 12), LocalDate.of(2026, 6, 15)), holidays))
         .isZero();
 
     // Mon -> Wed skips Tue (a working day) — one gap that breaks geometric telescoping.
     assertThat(
-            PeriodicTdAttributionService.countSeriesGaps(
+            TdAttributionInputAssembler.countSeriesGaps(
                 List.of(LocalDate.of(2026, 6, 15), LocalDate.of(2026, 6, 17)), holidays))
         .isEqualTo(1);
   }

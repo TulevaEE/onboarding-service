@@ -1,12 +1,10 @@
 package ee.tuleva.onboarding.kyb;
 
-import static ee.tuleva.onboarding.aml.AmlCheckType.KYC_CHECK;
 import static ee.tuleva.onboarding.kyb.KybKycStatus.*;
 import static ee.tuleva.onboarding.kyb.KybRelationshipRoles.*;
-import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 import static java.util.stream.Collectors.toSet;
 
-import ee.tuleva.onboarding.aml.AmlCheckRepository;
+import ee.tuleva.onboarding.aml.KycChecks;
 import ee.tuleva.onboarding.ariregister.AddressDetails;
 import ee.tuleva.onboarding.ariregister.BeneficialOwner;
 import ee.tuleva.onboarding.ariregister.BeneficialOwners;
@@ -29,7 +27,7 @@ class KybCompanyDataMapper {
 
   private static final String NATURAL_PERSON_TYPE = "F"; // füüsiline isik (natural person)
 
-  private final AmlCheckRepository amlCheckRepository;
+  private final KycChecks kycChecks;
 
   KybCompanyData toKybCompanyData(
       CompanyDetail detail,
@@ -158,10 +156,9 @@ class KybCompanyDataMapper {
   }
 
   private KybKycStatus resolveKycStatus(String personalCode) {
-    return amlCheckRepository
-        .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDescIdDesc(
-            personalCode, KYC_CHECK, aYearAgo())
-        .map(check -> check.isSuccess() ? COMPLETED : REJECTED)
+    return kycChecks
+        .latestKycCheckPassedWithinLastYear(personalCode)
+        .map(passed -> passed ? COMPLETED : REJECTED)
         .orElse(UNKNOWN);
   }
 }

@@ -35,6 +35,9 @@ import org.springframework.context.annotation.Import;
   LedgerAccountService.class,
   LedgerPartyService.class,
   LedgerTransactionService.class,
+  SavingsFundLedgerAccounts.class,
+  RedemptionLedgerRecorder.class,
+  UnattributedPaymentLedgerRecorder.class,
   SavingsFundLedger.class,
   ClockConfig.class
 })
@@ -151,13 +154,46 @@ class SavingsFundLedgerTest {
     var amount = new BigDecimal("1000.00");
     var externalReference = randomUUID();
     var bookingDate = LocalDate.of(2026, 6, 12);
-    savingsFundLedger.recordUnattributedPayment(amount, externalReference, bookingDate);
+    var parkedTransaction =
+        savingsFundLedger.recordUnattributedPayment(amount, externalReference, bookingDate);
 
     var transaction =
         savingsFundLedger.reconcileUnattributedPayment(
             testParty, amount, externalReference, bookingDate);
 
+    assertThat(parkedTransaction.getMetadata().get("operationType"))
+        .isEqualTo("UNATTRIBUTED_PAYMENT");
+    assertThat(
+            parkedTransaction
+                .getTransactionDate()
+                .atZone(ZoneId.of("Europe/Tallinn"))
+                .toLocalDate())
+        .isEqualTo(bookingDate);
     assertThat(transaction.getTransactionDate().atZone(ZoneId.of("Europe/Tallinn")).toLocalDate())
+        .isEqualTo(bookingDate);
+  }
+
+  @Test
+  void redemptionPayoutFlow_withBookingDate_usesBookingDate() {
+    var cashAmount = new BigDecimal("500.00");
+    var fundUnits = new BigDecimal("50.00000");
+    var navPerUnit = new BigDecimal("10.00");
+    var redemptionRequestId = randomUUID();
+    var bookingDate = LocalDate.of(2026, 6, 12);
+    savingsFundLedger.recordPaymentReceived(testParty, cashAmount, randomUUID());
+    savingsFundLedger.reserveFundUnitsForRedemption(testParty, fundUnits, redemptionRequestId);
+    savingsFundLedger.redeemFundUnitsFromReserved(
+        testParty, fundUnits, cashAmount, navPerUnit, redemptionRequestId);
+
+    var transfer =
+        savingsFundLedger.transferFromFundAccount(cashAmount, redemptionRequestId, bookingDate);
+    var payout =
+        savingsFundLedger.recordRedemptionPayout(
+            testParty, cashAmount, "EE471000001020145685", redemptionRequestId, bookingDate);
+
+    assertThat(transfer.getTransactionDate().atZone(ZoneId.of("Europe/Tallinn")).toLocalDate())
+        .isEqualTo(bookingDate);
+    assertThat(payout.getTransactionDate().atZone(ZoneId.of("Europe/Tallinn")).toLocalDate())
         .isEqualTo(bookingDate);
   }
 

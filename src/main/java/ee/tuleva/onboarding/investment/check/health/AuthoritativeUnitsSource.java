@@ -2,8 +2,7 @@ package ee.tuleva.onboarding.investment.check.health;
 
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_UNITS_OUTSTANDING;
 
-import ee.tuleva.onboarding.analytics.transaction.fundbalance.FundBalance;
-import ee.tuleva.onboarding.analytics.transaction.fundbalance.FundBalanceRepository;
+import ee.tuleva.onboarding.analytics.FundUnitCounts;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import java.math.BigDecimal;
@@ -20,7 +19,7 @@ class AuthoritativeUnitsSource {
 
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
 
-  private final FundBalanceRepository fundBalanceRepository;
+  private final FundUnitCounts fundUnitCounts;
   private final NavLedgerRepository navLedgerRepository;
 
   Optional<BigDecimal> resolve(TulevaFund fund, LocalDate navDate) {
@@ -28,13 +27,7 @@ class AuthoritativeUnitsSource {
       return Optional.of(
           navLedgerRepository.getSystemAccountBalanceBefore(accountNameFor(fund), endOf(navDate)));
     }
-    return fundBalanceRepository
-        .findFirstByIsinAndRequestDateLessThanEqualOrderByRequestDateDesc(fund.getIsin(), navDate)
-        .map(AuthoritativeUnitsSource::totalUnits);
-  }
-
-  private static BigDecimal totalUnits(FundBalance balance) {
-    return balance.getCountUnits().add(balance.getCountUnitsFm());
+    return fundUnitCounts.totalUnitsAsOf(fund.getIsin(), navDate);
   }
 
   private static String accountNameFor(TulevaFund fund) {

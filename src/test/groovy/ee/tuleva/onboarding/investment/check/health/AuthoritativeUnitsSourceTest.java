@@ -6,8 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 
-import ee.tuleva.onboarding.analytics.transaction.fundbalance.FundBalance;
-import ee.tuleva.onboarding.analytics.transaction.fundbalance.FundBalanceRepository;
+import ee.tuleva.onboarding.analytics.FundUnitCounts;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -27,7 +26,7 @@ class AuthoritativeUnitsSourceTest {
   private static final Instant END_OF_NAV_DATE =
       NAV_DATE.plusDays(1).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
 
-  @Mock FundBalanceRepository fundBalanceRepository;
+  @Mock FundUnitCounts fundUnitCounts;
   @Mock NavLedgerRepository navLedgerRepository;
 
   @InjectMocks AuthoritativeUnitsSource source;
@@ -45,17 +44,9 @@ class AuthoritativeUnitsSourceTest {
   }
 
   @Test
-  void sumsCountUnitsAndCountUnitsFmFromLatestFundBalanceAsOfNavDate() {
-    var fundBalance =
-        FundBalance.builder()
-            .isin("EE3600109435")
-            .countUnits(new BigDecimal("9000000"))
-            .countUnitsFm(new BigDecimal("123.45"))
-            .build();
-    given(
-            fundBalanceRepository.findFirstByIsinAndRequestDateLessThanEqualOrderByRequestDateDesc(
-                "EE3600109435", NAV_DATE))
-        .willReturn(Optional.of(fundBalance));
+  void resolvesFundUnitCountsForPillarTwoFund() {
+    given(fundUnitCounts.totalUnitsAsOf("EE3600109435", NAV_DATE))
+        .willReturn(Optional.of(new BigDecimal("9000123.45")));
 
     var result = source.resolve(TUK75, NAV_DATE);
 
@@ -63,11 +54,8 @@ class AuthoritativeUnitsSourceTest {
   }
 
   @Test
-  void emptyWhenNoFundBalanceForPillarTwoFundOnOrBeforeNavDate() {
-    given(
-            fundBalanceRepository.findFirstByIsinAndRequestDateLessThanEqualOrderByRequestDateDesc(
-                "EE3600109435", NAV_DATE))
-        .willReturn(Optional.empty());
+  void emptyWhenNoFundUnitCountsForPillarTwoFundOnOrBeforeNavDate() {
+    given(fundUnitCounts.totalUnitsAsOf("EE3600109435", NAV_DATE)).willReturn(Optional.empty());
 
     var result = source.resolve(TUK75, NAV_DATE);
 

@@ -142,6 +142,11 @@ def main():
     SCORECARD.parent.mkdir(exist_ok=True)
     previous = previous_scorecard()
 
+    if previous and "mutationScore" not in current:
+        for key in ("mutationScore", "mutationsTotal"):
+            if key in previous:
+                current[key] = previous[key]
+
     if previous and "--init" not in sys.argv:
         for key in sorted(set(previous) | set(current)):
             before, after = previous.get(key), current.get(key)

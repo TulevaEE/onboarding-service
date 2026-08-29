@@ -1,21 +1,21 @@
 {
-  "branchCoverage": 85.22,
+  "branchCoverage": 85.24,
   "lineCoverage": 82.62,
   "meanInstability": 0.469,
   "moduleCycles": 18,
   "modulithViolations": 109,
   "mutationScore": 84.43,
   "mutationsTotal": 12781,
-  "pmdViolations": 163,
+  "pmdViolations": 162,
   "pmdViolationsByRule": {
     "CognitiveComplexity": 20,
     "CouplingBetweenObjects": 39,
     "CyclomaticComplexity": 81,
     "GodClass": 16,
-    "TooManyMethods": 7
+    "TooManyMethods": 6
   },
   "springBootTests": 89,
-  "top15ClassLines": 8118,
+  "top15ClassLines": 7850,
   "totalPackages": 225,
   "unmarkedPackages": 0
 }

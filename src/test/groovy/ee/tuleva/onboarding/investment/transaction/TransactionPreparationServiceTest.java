@@ -244,7 +244,7 @@ class TransactionPreparationServiceTest {
 
     service.processCommand(command);
 
-    var expectedInput = TransactionPreparationService.serializeInput(input, manualAdjustments);
+    var expectedInput = TransactionInputPayloads.serializeInput(input, manualAdjustments);
     verify(auditEventRepository)
         .save(
             argThat(
@@ -660,7 +660,7 @@ class TransactionPreparationServiceTest {
 
     var manualAdjustments = Map.<String, Object>of("IE00A", "10000");
 
-    var result = TransactionPreparationService.serializeInput(input, manualAdjustments);
+    var result = TransactionInputPayloads.serializeInput(input, manualAdjustments);
 
     assertThat(result).containsEntry("grossPortfolioValue", "1000000");
     assertThat(result).containsEntry("freeCash", "100000");
@@ -714,7 +714,7 @@ class TransactionPreparationServiceTest {
             .fastSellIsins(Set.of())
             .build();
 
-    var result = TransactionPreparationService.serializeInput(input, Map.of());
+    var result = TransactionInputPayloads.serializeInput(input, Map.of());
 
     var positions = (List<Map<String, Object>>) result.get("positions");
     assertThat(positions)
@@ -747,7 +747,7 @@ class TransactionPreparationServiceTest {
             .fastSellIsins(Set.of())
             .build();
 
-    var result = TransactionPreparationService.serializeInput(input, Map.of());
+    var result = TransactionInputPayloads.serializeInput(input, Map.of());
 
     var positions = (List<Map<String, Object>>) result.get("positions");
     assertThat(positions)
@@ -788,7 +788,7 @@ class TransactionPreparationServiceTest {
             .ledgerCash(new BigDecimal("95000"))
             .build();
 
-    var result = TransactionPreparationService.serializeInput(input, Map.of());
+    var result = TransactionInputPayloads.serializeInput(input, Map.of());
 
     var breakdown = (Map<String, Object>) result.get("liabilityBreakdown");
     assertThat(breakdown)
@@ -815,7 +815,7 @@ class TransactionPreparationServiceTest {
             new TradeCalculation(
                 "IE00A", new BigDecimal("100000"), new BigDecimal("0.60"), LimitStatus.OK));
 
-    var result = TransactionPreparationService.serializeTrades(trades, Map.of(), Map.of());
+    var result = TransactionAuditPayloads.serializeTrades(trades, Map.of(), Map.of());
 
     assertThat(result)
         .singleElement()
@@ -847,7 +847,7 @@ class TransactionPreparationServiceTest {
             .build();
 
     var result =
-        TransactionPreparationService.serializeTrades(trades, Map.of("IE00ETF", order), Map.of());
+        TransactionAuditPayloads.serializeTrades(trades, Map.of("IE00ETF", order), Map.of());
 
     assertThat(result.get(0))
         .containsEntry("isin", "IE00ETF")
@@ -873,7 +873,7 @@ class TransactionPreparationServiceTest {
     resolutions.put("IE00ETF", resolved);
     resolutions.put("LU00NOPRICE", null);
 
-    var result = TransactionPreparationService.serializePriceResolutions(resolutions);
+    var result = TransactionAuditPayloads.serializePriceResolutions(resolutions);
 
     assertThat(result.get(0))
         .containsEntry("isin", "IE00ETF")
@@ -1989,7 +1989,7 @@ class TransactionPreparationServiceTest {
             .build();
 
     var result =
-        TransactionPreparationService.serializeTrades(
+        TransactionAuditPayloads.serializeTrades(
             trades, Map.of(), Map.of("IE00ETF", resolvedPrice));
 
     assertThat(result)
@@ -2028,7 +2028,7 @@ class TransactionPreparationServiceTest {
         new FundCalculationResult(
             TUV100, REBALANCE, input, trades, new BigDecimal("1000000"), null, List.of());
 
-    var drift = TransactionPreparationService.serializeModelDrift(input, result);
+    var drift = TransactionAuditPayloads.serializeModelDrift(input, result);
 
     assertThat(drift)
         .containsEntry("totalAbsoluteDriftBefore", "0.200000")
@@ -2076,7 +2076,7 @@ class TransactionPreparationServiceTest {
         new FundCalculationResult(
             TUV100, REBALANCE, input, List.of(), new BigDecimal("500000"), null, List.of());
 
-    var drift = TransactionPreparationService.serializeModelDrift(input, result);
+    var drift = TransactionAuditPayloads.serializeModelDrift(input, result);
 
     assertThat((List<Map<String, Object>>) drift.get("positions"))
         .satisfiesExactly(
@@ -2097,7 +2097,7 @@ class TransactionPreparationServiceTest {
             new CalculationWarning(
                 CalculationWarningType.REBALANCE_NET_CASH_MISMATCH, "inputs do not reconcile"));
 
-    var result = TransactionPreparationService.serializeCalculationWarnings(warnings);
+    var result = TransactionAuditPayloads.serializeCalculationWarnings(warnings);
 
     assertThat(result)
         .singleElement()

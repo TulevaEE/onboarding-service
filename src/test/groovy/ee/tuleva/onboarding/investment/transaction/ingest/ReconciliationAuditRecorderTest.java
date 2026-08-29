@@ -59,6 +59,30 @@ class ReconciliationAuditRecorderTest {
   }
 
   @Test
+  void recordExecutionMatched_savesEventWithFullRowPayload() {
+    newRecorder().recordExecutionMatched(sampleOrder(), sampleRow(), REPORT_DATE);
+
+    verify(auditEventRepository)
+        .save(
+            argThat(
+                (TransactionAuditEvent event) ->
+                    new BigDecimal("15007").equals(event.getPayload().get("quantity"))
+                        && new BigDecimal("4.7255").equals(event.getPayload().get("price"))
+                        && new BigDecimal("70915.58")
+                            .equals(event.getPayload().get("settlementAmount"))
+                        && new BigDecimal("0.00").equals(event.getPayload().get("brokerFee"))
+                        && new BigDecimal("70915.58").equals(event.getPayload().get("total"))
+                        && "BUY".equals(event.getPayload().get("side"))
+                        && "2026-05-11T10:26:04Z".equals(event.getPayload().get("tradeDate"))
+                        && "2026-05-13".equals(event.getPayload().get("settlementDate"))
+                        && "Tuleva Täiendav Kogumisfond"
+                            .equals(event.getPayload().get("clientName"))
+                        && "VP68168".equals(event.getPayload().get("account"))
+                        && "ICAV Amundi MSCI USA Screened UCITS ETF"
+                            .equals(event.getPayload().get("instrumentName"))));
+  }
+
+  @Test
   void recordUnmatched_savesEventWithoutBatchAndOrder() {
     newRecorder().recordUnmatched(sampleRow(), REPORT_DATE);
 
@@ -160,6 +184,7 @@ class ReconciliationAuditRecorderTest {
                         && "ETF_QUANTITY".equals(event.getPayload().get("kind"))
                         && new BigDecimal("15007").equals(event.getPayload().get("expected"))
                         && new BigDecimal("15007.0003").equals(event.getPayload().get("actual"))
+                        && new BigDecimal("0.0003").equals(event.getPayload().get("delta"))
                         && new BigDecimal("0.0001").equals(event.getPayload().get("tolerance"))
                         && new BigDecimal("5").equals(event.getPayload().get("nearMissMultiplier"))
                         && REPORT_DATE.toString().equals(event.getPayload().get("reportDate"))));
@@ -179,6 +204,27 @@ class ReconciliationAuditRecorderTest {
     newRecorder().recordQuantityAmountMismatch(sampleMismatch());
 
     verify(auditEventRepository, never()).save(any());
+  }
+
+  @Test
+  void recordQuantityAmountMismatch_sameOrderButDifferentReportDate_isNotADuplicate() {
+    given(auditEventRepository.findByOrderIdAndEventType(123L, "QUANTITY_AMOUNT_MISMATCH"))
+        .willReturn(
+            List.of(
+                TransactionAuditEvent.builder()
+                    .orderId(123L)
+                    .eventType("QUANTITY_AMOUNT_MISMATCH")
+                    .payload(Map.of("reportDate", "2026-05-01"))
+                    .build()));
+
+    newRecorder().recordQuantityAmountMismatch(sampleMismatch());
+
+    verify(auditEventRepository)
+        .save(
+            argThat(
+                (TransactionAuditEvent event) ->
+                    "QUANTITY_AMOUNT_MISMATCH".equals(event.getEventType())
+                        && REPORT_DATE.toString().equals(event.getPayload().get("reportDate"))));
   }
 
   @Test

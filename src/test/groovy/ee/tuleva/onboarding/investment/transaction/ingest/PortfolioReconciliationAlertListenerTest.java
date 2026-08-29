@@ -75,7 +75,29 @@ class PortfolioReconciliationAlertListenerTest {
         .contains("10005.0000")
         .contains("10000.0000")
         .contains("IE0009FT4LX4")
-        .contains("(puudub)");
+        .contains("(puudub)")
+        // "IE0009FT4LX4" is 12 chars, padded to the 13-char ISIN column width (1 space),
+        // followed by the literal " | " column separator: two spaces before the pipe in total.
+        .contains("IE0009FT4LX4  | ");
+  }
+
+  @Test
+  void onSkipped_isinAtLeastAsWideAsItsColumnIsPassedThroughUnchanged() {
+    given(emailService.sendSystemEmail(org.mockito.ArgumentMatchers.any(MandrillMessage.class)))
+        .willReturn(true);
+    String isinLongerThanColumnWidth = "IE00BFG1TM611234";
+
+    listener()
+        .onSkipped(
+            new PortfolioReconciliationSkippedEvent(
+                TUK75,
+                LocalDate.of(2026, 5, 18),
+                Map.of(),
+                Map.of(isinLongerThanColumnWidth, new BigDecimal("12.0000"))));
+
+    ArgumentCaptor<MandrillMessage> captor = ArgumentCaptor.forClass(MandrillMessage.class);
+    verify(emailService).sendSystemEmail(captor.capture());
+    assertThat(captor.getValue().getText()).contains(isinLongerThanColumnWidth + " | 12.0000");
   }
 
   // An empty side means the comparison did not happen. Reporting it as a mismatch is what made

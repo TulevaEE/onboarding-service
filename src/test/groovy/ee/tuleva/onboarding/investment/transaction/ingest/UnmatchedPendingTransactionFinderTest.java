@@ -139,6 +139,33 @@ class UnmatchedPendingTransactionFinderTest {
   }
 
   @Test
+  void rowLinkedViaClientRefWithNoExecutionsYet_isReturned() {
+    UUID clientRef = UUID.randomUUID();
+    SebPendingTransactionRow row = rowWithClientRef(clientRef);
+    TransactionOrder order = TransactionOrder.builder().id(7L).build();
+    given(extractor.extract(report)).willReturn(List.of(row));
+    given(executionRepository.findByBrokerTransactionId("R1")).willReturn(Optional.empty());
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
+    given(executionRepository.findAllByOrderId(7L)).willReturn(List.of());
+    given(matcher.match(row)).willReturn(Optional.empty());
+    given(complexMatcher.match(row, properties)).willReturn(Optional.empty());
+    given(complexMatcher.hasNearMissCandidate(row, properties)).willReturn(false);
+
+    assertThat(finder().collectUnmatched(report)).containsExactly(row);
+  }
+
+  @Test
+  void rowMatchedByComplexMatcher_isSkipped() {
+    SebPendingTransactionRow row = row("R1");
+    given(extractor.extract(report)).willReturn(List.of(row));
+    given(executionRepository.findByBrokerTransactionId("R1")).willReturn(Optional.empty());
+    given(matcher.match(row)).willReturn(Optional.empty());
+    given(complexMatcher.match(row, properties)).willReturn(Optional.of(new TransactionOrder()));
+
+    assertThat(finder().collectUnmatched(report)).isEmpty();
+  }
+
+  @Test
   void collectInconsistent_clientRefMatchedRowWithMismatchedSide_isReturnedWithReason() {
     UUID clientRef = UUID.randomUUID();
     SebPendingTransactionRow row = rowWithClientRef(clientRef);
@@ -181,6 +208,34 @@ class UnmatchedPendingTransactionFinderTest {
   }
 
   @Test
+  void collectInconsistent_clientRefMatchedRowMissingOurRef_isReturnedWithReason() {
+    UUID clientRef = UUID.randomUUID();
+    SebPendingTransactionRow row = rowWithClientRefAndOurRef(clientRef, null);
+    TransactionOrder order = orderWithClientRef(clientRef, BUY);
+    given(extractor.extract(report)).willReturn(List.of(row));
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
+
+    assertThat(finder().collectInconsistent(report))
+        .containsExactly(
+            new UnmatchedPendingTransactionFinder.InconsistentMatchedRow(
+                row, order, "MISSING_OUR_REF"));
+  }
+
+  @Test
+  void collectInconsistent_clientRefMatchedRowMissingIsin_isReturnedWithReason() {
+    UUID clientRef = UUID.randomUUID();
+    SebPendingTransactionRow row = rowWithClientRefAndIsin(clientRef, null);
+    TransactionOrder order = orderWithClientRef(clientRef, BUY);
+    given(extractor.extract(report)).willReturn(List.of(row));
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
+
+    assertThat(finder().collectInconsistent(report))
+        .containsExactly(
+            new UnmatchedPendingTransactionFinder.InconsistentMatchedRow(
+                row, order, "MISSING_ISIN"));
+  }
+
+  @Test
   void collectInconsistent_rowWithoutClientRef_isSkipped() {
     SebPendingTransactionRow row = row("R1");
     given(extractor.extract(report)).willReturn(List.of(row));
@@ -210,6 +265,42 @@ class UnmatchedPendingTransactionFinderTest {
         .orderUuid(clientRef)
         .orderStatus(SENT)
         .build();
+  }
+
+  private static SebPendingTransactionRow rowWithClientRefAndOurRef(UUID clientRef, String ourRef) {
+    return new SebPendingTransactionRow(
+        clientRef,
+        ourRef,
+        "IE000F60HVH9",
+        new BigDecimal("15007"),
+        new BigDecimal("4.7255"),
+        new BigDecimal("70915.58"),
+        BigDecimal.ZERO,
+        new BigDecimal("70915.58"),
+        BUY,
+        Instant.parse("2026-05-11T10:26:04Z"),
+        LocalDate.of(2026, 5, 13),
+        "Tuleva Täiendav Kogumisfond",
+        "VP68168",
+        "ICAV Amundi MSCI USA Screened UCITS ETF");
+  }
+
+  private static SebPendingTransactionRow rowWithClientRefAndIsin(UUID clientRef, String isin) {
+    return new SebPendingTransactionRow(
+        clientRef,
+        "R1",
+        isin,
+        new BigDecimal("15007"),
+        new BigDecimal("4.7255"),
+        new BigDecimal("70915.58"),
+        BigDecimal.ZERO,
+        new BigDecimal("70915.58"),
+        BUY,
+        Instant.parse("2026-05-11T10:26:04Z"),
+        LocalDate.of(2026, 5, 13),
+        "Tuleva Täiendav Kogumisfond",
+        "VP68168",
+        "ICAV Amundi MSCI USA Screened UCITS ETF");
   }
 
   private static SebPendingTransactionRow rowWithClientRef(UUID clientRef) {

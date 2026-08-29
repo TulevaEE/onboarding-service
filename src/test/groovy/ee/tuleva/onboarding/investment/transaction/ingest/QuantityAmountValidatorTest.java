@@ -263,6 +263,64 @@ class QuantityAmountValidatorTest {
     assertThat(validator.isShortFill(order, executions, PROPERTIES)).isTrue();
   }
 
+  @Test
+  void isShortFill_fundBuyExactlyAtToleranceBoundary_returnsFalse() {
+    TransactionOrder order = fundBuyOrder(new BigDecimal("100000.00"));
+    var executions = List.of(execAmount("REF1", new BigDecimal("98000.00")));
+
+    assertThat(validator.isShortFill(order, executions, PROPERTIES)).isFalse();
+  }
+
+  @Test
+  void isShortFill_etfQuantityExactlyAtToleranceBoundary_returnsFalse() {
+    TransactionOrder order = etfBuyOrder(new BigDecimal("100"));
+    var executions = List.of(execQuantity("REF1", new BigDecimal("99.9999")));
+
+    assertThat(validator.isShortFill(order, executions, PROPERTIES)).isFalse();
+  }
+
+  @Test
+  void isShortFill_fundBuyNearlyFullyFilledWithinRelativeTolerance_returnsFalse() {
+    // Absolute shortfall (1.00) would trip a raw-amount check, but relative to the 100000.00
+    // ordered amount it is only 0.001% short, well inside the 2% relative tolerance.
+    TransactionOrder order = fundBuyOrder(new BigDecimal("100000.00"));
+    var executions = List.of(execAmount("REF1", new BigDecimal("99999.00")));
+
+    assertThat(validator.isShortFill(order, executions, PROPERTIES)).isFalse();
+  }
+
+  @Test
+  void validateCumulative_fundBuyExactlyAtTwoPercentTolerance_returnsEmpty() {
+    TransactionOrder order = fundBuyOrder(new BigDecimal("100000.00"));
+    SebPendingTransactionRow row = fundBuyRowWithRef("REF2", new BigDecimal("102000.00"));
+
+    assertThat(validator.validateCumulative(order, row, List.of(), PROPERTIES)).isEmpty();
+  }
+
+  @Test
+  void validateCumulative_etfQuantityExactlyAtToleranceBoundary_returnsEmpty() {
+    TransactionOrder order = etfBuyOrder(new BigDecimal("100"));
+    SebPendingTransactionRow row = etfRowWithRef("REF2", new BigDecimal("100.0001"));
+
+    assertThat(validator.validateCumulative(order, row, List.of(), PROPERTIES)).isEmpty();
+  }
+
+  @Test
+  void withinTolerance_etfWithNullRowQuantity_returnsFalse() {
+    TransactionOrder order = etfBuyOrder(new BigDecimal("100"));
+    SebPendingTransactionRow row = etfRowWithRef("REF2", null);
+
+    assertThat(validator.withinTolerance(order, row, PROPERTIES)).isFalse();
+  }
+
+  @Test
+  void withinTolerance_etfQuantityDiffExactlyAtTolerance_returnsFalse() {
+    TransactionOrder order = etfBuyOrder(new BigDecimal("100"));
+    SebPendingTransactionRow row = etfRowWithRef("REF2", new BigDecimal("100.0001"));
+
+    assertThat(validator.withinTolerance(order, row, PROPERTIES)).isFalse();
+  }
+
   private static TransactionExecution execAmount(String brokerRef, BigDecimal totalConsideration) {
     return TransactionExecution.builder()
         .brokerTransactionId(brokerRef)

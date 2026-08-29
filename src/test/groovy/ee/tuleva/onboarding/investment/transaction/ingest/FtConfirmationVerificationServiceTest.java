@@ -270,6 +270,23 @@ class FtConfirmationVerificationServiceTest {
   }
 
   @Test
+  void referencePriceHasNoPriceDataButMatchingDate_returnsPendingNav() {
+    givenOrderAndExecution(new BigDecimal("40434"), new BigDecimal("40434"));
+    given(positionPriceResolver.resolve(ISIN, TRADE_DATE))
+        .willReturn(
+            Optional.of(
+                ResolvedPrice.builder()
+                    .usedPrice(new BigDecimal("10.09"))
+                    .priceDate(TRADE_DATE)
+                    .validationStatus(ValidationStatus.NO_PRICE_DATA)
+                    .build()));
+
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation());
+
+    assertThat(result.priceStatus()).isEqualTo(PENDING_NAV);
+  }
+
+  @Test
   void referencePriceForDifferentDate_returnsPendingNav() {
     givenOrderAndExecution(new BigDecimal("40434"), new BigDecimal("40434"));
     givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE.minusDays(1));
@@ -296,6 +313,19 @@ class FtConfirmationVerificationServiceTest {
   void negativeReferencePrice_returnsError() {
     givenOrderAndExecution(new BigDecimal("40434"), new BigDecimal("40434"));
     givenReferencePrice(new BigDecimal("-10.09"), TRADE_DATE);
+
+    FtConfirmationResult result =
+        service(DAY_AFTER_TRADE)
+            .verify(confirmation(new BigDecimal("40434"), new BigDecimal("10.09")));
+
+    assertThat(result.priceStatus()).isEqualTo(ERROR);
+    assertThat(result.details()).containsKey("invalidReferencePrice");
+  }
+
+  @Test
+  void zeroReferencePrice_returnsError() {
+    givenOrderAndExecution(new BigDecimal("40434"), new BigDecimal("40434"));
+    givenReferencePrice(new BigDecimal("0.00"), TRADE_DATE);
 
     FtConfirmationResult result =
         service(DAY_AFTER_TRADE)

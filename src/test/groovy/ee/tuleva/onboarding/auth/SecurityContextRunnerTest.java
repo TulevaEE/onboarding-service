@@ -62,6 +62,32 @@ class SecurityContextRunnerTest {
   }
 
   @Test
+  void runsTheActionAsAnAlreadyAuthenticatedPersonWithTheIssuedToken() {
+    AuthenticatedPerson person =
+        AuthenticatedPerson.builder()
+            .personalCode("38888888888")
+            .firstName("First")
+            .lastName("Last")
+            .userId(1L)
+            .build();
+    List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("USER"));
+    given(grantedAuthorityFactory.from(person)).willAnswer(invocation -> authorities);
+
+    securityContextRunner.runAs(
+        person,
+        "issued-token",
+        () -> {
+          var authentication = SecurityContextHolder.getContext().getAuthentication();
+          assertThat(authentication.getPrincipal()).isEqualTo(person);
+          assertThat(authentication.getCredentials()).isEqualTo("issued-token");
+          List<GrantedAuthority> actualAuthorities = List.copyOf(authentication.getAuthorities());
+          assertThat(actualAuthorities).containsExactlyElementsOf(authorities);
+        });
+
+    assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+  }
+
+  @Test
   void clearsTheContextWhenTheActionThrows() {
     User user = sampleUser().build();
     AuthenticatedPerson principal =

@@ -5,7 +5,7 @@ import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.mandate.FundTransferExchange
 import ee.tuleva.onboarding.mandate.Mandate
 import ee.tuleva.onboarding.mandate.MandateType
-import ee.tuleva.onboarding.mandate.builder.ConversionDecorator
+import ee.tuleva.onboarding.conversion.ConversionDecorator
 import ee.tuleva.onboarding.paymentrate.PaymentRates
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService
 import spock.lang.Specification

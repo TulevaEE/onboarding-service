@@ -1,12 +1,12 @@
 package ee.tuleva.onboarding.event.broadcasting
 
-import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory
+import ee.tuleva.onboarding.auth.SecurityContextRunner
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent
 import ee.tuleva.onboarding.auth.idcard.IdCardSession
 import ee.tuleva.onboarding.conversion.UserConversionService
 import ee.tuleva.onboarding.epis.ContactDetailsService
 import ee.tuleva.onboarding.event.TrackableEvent
-import ee.tuleva.onboarding.mandate.builder.ConversionDecorator
+import ee.tuleva.onboarding.conversion.ConversionDecorator
 import ee.tuleva.onboarding.paymentrate.PaymentRates
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService
 import org.springframework.context.ApplicationEventPublisher
@@ -29,11 +29,13 @@ class LoginEventBroadcasterSpec extends Specification {
   UserConversionService conversionService = Mock()
   ContactDetailsService contactDetailsService = Mock()
   ConversionDecorator conversionDecorator = Mock()
-  GrantedAuthorityFactory grantedAuthorityFactory = Mock()
+  SecurityContextRunner securityContextRunner = Mock() {
+    runAs(_, _, _) >> { args -> (args[2] as Runnable).run() }
+  }
   SecondPillarPaymentRateService secondPillarPaymentRateService = Mock()
 
   LoginEventBroadcaster service = new LoginEventBroadcaster(eventPublisher, conversionService, contactDetailsService,
-      conversionDecorator, grantedAuthorityFactory, secondPillarPaymentRateService)
+      conversionDecorator, securityContextRunner, secondPillarPaymentRateService)
 
   def "OnAfterTokenGrantedEvent: Broadcast login event"() {
     given:

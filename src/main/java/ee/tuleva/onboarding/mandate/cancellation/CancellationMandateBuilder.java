@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.mandate.ApplicationType.WITHDRAWAL;
 import static java.util.Collections.singletonList;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.conversion.ConversionDecorator;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.epis.ContactDetails;
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
@@ -13,7 +14,6 @@ import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
-import ee.tuleva.onboarding.mandate.builder.ConversionDecorator;
 import ee.tuleva.onboarding.mandate.details.EarlyWithdrawalCancellationMandateDetails;
 import ee.tuleva.onboarding.mandate.details.TransferCancellationMandateDetails;
 import ee.tuleva.onboarding.mandate.details.WithdrawalCancellationMandateDetails;

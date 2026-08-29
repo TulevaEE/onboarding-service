@@ -9,7 +9,7 @@ import ee.tuleva.onboarding.error.response.ErrorResponse
 import ee.tuleva.onboarding.error.response.ErrorsResponse
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.fund.FundRepository
-import ee.tuleva.onboarding.mandate.builder.ConversionDecorator
+import ee.tuleva.onboarding.conversion.ConversionDecorator
 import ee.tuleva.onboarding.mandate.builder.CreateMandateCommandToMandateConverter
 import ee.tuleva.onboarding.mandate.cancellation.CancellationMandateBuilder
 import ee.tuleva.onboarding.mandate.cancellation.InvalidApplicationTypeException

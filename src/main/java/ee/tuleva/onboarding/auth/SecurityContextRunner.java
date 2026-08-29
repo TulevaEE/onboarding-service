@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.auth;
 
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.user.User;
 import java.util.Map;
@@ -21,6 +22,18 @@ public class SecurityContextRunner {
   public void runAs(User user, Runnable action) {
     try {
       setupSecurityContext(user);
+      action.run();
+    } finally {
+      SecurityContextHolder.clearContext();
+    }
+  }
+
+  public void runAs(AuthenticatedPerson person, String accessToken, Runnable action) {
+    try {
+      final var authorities = grantedAuthorityFactory.from(person);
+      SecurityContextHolder.getContext()
+          .setAuthentication(
+              new UsernamePasswordAuthenticationToken(person, accessToken, authorities));
       action.run();
     } finally {
       SecurityContextHolder.clearContext();

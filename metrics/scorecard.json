@@ -1,9 +1,9 @@
 {
   "branchCoverage": 85.33,
   "lineCoverage": 82.56,
-  "meanInstability": 0.465,
+  "meanInstability": 0.464,
   "moduleCycles": 35,
-  "modulithViolations": 172,
+  "modulithViolations": 164,
   "mutationScore": 84.43,
   "mutationsTotal": 12781,
   "pmdViolations": 164,
@@ -17,5 +17,5 @@
   "springBootTests": 89,
   "top15ClassLines": 8147,
   "totalPackages": 226,
-  "unmarkedPackages": 144
+  "unmarkedPackages": 143
 }

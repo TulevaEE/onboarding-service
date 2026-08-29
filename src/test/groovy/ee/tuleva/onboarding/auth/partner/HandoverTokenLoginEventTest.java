@@ -6,11 +6,12 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.auth.AuthenticationTokens;
-import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
+import ee.tuleva.onboarding.auth.SecurityContextRunner;
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
+import ee.tuleva.onboarding.conversion.ConversionDecorator;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.epis.ContactDetails;
@@ -18,7 +19,6 @@ import ee.tuleva.onboarding.epis.ContactDetailsService;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.event.broadcasting.LoginEventBroadcaster;
-import ee.tuleva.onboarding.mandate.builder.ConversionDecorator;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
 import io.jsonwebtoken.Jwts;
 import java.security.KeyPair;
@@ -26,7 +26,6 @@ import java.security.KeyPairGenerator;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -60,7 +59,7 @@ public class HandoverTokenLoginEventTest {
   @Mock private ContactDetailsService contactDetailsService;
   @Mock private ConversionDecorator conversionDecorator;
   @Mock private AuthenticatedPerson authenticatedPerson;
-  @Mock private GrantedAuthorityFactory grantedAuthorityFactory;
+  @Mock private SecurityContextRunner securityContextRunner;
   @Mock private SecondPillarPaymentRateService secondPillarPaymentRateService;
 
   private PartnerAuthProvider partnerAuthProvider;
@@ -87,13 +86,18 @@ public class HandoverTokenLoginEventTest {
             conversionService,
             contactDetailsService,
             conversionDecorator,
-            grantedAuthorityFactory,
+            securityContextRunner,
             secondPillarPaymentRateService);
 
     when(authenticatedPerson.getPersonalCode()).thenReturn(testPersonalCode);
 
-    when(grantedAuthorityFactory.from(any(AuthenticatedPerson.class)))
-        .thenReturn(Collections.emptyList());
+    doAnswer(
+            invocation -> {
+              invocation.getArgument(2, Runnable.class).run();
+              return null;
+            })
+        .when(securityContextRunner)
+        .runAs(any(AuthenticatedPerson.class), any(String.class), any(Runnable.class));
   }
 
   @Test

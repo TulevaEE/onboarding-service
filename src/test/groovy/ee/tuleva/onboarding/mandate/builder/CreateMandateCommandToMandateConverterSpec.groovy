@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.builder
 
+import ee.tuleva.onboarding.conversion.ConversionDecorator
 import ee.tuleva.onboarding.account.AccountStatementService
 import ee.tuleva.onboarding.account.FundBalance
 import ee.tuleva.onboarding.fund.Fund

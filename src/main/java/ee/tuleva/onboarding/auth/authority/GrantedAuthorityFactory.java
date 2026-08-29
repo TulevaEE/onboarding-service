@@ -21,7 +21,7 @@ public class GrantedAuthorityFactory {
   private final UserService userService;
 
   public List<? extends GrantedAuthority> from(AuthenticatedPerson authenticatedPerson) {
-    Long userId = authenticatedPerson.getUserId();
+    Long userId = authenticatedPerson.getUserIdOrThrow();
     User user = userService.getById(userId).orElseThrow();
 
     List<SimpleGrantedAuthority> grantedAuthorities =

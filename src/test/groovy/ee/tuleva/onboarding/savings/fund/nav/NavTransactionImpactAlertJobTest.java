@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
-import static ee.tuleva.onboarding.investment.config.InvestmentParameter.NAV_IMPACT_VOLUME_THRESHOLD;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RESERVED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
@@ -16,7 +15,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
-import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
+import ee.tuleva.onboarding.investment.InvestmentParameters;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.FundNavProvider;
@@ -45,7 +44,7 @@ class NavTransactionImpactAlertJobTest {
   @Mock private SavingFundPaymentRepository savingFundPaymentRepository;
   @Mock private RedemptionRequestRepository redemptionRequestRepository;
   @Mock private FundNavProvider fundNavProvider;
-  @Mock private InvestmentParameterRepository investmentParameterRepository;
+  @Mock private InvestmentParameters investmentParameters;
   @Mock private OperationsNotificationService notificationService;
   private final PublicHolidays publicHolidays = new PublicHolidays();
 
@@ -269,7 +268,7 @@ class NavTransactionImpactAlertJobTest {
   void exceptionInTkf100_doesNotBlockPensionFundAlerts() {
     // 2026-01-02 = PEVA/RAVA execution date
     var job = jobOn("2026-01-02T08:00:00Z");
-    given(investmentParameterRepository.findLatestValue(any(), any(LocalDate.class)))
+    given(investmentParameters.navImpactVolumeThreshold(any(LocalDate.class)))
         .willThrow(new RuntimeException("DB down"));
 
     job.onFundPositionsImported();
@@ -365,24 +364,19 @@ class NavTransactionImpactAlertJobTest {
         savingFundPaymentRepository,
         redemptionRequestRepository,
         fundNavProvider,
-        investmentParameterRepository,
+        investmentParameters,
         notificationService,
         publicHolidays,
         clock);
   }
 
   private void stubThreshold(BigDecimal value) {
-    given(
-            investmentParameterRepository.findLatestValue(
-                eq(NAV_IMPACT_VOLUME_THRESHOLD), any(LocalDate.class)))
-        .willReturn(value);
+    given(investmentParameters.navImpactVolumeThreshold(any(LocalDate.class))).willReturn(value);
   }
 
   private void stubThresholdLenient(BigDecimal value) {
     lenient()
-        .when(
-            investmentParameterRepository.findLatestValue(
-                eq(NAV_IMPACT_VOLUME_THRESHOLD), any(LocalDate.class)))
+        .when(investmentParameters.navImpactVolumeThreshold(any(LocalDate.class)))
         .thenReturn(value);
   }
 

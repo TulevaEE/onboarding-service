@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/v1")
 @RequiredArgsConstructor
-public class ReturnsController {
+class ReturnsController {
 
   static final LocalDate BEGINNING_OF_TIMES = LocalDate.parse("2003-01-07");
 

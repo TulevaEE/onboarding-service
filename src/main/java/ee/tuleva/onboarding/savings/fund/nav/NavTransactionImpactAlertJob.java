@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
-import static ee.tuleva.onboarding.investment.config.InvestmentParameter.NAV_IMPACT_VOLUME_THRESHOLD;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RESERVED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
@@ -9,7 +8,7 @@ import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
-import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
+import ee.tuleva.onboarding.investment.InvestmentParameters;
 import ee.tuleva.onboarding.investment.event.FundPositionsImported;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.savings.FundNavProvider;
@@ -46,7 +45,7 @@ public class NavTransactionImpactAlertJob {
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final RedemptionRequestRepository redemptionRequestRepository;
   private final FundNavProvider fundNavProvider;
-  private final InvestmentParameterRepository investmentParameterRepository;
+  private final InvestmentParameters investmentParameters;
   private final OperationsNotificationService notificationService;
   private final PublicHolidays publicHolidays;
   private final Clock clock;
@@ -94,8 +93,7 @@ public class NavTransactionImpactAlertJob {
 
   private void checkTkf100Volume(LocalDate today, LocalDate navDate) {
     try {
-      BigDecimal threshold =
-          investmentParameterRepository.findLatestValue(NAV_IMPACT_VOLUME_THRESHOLD, today);
+      BigDecimal threshold = investmentParameters.navImpactVolumeThreshold(today);
 
       Instant cutoff = ZonedDateTime.of(navDate, CUTOFF_TIME, TALLINN).toInstant();
 

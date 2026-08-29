@@ -21,6 +21,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -54,6 +55,7 @@ class NavPositionLedgerTest {
   @Mock private LedgerAccount payablesAccount;
   @Mock private LedgerAccount navEquityAccount;
   @Mock private LedgerTransaction transaction;
+  @Mock private JdbcClient.StatementSpec statementSpec;
 
   @Captor private ArgumentCaptor<LedgerEntryDto[]> entriesCaptor;
   @Captor private ArgumentCaptor<Map<String, Object>> metadataCaptor;
@@ -94,6 +96,12 @@ class NavPositionLedgerTest {
         .thenReturn(Optional.of(payablesAccount));
     when(ledgerAccountService.findSystemAccount(NAV_EQUITY, TKF100))
         .thenReturn(Optional.of(navEquityAccount));
+  }
+
+  private void setupJdbcClientMocks() {
+    when(jdbcClient.sql(org.mockito.ArgumentMatchers.anyString())).thenReturn(statementSpec);
+    when(statementSpec.param(org.mockito.ArgumentMatchers.anyString(), any()))
+        .thenReturn(statementSpec);
   }
 
   @Test
@@ -519,5 +527,132 @@ class NavPositionLedgerTest {
             eq(expectedReference),
             any(),
             any(LedgerEntryDto[].class));
+  }
+
+  @Test
+  void recordPositions_usesNowTimestampWhenReportDateIsToday() {
+    LocalDate reportDate = LocalDate.of(2026, 2, 25);
+    setupAccountMocks();
+    when(ledgerTransactionService.createTransaction(
+            any(TransactionType.class),
+            any(Instant.class),
+            any(UUID.class),
+            any(),
+            any(LedgerEntryDto[].class)))
+        .thenReturn(transaction);
+
+    navPositionLedger.recordPositions(
+        TKF100, reportDate, Map.of(), new BigDecimal("50000.00"), ZERO, ZERO);
+
+    verify(ledgerTransactionService)
+        .createTransaction(
+            eq(POSITION_UPDATE),
+            eq(Instant.parse("2026-02-25T08:00:00Z")),
+            any(UUID.class),
+            any(),
+            any(LedgerEntryDto[].class));
+  }
+
+  @Test
+  void recordPositions_createsInstrumentAccountsWhenMissing() {
+    LocalDate reportDate = LocalDate.of(2026, 2, 1);
+    String unitsName = SECURITIES_UNITS.getAccountName(TKF100, "IE00BFG1TM61");
+    String equityName = SECURITIES_UNITS_EQUITY.getAccountName(TKF100, "IE00BFG1TM61");
+    when(ledgerAccountService.findSystemAccountByName(unitsName, ASSET, FUND_UNIT))
+        .thenReturn(Optional.empty());
+    when(ledgerAccountService.createSystemAccount(unitsName, ASSET, FUND_UNIT))
+        .thenReturn(securitiesUnitsAccount1);
+    when(ledgerAccountService.findSystemAccountByName(equityName, LIABILITY, FUND_UNIT))
+        .thenReturn(Optional.empty());
+    when(ledgerAccountService.createSystemAccount(equityName, LIABILITY, FUND_UNIT))
+        .thenReturn(securitiesUnitsEquityAccount1);
+    when(ledgerTransactionService.createTransaction(
+            any(TransactionType.class),
+            any(Instant.class),
+            any(UUID.class),
+            any(),
+            any(LedgerEntryDto[].class)))
+        .thenReturn(transaction);
+
+    navPositionLedger.recordPositions(
+        TKF100, reportDate, Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")), ZERO, ZERO, ZERO);
+
+    verify(ledgerTransactionService)
+        .createTransaction(any(), any(), any(), any(), entriesCaptor.capture());
+    LedgerEntryDto[] entries = entriesCaptor.getValue();
+    assertThat(entries[0].account()).isEqualTo(securitiesUnitsAccount1);
+    assertThat(entries[1].account()).isEqualTo(securitiesUnitsEquityAccount1);
+  }
+
+  @Test
+  void recordPositions_createsSystemAccountsWhenMissing() {
+    LocalDate reportDate = LocalDate.of(2026, 2, 1);
+    when(ledgerAccountService.findSystemAccount(CASH_POSITION, TKF100))
+        .thenReturn(Optional.empty());
+    when(ledgerAccountService.createSystemAccount(CASH_POSITION, TKF100)).thenReturn(cashAccount);
+    when(ledgerAccountService.findSystemAccount(NAV_EQUITY, TKF100)).thenReturn(Optional.empty());
+    when(ledgerAccountService.createSystemAccount(NAV_EQUITY, TKF100)).thenReturn(navEquityAccount);
+    when(ledgerTransactionService.createTransaction(
+            any(TransactionType.class),
+            any(Instant.class),
+            any(UUID.class),
+            any(),
+            any(LedgerEntryDto[].class)))
+        .thenReturn(transaction);
+
+    navPositionLedger.recordPositions(
+        TKF100, reportDate, Map.of(), new BigDecimal("50000.00"), ZERO, ZERO);
+
+    verify(ledgerTransactionService)
+        .createTransaction(any(), any(), any(), any(), entriesCaptor.capture());
+    LedgerEntryDto[] entries = entriesCaptor.getValue();
+    assertThat(entries[0].account()).isEqualTo(cashAccount);
+    assertThat(entries[1].account()).isEqualTo(navEquityAccount);
+  }
+
+  @Test
+  void deletePositionUpdatesForDates_emptyDates_skipsDatabaseAndReturnsZero() {
+    int result = navPositionLedger.deletePositionUpdatesForDates(TKF100, List.of());
+
+    assertThat(result).isZero();
+    verifyNoInteractions(jdbcClient);
+  }
+
+  @Test
+  void deletePositionUpdatesForDates_deletesAndReturnsTransactionCount() {
+    setupJdbcClientMocks();
+    when(statementSpec.update()).thenReturn(1, 2, 3, 4, 5, 6);
+    var date1 = LocalDate.of(2026, 2, 1);
+    var date2 = LocalDate.of(2026, 2, 2);
+
+    int result = navPositionLedger.deletePositionUpdatesForDates(TKF100, List.of(date1, date2));
+
+    assertThat(result).isEqualTo(12);
+  }
+
+  @Test
+  void deletePositionUpdatesForDates_passesDeterministicReferencesForEachDate() {
+    setupJdbcClientMocks();
+    when(statementSpec.update()).thenReturn(0);
+    var date1 = LocalDate.of(2026, 2, 1);
+    var date2 = LocalDate.of(2026, 2, 2);
+    var expectedRefs =
+        List.of(
+            UUID.nameUUIDFromBytes("POSITION_UPDATE:TKF100:2026-02-01".getBytes(UTF_8)),
+            UUID.nameUUIDFromBytes("POSITION_UPDATE:TKF100:2026-02-02".getBytes(UTF_8)));
+
+    navPositionLedger.deletePositionUpdatesForDates(TKF100, List.of(date1, date2));
+
+    verify(statementSpec, times(2)).param(eq("refs"), eq(expectedRefs));
+  }
+
+  @Test
+  void deletePositionUpdatesByFund_returnsTransactionDeleteCount() {
+    setupJdbcClientMocks();
+    when(statementSpec.update()).thenReturn(3, 7);
+
+    int result = navPositionLedger.deletePositionUpdatesByFund(TKF100);
+
+    assertThat(result).isEqualTo(7);
   }
 }

@@ -435,19 +435,28 @@ class FundBankLedgerTest {
   void recordOwnAccountTransfer_booksCashAgainstTheOwnTransferAccount() {
     var cashClearingBefore = getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance();
     var ownAccountTransferBefore = getSystemAccount(OWN_ACCOUNT_TRANSFER, TUK75).getBalance();
+    var externalReference = randomUUID();
 
-    fundBankLedger.recordOwnAccountTransfer(
-        TUK75,
-        new BigDecimal("1633975.32"),
-        randomUUID(),
-        BOOKING_DATE,
-        "Ülekanne fondi teisele kontole");
+    var transaction =
+        fundBankLedger.recordOwnAccountTransfer(
+            TUK75,
+            new BigDecimal("1633975.32"),
+            externalReference,
+            BOOKING_DATE,
+            "Ülekanne fondi teisele kontole");
 
+    assertThat(transaction).isNotNull();
+    assertThat(transaction.getTransactionType())
+        .isEqualTo(LedgerTransaction.TransactionType.OWN_ACCOUNT_TRANSFER);
+    assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
+    assertThat(transaction.getMetadata().get("description"))
+        .isEqualTo("Ülekanne fondi teisele kontole");
     assertThat(
             deltaSince(cashClearingBefore, getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75)))
         .isEqualByComparingTo(new BigDecimal("1633975.32"));
     assertThat(deltaSince(ownAccountTransferBefore, getSystemAccount(OWN_ACCOUNT_TRANSFER, TUK75)))
         .isEqualByComparingTo(new BigDecimal("-1633975.32"));
+    verifyDoubleEntry(transaction);
   }
 
   @Test
@@ -568,6 +577,29 @@ class FundBankLedgerTest {
         .isEqualByComparingTo(ZERO);
     assertThat(fundBankLedger.countUnresolvedUnclassifiedEntries(TUK75)).isEqualTo(2);
     assertThat(fundBankLedger.countUnresolvedUnclassifiedEntries(TKF100)).isZero();
+  }
+
+  @Test
+  void findUnresolvedUnclassifiedEntries_returnsOnlyUnresolvedTransactions() {
+    var externalReference = randomUUID();
+    fundBankLedger.recordUnclassifiedBankEntry(
+        TUK75,
+        new BigDecimal("100.00"),
+        externalReference,
+        FUND_INVESTMENT_CASH_CLEARING,
+        BOOKING_DATE,
+        new FundBankLedger.UnclassifiedEntryDetails(null, null, "credit", "OTHR"));
+
+    var unresolved = fundBankLedger.findUnresolvedUnclassifiedEntries(TUK75);
+
+    assertThat(unresolved).hasSize(1);
+    assertThat(unresolved.get(0).getExternalReference()).isEqualTo(externalReference);
+    assertThat(fundBankLedger.findUnresolvedUnclassifiedEntries(TKF100)).isEmpty();
+
+    fundBankLedger.recordRegistrarContribution(
+        TUK75, ZERO, externalReference, BOOKING_DATE, "reclassified from suspense");
+
+    assertThat(fundBankLedger.findUnresolvedUnclassifiedEntries(TUK75)).isEmpty();
   }
 
   @Test

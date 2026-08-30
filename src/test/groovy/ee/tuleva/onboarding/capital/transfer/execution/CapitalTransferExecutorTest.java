@@ -15,6 +15,7 @@ import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract.CapitalTransferAmount;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContractRepository;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContractService;
+import ee.tuleva.onboarding.capital.transfer.CapitalTransferEmailSender;
 import ee.tuleva.onboarding.user.member.Member;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -36,6 +37,7 @@ public class CapitalTransferExecutorTest {
   @Mock private CapitalTransferValidator validator;
   @Mock private CapitalTransferEventLinkRepository linkRepository;
   @Mock private CapitalTransferContractService capitalTransferContractService;
+  @Mock private CapitalTransferEmailSender emailSender;
 
   @Mock private CapitalTransferContract contract;
   @Mock private Member seller;
@@ -56,7 +58,8 @@ public class CapitalTransferExecutorTest {
             memberCapitalEventRepository,
             validator,
             capitalTransferContractService,
-            linkRepository);
+            linkRepository,
+            emailSender);
   }
 
   @Test
@@ -138,10 +141,10 @@ public class CapitalTransferExecutorTest {
     verify(contract).executed();
     verify(contractRepository).save(contract);
 
-    verify(capitalTransferContractService, times(1))
+    verify(emailSender, times(1))
         .sendContractEmail(
             eq(seller.getUser()), eq(CAPITAL_TRANSFER_APPROVED_BY_BOARD), eq(contract));
-    verify(capitalTransferContractService, times(1))
+    verify(emailSender, times(1))
         .sendContractEmail(
             eq(buyer.getUser()), eq(CAPITAL_TRANSFER_APPROVED_BY_BOARD), eq(contract));
 

@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.aml;
+package ee.tuleva.onboarding.mandate.batch;
 
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.WITHDRAWALS;
 

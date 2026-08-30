@@ -6,7 +6,6 @@ import static ee.tuleva.onboarding.signature.SignatureStatus.SIGNATURE;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
 
-import ee.tuleva.onboarding.aml.WithdrawalNotifier;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.error.response.ErrorResponse;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;

@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.aml;
+package ee.tuleva.onboarding.mandate.batch;
 
 import static ee.tuleva.onboarding.mandate.MandateType.FUND_PENSION_OPENING;
 import static ee.tuleva.onboarding.mandate.MandateType.PARTIAL_WITHDRAWAL;

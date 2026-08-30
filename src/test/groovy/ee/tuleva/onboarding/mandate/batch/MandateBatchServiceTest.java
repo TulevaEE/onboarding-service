@@ -13,7 +13,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-import ee.tuleva.onboarding.aml.WithdrawalNotifier;
 import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture;
 import ee.tuleva.onboarding.error.response.ErrorResponse;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;

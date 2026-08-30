@@ -1,41 +1,33 @@
 package ee.tuleva.onboarding.conversion
 
-import ee.tuleva.onboarding.account.AccountStatementService
-import ee.tuleva.onboarding.account.CashFlowService
-import ee.tuleva.onboarding.epis.CashFlow
-import ee.tuleva.onboarding.epis.CashFlowStatement
-import ee.tuleva.onboarding.fund.Fund
-import ee.tuleva.onboarding.fund.FundRepository
 import spock.lang.Specification
 
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
 
+import static ee.tuleva.onboarding.conversion.ConversionHoldingFixture.toConversionHoldings
 import static ee.tuleva.onboarding.account.AccountStatementFixture.*
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
-import static ee.tuleva.onboarding.currency.Currency.EUR
-import static ee.tuleva.onboarding.epis.CashFlow.Type.*
 import static ee.tuleva.onboarding.fund.FundFixture.*
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND
 import static ee.tuleva.onboarding.pillar.Pillar.THIRD
 
 class UserConversionServiceSpec extends Specification {
 
-  def accountStatementService = Mock(AccountStatementService)
-  def cashFlowService = Mock(CashFlowService)
-  def fundRepository = Mock(FundRepository)
+  def conversionHoldings = Mock(ConversionHoldings)
+  def conversionCashFlows = Mock(ConversionCashFlows)
   def pendingMandateApplications = Mock(PendingMandateApplications)
   def clock = Clock.fixed(Instant.parse("2019-12-30T10:06:01Z"), ZoneOffset.UTC)
 
-  def service = new UserConversionService(accountStatementService, cashFlowService,
-      fundRepository, clock, pendingMandateApplications)
+  def service = new UserConversionService(conversionHoldings, conversionCashFlows,
+      clock, pendingMandateApplications)
 
   def "GetConversion: Get conversion response for 2nd pillar withdrawal"() {
     given:
-    accountStatementService.getAccountStatement(samplePerson) >> []
+    conversionHoldings.forPerson(samplePerson) >> []
     pendingMandateApplications.getPendingExchanges(_, samplePerson) >> []
-    cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
+    conversionCashFlows.forPerson(samplePerson) >> []
     pendingMandateApplications.hasPendingWithdrawals(samplePerson, SECOND) >> true
     pendingMandateApplications.hasPendingWithdrawals(samplePerson, THIRD) >> false
 
@@ -49,9 +41,9 @@ class UserConversionServiceSpec extends Specification {
 
   def "GetConversion: Get conversion response for 2nd pillar selection and transfer"() {
     given:
-    1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
+    1 * conversionHoldings.forPerson(samplePerson) >> toConversionHoldings(accountBalanceResponse)
     pendingMandateApplications.getPendingExchanges(_, samplePerson) >> []
-    cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
+    conversionCashFlows.forPerson(samplePerson) >> []
 
     when:
     ConversionResponse response = service.getConversion(samplePerson)
@@ -75,9 +67,9 @@ class UserConversionServiceSpec extends Specification {
 
   def "get partial conversion info for 2nd pillar"() {
     given:
-    1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
+    1 * conversionHoldings.forPerson(samplePerson) >> toConversionHoldings(accountBalanceResponse)
     pendingMandateApplications.getPendingExchanges(_, samplePerson) >> []
-    cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
+    conversionCashFlows.forPerson(samplePerson) >> []
 
     when:
     ConversionResponse response = service.getConversion(samplePerson)
@@ -100,10 +92,10 @@ class UserConversionServiceSpec extends Specification {
 
   def "GetConversion: Get conversion response for 3rd pillar selection and transfer"() {
     given:
-    1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
+    1 * conversionHoldings.forPerson(samplePerson) >> toConversionHoldings(accountBalanceResponse)
     pendingMandateApplications.getPendingExchanges(_, samplePerson) >> []
 
-    cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
+    conversionCashFlows.forPerson(samplePerson) >> []
 
     when:
     ConversionResponse response = service.getConversion(samplePerson)
@@ -128,10 +120,10 @@ class UserConversionServiceSpec extends Specification {
 
   def "GetConversion: Get partial conversion response for 3rd pillar selection and transfer"() {
     given:
-    1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
+    1 * conversionHoldings.forPerson(samplePerson) >> toConversionHoldings(accountBalanceResponse)
     pendingMandateApplications.getPendingExchanges(_, samplePerson) >> []
 
-    cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
+    conversionCashFlows.forPerson(samplePerson) >> []
 
     when:
     ConversionResponse response = service.getConversion(samplePerson)
@@ -154,10 +146,10 @@ class UserConversionServiceSpec extends Specification {
 
   def "GetConversion: Get conversion response for 2nd pillar transfer given pending mandates cover the lack"() {
     given:
-    1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
+    1 * conversionHoldings.forPerson(samplePerson) >> toConversionHoldings(accountBalanceResponse)
     pendingMandateApplications.getPendingExchanges(SECOND, samplePerson) >> [fullPending2ndPillarExchange]
     pendingMandateApplications.getPendingExchanges(THIRD, samplePerson) >> []
-    cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
+    conversionCashFlows.forPerson(samplePerson) >> []
 
     when:
     ConversionResponse response = service.getConversion(samplePerson)
@@ -174,10 +166,10 @@ class UserConversionServiceSpec extends Specification {
 
   def "GetConversion 2nd pillar: only full value pending transfer will be marked as covering the lack"() {
     given:
-    1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
+    1 * conversionHoldings.forPerson(samplePerson) >> toConversionHoldings(accountBalanceResponse)
     pendingMandateApplications.getPendingExchanges(SECOND, samplePerson) >> [partialPending2ndPillarExchange]
     pendingMandateApplications.getPendingExchanges(THIRD, samplePerson) >> []
-    cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
+    conversionCashFlows.forPerson(samplePerson) >> []
 
     when:
     ConversionResponse response = service.getConversion(samplePerson)
@@ -193,10 +185,10 @@ class UserConversionServiceSpec extends Specification {
 
   def "GetConversion 2nd pillar: works with pending transfers from own fund to own fund"() {
     given:
-    1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
+    1 * conversionHoldings.forPerson(samplePerson) >> toConversionHoldings(accountBalanceResponse)
     pendingMandateApplications.getPendingExchanges(SECOND, samplePerson) >> [partialPending2ndPillarFromOwnToOwnExchange]
     pendingMandateApplications.getPendingExchanges(THIRD, samplePerson) >> []
-    cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
+    conversionCashFlows.forPerson(samplePerson) >> []
 
     when:
     ConversionResponse response = service.getConversion(samplePerson)
@@ -212,10 +204,10 @@ class UserConversionServiceSpec extends Specification {
 
   def "get partial conversion for 2nd pillar given pending mandates cover the lack"() {
     given:
-    1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
+    1 * conversionHoldings.forPerson(samplePerson) >> toConversionHoldings(accountBalanceResponse)
     pendingMandateApplications.getPendingExchanges(SECOND, samplePerson) >> [partialPending2ndPillarExchange]
     pendingMandateApplications.getPendingExchanges(THIRD, samplePerson) >> []
-    cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
+    conversionCashFlows.forPerson(samplePerson) >> []
 
     when:
     ConversionResponse response = service.getConversion(samplePerson)
@@ -233,10 +225,10 @@ class UserConversionServiceSpec extends Specification {
 
   def "GetConversion: Get conversion response for 2nd pillar PIK transfer"() {
     given:
-    1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
+    1 * conversionHoldings.forPerson(samplePerson) >> toConversionHoldings(accountBalanceResponse)
     pendingMandateApplications.getPendingExchanges(SECOND, samplePerson) >> [fullPendingPikExchange]
     pendingMandateApplications.getPendingExchanges(THIRD, samplePerson) >> []
-    cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
+    conversionCashFlows.forPerson(samplePerson) >> []
 
     when:
     ConversionResponse response = service.getConversion(samplePerson)
@@ -253,10 +245,10 @@ class UserConversionServiceSpec extends Specification {
 
   def "GetConversion: Get conversion response for 3rd pillar transfer given pending mandates cover the lack"() {
     given:
-    1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
+    1 * conversionHoldings.forPerson(samplePerson) >> toConversionHoldings(accountBalanceResponse)
     pendingMandateApplications.getPendingExchanges(THIRD, samplePerson) >> [fullPending3rdPillarExchange]
     pendingMandateApplications.getPendingExchanges(SECOND, samplePerson) >> []
-    cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
+    conversionCashFlows.forPerson(samplePerson) >> []
 
     when:
     ConversionResponse response = service.getConversion(samplePerson)
@@ -274,10 +266,10 @@ class UserConversionServiceSpec extends Specification {
 
   def "get partial conversion for 3rd pillar given pending mandates cover the lack"() {
     given:
-    1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
+    1 * conversionHoldings.forPerson(samplePerson) >> toConversionHoldings(accountBalanceResponse)
     pendingMandateApplications.getPendingExchanges(THIRD, samplePerson) >> [partialPending3rdPillarExchange]
     pendingMandateApplications.getPendingExchanges(SECOND, samplePerson) >> []
-    cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
+    conversionCashFlows.forPerson(samplePerson) >> []
 
     when:
     ConversionResponse response = service.getConversion(samplePerson)
@@ -295,10 +287,10 @@ class UserConversionServiceSpec extends Specification {
 
   def "GetConversion 3rd pillar: only full value pending transfer will be marked as covering the lack"() {
     given:
-    1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
+    1 * conversionHoldings.forPerson(samplePerson) >> toConversionHoldings(accountBalanceResponse)
     pendingMandateApplications.getPendingExchanges(THIRD, samplePerson) >> [partialPending3rdPillarExchange]
     pendingMandateApplications.getPendingExchanges(SECOND, samplePerson) >> []
-    cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
+    conversionCashFlows.forPerson(samplePerson) >> []
 
     when:
     ConversionResponse response = service.getConversion(samplePerson)
@@ -314,10 +306,10 @@ class UserConversionServiceSpec extends Specification {
 
   def "GetConversion: Get conversion response for 3rd pillar pending exit transfer"() {
     given:
-    1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
+    1 * conversionHoldings.forPerson(samplePerson) >> toConversionHoldings(accountBalanceResponse)
     pendingMandateApplications.getPendingExchanges(THIRD, samplePerson) >> [fullPending3rdPillarExitExchange]
     pendingMandateApplications.getPendingExchanges(SECOND, samplePerson) >> []
-    cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
+    conversionCashFlows.forPerson(samplePerson) >> []
 
     when:
     ConversionResponse response = service.getConversion(samplePerson)
@@ -336,30 +328,24 @@ class UserConversionServiceSpec extends Specification {
 
   def "calculates contribution and subtraction sums"() {
     given:
-    1 * accountStatementService.getAccountStatement(samplePerson) >> []
+    1 * conversionHoldings.forPerson(samplePerson) >> []
     pendingMandateApplications.getPendingExchanges(_, samplePerson) >> []
-    def secondPillar = "EE123"
-    def thirdPillar = "EE234"
-    fundRepository.findByIsin(secondPillar) >> Fund.builder().pillar(2).build()
-    fundRepository.findByIsin(thirdPillar) >> Fund.builder().pillar(3).build()
 
-    cashFlowService.getCashFlowStatement(samplePerson) >> CashFlowStatement.builder()
-        .transactions([
-            CashFlow.builder().isin(secondPillar).time(Instant.parse("2018-12-31T00:00:00+02:00")).amount(100.0).currency(EUR).type(CONTRIBUTION_CASH).build(),
-            CashFlow.builder().isin(secondPillar).time(Instant.parse("2019-01-01T00:00:00+02:00")).amount(1.0).currency(EUR).type(CONTRIBUTION_CASH).build(),
-            CashFlow.builder().isin(secondPillar).time(Instant.parse("2019-11-20T00:00:00+02:00")).amount(1.0).currency(EUR).type(CONTRIBUTION_CASH).build(),
-            CashFlow.builder().isin(secondPillar).time(Instant.parse("2019-12-20T00:00:00+02:00")).amount(1.0).currency(EUR).type(SUBTRACTION).build(),
-            CashFlow.builder().isin(secondPillar).time(Instant.parse("2019-12-21T00:00:00+02:00")).amount(1.0).currency(EUR).type(SUBTRACTION).build(),
+    conversionCashFlows.forPerson(samplePerson) >> [
+        new ConversionCashFlow(2, 100.0, Instant.parse("2018-12-31T00:00:00+02:00"), true, true, false),
+        new ConversionCashFlow(2, 1.0, Instant.parse("2019-01-01T00:00:00+02:00"), true, true, false),
+        new ConversionCashFlow(2, 1.0, Instant.parse("2019-11-20T00:00:00+02:00"), true, true, false),
+        new ConversionCashFlow(2, 1.0, Instant.parse("2019-12-20T00:00:00+02:00"), false, false, true),
+        new ConversionCashFlow(2, 1.0, Instant.parse("2019-12-21T00:00:00+02:00"), false, false, true),
 
-            CashFlow.builder().isin(thirdPillar).time(Instant.parse("2018-12-31T00:00:00+02:00")).amount(100.0).currency(EUR).type(CONTRIBUTION_CASH).build(),
-            CashFlow.builder().isin(thirdPillar).time(Instant.parse("2019-01-01T00:00:00+02:00")).amount(1.0).currency(EUR).type(CONTRIBUTION_CASH).build(),
-            CashFlow.builder().isin(thirdPillar).time(Instant.parse("2019-01-02T00:00:00+02:00")).amount(1.0).currency(EUR).type(CONTRIBUTION_CASH).build(),
-            CashFlow.builder().isin(thirdPillar).time(Instant.parse("2019-11-20T00:00:00+02:00")).amount(1.0).currency(EUR).type(CONTRIBUTION_CASH).build(),
-            CashFlow.builder().isin(thirdPillar).time(Instant.parse("2019-12-20T00:00:00+02:00")).amount(20.0).currency(EUR).type(CONTRIBUTION).build(),
-            CashFlow.builder().isin(thirdPillar).time(Instant.parse("2019-12-20T00:00:00+02:00")).amount(1.0).currency(EUR).type(SUBTRACTION).build(),
-            CashFlow.builder().isin(thirdPillar).time(Instant.parse("2019-12-21T00:00:00+02:00")).amount(1.0).currency(EUR).type(SUBTRACTION).build(),
-        ])
-        .build()
+        new ConversionCashFlow(3, 100.0, Instant.parse("2018-12-31T00:00:00+02:00"), true, true, false),
+        new ConversionCashFlow(3, 1.0, Instant.parse("2019-01-01T00:00:00+02:00"), true, true, false),
+        new ConversionCashFlow(3, 1.0, Instant.parse("2019-01-02T00:00:00+02:00"), true, true, false),
+        new ConversionCashFlow(3, 1.0, Instant.parse("2019-11-20T00:00:00+02:00"), true, true, false),
+        new ConversionCashFlow(3, 20.0, Instant.parse("2019-12-20T00:00:00+02:00"), false, true, false),
+        new ConversionCashFlow(3, 1.0, Instant.parse("2019-12-20T00:00:00+02:00"), false, false, true),
+        new ConversionCashFlow(3, 1.0, Instant.parse("2019-12-21T00:00:00+02:00"), false, false, true),
+    ]
 
     when:
     ConversionResponse response = service.getConversion(samplePerson)
@@ -387,9 +373,9 @@ class UserConversionServiceSpec extends Specification {
 
   def "calculates weighted average fees"() {
     given:
-    1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
+    1 * conversionHoldings.forPerson(samplePerson) >> toConversionHoldings(accountBalanceResponse)
     pendingMandateApplications.getPendingExchanges(_, samplePerson) >> []
-    cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
+    conversionCashFlows.forPerson(samplePerson) >> []
 
     when:
     ConversionResponse response = service.getConversion(samplePerson)

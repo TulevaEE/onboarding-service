@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Optional;
 import java.util.Set;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.modulith.core.ApplicationModule;
@@ -18,13 +17,6 @@ class ModularityTest {
       ApplicationModules.of(OnboardingServiceApplication.class);
 
   @Test
-  @Disabled
-  void detectModules() {
-    modules.forEach(System.out::println);
-  }
-
-  @Test
-  @Disabled("Enable after fixing module boundary violations")
   void verifyModuleStructure() {
     modules.verify();
   }

@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.conversion;
 import static java.math.BigDecimal.ZERO;
 import static java.util.stream.Collectors.toMap;
 
-import ee.tuleva.onboarding.account.FundBalance;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.HashMap;
@@ -15,18 +14,16 @@ import lombok.extern.slf4j.Slf4j;
 public class WeightedAverageFeeCalculator {
 
   public BigDecimal getWeightedAverageFee(
-      List<FundBalance> fundBalances, List<PendingExchange> pendingExchanges) {
+      List<ConversionHolding> holdings, List<PendingExchange> pendingExchanges) {
 
     Map<String, Asset> balanceAssetsByIsin =
-        fundBalances.stream()
+        holdings.stream()
             .collect(
                 toMap(
-                    FundBalance::getIsin,
-                    fundBalance ->
+                    ConversionHolding::isin,
+                    holding ->
                         new Asset(
-                            fundBalance.getFee(),
-                            fundBalance.getTotalValue(),
-                            fundBalance.getTotalUnits())));
+                            holding.ongoingChargesFigure(), holding.value(), holding.units())));
 
     log.info("balanceAssetsByIsin: {}", balanceAssetsByIsin);
 

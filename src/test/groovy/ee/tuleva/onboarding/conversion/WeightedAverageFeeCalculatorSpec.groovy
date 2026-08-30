@@ -1,8 +1,6 @@
 package ee.tuleva.onboarding.conversion
 
 
-import ee.tuleva.onboarding.account.FundBalance
-import ee.tuleva.onboarding.fund.Fund
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.fund.FundFixture.*
@@ -13,22 +11,14 @@ class WeightedAverageFeeCalculatorSpec extends Specification {
 
   def "Calculates the weighted average fee correctly"() {
     given:
-    List<FundBalance> funds = fundData.collect { fundInfo ->
-      Fund fund = Fund.builder()
-          .ongoingChargesFigure(fundInfo.fundFee)
-          .isin(fundInfo.isin)
-          .build()
-
-      FundBalance.builder()
-          .fund(fund)
-          .value(fundInfo.value)
-          .unavailableValue(fundInfo.unavailableValue)
-          .build()
+    List<ConversionHolding> holdings = fundData.collect { fundInfo ->
+      new ConversionHolding(2, fundInfo.isin, false, false, false,
+          fundInfo.value + fundInfo.unavailableValue, 0.0, fundInfo.fundFee)
     }
     def pendingExchanges = []
 
     expect:
-    weightedAverageFeeCalculator.getWeightedAverageFee(funds, pendingExchanges) == expectedWeightedAverageFee
+    weightedAverageFeeCalculator.getWeightedAverageFee(holdings, pendingExchanges) == expectedWeightedAverageFee
 
     where:
     fundData                                                                                                 | expectedWeightedAverageFee
@@ -59,17 +49,9 @@ class WeightedAverageFeeCalculatorSpec extends Specification {
 
   def "Calculates the 2nd pillar weighted average fee correctly with a pending exchange"() {
     given:
-    List<FundBalance> funds = fundData.collect { fundInfo ->
-      Fund fund = Fund.builder()
-          .ongoingChargesFigure(fundInfo.fundFee)
-          .isin(fundInfo.isin)
-          .build()
-
-      FundBalance.builder()
-          .fund(fund)
-          .value(fundInfo.value)
-          .unavailableValue(fundInfo.unavailableValue)
-          .build()
+    List<ConversionHolding> holdings = fundData.collect { fundInfo ->
+      new ConversionHolding(2, fundInfo.isin, false, false, false,
+          fundInfo.value + fundInfo.unavailableValue, 0.0, fundInfo.fundFee)
     }
 
     def sourceFund = tuleva2ndPillarStockFund()
@@ -84,7 +66,7 @@ class WeightedAverageFeeCalculatorSpec extends Specification {
     )]
 
     expect:
-    weightedAverageFeeCalculator.getWeightedAverageFee(funds, pendingExchanges) == expectedWeightedAverageFee
+    weightedAverageFeeCalculator.getWeightedAverageFee(holdings, pendingExchanges) == expectedWeightedAverageFee
 
     where:
     fundData                                                                                          | expectedWeightedAverageFee
@@ -107,19 +89,9 @@ class WeightedAverageFeeCalculatorSpec extends Specification {
 
   def "Calculates the 3rd pillar weighted average fee correctly with a pending exchange"() {
     given:
-    List<FundBalance> fundBalances = fundBalanceData.collect { fundInfo ->
-      Fund fund = Fund.builder()
-          .ongoingChargesFigure(fundInfo.fundFee)
-          .isin(fundInfo.isin)
-          .build()
-
-      FundBalance.builder()
-          .fund(fund)
-          .value(fundInfo.value)
-          .unavailableValue(fundInfo.unavailableValue)
-          .units(fundInfo.units)
-          .unavailableUnits(fundInfo.unavailableUnits)
-          .build()
+    List<ConversionHolding> holdings = fundBalanceData.collect { fundInfo ->
+      new ConversionHolding(3, fundInfo.isin, false, false, false,
+          fundInfo.value + fundInfo.unavailableValue, fundInfo.units + fundInfo.unavailableUnits, fundInfo.fundFee)
     }
 
     def sourceFund = lhv3rdPillarFund()
@@ -134,7 +106,7 @@ class WeightedAverageFeeCalculatorSpec extends Specification {
     )]
 
     expect:
-    weightedAverageFeeCalculator.getWeightedAverageFee(fundBalances, pendingExchanges) == expectedWeightedAverageFee
+    weightedAverageFeeCalculator.getWeightedAverageFee(holdings, pendingExchanges) == expectedWeightedAverageFee
 
     where:
     fundBalanceData                                                                                                                  | expectedWeightedAverageFee
@@ -144,17 +116,9 @@ class WeightedAverageFeeCalculatorSpec extends Specification {
 
   def "Calculates the weighted average fee correctly with multiple pending exchanges"() {
     given:
-    List<FundBalance> funds = fundData.collect { fundInfo ->
-      Fund fund = Fund.builder()
-          .ongoingChargesFigure(fundInfo.fundFee)
-          .isin(fundInfo.isin)
-          .build()
-
-      FundBalance.builder()
-          .fund(fund)
-          .value(fundInfo.value)
-          .unavailableValue(fundInfo.unavailableValue)
-          .build()
+    List<ConversionHolding> holdings = fundData.collect { fundInfo ->
+      new ConversionHolding(2, fundInfo.isin, false, false, false,
+          fundInfo.value + fundInfo.unavailableValue, 0.0, fundInfo.fundFee)
     }
 
     def sourceFund = tuleva2ndPillarStockFund()
@@ -180,7 +144,7 @@ class WeightedAverageFeeCalculatorSpec extends Specification {
     ]
 
     expect:
-    weightedAverageFeeCalculator.getWeightedAverageFee(funds, pendingExchanges) == expectedWeightedAverageFee
+    weightedAverageFeeCalculator.getWeightedAverageFee(holdings, pendingExchanges) == expectedWeightedAverageFee
 
     where:
     fundData                                                                                          | expectedWeightedAverageFee
@@ -199,17 +163,9 @@ class WeightedAverageFeeCalculatorSpec extends Specification {
 
   def "Calculates the weighted average fee correctly with pending pik exchanges"() {
     given:
-    List<FundBalance> funds = fundData.collect { fundInfo ->
-      Fund fund = Fund.builder()
-          .ongoingChargesFigure(fundInfo.fundFee)
-          .isin(fundInfo.isin)
-          .build()
-
-      FundBalance.builder()
-          .fund(fund)
-          .value(fundInfo.value)
-          .unavailableValue(fundInfo.unavailableValue)
-          .build()
+    List<ConversionHolding> holdings = fundData.collect { fundInfo ->
+      new ConversionHolding(2, fundInfo.isin, false, false, false,
+          fundInfo.value + fundInfo.unavailableValue, 0.0, fundInfo.fundFee)
     }
 
     def sourceFund = tuleva2ndPillarStockFund()
@@ -224,7 +180,7 @@ class WeightedAverageFeeCalculatorSpec extends Specification {
     def pendingExchanges = [exchange]
 
     expect:
-    weightedAverageFeeCalculator.getWeightedAverageFee(funds, pendingExchanges) == expectedWeightedAverageFee
+    weightedAverageFeeCalculator.getWeightedAverageFee(holdings, pendingExchanges) == expectedWeightedAverageFee
 
     where:
     fundData                                                                                            | expectedWeightedAverageFee

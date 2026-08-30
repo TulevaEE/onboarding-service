@@ -3,25 +3,18 @@ package ee.tuleva.onboarding.conversion;
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND;
 import static ee.tuleva.onboarding.pillar.Pillar.THIRD;
 import static java.math.BigDecimal.ZERO;
-import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
 
-import ee.tuleva.onboarding.account.AccountStatementService;
-import ee.tuleva.onboarding.account.CashFlowService;
-import ee.tuleva.onboarding.account.FundBalance;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.conversion.ConversionResponse.Amount;
 import ee.tuleva.onboarding.conversion.ConversionResponse.Conversion;
-import ee.tuleva.onboarding.epis.CashFlow;
-import ee.tuleva.onboarding.epis.CashFlowStatement;
-import ee.tuleva.onboarding.fund.Fund;
-import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.pillar.Pillar;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Set;
@@ -36,9 +29,8 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class UserConversionService {
 
-  private final AccountStatementService accountStatementService;
-  private final CashFlowService cashFlowService;
-  private final FundRepository fundRepository;
+  private final ConversionHoldings conversionHoldings;
+  private final ConversionCashFlows conversionCashFlows;
   private final Clock estonianClock;
   private final PendingMandateApplications pendingMandateApplications;
 
@@ -46,13 +38,17 @@ public class UserConversionService {
       new WeightedAverageFeeCalculator();
 
   public ConversionResponse getConversion(Person person) {
-    List<FundBalance> fundBalances = accountStatementService.getAccountStatement(person);
-    CashFlowStatement cashFlowStatement = cashFlowService.getCashFlowStatement(person);
+    List<ConversionHolding> holdings = conversionHoldings.forPerson(person);
+    List<ConversionCashFlow> cashFlows = conversionCashFlows.forPerson(person);
+    ZoneId zone = estonianClock.getZone();
+    Instant sameTimeLastYear = sameTimeLastYear();
+    int thisYear = thisYear();
+    int lastYear = thisYear - 1;
 
     var pendingExchanges =
         Stream.concat(getPendingExchanges(2, person), getPendingExchanges(3, person)).toList();
     var weightedAverageFee =
-        weightedAverageFeeCalculator.getWeightedAverageFee(fundBalances, pendingExchanges);
+        weightedAverageFeeCalculator.getWeightedAverageFee(holdings, pendingExchanges);
     log.info(
         "Weighted average fee is {} for person {} with {} pending exchanges",
         weightedAverageFee,
@@ -63,115 +59,96 @@ public class UserConversionService {
         .weightedAverageFee(weightedAverageFee)
         .secondPillar(
             Conversion.builder()
-                .selectionComplete(isSelectionComplete(fundBalances, 2))
-                .selectionPartial(isSelectionPartial(fundBalances, 2))
-                .transfersComplete(isTransfersComplete(fundBalances, 2, person))
-                .transfersPartial(isTransfersPartial(fundBalances, 2, person))
+                .selectionComplete(isSelectionComplete(holdings, 2))
+                .selectionPartial(isSelectionPartial(holdings, 2))
+                .transfersComplete(isTransfersComplete(holdings, 2, person))
+                .transfersPartial(isTransfersPartial(holdings, 2, person))
                 .pendingWithdrawal(pendingMandateApplications.hasPendingWithdrawals(person, SECOND))
                 .contribution(
                     Amount.builder()
-                        .yearToDate(cashContributionSum(cashFlowStatement, 2, thisYear()))
-                        .lastYear(cashContributionSum(cashFlowStatement, 2, lastYear()))
-                        .total(totalContributionSum(cashFlowStatement, 2))
+                        .yearToDate(cashContributionSum(cashFlows, 2, thisYear, zone))
+                        .lastYear(cashContributionSum(cashFlows, 2, lastYear, zone))
+                        .total(totalContributionSum(cashFlows, 2))
                         .build())
                 .subtraction(
                     Amount.builder()
-                        .yearToDate(subtractionSum(cashFlowStatement, 2, thisYear()))
-                        .lastYear(subtractionSum(cashFlowStatement, 2, lastYear()))
-                        .total(totalSubtractionSum(cashFlowStatement, 2))
+                        .yearToDate(subtractionSum(cashFlows, 2, thisYear, zone))
+                        .lastYear(subtractionSum(cashFlows, 2, lastYear, zone))
+                        .total(totalSubtractionSum(cashFlows, 2))
                         .build())
                 .weightedAverageFee(
                     weightedAverageFeeCalculator.getWeightedAverageFee(
-                        filter(fundBalances, 2).toList(), getPendingExchanges(2, person).toList()))
+                        filter(holdings, 2).toList(), getPendingExchanges(2, person).toList()))
                 .build())
         .thirdPillar(
             Conversion.builder()
-                .selectionComplete(isSelectionComplete(fundBalances, 3))
-                .selectionPartial(isSelectionPartial(fundBalances, 3))
-                .transfersComplete(isTransfersComplete(fundBalances, 3, person))
-                .transfersPartial(isTransfersPartial(fundBalances, 3, person))
+                .selectionComplete(isSelectionComplete(holdings, 3))
+                .selectionPartial(isSelectionPartial(holdings, 3))
+                .transfersComplete(isTransfersComplete(holdings, 3, person))
+                .transfersPartial(isTransfersPartial(holdings, 3, person))
                 .pendingWithdrawal(pendingMandateApplications.hasPendingWithdrawals(person, THIRD))
                 .contribution(
                     Amount.builder()
-                        .yearToDate(cashContributionSum(cashFlowStatement, 3, thisYear()))
-                        .lastYear(cashContributionSum(cashFlowStatement, 3, lastYear()))
-                        .total(totalContributionSum(cashFlowStatement, 3))
+                        .yearToDate(cashContributionSum(cashFlows, 3, thisYear, zone))
+                        .lastYear(cashContributionSum(cashFlows, 3, lastYear, zone))
+                        .total(totalContributionSum(cashFlows, 3))
                         .build())
                 .subtraction(
                     Amount.builder()
-                        .yearToDate(subtractionSum(cashFlowStatement, 3, thisYear()))
-                        .lastYear(subtractionSum(cashFlowStatement, 3, lastYear()))
-                        .total(totalSubtractionSum(cashFlowStatement, 3))
+                        .yearToDate(subtractionSum(cashFlows, 3, thisYear, zone))
+                        .lastYear(subtractionSum(cashFlows, 3, lastYear, zone))
+                        .total(totalSubtractionSum(cashFlows, 3))
                         .build())
-                .paymentComplete(paymentComplete(cashFlowStatement))
+                .paymentComplete(paymentComplete(cashFlows, sameTimeLastYear))
                 .weightedAverageFee(
                     weightedAverageFeeCalculator.getWeightedAverageFee(
-                        filter(fundBalances, 3).toList(), getPendingExchanges(3, person).toList()))
+                        filter(holdings, 3).toList(), getPendingExchanges(3, person).toList()))
                 .build())
         .build();
   }
 
-  private boolean paymentComplete(CashFlowStatement cashFlowStatement) {
-    return cashFlowStatement.getTransactions().stream()
-            .filter(cashFlow -> cashFlow.isPriceTimeAfter(sameTimeLastYear()))
-            .filter(CashFlow::isCashContribution)
-            .filter(
-                cashFlow -> {
-                  String isin =
-                      requireNonNull(cashFlow.getIsin(), "Cash contribution missing isin");
-                  return requireNonNull(
-                              fundRepository.findByIsin(isin), "Unknown fund: isin=" + isin)
-                          .getPillar()
-                      == 3;
-                })
-            .map(CashFlow::getAmount)
+  private static boolean paymentComplete(
+      List<ConversionCashFlow> cashFlows, Instant sameTimeLastYear) {
+    return cashFlows.stream()
+            .filter(cashFlow -> cashFlow.time().isAfter(sameTimeLastYear))
+            .filter(ConversionCashFlow::cashContribution)
+            .filter(cashFlow -> cashFlow.pillar() == 3)
+            .map(ConversionCashFlow::amount)
             .reduce(ZERO, BigDecimal::add)
             .compareTo(ZERO)
         > 0;
   }
 
-  private BigDecimal cashContributionSum(
-      CashFlowStatement cashFlowStatement, int pillar, int year) {
+  private static BigDecimal cashContributionSum(
+      List<ConversionCashFlow> cashFlows, int pillar, int year, ZoneId zone) {
     return sum(
-        cashFlowStatement,
-        pillar,
-        cashFlow -> cashFlow.isCashContribution() && year(cashFlow) == year);
+        cashFlows, pillar, cashFlow -> cashFlow.cashContribution() && year(cashFlow, zone) == year);
   }
 
-  private BigDecimal totalContributionSum(CashFlowStatement cashFlowStatement, int pillar) {
-    return sum(cashFlowStatement, pillar, CashFlow::isContribution);
+  private static BigDecimal totalContributionSum(List<ConversionCashFlow> cashFlows, int pillar) {
+    return sum(cashFlows, pillar, ConversionCashFlow::contribution);
   }
 
-  private BigDecimal subtractionSum(CashFlowStatement cashFlowStatement, int pillar, int year) {
+  private static BigDecimal subtractionSum(
+      List<ConversionCashFlow> cashFlows, int pillar, int year, ZoneId zone) {
     return sum(
-        cashFlowStatement, pillar, cashFlow -> cashFlow.isSubtraction() && year(cashFlow) == year);
+        cashFlows, pillar, cashFlow -> cashFlow.subtraction() && year(cashFlow, zone) == year);
   }
 
-  private int year(CashFlow cashFlow) {
-    return cashFlow.getPriceTime().atZone(estonianClock.getZone()).getYear();
+  private static int year(ConversionCashFlow cashFlow, ZoneId zone) {
+    return cashFlow.time().atZone(zone).getYear();
   }
 
-  private BigDecimal totalSubtractionSum(CashFlowStatement cashFlowStatement, int pillar) {
-    return sum(cashFlowStatement, pillar, CashFlow::isSubtraction);
+  private static BigDecimal totalSubtractionSum(List<ConversionCashFlow> cashFlows, int pillar) {
+    return sum(cashFlows, pillar, ConversionCashFlow::subtraction);
   }
 
-  private BigDecimal sum(
-      CashFlowStatement cashFlowStatement, int pillar, Predicate<CashFlow> filterBy) {
-    return cashFlowStatement.getTransactions().stream()
+  private static BigDecimal sum(
+      List<ConversionCashFlow> cashFlows, int pillar, Predicate<ConversionCashFlow> filterBy) {
+    return cashFlows.stream()
         .filter(filterBy)
-        .filter(
-            cashFlow -> {
-              String isin =
-                  requireNonNull(cashFlow.getIsin(), "Cash flow missing isin: pillar=" + pillar);
-              Fund fund = fundRepository.findByIsin(isin); // TODO: O(n) queries
-              if (fund == null) {
-                log.error("We didn't find the fund source: " + isin);
-                return false;
-              } else {
-                return fund.getPillar() == pillar;
-              }
-            })
-        .map(CashFlow::getAmount)
+        .filter(cashFlow -> cashFlow.pillar() == pillar)
+        .map(ConversionCashFlow::amount)
         .reduce(ZERO, BigDecimal::add)
         .setScale(2, RoundingMode.HALF_UP);
   }
@@ -180,113 +157,111 @@ public class UserConversionService {
     return ZonedDateTime.now(estonianClock).getYear();
   }
 
-  private int lastYear() {
-    return thisYear() - 1;
-  }
-
   private Instant sameTimeLastYear() {
     return ZonedDateTime.now(estonianClock).minusYears(1).toInstant();
   }
 
-  private boolean isSelectionComplete(List<FundBalance> fundBalances, Integer pillar) {
-    return filter(fundBalances, pillar).findFirst().isPresent()
-        && filter(fundBalances, pillar).anyMatch(FundBalance::isActiveContributions)
-        && filter(fundBalances, pillar)
-            .filter(FundBalance::isActiveContributions)
-            .allMatch(FundBalance::isOwnFund);
+  private static boolean isSelectionComplete(List<ConversionHolding> holdings, int pillar) {
+    return filter(holdings, pillar).findFirst().isPresent()
+        && filter(holdings, pillar).anyMatch(ConversionHolding::activeContributions)
+        && filter(holdings, pillar)
+            .filter(ConversionHolding::activeContributions)
+            .allMatch(ConversionHolding::ownFund);
   }
 
-  private boolean isSelectionPartial(List<FundBalance> fundBalances, Integer pillar) {
-    return filter(fundBalances, pillar)
-        .filter(FundBalance::isActiveContributions)
-        .anyMatch(FundBalance::isOwnFund);
+  private static boolean isSelectionPartial(List<ConversionHolding> holdings, int pillar) {
+    return filter(holdings, pillar)
+        .filter(ConversionHolding::activeContributions)
+        .anyMatch(ConversionHolding::ownFund);
   }
 
-  private Stream<FundBalance> filter(List<FundBalance> fundBalances, Integer pillar) {
-    return fundBalances.stream().filter(fundBalance -> pillar.equals(fundBalance.getPillar()));
+  private static Stream<ConversionHolding> filter(List<ConversionHolding> holdings, int pillar) {
+    return holdings.stream().filter(holding -> holding.pillar() == pillar);
   }
 
-  private boolean isTransfersComplete(
-      List<FundBalance> fundBalances, Integer pillar, Person person) {
-    return getIsinsOfFullPendingTransfersToConvertedFundManager(person, fundBalances, pillar)
-            .containsAll(unConvertedIsins(fundBalances, pillar))
+  private boolean isTransfersComplete(List<ConversionHolding> holdings, int pillar, Person person) {
+    return getIsinsOfFullPendingTransfersToConvertedFundManager(person, holdings, pillar)
+            .containsAll(unConvertedIsins(holdings, pillar))
         && !hasAnyPendingTransfersAwayFromConvertedFundManager(person, pillar);
   }
 
-  private boolean hasAnyPendingTransfersAwayFromConvertedFundManager(
-      Person person, Integer pillar) {
+  private boolean hasAnyPendingTransfersAwayFromConvertedFundManager(Person person, int pillar) {
     return getPendingExchanges(pillar, person)
         .anyMatch(exchange -> exchange.isFromOwnFund() && !exchange.isToOwnFund());
   }
 
-  private boolean isTransfersPartial(
-      List<FundBalance> fundBalances, Integer pillar, Person person) {
-    return filter(fundBalances, pillar).findFirst().isEmpty()
-        || hasAnyValueInOwnFundsWithNoPendingTransfersAway(fundBalances, pillar, person)
+  private boolean isTransfersPartial(List<ConversionHolding> holdings, int pillar, Person person) {
+    return filter(holdings, pillar).findFirst().isEmpty()
+        || hasAnyValueInOwnFundsWithNoPendingTransfersAway(holdings, pillar, person)
         || hasAnyPendingTransfersToOwnFunds(person, pillar);
   }
 
   private boolean hasAnyValueInOwnFundsWithNoPendingTransfersAway(
-      List<FundBalance> fundBalances, Integer pillar, Person person) {
+      List<ConversionHolding> holdings, int pillar, Person person) {
     var fullyAwayIsins =
-        getIsinsOfFullPendingTransfersAwayFromConvertedFundManager(person, fundBalances, pillar);
-    return filter(fundBalances, pillar)
-        .filter(FundBalance::hasAnyTotalValue)
-        .anyMatch(
-            fundBalance ->
-                fundBalance.isOwnFund() && !fullyAwayIsins.contains(fundBalance.getIsin()));
+        getIsinsOfFullPendingTransfersAwayFromConvertedFundManager(person, holdings, pillar);
+    return filter(holdings, pillar)
+        .filter(ConversionHolding::hasAnyValue)
+        .anyMatch(holding -> holding.ownFund() && !fullyAwayIsins.contains(holding.isin()));
   }
 
-  private boolean hasAnyPendingTransfersToOwnFunds(Person person, Integer pillar) {
+  private boolean hasAnyPendingTransfersToOwnFunds(Person person, int pillar) {
     return getPendingExchanges(pillar, person).anyMatch(PendingExchange::isToOwnFund);
   }
 
   private Set<String> getIsinsOfFullPendingTransfersToConvertedFundManager(
-      Person person, List<FundBalance> fundBalances, Integer pillar) {
+      Person person, List<ConversionHolding> holdings, int pillar) {
     return getPendingExchanges(pillar, person)
-        .filter(exchange -> exchange.isToOwnFund() && amountMatches(exchange, fundBalances))
+        .filter(exchange -> exchange.isToOwnFund() && amountMatches(exchange, holdings))
         .map(PendingExchange::getSourceIsin)
         .collect(toSet());
   }
 
   private Set<String> getIsinsOfFullPendingTransfersAwayFromConvertedFundManager(
-      Person person, List<FundBalance> fundBalances, Integer pillar) {
+      Person person, List<ConversionHolding> holdings, int pillar) {
     return getPendingExchanges(pillar, person)
-        .filter(exchange -> exchange.isFromOwnFund() && amountMatches(exchange, fundBalances))
+        .filter(exchange -> exchange.isFromOwnFund() && amountMatches(exchange, holdings))
         .map(PendingExchange::getSourceIsin)
         .collect(toSet());
   }
 
-  private Stream<PendingExchange> getPendingExchanges(Integer pillar, Person person) {
+  private Stream<PendingExchange> getPendingExchanges(int pillar, Person person) {
     return pendingMandateApplications.getPendingExchanges(Pillar.fromInt(pillar), person).stream();
   }
 
-  private boolean amountMatches(PendingExchange exchange, List<FundBalance> fundBalances) {
+  private static boolean amountMatches(PendingExchange exchange, List<ConversionHolding> holdings) {
     if (exchange.getPillar() == 2) {
       return exchange.isFullAmount();
     }
     if (exchange.getPillar() == 3) {
-      FundBalance fundBalance = fundBalance(exchange, fundBalances);
-      return exchange.isFullAmount(fundBalance.getTotalUnits());
+      ConversionHolding holding = holding(exchange, holdings);
+      return exchange.isFullAmount(holding.units());
     }
     throw new IllegalStateException("Invalid pillar: " + exchange.getPillar());
   }
 
-  private FundBalance fundBalance(PendingExchange exchange, List<FundBalance> fundBalances) {
-    return fundBalances.stream()
-        .filter(fundBalance -> exchange.getSourceIsin().equals(fundBalance.getIsin()))
+  private static ConversionHolding holding(
+      PendingExchange exchange, List<ConversionHolding> holdings) {
+    return holdings.stream()
+        .filter(holding -> exchange.getSourceIsin().equals(holding.isin()))
         .findFirst()
-        .orElse(FundBalance.builder().build());
+        .orElseGet(
+            () ->
+                new ConversionHolding(
+                    exchange.getPillar(),
+                    exchange.getSourceIsin(),
+                    false,
+                    false,
+                    false,
+                    ZERO,
+                    ZERO,
+                    ZERO));
   }
 
-  private List<String> unConvertedIsins(List<FundBalance> fundBalances, Integer pillar) {
-    return filter(fundBalances, pillar)
-        .filter(
-            fundBalance ->
-                !fundBalance.isOwnFund()
-                    && fundBalance.hasAnyTotalValue()
-                    && !fundBalance.isExitRestricted())
-        .map(fundBalance -> fundBalance.getFund().getIsin())
+  private static List<String> unConvertedIsins(List<ConversionHolding> holdings, int pillar) {
+    return filter(holdings, pillar)
+        .filter(holding -> !holding.ownFund() && holding.hasAnyValue() && !holding.exitRestricted())
+        .map(ConversionHolding::isin)
         .collect(toList());
   }
 }

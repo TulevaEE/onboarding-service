@@ -15,5 +15,5 @@ else
   RECORD_AS="$MODULE"
 fi
 
-./gradlew pitest -Ppitest.target="$TARGET"
+./gradlew pitest --rerun -Ppitest.target="$TARGET"
 python3 scripts/pitest_slice_record.py "$RECORD_AS"

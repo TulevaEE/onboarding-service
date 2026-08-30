@@ -1,23 +1,17 @@
-package ee.tuleva.onboarding.aml;
+package ee.tuleva.onboarding.kyb;
 
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 import static java.util.Map.entry;
 import static java.util.Objects.requireNonNull;
 
-import ee.tuleva.onboarding.company.Company;
-import ee.tuleva.onboarding.company.CompanyRepository;
-import ee.tuleva.onboarding.kyb.KybCheck;
-import ee.tuleva.onboarding.kyb.KybCheckHistory;
-import ee.tuleva.onboarding.kyb.KybCheckType;
-import ee.tuleva.onboarding.kyb.PersonalCode;
-import ee.tuleva.onboarding.kyb.RegistryCode;
-import ee.tuleva.onboarding.kyb.RelatedPersonsKycMetadata;
+import ee.tuleva.onboarding.aml.AmlCheck;
+import ee.tuleva.onboarding.aml.AmlCheckRepository;
+import ee.tuleva.onboarding.aml.AmlCheckType;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -45,11 +39,11 @@ public class AmlKybCheckHistory implements KybCheckHistory {
           entry(AmlCheckType.KYB_SELF_CERTIFICATION, KybCheckType.SELF_CERTIFICATION));
 
   private final AmlCheckRepository amlCheckRepository;
-  private final CompanyRepository companyRepository;
+  private final CompanyIdResolver companyIdResolver;
 
   @Override
   public List<KybCheck> getLatestChecks(PersonalCode personalCode, RegistryCode registryCode) {
-    UUID companyId = resolveCompanyId(registryCode);
+    UUID companyId = companyIdResolver.resolveId(registryCode);
     return amlCheckRepository
         .findAllByPersonalCodeAndCompanyIdAndCreatedTimeAfter(
             personalCode.value(), companyId, aYearAgo())
@@ -62,22 +56,16 @@ public class AmlKybCheckHistory implements KybCheckHistory {
 
   @Override
   public List<String> findIncompleteKycPersonalCodes(RegistryCode registryCode) {
-    return companyRepository
-        .findByRegistryCode(registryCode.value())
-        .flatMap(
-            company ->
-                amlCheckRepository.findFirstByCompanyIdAndTypeOrderByCreatedTimeDescIdDesc(
-                    company.getId(), AmlCheckType.KYB_RELATED_PERSONS_KYC))
+    UUID companyId = companyIdResolver.resolveId(registryCode);
+    if (companyId == null) {
+      return List.of();
+    }
+    return amlCheckRepository
+        .findFirstByCompanyIdAndTypeOrderByCreatedTimeDescIdDesc(
+            companyId, AmlCheckType.KYB_RELATED_PERSONS_KYC)
         .map(this::toKybCheck)
         .map(RelatedPersonsKycMetadata::incompletePersonalCodes)
         .orElse(List.of());
-  }
-
-  private @Nullable UUID resolveCompanyId(RegistryCode registryCode) {
-    return companyRepository
-        .findByRegistryCode(registryCode.value())
-        .map(Company::getId)
-        .orElse(null);
   }
 
   private KybCheck toKybCheck(AmlCheck amlCheck) {

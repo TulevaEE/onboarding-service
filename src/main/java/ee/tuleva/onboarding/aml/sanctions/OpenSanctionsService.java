@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.aml.sanctions;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.country.Country;
-import ee.tuleva.onboarding.kyb.CompanyDto;
 import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import java.time.Duration;
 import java.util.List;
@@ -62,8 +61,8 @@ class OpenSanctionsService implements PepAndSanctionCheckService {
 
   @Override
   @SneakyThrows
-  public MatchResponse matchCompany(CompanyDto company) {
-    var registryCode = company.registryCode().value();
+  public MatchResponse matchCompany(ScreenedCompany company) {
+    var registryCode = company.registryCode();
     var properties =
         new CompanyProperties(List.of(company.name()), List.of(registryCode), Set.of(ESTONIA));
     var companyQuery = new CompanyQuery(properties);

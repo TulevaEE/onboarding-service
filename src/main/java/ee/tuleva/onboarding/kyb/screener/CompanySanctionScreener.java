@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_SANCTION;
 
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
 import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
+import ee.tuleva.onboarding.aml.sanctions.ScreenedCompany;
 import ee.tuleva.onboarding.kyb.KybCheck;
 import ee.tuleva.onboarding.kyb.KybCompanyData;
 import java.util.List;
@@ -28,7 +29,10 @@ public class CompanySanctionScreener implements KybScreener {
 
   @Override
   public List<KybCheck> screen(KybCompanyData companyData) {
-    var response = sanctionCheckService.matchCompany(companyData.company());
+    var company = companyData.company();
+    var response =
+        sanctionCheckService.matchCompany(
+            new ScreenedCompany(company.name(), company.registryCode().value()));
 
     return List.of(sanctionCheck(response), pepCheck(response));
   }

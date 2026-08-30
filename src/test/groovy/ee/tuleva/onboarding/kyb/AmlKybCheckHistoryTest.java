@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.aml;
+package ee.tuleva.onboarding.kyb;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
 import static ee.tuleva.onboarding.kyb.KybCheckType.*;
@@ -8,12 +8,9 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import ee.tuleva.onboarding.company.Company;
-import ee.tuleva.onboarding.company.CompanyRepository;
-import ee.tuleva.onboarding.kyb.KybCheck;
-import ee.tuleva.onboarding.kyb.KybCheckType;
-import ee.tuleva.onboarding.kyb.PersonalCode;
-import ee.tuleva.onboarding.kyb.RegistryCode;
+import ee.tuleva.onboarding.aml.AmlCheck;
+import ee.tuleva.onboarding.aml.AmlCheckRepository;
+import ee.tuleva.onboarding.aml.AmlCheckType;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -25,8 +22,8 @@ import org.junit.jupiter.api.Test;
 class AmlKybCheckHistoryTest {
 
   private final AmlCheckRepository repository = mock(AmlCheckRepository.class);
-  private final CompanyRepository companyRepository = mock(CompanyRepository.class);
-  private final AmlKybCheckHistory history = new AmlKybCheckHistory(repository, companyRepository);
+  private final CompanyIdResolver companyIdResolver = mock(CompanyIdResolver.class);
+  private final AmlKybCheckHistory history = new AmlKybCheckHistory(repository, companyIdResolver);
 
   private static final PersonalCode PERSONAL_CODE = new PersonalCode("38501010001");
   private static final RegistryCode REGISTRY_CODE = new RegistryCode("12345678");
@@ -34,8 +31,7 @@ class AmlKybCheckHistoryTest {
 
   @BeforeEach
   void setUp() {
-    when(companyRepository.findByRegistryCode("12345678"))
-        .thenReturn(Optional.of(Company.builder().id(COMPANY_ID).registryCode("12345678").build()));
+    when(companyIdResolver.resolveId(REGISTRY_CODE)).thenReturn(COMPANY_ID);
   }
 
   @Test
@@ -95,7 +91,7 @@ class AmlKybCheckHistoryTest {
 
   @Test
   void returnsEmptyWhenTheCompanyIsNotYetPersisted() {
-    when(companyRepository.findByRegistryCode("12345678")).thenReturn(Optional.empty());
+    when(companyIdResolver.resolveId(REGISTRY_CODE)).thenReturn(null);
 
     var result = history.getLatestChecks(PERSONAL_CODE, REGISTRY_CODE);
 
@@ -172,7 +168,7 @@ class AmlKybCheckHistoryTest {
 
   @Test
   void returnsNoPersonalCodesWhenTheCompanyIsNotYetPersisted() {
-    when(companyRepository.findByRegistryCode("12345678")).thenReturn(Optional.empty());
+    when(companyIdResolver.resolveId(REGISTRY_CODE)).thenReturn(null);
 
     var result = history.findIncompleteKycPersonalCodes(REGISTRY_CODE);
 

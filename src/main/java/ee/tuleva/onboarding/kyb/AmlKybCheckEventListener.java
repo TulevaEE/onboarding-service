@@ -1,16 +1,12 @@
-package ee.tuleva.onboarding.aml;
+package ee.tuleva.onboarding.kyb;
 
 import static ee.tuleva.onboarding.kyb.KybCheckPerformedEventOrder.ATTRIBUTE_AML_CHECKS;
 import static java.util.Map.entry;
 import static java.util.Objects.requireNonNull;
 
-import ee.tuleva.onboarding.company.Company;
-import ee.tuleva.onboarding.company.CompanyRepository;
-import ee.tuleva.onboarding.kyb.CompanyDto;
-import ee.tuleva.onboarding.kyb.KybCheck;
-import ee.tuleva.onboarding.kyb.KybCheckPerformedEvent;
-import ee.tuleva.onboarding.kyb.KybCheckType;
-import ee.tuleva.onboarding.kyb.PersonalCode;
+import ee.tuleva.onboarding.aml.AmlCheck;
+import ee.tuleva.onboarding.aml.AmlCheckType;
+import ee.tuleva.onboarding.aml.AmlService;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -46,24 +42,17 @@ public class AmlKybCheckEventListener {
           entry(KybCheckType.DATA_CHANGED, AmlCheckType.KYB_DATA_CHANGED));
 
   private final AmlService amlService;
-  private final CompanyRepository companyRepository;
+  private final CompanyIdResolver companyIdResolver;
 
   @Order(ATTRIBUTE_AML_CHECKS)
   @EventListener
   @Transactional
   public void onKybCheckPerformed(KybCheckPerformedEvent event) {
-    UUID companyId = resolveCompanyId(event.getCompany());
+    UUID companyId = companyIdResolver.resolveId(event.getCompany().registryCode());
     event
         .getChecks()
         .forEach(
             check -> amlService.addCheck(toAmlCheck(event.getPersonalCode(), companyId, check)));
-  }
-
-  private @Nullable UUID resolveCompanyId(CompanyDto company) {
-    return companyRepository
-        .findByRegistryCode(company.registryCode().value())
-        .map(Company::getId)
-        .orElse(null);
   }
 
   private AmlCheck toAmlCheck(

@@ -11,10 +11,46 @@
     "score": 87.79,
     "recordedAt": "2026-08-30"
   },
+  "admin": {
+    "mutations": 8,
+    "detected": 3,
+    "score": 37.5,
+    "recordedAt": "2026-08-30"
+  },
+  "administration": {
+    "mutations": 14,
+    "detected": 13,
+    "score": 92.86,
+    "recordedAt": "2026-08-30"
+  },
   "aml": {
     "mutations": 347,
     "detected": 306,
     "score": 88.18,
+    "recordedAt": "2026-08-30"
+  },
+  "analytics": {
+    "mutations": 129,
+    "detected": 77,
+    "score": 59.69,
+    "recordedAt": "2026-08-30"
+  },
+  "applicationtype": {
+    "mutations": 8,
+    "detected": 0,
+    "score": 0.0,
+    "recordedAt": "2026-08-30"
+  },
+  "ariregister": {
+    "mutations": 73,
+    "detected": 59,
+    "score": 80.82,
+    "recordedAt": "2026-08-30"
+  },
+  "audit": {
+    "mutations": 20,
+    "detected": 16,
+    "score": 80.0,
     "recordedAt": "2026-08-30"
   },
   "auth": {
@@ -35,16 +71,46 @@
     "score": 84.72,
     "recordedAt": "2026-08-30"
   },
+  "company": {
+    "mutations": 43,
+    "detected": 40,
+    "score": 93.02,
+    "recordedAt": "2026-08-30"
+  },
   "comparisons": {
     "mutations": 780,
     "detected": 658,
     "score": 84.36,
     "recordedAt": "2026-08-30"
   },
+  "config": {
+    "mutations": 156,
+    "detected": 33,
+    "score": 21.15,
+    "recordedAt": "2026-08-30"
+  },
+  "contribution": {
+    "mutations": 35,
+    "detected": 26,
+    "score": 74.29,
+    "recordedAt": "2026-08-30"
+  },
   "conversion": {
     "mutations": 111,
     "detected": 96,
     "score": 86.49,
+    "recordedAt": "2026-08-30"
+  },
+  "country": {
+    "mutations": 23,
+    "detected": 17,
+    "score": 73.91,
+    "recordedAt": "2026-08-30"
+  },
+  "currency": {
+    "mutations": 0,
+    "detected": 0,
+    "score": null,
     "recordedAt": "2026-08-30"
   },
   "deadline": {
@@ -59,6 +125,54 @@
     "score": 100.0,
     "recordedAt": "2026-08-30"
   },
+  "error": {
+    "mutations": 38,
+    "detected": 34,
+    "score": 89.47,
+    "recordedAt": "2026-08-30"
+  },
+  "event": {
+    "mutations": 18,
+    "detected": 16,
+    "score": 88.89,
+    "recordedAt": "2026-08-30"
+  },
+  "ftp": {
+    "mutations": 14,
+    "detected": 5,
+    "score": 35.71,
+    "recordedAt": "2026-08-30"
+  },
+  "fund": {
+    "mutations": 178,
+    "detected": 139,
+    "score": 78.09,
+    "recordedAt": "2026-08-30"
+  },
+  "hackathon": {
+    "mutations": 29,
+    "detected": 26,
+    "score": 89.66,
+    "recordedAt": "2026-08-30"
+  },
+  "holdings": {
+    "mutations": 45,
+    "detected": 39,
+    "score": 86.67,
+    "recordedAt": "2026-08-30"
+  },
+  "iban": {
+    "mutations": 34,
+    "detected": 31,
+    "score": 91.18,
+    "recordedAt": "2026-08-30"
+  },
+  "instrument": {
+    "mutations": 103,
+    "detected": 89,
+    "score": 86.41,
+    "recordedAt": "2026-08-30"
+  },
   "investment": {
     "mutations": 5115,
     "detected": 4563,
@@ -71,10 +185,28 @@
     "score": 92.42,
     "recordedAt": "2026-08-30"
   },
+  "kyc": {
+    "mutations": 47,
+    "detected": 44,
+    "score": 93.62,
+    "recordedAt": "2026-08-30"
+  },
   "ledger": {
     "mutations": 338,
     "detected": 337,
     "score": 99.7,
+    "recordedAt": "2026-08-30"
+  },
+  "listing": {
+    "mutations": 53,
+    "detected": 47,
+    "score": 88.68,
+    "recordedAt": "2026-08-30"
+  },
+  "locale": {
+    "mutations": 5,
+    "detected": 1,
+    "score": 20.0,
     "recordedAt": "2026-08-30"
   },
   "mandate": {
@@ -83,16 +215,100 @@
     "score": 79.48,
     "recordedAt": "2026-08-30"
   },
+  "member": {
+    "mutations": 9,
+    "detected": 8,
+    "score": 88.89,
+    "recordedAt": "2026-08-30"
+  },
   "notification": {
     "mutations": 236,
     "detected": 219,
     "score": 92.8,
     "recordedAt": "2026-08-30"
   },
+  "party": {
+    "mutations": 179,
+    "detected": 173,
+    "score": 96.65,
+    "recordedAt": "2026-08-30"
+  },
+  "payment": {
+    "mutations": 268,
+    "detected": 247,
+    "score": 92.16,
+    "recordedAt": "2026-08-30"
+  },
+  "paymentrate": {
+    "mutations": 18,
+    "detected": 18,
+    "score": 100.0,
+    "recordedAt": "2026-08-30"
+  },
+  "personalcode": {
+    "mutations": 88,
+    "detected": 71,
+    "score": 80.68,
+    "recordedAt": "2026-08-30"
+  },
+  "pillar": {
+    "mutations": 5,
+    "detected": 0,
+    "score": 0.0,
+    "recordedAt": "2026-08-30"
+  },
+  "pipeline": {
+    "mutations": 70,
+    "detected": 49,
+    "score": 70.0,
+    "recordedAt": "2026-08-30"
+  },
+  "populationregister": {
+    "mutations": 92,
+    "detected": 72,
+    "score": 78.26,
+    "recordedAt": "2026-08-30"
+  },
   "savings": {
     "mutations": 1208,
     "detected": 1045,
     "score": 86.51,
+    "recordedAt": "2026-08-30"
+  },
+  "secondpillarassets": {
+    "mutations": 11,
+    "detected": 11,
+    "score": 100.0,
+    "recordedAt": "2026-08-30"
+  },
+  "signature": {
+    "mutations": 61,
+    "detected": 0,
+    "score": 0.0,
+    "recordedAt": "2026-08-30"
+  },
+  "statistics": {
+    "mutations": 3,
+    "detected": 3,
+    "score": 100.0,
+    "recordedAt": "2026-08-30"
+  },
+  "time": {
+    "mutations": 9,
+    "detected": 0,
+    "score": 0.0,
+    "recordedAt": "2026-08-30"
+  },
+  "user": {
+    "mutations": 85,
+    "detected": 66,
+    "score": 77.65,
+    "recordedAt": "2026-08-30"
+  },
+  "withdrawals": {
+    "mutations": 24,
+    "detected": 23,
+    "score": 95.83,
     "recordedAt": "2026-08-30"
   }
 }

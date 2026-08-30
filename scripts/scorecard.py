@@ -122,11 +122,16 @@ def pitest_slice_metrics():
     detected = sum(s["detected"] for s in slices.values())
     if not mutations:
         return {}
-    return {
+    result = {
         "mutationScoreSliced": round(100.0 * detected / mutations, 2),
         "mutationsSliced": mutations,
         "pitestSlicedModules": len(slices),
     }
+    main_modules = {p.name for p in (ROOT / "src" / "main" / "java" / "ee" / "tuleva" / "onboarding").iterdir() if p.is_dir()}
+    if main_modules <= set(slices):
+        result["mutationScore"] = result["mutationScoreSliced"]
+        result["mutationsTotal"] = mutations
+    return result
 
 
 def source_metrics():

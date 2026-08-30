@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.aml.sanctions;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.country.Country;
-import ee.tuleva.onboarding.user.personalcode.PersonalCode;
+import ee.tuleva.onboarding.personalcode.PersonalCode;
 import java.time.Duration;
 import java.util.List;
 import java.util.Locale;

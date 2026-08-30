@@ -2,8 +2,8 @@ package ee.tuleva.onboarding.aml;
 
 import static org.hibernate.type.SqlTypes.JSON;
 
+import ee.tuleva.onboarding.personalcode.ValidPersonalCode;
 import ee.tuleva.onboarding.time.ClockHolder;
-import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;

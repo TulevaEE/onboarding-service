@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.user.personalcode;
+package ee.tuleva.onboarding.personalcode;
 
 import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;

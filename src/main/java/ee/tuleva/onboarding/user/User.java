@@ -7,10 +7,10 @@ import static java.util.Objects.requireNonNull;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.personalcode.PersonalCode;
+import ee.tuleva.onboarding.personalcode.ValidPersonalCode;
 import ee.tuleva.onboarding.user.exception.NotAMemberException;
 import ee.tuleva.onboarding.user.member.Member;
-import ee.tuleva.onboarding.user.personalcode.PersonalCode;
-import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

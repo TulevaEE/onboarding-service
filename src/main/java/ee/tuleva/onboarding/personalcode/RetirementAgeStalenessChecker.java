@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.user.personalcode;
+package ee.tuleva.onboarding.personalcode;
 
 import java.time.Clock;
 import java.time.LocalDate;

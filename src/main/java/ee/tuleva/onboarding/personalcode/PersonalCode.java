@@ -1,8 +1,8 @@
-package ee.tuleva.onboarding.user.personalcode;
+package ee.tuleva.onboarding.personalcode;
 
+import static ee.tuleva.onboarding.personalcode.Gender.*;
+import static ee.tuleva.onboarding.personalcode.Gender.FEMALE;
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
-import static ee.tuleva.onboarding.user.personalcode.Gender.*;
-import static ee.tuleva.onboarding.user.personalcode.Gender.FEMALE;
 import static java.time.format.ResolverStyle.STRICT;
 import static java.time.temporal.ChronoField.YEAR;
 

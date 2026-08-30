@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.user.personalcode;
+package ee.tuleva.onboarding.personalcode;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 

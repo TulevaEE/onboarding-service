@@ -4,7 +4,7 @@ import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.payment.PaymentData;
-import ee.tuleva.onboarding.user.personalcode.PersonalCodeValidator;
+import ee.tuleva.onboarding.personalcode.PersonalCodeValidator;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;

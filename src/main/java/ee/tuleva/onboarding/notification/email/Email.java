@@ -4,7 +4,7 @@ import static ee.tuleva.onboarding.time.ClockHolder.clock;
 import static jakarta.persistence.EnumType.STRING;
 import static java.time.temporal.ChronoUnit.DAYS;
 
-import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
+import ee.tuleva.onboarding.personalcode.ValidPersonalCode;
 import jakarta.persistence.*;
 import jakarta.persistence.Column;
 import jakarta.validation.constraints.NotNull;

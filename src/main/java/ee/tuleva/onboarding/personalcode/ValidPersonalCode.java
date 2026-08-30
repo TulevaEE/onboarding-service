@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.user.personalcode;
+package ee.tuleva.onboarding.personalcode;
 
 import static java.lang.annotation.ElementType.*;
 import static java.lang.annotation.RetentionPolicy.RUNTIME;
@@ -21,7 +21,7 @@ import java.lang.annotation.Target;
 @Size(min = 11, max = 11)
 public @interface ValidPersonalCode {
 
-  String message() default "{ee.tuleva.onboarding.user.personalcode.ValidPersonalCode.message}";
+  String message() default "{ee.tuleva.onboarding.personalcode.ValidPersonalCode.message}";
 
   Class<?>[] groups() default {};
 

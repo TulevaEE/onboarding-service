@@ -1,11 +1,11 @@
-package ee.tuleva.onboarding.user.personalcode
+package ee.tuleva.onboarding.personalcode
 
 import spock.lang.Specification
 
 import java.time.LocalDate
 
-import static ee.tuleva.onboarding.user.personalcode.Gender.FEMALE
-import static ee.tuleva.onboarding.user.personalcode.Gender.MALE
+import static ee.tuleva.onboarding.personalcode.Gender.FEMALE
+import static ee.tuleva.onboarding.personalcode.Gender.MALE
 
 class PersonalCodeSpec extends Specification {
 

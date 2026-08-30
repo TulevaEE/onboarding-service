@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.withdrawals;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.EpisService;
-import ee.tuleva.onboarding.user.personalcode.PersonalCode;
+import ee.tuleva.onboarding.personalcode.PersonalCode;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;

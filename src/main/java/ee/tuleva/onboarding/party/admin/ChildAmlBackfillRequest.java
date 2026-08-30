@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.party.admin;
 
-import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
+import ee.tuleva.onboarding.personalcode.ValidPersonalCode;
 import jakarta.validation.constraints.NotNull;
 import org.jspecify.annotations.NullMarked;
 

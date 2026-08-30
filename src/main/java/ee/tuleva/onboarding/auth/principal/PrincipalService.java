@@ -4,9 +4,9 @@ import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
 import static ee.tuleva.onboarding.user.Names.formatted;
 
 import ee.tuleva.onboarding.auth.role.Role;
+import ee.tuleva.onboarding.personalcode.PersonalCode;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
-import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import jakarta.validation.Valid;
 import java.util.Map;
 import java.util.Optional;

@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.user.personalcode
+package ee.tuleva.onboarding.personalcode
 
 import spock.lang.Specification
 import spock.lang.Unroll

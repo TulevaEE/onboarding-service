@@ -2,8 +2,8 @@ package ee.tuleva.onboarding.party;
 
 import ee.tuleva.onboarding.aml.AmlService;
 import ee.tuleva.onboarding.kyc.BeforeKycCheckedEvent;
+import ee.tuleva.onboarding.personalcode.PersonalCode;
 import ee.tuleva.onboarding.user.UserService;
-import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import java.time.Clock;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;

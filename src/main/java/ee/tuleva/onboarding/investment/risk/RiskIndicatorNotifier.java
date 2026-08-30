@@ -30,6 +30,7 @@ class RiskIndicatorNotifier {
   private final BusinessDays businessDays;
   private final Clock clock;
   private final RiskIndicatorDigestFormatter formatter;
+  private final IndicatorDetailFormatter detailFormatter;
 
   void notify(RiskIndicatorRun run) {
     try {
@@ -62,7 +63,7 @@ class RiskIndicatorNotifier {
             .map(
                 outcome -> {
                   var publication = outcome.publication();
-                  var disclosed = formatter.disclosedClass(outcome.indicator());
+                  var disclosed = detailFormatter.disclosedClass(outcome.indicator());
                   publication.setNotified(true);
                   publication.setNotifiedDisclosedClass(
                       disclosed == null ? null : disclosed.getDisclosedClass());
@@ -75,7 +76,7 @@ class RiskIndicatorNotifier {
   private List<String> transitionLines(RiskIndicatorOutcome outcome) {
     var indicator = outcome.indicator();
     var previous = outcome.previous();
-    var disclosed = formatter.disclosedClass(indicator);
+    var disclosed = detailFormatter.disclosedClass(indicator);
     var lines = new ArrayList<String>();
 
     if (previous != null && hasPublishedClassChangedSinceLastMessage(previous, indicator)) {
@@ -91,7 +92,7 @@ class RiskIndicatorNotifier {
       lines.add(
           "%s %s %s — staatus %s → %s (arvutatud klass %s, avaldatav klass %s)"
               .formatted(
-                  formatter.severity(indicator, disclosed).icon(),
+                  detailFormatter.severity(indicator, disclosed).icon(),
                   indicator.fund(),
                   indicator.indicatorType(),
                   previous.status(),
@@ -101,7 +102,7 @@ class RiskIndicatorNotifier {
     }
 
     if (isComplianceDefectRatherThanTransition(previous, disclosed, indicator)) {
-      lines.add(formatter.mismatchLine(indicator, disclosed));
+      lines.add(detailFormatter.mismatchLine(indicator, disclosed));
     }
     return lines;
   }
@@ -110,7 +111,7 @@ class RiskIndicatorNotifier {
       @Nullable PublicationSnapshot previous,
       @Nullable DisclosedRiskIndicator disclosed,
       PublishedRiskIndicator indicator) {
-    return formatter.isMismatched(disclosed, indicator)
+    return detailFormatter.isMismatched(disclosed, indicator)
         && !isMismatchAlreadyReportedForSameDisclosedClass(previous, disclosed);
   }
 

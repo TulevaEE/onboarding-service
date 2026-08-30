@@ -60,7 +60,7 @@ public class SavingsFundTransactionService implements SavingsTransactions {
       AuthenticatedPerson person) {
     TransactionSources sources = transactionSources(person);
     return new TransactionsWithCounterparties(
-        sources.transactions(), counterpartyIbans(sources, person.toPartyId()));
+        sources.transactions(), counterpartyIbans(sources, PartyId.from(person)));
   }
 
   private record TransactionSources(
@@ -75,7 +75,7 @@ public class SavingsFundTransactionService implements SavingsTransactions {
   }
 
   private TransactionSources transactionSources(AuthenticatedPerson person) {
-    if (!savingsFundOnboardingService.isOnboardingCompleted(person.toPartyId())) {
+    if (!savingsFundOnboardingService.isOnboardingCompleted(PartyId.from(person))) {
       return TransactionSources.empty();
     }
 
@@ -86,7 +86,7 @@ public class SavingsFundTransactionService implements SavingsTransactions {
     List<LedgerEntry> subscriptionEntries = entries(ownerCode, partyType, SUBSCRIPTIONS);
     List<LedgerEntry> redemptionEntries = entries(ownerCode, partyType, REDEMPTIONS);
     List<RedemptionRequest> redemptionRequests =
-        redemptionRequests(redemptionEntries, person.toPartyId());
+        redemptionRequests(redemptionEntries, PartyId.from(person));
     Map<UUID, Instant> payoutTimes = payoutTimes(redemptionRequests);
 
     List<Transaction> transactions =

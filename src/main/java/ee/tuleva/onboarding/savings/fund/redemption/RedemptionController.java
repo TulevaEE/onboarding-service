@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.iban.ValidIban;
+import ee.tuleva.onboarding.party.PartyId;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
@@ -32,7 +33,7 @@ public class RedemptionController {
     log.info(
         "Creating redemption request: userId={}, party={}, amount={}, currency={}, iban={}",
         authenticatedPerson.getUserId(),
-        authenticatedPerson.toPartyId(),
+        PartyId.from(authenticatedPerson),
         request.amount(),
         request.currency(),
         request.iban());
@@ -50,7 +51,7 @@ public class RedemptionController {
         "Cancelling redemption request: id={}, userId={}, party={}",
         id,
         authenticatedPerson.getUserId(),
-        authenticatedPerson.toPartyId());
+        PartyId.from(authenticatedPerson));
     redemptionService.cancelRedemption(id, authenticatedPerson);
   }
 

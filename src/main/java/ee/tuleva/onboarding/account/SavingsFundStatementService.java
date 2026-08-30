@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.ledger.LedgerAccount;
 import ee.tuleva.onboarding.ledger.LedgerParty.PartyType;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.UserAccount;
+import ee.tuleva.onboarding.party.PartyId;
 import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.function.Function;
@@ -32,7 +33,7 @@ public class SavingsFundStatementService {
     String ownerCode = person.getRoleCode();
     PartyType partyType = PartyType.from(person.getRoleType());
 
-    if (savingsFundOnboardingService.isOnboardingCompleted(person.toPartyId())) {
+    if (savingsFundOnboardingService.isOnboardingCompleted(PartyId.from(person))) {
       return Optional.of(
           statement(
               account ->

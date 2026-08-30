@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.party.PartyId;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
@@ -56,8 +57,8 @@ class RedemptionControllerTest {
         redemptionRequestFixture()
             .id(requestId)
             .userId(authPerson.getUserId())
-            .partyType(authPerson.toPartyId().type())
-            .partyCode(authPerson.toPartyId().code())
+            .partyType(PartyId.from(authPerson).type())
+            .partyCode(PartyId.from(authPerson).code())
             .customerIban("EE471000001020145685")
             .build();
 
@@ -154,8 +155,8 @@ class RedemptionControllerTest {
         redemptionRequestFixture()
             .id(requestId)
             .userId(legalEntityAuthPerson.getUserId())
-            .partyType(legalEntityAuthPerson.toPartyId().type())
-            .partyCode(legalEntityAuthPerson.toPartyId().code())
+            .partyType(PartyId.from(legalEntityAuthPerson).type())
+            .partyCode(PartyId.from(legalEntityAuthPerson).code())
             .customerIban("EE471000001020145685")
             .build();
 

@@ -99,7 +99,7 @@ class SavingFundPaymentControllerTest {
         new UsernamePasswordAuthenticationToken(
             person, null, List.of(new SimpleGrantedAuthority(USER)));
 
-    when(savingsFundOnboardingService.getOnboardingStatus(person.toPartyId()))
+    when(savingsFundOnboardingService.getOnboardingStatus(PartyId.from(person)))
         .thenReturn(COMPLETED);
 
     mvc.perform(get("/v1/savings/onboarding/status").with(authentication(auth)))
@@ -114,7 +114,7 @@ class SavingFundPaymentControllerTest {
         new UsernamePasswordAuthenticationToken(
             person, null, List.of(new SimpleGrantedAuthority(USER)));
 
-    when(savingsFundOnboardingService.getOnboardingStatus(person.toPartyId())).thenReturn(null);
+    when(savingsFundOnboardingService.getOnboardingStatus(PartyId.from(person))).thenReturn(null);
 
     mvc.perform(get("/v1/savings/onboarding/status").with(authentication(auth)))
         .andExpect(status().isOk())
@@ -128,7 +128,7 @@ class SavingFundPaymentControllerTest {
         new UsernamePasswordAuthenticationToken(
             person, null, List.of(new SimpleGrantedAuthority(USER)));
 
-    when(savingsFundOnboardingService.getOnboardingStatus(person.toPartyId()))
+    when(savingsFundOnboardingService.getOnboardingStatus(PartyId.from(person)))
         .thenReturn(COMPLETED);
 
     mvc.perform(get("/v1/savings/onboarding/status").with(authentication(auth)))

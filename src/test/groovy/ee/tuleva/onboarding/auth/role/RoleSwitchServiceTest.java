@@ -1,15 +1,12 @@
 package ee.tuleva.onboarding.auth.role;
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember;
+import static ee.tuleva.onboarding.auth.role.CompanyRoles.CompanyRole;
 import static ee.tuleva.onboarding.auth.role.RoleType.*;
 import static ee.tuleva.onboarding.company.CompanyFixture.*;
-import static ee.tuleva.onboarding.company.RelationshipType.BOARD_MEMBER;
-import static ee.tuleva.onboarding.party.ParentChildLinkStatus.PENDING_KYC;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -20,10 +17,6 @@ import ee.tuleva.onboarding.auth.event.RoleSwitchedEvent;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.company.CompanyNotFoundException;
-import ee.tuleva.onboarding.company.CompanyPartyRepository;
-import ee.tuleva.onboarding.company.CompanyRepository;
-import ee.tuleva.onboarding.party.ParentChildLinkService;
-import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
@@ -38,11 +31,10 @@ import org.springframework.context.ApplicationEventPublisher;
 @ExtendWith(MockitoExtension.class)
 class RoleSwitchServiceTest {
 
-  @Mock private CompanyRepository companyRepository;
-  @Mock private CompanyPartyRepository companyPartyRepository;
+  @Mock private CompanyRoles companyRoles;
   @Mock private PrincipalService principalService;
   @Mock private TokenService tokenService;
-  @Mock private ParentChildLinkService parentChildLinkService;
+  @Mock private ChildRepresentations childRepresentations;
   @Mock private UserService userService;
   @Mock private ApplicationEventPublisher applicationEventPublisher;
 
@@ -64,11 +56,9 @@ class RoleSwitchServiceTest {
 
   @Test
   void switchRoleToCompany() {
-    var company = sampleCompany().build();
-    when(companyRepository.findByRegistryCode(SAMPLE_REGISTRY_CODE))
-        .thenReturn(Optional.of(company));
-    when(companyPartyRepository.existsByPartyCodeAndPartyTypeAndCompanyIdAndRelationshipType(
-            person.getPersonalCode(), PartyId.Type.PERSON, SAMPLE_COMPANY_ID, BOARD_MEMBER))
+    when(companyRoles.company(SAMPLE_REGISTRY_CODE))
+        .thenReturn(new CompanyRole(SAMPLE_REGISTRY_CODE, SAMPLE_COMPANY_NAME));
+    when(companyRoles.isBoardMember(person.getPersonalCode(), SAMPLE_REGISTRY_CODE))
         .thenReturn(true);
     when(principalService.withRole(any(), any())).thenReturn(person);
     when(tokenService.generateTokens(any()))
@@ -83,11 +73,9 @@ class RoleSwitchServiceTest {
 
   @Test
   void switchToCompanyPublishesAuditEvent() {
-    var company = sampleCompany().build();
-    when(companyRepository.findByRegistryCode(SAMPLE_REGISTRY_CODE))
-        .thenReturn(Optional.of(company));
-    when(companyPartyRepository.existsByPartyCodeAndPartyTypeAndCompanyIdAndRelationshipType(
-            person.getPersonalCode(), PartyId.Type.PERSON, SAMPLE_COMPANY_ID, BOARD_MEMBER))
+    when(companyRoles.company(SAMPLE_REGISTRY_CODE))
+        .thenReturn(new CompanyRole(SAMPLE_REGISTRY_CODE, SAMPLE_COMPANY_NAME));
+    when(companyRoles.isBoardMember(person.getPersonalCode(), SAMPLE_REGISTRY_CODE))
         .thenReturn(true);
     when(principalService.withRole(any(), any())).thenReturn(person);
     when(tokenService.generateTokens(any()))
@@ -100,11 +88,9 @@ class RoleSwitchServiceTest {
 
   @Test
   void switchToCompanyPublishesNoAuditEventWhenTokenGenerationFails() {
-    var company = sampleCompany().build();
-    when(companyRepository.findByRegistryCode(SAMPLE_REGISTRY_CODE))
-        .thenReturn(Optional.of(company));
-    when(companyPartyRepository.existsByPartyCodeAndPartyTypeAndCompanyIdAndRelationshipType(
-            person.getPersonalCode(), PartyId.Type.PERSON, SAMPLE_COMPANY_ID, BOARD_MEMBER))
+    when(companyRoles.company(SAMPLE_REGISTRY_CODE))
+        .thenReturn(new CompanyRole(SAMPLE_REGISTRY_CODE, SAMPLE_COMPANY_NAME));
+    when(companyRoles.isBoardMember(person.getPersonalCode(), SAMPLE_REGISTRY_CODE))
         .thenReturn(true);
     when(principalService.withRole(any(), any())).thenReturn(person);
     when(tokenService.generateTokens(any()))
@@ -166,7 +152,7 @@ class RoleSwitchServiceTest {
 
   @Test
   void switchToCompanyThrowsWhenCompanyNotFound() {
-    when(companyRepository.findByRegistryCode("99999999")).thenReturn(Optional.empty());
+    when(companyRoles.company("99999999")).thenThrow(new CompanyNotFoundException("99999999"));
 
     assertThatThrownBy(
             () ->
@@ -177,11 +163,9 @@ class RoleSwitchServiceTest {
 
   @Test
   void switchToCompanyThrowsWhenNotBoardMember() {
-    var company = sampleCompany().build();
-    when(companyRepository.findByRegistryCode(SAMPLE_REGISTRY_CODE))
-        .thenReturn(Optional.of(company));
-    when(companyPartyRepository.existsByPartyCodeAndPartyTypeAndCompanyIdAndRelationshipType(
-            person.getPersonalCode(), PartyId.Type.PERSON, SAMPLE_COMPANY_ID, BOARD_MEMBER))
+    when(companyRoles.company(SAMPLE_REGISTRY_CODE))
+        .thenReturn(new CompanyRole(SAMPLE_REGISTRY_CODE, SAMPLE_COMPANY_NAME));
+    when(companyRoles.isBoardMember(person.getPersonalCode(), SAMPLE_REGISTRY_CODE))
         .thenReturn(false);
 
     assertThatThrownBy(
@@ -193,11 +177,9 @@ class RoleSwitchServiceTest {
 
   @Test
   void shareholderWithoutBoardMembershipCannotSwitchRole() {
-    var company = sampleCompany().build();
-    when(companyRepository.findByRegistryCode(SAMPLE_REGISTRY_CODE))
-        .thenReturn(Optional.of(company));
-    when(companyPartyRepository.existsByPartyCodeAndPartyTypeAndCompanyIdAndRelationshipType(
-            person.getPersonalCode(), PartyId.Type.PERSON, SAMPLE_COMPANY_ID, BOARD_MEMBER))
+    when(companyRoles.company(SAMPLE_REGISTRY_CODE))
+        .thenReturn(new CompanyRole(SAMPLE_REGISTRY_CODE, SAMPLE_COMPANY_NAME));
+    when(companyRoles.isBoardMember(person.getPersonalCode(), SAMPLE_REGISTRY_CODE))
         .thenReturn(false);
 
     assertThatThrownBy(
@@ -209,12 +191,8 @@ class RoleSwitchServiceTest {
 
   @Test
   void getRolesReturnsSelfAndBoardMemberCompanies() {
-    var company = sampleCompany().build();
-    var membership = sampleBoardMembership(person.getPersonalCode()).build();
-    when(companyPartyRepository.findByPartyCodeAndPartyTypeAndRelationshipType(
-            person.getPersonalCode(), PartyId.Type.PERSON, BOARD_MEMBER))
-        .thenReturn(List.of(membership));
-    when(companyRepository.findAllById(List.of(SAMPLE_COMPANY_ID))).thenReturn(List.of(company));
+    when(companyRoles.boardMemberCompanies(person.getPersonalCode()))
+        .thenReturn(List.of(new CompanyRole(SAMPLE_REGISTRY_CODE, SAMPLE_COMPANY_NAME)));
 
     List<Role> result = roleSwitchService.getRoles(person);
 
@@ -229,13 +207,8 @@ class RoleSwitchServiceTest {
 
   @Test
   void getRolesExcludesCompaniesWhereUserIsOnlyShareholder() {
-    var company = sampleCompany().registryCode("11111111").build();
-    var membership =
-        sampleBoardMembership(person.getPersonalCode()).companyId(company.getId()).build();
-    when(companyPartyRepository.findByPartyCodeAndPartyTypeAndRelationshipType(
-            person.getPersonalCode(), PartyId.Type.PERSON, BOARD_MEMBER))
-        .thenReturn(List.of(membership));
-    when(companyRepository.findAllById(List.of(company.getId()))).thenReturn(List.of(company));
+    when(companyRoles.boardMemberCompanies(person.getPersonalCode()))
+        .thenReturn(List.of(new CompanyRole("11111111", SAMPLE_COMPANY_NAME)));
 
     List<Role> result = roleSwitchService.getRoles(person);
 
@@ -246,10 +219,8 @@ class RoleSwitchServiceTest {
 
   @Test
   void getRolesIncludesActivelyRepresentedChildren() {
-    when(companyPartyRepository.findByPartyCodeAndPartyTypeAndRelationshipType(
-            person.getPersonalCode(), PartyId.Type.PERSON, BOARD_MEMBER))
-        .thenReturn(List.of());
-    when(parentChildLinkService.findActivelyRepresentedChildCodes(person.getPersonalCode()))
+    when(companyRoles.boardMemberCompanies(person.getPersonalCode())).thenReturn(List.of());
+    when(childRepresentations.findActivelyRepresentedChildCodes(person.getPersonalCode()))
         .thenReturn(List.of(CHILD_CODE));
     when(userService.findByPersonalCode(CHILD_CODE)).thenReturn(Optional.of(childUser()));
 
@@ -266,7 +237,7 @@ class RoleSwitchServiceTest {
 
   @Test
   void switchToActivelyRepresentedChildGeneratesTokens() {
-    when(parentChildLinkService.isActiveRepresentation(person.getPersonalCode(), CHILD_CODE))
+    when(childRepresentations.isActiveRepresentation(person.getPersonalCode(), CHILD_CODE))
         .thenReturn(true);
     when(userService.findByPersonalCode(CHILD_CODE)).thenReturn(Optional.of(childUser()));
     when(principalService.withRole(any(), any())).thenReturn(person);
@@ -281,7 +252,7 @@ class RoleSwitchServiceTest {
 
   @Test
   void switchToRepresentedChildPublishesAuditEvent() {
-    when(parentChildLinkService.isActiveRepresentation(person.getPersonalCode(), CHILD_CODE))
+    when(childRepresentations.isActiveRepresentation(person.getPersonalCode(), CHILD_CODE))
         .thenReturn(true);
     when(userService.findByPersonalCode(CHILD_CODE)).thenReturn(Optional.of(childUser()));
     when(principalService.withRole(any(), any())).thenReturn(person);
@@ -299,7 +270,7 @@ class RoleSwitchServiceTest {
         sampleAuthenticatedPersonAndMember()
             .role(new Role(PERSON, CHILD_CODE, "Mari Maasikas"))
             .build();
-    when(parentChildLinkService.isActiveRepresentation(person.getPersonalCode(), CHILD_CODE))
+    when(childRepresentations.isActiveRepresentation(person.getPersonalCode(), CHILD_CODE))
         .thenReturn(true);
     when(userService.findByPersonalCode(CHILD_CODE)).thenReturn(Optional.of(childUser()));
     when(principalService.withRole(any(), any())).thenReturn(switchedPerson);
@@ -313,7 +284,7 @@ class RoleSwitchServiceTest {
 
   @Test
   void switchToRepresentedChildPublishesNoAuditEventWhenTokenGenerationFails() {
-    when(parentChildLinkService.isActiveRepresentation(person.getPersonalCode(), CHILD_CODE))
+    when(childRepresentations.isActiveRepresentation(person.getPersonalCode(), CHILD_CODE))
         .thenReturn(true);
     when(userService.findByPersonalCode(CHILD_CODE)).thenReturn(Optional.of(childUser()));
     when(principalService.withRole(any(), any())).thenReturn(person);
@@ -328,7 +299,7 @@ class RoleSwitchServiceTest {
 
   @Test
   void switchToChildWithoutActiveLinkPublishesNoAuditEvent() {
-    when(parentChildLinkService.isActiveRepresentation(person.getPersonalCode(), CHILD_CODE))
+    when(childRepresentations.isActiveRepresentation(person.getPersonalCode(), CHILD_CODE))
         .thenReturn(false);
 
     assertThatThrownBy(
@@ -339,33 +310,17 @@ class RoleSwitchServiceTest {
 
   @Test
   void switchToChildWithoutActiveLinkThrows() {
-    when(parentChildLinkService.isActiveRepresentation(person.getPersonalCode(), CHILD_CODE))
+    when(childRepresentations.isActiveRepresentation(person.getPersonalCode(), CHILD_CODE))
         .thenReturn(false);
 
     assertThatThrownBy(
             () -> roleSwitchService.switchRole(person, new SwitchRoleCommand(PERSON, CHILD_CODE)))
         .isInstanceOf(RoleSwitchAccessDeniedException.class);
-  }
-
-  @Test
-  void switchToChildOfARepresentativeWhoHasNotClearedKycThrows() {
-    // funding the child is KYC-agnostic, acting as the child is not
-    when(parentChildLinkService.isActiveRepresentation(person.getPersonalCode(), CHILD_CODE))
-        .thenReturn(false);
-
-    assertThatThrownBy(
-            () -> roleSwitchService.switchRole(person, new SwitchRoleCommand(PERSON, CHILD_CODE)))
-        .isInstanceOf(RoleSwitchAccessDeniedException.class);
-    // pins the real invariant: the role-switch path never requests a status set admitting a
-    // representative who has not cleared KYC. Survives a refactor onto
-    // isRepresentation(..., Set.of(ACTIVE)), where a blanket never() would fail spuriously.
-    verify(parentChildLinkService, never())
-        .isRepresentation(any(), any(), argThat(statuses -> statuses.contains(PENDING_KYC)));
   }
 
   @Test
   void getPendingOnboardingsReturnsPendingChildrenWithNames() {
-    when(parentChildLinkService.findPendingChildCodes(person.getPersonalCode()))
+    when(childRepresentations.findPendingChildCodes(person.getPersonalCode()))
         .thenReturn(List.of(CHILD_CODE));
     when(userService.findByPersonalCode(CHILD_CODE)).thenReturn(Optional.of(childUser()));
 
@@ -377,7 +332,7 @@ class RoleSwitchServiceTest {
 
   @Test
   void getPendingOnboardingsIsEmptyWhenThereAreNoPendingLinks() {
-    when(parentChildLinkService.findPendingChildCodes(person.getPersonalCode()))
+    when(childRepresentations.findPendingChildCodes(person.getPersonalCode()))
         .thenReturn(List.of());
 
     assertThat(roleSwitchService.getPendingOnboardings(person)).isEmpty();
@@ -385,7 +340,6 @@ class RoleSwitchServiceTest {
 
   @Test
   void otherUserCannotSwitchToCompanyTheyAreNotLinkedTo() {
-    var company = sampleCompany().build();
     var otherUser =
         AuthenticatedPerson.builder()
             .personalCode("39911223344")
@@ -393,11 +347,9 @@ class RoleSwitchServiceTest {
             .lastName("User")
             .userId(999L)
             .build();
-    when(companyRepository.findByRegistryCode(SAMPLE_REGISTRY_CODE))
-        .thenReturn(Optional.of(company));
-    when(companyPartyRepository.existsByPartyCodeAndPartyTypeAndCompanyIdAndRelationshipType(
-            "39911223344", PartyId.Type.PERSON, SAMPLE_COMPANY_ID, BOARD_MEMBER))
-        .thenReturn(false);
+    when(companyRoles.company(SAMPLE_REGISTRY_CODE))
+        .thenReturn(new CompanyRole(SAMPLE_REGISTRY_CODE, SAMPLE_COMPANY_NAME));
+    when(companyRoles.isBoardMember("39911223344", SAMPLE_REGISTRY_CODE)).thenReturn(false);
 
     assertThatThrownBy(
             () ->

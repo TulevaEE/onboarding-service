@@ -210,7 +210,7 @@ class SavingsFundTransactionServiceTest {
             List.of(
                 SavingFundPayment.builder()
                     .id(paymentId)
-                    .partyId(person.toPartyId())
+                    .partyId(PartyId.from(person))
                     .remitterIban("EE123456789012345678")
                     .build()));
 

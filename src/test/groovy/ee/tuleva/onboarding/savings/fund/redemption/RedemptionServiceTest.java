@@ -94,7 +94,7 @@ class RedemptionServiceTest {
   @Test
   void createRedemptionRequest_actingAsSelf_publishesNoMinorRedemptionEvent() {
     AuthenticatedPerson self = sampleAuthenticatedPersonAndMember().build();
-    PartyId selfParty = self.toPartyId();
+    PartyId selfParty = PartyId.from(self);
 
     given(savingsFundOnboardingService.isOnboardingCompleted(selfParty)).willReturn(true);
     given(savingFundPaymentRepository.findWithdrawableIbans(selfParty)).willReturn(List.of(IBAN));

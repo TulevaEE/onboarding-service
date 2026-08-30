@@ -74,7 +74,7 @@ public class RedemptionService {
     validateAmountPrecision(amount);
 
     String canonicalIban = IbanValidator.canonicalize(customerIban);
-    PartyId partyId = authenticatedPerson.toPartyId();
+    PartyId partyId = PartyId.from(authenticatedPerson);
     validateOnboarding(authenticatedPerson);
     validateIbanBelongsToParty(canonicalIban, partyId);
 
@@ -159,7 +159,7 @@ public class RedemptionService {
   public void cancelRedemption(UUID id, AuthenticatedPerson authenticatedPerson) {
     RedemptionRequest request = getRedemption(id);
     PartyId requestParty = request.getPartyId();
-    PartyId actorParty = authenticatedPerson.toPartyId();
+    PartyId actorParty = PartyId.from(authenticatedPerson);
 
     if (!requestParty.equals(actorParty)) {
       throw new AccessDeniedException(
@@ -209,7 +209,7 @@ public class RedemptionService {
   }
 
   private void validateOnboarding(AuthenticatedPerson authenticatedPerson) {
-    PartyId partyId = authenticatedPerson.toPartyId();
+    PartyId partyId = PartyId.from(authenticatedPerson);
     if (partyId.type() == PartyId.Type.LEGAL_ENTITY
         && !boardMembershipService.isBoardMember(
             authenticatedPerson.getPersonalCode(), partyId.code())) {

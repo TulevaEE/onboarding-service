@@ -31,7 +31,7 @@ class SavingFundApplications implements SavingsApplications {
 
   @Override
   public List<? extends Application<?>> getApplications(AuthenticatedPerson person) {
-    var activeParty = person.toPartyId();
+    var activeParty = PartyId.from(person);
     if (activeParty.type() == PartyId.Type.LEGAL_ENTITY
         && !boardMembershipService.isBoardMember(person.getPersonalCode(), activeParty.code())) {
       log.info(

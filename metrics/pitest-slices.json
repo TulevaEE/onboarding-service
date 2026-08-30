@@ -23,6 +23,12 @@
     "score": 77.06,
     "recordedAt": "2026-08-30"
   },
+  "capital": {
+    "mutations": 301,
+    "detected": 255,
+    "score": 84.72,
+    "recordedAt": "2026-08-30"
+  },
   "conversion": {
     "mutations": 111,
     "detected": 96,
@@ -39,6 +45,12 @@
     "mutations": 330,
     "detected": 305,
     "score": 92.42,
+    "recordedAt": "2026-08-30"
+  },
+  "ledger": {
+    "mutations": 338,
+    "detected": 337,
+    "score": 99.7,
     "recordedAt": "2026-08-30"
   },
   "notification": {

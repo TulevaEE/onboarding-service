@@ -3,7 +3,7 @@
   "classCouplingViolations": 38,
   "clockViolations": 30,
   "cognitiveComplexityViolations": 20,
-  "compilerWarnings": 33,
+  "compilerWarnings": 30,
   "deepNestingViolations": 0,
   "disabledTests": 6,
   "disconnectedClasses": 455,
@@ -26,10 +26,10 @@
     "GodClass": 14,
     "TooManyMethods": 6
   },
-  "slowest10TestClassesSeconds": 98.5,
+  "slowest10TestClassesSeconds": 98.9,
   "springBootTests": 76,
-  "suiteWallTimeSeconds": 174,
-  "testClassesOver10Seconds": 2,
+  "suiteWallTimeSeconds": 169,
+  "testClassesOver10Seconds": 3,
   "top15ClassLines": 7194,
   "totalPackages": 227,
   "unmarkedPackages": 0

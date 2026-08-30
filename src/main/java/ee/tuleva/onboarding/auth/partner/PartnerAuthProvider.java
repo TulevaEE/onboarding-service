@@ -76,8 +76,8 @@ public class PartnerAuthProvider implements AuthProvider {
   private Person getPersonFromClaims(Claims claims) {
     return PersonImpl.builder()
         .personalCode(claims.getSubject())
-        .firstName(FIRST_NAME.fromClaims(claims))
-        .lastName(LAST_NAME.fromClaims(claims))
+        .firstName(FIRST_NAME.stringFrom(claims))
+        .lastName(LAST_NAME.stringFrom(claims))
         .build();
   }
 

@@ -56,7 +56,7 @@ public class Exchange {
     return getPillar(sourceFund, targetFund, targetPik);
   }
 
-  public Integer getPillar(
+  public static Integer getPillar(
       ApiFundResponse sourceFund,
       @Nullable ApiFundResponse targetFund,
       @Nullable String targetPik) {

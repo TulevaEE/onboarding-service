@@ -10,7 +10,7 @@ import ee.tuleva.onboarding.notification.email.EmailPersistenceService
 import ee.tuleva.onboarding.notification.email.EmailService
 import ee.tuleva.onboarding.paymentrate.PaymentRates
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService
-import ee.tuleva.onboarding.savings.SavingsFundFees
+import ee.tuleva.onboarding.mandate.SavingsFundCharges
 import spock.lang.Specification
 
 import java.util.Optional
@@ -42,7 +42,7 @@ class MandateEmailServiceSpec extends Specification {
   MandateDeadlinesService mandateDeadlinesService = Mock()
   SecondPillarPaymentRateService secondPillarPaymentRateService = Mock()
   AuthenticationHolder authenticationHolder = Mock()
-  SavingsFundFees savingsFundFees = Mock() {
+  SavingsFundCharges savingsFundFees = Mock() {
     ongoingChargesPercent(_) >> "0.28"
   }
   def now = Instant.parse("2021-09-01T10:06:01Z")

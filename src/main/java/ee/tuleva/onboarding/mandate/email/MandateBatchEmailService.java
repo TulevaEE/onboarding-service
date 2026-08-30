@@ -11,6 +11,7 @@ import static java.util.stream.Stream.concat;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.mandate.PillarSuggestion;
+import ee.tuleva.onboarding.mandate.SavingsFundCharges;
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
 import ee.tuleva.onboarding.mandate.details.FundPensionOpeningMandateDetails;
 import ee.tuleva.onboarding.mandate.details.PartialWithdrawalMandateDetails;
@@ -19,7 +20,6 @@ import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.notification.email.EmailType;
 import ee.tuleva.onboarding.pillar.Pillar;
-import ee.tuleva.onboarding.savings.SavingsFundFees;
 import ee.tuleva.onboarding.user.User;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -35,7 +35,7 @@ public class MandateBatchEmailService {
   private final EmailService emailService;
   private final EmailPersistenceService emailPersistenceService;
   private final MandateProcessorService mandateProcessor;
-  private final SavingsFundFees savingsFundFees;
+  private final SavingsFundCharges savingsFundCharges;
 
   public void sendMandateBatch(
       User user, MandateBatch mandateBatch, PillarSuggestion pillarSuggestion, Locale locale) {
@@ -108,7 +108,7 @@ public class MandateBatchEmailService {
     map.putAll(getNameMergeVars(user));
     map.putAll(
         getPillarSuggestionMergeVars(
-            pillarSuggestion, savingsFundFees.ongoingChargesPercent(locale)));
+            pillarSuggestion, savingsFundCharges.ongoingChargesPercent(locale)));
     map.putAll(getWithdrawalMandateMergeVars(batch));
 
     return map;

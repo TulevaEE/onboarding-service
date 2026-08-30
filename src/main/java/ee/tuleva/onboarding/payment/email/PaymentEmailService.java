@@ -9,13 +9,13 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageContent;
 import ee.tuleva.onboarding.mandate.EmailVariablesAttachments;
 import ee.tuleva.onboarding.mandate.MandateRepository;
 import ee.tuleva.onboarding.mandate.PillarSuggestion;
+import ee.tuleva.onboarding.mandate.SavingsFundCharges;
 import ee.tuleva.onboarding.notification.email.Email;
 import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.notification.email.EmailType;
 import ee.tuleva.onboarding.payment.Payment;
 import ee.tuleva.onboarding.payment.PaymentData.PaymentType;
-import ee.tuleva.onboarding.savings.SavingsFundFees;
 import ee.tuleva.onboarding.user.User;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +32,7 @@ public class PaymentEmailService {
   private final MandateRepository mandateRepository;
   private final EmailService emailService;
   private final EmailPersistenceService emailPersistenceService;
-  private final SavingsFundFees savingsFundFees;
+  private final SavingsFundCharges savingsFundCharges;
 
   private static EmailType successEmailType(Payment payment) {
     return payment.getPaymentType() == PaymentType.SAVINGS
@@ -69,7 +69,7 @@ public class PaymentEmailService {
     Map<String, Object> mergeVars = new HashMap<>(getNameMergeVars(user));
     mergeVars.putAll(
         getPillarSuggestionMergeVars(
-            pillarSuggestion, savingsFundFees.ongoingChargesPercent(locale)));
+            pillarSuggestion, savingsFundCharges.ongoingChargesPercent(locale)));
     mergeVars.put("suggestAccountRecurringPayment", suggestAccountRecurringPayment);
     mergeVars.putAll(email.mergeVars());
 
@@ -117,7 +117,7 @@ public class PaymentEmailService {
     variables.putAll(getNameMergeVars(user));
     variables.putAll(
         getPillarSuggestionMergeVars(
-            pillarSuggestion, savingsFundFees.ongoingChargesPercent(locale)));
+            pillarSuggestion, savingsFundCharges.ongoingChargesPercent(locale)));
 
     return variables;
   }

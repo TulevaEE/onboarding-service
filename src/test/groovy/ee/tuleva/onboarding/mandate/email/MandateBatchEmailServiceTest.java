@@ -15,13 +15,13 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.PillarSuggestion;
+import ee.tuleva.onboarding.mandate.SavingsFundCharges;
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
 import ee.tuleva.onboarding.mandate.batch.MandateBatchFixture;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
 import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.notification.email.EmailType;
-import ee.tuleva.onboarding.savings.SavingsFundFees;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -42,7 +42,7 @@ class MandateBatchEmailServiceTest {
   @Mock private EmailPersistenceService emailPersistenceService;
 
   @Mock private MandateProcessorService mandateProcessorService;
-  @Mock private SavingsFundFees savingsFundFees;
+  @Mock private SavingsFundCharges savingsFundFees;
 
   @InjectMocks private MandateBatchEmailService mandateBatchEmailService;
 

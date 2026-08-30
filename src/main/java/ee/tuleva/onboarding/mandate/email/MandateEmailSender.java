@@ -12,12 +12,12 @@ import ee.tuleva.onboarding.mandate.MandateContactDetails;
 import ee.tuleva.onboarding.mandate.MandateContacts;
 import ee.tuleva.onboarding.mandate.MandateType;
 import ee.tuleva.onboarding.mandate.PillarSuggestion;
+import ee.tuleva.onboarding.mandate.SavingsFundSaverStatus;
 import ee.tuleva.onboarding.mandate.event.AfterMandateBatchSignedEvent;
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
 import ee.tuleva.onboarding.mandate.event.OnMandateBatchFailedEvent;
 import ee.tuleva.onboarding.paymentrate.PaymentRates;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
-import ee.tuleva.onboarding.savings.SavingsFundSavers;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,7 +35,7 @@ public class MandateEmailSender {
   private final UserConversionService conversionService;
   private final SecondPillarPaymentRateService paymentRateService;
   private final SecondPillarLeavers secondPillarLeavers;
-  private final SavingsFundSavers savingsFundSavers;
+  private final SavingsFundSaverStatus savingsFundSaverStatus;
   private final RecurringSavers recurringSavers;
   private final ThirdPillarTaxHeadroom thirdPillarTaxHeadroom;
 
@@ -53,7 +53,7 @@ public class MandateEmailSender {
             paymentRates,
             Set.of(event.getMandate().getPillar()),
             secondPillarLeavers.hasLeft(event.getUser().getPersonalCode()),
-            savingsFundSavers.isSaver(event.getUser().getPersonalCode()),
+            savingsFundSaverStatus.isSaver(event.getUser().getPersonalCode()),
             event.getMandate().getMandateType() == MandateType.PAYMENT_RATE_CHANGE,
             recurringSavers.recurringPaymentsOf(event.getUser().getPersonalCode()),
             thirdPillarTaxHeadroom.hasHeadroom(event.getUser()));
@@ -83,7 +83,7 @@ public class MandateEmailSender {
             paymentRates,
             mandatePillars,
             secondPillarLeavers.hasLeft(event.getUser().getPersonalCode()),
-            savingsFundSavers.isSaver(event.getUser().getPersonalCode()),
+            savingsFundSaverStatus.isSaver(event.getUser().getPersonalCode()),
             false,
             recurringSavers.recurringPaymentsOf(event.getUser().getPersonalCode()),
             thirdPillarTaxHeadroom.hasHeadroom(event.getUser()));

@@ -11,13 +11,13 @@ import ee.tuleva.onboarding.contribution.ThirdPillarTaxHeadroom;
 import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.epis.ContactDetailsService;
 import ee.tuleva.onboarding.mandate.PillarSuggestion;
+import ee.tuleva.onboarding.mandate.SavingsFundSaverStatus;
 import ee.tuleva.onboarding.payment.event.PaymentCreatedEvent;
 import ee.tuleva.onboarding.payment.event.PaymentEvent;
 import ee.tuleva.onboarding.payment.event.SavingsPaymentCancelledEvent;
 import ee.tuleva.onboarding.payment.event.SavingsPaymentCreatedEvent;
 import ee.tuleva.onboarding.payment.event.SavingsPaymentFailedEvent;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
-import ee.tuleva.onboarding.savings.SavingsFundSavers;
 import ee.tuleva.onboarding.user.User;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -36,7 +36,7 @@ public class PaymentEmailSender {
   private final ContactDetailsService contactDetailsService;
   private final SecondPillarPaymentRateService paymentRateService;
   private final SecondPillarLeavers secondPillarLeavers;
-  private final SavingsFundSavers savingsFundSavers;
+  private final SavingsFundSaverStatus savingsFundSaverStatus;
   private final RecurringSavers recurringSavers;
   private final ThirdPillarTaxHeadroom thirdPillarTaxHeadroom;
   private final SavingsFundSuccessEmailResolver savingsFundSuccessEmailResolver;
@@ -108,7 +108,7 @@ public class PaymentEmailSender {
         paymentRateService.getPaymentRates(user),
         concernedPillars,
         secondPillarLeavers.hasLeft(user.getPersonalCode()),
-        savingsFundSavers.isSaver(user.getPersonalCode()),
+        savingsFundSaverStatus.isSaver(user.getPersonalCode()),
         false,
         recurringSavers.recurringPaymentsOf(user.getPersonalCode()),
         thirdPillarTaxHeadroom.hasHeadroom(user));

@@ -30,7 +30,7 @@ import ee.tuleva.onboarding.analytics.SecondPillarLeavers
 import ee.tuleva.onboarding.analytics.RecurringPayments
 import ee.tuleva.onboarding.analytics.RecurringSavers
 import ee.tuleva.onboarding.contribution.ThirdPillarTaxHeadroom
-import ee.tuleva.onboarding.savings.SavingsFundSavers
+import ee.tuleva.onboarding.mandate.SavingsFundSaverStatus
 
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchFixture.aSavedMandateBatch
 import static ee.tuleva.onboarding.paymentrate.PaymentRatesFixture.samplePaymentRates
@@ -45,7 +45,7 @@ class MandateEmailSenderSpec extends Specification {
   SecondPillarLeavers secondPillarLeavers = Mock(SecondPillarLeavers) {
     hasLeft(_) >> false
   }
-  SavingsFundSavers savingsFundSavers = Mock(SavingsFundSavers) {
+  SavingsFundSaverStatus savingsFundSavers = Mock(SavingsFundSaverStatus) {
     isSaver(_) >> false
   }
   RecurringSavers recurringSavers = Mock(RecurringSavers) {

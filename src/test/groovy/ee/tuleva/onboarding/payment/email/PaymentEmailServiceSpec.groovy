@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.payment.email
 
 import ee.tuleva.onboarding.mandate.MandateRepository
-import ee.tuleva.onboarding.savings.SavingsFundFees
+import ee.tuleva.onboarding.mandate.SavingsFundCharges
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus
 import ee.tuleva.onboarding.mandate.Mandate
@@ -25,7 +25,7 @@ class PaymentEmailServiceSpec extends Specification {
   EmailService emailService = Mock()
   EmailPersistenceService emailPersistenceService = Mock()
 
-  SavingsFundFees savingsFundFees = Mock() {
+  SavingsFundCharges savingsFundFees = Mock() {
     ongoingChargesPercent(_) >> "0.28"
   }
   MandateRepository mandateRepository = Mock()

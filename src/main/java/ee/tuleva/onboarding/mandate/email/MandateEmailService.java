@@ -17,12 +17,12 @@ import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.PillarSuggestion;
+import ee.tuleva.onboarding.mandate.SavingsFundCharges;
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
 import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.notification.email.EmailType;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
-import ee.tuleva.onboarding.savings.SavingsFundFees;
 import ee.tuleva.onboarding.user.User;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -46,7 +46,7 @@ public class MandateEmailService {
   private final MandateDeadlinesService mandateDeadlinesService;
   private final SecondPillarPaymentRateService secondPillarPaymentRateService;
   private final AuthenticationHolder authenticationHolder;
-  private final SavingsFundFees savingsFundFees;
+  private final SavingsFundCharges savingsFundCharges;
 
   public void sendMandate(
       User user, Mandate mandate, PillarSuggestion pillarSuggestion, Locale locale) {
@@ -154,7 +154,7 @@ public class MandateEmailService {
 
     mergeVars.putAll(
         getPillarSuggestionMergeVars(
-            pillarSuggestion, savingsFundFees.ongoingChargesPercent(locale)));
+            pillarSuggestion, savingsFundCharges.ongoingChargesPercent(locale)));
     return mergeVars;
   }
 

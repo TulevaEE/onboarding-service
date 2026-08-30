@@ -8,7 +8,7 @@ import ee.tuleva.onboarding.notification.email.EmailPersistenceService
 import ee.tuleva.onboarding.notification.email.EmailService
 import ee.tuleva.onboarding.notification.email.EmailType
 import ee.tuleva.onboarding.payment.Payment
-import ee.tuleva.onboarding.savings.SavingsFundFees
+import ee.tuleva.onboarding.mandate.SavingsFundCharges
 import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
 
@@ -21,7 +21,7 @@ class PaymentEmailServiceIntSpec extends Specification {
   MandateRepository mandateRepository = Mock()
   EmailService emailService = Mock()
   EmailPersistenceService emailPersistenceService = Mock()
-  SavingsFundFees savingsFundFees = Mock() {
+  SavingsFundCharges savingsFundFees = Mock() {
     ongoingChargesPercent(_) >> "0.28"
   }
   PaymentEmailService paymentEmailService =

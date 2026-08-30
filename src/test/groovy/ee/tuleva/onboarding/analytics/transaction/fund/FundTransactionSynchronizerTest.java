@@ -59,6 +59,11 @@ class FundTransactionSynchronizerTest extends FixedClockConfig {
     assertThat(sync.getAnnotation(Transactional.class)).isNull();
   }
 
+  @Test
+  void getTransactionTypeNameIsFund() {
+    assertThat(synchronizer.getTransactionTypeName()).isEqualTo("fund");
+  }
+
   @Nested
   @DisplayName("When EPIS returns transactions")
   class WhenTransactionsExist {

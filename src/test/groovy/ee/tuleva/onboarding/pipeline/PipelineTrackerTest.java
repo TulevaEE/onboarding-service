@@ -50,6 +50,57 @@ class PipelineTrackerTest {
   }
 
   @Test
+  void markChangedMarksTheCurrentRunAsChanged() {
+    tracker.start(PipelineRun.PipelineType.IMPORT, "test");
+
+    tracker.markChanged();
+
+    assertThat(tracker.current().isChanged()).isTrue();
+  }
+
+  @Test
+  void markChangedIsANoOpWhenNoPipeline() {
+    tracker.markChanged();
+
+    assertThat(tracker.current()).isNull();
+  }
+
+  @Test
+  void markHealthNotificationFiredMarksTheCurrentRun() {
+    tracker.start(PipelineRun.PipelineType.IMPORT, "test");
+
+    tracker.markHealthNotificationFired();
+
+    assertThat(tracker.current().isHealthNotificationFired()).isTrue();
+  }
+
+  @Test
+  void markHealthNotificationFiredIsANoOpWhenNoPipeline() {
+    tracker.markHealthNotificationFired();
+
+    assertThat(tracker.current()).isNull();
+  }
+
+  @Test
+  void stepCompletedWithDetailRecordsTheDetailOnTheCurrentRun() {
+    tracker.start(PipelineRun.PipelineType.IMPORT, "test");
+    tracker.stepStarted("Step A");
+
+    tracker.stepCompleted("Step A", "12 files");
+
+    var step = tracker.current().getSteps().getFirst();
+    assertThat(step.getStatus()).isEqualTo(PipelineRun.StepStatus.COMPLETED);
+    assertThat(step.getDetail()).isEqualTo("12 files");
+  }
+
+  @Test
+  void stepCompletedWithDetailIsANoOpWhenNoPipeline() {
+    tracker.stepCompleted("Step A", "12 files");
+
+    assertThat(tracker.current()).isNull();
+  }
+
+  @Test
   void clearRemovesThreadLocal() {
     tracker.start(PipelineRun.PipelineType.IMPORT, "test");
     tracker.clear();

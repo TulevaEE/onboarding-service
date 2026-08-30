@@ -58,6 +58,20 @@ class AnalyticsAdminControllerTest {
   }
 
   @Test
+  void backfillUnitCounts_rejectsAnInvalidToken() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/backfill-unit-counts")
+                .with(csrf())
+                .header("X-Admin-Token", "wrong-token")
+                .param("from", "2026-03-01")
+                .param("to", "2026-03-06"))
+        .andExpect(status().isUnauthorized());
+
+    verifyNoInteractions(fundBalanceSynchronizer);
+  }
+
+  @Test
   void syncUnitOwners_defaultsToTodaysDate() throws Exception {
     given(clock.instant()).willReturn(Instant.parse("2026-08-02T09:00:00Z"));
     given(clock.getZone()).willReturn(ZoneId.of("UTC"));

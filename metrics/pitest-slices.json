@@ -31,8 +31,8 @@
   },
   "analytics": {
     "mutations": 129,
-    "detected": 77,
-    "score": 59.69,
+    "detected": 110,
+    "score": 85.27,
     "recordedAt": "2026-08-30"
   },
   "applicationtype": {
@@ -85,8 +85,8 @@
   },
   "config": {
     "mutations": 156,
-    "detected": 33,
-    "score": 21.15,
+    "detected": 144,
+    "score": 92.31,
     "recordedAt": "2026-08-30"
   },
   "contribution": {
@@ -259,8 +259,8 @@
   },
   "pipeline": {
     "mutations": 70,
-    "detected": 49,
-    "score": 70.0,
+    "detected": 70,
+    "score": 100.0,
     "recordedAt": "2026-08-30"
   },
   "populationregister": {

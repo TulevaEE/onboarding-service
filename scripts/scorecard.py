@@ -44,8 +44,8 @@ LOWER_IS_BETTER = [
     "unmarkedPackages",
     "springBootTests",
     "top15ClassLines",
-    "overMockedTestClasses",
-    "interactionVerifyingTestClasses",
+    "overMockedTestShare",
+    "interactionVerifyingTestShare",
     "fqnViolations",
 ]
 HIGHER_IS_BETTER = ["lineCoverage", "branchCoverage", "mocklessTestShare"]
@@ -269,7 +269,9 @@ def test_quality_metrics():
         "testIntegrationShare": round(100.0 * integration / total, 1),
         "moduleSliceTests": module_slices,
         "overMockedTestClasses": over_mocked,
+        "overMockedTestShare": round(100.0 * over_mocked / total, 1),
         "interactionVerifyingTestClasses": verifying,
+        "interactionVerifyingTestShare": round(100.0 * verifying / total, 1),
         "mocklessTestClasses": mockless,
         "mocklessTestShare": round(100.0 * mockless / total, 1),
     }

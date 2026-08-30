@@ -4,6 +4,8 @@ import ee.tuleva.onboarding.epis.EpisService
 import spock.lang.Specification
 
 import java.time.Clock
+import java.time.Instant
+import java.time.ZoneOffset
 import java.time.LocalDate
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
@@ -13,13 +15,14 @@ class CashFlowServiceSpec extends Specification {
 
     def episService = Mock(EpisService)
 
-    def service = new CashFlowService(episService, Clock.systemUTC())
+    def clock = Clock.fixed(Instant.parse("2026-08-15T12:00:00Z"), ZoneOffset.UTC)
+    def service = new CashFlowService(episService, clock)
 
     def "can get a cashflow statement"() {
         given:
         def person = samplePerson()
         def fromDate = service.BEGINNING_OF_TIME
-        def toDate = LocalDate.now()
+        def toDate = LocalDate.now(clock)
         def expectedStatement = cashFlowFixture()
         episService.getCashFlowStatement(person, fromDate, toDate) >> expectedStatement
 
@@ -34,7 +37,7 @@ class CashFlowServiceSpec extends Specification {
         given:
         def person = samplePerson()
         def fromDate = LocalDate.parse("2010-01-01")
-        def toDate = LocalDate.now()
+        def toDate = LocalDate.now(clock)
         def expectedStatement = cashFlowFixture()
         episService.getCashFlowStatement(person, fromDate, toDate) >> expectedStatement
 

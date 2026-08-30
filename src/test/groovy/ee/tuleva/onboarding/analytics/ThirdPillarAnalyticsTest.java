@@ -5,6 +5,7 @@ import static org.mockito.BDDMockito.given;
 
 import ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsRecentThirdPillar;
 import ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsRecentThirdPillarRepository;
+import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -40,5 +41,16 @@ class ThirdPillarAnalyticsTest {
 
     assertThat(thirdPillarAnalytics.recentCustomers())
         .containsExactly(new RecentThirdPillarCustomer("38888888888", "First", "Last", "EE"));
+  }
+
+  @Test
+  void findsTransactionsReportedOnOrAfterTheGivenCutoff() {
+    var cutoff = LocalDate.of(2026, 1, 1);
+    var transaction = AnalyticsThirdPillarTransactionFixture.exampleTransaction();
+    given(transactionRepository.findByReportingDateGreaterThanEqual(cutoff))
+        .willReturn(List.of(transaction));
+
+    assertThat(thirdPillarAnalytics.findTransactionsReportedOnOrAfter(cutoff))
+        .containsExactly(transaction);
   }
 }

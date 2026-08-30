@@ -58,6 +58,11 @@ class UnitOwnerSynchronizerTest extends FixedClockConfig {
   }
 
   @Test
+  void getTransactionTypeNameIsUnitOwnerSnapshot() {
+    assertThat(synchronizer.getTransactionTypeName()).isEqualTo("unit owner snapshot");
+  }
+
+  @Test
   void fetchRunsOutsideTheDatabaseTransaction() {
     given(episService.getUnitOwners())
         .willReturn(List.of(UnitOwnerFixture.dtoBuilder(UnitOwnerFixture.PERSON_ID_1).build()));
@@ -112,7 +117,13 @@ class UnitOwnerSynchronizerTest extends FixedClockConfig {
       assertThat(firstSaved.getLastName()).isEqualTo("Maasikas");
       assertThat(firstSaved.getP2choice()).isEqualTo("APPLICATION");
       assertThat(firstSaved.getP3identifier()).isEqualTo("ID_CARD");
-      assertThat(firstSaved.getBalances()).hasSize(2);
+      assertThat(firstSaved.getBalances())
+          .containsExactly(
+              UnitOwnerFixture.unitOwnerBalanceEmbeddableBuilder("TULEVA", "Tuleva II Pensionifond")
+                  .build(),
+              UnitOwnerFixture.unitOwnerBalanceEmbeddableBuilder(
+                      "TULEVA3", "Tuleva III Pensionifond")
+                  .build());
       assertThat(firstSaved.getDateCreated()).isEqualTo(testLocalDateTime);
 
       UnitOwner secondSaved = savedEntities.get(1);

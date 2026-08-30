@@ -7,11 +7,14 @@ import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.transaction.TransactionFundBalanceDto;
+import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.ledger.EpisUnitCountLedgerRecorder;
 import ee.tuleva.onboarding.time.FixedClockConfig;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -59,6 +62,51 @@ class FundBalanceSynchronizerTest extends FixedClockConfig {
     var sync = FundBalanceSynchronizer.class.getMethod("sync", LocalDate.class);
 
     assertThat(sync.getAnnotation(Transactional.class)).isNull();
+  }
+
+  @Test
+  void getTransactionTypeNameIsFundBalance() {
+    assertThat(synchronizer.getTransactionTypeName()).isEqualTo("fund balance");
+  }
+
+  @Test
+  @DisplayName("sync records unit counts on the ledger for funds with a balance snapshot")
+  void sync_recordsUnitCounts() {
+    when(episService.getFundBalances(syncDate)).thenReturn(Collections.emptyList());
+    FundBalance balance =
+        FundBalanceFixture.entityBuilder(testLocalDateTime)
+            .countUnits(BigDecimal.valueOf(100))
+            .countUnitsFm(BigDecimal.valueOf(20))
+            .build();
+    when(repository.findByIsinAndRequestDate(TulevaFund.TUK75.getIsin(), syncDate))
+        .thenReturn(Optional.of(balance));
+
+    synchronizer.sync(syncDate);
+
+    verify(unitCountLedgerRecorder)
+        .recordUnitCount(TulevaFund.TUK75, syncDate, BigDecimal.valueOf(120));
+    verifyNoMoreInteractions(unitCountLedgerRecorder);
+  }
+
+  @Test
+  @DisplayName("backfillUnitCounts records unit counts for every date in the inclusive range")
+  void backfillUnitCounts_recordsForEachDateInclusive() {
+    LocalDate from = LocalDate.of(2025, 4, 20);
+    LocalDate to = LocalDate.of(2025, 4, 22);
+    FundBalance balance =
+        FundBalanceFixture.entityBuilder(testLocalDateTime)
+            .countUnits(BigDecimal.TEN)
+            .countUnitsFm(BigDecimal.ZERO)
+            .build();
+    when(repository.findByIsinAndRequestDate(eq(TulevaFund.TUK75.getIsin()), any()))
+        .thenReturn(Optional.of(balance));
+
+    synchronizer.backfillUnitCounts(from, to);
+
+    verify(unitCountLedgerRecorder).recordUnitCount(TulevaFund.TUK75, from, BigDecimal.TEN);
+    verify(unitCountLedgerRecorder)
+        .recordUnitCount(TulevaFund.TUK75, from.plusDays(1), BigDecimal.TEN);
+    verify(unitCountLedgerRecorder).recordUnitCount(TulevaFund.TUK75, to, BigDecimal.TEN);
   }
 
   @Nested

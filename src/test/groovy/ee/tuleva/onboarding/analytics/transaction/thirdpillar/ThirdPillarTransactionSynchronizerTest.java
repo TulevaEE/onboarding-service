@@ -60,6 +60,11 @@ class ThirdPillarTransactionSynchronizerTest extends FixedClockConfig {
     assertThat(sync.getAnnotation(Transactional.class)).isNull();
   }
 
+  @Test
+  void getTransactionTypeNameIsThirdPillar() {
+    assertThat(synchronizer.getTransactionTypeName()).isEqualTo("third pillar");
+  }
+
   @Nested
   @DisplayName("When EPIS returns transactions")
   class WhenTransactionsExist {

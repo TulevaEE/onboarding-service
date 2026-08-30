@@ -7,7 +7,6 @@ import static java.util.Objects.requireNonNull;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.party.Party;
 import ee.tuleva.onboarding.user.exception.NotAMemberException;
 import ee.tuleva.onboarding.user.member.Member;
 import ee.tuleva.onboarding.user.personalcode.PersonalCode;
@@ -30,7 +29,7 @@ import org.jspecify.annotations.Nullable;
 @NoArgsConstructor
 @EqualsAndHashCode(exclude = {"member"})
 @ToString(exclude = {"member"})
-public class User implements Person, Emailable, Serializable, Party {
+public class User implements Person, Emailable, Serializable {
 
   @Id
   @GeneratedValue(strategy = IDENTITY)
@@ -98,12 +97,10 @@ public class User implements Person, Emailable, Serializable, Party {
     return getMemberOrThrow().getId();
   }
 
-  @Override
   public String code() {
     return getPersonalCode();
   }
 
-  @Override
   public String name() {
     return getFullName();
   }

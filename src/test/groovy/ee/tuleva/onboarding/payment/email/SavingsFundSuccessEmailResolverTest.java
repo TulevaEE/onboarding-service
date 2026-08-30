@@ -14,6 +14,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.company.Company;
 import ee.tuleva.onboarding.party.ParentChildLinkService;
+import ee.tuleva.onboarding.party.Party;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.party.PartyResolver;
 import ee.tuleva.onboarding.payment.event.SavingsPaymentCreatedEvent;
@@ -57,7 +58,8 @@ class SavingsFundSuccessEmailResolverTest {
             parentChildLinkService.isRepresentation(
                 payer.getPersonalCode(), childCode, Set.of(ACTIVE, PENDING_KYC)))
         .willReturn(true);
-    given(partyResolver.resolve(new PartyId(PERSON, childCode))).willReturn(Optional.of(child));
+    given(partyResolver.resolve(new PartyId(PERSON, childCode)))
+        .willReturn(Optional.of(namedParty(child.code(), child.name())));
 
     var resolved = resolver.resolve(event(new PartyId(PERSON, childCode)));
 
@@ -101,5 +103,10 @@ class SavingsFundSuccessEmailResolverTest {
     var resolved = resolver.resolve(event(new PartyId(LEGAL_ENTITY, registryCode)));
 
     assertThat(resolved).isEqualTo(SavingsFundPaymentEmail.companySuccess(null));
+  }
+
+  private static Party namedParty(String code, String name) {
+    record NamedParty(String code, String name) implements Party {}
+    return new NamedParty(code, name);
   }
 }

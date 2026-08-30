@@ -29,7 +29,7 @@ import static ee.tuleva.onboarding.mandate.batch.MandateBatchFixture.aMandateBat
 import ee.tuleva.onboarding.analytics.SecondPillarLeavers
 import ee.tuleva.onboarding.analytics.RecurringPayments
 import ee.tuleva.onboarding.analytics.RecurringSavers
-import ee.tuleva.onboarding.contribution.ThirdPillarTaxHeadroom
+import ee.tuleva.onboarding.mandate.TaxHeadroom
 import ee.tuleva.onboarding.mandate.SavingsFundSaverStatus
 
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchFixture.aSavedMandateBatch
@@ -52,10 +52,10 @@ class MandateEmailSenderSpec extends Specification {
     recurringPaymentsOf(_) >> new RecurringPayments(true, true)
   }
 
-  ThirdPillarTaxHeadroom thirdPillarTaxHeadroom = Mock(ThirdPillarTaxHeadroom) {
+  TaxHeadroom taxHeadroom = Mock(TaxHeadroom) {
     hasHeadroom(_) >> false
   }
-  MandateEmailSender mandateEmailSender = new MandateEmailSender(mandateEmailService, mandateBatchEmailService, mandateContacts, conversionService, paymentRateService, secondPillarLeavers, savingsFundSavers, recurringSavers, thirdPillarTaxHeadroom)
+  MandateEmailSender mandateEmailSender = new MandateEmailSender(mandateEmailService, mandateBatchEmailService, mandateContacts, conversionService, paymentRateService, secondPillarLeavers, savingsFundSavers, recurringSavers, taxHeadroom)
 
   def "send email when second pillar mandate event was received"() {
     given:

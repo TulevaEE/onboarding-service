@@ -19,6 +19,7 @@ import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateContacts;
 import ee.tuleva.onboarding.mandate.MandateFileService;
+import ee.tuleva.onboarding.mandate.WithdrawalReadiness;
 import ee.tuleva.onboarding.mandate.batch.poller.MandateBatchProcessingPoller;
 import ee.tuleva.onboarding.mandate.event.AfterMandateBatchSignedEvent;
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
@@ -34,8 +35,6 @@ import ee.tuleva.onboarding.signature.SignatureStatus;
 import ee.tuleva.onboarding.signature.SmartIdSignatureSession;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
-import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityDto;
-import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityService;
 import java.util.List;
 import java.util.Locale;
 import java.util.NoSuchElementException;
@@ -58,7 +57,7 @@ public class MandateBatchServiceTest {
 
   @Mock private MandateFileService mandateFileService;
   @Mock private GenericMandateService genericMandateService;
-  @Mock private WithdrawalEligibilityService withdrawalEligibilityService;
+  @Mock private WithdrawalReadiness withdrawalReadiness;
   @Mock private UserService userService;
   @Mock private MandateProcessorService mandateProcessor;
   @Mock private MandateBatchProcessingPoller mandateBatchProcessingPoller;
@@ -170,17 +169,9 @@ public class MandateBatchServiceTest {
             .build();
     var aMandateBatchDto = MandateBatchDto.from(aMandateBatch);
 
-    var aWithdrawalEligibility =
-        WithdrawalEligibilityDto.builder()
-            .hasReachedEarlyRetirementAge(true)
-            .canWithdrawThirdPillarWithReducedTax(true)
-            .age(65)
-            .recommendedDurationYears(20)
-            .arrestsOrBankruptciesPresent(false)
-            .build();
+    var aWithdrawalReadiness = new WithdrawalReadiness.Readiness(true, true);
 
-    when(withdrawalEligibilityService.getWithdrawalEligibility(authenticatedPerson))
-        .thenReturn(aWithdrawalEligibility);
+    when(withdrawalReadiness.forPerson(authenticatedPerson)).thenReturn(aWithdrawalReadiness);
     when(genericMandateService.createGenericMandate(any(), any(), any()))
         .thenReturn(aFundPensionOpeningMandate);
     when(mandateBatchRepository.save(
@@ -221,17 +212,9 @@ public class MandateBatchServiceTest {
             .build();
     var aMandateBatchDto = MandateBatchDto.from(aMandateBatch);
 
-    var aWithdrawalEligibility =
-        WithdrawalEligibilityDto.builder()
-            .hasReachedEarlyRetirementAge(false)
-            .canWithdrawThirdPillarWithReducedTax(true)
-            .age(56)
-            .recommendedDurationYears(20)
-            .arrestsOrBankruptciesPresent(false)
-            .build();
+    var aWithdrawalReadiness = new WithdrawalReadiness.Readiness(true, false);
 
-    when(withdrawalEligibilityService.getWithdrawalEligibility(authenticatedPerson))
-        .thenReturn(aWithdrawalEligibility);
+    when(withdrawalReadiness.forPerson(authenticatedPerson)).thenReturn(aWithdrawalReadiness);
     when(genericMandateService.createGenericMandate(any(), any(), any()))
         .thenReturn(aFundPensionOpeningMandate);
     when(mandateBatchRepository.save(
@@ -272,17 +255,9 @@ public class MandateBatchServiceTest {
             .build();
     var aMandateBatchDto = MandateBatchDto.from(aMandateBatch);
 
-    var aWithdrawalEligibility =
-        WithdrawalEligibilityDto.builder()
-            .hasReachedEarlyRetirementAge(false)
-            .canWithdrawThirdPillarWithReducedTax(false)
-            .age(35)
-            .recommendedDurationYears(50)
-            .arrestsOrBankruptciesPresent(false)
-            .build();
+    var aWithdrawalReadiness = new WithdrawalReadiness.Readiness(false, false);
 
-    when(withdrawalEligibilityService.getWithdrawalEligibility(authenticatedPerson))
-        .thenReturn(aWithdrawalEligibility);
+    when(withdrawalReadiness.forPerson(authenticatedPerson)).thenReturn(aWithdrawalReadiness);
 
     assertThrows(
         IllegalArgumentException.class,
@@ -304,17 +279,9 @@ public class MandateBatchServiceTest {
             .build();
     var aMandateBatchDto = MandateBatchDto.from(aMandateBatch);
 
-    var aWithdrawalEligibility =
-        WithdrawalEligibilityDto.builder()
-            .hasReachedEarlyRetirementAge(false)
-            .canWithdrawThirdPillarWithReducedTax(true)
-            .age(56)
-            .recommendedDurationYears(50)
-            .arrestsOrBankruptciesPresent(false)
-            .build();
+    var aWithdrawalReadiness = new WithdrawalReadiness.Readiness(true, false);
 
-    when(withdrawalEligibilityService.getWithdrawalEligibility(authenticatedPerson))
-        .thenReturn(aWithdrawalEligibility);
+    when(withdrawalReadiness.forPerson(authenticatedPerson)).thenReturn(aWithdrawalReadiness);
 
     assertThrows(
         IllegalArgumentException.class,
@@ -337,17 +304,9 @@ public class MandateBatchServiceTest {
             .build();
     var aMandateBatchDto = MandateBatchDto.from(aMandateBatch);
 
-    var aWithdrawalEligibility =
-        WithdrawalEligibilityDto.builder()
-            .hasReachedEarlyRetirementAge(false)
-            .canWithdrawThirdPillarWithReducedTax(false)
-            .age(25)
-            .recommendedDurationYears(50)
-            .arrestsOrBankruptciesPresent(false)
-            .build();
+    var aWithdrawalReadiness = new WithdrawalReadiness.Readiness(false, false);
 
-    when(withdrawalEligibilityService.getWithdrawalEligibility(authenticatedPerson))
-        .thenReturn(aWithdrawalEligibility);
+    when(withdrawalReadiness.forPerson(authenticatedPerson)).thenReturn(aWithdrawalReadiness);
 
     assertThrows(
         IllegalArgumentException.class,
@@ -369,17 +328,9 @@ public class MandateBatchServiceTest {
             .build();
     var aMandateBatchDto = MandateBatchDto.from(aMandateBatch);
 
-    var aWithdrawalEligibility =
-        WithdrawalEligibilityDto.builder()
-            .hasReachedEarlyRetirementAge(false)
-            .canWithdrawThirdPillarWithReducedTax(false)
-            .age(35)
-            .recommendedDurationYears(50)
-            .arrestsOrBankruptciesPresent(false)
-            .build();
+    var aWithdrawalReadiness = new WithdrawalReadiness.Readiness(false, false);
 
-    when(withdrawalEligibilityService.getWithdrawalEligibility(authenticatedPerson))
-        .thenReturn(aWithdrawalEligibility);
+    when(withdrawalReadiness.forPerson(authenticatedPerson)).thenReturn(aWithdrawalReadiness);
 
     when(genericMandateService.createGenericMandate(any(), any(), any()))
         .thenReturn(aThirdPillarPartialWithdrawalMandate);
@@ -419,17 +370,9 @@ public class MandateBatchServiceTest {
             .build();
     var aMandateBatchDto = MandateBatchDto.from(aMandateBatch);
 
-    var aWithdrawalEligibility =
-        WithdrawalEligibilityDto.builder()
-            .hasReachedEarlyRetirementAge(true)
-            .canWithdrawThirdPillarWithReducedTax(true)
-            .age(65)
-            .recommendedDurationYears(20)
-            .arrestsOrBankruptciesPresent(false)
-            .build();
+    var aWithdrawalReadiness = new WithdrawalReadiness.Readiness(true, true);
 
-    when(withdrawalEligibilityService.getWithdrawalEligibility(authenticatedPerson))
-        .thenReturn(aWithdrawalEligibility);
+    when(withdrawalReadiness.forPerson(authenticatedPerson)).thenReturn(aWithdrawalReadiness);
     when(genericMandateService.createGenericMandate(any(), any(), any()))
         .thenReturn(aFundPensionOpeningMandate);
     when(mandateBatchRepository.save(

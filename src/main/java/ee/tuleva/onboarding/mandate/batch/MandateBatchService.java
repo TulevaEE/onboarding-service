@@ -11,6 +11,7 @@ import ee.tuleva.onboarding.error.response.ErrorResponse;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.MandateContacts;
 import ee.tuleva.onboarding.mandate.MandateFileService;
+import ee.tuleva.onboarding.mandate.WithdrawalReadiness;
 import ee.tuleva.onboarding.mandate.batch.poller.MandateBatchProcessingPoller;
 import ee.tuleva.onboarding.mandate.event.AfterMandateBatchSignedEvent;
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
@@ -27,7 +28,6 @@ import ee.tuleva.onboarding.signature.SignatureStatus;
 import ee.tuleva.onboarding.signature.SmartIdSignatureSession;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
-import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityService;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -42,7 +42,7 @@ public class MandateBatchService {
   private final MandateBatchRepository mandateBatchRepository;
 
   private final MandateFileService mandateFileService;
-  private final WithdrawalEligibilityService withdrawalEligibilityService;
+  private final WithdrawalReadiness withdrawalReadiness;
   private final GenericMandateService genericMandateService;
   private final ApplicationEventPublisher applicationEventPublisher;
   private final UserService userService;
@@ -76,7 +76,7 @@ public class MandateBatchService {
     }
 
     if (mandateBatchDto.isWithdrawalBatch()) {
-      var eligibility = withdrawalEligibilityService.getWithdrawalEligibility(authenticatedPerson);
+      var eligibility = withdrawalReadiness.forPerson(authenticatedPerson);
 
       if (eligibility.canWithdrawThirdPillarWithReducedTax()
           && !eligibility.hasReachedEarlyRetirementAge()) {

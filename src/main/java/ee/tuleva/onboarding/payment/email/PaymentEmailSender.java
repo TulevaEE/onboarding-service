@@ -5,6 +5,7 @@ import static org.springframework.transaction.annotation.Propagation.REQUIRES_NE
 import static org.springframework.transaction.event.TransactionPhase.AFTER_COMMIT;
 
 import ee.tuleva.onboarding.analytics.RecurringSavers;
+import ee.tuleva.onboarding.analytics.SaverId;
 import ee.tuleva.onboarding.analytics.SecondPillarLeavers;
 import ee.tuleva.onboarding.auth.SecurityContextRunner;
 import ee.tuleva.onboarding.contribution.ThirdPillarTaxHeadroom;
@@ -59,8 +60,10 @@ public class PaymentEmailSender {
 
   @EventListener
   public void onSavingsPaymentCreated(SavingsPaymentCreatedEvent event) {
+    var recipient = event.getRecipient();
+    var saver = new SaverId(SaverId.Type.valueOf(recipient.type().name()), recipient.code());
     boolean suggestAccountRecurringPayment =
-        !recurringSavers.hasRecurringSavingsFundPayments(event.getRecipient());
+        !recurringSavers.hasRecurringSavingsFundPayments(saver);
     sendSavingsFundEmail(
         event, savingsFundSuccessEmailResolver.resolve(event), suggestAccountRecurringPayment);
   }

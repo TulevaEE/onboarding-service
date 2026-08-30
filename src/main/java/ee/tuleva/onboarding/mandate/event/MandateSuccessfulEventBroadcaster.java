@@ -1,8 +1,7 @@
-package ee.tuleva.onboarding.event.broadcasting;
+package ee.tuleva.onboarding.mandate.event;
 
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.event.TrackableEventType;
-import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

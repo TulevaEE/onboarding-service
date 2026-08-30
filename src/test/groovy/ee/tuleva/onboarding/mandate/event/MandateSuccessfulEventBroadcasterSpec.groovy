@@ -1,8 +1,7 @@
-package ee.tuleva.onboarding.event.broadcasting
+package ee.tuleva.onboarding.mandate.event
 
 import ee.tuleva.onboarding.event.TrackableEvent
 import ee.tuleva.onboarding.mandate.Mandate
-import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent
 import ee.tuleva.onboarding.user.User
 import org.springframework.context.ApplicationEventPublisher
 import spock.lang.Specification

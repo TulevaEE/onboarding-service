@@ -1,20 +1,11 @@
 package ee.tuleva.onboarding.mandate.application
 
 import ee.tuleva.onboarding.applicationtype.ApplicationType
-import ee.tuleva.onboarding.company.BoardMembershipService
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService
 import ee.tuleva.onboarding.mandate.MandateGateway
 import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.locale.LocaleService
-import ee.tuleva.onboarding.party.PartyId
 import ee.tuleva.onboarding.payment.application.PaymentApplicationDetails
-import ee.tuleva.onboarding.savings.SavingFundPayment
-import ee.tuleva.onboarding.savings.SavingFundDeadlinesService
-import ee.tuleva.onboarding.savings.SavingFundPaymentQueries
-import ee.tuleva.onboarding.savings.fund.application.SavingFundPaymentApplicationDetails
-import ee.tuleva.onboarding.savings.fund.application.SavingFundWithdrawalApplicationDetails
-import ee.tuleva.onboarding.savings.PendingRedemption
-import ee.tuleva.onboarding.savings.RedemptionQueries
 import ee.tuleva.onboarding.time.TestClockHolder
 import spock.lang.Specification
 
@@ -22,7 +13,6 @@ import java.time.Instant
 import java.time.LocalDate
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
-import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonLegalEntity
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.deadline.MandateDeadlinesFixture.sampleDeadlines
@@ -35,9 +25,6 @@ import static ee.tuleva.onboarding.mandate.application.ApplicationStatus.PENDING
 import static ee.tuleva.onboarding.applicationtype.ApplicationType.*
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND
 import static ee.tuleva.onboarding.pillar.Pillar.THIRD
-import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED
-import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED
-import static java.math.BigDecimal.valueOf
 
 class ApplicationServiceSpec extends Specification {
 
@@ -46,13 +33,10 @@ class ApplicationServiceSpec extends Specification {
   FundRepository fundRepository = Mock()
   MandateDeadlinesService mandateDeadlinesService = Mock()
   PaymentApplications paymentApplicationService = Mock()
-  SavingFundDeadlinesService savingFundPaymentDeadlinesService = Mock()
-  SavingFundPaymentQueries savingFundPaymentService = Mock()
-  RedemptionQueries savingFundRedemptionQueries = Mock()
-  BoardMembershipService boardMembershipService = Mock()
+  SavingsApplications savingsApplications = Mock()
 
   ApplicationService applicationService =
-      new ApplicationService(mandateGateway, localeService, fundRepository, mandateDeadlinesService, paymentApplicationService, savingFundPaymentDeadlinesService, savingFundPaymentService, savingFundRedemptionQueries, boardMembershipService)
+      new ApplicationService(mandateGateway, localeService, fundRepository, mandateDeadlinesService, paymentApplicationService, savingsApplications)
 
   def "gets applications"() {
     given:
@@ -78,8 +62,7 @@ class ApplicationServiceSpec extends Specification {
 
     mandateDeadlinesService.getDeadlines(_ as Instant) >> sampleDeadlines()
     paymentApplicationService.getPaymentApplications(person) >> [paymentApplication().build()]
-    savingFundPaymentService.getPendingPayments(PartyId.from(person.getRole())) >> []
-    savingFundRedemptionQueries.getPendingRedemptions(_) >> []
+    savingsApplications.getApplications(person) >> []
 
     when:
     def applications = applicationService.getAllApplications(person)
@@ -262,8 +245,7 @@ class ApplicationServiceSpec extends Specification {
 
     mandateDeadlinesService.getDeadlines(_ as Instant) >> sampleDeadlines()
     paymentApplicationService.getPaymentApplications(person) >> []
-    savingFundPaymentService.getPendingPayments(PartyId.from(person.getRole())) >> []
-    savingFundRedemptionQueries.getPendingRedemptions(_) >> []
+    savingsApplications.getApplications(person) >> []
 
     when:
     def applications = applicationService.getAllApplications(person)
@@ -357,218 +339,5 @@ class ApplicationServiceSpec extends Specification {
     then:
     hasPendingSecondPillarWithdrawals
     hasPendingThirdPillarWithdrawals
-  }
-
-  def "gets saving fund payment applications for authenticated person"() {
-    given:
-    def authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
-
-    // Create sample UUIDs for the payments
-    def payment1Id = UUID.fromString("12345678-1234-1234-1234-123456789abc")
-    def payment2Id = UUID.fromString("87654321-4321-4321-4321-cba987654321")
-
-    // Create sample saving fund payments
-    def payment1 = Mock(SavingFundPayment) {
-      getId() >> payment1Id
-      getAmount() >> 100.0
-      getCurrency() >> EUR
-      getCreatedAt() >> TestClockHolder.now
-      getStatus() >> SavingFundPayment.Status.CREATED
-    }
-
-    def payment2 = Mock(SavingFundPayment) {
-      getId() >> payment2Id
-      getAmount() >> 250.0
-      getCurrency() >> EUR
-      getCreatedAt() >> TestClockHolder.now.minusSeconds(3600)
-      getStatus() >> SavingFundPayment.Status.VERIFIED
-    }
-
-    mandateGateway.getApplications(authenticatedPerson) >> []
-    localeService.getCurrentLocale() >> Locale.ENGLISH
-    paymentApplicationService.getPaymentApplications(authenticatedPerson) >> []
-    savingFundPaymentService.getPendingPayments(PartyId.from(authenticatedPerson.getRole())) >> [payment1, payment2]
-    savingFundRedemptionQueries.getPendingRedemptions(PartyId.from(authenticatedPerson.getRole())) >> []
-
-    savingFundPaymentDeadlinesService.getCancellationDeadline(payment1) >> Instant.parse("2021-03-31T21:00:00.000000000Z")
-    savingFundPaymentDeadlinesService.getFulfillmentDeadline(payment1) >> Instant.parse("2021-04-20T10:00:00Z")
-    savingFundPaymentDeadlinesService.getCancellationDeadline(payment2) >> Instant.parse("2021-03-31T21:00:00.000000000Z")
-    savingFundPaymentDeadlinesService.getFulfillmentDeadline(payment2) >> Instant.parse("2021-04-20T10:00:00Z")
-
-    when:
-    def applications = applicationService.getAllApplications(authenticatedPerson)
-
-    then:
-    applications.size() == 2
-
-    with(applications[0] as Application<SavingFundPaymentApplicationDetails>) {
-      id == payment2Id.getMostSignificantBits() // Converted from UUID
-      status == PENDING // TODO: Map real status when available
-      creationTime == TestClockHolder.now.minusSeconds(3600)
-      with(details) {
-        amount == 250.0
-        currency == EUR
-        paymentId == payment2Id
-        cancellationDeadline == Instant.parse("2021-03-31T20:59:59.000000000Z")
-        fulfillmentDeadline == Instant.parse("2021-04-20T10:00:00Z")
-      }
-    }
-
-    with(applications[1] as Application<SavingFundPaymentApplicationDetails>) {
-      id == payment1Id.getMostSignificantBits() // Converted from UUID
-      status == PENDING // TODO: Map real status when available
-      creationTime == TestClockHolder.now
-      with(details) {
-        amount == 100.0
-        currency == EUR
-        paymentId == payment1Id
-        cancellationDeadline == Instant.parse("2021-03-31T20:59:59.000000000Z")
-        fulfillmentDeadline == Instant.parse("2021-04-20T10:00:00Z")
-      }
-    }
-  }
-
-  def "gets saving fund redemption applications for authenticated person"() {
-    given:
-    def authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
-
-    def redemption1Id = UUID.fromString("11111111-1111-1111-1111-111111111111")
-    def redemption2Id = UUID.fromString("22222222-2222-2222-2222-222222222222")
-
-    def redemption1 = PendingRedemption.builder()
-        .id(redemption1Id)
-        .amount(valueOf(150.00))
-        .customerIban("EE123456789012345678")
-        .requestedAt(TestClockHolder.now)
-        .cancellationDeadline(Instant.parse("2021-03-31T21:00:00Z"))
-        .fulfillmentDeadline(Instant.parse("2021-04-20T10:00:00Z"))
-        .build()
-
-    def redemption2 = PendingRedemption.builder()
-        .id(redemption2Id)
-        .amount(valueOf(300.50))
-        .customerIban("EE987654321098765432")
-        .requestedAt(TestClockHolder.now.minusSeconds(7200))
-        .cancellationDeadline(Instant.parse("2021-03-31T21:00:00Z"))
-        .fulfillmentDeadline(Instant.parse("2021-04-20T10:00:00Z"))
-        .build()
-
-    mandateGateway.getApplications(authenticatedPerson) >> []
-    localeService.getCurrentLocale() >> Locale.ENGLISH
-    paymentApplicationService.getPaymentApplications(authenticatedPerson) >> []
-    savingFundPaymentService.getPendingPayments(PartyId.from(authenticatedPerson.getRole())) >> []
-    savingFundRedemptionQueries.getPendingRedemptions(PartyId.from(authenticatedPerson.getRole())) >> [redemption1, redemption2]
-
-    when:
-    def applications = applicationService.getAllApplications(authenticatedPerson)
-
-    then:
-    applications.size() == 2
-
-    with(applications[0] as Application<SavingFundWithdrawalApplicationDetails>) {
-      id == redemption2Id.getMostSignificantBits()
-      status == PENDING
-      creationTime == TestClockHolder.now.minusSeconds(7200)
-      with(details) {
-        id == redemption2Id
-        amount == valueOf(300.50)
-        currency == EUR
-        iban == "EE987654321098765432"
-        cancellationDeadline == Instant.parse("2021-03-31T20:59:59Z")
-        fulfillmentDeadline == Instant.parse("2021-04-20T10:00:00Z")
-      }
-    }
-
-    with(applications[1] as Application<SavingFundWithdrawalApplicationDetails>) {
-      id == redemption1Id.getMostSignificantBits()
-      status == PENDING
-      creationTime == TestClockHolder.now
-      with(details) {
-        id == redemption1Id
-        amount == valueOf(150.00)
-        currency == EUR
-        iban == "EE123456789012345678"
-        cancellationDeadline == Instant.parse("2021-03-31T20:59:59Z")
-        fulfillmentDeadline == Instant.parse("2021-04-20T10:00:00Z")
-      }
-    }
-  }
-
-  def "loads redemptions for the active party only"() {
-    given:
-    def authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
-    def activeParty = PartyId.from(authenticatedPerson.getRole())
-
-    def personRedemptionId = UUID.randomUUID()
-    def personRedemption = PendingRedemption.builder()
-        .id(personRedemptionId)
-        .amount(valueOf(150.00))
-        .customerIban("EE123456789012345678")
-        .requestedAt(TestClockHolder.now)
-        .cancellationDeadline(Instant.parse("2021-03-31T21:00:00Z"))
-        .fulfillmentDeadline(Instant.parse("2021-04-20T10:00:00Z"))
-        .build()
-
-    mandateGateway.getApplications(authenticatedPerson) >> []
-    localeService.getCurrentLocale() >> Locale.ENGLISH
-    paymentApplicationService.getPaymentApplications(authenticatedPerson) >> []
-    savingFundPaymentService.getPendingPayments(activeParty) >> []
-    savingFundRedemptionQueries.getPendingRedemptions(activeParty) >> [personRedemption]
-
-    when:
-    def applications = applicationService.getAllApplications(authenticatedPerson)
-
-    then:
-    applications.size() == 1
-    (applications[0] as Application<SavingFundWithdrawalApplicationDetails>).details.id == personRedemptionId
-  }
-
-  def "shows legal-entity redemptions when authenticated under a legal-entity role"() {
-    given:
-    def authenticatedPerson = sampleAuthenticatedPersonLegalEntity().build()
-    def legalEntityPartyId = PartyId.from(authenticatedPerson.getRole())
-
-    def legalEntityRedemptionId = UUID.randomUUID()
-    def legalEntityRedemption = PendingRedemption.builder()
-        .id(legalEntityRedemptionId)
-        .amount(valueOf(300.00))
-        .customerIban("EE382200221020145685")
-        .requestedAt(TestClockHolder.now)
-        .cancellationDeadline(Instant.parse("2021-03-31T21:00:00Z"))
-        .fulfillmentDeadline(Instant.parse("2021-04-20T10:00:00Z"))
-        .build()
-
-    mandateGateway.getApplications(authenticatedPerson) >> []
-    localeService.getCurrentLocale() >> Locale.ENGLISH
-    paymentApplicationService.getPaymentApplications(authenticatedPerson) >> []
-    boardMembershipService.isBoardMember(authenticatedPerson.getPersonalCode(), legalEntityPartyId.code()) >> true
-    savingFundPaymentService.getPendingPayments(legalEntityPartyId) >> []
-    savingFundRedemptionQueries.getPendingRedemptions(legalEntityPartyId) >> [legalEntityRedemption]
-
-    when:
-    def applications = applicationService.getAllApplications(authenticatedPerson)
-
-    then:
-    applications.size() == 1
-    (applications[0] as Application<SavingFundWithdrawalApplicationDetails>).details.id == legalEntityRedemptionId
-  }
-
-  def "hides legal-entity savings-fund applications when active legal-entity role is no longer a board member"() {
-    given:
-    def authenticatedPerson = sampleAuthenticatedPersonLegalEntity().build()
-    def legalEntityPartyId = PartyId.from(authenticatedPerson.getRole())
-
-    mandateGateway.getApplications(authenticatedPerson) >> []
-    localeService.getCurrentLocale() >> Locale.ENGLISH
-    paymentApplicationService.getPaymentApplications(authenticatedPerson) >> []
-    boardMembershipService.isBoardMember(authenticatedPerson.getPersonalCode(), legalEntityPartyId.code()) >> false
-
-    when:
-    def applications = applicationService.getAllApplications(authenticatedPerson)
-
-    then:
-    applications.isEmpty()
-    0 * savingFundPaymentService.getPendingPayments(_)
-    0 * savingFundRedemptionQueries.getPendingRedemptions(_)
   }
 }

@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventRepository
 import ee.tuleva.onboarding.user.member.Member
 import spock.lang.Specification
 
+import java.time.Clock
 import java.time.LocalDate
 
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventFixture.memberCapitalEventFixture
@@ -20,7 +21,7 @@ class CapitalServiceSpec extends Specification {
   MemberCapitalEventRepository memberCapitalEventRepository = Mock()
   AggregatedCapitalEventRepository aggregatedCapitalEventRepository = Mock()
   ActiveTransferCapital activeTransferCapital = Mock()
-  CapitalService service = new CapitalService(memberCapitalEventRepository, activeTransferCapital, aggregatedCapitalEventRepository)
+  CapitalService service = new CapitalService(memberCapitalEventRepository, activeTransferCapital, aggregatedCapitalEventRepository, Clock.systemUTC())
 
   def "GetCapitalStatement"() {
     given:

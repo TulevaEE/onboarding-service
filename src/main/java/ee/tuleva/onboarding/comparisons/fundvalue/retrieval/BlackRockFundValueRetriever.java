@@ -99,7 +99,7 @@ public class BlackRockFundValueRetriever implements ComparisonIndexRetriever {
       return List.of();
     }
 
-    var now = Instant.now();
+    var now = clock.instant();
     List<FundValue> allValues = parseNavData(responseBody, storageKey, now);
 
     logLatestValue(storageKey, allValues);

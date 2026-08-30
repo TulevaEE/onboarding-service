@@ -53,12 +53,12 @@ public class Email {
   @PrePersist
   protected void onCreate() {
     createdDate = clock().instant();
-    updatedDate = Instant.now();
+    updatedDate = clock().instant();
   }
 
   @PreUpdate
   protected void onUpdate() {
-    updatedDate = Instant.now();
+    updatedDate = clock().instant();
   }
 
   public boolean isToday(Clock clock) {

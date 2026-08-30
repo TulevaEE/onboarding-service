@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.user.UserRepository
 import io.github.erkoristhein.mailchimp.marketing.model.CampaignReport
 import spock.lang.Specification
 
+import java.time.Clock
 import java.time.OffsetDateTime
 
 import static ee.tuleva.onboarding.auth.UserFixture.simpleUser
@@ -34,7 +35,8 @@ class MailchimpCampaignSyncServiceSpec extends Specification {
         eventLogRepository,
         userRepository,
         crmMailchimpRepository,
-        metricsService
+        metricsService,
+        Clock.systemUTC()
     )
   }
 

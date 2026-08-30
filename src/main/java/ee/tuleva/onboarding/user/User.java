@@ -77,12 +77,12 @@ public class User implements Person, Emailable, Serializable {
   @PrePersist
   protected void onCreate() {
     createdDate = clock().instant();
-    updatedDate = Instant.now();
+    updatedDate = clock().instant();
   }
 
   @PreUpdate
   protected void onUpdate() {
-    updatedDate = Instant.now();
+    updatedDate = clock().instant();
   }
 
   public boolean isMember() {

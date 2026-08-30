@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.comparisons.returns;
 import static org.springframework.format.annotation.DateTimeFormat.ISO.DATE;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ class ReturnsController {
   static final LocalDate BEGINNING_OF_TIMES = LocalDate.parse("2003-01-07");
 
   private final ReturnsService returnsService;
+  private final Clock clock;
 
   @GetMapping("/returns")
   public Returns getReturns(
@@ -29,7 +31,7 @@ class ReturnsController {
       @RequestParam(required = false) @DateTimeFormat(iso = DATE) LocalDate to,
       @RequestParam(required = false, name = "keys[]") List<String> keys) {
     LocalDate startDate = (from == null) ? BEGINNING_OF_TIMES : from;
-    LocalDate endDate = (to == null) ? LocalDate.now() : to;
+    LocalDate endDate = (to == null) ? LocalDate.now(clock) : to;
 
     return returnsService.get(person, startDate, endDate, keys);
   }

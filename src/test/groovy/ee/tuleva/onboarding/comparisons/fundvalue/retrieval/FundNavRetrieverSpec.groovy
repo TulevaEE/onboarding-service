@@ -6,6 +6,8 @@ import ee.tuleva.onboarding.error.ErrorsResponseException
 import ee.tuleva.onboarding.error.response.ErrorsResponse
 import spock.lang.Specification
 
+import java.time.Clock
+
 import static ee.tuleva.onboarding.comparisons.fundvalue.FundValueFixture.aFundValue
 import static ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundNavRetriever.PROVIDER
 import static java.time.LocalDate.parse
@@ -15,7 +17,7 @@ class FundNavRetrieverSpec extends Specification {
 
     def isin = "EE1111"
     def episService = Mock(EpisService)
-    def retriever = new FundNavRetriever(episService, isin)
+    def retriever = new FundNavRetriever(episService, isin, Clock.systemUTC())
 
     def "key is isin"() {
         expect:

@@ -17,13 +17,14 @@ import ee.tuleva.onboarding.withdrawals.FundPensionStatus
 import org.springframework.web.client.RestTemplate
 import spock.lang.Specification
 
+import java.time.Clock
 import java.time.LocalDate
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 
 class MockEpisServiceSpec extends Specification {
 
-  EpisService episService = new MockEpisService(Mock(RestTemplate), Mock(JwtTokenUtil))
+  EpisService episService = new MockEpisService(Mock(RestTemplate), Mock(JwtTokenUtil), Clock.systemUTC())
 
   def "getApplications has a mock response"() {
     when:

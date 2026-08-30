@@ -115,7 +115,7 @@ public class YahooFundValueRetriever implements ComparisonIndexRetriever {
           "Yahoo Finance response timestamp and fund values count do not match: fund=" + fundName);
     }
 
-    var now = Instant.now();
+    var now = clock.instant();
     List<FundValue> allValues =
         IntStream.range(0, fundValues.size())
             .mapToObj(

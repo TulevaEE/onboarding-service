@@ -5,7 +5,7 @@ import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.*;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.SavingFundDeadlinesService;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
-import java.time.Instant;
+import java.time.Clock;
 import java.util.*;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +24,7 @@ public class SavingFundPaymentUpsertionService {
   private final SavingFundPaymentRepository repository;
   private final SavingFundDeadlinesService savingFundDeadlinesService;
   private final NameMatcher nameMatcher;
+  private final Clock clock;
 
   public void upsert(
       SavingFundPayment payment, Function<SavingFundPayment, SavingFundPayment.Status> onInsert) {
@@ -79,7 +80,7 @@ public class SavingFundPaymentUpsertionService {
       throw new NoSuchElementException();
     }
     var deadline = savingFundDeadlinesService.getCancellationDeadline(payment);
-    if (deadline.isBefore(Instant.now())) {
+    if (deadline.isBefore(clock.instant())) {
       throw new IllegalStateException("Payment cancellation deadline has passed");
     }
     repository.cancel(paymentId);

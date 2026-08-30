@@ -11,7 +11,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
-import java.time.Instant;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
@@ -36,6 +36,7 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
   private static final String SECURITY_ID = "F00000VN9N";
 
   private final FtpClientFactory morningstarFtpClientFactory;
+  private final Clock clock;
 
   @Override
   public String getKey() {
@@ -103,7 +104,7 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
   private List<FundValue> extractValuesFromRecords(Map<String, MonthRecord> monthRecords) {
     log.debug("Extracting values from record dictionary");
     List<FundValue> fundValues = new ArrayList<>();
-    var now = Instant.now();
+    var now = clock.instant();
 
     for (MonthRecord record : monthRecords.values()) {
       List<String> recordValues = record.getValues();

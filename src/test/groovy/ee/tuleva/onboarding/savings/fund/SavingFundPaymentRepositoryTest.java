@@ -18,6 +18,7 @@ import static org.junit.jupiter.params.provider.EnumSource.Mode.EXCLUDE;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
 import ee.tuleva.onboarding.savings.SavingFundPayment.Status;
+import ee.tuleva.onboarding.time.ClockConfig;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import java.math.BigDecimal;
@@ -36,7 +37,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 @DataJpaTest
-@Import(SavingFundPaymentRepository.class)
+@Import({SavingFundPaymentRepository.class, ClockConfig.class})
 class SavingFundPaymentRepositoryTest {
 
   @Autowired SavingFundPaymentRepository repository;

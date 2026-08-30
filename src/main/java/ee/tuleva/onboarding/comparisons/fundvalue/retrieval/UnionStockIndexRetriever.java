@@ -6,7 +6,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.Instant;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,6 +24,7 @@ public class UnionStockIndexRetriever implements ComparisonIndexRetriever {
   public static final String PROVIDER = "CALCULATED";
 
   private final FundValueRepository fundValueRepository;
+  private final Clock clock;
 
   public static final BigDecimal MULTIPLIER = new BigDecimal("13.3883094");
 
@@ -52,7 +53,7 @@ public class UnionStockIndexRetriever implements ComparisonIndexRetriever {
   private List<FundValue> createStocks() {
     List<FundValue> stockValues = new ArrayList<>();
     List<FundValue> jdbcValues = fundValueRepository.getGlobalStockValues();
-    var now = Instant.now();
+    var now = clock.instant();
 
     for (FundValue fundvalue : jdbcValues) {
       LocalDate date = fundvalue.date();

@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.*;
@@ -27,6 +28,7 @@ import org.springframework.stereotype.Repository;
 @RequiredArgsConstructor
 public class SavingFundPaymentRepository {
   private final NamedParameterJdbcTemplate jdbcTemplate;
+  private final Clock clock;
 
   public Optional<SavingFundPayment> findById(UUID id) {
     var result =
@@ -74,9 +76,7 @@ public class SavingFundPaymentRepository {
 
   public List<SavingFundPayment> findPaymentsWithStatus(Status status) {
     return jdbcTemplate.query(
-        """
-        select * from saving_fund_payment where status=:status
-        """,
+        "select * from saving_fund_payment where status=:status",
         Map.of("status", status.name()),
         this::rowMapper);
   }
@@ -98,10 +98,10 @@ public class SavingFundPaymentRepository {
 
   public List<SavingFundPayment> findRecentPayments(String description) {
     return jdbcTemplate.query(
-        """
-        select * from saving_fund_payment where description=:description and created_at > :recent order by created_at asc
-        """,
-        Map.of("description", description, "recent", Timestamp.from(Instant.now().minus(30, DAYS))),
+        "select * from saving_fund_payment where description=:description"
+            + " and created_at > :recent order by created_at asc",
+        Map.of(
+            "description", description, "recent", Timestamp.from(clock.instant().minus(30, DAYS))),
         this::rowMapper);
   }
 

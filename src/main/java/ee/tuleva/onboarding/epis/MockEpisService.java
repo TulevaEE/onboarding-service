@@ -22,6 +22,7 @@ import ee.tuleva.onboarding.mandate.LegacyMandateSubmission;
 import ee.tuleva.onboarding.mandate.MandateProcessResult;
 import ee.tuleva.onboarding.mandate.application.ApplicationSnapshot;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -37,13 +38,17 @@ import org.springframework.web.client.RestTemplate;
 @Profile("mock")
 public class MockEpisService extends EpisService {
 
-  public MockEpisService(RestTemplate restTemplate, ServiceTokenProvider serviceTokenProvider) {
+  private final Clock clock;
+
+  public MockEpisService(
+      RestTemplate restTemplate, ServiceTokenProvider serviceTokenProvider, Clock clock) {
     super(
         restTemplate,
         restTemplate,
         new EpisRequestHeaders(serviceTokenProvider),
         "http://mock-epis",
         "http://mock-epis");
+    this.clock = clock;
   }
 
   @Override
@@ -145,7 +150,7 @@ public class MockEpisService extends EpisService {
         .thirdPillarDistribution(List.of(new ContactDetails.Distribution("EE123", BigDecimal.ONE)))
         .isSecondPillarActive(true)
         .isThirdPillarActive(true)
-        .lastUpdateDate(Instant.now().minus(2, DAYS))
+        .lastUpdateDate(clock.instant().minus(2, DAYS))
         .build();
   }
 

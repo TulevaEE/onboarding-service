@@ -16,6 +16,7 @@ import io.github.erkoristhein.mailchimp.marketing.model.Campaign;
 import io.github.erkoristhein.mailchimp.marketing.model.CampaignReport;
 import io.github.erkoristhein.mailchimp.marketing.model.MemberActivity2;
 import io.github.erkoristhein.mailchimp.marketing.model.SentToRecipient;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.HashMap;
@@ -41,6 +42,7 @@ public class MailchimpCampaignSyncService {
   private final UserRepository userRepository;
   private final CrmMailchimpRepository crmMailchimpRepository;
   private final MailchimpCampaignMetricsService metricsService;
+  private final Clock clock;
 
   @Transactional
   public void syncLatestCampaign() {
@@ -229,7 +231,7 @@ public class MailchimpCampaignSyncService {
   }
 
   private Instant toInstant(@Nullable OffsetDateTime offsetDateTime) {
-    return offsetDateTime != null ? offsetDateTime.toInstant() : Instant.now();
+    return offsetDateTime != null ? offsetDateTime.toInstant() : clock.instant();
   }
 
   private void verifyMetrics(String campaignId, String mailchimpCampaign) {

@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
@@ -18,7 +19,8 @@ class MsciIndexRetrieverTest {
   void fetchesMsciWorldIndexWithCorrectIndexCodeAndKey() {
     var restClientBuilder = RestClient.builder();
     var server = MockRestServiceServer.bindTo(restClientBuilder).build();
-    var retriever = new MsciIndexRetriever("MSCI_WORLD", "990100", restClientBuilder);
+    var retriever =
+        new MsciIndexRetriever("MSCI_WORLD", "990100", restClientBuilder, Clock.systemUTC());
 
     var mockResponse =
         """
@@ -57,7 +59,8 @@ class MsciIndexRetrieverTest {
   void fetchesMsciAcwiIndexWithCorrectIndexCodeAndKey() {
     var restClientBuilder = RestClient.builder();
     var server = MockRestServiceServer.bindTo(restClientBuilder).build();
-    var retriever = new MsciIndexRetriever("MSCI_ACWI", "892400", restClientBuilder);
+    var retriever =
+        new MsciIndexRetriever("MSCI_ACWI", "892400", restClientBuilder, Clock.systemUTC());
 
     var mockResponse =
         """
@@ -98,7 +101,8 @@ class MsciIndexRetrieverTest {
   void fetchesMsciEmIndexWithCorrectIndexCodeAndKey() {
     var restClientBuilder = RestClient.builder();
     var server = MockRestServiceServer.bindTo(restClientBuilder).build();
-    var retriever = new MsciIndexRetriever("MSCI_EM", "891800", restClientBuilder);
+    var retriever =
+        new MsciIndexRetriever("MSCI_EM", "891800", restClientBuilder, Clock.systemUTC());
 
     var mockResponse =
         """

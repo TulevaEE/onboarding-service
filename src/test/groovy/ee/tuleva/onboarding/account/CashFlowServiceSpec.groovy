@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.account
 import ee.tuleva.onboarding.epis.EpisService
 import spock.lang.Specification
 
+import java.time.Clock
 import java.time.LocalDate
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
@@ -12,7 +13,7 @@ class CashFlowServiceSpec extends Specification {
 
     def episService = Mock(EpisService)
 
-    def service = new CashFlowService(episService)
+    def service = new CashFlowService(episService, Clock.systemUTC())
 
     def "can get a cashflow statement"() {
         given:

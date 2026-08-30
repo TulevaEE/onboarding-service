@@ -14,6 +14,7 @@ import spock.lang.Shared
 import spock.lang.Specification
 
 import java.nio.file.Files
+import java.time.Clock
 
 import static ee.tuleva.onboarding.comparisons.fundvalue.FundValueFixture.aFundValue
 import static ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.GlobalStockIndexRetriever.KEY
@@ -57,7 +58,7 @@ class GlobalStockIndexRetrieverSpec extends Specification {
     void setup() {
         FtpClientFactory ftpClientFactory = new FtpClientFactory(FTP_HOST, FTP_USERNAME, FTP_PASSWORD,
             fakeFtpServer.getServerControlPort())
-        retriever = new GlobalStockIndexRetriever(ftpClientFactory)
+        retriever = new GlobalStockIndexRetriever(ftpClientFactory, Clock.systemUTC())
     }
 
     void cleanupSpec() {
@@ -137,7 +138,7 @@ class GlobalStockIndexRetrieverSpec extends Specification {
         given:
         FtpClient ftpClient = Mock(FtpClient)
         FtpClientFactory factory = Mock(FtpClientFactory)
-        GlobalStockIndexRetriever retriever = new GlobalStockIndexRetriever(factory)
+        GlobalStockIndexRetriever retriever = new GlobalStockIndexRetriever(factory, Clock.systemUTC())
         ftpClient.listFiles(_ as String) >> []
 
         when:
@@ -152,7 +153,7 @@ class GlobalStockIndexRetrieverSpec extends Specification {
     def "it should handle ftp client open/close exception"() {
         given:
         FtpClient ftpClient = Mock(FtpClient)
-        GlobalStockIndexRetriever retriever = new GlobalStockIndexRetriever(factoryReturning(ftpClient))
+        GlobalStockIndexRetriever retriever = new GlobalStockIndexRetriever(factoryReturning(ftpClient), Clock.systemUTC())
         ftpClient.open() >> { throw new IOException("Test Exception") }
         ftpClient.close() >> { throw new IOException("Test Exception") }
 
@@ -166,7 +167,7 @@ class GlobalStockIndexRetrieverSpec extends Specification {
     def "it should handle ftp client download exception"() {
         given:
         FtpClient ftpClient = Mock(FtpClient)
-        GlobalStockIndexRetriever retriever = new GlobalStockIndexRetriever(factoryReturning(ftpClient))
+        GlobalStockIndexRetriever retriever = new GlobalStockIndexRetriever(factoryReturning(ftpClient), Clock.systemUTC())
         ftpClient.listFiles(_ as String) >> { return ['DMRI_XI_MSTAR_USA_D_20200324.zip', 'DMRI_XI_MSTAR_USA_D_20200325.zip'] }
         ftpClient.downloadFileStream(_ as String) >> { throw new IOException('Test Exception') }
 

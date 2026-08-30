@@ -1,12 +1,11 @@
 package ee.tuleva.onboarding.savings.fund.nav.components;
 
-import static ee.tuleva.onboarding.investment.position.AccountType.RECEIVABLES;
 import static ee.tuleva.onboarding.savings.fund.nav.components.NavComponent.NavComponentType.ASSET;
 import static java.math.BigDecimal.ZERO;
 
-import ee.tuleva.onboarding.investment.position.FundPosition;
-import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.savings.fund.nav.NavComponentContext;
+import ee.tuleva.onboarding.savings.fund.nav.NavPosition;
+import ee.tuleva.onboarding.savings.fund.nav.NavPositions;
 import java.math.BigDecimal;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +17,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class SubscriptionsComponent implements NavComponent {
 
-  private final FundPositionRepository fundPositionRepository;
+  private final NavPositions navPositions;
 
   @Override
   public String getName() {
@@ -34,11 +33,9 @@ public class SubscriptionsComponent implements NavComponent {
   public BigDecimal calculate(NavComponentContext context) {
     var fund = context.getFund();
     BigDecimal value =
-        fundPositionRepository
-            .findByNavDateAndFundAndAccountType(context.getPositionReportDate(), fund, RECEIVABLES)
-            .stream()
-            .filter(p -> isSubscriptionReceivable(p.getAccountName()))
-            .map(FundPosition::getMarketValue)
+        navPositions.findReceivablePositions(context.getPositionReportDate(), fund).stream()
+            .filter(p -> isSubscriptionReceivable(p.accountName()))
+            .map(NavPosition::marketValue)
             .filter(Objects::nonNull)
             .reduce(ZERO, BigDecimal::add);
     if (value.signum() < 0) {

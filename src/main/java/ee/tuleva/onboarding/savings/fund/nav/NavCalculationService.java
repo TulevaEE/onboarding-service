@@ -8,12 +8,6 @@ import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
-import ee.tuleva.onboarding.investment.fees.FeeBases;
-import ee.tuleva.onboarding.investment.fees.FeeCalculationService;
-import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
-import ee.tuleva.onboarding.investment.fees.FeeResult;
-import ee.tuleva.onboarding.investment.fees.FeeType;
-import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import ee.tuleva.onboarding.savings.NavFeeBackfill;
@@ -42,7 +36,7 @@ public class NavCalculationService implements NavFeeBackfill {
 
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
 
-  private final FundPositionRepository fundPositionRepository;
+  private final NavPositions navPositions;
   private final PublicHolidays publicHolidays;
   private final LedgerService ledgerService;
   private final NavLedgerRepository navLedgerRepository;
@@ -54,8 +48,7 @@ public class NavCalculationService implements NavFeeBackfill {
   private final RedemptionsComponent redemptionsComponent;
   private final BlackrockAdjustmentComponent blackrockAdjustmentComponent;
   private final PositionPriceResolver positionPriceResolver;
-  private final FeeCalculationService feeCalculationService;
-  private final FeeChargedToFundPolicy feeChargedToFundPolicy;
+  private final NavFees navFees;
   private final Clock clock;
 
   @Transactional
@@ -102,7 +95,7 @@ public class NavCalculationService implements NavFeeBackfill {
       pendingRedemptions = redemptionsComponent.calculate(context);
     }
 
-    FeeBases feeBases =
+    NavFeeBases feeBases =
         feeBases(
             securitiesValue,
             cashPosition,
@@ -112,13 +105,14 @@ public class NavCalculationService implements NavFeeBackfill {
             payables,
             pendingRedemptions);
     Instant feeCutoff = positionReportDate.plusDays(1).atStartOfDay(ESTONIAN_ZONE).toInstant();
-    FeeResult fees =
-        feeCalculationService.calculateFeesForNav(
+    NavFeeResult fees =
+        navFees.calculateFeesForNav(
             fund, positionReportDate, feeBases, feeCutoff, context.getSecurityPrices());
     BigDecimal managementFeeAccrual =
-        navFacingAccrual(fund, FeeType.MANAGEMENT, positionReportDate, fees.managementFeeAccrual());
+        navFacingAccrual(
+            fund, NavFeeType.MANAGEMENT, positionReportDate, fees.managementFeeAccrual());
     BigDecimal depotFeeAccrual =
-        navFacingAccrual(fund, FeeType.DEPOT, positionReportDate, fees.depotFeeAccrual());
+        navFacingAccrual(fund, NavFeeType.DEPOT, positionReportDate, fees.depotFeeAccrual());
 
     BigDecimal aum =
         calculateAum(
@@ -177,7 +171,7 @@ public class NavCalculationService implements NavFeeBackfill {
   private @Nullable LocalDate getPositionReportDate(TulevaFund fund, LocalDate calculationDate) {
     LocalDate expectedDate = expectedPositionReportDate(fund, calculationDate, publicHolidays);
     LocalDate actual =
-        fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, expectedDate).orElse(null);
+        navPositions.findLatestNavDateByFundAndAsOfDate(fund, expectedDate).orElse(null);
     if (actual != null && !actual.equals(expectedDate)) {
       throw new IllegalStateException(
           "Position data missing: fund="
@@ -231,8 +225,8 @@ public class NavCalculationService implements NavFeeBackfill {
   }
 
   private BigDecimal navFacingAccrual(
-      TulevaFund fund, FeeType feeType, LocalDate navDate, BigDecimal accrual) {
-    return feeChargedToFundPolicy.chargedToFund(fund, feeType, navDate) ? accrual : ZERO;
+      TulevaFund fund, NavFeeType feeType, LocalDate navDate, BigDecimal accrual) {
+    return navFees.chargedToFund(fund, feeType, navDate) ? accrual : ZERO;
   }
 
   private BigDecimal calculateNavPerUnit(
@@ -276,7 +270,7 @@ public class NavCalculationService implements NavFeeBackfill {
             .toList();
   }
 
-  private FeeBases calculateFeeBases(NavComponentContext context) {
+  private NavFeeBases calculateFeeBases(NavComponentContext context) {
     BigDecimal securitiesValue = securitiesValueComponent.calculate(context);
     BigDecimal cashPosition = cashPositionComponent.calculate(context);
     BigDecimal receivables = receivablesComponent.calculate(context);
@@ -294,7 +288,7 @@ public class NavCalculationService implements NavFeeBackfill {
         pendingRedemptions);
   }
 
-  private FeeBases feeBases(
+  private NavFeeBases feeBases(
       BigDecimal securitiesValue,
       BigDecimal cashPosition,
       BigDecimal receivables,
@@ -308,11 +302,11 @@ public class NavCalculationService implements NavFeeBackfill {
             .add(receivables)
             .add(pendingSubscriptions)
             .add(blackrockAdjustment);
-    return new FeeBases(assetValue.subtract(payables).subtract(pendingRedemptions), assetValue);
+    return new NavFeeBases(assetValue.subtract(payables).subtract(pendingRedemptions), assetValue);
   }
 
   public record FeeBaseValueResult(
-      FeeBases bases, LocalDate positionReportDate, Map<String, ResolvedPrice> securityPrices) {}
+      NavFeeBases bases, LocalDate positionReportDate, Map<String, ResolvedPrice> securityPrices) {}
 
   public Optional<FeeBaseValueResult> computeFeeBaseValue(
       TulevaFund fund, LocalDate calculationDate) {
@@ -353,7 +347,7 @@ public class NavCalculationService implements NavFeeBackfill {
       log.info("Backfilling fees: fund={}, date={}", fund, navDate);
       var result = optional.get();
       Instant feeCutoff = navDate.atTime(fund.getNavCutoffTime()).atZone(ESTONIAN_ZONE).toInstant();
-      feeCalculationService.calculateFeesForNav(
+      navFees.calculateFeesForNav(
           fund, navDate, result.bases(), feeCutoff, result.securityPrices());
     }
     log.info("Fee backfill completed: fund={}, from={}, to={}", fund, from, to);

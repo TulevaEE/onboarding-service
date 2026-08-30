@@ -1,16 +1,15 @@
 package ee.tuleva.onboarding.savings.fund.nav.components;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
-import static ee.tuleva.onboarding.investment.position.AccountType.RECEIVABLES;
 import static ee.tuleva.onboarding.savings.fund.nav.components.NavComponent.NavComponentType.ASSET;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
-import ee.tuleva.onboarding.investment.position.FundPosition;
-import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.savings.fund.nav.NavComponentContext;
+import ee.tuleva.onboarding.savings.fund.nav.NavPosition;
+import ee.tuleva.onboarding.savings.fund.nav.NavPositions;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -23,7 +22,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class SubscriptionsComponentTest {
 
-  @Mock private FundPositionRepository fundPositionRepository;
+  @Mock private NavPositions navPositions;
 
   @InjectMocks private SubscriptionsComponent component;
 
@@ -37,16 +36,8 @@ class SubscriptionsComponentTest {
             .positionReportDate(reportDate)
             .build();
 
-    var position =
-        FundPosition.builder()
-            .navDate(reportDate)
-            .fund(TKF100)
-            .accountType(RECEIVABLES)
-            .accountName("Receivables of outstanding units")
-            .marketValue(new BigDecimal("25000.00"))
-            .build();
-    when(fundPositionRepository.findByNavDateAndFundAndAccountType(reportDate, TKF100, RECEIVABLES))
-        .thenReturn(List.of(position));
+    var position = new NavPosition("Receivables of outstanding units", new BigDecimal("25000.00"));
+    when(navPositions.findReceivablePositions(reportDate, TKF100)).thenReturn(List.of(position));
 
     BigDecimal result = component.calculate(context);
 
@@ -63,8 +54,7 @@ class SubscriptionsComponentTest {
             .positionReportDate(reportDate)
             .build();
 
-    when(fundPositionRepository.findByNavDateAndFundAndAccountType(reportDate, TKF100, RECEIVABLES))
-        .thenReturn(List.of());
+    when(navPositions.findReceivablePositions(reportDate, TKF100)).thenReturn(List.of());
 
     BigDecimal result = component.calculate(context);
 
@@ -82,15 +72,8 @@ class SubscriptionsComponentTest {
             .build();
 
     var position =
-        FundPosition.builder()
-            .navDate(reportDate)
-            .fund(TKF100)
-            .accountType(RECEIVABLES)
-            .accountName("Receivables of outstanding units")
-            .marketValue(new BigDecimal("-138440.80"))
-            .build();
-    when(fundPositionRepository.findByNavDateAndFundAndAccountType(reportDate, TKF100, RECEIVABLES))
-        .thenReturn(List.of(position));
+        new NavPosition("Receivables of outstanding units", new BigDecimal("-138440.80"));
+    when(navPositions.findReceivablePositions(reportDate, TKF100)).thenReturn(List.of(position));
 
     assertThatThrownBy(() -> component.calculate(context))
         .isInstanceOf(IllegalStateException.class);

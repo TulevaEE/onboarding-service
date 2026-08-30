@@ -1,5 +1,5 @@
 {
-  "branchCoverage": 85.75,
+  "branchCoverage": 85.73,
   "classCouplingViolations": 38,
   "clockViolations": 30,
   "cognitiveComplexityViolations": 20,
@@ -23,9 +23,9 @@
     "GodClass": 14,
     "TooManyMethods": 6
   },
-  "slowest10TestClassesSeconds": 103.3,
+  "slowest10TestClassesSeconds": 100.9,
   "springBootTests": 76,
-  "suiteWallTimeSeconds": null,
+  "suiteWallTimeSeconds": 165,
   "testClassesOver10Seconds": 3,
   "top15ClassLines": 7194,
   "totalPackages": 226,

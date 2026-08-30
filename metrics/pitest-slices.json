@@ -5,6 +5,12 @@
     "score": 0.0,
     "recordedAt": "2026-08-30"
   },
+  "aml": {
+    "mutations": 347,
+    "detected": 306,
+    "score": 88.18,
+    "recordedAt": "2026-08-30"
+  },
   "deadline": {
     "mutations": 124,
     "detected": 108,

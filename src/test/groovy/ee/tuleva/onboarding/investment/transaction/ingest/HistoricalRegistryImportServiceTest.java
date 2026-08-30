@@ -3,14 +3,10 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.verify;
 
-import ee.tuleva.onboarding.instrument.InstrumentReference;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.investment.transaction.HistoricalImportResult;
-import ee.tuleva.onboarding.investment.transaction.HistoricalImportResult.RowError;
 import ee.tuleva.onboarding.investment.transaction.TransactionBatchRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
@@ -19,14 +15,11 @@ import ee.tuleva.onboarding.investment.transaction.TransactionSettlementService;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.beans.BeanUtils;
-import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class HistoricalRegistryImportServiceTest {
@@ -51,48 +44,17 @@ class HistoricalRegistryImportServiceTest {
     org.mockito.Mockito.lenient()
         .when(orderRepository.save(any()))
         .thenReturn(TransactionOrder.builder().id(1L).build());
+    HistoricalRegistryCsvParser csvParser =
+        new HistoricalRegistryCsvParser(
+            new HistoricalRegistryRowParser(instrumentReferenceService));
     importService =
         new HistoricalRegistryImportService(
             batchRepository,
             orderRepository,
             executionRepository,
             settlementService,
-            instrumentReferenceService,
+            csvParser,
             clock);
-  }
-
-  @Test
-  void rowIsRejectedWhenInstrumentReferenceHasNoInstrumentType() {
-    InstrumentReference reference = instrumentReference(INSTRUMENT_ISIN, null);
-    given(instrumentReferenceService.findByIsin(INSTRUMENT_ISIN))
-        .willReturn(Optional.of(reference));
-
-    HistoricalImportResult result = importService.importCsv(csvWithoutInstrumentTypeColumn());
-
-    assertThat(result.errors()).extracting(RowError::rowNumber).containsExactly(2);
-    assertThat(result.ordersCreated()).isZero();
-    assertThat(result.executionsCreated()).isZero();
-    assertThat(result.settlementsCreated()).isZero();
-    then(instrumentReferenceService).should().findByIsin(INSTRUMENT_ISIN);
-    then(orderRepository).shouldHaveNoInteractions();
-    then(executionRepository).shouldHaveNoInteractions();
-  }
-
-  @Test
-  void rowIsRejectedWhenInstrumentReferenceHasUnrecognisedInstrumentType() {
-    InstrumentReference reference = instrumentReference(INSTRUMENT_ISIN, "BOND");
-    given(instrumentReferenceService.findByIsin(INSTRUMENT_ISIN))
-        .willReturn(Optional.of(reference));
-
-    HistoricalImportResult result = importService.importCsv(csvWithoutInstrumentTypeColumn());
-
-    assertThat(result.errors()).extracting(RowError::rowNumber).containsExactly(2);
-    assertThat(result.ordersCreated()).isZero();
-    assertThat(result.executionsCreated()).isZero();
-    assertThat(result.settlementsCreated()).isZero();
-    then(instrumentReferenceService).should().findByIsin(INSTRUMENT_ISIN);
-    then(orderRepository).shouldHaveNoInteractions();
-    then(executionRepository).shouldHaveNoInteractions();
   }
 
   @Test
@@ -134,20 +96,5 @@ class HistoricalRegistryImportServiceTest {
             expectedSettlementDate,
             actualSettlementDate,
             totalConsideration);
-  }
-
-  private static String csvWithoutInstrumentTypeColumn() {
-    return """
-        order_id,fund_isin,instrument_isin,order_timestamp,order_status,expected_settlement_date,comment,transaction_type
-        GAS-9201,%s,%s,,SENT,,,BUY
-        """
-        .formatted(FUND_ISIN, INSTRUMENT_ISIN);
-  }
-
-  private static InstrumentReference instrumentReference(String isin, String instrumentType) {
-    InstrumentReference reference = BeanUtils.instantiateClass(InstrumentReference.class);
-    ReflectionTestUtils.setField(reference, "isin", isin);
-    ReflectionTestUtils.setField(reference, "instrumentType", instrumentType);
-    return reference;
   }
 }

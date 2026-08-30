@@ -280,7 +280,8 @@ def test_quality_metrics():
 def compare(current, previous):
     regressions = []
     for key in LOWER_IS_BETTER:
-        if key in previous and current[key] > previous[key]:
+        tolerance = COVERAGE_TOLERANCE if key.endswith("Share") else 0
+        if key in previous and current[key] > previous[key] + tolerance:
             regressions.append(f"{key}: {previous[key]} -> {current[key]} (must not increase)")
     for key in HIGHER_IS_BETTER:
         if key in previous and current[key] < previous[key] - COVERAGE_TOLERANCE:

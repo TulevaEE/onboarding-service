@@ -99,9 +99,11 @@ public class PaymentEmailSender {
   }
 
   private PillarSuggestion pillarSuggestionFor(User user, Set<Integer> concernedPillars) {
+    var contactDetails = contactDetailsService.getContactDetails(user);
     return new PillarSuggestion(
         user,
-        contactDetailsService.getContactDetails(user),
+        contactDetails.isSecondPillarActive(),
+        contactDetails.isThirdPillarActive(),
         conversionService.getConversion(user),
         paymentRateService.getPaymentRates(user),
         concernedPillars,

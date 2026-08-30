@@ -8,9 +8,9 @@ import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.aml.WithdrawalNotifier;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.error.response.ErrorResponse;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
+import ee.tuleva.onboarding.mandate.MandateContacts;
 import ee.tuleva.onboarding.mandate.MandateFileService;
 import ee.tuleva.onboarding.mandate.batch.poller.MandateBatchProcessingPoller;
 import ee.tuleva.onboarding.mandate.event.AfterMandateBatchSignedEvent;
@@ -49,7 +49,7 @@ public class MandateBatchService {
   private final UserService userService;
   private final SignatureService signService;
   private final MandateProcessorService mandateProcessor;
-  private final EpisService episService;
+  private final MandateContacts mandateContacts;
   private final MandateBatchProcessingPoller mandateBatchProcessingPoller;
   private final WithdrawalNotifier withdrawalNotifier;
 
@@ -213,7 +213,7 @@ public class MandateBatchService {
   }
 
   private void onMandateProcessingFinished(User user, MandateBatch mandateBatch, Locale locale) {
-    episService.clearCache(user);
+    mandateContacts.clearCache(user);
     handleMandateProcessingErrors(mandateBatch);
     notifyAboutSignedMandate(user, mandateBatch, locale);
   }

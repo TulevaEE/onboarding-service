@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.mandate.processor
 
-import ee.tuleva.onboarding.epis.EpisService
+import ee.tuleva.onboarding.mandate.MandateGateway
 import ee.tuleva.onboarding.error.response.ErrorsResponse
 import ee.tuleva.onboarding.mandate.LegacyMandateSubmission
 import ee.tuleva.onboarding.mandate.Mandate
@@ -20,11 +20,11 @@ class MandateProcessorServiceSpec extends Specification {
 
   MandateProcessRepository mandateProcessRepository = Mock(MandateProcessRepository)
   MandateProcessErrorResolver mandateProcessErrorResolver = Mock(MandateProcessErrorResolver)
-  EpisService episService = Mock(EpisService)
+  MandateGateway mandateGateway = Mock(MandateGateway)
   MandateRepository mandateRepository = Mock(MandateRepository)
 
   MandateProcessorService service = new MandateProcessorService(
-      mandateProcessRepository, mandateProcessErrorResolver, episService, mandateRepository)
+      mandateProcessRepository, mandateProcessErrorResolver, mandateGateway, mandateRepository)
 
 
   User sampleUser = sampleUser().build()
@@ -46,7 +46,7 @@ class MandateProcessorServiceSpec extends Specification {
     3 * mandateProcessRepository.save({ MandateProcess mandateProcess ->
       mandateProcess.mandate == mandate && mandateProcess.processId != null
     }) >> { args -> args[0] }
-    1 * episService.sendMandate({ LegacyMandateSubmission submission ->
+    1 * mandateGateway.sendMandate({ LegacyMandateSubmission submission ->
       submission.pillar() == mandate.pillar
       submission.address() == mandate.address
     }) >> mandateResult
@@ -72,7 +72,7 @@ class MandateProcessorServiceSpec extends Specification {
     1 * mandateProcessRepository.save({ MandateProcess mandateProcess ->
       mandateProcess.mandate == mandate && mandateProcess.processId != null
     }) >> { args -> args[0] }
-    1 * episService.sendMandateV2({ MandateSubmissionCommand cmd ->
+    1 * mandateGateway.sendMandateV2({ MandateSubmissionCommand cmd ->
       cmd.submission().details().mandateType == WITHDRAWAL_CANCELLATION
     }) >> response
   }
@@ -93,7 +93,7 @@ class MandateProcessorServiceSpec extends Specification {
     1 * mandateProcessRepository.save({ MandateProcess mandateProcess ->
       mandateProcess.mandate == mandate && mandateProcess.processId != null
     }) >> { args -> args[0] }
-    1 * episService.sendMandateV2({ MandateSubmissionCommand cmd ->
+    1 * mandateGateway.sendMandateV2({ MandateSubmissionCommand cmd ->
       cmd.submission().details().mandateType == PAYMENT_RATE_CHANGE
     }) >> response
   }
@@ -107,7 +107,7 @@ class MandateProcessorServiceSpec extends Specification {
 //    mandateResponse.mandateResponses = [response]
 //
 //    1 * mandateProcessRepository.findOneByProcessId(_) >> new MandateProcess()
-//    1 * episService.sendMandate({ MandateDto dto ->
+//    1 * mandateGateway.sendMandate({ MandateDto dto ->
 //      dto.paymentRate.isPresent() && dto.paymentRate.get() == mandate.paymentRate
 //    }) >> mandateResponse
 //

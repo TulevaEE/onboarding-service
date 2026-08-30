@@ -7,9 +7,9 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
-import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.mandate.MandateContacts;
 import ee.tuleva.onboarding.mandate.batch.MandateBatchFixture;
 import ee.tuleva.onboarding.mandate.batch.poller.MandateBatchProcessingPoller.MandateBatchPollingContext;
 import ee.tuleva.onboarding.mandate.event.AfterMandateBatchSignedEvent;
@@ -37,7 +37,7 @@ class MandateBatchProcessingPollerTest {
 
   @Mock private ApplicationEventPublisher applicationEventPublisher;
   @Mock private MandateProcessorService mandateProcessor;
-  @Mock private EpisService episService;
+  @Mock private MandateContacts mandateContacts;
 
   @InjectMocks private MandateBatchProcessingPoller mandateBatchProcessingPoller;
 
@@ -189,7 +189,7 @@ class MandateBatchProcessingPollerTest {
 
     poller.run();
 
-    verify(episService, times(1)).clearCache(any());
+    verify(mandateContacts, times(1)).clearCache(any());
     verify(applicationEventPublisher, times(0)).publishEvent(any(OnMandateBatchFailedEvent.class));
     verify(applicationEventPublisher, times(1))
         .publishEvent(
@@ -225,7 +225,7 @@ class MandateBatchProcessingPollerTest {
 
     assertThrows(MandateProcessingException.class, poller::run);
 
-    verify(episService, times(1)).clearCache(any());
+    verify(mandateContacts, times(1)).clearCache(any());
     verify(applicationEventPublisher, times(0)).publishEvent(any(OnMandateBatchFailedEvent.class));
     verify(applicationEventPublisher, times(0))
         .publishEvent(any(AfterMandateBatchSignedEvent.class));
@@ -256,7 +256,7 @@ class MandateBatchProcessingPollerTest {
 
     assertThrows(MandateProcessingException.class, poller::run);
 
-    verify(episService, times(1)).clearCache(any());
+    verify(mandateContacts, times(1)).clearCache(any());
     verify(applicationEventPublisher, times(1))
         .publishEvent(
             argThat(

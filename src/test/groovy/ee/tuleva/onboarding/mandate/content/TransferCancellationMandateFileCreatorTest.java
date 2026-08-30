@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.mandate.content;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
-import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture;
 import static ee.tuleva.onboarding.fund.FundFixture.tuleva3rdPillarFund;
+import static ee.tuleva.onboarding.mandate.MandateContactDetailsFixture.contactDetailsFixture;
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleTransferCancellationMandate;
 import static ee.tuleva.onboarding.mandate.MandateType.TRANSFER_CANCELLATION;
 import static ee.tuleva.onboarding.mandate.MandateType.WITHDRAWAL_CANCELLATION;

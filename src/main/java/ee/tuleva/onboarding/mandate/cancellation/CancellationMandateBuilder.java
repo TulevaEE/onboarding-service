@@ -9,11 +9,11 @@ import static java.util.Objects.requireNonNull;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.conversion.ConversionDecorator;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
-import ee.tuleva.onboarding.epis.ContactDetails;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.mandate.MandateContactDetails;
 import ee.tuleva.onboarding.mandate.application.ApplicationSnapshot;
 import ee.tuleva.onboarding.mandate.details.EarlyWithdrawalCancellationMandateDetails;
 import ee.tuleva.onboarding.mandate.details.TransferCancellationMandateDetails;
@@ -38,15 +38,20 @@ public class CancellationMandateBuilder {
       AuthenticatedPerson authenticatedPerson,
       User user,
       ConversionResponse conversion,
-      ContactDetails contactDetails) {
+      MandateContactDetails contactDetails) {
 
     Mandate mandate = new Mandate();
     mandate.setUser(user);
-    mandate.setAddress(contactDetails.getAddress());
+    mandate.setAddress(contactDetails.address());
 
     var paymentRates = secondPillarPaymentRateService.getPaymentRates(authenticatedPerson);
     conversionDecorator.addConversionMetadata(
-        mandate.getMetadata(), conversion, contactDetails, authenticatedPerson, paymentRates);
+        mandate.getMetadata(),
+        conversion,
+        contactDetails.secondPillarActive(),
+        contactDetails.thirdPillarActive(),
+        authenticatedPerson,
+        paymentRates);
 
     if (applicationToCancel.getType() == WITHDRAWAL) {
       return buildWithdrawalCancellationMandate(mandate);

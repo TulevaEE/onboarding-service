@@ -40,6 +40,10 @@ public class ContactDetailsService {
     return updatedContactDetails;
   }
 
+  public void clearCache(Person person) {
+    episService.clearCache(person);
+  }
+
   public ContactDetails getContactDetails(Person person, String jwtToken) {
     return episService.getContactDetails(person, jwtToken);
   }

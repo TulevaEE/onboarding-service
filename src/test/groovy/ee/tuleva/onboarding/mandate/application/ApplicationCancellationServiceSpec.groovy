@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.mandate.application
 
-import ee.tuleva.onboarding.epis.EpisService
+import ee.tuleva.onboarding.mandate.MandateGateway
 import ee.tuleva.onboarding.mandate.MandateService
 import spock.lang.Specification
 
@@ -10,9 +10,9 @@ import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 import static ee.tuleva.onboarding.mandate.application.ApplicationSnapshotFixture.sampleTransferApplicationDto
 
 class ApplicationCancellationServiceSpec extends Specification {
-  EpisService episService = Mock(EpisService)
+  MandateGateway mandateGateway = Mock(MandateGateway)
   MandateService mandateService = Mock(MandateService)
-  ApplicationCancellationService applicationCancellationService = new ApplicationCancellationService(mandateService, episService)
+  ApplicationCancellationService applicationCancellationService = new ApplicationCancellationService(mandateService, mandateGateway)
 
   def "can cancel applications"() {
     given:
@@ -21,7 +21,7 @@ class ApplicationCancellationServiceSpec extends Specification {
     def applicationDTO = sampleTransferApplicationDto()
     def mandate = sampleMandate()
 
-    1 * episService.getApplications(person) >> [applicationDTO]
+    1 * mandateGateway.getApplications(person) >> [applicationDTO]
     1 * mandateService.saveCancellation(person, applicationDTO) >> mandate
 
     when:
@@ -39,7 +39,7 @@ class ApplicationCancellationServiceSpec extends Specification {
     def applicationDTO = sampleTransferApplicationDto()
     def mandate = sampleMandate()
 
-    1 * episService.getApplications(person) >> [applicationDTO, applicationDTO]
+    1 * mandateGateway.getApplications(person) >> [applicationDTO, applicationDTO]
     1 * mandateService.saveCancellation(person, applicationDTO) >> mandate
 
     when:

@@ -2,9 +2,9 @@ package ee.tuleva.onboarding.mandate.content;
 
 import static ee.tuleva.onboarding.mandate.MandateType.WITHDRAWAL_CANCELLATION;
 
-import ee.tuleva.onboarding.epis.ContactDetails;
 import ee.tuleva.onboarding.mandate.ApplicationType;
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.mandate.MandateContactDetails;
 import ee.tuleva.onboarding.mandate.MandateType;
 import ee.tuleva.onboarding.user.User;
 import java.util.List;
@@ -19,7 +19,7 @@ class WithdrawalCancellationMandateFileCreator implements MandateFileCreator {
 
   @Override
   public List<MandateContentFile> getContentFiles(
-      User user, Mandate mandate, ContactDetails contactDetails) {
+      User user, Mandate mandate, MandateContactDetails contactDetails) {
 
     String htmlContent =
         mandateContentService.getMandateCancellationHtml(

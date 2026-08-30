@@ -8,10 +8,10 @@ import ee.tuleva.onboarding.account.FundBalance;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.conversion.ConversionDecorator;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
-import ee.tuleva.onboarding.epis.ContactDetails;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.mandate.MandateContactDetails;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandWrapper;
 import ee.tuleva.onboarding.mandate.command.MandateFundTransferExchangeCommand;
@@ -37,7 +37,7 @@ public class CreateMandateCommandToMandateConverter {
     User user = wrapper.getUser();
     final var createMandateCommand = wrapper.getCreateMandateCommand();
     ConversionResponse conversion = wrapper.getConversion();
-    ContactDetails contactDetails = wrapper.getContactDetails();
+    MandateContactDetails contactDetails = wrapper.getContactDetails();
     AuthenticatedPerson authenticatedPerson = wrapper.getAuthenticatedPerson();
 
     Mandate mandate = new Mandate();
@@ -46,7 +46,12 @@ public class CreateMandateCommandToMandateConverter {
     mandate.setAddress(createMandateCommand.getAddress());
     var paymentRates = secondPillarPaymentRateService.getPaymentRates(authenticatedPerson);
     conversionDecorator.addConversionMetadata(
-        mandate.getMetadata(), conversion, contactDetails, authenticatedPerson, paymentRates);
+        mandate.getMetadata(),
+        conversion,
+        contactDetails.secondPillarActive(),
+        contactDetails.thirdPillarActive(),
+        authenticatedPerson,
+        paymentRates);
 
     List<FundTransferExchange> fundTransferExchanges =
         requireNonNull(

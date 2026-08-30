@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.mandate.content;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
-import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture;
 import static ee.tuleva.onboarding.mandate.ApplicationType.EARLY_WITHDRAWAL;
+import static ee.tuleva.onboarding.mandate.MandateContactDetailsFixture.contactDetailsFixture;
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleTransferCancellationMandate;
 import static ee.tuleva.onboarding.mandate.MandateType.*;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;

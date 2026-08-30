@@ -3,11 +3,11 @@ package ee.tuleva.onboarding.mandate.content;
 import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.country.Country;
-import ee.tuleva.onboarding.epis.ContactDetails;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.mandate.ApplicationType;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.mandate.MandateContactDetails;
 import ee.tuleva.onboarding.mandate.content.thymeleaf.ContextBuilder;
 import ee.tuleva.onboarding.mandate.details.FundPensionOpeningMandateDetails;
 import ee.tuleva.onboarding.mandate.details.PartialWithdrawalMandateDetails;
@@ -32,7 +32,7 @@ class MandateContentService {
       User user,
       Mandate mandate,
       List<Fund> funds,
-      ContactDetails contactDetails) {
+      MandateContactDetails contactDetails) {
     String transactionId = UUID.randomUUID().toString();
     String documentNumber = fundTransferExchanges.getFirst().getId().toString();
 
@@ -52,7 +52,7 @@ class MandateContentService {
   }
 
   String getFutureContributionsFundHtml(
-      User user, Mandate mandate, List<Fund> funds, ContactDetails contactDetails) {
+      User user, Mandate mandate, List<Fund> funds, MandateContactDetails contactDetails) {
     String transactionId = UUID.randomUUID().toString();
 
     String documentNumber = mandate.getIdOrThrow().toString();
@@ -80,7 +80,7 @@ class MandateContentService {
   }
 
   String getPartialWithdrawalHtml(
-      User user, Mandate mandate, ContactDetails contactDetails, List<Fund> funds) {
+      User user, Mandate mandate, MandateContactDetails contactDetails, List<Fund> funds) {
     String transactionId = UUID.randomUUID().toString();
 
     String documentNumber = mandate.getIdOrThrow().toString();
@@ -103,7 +103,8 @@ class MandateContentService {
         "partial_withdrawal_pillar_" + mandateDetails.getPillar().toInt(), ctx);
   }
 
-  String getFundPensionOpeningHtml(User user, Mandate mandate, ContactDetails contactDetails) {
+  String getFundPensionOpeningHtml(
+      User user, Mandate mandate, MandateContactDetails contactDetails) {
     String transactionId = UUID.randomUUID().toString();
 
     String documentNumber = mandate.getIdOrThrow().toString();
@@ -129,7 +130,7 @@ class MandateContentService {
   String getMandateCancellationHtml(
       User user,
       Mandate mandate,
-      ContactDetails contactDetails,
+      MandateContactDetails contactDetails,
       ApplicationType applicationTypeToCancel) {
     String transactionId = UUID.randomUUID().toString();
     String documentNumber = mandate.getIdOrThrow().toString();
@@ -149,7 +150,7 @@ class MandateContentService {
   }
 
   String getRateChangeHtml(
-      User user, Mandate mandate, ContactDetails contactDetails, BigDecimal rate) {
+      User user, Mandate mandate, MandateContactDetails contactDetails, BigDecimal rate) {
     String transactionId = UUID.randomUUID().toString();
     String documentNumber = mandate.getIdOrThrow().toString();
 

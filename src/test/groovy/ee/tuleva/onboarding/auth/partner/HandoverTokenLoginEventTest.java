@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.auth.partner;
 import static ee.tuleva.onboarding.auth.GrantType.PARTNER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.auth.AuthenticationTokens;
@@ -153,7 +154,7 @@ public class HandoverTokenLoginEventTest {
               return null;
             })
         .when(conversionDecorator)
-        .addConversionMetadata(any(), any(), any(), any(), any());
+        .addConversionMetadata(any(), any(), anyBoolean(), anyBoolean(), any(), any());
 
     // When - authentication and login event
     partnerAuthProvider.authenticate(handoverToken);

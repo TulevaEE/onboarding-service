@@ -10,7 +10,7 @@ import spock.lang.Specification
 import spock.lang.Unroll
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
-import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture
+import static ee.tuleva.onboarding.mandate.MandateContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleWithdrawalCancellationMandate
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate

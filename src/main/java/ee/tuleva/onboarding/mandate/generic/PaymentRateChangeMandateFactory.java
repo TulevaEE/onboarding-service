@@ -5,8 +5,8 @@ import static ee.tuleva.onboarding.pillar.Pillar.SECOND;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.conversion.ConversionDecorator;
 import ee.tuleva.onboarding.conversion.UserConversionService;
-import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.mandate.MandateContacts;
 import ee.tuleva.onboarding.mandate.MandateType;
 import ee.tuleva.onboarding.mandate.details.PaymentRateChangeMandateDetails;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
@@ -19,13 +19,13 @@ public class PaymentRateChangeMandateFactory
 
   public PaymentRateChangeMandateFactory(
       UserService userService,
-      EpisService episService,
+      MandateContacts mandateContacts,
       UserConversionService conversionService,
       ConversionDecorator conversionDecorator,
       SecondPillarPaymentRateService secondPillarPaymentRateService) {
     super(
         userService,
-        episService,
+        mandateContacts,
         conversionService,
         conversionDecorator,
         secondPillarPaymentRateService);

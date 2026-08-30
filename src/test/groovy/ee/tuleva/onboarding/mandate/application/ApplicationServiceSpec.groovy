@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.mandate.application
 import ee.tuleva.onboarding.mandate.ApplicationType
 import ee.tuleva.onboarding.company.BoardMembershipService
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService
-import ee.tuleva.onboarding.epis.EpisService
+import ee.tuleva.onboarding.mandate.MandateGateway
 import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.party.PartyId
@@ -42,7 +42,7 @@ import static java.math.BigDecimal.valueOf
 
 class ApplicationServiceSpec extends Specification {
 
-  EpisService episService = Mock()
+  MandateGateway mandateGateway = Mock()
   LocaleService localeService = Mock()
   FundRepository fundRepository = Mock()
   MandateDeadlinesService mandateDeadlinesService = Mock()
@@ -53,7 +53,7 @@ class ApplicationServiceSpec extends Specification {
   BoardMembershipService boardMembershipService = Mock()
 
   ApplicationService applicationService =
-      new ApplicationService(episService, localeService, fundRepository, mandateDeadlinesService, paymentApplicationService, savingFundPaymentDeadlinesService, savingFundPaymentService, savingFundRedemptionQueries, boardMembershipService)
+      new ApplicationService(mandateGateway, localeService, fundRepository, mandateDeadlinesService, paymentApplicationService, savingFundPaymentDeadlinesService, savingFundPaymentService, savingFundRedemptionQueries, boardMembershipService)
 
   def "gets applications"() {
     given:
@@ -68,7 +68,7 @@ class ApplicationServiceSpec extends Specification {
     def pikTransferApplication = samplePikTransferApplicationDto()
     def paymentRateApplication = samplePendingPaymentRateApplicationDto()
 
-    episService.getApplications(person) >> [
+    mandateGateway.getApplications(person) >> [
         transferApplication1, transferApplication2, completedTransferApplication,
         pikTransferApplication, withdrawalApplication, earlyWithdrawalApplication,
         paymentRateApplication
@@ -215,7 +215,7 @@ class ApplicationServiceSpec extends Specification {
         def pikTransferApplication = samplePikTransferApplicationDto()
         def paymentRateApplication = samplePendingPaymentRateApplicationDto()
 
-        episService.getApplications(person) >> [
+        mandateGateway.getApplications(person) >> [
             transferApplication1, transferApplication2, completedTransferApplication,
             pikTransferApplication, withdrawalApplication, earlyWithdrawalApplication,
             paymentRateApplication
@@ -256,7 +256,7 @@ class ApplicationServiceSpec extends Specification {
     def partialWithdrawal = samplePartialWithdrawalApplicationDto()
     def thirdPillarWithdrawal = sampleThirdPillarWithdrawalApplicationDto()
 
-    episService.getApplications(person) >> [
+    mandateGateway.getApplications(person) >> [
         fundPensionOpening, fundPensionOpeningThirdPillar, partialWithdrawal, thirdPillarWithdrawal
     ]
     localeService.getCurrentLocale() >> Locale.ENGLISH
@@ -343,7 +343,7 @@ class ApplicationServiceSpec extends Specification {
     def partialWithdrawal = samplePartialWithdrawalApplicationDto()
     def thirdPillarWithdrawal = sampleThirdPillarWithdrawalApplicationDto()
 
-    episService.getApplications(person) >> [
+    mandateGateway.getApplications(person) >> [
         fundPensionOpening, fundPensionOpeningThirdPillar, partialWithdrawal, thirdPillarWithdrawal
     ]
     localeService.getCurrentLocale() >> Locale.ENGLISH
@@ -385,7 +385,7 @@ class ApplicationServiceSpec extends Specification {
       getStatus() >> SavingFundPayment.Status.VERIFIED
     }
 
-    episService.getApplications(authenticatedPerson) >> []
+    mandateGateway.getApplications(authenticatedPerson) >> []
     localeService.getCurrentLocale() >> Locale.ENGLISH
     paymentApplicationService.getPaymentApplications(authenticatedPerson) >> []
     savingFundPaymentService.getPendingPayments(PartyId.from(authenticatedPerson.getRole())) >> [payment1, payment2]
@@ -454,7 +454,7 @@ class ApplicationServiceSpec extends Specification {
         .fulfillmentDeadline(Instant.parse("2021-04-20T10:00:00Z"))
         .build()
 
-    episService.getApplications(authenticatedPerson) >> []
+    mandateGateway.getApplications(authenticatedPerson) >> []
     localeService.getCurrentLocale() >> Locale.ENGLISH
     paymentApplicationService.getPaymentApplications(authenticatedPerson) >> []
     savingFundPaymentService.getPendingPayments(PartyId.from(authenticatedPerson.getRole())) >> []
@@ -510,7 +510,7 @@ class ApplicationServiceSpec extends Specification {
         .fulfillmentDeadline(Instant.parse("2021-04-20T10:00:00Z"))
         .build()
 
-    episService.getApplications(authenticatedPerson) >> []
+    mandateGateway.getApplications(authenticatedPerson) >> []
     localeService.getCurrentLocale() >> Locale.ENGLISH
     paymentApplicationService.getPaymentApplications(authenticatedPerson) >> []
     savingFundPaymentService.getPendingPayments(activeParty) >> []
@@ -539,7 +539,7 @@ class ApplicationServiceSpec extends Specification {
         .fulfillmentDeadline(Instant.parse("2021-04-20T10:00:00Z"))
         .build()
 
-    episService.getApplications(authenticatedPerson) >> []
+    mandateGateway.getApplications(authenticatedPerson) >> []
     localeService.getCurrentLocale() >> Locale.ENGLISH
     paymentApplicationService.getPaymentApplications(authenticatedPerson) >> []
     boardMembershipService.isBoardMember(authenticatedPerson.getPersonalCode(), legalEntityPartyId.code()) >> true
@@ -559,7 +559,7 @@ class ApplicationServiceSpec extends Specification {
     def authenticatedPerson = sampleAuthenticatedPersonLegalEntity().build()
     def legalEntityPartyId = PartyId.from(authenticatedPerson.getRole())
 
-    episService.getApplications(authenticatedPerson) >> []
+    mandateGateway.getApplications(authenticatedPerson) >> []
     localeService.getCurrentLocale() >> Locale.ENGLISH
     paymentApplicationService.getPaymentApplications(authenticatedPerson) >> []
     boardMembershipService.isBoardMember(authenticatedPerson.getPersonalCode(), legalEntityPartyId.code()) >> false

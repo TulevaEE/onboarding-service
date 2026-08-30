@@ -7,9 +7,9 @@ import ee.tuleva.onboarding.analytics.SecondPillarLeavers;
 import ee.tuleva.onboarding.contribution.ThirdPillarTaxHeadroom;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.conversion.UserConversionService;
-import ee.tuleva.onboarding.epis.ContactDetails;
-import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.mandate.MandateContactDetails;
+import ee.tuleva.onboarding.mandate.MandateContacts;
 import ee.tuleva.onboarding.mandate.MandateType;
 import ee.tuleva.onboarding.mandate.PillarSuggestion;
 import ee.tuleva.onboarding.mandate.event.AfterMandateBatchSignedEvent;
@@ -31,7 +31,7 @@ public class MandateEmailSender {
 
   private final MandateEmailService mandateEmailService;
   private final MandateBatchEmailService mandateBatchEmailService;
-  private final EpisService episService;
+  private final MandateContacts mandateContacts;
   private final UserConversionService conversionService;
   private final SecondPillarPaymentRateService paymentRateService;
   private final SecondPillarLeavers secondPillarLeavers;
@@ -41,13 +41,14 @@ public class MandateEmailSender {
 
   @EventListener
   public void sendEmail(AfterMandateSignedEvent event) {
-    ContactDetails contactDetails = episService.getContactDetails(event.getUser());
+    MandateContactDetails contactDetails = mandateContacts.getContactDetails(event.getUser());
     ConversionResponse conversion = conversionService.getConversion(event.getUser());
     PaymentRates paymentRates = paymentRateService.getPaymentRates(event.getUser());
     PillarSuggestion pillarSuggestion =
         new PillarSuggestion(
             event.getUser(),
-            contactDetails,
+            contactDetails.secondPillarActive(),
+            contactDetails.thirdPillarActive(),
             conversion,
             paymentRates,
             Set.of(event.getMandate().getPillar()),
@@ -68,7 +69,7 @@ public class MandateEmailSender {
 
   @EventListener
   public void sendBatchEmail(AfterMandateBatchSignedEvent event) {
-    ContactDetails contactDetails = episService.getContactDetails(event.getUser());
+    MandateContactDetails contactDetails = mandateContacts.getContactDetails(event.getUser());
     ConversionResponse conversion = conversionService.getConversion(event.getUser());
     PaymentRates paymentRates = paymentRateService.getPaymentRates(event.getUser());
     Set<Integer> mandatePillars =
@@ -76,7 +77,8 @@ public class MandateEmailSender {
     PillarSuggestion pillarSuggestion =
         new PillarSuggestion(
             event.getUser(),
-            contactDetails,
+            contactDetails.secondPillarActive(),
+            contactDetails.thirdPillarActive(),
             conversion,
             paymentRates,
             mandatePillars,

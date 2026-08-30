@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.mandate.processor;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
 
-import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.ApplicationType;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
@@ -11,6 +10,7 @@ import ee.tuleva.onboarding.mandate.GenericMandateSubmission;
 import ee.tuleva.onboarding.mandate.LegacyMandateSubmission;
 import ee.tuleva.onboarding.mandate.LegacyMandateSubmission.FundTransferInstruction;
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.mandate.MandateGateway;
 import ee.tuleva.onboarding.mandate.MandateProcessResult;
 import ee.tuleva.onboarding.mandate.MandateRepository;
 import ee.tuleva.onboarding.mandate.MandateSubmissionCommand;
@@ -29,7 +29,7 @@ public class MandateProcessorService {
 
   private final MandateProcessRepository mandateProcessRepository;
   private final MandateProcessErrorResolver mandateProcessErrorResolver;
-  private final EpisService episService;
+  private final MandateGateway mandateGateway;
   private final MandateRepository mandateRepository;
 
   public void start(User user, Mandate mandate) {
@@ -37,10 +37,10 @@ public class MandateProcessorService {
         "Start mandate processing user id {} and mandate id {}", user.getId(), mandate.getId());
 
     if (mandate.supportsSubmission()) {
-      final var response = episService.sendMandateV2(getMandateSubmissionCommand(mandate));
+      final var response = mandateGateway.sendMandateV2(getMandateSubmissionCommand(mandate));
       handleMandateProcessResult(response);
     } else {
-      final var response = episService.sendMandate(getLegacyMandateSubmission(mandate));
+      final var response = mandateGateway.sendMandate(getLegacyMandateSubmission(mandate));
       handleMandateProcessResult(response);
     }
   }

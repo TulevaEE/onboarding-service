@@ -10,13 +10,13 @@ import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.company.BoardMembershipService;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
-import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.error.NotFoundException;
 import ee.tuleva.onboarding.fund.ApiFundResponse;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.mandate.ApplicationType;
+import ee.tuleva.onboarding.mandate.MandateGateway;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.payment.application.PaymentLinkingService;
 import ee.tuleva.onboarding.pillar.Pillar;
@@ -45,7 +45,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class ApplicationService {
 
-  private final EpisService episService;
+  private final MandateGateway mandateGateway;
   private final LocaleService localeService;
   private final FundRepository fundRepository;
   private final MandateDeadlinesService mandateDeadlinesService;
@@ -119,7 +119,7 @@ public class ApplicationService {
       Function<Entry<ApplicationType, List<ApplicationSnapshot>>, Stream<? extends Application<T>>>
           toApplicationMapper) {
     final var applicationsByType =
-        episService.getApplications(person).stream()
+        mandateGateway.getApplications(person).stream()
             .collect(groupingBy(ApplicationSnapshot::getType));
     return applicationsByType.entrySet().stream()
         .filter(filterPredicate)

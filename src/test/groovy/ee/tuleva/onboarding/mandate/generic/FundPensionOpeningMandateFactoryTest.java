@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.mandate.generic;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyConverted;
-import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture;
+import static ee.tuleva.onboarding.mandate.MandateContactDetailsFixture.contactDetailsFixture;
 import static ee.tuleva.onboarding.mandate.MandateType.*;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -12,8 +12,8 @@ import static org.mockito.Mockito.*;
 import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture;
 import ee.tuleva.onboarding.conversion.ConversionDecorator;
 import ee.tuleva.onboarding.conversion.UserConversionService;
-import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.mandate.MandateContacts;
 import ee.tuleva.onboarding.mandate.MandateFixture;
 import ee.tuleva.onboarding.mandate.details.FundPensionOpeningMandateDetails;
 import ee.tuleva.onboarding.paymentrate.PaymentRates;
@@ -31,7 +31,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 public class FundPensionOpeningMandateFactoryTest {
 
-  @Mock private EpisService episService;
+  @Mock private MandateContacts mandateContacts;
 
   @Mock private UserService userService;
 
@@ -57,7 +57,7 @@ public class FundPensionOpeningMandateFactoryTest {
 
     when(userService.getById(any())).thenReturn(Optional.of(anUser));
     when(conversionService.getConversion(any())).thenReturn(fullyConverted());
-    when(episService.getContactDetails(any())).thenReturn(aContactDetails);
+    when(mandateContacts.getContactDetails(any())).thenReturn(aContactDetails);
     when(secondPillarPaymentRateService.getPaymentRates(authenticatedPerson))
         .thenReturn(paymentRates);
 
@@ -65,7 +65,7 @@ public class FundPensionOpeningMandateFactoryTest {
         fundPensionOpeningMandateFactory.createMandate(authenticatedPerson, anDto);
 
     assertThat(genericMandate.getUser()).isEqualTo(anUser);
-    assertThat(genericMandate.getAddress()).isEqualTo(aContactDetails.getAddress());
+    assertThat(genericMandate.getAddress()).isEqualTo(aContactDetails.address());
     assertThat(genericMandate.getFundTransferExchanges()).isEqualTo(List.of());
 
     verify(secondPillarPaymentRateService).getPaymentRates(authenticatedPerson);
@@ -73,7 +73,8 @@ public class FundPensionOpeningMandateFactoryTest {
         .addConversionMetadata(
             any(),
             eq(fullyConverted()),
-            eq(aContactDetails),
+            eq(aContactDetails.secondPillarActive()),
+            eq(aContactDetails.thirdPillarActive()),
             eq(authenticatedPerson),
             eq(paymentRates));
 

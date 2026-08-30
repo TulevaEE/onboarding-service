@@ -9,7 +9,7 @@ import org.springframework.boot.test.context.SpringBootTest
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
-import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture
+import static ee.tuleva.onboarding.mandate.MandateContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 import static ee.tuleva.onboarding.mandate.MandateFixture.thirdPillarMandate

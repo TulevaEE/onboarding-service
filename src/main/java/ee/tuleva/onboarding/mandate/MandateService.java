@@ -8,8 +8,6 @@ import static java.util.Arrays.asList;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.conversion.UserConversionService;
-import ee.tuleva.onboarding.epis.ContactDetails;
-import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.application.ApplicationSnapshot;
 import ee.tuleva.onboarding.mandate.builder.CreateMandateCommandToMandateConverter;
@@ -49,7 +47,7 @@ public class MandateService {
   private final CancellationMandateBuilder cancellationMandateBuilder;
   private final MandateFileService mandateFileService;
   private final UserService userService;
-  private final EpisService episService;
+  private final MandateContacts mandateContacts;
   private final ApplicationEventPublisher applicationEventPublisher;
   private final UserConversionService conversionService;
   private final MandateValidator mandateValidator;
@@ -59,7 +57,7 @@ public class MandateService {
     mandateValidator.validate(createMandateCommand, authenticatedPerson);
     User user = userService.getById(authenticatedPerson.getUserIdOrThrow()).orElseThrow();
     ConversionResponse conversion = conversionService.getConversion(user);
-    ContactDetails contactDetails = episService.getContactDetails(user);
+    MandateContactDetails contactDetails = mandateContacts.getContactDetails(user);
     CreateMandateCommandWrapper wrapper =
         new CreateMandateCommandWrapper(
             createMandateCommand, authenticatedPerson, user, conversion, contactDetails);
@@ -77,7 +75,7 @@ public class MandateService {
 
     User user = userService.getById(authenticatedPerson.getUserIdOrThrow()).orElseThrow();
     ConversionResponse conversion = conversionService.getConversion(user);
-    ContactDetails contactDetails = episService.getContactDetails(user);
+    MandateContactDetails contactDetails = mandateContacts.getContactDetails(user);
     Mandate mandate =
         cancellationMandateBuilder.build(
             applicationToCancel, authenticatedPerson, user, conversion, contactDetails);
@@ -171,7 +169,7 @@ public class MandateService {
 
   private SignatureStatus handleSignedMandate(User user, Mandate mandate, Locale locale) {
     if (mandateProcessor.isFinished(mandate)) {
-      episService.clearCache(user);
+      mandateContacts.clearCache(user);
       handleMandateProcessingErrors(mandate);
       notifyAboutSignedMandate(user, mandate, locale);
       return SIGNATURE;

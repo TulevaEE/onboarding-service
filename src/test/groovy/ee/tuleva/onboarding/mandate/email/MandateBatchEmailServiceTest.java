@@ -2,8 +2,8 @@ package ee.tuleva.onboarding.mandate.email;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notConverted;
-import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture;
 import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.getAttachments;
+import static ee.tuleva.onboarding.mandate.MandateContactDetailsFixture.contactDetailsFixture;
 import static ee.tuleva.onboarding.mandate.MandateFixture.*;
 import static ee.tuleva.onboarding.paymentrate.PaymentRatesFixture.samplePaymentRates;
 import static org.mockito.ArgumentMatchers.any;
@@ -69,7 +69,13 @@ class MandateBatchEmailServiceTest {
     var conversion = notConverted();
     var contactDetails = contactDetailsFixture();
     var paymentRates = samplePaymentRates();
-    var pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates);
+    var pillarSuggestion =
+        new PillarSuggestion(
+            user,
+            contactDetails.secondPillarActive(),
+            contactDetails.thirdPillarActive(),
+            conversion,
+            paymentRates);
     var message = new MandrillMessage();
 
     var file = getAttachments(user, mandateBatch).getFirst();
@@ -148,7 +154,13 @@ class MandateBatchEmailServiceTest {
     var conversion = notConverted();
     var contactDetails = contactDetailsFixture();
     var paymentRates = samplePaymentRates();
-    var pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates);
+    var pillarSuggestion =
+        new PillarSuggestion(
+            user,
+            contactDetails.secondPillarActive(),
+            contactDetails.thirdPillarActive(),
+            conversion,
+            paymentRates);
     var message = new MandrillMessage();
 
     var file = getAttachments(user, mandateBatch).getFirst();
@@ -300,7 +312,13 @@ class MandateBatchEmailServiceTest {
     var conversion = notConverted();
     var contactDetails = contactDetailsFixture();
     var paymentRates = samplePaymentRates();
-    var pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates);
+    var pillarSuggestion =
+        new PillarSuggestion(
+            user,
+            contactDetails.secondPillarActive(),
+            contactDetails.thirdPillarActive(),
+            conversion,
+            paymentRates);
 
     when(emailPersistenceService.hasEmailsForMandateBatch(mandateBatch.getId())).thenReturn(true);
 

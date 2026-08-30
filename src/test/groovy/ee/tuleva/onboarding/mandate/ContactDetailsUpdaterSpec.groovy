@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.mandate
 
-import ee.tuleva.onboarding.epis.ContactDetailsService
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent
 import spock.lang.Specification
 
@@ -10,8 +9,8 @@ import static java.util.Locale.ENGLISH
 
 class ContactDetailsUpdaterSpec extends Specification {
 
-    ContactDetailsService contactDetailsService = Mock()
-    ContactDetailsUpdater contactDetailsUpdater = new ContactDetailsUpdater(contactDetailsService)
+    MandateContacts mandateContacts = Mock()
+    ContactDetailsUpdater contactDetailsUpdater = new ContactDetailsUpdater(mandateContacts)
 
     def "updates user address after mandate is created"() {
         given:
@@ -24,6 +23,6 @@ class ContactDetailsUpdaterSpec extends Specification {
         contactDetailsUpdater.updateAddress(event)
 
         then:
-        1 * contactDetailsService.updateContactDetails(user, user.email, user.phoneNumber, mandate.address)
+        1 * mandateContacts.updateContactDetails(user, user.email, user.phoneNumber, mandate.address)
     }
 }

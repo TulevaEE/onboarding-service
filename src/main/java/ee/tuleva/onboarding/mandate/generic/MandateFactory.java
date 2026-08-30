@@ -4,9 +4,9 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.conversion.ConversionDecorator;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.conversion.UserConversionService;
-import ee.tuleva.onboarding.epis.ContactDetails;
-import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.mandate.MandateContactDetails;
+import ee.tuleva.onboarding.mandate.MandateContacts;
 import ee.tuleva.onboarding.mandate.MandateType;
 import ee.tuleva.onboarding.mandate.details.MandateDetails;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
@@ -19,7 +19,7 @@ import lombok.RequiredArgsConstructor;
 public abstract class MandateFactory<TDetails extends MandateDetails> {
 
   private final UserService userService;
-  private final EpisService episService;
+  private final MandateContacts mandateContacts;
   private final UserConversionService conversionService;
   private final ConversionDecorator conversionDecorator;
   private final SecondPillarPaymentRateService secondPillarPaymentRateService;
@@ -33,14 +33,19 @@ public abstract class MandateFactory<TDetails extends MandateDetails> {
       AuthenticatedPerson authenticatedPerson, MandateDto<TDetails> mandateCreationDto) {
     User user = userService.getById(authenticatedPerson.getUserIdOrThrow()).orElseThrow();
     ConversionResponse conversion = conversionService.getConversion(user);
-    ContactDetails contactDetails = episService.getContactDetails(user);
+    MandateContactDetails contactDetails = mandateContacts.getContactDetails(user);
 
     Mandate mandate = new Mandate();
     mandate.setUser(user);
-    mandate.setAddress(contactDetails.getAddress());
+    mandate.setAddress(contactDetails.address());
     var paymentRates = secondPillarPaymentRateService.getPaymentRates(authenticatedPerson);
     conversionDecorator.addConversionMetadata(
-        mandate.getMetadata(), conversion, contactDetails, authenticatedPerson, paymentRates);
+        mandate.getMetadata(),
+        conversion,
+        contactDetails.secondPillarActive(),
+        contactDetails.thirdPillarActive(),
+        authenticatedPerson,
+        paymentRates);
 
     mandate.setFundTransferExchanges(List.of());
     mandate.setDetails(mandateCreationDto.getDetails());

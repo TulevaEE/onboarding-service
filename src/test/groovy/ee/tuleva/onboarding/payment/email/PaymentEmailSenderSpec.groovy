@@ -63,7 +63,7 @@ class PaymentEmailSenderSpec extends Specification {
     def contactDetails = new ContactDetails()
     def conversion = notFullyConverted()
     def paymentRates = samplePaymentRates()
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates, Set.of(3), false, false)
+    def pillarSuggestion = new PillarSuggestion(user, false, false, conversion, paymentRates, Set.of(3), false, false)
 
     def paymentCreatedEvent = new PaymentCreatedEvent(this, user, payment, locale)
 
@@ -100,7 +100,7 @@ class PaymentEmailSenderSpec extends Specification {
     def contactDetails = new ContactDetails()
     def conversion = notFullyConverted()
     def paymentRates = samplePaymentRates()
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates, [] as Set, false, false)
+    def pillarSuggestion = new PillarSuggestion(user, false, false, conversion, paymentRates, [] as Set, false, false)
 
     def savingsPaymentCreatedEvent = new SavingsPaymentCreatedEvent(this, user, locale, new PartyId(PERSON, user.personalCode))
 
@@ -123,7 +123,7 @@ class PaymentEmailSenderSpec extends Specification {
     def contactDetails = new ContactDetails()
     def conversion = notFullyConverted()
     def paymentRates = samplePaymentRates()
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates, [] as Set, false, false)
+    def pillarSuggestion = new PillarSuggestion(user, false, false, conversion, paymentRates, [] as Set, false, false)
 
     def savingsPaymentCreatedEvent = new SavingsPaymentCreatedEvent(this, user, locale, new PartyId(PERSON, "51111111111"))
 
@@ -146,7 +146,7 @@ class PaymentEmailSenderSpec extends Specification {
     def contactDetails = new ContactDetails()
     def conversion = notFullyConverted()
     def paymentRates = samplePaymentRates()
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates, [] as Set, false, false)
+    def pillarSuggestion = new PillarSuggestion(user, false, false, conversion, paymentRates, [] as Set, false, false)
 
     def savingsPaymentCancelledEvent = new SavingsPaymentCancelledEvent(this, user, locale)
 

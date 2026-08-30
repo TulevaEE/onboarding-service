@@ -3,10 +3,10 @@ package ee.tuleva.onboarding.mandate.content;
 import static ee.tuleva.onboarding.fund.Fund.FundStatus.ACTIVE;
 import static ee.tuleva.onboarding.mandate.MandateType.UNKNOWN;
 
-import ee.tuleva.onboarding.epis.ContactDetails;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.mandate.MandateContactDetails;
 import ee.tuleva.onboarding.mandate.MandateType;
 import ee.tuleva.onboarding.user.User;
 import java.util.List;
@@ -23,7 +23,7 @@ class NonGenericMandateFileCreator implements MandateFileCreator {
 
   @Override
   public List<MandateContentFile> getContentFiles(
-      User user, Mandate mandate, ContactDetails contactDetails) {
+      User user, Mandate mandate, MandateContactDetails contactDetails) {
     List<Fund> funds = fundRepository.findAllByPillarAndStatus(mandate.getPillar(), ACTIVE);
 
     return mandateContentCreator.getContentFiles(user, mandate, funds, contactDetails);

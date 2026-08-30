@@ -49,7 +49,12 @@ public class LoginEventBroadcaster {
           var contactDetails = contactDetailsService.getContactDetails(person);
           var paymentRates = secondPillarPaymentRateService.getPaymentRates(person);
           conversionDecorator.addConversionMetadata(
-              data, conversion, contactDetails, person, paymentRates);
+              data,
+              conversion,
+              contactDetails.isSecondPillarActive(),
+              contactDetails.isThirdPillarActive(),
+              person,
+              paymentRates);
 
           eventPublisher.publishEvent(new TrackableEvent(person, LOGIN, data));
         });

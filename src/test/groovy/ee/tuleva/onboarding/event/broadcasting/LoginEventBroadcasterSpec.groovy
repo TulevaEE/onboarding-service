@@ -48,6 +48,8 @@ class LoginEventBroadcasterSpec extends Specification {
 
     def event = new AfterTokenGrantedEvent(this, samplePerson, grantType, tokens)
 
+    contactDetailsService.getContactDetails(_) >> contactDetailsFixture()
+
     when:
     service.onAfterTokenGrantedEvent(event)
 
@@ -80,7 +82,7 @@ class LoginEventBroadcasterSpec extends Specification {
     1 * conversionService.getConversion(samplePerson) >> conversion
     1 * contactDetailsService.getContactDetails(samplePerson) >> contactDetails
     1 * secondPillarPaymentRateService.getPaymentRates(samplePerson) >> new PaymentRates(4, null)
-    1 * conversionDecorator.addConversionMetadata(_, conversion, contactDetails, samplePerson, _) >> {
+    1 * conversionDecorator.addConversionMetadata(_, conversion, contactDetails.secondPillarActive, contactDetails.thirdPillarActive, samplePerson, _) >> {
       (data) -> data.sample = "conversion"
     }
 

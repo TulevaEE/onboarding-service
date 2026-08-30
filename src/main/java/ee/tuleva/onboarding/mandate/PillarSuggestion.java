@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.mandate;
 
 import ee.tuleva.onboarding.analytics.RecurringPayments;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
-import ee.tuleva.onboarding.epis.ContactDetails;
 import ee.tuleva.onboarding.paymentrate.PaymentRates;
 import ee.tuleva.onboarding.user.User;
 import java.math.BigDecimal;
@@ -30,12 +29,14 @@ public class PillarSuggestion {
 
   public PillarSuggestion(
       User user,
-      ContactDetails contactDetails,
+      boolean secondPillarActive,
+      boolean thirdPillarActive,
       ConversionResponse conversion,
       PaymentRates paymentRates) {
     this(
         user,
-        contactDetails,
+        secondPillarActive,
+        thirdPillarActive,
         conversion,
         paymentRates,
         Set.of(),
@@ -47,14 +48,16 @@ public class PillarSuggestion {
 
   public PillarSuggestion(
       User user,
-      ContactDetails contactDetails,
+      boolean secondPillarActive,
+      boolean thirdPillarActive,
       ConversionResponse conversion,
       PaymentRates paymentRates,
       Set<Integer> mandatePillars,
       boolean leftSecondPillar) {
     this(
         user,
-        contactDetails,
+        secondPillarActive,
+        thirdPillarActive,
         conversion,
         paymentRates,
         mandatePillars,
@@ -66,7 +69,8 @@ public class PillarSuggestion {
 
   public PillarSuggestion(
       User user,
-      ContactDetails contactDetails,
+      boolean secondPillarActive,
+      boolean thirdPillarActive,
       ConversionResponse conversion,
       PaymentRates paymentRates,
       Set<Integer> mandatePillars,
@@ -74,7 +78,8 @@ public class PillarSuggestion {
       boolean savesInSavingsFund) {
     this(
         user,
-        contactDetails,
+        secondPillarActive,
+        thirdPillarActive,
         conversion,
         paymentRates,
         mandatePillars,
@@ -86,7 +91,8 @@ public class PillarSuggestion {
 
   public PillarSuggestion(
       User user,
-      ContactDetails contactDetails,
+      boolean secondPillarActive,
+      boolean thirdPillarActive,
       ConversionResponse conversion,
       PaymentRates paymentRates,
       Set<Integer> mandatePillars,
@@ -95,7 +101,8 @@ public class PillarSuggestion {
       boolean concernsPaymentRate) {
     this(
         user,
-        contactDetails,
+        secondPillarActive,
+        thirdPillarActive,
         conversion,
         paymentRates,
         mandatePillars,
@@ -107,7 +114,8 @@ public class PillarSuggestion {
 
   public PillarSuggestion(
       User user,
-      ContactDetails contactDetails,
+      boolean secondPillarActive,
+      boolean thirdPillarActive,
       ConversionResponse conversion,
       PaymentRates paymentRates,
       Set<Integer> mandatePillars,
@@ -117,7 +125,8 @@ public class PillarSuggestion {
       RecurringPayments recurringPayments) {
     this(
         user,
-        contactDetails,
+        secondPillarActive,
+        thirdPillarActive,
         conversion,
         paymentRates,
         mandatePillars,
@@ -130,7 +139,8 @@ public class PillarSuggestion {
 
   public PillarSuggestion(
       User user,
-      ContactDetails contactDetails,
+      boolean secondPillarActive,
+      boolean thirdPillarActive,
       ConversionResponse conversion,
       PaymentRates paymentRates,
       Set<Integer> mandatePillars,
@@ -145,14 +155,14 @@ public class PillarSuggestion {
         adult
             && !leftSecondPillar
             && !concernsPaymentRate
-            && contactDetails.isSecondPillarActive()
+            && secondPillarActive
             && paymentRates.canIncrease();
     this.suggestSecondPillar =
         adult
             && !user.hasReachedRetirementAge()
             && !leftSecondPillar
             && !mandatePillars.contains(2)
-            && (!contactDetails.isSecondPillarActive()
+            && (!secondPillarActive
                 || !conversion.isSecondPillarPartiallyConverted()
                 || (!conversion.isSecondPillarFullyConverted()
                     && conversion.getSecondPillarWeightedAverageFee() != null
@@ -162,7 +172,7 @@ public class PillarSuggestion {
                         > 0));
     this.suggestThirdPillar =
         !mandatePillars.contains(3)
-            && (!contactDetails.isThirdPillarActive()
+            && (!thirdPillarActive
                 || !conversion.isThirdPillarPartiallyConverted()
                 || (!conversion.isThirdPillarFullyConverted()
                     && conversion.getThirdPillarWeightedAverageFee() != null
@@ -171,14 +181,11 @@ public class PillarSuggestion {
                             .compareTo(new BigDecimal("0.003"))
                         > 0));
     this.suggestMembership = !user.isMember();
-    this.thirdPillarActive = contactDetails.isThirdPillarActive();
+    this.thirdPillarActive = thirdPillarActive;
     this.suggestThirdPillarRecurringPayment =
-        adult && contactDetails.isThirdPillarActive() && !recurringPayments.thirdPillar();
+        adult && thirdPillarActive && !recurringPayments.thirdPillar();
     this.suggestThirdPillarRaise =
-        adult
-            && contactDetails.isThirdPillarActive()
-            && recurringPayments.thirdPillar()
-            && thirdPillarTaxHeadroom;
+        adult && thirdPillarActive && recurringPayments.thirdPillar() && thirdPillarTaxHeadroom;
     this.suggestSavingsFund =
         adult
             && !savesInSavingsFund

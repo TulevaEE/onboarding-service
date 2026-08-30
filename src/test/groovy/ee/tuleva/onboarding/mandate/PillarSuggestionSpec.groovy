@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.mandate
 
 import ee.tuleva.onboarding.analytics.RecurringPayments
 import ee.tuleva.onboarding.conversion.ConversionResponse
-import ee.tuleva.onboarding.epis.ContactDetails
 import ee.tuleva.onboarding.paymentrate.PaymentRates
 import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
@@ -12,17 +11,15 @@ import java.util.Optional
 class PillarSuggestionSpec extends Specification {
 
   User user = Mock()
-  ContactDetails contactDetails = Mock()
   ConversionResponse conversion = Mock()
   PaymentRates paymentRates = Mock()
 
   def "suggests second pillar"() {
     when:
     user.getAge() >> 40
-    contactDetails.isSecondPillarActive() >> secondPillarActive
     conversion.isSecondPillarPartiallyConverted() >> secondPillarPartiallyConverted
     conversion.getSecondPillarWeightedAverageFee() >> secondPillarWeightedAverageFee
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    def pillarSuggestion = new PillarSuggestion(user, secondPillarActive, false, conversion, paymentRates)
 
     then:
     pillarSuggestion.isSuggestSecondPillar() == suggestSecondPillar
@@ -38,10 +35,9 @@ class PillarSuggestionSpec extends Specification {
 
   def "suggests third pillar"() {
     when:
-    contactDetails.isThirdPillarActive() >> thirdPillarActive
     conversion.isThirdPillarPartiallyConverted() >> thirdPillarPartiallyConverted
     conversion.getThirdPillarWeightedAverageFee() >> thirdPillarWeightedAverageFee
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    def pillarSuggestion = new PillarSuggestion(user, false, thirdPillarActive, conversion, paymentRates)
 
     then:
     pillarSuggestion.isSuggestThirdPillar() == suggestThirdPillar
@@ -57,12 +53,11 @@ class PillarSuggestionSpec extends Specification {
 
   def "high fees only matter while the pillar is not fully converted"() {
     when:
-    contactDetails.isSecondPillarActive() >> true
     conversion.isSecondPillarPartiallyConverted() >> true
     conversion.isSecondPillarFullyConverted() >> fullyConverted
     conversion.getSecondPillarWeightedAverageFee() >> fee
     user.getAge() >> 40
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    def pillarSuggestion = new PillarSuggestion(user, true, false, conversion, paymentRates)
 
     then:
     pillarSuggestion.isSuggestSecondPillar() == suggestSecondPillar
@@ -77,7 +72,7 @@ class PillarSuggestionSpec extends Specification {
   def "suggests membership"() {
     when:
     user.isMember() >> isMember
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    def pillarSuggestion = new PillarSuggestion(user, false, false, conversion, paymentRates)
 
     then:
     pillarSuggestion.isSuggestMembership() == suggestMembership
@@ -93,12 +88,10 @@ class PillarSuggestionSpec extends Specification {
     when:
     user.getAge() >> 40
     paymentRates.canIncrease() >> true
-    contactDetails.isSecondPillarActive() >> true
-    contactDetails.isThirdPillarActive() >> false
     conversion.isSecondPillarPartiallyConverted() >> false
     conversion.isThirdPillarPartiallyConverted() >> false
     def pillarSuggestion =
-        new PillarSuggestion(user, contactDetails, conversion, paymentRates, mandatePillars, false)
+        new PillarSuggestion(user, true, false, conversion, paymentRates, mandatePillars, false)
 
     then:
     pillarSuggestion.isSuggestSecondPillar() == suggestSecondPillar
@@ -119,12 +112,11 @@ class PillarSuggestionSpec extends Specification {
     when:
     user.getAge() >> 40
     paymentRates.canIncrease() >> true
-    contactDetails.isSecondPillarActive() >> true
     conversion.isSecondPillarPartiallyConverted() >> true
     conversion.getSecondPillarWeightedAverageFee() >> 0.003
     def pillarSuggestion =
         new PillarSuggestion(
-            user, contactDetails, conversion, paymentRates, [2] as Set, false, true, true)
+            user, true, false, conversion, paymentRates, [2] as Set, false, true, true)
 
     then:
     !pillarSuggestion.isSuggestPaymentRate()
@@ -133,11 +125,10 @@ class PillarSuggestionSpec extends Specification {
   def "never suggests second pillar steps to someone who has left the second pillar"() {
     when:
     user.getAge() >> 40
-    contactDetails.isSecondPillarActive() >> true
     conversion.isSecondPillarPartiallyConverted() >> false
     paymentRates.canIncrease() >> true
     def pillarSuggestion =
-        new PillarSuggestion(user, contactDetails, conversion, paymentRates, [] as Set, leftSecondPillar)
+        new PillarSuggestion(user, true, false, conversion, paymentRates, [] as Set, leftSecondPillar)
 
     then:
     pillarSuggestion.isSuggestSecondPillar() == suggestSecondPillar
@@ -153,10 +144,9 @@ class PillarSuggestionSpec extends Specification {
   def "never suggests second pillar steps to an underage person"() {
     when:
     user.getAge() >> age
-    contactDetails.isSecondPillarActive() >> true
     conversion.isSecondPillarPartiallyConverted() >> false
     paymentRates.canIncrease() >> true
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    def pillarSuggestion = new PillarSuggestion(user, true, false, conversion, paymentRates)
 
     then:
     pillarSuggestion.isSuggestSecondPillar() == suggestSecondPillar
@@ -172,10 +162,9 @@ class PillarSuggestionSpec extends Specification {
     when:
     user.getAge() >> 66
     user.hasReachedRetirementAge() >> true
-    contactDetails.isSecondPillarActive() >> true
     conversion.isSecondPillarPartiallyConverted() >> false
     paymentRates.canIncrease() >> true
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    def pillarSuggestion = new PillarSuggestion(user, true, false, conversion, paymentRates)
 
     then:
     !pillarSuggestion.isSuggestSecondPillar()
@@ -185,10 +174,9 @@ class PillarSuggestionSpec extends Specification {
   def "does not suggest a payment rate increase without an active second pillar"() {
     when:
     user.getAge() >> 40
-    contactDetails.isSecondPillarActive() >> false
     conversion.isSecondPillarPartiallyConverted() >> false
     paymentRates.canIncrease() >> true
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    def pillarSuggestion = new PillarSuggestion(user, false, false, conversion, paymentRates)
 
     then:
     pillarSuggestion.isSuggestSecondPillar()
@@ -198,8 +186,6 @@ class PillarSuggestionSpec extends Specification {
   def "suggests the savings fund only when both pillars are maxed out and the person is not yet a saver"() {
     when:
     user.getAge() >> 40
-    contactDetails.isSecondPillarActive() >> true
-    contactDetails.isThirdPillarActive() >> true
     conversion.isSecondPillarPartiallyConverted() >> true
     conversion.isThirdPillarPartiallyConverted() >> true
     conversion.getSecondPillarWeightedAverageFee() >> 0.003
@@ -207,7 +193,7 @@ class PillarSuggestionSpec extends Specification {
     paymentRates.canIncrease() >> canIncrease
     def pillarSuggestion =
         new PillarSuggestion(
-            user, contactDetails, conversion, paymentRates, [] as Set, false, savesInSavingsFund)
+            user, true, true, conversion, paymentRates, [] as Set, false, savesInSavingsFund)
 
     then:
     pillarSuggestion.isSuggestSavingsFund() == suggestSavingsFund
@@ -222,11 +208,10 @@ class PillarSuggestionSpec extends Specification {
   def "does not suggest the savings fund when earlier pillar steps are still open"() {
     when:
     user.getAge() >> 40
-    contactDetails.isSecondPillarActive() >> false
     conversion.isSecondPillarPartiallyConverted() >> false
     paymentRates.canIncrease() >> false
     def pillarSuggestion =
-        new PillarSuggestion(user, contactDetails, conversion, paymentRates, [] as Set, false, false)
+        new PillarSuggestion(user, false, false, conversion, paymentRates, [] as Set, false, false)
 
     then:
     !pillarSuggestion.isSuggestSavingsFund()
@@ -235,8 +220,6 @@ class PillarSuggestionSpec extends Specification {
   def "suggests raising the third pillar contribution only to regular savers with tax headroom"() {
     when:
     user.getAge() >> age
-    contactDetails.isSecondPillarActive() >> true
-    contactDetails.isThirdPillarActive() >> true
     conversion.isSecondPillarPartiallyConverted() >> true
     conversion.isThirdPillarPartiallyConverted() >> true
     conversion.getSecondPillarWeightedAverageFee() >> 0.003
@@ -244,7 +227,7 @@ class PillarSuggestionSpec extends Specification {
     paymentRates.canIncrease() >> false
     def pillarSuggestion =
         new PillarSuggestion(
-            user, contactDetails, conversion, paymentRates, [] as Set, false, false, false,
+            user, true, true, conversion, paymentRates, [] as Set, false, false, false,
             new RecurringPayments(thirdPillarRecurring, true), taxHeadroom)
 
     then:
@@ -262,8 +245,6 @@ class PillarSuggestionSpec extends Specification {
   def "reports the raise nudge between the recurring and savings fund nudges"() {
     when:
     user.getAge() >> 40
-    contactDetails.isSecondPillarActive() >> true
-    contactDetails.isThirdPillarActive() >> true
     conversion.isSecondPillarPartiallyConverted() >> true
     conversion.isThirdPillarPartiallyConverted() >> true
     conversion.getSecondPillarWeightedAverageFee() >> 0.003
@@ -271,7 +252,7 @@ class PillarSuggestionSpec extends Specification {
     paymentRates.canIncrease() >> false
     def pillarSuggestion =
         new PillarSuggestion(
-            user, contactDetails, conversion, paymentRates, [] as Set, false, false, false,
+            user, true, true, conversion, paymentRates, [] as Set, false, false, false,
             new RecurringPayments(true, true), true)
 
     then:
@@ -282,8 +263,6 @@ class PillarSuggestionSpec extends Specification {
     when:
     user.getAge() >> 40
     user.isMember() >> member
-    contactDetails.isSecondPillarActive() >> secondPillarActive
-    contactDetails.isThirdPillarActive() >> true
     conversion.isSecondPillarPartiallyConverted() >> secondPillarActive
     conversion.isThirdPillarPartiallyConverted() >> true
     conversion.getSecondPillarWeightedAverageFee() >> 0.003
@@ -291,7 +270,7 @@ class PillarSuggestionSpec extends Specification {
     paymentRates.canIncrease() >> canIncrease
     def pillarSuggestion =
         new PillarSuggestion(
-            user, contactDetails, conversion, paymentRates, [] as Set, false, savesInSavingsFund)
+            user, secondPillarActive, true, conversion, paymentRates, [] as Set, false, savesInSavingsFund)
 
     then:
     pillarSuggestion.renderedNudgeTag() == Optional.ofNullable(tag)

@@ -3,8 +3,8 @@ package ee.tuleva.onboarding.mandate.email
 import ee.tuleva.onboarding.mandate.PillarSuggestion
 import ee.tuleva.onboarding.conversion.ConversionResponse
 import ee.tuleva.onboarding.conversion.UserConversionService
-import ee.tuleva.onboarding.epis.EpisService
-import ee.tuleva.onboarding.epis.ContactDetails
+import ee.tuleva.onboarding.mandate.MandateContactDetails
+import ee.tuleva.onboarding.mandate.MandateContacts
 import ee.tuleva.onboarding.mandate.Mandate
 import ee.tuleva.onboarding.mandate.MandateFixture
 import ee.tuleva.onboarding.mandate.batch.MandateBatch
@@ -37,7 +37,7 @@ import static ee.tuleva.onboarding.paymentrate.PaymentRatesFixture.samplePayment
 
 class MandateEmailSenderSpec extends Specification {
 
-  EpisService episService = Mock(EpisService)
+  MandateContacts mandateContacts = Mock(MandateContacts)
   MandateEmailService mandateEmailService = Mock(MandateEmailService)
   UserConversionService conversionService = Mock(UserConversionService)
   SecondPillarPaymentRateService paymentRateService = Mock(SecondPillarPaymentRateService)
@@ -55,20 +55,20 @@ class MandateEmailSenderSpec extends Specification {
   ThirdPillarTaxHeadroom thirdPillarTaxHeadroom = Mock(ThirdPillarTaxHeadroom) {
     hasHeadroom(_) >> false
   }
-  MandateEmailSender mandateEmailSender = new MandateEmailSender(mandateEmailService, mandateBatchEmailService, episService, conversionService, paymentRateService, secondPillarLeavers, savingsFundSavers, recurringSavers, thirdPillarTaxHeadroom)
+  MandateEmailSender mandateEmailSender = new MandateEmailSender(mandateEmailService, mandateBatchEmailService, mandateContacts, conversionService, paymentRateService, secondPillarLeavers, savingsFundSavers, recurringSavers, thirdPillarTaxHeadroom)
 
   def "send email when second pillar mandate event was received"() {
     given:
     User user = sampleUser().build()
     Mandate mandate = sampleMandate()
-    ContactDetails contactDetails = new ContactDetails()
+    MandateContactDetails contactDetails = MandateContactDetails.builder().build()
     ConversionResponse conversion = notFullyConverted()
     PaymentRates paymentRates = samplePaymentRates()
-    PillarSuggestion pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates, Set.of(mandate.getPillar()), false, false)
+    PillarSuggestion pillarSuggestion = new PillarSuggestion(user, false, false, conversion, paymentRates, Set.of(mandate.getPillar()), false, false)
 
     AfterMandateSignedEvent event = new AfterMandateSignedEvent(this, user, mandate, Locale.ENGLISH)
 
-    1 * episService.getContactDetails(_) >> contactDetails
+    1 * mandateContacts.getContactDetails(_) >> contactDetails
     1 * conversionService.getConversion(user) >> conversion
     1 * paymentRateService.getPaymentRates(user) >> paymentRates
 
@@ -83,14 +83,14 @@ class MandateEmailSenderSpec extends Specification {
     given:
     User user = sampleUser().build()
     Mandate mandate = thirdPillarMandate()
-    ContactDetails contactDetails = new ContactDetails()
+    MandateContactDetails contactDetails = MandateContactDetails.builder().build()
     ConversionResponse conversion = notFullyConverted()
     PaymentRates paymentRates = samplePaymentRates()
-    PillarSuggestion pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates, Set.of(mandate.getPillar()), false, false)
+    PillarSuggestion pillarSuggestion = new PillarSuggestion(user, false, false, conversion, paymentRates, Set.of(mandate.getPillar()), false, false)
 
     AfterMandateSignedEvent event = new AfterMandateSignedEvent(this, user, mandate, Locale.ENGLISH)
 
-    1 * episService.getContactDetails(_) >> contactDetails
+    1 * mandateContacts.getContactDetails(_) >> contactDetails
     1 * conversionService.getConversion(event.getUser()) >> conversion
     1 * paymentRateService.getPaymentRates(event.getUser()) >> paymentRates
 
@@ -110,14 +110,14 @@ class MandateEmailSenderSpec extends Specification {
     Mandate withdrawalMandate = samplePartialWithdrawalMandate(aPartialWithdrawalMandateDetails)
 
     MandateBatch mandateBatch = aSavedMandateBatch(List.of(fundPensionMandate,withdrawalMandate))
-    ContactDetails contactDetails = new ContactDetails()
+    MandateContactDetails contactDetails = MandateContactDetails.builder().build()
     ConversionResponse conversion = notFullyConverted()
     PaymentRates paymentRates = samplePaymentRates()
-    PillarSuggestion pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates, [fundPensionMandate.getPillar(), withdrawalMandate.getPillar()] as Set, false, false)
+    PillarSuggestion pillarSuggestion = new PillarSuggestion(user, false, false, conversion, paymentRates, [fundPensionMandate.getPillar(), withdrawalMandate.getPillar()] as Set, false, false)
 
     AfterMandateBatchSignedEvent event = new AfterMandateBatchSignedEvent(this, user, mandateBatch, Locale.ENGLISH)
 
-    1 * episService.getContactDetails(_) >> contactDetails
+    1 * mandateContacts.getContactDetails(_) >> contactDetails
     1 * conversionService.getConversion(user) >> conversion
     1 * paymentRateService.getPaymentRates(user) >> paymentRates
 

@@ -39,7 +39,7 @@ class PaymentEmailServiceSpec extends Specification {
     def contactDetails = contactDetailsFixture()
 
     def paymentRates = samplePaymentRates()
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails.secondPillarActive, contactDetails.thirdPillarActive, conversion, paymentRates)
     def payment = aNewSinglePayment()
     def message = new MandrillMessage()
     var mergeVars = [
@@ -94,7 +94,7 @@ class PaymentEmailServiceSpec extends Specification {
     def conversion = notConverted()
     def contactDetails = contactDetailsFixture()
     def paymentRates = samplePaymentRates()
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails.secondPillarActive, contactDetails.thirdPillarActive, conversion, paymentRates)
     def message = new MandrillMessage()
     var mergeVars = [
         "fname"              : user.firstName,
@@ -168,7 +168,7 @@ class PaymentEmailServiceSpec extends Specification {
     def conversion = notConverted()
     def contactDetails = contactDetailsFixture()
     def paymentRates = samplePaymentRates()
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails.secondPillarActive, contactDetails.thirdPillarActive, conversion, paymentRates)
     def message = new MandrillMessage()
     var mergeVars = [
         "fname"              : user.firstName,

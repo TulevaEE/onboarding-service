@@ -10,7 +10,6 @@ import ee.tuleva.onboarding.payment.recurring.RecurringPaymentLinkGenerator;
 import ee.tuleva.onboarding.payment.savings.SavingsCallbackService;
 import ee.tuleva.onboarding.payment.savings.SavingsPaymentLinkGenerator;
 import ee.tuleva.onboarding.payment.savings.recurring.SavingsFundRecurringPaymentLinkGenerator;
-import ee.tuleva.onboarding.savings.SavingFundPayment;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
@@ -75,7 +74,7 @@ public class PaymentService {
     userService.registerAsMember(user.getIdOrThrow());
   }
 
-  Optional<SavingFundPayment> processSavingsPaymentToken(String serializedToken) {
+  boolean processSavingsPaymentToken(String serializedToken) {
     return savingsCallbackService.processToken(serializedToken);
   }
 }

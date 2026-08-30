@@ -35,6 +35,12 @@
     "score": 84.72,
     "recordedAt": "2026-08-30"
   },
+  "comparisons": {
+    "mutations": 780,
+    "detected": 658,
+    "score": 84.36,
+    "recordedAt": "2026-08-30"
+  },
   "conversion": {
     "mutations": 111,
     "detected": 96,

@@ -59,6 +59,12 @@
     "score": 100.0,
     "recordedAt": "2026-08-30"
   },
+  "investment": {
+    "mutations": 5115,
+    "detected": 4563,
+    "score": 89.21,
+    "recordedAt": "2026-08-30"
+  },
   "kyb": {
     "mutations": 330,
     "detected": 305,

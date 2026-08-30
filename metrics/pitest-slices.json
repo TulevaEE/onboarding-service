@@ -28,5 +28,11 @@
     "detected": 108,
     "score": 87.1,
     "recordedAt": "2026-08-30"
+  },
+  "notification": {
+    "mutations": 236,
+    "detected": 164,
+    "score": 69.49,
+    "recordedAt": "2026-08-30"
   }
 }

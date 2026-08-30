@@ -62,7 +62,8 @@ class InstrumentReferenceServiceClusterRefreshTest {
   }
 
   private InstrumentReferenceService newInstance() {
-    return new InstrumentReferenceService(repository, proxyRepository, Clock.systemUTC());
+    return new InstrumentReferenceService(
+        new InstrumentSnapshotLoader(repository, proxyRepository), Clock.systemUTC());
   }
 
   private static InstrumentReference reference(String isin) {

@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Import
 import spock.lang.Specification
 
 @DataJpaTest
-@Import([InstrumentReferenceService, BenchmarkCategoryProxyRepository, ClockConfig])
+@Import([InstrumentReferenceService, InstrumentSnapshotLoader, BenchmarkCategoryProxyRepository, ClockConfig])
 class InstrumentReferenceServiceIntSpec extends Specification {
 
   @Autowired

@@ -51,6 +51,20 @@ class MockEpisServiceSpec extends Specification {
     response != null
   }
 
+  def "getContactDetails with token has a mock response"() {
+    when:
+    ContactDetails response = episService.getContactDetails(samplePerson(), "some-token")
+    then:
+    response != null
+  }
+
+  def "getSecondPillarAssets has a mock response"() {
+    when:
+    SecondPillarAssets response = episService.getSecondPillarAssets(samplePerson())
+    then:
+    response != null
+  }
+
   def "getAccountStatement has a mock response"() {
     when:
     List<FundBalanceDto> response = episService.getAccountStatement(samplePerson(), LocalDate.now(), LocalDate.now())

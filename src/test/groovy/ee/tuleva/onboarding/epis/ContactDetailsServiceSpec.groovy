@@ -43,19 +43,38 @@ class ContactDetailsServiceSpec extends Specification {
     given:
     def person = samplePerson()
     def token = "123"
+    def contactDetails = contactDetailsFixture()
+
     when:
-    contactDetailsService.getContactDetails(person, token)
+    def result = contactDetailsService.getContactDetails(person, token)
+
     then:
-    1 * episService.getContactDetails(person, token)
+    1 * episService.getContactDetails(person, token) >> contactDetails
+    result == contactDetails
   }
 
   def "can get contact details with no token"() {
     given:
     def person = samplePerson()
+    def contactDetails = contactDetailsFixture()
+
     when:
-    contactDetailsService.getContactDetails(person)
+    def result = contactDetailsService.getContactDetails(person)
+
     then:
-    1 * episService.getContactDetails(person)
+    1 * episService.getContactDetails(person) >> contactDetails
+    result == contactDetails
+  }
+
+  def "can clear cache"() {
+    given:
+    def person = samplePerson()
+
+    when:
+    contactDetailsService.clearCache(person)
+
+    then:
+    1 * episService.clearCache(person)
   }
 
   def "can update contact details for users with no pension account"() {

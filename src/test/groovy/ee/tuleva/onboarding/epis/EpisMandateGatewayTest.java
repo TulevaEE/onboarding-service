@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.epis;
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson;
 import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture;
+import static ee.tuleva.onboarding.mandate.application.ApplicationSnapshotFixture.sampleTransferApplicationDto;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
@@ -11,6 +12,7 @@ import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.mandate.LegacyMandateSubmission;
 import ee.tuleva.onboarding.mandate.MandateProcessResult;
 import ee.tuleva.onboarding.mandate.MandateSubmissionCommand;
+import ee.tuleva.onboarding.mandate.application.ApplicationSnapshot;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,9 +39,10 @@ class EpisMandateGatewayTest {
   @Test
   void delegatesGetApplications() {
     Person person = samplePerson();
-    given(episService.getApplications(person)).willReturn(List.of());
+    List<ApplicationSnapshot> applications = List.of(sampleTransferApplicationDto());
+    given(episService.getApplications(person)).willReturn(applications);
 
-    assertThat(gateway.getApplications(person)).isEmpty();
+    assertThat(gateway.getApplications(person)).isEqualTo(applications);
   }
 
   @Test

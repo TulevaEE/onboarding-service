@@ -319,6 +319,7 @@ class EpisServiceTest {
     // given
     setupUserAuthentication();
     var contactDetails = contactDetailsFixture();
+    var updatedContactDetails = mock(ContactDetails.class);
 
     doAnswer(
             invocation -> {
@@ -328,15 +329,16 @@ class EpisServiceTest {
               assertTrue(doesHttpEntityContainToken(entity, sampleUserToken));
               ContactDetails body = (ContactDetails) entity.getBody();
               assertEquals(contactDetails.getPersonalCode(), body.getPersonalCode());
-              return mock(ContactDetails.class);
+              return updatedContactDetails;
             })
         .when(episRestTemplate)
         .postForObject(anyString(), any(HttpEntity.class), eq(ContactDetails.class));
 
     // when
-    service.updateContactDetails(samplePerson, contactDetails);
+    var result = service.updateContactDetails(samplePerson, contactDetails);
 
     // then
+    assertThat(result).isSameAs(updatedContactDetails);
     verify(episRestTemplate)
         .postForObject(
             eq("http://epis/contact-details"), any(HttpEntity.class), eq(ContactDetails.class));

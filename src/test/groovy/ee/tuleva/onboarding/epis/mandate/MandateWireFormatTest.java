@@ -251,6 +251,7 @@ class MandateWireFormatTest {
 
     assertThat(actual).usingRecursiveComparison().isEqualTo(expected);
     assertThat(actual.isWithdrawal()).isTrue();
+    assertThat(actual.isPaymentRate()).isFalse();
   }
 
   @Test

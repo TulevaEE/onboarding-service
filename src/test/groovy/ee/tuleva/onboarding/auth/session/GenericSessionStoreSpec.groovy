@@ -66,9 +66,31 @@ class GenericSessionStoreSpec extends Specification {
     sessionRepository.findById("missing-session") >> null
 
     when:
+    long start = System.currentTimeMillis()
     sessionStore.saveBySessionId("missing-session", "stored-value")
+    long elapsedMillis = System.currentTimeMillis() - start
 
     then:
     0 * sessionRepository.save(_)
+    3 * sessionRepository.findById("missing-session")
+    // 3 failed attempts, each followed by a 100ms backoff sleep.
+    elapsedMillis >= 250
+  }
+
+  def "saveBySessionId stops retrying and restores the interrupt flag when interrupted"() {
+    given:
+    sessionRepository.findById("missing-session") >> null
+    Thread.currentThread().interrupt()
+
+    when:
+    sessionStore.saveBySessionId("missing-session", "stored-value")
+
+    then:
+    1 * sessionRepository.findById("missing-session")
+    0 * sessionRepository.save(_)
+    Thread.currentThread().isInterrupted()
+
+    cleanup:
+    Thread.interrupted() // clear the flag so it does not leak into other tests
   }
 }

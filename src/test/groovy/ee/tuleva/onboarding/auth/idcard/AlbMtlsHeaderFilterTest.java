@@ -503,17 +503,70 @@ class AlbMtlsHeaderFilterTest {
         throws ServletException, IOException {
       when(request.getRequestURI()).thenReturn("/idLogin");
       when(request.getHeader("x-amzn-mtls-clientcert-leaf")).thenReturn(SAMPLE_CLIENT_CERT);
+      when(request.getHeader("host")).thenReturn("api.tuleva.ee");
+      HttpServletRequest[] wrapped = new HttpServletRequest[1];
+      FilterChain capturingChain = (req, resp) -> wrapped[0] = (HttpServletRequest) req;
 
-      filter.doFilter(request, response, filterChain);
+      filter.doFilter(request, response, capturingChain);
 
-      ArgumentCaptor<HttpServletRequest> requestCaptor =
-          ArgumentCaptor.forClass(HttpServletRequest.class);
-      verify(filterChain).doFilter(requestCaptor.capture(), eq(response));
+      assertThat(wrapped[0].getHeader("host")).isEqualTo("api.tuleva.ee");
+    }
 
-      HttpServletRequest wrappedRequest = requestCaptor.getValue();
-      wrappedRequest.getHeader("host");
+    @Test
+    @DisplayName("Should return null for a non-translated header the original request lacks")
+    void shouldReturnNullForMissingNonTranslatedHeader() throws ServletException, IOException {
+      when(request.getRequestURI()).thenReturn("/idLogin");
+      when(request.getHeader("x-amzn-mtls-clientcert-leaf")).thenReturn(SAMPLE_CLIENT_CERT);
+      when(request.getHeader("x-forwarded-for")).thenReturn(null);
+      HttpServletRequest[] wrapped = new HttpServletRequest[1];
+      FilterChain capturingChain = (req, resp) -> wrapped[0] = (HttpServletRequest) req;
 
-      verify(request).getHeader("host");
+      filter.doFilter(request, response, capturingChain);
+
+      assertThat(wrapped[0].getHeader("x-forwarded-for")).isNull();
+    }
+
+    @Test
+    @DisplayName("Should delegate getHeaders() to original request for non-translated headers")
+    void shouldDelegateGetHeadersToOriginalRequestForNonTranslatedHeaders()
+        throws ServletException, IOException {
+      when(request.getRequestURI()).thenReturn("/idLogin");
+      when(request.getHeader("x-amzn-mtls-clientcert-leaf")).thenReturn(SAMPLE_CLIENT_CERT);
+      Vector<String> userAgentValues = new Vector<>();
+      userAgentValues.add("curl/8.0");
+      when(request.getHeaders("user-agent")).thenReturn(userAgentValues.elements());
+      HttpServletRequest[] wrapped = new HttpServletRequest[1];
+      FilterChain capturingChain = (req, resp) -> wrapped[0] = (HttpServletRequest) req;
+
+      filter.doFilter(request, response, capturingChain);
+
+      Enumeration<String> headers = wrapped[0].getHeaders("user-agent");
+      assertThat(Collections.list(headers)).containsExactly("curl/8.0");
+    }
+
+    @Test
+    @DisplayName("Should include original header names alongside translated ones, without loss")
+    void shouldIncludeAllOriginalHeaderNamesInEnumeration() throws ServletException, IOException {
+      when(request.getRequestURI()).thenReturn("/idLogin");
+      when(request.getHeader("x-amzn-mtls-clientcert-leaf")).thenReturn(SAMPLE_CLIENT_CERT);
+      Vector<String> originalHeaders = new Vector<>();
+      originalHeaders.add("host");
+      originalHeaders.add("user-agent");
+      originalHeaders.add("x-amzn-mtls-clientcert-leaf");
+      when(request.getHeaderNames()).thenReturn(originalHeaders.elements());
+      HttpServletRequest[] wrapped = new HttpServletRequest[1];
+      FilterChain capturingChain = (req, resp) -> wrapped[0] = (HttpServletRequest) req;
+
+      filter.doFilter(request, response, capturingChain);
+
+      Enumeration<String> headerNames = wrapped[0].getHeaderNames();
+      assertThat(Collections.list(headerNames))
+          .containsExactlyInAnyOrder(
+              "host",
+              "user-agent",
+              "x-amzn-mtls-clientcert-leaf",
+              "ssl-client-verify",
+              "ssl-client-cert");
     }
   }
 

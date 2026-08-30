@@ -109,6 +109,22 @@ class PrincipalServiceSpec extends Specification {
     authenticatedPerson.role.name() == "John Doe"
   }
 
+  def "getFromPerson: a person who turned 18 today can self-authenticate"() {
+    given:
+    // samplePerson() was born 1988-12-12, so their 18th birthday is exactly 2006-12-12.
+    // Using noon (rather than midnight) keeps the assertion stable across the system's
+    // default time zone.
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2006-12-12T12:00:00Z"), ZoneOffset.UTC))
+    Person person = samplePerson()
+    1 * principalUsers.findOrCreate(person) >> samplePrincipalUser
+
+    when:
+    AuthenticatedPerson authenticatedPerson = service.getFrom(person, Map.of())
+
+    then:
+    authenticatedPerson.personalCode == person.personalCode
+  }
+
   def "getFromPerson: a minor cannot self-authenticate"() {
     given:
     Person minor = samplePerson().toBuilder().personalCode("61506150006").build()

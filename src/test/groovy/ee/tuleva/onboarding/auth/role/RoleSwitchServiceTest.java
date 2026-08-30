@@ -309,6 +309,17 @@ class RoleSwitchServiceTest {
   }
 
   @Test
+  void switchToChildWithActiveLinkButUnknownNameThrows() {
+    when(childRepresentations.isActiveRepresentation(person.getPersonalCode(), CHILD_CODE))
+        .thenReturn(true);
+    when(principalUsers.fullName(CHILD_CODE)).thenReturn(Optional.empty());
+
+    assertThatThrownBy(
+            () -> roleSwitchService.switchRole(person, new SwitchRoleCommand(PERSON, CHILD_CODE)))
+        .isInstanceOf(RoleSwitchAccessDeniedException.class);
+  }
+
+  @Test
   void getPendingOnboardingsReturnsPendingChildrenWithNames() {
     when(childRepresentations.findPendingChildCodes(person.getPersonalCode()))
         .thenReturn(List.of(CHILD_CODE));

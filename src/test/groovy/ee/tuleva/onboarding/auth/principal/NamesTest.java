@@ -23,6 +23,7 @@ class NamesTest {
     "mari maasikas, Mari Maasikas",
     "McGregor, McGregor",
     "van der Berg, Van Der Berg",
+    "j, J",
   })
   void capitalizesNamePartsAndKeepsDeliberateCasing(String input, String expected) {
     assertThat(Names.formatted(input)).isEqualTo(expected);
@@ -30,6 +31,6 @@ class NamesTest {
 
   @Test
   void keepsBlankAsIs() {
-    assertThat(Names.formatted("")).isEmpty();
+    assertThat(Names.formatted("   ")).isEqualTo("   ");
   }
 }

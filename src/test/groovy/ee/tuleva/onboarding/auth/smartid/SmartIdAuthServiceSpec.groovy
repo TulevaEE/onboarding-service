@@ -6,7 +6,9 @@ import ee.sk.smartid.AuthenticationResponseValidator
 import ee.sk.smartid.SmartIdClient
 import ee.sk.smartid.exception.UnprocessableSmartIdResponseException
 import ee.sk.smartid.exception.useraccount.UserAccountNotFoundException
+import ee.sk.smartid.exception.useraction.SessionTimeoutException
 import ee.sk.smartid.exception.useraction.UserRefusedException
+import ee.sk.smartid.exception.useraction.UserSelectedWrongVerificationCodeException
 import ee.sk.smartid.rest.SmartIdConnector
 import ee.sk.smartid.rest.dao.*
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
@@ -15,6 +17,7 @@ import spock.lang.Specification
 
 import java.time.Clock
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
@@ -70,6 +73,7 @@ class SmartIdAuthServiceSpec extends Specification {
     waitForPollComplete()
     then:
     session.errorCode == "smart.id.technical.error"
+    session.errorMessage == "Smart ID technical error"
   }
 
   def "Polling: user account not found records the corresponding error and stores session"() {
@@ -82,6 +86,7 @@ class SmartIdAuthServiceSpec extends Specification {
     waitForPollComplete()
     then:
     session.errorCode == "smart.id.account.not.found"
+    session.errorMessage == "Smart ID user account not found"
   }
 
   def "Polling: user refused records the corresponding error and stores session"() {
@@ -94,6 +99,33 @@ class SmartIdAuthServiceSpec extends Specification {
     waitForPollComplete()
     then:
     session.errorCode == "smart.id.user.refused"
+    session.errorMessage == "Smart ID User refused"
+  }
+
+  def "Polling: session timeout records the corresponding error and stores session"() {
+    given:
+    1 * connector.authenticate(_ as SemanticsIdentifier, _) >> response(aSessionId)
+    1 * connector.getSessionStatus(aSessionId) >> { throw new SessionTimeoutException() }
+    1 * genericSessionStore.saveBySessionId(httpSessionId, _ as SmartIdSession) >> { saveBySessionIdCalled.countDown() }
+    when:
+    SmartIdSession session = smartIdAuthService.startLogin(personalCode, httpSessionId)
+    waitForPollComplete()
+    then:
+    session.errorCode == "smart.id.timeout"
+    session.errorMessage == "Smart ID timed out waiting for the user"
+  }
+
+  def "Polling: user action ended without a response records the corresponding error and stores session"() {
+    given:
+    1 * connector.authenticate(_ as SemanticsIdentifier, _) >> response(aSessionId)
+    1 * connector.getSessionStatus(aSessionId) >> { throw new UserSelectedWrongVerificationCodeException() }
+    1 * genericSessionStore.saveBySessionId(httpSessionId, _ as SmartIdSession) >> { saveBySessionIdCalled.countDown() }
+    when:
+    SmartIdSession session = smartIdAuthService.startLogin(personalCode, httpSessionId)
+    waitForPollComplete()
+    then:
+    session.errorCode == "smart.id.technical.error"
+    session.errorMessage == "Smart ID technical error"
   }
 
   def "Polling: validator failure records technical error and stores session"() {
@@ -107,6 +139,7 @@ class SmartIdAuthServiceSpec extends Specification {
     waitForPollComplete()
     then:
     session.errorCode == "smart.id.validation.failed"
+    session.errorMessage == "Smart ID validation failed"
   }
 
   def "Polling: successful authentication records person and stores session"() {
@@ -124,6 +157,100 @@ class SmartIdAuthServiceSpec extends Specification {
     session.person.lastName == lastName
     session.person.personalCode == personalCode
     session.errorCode == null
+  }
+
+  def "Stop: rejects new polling as soon as shutdown starts, without waiting out the grace period"() {
+    given:
+    // Keep the poller busy so awaitTermination(800ms) genuinely blocks inside stop(),
+    // instead of returning immediately because the (empty) pool is already terminated.
+    def pollStarted = new CountDownLatch(1)
+    def neverCompletes = new CountDownLatch(1)
+    1 * connector.authenticate(_ as SemanticsIdentifier, _) >> response(aSessionId)
+    connector.getSessionStatus(aSessionId) >> {
+      pollStarted.countDown()
+      try {
+        neverCompletes.await()
+      } catch (InterruptedException ignored) {
+        // released by stop()'s shutdownNow() fallback
+      }
+      throw new RuntimeException("polling thread was stopped")
+    }
+    smartIdAuthService.startLogin(personalCode, httpSessionId)
+    pollStarted.await(2, SECONDS)
+
+    Thread stopThread = new Thread(() -> smartIdAuthService.stop())
+
+    when:
+    stopThread.start()
+    // stop() calls shutdown() before awaitTermination(800ms); once stopThread is observed
+    // TIMED_WAITING it is inside awaitTermination, so shutdown() has already run.
+    def deadline = System.nanoTime() + SECONDS.toNanos(5)
+    while (stopThread.state != Thread.State.TIMED_WAITING && System.nanoTime() < deadline) {
+      Thread.onSpinWait()
+    }
+    smartIdAuthService.startLogin(personalCode, httpSessionId)
+
+    then:
+    thrown(RejectedExecutionException)
+
+    cleanup:
+    stopThread.join(2000)
+  }
+
+  def "Stop: propagates interruption while awaiting termination and restores the interrupt flag"() {
+    given:
+    def pollStarted = new CountDownLatch(1)
+    def neverCompletes = new CountDownLatch(1)
+    1 * connector.authenticate(_ as SemanticsIdentifier, _) >> response(aSessionId)
+    connector.getSessionStatus(aSessionId) >> {
+      pollStarted.countDown()
+      try {
+        neverCompletes.await()
+      } catch (InterruptedException ignored) {
+        // released by stop()'s shutdownNow() fallback
+      }
+      throw new RuntimeException("polling thread was stopped")
+    }
+    smartIdAuthService.startLogin(personalCode, httpSessionId)
+    pollStarted.await(2, SECONDS)
+
+    Thread stopThread = new Thread(() -> smartIdAuthService.stop())
+
+    when:
+    stopThread.start()
+    // Give stop() time to call shutdown() and enter the blocking awaitTermination(800ms)
+    // call before interrupting it, so the interrupt is actually observed while parked.
+    Thread.sleep(50)
+    stopThread.interrupt()
+    stopThread.join(2000)
+
+    then:
+    stopThread.isInterrupted()
+  }
+
+  def "Stop: force-terminates in-flight polling that does not finish within the grace period"() {
+    given:
+    def pollStarted = new CountDownLatch(1)
+    def pollInterrupted = new CountDownLatch(1)
+    def neverCompletes = new CountDownLatch(1)
+    1 * connector.authenticate(_ as SemanticsIdentifier, _) >> response(aSessionId)
+    connector.getSessionStatus(aSessionId) >> {
+      pollStarted.countDown()
+      try {
+        neverCompletes.await()
+      } catch (InterruptedException e) {
+        pollInterrupted.countDown()
+      }
+      throw new RuntimeException("polling thread was stopped")
+    }
+    smartIdAuthService.startLogin(personalCode, httpSessionId)
+    pollStarted.await(2, SECONDS)
+
+    when:
+    smartIdAuthService.stop()
+
+    then:
+    pollInterrupted.await(2, SECONDS)
   }
 
   private void waitForPollComplete() {

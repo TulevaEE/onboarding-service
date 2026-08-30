@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.user.User;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -72,11 +73,13 @@ class SecurityContextRunnerTest {
             .build();
     List<GrantedAuthority> authorities = List.of(new SimpleGrantedAuthority("USER"));
     given(grantedAuthorityFactory.from(person)).willAnswer(invocation -> authorities);
+    AtomicBoolean actionRan = new AtomicBoolean(false);
 
     securityContextRunner.runAs(
         person,
         "issued-token",
         () -> {
+          actionRan.set(true);
           var authentication = SecurityContextHolder.getContext().getAuthentication();
           assertThat(authentication.getPrincipal()).isEqualTo(person);
           assertThat(authentication.getCredentials()).isEqualTo("issued-token");
@@ -84,6 +87,7 @@ class SecurityContextRunnerTest {
           assertThat(actualAuthorities).containsExactlyElementsOf(authorities);
         });
 
+    assertThat(actionRan).isTrue();
     assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
   }
 

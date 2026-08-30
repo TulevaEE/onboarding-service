@@ -2,10 +2,7 @@ package ee.tuleva.onboarding.conversion
 
 
 import ee.tuleva.onboarding.account.FundBalance
-import ee.tuleva.onboarding.fund.ApiFundResponse
 import ee.tuleva.onboarding.fund.Fund
-import ee.tuleva.onboarding.mandate.application.Exchange
-import org.springframework.context.i18n.LocaleContextHolder
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.fund.FundFixture.*
@@ -75,16 +72,15 @@ class WeightedAverageFeeCalculatorSpec extends Specification {
           .build()
     }
 
-    def locale = LocaleContextHolder.getLocale()
-
-
-    def sourceFund = tuleva2ndPillarStockFund().tap { ongoingChargesFigure = 0.005 }
-    def targetFund = lhv2ndPillarFund().tap { ongoingChargesFigure = 0.01 }
-    def pendingExchanges = [new Exchange(
-        new ApiFundResponse(sourceFund, locale),
-        new ApiFundResponse(targetFund, locale),
-        null,
-        1.0 // 100%
+    def sourceFund = tuleva2ndPillarStockFund()
+    def targetFund = lhv2ndPillarFund()
+    def pendingExchanges = [new PendingExchangeFixture(
+        pillar: 2,
+        sourceIsin: sourceFund.isin,
+        targetIsin: targetFund.isin,
+        sourceFundFees: 0.005,
+        targetFundFees: 0.01,
+        amount: 1.0 // 100%
     )]
 
     expect:
@@ -126,16 +122,15 @@ class WeightedAverageFeeCalculatorSpec extends Specification {
           .build()
     }
 
-    def locale = LocaleContextHolder.getLocale()
-
-
-    def sourceFund = lhv3rdPillarFund().tap { ongoingChargesFigure = 0.01 }
-    def targetFund = tuleva3rdPillarFund().tap { ongoingChargesFigure = 0.005 }
-    def pendingExchanges = [new Exchange(
-        new ApiFundResponse(sourceFund, locale),
-        new ApiFundResponse(targetFund, locale),
-        null,
-        2345.6789 // 100% of bookValue
+    def sourceFund = lhv3rdPillarFund()
+    def targetFund = tuleva3rdPillarFund()
+    def pendingExchanges = [new PendingExchangeFixture(
+        pillar: 3,
+        sourceIsin: sourceFund.isin,
+        targetIsin: targetFund.isin,
+        sourceFundFees: 0.01,
+        targetFundFees: 0.005,
+        amount: 2345.6789 // 100% of bookValue
     )]
 
     expect:
@@ -162,23 +157,25 @@ class WeightedAverageFeeCalculatorSpec extends Specification {
           .build()
     }
 
-    def locale = LocaleContextHolder.getLocale()
-
-    def sourceFund = tuleva2ndPillarStockFund().tap { ongoingChargesFigure = 0.005 }
-    def targetFund1 = tuleva2ndPillarBondFund().tap { ongoingChargesFigure = 0.006 }
-    def targetFund2 = lhv2ndPillarFund().tap { ongoingChargesFigure = 0.02 }
+    def sourceFund = tuleva2ndPillarStockFund()
+    def targetFund1 = tuleva2ndPillarBondFund()
+    def targetFund2 = lhv2ndPillarFund()
     def pendingExchanges = [
-        new Exchange(
-            new ApiFundResponse(sourceFund, locale),
-            new ApiFundResponse(targetFund1, locale),
-            null,
-            0.5 // 50%
+        new PendingExchangeFixture(
+            pillar: 2,
+            sourceIsin: sourceFund.isin,
+            targetIsin: targetFund1.isin,
+            sourceFundFees: 0.005,
+            targetFundFees: 0.006,
+            amount: 0.5 // 50%
         ),
-        new Exchange(
-            new ApiFundResponse(sourceFund, locale),
-            new ApiFundResponse(targetFund2, locale),
-            null,
-            0.5 // 50%
+        new PendingExchangeFixture(
+            pillar: 2,
+            sourceIsin: sourceFund.isin,
+            targetIsin: targetFund2.isin,
+            sourceFundFees: 0.005,
+            targetFundFees: 0.02,
+            amount: 0.5 // 50%
         )
     ]
 
@@ -215,15 +212,13 @@ class WeightedAverageFeeCalculatorSpec extends Specification {
           .build()
     }
 
-    def locale = LocaleContextHolder.getLocale()
-
     def sourceFund = tuleva2ndPillarStockFund()
-    def targetFund = null
-    def exchange = new Exchange(
-        new ApiFundResponse(sourceFund, locale),
-        targetFund,
-        "target PIK",
-        1.0 // 100%
+    def exchange = new PendingExchangeFixture(
+        pillar: 2,
+        sourceIsin: sourceFund.isin,
+        sourceFundFees: sourceFund.ongoingChargesFigure,
+        amount: 1.0, // 100%
+        toPik: true
     )
 
     def pendingExchanges = [exchange]

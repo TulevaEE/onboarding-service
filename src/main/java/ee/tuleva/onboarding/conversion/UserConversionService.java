@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.conversion;
 
-import static ee.tuleva.onboarding.mandate.application.ApplicationStatus.PENDING;
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND;
 import static ee.tuleva.onboarding.pillar.Pillar.THIRD;
 import static java.math.BigDecimal.ZERO;
@@ -18,8 +17,7 @@ import ee.tuleva.onboarding.epis.CashFlow;
 import ee.tuleva.onboarding.epis.CashFlowStatement;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
-import ee.tuleva.onboarding.mandate.application.ApplicationService;
-import ee.tuleva.onboarding.mandate.application.Exchange;
+import ee.tuleva.onboarding.pillar.Pillar;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
@@ -42,7 +40,7 @@ public class UserConversionService {
   private final CashFlowService cashFlowService;
   private final FundRepository fundRepository;
   private final Clock estonianClock;
-  private final ApplicationService applicationService;
+  private final PendingMandateApplications pendingMandateApplications;
 
   private final WeightedAverageFeeCalculator weightedAverageFeeCalculator =
       new WeightedAverageFeeCalculator();
@@ -69,7 +67,7 @@ public class UserConversionService {
                 .selectionPartial(isSelectionPartial(fundBalances, 2))
                 .transfersComplete(isTransfersComplete(fundBalances, 2, person))
                 .transfersPartial(isTransfersPartial(fundBalances, 2, person))
-                .pendingWithdrawal(applicationService.hasPendingWithdrawals(person, SECOND))
+                .pendingWithdrawal(pendingMandateApplications.hasPendingWithdrawals(person, SECOND))
                 .contribution(
                     Amount.builder()
                         .yearToDate(cashContributionSum(cashFlowStatement, 2, thisYear()))
@@ -92,7 +90,7 @@ public class UserConversionService {
                 .selectionPartial(isSelectionPartial(fundBalances, 3))
                 .transfersComplete(isTransfersComplete(fundBalances, 3, person))
                 .transfersPartial(isTransfersPartial(fundBalances, 3, person))
-                .pendingWithdrawal(applicationService.hasPendingWithdrawals(person, THIRD))
+                .pendingWithdrawal(pendingMandateApplications.hasPendingWithdrawals(person, THIRD))
                 .contribution(
                     Amount.builder()
                         .yearToDate(cashContributionSum(cashFlowStatement, 3, thisYear()))
@@ -240,14 +238,14 @@ public class UserConversionService {
   }
 
   private boolean hasAnyPendingTransfersToOwnFunds(Person person, Integer pillar) {
-    return getPendingExchanges(pillar, person).anyMatch(Exchange::isToOwnFund);
+    return getPendingExchanges(pillar, person).anyMatch(PendingExchange::isToOwnFund);
   }
 
   private Set<String> getIsinsOfFullPendingTransfersToConvertedFundManager(
       Person person, List<FundBalance> fundBalances, Integer pillar) {
     return getPendingExchanges(pillar, person)
         .filter(exchange -> exchange.isToOwnFund() && amountMatches(exchange, fundBalances))
-        .map(exchange -> exchange.getSourceFund().getIsin())
+        .map(PendingExchange::getSourceIsin)
         .collect(toSet());
   }
 
@@ -255,18 +253,15 @@ public class UserConversionService {
       Person person, List<FundBalance> fundBalances, Integer pillar) {
     return getPendingExchanges(pillar, person)
         .filter(exchange -> exchange.isFromOwnFund() && amountMatches(exchange, fundBalances))
-        .map(exchange -> exchange.getSourceFund().getIsin())
+        .map(PendingExchange::getSourceIsin)
         .collect(toSet());
   }
 
-  private Stream<Exchange> getPendingExchanges(Integer pillar, Person person) {
-    var pendingTransferApplications = applicationService.getTransferApplications(PENDING, person);
-    return pendingTransferApplications.stream()
-        .filter(application -> pillar.equals(application.getPillar()))
-        .flatMap(application -> application.getDetails().getExchanges().stream());
+  private Stream<PendingExchange> getPendingExchanges(Integer pillar, Person person) {
+    return pendingMandateApplications.getPendingExchanges(Pillar.fromInt(pillar), person).stream();
   }
 
-  private boolean amountMatches(Exchange exchange, List<FundBalance> fundBalances) {
+  private boolean amountMatches(PendingExchange exchange, List<FundBalance> fundBalances) {
     if (exchange.getPillar() == 2) {
       return exchange.isFullAmount();
     }
@@ -277,9 +272,9 @@ public class UserConversionService {
     throw new IllegalStateException("Invalid pillar: " + exchange.getPillar());
   }
 
-  private FundBalance fundBalance(Exchange exchange, List<FundBalance> fundBalances) {
+  private FundBalance fundBalance(PendingExchange exchange, List<FundBalance> fundBalances) {
     return fundBalances.stream()
-        .filter(fundBalance -> exchange.getSourceFund().getIsin().equals(fundBalance.getIsin()))
+        .filter(fundBalance -> exchange.getSourceIsin().equals(fundBalance.getIsin()))
         .findFirst()
         .orElse(FundBalance.builder().build());
   }

@@ -9,6 +9,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -38,5 +41,24 @@ class EmailTest {
             "mandrillMessageId=abc-123",
             "type=THIRD_PILLAR_PAYMENT_REMINDER_MANDATE",
             "status=SCHEDULED");
+  }
+
+  @Test
+  void isTodayIsTrueWhenCreatedOnTheSameDayAsTheClock() {
+    Instant now = Instant.parse("2026-08-28T10:00:00Z");
+    Clock clock = Clock.fixed(now, ZoneOffset.UTC);
+    Email email = Email.builder().personalCode(PERSONAL_CODE).createdDate(now).build();
+
+    assertThat(email.isToday(clock)).isTrue();
+  }
+
+  @Test
+  void isTodayIsFalseWhenCreatedOnADifferentDayThanTheClock() {
+    Instant createdDate = Instant.parse("2026-08-27T23:59:00Z");
+    Instant now = Instant.parse("2026-08-28T00:01:00Z");
+    Clock clock = Clock.fixed(now, ZoneOffset.UTC);
+    Email email = Email.builder().personalCode(PERSONAL_CODE).createdDate(createdDate).build();
+
+    assertThat(email.isToday(clock)).isFalse();
   }
 }

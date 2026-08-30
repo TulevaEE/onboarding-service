@@ -249,28 +249,78 @@ class EmailServiceSpec extends Specification {
     message.mergeVars.first().vars.last().content == user.lastName
     message.googleAnalyticsCampaign == templateName
     message.tags == ["test"]
+    message.autoText == true
+    message.preserveRecipients == true
+    message.important == true
+    message.trackClicks == true
+    message.trackOpens == true
+    message.googleAnalyticsDomains == ["tuleva.ee", "pension.tuleva.ee"]
+  }
+
+  def "can create new mandrill messages using the four-argument overload"() {
+    when:
+    MandrillMessage message = service.newMandrillMessage(
+        user.email,
+        templateName,
+        [fname: user.firstName, lname: user.lastName],
+        ["test"])
+    then:
+    message != null
+    message.to.first().email == user.email
+    message.attachments == []
+  }
+
+  def "can create new mandrill messages with a reply-to header"() {
+    when:
+    MandrillMessage message = service.newMandrillMessage(
+        user.email,
+        "reply@tuleva.ee",
+        templateName,
+        [fname: user.firstName, lname: user.lastName],
+        ["test"],
+        [])
+    then:
+    message != null
+    message.headers == ["Reply-To": "reply@tuleva.ee"]
+  }
+
+  def "does not send email when the message has no recipient list at all"() {
+    given:
+    def messageWithoutTo = new MandrillMessage()
+
+    when:
+    def response = service.send(user, messageWithoutTo, templateName)
+
+    then:
+    response == Optional.empty()
+    0 * mandrillMessagesApi._
   }
 
   def "scrubs self promotion merge variables based on the template name"() {
     when:
     MandrillMessage msg = service.newMandrillMessage(
-        user.email, template, [suggestThirdPillar: true, suggestSecondPillar: true, suggestPaymentRate: true], ["test"], null)
+        user.email, template,
+        [suggestThirdPillar: true, suggestSecondPillar: true, suggestPaymentRate: true,
+         suggestThirdPillarRaise: true, suggestSavingsFund: true],
+        ["test"], null)
     def vars = msg.mergeVars.first().vars.collectEntries { [it.name, it.content] }
 
     then:
     vars.suggestThirdPillar == suggestThirdPillar
     vars.suggestSecondPillar == suggestSecondPillar
     vars.suggestPaymentRate == suggestPaymentRate
+    vars.suggestThirdPillarRaise == suggestThirdPillarRaise
+    vars.suggestSavingsFund == suggestSavingsFund
 
     where:
-    template                             | suggestThirdPillar | suggestSecondPillar | suggestPaymentRate
-    "third_pillar_payment_arrived_et"    | false              | true                | true
-    "second_pillar_mandate_en"           | true               | false               | true
-    "second_pillar_payment_rate_et"      | true               | true                | false
-    "payment_rate_abandonment_et"        | true               | false               | false
-    "withdrawal_batch_et"                | false              | false               | false
-    "savings_fund_payment_success_et"    | true               | true                | true
-    "membership_et"                      | true               | true                | true
+    template                             | suggestThirdPillar | suggestSecondPillar | suggestPaymentRate | suggestThirdPillarRaise | suggestSavingsFund
+    "third_pillar_payment_arrived_et"    | false              | true                | true                | true                    | true
+    "second_pillar_mandate_en"           | true               | false               | true                | true                    | true
+    "second_pillar_payment_rate_et"      | true               | true                | false               | true                    | true
+    "payment_rate_abandonment_et"        | true               | false               | false               | true                    | true
+    "withdrawal_batch_et"                | false              | false               | false               | false                   | true
+    "savings_fund_payment_success_et"    | true               | true                | true                 | true                   | false
+    "membership_et"                      | true               | true                | true                | true                    | true
   }
 
 }

@@ -201,6 +201,60 @@ class MailchimpCampaignMetricsServiceSpec extends Specification {
     result.campaignName() == "Campaign_With_Multiple_Underscores_camp"
   }
 
+  def "getMetrics_excludesEmailsWithMatchingCampaignButWrongType"() {
+    given:
+    final campaignName = "Test Campaign camp_123"
+    final mailchimpEmail = email("39001010000", "msg_1", campaignName)
+    final wrongTypeEmail = Email.builder()
+        .personalCode("39001020000")
+        .type(ee.tuleva.onboarding.notification.email.EmailType.SECOND_PILLAR_MANDATE)
+        .status(SENT)
+        .mailchimpCampaign(campaignName)
+        .mandrillMessageId("msg_2")
+        .build()
+
+    emailRepository.findAll() >> [mailchimpEmail, wrongTypeEmail]
+    eventLogRepository.findAll() >> []
+
+    when:
+    final result = service.getMetrics(campaignName)
+
+    then:
+    result.totalSent() == 1
+  }
+
+  def "getMetrics_keepsTheFullCampaignNameWhenTheUnderscoreIsTheFirstCharacter"() {
+    given:
+    final campaignName = "_camp123"
+    final email1 = email("39001010000", "msg_1", campaignName)
+
+    emailRepository.findAll() >> [email1]
+    eventLogRepository.findAll() >> []
+
+    when:
+    final result = service.getMetrics(campaignName)
+
+    then:
+    result.campaignId() == "_camp123"
+    result.campaignName() == "_camp123"
+  }
+
+  def "getMetrics_keepsTheFullCampaignIdWhenTheUnderscoreIsTheLastCharacter"() {
+    given:
+    final campaignName = "camp_123_"
+    final email1 = email("39001010000", "msg_1", campaignName)
+
+    emailRepository.findAll() >> [email1]
+    eventLogRepository.findAll() >> []
+
+    when:
+    final result = service.getMetrics(campaignName)
+
+    then:
+    result.campaignId() == "camp_123_"
+    result.campaignName() == "camp_123"
+  }
+
   def "getMetrics_ignoresEventsWithoutMailchimpCampaignData"() {
     given:
     final campaignName = "Test Campaign camp_123"

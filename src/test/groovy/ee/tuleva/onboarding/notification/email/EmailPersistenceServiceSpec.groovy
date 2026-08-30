@@ -10,6 +10,7 @@ import spock.lang.Specification
 
 import java.time.Clock
 import java.time.Instant
+import java.util.Locale
 
 import static EmailType.THIRD_PILLAR_SUGGEST_SECOND
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
@@ -94,6 +95,47 @@ class EmailPersistenceServiceSpec extends Specification {
     hasEmailsToday
   }
 
+  def "returns false for todays mandate emails when none exist"() {
+    given:
+    def person = samplePerson()
+    def mandate = sampleMandate()
+    def type = THIRD_PILLAR_SUGGEST_SECOND
+    def statuses = [SENT, QUEUED, SCHEDULED]
+    emailRepository.findFirstByPersonalCodeAndTypeAndMandateIdAndStatusInOrderByCreatedDateDescIdDesc(
+        person.personalCode, type, mandate.id, statuses) >> Optional.empty()
+
+    when:
+    def hasEmailsToday = emailPersistenceService.hasMandateEmailsToday(person, type, mandate.id)
+
+    then:
+    !hasEmailsToday
+  }
+
+  def "returns false for todays mandate emails when the most recent one is not from today"() {
+    given:
+    def person = samplePerson()
+    def mandate = sampleMandate()
+    def type = THIRD_PILLAR_SUGGEST_SECOND
+    def yesterday = Instant.now(clock).minus(1, java.time.temporal.ChronoUnit.DAYS)
+    def email = new Email(
+        personalCode: person.personalCode,
+        mandrillMessageId: "100",
+        type: type,
+        status: SCHEDULED,
+        createdDate: yesterday,
+        updatedDate: yesterday
+    )
+    def statuses = [SENT, QUEUED, SCHEDULED]
+    emailRepository.findFirstByPersonalCodeAndTypeAndMandateIdAndStatusInOrderByCreatedDateDescIdDesc(
+        person.personalCode, type, mandate.id, statuses) >> Optional.of(email)
+
+    when:
+    def hasEmailsToday = emailPersistenceService.hasMandateEmailsToday(person, type, mandate.id)
+
+    then:
+    !hasEmailsToday
+  }
+
   def "can check for todays emails for mandate that is part of a batch "() {
     given:
     def person = samplePerson()
@@ -125,6 +167,118 @@ class EmailPersistenceServiceSpec extends Specification {
 
     then:
     hasEmailsToday
+  }
+
+  def "returns false for todays mandate batch emails when none exist"() {
+    given:
+    def person = samplePerson()
+    def mandateBatch = MandateBatchFixture.aMandateBatch().build()
+    def type = WITHDRAWAL_BATCH
+    def statuses = [SENT, QUEUED, SCHEDULED]
+    emailRepository.findFirstByPersonalCodeAndTypeAndMandateBatchIdAndStatusInOrderByCreatedDateDescIdDesc(
+        person.personalCode, type, mandateBatch.id, statuses) >> Optional.empty()
+
+    when:
+    def hasEmailsToday = emailPersistenceService.hasMandateBatchEmailsToday(person, type, mandateBatch.id)
+
+    then:
+    !hasEmailsToday
+  }
+
+  def "returns false for todays mandate batch emails when the most recent one is not from today"() {
+    given:
+    def person = samplePerson()
+    def mandateBatch = MandateBatchFixture.aMandateBatch().build()
+    def type = WITHDRAWAL_BATCH
+    def yesterday = Instant.now(clock).minus(1, java.time.temporal.ChronoUnit.DAYS)
+    def email = new Email(
+        personalCode: person.personalCode,
+        mandrillMessageId: "100",
+        type: type,
+        status: SCHEDULED,
+        createdDate: yesterday,
+        updatedDate: yesterday,
+        mandateBatchId: mandateBatch.id,
+    )
+    def statuses = [SENT, QUEUED, SCHEDULED]
+    emailRepository.findFirstByPersonalCodeAndTypeAndMandateBatchIdAndStatusInOrderByCreatedDateDescIdDesc(
+        person.personalCode, type, mandateBatch.id, statuses) >> Optional.of(email)
+
+    when:
+    def hasEmailsToday = emailPersistenceService.hasMandateBatchEmailsToday(person, type, mandateBatch.id)
+
+    then:
+    !hasEmailsToday
+  }
+
+  def "reports whether emails exist for a mandate"() {
+    given:
+    def person = samplePerson()
+    def email = new Email(personalCode: person.personalCode, mandrillMessageId: "100", type: THIRD_PILLAR_SUGGEST_SECOND)
+    emailRepository.findAllByMandateId(42L) >> [email]
+
+    expect:
+    emailPersistenceService.hasEmailsForMandate(42L)
+  }
+
+  def "reports that no emails exist for a mandate"() {
+    given:
+    emailRepository.findAllByMandateId(42L) >> []
+
+    expect:
+    !emailPersistenceService.hasEmailsForMandate(42L)
+  }
+
+  def "reports whether emails exist for a mandate batch"() {
+    given:
+    def person = samplePerson()
+    def email = new Email(personalCode: person.personalCode, mandrillMessageId: "100", type: WITHDRAWAL_BATCH)
+    emailRepository.findAllByMandateBatchId(42L) >> [email]
+
+    expect:
+    emailPersistenceService.hasEmailsForMandateBatch(42L)
+  }
+
+  def "reports that no emails exist for a mandate batch"() {
+    given:
+    emailRepository.findAllByMandateBatchId(42L) >> []
+
+    expect:
+    !emailPersistenceService.hasEmailsForMandateBatch(42L)
+  }
+
+  def "can save a scheduled email for a mandate"() {
+    given:
+    def person = samplePerson()
+    def email = new Email(
+        personalCode: person.personalCode,
+        mandrillMessageId: "100",
+        type: THIRD_PILLAR_SUGGEST_SECOND,
+        status: SCHEDULED,
+        mandateId: 42L,
+    )
+    emailRepository.save(email) >> email
+
+    when:
+    def savedEmail = emailPersistenceService.saveWithMandate(person, "100", THIRD_PILLAR_SUGGEST_SECOND, SCHEDULED.name(), 42L)
+
+    then:
+    savedEmail == email
+  }
+
+  def "can find an email by its mandrill message id"() {
+    given:
+    def person = samplePerson()
+    def email = new Email(
+        personalCode: person.personalCode,
+        mandrillMessageId: "100",
+        type: THIRD_PILLAR_SUGGEST_SECOND,
+        status: SCHEDULED,
+    )
+    emailRepository.findByMandrillMessageId("100") >> Optional.of(email)
+
+    expect:
+    emailPersistenceService.findByMandrillMessageId("100") == Optional.of(email)
   }
 
   def "can save a scheduled email"() {
@@ -213,5 +367,10 @@ class EmailPersistenceServiceSpec extends Specification {
 
     then:
     !hasBeenSent
+  }
+
+  def "combines the template name with a locale's language"() {
+    expect:
+    THIRD_PILLAR_SUGGEST_SECOND.getTemplateName(Locale.ENGLISH) == "third_pillar_suggest_second_en"
   }
 }

@@ -93,6 +93,23 @@ class ThirdPillarPaymentArrivedJobTest {
   }
 
   @Test
+  void sendsWhenAudienceExactlyMatchesTheRecipientCap() {
+    var payment1 = payment(FIRST_PAYER);
+    var payment2 = payment(SECOND_PAYER);
+    given(repository.oldestOwnPaymentDate()).willReturn(Optional.of(LocalDate.parse("2020-01-01")));
+    given(
+            repository.fetchUnemailedFirstPayments(
+                LocalDate.parse("2026-07-19"), LocalDate.parse("2008-08-18")))
+        .willReturn(List.of(payment1, payment2));
+    given(emailService.send(any())).willReturn(true);
+
+    job(false, 2).run();
+
+    verify(emailService, times(1)).send(payment1);
+    verify(emailService, times(1)).send(payment2);
+  }
+
+  @Test
   void oneFailingRecipientDoesNotStopTheOthers() {
     var failing = payment(FIRST_PAYER);
     var succeeding = payment(SECOND_PAYER);

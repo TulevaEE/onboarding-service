@@ -425,6 +425,33 @@ class AutoEmailSenderTest {
   }
 
   @Test
+  @DisplayName("Sends emails when the audience exactly matches the repeat-sender threshold")
+  void sendsWhenAudienceExactlyMatchesTheRepeatThreshold() {
+    List<ExchangeTransactionLeaver> leavers =
+        Stream.generate(() -> aLeaverWith().build()).limit(200).toList();
+
+    when(leaversRepository.fetch(eq(LocalDate.of(2019, 12, 1)), eq(LocalDate.of(2020, 1, 2))))
+        .thenReturn(leavers);
+    when(withdrawalsRepository.fetch(eq(LocalDate.of(2019, 12, 1)), eq(LocalDate.of(2020, 1, 2))))
+        .thenReturn(List.of());
+    when(emailPersistenceService.getLastEmailSendDate(
+            any(ExchangeTransactionLeaver.class), eq(SECOND_PILLAR_LEAVERS)))
+        .thenReturn(Optional.empty());
+    when(emailPersistenceService.hasEmailTypeBeenSentBefore(eq(SECOND_PILLAR_LEAVERS)))
+        .thenReturn(true); // repeat sender, threshold is 200
+    when(emailPersistenceService.hasEmailTypeBeenSentBefore(eq(SECOND_PILLAR_EARLY_WITHDRAWAL)))
+        .thenReturn(true);
+
+    // When
+    autoEmailSender.sendAutoEmails();
+
+    // Then - exactly at the threshold, so it should send, not skip
+    verify(mailchimpService, times(200)).sendEvent(anyString(), eq(NEW_LEAVER), any());
+    verify(emailPersistenceService, times(200))
+        .save(any(ExchangeTransactionLeaver.class), eq(SECOND_PILLAR_LEAVERS), eq(SCHEDULED));
+  }
+
+  @Test
   @DisplayName("Sends email for transaction created on current day")
   void sendsEmailForTransactionCreatedToday() {
     LocalDate today = LocalDate.of(2020, 1, 1);

@@ -18,8 +18,7 @@ import ee.tuleva.onboarding.ariregister.CompanyDetail;
 import ee.tuleva.onboarding.ariregister.CompanyRelationship;
 import ee.tuleva.onboarding.event.TrackableSystemEvent;
 import ee.tuleva.onboarding.kyb.*;
-import ee.tuleva.onboarding.savings.SavingsFundOnboardingService;
-import ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus;
+import ee.tuleva.onboarding.kyb.CompanyOnboarding;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -40,7 +39,7 @@ class KybSurveyService {
   private final LegalEntityScreener legalEntityScreener;
   private final KybSurveyResponseMapper kybSurveyResponseMapper;
   private final KybSurveyRepository kybSurveyRepository;
-  private final SavingsFundOnboardingService savingsFundOnboardingService;
+  private final CompanyOnboarding companyOnboarding;
   private final ApplicationEventPublisher eventPublisher;
 
   private record FieldError(String field, ValidationError error) {}
@@ -229,12 +228,10 @@ class KybSurveyService {
   }
 
   private Optional<BlockedReason> getBlockedReason(String registryCode) {
-    return savingsFundOnboardingService
-        .findStatus(registryCode, LEGAL_ENTITY)
-        .flatMap(KybSurveyService::blockedReasonFor);
+    return companyOnboarding.findState(registryCode).flatMap(KybSurveyService::blockedReasonFor);
   }
 
-  private static Optional<BlockedReason> blockedReasonFor(SavingsFundOnboardingStatus status) {
+  private static Optional<BlockedReason> blockedReasonFor(CompanyOnboarding.State status) {
     return switch (status) {
       case COMPLETED -> Optional.of(ALREADY_ONBOARDED);
       case PENDING -> Optional.of(ONBOARDING_PENDING);

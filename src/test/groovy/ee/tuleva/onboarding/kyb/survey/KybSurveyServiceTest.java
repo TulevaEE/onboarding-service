@@ -4,7 +4,6 @@ import static ee.tuleva.onboarding.event.TrackableEventType.SAVINGS_FUND_ONBOARD
 import static ee.tuleva.onboarding.kyb.KybCheckType.*;
 import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.SUBMISSION;
 import static ee.tuleva.onboarding.kyb.survey.KybSurveyResponseItem.CompanyIncomeSource.*;
-import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -17,6 +16,7 @@ import ee.tuleva.onboarding.ariregister.CompanyAddress;
 import ee.tuleva.onboarding.ariregister.CompanyDetail;
 import ee.tuleva.onboarding.ariregister.CompanyRelationship;
 import ee.tuleva.onboarding.event.TrackableSystemEvent;
+import ee.tuleva.onboarding.kyb.CompanyOnboarding;
 import ee.tuleva.onboarding.kyb.KybCheck;
 import ee.tuleva.onboarding.kyb.KybCheckType;
 import ee.tuleva.onboarding.kyb.LegalEntityScreener;
@@ -25,8 +25,6 @@ import ee.tuleva.onboarding.kyb.PersonalCode;
 import ee.tuleva.onboarding.kyb.SelfCertification;
 import ee.tuleva.onboarding.kyb.survey.KybSurveyResponseItem.CompanyIncomeSourceItem;
 import ee.tuleva.onboarding.kyb.survey.KybSurveyResponseItem.CompanySourceOfIncome;
-import ee.tuleva.onboarding.savings.SavingsFundOnboardingService;
-import ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
@@ -47,7 +45,7 @@ class KybSurveyServiceTest {
   @Mock private LegalEntityScreener legalEntityScreener;
   @Mock private KybSurveyResponseMapper kybSurveyResponseMapper;
   @Mock private KybSurveyRepository kybSurveyRepository;
-  @Mock private SavingsFundOnboardingService savingsFundOnboardingService;
+  @Mock private CompanyOnboarding companyOnboarding;
   @Mock private ApplicationEventPublisher eventPublisher;
 
   private KybSurveyService service;
@@ -59,7 +57,7 @@ class KybSurveyServiceTest {
             legalEntityScreener,
             kybSurveyResponseMapper,
             kybSurveyRepository,
-            savingsFundOnboardingService,
+            companyOnboarding,
             eventPublisher);
   }
 
@@ -525,8 +523,8 @@ class KybSurveyServiceTest {
     when(kybSurveyResponseMapper.extractSelfCertification(surveyResponse)).thenReturn(selfCert);
     var relationships = sampleRelationships();
     when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE)).thenReturn(relationships);
-    when(savingsFundOnboardingService.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
-        .thenReturn(Optional.of(SavingsFundOnboardingStatus.REJECTED));
+    when(companyOnboarding.findState(REGISTRY_CODE))
+        .thenReturn(Optional.of(CompanyOnboarding.State.REJECTED));
     when(kybSurveyRepository.save(any(KybSurvey.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -583,8 +581,8 @@ class KybSurveyServiceTest {
         sampleRelationships(),
         sampleDetail(),
         List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())));
-    when(savingsFundOnboardingService.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
-        .thenReturn(Optional.of(SavingsFundOnboardingStatus.REJECTED));
+    when(companyOnboarding.findState(REGISTRY_CODE))
+        .thenReturn(Optional.of(CompanyOnboarding.State.REJECTED));
 
     var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
 
@@ -597,8 +595,8 @@ class KybSurveyServiceTest {
         sampleRelationships(),
         sampleDetail(),
         List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())));
-    when(savingsFundOnboardingService.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
-        .thenReturn(Optional.of(SavingsFundOnboardingStatus.COMPLETED));
+    when(companyOnboarding.findState(REGISTRY_CODE))
+        .thenReturn(Optional.of(CompanyOnboarding.State.COMPLETED));
 
     var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
 
@@ -612,8 +610,8 @@ class KybSurveyServiceTest {
         sampleRelationships(),
         sampleDetail(),
         List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())));
-    when(savingsFundOnboardingService.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
-        .thenReturn(Optional.of(SavingsFundOnboardingStatus.PENDING));
+    when(companyOnboarding.findState(REGISTRY_CODE))
+        .thenReturn(Optional.of(CompanyOnboarding.State.PENDING));
 
     var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
 
@@ -626,8 +624,8 @@ class KybSurveyServiceTest {
   void submit_throwsWhenOnboardingPending() {
     when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE))
         .thenReturn(sampleRelationships());
-    when(savingsFundOnboardingService.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
-        .thenReturn(Optional.of(SavingsFundOnboardingStatus.PENDING));
+    when(companyOnboarding.findState(REGISTRY_CODE))
+        .thenReturn(Optional.of(CompanyOnboarding.State.PENDING));
 
     assertThatThrownBy(
             () -> service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, sampleSurveyResponse()))
@@ -646,8 +644,8 @@ class KybSurveyServiceTest {
   void submit_throwsWhenAlreadyOnboarded() {
     when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE))
         .thenReturn(sampleRelationships());
-    when(savingsFundOnboardingService.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
-        .thenReturn(Optional.of(SavingsFundOnboardingStatus.COMPLETED));
+    when(companyOnboarding.findState(REGISTRY_CODE))
+        .thenReturn(Optional.of(CompanyOnboarding.State.COMPLETED));
 
     assertThatThrownBy(
             () -> service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, sampleSurveyResponse()))
@@ -692,8 +690,8 @@ class KybSurveyServiceTest {
   void submit_publishesAuditEventWhenAlreadyOnboarded() {
     when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE))
         .thenReturn(sampleRelationships());
-    when(savingsFundOnboardingService.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
-        .thenReturn(Optional.of(SavingsFundOnboardingStatus.COMPLETED));
+    when(companyOnboarding.findState(REGISTRY_CODE))
+        .thenReturn(Optional.of(CompanyOnboarding.State.COMPLETED));
 
     assertThatThrownBy(
             () -> service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, sampleSurveyResponse()))

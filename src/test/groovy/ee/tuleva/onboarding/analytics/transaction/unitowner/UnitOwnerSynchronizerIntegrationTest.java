@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.epis.EnableEpisServiceHolder;
 import ee.tuleva.onboarding.epis.EnableEpisServiceHolder.EpisServiceHolder;
+import ee.tuleva.onboarding.epis.EpisRequestHeaders;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.transaction.ExchangeTransactionDto;
 import ee.tuleva.onboarding.epis.transaction.FundTransactionDto;
@@ -129,7 +130,12 @@ class UnitOwnerSynchronizerIntegrationTest {
     private List<UnitOwnerDto> unitOwners = new ArrayList<>();
 
     public MockEpisService(RestTemplate restTemplate, JwtTokenUtil jwtTokenUtil) {
-      super(restTemplate, restTemplate, jwtTokenUtil, "http://epis", "http://epis");
+      super(
+          restTemplate,
+          restTemplate,
+          new EpisRequestHeaders(jwtTokenUtil),
+          "http://epis",
+          "http://epis");
     }
 
     @Override

@@ -8,7 +8,7 @@
   "disabledTests": 6,
   "disconnectedClasses": 455,
   "godClasses": 14,
-  "lineCoverage": 82.78,
+  "lineCoverage": 82.8,
   "longClasses": 4,
   "meanInstability": 0.469,
   "moduleCycles": 18,
@@ -23,11 +23,11 @@
     "GodClass": 14,
     "TooManyMethods": 6
   },
-  "slowest10TestClassesSeconds": 99.0,
+  "slowest10TestClassesSeconds": 100.7,
   "springBootTests": 76,
-  "suiteWallTimeSeconds": 158,
+  "suiteWallTimeSeconds": 166,
   "testClassesOver10Seconds": 3,
-  "top15ClassLines": 7219,
+  "top15ClassLines": 7194,
   "totalPackages": 225,
   "unmarkedPackages": 0
 }

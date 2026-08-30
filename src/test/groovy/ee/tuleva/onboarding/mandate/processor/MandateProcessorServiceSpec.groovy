@@ -1,13 +1,12 @@
 package ee.tuleva.onboarding.mandate.processor
 
 import ee.tuleva.onboarding.epis.EpisService
-import ee.tuleva.onboarding.epis.application.ApplicationResponse
-import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO
-import ee.tuleva.onboarding.epis.mandate.MandateDto
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommand
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse
 import ee.tuleva.onboarding.error.response.ErrorsResponse
+import ee.tuleva.onboarding.mandate.LegacyMandateSubmission
 import ee.tuleva.onboarding.mandate.Mandate
+import ee.tuleva.onboarding.mandate.MandateProcessResult
 import ee.tuleva.onboarding.mandate.MandateRepository
 import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
@@ -39,9 +38,8 @@ class MandateProcessorServiceSpec extends Specification {
     mandate.pillar = pillar
     mandate.address = address
     mandate.user = sampleUser
-    def mandateResponse = new ApplicationResponseDTO()
-    def response = new ApplicationResponse()
-    mandateResponse.mandateResponses = [response]
+    def outcome = new MandateProcessResult.MandateProcessOutcome("processId1", true, null)
+    def mandateResult = MandateProcessResult.builder().outcomes([outcome]).build()
     1 * mandateProcessRepository.findOneByProcessId(_) >> new MandateProcess()
     when:
     service.start(sampleUser, mandate)
@@ -49,10 +47,10 @@ class MandateProcessorServiceSpec extends Specification {
     3 * mandateProcessRepository.save({ MandateProcess mandateProcess ->
       mandateProcess.mandate == mandate && mandateProcess.processId != null
     }) >> { args -> args[0] }
-    1 * episService.sendMandate({ MandateDto dto ->
-      dto.pillar == mandate.pillar
-      dto.address == mandate.address
-    }) >> mandateResponse
+    1 * episService.sendMandate({ LegacyMandateSubmission submission ->
+      submission.pillar() == mandate.pillar
+      submission.address() == mandate.address
+    }) >> mandateResult
     where:
     pillar | address
     2      | countryFixture().build()

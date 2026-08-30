@@ -15,11 +15,11 @@ import ee.tuleva.onboarding.epis.account.FundBalanceDto;
 import ee.tuleva.onboarding.epis.application.ApplicationResponse;
 import ee.tuleva.onboarding.epis.fund.FundDto;
 import ee.tuleva.onboarding.epis.fund.NavDto;
-import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO;
-import ee.tuleva.onboarding.epis.mandate.MandateDto;
 import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto;
+import ee.tuleva.onboarding.mandate.LegacyMandateSubmission;
+import ee.tuleva.onboarding.mandate.MandateProcessResult;
 import ee.tuleva.onboarding.mandate.application.ApplicationSnapshot;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -38,7 +38,12 @@ import org.springframework.web.client.RestTemplate;
 public class MockEpisService extends EpisService {
 
   public MockEpisService(RestTemplate restTemplate, ServiceTokenProvider serviceTokenProvider) {
-    super(restTemplate, restTemplate, serviceTokenProvider, "http://mock-epis", "http://mock-epis");
+    super(
+        restTemplate,
+        restTemplate,
+        new EpisRequestHeaders(serviceTokenProvider),
+        "http://mock-epis",
+        "http://mock-epis");
   }
 
   @Override
@@ -218,8 +223,8 @@ public class MockEpisService extends EpisService {
   }
 
   @Override
-  public ApplicationResponseDTO sendMandate(MandateDto mandate) {
-    return new ApplicationResponseDTO();
+  public MandateProcessResult sendMandate(LegacyMandateSubmission mandate) {
+    return MandateProcessResult.builder().outcomes(List.of()).build();
   }
 
   public ApplicationResponse sendCancellation(ApplicationResponse cancellation) {

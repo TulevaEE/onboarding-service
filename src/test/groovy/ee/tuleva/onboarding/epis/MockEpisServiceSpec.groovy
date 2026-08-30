@@ -7,11 +7,11 @@ import ee.tuleva.onboarding.epis.CashFlowStatement
 import ee.tuleva.onboarding.epis.ContactDetails
 import ee.tuleva.onboarding.epis.fund.FundDto
 import ee.tuleva.onboarding.epis.fund.NavDto
-import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO
-import ee.tuleva.onboarding.epis.mandate.MandateDto
 import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto
+import ee.tuleva.onboarding.mandate.LegacyMandateSubmission
+import ee.tuleva.onboarding.mandate.MandateProcessResult
 import ee.tuleva.onboarding.mandate.application.ApplicationSnapshot
 import ee.tuleva.onboarding.withdrawals.FundPensionStatus
 import org.springframework.web.client.RestTemplate
@@ -73,7 +73,7 @@ class MockEpisServiceSpec extends Specification {
 
   def "sendMandate has a mock response"() {
     when:
-    ApplicationResponseDTO response = episService.sendMandate(MandateDto.builder().build())
+    MandateProcessResult response = episService.sendMandate(LegacyMandateSubmission.builder().build())
     then:
     response != null
   }

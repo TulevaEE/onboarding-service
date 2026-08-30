@@ -4,15 +4,16 @@ import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.epis.EpisService;
-import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO;
 import ee.tuleva.onboarding.epis.mandate.GenericMandateDto;
-import ee.tuleva.onboarding.epis.mandate.MandateDto;
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommand;
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.ApplicationType;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
+import ee.tuleva.onboarding.mandate.LegacyMandateSubmission;
+import ee.tuleva.onboarding.mandate.LegacyMandateSubmission.FundTransferInstruction;
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.mandate.MandateProcessResult;
 import ee.tuleva.onboarding.mandate.MandateRepository;
 import ee.tuleva.onboarding.user.User;
 import java.util.List;
@@ -41,14 +42,14 @@ public class MandateProcessorService {
           episService.sendMandateV2(getMandateCommand(mandate.getGenericMandateDto()));
       handleMandateCommandResponse(response);
     } else {
-      final var response = episService.sendMandate(getMandateDto(mandate));
-      handleApplicationProcessResponse(response);
+      final var response = episService.sendMandate(getLegacyMandateSubmission(mandate));
+      handleMandateProcessResult(response);
     }
   }
 
-  private MandateDto getMandateDto(Mandate mandate) {
-    final var mandateDtoBuilder =
-        MandateDto.builder()
+  private LegacyMandateSubmission getLegacyMandateSubmission(Mandate mandate) {
+    final var submissionBuilder =
+        LegacyMandateSubmission.builder()
             .id(mandate.getIdOrThrow())
             .createdDate(
                 requireNonNull(
@@ -59,9 +60,9 @@ public class MandateProcessorService {
             .address(mandate.getAddress())
             .email(mandate.getEmail())
             .phoneNumber(mandate.getPhoneNumber());
-    addSelectionApplication(mandate, mandateDtoBuilder);
-    addPaymentRateApplication(mandate, mandateDtoBuilder);
-    return mandateDtoBuilder.build();
+    addSelectionApplication(mandate, submissionBuilder);
+    addPaymentRateApplication(mandate, submissionBuilder);
+    return submissionBuilder.build();
   }
 
   private MandateCommand<?> getMandateCommand(GenericMandateDto<?> mandateDto) {
@@ -97,34 +98,34 @@ public class MandateProcessorService {
   }
 
   // TODO: delete when all mandates have migrated to GenericMandateTdo
-  private void handleApplicationProcessResponse(ApplicationResponseDTO response) {
-    requireNonNull(response.getMandateResponses(), "Missing mandate responses in EPIS response")
+  private void handleMandateProcessResult(MandateProcessResult result) {
+    result
+        .outcomes()
         .forEach(
-            mandateProcessResult -> {
-              log.info("Process result with id {} received", mandateProcessResult.getProcessId());
+            outcome -> {
+              log.info("Process result with id {} received", outcome.processId());
               MandateProcess process =
-                  mandateProcessRepository.findOneByProcessId(mandateProcessResult.getProcessId());
-              process.setSuccessful(mandateProcessResult.isSuccessful());
-              process.setErrorCode(mandateProcessResult.getErrorCode());
+                  mandateProcessRepository.findOneByProcessId(outcome.processId());
+              process.setSuccessful(outcome.successful());
+              process.setErrorCode(outcome.errorCode());
 
               saveFinalizedProcess(process);
             });
   }
 
-  private List<MandateDto.MandateFundsTransferExchangeDTO> getFundTransferExchanges(
-      Mandate mandate) {
+  private List<FundTransferInstruction> getFundTransferExchanges(Mandate mandate) {
     return mandate.getFundTransferExchangesBySourceIsin().entrySet().stream()
         .flatMap(
             entry -> {
               final var process = createMandateProcess(mandate, ApplicationType.TRANSFER);
-              return entry.getValue().stream().map(it -> dtoFromExchange(process, it));
+              return entry.getValue().stream().map(it -> instructionFromExchange(process, it));
             })
         .collect(toList());
   }
 
-  private MandateDto.MandateFundsTransferExchangeDTO dtoFromExchange(
+  private FundTransferInstruction instructionFromExchange(
       MandateProcess process, FundTransferExchange it) {
-    return new MandateDto.MandateFundsTransferExchangeDTO(
+    return new FundTransferInstruction(
         process.getProcessId(),
         it.getAmount(),
         it.getSourceFundIsin(),
@@ -132,22 +133,23 @@ public class MandateProcessorService {
         it.getTargetPik());
   }
 
-  private void addSelectionApplication(Mandate mandate, MandateDto.MandateDtoBuilder mandateDto) {
+  private void addSelectionApplication(
+      Mandate mandate, LegacyMandateSubmission.LegacyMandateSubmissionBuilder submission) {
     if (mandate.getFutureContributionFundIsin().isPresent()) {
       final var process = createMandateProcess(mandate, ApplicationType.SELECTION);
-      mandateDto.futureContributionFundIsin(mandate.getFutureContributionFundIsin().get());
-      mandateDto.processId(process.getProcessId());
+      submission.futureContributionFundIsin(mandate.getFutureContributionFundIsin().get());
+      submission.processId(process.getProcessId());
     }
   }
 
-  private void addPaymentRateApplication(Mandate mandate, MandateDto.MandateDtoBuilder mandateDto) {
+  private void addPaymentRateApplication(
+      Mandate mandate, LegacyMandateSubmission.LegacyMandateSubmissionBuilder submission) {
     if (mandate.isPaymentRateApplication()) {
       final var process = createMandateProcess(mandate, ApplicationType.PAYMENT_RATE);
-      mandateDto.paymentRate(
-          Optional.of(
-              requireNonNull(
-                  mandate.getPaymentRate(), "Payment rate missing: mandateId=" + mandate.getId())));
-      mandateDto.processId(process.getProcessId());
+      submission.paymentRate(
+          requireNonNull(
+              mandate.getPaymentRate(), "Payment rate missing: mandateId=" + mandate.getId()));
+      submission.processId(process.getProcessId());
     }
   }
 

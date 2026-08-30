@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.epis.mandate;
 
 import ee.tuleva.onboarding.country.Country;
+import ee.tuleva.onboarding.mandate.LegacyMandateSubmission;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -21,7 +22,7 @@ import org.jspecify.annotations.Nullable;
 public class MandateDto {
   @NotNull private final Long id;
 
-  @NotNull private final String processId;
+  @Nullable private final String processId;
 
   @Nullable private final String futureContributionFundIsin;
 
@@ -41,6 +42,10 @@ public class MandateDto {
   private String phoneNumber;
 
   private Optional<BigDecimal> paymentRate;
+
+  public static MandateDto from(LegacyMandateSubmission submission) {
+    return LegacyMandateSubmissionMapper.toMandateDto(submission);
+  }
 
   @AllArgsConstructor
   @NoArgsConstructor

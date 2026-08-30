@@ -31,6 +31,7 @@ import ee.tuleva.onboarding.epis.transaction.*;
 import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto;
+import ee.tuleva.onboarding.mandate.LegacyMandateSubmission;
 import ee.tuleva.onboarding.mandate.application.ApplicationSnapshot;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -69,7 +70,7 @@ class EpisServiceTest {
         new EpisService(
             episRestTemplate,
             episLongRequestRestTemplate,
-            jwtTokenUtil,
+            new EpisRequestHeaders(jwtTokenUtil),
             "http://epis",
             "http://epis");
   }
@@ -94,7 +95,15 @@ class EpisServiceTest {
     // given
     setupUserAuthentication();
     var mandate = sampleMandate();
-    MandateDto mandateDto = MandateDto.builder().id(mandate.getId()).build();
+    LegacyMandateSubmission submission =
+        LegacyMandateSubmission.builder()
+            .id(mandate.getId())
+            .createdDate(mandate.getCreatedDate())
+            .fundTransferExchanges(List.of())
+            .pillar(mandate.getPillar())
+            .email("test@tuleva.ee")
+            .phoneNumber("+37288888888")
+            .build();
 
     doAnswer(
             invocation -> {
@@ -104,13 +113,17 @@ class EpisServiceTest {
               assertTrue(doesHttpEntityContainToken(entity, sampleUserToken));
               MandateDto body = (MandateDto) entity.getBody();
               assertEquals(mandate.getId(), body.getId());
-              return mock(ApplicationResponseDTO.class);
+              return new ApplicationResponseDTO(
+                  ee.tuleva.onboarding.epis.application.ApplicationResponse.builder()
+                      .processId("processId1")
+                      .successful(true)
+                      .build());
             })
         .when(episRestTemplate)
         .postForObject(anyString(), any(HttpEntity.class), eq(ApplicationResponseDTO.class));
 
     // when
-    service.sendMandate(mandateDto);
+    service.sendMandate(submission);
 
     // then
     verify(episRestTemplate)

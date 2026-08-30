@@ -18,6 +18,7 @@ import ee.tuleva.onboarding.event.TrackableSystemEvent;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.ParentChildLinkService;
 import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.party.PartyLookup;
 import ee.tuleva.onboarding.party.PartyResolver;
 import ee.tuleva.onboarding.payment.event.SavingsPaymentFailedEvent;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
@@ -28,6 +29,7 @@ import ee.tuleva.onboarding.user.UserRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -44,7 +46,12 @@ class PaymentVerificationServiceTest {
       mock(SavingsFundOnboardingService.class);
   SavingsFundLedger savingsFundLedger = mock(SavingsFundLedger.class);
   ApplicationEventPublisher applicationEventPublisher = mock(ApplicationEventPublisher.class);
-  PartyResolver partyResolver = new PartyResolver(userRepository, companyRepository);
+
+  PartyResolver partyResolver =
+      new PartyResolver(
+          List.of(
+              new PartyLookup(PERSON, userRepository::findByPersonalCode),
+              new PartyLookup(LEGAL_ENTITY, companyRepository::findByRegistryCode)));
   ParentChildLinkService parentChildLinkService = mock(ParentChildLinkService.class);
 
   PaymentVerificationService service =

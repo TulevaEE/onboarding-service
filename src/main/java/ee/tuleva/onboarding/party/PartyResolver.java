@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.party;
 
-import ee.tuleva.onboarding.company.CompanyRepository;
-import ee.tuleva.onboarding.user.UserRepository;
+import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -10,14 +9,14 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class PartyResolver {
 
-  private final UserRepository userRepository;
-  private final CompanyRepository companyRepository;
+  private final List<PartyLookup> lookups;
 
   public Optional<Party> resolve(PartyId partyId) {
-    return switch (partyId.type()) {
-      case PERSON -> userRepository.findByPersonalCode(partyId.code()).map(Party.class::cast);
-      case LEGAL_ENTITY ->
-          companyRepository.findByRegistryCode(partyId.code()).map(Party.class::cast);
-    };
+    return lookups.stream()
+        .filter(lookup -> lookup.type() == partyId.type())
+        .findFirst()
+        .orElseThrow(
+            () -> new IllegalStateException("No party lookup for type: type=" + partyId.type()))
+        .find(partyId.code());
   }
 }

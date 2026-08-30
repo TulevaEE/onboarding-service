@@ -71,6 +71,12 @@
     "score": 99.7,
     "recordedAt": "2026-08-30"
   },
+  "mandate": {
+    "mutations": 955,
+    "detected": 759,
+    "score": 79.48,
+    "recordedAt": "2026-08-30"
+  },
   "notification": {
     "mutations": 236,
     "detected": 219,

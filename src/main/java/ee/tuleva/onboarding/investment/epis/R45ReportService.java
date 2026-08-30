@@ -2,8 +2,8 @@ package ee.tuleva.onboarding.investment.epis;
 
 import static ee.tuleva.onboarding.investment.epis.SummaryData.dates;
 import static ee.tuleva.onboarding.investment.epis.SummaryData.number;
-import static ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser.findDate;
 import static ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser.findValue;
+import static ee.tuleva.onboarding.investment.epis.parser.EpisDates.findDate;
 import static ee.tuleva.onboarding.investment.report.ReportType.R45;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 

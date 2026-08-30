@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.investment.epis.parser;
 
 import static ee.tuleva.onboarding.investment.epis.R45TransactionType.Direction.OUTFLOW;
-import static ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser.findDate;
 import static ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser.findValue;
-import static ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser.parseNumber;
+import static ee.tuleva.onboarding.investment.epis.parser.EpisDates.findDate;
+import static ee.tuleva.onboarding.investment.epis.parser.EpisNumbers.parseNumber;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.epis.R45Result;

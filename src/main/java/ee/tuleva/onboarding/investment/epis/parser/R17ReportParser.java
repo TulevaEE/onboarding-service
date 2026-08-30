@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.investment.epis.parser;
 
-import static ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser.findDate;
 import static ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser.findValue;
-import static ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser.parseNumber;
+import static ee.tuleva.onboarding.investment.epis.parser.EpisDates.findDate;
+import static ee.tuleva.onboarding.investment.epis.parser.EpisNumbers.parseNumber;
 import static java.math.BigDecimal.ZERO;
 import static java.util.Objects.requireNonNullElse;
 

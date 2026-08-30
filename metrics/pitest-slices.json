@@ -41,6 +41,12 @@
     "score": 87.1,
     "recordedAt": "2026-08-30"
   },
+  "epis": {
+    "mutations": 132,
+    "detected": 94,
+    "score": 71.21,
+    "recordedAt": "2026-08-30"
+  },
   "kyb": {
     "mutations": 330,
     "detected": 305,

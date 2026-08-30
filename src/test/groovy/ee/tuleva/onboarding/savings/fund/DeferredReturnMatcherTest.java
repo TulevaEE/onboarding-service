@@ -78,7 +78,8 @@ class DeferredReturnMatcherTest {
 
     var expectedParty = new PartyId(PERSON, user.getPersonalCode());
     verify(savingsFundLedger)
-        .recordPaymentCancelled(expectedParty, new BigDecimal("50.00"), originalPaymentId);
+        .recordPaymentCancelled(
+            LedgerRefs.from(expectedParty), new BigDecimal("50.00"), originalPaymentId);
     verify(eventPublisher)
         .publishEvent(new DeferredReturnMatchingCompletedEvent(1, 0, new BigDecimal("50.00")));
   }
@@ -434,7 +435,7 @@ class DeferredReturnMatcherTest {
 
     verify(savingsFundLedger)
         .recordPaymentCancelled(
-            new PartyId(PERSON, user.getPersonalCode()),
+            LedgerRefs.from(new PartyId(PERSON, user.getPersonalCode())),
             new BigDecimal("100.00"),
             originalPaymentId);
   }

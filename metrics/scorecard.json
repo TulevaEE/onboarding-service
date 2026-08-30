@@ -10,7 +10,7 @@
   "godClasses": 14,
   "lineCoverage": 82.77,
   "longClasses": 4,
-  "meanInstability": 0.471,
+  "meanInstability": 0.469,
   "moduleCycles": 0,
   "modulithViolations": 100,
   "mutationScore": 84.43,
@@ -26,11 +26,11 @@
     "GodClass": 14,
     "TooManyMethods": 6
   },
-  "slowest10TestClassesSeconds": 98.6,
+  "slowest10TestClassesSeconds": 106.1,
   "springBootTests": 76,
-  "suiteWallTimeSeconds": 170,
-  "testClassesOver10Seconds": 2,
-  "top15ClassLines": 7194,
+  "suiteWallTimeSeconds": 163,
+  "testClassesOver10Seconds": 4,
+  "top15ClassLines": 7193,
   "totalPackages": 227,
   "unmarkedPackages": 0
 }

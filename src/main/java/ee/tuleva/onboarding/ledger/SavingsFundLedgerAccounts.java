@@ -8,10 +8,8 @@ import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
 import static java.time.temporal.ChronoUnit.MICROS;
 
-import ee.tuleva.onboarding.ledger.LedgerParty.PartyType;
 import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
-import ee.tuleva.onboarding.party.PartyId;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -51,11 +49,10 @@ class SavingsFundLedgerAccounts {
                     accountName, systemAccount.getAccountType(), systemAccount.getAssetType()));
   }
 
-  LedgerAccount resolvePartyAccount(PartyId party, UserAccount userAccount) {
-    var partyType = PartyType.valueOf(party.type().name());
+  LedgerAccount resolvePartyAccount(PartyRef party, UserAccount userAccount) {
     LedgerParty ledgerParty =
         ledgerPartyService
-            .getParty(party.code(), partyType)
+            .getParty(party.code(), party.type())
             .orElseThrow(
                 () ->
                     new IllegalArgumentException(
@@ -75,16 +72,15 @@ class SavingsFundLedgerAccounts {
     return new LedgerEntryDto(account, amount);
   }
 
-  Map<String, Object> partyMetadata(PartyId party, TransactionType transactionType) {
+  Map<String, Object> partyMetadata(PartyRef party, TransactionType transactionType) {
     return Map.of(
         OPERATION_TYPE.getKey(), transactionType.name(),
         PARTY_CODE.getKey(), party.code(),
         PARTY_TYPE.getKey(), party.type().name());
   }
 
-  LedgerParty getParty(PartyId party) {
-    var partyType = PartyType.valueOf(party.type().name());
-    return ledgerPartyService.getOrCreate(party.code(), partyType);
+  LedgerParty getParty(PartyRef party) {
+    return ledgerPartyService.getOrCreate(party.code(), party.type());
   }
 
   LedgerAccount getUserAccount(LedgerParty owner, UserAccount userAccount) {

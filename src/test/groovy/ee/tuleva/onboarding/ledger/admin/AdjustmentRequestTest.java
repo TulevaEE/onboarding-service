@@ -2,7 +2,8 @@ package ee.tuleva.onboarding.ledger.admin;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.ledger.LedgerParty;
+import ee.tuleva.onboarding.ledger.PartyRef;
 import java.math.BigDecimal;
 import org.junit.jupiter.api.Test;
 
@@ -19,7 +20,8 @@ class AdjustmentRequestTest {
   void debitParty_resolvesPartyIdWhenCodePresent() {
     var request = sampleRequest("38812121215", "PERSON", "CREDIT", null, null);
 
-    assertThat(request.debitParty()).isEqualTo(new PartyId(PartyId.Type.PERSON, "38812121215"));
+    assertThat(request.debitParty())
+        .isEqualTo(new PartyRef(LedgerParty.PartyType.PERSON, "38812121215"));
   }
 
   @Test
@@ -33,7 +35,8 @@ class AdjustmentRequestTest {
   void creditParty_resolvesPartyIdWhenCodePresent() {
     var request = sampleRequest(null, null, "CREDIT", "48709090311", "PERSON");
 
-    assertThat(request.creditParty()).isEqualTo(new PartyId(PartyId.Type.PERSON, "48709090311"));
+    assertThat(request.creditParty())
+        .isEqualTo(new PartyRef(LedgerParty.PartyType.PERSON, "48709090311"));
   }
 
   private static AdjustmentRequest sampleRequest(

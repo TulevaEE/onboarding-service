@@ -10,7 +10,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
-import ee.tuleva.onboarding.party.PartyId;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,7 +24,7 @@ class LedgerServiceTest {
   @Mock private LedgerAccountService ledgerAccountService;
   @InjectMocks private LedgerService ledgerService;
 
-  PartyId testParty = new PartyId(PartyId.Type.PERSON, "38812121215");
+  PartyRef testParty = new PartyRef(PERSON, "38812121215");
   LedgerParty ledgerParty = LedgerParty.builder().build();
   LedgerAccount account = sampleLedgerAccount().build();
 

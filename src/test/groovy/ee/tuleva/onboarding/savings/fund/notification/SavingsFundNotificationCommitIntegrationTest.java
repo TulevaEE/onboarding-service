@@ -36,6 +36,7 @@ import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.FundNavProvider;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
+import ee.tuleva.onboarding.savings.fund.LedgerRefs;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.savings.fund.issuing.FundAccountPaymentJob;
@@ -317,8 +318,8 @@ class SavingsFundNotificationCommitIntegrationTest {
     paymentRepository.changeStatus(paymentId, RECEIVED);
     paymentRepository.changeStatus(paymentId, VERIFIED);
     paymentRepository.changeStatus(paymentId, RESERVED);
-    savingsFundLedger.recordPaymentReceived(party, ISSUED_CASH, paymentId);
-    savingsFundLedger.reservePaymentForSubscription(party, ISSUED_CASH, paymentId);
+    savingsFundLedger.recordPaymentReceived(LedgerRefs.from(party), ISSUED_CASH, paymentId);
+    savingsFundLedger.reservePaymentForSubscription(LedgerRefs.from(party), ISSUED_CASH, paymentId);
     assertNoForeignReservedPayments();
     return paymentId;
   }
@@ -341,7 +342,7 @@ class SavingsFundNotificationCommitIntegrationTest {
   }
 
   private void holdFundUnits() {
-    var party = new PartyId(PartyId.Type.PERSON, REDEEMER_CODE);
+    var party = LedgerRefs.from(new PartyId(PartyId.Type.PERSON, REDEEMER_CODE));
     savingsFundLedger.recordPaymentReceived(party, HELD_CASH, HELD_UNITS_REFERENCE);
     savingsFundLedger.reservePaymentForSubscription(party, HELD_CASH, HELD_UNITS_REFERENCE);
     savingsFundLedger.issueFundUnitsFromReserved(

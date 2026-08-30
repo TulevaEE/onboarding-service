@@ -21,6 +21,7 @@ import ee.tuleva.onboarding.savings.FundNavProvider;
 import ee.tuleva.onboarding.savings.SavingFundDeadlinesService;
 import ee.tuleva.onboarding.savings.SavingsFundOnboardingService;
 import ee.tuleva.onboarding.savings.fund.IbanWhitelistService;
+import ee.tuleva.onboarding.savings.fund.LedgerRefs;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.notification.RedemptionRequestedEvent;
 import java.math.BigDecimal;
@@ -97,7 +98,8 @@ public class RedemptionService {
 
     RedemptionRequest saved = redemptionRequestRepository.save(request);
 
-    savingsFundLedger.reserveFundUnitsForRedemption(partyId, fundUnits, saved.getId());
+    savingsFundLedger.reserveFundUnitsForRedemption(
+        LedgerRefs.from(partyId), fundUnits, saved.getId());
     log.info(
         "Created redemption request: id={}, userId={}, party={}, requestedAmount={}, fundUnits={}, nav={}, customerIban={}",
         saved.getId(),
@@ -184,7 +186,7 @@ public class RedemptionService {
     validateCancellationDeadline(request);
 
     savingsFundLedger.cancelRedemptionReservation(
-        requestParty, request.getFundUnits(), request.getId());
+        LedgerRefs.from(requestParty), request.getFundUnits(), request.getId());
     redemptionStatusService.changeStatus(id, CANCELLED);
     log.info(
         "Cancelled redemption request: id={}, userId={}, party={}",
@@ -237,7 +239,8 @@ public class RedemptionService {
 
   private BigDecimal getEffectiveAvailableFundUnits(PartyId partyId) {
     return ledgerService
-        .getPartyAccount(partyId.code(), LedgerParty.PartyType.from(partyId.type()), FUND_UNITS)
+        .getPartyAccount(
+            partyId.code(), LedgerParty.PartyType.valueOf(partyId.type().name()), FUND_UNITS)
         .getBalance()
         .negate();
   }

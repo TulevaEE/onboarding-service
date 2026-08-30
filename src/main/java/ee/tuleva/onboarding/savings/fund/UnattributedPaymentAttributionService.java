@@ -81,12 +81,13 @@ public class UnattributedPaymentAttributionService {
         partyId.type(),
         partyId.code());
 
+    var partyRef = LedgerRefs.from(partyId);
     var bookingDate = payment.bookingDate();
     if (bookingDate != null) {
       savingsFundLedger.reconcileUnattributedPayment(
-          partyId, payment.getAmount(), paymentId, bookingDate);
+          partyRef, payment.getAmount(), paymentId, bookingDate);
     } else {
-      savingsFundLedger.reconcileUnattributedPayment(partyId, payment.getAmount(), paymentId);
+      savingsFundLedger.reconcileUnattributedPayment(partyRef, payment.getAmount(), paymentId);
     }
     paymentRepository.attributeManually(paymentId, partyId, returnCancelled);
 

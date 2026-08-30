@@ -15,7 +15,6 @@ import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.time.ClockConfig;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.math.BigDecimal;
@@ -47,7 +46,7 @@ class SavingsFundLedgerTest {
   @Autowired LedgerAccountService ledgerAccountService;
   @Autowired SavingsFundLedger savingsFundLedger;
 
-  PartyId testParty = new PartyId(PartyId.Type.PERSON, "38001010001");
+  PartyRef testParty = new PartyRef(PERSON, "38001010001");
 
   @AfterEach
   void tearDown() {
@@ -454,7 +453,7 @@ class SavingsFundLedgerTest {
 
   @Test
   void recordPaymentReceived_autoCreatesPartyAndAccountsForNewUser() {
-    var newParty = new PartyId(PartyId.Type.PERSON, "99999999999");
+    var newParty = new PartyRef(PERSON, "99999999999");
     var amount = new BigDecimal("100.00");
     var externalReference = randomUUID();
 
@@ -539,9 +538,9 @@ class SavingsFundLedgerTest {
     var transaction =
         savingsFundLedger.recordAdjustment(
             "INCOMING_PAYMENTS_CLEARING",
-            (PartyId) null,
+            (PartyRef) null,
             "BANK_ADJUSTMENT",
-            (PartyId) null,
+            (PartyRef) null,
             amount,
             null,
             "Test adjustment");
@@ -580,7 +579,7 @@ class SavingsFundLedgerTest {
     var paymentId = randomUUID();
     savingsFundLedger.recordPaymentReceived(testParty, new BigDecimal("100.00"), paymentId);
 
-    var otherParty = new PartyId(PartyId.Type.PERSON, "38001010002");
+    var otherParty = new PartyRef(PERSON, "38001010002");
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -621,9 +620,9 @@ class SavingsFundLedgerTest {
     var transaction =
         savingsFundLedger.recordAdjustment(
             "TRADE_UNIT_SETTLEMENT:TKF100:LU1291102447",
-            (PartyId) null,
+            (PartyRef) null,
             "SECURITIES_CUSTODY:TKF100:LU1291102447",
-            (PartyId) null,
+            (PartyRef) null,
             units,
             null,
             "Trade unit backfill");
@@ -783,7 +782,7 @@ class SavingsFundLedgerTest {
     var transaction =
         savingsFundLedger.recordAdjustment(
             "INCOMING_PAYMENTS_CLEARING",
-            (PartyId) null,
+            (PartyRef) null,
             "CASH",
             testParty,
             amount,
@@ -873,7 +872,7 @@ class SavingsFundLedgerTest {
 
   @Test
   void recordAdjustment_debitPartyNotFound_throwsIllegalArgumentException() {
-    var unregisteredParty = new PartyId(PartyId.Type.PERSON, "38888888888");
+    var unregisteredParty = new PartyRef(PERSON, "38888888888");
 
     assertThrows(
         IllegalArgumentException.class,

@@ -24,6 +24,7 @@ import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.FundNavProvider;
+import ee.tuleva.onboarding.savings.fund.LedgerRefs;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.notification.RedemptionBatchCompletedEvent;
 import ee.tuleva.onboarding.user.UserRepository;
@@ -171,7 +172,7 @@ class RedemptionBatchJobTest {
 
     verify(savingsFundLedger)
         .redeemFundUnitsFromReserved(
-            eq(new PartyId(PartyId.Type.PERSON, user.getPersonalCode())),
+            eq(LedgerRefs.from(new PartyId(PartyId.Type.PERSON, user.getPersonalCode()))),
             eq(new BigDecimal("10.00000")),
             any(BigDecimal.class),
             eq(BigDecimal.ONE),

@@ -14,8 +14,9 @@ import ee.tuleva.onboarding.banking.event.BankMessageEvents.SavingsFundStatement
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
+import ee.tuleva.onboarding.ledger.LedgerParty.PartyType;
+import ee.tuleva.onboarding.ledger.PartyRef;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
-import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestRepository;
@@ -176,7 +177,7 @@ public class SavingsFundStatementProcessor {
           "Ledger payout entry already exists but status is REDEEMED: id={}", request.getId());
     } else {
       var user = userService.getByIdOrThrow(request.getUserId());
-      var party = new PartyId(PartyId.Type.PERSON, user.getPersonalCode());
+      var party = new PartyRef(PartyType.PERSON, user.getPersonalCode());
       var amount = payment.getAmount().negate();
       log.info(
           "Creating ledger entry for redemption payout: redemptionId={}, amount={}",

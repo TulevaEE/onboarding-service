@@ -5,8 +5,6 @@ import static jakarta.persistence.GenerationType.UUID;
 import static org.hibernate.generator.EventType.INSERT;
 import static org.hibernate.type.SqlTypes.JSON;
 
-import ee.tuleva.onboarding.auth.role.RoleType;
-import ee.tuleva.onboarding.party.PartyId;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -29,15 +27,7 @@ public class LedgerParty {
 
   public enum PartyType {
     PERSON,
-    LEGAL_ENTITY;
-
-    public static PartyType from(RoleType roleType) {
-      return valueOf(roleType.name());
-    }
-
-    public static PartyType from(PartyId.Type type) {
-      return valueOf(type.name());
-    }
+    LEGAL_ENTITY
   }
 
   @Id

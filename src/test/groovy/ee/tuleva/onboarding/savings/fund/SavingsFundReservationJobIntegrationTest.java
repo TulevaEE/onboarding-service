@@ -74,7 +74,8 @@ class SavingsFundReservationJobIntegrationTest {
     var payment = repository.findById(paymentId).orElseThrow();
     assertThat(payment.getStatus()).isEqualTo(RESERVED);
     verify(ledger)
-        .reservePaymentForSubscription(eq(party), eq(payment.getAmount()), eq(payment.getId()));
+        .reservePaymentForSubscription(
+            eq(LedgerRefs.from(party)), eq(payment.getAmount()), eq(payment.getId()));
   }
 
   @Test
@@ -134,10 +135,10 @@ class SavingsFundReservationJobIntegrationTest {
     // Ledger should be called for both payments, but only valid one succeeds
     verify(ledger)
         .reservePaymentForSubscription(
-            eq(party), eq(invalidPayment.getAmount()), eq(invalidPayment.getId()));
+            eq(LedgerRefs.from(party)), eq(invalidPayment.getAmount()), eq(invalidPayment.getId()));
     verify(ledger)
         .reservePaymentForSubscription(
-            eq(party), eq(validPayment.getAmount()), eq(validPayment.getId()));
+            eq(LedgerRefs.from(party)), eq(validPayment.getAmount()), eq(validPayment.getId()));
   }
 
   private SavingFundPayment.SavingFundPaymentBuilder createPayment() {

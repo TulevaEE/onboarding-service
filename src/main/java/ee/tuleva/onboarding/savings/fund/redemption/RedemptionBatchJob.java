@@ -17,6 +17,7 @@ import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.FundNavProvider;
+import ee.tuleva.onboarding.savings.fund.LedgerRefs;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.notification.RedemptionBatchCompletedEvent;
 import ee.tuleva.onboarding.user.User;
@@ -150,7 +151,7 @@ public class RedemptionBatchJob {
                   redemptionRequestRepository.save(toUpdate);
 
                   savingsFundLedger.redeemFundUnitsFromReserved(
-                      party, request.getFundUnits(), amount, nav, request.getId());
+                      LedgerRefs.from(party), request.getFundUnits(), amount, nav, request.getId());
 
                   log.info(
                       "Priced redemption request: id={}, fundUnits={}, cashAmount={}, nav={}",

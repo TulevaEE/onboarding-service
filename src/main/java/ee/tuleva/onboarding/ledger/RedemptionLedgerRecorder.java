@@ -6,7 +6,6 @@ import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.NAV_PER_
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.OPERATION_TYPE;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.REDEMPTION_REQUEST_ID;
 
-import ee.tuleva.onboarding.party.PartyId;
 import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -28,7 +27,7 @@ class RedemptionLedgerRecorder {
 
   @Transactional
   LedgerTransaction reserveFundUnitsForRedemption(
-      PartyId party, BigDecimal fundUnits, UUID externalReference) {
+      PartyRef party, BigDecimal fundUnits, UUID externalReference) {
     LedgerParty ledgerParty = accounts.getParty(party);
     LedgerAccount userUnitsAccount = accounts.getUserUnitsAccount(ledgerParty);
     LedgerAccount userUnitsReservedAccount = accounts.getUserUnitsReservedAccount(ledgerParty);
@@ -46,7 +45,7 @@ class RedemptionLedgerRecorder {
 
   @Transactional
   LedgerTransaction cancelRedemptionReservation(
-      PartyId party, BigDecimal fundUnits, UUID externalReference) {
+      PartyRef party, BigDecimal fundUnits, UUID externalReference) {
     LedgerParty ledgerParty = accounts.getParty(party);
     LedgerAccount userUnitsAccount = accounts.getUserUnitsAccount(ledgerParty);
     LedgerAccount userUnitsReservedAccount = accounts.getUserUnitsReservedAccount(ledgerParty);
@@ -64,7 +63,7 @@ class RedemptionLedgerRecorder {
 
   @Transactional
   LedgerTransaction redeemFundUnitsFromReserved(
-      PartyId party,
+      PartyRef party,
       BigDecimal fundUnits,
       BigDecimal cashAmount,
       BigDecimal navPerUnit,
@@ -116,14 +115,14 @@ class RedemptionLedgerRecorder {
 
   @Transactional
   LedgerTransaction recordRedemptionPayout(
-      PartyId party, BigDecimal amount, String customerIban, UUID redemptionRequestId) {
+      PartyRef party, BigDecimal amount, String customerIban, UUID redemptionRequestId) {
     return recordRedemptionPayout(
         party, amount, customerIban, redemptionRequestId, LocalDate.now(clock));
   }
 
   @Transactional
   LedgerTransaction recordRedemptionPayout(
-      PartyId party,
+      PartyRef party,
       BigDecimal amount,
       String customerIban,
       UUID redemptionRequestId,

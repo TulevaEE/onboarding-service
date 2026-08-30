@@ -52,9 +52,9 @@ public class PaymentReturningService {
   }
 
   private void reserveUserBalanceForReturn(SavingFundPayment payment) {
+    var partyId =
+        requireNonNull(payment.getPartyId(), "Missing partyId: paymentId=" + payment.getId());
     savingsFundLedger.reservePaymentForCancellation(
-        requireNonNull(payment.getPartyId(), "Missing partyId: paymentId=" + payment.getId()),
-        payment.getAmount(),
-        payment.getId());
+        LedgerRefs.from(partyId), payment.getAmount(), payment.getId());
   }
 }

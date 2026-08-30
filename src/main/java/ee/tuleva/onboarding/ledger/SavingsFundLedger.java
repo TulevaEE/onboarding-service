@@ -4,7 +4,6 @@ import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.*;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.*;
 
 import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
-import ee.tuleva.onboarding.party.PartyId;
 import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -98,13 +97,13 @@ public class SavingsFundLedger {
 
   @Transactional
   public LedgerTransaction recordPaymentReceived(
-      PartyId party, BigDecimal amount, UUID externalReference) {
+      PartyRef party, BigDecimal amount, UUID externalReference) {
     return recordPaymentReceived(party, amount, externalReference, LocalDate.now(clock));
   }
 
   @Transactional
   public LedgerTransaction recordPaymentReceived(
-      PartyId party, BigDecimal amount, UUID externalReference, LocalDate bookingDate) {
+      PartyRef party, BigDecimal amount, UUID externalReference, LocalDate bookingDate) {
     LedgerParty ledgerParty = accounts.getParty(party);
     LedgerAccount userCashAccount = accounts.getUserCashAccount(ledgerParty);
     LedgerAccount incomingPaymentsAccount = accounts.getIncomingPaymentsClearingAccount();
@@ -122,7 +121,7 @@ public class SavingsFundLedger {
 
   @Transactional
   public LedgerTransaction reservePaymentForCancellation(
-      PartyId party, BigDecimal amount, UUID externalReference) {
+      PartyRef party, BigDecimal amount, UUID externalReference) {
     LedgerParty ledgerParty = accounts.getParty(party);
     LedgerAccount userCashAccount = accounts.getUserCashAccount(ledgerParty);
     LedgerAccount userCashReservedAccount = accounts.getUserCashReservedAccount(ledgerParty);
@@ -140,7 +139,7 @@ public class SavingsFundLedger {
 
   @Transactional
   public LedgerTransaction recordPaymentCancelled(
-      PartyId party, BigDecimal amount, UUID externalReference) {
+      PartyRef party, BigDecimal amount, UUID externalReference) {
     boolean unattributedPaymentExists =
         ledgerTransactionService.existsByExternalReferenceAndTransactionType(
             externalReference, UNATTRIBUTED_PAYMENT);
@@ -182,7 +181,7 @@ public class SavingsFundLedger {
   }
 
   private void ensurePaymentReceivedExists(
-      PartyId party, BigDecimal amount, UUID externalReference) {
+      PartyRef party, BigDecimal amount, UUID externalReference) {
     boolean alreadyRecorded =
         ledgerTransactionService.existsByExternalReferenceAndTransactionType(
             externalReference, PAYMENT_RECEIVED);
@@ -191,7 +190,7 @@ public class SavingsFundLedger {
     }
   }
 
-  private void ensureReservationExists(PartyId party, BigDecimal amount, UUID externalReference) {
+  private void ensureReservationExists(PartyRef party, BigDecimal amount, UUID externalReference) {
     boolean reservationAlreadyExists =
         ledgerTransactionService.existsByExternalReferenceAndTransactionType(
             externalReference, PAYMENT_CANCEL_REQUESTED);
@@ -213,7 +212,7 @@ public class SavingsFundLedger {
 
   @Transactional
   public LedgerTransaction reservePaymentForSubscription(
-      PartyId party, BigDecimal amount, UUID externalReference) {
+      PartyRef party, BigDecimal amount, UUID externalReference) {
     LedgerParty ledgerParty = accounts.getParty(party);
     LedgerAccount userCashAccount = accounts.getUserCashAccount(ledgerParty);
     LedgerAccount userCashReservedAccount = accounts.getUserCashReservedAccount(ledgerParty);
@@ -231,7 +230,7 @@ public class SavingsFundLedger {
 
   @Transactional
   public LedgerTransaction issueFundUnitsFromReserved(
-      PartyId party,
+      PartyRef party,
       BigDecimal cashAmount,
       BigDecimal fundUnits,
       BigDecimal navPerUnit,
@@ -286,13 +285,13 @@ public class SavingsFundLedger {
 
   @Transactional
   public LedgerTransaction reconcileUnattributedPayment(
-      PartyId party, BigDecimal amount, UUID externalReference) {
+      PartyRef party, BigDecimal amount, UUID externalReference) {
     return reconcileUnattributedPayment(party, amount, externalReference, LocalDate.now(clock));
   }
 
   @Transactional
   public LedgerTransaction reconcileUnattributedPayment(
-      PartyId party, BigDecimal amount, UUID externalReference, LocalDate bookingDate) {
+      PartyRef party, BigDecimal amount, UUID externalReference, LocalDate bookingDate) {
     var existing =
         ledgerTransactionService.findByExternalReferenceAndTransactionType(
             externalReference, UNATTRIBUTED_PAYMENT_RECONCILED);
@@ -327,19 +326,19 @@ public class SavingsFundLedger {
 
   @Transactional
   public LedgerTransaction reserveFundUnitsForRedemption(
-      PartyId party, BigDecimal fundUnits, UUID externalReference) {
+      PartyRef party, BigDecimal fundUnits, UUID externalReference) {
     return redemptionRecorder.reserveFundUnitsForRedemption(party, fundUnits, externalReference);
   }
 
   @Transactional
   public LedgerTransaction cancelRedemptionReservation(
-      PartyId party, BigDecimal fundUnits, UUID externalReference) {
+      PartyRef party, BigDecimal fundUnits, UUID externalReference) {
     return redemptionRecorder.cancelRedemptionReservation(party, fundUnits, externalReference);
   }
 
   @Transactional
   public LedgerTransaction redeemFundUnitsFromReserved(
-      PartyId party,
+      PartyRef party,
       BigDecimal fundUnits,
       BigDecimal cashAmount,
       BigDecimal navPerUnit,
@@ -361,14 +360,14 @@ public class SavingsFundLedger {
 
   @Transactional
   public LedgerTransaction recordRedemptionPayout(
-      PartyId party, BigDecimal amount, String customerIban, UUID redemptionRequestId) {
+      PartyRef party, BigDecimal amount, String customerIban, UUID redemptionRequestId) {
     return redemptionRecorder.recordRedemptionPayout(
         party, amount, customerIban, redemptionRequestId);
   }
 
   @Transactional
   public LedgerTransaction recordRedemptionPayout(
-      PartyId party,
+      PartyRef party,
       BigDecimal amount,
       String customerIban,
       UUID redemptionRequestId,
@@ -380,9 +379,9 @@ public class SavingsFundLedger {
   @Transactional
   public LedgerTransaction recordAdjustment(
       String debitAccountName,
-      @Nullable PartyId debitParty,
+      @Nullable PartyRef debitParty,
       String creditAccountName,
-      @Nullable PartyId creditParty,
+      @Nullable PartyRef creditParty,
       BigDecimal amount,
       @Nullable UUID externalReference,
       String description) {

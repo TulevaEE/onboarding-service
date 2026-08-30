@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.payment.PaymentRequest;
 import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
+import ee.tuleva.onboarding.ledger.PartyRef;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
@@ -93,7 +94,8 @@ class PaymentReturningServiceTest {
 
     service.createReturn(payment);
 
-    verify(savingsFundLedger).reservePaymentForCancellation(party, amount, paymentId);
+    verify(savingsFundLedger)
+        .reservePaymentForCancellation(LedgerRefs.from(party), amount, paymentId);
   }
 
   @Test
@@ -112,6 +114,6 @@ class PaymentReturningServiceTest {
     service.createReturn(payment);
 
     verify(savingsFundLedger, never())
-        .reservePaymentForCancellation(any(PartyId.class), any(), any());
+        .reservePaymentForCancellation(any(PartyRef.class), any(), any());
   }
 }

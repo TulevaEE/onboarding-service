@@ -123,7 +123,7 @@ public class PaymentVerificationService {
         "Verification completed for payment {}, attaching to party {}", payment.getId(), partyId);
     savingFundPaymentRepository.changeStatus(payment.getId(), VERIFIED);
     savingsFundLedger.recordPaymentReceived(
-        partyId,
+        LedgerRefs.from(partyId),
         payment.getAmount(),
         payment.getId(),
         Objects.requireNonNull(

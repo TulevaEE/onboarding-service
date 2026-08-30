@@ -132,7 +132,9 @@ public class DeferredReturnMatcher {
           originalPaymentId,
           originalPayment.getAmount());
       savingsFundLedger.recordPaymentCancelled(
-          originalPayment.getPartyId(), originalPayment.getAmount(), originalPaymentId);
+          LedgerRefs.from(originalPayment.getPartyId()),
+          originalPayment.getAmount(),
+          originalPaymentId);
     } else {
       log.info(
           "Deferred return matching: creating ledger entry for unattributed payment bounce back: paymentId={}, amount={}",

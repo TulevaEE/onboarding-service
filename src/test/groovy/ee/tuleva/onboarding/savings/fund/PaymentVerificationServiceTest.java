@@ -112,7 +112,7 @@ class PaymentVerificationServiceTest {
     verify(savingsFundOnboardingService).isOnboardingCompleted(new PartyId(PERSON, "37508295796"));
     verify(savingsFundLedger)
         .recordPaymentReceived(
-            new PartyId(PERSON, "37508295796"),
+            LedgerRefs.from(new PartyId(PERSON, "37508295796")),
             payment.getAmount(),
             payment.getId(),
             LocalDate.of(2025, 10, 1));
@@ -236,7 +236,7 @@ class PaymentVerificationServiceTest {
     verify(savingsFundOnboardingService).isOnboardingCompleted(new PartyId(PERSON, "37508295796"));
     verify(savingsFundLedger)
         .recordPaymentReceived(
-            new PartyId(PERSON, user.getPersonalCode()),
+            LedgerRefs.from(new PartyId(PERSON, user.getPersonalCode())),
             payment.getAmount(),
             payment.getId(),
             LocalDate.of(2025, 10, 1));
@@ -267,7 +267,7 @@ class PaymentVerificationServiceTest {
     verify(savingsFundOnboardingService).isOnboardingCompleted(new PartyId(PERSON, "37508295796"));
     verify(savingsFundLedger)
         .recordPaymentReceived(
-            new PartyId(PERSON, user.getPersonalCode()),
+            LedgerRefs.from(new PartyId(PERSON, user.getPersonalCode())),
             payment.getAmount(),
             payment.getId(),
             LocalDate.of(2025, 10, 1));
@@ -296,7 +296,7 @@ class PaymentVerificationServiceTest {
     verify(savingsFundOnboardingService).isOnboardingCompleted(new PartyId(PERSON, "37508295796"));
     verify(savingsFundLedger)
         .recordPaymentReceived(
-            new PartyId(PERSON, user.getPersonalCode()),
+            LedgerRefs.from(new PartyId(PERSON, user.getPersonalCode())),
             payment.getAmount(),
             payment.getId(),
             LocalDate.of(2025, 10, 1));
@@ -335,7 +335,7 @@ class PaymentVerificationServiceTest {
     verify(savingsFundOnboardingService).isOnboardingCompleted(new PartyId(PERSON, "37508295796"));
     verify(savingsFundLedger)
         .recordPaymentReceived(
-            new PartyId(PERSON, user.getPersonalCode()),
+            LedgerRefs.from(new PartyId(PERSON, user.getPersonalCode())),
             payment.getAmount(),
             payment.getId(),
             LocalDate.of(2025, 10, 1));
@@ -364,7 +364,7 @@ class PaymentVerificationServiceTest {
     verify(savingsFundOnboardingService).isOnboardingCompleted(new PartyId(PERSON, "37508295796"));
     verify(savingsFundLedger)
         .recordPaymentReceived(
-            new PartyId(PERSON, user.getPersonalCode()),
+            LedgerRefs.from(new PartyId(PERSON, user.getPersonalCode())),
             payment.getAmount(),
             payment.getId(),
             LocalDate.of(2025, 10, 1));
@@ -463,7 +463,7 @@ class PaymentVerificationServiceTest {
         .isOnboardingCompleted(new PartyId(LEGAL_ENTITY, "14118923"));
     verify(savingsFundLedger)
         .recordPaymentReceived(
-            new PartyId(LEGAL_ENTITY, "14118923"),
+            LedgerRefs.from(new PartyId(LEGAL_ENTITY, "14118923")),
             payment.getAmount(),
             payment.getId(),
             LocalDate.of(2025, 10, 1));
@@ -552,7 +552,7 @@ class PaymentVerificationServiceTest {
         .isOnboardingCompleted(new PartyId(LEGAL_ENTITY, "14118923"));
     verify(savingsFundLedger)
         .recordPaymentReceived(
-            new PartyId(LEGAL_ENTITY, "14118923"),
+            LedgerRefs.from(new PartyId(LEGAL_ENTITY, "14118923")),
             payment.getAmount(),
             payment.getId(),
             LocalDate.of(2025, 10, 1));
@@ -574,7 +574,7 @@ class PaymentVerificationServiceTest {
 
     verify(savingsFundLedger)
         .recordPaymentReceived(
-            new PartyId(LEGAL_ENTITY, "14118923"),
+            LedgerRefs.from(new PartyId(LEGAL_ENTITY, "14118923")),
             payment.getAmount(),
             payment.getId(),
             LocalDate.of(2025, 10, 1));
@@ -761,7 +761,7 @@ class PaymentVerificationServiceTest {
 
     verify(savingsFundLedger)
         .recordPaymentReceived(
-            new PartyId(PERSON, childCode),
+            LedgerRefs.from(new PartyId(PERSON, childCode)),
             payment.getAmount(),
             payment.getId(),
             LocalDate.of(2025, 10, 1));

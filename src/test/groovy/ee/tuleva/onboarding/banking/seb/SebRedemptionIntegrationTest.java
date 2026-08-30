@@ -22,6 +22,7 @@ import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.FundNavProvider;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
 import ee.tuleva.onboarding.savings.SavingFundPayment.Status;
+import ee.tuleva.onboarding.savings.fund.LedgerRefs;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionBatchJob;
@@ -104,10 +105,11 @@ class SebRedemptionIntegrationTest {
   private void setupUserWithFundUnits(BigDecimal cashAmount, BigDecimal fundUnits) {
     var navPerUnit = cashAmount.divide(fundUnits, 5, HALF_UP);
     var paymentId = UUID.randomUUID();
-    savingsFundLedger.recordPaymentReceived(testParty, cashAmount, paymentId);
-    savingsFundLedger.reservePaymentForSubscription(testParty, cashAmount, paymentId);
+    var testPartyRef = LedgerRefs.from(testParty);
+    savingsFundLedger.recordPaymentReceived(testPartyRef, cashAmount, paymentId);
+    savingsFundLedger.reservePaymentForSubscription(testPartyRef, cashAmount, paymentId);
     savingsFundLedger.issueFundUnitsFromReserved(
-        testParty, cashAmount, fundUnits, navPerUnit, paymentId);
+        testPartyRef, cashAmount, fundUnits, navPerUnit, paymentId);
     savingsFundLedger.transferToFundAccount(cashAmount, paymentId);
   }
 

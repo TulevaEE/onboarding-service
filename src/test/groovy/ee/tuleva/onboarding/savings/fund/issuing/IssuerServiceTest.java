@@ -12,6 +12,7 @@ import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.savings.fund.LedgerRefs;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import java.math.BigDecimal;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,7 +44,7 @@ class IssuerServiceTest {
 
     var issuedUnits = TEN.divide(ONE, 5, HALF_DOWN);
     verify(savingsFundLedger)
-        .issueFundUnitsFromReserved(party, TEN, issuedUnits, ONE, payment.getId());
+        .issueFundUnitsFromReserved(LedgerRefs.from(party), TEN, issuedUnits, ONE, payment.getId());
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), ISSUED);
   }
 

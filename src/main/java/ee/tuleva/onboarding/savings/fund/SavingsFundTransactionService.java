@@ -80,7 +80,7 @@ public class SavingsFundTransactionService implements SavingsTransactions {
     }
 
     String ownerCode = person.getRoleCode();
-    PartyType partyType = PartyType.from(person.getRoleType());
+    PartyType partyType = PartyType.valueOf(person.getRoleType().name());
     String isin = savingsFundConfiguration.getIsin();
 
     List<LedgerEntry> subscriptionEntries = entries(ownerCode, partyType, SUBSCRIPTIONS);

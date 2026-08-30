@@ -22,10 +22,10 @@ public class PaymentReservationService {
   public void process(SavingFundPayment payment) {
     log.info("Processing reservation for payment {}", payment.getId());
 
+    var partyId =
+        requireNonNull(payment.getPartyId(), "Missing partyId: paymentId=" + payment.getId());
     savingsFundLedger.reservePaymentForSubscription(
-        requireNonNull(payment.getPartyId(), "Missing partyId: paymentId=" + payment.getId()),
-        payment.getAmount(),
-        payment.getId());
+        LedgerRefs.from(partyId), payment.getAmount(), payment.getId());
 
     log.info("Reservation completed for payment {}", payment.getId());
     savingFundPaymentRepository.changeStatus(payment.getId(), RESERVED);

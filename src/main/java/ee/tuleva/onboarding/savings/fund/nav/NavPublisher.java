@@ -6,7 +6,6 @@ import static ee.tuleva.onboarding.pipeline.PipelineStep.REPORT_PERSIST;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueWriter;
-import ee.tuleva.onboarding.investment.check.tracking.NavTrackingDifferenceGate;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.pipeline.PipelineTracker;
 import java.util.List;
@@ -29,7 +28,7 @@ public class NavPublisher {
   private final NavReportEmailSender navReportEmailSender;
   private final NavNotifier navNotifier;
   private final OperationsNotificationService notificationService;
-  private final NavTrackingDifferenceGate trackingDifferenceGate;
+  private final NavPublicationGate trackingDifferenceGate;
   private final PipelineTracker pipelineTracker;
 
   public void publish(NavCalculationResult result) {

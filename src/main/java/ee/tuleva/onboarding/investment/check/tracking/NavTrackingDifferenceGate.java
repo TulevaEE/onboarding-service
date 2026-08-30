@@ -7,6 +7,7 @@ import static java.util.stream.Collectors.joining;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.pipeline.PipelineTracker;
+import ee.tuleva.onboarding.savings.fund.nav.NavPublicationGate;
 import java.time.LocalDate;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -16,12 +17,13 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class NavTrackingDifferenceGate {
+public class NavTrackingDifferenceGate implements NavPublicationGate {
 
   private final TrackingDifferenceService trackingDifferenceService;
   private final TrackingDifferenceNotifier trackingDifferenceNotifier;
   private final PipelineTracker pipelineTracker;
 
+  @Override
   public Optional<String> check(TulevaFund fund, LocalDate navDate) {
     pipelineTracker.stepStarted(TRACKING_DIFFERENCE);
     try {

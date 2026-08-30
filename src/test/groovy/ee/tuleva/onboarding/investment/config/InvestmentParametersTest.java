@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.investment.config;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 
-import ee.tuleva.onboarding.investment.InvestmentParameters;
+import ee.tuleva.onboarding.savings.fund.nav.NavImpactThreshold;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
@@ -24,7 +24,7 @@ class InvestmentParametersTest {
     given(repository.findLatestValue(InvestmentParameter.NAV_IMPACT_VOLUME_THRESHOLD, asOf))
         .willReturn(new BigDecimal("100000"));
 
-    InvestmentParameters investmentParameters = parameters;
+    NavImpactThreshold investmentParameters = parameters;
 
     assertThat(investmentParameters.navImpactVolumeThreshold(asOf))
         .isEqualByComparingTo(new BigDecimal("100000"));

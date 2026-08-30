@@ -1,5 +1,5 @@
 {
   "modulithViolations": 100,
-  "moduleCycles": 5,
+  "moduleCycles": 4,
   "disconnectedClasses": 455
 }

@@ -1,9 +1,10 @@
-package ee.tuleva.onboarding.investment;
+package ee.tuleva.onboarding.savings.fund.nav;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-public interface InvestmentParameters {
+@FunctionalInterface
+public interface NavImpactThreshold {
 
   BigDecimal navImpactVolumeThreshold(LocalDate asOf);
 }

@@ -8,8 +8,6 @@ import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
-import ee.tuleva.onboarding.investment.InvestmentParameters;
-import ee.tuleva.onboarding.investment.event.FundPositionsImported;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.savings.FundNavProvider;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
@@ -46,7 +44,7 @@ public class NavTransactionImpactAlertJob {
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final RedemptionRequestRepository redemptionRequestRepository;
   private final FundNavProvider fundNavProvider;
-  private final InvestmentParameters investmentParameters;
+  private final NavImpactThreshold investmentParameters;
   private final OperationsNotificationService notificationService;
   private final PublicHolidays publicHolidays;
   private final Clock clock;
@@ -54,8 +52,8 @@ public class NavTransactionImpactAlertJob {
   private volatile @Nullable LocalDate lastAlertDate;
   private final Set<String> sentAlerts = ConcurrentHashMap.newKeySet();
 
-  @EventListener(classes = FundPositionsImported.class)
-  void onFundPositionsImported() {
+  @EventListener(classes = NavPositionInputsImported.class)
+  void onNavPositionInputsImported() {
     try {
       checkAll();
     } catch (Exception e) {

@@ -82,5 +82,11 @@
     "detected": 219,
     "score": 92.8,
     "recordedAt": "2026-08-30"
+  },
+  "savings": {
+    "mutations": 1208,
+    "detected": 1045,
+    "score": 86.51,
+    "recordedAt": "2026-08-30"
   }
 }

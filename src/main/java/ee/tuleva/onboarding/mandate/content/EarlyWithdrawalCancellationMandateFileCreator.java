@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.mandate.content;
 
 import static ee.tuleva.onboarding.mandate.MandateType.EARLY_WITHDRAWAL_CANCELLATION;
 
-import ee.tuleva.onboarding.mandate.ApplicationType;
+import ee.tuleva.onboarding.applicationtype.ApplicationType;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateContactDetails;
 import ee.tuleva.onboarding.mandate.MandateType;

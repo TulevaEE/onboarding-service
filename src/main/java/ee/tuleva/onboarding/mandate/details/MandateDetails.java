@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.mandate.details;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonView;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import ee.tuleva.onboarding.mandate.ApplicationType;
+import ee.tuleva.onboarding.applicationtype.ApplicationType;
 import ee.tuleva.onboarding.mandate.MandateType;
 import ee.tuleva.onboarding.mandate.MandateView;
 import java.io.Serializable;

@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.mandate.application
 
 import ee.tuleva.onboarding.time.TestClockHolder
 
-import static ee.tuleva.onboarding.mandate.ApplicationType.*
+import static ee.tuleva.onboarding.applicationtype.ApplicationType.*
 import static ee.tuleva.onboarding.mandate.application.ApplicationStatus.COMPLETE
 import static ee.tuleva.onboarding.mandate.application.ApplicationStatus.PENDING
 import static ee.tuleva.onboarding.time.TestClockHolder.*

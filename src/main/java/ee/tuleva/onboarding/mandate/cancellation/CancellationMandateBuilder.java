@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.mandate.cancellation;
 
-import static ee.tuleva.onboarding.mandate.ApplicationType.EARLY_WITHDRAWAL;
-import static ee.tuleva.onboarding.mandate.ApplicationType.TRANSFER;
-import static ee.tuleva.onboarding.mandate.ApplicationType.WITHDRAWAL;
+import static ee.tuleva.onboarding.applicationtype.ApplicationType.EARLY_WITHDRAWAL;
+import static ee.tuleva.onboarding.applicationtype.ApplicationType.TRANSFER;
+import static ee.tuleva.onboarding.applicationtype.ApplicationType.WITHDRAWAL;
 import static java.util.Collections.singletonList;
 import static java.util.Objects.requireNonNull;
 

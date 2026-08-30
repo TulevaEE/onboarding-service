@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.mandate.content
 
-import ee.tuleva.onboarding.mandate.ApplicationType
+import ee.tuleva.onboarding.applicationtype.ApplicationType
 import au.com.origin.snapshots.Expect
 import au.com.origin.snapshots.annotations.SnapshotName
 import au.com.origin.snapshots.spock.EnableSnapshots
@@ -13,7 +13,7 @@ import static ee.tuleva.onboarding.mandate.MandateContactDetailsFixture.contactD
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 import static ee.tuleva.onboarding.mandate.MandateFixture.thirdPillarMandate
-import static ee.tuleva.onboarding.mandate.ApplicationType.TRANSFER
+import static ee.tuleva.onboarding.applicationtype.ApplicationType.TRANSFER
 
 @SpringBootTest
 @EnableSnapshots

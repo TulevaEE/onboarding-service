@@ -3,8 +3,8 @@ package ee.tuleva.onboarding.mandate.processor;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
 
+import ee.tuleva.onboarding.applicationtype.ApplicationType;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
-import ee.tuleva.onboarding.mandate.ApplicationType;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.GenericMandateSubmission;
 import ee.tuleva.onboarding.mandate.LegacyMandateSubmission;

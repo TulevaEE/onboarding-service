@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.deadline;
 import static java.time.temporal.TemporalAdjusters.lastDayOfMonth;
 import static java.util.Objects.requireNonNull;
 
-import ee.tuleva.onboarding.mandate.ApplicationType;
+import ee.tuleva.onboarding.applicationtype.ApplicationType;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;

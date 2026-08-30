@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.mandate.application;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import ee.tuleva.onboarding.mandate.ApplicationType;
+import ee.tuleva.onboarding.applicationtype.ApplicationType;
 import java.time.Instant;
 import lombok.Builder;
 import lombok.Data;

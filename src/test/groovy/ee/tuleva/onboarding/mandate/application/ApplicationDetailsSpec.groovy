@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.mandate.application
 
-import ee.tuleva.onboarding.mandate.ApplicationType
+import ee.tuleva.onboarding.applicationtype.ApplicationType
 import spock.lang.Specification
 
-import static ee.tuleva.onboarding.mandate.ApplicationType.*
+import static ee.tuleva.onboarding.applicationtype.ApplicationType.*
 
 class ApplicationDetailsSpec extends Specification {
 

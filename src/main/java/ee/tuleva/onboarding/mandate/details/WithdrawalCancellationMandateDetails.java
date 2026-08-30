@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.mandate.details;
 
-import static ee.tuleva.onboarding.mandate.ApplicationType.CANCELLATION;
+import static ee.tuleva.onboarding.applicationtype.ApplicationType.CANCELLATION;
 
-import ee.tuleva.onboarding.mandate.ApplicationType;
+import ee.tuleva.onboarding.applicationtype.ApplicationType;
 import ee.tuleva.onboarding.mandate.MandateType;
 
 public class WithdrawalCancellationMandateDetails extends MandateDetails {

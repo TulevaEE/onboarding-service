@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.mandate.processor;
 
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
 
-import ee.tuleva.onboarding.mandate.ApplicationType;
+import ee.tuleva.onboarding.applicationtype.ApplicationType;
 import ee.tuleva.onboarding.mandate.Mandate;
 import jakarta.annotation.Nullable;
 import jakarta.persistence.*;

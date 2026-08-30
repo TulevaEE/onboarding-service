@@ -1,10 +1,11 @@
 package ee.tuleva.onboarding.mandate;
 
-import static ee.tuleva.onboarding.mandate.ApplicationType.*;
+import static ee.tuleva.onboarding.applicationtype.ApplicationType.*;
 import static ee.tuleva.onboarding.signature.SignatureStatus.OUTSTANDING_TRANSACTION;
 import static ee.tuleva.onboarding.signature.SignatureStatus.SIGNATURE;
 import static java.util.Arrays.asList;
 
+import ee.tuleva.onboarding.applicationtype.ApplicationType;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.conversion.UserConversionService;

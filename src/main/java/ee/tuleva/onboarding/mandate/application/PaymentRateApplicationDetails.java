@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.mandate.application;
 
-import static ee.tuleva.onboarding.mandate.ApplicationType.PAYMENT_RATE;
+import static ee.tuleva.onboarding.applicationtype.ApplicationType.PAYMENT_RATE;
 
-import ee.tuleva.onboarding.mandate.ApplicationType;
+import ee.tuleva.onboarding.applicationtype.ApplicationType;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;

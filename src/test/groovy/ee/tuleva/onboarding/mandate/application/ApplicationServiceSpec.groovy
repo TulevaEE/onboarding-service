@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.mandate.application
 
-import ee.tuleva.onboarding.mandate.ApplicationType
+import ee.tuleva.onboarding.applicationtype.ApplicationType
 import ee.tuleva.onboarding.company.BoardMembershipService
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService
 import ee.tuleva.onboarding.mandate.MandateGateway
@@ -33,7 +33,7 @@ import static ee.tuleva.onboarding.mandate.application.ApplicationSnapshotFixtur
 import static ee.tuleva.onboarding.mandate.application.ApplicationFixture.paymentApplication
 import static ee.tuleva.onboarding.mandate.application.ApplicationStatus.COMPLETE
 import static ee.tuleva.onboarding.mandate.application.ApplicationStatus.PENDING
-import static ee.tuleva.onboarding.mandate.ApplicationType.*
+import static ee.tuleva.onboarding.applicationtype.ApplicationType.*
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND
 import static ee.tuleva.onboarding.pillar.Pillar.THIRD
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED

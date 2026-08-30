@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.mandate.details;
 
-import static ee.tuleva.onboarding.mandate.ApplicationType.PAYMENT_RATE;
+import static ee.tuleva.onboarding.applicationtype.ApplicationType.PAYMENT_RATE;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import ee.tuleva.onboarding.mandate.ApplicationType;
+import ee.tuleva.onboarding.applicationtype.ApplicationType;
 import ee.tuleva.onboarding.mandate.MandateType;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;

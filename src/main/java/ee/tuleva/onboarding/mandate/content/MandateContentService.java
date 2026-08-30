@@ -2,9 +2,9 @@ package ee.tuleva.onboarding.mandate.content;
 
 import static java.util.Objects.requireNonNull;
 
+import ee.tuleva.onboarding.applicationtype.ApplicationType;
 import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.fund.Fund;
-import ee.tuleva.onboarding.mandate.ApplicationType;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateContactDetails;

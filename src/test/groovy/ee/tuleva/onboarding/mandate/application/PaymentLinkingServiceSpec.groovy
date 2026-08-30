@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.mandate.application
 
-import ee.tuleva.onboarding.mandate.ApplicationType
+import ee.tuleva.onboarding.applicationtype.ApplicationType
 import ee.tuleva.onboarding.account.CashFlowService
 import ee.tuleva.onboarding.deadline.PublicHolidays
 import ee.tuleva.onboarding.epis.CashFlow

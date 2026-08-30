@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.mandate
 
-import ee.tuleva.onboarding.mandate.ApplicationType
+import ee.tuleva.onboarding.applicationtype.ApplicationType
 import ee.tuleva.onboarding.account.AccountStatementService
 import ee.tuleva.onboarding.aml.exception.AmlChecksMissingException
 import ee.tuleva.onboarding.conversion.UserConversionService
@@ -35,7 +35,7 @@ import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyCon
 import static ee.tuleva.onboarding.mandate.MandateContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.MandateFixture.*
 import static ee.tuleva.onboarding.mandate.application.ApplicationSnapshotFixture.sampleTransferApplicationDto
-import static ee.tuleva.onboarding.mandate.ApplicationType.SELECTION
+import static ee.tuleva.onboarding.applicationtype.ApplicationType.SELECTION
 import static ee.tuleva.onboarding.signature.SignatureStatus.OUTSTANDING_TRANSACTION
 import static ee.tuleva.onboarding.signature.SignatureStatus.SIGNATURE
 import static java.util.Locale.ENGLISH

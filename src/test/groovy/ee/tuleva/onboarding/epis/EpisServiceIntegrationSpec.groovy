@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.epis
 
-import ee.tuleva.onboarding.mandate.ApplicationType
+import ee.tuleva.onboarding.applicationtype.ApplicationType
 import ee.tuleva.onboarding.auth.role.Role
 import ee.tuleva.onboarding.epis.ThirdPillarContribution
 import ee.tuleva.onboarding.epis.application.ApplicationResponse
@@ -38,7 +38,7 @@ import static ee.tuleva.onboarding.auth.role.RoleType.PERSON
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.epis.MandateCommandResponseFixture.sampleMandateCommandResponse
 import static ee.tuleva.onboarding.epis.cancellation.CancellationFixture.*
-import static ee.tuleva.onboarding.mandate.ApplicationType.TRANSFER
+import static ee.tuleva.onboarding.applicationtype.ApplicationType.TRANSFER
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND
 import static ee.tuleva.onboarding.country.CountryFixture.countryFixture
 import static java.util.concurrent.TimeUnit.MILLISECONDS

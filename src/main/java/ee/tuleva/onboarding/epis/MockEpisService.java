@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.epis;
 
+import static ee.tuleva.onboarding.applicationtype.ApplicationType.SELECTION;
 import static ee.tuleva.onboarding.epis.CashFlow.Type.CASH;
 import static ee.tuleva.onboarding.epis.CashFlow.Type.CONTRIBUTION_CASH;
 import static ee.tuleva.onboarding.epis.fund.FundDto.FundStatus.ACTIVE;
-import static ee.tuleva.onboarding.mandate.ApplicationType.SELECTION;
 import static ee.tuleva.onboarding.mandate.application.ApplicationStatus.COMPLETE;
 import static java.time.LocalDate.parse;
 import static java.time.temporal.ChronoUnit.DAYS;

@@ -1,13 +1,13 @@
 package ee.tuleva.onboarding.epis
 
-import ee.tuleva.onboarding.mandate.ApplicationType
+import ee.tuleva.onboarding.applicationtype.ApplicationType
 import ee.tuleva.onboarding.error.response.ErrorsResponse
 import ee.tuleva.onboarding.mandate.processor.MandateProcess
 import ee.tuleva.onboarding.mandate.processor.MandateProcessErrorResolver
 import spock.lang.Specification
 
-import static ee.tuleva.onboarding.mandate.ApplicationType.SELECTION
-import static ee.tuleva.onboarding.mandate.ApplicationType.TRANSFER
+import static ee.tuleva.onboarding.applicationtype.ApplicationType.SELECTION
+import static ee.tuleva.onboarding.applicationtype.ApplicationType.TRANSFER
 
 class MandateProcessErrorResolverSpec extends Specification {
 

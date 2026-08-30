@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.mandate.application;
 
-import ee.tuleva.onboarding.mandate.ApplicationType;
+import ee.tuleva.onboarding.applicationtype.ApplicationType;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;

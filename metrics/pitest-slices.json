@@ -5,6 +5,12 @@
     "score": 0.0,
     "recordedAt": "2026-08-30"
   },
+  "account": {
+    "mutations": 172,
+    "detected": 151,
+    "score": 87.79,
+    "recordedAt": "2026-08-30"
+  },
   "aml": {
     "mutations": 347,
     "detected": 306,

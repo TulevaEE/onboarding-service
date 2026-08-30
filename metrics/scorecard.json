@@ -14,10 +14,10 @@
   "moduleCycles": 0,
   "modulithViolations": 100,
   "mutationScore": 84.43,
-  "mutationScoreSliced": 82.63,
-  "mutationsSliced": 875,
+  "mutationScoreSliced": 83.48,
+  "mutationsSliced": 1047,
   "mutationsTotal": 12781,
-  "pitestSlicedModules": 4,
+  "pitestSlicedModules": 5,
   "pmdViolations": 157,
   "pmdViolationsByRule": {
     "CognitiveComplexity": 20,

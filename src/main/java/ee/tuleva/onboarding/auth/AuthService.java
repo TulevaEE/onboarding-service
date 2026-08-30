@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.auth;
 import static ee.tuleva.onboarding.auth.jwt.TokenType.REFRESH;
 
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
-import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -37,8 +36,6 @@ public class AuthService {
     if (authenticatedPerson == null) {
       return null;
     }
-
-    eventPublisher.publishEvent(new BeforeTokenGrantedEvent(this, authenticatedPerson, grantType));
 
     final var tokens = tokenService.generateTokens(authenticatedPerson);
 

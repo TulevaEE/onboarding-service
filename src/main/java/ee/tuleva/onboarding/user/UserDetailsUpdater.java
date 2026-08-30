@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.user;
 import static ee.tuleva.onboarding.auth.principal.Names.formatted;
 
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
-import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.ContactDetails;
 import ee.tuleva.onboarding.epis.ContactDetailsService;
@@ -29,7 +28,7 @@ public class UserDetailsUpdater {
 
   @EventListener
   @Order(AFTER_AML_CHECKS)
-  public void onBeforeTokenGrantedEvent(BeforeTokenGrantedEvent event) {
+  public void updateUserName(AfterTokenGrantedEvent event) {
     Person person = event.getPerson();
 
     log.info(

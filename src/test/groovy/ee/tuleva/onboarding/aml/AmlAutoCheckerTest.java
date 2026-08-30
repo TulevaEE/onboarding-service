@@ -6,7 +6,6 @@ import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.aml.exception.AmlChecksMissingException;
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
-import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.country.Country;
@@ -54,7 +53,7 @@ class AmlAutoCheckerTest {
       "beforeLogin: Should check user with residency status when document type is present and user exists")
   void beforeLogin_checksUser_whenDocumentPresentAndUserExists() {
     // given
-    BeforeTokenGrantedEvent mockEvent = mock(BeforeTokenGrantedEvent.class);
+    AfterTokenGrantedEvent mockEvent = mock(AfterTokenGrantedEvent.class);
     String personalCode = "38001010000";
     AuthenticatedPerson testPerson = createTestPerson(personalCode);
 
@@ -64,7 +63,7 @@ class AmlAutoCheckerTest {
     when(mockEvent.isResident()).thenReturn(true);
 
     // when
-    amlAutoChecker.beforeLogin(mockEvent);
+    amlAutoChecker.onLogin(mockEvent);
 
     // then
     verify(amlService).checkUserBeforeLogin(mockUser, testPerson, true);
@@ -75,7 +74,7 @@ class AmlAutoCheckerTest {
       "beforeLogin: Should check user with null residency status when document type is null and user exists")
   void beforeLogin_checksUser_whenDocumentNullAndUserExists() {
     // given
-    BeforeTokenGrantedEvent mockEvent = mock(BeforeTokenGrantedEvent.class);
+    AfterTokenGrantedEvent mockEvent = mock(AfterTokenGrantedEvent.class);
     String personalCode = "38001010001";
     AuthenticatedPerson testPerson = createTestPerson(personalCode);
 
@@ -85,7 +84,7 @@ class AmlAutoCheckerTest {
     when(mockEvent.isResident()).thenReturn(null);
 
     // when
-    amlAutoChecker.beforeLogin(mockEvent);
+    amlAutoChecker.onLogin(mockEvent);
 
     // then
     verify(amlService).checkUserBeforeLogin(mockUser, testPerson, null);
@@ -95,7 +94,7 @@ class AmlAutoCheckerTest {
   @DisplayName("beforeLogin: Should throw IllegalStateException if user is not found")
   void beforeLogin_throwsException_whenUserNotFound() {
     // given
-    BeforeTokenGrantedEvent mockEvent = mock(BeforeTokenGrantedEvent.class);
+    AfterTokenGrantedEvent mockEvent = mock(AfterTokenGrantedEvent.class);
     String personalCode = "38001010002";
     AuthenticatedPerson testPerson = createTestPerson(personalCode);
 
@@ -107,7 +106,7 @@ class AmlAutoCheckerTest {
         assertThrows(
             IllegalStateException.class,
             () -> {
-              amlAutoChecker.beforeLogin(mockEvent);
+              amlAutoChecker.onLogin(mockEvent);
             });
 
     // then

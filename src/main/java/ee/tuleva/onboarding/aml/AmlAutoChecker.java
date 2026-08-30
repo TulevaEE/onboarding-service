@@ -4,7 +4,6 @@ import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.aml.exception.AmlChecksMissingException;
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
-import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.country.Country;
@@ -36,7 +35,7 @@ public class AmlAutoChecker {
 
   @EventListener
   @Order(BEFORE_USER_DETAILS_UPDATER)
-  public void beforeLogin(BeforeTokenGrantedEvent event) {
+  public void onLogin(AfterTokenGrantedEvent event) {
     Person person = event.getPerson();
     Boolean isResident = isResident(event);
     User user = getUser(person);
@@ -93,7 +92,7 @@ public class AmlAutoChecker {
     amlService.addSanctionAndPepCheckIfMissing(event.person(), event.countries());
   }
 
-  private @Nullable Boolean isResident(BeforeTokenGrantedEvent event) {
+  private @Nullable Boolean isResident(AfterTokenGrantedEvent event) {
     return event.isResident();
   }
 }

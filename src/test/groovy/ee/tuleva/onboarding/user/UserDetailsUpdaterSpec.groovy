@@ -4,7 +4,6 @@ import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture
 import ee.tuleva.onboarding.auth.AuthenticationTokens
 import ee.tuleva.onboarding.auth.GrantType
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent
-import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent
 import ee.tuleva.onboarding.epis.ContactDetailsService
 import spock.lang.Specification
 
@@ -30,7 +29,7 @@ class UserDetailsUpdaterSpec extends Specification {
     1 * userService.findByPersonalCode(person.personalCode) >> Optional.of(user)
 
     when:
-    service.onBeforeTokenGrantedEvent(new BeforeTokenGrantedEvent(this, person, SMART_ID))
+    service.updateUserName(new AfterTokenGrantedEvent(this, person, SMART_ID, new AuthenticationTokens("access token", "refresh token")))
 
     then:
     1 * userService.save(user)

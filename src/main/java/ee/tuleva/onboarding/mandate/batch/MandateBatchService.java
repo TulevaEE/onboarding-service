@@ -50,7 +50,6 @@ public class MandateBatchService {
   private final MandateProcessorService mandateProcessor;
   private final MandateContacts mandateContacts;
   private final MandateBatchProcessingPoller mandateBatchProcessingPoller;
-  private final WithdrawalNotifier withdrawalNotifier;
 
   public Optional<MandateBatch> getByIdAndUser(Long id, User user) {
     var batch =
@@ -113,13 +112,15 @@ public class MandateBatchService {
               .map(MandateDto::getMandateType)
               .collect(Collectors.toSet());
 
-      withdrawalNotifier.notifyWithdrawalBatchCreated(
-          age,
-          pillars,
-          withdrawalTypes,
-          requireNonNull(
-              mandateBatch.getId(),
-              "Mandate batch was not assigned an id after save: mandateBatch=" + mandateBatch));
+      applicationEventPublisher.publishEvent(
+          new WithdrawalBatchCreated(
+              age,
+              pillars,
+              withdrawalTypes,
+              requireNonNull(
+                  mandateBatch.getId(),
+                  "Mandate batch was not assigned an id after save: mandateBatch="
+                      + mandateBatch)));
     } catch (Exception e) {
       log.error("Failed to send mandate batch slack message with exception", e);
     }

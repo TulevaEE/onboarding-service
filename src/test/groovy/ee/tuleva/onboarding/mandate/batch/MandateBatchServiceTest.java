@@ -63,7 +63,6 @@ public class MandateBatchServiceTest {
   @Mock private MandateBatchProcessingPoller mandateBatchProcessingPoller;
   @Mock private MandateContacts mandateContacts;
   @Mock private ApplicationEventPublisher applicationEventPublisher;
-  @Mock private WithdrawalNotifier withdrawalNotifier;
 
   @Mock private SignatureService signService;
 
@@ -189,12 +188,13 @@ public class MandateBatchServiceTest {
     assertThat(result.getMandates().size()).isEqualTo(2);
     assertThat(result.getStatus()).isEqualTo(INITIALIZED);
 
-    verify(withdrawalNotifier, times(1))
-        .notifyWithdrawalBatchCreated(
-            eq(PersonalCode.getAge(authenticatedPerson.getPersonalCode())),
-            eq(aMandateBatchDto.getWithdrawalBatchPillars()),
-            eq(Set.of(FUND_PENSION_OPENING)),
-            any());
+    verify(applicationEventPublisher, times(1))
+        .publishEvent(
+            new WithdrawalBatchCreated(
+                PersonalCode.getAge(authenticatedPerson.getPersonalCode()),
+                aMandateBatchDto.getWithdrawalBatchPillars(),
+                Set.of(FUND_PENSION_OPENING),
+                1L));
   }
 
   @Test
@@ -232,12 +232,13 @@ public class MandateBatchServiceTest {
     assertThat(result.getMandates().size()).isEqualTo(2);
     assertThat(result.getStatus()).isEqualTo(INITIALIZED);
 
-    verify(withdrawalNotifier, times(1))
-        .notifyWithdrawalBatchCreated(
-            eq(PersonalCode.getAge(authenticatedPerson.getPersonalCode())),
-            eq(aMandateBatchDto.getWithdrawalBatchPillars()),
-            eq(Set.of(FUND_PENSION_OPENING)),
-            any());
+    verify(applicationEventPublisher, times(1))
+        .publishEvent(
+            new WithdrawalBatchCreated(
+                PersonalCode.getAge(authenticatedPerson.getPersonalCode()),
+                aMandateBatchDto.getWithdrawalBatchPillars(),
+                Set.of(FUND_PENSION_OPENING),
+                1L));
   }
 
   @Test
@@ -348,12 +349,13 @@ public class MandateBatchServiceTest {
 
     assertThat(result.getMandates().size()).isEqualTo(1);
     assertThat(result.getStatus()).isEqualTo(INITIALIZED);
-    verify(withdrawalNotifier, times(1))
-        .notifyWithdrawalBatchCreated(
-            eq(PersonalCode.getAge(authenticatedPerson.getPersonalCode())),
-            eq(aMandateBatchDto.getWithdrawalBatchPillars()),
-            eq(Set.of(PARTIAL_WITHDRAWAL)),
-            any());
+    verify(applicationEventPublisher, times(1))
+        .publishEvent(
+            new WithdrawalBatchCreated(
+                PersonalCode.getAge(authenticatedPerson.getPersonalCode()),
+                aMandateBatchDto.getWithdrawalBatchPillars(),
+                Set.of(PARTIAL_WITHDRAWAL),
+                1L));
   }
 
   @Test
@@ -384,8 +386,8 @@ public class MandateBatchServiceTest {
               return savedBatch;
             });
     doThrow(new IllegalStateException())
-        .when(withdrawalNotifier)
-        .notifyWithdrawalBatchCreated(anyInt(), any(), any(), any());
+        .when(applicationEventPublisher)
+        .publishEvent(any(WithdrawalBatchCreated.class));
 
     MandateBatch result =
         mandateBatchService.createMandateBatch(authenticatedPerson, aMandateBatchDto);

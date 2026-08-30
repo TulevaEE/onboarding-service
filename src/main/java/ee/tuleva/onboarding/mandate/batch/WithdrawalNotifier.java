@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.pillar.Pillar;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -15,10 +16,12 @@ public class WithdrawalNotifier {
 
   private final OperationsNotificationService notificationService;
 
-  public void notifyWithdrawalBatchCreated(
-      int age, Set<Pillar> pillars, Set<MandateType> withdrawalTypes, Long mandateBatchId) {
+  @EventListener
+  public void onWithdrawalBatchCreated(WithdrawalBatchCreated event) {
     notificationService.sendMessage(
-        formatMessage(age, pillars, withdrawalTypes, mandateBatchId), WITHDRAWALS);
+        formatMessage(
+            event.age(), event.pillars(), event.withdrawalTypes(), event.mandateBatchId()),
+        WITHDRAWALS);
   }
 
   String formatMessage(

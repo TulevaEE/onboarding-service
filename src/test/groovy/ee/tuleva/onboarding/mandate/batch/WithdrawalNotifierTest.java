@@ -32,7 +32,8 @@ class WithdrawalNotifierTest {
   @Test
   @DisplayName("sends a withdrawal batch created Slack message to the withdrawals channel")
   void notifyWithdrawalBatchCreated_sendsSlackMessage() {
-    notifier.notifyWithdrawalBatchCreated(65, Set.of(SECOND), Set.of(FUND_PENSION_OPENING), 42L);
+    notifier.onWithdrawalBatchCreated(
+        new WithdrawalBatchCreated(65, Set.of(SECOND), Set.of(FUND_PENSION_OPENING), 42L));
 
     verify(notificationService)
         .sendMessage(
@@ -72,8 +73,9 @@ class WithdrawalNotifierTest {
 
     assertThatThrownBy(
             () ->
-                notifier.notifyWithdrawalBatchCreated(
-                    65, Set.of(SECOND), Set.of(FUND_PENSION_OPENING), 42L))
+                notifier.onWithdrawalBatchCreated(
+                    new WithdrawalBatchCreated(
+                        65, Set.of(SECOND), Set.of(FUND_PENSION_OPENING), 42L)))
         .isInstanceOf(IllegalStateException.class);
   }
 }

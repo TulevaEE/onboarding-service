@@ -48,7 +48,7 @@ LOWER_IS_BETTER = [
     "interactionVerifyingTestClasses",
     "fqnViolations",
 ]
-HIGHER_IS_BETTER = ["lineCoverage", "branchCoverage", "mocklessTestClasses"]
+HIGHER_IS_BETTER = ["lineCoverage", "branchCoverage", "mocklessTestShare"]
 COVERAGE_TOLERANCE = 0.2
 
 
@@ -271,6 +271,7 @@ def test_quality_metrics():
         "overMockedTestClasses": over_mocked,
         "interactionVerifyingTestClasses": verifying,
         "mocklessTestClasses": mockless,
+        "mocklessTestShare": round(100.0 * mockless / total, 1),
     }
 
 

@@ -1,10 +1,9 @@
-package ee.tuleva.onboarding.auth.principal;
+package ee.tuleva.onboarding.auth.role;
 
 import static ee.tuleva.onboarding.auth.role.RoleType.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import ee.tuleva.onboarding.auth.role.Role;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 

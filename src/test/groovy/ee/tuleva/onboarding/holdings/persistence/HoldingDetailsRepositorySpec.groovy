@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.holdings
+package ee.tuleva.onboarding.holdings.persistence
 
 import ee.tuleva.onboarding.holdings.persistence.HoldingDetail
 import ee.tuleva.onboarding.holdings.persistence.Region

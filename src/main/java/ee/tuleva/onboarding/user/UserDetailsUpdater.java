@@ -4,8 +4,7 @@ import static ee.tuleva.onboarding.auth.principal.Names.formatted;
 
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.epis.ContactDetails;
-import ee.tuleva.onboarding.epis.ContactDetailsService;
+import ee.tuleva.onboarding.user.UserContacts.ContactSummary;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,7 +23,7 @@ public class UserDetailsUpdater {
   private static final int AFTER_AML_CHECKS = 2;
 
   private final UserService userService;
-  private final ContactDetailsService contactDetailsService;
+  private final UserContacts userContacts;
 
   @EventListener
   @Order(AFTER_AML_CHECKS)
@@ -58,12 +57,12 @@ public class UserDetailsUpdater {
 
   private void updateContactDetails(Person person, String jwtToken, User user) {
     if (!user.hasContactDetails()) {
-      ContactDetails contactDetails = contactDetailsService.getContactDetails(person, jwtToken);
-      String phoneNumber = StringUtils.trim(contactDetails.getPhoneNumber());
+      ContactSummary contactSummary = userContacts.forPerson(person, jwtToken);
+      String phoneNumber = StringUtils.trim(contactSummary.phoneNumber());
 
       Optional<String> email =
-          contactDetails.getEmail() != null
-              ? Optional.of(StringUtils.trim(contactDetails.getEmail()))
+          contactSummary.email() != null
+              ? Optional.of(StringUtils.trim(contactSummary.email()))
               : Optional.empty();
 
       if (userService.isExistingEmail(person.getPersonalCode(), email)) {
@@ -73,7 +72,7 @@ public class UserDetailsUpdater {
         email = Optional.empty();
       }
 
-      log.info("User contact details missing. Filling them in with EPIS data");
+      log.info("User contact details missing. Filling them in from the user's contact record");
       userService.updateUser(person.getPersonalCode(), email, phoneNumber);
     }
   }

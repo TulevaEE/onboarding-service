@@ -4,8 +4,6 @@ import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.auth.role.Role
 import ee.tuleva.onboarding.auth.role.RoleType
-import ee.tuleva.onboarding.epis.EpisService
-import ee.tuleva.onboarding.epis.ContactDetailsService
 import ee.tuleva.onboarding.paymentrate.PaymentRates
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService
 import ee.tuleva.onboarding.user.command.UpdateUserCommand
@@ -15,7 +13,7 @@ import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthent
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
 import static ee.tuleva.onboarding.auth.role.RoleType.PERSON
-import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture
+import static ee.tuleva.onboarding.user.UserContactsFixture.contactSummaryFixture
 import static ee.tuleva.onboarding.country.CountryFixture.countryFixture
 import static org.hamcrest.Matchers.*
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
@@ -25,20 +23,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class UserControllerSpec extends BaseControllerSpec {
 
   UserService userService = Mock()
-  EpisService episService = Mock()
+  UserContacts userContacts = Mock()
   SecondPillarPaymentRateService secondPillarPaymentRateService = Mock()
-  ContactDetailsService contactDetailsService = Mock()
 
   UserController controller = new UserController(
-      userService, episService, contactDetailsService, secondPillarPaymentRateService)
+      userService, userContacts, secondPillarPaymentRateService)
 
   def "/me endpoint works with non member"() {
     given:
-    def contactDetails = contactDetailsFixture()
+    def contactSummary = contactSummaryFixture()
     def user = userFrom(sampleAuthenticatedPerson)
     def samplePaymentRates = new PaymentRates(2, 6)
     1 * userService.getById(sampleAuthenticatedPerson.userId) >> Optional.of(user)
-    1 * episService.getContactDetails(sampleAuthenticatedPerson) >> contactDetails
+    1 * userContacts.forPerson(sampleAuthenticatedPerson) >> contactSummary
     1 * secondPillarPaymentRateService
         .getPaymentRates(sampleAuthenticatedPerson) >> samplePaymentRates
 
@@ -55,27 +52,27 @@ class UserControllerSpec extends BaseControllerSpec {
         .andExpect(jsonPath('$.email', is(user.email)))
         .andExpect(jsonPath('$.phoneNumber', is(user.phoneNumber)))
         .andExpect(jsonPath('$.memberNumber', is(nullValue())))
-        .andExpect(jsonPath('$.pensionAccountNumber', is(contactDetails.pensionAccountNumber)))
-        .andExpect(jsonPath('$.address.countryCode', is(contactDetails.country)))
-        .andExpect(jsonPath('$.secondPillarActive', is(contactDetails.secondPillarActive)))
-        .andExpect(jsonPath('$.thirdPillarActive', is(contactDetails.thirdPillarActive)))
+        .andExpect(jsonPath('$.pensionAccountNumber', is(contactSummary.pensionAccountNumber())))
+        .andExpect(jsonPath('$.address.countryCode', is(contactSummary.country())))
+        .andExpect(jsonPath('$.secondPillarActive', is(contactSummary.secondPillarActive())))
+        .andExpect(jsonPath('$.thirdPillarActive', is(contactSummary.thirdPillarActive())))
         .andExpect(jsonPath('$.secondPillarPaymentRates.pending',
             is(samplePaymentRates.pending.get())))
         .andExpect(jsonPath('$.secondPillarPaymentRates.current',
             is(samplePaymentRates.current)))
         .andExpect(jsonPath('$.memberJoinDate', is(nullValue())))
-        .andExpect(jsonPath('$.secondPillarOpenDate', is(contactDetails.secondPillarOpenDate.toString())))
-        .andExpect(jsonPath('$.thirdPillarInitDate', is(contactDetails.thirdPillarInitDate.toString())))
-        .andExpect(jsonPath('$.contactDetailsLastUpdateDate', is(contactDetails.lastUpdateDate.toString())))
+        .andExpect(jsonPath('$.secondPillarOpenDate', is(contactSummary.secondPillarOpenDate().toString())))
+        .andExpect(jsonPath('$.thirdPillarInitDate', is(contactSummary.thirdPillarInitDate().toString())))
+        .andExpect(jsonPath('$.contactDetailsLastUpdateDate', is(contactSummary.lastUpdateDate().toString())))
   }
 
   def "serialized no payment rate correctly as null"() {
     given:
-    def contactDetails = contactDetailsFixture()
+    def contactSummary = contactSummaryFixture()
     def user = userFrom(sampleAuthenticatedPerson)
     def samplePaymentRates = new PaymentRates(2, null)
     1 * userService.getById(sampleAuthenticatedPerson.userId) >> Optional.of(user)
-    1 * episService.getContactDetails(sampleAuthenticatedPerson) >> contactDetails
+    1 * userContacts.forPerson(sampleAuthenticatedPerson) >> contactSummary
     1 * secondPillarPaymentRateService
         .getPaymentRates(sampleAuthenticatedPerson) >> samplePaymentRates
 
@@ -92,10 +89,10 @@ class UserControllerSpec extends BaseControllerSpec {
         .andExpect(jsonPath('$.email', is(user.email)))
         .andExpect(jsonPath('$.phoneNumber', is(user.phoneNumber)))
         .andExpect(jsonPath('$.memberNumber', is(nullValue())))
-        .andExpect(jsonPath('$.pensionAccountNumber', is(contactDetails.pensionAccountNumber)))
-        .andExpect(jsonPath('$.address.countryCode', is(contactDetails.country)))
-        .andExpect(jsonPath('$.secondPillarActive', is(contactDetails.secondPillarActive)))
-        .andExpect(jsonPath('$.thirdPillarActive', is(contactDetails.thirdPillarActive)))
+        .andExpect(jsonPath('$.pensionAccountNumber', is(contactSummary.pensionAccountNumber())))
+        .andExpect(jsonPath('$.address.countryCode', is(contactSummary.country())))
+        .andExpect(jsonPath('$.secondPillarActive', is(contactSummary.secondPillarActive())))
+        .andExpect(jsonPath('$.thirdPillarActive', is(contactSummary.thirdPillarActive())))
         .andExpect(jsonPath('$.secondPillarPaymentRates.pending',
             is(null)))
         .andExpect(jsonPath('$.secondPillarPaymentRates.current',
@@ -107,10 +104,10 @@ class UserControllerSpec extends BaseControllerSpec {
     given:
     def authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
     def user = sampleUser().build()
-    def contactDetails = contactDetailsFixture()
+    def contactSummary = contactSummaryFixture()
     def samplePaymentRates = new PaymentRates(2, 6)
     1 * userService.getById(user.id) >> Optional.of(user)
-    1 * episService.getContactDetails(authenticatedPerson) >> contactDetails
+    1 * userContacts.forPerson(authenticatedPerson) >> contactSummary
     1 * secondPillarPaymentRateService
         .getPaymentRates(authenticatedPerson) >> samplePaymentRates
 
@@ -127,8 +124,8 @@ class UserControllerSpec extends BaseControllerSpec {
         .andExpect(jsonPath('$.email', is(user.email)))
         .andExpect(jsonPath('$.phoneNumber', is(user.phoneNumber)))
         .andExpect(jsonPath('$.memberNumber', is(user.memberOrThrow.memberNumber)))
-        .andExpect(jsonPath('$.pensionAccountNumber', is(contactDetails.pensionAccountNumber)))
-        .andExpect(jsonPath('$.address.countryCode', is(contactDetails.country)))
+        .andExpect(jsonPath('$.pensionAccountNumber', is(contactSummary.pensionAccountNumber())))
+        .andExpect(jsonPath('$.address.countryCode', is(contactSummary.country())))
         .andExpect(jsonPath('$.secondPillarPaymentRates.pending',
             is(samplePaymentRates.pending.get())))
         .andExpect(jsonPath('$.secondPillarPaymentRates.current',
@@ -150,8 +147,8 @@ class UserControllerSpec extends BaseControllerSpec {
 
   def "updates an existing user"() {
     given:
-    def contactDetails = contactDetailsFixture()
     def address = countryFixture().build()
+    def contactSummary = contactSummaryFixture(address.countryCode)
     def command = new UpdateUserCommand("erko@risthein.ee", "5555555", address)
     def updatedUser = userFrom(sampleAuthenticatedPerson, command)
     def samplePaymentRates = new PaymentRates(2, 6)
@@ -159,8 +156,8 @@ class UserControllerSpec extends BaseControllerSpec {
     1 * userService
         .updateUser(sampleAuthenticatedPerson.personalCode, Optional.of(command.email), command.phoneNumber) >>
         updatedUser
-    1 * contactDetailsService.updateContactDetails(updatedUser, updatedUser.email, updatedUser.phoneNumber, command.address) >>
-        contactDetails.setAddress(address)
+    1 * userContacts.update(updatedUser, updatedUser.email, updatedUser.phoneNumber, command.address) >>
+        contactSummary
     1 * secondPillarPaymentRateService
         .getPaymentRates(sampleAuthenticatedPerson) >> samplePaymentRates
 
@@ -181,7 +178,7 @@ class UserControllerSpec extends BaseControllerSpec {
         .andExpect(jsonPath('$.email', is("erko@risthein.ee")))
         .andExpect(jsonPath('$.phoneNumber', is("5555555")))
         .andExpect(jsonPath('$.age', isA(Integer)))
-        .andExpect(jsonPath('$.pensionAccountNumber', is(contactDetails.pensionAccountNumber)))
+        .andExpect(jsonPath('$.pensionAccountNumber', is(contactSummary.pensionAccountNumber())))
         .andExpect(jsonPath('$.address.countryCode', is(address.countryCode)))
         .andExpect(jsonPath('$.secondPillarPaymentRates.pending',
             is(samplePaymentRates.pending.get())))
@@ -197,7 +194,7 @@ class UserControllerSpec extends BaseControllerSpec {
     1 * userService
         .updateUser(sampleAuthenticatedPerson.personalCode, Optional.of(command.email), command.phoneNumber) >>
         updatedUser
-    0 * contactDetailsService.updateContactDetails(_, _, _, _)
+    0 * userContacts.update(_, _, _, _)
 
     def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
 

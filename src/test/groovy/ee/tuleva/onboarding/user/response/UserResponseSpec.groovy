@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.user.response
 
-import ee.tuleva.onboarding.epis.ContactDetails
 import ee.tuleva.onboarding.paymentrate.PaymentRates
 import ee.tuleva.onboarding.user.User
+import ee.tuleva.onboarding.user.UserContacts.ContactSummary
 import spock.lang.Specification
 import spock.lang.Unroll
 
@@ -19,11 +19,11 @@ class UserResponseSpec extends Specification {
         .firstName(firstName)
         .lastName(lastName)
         .build()
-    def contactDetails = new ContactDetails()
+    def contactSummary = emptyContactSummary()
     def paymentRates = new PaymentRates(2, 6)
 
     when:
-    def userResponse = UserResponse.from(user, contactDetails, paymentRates)
+    def userResponse = UserResponse.from(user, contactSummary, paymentRates)
 
     then:
     userResponse.firstName == responseFirstName
@@ -56,11 +56,11 @@ class UserResponseSpec extends Specification {
             .firstName("firstName")
             .lastName("lastName")
             .build()
-        def contactDetails = new ContactDetails()
+        def contactSummary = emptyContactSummary()
         def paymentRates = new PaymentRates(currentPaymentRate, pendingPaymentRate)
 
     when:
-        def userResponse = UserResponse.from(user, contactDetails, paymentRates)
+        def userResponse = UserResponse.from(user, contactSummary, paymentRates)
 
     then:
         userResponse.secondPillarPaymentRates.current == responseCurrentPaymentRate
@@ -78,13 +78,12 @@ class UserResponseSpec extends Specification {
               .firstName("firstName")
               .lastName("lastName")
               .build()
-          def contactDetails = new ContactDetails()
-          contactDetails.setThirdPillarActive(isActive)
-          contactDetails.setThirdPillarInitDate(initiatedDate)
+          def contactSummary = new ContactSummary(
+              null, null, null, null, null, false, isActive, null, initiatedDate, null)
           def paymentRates = new PaymentRates(2, 6)
 
       when:
-          def userResponse = UserResponse.from(user, contactDetails, paymentRates)
+          def userResponse = UserResponse.from(user, contactSummary, paymentRates)
 
       then:
           userResponse.thirdPillarActive == expectedIsActive
@@ -96,5 +95,9 @@ class UserResponseSpec extends Specification {
           false    |  Instant.parse("2024-01-01T10:00:00Z")      || true
           true     |  null                                       || true
           false    |  null                                       || false
+  }
+
+  private static ContactSummary emptyContactSummary() {
+    new ContactSummary(null, null, null, null, null, false, false, null, null, null)
   }
 }

@@ -5,11 +5,11 @@ import static ee.tuleva.onboarding.auth.principal.Names.formatted;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.role.Role;
 import ee.tuleva.onboarding.country.Country;
-import ee.tuleva.onboarding.epis.ContactDetails;
 import ee.tuleva.onboarding.paymentrate.PaymentRates;
 import ee.tuleva.onboarding.personalcode.PersonalCode;
 import ee.tuleva.onboarding.user.Emailable;
 import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.UserContacts.ContactSummary;
 import ee.tuleva.onboarding.user.member.Member;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -49,31 +49,31 @@ public class UserResponse implements Person, Emailable {
   }
 
   public static UserResponse from(
-      User user, ContactDetails contactDetails, PaymentRates paymentRates) {
-    return from(user, contactDetails, paymentRates, null);
+      User user, ContactSummary contactSummary, PaymentRates paymentRates) {
+    return from(user, contactSummary, paymentRates, null);
   }
 
   public static UserResponse from(
-      User user, ContactDetails contactDetails, PaymentRates paymentRates, @Nullable Role role) {
+      User user, ContactSummary contactSummary, PaymentRates paymentRates, @Nullable Role role) {
     return responseBuilder(user)
         .role(role)
-        .pensionAccountNumber(contactDetails.getPensionAccountNumber())
-        .address(Country.builder().countryCode(contactDetails.getCountry()).build())
-        .secondPillarPikNumber(contactDetails.getActiveSecondPillarFundPik())
-        .isSecondPillarActive(contactDetails.isSecondPillarActive())
-        .isThirdPillarActive(checkIfThirdPillarIsActive(contactDetails))
+        .pensionAccountNumber(contactSummary.pensionAccountNumber())
+        .address(Country.builder().countryCode(contactSummary.country()).build())
+        .secondPillarPikNumber(contactSummary.activeSecondPillarFundPik())
+        .isSecondPillarActive(contactSummary.secondPillarActive())
+        .isThirdPillarActive(checkIfThirdPillarIsActive(contactSummary))
         .secondPillarPaymentRates(
             new PaymentRatesResponse(
                 paymentRates.getCurrent(), paymentRates.getPending().orElse(null)))
         .memberJoinDate(user.getMember().map(Member::getCreatedDate).orElse(null))
-        .secondPillarOpenDate(contactDetails.getSecondPillarOpenDate())
-        .thirdPillarInitDate(contactDetails.getThirdPillarInitDate())
-        .contactDetailsLastUpdateDate(contactDetails.getLastUpdateDate())
+        .secondPillarOpenDate(contactSummary.secondPillarOpenDate())
+        .thirdPillarInitDate(contactSummary.thirdPillarInitDate())
+        .contactDetailsLastUpdateDate(contactSummary.lastUpdateDate())
         .build();
   }
 
-  private static boolean checkIfThirdPillarIsActive(ContactDetails contactDetails) {
-    return contactDetails.isThirdPillarActive() || contactDetails.getThirdPillarInitDate() != null;
+  private static boolean checkIfThirdPillarIsActive(ContactSummary contactSummary) {
+    return contactSummary.thirdPillarActive() || contactSummary.thirdPillarInitDate() != null;
   }
 
   private static UserResponseBuilder responseBuilder(User user) {

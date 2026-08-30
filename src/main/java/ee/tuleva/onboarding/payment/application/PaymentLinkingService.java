@@ -11,6 +11,7 @@ import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.mandate.application.Application;
 import ee.tuleva.onboarding.mandate.application.ApplicationStatus;
+import ee.tuleva.onboarding.mandate.application.PaymentApplications;
 import ee.tuleva.onboarding.payment.Payment;
 import ee.tuleva.onboarding.payment.PaymentService;
 import java.math.BigDecimal;
@@ -34,7 +35,7 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class PaymentLinkingService {
+public class PaymentLinkingService implements PaymentApplications {
 
   public static final String TULEVA_3RD_PILLAR_FUND_ISIN = "EE3600001707";
   private static final Duration GRACE_PERIOD = Duration.ofMinutes(30);
@@ -48,6 +49,7 @@ public class PaymentLinkingService {
 
   private final PublicHolidays publicHolidays;
 
+  @Override
   public List<Application<PaymentApplicationDetails>> getPaymentApplications(Person person) {
     final var payments = paymentService.getThirdPillarPayments(person);
     final var cashFlowStatement = cashFlowService.getCashFlowStatement(person);

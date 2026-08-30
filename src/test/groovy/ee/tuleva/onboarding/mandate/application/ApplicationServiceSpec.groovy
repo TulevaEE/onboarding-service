@@ -8,7 +8,6 @@ import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.party.PartyId
 import ee.tuleva.onboarding.payment.application.PaymentApplicationDetails
-import ee.tuleva.onboarding.payment.application.PaymentLinkingService
 import ee.tuleva.onboarding.savings.SavingFundPayment
 import ee.tuleva.onboarding.savings.SavingFundDeadlinesService
 import ee.tuleva.onboarding.savings.SavingFundPaymentQueries
@@ -46,7 +45,7 @@ class ApplicationServiceSpec extends Specification {
   LocaleService localeService = Mock()
   FundRepository fundRepository = Mock()
   MandateDeadlinesService mandateDeadlinesService = Mock()
-  PaymentLinkingService paymentApplicationService = Mock()
+  PaymentApplications paymentApplicationService = Mock()
   SavingFundDeadlinesService savingFundPaymentDeadlinesService = Mock()
   SavingFundPaymentQueries savingFundPaymentService = Mock()
   RedemptionQueries savingFundRedemptionQueries = Mock()

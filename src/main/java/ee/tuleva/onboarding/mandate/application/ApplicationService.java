@@ -18,7 +18,6 @@ import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.mandate.MandateGateway;
 import ee.tuleva.onboarding.party.PartyId;
-import ee.tuleva.onboarding.payment.application.PaymentLinkingService;
 import ee.tuleva.onboarding.pillar.Pillar;
 import ee.tuleva.onboarding.savings.PendingRedemption;
 import ee.tuleva.onboarding.savings.RedemptionQueries;
@@ -49,7 +48,7 @@ public class ApplicationService {
   private final LocaleService localeService;
   private final FundRepository fundRepository;
   private final MandateDeadlinesService mandateDeadlinesService;
-  private final PaymentLinkingService paymentLinkingService;
+  private final PaymentApplications paymentApplications;
   private final SavingFundDeadlinesService savingFundDeadlinesService;
   private final SavingFundPaymentQueries savingFundPaymentQueries;
   private final RedemptionQueries savingFundRedemptionQueries;
@@ -71,7 +70,7 @@ public class ApplicationService {
     List<Application<?>> applications = new ArrayList<>();
     applications.addAll(getTransferApplications(person));
     applications.addAll(getWithdrawalApplications(person));
-    applications.addAll(paymentLinkingService.getPaymentApplications(person));
+    applications.addAll(paymentApplications.getPaymentApplications(person));
     applications.addAll(getPaymentRateApplications(person));
     applications.addAll(getFundPensionOpeningApplications(person));
     applications.addAll(getSavingsFundApplications(person));

@@ -1,10 +1,11 @@
-package ee.tuleva.onboarding.mandate.application
+package ee.tuleva.onboarding.payment.application
 
 import ee.tuleva.onboarding.applicationtype.ApplicationType
 import ee.tuleva.onboarding.account.CashFlowService
 import ee.tuleva.onboarding.deadline.PublicHolidays
 import ee.tuleva.onboarding.epis.CashFlow
 import ee.tuleva.onboarding.epis.CashFlowStatement
+import ee.tuleva.onboarding.mandate.application.Application
 import ee.tuleva.onboarding.mandate.application.ApplicationStatus
 import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.locale.LocaleService

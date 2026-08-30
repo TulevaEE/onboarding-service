@@ -1,0 +1,14 @@
+{
+  "(root)": {
+    "mutations": 3,
+    "detected": 0,
+    "score": 0.0,
+    "recordedAt": "2026-08-30"
+  },
+  "deadline": {
+    "mutations": 124,
+    "detected": 108,
+    "score": 87.1,
+    "recordedAt": "2026-08-30"
+  }
+}

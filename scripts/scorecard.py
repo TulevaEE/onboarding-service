@@ -108,6 +108,22 @@ def pitest_metrics():
     }
 
 
+def pitest_slice_metrics():
+    path = ROOT / "metrics" / "pitest-slices.json"
+    if not path.exists():
+        return {}
+    slices = json.loads(path.read_text())
+    mutations = sum(s["mutations"] for s in slices.values())
+    detected = sum(s["detected"] for s in slices.values())
+    if not mutations:
+        return {}
+    return {
+        "mutationScoreSliced": round(100.0 * detected / mutations, 2),
+        "mutationsSliced": mutations,
+        "pitestSlicedModules": len(slices),
+    }
+
+
 def source_metrics():
     main = ROOT / "src" / "main" / "java"
     packages = {f.parent for f in main.rglob("*.java")}
@@ -221,6 +237,7 @@ def main():
         pmd_metrics,
         jacoco_metrics,
         pitest_metrics,
+        pitest_slice_metrics,
         source_metrics,
         convention_metrics,
         compiler_warning_metrics,

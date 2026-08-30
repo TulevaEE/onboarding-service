@@ -44,8 +44,10 @@ LOWER_IS_BETTER = [
     "unmarkedPackages",
     "springBootTests",
     "top15ClassLines",
+    "overMockedTestClasses",
+    "interactionVerifyingTestClasses",
 ]
-HIGHER_IS_BETTER = ["lineCoverage", "branchCoverage"]
+HIGHER_IS_BETTER = ["lineCoverage", "branchCoverage", "mocklessTestClasses"]
 COVERAGE_TOLERANCE = 0.2
 
 
@@ -95,7 +97,10 @@ def pitest_metrics():
     path = ROOT / "build" / "reports" / "pitest" / "mutations.xml"
     if not path.exists():
         return {}
-    root = ET.parse(path).getroot()
+    try:
+        root = ET.parse(path).getroot()
+    except ET.ParseError:
+        return {}
     mutations = root.findall("mutation")
     # Scoped per-iteration runs (and the generated-code exclusions) mark the report
     # partial; only a full-codebase run (thousands of mutants) is valid trend data.
@@ -219,6 +224,49 @@ def previous_scorecard():
     return json.loads(result.stdout) if result.returncode == 0 else None
 
 
+def test_quality_metrics():
+    tests = ROOT / "src" / "test" / "groovy"
+    files = [f for f in tests.rglob("*") if f.suffix in (".java", ".groovy")]
+    test_files = [
+        f
+        for f in files
+        if f.stem.endswith(("Test", "Spec", "IntSpec")) and "Fixture" not in f.stem
+    ]
+    mock_decl = re.compile(r"= Mock\(|@Mock |@Mock$|= mock\(|@MockitoBean", re.M)
+    interaction = re.compile(r"\bverify\(|\bthen\([^)]*\)\.should\(|^\s*[0-9_]+ \* \w", re.M)
+    slice_marker = re.compile(r"@WebMvcTest|@DataJpaTest|@RestClientTest|@JsonTest")
+    unit = slices = integration = module_slices = 0
+    over_mocked = mockless = verifying = 0
+    for f in test_files:
+        text = f.read_text(errors="replace")
+        if "@SpringBootTest" in text:
+            integration += 1
+        elif "@ApplicationModuleTest" in text:
+            module_slices += 1
+        elif slice_marker.search(text):
+            slices += 1
+        else:
+            unit += 1
+        mocks = len(mock_decl.findall(text))
+        if mocks >= 5:
+            over_mocked += 1
+        if mocks == 0:
+            mockless += 1
+        if interaction.search(text):
+            verifying += 1
+    total = len(test_files)
+    return {
+        "testClassesTotal": total,
+        "testUnitShare": round(100.0 * unit / total, 1),
+        "testSliceShare": round(100.0 * slices / total, 1),
+        "testIntegrationShare": round(100.0 * integration / total, 1),
+        "moduleSliceTests": module_slices,
+        "overMockedTestClasses": over_mocked,
+        "interactionVerifyingTestClasses": verifying,
+        "mocklessTestClasses": mockless,
+    }
+
+
 def compare(current, previous):
     regressions = []
     for key in LOWER_IS_BETTER:
@@ -242,6 +290,7 @@ def main():
         convention_metrics,
         compiler_warning_metrics,
         cohesion_metrics,
+        test_quality_metrics,
     ]:
         current.update(collect())
 

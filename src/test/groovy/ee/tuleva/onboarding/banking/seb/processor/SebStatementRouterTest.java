@@ -14,6 +14,9 @@ import ee.tuleva.onboarding.banking.event.BankMessageEvents.SavingsFundStatement
 import ee.tuleva.onboarding.banking.processor.BankOperationProcessor;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatementAccount;
+import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
+import ee.tuleva.onboarding.banking.statement.TransactionType;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -49,6 +52,21 @@ class SebStatementRouterTest {
   }
 
   @Test
+  void route_processesOnlyEntriesWithoutCounterpartyDetails() {
+    var account = new BankAccount(DEPOSIT_IBAN, DEPOSIT_EUR, TKF100, "gw-test");
+    var bankOperationEntry = bankStatementEntry(null);
+    var counterpartyEntry =
+        bankStatementEntry(new BankStatementEntry.CounterPartyDetails("Test", "EE123", null));
+    var statement = statementFor(DEPOSIT_IBAN, bankOperationEntry, counterpartyEntry);
+    when(bankAccounts.find(DEPOSIT_IBAN)).thenReturn(Optional.of(account));
+
+    router.route(statement);
+
+    verify(bankOperationProcessor).processBankOperation(bankOperationEntry, account);
+    verify(bankOperationProcessor, never()).processBankOperation(counterpartyEntry, account);
+  }
+
+  @Test
   void route_dispatchesPensionFundStatementToPensionFundProcessor() {
     var pensionIban = "EE001234567890123475";
     var account = new BankAccount(pensionIban, FUND_INVESTMENT_EUR, TUK75, "gw-test");
@@ -74,11 +92,25 @@ class SebStatementRouterTest {
     verifyNoInteractions(pensionFundStatementProcessor);
   }
 
-  private BankStatement statementFor(String iban) {
+  private BankStatement statementFor(String iban, BankStatementEntry... entries) {
     return new BankStatement(
         HISTORIC_STATEMENT,
         new BankStatementAccount(iban, "Tuleva Fondid AS", "14118923"),
         List.of(),
-        List.of());
+        List.of(entries));
+  }
+
+  private BankStatementEntry bankStatementEntry(
+      BankStatementEntry.CounterPartyDetails counterPartyDetails) {
+    return new BankStatementEntry(
+        counterPartyDetails,
+        new BigDecimal("10.00"),
+        "EUR",
+        TransactionType.CREDIT,
+        "ref",
+        "ext-1",
+        null,
+        null,
+        null);
   }
 }

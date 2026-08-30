@@ -318,6 +318,35 @@ class BankOperationProcessorTest {
   }
 
   @Test
+  void processBankOperation_recordsZeroAmountSettlementWithoutNegatingUnits() {
+    var amount = BigDecimal.ZERO;
+    var remittanceInfo = "DLA0553690/EJAP GY/11704/17.864/Buy/ Euroclear, ABNCNL2AXXX, 14448";
+    var entry = createBankOperationEntry("TRAD", amount, remittanceInfo);
+    var tradeInfo =
+        new TradeSettlementParser.TradeSettlementInfo(
+            "LU1291102447",
+            "EJAP",
+            "BNP Paribas Easy MSCI Japan Min TE UCITS ETF",
+            new BigDecimal("11704"));
+
+    when(tradeSettlementParser.parse(remittanceInfo)).thenReturn(java.util.Optional.of(tradeInfo));
+
+    processor.processBankOperation(entry, FUND_INVESTMENT_ACCOUNT);
+
+    verify(fundBankLedger)
+        .recordTradeSettlement(
+            eq(TKF100),
+            eq(amount.setScale(2, java.math.RoundingMode.HALF_UP)),
+            eq(new BigDecimal("11704.00000")),
+            any(UUID.class),
+            eq(FUND_INVESTMENT_CASH_CLEARING),
+            eq("LU1291102447"),
+            eq("EJAP"),
+            eq("BNP Paribas Easy MSCI Japan Min TE UCITS ETF"),
+            eq(LocalDate.of(2025, 10, 1)));
+  }
+
+  @Test
   void processBankOperation_recordsSellSettlementWithNegativeUnits() {
     var amount = new BigDecimal("50000.00");
     var remittanceInfo =

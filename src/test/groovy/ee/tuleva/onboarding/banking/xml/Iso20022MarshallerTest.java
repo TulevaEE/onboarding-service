@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.banking.xml;
 import static ee.tuleva.onboarding.banking.seb.Seb.SEB_GATEWAY_TIME_ZONE;
 import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.CLOSE;
 import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.OPEN;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 
 import ee.tuleva.onboarding.banking.converter.ZonedDateTimeToXmlGregorianCalendarConverter;
@@ -48,6 +49,25 @@ public class Iso20022MarshallerTest {
     assertEquals(
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:camt.060.001.03\"><AcctRptgReq><GrpHdr><MsgId>cdb18c2ead184f0893a61f91492fb9f5</MsgId><CreDtTm>2020-01-01T14:13:15.000Z</CreDtTm></GrpHdr><RptgReq><Id>cdb18c2ead184f0893a61f91492fb9f5</Id><ReqdMsgNmId>camt.052.001.02</ReqdMsgNmId><Acct><Id><IBAN>EE_TEST_IBAN</IBAN></Id></Acct><AcctOwnr><Pty/></AcctOwnr><RptgPrd><FrToDt><FrDt>2020-01-01</FrDt><ToDt>2020-01-01</ToDt></FrToDt><FrToTm><FrTm>00:00:00+02:00</FrTm><ToTm>23:59:59.999+02:00</ToTm></FrToTm><Tp>ALLL</Tp></RptgPrd></RptgReq></AcctRptgReq></Document>",
         requestXml);
+  }
+
+  @Test
+  @DisplayName("marshals historic report request class")
+  public void marshalHistoricRequestClass() {
+    var request =
+        statementRequestMessageGenerator.generateHistoricReportRequest(
+            "EE_TEST_IBAN",
+            UUID.fromString("cdb18c2e-ad18-4f08-93a6-1f91492fb9f5"),
+            LocalDate.of(2026, 1, 1),
+            LocalDate.of(2026, 1, 31),
+            SEB_GATEWAY_TIME_ZONE);
+
+    var requestXml = marshaller.marshalToString(request);
+
+    assertThat(requestXml)
+        .contains("camt.053.001.02")
+        .contains("<FrDt>2026-01-01</FrDt>")
+        .contains("<ToDt>2026-01-31</ToDt>");
   }
 
   @Test

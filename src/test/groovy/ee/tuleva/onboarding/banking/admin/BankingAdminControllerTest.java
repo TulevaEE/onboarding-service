@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.banking.admin;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.BDDMockito.given;
@@ -14,23 +15,27 @@ import ee.tuleva.onboarding.admin.AdminTokenValidator;
 import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.BankAccounts;
+import ee.tuleva.onboarding.banking.event.BankMessageEvents.FetchSebHistoricTransactionsRequested;
 import ee.tuleva.onboarding.banking.seb.processor.SuspenseReclassificationService;
 import ee.tuleva.onboarding.fund.TulevaFund;
+import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(BankingAdminController.class)
 @Import(AdminTokenValidator.class)
 @TestPropertySource(properties = {"admin.api-token=valid-token", "admin.ops-token=ops-token"})
 @WithMockUser
+@RecordApplicationEvents
 class BankingAdminControllerTest {
 
   private static final List<BankAccount> SAVINGS_FUND_BANK_ACCOUNTS =
@@ -42,8 +47,8 @@ class BankingAdminControllerTest {
               "EE001234567890123458", BankAccountType.FUND_INVESTMENT_EUR, TKF100, "gw-test"));
 
   @Autowired private MockMvc mockMvc;
+  @Autowired private ApplicationEvents applicationEvents;
 
-  @MockitoBean private ApplicationEventPublisher eventPublisher;
   @MockitoBean private BankAccounts bankAccounts;
   @MockitoBean private SuspenseReclassificationService suspenseReclassificationService;
 
@@ -61,6 +66,16 @@ class BankingAdminControllerTest {
         .andExpect(status().isOk())
         .andExpect(content().string(containsString("2026-01-01")))
         .andExpect(content().string(containsString("2026-01-31")));
+
+    var expectedEvents =
+        SAVINGS_FUND_BANK_ACCOUNTS.stream()
+            .map(
+                account ->
+                    new FetchSebHistoricTransactionsRequested(
+                        account, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 31)))
+            .toList();
+    assertThat(applicationEvents.stream(FetchSebHistoricTransactionsRequested.class))
+        .containsExactlyInAnyOrderElementsOf(expectedEvents);
   }
 
   @Test

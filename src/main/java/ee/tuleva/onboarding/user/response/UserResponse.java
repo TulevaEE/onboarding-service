@@ -58,7 +58,7 @@ public class UserResponse implements Person, Emailable {
     return responseBuilder(user)
         .role(role)
         .pensionAccountNumber(contactSummary.pensionAccountNumber())
-        .address(Country.builder().countryCode(contactSummary.country()).build())
+        .address(toAddress(contactSummary.country()))
         .secondPillarPikNumber(contactSummary.activeSecondPillarFundPik())
         .isSecondPillarActive(contactSummary.secondPillarActive())
         .isThirdPillarActive(checkIfThirdPillarIsActive(contactSummary))
@@ -70,6 +70,10 @@ public class UserResponse implements Person, Emailable {
         .thirdPillarInitDate(contactSummary.thirdPillarInitDate())
         .contactDetailsLastUpdateDate(contactSummary.lastUpdateDate())
         .build();
+  }
+
+  private static @Nullable Country toAddress(@Nullable String countryCode) {
+    return countryCode != null ? Country.builder().countryCode(countryCode).build() : null;
   }
 
   private static boolean checkIfThirdPillarIsActive(ContactSummary contactSummary) {

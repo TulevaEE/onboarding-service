@@ -20,12 +20,12 @@ public interface UserContacts {
   record ContactSummary(
       @Nullable String email,
       @Nullable String phoneNumber,
-      String pensionAccountNumber,
-      String country,
-      String activeSecondPillarFundPik,
+      @Nullable String pensionAccountNumber,
+      @Nullable String country,
+      @Nullable String activeSecondPillarFundPik,
       boolean secondPillarActive,
       boolean thirdPillarActive,
-      Instant secondPillarOpenDate,
-      Instant thirdPillarInitDate,
+      @Nullable Instant secondPillarOpenDate,
+      @Nullable Instant thirdPillarInitDate,
       @Nullable Instant lastUpdateDate) {}
 }

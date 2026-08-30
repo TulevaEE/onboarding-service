@@ -9,11 +9,9 @@ import ee.tuleva.onboarding.auth.TokenService;
 import ee.tuleva.onboarding.auth.event.RoleSwitchedEvent;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
-import ee.tuleva.onboarding.user.User;
-import ee.tuleva.onboarding.user.UserService;
+import ee.tuleva.onboarding.auth.principal.PrincipalUsers;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
@@ -30,7 +28,7 @@ class RoleSwitchService {
   private final PrincipalService principalService;
   private final TokenService tokenService;
   private final ChildRepresentations childRepresentations;
-  private final UserService userService;
+  private final PrincipalUsers principalUsers;
   private final ApplicationEventPublisher applicationEventPublisher;
 
   public AuthenticationTokens switchRole(AuthenticatedPerson person, SwitchRoleCommand command) {
@@ -49,9 +47,9 @@ class RoleSwitchService {
         .forEach(roles::add);
 
     childRepresentations.findActivelyRepresentedChildCodes(person.getPersonalCode()).stream()
-        .map(userService::findByPersonalCode)
-        .flatMap(Optional::stream)
-        .map(child -> new Role(PERSON, child.getPersonalCode(), child.getFullName()))
+        .flatMap(
+            code ->
+                principalUsers.fullName(code).map(name -> new Role(PERSON, code, name)).stream())
         .forEach(roles::add);
 
     return unmodifiableList(roles);
@@ -59,11 +57,12 @@ class RoleSwitchService {
 
   public List<PendingOnboardingResponse> getPendingOnboardings(AuthenticatedPerson person) {
     return childRepresentations.findPendingChildCodes(person.getPersonalCode()).stream()
-        .map(userService::findByPersonalCode)
-        .flatMap(Optional::stream)
-        .map(
-            child ->
-                new PendingOnboardingResponse(PERSON, child.getPersonalCode(), child.getFullName()))
+        .flatMap(
+            code ->
+                principalUsers
+                    .fullName(code)
+                    .map(name -> new PendingOnboardingResponse(PERSON, code, name))
+                    .stream())
         .toList();
   }
 
@@ -81,9 +80,9 @@ class RoleSwitchService {
     if (!childRepresentations.isActiveRepresentation(person.getPersonalCode(), command.code())) {
       throw new RoleSwitchAccessDeniedException(person.getPersonalCode(), command.code());
     }
-    User child =
-        userService
-            .findByPersonalCode(command.code())
+    String childName =
+        principalUsers
+            .fullName(command.code())
             .orElseThrow(
                 () ->
                     new RoleSwitchAccessDeniedException(person.getPersonalCode(), command.code()));
@@ -91,7 +90,7 @@ class RoleSwitchService {
         "Role switch to represented child: personalCode={}, childCode={}",
         person.getPersonalCode(),
         command.code());
-    return switchTo(person, new Role(PERSON, command.code(), child.getFullName()));
+    return switchTo(person, new Role(PERSON, command.code(), childName));
   }
 
   private AuthenticationTokens switchToCompany(

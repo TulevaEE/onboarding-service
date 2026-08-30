@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.user;
+package ee.tuleva.onboarding.auth.principal;
 
 import static java.util.stream.Collectors.joining;
 

@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.user;
+package ee.tuleva.onboarding.auth.principal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

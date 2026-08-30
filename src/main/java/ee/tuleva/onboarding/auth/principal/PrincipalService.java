@@ -1,15 +1,12 @@
 package ee.tuleva.onboarding.auth.principal;
 
+import static ee.tuleva.onboarding.auth.principal.Names.formatted;
 import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
-import static ee.tuleva.onboarding.user.Names.formatted;
 
 import ee.tuleva.onboarding.auth.role.Role;
 import ee.tuleva.onboarding.personalcode.PersonalCode;
-import ee.tuleva.onboarding.user.User;
-import ee.tuleva.onboarding.user.UserService;
 import jakarta.validation.Valid;
 import java.util.Map;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
@@ -23,7 +20,7 @@ public class PrincipalService {
 
   private static final int SELF_SERVICE_MINIMUM_AGE = 18;
 
-  private final UserService userService;
+  private final PrincipalUsers principalUsers;
 
   public AuthenticatedPerson getFrom(@Valid Person person, Map<String, String> attributes) {
     if (PersonalCode.getAge(person.getPersonalCode()) < SELF_SERVICE_MINIMUM_AGE) {
@@ -39,11 +36,9 @@ public class PrincipalService {
   public AuthenticatedPerson getFrom(
       @Valid Person person, Map<String, String> attributes, Role role) {
 
-    Optional<User> userOptional = userService.findByPersonalCode(person.getPersonalCode());
+    var user = principalUsers.findOrCreate(person);
 
-    User user = userOptional.orElseGet(() -> createUser(person));
-
-    if (!user.getActive()) {
+    if (!user.active()) {
       log.info("Failed to login inactive user with personal code {}", person.getPersonalCode());
       throw new IllegalStateException("INACTIVE_USER");
     }
@@ -52,7 +47,7 @@ public class PrincipalService {
         .firstName(formatted(person.getFirstName()))
         .lastName(formatted(person.getLastName()))
         .personalCode(person.getPersonalCode())
-        .userId(user.getId())
+        .userId(user.id())
         .attributes(attributes)
         .role(role)
         .build();
@@ -67,15 +62,5 @@ public class PrincipalService {
         .attributes(person.getAttributes())
         .role(role)
         .build();
-  }
-
-  private User createUser(Person person) {
-    return userService.createNewUser(
-        User.builder()
-            .firstName(formatted(person.getFirstName()))
-            .lastName(formatted(person.getLastName()))
-            .personalCode(person.getPersonalCode())
-            .active(true)
-            .build());
   }
 }

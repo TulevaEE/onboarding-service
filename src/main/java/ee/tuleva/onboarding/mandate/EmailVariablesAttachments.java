@@ -4,8 +4,8 @@ import static java.util.Collections.singletonList;
 import static java.util.Objects.requireNonNull;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
+import ee.tuleva.onboarding.auth.principal.Names;
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
-import ee.tuleva.onboarding.user.Names;
 import ee.tuleva.onboarding.user.User;
 import java.util.Base64;
 import java.util.List;

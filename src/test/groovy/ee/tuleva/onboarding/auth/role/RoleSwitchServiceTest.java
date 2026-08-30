@@ -16,9 +16,8 @@ import ee.tuleva.onboarding.auth.TokenService;
 import ee.tuleva.onboarding.auth.event.RoleSwitchedEvent;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
+import ee.tuleva.onboarding.auth.principal.PrincipalUsers;
 import ee.tuleva.onboarding.company.CompanyNotFoundException;
-import ee.tuleva.onboarding.user.User;
-import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -35,7 +34,7 @@ class RoleSwitchServiceTest {
   @Mock private PrincipalService principalService;
   @Mock private TokenService tokenService;
   @Mock private ChildRepresentations childRepresentations;
-  @Mock private UserService userService;
+  @Mock private PrincipalUsers principalUsers;
   @Mock private ApplicationEventPublisher applicationEventPublisher;
 
   @InjectMocks private RoleSwitchService roleSwitchService;
@@ -43,16 +42,7 @@ class RoleSwitchServiceTest {
   private final AuthenticatedPerson person = sampleAuthenticatedPersonAndMember().build();
 
   private static final String CHILD_CODE = "61506150006";
-
-  private static User childUser() {
-    return User.builder()
-        .id(42L)
-        .personalCode(CHILD_CODE)
-        .firstName("Mari")
-        .lastName("Maasikas")
-        .active(true)
-        .build();
-  }
+  private static final String CHILD_NAME = "Mari Maasikas";
 
   @Test
   void switchRoleToCompany() {
@@ -222,7 +212,7 @@ class RoleSwitchServiceTest {
     when(companyRoles.boardMemberCompanies(person.getPersonalCode())).thenReturn(List.of());
     when(childRepresentations.findActivelyRepresentedChildCodes(person.getPersonalCode()))
         .thenReturn(List.of(CHILD_CODE));
-    when(userService.findByPersonalCode(CHILD_CODE)).thenReturn(Optional.of(childUser()));
+    when(principalUsers.fullName(CHILD_CODE)).thenReturn(Optional.of(CHILD_NAME));
 
     List<Role> result = roleSwitchService.getRoles(person);
 
@@ -239,7 +229,7 @@ class RoleSwitchServiceTest {
   void switchToActivelyRepresentedChildGeneratesTokens() {
     when(childRepresentations.isActiveRepresentation(person.getPersonalCode(), CHILD_CODE))
         .thenReturn(true);
-    when(userService.findByPersonalCode(CHILD_CODE)).thenReturn(Optional.of(childUser()));
+    when(principalUsers.fullName(CHILD_CODE)).thenReturn(Optional.of(CHILD_NAME));
     when(principalService.withRole(any(), any())).thenReturn(person);
     when(tokenService.generateTokens(any()))
         .thenReturn(new AuthenticationTokens("access", "refresh"));
@@ -254,7 +244,7 @@ class RoleSwitchServiceTest {
   void switchToRepresentedChildPublishesAuditEvent() {
     when(childRepresentations.isActiveRepresentation(person.getPersonalCode(), CHILD_CODE))
         .thenReturn(true);
-    when(userService.findByPersonalCode(CHILD_CODE)).thenReturn(Optional.of(childUser()));
+    when(principalUsers.fullName(CHILD_CODE)).thenReturn(Optional.of(CHILD_NAME));
     when(principalService.withRole(any(), any())).thenReturn(person);
     when(tokenService.generateTokens(any()))
         .thenReturn(new AuthenticationTokens("access", "refresh"));
@@ -272,7 +262,7 @@ class RoleSwitchServiceTest {
             .build();
     when(childRepresentations.isActiveRepresentation(person.getPersonalCode(), CHILD_CODE))
         .thenReturn(true);
-    when(userService.findByPersonalCode(CHILD_CODE)).thenReturn(Optional.of(childUser()));
+    when(principalUsers.fullName(CHILD_CODE)).thenReturn(Optional.of(CHILD_NAME));
     when(principalService.withRole(any(), any())).thenReturn(switchedPerson);
     when(tokenService.generateTokens(any()))
         .thenReturn(new AuthenticationTokens("access", "refresh"));
@@ -286,7 +276,7 @@ class RoleSwitchServiceTest {
   void switchToRepresentedChildPublishesNoAuditEventWhenTokenGenerationFails() {
     when(childRepresentations.isActiveRepresentation(person.getPersonalCode(), CHILD_CODE))
         .thenReturn(true);
-    when(userService.findByPersonalCode(CHILD_CODE)).thenReturn(Optional.of(childUser()));
+    when(principalUsers.fullName(CHILD_CODE)).thenReturn(Optional.of(CHILD_NAME));
     when(principalService.withRole(any(), any())).thenReturn(person);
     when(tokenService.generateTokens(any()))
         .thenThrow(new RuntimeException("token signing failed"));
@@ -322,7 +312,7 @@ class RoleSwitchServiceTest {
   void getPendingOnboardingsReturnsPendingChildrenWithNames() {
     when(childRepresentations.findPendingChildCodes(person.getPersonalCode()))
         .thenReturn(List.of(CHILD_CODE));
-    when(userService.findByPersonalCode(CHILD_CODE)).thenReturn(Optional.of(childUser()));
+    when(principalUsers.fullName(CHILD_CODE)).thenReturn(Optional.of(CHILD_NAME));
 
     List<PendingOnboardingResponse> result = roleSwitchService.getPendingOnboardings(person);
 

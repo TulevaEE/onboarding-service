@@ -4,8 +4,7 @@ import static ee.tuleva.onboarding.auth.authority.Authority.MEMBER;
 import static ee.tuleva.onboarding.auth.authority.Authority.USER;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.user.User;
-import ee.tuleva.onboarding.user.UserService;
+import ee.tuleva.onboarding.auth.principal.PrincipalUsers;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,16 +17,15 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class GrantedAuthorityFactory {
 
-  private final UserService userService;
+  private final PrincipalUsers principalUsers;
 
   public List<? extends GrantedAuthority> from(AuthenticatedPerson authenticatedPerson) {
     Long userId = authenticatedPerson.getUserIdOrThrow();
-    User user = userService.getById(userId).orElseThrow();
 
     List<SimpleGrantedAuthority> grantedAuthorities =
-        user.getMember()
-            .map(_ -> List.of(new SimpleGrantedAuthority(USER), new SimpleGrantedAuthority(MEMBER)))
-            .orElse(List.of(new SimpleGrantedAuthority(USER)));
+        principalUsers.isMember(userId)
+            ? List.of(new SimpleGrantedAuthority(USER), new SimpleGrantedAuthority(MEMBER))
+            : List.of(new SimpleGrantedAuthority(USER));
 
     log.info("User #{} granted authorities: {}", userId, grantedAuthorities);
 

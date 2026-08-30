@@ -3,8 +3,8 @@ package ee.tuleva.onboarding.auth;
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
-import ee.tuleva.onboarding.user.User;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -19,9 +19,9 @@ public class SecurityContextRunner {
   private final GrantedAuthorityFactory grantedAuthorityFactory;
   private final JwtTokenUtil jwtTokenUtil;
 
-  public void runAs(User user, Runnable action) {
+  public void runAs(Person person, Runnable action) {
     try {
-      setupSecurityContext(user);
+      setupSecurityContext(person);
       action.run();
     } finally {
       SecurityContextHolder.clearContext();
@@ -40,8 +40,8 @@ public class SecurityContextRunner {
     }
   }
 
-  private void setupSecurityContext(User user) {
-    final var principal = principalService.getFrom(user, Map.of());
+  private void setupSecurityContext(Person person) {
+    final var principal = principalService.getFrom(person, Map.of());
     final var authorities = grantedAuthorityFactory.from(principal);
     final var accessToken = jwtTokenUtil.generateAccessToken(principal, authorities);
 

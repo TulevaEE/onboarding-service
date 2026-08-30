@@ -2,9 +2,9 @@ package ee.tuleva.onboarding.notification.email.firstpayment;
 
 import static ee.tuleva.onboarding.notification.email.EmailType.THIRD_PILLAR_PAYMENT_ARRIVED;
 
+import ee.tuleva.onboarding.auth.principal.Names;
 import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
-import ee.tuleva.onboarding.user.Names;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;

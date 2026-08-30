@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.user.response;
 
-import static ee.tuleva.onboarding.user.Names.formatted;
+import static ee.tuleva.onboarding.auth.principal.Names.formatted;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.role.Role;

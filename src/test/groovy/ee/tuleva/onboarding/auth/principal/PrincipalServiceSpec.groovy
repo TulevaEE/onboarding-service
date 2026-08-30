@@ -2,8 +2,6 @@ package ee.tuleva.onboarding.auth.principal
 
 import ee.tuleva.onboarding.auth.role.Role
 import ee.tuleva.onboarding.time.ClockHolder
-import ee.tuleva.onboarding.user.User
-import ee.tuleva.onboarding.user.UserService
 import spock.lang.Specification
 
 import java.time.Clock
@@ -12,12 +10,13 @@ import java.time.ZoneOffset
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
+import static ee.tuleva.onboarding.auth.principal.PrincipalUsers.PrincipalUser
 import static ee.tuleva.onboarding.auth.role.RoleType.*
 
 class PrincipalServiceSpec extends Specification {
 
-  UserService userService = Mock(UserService)
-  PrincipalService service = new PrincipalService(userService)
+  PrincipalUsers principalUsers = Mock(PrincipalUsers)
+  PrincipalService service = new PrincipalService(principalUsers)
 
   def setup() {
     ClockHolder.setClock(Clock.fixed(Instant.parse("2026-05-22T00:00:00Z"), ZoneOffset.UTC))
@@ -27,58 +26,38 @@ class PrincipalServiceSpec extends Specification {
     ClockHolder.setDefaultClock()
   }
 
-  User sampleUser = User.builder()
-      .firstName("John")
-      .lastName("Doe")
-      .active(true)
-      .build()
+  PrincipalUser samplePrincipalUser = new PrincipalUser(1L, true)
 
   def "getFromPerson: initialising from person works"() {
     given:
     Person person = samplePerson()
 
-    1 * userService.findByPersonalCode(person.personalCode) >> Optional.ofNullable(sampleUser)
+    1 * principalUsers.findOrCreate(person) >> samplePrincipalUser
 
     when:
     AuthenticatedPerson authenticatedPerson = service.getFrom(person, Map.of())
 
     then:
-    authenticatedPerson.userId == sampleUser.id
+    authenticatedPerson.userId == samplePrincipalUser.id()
     authenticatedPerson.firstName == person.firstName
     authenticatedPerson.lastName == person.lastName
     authenticatedPerson.personalCode == person.personalCode
   }
 
-  def "getFromPerson: create a new user when one is not present"() {
+  def "getFromPerson: creates a new user when one is not present"() {
     given:
-    def person = samplePerson()
-    String firstNameUncapitalized = "JOHN"
-    String firstNameCorrectlyCapitalized = "John"
-    String lastNameUncapitalized = "DOE"
-    String lastNameCorrectlyCapitalized = "Doe"
-    person = person.toBuilder()
-        .firstName(firstNameUncapitalized)
-        .lastName(lastNameUncapitalized)
+    def person = samplePerson().toBuilder()
+        .firstName("JOHN")
+        .lastName("DOE")
         .build()
 
-    1 * userService.findByPersonalCode(person.personalCode) >> Optional.empty()
+    1 * principalUsers.findOrCreate(person) >> new PrincipalUser(123L, true)
 
     when:
     AuthenticatedPerson authenticatedPerson = service.getFrom(person, Map.of())
 
     then:
-    1 * userService.createNewUser({ User user ->
-      user.firstName == firstNameCorrectlyCapitalized &&
-          user.lastName == lastNameCorrectlyCapitalized &&
-          user.personalCode == person.personalCode &&
-          user.active
-    }) >> User.builder()
-        .id(123)
-        .active(true)
-        .build()
-
-    authenticatedPerson.userId == 123
-
+    authenticatedPerson.userId == 123L
   }
 
   def "withRole returns person with new role preserving all other fields"() {
@@ -104,13 +83,7 @@ class PrincipalServiceSpec extends Specification {
         .firstName("JAAK")
         .lastName("KUUSK-ÕUNAPUU")
         .build()
-    def user = User.builder()
-        .id(1L)
-        .firstName("Jaak")
-        .lastName("Kadakas")
-        .active(true)
-        .build()
-    1 * userService.findByPersonalCode(person.personalCode) >> Optional.of(user)
+    1 * principalUsers.findOrCreate(person) >> samplePrincipalUser
 
     when:
     AuthenticatedPerson authenticatedPerson = service.getFrom(person, Map.of())
@@ -127,14 +100,7 @@ class PrincipalServiceSpec extends Specification {
         .firstName("JOHN")
         .lastName("DOE")
         .build()
-    def user = User.builder()
-        .id(1L)
-        .firstName("John")
-        .lastName("Doe")
-        .personalCode(person.personalCode)
-        .active(true)
-        .build()
-    1 * userService.findByPersonalCode(person.personalCode) >> Optional.of(user)
+    1 * principalUsers.findOrCreate(person) >> samplePrincipalUser
 
     when:
     AuthenticatedPerson authenticatedPerson = service.getFrom(person, Map.of())
@@ -152,8 +118,7 @@ class PrincipalServiceSpec extends Specification {
 
     then:
     thrown(MinorCannotSelfAuthenticateException)
-    0 * userService.findByPersonalCode(_)
-    0 * userService.createNewUser(_)
+    0 * principalUsers.findOrCreate(_)
   }
 
   def "withRole into a minor child role is not blocked by the self-auth gate"() {
@@ -167,14 +132,14 @@ class PrincipalServiceSpec extends Specification {
     then:
     result.role == childRole
     result.personalCode == parent.personalCode
-    0 * userService._
+    0 * principalUsers._
   }
 
   def "rebuilding a principal from a token is not blocked by the self-auth gate"() {
     given:
     Person minor = samplePerson().toBuilder().personalCode("61506150006").build()
     def role = new Role(PERSON, minor.personalCode, "Mari Maasikas")
-    1 * userService.findByPersonalCode(minor.personalCode) >> Optional.of(sampleUser)
+    1 * principalUsers.findOrCreate(minor) >> samplePrincipalUser
 
     when:
     AuthenticatedPerson authenticatedPerson = service.getFrom(minor, Map.of(), role)
@@ -187,9 +152,8 @@ class PrincipalServiceSpec extends Specification {
   def "getFromPerson: initialising non active user throws exception"() {
     given:
     Person person = samplePerson()
-    User user = User.builder().active(false).build()
 
-    1 * userService.findByPersonalCode(person.personalCode) >> Optional.ofNullable(user)
+    1 * principalUsers.findOrCreate(person) >> new PrincipalUser(1L, false)
 
     when:
     service.getFrom(person, Map.of())

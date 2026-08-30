@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.populationregister;
 
+import static ee.tuleva.onboarding.auth.principal.Names.formatted;
 import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.OTHER;
 import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PERSONAL_CUSTODY;
 import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PROPERTY_CUSTODY;
@@ -8,7 +9,6 @@ import static ee.tuleva.onboarding.populationregister.CustodyValidity.VALID;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.ALIVE;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.INACTIVE;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.UNKNOWN;
-import static ee.tuleva.onboarding.user.Names.formatted;
 
 import ee.tuleva.onboarding.country.CountryCodes;
 import ee.tuleva.onboarding.populationregister.PersonResponse.Citizenship;

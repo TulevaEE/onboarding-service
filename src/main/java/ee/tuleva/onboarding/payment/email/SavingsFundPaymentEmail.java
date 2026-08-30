@@ -6,8 +6,8 @@ import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_PAY
 import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_PAYMENT_SUCCESS_COMPANY;
 import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_PAYMENT_SUCCESS_PERSON;
 
+import ee.tuleva.onboarding.auth.principal.Names;
 import ee.tuleva.onboarding.notification.email.EmailType;
-import ee.tuleva.onboarding.user.Names;
 import java.util.Map;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;

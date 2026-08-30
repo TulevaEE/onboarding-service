@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.investment.event;
+package ee.tuleva.onboarding.pipeline;
 
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;

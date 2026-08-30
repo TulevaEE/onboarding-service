@@ -1,12 +1,12 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
 import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
-import static ee.tuleva.onboarding.investment.event.PipelineStep.TRACKING_DIFFERENCE;
+import static ee.tuleva.onboarding.pipeline.PipelineStep.TRACKING_DIFFERENCE;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.joining;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
-import ee.tuleva.onboarding.investment.event.PipelineTracker;
+import ee.tuleva.onboarding.pipeline.PipelineTracker;
 import java.time.LocalDate;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;

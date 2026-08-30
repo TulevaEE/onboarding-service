@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.investment.event;
+package ee.tuleva.onboarding.pipeline;
 
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
 

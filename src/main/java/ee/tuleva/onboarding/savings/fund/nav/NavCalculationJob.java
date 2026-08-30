@@ -1,14 +1,14 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
-import static ee.tuleva.onboarding.investment.event.PipelineStep.NAV_CALCULATION;
+import static ee.tuleva.onboarding.pipeline.PipelineStep.NAV_CALCULATION;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueIndexingJob;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
-import ee.tuleva.onboarding.investment.event.PipelineNotifier;
-import ee.tuleva.onboarding.investment.event.PipelineRun;
-import ee.tuleva.onboarding.investment.event.PipelineTracker;
+import ee.tuleva.onboarding.pipeline.PipelineNotifier;
+import ee.tuleva.onboarding.pipeline.PipelineRun;
+import ee.tuleva.onboarding.pipeline.PipelineTracker;
 import ee.tuleva.onboarding.savings.NavCalculationCompleted;
 import java.time.Clock;
 import java.time.LocalDate;

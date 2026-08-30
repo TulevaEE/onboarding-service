@@ -8,7 +8,7 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
 
 import ee.tuleva.onboarding.investment.TrackingCheckType;
-import ee.tuleva.onboarding.investment.event.PipelineTracker;
+import ee.tuleva.onboarding.pipeline.PipelineTracker;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;

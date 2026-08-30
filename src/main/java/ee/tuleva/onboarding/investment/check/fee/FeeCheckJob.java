@@ -1,11 +1,11 @@
 package ee.tuleva.onboarding.investment.check.fee;
 
-import static ee.tuleva.onboarding.investment.event.PipelineStep.FEE_CHECK;
+import static ee.tuleva.onboarding.pipeline.PipelineStep.FEE_CHECK;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.event.NavEventListenerOrder;
-import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.investment.event.RunFeeCheckRequested;
+import ee.tuleva.onboarding.pipeline.PipelineTracker;
 import ee.tuleva.onboarding.savings.NavCalculationCompleted;
 import java.time.Clock;
 import java.time.LocalDate;

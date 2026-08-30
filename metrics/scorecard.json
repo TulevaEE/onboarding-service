@@ -23,11 +23,11 @@
     "GodClass": 14,
     "TooManyMethods": 6
   },
-  "slowest10TestClassesSeconds": 100.9,
+  "slowest10TestClassesSeconds": 101.8,
   "springBootTests": 76,
-  "suiteWallTimeSeconds": 165,
-  "testClassesOver10Seconds": 3,
+  "suiteWallTimeSeconds": 191,
+  "testClassesOver10Seconds": 2,
   "top15ClassLines": 7194,
-  "totalPackages": 226,
+  "totalPackages": 227,
   "unmarkedPackages": 0
 }

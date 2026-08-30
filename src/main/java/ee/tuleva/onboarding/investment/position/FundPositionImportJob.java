@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.investment.position;
 
-import static ee.tuleva.onboarding.investment.event.PipelineStep.HEALTH_CHECK;
-import static ee.tuleva.onboarding.investment.event.PipelineStep.POSITION_IMPORT;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SWEDBANK;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
+import static ee.tuleva.onboarding.pipeline.PipelineStep.HEALTH_CHECK;
+import static ee.tuleva.onboarding.pipeline.PipelineStep.POSITION_IMPORT;
 import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
@@ -12,7 +12,6 @@ import ee.tuleva.onboarding.investment.check.health.HealthCheckNotifier;
 import ee.tuleva.onboarding.investment.check.health.HealthCheckResult;
 import ee.tuleva.onboarding.investment.check.health.HealthCheckService;
 import ee.tuleva.onboarding.investment.event.FundPositionsImported;
-import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.investment.event.ReportImportCompleted;
 import ee.tuleva.onboarding.investment.event.RunFundPositionImportRequested;
 import ee.tuleva.onboarding.investment.position.FundPositionImportService.ImportResult;
@@ -22,6 +21,7 @@ import ee.tuleva.onboarding.investment.position.parser.SwedbankFundPositionParse
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.investment.report.ReportProvider;
+import ee.tuleva.onboarding.pipeline.PipelineTracker;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;

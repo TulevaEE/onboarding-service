@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.investment.event;
+package ee.tuleva.onboarding.pipeline;
 
 import java.util.List;
 

@@ -1,14 +1,14 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
-import static ee.tuleva.onboarding.investment.event.PipelineStep.REPORT_EMAIL;
-import static ee.tuleva.onboarding.investment.event.PipelineStep.REPORT_PERSIST;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
+import static ee.tuleva.onboarding.pipeline.PipelineStep.REPORT_EMAIL;
+import static ee.tuleva.onboarding.pipeline.PipelineStep.REPORT_PERSIST;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueWriter;
 import ee.tuleva.onboarding.investment.check.tracking.NavTrackingDifferenceGate;
-import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.pipeline.PipelineTracker;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;

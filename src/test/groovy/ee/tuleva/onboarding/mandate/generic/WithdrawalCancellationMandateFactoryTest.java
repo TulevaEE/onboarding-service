@@ -80,8 +80,7 @@ public class WithdrawalCancellationMandateFactoryTest {
     assertThat(genericMandate.getDetails())
         .isInstanceOf(WithdrawalCancellationMandateDetails.class);
     assertThat(genericMandate.getPillar()).isEqualTo(2);
-    assertThat(genericMandate.getGenericMandateDto().getMandateType())
-        .isEqualTo(WITHDRAWAL_CANCELLATION);
+    assertThat(genericMandate.toSubmission().getMandateType()).isEqualTo(WITHDRAWAL_CANCELLATION);
   }
 
   @Test

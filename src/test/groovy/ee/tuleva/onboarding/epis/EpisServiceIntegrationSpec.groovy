@@ -5,10 +5,10 @@ import ee.tuleva.onboarding.auth.role.Role
 import ee.tuleva.onboarding.epis.ThirdPillarContribution
 import ee.tuleva.onboarding.epis.application.ApplicationResponse
 import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO
-import ee.tuleva.onboarding.epis.mandate.command.MandateCommand
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse
 import ee.tuleva.onboarding.mandate.LegacyMandateSubmission
 import ee.tuleva.onboarding.mandate.MandateProcessResult
+import ee.tuleva.onboarding.mandate.MandateSubmissionCommand
 import ee.tuleva.onboarding.mandate.application.ApplicationSnapshot
 import ee.tuleva.onboarding.mandate.application.ApplicationStatus
 import org.mockserver.client.MockServerClient
@@ -330,16 +330,16 @@ class EpisServiceIntegrationSpec extends Specification {
             {
               "processId" : "${mandateCommandResponse.processId}",
               "mandateDto" : {
-                "id" : ${sampleCancellation.id},
+                "id" : ${sampleCancellation.id()},
                 "details" : {
                   "mandateType" : "WITHDRAWAL_CANCELLATION"
                 },
-                "createdDate" : "${sampleCancellation.createdDate}",
+                "createdDate" : "${sampleCancellation.createdDate()}",
                 "address" : {
-                  "countryCode" : "${sampleCancellation.address.countryCode}"
+                  "countryCode" : "${sampleCancellation.address().countryCode}"
                 },
-                "email" : "${sampleCancellation.email}",
-                "phoneNumber" : "${sampleCancellation.phoneNumber}"
+                "email" : "${sampleCancellation.email()}",
+                "phoneNumber" : "${sampleCancellation.phoneNumber()}"
               }
             }
           """, MatchType.STRICT))
@@ -352,13 +352,13 @@ class EpisServiceIntegrationSpec extends Specification {
         )
 
     when:
-    MandateCommandResponse response = episService.sendMandateV2(new MandateCommand<>("1", sampleCancellation))
+    MandateProcessResult response = episService.sendMandateV2(new MandateSubmissionCommand<>("1", sampleCancellation))
 
     then:
-    response.successful == expectedResponse.successful
-    response.processId == expectedResponse.processId
-    response.errorCode == expectedResponse.errorCode
-    response.errorMessage == expectedResponse.errorMessage
+    def outcome = response.outcomes().first()
+    outcome.successful() == expectedResponse.successful
+    outcome.processId() == expectedResponse.processId
+    outcome.errorCode() == expectedResponse.errorCode
   }
 
   def "can send early withdrawal cancellation mandate v2"() {
@@ -377,16 +377,16 @@ class EpisServiceIntegrationSpec extends Specification {
             {
               "processId" : "${mandateCommandResponse.processId}",
               "mandateDto" : {
-                "id" : ${sampleCancellation.id},
+                "id" : ${sampleCancellation.id()},
                 "details" : {
                   "mandateType" : "EARLY_WITHDRAWAL_CANCELLATION"
                 },
-                "createdDate" : "${sampleCancellation.createdDate}",
+                "createdDate" : "${sampleCancellation.createdDate()}",
                 "address" : {
-                  "countryCode" : "${sampleCancellation.address.countryCode}"
+                  "countryCode" : "${sampleCancellation.address().countryCode}"
                 },
-                "email" : "${sampleCancellation.email}",
-                "phoneNumber" : "${sampleCancellation.phoneNumber}"
+                "email" : "${sampleCancellation.email()}",
+                "phoneNumber" : "${sampleCancellation.phoneNumber()}"
               }
             }
           """, MatchType.STRICT))
@@ -399,13 +399,13 @@ class EpisServiceIntegrationSpec extends Specification {
         )
 
     when:
-    MandateCommandResponse response = episService.sendMandateV2(new MandateCommand<>("1", sampleCancellation))
+    MandateProcessResult response = episService.sendMandateV2(new MandateSubmissionCommand<>("1", sampleCancellation))
 
     then:
-    response.successful == expectedResponse.successful
-    response.processId == expectedResponse.processId
-    response.errorCode == expectedResponse.errorCode
-    response.errorMessage == expectedResponse.errorMessage
+    def outcome = response.outcomes().first()
+    outcome.successful() == expectedResponse.successful
+    outcome.processId() == expectedResponse.processId
+    outcome.errorCode() == expectedResponse.errorCode
   }
 
   def "can send transfer cancellation mandate v2"() {
@@ -426,18 +426,18 @@ class EpisServiceIntegrationSpec extends Specification {
             {
               "processId" : "${mandateCommandResponse.processId}",
               "mandateDto" : {
-                "id" : ${sampleCancellation.id},
+                "id" : ${sampleCancellation.id()},
                 "details" : {
                   "mandateType" : "TRANSFER_CANCELLATION",
                   "sourceFundIsinOfTransferToCancel" : "${anIsin}",
                   "pillar" : "SECOND"
                 },
-                "createdDate" : "${sampleCancellation.createdDate}",
+                "createdDate" : "${sampleCancellation.createdDate()}",
                 "address" : {
-                  "countryCode" : "${sampleCancellation.address.countryCode}"
+                  "countryCode" : "${sampleCancellation.address().countryCode}"
                 },
-                "email" : "${sampleCancellation.email}",
-                "phoneNumber" : "${sampleCancellation.phoneNumber}"
+                "email" : "${sampleCancellation.email()}",
+                "phoneNumber" : "${sampleCancellation.phoneNumber()}"
               }
             }
           """, MatchType.STRICT))
@@ -450,13 +450,13 @@ class EpisServiceIntegrationSpec extends Specification {
         )
 
     when:
-    MandateCommandResponse response = episService.sendMandateV2(new MandateCommand<>("1", sampleCancellation))
+    MandateProcessResult response = episService.sendMandateV2(new MandateSubmissionCommand<>("1", sampleCancellation))
 
     then:
-    response.successful == expectedResponse.successful
-    response.processId == expectedResponse.processId
-    response.errorCode == expectedResponse.errorCode
-    response.errorMessage == expectedResponse.errorMessage
+    def outcome = response.outcomes().first()
+    outcome.successful() == expectedResponse.successful
+    outcome.processId() == expectedResponse.processId
+    outcome.errorCode() == expectedResponse.errorCode
   }
 
   def "can get contributions"() {

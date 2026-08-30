@@ -86,7 +86,7 @@ class MandateContentService {
     String documentNumber = mandate.getIdOrThrow().toString();
 
     PartialWithdrawalMandateDetails mandateDetails =
-        (PartialWithdrawalMandateDetails) mandate.getGenericMandateDto().getDetails();
+        (PartialWithdrawalMandateDetails) mandate.toSubmission().details();
 
     Context ctx =
         ContextBuilder.builder()
@@ -109,7 +109,7 @@ class MandateContentService {
     String documentNumber = mandate.getIdOrThrow().toString();
 
     FundPensionOpeningMandateDetails mandateDetails =
-        (FundPensionOpeningMandateDetails) mandate.getGenericMandateDto().getDetails();
+        (FundPensionOpeningMandateDetails) mandate.toSubmission().details();
 
     Context ctx =
         ContextBuilder.builder()

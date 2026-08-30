@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.epis.mandate.command;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import ee.tuleva.onboarding.mandate.MandateProcessResult;
 import lombok.Getter;
 import org.jspecify.annotations.Nullable;
 
@@ -24,5 +25,9 @@ public class MandateCommandResponse extends MandateInProcess {
     this.successful = successful;
     this.errorCode = errorCode;
     this.errorMessage = errorMessage;
+  }
+
+  public MandateProcessResult toProcessResult() {
+    return MandateSubmissionCommandMapper.toProcessResult(this);
   }
 }

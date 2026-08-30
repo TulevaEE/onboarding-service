@@ -32,6 +32,7 @@ import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto;
 import ee.tuleva.onboarding.mandate.LegacyMandateSubmission;
+import ee.tuleva.onboarding.mandate.MandateSubmissionCommand;
 import ee.tuleva.onboarding.mandate.application.ApplicationSnapshot;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -376,7 +377,7 @@ class EpisServiceTest {
               HttpEntity<?> entity = invocation.getArgument(1, HttpEntity.class);
               assertTrue(doesHttpEntityContainToken(entity, sampleUserToken));
               MandateCommand<?> cmd = (MandateCommand<?>) entity.getBody();
-              assertEquals(sampleCancellation.getId(), cmd.getMandateDto().getId());
+              assertEquals(sampleCancellation.id(), cmd.getMandateDto().getId());
               return mandateCommandResponse;
             })
         .when(episRestTemplate)
@@ -384,11 +385,12 @@ class EpisServiceTest {
             eq("http://epis/mandates-v2"), any(HttpEntity.class), eq(MandateCommandResponse.class));
 
     // when
-    var response = service.sendMandateV2(new MandateCommand<>("1", sampleCancellation));
+    var response = service.sendMandateV2(new MandateSubmissionCommand<>("1", sampleCancellation));
 
     // then
-    assertEquals("1", response.getProcessId());
-    assertTrue(response.isSuccessful());
+    var outcome = response.outcomes().getFirst();
+    assertEquals("1", outcome.processId());
+    assertTrue(outcome.successful());
   }
 
   @Test

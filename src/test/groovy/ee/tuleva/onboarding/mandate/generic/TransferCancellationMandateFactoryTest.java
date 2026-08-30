@@ -87,8 +87,7 @@ public class TransferCancellationMandateFactoryTest {
             eq(paymentRates));
 
     assertThat(genericMandate.getDetails()).isInstanceOf(TransferCancellationMandateDetails.class);
-    assertThat(genericMandate.getGenericMandateDto().getMandateType())
-        .isEqualTo(TRANSFER_CANCELLATION);
+    assertThat(genericMandate.toSubmission().getMandateType()).isEqualTo(TRANSFER_CANCELLATION);
 
     assertThat(genericMandate.getPillar()).isEqualTo(testPillar.toInt());
     assertThat(genericMandate.getFundTransferExchanges().size()).isEqualTo(1);

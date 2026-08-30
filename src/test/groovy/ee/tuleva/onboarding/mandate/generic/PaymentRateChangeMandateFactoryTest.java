@@ -83,8 +83,7 @@ public class PaymentRateChangeMandateFactoryTest {
         .isEqualTo(SIX);
     assertThat(genericMandate.getPillar()).isEqualTo(SECOND.toInt());
 
-    assertThat(genericMandate.getGenericMandateDto().getMandateType())
-        .isEqualTo(PAYMENT_RATE_CHANGE);
+    assertThat(genericMandate.toSubmission().getMandateType()).isEqualTo(PAYMENT_RATE_CHANGE);
   }
 
   @Test

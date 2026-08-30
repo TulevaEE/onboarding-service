@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.mandate
 
-import ee.tuleva.onboarding.epis.mandate.GenericMandateDto
 import ee.tuleva.onboarding.mandate.details.EarlyWithdrawalCancellationMandateDetails
 import ee.tuleva.onboarding.mandate.details.TransferCancellationMandateDetails
 import ee.tuleva.onboarding.mandate.details.WithdrawalCancellationMandateDetails
@@ -68,14 +67,14 @@ class MandateSpec extends Specification {
     when:
     Mandate mandate = sampleWithdrawalCancellationMandate()
 
-    GenericMandateDto dto = mandate.getGenericMandateDto()
+    def submission = mandate.toSubmission()
     then:
-    dto.id == mandate.id
-    dto.createdDate == mandate.createdDate
-    dto.address == mandate.address
-    dto.email == mandate.email
-    dto.phoneNumber == mandate.phoneNumber
-    dto.details instanceof WithdrawalCancellationMandateDetails
+    submission.id() == mandate.id
+    submission.createdDate() == mandate.createdDate
+    submission.address() == mandate.address
+    submission.email() == mandate.email
+    submission.phoneNumber() == mandate.phoneNumber
+    submission.details() instanceof WithdrawalCancellationMandateDetails
   }
 
 
@@ -83,30 +82,30 @@ class MandateSpec extends Specification {
     when:
     Mandate mandate = sampleEarlyWithdrawalCancellationMandate()
 
-    GenericMandateDto dto = mandate.getGenericMandateDto()
+    def submission = mandate.toSubmission()
     then:
-    dto.id == mandate.id
-    dto.createdDate == mandate.createdDate
-    dto.address == mandate.address
-    dto.email == mandate.email
-    dto.phoneNumber == mandate.phoneNumber
-    dto.details instanceof EarlyWithdrawalCancellationMandateDetails
+    submission.id() == mandate.id
+    submission.createdDate() == mandate.createdDate
+    submission.address() == mandate.address
+    submission.email() == mandate.email
+    submission.phoneNumber() == mandate.phoneNumber
+    submission.details() instanceof EarlyWithdrawalCancellationMandateDetails
   }
 
   def "can build generic mandate dto for transfer cancellation"() {
     when:
     Mandate mandate = sampleTransferCancellationMandate()
 
-    GenericMandateDto dto = mandate.getGenericMandateDto()
+    def submission = mandate.toSubmission()
     then:
-    dto.id == mandate.id
-    dto.createdDate == mandate.createdDate
-    dto.address == mandate.address
-    dto.email == mandate.email
-    dto.phoneNumber == mandate.phoneNumber
-    dto.details instanceof TransferCancellationMandateDetails
-    ((TransferCancellationMandateDetails) dto.details).getSourceFundIsinOfTransferToCancel() == mandate.fundTransferExchanges.first.sourceFundIsin
-    ((TransferCancellationMandateDetails) dto.details).getPillar() == SECOND
+    submission.id() == mandate.id
+    submission.createdDate() == mandate.createdDate
+    submission.address() == mandate.address
+    submission.email() == mandate.email
+    submission.phoneNumber() == mandate.phoneNumber
+    submission.details() instanceof TransferCancellationMandateDetails
+    ((TransferCancellationMandateDetails) submission.details()).getSourceFundIsinOfTransferToCancel() == mandate.fundTransferExchanges.first.sourceFundIsin
+    ((TransferCancellationMandateDetails) submission.details()).getPillar() == SECOND
   }
 
   def "getCountry returns address field"() {

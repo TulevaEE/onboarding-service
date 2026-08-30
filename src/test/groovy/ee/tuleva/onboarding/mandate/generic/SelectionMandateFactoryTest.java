@@ -83,7 +83,7 @@ public class SelectionMandateFactoryTest {
         .isEqualTo(futureContributionIsin);
     assertThat(genericMandate.getPillar()).isEqualTo(SECOND.toInt());
 
-    assertThat(genericMandate.getGenericMandateDto().getMandateType()).isEqualTo(SELECTION);
+    assertThat(genericMandate.toSubmission().getMandateType()).isEqualTo(SELECTION);
   }
 
   @Test

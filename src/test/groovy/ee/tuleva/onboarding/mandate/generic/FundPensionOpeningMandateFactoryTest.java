@@ -79,8 +79,7 @@ public class FundPensionOpeningMandateFactoryTest {
 
     assertThat(genericMandate.getDetails()).isInstanceOf(FundPensionOpeningMandateDetails.class);
     assertThat(genericMandate.getPillar()).isEqualTo(aMandateDetails.getPillar().toInt());
-    assertThat(genericMandate.getGenericMandateDto().getMandateType())
-        .isEqualTo(FUND_PENSION_OPENING);
+    assertThat(genericMandate.toSubmission().getMandateType()).isEqualTo(FUND_PENSION_OPENING);
   }
 
   @Test

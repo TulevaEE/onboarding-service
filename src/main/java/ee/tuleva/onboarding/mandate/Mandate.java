@@ -8,7 +8,6 @@ import static org.hibernate.type.SqlTypes.JSON;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonView;
 import ee.tuleva.onboarding.country.Country;
-import ee.tuleva.onboarding.epis.mandate.GenericMandateDto;
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
 import ee.tuleva.onboarding.mandate.details.*;
 import ee.tuleva.onboarding.mandate.generic.MandateDto;
@@ -115,8 +114,8 @@ public class Mandate implements Serializable {
   }
 
   @JsonIgnore
-  private <T extends MandateDetails> GenericMandateDto<T> buildGenericMandateDto(T details) {
-    return GenericMandateDto.<T>builder()
+  private <T extends MandateDetails> GenericMandateSubmission<T> buildSubmission(T details) {
+    return GenericMandateSubmission.<T>builder()
         .id(id)
         .createdDate(createdDate)
         .address(address)
@@ -132,17 +131,17 @@ public class Mandate implements Serializable {
   }
 
   @JsonIgnore
-  public GenericMandateDto<?> getGenericMandateDto() {
-    if (!supportsGenericMandateDto()) {
+  public GenericMandateSubmission<?> toSubmission() {
+    if (!supportsSubmission()) {
       throw new IllegalStateException("Mandate DTO not yet supported for given application");
     }
 
-    return buildGenericMandateDto(details);
+    return buildSubmission(details);
   }
 
   @JsonIgnore
   public MandateDto<?> getMandateDto() {
-    if (!supportsGenericMandateDto()) {
+    if (!supportsSubmission()) {
       throw new IllegalStateException("Mandate DTO not yet supported for given application");
     }
 
@@ -150,7 +149,7 @@ public class Mandate implements Serializable {
   }
 
   @JsonIgnore
-  public boolean supportsGenericMandateDto() {
+  public boolean supportsSubmission() {
     return details != null;
   }
 

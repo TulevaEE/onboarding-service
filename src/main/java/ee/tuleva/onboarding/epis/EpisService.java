@@ -19,6 +19,7 @@ import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto;
 import ee.tuleva.onboarding.mandate.LegacyMandateSubmission;
 import ee.tuleva.onboarding.mandate.MandateProcessResult;
+import ee.tuleva.onboarding.mandate.MandateSubmissionCommand;
 import ee.tuleva.onboarding.mandate.application.ApplicationSnapshot;
 import java.time.LocalDate;
 import java.util.Arrays;
@@ -399,25 +400,24 @@ public class EpisService {
     return Arrays.asList(response.getBody());
   }
 
-  public MandateCommandResponse sendMandateV2(MandateCommand<?> mandate) {
-    String url = episServiceUrl + "/mandates-v2";
-
+  public MandateProcessResult sendMandateV2(MandateSubmissionCommand<?> mandate) {
     return requireBody(
-        episRestTemplate.postForObject(
-            url, new HttpEntity<>(mandate, requestHeaders.user()), MandateCommandResponse.class),
-        "mandates-v2");
+            episRestTemplate.postForObject(
+                episServiceUrl + "/mandates-v2",
+                new HttpEntity<>(MandateCommand.from(mandate), requestHeaders.user()),
+                MandateCommandResponse.class),
+            "mandates-v2")
+        .toProcessResult();
   }
 
   public MandateProcessResult sendMandate(LegacyMandateSubmission mandate) {
-    String url = episServiceUrl + "/mandates";
-    ApplicationResponseDTO response =
-        requireBody(
+    return requireBody(
             episRestTemplate.postForObject(
-                url,
+                episServiceUrl + "/mandates",
                 new HttpEntity<>(MandateDto.from(mandate), requestHeaders.user()),
                 ApplicationResponseDTO.class),
-            "mandates");
-    return response.toProcessResult();
+            "mandates")
+        .toProcessResult();
   }
 
   @CacheEvict(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.representedPersonalCode")

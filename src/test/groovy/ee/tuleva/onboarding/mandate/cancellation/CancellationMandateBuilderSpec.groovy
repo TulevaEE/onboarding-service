@@ -47,7 +47,7 @@ class CancellationMandateBuilderSpec extends Specification {
     mandate.address == contactDetails.address
     mandate.futureContributionFundIsin == Optional.empty()
     mandate.fundTransferExchanges == null
-    mandate.getGenericMandateDto().getMandateType() == MandateType.WITHDRAWAL_CANCELLATION
+    mandate.toSubmission().getMandateType() == MandateType.WITHDRAWAL_CANCELLATION
     mandate.metadata == [
         isSecondPillarActive            : contactDetails.secondPillarActive,
         isSecondPillarFullyConverted    : conversion.secondPillarFullyConverted,
@@ -79,7 +79,7 @@ class CancellationMandateBuilderSpec extends Specification {
     mandate.address == contactDetails.address
     mandate.futureContributionFundIsin == Optional.empty()
     mandate.fundTransferExchanges == null
-    mandate.getGenericMandateDto().getMandateType() == MandateType.EARLY_WITHDRAWAL_CANCELLATION
+    mandate.toSubmission().getMandateType() == MandateType.EARLY_WITHDRAWAL_CANCELLATION
     mandate.metadata == [
         isSecondPillarActive            : contactDetails.secondPillarActive,
         isSecondPillarFullyConverted    : conversion.secondPillarFullyConverted,

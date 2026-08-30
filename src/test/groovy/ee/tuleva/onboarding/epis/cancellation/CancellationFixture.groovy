@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.epis.cancellation
 
-import ee.tuleva.onboarding.epis.mandate.GenericMandateDto
+import ee.tuleva.onboarding.mandate.GenericMandateSubmission
 import ee.tuleva.onboarding.mandate.details.EarlyWithdrawalCancellationMandateDetails
 import ee.tuleva.onboarding.pillar.Pillar
 import ee.tuleva.onboarding.mandate.details.TransferCancellationMandateDetails
@@ -12,8 +12,8 @@ import static ee.tuleva.onboarding.country.CountryFixture.countryFixture
 
 class CancellationFixture {
 
-    static GenericMandateDto<WithdrawalCancellationMandateDetails> sampleWithdrawalCancellation() {
-        return  GenericMandateDto.<WithdrawalCancellationMandateDetails>builder()
+    static GenericMandateSubmission<WithdrawalCancellationMandateDetails> sampleWithdrawalCancellation() {
+        return  GenericMandateSubmission.<WithdrawalCancellationMandateDetails>builder()
             .id(875L)
             .createdDate(Instant.parse("2021-03-09T10:00:00Z"))
             .address(countryFixture().build())
@@ -23,8 +23,8 @@ class CancellationFixture {
             .build()
     }
 
-  static GenericMandateDto<EarlyWithdrawalCancellationMandateDetails> sampleEarlyWithdrawalCancellation() {
-    return  GenericMandateDto.<EarlyWithdrawalCancellationMandateDetails>builder()
+  static GenericMandateSubmission<EarlyWithdrawalCancellationMandateDetails> sampleEarlyWithdrawalCancellation() {
+    return  GenericMandateSubmission.<EarlyWithdrawalCancellationMandateDetails>builder()
         .id(875L)
         .createdDate(Instant.parse("2021-03-09T10:00:00Z"))
         .address(countryFixture().build())
@@ -34,8 +34,8 @@ class CancellationFixture {
         .build()
   }
 
-  static GenericMandateDto<TransferCancellationMandateDetails> sampleTransferCancellation(String isinToCancel, Pillar pillar) {
-    return GenericMandateDto.<TransferCancellationMandateDetails>builder()
+  static GenericMandateSubmission<TransferCancellationMandateDetails> sampleTransferCancellation(String isinToCancel, Pillar pillar) {
+    return GenericMandateSubmission.<TransferCancellationMandateDetails>builder()
         .id(875L)
         .createdDate(Instant.parse("2021-03-09T10:00:00Z"))
         .address(countryFixture().build())

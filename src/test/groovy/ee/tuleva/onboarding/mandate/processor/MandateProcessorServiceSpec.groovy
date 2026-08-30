@@ -1,13 +1,12 @@
 package ee.tuleva.onboarding.mandate.processor
 
 import ee.tuleva.onboarding.epis.EpisService
-import ee.tuleva.onboarding.epis.mandate.command.MandateCommand
-import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse
 import ee.tuleva.onboarding.error.response.ErrorsResponse
 import ee.tuleva.onboarding.mandate.LegacyMandateSubmission
 import ee.tuleva.onboarding.mandate.Mandate
 import ee.tuleva.onboarding.mandate.MandateProcessResult
 import ee.tuleva.onboarding.mandate.MandateRepository
+import ee.tuleva.onboarding.mandate.MandateSubmissionCommand
 import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
 import spock.lang.Unroll
@@ -62,7 +61,9 @@ class MandateProcessorServiceSpec extends Specification {
     Mandate mandate = sampleWithdrawalCancellationMandate()
     mandate.address = countryFixture().build()
     mandate.user = sampleUser
-    def response = new MandateCommandResponse("1", true, null, null)
+    def response = MandateProcessResult.builder()
+        .outcomes([new MandateProcessResult.MandateProcessOutcome("1", true, null)])
+        .build()
     1 * mandateProcessRepository.findOneByProcessId(_) >> new MandateProcess()
     1 * mandateRepository.findById(mandate.id) >> Optional.ofNullable(mandate)
     when:
@@ -71,8 +72,8 @@ class MandateProcessorServiceSpec extends Specification {
     1 * mandateProcessRepository.save({ MandateProcess mandateProcess ->
       mandateProcess.mandate == mandate && mandateProcess.processId != null
     }) >> { args -> args[0] }
-    1 * episService.sendMandateV2({ MandateCommand mandateCommand ->
-      mandateCommand.getMandateDto().details.mandateType == WITHDRAWAL_CANCELLATION
+    1 * episService.sendMandateV2({ MandateSubmissionCommand cmd ->
+      cmd.submission().details().mandateType == WITHDRAWAL_CANCELLATION
     }) >> response
   }
 
@@ -81,7 +82,9 @@ class MandateProcessorServiceSpec extends Specification {
     Mandate mandate = sampleMandateWithPaymentRate()
     mandate.address = countryFixture().build()
     mandate.user = sampleUser
-    def response = new MandateCommandResponse("1", true, null, null)
+    def response = MandateProcessResult.builder()
+        .outcomes([new MandateProcessResult.MandateProcessOutcome("1", true, null)])
+        .build()
     1 * mandateProcessRepository.findOneByProcessId(_) >> new MandateProcess()
     1 * mandateRepository.findById(mandate.id) >> Optional.ofNullable(mandate)
     when:
@@ -90,8 +93,8 @@ class MandateProcessorServiceSpec extends Specification {
     1 * mandateProcessRepository.save({ MandateProcess mandateProcess ->
       mandateProcess.mandate == mandate && mandateProcess.processId != null
     }) >> { args -> args[0] }
-    1 * episService.sendMandateV2({ MandateCommand mandateCommand ->
-      mandateCommand.getMandateDto().details.mandateType == PAYMENT_RATE_CHANGE
+    1 * episService.sendMandateV2({ MandateSubmissionCommand cmd ->
+      cmd.submission().details().mandateType == PAYMENT_RATE_CHANGE
     }) >> response
   }
 //  def "Start: processes mandate with payment rate and saves processes"() {

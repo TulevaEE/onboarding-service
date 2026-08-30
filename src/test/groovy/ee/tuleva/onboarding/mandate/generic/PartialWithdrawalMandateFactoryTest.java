@@ -79,8 +79,7 @@ public class PartialWithdrawalMandateFactoryTest {
 
     assertThat(genericMandate.getDetails()).isInstanceOf(PartialWithdrawalMandateDetails.class);
     assertThat(genericMandate.getPillar()).isEqualTo(aMandateDetails.getPillar().toInt());
-    assertThat(genericMandate.getGenericMandateDto().getMandateType())
-        .isEqualTo(PARTIAL_WITHDRAWAL);
+    assertThat(genericMandate.toSubmission().getMandateType()).isEqualTo(PARTIAL_WITHDRAWAL);
   }
 
   @Test

@@ -4,17 +4,16 @@ import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.epis.EpisService;
-import ee.tuleva.onboarding.epis.mandate.GenericMandateDto;
-import ee.tuleva.onboarding.epis.mandate.command.MandateCommand;
-import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.ApplicationType;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
+import ee.tuleva.onboarding.mandate.GenericMandateSubmission;
 import ee.tuleva.onboarding.mandate.LegacyMandateSubmission;
 import ee.tuleva.onboarding.mandate.LegacyMandateSubmission.FundTransferInstruction;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateProcessResult;
 import ee.tuleva.onboarding.mandate.MandateRepository;
+import ee.tuleva.onboarding.mandate.MandateSubmissionCommand;
 import ee.tuleva.onboarding.user.User;
 import java.util.List;
 import java.util.Optional;
@@ -37,10 +36,9 @@ public class MandateProcessorService {
     log.info(
         "Start mandate processing user id {} and mandate id {}", user.getId(), mandate.getId());
 
-    if (mandate.supportsGenericMandateDto()) {
-      final var response =
-          episService.sendMandateV2(getMandateCommand(mandate.getGenericMandateDto()));
-      handleMandateCommandResponse(response);
+    if (mandate.supportsSubmission()) {
+      final var response = episService.sendMandateV2(getMandateSubmissionCommand(mandate));
+      handleMandateProcessResult(response);
     } else {
       final var response = episService.sendMandate(getLegacyMandateSubmission(mandate));
       handleMandateProcessResult(response);
@@ -65,19 +63,10 @@ public class MandateProcessorService {
     return submissionBuilder.build();
   }
 
-  private MandateCommand<?> getMandateCommand(GenericMandateDto<?> mandateDto) {
-    final var process =
-        createMandateProcess(mandateDto, mandateDto.getDetails().getApplicationType());
-    return new MandateCommand<>(process.getProcessId(), mandateDto);
-  }
-
-  private void handleMandateCommandResponse(MandateCommandResponse response) {
-    log.info("Process result with id {} received", response.getProcessId());
-    MandateProcess process = mandateProcessRepository.findOneByProcessId(response.getProcessId());
-    process.setSuccessful(response.isSuccessful());
-    process.setErrorCode(response.getErrorCode());
-
-    saveFinalizedProcess(process);
+  private MandateSubmissionCommand<?> getMandateSubmissionCommand(Mandate mandate) {
+    final var submission = mandate.toSubmission();
+    final var process = createMandateProcess(submission, submission.details().getApplicationType());
+    return new MandateSubmissionCommand<>(process.getProcessId(), submission);
   }
 
   private void saveFinalizedProcess(MandateProcess process) {
@@ -97,7 +86,6 @@ public class MandateProcessorService {
     mandateProcessRepository.save(process);
   }
 
-  // TODO: delete when all mandates have migrated to GenericMandateTdo
   private void handleMandateProcessResult(MandateProcessResult result) {
     result
         .outcomes()
@@ -153,7 +141,7 @@ public class MandateProcessorService {
     }
   }
 
-  // TODO: delete this method when all mandates use GenericMandateDto
+  // TODO: delete this method when all mandates use GenericMandateSubmission
   private MandateProcess createMandateProcess(Mandate mandate, ApplicationType type) {
     String processId = UUID.randomUUID().toString().replace("-", "");
     return mandateProcessRepository.save(
@@ -161,17 +149,15 @@ public class MandateProcessorService {
   }
 
   private MandateProcess createMandateProcess(
-      GenericMandateDto<?> genericMandateDto, ApplicationType type) {
+      GenericMandateSubmission<?> submission, ApplicationType type) {
     String processId = UUID.randomUUID().toString().replace("-", "");
     Long mandateId =
         requireNonNull(
-            genericMandateDto.getId(),
-            "Mandate DTO has no id: type=" + genericMandateDto.getMandateType());
+            submission.id(), "Mandate DTO has no id: type=" + submission.getMandateType());
     final Optional<Mandate> mandate = mandateRepository.findById(mandateId);
 
     if (mandate.isEmpty()) {
-      throw new IllegalStateException(
-          "Mandate with id " + genericMandateDto.getId() + " not found");
+      throw new IllegalStateException("Mandate with id " + submission.id() + " not found");
     } else {
       return mandateProcessRepository.save(
           MandateProcess.builder()

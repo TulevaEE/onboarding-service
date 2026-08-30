@@ -38,7 +38,6 @@ public class WithdrawalCancellationMandateFactory
     Mandate mandate = this.setupMandate(authenticatedPerson, mandateCreationDto);
 
     // TODO legacy fields
-    mandate.setPillar(2);
 
     return mandate;
   }

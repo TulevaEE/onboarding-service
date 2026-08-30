@@ -1,7 +1,5 @@
 package ee.tuleva.onboarding.mandate.generic;
 
-import static ee.tuleva.onboarding.pillar.Pillar.SECOND;
-
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.conversion.ConversionDecorator;
 import ee.tuleva.onboarding.conversion.UserConversionService;
@@ -38,9 +36,7 @@ public class PaymentRateChangeMandateFactory
     Mandate mandate = this.setupMandate(authenticatedPerson, mandateCreationDto);
     PaymentRateChangeMandateDetails details = mandateCreationDto.getDetails();
 
-    mandate.setPillar(SECOND.toInt());
     // TODO legacy field
-    mandate.setPaymentRate(details.getPaymentRate().getNumericValue());
 
     return mandate;
   }

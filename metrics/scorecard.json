@@ -1,9 +1,9 @@
 {
-  "branchCoverage": 85.74,
+  "branchCoverage": 85.73,
   "classCouplingViolations": 38,
   "clockViolations": 30,
   "cognitiveComplexityViolations": 20,
-  "compilerWarnings": 30,
+  "compilerWarnings": 0,
   "deepNestingViolations": 0,
   "disabledTests": 6,
   "disconnectedClasses": 455,
@@ -26,9 +26,9 @@
     "GodClass": 14,
     "TooManyMethods": 6
   },
-  "slowest10TestClassesSeconds": 98.9,
+  "slowest10TestClassesSeconds": 105.5,
   "springBootTests": 76,
-  "suiteWallTimeSeconds": 169,
+  "suiteWallTimeSeconds": 188,
   "testClassesOver10Seconds": 3,
   "top15ClassLines": 7194,
   "totalPackages": 227,

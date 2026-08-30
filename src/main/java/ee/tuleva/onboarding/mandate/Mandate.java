@@ -43,7 +43,6 @@ public class Mandate implements Serializable {
   @Nullable
   private String futureContributionFundIsin; // TODO: refactor this field into details
 
-  @Deprecated
   @NotNull
   @Min(2)
   @Max(3)
@@ -88,7 +87,6 @@ public class Mandate implements Serializable {
       foreignKey = @ForeignKey(name = "fk_mandate_batch"))
   private MandateBatch mandateBatch;
 
-  @Deprecated
   @ValidPaymentRate
   @JsonView(MandateView.Default.class)
   private @Nullable BigDecimal paymentRate;
@@ -156,6 +154,27 @@ public class Mandate implements Serializable {
   @PrePersist
   protected void onCreate() {
     createdDate = clock().instant();
+    syncLegacyColumns();
+  }
+
+  @PreUpdate
+  protected void onUpdate() {
+    syncLegacyColumns();
+  }
+
+  private void syncLegacyColumns() {
+    pillar = getPillar();
+    paymentRate = getPaymentRate();
+  }
+
+  public Integer getPillar() {
+    return details != null ? details.pillar().toInt() : pillar;
+  }
+
+  public @Nullable BigDecimal getPaymentRate() {
+    return details instanceof PaymentRateChangeMandateDetails rateChange
+        ? rateChange.getPaymentRate().getNumericValue()
+        : paymentRate;
   }
 
   public Optional<byte[]> getMandate() {

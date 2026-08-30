@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import ee.tuleva.onboarding.applicationtype.ApplicationType;
 import ee.tuleva.onboarding.mandate.MandateType;
 import ee.tuleva.onboarding.mandate.MandateView;
+import ee.tuleva.onboarding.pillar.Pillar;
 import java.io.Serializable;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -23,4 +24,13 @@ public abstract class MandateDetails implements Serializable {
 
   @JsonIgnore
   public abstract ApplicationType getApplicationType();
+
+  public Pillar pillar() {
+    return switch (mandateType) {
+      case SELECTION, WITHDRAWAL_CANCELLATION, EARLY_WITHDRAWAL_CANCELLATION, PAYMENT_RATE_CHANGE ->
+          Pillar.SECOND;
+      default ->
+          throw new IllegalStateException("Pillar undefined for mandate type: type=" + mandateType);
+    };
+  }
 }

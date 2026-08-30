@@ -38,7 +38,6 @@ public class FundPensionOpeningMandateFactory
     FundPensionOpeningMandateDetails details = mandateCreationDto.getDetails();
 
     // TODO legacy field
-    mandate.setPillar(details.getPillar().toInt());
 
     return mandate;
   }

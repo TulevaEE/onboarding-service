@@ -1,7 +1,5 @@
 package ee.tuleva.onboarding.mandate.generic;
 
-import static ee.tuleva.onboarding.pillar.Pillar.SECOND;
-
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.conversion.ConversionDecorator;
 import ee.tuleva.onboarding.conversion.UserConversionService;
@@ -39,7 +37,6 @@ public class SelectionMandateFactory extends MandateFactory<SelectionMandateDeta
     Mandate mandate = this.setupMandate(authenticatedPerson, mandateCreationDto);
     SelectionMandateDetails details = mandateCreationDto.getDetails();
 
-    mandate.setPillar(SECOND.toInt());
     // TODO legacy fields
     mandate.setFutureContributionFundIsin(details.getFutureContributionFundIsin());
     mandate.setFundTransferExchanges(List.of());

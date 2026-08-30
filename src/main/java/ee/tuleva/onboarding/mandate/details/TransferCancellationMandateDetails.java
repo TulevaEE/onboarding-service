@@ -55,4 +55,9 @@ public class TransferCancellationMandateDetails extends MandateDetails {
   public ApplicationType getApplicationType() {
     return CANCELLATION;
   }
+
+  @Override
+  public Pillar pillar() {
+    return pillar;
+  }
 }

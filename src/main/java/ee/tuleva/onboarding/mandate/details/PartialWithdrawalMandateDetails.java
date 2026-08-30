@@ -46,4 +46,9 @@ public class PartialWithdrawalMandateDetails extends MandateDetails {
 
     return ApplicationType.PARTIAL_WITHDRAWAL;
   }
+
+  @Override
+  public Pillar pillar() {
+    return pillar;
+  }
 }

@@ -38,4 +38,9 @@ public class FundPensionOpeningMandateDetails extends MandateDetails {
 
     return ApplicationType.FUND_PENSION_OPENING;
   }
+
+  @Override
+  public Pillar pillar() {
+    return pillar;
+  }
 }

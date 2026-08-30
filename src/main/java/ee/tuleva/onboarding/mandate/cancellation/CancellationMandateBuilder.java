@@ -66,7 +66,6 @@ public class CancellationMandateBuilder {
 
   public Mandate buildWithdrawalCancellationMandate(Mandate mandate) {
     // TODO legacy fields
-    mandate.setPillar(2);
 
     mandate.setDetails(new WithdrawalCancellationMandateDetails());
     return mandate;
@@ -74,7 +73,6 @@ public class CancellationMandateBuilder {
 
   public Mandate buildEarlyWithdrawalCancellationMandate(Mandate mandate) {
     // TODO legacy fields
-    mandate.setPillar(2);
 
     mandate.setDetails(new EarlyWithdrawalCancellationMandateDetails());
     return mandate;
@@ -102,7 +100,6 @@ public class CancellationMandateBuilder {
     var exchanges = singletonList(exchange);
 
     // TODO legacy fields
-    mandate.setPillar(sourceFund.getPillar());
     mandate.setFundTransferExchanges(exchanges);
 
     mandate.setDetails(

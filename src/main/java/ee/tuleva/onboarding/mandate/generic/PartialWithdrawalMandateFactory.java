@@ -37,7 +37,6 @@ public class PartialWithdrawalMandateFactory
     PartialWithdrawalMandateDetails details = mandateCreationDto.getDetails();
 
     // TODO legacy field
-    mandate.setPillar(details.getPillar().toInt());
 
     return mandate;
   }

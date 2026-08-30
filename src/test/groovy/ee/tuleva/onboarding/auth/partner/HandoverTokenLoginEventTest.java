@@ -15,8 +15,8 @@ import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.conversion.ConversionDecorator;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.conversion.UserConversionService;
-import ee.tuleva.onboarding.epis.ContactDetails;
-import ee.tuleva.onboarding.epis.ContactDetailsService;
+import ee.tuleva.onboarding.event.PillarActivation;
+import ee.tuleva.onboarding.event.PillarActivations;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.event.broadcasting.LoginEventBroadcaster;
@@ -57,7 +57,7 @@ public class HandoverTokenLoginEventTest {
   @Mock private PrincipalService principalService;
   @Mock private ApplicationEventPublisher eventPublisher;
   @Mock private UserConversionService conversionService;
-  @Mock private ContactDetailsService contactDetailsService;
+  @Mock private PillarActivations pillarActivations;
   @Mock private ConversionDecorator conversionDecorator;
   @Mock private AuthenticatedPerson authenticatedPerson;
   @Mock private SecurityContextRunner securityContextRunner;
@@ -85,7 +85,7 @@ public class HandoverTokenLoginEventTest {
         new LoginEventBroadcaster(
             eventPublisher,
             conversionService,
-            contactDetailsService,
+            pillarActivations,
             conversionDecorator,
             securityContextRunner,
             secondPillarPaymentRateService);
@@ -138,9 +138,8 @@ public class HandoverTokenLoginEventTest {
         ConversionResponse.builder().secondPillar(secondPillar).thirdPillar(thirdPillar).build();
     when(conversionService.getConversion(authenticatedPerson)).thenReturn(mockConversion);
 
-    ContactDetails mockContactDetails = mock(ContactDetails.class);
-    when(contactDetailsService.getContactDetails(authenticatedPerson))
-        .thenReturn(mockContactDetails);
+    when(pillarActivations.forPerson(authenticatedPerson))
+        .thenReturn(new PillarActivation(false, false));
 
     doAnswer(
             invocation -> {
@@ -219,9 +218,8 @@ public class HandoverTokenLoginEventTest {
         ConversionResponse.builder().secondPillar(secondPillar).thirdPillar(thirdPillar).build();
     when(conversionService.getConversion(authenticatedPerson)).thenReturn(mockConversion);
 
-    ContactDetails mockContactDetails = mock(ContactDetails.class);
-    when(contactDetailsService.getContactDetails(authenticatedPerson))
-        .thenReturn(mockContactDetails);
+    when(pillarActivations.forPerson(authenticatedPerson))
+        .thenReturn(new PillarActivation(false, false));
 
     // When - authentication and login event
     partnerAuthProvider.authenticate(handoverToken);
@@ -279,9 +277,8 @@ public class HandoverTokenLoginEventTest {
         ConversionResponse.builder().secondPillar(secondPillar).thirdPillar(thirdPillar).build();
     when(conversionService.getConversion(authenticatedPerson)).thenReturn(mockConversion);
 
-    ContactDetails mockContactDetails = mock(ContactDetails.class);
-    when(contactDetailsService.getContactDetails(authenticatedPerson))
-        .thenReturn(mockContactDetails);
+    when(pillarActivations.forPerson(authenticatedPerson))
+        .thenReturn(new PillarActivation(false, false));
 
     // When - authentication and login event
     partnerAuthProvider.authenticate(handoverToken);

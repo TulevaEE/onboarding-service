@@ -7,7 +7,7 @@ import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.conversion.ConversionDecorator;
 import ee.tuleva.onboarding.conversion.UserConversionService;
-import ee.tuleva.onboarding.epis.ContactDetailsService;
+import ee.tuleva.onboarding.event.PillarActivations;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
 import java.util.HashMap;
@@ -26,7 +26,7 @@ public class LoginEventBroadcaster {
 
   private final ApplicationEventPublisher eventPublisher;
   private final UserConversionService conversionService;
-  private final ContactDetailsService contactDetailsService;
+  private final PillarActivations pillarActivations;
   private final ConversionDecorator conversionDecorator;
   private final SecurityContextRunner securityContextRunner;
   private final SecondPillarPaymentRateService secondPillarPaymentRateService;
@@ -46,13 +46,13 @@ public class LoginEventBroadcaster {
         event.getAccessToken(),
         () -> {
           var conversion = conversionService.getConversion(person);
-          var contactDetails = contactDetailsService.getContactDetails(person);
+          var pillarActivation = pillarActivations.forPerson(person);
           var paymentRates = secondPillarPaymentRateService.getPaymentRates(person);
           conversionDecorator.addConversionMetadata(
               data,
               conversion,
-              contactDetails.isSecondPillarActive(),
-              contactDetails.isThirdPillarActive(),
+              pillarActivation.secondPillarActive(),
+              pillarActivation.thirdPillarActive(),
               person,
               paymentRates);
 

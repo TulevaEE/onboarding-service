@@ -6,7 +6,6 @@ import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.SUBMISSION;
 import static ee.tuleva.onboarding.kyb.survey.BlockedReason.ALREADY_ONBOARDED;
 import static ee.tuleva.onboarding.kyb.survey.BlockedReason.NOT_BOARD_MEMBER;
 import static ee.tuleva.onboarding.kyb.survey.BlockedReason.ONBOARDING_PENDING;
-import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.joining;
@@ -145,6 +144,7 @@ class KybSurveyService {
   }
 
   private static final String BOARD_MEMBER_ROLE = "JUHL";
+  private static final String LEGAL_ENTITY_PARTY_TYPE = "LEGAL_ENTITY";
 
   LegalEntityData initialValidation(String registryCode, String personalCode) {
     log.info(
@@ -259,7 +259,7 @@ class KybSurveyService {
         reason);
 
     var data = new LinkedHashMap<String, @Nullable Object>();
-    data.put("partyType", LEGAL_ENTITY.name());
+    data.put("partyType", LEGAL_ENTITY_PARTY_TYPE);
     data.put("registryCode", registryCode);
     data.put("personalCode", personalCode);
     data.put("outcome", "BLOCKED");
@@ -285,7 +285,7 @@ class KybSurveyService {
             .collect(joining(",")));
 
     var data = new LinkedHashMap<String, @Nullable Object>();
-    data.put("partyType", LEGAL_ENTITY.name());
+    data.put("partyType", LEGAL_ENTITY_PARTY_TYPE);
     data.put("registryCode", registryCode);
     data.put("personalCode", personalCode);
     data.put("outcome", "VALIDATION_FAILED");

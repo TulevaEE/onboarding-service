@@ -55,6 +55,7 @@ class ModuleMetricsTest {
     metrics.put("cycleCount", cycles.size());
     metrics.put("cycles", cycles);
     metrics.put("modules", moduleMetrics);
+    metrics.put("dependencies", dependencies);
 
     Files.createDirectories(OUTPUT_FILE.getParent());
     Files.writeString(

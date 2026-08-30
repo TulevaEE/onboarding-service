@@ -4,7 +4,8 @@ import ee.tuleva.onboarding.auth.SecurityContextRunner
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent
 import ee.tuleva.onboarding.auth.idcard.IdCardSession
 import ee.tuleva.onboarding.conversion.UserConversionService
-import ee.tuleva.onboarding.epis.ContactDetailsService
+import ee.tuleva.onboarding.event.PillarActivation
+import ee.tuleva.onboarding.event.PillarActivations
 import ee.tuleva.onboarding.event.TrackableEvent
 import ee.tuleva.onboarding.conversion.ConversionDecorator
 import ee.tuleva.onboarding.paymentrate.PaymentRates
@@ -27,14 +28,14 @@ class LoginEventBroadcasterSpec extends Specification {
 
   ApplicationEventPublisher eventPublisher = Mock()
   UserConversionService conversionService = Mock()
-  ContactDetailsService contactDetailsService = Mock()
+  PillarActivations pillarActivations = Mock()
   ConversionDecorator conversionDecorator = Mock()
   SecurityContextRunner securityContextRunner = Mock() {
     runAs(_, _, _) >> { args -> (args[2] as Runnable).run() }
   }
   SecondPillarPaymentRateService secondPillarPaymentRateService = Mock()
 
-  LoginEventBroadcaster service = new LoginEventBroadcaster(eventPublisher, conversionService, contactDetailsService,
+  LoginEventBroadcaster service = new LoginEventBroadcaster(eventPublisher, conversionService, pillarActivations,
       conversionDecorator, securityContextRunner, secondPillarPaymentRateService)
 
   def "OnAfterTokenGrantedEvent: Broadcast login event"() {
@@ -48,7 +49,7 @@ class LoginEventBroadcasterSpec extends Specification {
 
     def event = new AfterTokenGrantedEvent(this, samplePerson, grantType, tokens)
 
-    contactDetailsService.getContactDetails(_) >> contactDetailsFixture()
+    pillarActivations.forPerson(_) >> new PillarActivation(true, true)
 
     when:
     service.onAfterTokenGrantedEvent(event)
@@ -80,7 +81,7 @@ class LoginEventBroadcasterSpec extends Specification {
     def event = new AfterTokenGrantedEvent(this, samplePerson, SMART_ID, tokens)
 
     1 * conversionService.getConversion(samplePerson) >> conversion
-    1 * contactDetailsService.getContactDetails(samplePerson) >> contactDetails
+    1 * pillarActivations.forPerson(samplePerson) >> new PillarActivation(contactDetails.secondPillarActive, contactDetails.thirdPillarActive)
     1 * secondPillarPaymentRateService.getPaymentRates(samplePerson) >> new PaymentRates(4, null)
     1 * conversionDecorator.addConversionMetadata(_, conversion, contactDetails.secondPillarActive, contactDetails.thirdPillarActive, samplePerson, _) >> {
       (data) -> data.sample = "conversion"

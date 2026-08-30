@@ -15,6 +15,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.aml.AmlService;
+import ee.tuleva.onboarding.aml.SanctionAndPepScreener;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.country.Countries;
@@ -46,6 +47,7 @@ class ChildOnboardingServiceTest {
   @Mock private ParentChildLinkRegistrationService parentChildLinkRegistrationService;
   @Mock private ChildSavingsOnboarding childSavingsOnboarding;
   @Mock private AmlService amlService;
+  @Mock private SanctionAndPepScreener sanctionAndPepScreener;
   @Mock private ApplicationEventPublisher applicationEventPublisher;
 
   private final Clock clock = Clock.fixed(Instant.parse("2026-05-22T00:00:00Z"), ZoneOffset.UTC);
@@ -60,6 +62,7 @@ class ChildOnboardingServiceTest {
             parentChildLinkRegistrationService,
             childSavingsOnboarding,
             amlService,
+            sanctionAndPepScreener,
             applicationEventPublisher,
             clock);
   }
@@ -172,7 +175,7 @@ class ChildOnboardingServiceTest {
 
     service.onboardChild(parent, CHILD);
 
-    verify(amlService)
+    verify(sanctionAndPepScreener)
         .addSanctionAndPepCheckIfMissing(
             new PersonImpl(CHILD, "MARI", "MAASIKAS"), Countries.of("EE"));
   }
@@ -187,7 +190,7 @@ class ChildOnboardingServiceTest {
 
     service.onboardChild(parent, CHILD);
 
-    verify(amlService)
+    verify(sanctionAndPepScreener)
         .addSanctionAndPepCheckIfMissing(
             new PersonImpl(PARENT, "Jordan", "Valdma"), Countries.of("RU"));
     var expectedEvidence = new LinkedHashMap<String, Object>(evidence);
@@ -208,7 +211,7 @@ class ChildOnboardingServiceTest {
 
     service.onboardChild(parent, CHILD);
 
-    verify(amlService)
+    verify(sanctionAndPepScreener)
         .addSanctionAndPepCheckIfMissing(
             new PersonImpl(PARENT, "Jordan", "Valdma"), Countries.<String>of());
   }
@@ -224,7 +227,7 @@ class ChildOnboardingServiceTest {
 
     service.onboardChild(parent, CHILD);
 
-    verify(amlService)
+    verify(sanctionAndPepScreener)
         .addSanctionAndPepCheckIfMissing(
             new PersonImpl(CHILD, "MARI", "MAASIKAS"), Countries.<String>of());
     var expectedEvidence = new LinkedHashMap<String, Object>(evidence);
@@ -241,7 +244,7 @@ class ChildOnboardingServiceTest {
 
     service.onboardChild(parent, CHILD);
 
-    verify(amlService, never()).addSanctionAndPepCheckIfMissing(any(), any());
+    verify(sanctionAndPepScreener, never()).addSanctionAndPepCheckIfMissing(any(), any());
   }
 
   @Test
@@ -294,7 +297,7 @@ class ChildOnboardingServiceTest {
 
     service.onboardChild(parent, CHILD);
 
-    verify(amlService)
+    verify(sanctionAndPepScreener)
         .addSanctionAndPepCheckIfMissing(
             new PersonImpl(CHILD, "MARI", "MAASIKAS"), Countries.of("EE", "RU"));
   }

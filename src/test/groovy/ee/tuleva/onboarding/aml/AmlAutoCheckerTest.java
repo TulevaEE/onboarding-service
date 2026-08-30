@@ -29,6 +29,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class AmlAutoCheckerTest {
 
   @Mock private AmlService amlService;
+  @Mock private SanctionAndPepScreener sanctionAndPepScreener;
   @Mock private UserService userService;
   @Mock private ContactDetailsService contactDetailsService;
 
@@ -193,7 +194,7 @@ class AmlAutoCheckerTest {
     assertDoesNotThrow(() -> amlAutoChecker.beforeMandateCreated(mockEvent));
 
     // then
-    verify(amlService).addSanctionAndPepCheckIfMissing(mockUser, mockCountries);
+    verify(sanctionAndPepScreener).addSanctionAndPepCheckIfMissing(mockUser, mockCountries);
     verify(amlService).allChecksPassed(mockUser, mandate);
   }
 
@@ -214,7 +215,7 @@ class AmlAutoCheckerTest {
     assertDoesNotThrow(() -> amlAutoChecker.beforeMandateCreated(mockEvent));
 
     // then
-    verify(amlService, never()).addSanctionAndPepCheckIfMissing(any(), any());
+    verify(sanctionAndPepScreener, never()).addSanctionAndPepCheckIfMissing(any(), any());
     verify(amlService).allChecksPassed(mockUser, mandate);
   }
 
@@ -242,7 +243,7 @@ class AmlAutoCheckerTest {
 
     // then
     assertNotNull(exception);
-    verify(amlService).addSanctionAndPepCheckIfMissing(mockUser, mockCountries);
+    verify(sanctionAndPepScreener).addSanctionAndPepCheckIfMissing(mockUser, mockCountries);
     verify(amlService).allChecksPassed(mockUser, mandate);
   }
 
@@ -257,6 +258,6 @@ class AmlAutoCheckerTest {
     amlAutoChecker.beforeKycChecked(event);
 
     // then
-    verify(amlService).addSanctionAndPepCheckIfMissing(person, mockCountries);
+    verify(sanctionAndPepScreener).addSanctionAndPepCheckIfMissing(person, mockCountries);
   }
 }

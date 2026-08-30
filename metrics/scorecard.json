@@ -1,13 +1,13 @@
 {
   "branchCoverage": 85.84,
-  "classCouplingViolations": 37,
+  "classCouplingViolations": 36,
   "clockViolations": 0,
   "cognitiveComplexityViolations": 20,
   "compilerWarnings": 0,
   "deepNestingViolations": 0,
   "disabledTests": 5,
   "disconnectedClasses": 454,
-  "godClasses": 14,
+  "godClasses": 13,
   "lineCoverage": 82.86,
   "longClasses": 4,
   "meanInstability": 0.473,
@@ -18,19 +18,19 @@
   "mutationsSliced": 1283,
   "mutationsTotal": 12781,
   "pitestSlicedModules": 6,
-  "pmdViolations": 156,
+  "pmdViolations": 152,
   "pmdViolationsByRule": {
     "CognitiveComplexity": 20,
-    "CouplingBetweenObjects": 37,
-    "CyclomaticComplexity": 79,
-    "GodClass": 14,
-    "TooManyMethods": 6
+    "CouplingBetweenObjects": 36,
+    "CyclomaticComplexity": 78,
+    "GodClass": 13,
+    "TooManyMethods": 5
   },
-  "slowest10TestClassesSeconds": 111.3,
+  "slowest10TestClassesSeconds": 111.2,
   "springBootTests": 76,
-  "suiteWallTimeSeconds": 164,
+  "suiteWallTimeSeconds": 168,
   "testClassesOver10Seconds": 5,
-  "top15ClassLines": 7193,
+  "top15ClassLines": 7092,
   "totalPackages": 227,
   "unmarkedPackages": 0
 }

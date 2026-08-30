@@ -5,67 +5,35 @@ import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.LOW;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.NONE;
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 import static java.util.stream.Collectors.toSet;
-import static java.util.stream.Collectors.toUnmodifiableSet;
 
 import ee.tuleva.onboarding.aml.notification.AmlCheckCreatedEvent;
-import ee.tuleva.onboarding.aml.notification.AmlChecksRunEvent;
-import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
-import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
-import ee.tuleva.onboarding.analytics.RecentThirdPillarCustomer;
-import ee.tuleva.onboarding.analytics.ThirdPillarAnalytics;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.conversion.UserConversionService;
-import ee.tuleva.onboarding.country.Countries;
-import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.epis.ContactDetails;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.kyc.KycCheck;
-import ee.tuleva.onboarding.kyc.KycCountryService;
 import ee.tuleva.onboarding.mandate.Mandate;
-import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.user.User;
-import ee.tuleva.onboarding.user.UserRepository;
-import io.micrometer.core.instrument.MeterRegistry;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.Strings;
 import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
-import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.json.JsonMapper;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class AmlService {
 
-  // The party module records these on its custody checks; screening reads them for parties whose
-  // KYC survey carries no citizenship of its own.
-  private static final String RECORDED_CITIZENSHIP = "citizenship";
-  private static final String RECORDED_CITIZENSHIPS = "citizenships";
-
   private final AmlCheckRepository amlCheckRepository;
   private final ApplicationEventPublisher eventPublisher;
-  private final PepAndSanctionCheckService pepAndSanctionCheckService;
-  private final ThirdPillarAnalytics thirdPillarAnalytics;
-  private final SavingsFundCustomers savingsFundCustomers;
-  private final UserRepository userRepository;
   private final UserConversionService userConversionService;
-  private final JsonMapper jsonMapper;
-  private final MeterRegistry meterRegistry;
-  private final OperationsNotificationService notificationService;
-  private final KycCountryService kycCountryService;
 
   public void checkUserBeforeLogin(User user, Person person, @Nullable Boolean isResident) {
     addDocumentCheck(user);
@@ -105,244 +73,6 @@ public class AmlService {
             .metadata(metadata(user, person))
             .build();
     addCheckIfMissing(skNameCheck);
-  }
-
-  public List<AmlCheck> addSanctionAndPepCheckIfMissing(Person person, Set<Country> countries) {
-    return screenForSanctionAndPep(person, countries).checks();
-  }
-
-  public List<AmlCheck> addSanctionAndPepCheckIfMissing(User user) {
-    return addSanctionAndPepCheckIfMissing(user, knownCountries(user));
-  }
-
-  private Set<Country> knownCountries(User user) {
-    return Stream.concat(
-            kycCountryService.getCountries(user.getIdOrThrow()).orElseGet(Set::of).stream(),
-            recordedCitizenships(user).stream())
-        .collect(toUnmodifiableSet());
-  }
-
-  public Set<Country> recordedCitizenships(Person person) {
-    return amlCheckRepository
-        .findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
-            person.getPersonalCode(), CUSTODY_RIGHT)
-        .map(AmlCheck::getMetadata)
-        .map(AmlService::citizenshipsFrom)
-        .orElseGet(Set::of);
-  }
-
-  private static Set<Country> citizenshipsFrom(Map<String, Object> metadata) {
-    if (metadata.get(RECORDED_CITIZENSHIPS) instanceof Collection<?> recorded) {
-      return Countries.of(
-          recorded.stream().filter(String.class::isInstance).map(String.class::cast).toList());
-    }
-    if (metadata.get(RECORDED_CITIZENSHIP) instanceof String citizenship) {
-      return Countries.of(citizenship);
-    }
-    return Set.of();
-  }
-
-  public boolean isSanctionAndPepClear(Person person, Set<Country> countries) {
-    if (screenForSanctionAndPep(person, countries).failed()) {
-      return false;
-    }
-    return latestCheckPassed(person, SANCTION)
-        && latestCheckPassed(person, POLITICALLY_EXPOSED_PERSON_AUTO);
-  }
-
-  private boolean latestCheckPassed(Person person, AmlCheckType type) {
-    return amlCheckRepository
-        .findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(person.getPersonalCode(), type)
-        .map(AmlCheck::isSuccess)
-        .orElse(false);
-  }
-
-  private ScreeningResult screenForSanctionAndPep(Person person, Set<Country> countries) {
-    MatchResponse response;
-    try {
-      response = pepAndSanctionCheckService.match(person, countries);
-    } catch (RuntimeException e) {
-      handleScreeningFailure(person, "match", e);
-      return new ScreeningResult(List.of(), true);
-    }
-
-    Optional<AmlCheck> pepCheck = addPepCheckIfMissing(person, response);
-    Optional<AmlCheck> sanctionCheck = addSanctionCheckIfMissing(person, response);
-
-    List<AmlCheck> checks = Stream.of(pepCheck, sanctionCheck).flatMap(Optional::stream).toList();
-    return new ScreeningResult(checks, false);
-  }
-
-  private void handleScreeningFailure(Person person, String phase, RuntimeException e) {
-    log.error(
-        "Sanction/PEP screening failed for personalCode={} during phase={}",
-        person.getPersonalCode(),
-        phase,
-        e);
-    meterRegistry.counter("aml.screening.failure", "phase", phase).increment();
-  }
-
-  private Optional<AmlCheck> addSanctionCheckIfMissing(Person person, MatchResponse response) {
-    AmlCheck sanctionCheck =
-        AmlCheck.builder()
-            .personalCode(person.getPersonalCode())
-            .type(SANCTION)
-            .success(isSuccess(person, SANCTION_OVERRIDE, response, "sanction"))
-            .metadata(metadata(response.results(), response.query()))
-            .build();
-    return addScreeningCheck(sanctionCheck);
-  }
-
-  private Optional<AmlCheck> addPepCheckIfMissing(Person person, MatchResponse response) {
-    AmlCheck pepCheck =
-        AmlCheck.builder()
-            .personalCode(person.getPersonalCode())
-            .type(POLITICALLY_EXPOSED_PERSON_AUTO)
-            .success(isSuccess(person, POLITICALLY_EXPOSED_PERSON_OVERRIDE, response, "role"))
-            .metadata(metadata(response.results(), response.query()))
-            .build();
-    return addScreeningCheck(pepCheck);
-  }
-
-  private Optional<AmlCheck> addScreeningCheck(AmlCheck screeningCheck) {
-    if (hasCheck(screeningCheck.getPersonalCode(), screeningCheck.getType())
-        && outcomeUnchanged(screeningCheck)) {
-      return Optional.empty();
-    }
-    return Optional.of(addCheck(screeningCheck));
-  }
-
-  private boolean outcomeUnchanged(AmlCheck screeningCheck) {
-    return amlCheckRepository
-        .findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
-            screeningCheck.getPersonalCode(), screeningCheck.getType())
-        .map(latest -> latest.isSuccess() == screeningCheck.isSuccess())
-        .orElse(false);
-  }
-
-  private boolean isSuccess(
-      Person person, AmlCheckType overrideType, MatchResponse response, String topic) {
-    boolean hasMatch = hasMatch(response.results(), topic);
-    boolean hasSuccessOverride = hasSuccessOverride(person, overrideType, response.results());
-    return !hasMatch || hasSuccessOverride;
-  }
-
-  private boolean hasSuccessOverride(
-      Person person, AmlCheckType overrideType, Iterable<JsonNode> results) {
-    List<String> ids =
-        stream(results)
-            .filter(result -> result.hasNonNull("id"))
-            .map(result -> result.get("id").asString())
-            .toList();
-    List<AmlCheck> successOverrides =
-        amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(
-            person.getPersonalCode(), overrideType, true);
-    return successOverrides.stream().anyMatch(override -> overrideApplies(override, ids));
-  }
-
-  private boolean overrideApplies(AmlCheck override, List<String> matchedIds) {
-    Object overrideResults = override.getMetadata().get("results");
-    if (!(overrideResults instanceof Iterable<?> results)) {
-      return true;
-    }
-    return stream(results)
-        .anyMatch(result -> result instanceof Map<?, ?> map && matchedIds.contains(map.get("id")));
-  }
-
-  public void runAmlChecksOnThirdPillarCustomers() {
-    List<RecentThirdPillarCustomer> customers = thirdPillarAnalytics.recentCustomers();
-    eventPublisher.publishEvent(new AmlChecksRunEvent(this, customers.size()));
-    screenBatch(ScreeningBatch.THIRD_PILLAR, customers, c -> Countries.of(c.country()));
-  }
-
-  public void runAmlChecksOnSavingsFundCustomers() {
-    List<String> personalCodes = savingsFundCustomers.personalCodes();
-    List<User> customers = userRepository.findAllByPersonalCodeIn(personalCodes);
-
-    log.info(
-        "Resolved savings fund customers to screen: onboarded={}, resolved={}",
-        personalCodes.size(),
-        customers.size());
-
-    screenBatch(ScreeningBatch.SAVINGS_FUND, customers, this::knownCountries);
-  }
-
-  private <T extends Person> void screenBatch(
-      ScreeningBatch batch, List<T> people, Function<T, Set<Country>> countriesOf) {
-    log.info(
-        "Running AML screening batch: population={}, people={}", batch.population, people.size());
-
-    int failureCount = 0;
-    for (T person : people) {
-      try {
-        if (screenForSanctionAndPep(person, countriesOf.apply(person)).failed()) {
-          failureCount++;
-        }
-      } catch (RuntimeException e) {
-        handleScreeningFailure(person, batch.metricPhase, e);
-        failureCount++;
-      }
-    }
-
-    alertOnBatchScreeningFailures(batch, failureCount, people.size());
-
-    log.info(
-        "Finished AML screening batch: population={}, people={}, screeningFailures={}",
-        batch.population,
-        people.size(),
-        failureCount);
-  }
-
-  private void alertOnBatchScreeningFailures(
-      ScreeningBatch batch, int failureCount, int peopleCount) {
-    if (failureCount == 0) {
-      return;
-    }
-    try {
-      notificationService.sendMessage(
-          "AML batch: sanction/PEP screening failed for %d of %d %s customers this run"
-              .formatted(failureCount, peopleCount, batch.population),
-          OperationsNotificationService.Channel.AML);
-    } catch (RuntimeException e) {
-      log.error(
-          "Failed to send aggregated AML batch screening-failure alert: population={}",
-          batch.population,
-          e);
-    }
-  }
-
-  private Map<String, Object> metadata(JsonNode results, JsonNode query) {
-    return Map.of(
-        "results", jsonMapper.convertValue(results, Object.class),
-        "query", jsonMapper.convertValue(query, Object.class));
-  }
-
-  private boolean hasMatch(Iterable<JsonNode> results, String topicNameStartsWith) {
-    List<JsonNode> hits =
-        stream(results)
-            .filter(
-                result ->
-                    stream(result.get("properties").get("topics"))
-                            .anyMatch(topic -> topic.asString().startsWith(topicNameStartsWith))
-                        && result.get("match").asBoolean())
-            .toList();
-    hits.forEach(
-        hit ->
-            log.info(
-                "AML screening hit: topic={}, caption={}, score={}, id={}",
-                topicNameStartsWith,
-                hit.path("caption").asString(null),
-                hit.path("score").isMissingNode() ? null : hit.path("score").asDouble(),
-                hit.path("id").asString(null)));
-    return !hits.isEmpty();
-  }
-
-  private <T> Stream<T> stream(Iterable<T> iterable) {
-    return StreamSupport.stream(iterable.spliterator(), false);
-  }
-
-  private Map<String, Object> metadata(User user, Person person) {
-    return Map.of("user", new PersonImpl(user), "person", new PersonImpl(person));
   }
 
   public Optional<AmlCheck> addContactDetailsCheckIfMissing(Person user) {
@@ -403,6 +133,10 @@ public class AmlService {
     return Strings.CI.equals(person1.getPersonalCode(), person2.getPersonalCode());
   }
 
+  private Map<String, Object> metadata(User user, Person person) {
+    return Map.of("user", new PersonImpl(user), "person", new PersonImpl(person));
+  }
+
   public Optional<AmlCheck> addCheckIfMissing(AmlCheck amlCheck) {
     if (hasCheck(amlCheck.getPersonalCode(), amlCheck.getType())) {
       return Optional.empty();
@@ -422,7 +156,7 @@ public class AmlService {
     return saved;
   }
 
-  private boolean hasCheck(String personalCode, AmlCheckType checkType) {
+  boolean hasCheck(String personalCode, AmlCheckType checkType) {
     return amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
         personalCode, checkType, aYearAgo());
   }

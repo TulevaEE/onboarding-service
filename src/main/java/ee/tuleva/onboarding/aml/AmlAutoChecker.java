@@ -30,6 +30,7 @@ public class AmlAutoChecker {
   private static final int BEFORE_USER_DETAILS_UPDATER = 1;
 
   private final AmlService amlService;
+  private final SanctionAndPepScreener sanctionAndPepScreener;
   private final UserService userService;
   private final ContactDetailsService contactDetailsService;
 
@@ -79,7 +80,7 @@ public class AmlAutoChecker {
           requireNonNull(
               event.getCountry(),
               "Country missing for mandate: mandateId=" + event.getMandate().getId());
-      amlService.addSanctionAndPepCheckIfMissing(user, Countries.of(country));
+      sanctionAndPepScreener.addSanctionAndPepCheckIfMissing(user, Countries.of(country));
     }
 
     if (!amlService.allChecksPassed(user, event.getMandate())) {
@@ -89,7 +90,7 @@ public class AmlAutoChecker {
 
   @EventListener
   public void beforeKycChecked(BeforeKycCheckedEvent event) {
-    amlService.addSanctionAndPepCheckIfMissing(event.person(), event.countries());
+    sanctionAndPepScreener.addSanctionAndPepCheckIfMissing(event.person(), event.countries());
   }
 
   private @Nullable Boolean isResident(AfterTokenGrantedEvent event) {

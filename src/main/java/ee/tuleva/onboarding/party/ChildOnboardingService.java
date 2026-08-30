@@ -5,6 +5,7 @@ import static java.util.Collections.unmodifiableMap;
 import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.aml.AmlService;
+import ee.tuleva.onboarding.aml.SanctionAndPepScreener;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.country.Countries;
@@ -36,6 +37,7 @@ public class ChildOnboardingService {
   private final ParentChildLinkRegistrationService parentChildLinkRegistrationService;
   private final ChildSavingsOnboarding childSavingsOnboarding;
   private final AmlService amlService;
+  private final SanctionAndPepScreener sanctionAndPepScreener;
   private final ApplicationEventPublisher applicationEventPublisher;
   private final Clock clock;
 
@@ -70,13 +72,13 @@ public class ChildOnboardingService {
   }
 
   private void screenForSanctionsAndPep(PopulationRegisterPerson child) {
-    amlService.addSanctionAndPepCheckIfMissing(
+    sanctionAndPepScreener.addSanctionAndPepCheckIfMissing(
         new PersonImpl(child.personalCode(), child.firstName(), child.lastName()),
         Countries.of(child.citizenships()));
   }
 
   private void screenGuardian(AuthenticatedPerson parent, @Nullable String citizenship) {
-    amlService.addSanctionAndPepCheckIfMissing(
+    sanctionAndPepScreener.addSanctionAndPepCheckIfMissing(
         new PersonImpl(parent.getPersonalCode(), parent.getFirstName(), parent.getLastName()),
         Countries.of(citizenship));
   }

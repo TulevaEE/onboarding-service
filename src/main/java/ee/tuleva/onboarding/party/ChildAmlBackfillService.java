@@ -22,6 +22,7 @@ import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.aml.AmlCheckRepository;
 import ee.tuleva.onboarding.aml.AmlService;
+import ee.tuleva.onboarding.aml.SanctionAndPepScreener;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.party.ChildAmlBackfillResult.ChildResult;
@@ -53,6 +54,7 @@ public class ChildAmlBackfillService {
   private final CustodyVerificationService custodyVerificationService;
   private final PopulationRegisterClient populationRegisterClient;
   private final AmlService amlService;
+  private final SanctionAndPepScreener sanctionAndPepScreener;
   private final AmlCheckRepository amlCheckRepository;
   private final UserRepository userRepository;
   private final Clock clock;
@@ -181,7 +183,7 @@ public class ChildAmlBackfillService {
   }
 
   private ScreeningStatus screenAndConfirmBySanctionRow(PopulationRegisterPerson child) {
-    amlService.addSanctionAndPepCheckIfMissing(
+    sanctionAndPepScreener.addSanctionAndPepCheckIfMissing(
         new PersonImpl(child.personalCode(), child.firstName(), child.lastName()),
         Countries.of(child.citizenships().toArray(new String[0])));
     return hasRecentSanctionRow(child.personalCode()) ? SCREENED : SCREENING_FAILED;

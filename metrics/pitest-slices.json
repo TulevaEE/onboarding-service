@@ -11,6 +11,12 @@
     "score": 88.18,
     "recordedAt": "2026-08-30"
   },
+  "auth": {
+    "mutations": 401,
+    "detected": 309,
+    "score": 77.06,
+    "recordedAt": "2026-08-30"
+  },
   "deadline": {
     "mutations": 124,
     "detected": 108,

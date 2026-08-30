@@ -9,6 +9,7 @@ import jakarta.validation.Validator
 import spock.lang.Specification
 import spock.lang.Unroll
 
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.country.CountryFixture.countryFixture
 import static ee.tuleva.onboarding.mandate.MandateFixture.*
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND
@@ -21,17 +22,61 @@ class MandateSpec extends Specification {
     validator = Validation.buildDefaultValidatorFactory().validator
   }
 
-  def "can group exchanges by source isin"() {
+  def "can group exchanges by source isin, excluding non-positive amounts"() {
     given:
     FundTransferExchange withAmount = FundTransferExchange.builder().sourceFundIsin("isin")
       .amount(BigDecimal.ONE).build()
     FundTransferExchange withoutAmount = FundTransferExchange.builder().sourceFundIsin("isin").build()
+    FundTransferExchange withZeroAmount = FundTransferExchange.builder().sourceFundIsin("isin")
+      .amount(BigDecimal.ZERO).build()
     when:
     Mandate mandate = Mandate.builder()
-      .fundTransferExchanges([withAmount, withoutAmount])
+      .fundTransferExchanges([withAmount, withoutAmount, withZeroAmount])
       .build()
     then:
     mandate.getFundTransferExchangesBySourceIsin() == ['isin': [withAmount, withoutAmount]]
+  }
+
+  def "onUpdate syncs the legacy pillar and payment rate columns from details"() {
+    given:
+    Mandate mandate = Mandate.builder()
+        .pillar(99)
+        .paymentRate(null)
+        .details(aPaymentRateChangeMandateDetails)
+        .metadata([:])
+        .build()
+
+    when:
+    mandate.onUpdate()
+
+    then:
+    // read the raw fields directly: getPillar()/getPaymentRate() recompute from
+    // details regardless of whether syncLegacyColumns() ran, so only the stored
+    // field values reveal whether onUpdate() actually synced them
+    mandate.@pillar == SECOND.toInt()
+    mandate.@paymentRate == aPaymentRateChangeMandateDetails.paymentRate.numericValue
+  }
+
+  def "getSignedFile throws when the mandate is not signed"() {
+    given:
+    Mandate mandate = Mandate.builder().metadata([:]).build()
+
+    when:
+    mandate.getSignedFile()
+
+    then:
+    thrown(IllegalStateException)
+  }
+
+  def "getEmail and getPhoneNumber delegate to the user"() {
+    given:
+    def user = sampleUser().build()
+    Mandate mandate = sampleMandate()
+    mandate.user = user
+
+    expect:
+    mandate.getEmail() == user.email
+    mandate.getPhoneNumber() == user.phoneNumber
   }
 
   @Unroll

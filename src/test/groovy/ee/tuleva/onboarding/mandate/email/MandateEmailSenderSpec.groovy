@@ -10,6 +10,7 @@ import ee.tuleva.onboarding.mandate.MandateFixture
 import ee.tuleva.onboarding.mandate.batch.MandateBatch
 import ee.tuleva.onboarding.mandate.event.AfterMandateBatchSignedEvent
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent
+import ee.tuleva.onboarding.mandate.event.OnMandateBatchFailedEvent
 import ee.tuleva.onboarding.paymentrate.PaymentRates
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService
 import ee.tuleva.onboarding.user.User
@@ -23,6 +24,7 @@ import static ee.tuleva.onboarding.mandate.MandateFixture.aFundPensionOpeningMan
 import static ee.tuleva.onboarding.mandate.MandateFixture.aPartialWithdrawalMandateDetails
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFundPensionOpeningMandate
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
+import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandateWithPaymentRate
 import static ee.tuleva.onboarding.mandate.MandateFixture.samplePartialWithdrawalMandate
 import static ee.tuleva.onboarding.mandate.MandateFixture.thirdPillarMandate
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchFixture.aMandateBatch
@@ -101,6 +103,64 @@ class MandateEmailSenderSpec extends Specification {
     1 * mandateEmailService.sendMandate(user, mandate, pillarSuggestion, Locale.ENGLISH)
   }
 
+
+  def "does not suggest a further payment rate increase for the payment rate mandate that concerns it"() {
+    given:
+    User user = sampleUser().build()
+    Mandate mandate = sampleMandateWithPaymentRate()
+    MandateContactDetails contactDetails = MandateContactDetails.builder().secondPillarActive(true).build()
+    ConversionResponse conversion = notFullyConverted()
+    PaymentRates paymentRates = samplePaymentRates()
+
+    AfterMandateSignedEvent event = new AfterMandateSignedEvent(this, user, mandate, Locale.ENGLISH)
+
+    mandateContacts.getContactDetails(_) >> contactDetails
+    conversionService.getConversion(user) >> conversion
+    paymentRateService.getPaymentRates(user) >> paymentRates
+
+    when:
+    mandateEmailSender.sendEmail(event)
+
+    then:
+    1 * mandateEmailService.sendMandate(user, mandate, { PillarSuggestion ps -> !ps.isSuggestPaymentRate() }, Locale.ENGLISH)
+  }
+
+  def "does not send an individual mandate email when the mandate is part of a batch"() {
+    given:
+    User user = sampleUser().build()
+    Mandate mandate = sampleFundPensionOpeningMandate(aFundPensionOpeningMandateDetails)
+    mandate.mandateBatch = aSavedMandateBatch([mandate])
+    MandateContactDetails contactDetails = MandateContactDetails.builder().build()
+    ConversionResponse conversion = notFullyConverted()
+    PaymentRates paymentRates = samplePaymentRates()
+
+    AfterMandateSignedEvent event = new AfterMandateSignedEvent(this, user, mandate, Locale.ENGLISH)
+
+    mandateContacts.getContactDetails(_) >> contactDetails
+    conversionService.getConversion(user) >> conversion
+    paymentRateService.getPaymentRates(user) >> paymentRates
+
+    when:
+    mandateEmailSender.sendEmail(event)
+
+    then:
+    0 * mandateEmailService.sendMandate(*_)
+  }
+
+  def "sends the batch failed email when a batch failed event was received"() {
+    given:
+    User user = sampleUser().build()
+    Mandate fundPensionMandate = sampleFundPensionOpeningMandate(aFundPensionOpeningMandateDetails)
+    MandateBatch mandateBatch = aSavedMandateBatch(List.of(fundPensionMandate))
+
+    OnMandateBatchFailedEvent event = new OnMandateBatchFailedEvent(this, user, mandateBatch, Locale.ENGLISH)
+
+    when:
+    mandateEmailSender.sendBatchFailedEmail(event)
+
+    then:
+    1 * mandateBatchEmailService.sendMandateBatchFailedEmail(user, mandateBatch, Locale.ENGLISH)
+  }
 
   def "send email when mandate batch event was received"() {
     given:

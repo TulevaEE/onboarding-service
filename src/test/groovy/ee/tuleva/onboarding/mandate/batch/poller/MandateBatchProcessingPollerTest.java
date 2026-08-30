@@ -22,6 +22,7 @@ import java.util.Locale;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -96,7 +97,31 @@ class MandateBatchProcessingPollerTest {
 
     mandateBatchProcessingPoller.processQueue();
 
-    verify(mockPoller, atLeast(1)).submit(any(Runnable.class));
+    verify(mockPoller, times(10)).submit(any(Runnable.class));
+  }
+
+  @Test
+  @DisplayName("stop shuts down the poller gracefully when termination completes in time")
+  void stopShutsDownPollerGracefully() throws InterruptedException {
+    var mockPoller = getMockPoller();
+    when(mockPoller.awaitTermination(1, TimeUnit.SECONDS)).thenReturn(true);
+
+    mandateBatchProcessingPoller.stop();
+
+    verify(mockPoller).shutdown();
+    verify(mockPoller, never()).shutdownNow();
+  }
+
+  @Test
+  @DisplayName("stop forces shutdown when termination does not complete in time")
+  void stopForcesShutdownWhenTerminationTimesOut() throws InterruptedException {
+    var mockPoller = getMockPoller();
+    when(mockPoller.awaitTermination(1, TimeUnit.SECONDS)).thenReturn(false);
+
+    mandateBatchProcessingPoller.stop();
+
+    verify(mockPoller).shutdown();
+    verify(mockPoller).shutdownNow();
   }
 
   @Test
@@ -189,7 +214,7 @@ class MandateBatchProcessingPollerTest {
 
     poller.run();
 
-    verify(mandateContacts, times(1)).clearCache(any());
+    verify(mandateContacts, times(1)).clearCache(mandate1.getUser());
     verify(applicationEventPublisher, times(0)).publishEvent(any(OnMandateBatchFailedEvent.class));
     verify(applicationEventPublisher, times(1))
         .publishEvent(
@@ -200,6 +225,59 @@ class MandateBatchProcessingPollerTest {
                             .getMandateBatch()
                             .equals(mandateBatch)));
     verify(applicationEventPublisher, times(2)).publishEvent(any(AfterMandateSignedEvent.class));
+  }
+
+  @Test
+  @DisplayName("Poller should not treat exactly max poll count as a timeout")
+  void pollerAtMaxPollCountBoundaryIsNotTimedOut() {
+    var locale = Locale.ENGLISH;
+
+    Mandate mandate1 = sampleFundPensionOpeningMandate();
+    Mandate mandate2 = samplePartialWithdrawalMandate();
+    var mandateBatch = MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
+
+    var pollingContext = new MandateBatchPollingContext(locale, mandateBatch, MAX_POLL_COUNT);
+
+    var mockedQueue = getMockQueue();
+
+    when(mockedQueue.poll()).thenReturn(pollingContext);
+    when(mandateProcessor.isFinished(mandate1)).thenReturn(false);
+
+    var poller = mandateBatchProcessingPoller.getPoller();
+
+    poller.run();
+
+    verify(applicationEventPublisher, times(0)).publishEvent(any());
+    verify(mockedQueue, times(1))
+        .add(
+            argThat(
+                context ->
+                    context.batch().equals(mandateBatch) && context.count() == MAX_POLL_COUNT + 1));
+  }
+
+  @Test
+  @DisplayName("Poller should not notify on a single-mandate batch that failed")
+  void pollerSingleMandateBatchWithErrorDoesNotNotify() {
+    var locale = Locale.ENGLISH;
+
+    Mandate mandate1 = sampleFundPensionOpeningMandate();
+    var mandateBatch = MandateBatchFixture.aSavedMandateBatch(List.of(mandate1));
+
+    var pollingContext = new MandateBatchPollingContext(locale, mandateBatch, 1);
+
+    var mockedQueue = getMockQueue();
+
+    when(mockedQueue.poll()).thenReturn(pollingContext);
+
+    when(mandateProcessor.isFinished(any())).thenReturn(true);
+    when(mandateProcessor.getErrors(any()))
+        .thenReturn(ErrorsResponse.ofSingleError("123", "Error"));
+
+    var poller = mandateBatchProcessingPoller.getPoller();
+
+    assertThrows(MandateProcessingException.class, poller::run);
+
+    verify(applicationEventPublisher, times(0)).publishEvent(any(OnMandateBatchFailedEvent.class));
   }
 
   @Test

@@ -67,6 +67,7 @@ public class SelectionMandateFactoryTest {
     assertThat(genericMandate.getUser()).isEqualTo(anUser);
     assertThat(genericMandate.getAddress()).isEqualTo(aContactDetails.address());
     assertThat(genericMandate.getFundTransferExchanges()).isEqualTo(List.of());
+    assertThat(genericMandate.getFutureContributionFundIsin()).contains(futureContributionIsin);
 
     verify(secondPillarPaymentRateService).getPaymentRates(authenticatedPerson);
     verify(conversionDecorator)

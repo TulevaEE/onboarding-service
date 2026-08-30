@@ -226,6 +226,64 @@ class MandrillWebhookServiceSpec extends Specification {
     0 * eventLogRepository.save(_)
   }
 
+  def "uses the diag field when there is no bounce description"() {
+    given:
+    def event = MandrillWebhookEvent.builder()
+        .event("hard_bounce")
+        .id("event_123")
+        .ts(eventTimestamp)
+        .msg(MandrillMessage.builder()
+            .id(mandrillMessageId)
+            .email("trustee@seb.ee")
+            .subject("Subject")
+            .diag("550 mailbox unavailable")
+            .build())
+        .build()
+
+    when:
+    service.processWebhookEvents([event])
+
+    then:
+    1 * eventPublisher.publishEvent({ EmailDeliveryFailedEvent e ->
+      e.reason() == "550 mailbox unavailable"
+    })
+  }
+
+  def "falls back to the message state when no bounce description, diag, or smtp diagnostic is available"() {
+    given:
+    def event = MandrillWebhookEvent.builder()
+        .event("hard_bounce")
+        .id("event_123")
+        .ts(eventTimestamp)
+        .msg(MandrillMessage.builder()
+            .id(mandrillMessageId)
+            .email("trustee@seb.ee")
+            .subject("Subject")
+            .state("bounced")
+            .build())
+        .build()
+
+    when:
+    service.processWebhookEvents([event])
+
+    then:
+    1 * eventPublisher.publishEvent({ EmailDeliveryFailedEvent e ->
+      e.reason() == "bounced"
+    })
+  }
+
+  def "latestSmtpDiag returns null, not an empty string, when there are no smtp events"() {
+    given:
+    def msg = MandrillMessage.builder()
+        .id(mandrillMessageId)
+        .email("trustee@seb.ee")
+        .subject("Subject")
+        .build()
+
+    expect:
+    service.latestSmtpDiag(msg) == null
+  }
+
   def "handles events with minimal data"() {
     given:
     def email = sampleEmail()

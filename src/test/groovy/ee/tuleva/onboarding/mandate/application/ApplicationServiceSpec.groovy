@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.mandate.application
 
 import ee.tuleva.onboarding.applicationtype.ApplicationType
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService
+import ee.tuleva.onboarding.error.NotFoundException
 import ee.tuleva.onboarding.mandate.MandateGateway
 import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.locale.LocaleService
@@ -314,6 +315,77 @@ class ApplicationServiceSpec extends Specification {
   }
 
 
+  def "gets a single application by id"() {
+    given:
+    def person = sampleAuthenticatedPersonAndMember().build()
+    def transferApplication1 = sampleTransferApplicationDto()
+    def completedTransferApplication = sampleTransferApplicationDto()
+    completedTransferApplication.status = COMPLETE
+    completedTransferApplication.id = 456L
+
+    mandateGateway.getApplications(person) >> [transferApplication1, completedTransferApplication]
+    localeService.getCurrentLocale() >> Locale.ENGLISH
+    fundRepository.findByIsin("source") >> sampleFunds().first()
+    fundRepository.findByIsin("target") >> sampleFunds().drop(1).first()
+    mandateDeadlinesService.getDeadlines(_ as Instant) >> sampleDeadlines()
+    paymentApplicationService.getPaymentApplications(person) >> []
+    savingsApplications.getApplications(person) >> []
+
+    when:
+    def application = applicationService.getApplication(456L, person)
+
+    then:
+    application.id == 456L
+    application.status == COMPLETE
+  }
+
+  def "throws NotFoundException when no application matches the given id"() {
+    given:
+    def person = sampleAuthenticatedPersonAndMember().build()
+    def transferApplication1 = sampleTransferApplicationDto()
+
+    mandateGateway.getApplications(person) >> [transferApplication1]
+    localeService.getCurrentLocale() >> Locale.ENGLISH
+    fundRepository.findByIsin("source") >> sampleFunds().first()
+    fundRepository.findByIsin("target") >> sampleFunds().drop(1).first()
+    mandateDeadlinesService.getDeadlines(_ as Instant) >> sampleDeadlines()
+    paymentApplicationService.getPaymentApplications(person) >> []
+    savingsApplications.getApplications(person) >> []
+
+    when:
+    applicationService.getApplication(999999L, person)
+
+    then:
+    thrown(NotFoundException)
+  }
+
+  def "getApplications and getTransferApplications filter by status"() {
+    given:
+    def person = sampleAuthenticatedPersonAndMember().build()
+    def transferApplication1 = sampleTransferApplicationDto()
+    def completedTransferApplication = sampleTransferApplicationDto()
+    completedTransferApplication.status = COMPLETE
+    completedTransferApplication.id = 456L
+
+    mandateGateway.getApplications(person) >> [transferApplication1, completedTransferApplication]
+    localeService.getCurrentLocale() >> Locale.ENGLISH
+    fundRepository.findByIsin("source") >> sampleFunds().first()
+    fundRepository.findByIsin("target") >> sampleFunds().drop(1).first()
+    mandateDeadlinesService.getDeadlines(_ as Instant) >> sampleDeadlines()
+    paymentApplicationService.getPaymentApplications(person) >> []
+    savingsApplications.getApplications(person) >> []
+
+    when:
+    def pendingApplications = applicationService.getApplications(PENDING, person)
+    def completedApplications = applicationService.getApplications(COMPLETE, person)
+    def pendingTransfers = applicationService.getTransferApplications(PENDING, person)
+
+    then:
+    pendingApplications*.id == [123L]
+    completedApplications*.id == [456L]
+    pendingTransfers*.id == [123L]
+  }
+
   def "get has pending withdrawals by pillar"() {
     given:
     def person = samplePerson()
@@ -339,5 +411,20 @@ class ApplicationServiceSpec extends Specification {
     then:
     hasPendingSecondPillarWithdrawals
     hasPendingThirdPillarWithdrawals
+  }
+
+  def "has pending withdrawals is false when no pending withdrawal matches the pillar"() {
+    given:
+    def person = samplePerson()
+    def partialWithdrawal = samplePartialWithdrawalApplicationDto()
+
+    mandateGateway.getApplications(person) >> [partialWithdrawal]
+    localeService.getCurrentLocale() >> Locale.ENGLISH
+    mandateDeadlinesService.getDeadlines(_ as Instant) >> sampleDeadlines()
+    paymentApplicationService.getPaymentApplications(person) >> []
+
+    expect:
+    applicationService.hasPendingWithdrawals(person, SECOND)
+    !applicationService.hasPendingWithdrawals(person, THIRD)
   }
 }

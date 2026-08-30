@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.application
 
+import ee.tuleva.onboarding.error.NotFoundException
 import ee.tuleva.onboarding.mandate.MandateGateway
 import ee.tuleva.onboarding.mandate.MandateService
 import spock.lang.Specification
@@ -48,5 +49,20 @@ class ApplicationCancellationServiceSpec extends Specification {
 
     then:
     response.mandateId == mandate.id
+  }
+
+  def "throws NotFoundException when no application matches the given id"() {
+    given:
+    def user = sampleUser().build()
+    def person = authenticatedPersonFromUser(user).build()
+    def applicationDTO = sampleTransferApplicationDto()
+
+    1 * mandateGateway.getApplications(person) >> [applicationDTO]
+
+    when:
+    applicationCancellationService.createCancellationMandate(person, 999999L)
+
+    then:
+    thrown(NotFoundException)
   }
 }

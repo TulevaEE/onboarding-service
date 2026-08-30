@@ -15,6 +15,8 @@ import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateFixture;
 import ee.tuleva.onboarding.mandate.MandateService;
 import ee.tuleva.onboarding.mandate.MandateType;
+import ee.tuleva.onboarding.mandate.batch.MandateBatch;
+import ee.tuleva.onboarding.mandate.batch.MandateBatchFixture;
 import ee.tuleva.onboarding.mandate.details.EarlyWithdrawalCancellationMandateDetails;
 import ee.tuleva.onboarding.mandate.details.MandateDetails;
 import ee.tuleva.onboarding.user.User;
@@ -117,5 +119,39 @@ public class GenericMandateServiceTest {
             "Expected createGenericMandate to throw, but didn't");
 
     assertThat(thrown.getMessage()).isEqualTo("Unsupported mandateType: UNKNOWN");
+  }
+
+  @Test
+  @DisplayName("throws when unsupported mandate type is passed for a batch mandate")
+  void testThrowOnMandateFactoryDelegationWithBatch() {
+    var anUser = sampleUser().build();
+    var aMandate = sampleEarlyWithdrawalCancellationMandate();
+    MandateBatch batch = MandateBatchFixture.aSavedMandateBatch(List.of(aMandate));
+
+    var anDto =
+        MandateFixture.sampleMandateCreationDto(
+            new MandateDetails(UNKNOWN) {
+              @Override
+              public ApplicationType getApplicationType() {
+                return null;
+              }
+
+              @Override
+              public MandateType getMandateType() {
+                return UNKNOWN;
+              }
+            });
+
+    when(earlyWithdrawalCancellationMandateFactory.supports(any())).thenCallRealMethod();
+    when(withdrawalCancellationMandateFactory.supports(any())).thenCallRealMethod();
+
+    assertThrows(
+        IllegalStateException.class,
+        () ->
+            genericMandateService.createGenericMandate(
+                AuthenticatedPersonFixture.authenticatedPersonFromUser(anUser).build(),
+                anDto,
+                batch),
+        "Expected createGenericMandate to throw, but didn't");
   }
 }

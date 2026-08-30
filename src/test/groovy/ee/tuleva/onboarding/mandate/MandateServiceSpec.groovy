@@ -24,6 +24,7 @@ import ee.tuleva.onboarding.signature.SignatureFile
 import ee.tuleva.onboarding.signature.SignatureService
 import ee.tuleva.onboarding.signature.IdCardSignatureSession
 import ee.tuleva.onboarding.signature.MobileIdSignatureSession
+import ee.tuleva.onboarding.signature.SmartIdSignatureSession
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserService
 import org.springframework.context.ApplicationEventPublisher
@@ -120,16 +121,18 @@ class MandateServiceSpec extends Specification {
     def contactDetails = contactDetailsFixture()
     def applicationToCancel = sampleTransferApplicationDto()
     def mandate = sampleMandate()
+    def savedMandate = sampleMandate()
 
     1 * conversionService.getConversion(user) >> conversion
     1 * mandateContacts.getContactDetails(user) >> contactDetails
     1 * cancellationMandateBuilder.build(applicationToCancel, person, user, conversion, contactDetails) >> mandate
 
     when:
-    service.saveCancellation(person, applicationToCancel)
+    def result = service.saveCancellation(person, applicationToCancel)
 
     then:
-    1 * mandateRepository.save(mandate)
+    1 * mandateRepository.save(mandate) >> savedMandate
+    result == savedMandate
   }
 
   def "save: validates application type to cancel before saving"() {
@@ -160,6 +163,96 @@ class MandateServiceSpec extends Specification {
 
     then:
     session == signatureSession
+  }
+
+  def "smart id signing works"() {
+    given:
+    def user = sampleUser()
+    def signatureSession = new SmartIdSignatureSession(null, null, null)
+
+    1 * mandateFileService.getMandateFiles(sampleMandateId, user.id) >> sampleFiles()
+    1 * signService.startSmartIdSign(_ as List<SignatureFile>, user.personalCode) >>
+        signatureSession
+
+    when:
+    def session = service.smartIdSign(sampleMandateId, user.id)
+
+    then:
+    session == signatureSession
+  }
+
+  def "finalizeSmartIdSignature: get correct status if currently signing mandate"() {
+    given:
+    Mandate sampleMandate = sampleUnsignedMandate()
+    def signatureSession = new SmartIdSignatureSession(null, null, null)
+
+    1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
+    1 * signService.getSignedFile(_) >> null
+
+    when:
+    def status = service.finalizeSmartIdSignature(sampleUser.id, sampleMandate.id, signatureSession, ENGLISH)
+
+    then:
+    status == OUTSTANDING_TRANSACTION
+  }
+
+  def "finalizeSmartIdSignature: get correct status if currently signed a mandate and start processing"() {
+    given:
+    Mandate sampleMandate = sampleUnsignedMandate()
+    byte[] sampleFile = "file".getBytes()
+    def signatureSession = new SmartIdSignatureSession(null, null, null)
+
+    1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
+    1 * signService.getSignedFile(_) >> sampleFile
+    1 * mandateRepository.save({ Mandate it -> it.mandate.get() == sampleFile }) >> sampleMandate
+
+    when:
+    def status = service.finalizeSmartIdSignature(sampleUser.id, sampleMandate.id, signatureSession, ENGLISH)
+
+    then:
+    1 * mandateProcessor.start(sampleUser, sampleMandate)
+    status == OUTSTANDING_TRANSACTION
+  }
+
+  def "finalizeSmartIdSignature: get correct status and notify and invalidate EPIS cache if mandate is signed and processed"() {
+    given:
+    Mandate sampleMandate = sampleMandate()
+    def signatureSession = new SmartIdSignatureSession(null, null, null)
+
+    1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
+    1 * mandateProcessor.isFinished(sampleMandate) >> true
+    1 * mandateProcessor.getErrors(sampleMandate) >> sampleEmptyErrorsResponse
+    1 * mandateContacts.clearCache(sampleUser)
+
+    when:
+    def status = service.finalizeSmartIdSignature(sampleUser.id, sampleMandate.id, signatureSession, ENGLISH)
+
+    then:
+    status == SIGNATURE
+    1 * eventPublisher.publishEvent({ AfterMandateSignedEvent event ->
+      event.user == sampleUser
+      event.mandate == sampleMandate
+    })
+  }
+
+  def "get: returns the mandate by id"() {
+    given:
+    Mandate mandate = sampleMandate()
+    1 * mandateRepository.findById(mandate.id) >> Optional.of(mandate)
+
+    expect:
+    service.get(mandate.id) == mandate
+  }
+
+  def "get: throws when no mandate exists with the given id"() {
+    given:
+    1 * mandateRepository.findById(999L) >> Optional.empty()
+
+    when:
+    service.get(999L)
+
+    then:
+    thrown(IllegalStateException)
   }
 
   def "finalizeMobileIdSignature: get correct status if currently signing mandate"() {

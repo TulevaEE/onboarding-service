@@ -1,6 +1,9 @@
 package ee.tuleva.onboarding.mandate.email
 
+import ee.tuleva.onboarding.fund.Fund
+import ee.tuleva.onboarding.fund.manager.FundManager
 import ee.tuleva.onboarding.mandate.PillarSuggestion
+import ee.tuleva.onboarding.mandate.batch.MandateBatchFixture
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus
 import ee.tuleva.onboarding.auth.principal.AuthenticationHolder
@@ -17,6 +20,7 @@ import java.util.Optional
 
 import java.time.Clock
 import java.time.Instant
+import java.time.ZoneId
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
@@ -479,6 +483,137 @@ class MandateEmailServiceSpec extends Specification {
 
     then:
     0 * emailService.send(*_)
+  }
+
+  def "does not send third pillar email when already sent today for a batched mandate"() {
+    given:
+    def user = sampleUser().build()
+    def conversion = fullyConverted()
+    def contactDetails = contactDetailsFixture()
+    def mandate = thirdPillarMandate()
+    def batch = MandateBatchFixture.aSavedMandateBatch([mandate])
+    mandate.mandateBatch = batch
+    def paymentRates = samplePaymentRates()
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails.secondPillarActive, contactDetails.thirdPillarActive, conversion, paymentRates)
+    emailPersistenceService.hasEmailsForMandate(mandate.id) >> false
+    emailPersistenceService.hasMandateBatchEmailsToday(user, THIRD_PILLAR_PAYMENT_REMINDER_MANDATE, batch.id) >> true
+
+    when:
+    mandateEmailService.sendMandate(user, mandate, pillarSuggestion, Locale.ENGLISH)
+
+    then:
+    0 * emailService.send(*_)
+  }
+
+  def "sends third pillar email for a batched mandate that has not emailed today"() {
+    given:
+    def user = sampleUser().build()
+    def conversion = fullyConverted()
+    def contactDetails = contactDetailsFixture()
+    def mandate = thirdPillarMandate()
+    def batch = MandateBatchFixture.aSavedMandateBatch([mandate])
+    mandate.mandateBatch = batch
+    def paymentRates = samplePaymentRates()
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails.secondPillarActive, contactDetails.thirdPillarActive, conversion, paymentRates)
+    def message = new MandrillMessage()
+    def sendAt = now.plus(1, HOURS)
+    def mandrillResponse = new MandrillMessageStatus().tap {
+      _id = "123"
+      status = "sent"
+    }
+    emailPersistenceService.hasEmailsForMandate(mandate.id) >> false
+    emailPersistenceService.hasMandateBatchEmailsToday(user, THIRD_PILLAR_PAYMENT_REMINDER_MANDATE, batch.id) >> false
+
+    when:
+    mandateEmailService.sendMandate(user, mandate, pillarSuggestion, Locale.ENGLISH)
+
+    then:
+    1 * emailService.newMandrillMessage(user.email, "third_pillar_payment_reminder_mandate_en", _, ["pillar_3.1", "reminder"], !null) >> message
+    1 * emailService.send(user, message, "third_pillar_payment_reminder_mandate_en", sendAt) >> Optional.of(mandrillResponse)
+    1 * emailPersistenceService.saveWithMandate(user, mandrillResponse.id, THIRD_PILLAR_PAYMENT_REMINDER_MANDATE, mandrillResponse.status, mandate.id)
+  }
+
+  private static String personalCodeForAge(int age) {
+    def today = Clock.systemUTC().instant().atZone(ZoneId.systemDefault()).toLocalDate()
+    def birthDate = today.minusYears(age)
+    def centuryDigit = birthDate.year < 2000 ? "3" : "5"
+    def tenDigits = String.format("%s%02d%02d%02d001",
+        centuryDigit, birthDate.year % 100, birthDate.monthValue, birthDate.dayOfMonth)
+    def digits = tenDigits.collect { it as int }
+    def checksum = weightedMod11(digits, [1, 2, 3, 4, 5, 6, 7, 8, 9, 1])
+    if (checksum == 10) {
+      checksum = weightedMod11(digits, [3, 4, 5, 6, 7, 8, 9, 1, 2, 3])
+      if (checksum == 10) {
+        checksum = 0
+      }
+    }
+    return tenDigits + checksum
+  }
+
+  private static int weightedMod11(List<Integer> digits, List<Integer> weights) {
+    int sum = 0
+    digits.eachWithIndex { d, i -> sum += d * weights[i] }
+    return sum % 11
+  }
+
+  private static Fund foreignFund(BigDecimal equityShare, BigDecimal ongoingChargesFigure) {
+    Fund.builder()
+        .isin("isin")
+        .fundManager(FundManager.builder().id(1).name("LHV").build())
+        .equityShare(equityShare)
+        .ongoingChargesFigure(ongoingChargesFigure)
+        .build()
+  }
+
+  def "selectedFundMergeVars flags a young investor's conservative low-equity fund pick"() {
+    given:
+    def mandate = emptyMandate().build()
+    fundRepository.findByIsin("isin") >> fund
+    def user = sampleUser().personalCode(personalCode).build()
+
+    expect:
+    mandateEmailService.selectedFundMergeVars(user, mandate, Locale.ENGLISH) == [
+        selectedTulevaFund      : false,
+        selectedConservativeFund: expectedConservative,
+        selectedHighFeeFund     : false,
+    ]
+
+    where:
+    personalCode                 | fund                                              || expectedConservative
+    sampleUser().build().personalCode | null                                          || false
+    sampleUser().build().personalCode | foreignFund(new BigDecimal("0.24"), new BigDecimal("0.001")) || true
+    sampleUser().build().personalCode | foreignFund(new BigDecimal("0.25"), new BigDecimal("0.001")) || false
+    personalCodeForAge(55)            | foreignFund(new BigDecimal("0.10"), new BigDecimal("0.001")) || false
+  }
+
+  def "selectedFundMergeVars flags a fund as high-fee only strictly above the 0.3% ongoing charges threshold"() {
+    given:
+    def mandate = emptyMandate().build()
+    fundRepository.findByIsin("isin") >> foreignFund(new BigDecimal("0.5"), ongoingChargesFigure)
+    def user = sampleUser().build()
+
+    expect:
+    mandateEmailService.selectedFundMergeVars(user, mandate, Locale.ENGLISH).selectedHighFeeFund == expectedHighFee
+
+    where:
+    ongoingChargesFigure     || expectedHighFee
+    new BigDecimal("0.003")  || false
+    new BigDecimal("0.0031") || true
+  }
+
+  def "selectedFundMergeVars formats the high fee percentage with a comma for Estonian and a dot otherwise"() {
+    given:
+    def mandate = emptyMandate().build()
+    fundRepository.findByIsin("isin") >> foreignFund(new BigDecimal("0.5"), new BigDecimal("0.0123"))
+    def user = sampleUser().build()
+
+    expect:
+    mandateEmailService.selectedFundMergeVars(user, mandate, locale).selectedFundFee == expectedFee
+
+    where:
+    locale           || expectedFee
+    new Locale("et") || "1,23"
+    Locale.ENGLISH   || "1.23"
   }
 
   def "isPaymentRateDecreased returns correct value for all rate combinations"() {

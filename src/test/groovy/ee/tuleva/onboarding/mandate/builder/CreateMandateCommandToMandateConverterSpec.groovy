@@ -80,6 +80,7 @@ class CreateMandateCommandToMandateConverterSpec extends Specification {
     def user = sampleUser().build()
     def person = authenticatedPersonFromUser(user).build()
     def fundBalance = new PensionFundBalance(sourceIsin, BigDecimal.valueOf(500.1234), false)
+    def otherFundBalance = new PensionFundBalance('OTHERISIN', BigDecimal.valueOf(999.9999), false)
     def conversion = fullyConverted()
     def contactDetails = contactDetailsFixture()
     when:
@@ -106,7 +107,59 @@ class CreateMandateCommandToMandateConverterSpec extends Specification {
         secondPillarPaymentRate         : 4,
         authAttributes                  : [:]
     ]
-    1 * pensionAccountStatement.forPerson(user) >> [fundBalance]
+    1 * pensionAccountStatement.forPerson(user) >> [otherFundBalance, fundBalance]
     1 * fundRepository.findByIsin(sourceIsin) >> fund
+  }
+
+  def "derives pillar from the first fund transfer exchange when there is no future contribution isin"() {
+    given:
+    def sourceIsin = 'AA1234567'
+    def targetIsin = 'AA1234568'
+    def command = new CreateMandateCommand()
+    command.setFutureContributionFundIsin(null)
+    def fundTransfer = new MandateFundTransferExchangeCommand()
+    fundTransfer.amount = 0.5
+    fundTransfer.sourceFundIsin = sourceIsin
+    fundTransfer.targetFundIsin = targetIsin
+    command.fundTransferExchanges = [fundTransfer]
+    def fund = Fund.builder().pillar(2).isin(sourceIsin).build()
+    def user = sampleUser().build()
+    def person = authenticatedPersonFromUser(user).build()
+    def conversion = fullyConverted()
+    def contactDetails = contactDetailsFixture()
+
+    when:
+    def mandate = converter.convert(new CreateMandateCommandWrapper(command, person, user, conversion, contactDetails))
+
+    then:
+    mandate.pillar == 2
+    1 * fundRepository.findByIsin(sourceIsin) >> fund
+  }
+
+  def "throws when no matching fund balance exists for the third pillar exchange"() {
+    given:
+    def sourceIsin = 'AA1234567'
+    def targetIsin = 'AA1234568'
+    def command = new CreateMandateCommand()
+    command.setFutureContributionFundIsin(sourceIsin)
+    def fundTransfer = new MandateFundTransferExchangeCommand()
+    fundTransfer.amount = 0.5
+    fundTransfer.sourceFundIsin = sourceIsin
+    fundTransfer.targetFundIsin = targetIsin
+    command.fundTransferExchanges = [fundTransfer]
+    def fund = Fund.builder().pillar(3).isin(sourceIsin).build()
+    def user = sampleUser().build()
+    def person = authenticatedPersonFromUser(user).build()
+    def conversion = fullyConverted()
+    def contactDetails = contactDetailsFixture()
+
+    pensionAccountStatement.forPerson(user) >> []
+    fundRepository.findByIsin(sourceIsin) >> fund
+
+    when:
+    converter.convert(new CreateMandateCommandWrapper(command, person, user, conversion, contactDetails))
+
+    then:
+    thrown(IllegalStateException)
   }
 }

@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.mandate.PensionAccountStatement.PensionFundBalance
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
+import ee.tuleva.onboarding.mandate.command.MandateFundTransferExchangeCommand
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException
 import spock.lang.Specification
 
@@ -28,6 +29,32 @@ class MandateValidatorSpec extends Specification {
     then:
     InvalidMandateException exception = thrown()
     exception.errorsResponse.errors.first().code == "invalid.mandate.source.amount.exceeded"
+  }
+
+  def "sum of source transfer amounts of exactly one does not fail"() {
+    given:
+    Person person = samplePerson()
+    CreateMandateCommand createMandateCmd = new CreateMandateCommand(
+        "fundTransferExchanges": [
+            new MandateFundTransferExchangeCommand(
+                "amount": 0.5,
+                "sourceFundIsin": "SOMEISIN",
+                "targetFundIsin": futureContibutionFundIsin
+            ),
+            new MandateFundTransferExchangeCommand(
+                "amount": 0.5,
+                "sourceFundIsin": "SOMEISIN",
+                "targetFundIsin": futureContibutionFundIsin
+            )
+        ],
+        "futureContributionFundIsin": futureContibutionFundIsin
+    )
+
+    when:
+    mandateValidator.validate(createMandateCmd, person)
+
+    then:
+    noExceptionThrown()
   }
 
   def "same source and target fund fails"() {

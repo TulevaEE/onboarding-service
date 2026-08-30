@@ -64,8 +64,10 @@ class MandateControllerSpec extends BaseControllerSpec {
 
   def "mobile id signature start returns the mobile id challenge code"() {
     when:
+    def session = MobileIdSignatureSession.builder().verificationCode("1234").build()
     mandateService.mobileIdSign(1L, authenticatedPerson.getUserId(), authenticatedPerson.getAttribute(PHONE_NUMBER)) >>
-        MobileIdSignatureSession.builder().verificationCode("1234").build()
+        session
+    1 * sessionStore.save(session)
 
     then:
     mvc
@@ -126,8 +128,9 @@ class MandateControllerSpec extends BaseControllerSpec {
 
   def "id card signature start returns the hash to be signed by the client"() {
     when:
-    mandateService.idCardSign(1L, _, "clientCertificate") >>
-        IdCardSignatureSession.builder().hashToSignInHex("asdfg").build()
+    def session = IdCardSignatureSession.builder().hashToSignInHex("asdfg").build()
+    mandateService.idCardSign(1L, _, "clientCertificate") >> session
+    1 * sessionStore.save(session)
 
     then:
     mvc
@@ -168,6 +171,7 @@ class MandateControllerSpec extends BaseControllerSpec {
         .andReturn()
 
     result.getResponse().getHeader("Content-Disposition") == "attachment; filename=Tuleva_avaldus.bdoc"
+    result.getResponse().committed
   }
 
   def "getMandateFile throws exception if mandate is not signed"() {
@@ -180,7 +184,8 @@ class MandateControllerSpec extends BaseControllerSpec {
         .perform(get("/v1/mandates/" + sampleMandate().id + "/file"))
 
     then:
-    thrown Exception
+    def exception = thrown(Exception)
+    exception.cause.class == RuntimeException
   }
 
   def "getMandateFilePreview: returns mandate preview file"() {
@@ -198,6 +203,7 @@ class MandateControllerSpec extends BaseControllerSpec {
         .andReturn()
 
     result.getResponse().getHeader("Content-Disposition") == "attachment; filename=Tuleva_avaldus.zip"
+    result.getResponse().committed
 
   }
 

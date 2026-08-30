@@ -86,6 +86,21 @@ class MandateContentServiceSpec extends Specification {
     expect.toMatchSnapshot(html)
   }
 
+  def "future contributions mandate throws when future contribution fund isin is missing"() {
+    given:
+    def user = sampleUserNonMember().build()
+    def mandate = sampleMandate()
+    mandate.futureContributionFundIsin = null
+    def funds = sampleFunds()
+    def contactDetails = contactDetailsFixture()
+
+    when:
+    mandateContentService.getFutureContributionsFundHtml(user, mandate, funds, contactDetails)
+
+    then:
+    thrown(IllegalStateException)
+  }
+
   @SnapshotName("mandate_cancellation")
   def "mandate cancellation"() {
     given:

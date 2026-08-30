@@ -1,9 +1,6 @@
-package ee.tuleva.onboarding.epis
+package ee.tuleva.onboarding.mandate.processor
 
-import ee.tuleva.onboarding.applicationtype.ApplicationType
 import ee.tuleva.onboarding.error.response.ErrorsResponse
-import ee.tuleva.onboarding.mandate.processor.MandateProcess
-import ee.tuleva.onboarding.mandate.processor.MandateProcessErrorResolver
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.applicationtype.ApplicationType.SELECTION
@@ -13,13 +10,13 @@ class MandateProcessErrorResolverSpec extends Specification {
 
     MandateProcessErrorResolver service = new MandateProcessErrorResolver()
 
-    def "getErrors: get errors response"() {
+    def "getErrors: get errors response, dropping successful and unreported-status processes"() {
         when:
-        ErrorsResponse errors = service.getErrors(sampleErrorProcesses)
+        ErrorsResponse errors = service.getErrors(sampleProcesses)
         then:
         errors.errors.size() == 4
-        errors.errors.get(0).arguments.get(0) == sampleErrorProcesses.get(0).type.toString()
-        errors.errors.get(0).arguments.get(0) == sampleErrorProcesses.get(0).type.toString()
+        errors.errors.get(0).arguments.get(0) == sampleProcesses.get(0).type.toString()
+        errors.errors.get(0).arguments.get(0) == sampleProcesses.get(0).type.toString()
 
         errors.errors.get(0).getCode() == "mandate.processing.error.epis.technical.error"
         errors.errors.get(1).getCode() == "mandate.processing.error.epis.already.active.contributions.fund"
@@ -33,7 +30,7 @@ class MandateProcessErrorResolverSpec extends Specification {
 
     }
 
-    List<MandateProcess> sampleErrorProcesses = [
+    List<MandateProcess> sampleProcesses = [
             MandateProcess.builder()
                     .successful(false)
                     .type(SELECTION)
@@ -59,6 +56,20 @@ class MandateProcessErrorResolverSpec extends Specification {
                     .successful(false)
                     .type(TRANSFER)
                     .errorCode(null)
+                    .processId("123")
+                    .build()
+            ,
+            MandateProcess.builder()
+                    .successful(true)
+                    .type(TRANSFER)
+                    .errorCode(40551)
+                    .processId("123")
+                    .build()
+            ,
+            MandateProcess.builder()
+                    .successful(null)
+                    .type(TRANSFER)
+                    .errorCode(40551)
                     .processId("123")
                     .build()
 

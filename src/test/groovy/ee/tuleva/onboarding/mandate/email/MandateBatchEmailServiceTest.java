@@ -51,10 +51,6 @@ class MandateBatchEmailServiceTest {
     lenient().when(savingsFundFees.ongoingChargesPercent(any())).thenReturn("0.28");
   }
 
-  private boolean areMergeVarsPresent(Map<String, Object> first, Map<String, Object> second) {
-    return first.entrySet().stream().allMatch(e -> e.getValue().equals(second.get(e.getKey())));
-  }
-
   @Test
   @DisplayName("sends email for withdrawal mandate batch")
   void withdrawalMandateEmail() {
@@ -88,7 +84,6 @@ class MandateBatchEmailServiceTest {
         Map.ofEntries(
             Map.entry("fname", user.getFirstName()),
             Map.entry("lname", user.getLastName()),
-            Map.entry("transferDate", "03.05.2021"),
             Map.entry("suggestPaymentRate", pillarSuggestion.isSuggestPaymentRate()),
             Map.entry("suggestSecondPillar", pillarSuggestion.isSuggestSecondPillar()),
             Map.entry("suggestThirdPillar", pillarSuggestion.isSuggestThirdPillar()),
@@ -120,7 +115,7 @@ class MandateBatchEmailServiceTest {
     when(emailService.newMandrillMessage(
             eq(user.getEmail()),
             eq("withdrawal_batch_en"),
-            argThat(map -> areMergeVarsPresent(map, mergeVars)),
+            eq(mergeVars),
             eq(tags),
             argThat(
                 attachments ->
@@ -173,7 +168,6 @@ class MandateBatchEmailServiceTest {
         Map.ofEntries(
             Map.entry("fname", user.getFirstName()),
             Map.entry("lname", user.getLastName()),
-            Map.entry("transferDate", "03.05.2021"),
             Map.entry("suggestPaymentRate", pillarSuggestion.isSuggestPaymentRate()),
             Map.entry("suggestSecondPillar", pillarSuggestion.isSuggestSecondPillar()),
             Map.entry("suggestThirdPillar", pillarSuggestion.isSuggestThirdPillar()),
@@ -210,7 +204,7 @@ class MandateBatchEmailServiceTest {
     when(emailService.newMandrillMessage(
             eq(user.getEmail()),
             eq("withdrawal_batch_en"),
-            argThat(map -> areMergeVarsPresent(map, mergeVars)),
+            eq(mergeVars),
             eq(tags),
             argThat(
                 attachments ->
@@ -253,7 +247,6 @@ class MandateBatchEmailServiceTest {
         Map.ofEntries(
             Map.entry("fname", user.getFirstName()),
             Map.entry("lname", user.getLastName()),
-            Map.entry("transferDate", "03.05.2021"),
             Map.entry("failedMandateCount", 1),
             Map.entry("successfulMandateCount", 3),
             Map.entry("totalMandateCount", 4),
@@ -279,7 +272,7 @@ class MandateBatchEmailServiceTest {
     when(emailService.newMandrillMessage(
             eq(user.getEmail()),
             eq("batch_failed_en"),
-            argThat(map -> areMergeVarsPresent(map, mergeVars)),
+            eq(mergeVars),
             eq(tags),
             argThat(
                 attachments ->

@@ -258,6 +258,40 @@ class PillarSuggestionSpec extends Specification {
     pillarSuggestion.renderedNudgeTag() == Optional.of("nudge_third_pillar_raise")
   }
 
+  def "reports the third pillar nudge when only the third pillar step is open"() {
+    when:
+    user.getAge() >> 40
+    def pillarSuggestion =
+        new PillarSuggestion(user, false, false, conversion, paymentRates, [2] as Set, false)
+
+    then:
+    pillarSuggestion.renderedNudgeTag() == Optional.of("nudge_third_pillar")
+  }
+
+  def "reports the third pillar recurring nudge when both pillar steps are blocked"() {
+    when:
+    user.getAge() >> 40
+    def pillarSuggestion =
+        new PillarSuggestion(
+            user, false, true, conversion, paymentRates, [2, 3] as Set, false, false, false,
+            new RecurringPayments(false, true))
+
+    then:
+    pillarSuggestion.renderedNudgeTag() == Optional.of("nudge_third_pillar_recurring")
+  }
+
+  def "reports the savings fund recurring nudge for a non-recurring saver with both pillar steps blocked"() {
+    when:
+    user.getAge() >> 40
+    def pillarSuggestion =
+        new PillarSuggestion(
+            user, false, false, conversion, paymentRates, [2, 3] as Set, false, true, false,
+            new RecurringPayments(true, false))
+
+    then:
+    pillarSuggestion.renderedNudgeTag() == Optional.of("nudge_savings_fund_recurring")
+  }
+
   def "reports the nudge that actually renders, in chain order"() {
     when:
     user.getAge() >> 40

@@ -56,6 +56,49 @@ class MandateProcessorServiceSpec extends Specification {
     3      | null
   }
 
+  def "Start: legacy mandate submission carries the future contribution isin, payment rate, transfer exchanges, email and phone"() {
+    given:
+    Mandate mandate = sampleMandate()
+    mandate.paymentRate = BigDecimal.valueOf(4)
+    mandate.user = sampleUser
+    def outcome = new MandateProcessResult.MandateProcessOutcome("processId1", true, null)
+    def mandateResult = MandateProcessResult.builder().outcomes([outcome]).build()
+    mandateProcessRepository.save(_) >> { args -> args[0] }
+    mandateProcessRepository.findOneByProcessId(_) >> new MandateProcess()
+    when:
+    service.start(sampleUser, mandate)
+    then:
+    1 * mandateGateway.sendMandate({ LegacyMandateSubmission submission ->
+      submission.paymentRate() == mandate.paymentRate &&
+          submission.futureContributionFundIsin() == futureContibutionFundIsin &&
+          submission.email() == mandate.getEmail() &&
+          submission.phoneNumber() == mandate.getPhoneNumber() &&
+          submission.fundTransferExchanges().size() == 3 &&
+          submission.fundTransferExchanges().every { it.processId() != null } &&
+          (submission.fundTransferExchanges()*.sourceFundIsin as Set) == (["EE3600019790", "AE123232337"] as Set) &&
+          (submission.fundTransferExchanges()*.amount as Set) == ([new BigDecimal("0.2"), new BigDecimal("0.8"), new BigDecimal("1")] as Set) &&
+          submission.fundTransferExchanges()*.targetFundIsin.every { it == futureContibutionFundIsin }
+    }) >> mandateResult
+  }
+
+  def "Start: persists the outcome success flag and error code onto the matching mandate process"() {
+    given:
+    Mandate mandate = sampleWithdrawalCancellationMandate()
+    MandateProcess process = new MandateProcess()
+    mandateRepository.findById(mandate.id) >> Optional.of(mandate)
+    mandateProcessRepository.findOneByProcessId(_) >> process
+    def outcome = new MandateProcessResult.MandateProcessOutcome("1", false, 40551)
+    def response = MandateProcessResult.builder().outcomes([outcome]).build()
+    when:
+    service.start(sampleUser, mandate)
+    then:
+    1 * mandateGateway.sendMandateV2(_) >> response
+    // one save() for the newly created MandateProcess, one for the finalized outcome below
+    2 * mandateProcessRepository.save(_) >> { args -> args[0] }
+    process.getSuccessful() == Optional.of(false)
+    process.getErrorCode() == Optional.of(40551)
+  }
+
   def "Start: starts processing cancellation mandate and saves mandate processes"() {
     given:
     Mandate mandate = sampleWithdrawalCancellationMandate()

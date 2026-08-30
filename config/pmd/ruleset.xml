@@ -42,6 +42,8 @@
     </properties>
   </rule>
 
+  <rule ref="category/java/codestyle.xml/UnnecessaryFullyQualifiedName"/>
+
   <rule ref="category/java/design.xml/AvoidDeeplyNestedIfStmts">
     <properties>
       <property name="problemDepth" value="4"/>

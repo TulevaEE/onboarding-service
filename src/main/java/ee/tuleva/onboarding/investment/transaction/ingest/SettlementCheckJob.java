@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.investment.event.RunOverdueSettlementRequested;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.investment.transaction.InstrumentType;
+import ee.tuleva.onboarding.investment.transaction.OrderStatus;
 import ee.tuleva.onboarding.investment.transaction.SettlementDateCalculator;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
@@ -352,8 +353,5 @@ class SettlementCheckJob {
     return row.tradeDate() == null ? null : row.tradeDate().atZone(TALLINN).toLocalDate();
   }
 
-  private record OverdueLine(
-      TransactionOrder order,
-      ee.tuleva.onboarding.investment.transaction.OrderStatus status,
-      LocalDate deadline) {}
+  private record OverdueLine(TransactionOrder order, OrderStatus status, LocalDate deadline) {}
 }

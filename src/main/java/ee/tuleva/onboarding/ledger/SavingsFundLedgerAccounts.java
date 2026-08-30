@@ -34,7 +34,7 @@ class SavingsFundLedgerAccounts {
     try {
       return getSystemAccount(SystemAccount.valueOf(accountName));
     } catch (IllegalArgumentException e) {
-      var systemAccount = SystemAccount.fromAccountName(accountName);
+      var systemAccount = fromAccountName(accountName);
       return findOrCreateInstrumentAccount(systemAccount, accountName);
     }
   }

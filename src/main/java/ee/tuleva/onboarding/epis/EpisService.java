@@ -22,7 +22,6 @@ import ee.tuleva.onboarding.mandate.MandateProcessResult;
 import ee.tuleva.onboarding.mandate.MandateSubmissionCommand;
 import ee.tuleva.onboarding.mandate.application.ApplicationSnapshot;
 import java.time.LocalDate;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -290,7 +289,7 @@ public class EpisService {
                 ThirdPillarTransactionDto[].class)
             .getBody();
 
-    return Arrays.asList(responseArray);
+    return asList(responseArray);
   }
 
   public List<ExchangeTransactionDto> getExchangeTransactions(
@@ -328,7 +327,7 @@ public class EpisService {
                 ExchangeTransactionDto[].class)
             .getBody();
 
-    return Arrays.asList(responseArray);
+    return asList(responseArray);
   }
 
   public List<FundTransactionDto> getFundTransactions(
@@ -355,7 +354,7 @@ public class EpisService {
         episLongRequestRestTemplate.exchange(
             url, GET, new HttpEntity<>(requestHeaders.service()), FundTransactionDto[].class);
 
-    return Arrays.asList(response.getBody());
+    return asList(response.getBody());
   }
 
   public List<TransactionFundBalanceDto> getFundBalances(LocalDate requestDate) {
@@ -378,7 +377,7 @@ public class EpisService {
             new HttpEntity<>(requestHeaders.service()),
             TransactionFundBalanceDto[].class);
 
-    return Arrays.asList(response.getBody());
+    return asList(response.getBody());
   }
 
   public List<UnitOwnerDto> getUnitOwners() {
@@ -397,7 +396,7 @@ public class EpisService {
         episLongRequestRestTemplate.exchange(
             url, GET, new HttpEntity<>(requestHeaders.service()), UnitOwnerDto[].class);
 
-    return Arrays.asList(response.getBody());
+    return asList(response.getBody());
   }
 
   public MandateProcessResult sendMandateV2(MandateSubmissionCommand<?> mandate) {

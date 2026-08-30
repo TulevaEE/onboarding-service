@@ -68,7 +68,7 @@ public record BankStatementBalance(
 
     public static @Nullable StatementBalanceType fromBalanceCode(
         BalanceType12Code balanceTypeCode) {
-      return Arrays.stream(StatementBalanceType.values())
+      return Arrays.stream(values())
           .filter(balanceType -> balanceType.reportBalanceCode.equals(balanceTypeCode))
           .findFirst()
           .orElse(null); // TODO reserved party null balance code?
@@ -78,7 +78,7 @@ public record BankStatementBalance(
 
     public static @Nullable StatementBalanceType fromBalanceCode(
         ee.tuleva.onboarding.banking.iso20022.camt053.BalanceType12Code balanceTypeCode) {
-      return Arrays.stream(StatementBalanceType.values())
+      return Arrays.stream(values())
           .filter(balanceType -> balanceType.statementBalanceCode.equals(balanceTypeCode))
           .findFirst()
           .orElse(null); // TODO reserved party null balance code?

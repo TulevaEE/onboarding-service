@@ -8,6 +8,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import ee.tuleva.onboarding.applicationtype.ApplicationType;
 import ee.tuleva.onboarding.pillar.Pillar;
 import jakarta.validation.constraints.NotNull;
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.List;
 import lombok.Getter;
@@ -36,7 +37,7 @@ public class PartialWithdrawalMandateDetails extends MandateDetails {
   }
 
   public record FundWithdrawalAmount(String isin, int percentage, BigDecimal units)
-      implements java.io.Serializable {}
+      implements Serializable {}
 
   @Override
   public ApplicationType getApplicationType() {

@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.applicationtype.ApplicationType;
 import ee.tuleva.onboarding.mandate.MandateType;
 import ee.tuleva.onboarding.pillar.Pillar;
 import jakarta.validation.constraints.NotNull;
+import java.io.Serializable;
 import lombok.Getter;
 
 @Getter
@@ -28,7 +29,7 @@ public class FundPensionOpeningMandateDetails extends MandateDetails {
   }
 
   public record FundPensionDuration(int durationYears, boolean recommendedDuration)
-      implements java.io.Serializable {}
+      implements Serializable {}
 
   @Override
   public ApplicationType getApplicationType() {

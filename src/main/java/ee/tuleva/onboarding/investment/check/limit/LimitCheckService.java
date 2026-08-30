@@ -7,7 +7,6 @@ import static java.math.BigDecimal.ZERO;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.portfolio.*;
-import ee.tuleva.onboarding.investment.position.AccountType;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
@@ -111,8 +110,7 @@ class LimitCheckService {
 
   LimitCheckResult checkFund(TulevaFund fund, LocalDate checkDate) {
     var positions =
-        fundPositionRepository.findByNavDateAndFundAndAccountType(
-            checkDate, fund, AccountType.SECURITY);
+        fundPositionRepository.findByNavDateAndFundAndAccountType(checkDate, fund, SECURITY);
 
     var navMarketValues = navReportPositionProvider.getSecurityMarketValues(fund, checkDate);
     positions.forEach(
@@ -205,7 +203,7 @@ class LimitCheckService {
     return positions.stream()
         .map(FundPosition::getMarketValue)
         .filter(Objects::nonNull)
-        .reduce(BigDecimal.ZERO, BigDecimal::add);
+        .reduce(ZERO, BigDecimal::add);
   }
 
   private Map<String, Provider> buildIsinToProviderMap(TulevaFund fund, LocalDate checkDate) {

@@ -6,7 +6,6 @@ import static java.util.Objects.requireNonNull;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageContent;
-import ee.tuleva.onboarding.mandate.EmailVariablesAttachments;
 import ee.tuleva.onboarding.mandate.MandateRepository;
 import ee.tuleva.onboarding.mandate.PillarSuggestion;
 import ee.tuleva.onboarding.mandate.SavingsFundCharges;
@@ -173,7 +172,7 @@ public class PaymentEmailService {
                 + latestScheduledEmail.getId());
     return mandateRepository
         .findById(mandateId)
-        .map(mandate -> EmailVariablesAttachments.getAttachments(user, mandate))
+        .map(mandate -> getAttachments(user, mandate))
         .orElse(emptyList());
   }
 }

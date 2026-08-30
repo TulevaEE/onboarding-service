@@ -111,7 +111,7 @@ public class IbanValidator implements ConstraintValidator<ValidIban, String> {
 
   @Override
   public boolean isValid(@Nullable String iban, ConstraintValidatorContext ctx) {
-    return IbanValidator.isValid(iban);
+    return isValid(iban);
   }
 
   public static String canonicalize(String iban) {

@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.*;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.SavingFundDeadlinesService;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.util.*;
 import java.util.function.Function;
@@ -155,8 +156,8 @@ public class SavingFundPaymentUpsertionService {
         .build();
   }
 
-  private java.math.BigDecimal mergeAndValidateBigDecimal(
-      String fieldName, java.math.BigDecimal existingValue, java.math.BigDecimal newValue) {
+  private BigDecimal mergeAndValidateBigDecimal(
+      String fieldName, BigDecimal existingValue, BigDecimal newValue) {
     if (existingValue == null) {
       return newValue;
     } else if (existingValue.compareTo(newValue) != 0) {

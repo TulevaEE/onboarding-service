@@ -283,8 +283,8 @@
   },
   "signature": {
     "mutations": 61,
-    "detected": 0,
-    "score": 0.0,
+    "detected": 61,
+    "score": 100.0,
     "recordedAt": "2026-08-30"
   },
   "statistics": {

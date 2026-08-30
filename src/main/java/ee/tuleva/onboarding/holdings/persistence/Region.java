@@ -31,7 +31,7 @@ public enum Region {
   }
 
   static {
-    for (Region region : Region.values()) {
+    for (Region region : values()) {
       map.put(region.value, region);
     }
   }

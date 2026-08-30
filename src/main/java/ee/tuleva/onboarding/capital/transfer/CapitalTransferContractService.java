@@ -70,7 +70,7 @@ public class CapitalTransferContractService {
             .buyer(buyer)
             .iban(command.getIban())
             .transferAmounts(transferAmountsWithUnitPrice)
-            .state(CapitalTransferContractState.CREATED)
+            .state(CREATED)
             .build();
 
     byte[] contractContent = contractContentService.generateContractContent(contract);

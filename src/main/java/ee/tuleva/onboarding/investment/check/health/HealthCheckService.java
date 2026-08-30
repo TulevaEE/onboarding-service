@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.investment.position.AccountType.*;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
+import ee.tuleva.onboarding.investment.position.AccountType;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import java.math.BigDecimal;
@@ -138,8 +139,7 @@ public class HealthCheckService {
         .reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 
-  private List<FundPosition> filterByType(
-      List<FundPosition> positions, ee.tuleva.onboarding.investment.position.AccountType type) {
+  private List<FundPosition> filterByType(List<FundPosition> positions, AccountType type) {
     return positions.stream().filter(p -> p.getAccountType() == type).toList();
   }
 

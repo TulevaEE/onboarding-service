@@ -91,12 +91,8 @@ public class FeeCalculationService {
 
     FeeBases previousBases =
         new FeeBases(
-            feeAccrualRepository
-                .findLatestBaseValue(fund, FeeType.MANAGEMENT)
-                .orElse(bases.navFeeBase()),
-            feeAccrualRepository
-                .findLatestBaseValue(fund, FeeType.DEPOT)
-                .orElse(bases.assetValue()));
+            feeAccrualRepository.findLatestBaseValue(fund, MANAGEMENT).orElse(bases.navFeeBase()),
+            feeAccrualRepository.findLatestBaseValue(fund, DEPOT).orElse(bases.assetValue()));
 
     log.info(
         "calculateFeesForNav: fund={}, positionReportDate={}, startDate={}, willProcess={}",
@@ -122,9 +118,8 @@ public class FeeCalculationService {
     }
 
     BigDecimal mgmtFee =
-        feeAccrualRepository.getUnsettledAccrual(fund, FeeType.MANAGEMENT, positionReportDate);
-    BigDecimal depotFee =
-        feeAccrualRepository.getUnsettledAccrual(fund, FeeType.DEPOT, positionReportDate);
+        feeAccrualRepository.getUnsettledAccrual(fund, MANAGEMENT, positionReportDate);
+    BigDecimal depotFee = feeAccrualRepository.getUnsettledAccrual(fund, DEPOT, positionReportDate);
     return new FeeResult(mgmtFee, depotFee);
   }
 

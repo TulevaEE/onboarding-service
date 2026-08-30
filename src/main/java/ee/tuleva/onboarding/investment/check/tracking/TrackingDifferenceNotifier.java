@@ -12,6 +12,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
@@ -230,9 +231,9 @@ class TrackingDifferenceNotifier {
         sb.append("\n  Multi-day attribution (arithmetic sum of daily contributions):");
         result.escalationAttributions().entrySet().stream()
             .sorted(
-                java.util.Comparator.comparing(
-                    (java.util.Map.Entry<String, BigDecimal> e) -> e.getValue().abs(),
-                    java.util.Comparator.reverseOrder()))
+                Comparator.comparing(
+                    (Map.Entry<String, BigDecimal> e) -> e.getValue().abs(),
+                    Comparator.reverseOrder()))
             .forEach(
                 e ->
                     sb.append("\n    %s: %s%%".formatted(e.getKey(), formatPercent(e.getValue()))));

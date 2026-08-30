@@ -117,7 +117,7 @@ public class SavingFundPaymentRepository {
             Map.of(
                 "party_type", partyId.type().name(),
                 "party_code", partyId.code(),
-                "from_date", java.sql.Timestamp.valueOf(fromDate.atStartOfDay())),
+                "from_date", Timestamp.valueOf(fromDate.atStartOfDay())),
             Integer.class);
     return count == null ? 0 : count;
   }

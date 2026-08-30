@@ -17,7 +17,7 @@ public enum EmailEvent {
   private final EmailType emailType;
 
   public static EmailEvent getByEmailType(EmailType emailType) {
-    return Arrays.stream(EmailEvent.values())
+    return Arrays.stream(values())
         .filter(emailEvent -> emailEvent.emailType.equals(emailType))
         .findFirst()
         .orElseThrow(

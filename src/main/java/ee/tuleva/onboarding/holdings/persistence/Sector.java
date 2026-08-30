@@ -26,7 +26,7 @@ public enum Sector {
   }
 
   static {
-    for (Sector sector : Sector.values()) {
+    for (Sector sector : values()) {
       map.put(sector.value, sector);
     }
   }

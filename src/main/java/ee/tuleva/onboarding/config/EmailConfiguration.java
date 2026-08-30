@@ -63,7 +63,7 @@ public class EmailConfiguration {
   }
 
   @Bean
-  public io.github.erkoristhein.mailchimp.ApiClient mailchimpTransactionalApiClient() {
+  public ApiClient mailchimpTransactionalApiClient() {
     ApiClient apiClient = new ApiClient().setBasePath(mandrillUrl);
     apiClient.setDebugging(true);
     return apiClient;
@@ -80,8 +80,7 @@ public class EmailConfiguration {
   }
 
   @Bean
-  public MessagesApi mailchimpTransactionalMessagesApi(
-      io.github.erkoristhein.mailchimp.ApiClient mailchimpTransactionalApiClient) {
+  public MessagesApi mailchimpTransactionalMessagesApi(ApiClient mailchimpTransactionalApiClient) {
     return new MessagesApi(mailchimpTransactionalApiClient);
   }
 

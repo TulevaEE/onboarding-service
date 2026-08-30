@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.report.publishing;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
+import java.time.YearMonth;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -100,7 +101,7 @@ public enum FundReportMapping {
     return ESTONIAN_MONTHS[month - 1];
   }
 
-  public String buildPdfFilename(java.time.YearMonth month) {
+  public String buildPdfFilename(YearMonth month) {
     return titleGenitive
         + " investeeringute aruanne "
         + month.getYear()

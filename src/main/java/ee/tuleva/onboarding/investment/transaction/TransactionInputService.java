@@ -396,7 +396,7 @@ public class TransactionInputService {
             previous.stream()
                 .filter(ModelPortfolioAllocation::isFastSell)
                 .map(ModelPortfolioAllocation::getIsin)
-                .collect(Collectors.toSet()));
+                .collect(toSet()));
     current.stream()
         .filter(ModelPortfolioAllocation::isFastSell)
         .map(ModelPortfolioAllocation::getIsin)

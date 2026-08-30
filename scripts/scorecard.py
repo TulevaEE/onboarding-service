@@ -46,6 +46,7 @@ LOWER_IS_BETTER = [
     "top15ClassLines",
     "overMockedTestClasses",
     "interactionVerifyingTestClasses",
+    "fqnViolations",
 ]
 HIGHER_IS_BETTER = ["lineCoverage", "branchCoverage", "mocklessTestClasses"]
 COVERAGE_TOLERANCE = 0.2
@@ -77,6 +78,7 @@ def pmd_metrics():
         "classCouplingViolations": by_rule.get("CouplingBetweenObjects", 0),
         "cognitiveComplexityViolations": by_rule.get("CognitiveComplexity", 0),
         "deepNestingViolations": by_rule.get("AvoidDeeplyNestedIfStmts", 0),
+        "fqnViolations": by_rule.get("UnnecessaryFullyQualifiedName", 0),
         "pmdViolationsByRule": dict(sorted(by_rule.items())),
     }
 

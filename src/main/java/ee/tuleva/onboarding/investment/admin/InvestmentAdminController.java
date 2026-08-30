@@ -6,7 +6,10 @@ import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
 
 import ee.tuleva.onboarding.admin.AdminTokenValidator;
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.check.tracking.PeriodType;
+import ee.tuleva.onboarding.investment.check.tracking.PeriodicTdAttributionService;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
+import ee.tuleva.onboarding.investment.fees.ocf.OcfCalculationService;
 import ee.tuleva.onboarding.investment.position.FundPositionImportJob;
 import ee.tuleva.onboarding.investment.position.FundPositionLedgerService;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
@@ -61,10 +64,8 @@ public class InvestmentAdminController {
   private final Optional<InvestmentReportPublisher> investmentReportPublisher;
   private final InvestmentReportDataService investmentReportDataService;
   private final InvestmentReportPdfGenerator investmentReportPdfGenerator;
-  private final ee.tuleva.onboarding.investment.check.tracking.PeriodicTdAttributionService
-      tdAttributionService;
-  private final ee.tuleva.onboarding.investment.fees.ocf.OcfCalculationService
-      ocfCalculationService;
+  private final PeriodicTdAttributionService tdAttributionService;
+  private final OcfCalculationService ocfCalculationService;
   private final Clock clock;
 
   @PostMapping("/reimport-positions")
@@ -215,7 +216,7 @@ public class InvestmentAdminController {
 
     tokenValidator.validate(token);
 
-    var type = ee.tuleva.onboarding.investment.check.tracking.PeriodType.valueOf(periodType);
+    var type = PeriodType.valueOf(periodType);
 
     if (fundCode != null) {
       var fund = TulevaFund.valueOf(fundCode);
@@ -246,10 +247,7 @@ public class InvestmentAdminController {
 
     tokenValidator.validate(token);
 
-    var yearMonth =
-        month != null
-            ? java.time.YearMonth.parse(month)
-            : java.time.YearMonth.now(clock).minusMonths(1);
+    var yearMonth = month != null ? YearMonth.parse(month) : YearMonth.now(clock).minusMonths(1);
 
     if (fundCode != null) {
       var fund = TulevaFund.valueOf(fundCode);

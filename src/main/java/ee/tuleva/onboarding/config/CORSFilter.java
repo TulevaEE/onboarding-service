@@ -8,6 +8,7 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
@@ -33,7 +34,7 @@ public class CORSFilter extends GenericFilterBean {
 
   @PostConstruct
   public void init() {
-    allowedOrigins = new java.util.ArrayList<>(Arrays.asList(frontendUrl, "https://tuleva.ee"));
+    allowedOrigins = new ArrayList<>(Arrays.asList(frontendUrl, "https://tuleva.ee"));
 
     if (ecsPensionFrontendUrl != null && !ecsPensionFrontendUrl.isEmpty()) {
       allowedOrigins.add(ecsPensionFrontendUrl);

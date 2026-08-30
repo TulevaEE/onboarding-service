@@ -39,7 +39,7 @@ public enum IdDocumentType {
   }
 
   static IdDocumentType findByIdentifier(String identifier) {
-    return Arrays.stream(IdDocumentType.values())
+    return Arrays.stream(values())
         .filter(idDocumentType -> idDocumentType.identifiers.contains(identifier))
         .findFirst()
         .orElseThrow(() -> new UnknownDocumentTypeException(identifier));

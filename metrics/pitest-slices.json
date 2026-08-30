@@ -23,6 +23,12 @@
     "score": 98.94,
     "recordedAt": "2026-08-30"
   },
+  "banking": {
+    "mutations": 504,
+    "detected": 388,
+    "score": 76.98,
+    "recordedAt": "2026-08-30"
+  },
   "capital": {
     "mutations": 301,
     "detected": 255,

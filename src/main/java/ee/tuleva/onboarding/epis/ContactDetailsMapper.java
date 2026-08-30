@@ -13,7 +13,11 @@ class ContactDetailsMapper {
         .thirdPillarActive(contactDetails.isThirdPillarActive())
         .noticeNeeded(contactDetails.getNoticeNeeded())
         .languagePreference(
-            LanguagePreference.valueOf(contactDetails.getLanguagePreference().name()))
+            switch (contactDetails.getLanguagePreference()) {
+              case EST -> LanguagePreference.EST;
+              case RUS -> LanguagePreference.RUS;
+              case ENG -> LanguagePreference.ENG;
+            })
         .build();
   }
 }

@@ -31,7 +31,11 @@ public class SavingsFundStatementService {
 
   public Optional<FundBalance> getAccountStatement(AuthenticatedPerson person) {
     String ownerCode = person.getRoleCode();
-    PartyType partyType = PartyType.valueOf(person.getRoleType().name());
+    PartyType partyType =
+        switch (person.getRoleType()) {
+          case PERSON -> PartyType.PERSON;
+          case LEGAL_ENTITY -> PartyType.LEGAL_ENTITY;
+        };
 
     if (savingsFundOnboardingService.isOnboardingCompleted(PartyId.from(person))) {
       return Optional.of(

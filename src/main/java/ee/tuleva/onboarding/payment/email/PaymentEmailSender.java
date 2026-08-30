@@ -61,7 +61,12 @@ public class PaymentEmailSender {
   @EventListener
   public void onSavingsPaymentCreated(SavingsPaymentCreatedEvent event) {
     var recipient = event.getRecipient();
-    var saver = new SaverId(SaverId.Type.valueOf(recipient.type().name()), recipient.code());
+    var saverType =
+        switch (recipient.type()) {
+          case PERSON -> SaverId.Type.PERSON;
+          case LEGAL_ENTITY -> SaverId.Type.LEGAL_ENTITY;
+        };
+    var saver = new SaverId(saverType, recipient.code());
     boolean suggestAccountRecurringPayment =
         !recurringSavers.hasRecurringSavingsFundPayments(saver);
     sendSavingsFundEmail(

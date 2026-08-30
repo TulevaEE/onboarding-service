@@ -17,6 +17,12 @@ class SavingsCompanyOnboarding implements CompanyOnboarding {
   public Optional<State> findState(String registryCode) {
     return onboardingService
         .findStatus(registryCode, LEGAL_ENTITY)
-        .map(status -> State.valueOf(status.name()));
+        .map(
+            status ->
+                switch (status) {
+                  case PENDING -> State.PENDING;
+                  case REJECTED -> State.REJECTED;
+                  case COMPLETED -> State.COMPLETED;
+                });
   }
 }

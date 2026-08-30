@@ -18,7 +18,12 @@ public record PartyId(Type type, String code) {
   }
 
   public static PartyId from(Role role) {
-    return new PartyId(Type.valueOf(role.type().name()), role.code());
+    Type type =
+        switch (role.type()) {
+          case PERSON -> Type.PERSON;
+          case LEGAL_ENTITY -> Type.LEGAL_ENTITY;
+        };
+    return new PartyId(type, role.code());
   }
 
   public static PartyId from(AuthenticatedPerson person) {

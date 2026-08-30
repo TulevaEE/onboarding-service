@@ -13,7 +13,6 @@ import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.iban.IbanValidator;
-import ee.tuleva.onboarding.ledger.LedgerParty;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.PartyId;
@@ -239,8 +238,7 @@ public class RedemptionService {
 
   private BigDecimal getEffectiveAvailableFundUnits(PartyId partyId) {
     return ledgerService
-        .getPartyAccount(
-            partyId.code(), LedgerParty.PartyType.valueOf(partyId.type().name()), FUND_UNITS)
+        .getPartyAccount(partyId.code(), LedgerRefs.partyType(partyId.type()), FUND_UNITS)
         .getBalance()
         .negate();
   }

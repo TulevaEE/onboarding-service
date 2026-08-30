@@ -15,7 +15,12 @@ class SavingsFundContributionsAdapter implements SavingsFundContributions {
 
   @Override
   public int countIssuedPaymentMonthsSince(SaverId saver, LocalDate from) {
-    var partyId = new PartyId(PartyId.Type.valueOf(saver.type().name()), saver.code());
+    var partyType =
+        switch (saver.type()) {
+          case PERSON -> PartyId.Type.PERSON;
+          case LEGAL_ENTITY -> PartyId.Type.LEGAL_ENTITY;
+        };
+    var partyId = new PartyId(partyType, saver.code());
     return savingsFundPayments.countIssuedPaymentMonthsSince(partyId, from);
   }
 }

@@ -44,7 +44,13 @@ class NavFeesAdapter implements NavFees {
   public boolean chargedToFund(TulevaFund fund, NavFeeType feeType, LocalDate date) {
     return delegates
         .feeChargedToFundPolicy()
-        .chargedToFund(fund, FeeType.valueOf(feeType.name()), date);
+        .chargedToFund(
+            fund,
+            switch (feeType) {
+              case MANAGEMENT -> FeeType.MANAGEMENT;
+              case DEPOT -> FeeType.DEPOT;
+            },
+            date);
   }
 
   private record Delegates(

@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.mandate;
 
-import ee.tuleva.onboarding.analytics.RecurringPayments;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.paymentrate.PaymentRates;
 import ee.tuleva.onboarding.user.User;

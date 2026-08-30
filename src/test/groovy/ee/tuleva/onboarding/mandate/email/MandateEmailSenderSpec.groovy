@@ -26,9 +26,9 @@ import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 import static ee.tuleva.onboarding.mandate.MandateFixture.samplePartialWithdrawalMandate
 import static ee.tuleva.onboarding.mandate.MandateFixture.thirdPillarMandate
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchFixture.aMandateBatch
-import ee.tuleva.onboarding.analytics.SecondPillarLeavers
-import ee.tuleva.onboarding.analytics.RecurringPayments
-import ee.tuleva.onboarding.analytics.RecurringSavers
+import ee.tuleva.onboarding.mandate.PillarLeavers
+import ee.tuleva.onboarding.mandate.RecurringPayments
+import ee.tuleva.onboarding.mandate.RecurringContributions
 import ee.tuleva.onboarding.mandate.TaxHeadroom
 import ee.tuleva.onboarding.mandate.SavingsFundSaverStatus
 
@@ -42,20 +42,20 @@ class MandateEmailSenderSpec extends Specification {
   UserConversionService conversionService = Mock(UserConversionService)
   SecondPillarPaymentRateService paymentRateService = Mock(SecondPillarPaymentRateService)
   MandateBatchEmailService mandateBatchEmailService = Mock(MandateBatchEmailService)
-  SecondPillarLeavers secondPillarLeavers = Mock(SecondPillarLeavers) {
+  PillarLeavers pillarLeavers = Mock(PillarLeavers) {
     hasLeft(_) >> false
   }
   SavingsFundSaverStatus savingsFundSavers = Mock(SavingsFundSaverStatus) {
     isSaver(_) >> false
   }
-  RecurringSavers recurringSavers = Mock(RecurringSavers) {
+  RecurringContributions recurringContributions = Mock(RecurringContributions) {
     recurringPaymentsOf(_) >> new RecurringPayments(true, true)
   }
 
   TaxHeadroom taxHeadroom = Mock(TaxHeadroom) {
     hasHeadroom(_) >> false
   }
-  MandateEmailSender mandateEmailSender = new MandateEmailSender(mandateEmailService, mandateBatchEmailService, mandateContacts, conversionService, paymentRateService, secondPillarLeavers, savingsFundSavers, recurringSavers, taxHeadroom)
+  MandateEmailSender mandateEmailSender = new MandateEmailSender(mandateEmailService, mandateBatchEmailService, mandateContacts, conversionService, paymentRateService, pillarLeavers, savingsFundSavers, recurringContributions, taxHeadroom)
 
   def "send email when second pillar mandate event was received"() {
     given:

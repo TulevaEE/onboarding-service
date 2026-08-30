@@ -2,15 +2,15 @@ package ee.tuleva.onboarding.mandate.email;
 
 import static java.util.stream.Collectors.toSet;
 
-import ee.tuleva.onboarding.analytics.RecurringSavers;
-import ee.tuleva.onboarding.analytics.SecondPillarLeavers;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateContactDetails;
 import ee.tuleva.onboarding.mandate.MandateContacts;
 import ee.tuleva.onboarding.mandate.MandateType;
+import ee.tuleva.onboarding.mandate.PillarLeavers;
 import ee.tuleva.onboarding.mandate.PillarSuggestion;
+import ee.tuleva.onboarding.mandate.RecurringContributions;
 import ee.tuleva.onboarding.mandate.SavingsFundSaverStatus;
 import ee.tuleva.onboarding.mandate.TaxHeadroom;
 import ee.tuleva.onboarding.mandate.event.AfterMandateBatchSignedEvent;
@@ -34,9 +34,9 @@ public class MandateEmailSender {
   private final MandateContacts mandateContacts;
   private final UserConversionService conversionService;
   private final SecondPillarPaymentRateService paymentRateService;
-  private final SecondPillarLeavers secondPillarLeavers;
+  private final PillarLeavers pillarLeavers;
   private final SavingsFundSaverStatus savingsFundSaverStatus;
-  private final RecurringSavers recurringSavers;
+  private final RecurringContributions recurringContributions;
   private final TaxHeadroom taxHeadroom;
 
   @EventListener
@@ -52,10 +52,10 @@ public class MandateEmailSender {
             conversion,
             paymentRates,
             Set.of(event.getMandate().getPillar()),
-            secondPillarLeavers.hasLeft(event.getUser().getPersonalCode()),
+            pillarLeavers.hasLeft(event.getUser().getPersonalCode()),
             savingsFundSaverStatus.isSaver(event.getUser().getPersonalCode()),
             event.getMandate().getMandateType() == MandateType.PAYMENT_RATE_CHANGE,
-            recurringSavers.recurringPaymentsOf(event.getUser().getPersonalCode()),
+            recurringContributions.recurringPaymentsOf(event.getUser().getPersonalCode()),
             taxHeadroom.hasHeadroom(event.getUser()));
     if (!event.getMandate().isPartOfBatch()) {
       mandateEmailService.sendMandate(
@@ -82,10 +82,10 @@ public class MandateEmailSender {
             conversion,
             paymentRates,
             mandatePillars,
-            secondPillarLeavers.hasLeft(event.getUser().getPersonalCode()),
+            pillarLeavers.hasLeft(event.getUser().getPersonalCode()),
             savingsFundSaverStatus.isSaver(event.getUser().getPersonalCode()),
             false,
-            recurringSavers.recurringPaymentsOf(event.getUser().getPersonalCode()),
+            recurringContributions.recurringPaymentsOf(event.getUser().getPersonalCode()),
             taxHeadroom.hasHeadroom(event.getUser()));
     mandateBatchEmailService.sendMandateBatch(
         event.getUser(), event.getMandateBatch(), pillarSuggestion, event.getLocale());

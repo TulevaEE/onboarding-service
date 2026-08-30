@@ -13,9 +13,9 @@ import ee.tuleva.onboarding.payment.event.SavingsPaymentCreatedEvent
 import ee.tuleva.onboarding.payment.event.SavingsPaymentFailedEvent
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService
 import ee.tuleva.onboarding.analytics.SecondPillarLeavers
-import ee.tuleva.onboarding.analytics.RecurringPayments
 import ee.tuleva.onboarding.analytics.RecurringSavers
 import ee.tuleva.onboarding.contribution.ThirdPillarTaxHeadroom
+import ee.tuleva.onboarding.mandate.RecurringPayments
 import ee.tuleva.onboarding.mandate.SavingsFundSaverStatus
 import spock.lang.Specification
 

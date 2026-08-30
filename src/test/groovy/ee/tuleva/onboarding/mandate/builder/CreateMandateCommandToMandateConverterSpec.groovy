@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.mandate.builder
 
 import ee.tuleva.onboarding.conversion.ConversionDecorator
-import ee.tuleva.onboarding.account.AccountStatementService
-import ee.tuleva.onboarding.account.FundBalance
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.fund.FundRepository
+import ee.tuleva.onboarding.mandate.PensionAccountStatement
+import ee.tuleva.onboarding.mandate.PensionAccountStatement.PensionFundBalance
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandWrapper
 import ee.tuleva.onboarding.mandate.command.MandateFundTransferExchangeCommand
@@ -20,12 +20,12 @@ import static ee.tuleva.onboarding.country.CountryFixture.countryFixture
 
 class CreateMandateCommandToMandateConverterSpec extends Specification {
 
-  AccountStatementService accountStatementService = Mock()
+  PensionAccountStatement pensionAccountStatement = Mock()
   FundRepository fundRepository = Mock()
   ConversionDecorator conversionDecorator = new ConversionDecorator()
   SecondPillarPaymentRateService secondPillarPaymentRateService = Mock()
   CreateMandateCommandToMandateConverter converter =
-      new CreateMandateCommandToMandateConverter(accountStatementService, fundRepository, conversionDecorator, secondPillarPaymentRateService)
+      new CreateMandateCommandToMandateConverter(pensionAccountStatement, fundRepository, conversionDecorator, secondPillarPaymentRateService)
 
   def setup() {
     secondPillarPaymentRateService.getPaymentRates(_) >> new PaymentRates(4, null)
@@ -61,7 +61,7 @@ class CreateMandateCommandToMandateConverterSpec extends Specification {
         secondPillarPaymentRate         : 4,
         authAttributes                  : [:]
     ]
-    0 * accountStatementService.getAccountStatement(_)
+    0 * pensionAccountStatement.forPerson(_)
     1 * fundRepository.findByIsin("test") >> Fund.builder().pillar(2).isin("test").build()
   }
 
@@ -79,10 +79,7 @@ class CreateMandateCommandToMandateConverterSpec extends Specification {
     def fund = Fund.builder().pillar(3).isin(sourceIsin).build()
     def user = sampleUser().build()
     def person = authenticatedPersonFromUser(user).build()
-    def fundBalance = FundBalance.builder()
-        .units(500.1234)
-        .fund(fund)
-        .build()
+    def fundBalance = new PensionFundBalance(sourceIsin, BigDecimal.valueOf(500.1234), false)
     def conversion = fullyConverted()
     def contactDetails = contactDetailsFixture()
     when:
@@ -109,7 +106,7 @@ class CreateMandateCommandToMandateConverterSpec extends Specification {
         secondPillarPaymentRate         : 4,
         authAttributes                  : [:]
     ]
-    1 * accountStatementService.getAccountStatement(user) >> [fundBalance]
+    1 * pensionAccountStatement.forPerson(user) >> [fundBalance]
     1 * fundRepository.findByIsin(sourceIsin) >> fund
   }
 }

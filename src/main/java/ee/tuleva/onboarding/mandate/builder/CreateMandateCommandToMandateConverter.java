@@ -3,8 +3,6 @@ package ee.tuleva.onboarding.mandate.builder;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
 
-import ee.tuleva.onboarding.account.AccountStatementService;
-import ee.tuleva.onboarding.account.FundBalance;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.conversion.ConversionDecorator;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
@@ -12,6 +10,8 @@ import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateContactDetails;
+import ee.tuleva.onboarding.mandate.PensionAccountStatement;
+import ee.tuleva.onboarding.mandate.PensionAccountStatement.PensionFundBalance;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandWrapper;
 import ee.tuleva.onboarding.mandate.command.MandateFundTransferExchangeCommand;
@@ -28,7 +28,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class CreateMandateCommandToMandateConverter {
 
-  private final AccountStatementService accountStatementService;
+  private final PensionAccountStatement pensionAccountStatement;
   private final FundRepository fundRepository;
   private final ConversionDecorator conversionDecorator;
   private final SecondPillarPaymentRateService secondPillarPaymentRateService;
@@ -108,18 +108,19 @@ public class CreateMandateCommandToMandateConverter {
     if (pillar == 2) {
       return exchange.getAmount();
     } else if (pillar == 3) {
-      final var statement = accountStatementService.getAccountStatement(mandate.getUser());
+      final var statement = pensionAccountStatement.forPerson(mandate.getUser());
       final var balance = getFundBalance(statement, exchange.getSourceFundIsin());
-      final var exchangeAmount = balance.getUnits().multiply(exchange.getAmount());
+      final var exchangeAmount = balance.units().multiply(exchange.getAmount());
       return exchangeAmount.setScale(4, RoundingMode.HALF_UP);
     } else {
       throw new IllegalStateException("Unknown pillar " + pillar);
     }
   }
 
-  private FundBalance getFundBalance(List<FundBalance> accountStatement, String isin) {
+  private PensionFundBalance getFundBalance(
+      List<PensionFundBalance> accountStatement, String isin) {
     return accountStatement.stream()
-        .filter(fundBalance -> fundBalance.getFund().getIsin().equals(isin))
+        .filter(fundBalance -> fundBalance.isin().equals(isin))
         .findFirst()
         .orElseThrow(() -> new IllegalStateException("Fund not found: " + isin));
   }

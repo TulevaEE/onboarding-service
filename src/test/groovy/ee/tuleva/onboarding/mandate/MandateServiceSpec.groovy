@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.mandate
 
 import ee.tuleva.onboarding.applicationtype.ApplicationType
-import ee.tuleva.onboarding.account.AccountStatementService
 import ee.tuleva.onboarding.aml.exception.AmlChecksMissingException
 import ee.tuleva.onboarding.conversion.UserConversionService
 import ee.tuleva.onboarding.mandate.MandateContacts
@@ -45,9 +44,9 @@ class MandateServiceSpec extends Specification {
   MandateRepository mandateRepository = Mock()
   SignatureService signService = Mock()
   FundRepository fundRepository = Mock()
-  AccountStatementService accountStatementService = Mock()
+  PensionAccountStatement pensionAccountStatement = Mock()
   SecondPillarPaymentRateService secondPillarPaymentRateService = Mock()
-  CreateMandateCommandToMandateConverter converter = new CreateMandateCommandToMandateConverter(accountStatementService, fundRepository, new ConversionDecorator(), secondPillarPaymentRateService)
+  CreateMandateCommandToMandateConverter converter = new CreateMandateCommandToMandateConverter(pensionAccountStatement, fundRepository, new ConversionDecorator(), secondPillarPaymentRateService)
 
   MandateProcessorService mandateProcessor = Mock()
   MandateFileService mandateFileService = Mock()

@@ -1,10 +1,9 @@
 package ee.tuleva.onboarding.mandate;
 
-import ee.tuleva.onboarding.account.AccountStatementService;
-import ee.tuleva.onboarding.account.FundBalance;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
+import ee.tuleva.onboarding.mandate.PensionAccountStatement.PensionFundBalance;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
 import ee.tuleva.onboarding.mandate.command.MandateFundTransferExchangeCommand;
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
@@ -19,7 +18,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class MandateValidator {
 
-  private final AccountStatementService accountStatementService;
+  private final PensionAccountStatement pensionAccountStatement;
   private final FundRepository fundRepository;
 
   public void validate(CreateMandateCommand createMandateCommand, Person person) {
@@ -80,7 +79,7 @@ public class MandateValidator {
       return false;
     }
 
-    List<FundBalance> accountStatement = accountStatementService.getAccountStatement(person);
+    List<PensionFundBalance> accountStatement = pensionAccountStatement.forPerson(person);
     Fund fund = fundRepository.findByIsin(isin);
     if (fund == null) {
       return false;
@@ -89,8 +88,7 @@ public class MandateValidator {
     if (fund.getPillar() == 2) {
       return accountStatement.stream()
           .anyMatch(
-              fundBalance ->
-                  fundBalance.isActiveContributions() && fundBalance.getIsin().equals(isin));
+              fundBalance -> fundBalance.activeContributions() && fundBalance.isin().equals(isin));
     }
 
     return false;

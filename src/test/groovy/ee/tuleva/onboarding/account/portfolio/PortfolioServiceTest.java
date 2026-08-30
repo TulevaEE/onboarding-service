@@ -15,6 +15,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import ee.tuleva.onboarding.account.SavingsFundNav;
 import ee.tuleva.onboarding.account.transaction.Transaction;
 import ee.tuleva.onboarding.account.transaction.TransactionService;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
@@ -25,7 +26,6 @@ import ee.tuleva.onboarding.comparisons.returns.ReturnsService;
 import ee.tuleva.onboarding.comparisons.returns.provider.PersonalReturnProvider;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
-import ee.tuleva.onboarding.savings.FundNavProvider;
 import ee.tuleva.onboarding.savings.SavingsFundConfiguration;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -57,7 +57,7 @@ class PortfolioServiceTest {
   @Mock private FundRepository fundRepository;
   @Mock private FundValueQueries fundValueQueries;
   @Mock private ReturnsService returnsService;
-  @Mock private FundNavProvider fundNavProvider;
+  @Mock private SavingsFundNav fundNavProvider;
 
   private final Clock clock =
       Clock.fixed(TODAY.atStartOfDay(ZoneOffset.UTC).toInstant(), ZoneOffset.UTC);

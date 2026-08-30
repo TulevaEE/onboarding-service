@@ -4,9 +4,9 @@ import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.fund.TulevaFund
 import ee.tuleva.onboarding.ledger.LedgerService
 import ee.tuleva.onboarding.party.PartyId
-import ee.tuleva.onboarding.savings.SavingsFundConfiguration
-import ee.tuleva.onboarding.savings.SavingsFundOnboardingService
-import ee.tuleva.onboarding.savings.FundNavProvider
+import ee.tuleva.onboarding.account.SavingsFundIsin
+import ee.tuleva.onboarding.account.SavingsOnboardingCompletion
+import ee.tuleva.onboarding.account.SavingsFundNav
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
@@ -20,10 +20,10 @@ import static ee.tuleva.onboarding.ledger.UserAccount.*
 class SavingsFundStatementServiceSpec extends Specification {
 
   LedgerService ledgerService = Mock()
-  SavingsFundOnboardingService savingsFundOnboardingService = Mock()
-  FundNavProvider navProvider = Mock()
+  SavingsOnboardingCompletion savingsFundOnboardingService = Mock()
+  SavingsFundNav navProvider = Mock()
   FundRepository fundRepository = Mock()
-  SavingsFundConfiguration savingsFundConfiguration = Mock()
+  SavingsFundIsin savingsFundConfiguration = Mock()
 
   SavingsFundStatementService service = new SavingsFundStatementService(ledgerService, savingsFundOnboardingService, navProvider, fundRepository, savingsFundConfiguration)
 

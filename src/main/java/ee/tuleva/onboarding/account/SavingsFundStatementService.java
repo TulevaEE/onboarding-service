@@ -12,9 +12,6 @@ import ee.tuleva.onboarding.ledger.LedgerAccount;
 import ee.tuleva.onboarding.ledger.LedgerParty.PartyType;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.UserAccount;
-import ee.tuleva.onboarding.savings.FundNavProvider;
-import ee.tuleva.onboarding.savings.SavingsFundConfiguration;
-import ee.tuleva.onboarding.savings.SavingsFundOnboardingService;
 import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.function.Function;
@@ -26,10 +23,10 @@ import org.springframework.stereotype.Service;
 public class SavingsFundStatementService {
 
   private final LedgerService ledgerService;
-  private final SavingsFundOnboardingService savingsFundOnboardingService;
-  private final FundNavProvider navProvider;
+  private final SavingsOnboardingCompletion savingsFundOnboardingService;
+  private final SavingsFundNav navProvider;
   private final FundRepository fundRepository;
-  private final SavingsFundConfiguration savingsFundConfiguration;
+  private final SavingsFundIsin savingsFundConfiguration;
 
   public Optional<FundBalance> getAccountStatement(AuthenticatedPerson person) {
     String ownerCode = person.getRoleCode();

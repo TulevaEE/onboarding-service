@@ -5,6 +5,8 @@ import static ee.tuleva.onboarding.account.portfolio.PortfolioGroup.THIRD_PILLAR
 import static java.util.Comparator.naturalOrder;
 import static java.util.stream.Collectors.toMap;
 
+import ee.tuleva.onboarding.account.SavingsFundIsin;
+import ee.tuleva.onboarding.account.SavingsFundNav;
 import ee.tuleva.onboarding.account.transaction.Transaction;
 import ee.tuleva.onboarding.account.transaction.TransactionService;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
@@ -14,8 +16,6 @@ import ee.tuleva.onboarding.comparisons.returns.ReturnsService;
 import ee.tuleva.onboarding.comparisons.returns.provider.PersonalReturnProvider;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
-import ee.tuleva.onboarding.savings.FundNavProvider;
-import ee.tuleva.onboarding.savings.SavingsFundConfiguration;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -43,9 +43,9 @@ public class PortfolioService {
   private final TransactionService transactionService;
   private final FundRepository fundRepository;
   private final FundValueQueries fundValueQueries;
-  private final SavingsFundConfiguration savingsFundConfiguration;
+  private final SavingsFundIsin savingsFundConfiguration;
   private final ReturnsService returnsService;
-  private final FundNavProvider fundNavProvider;
+  private final SavingsFundNav fundNavProvider;
   private final Clock clock;
 
   public Portfolio getPortfolio(

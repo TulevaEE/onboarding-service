@@ -1,6 +1,5 @@
-package ee.tuleva.onboarding.savings;
+package ee.tuleva.onboarding.account.transaction;
 
-import ee.tuleva.onboarding.account.transaction.Transaction;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import java.util.List;
 

@@ -12,7 +12,6 @@ import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.account.CashFlowService;
 import ee.tuleva.onboarding.auth.role.Role;
-import ee.tuleva.onboarding.savings.SavingsTransactions;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;

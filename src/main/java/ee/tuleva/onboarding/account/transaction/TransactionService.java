@@ -4,7 +4,6 @@ import static java.util.Comparator.reverseOrder;
 
 import ee.tuleva.onboarding.account.CashFlowService;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.savings.SavingsTransactions;
 import java.util.List;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;

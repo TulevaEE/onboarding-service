@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.savings;
 import static java.math.RoundingMode.HALF_UP;
 import static java.math.RoundingMode.UNNECESSARY;
 
+import ee.tuleva.onboarding.account.SavingsFundNav;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueQueries;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
@@ -17,7 +18,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class FundNavProvider {
+public class FundNavProvider implements SavingsFundNav {
 
   private static final LocalTime CUTOFF_TIME = LocalTime.of(16, 0);
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
@@ -27,6 +28,7 @@ public class FundNavProvider {
   private final PublicHolidays publicHolidays;
   private final Clock clock;
 
+  @Override
   public BigDecimal getDisplayNav(TulevaFund fund) {
     String isin = fund.getIsin();
     LocalDate safeDate = safeMaxNavDate();
@@ -109,6 +111,7 @@ public class FundNavProvider {
             });
   }
 
+  @Override
   public LocalDate safeMaxNavDate() {
     var now = clock.instant().atZone(ESTONIAN_ZONE);
     LocalDate today = now.toLocalDate();

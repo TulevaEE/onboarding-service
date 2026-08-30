@@ -10,6 +10,7 @@ import static java.math.RoundingMode.UNNECESSARY;
 import static java.util.Comparator.reverseOrder;
 import static java.util.stream.Collectors.toSet;
 
+import ee.tuleva.onboarding.account.transaction.SavingsTransactions;
 import ee.tuleva.onboarding.account.transaction.Transaction;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.epis.CashFlow;
@@ -21,7 +22,6 @@ import ee.tuleva.onboarding.ledger.UserAccount;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.SavingsFundConfiguration;
 import ee.tuleva.onboarding.savings.SavingsFundOnboardingService;
-import ee.tuleva.onboarding.savings.SavingsTransactions;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestRepository;
 import java.math.BigDecimal;

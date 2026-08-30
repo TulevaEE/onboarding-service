@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.event.TrackableEventType.SAVINGS_FUND_ONBOARD
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.*;
 
+import ee.tuleva.onboarding.account.SavingsOnboardingCompletion;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.kyc.KycCheck;
 import ee.tuleva.onboarding.kyc.KycCheck.RiskLevel;
@@ -23,11 +24,12 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class SavingsFundOnboardingService {
+public class SavingsFundOnboardingService implements SavingsOnboardingCompletion {
 
   private final SavingsFundOnboardingRepository savingsFundOnboardingRepository;
   private final ApplicationEventPublisher eventPublisher;
 
+  @Override
   public boolean isOnboardingCompleted(PartyId partyId) {
     return isOnboardingCompleted(partyId.code(), partyId.type());
   }

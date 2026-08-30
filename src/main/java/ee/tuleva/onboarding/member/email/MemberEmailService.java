@@ -28,7 +28,7 @@ public class MemberEmailService {
   public void sendMemberNumber(User user, Locale locale) {
     log.info("Sending member number email to user: {}", user.getId());
     Member member = user.getMemberOrThrow();
-    EmailType emailType = EmailType.from(member);
+    EmailType emailType = EmailType.MEMBERSHIP;
     String templateName = emailType.getTemplateName(locale);
 
     MandrillMessage message =

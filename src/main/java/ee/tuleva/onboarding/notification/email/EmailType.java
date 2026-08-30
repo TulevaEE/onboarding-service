@@ -1,8 +1,5 @@
 package ee.tuleva.onboarding.notification.email;
 
-import ee.tuleva.onboarding.payment.Payment;
-import ee.tuleva.onboarding.payment.PaymentData;
-import ee.tuleva.onboarding.user.member.Member;
 import java.util.Locale;
 
 public enum EmailType {
@@ -54,17 +51,6 @@ public enum EmailType {
 
   EmailType(String templateName) {
     this.templateName = templateName;
-  }
-
-  public static EmailType from(Payment payment) {
-    if (PaymentData.PaymentType.SAVINGS.equals(payment.getPaymentType())) {
-      return SAVINGS_FUND_PAYMENT_SUCCESS;
-    }
-    return THIRD_PILLAR_PAYMENT_SUCCESS_MANDATE;
-  }
-
-  public static EmailType from(Member member) {
-    return MEMBERSHIP;
   }
 
   public String getTemplateName(Locale locale) {

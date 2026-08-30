@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.notification.email.EmailType;
 import ee.tuleva.onboarding.payment.Payment;
+import ee.tuleva.onboarding.payment.PaymentData.PaymentType;
 import ee.tuleva.onboarding.savings.SavingsFundFees;
 import ee.tuleva.onboarding.user.User;
 import java.util.*;
@@ -33,9 +34,15 @@ public class PaymentEmailService {
   private final EmailPersistenceService emailPersistenceService;
   private final SavingsFundFees savingsFundFees;
 
+  private static EmailType successEmailType(Payment payment) {
+    return payment.getPaymentType() == PaymentType.SAVINGS
+        ? EmailType.SAVINGS_FUND_PAYMENT_SUCCESS
+        : EmailType.THIRD_PILLAR_PAYMENT_SUCCESS_MANDATE;
+  }
+
   void sendThirdPillarPaymentSuccessEmail(
       User user, Payment payment, PillarSuggestion pillarSuggestion, Locale locale) {
-    EmailType emailType = EmailType.from(payment);
+    EmailType emailType = successEmailType(payment);
     String templateName = emailType.getTemplateName(locale);
 
     MandrillMessage mandrillMessage =

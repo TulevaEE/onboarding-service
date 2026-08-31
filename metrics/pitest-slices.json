@@ -43,9 +43,9 @@
   },
   "ariregister": {
     "mutations": 73,
-    "detected": 59,
-    "score": 80.82,
-    "recordedAt": "2026-08-30"
+    "detected": 66,
+    "score": 90.41,
+    "recordedAt": "2026-08-31"
   },
   "audit": {
     "mutations": 20,

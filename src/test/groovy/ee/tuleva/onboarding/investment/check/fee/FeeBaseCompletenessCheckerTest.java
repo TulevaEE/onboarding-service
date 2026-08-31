@@ -53,24 +53,15 @@ class FeeBaseCompletenessCheckerTest {
 
   @BeforeEach
   void setUp() {
-    checker =
-        new FeeBaseCompletenessChecker(
-            feeAccrualRepository,
-            fundNavQueryService,
-            navLedgerRepository,
-            new PublicHolidays(),
-            new BigDecimal("0.01"),
-            DEPOT_ASSET_BASE_FROM);
+    checker = checkerWithDepotAssetBaseFrom(DEPOT_ASSET_BASE_FROM);
   }
 
   private FeeBaseCompletenessChecker checkerWithDepotAssetBaseFrom(LocalDate from) {
+    var publicHolidays = new PublicHolidays();
+    var expectedFeeBases =
+        new ExpectedFeeBases(fundNavQueryService, navLedgerRepository, publicHolidays, from);
     return new FeeBaseCompletenessChecker(
-        feeAccrualRepository,
-        fundNavQueryService,
-        navLedgerRepository,
-        new PublicHolidays(),
-        new BigDecimal("0.01"),
-        from);
+        feeAccrualRepository, expectedFeeBases, publicHolidays, new BigDecimal("0.01"));
   }
 
   @Test

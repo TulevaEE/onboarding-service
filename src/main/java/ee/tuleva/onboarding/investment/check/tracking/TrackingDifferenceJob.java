@@ -32,6 +32,7 @@ class TrackingDifferenceJob {
       log.error("Tracking difference check incomplete", e);
     } catch (Exception e) {
       log.error("Tracking difference check failed", e);
+      trackingDifferenceNotifier.notifyRunFailed("TD check", reasonOf(e));
     }
   }
 
@@ -48,6 +49,11 @@ class TrackingDifferenceJob {
       log.error("Tracking difference backfill incomplete", e);
     } catch (Exception e) {
       log.error("Tracking difference backfill failed", e);
+      trackingDifferenceNotifier.notifyRunFailed("TD backfill", reasonOf(e));
     }
+  }
+
+  private static String reasonOf(Exception e) {
+    return e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
   }
 }

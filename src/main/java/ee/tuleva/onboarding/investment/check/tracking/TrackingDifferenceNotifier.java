@@ -41,6 +41,20 @@ class TrackingDifferenceNotifier {
     }
   }
 
+  void notifyRunFailed(String run, String reason) {
+    try {
+      notificationService.sendMessage(
+          """
+          🛑 %s DID NOT RUN: %s
+            Nothing was checked and nothing was refilled, so the last message on this channel is
+            not the state of the funds today. Rerun it once the cause is fixed."""
+              .formatted(run, reason),
+          INVESTMENT);
+    } catch (Exception e) {
+      log.error("Failed to send tracking difference run failure notification", e);
+    }
+  }
+
   void notify(List<TrackingDifferenceResult> results) {
     try {
       var alertableResults = results.stream().filter(r -> r.checkType() != BENCHMARK).toList();

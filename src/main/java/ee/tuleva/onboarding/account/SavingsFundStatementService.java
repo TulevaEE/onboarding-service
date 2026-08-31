@@ -30,14 +30,11 @@ public class SavingsFundStatementService {
   private final SavingsFundIsin savingsFundConfiguration;
 
   public Optional<FundBalance> getAccountStatement(AuthenticatedPerson person) {
-    String ownerCode = person.getRoleCode();
-    PartyType partyType =
-        switch (person.getRoleType()) {
-          case PERSON -> PartyType.PERSON;
-          case LEGAL_ENTITY -> PartyType.LEGAL_ENTITY;
-        };
+    PartyId partyId = PartyId.from(person);
+    String ownerCode = partyId.code();
+    PartyType partyType = partyType(partyId.type());
 
-    if (savingsFundOnboardingService.isOnboardingCompleted(PartyId.from(person))) {
+    if (savingsFundOnboardingService.isOnboardingCompleted(partyId)) {
       return Optional.of(
           statement(
               account ->
@@ -55,6 +52,13 @@ public class SavingsFundStatementService {
                                 .findPartyAccount(ownerCode, partyType, account)
                                 .map(LedgerAccount::getBalance)
                                 .orElse(BigDecimal.ZERO)));
+  }
+
+  private static PartyType partyType(PartyId.Type type) {
+    return switch (type) {
+      case PERSON -> PartyType.PERSON;
+      case LEGAL_ENTITY -> PartyType.LEGAL_ENTITY;
+    };
   }
 
   private FundBalance statement(Function<UserAccount, BigDecimal> balances) {

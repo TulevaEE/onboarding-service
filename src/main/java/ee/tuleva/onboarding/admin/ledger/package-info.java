@@ -1,4 +1,4 @@
 @NullMarked
-package ee.tuleva.onboarding.ledger.admin;
+package ee.tuleva.onboarding.admin.ledger;
 
 import org.jspecify.annotations.NullMarked;

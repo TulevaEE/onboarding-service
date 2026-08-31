@@ -173,6 +173,7 @@ class MultiFundNavVerificationTest {
     navPositionLedger.recordPositions(
         data.fund,
         data.navDate,
+        data.navDate.atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant(),
         securitiesUnits,
         data.cashPosition,
         data.tradeReceivables,

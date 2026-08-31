@@ -12,7 +12,10 @@ import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import ee.tuleva.onboarding.ledger.NavPositionLedger;
 import ee.tuleva.onboarding.ledger.SystemAccount;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -29,12 +32,15 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class FundPositionLedgerService {
 
+  private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
+
   private final FundPositionRepository fundPositionRepository;
   private final NavPositionLedger navPositionLedger;
   private final NavFeeAccrualLedger navFeeAccrualLedger;
   private final FeeAccrualRepository feeAccrualRepository;
   private final NavLedgerRepository navLedgerRepository;
   private final PublicHolidays publicHolidays;
+  private final Clock clock;
 
   @Transactional
   public void rerecordPositionsFromDate(TulevaFund fund, LocalDate fromDate) {
@@ -92,7 +98,13 @@ public class FundPositionLedgerService {
         deltas.receivables,
         deltas.payables);
     navPositionLedger.recordPositions(
-        fund, date, deltas.securitiesUnits, deltas.cash, deltas.receivables, deltas.payables);
+        fund,
+        date,
+        transactionDate(fund, date),
+        deltas.securitiesUnits,
+        deltas.cash,
+        deltas.receivables,
+        deltas.payables);
   }
 
   private PositionDeltas calculatePositionDeltas(TulevaFund fund, LocalDate date) {
@@ -194,5 +206,22 @@ public class FundPositionLedgerService {
         .map(FundPosition::getMarketValue)
         .filter(Objects::nonNull)
         .reduce(ZERO, BigDecimal::add);
+  }
+
+  Instant transactionDate(TulevaFund fund, LocalDate reportDate) {
+    Instant now = Instant.now(clock);
+    LocalDate nowDate = now.atZone(ESTONIAN_ZONE).toLocalDate();
+    if (nowDate.equals(reportDate)) {
+      return now;
+    }
+    if (reportDate.equals(fund.getInceptionDate())) {
+      return reportDate.atTime(10, 0).atZone(ESTONIAN_ZONE).toInstant();
+    }
+    LocalDate expectedDate = publicHolidays.nextWorkingDay(reportDate);
+    Instant cutoff = expectedDate.atTime(fund.getNavCutoffTime()).atZone(ESTONIAN_ZONE).toInstant();
+    if (nowDate.equals(expectedDate) && now.isBefore(cutoff)) {
+      return now;
+    }
+    return expectedDate.atTime(10, 0).atZone(ESTONIAN_ZONE).toInstant();
   }
 }

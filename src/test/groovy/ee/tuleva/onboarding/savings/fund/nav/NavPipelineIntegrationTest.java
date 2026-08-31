@@ -16,6 +16,7 @@ import static java.math.RoundingMode.HALF_UP;
 import static java.util.stream.Collectors.toMap;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.fees.FeeBases;
 import ee.tuleva.onboarding.investment.fees.FeeCalculationService;
@@ -121,10 +122,12 @@ class NavPipelineIntegrationTest {
     BigDecimal feb3Cash = new BigDecimal("5792137.97");
     BigDecimal feb5CashDelta = new BigDecimal("100000.00");
 
-    navPositionLedger.recordPositions(TKF100, feb3, Map.of(), feb3Cash, ZERO, ZERO);
+    navPositionLedger.recordPositions(
+        TKF100, feb3, positionRecordedAt(feb3), Map.of(), feb3Cash, ZERO, ZERO);
     entityManager.flush();
 
-    navPositionLedger.recordPositions(TKF100, feb5, Map.of(), feb5CashDelta, ZERO, ZERO);
+    navPositionLedger.recordPositions(
+        TKF100, feb5, positionRecordedAt(feb5), Map.of(), feb5CashDelta, ZERO, ZERO);
     entityManager.flush();
 
     fundPositionRepository.save(
@@ -155,9 +158,11 @@ class NavPipelineIntegrationTest {
     LocalDate date = LocalDate.of(2026, 2, 1);
     Map<String, BigDecimal> units = Map.of("IE00BFG1TM61", new BigDecimal("1000.00000"));
 
-    navPositionLedger.recordPositions(TKF100, date, units, ZERO, ZERO, ZERO);
+    navPositionLedger.recordPositions(
+        TKF100, date, positionRecordedAt(date), units, ZERO, ZERO, ZERO);
     entityManager.flush();
-    navPositionLedger.recordPositions(TKF100, date, units, ZERO, ZERO, ZERO);
+    navPositionLedger.recordPositions(
+        TKF100, date, positionRecordedAt(date), units, ZERO, ZERO, ZERO);
     entityManager.flush();
 
     int count =
@@ -215,7 +220,14 @@ class NavPipelineIntegrationTest {
     LocalDate inceptionDate = TKF100.getInceptionDate();
     BigDecimal inceptionCash = new BigDecimal("5000000.00");
 
-    navPositionLedger.recordPositions(TKF100, inceptionDate, Map.of(), inceptionCash, ZERO, ZERO);
+    navPositionLedger.recordPositions(
+        TKF100,
+        inceptionDate,
+        positionRecordedAt(inceptionDate),
+        Map.of(),
+        inceptionCash,
+        ZERO,
+        ZERO);
 
     fundPositionRepository.save(
         FundPosition.builder()
@@ -247,8 +259,10 @@ class NavPipelineIntegrationTest {
     BigDecimal feb2Cash = new BigDecimal("5000000.00");
     BigDecimal feb3CashDelta = new BigDecimal("1000000.00");
 
-    navPositionLedger.recordPositions(TKF100, feb2, Map.of(), feb2Cash, ZERO, ZERO);
-    navPositionLedger.recordPositions(TKF100, feb3, Map.of(), feb3CashDelta, ZERO, ZERO);
+    navPositionLedger.recordPositions(
+        TKF100, feb2, positionRecordedAt(feb2), Map.of(), feb2Cash, ZERO, ZERO);
+    navPositionLedger.recordPositions(
+        TKF100, feb3, positionRecordedAt(feb3), Map.of(), feb3CashDelta, ZERO, ZERO);
 
     fundPositionRepository.save(
         FundPosition.builder()
@@ -633,6 +647,7 @@ class NavPipelineIntegrationTest {
     navPositionLedger.recordPositions(
         TKF100,
         navData.navDate,
+        navData.navDate.atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant(),
         securitiesUnits,
         navData.cashPosition,
         navData.tradeReceivables,
@@ -831,5 +846,12 @@ class NavPipelineIntegrationTest {
     BigDecimal expectedNavPerUnit = ZERO;
     BigDecimal securitiesTotal = ZERO;
     final List<FundPosition> positions = new ArrayList<>();
+  }
+
+  private static Instant positionRecordedAt(LocalDate reportDate) {
+    LocalDate inception = TKF100.getInceptionDate();
+    LocalDate effective =
+        reportDate.equals(inception) ? reportDate : new PublicHolidays().nextWorkingDay(reportDate);
+    return effective.atTime(10, 0).atZone(ZoneId.of("Europe/Tallinn")).toInstant();
   }
 }

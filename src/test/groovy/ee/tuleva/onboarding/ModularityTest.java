@@ -22,23 +22,23 @@ class ModularityTest {
   }
 
   @Test
-  void ledgerDoesNotDependOnDomainModules() {
-    // Ledger is core infrastructure - it should not depend on domain modules
-    var forbiddenDependencies = Set.of("investment", "savings");
+  void ledgerDependsOnNothingButTheFundVocabulary() {
+    // Ledger is core bookkeeping: the only outbound dependency it may have is the
+    // TulevaFund vocabulary, and that one goes away once the enum gets its own module.
+    var allowedDependencies = Set.of("fund");
 
-    var ledgerModule =
-        modules.stream().filter(module -> moduleName(module).equals("ledger")).findFirst();
-
+    var ledgerModule = module("ledger");
     assertThat(ledgerModule).isPresent();
 
     var ledgerDependencies =
         ledgerModule.get().getDirectDependencies(modules).stream()
             .map(dep -> moduleName(dep.getTargetModule()))
-            .filter(forbiddenDependencies::contains)
+            .filter(name -> !allowedDependencies.contains(name))
+            .distinct()
             .toList();
 
     assertThat(ledgerDependencies)
-        .as("Ledger module should not depend on domain modules")
+        .as("Ledger must not gain outbound module dependencies")
         .isEmpty();
   }
 

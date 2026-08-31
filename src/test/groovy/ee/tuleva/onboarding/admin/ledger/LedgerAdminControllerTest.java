@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.ledger.admin;
+package ee.tuleva.onboarding.admin.ledger;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.any;

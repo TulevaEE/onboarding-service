@@ -5,7 +5,6 @@ import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
 
 import ee.tuleva.onboarding.admin.AdminTokenValidator;
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.check.tracking.PeriodType;
 import ee.tuleva.onboarding.investment.check.tracking.PeriodicTdAttributionService;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
@@ -22,6 +21,7 @@ import ee.tuleva.onboarding.investment.report.publishing.data.InvestmentReportDa
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportPdfGenerator;
 import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.savings.NavFeeBackfill;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
 import java.time.Clock;

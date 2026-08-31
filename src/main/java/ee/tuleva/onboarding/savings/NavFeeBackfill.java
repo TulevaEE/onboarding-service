@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.savings;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.LocalDate;
 
 public interface NavFeeBackfill {

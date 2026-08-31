@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.account;
 
 import static ee.tuleva.onboarding.currency.Currency.EUR;
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;

@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.check.fee;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import org.springframework.stereotype.Component;
 
 // Bank statement ingestion only exists for the savings fund today: BankAccountType covers its three

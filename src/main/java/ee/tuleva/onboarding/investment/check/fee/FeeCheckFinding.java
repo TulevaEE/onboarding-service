@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.check.fee;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;

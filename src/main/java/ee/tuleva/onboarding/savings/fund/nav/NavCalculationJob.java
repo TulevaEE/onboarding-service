@@ -1,15 +1,15 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.pipeline.PipelineStep.NAV_CALCULATION;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueIndexingJob;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.pipeline.PipelineNotifier;
 import ee.tuleva.onboarding.pipeline.PipelineRun;
 import ee.tuleva.onboarding.pipeline.PipelineTracker;
 import ee.tuleva.onboarding.savings.NavCalculationCompleted;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
@@ -39,7 +39,7 @@ public class NavCalculationJob {
   private final PipelineNotifier pipelineNotifier;
 
   @Scheduled(
-      cron = "#{T(ee.tuleva.onboarding.fund.TulevaFund).TKF100.navCronExpression()}",
+      cron = "#{T(ee.tuleva.onboarding.tulevafund.TulevaFund).TKF100.navCronExpression()}",
       zone = "Europe/Tallinn")
   @SchedulerLock(name = "NavCalculationJob_TKF100", lockAtMostFor = "5m", lockAtLeastFor = "1m")
   public void calculateDailyNav() {
@@ -47,7 +47,7 @@ public class NavCalculationJob {
   }
 
   @Scheduled(
-      cron = "#{T(ee.tuleva.onboarding.fund.TulevaFund).TUK75.navCronExpression()}",
+      cron = "#{T(ee.tuleva.onboarding.tulevafund.TulevaFund).TUK75.navCronExpression()}",
       zone = "Europe/Tallinn")
   @SchedulerLock(name = "NavCalculationJob_Pillar2", lockAtMostFor = "5m", lockAtLeastFor = "1m")
   public void calculatePillar2Nav() {
@@ -56,7 +56,7 @@ public class NavCalculationJob {
   }
 
   @Scheduled(
-      cron = "#{T(ee.tuleva.onboarding.fund.TulevaFund).TUV100.navCronExpression()}",
+      cron = "#{T(ee.tuleva.onboarding.tulevafund.TulevaFund).TUV100.navCronExpression()}",
       zone = "Europe/Tallinn")
   @SchedulerLock(name = "NavCalculationJob_Pillar3", lockAtMostFor = "5m", lockAtLeastFor = "1m")
   public void calculatePillar3Nav() {

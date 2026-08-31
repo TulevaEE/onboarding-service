@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.investment.event;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.pipeline.PipelineStep.LIMIT_CHECK;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.investment.check.limit.LimitCheckJobTestBeans;

@@ -2,8 +2,8 @@ package ee.tuleva.onboarding.investment.check.tracking;
 
 import static java.math.BigDecimal.ZERO;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.TrackingCheckType;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;

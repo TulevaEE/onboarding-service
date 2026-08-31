@@ -4,8 +4,8 @@ import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.W
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.RECEIVABLES;
 import static java.math.BigDecimal.ZERO;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.position.FundPosition;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;

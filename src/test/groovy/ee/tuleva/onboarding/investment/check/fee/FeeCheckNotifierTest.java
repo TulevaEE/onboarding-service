@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.investment.check.fee;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckNotification.NOTHING_TO_REPORT;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckNotification.SEND_FAILED;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckNotification.SENT;
@@ -10,6 +9,7 @@ import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.NOT_RUN
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.PASS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.LEDGER_ACCRUAL_CONSISTENCY;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.contains;

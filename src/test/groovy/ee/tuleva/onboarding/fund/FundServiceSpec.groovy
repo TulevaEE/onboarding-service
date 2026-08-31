@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.fund
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100
 
 import ee.tuleva.onboarding.fund.FundNavValues
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatistics

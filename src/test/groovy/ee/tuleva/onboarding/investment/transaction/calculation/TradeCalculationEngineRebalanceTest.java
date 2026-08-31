@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.investment.transaction.calculation;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
 import static ee.tuleva.onboarding.investment.transaction.CalculationWarningType.REBALANCE_NET_CASH_MISMATCH;
 import static ee.tuleva.onboarding.investment.transaction.CalculationWarningType.REBALANCE_NET_NOT_ACHIEVED;
 import static ee.tuleva.onboarding.investment.transaction.LimitStatus.*;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.*;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 

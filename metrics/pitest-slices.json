@@ -144,9 +144,9 @@
     "recordedAt": "2026-08-31"
   },
   "fund": {
-    "mutations": 177,
-    "detected": 175,
-    "score": 98.87,
+    "mutations": 153,
+    "detected": 149,
+    "score": 97.39,
     "recordedAt": "2026-08-31"
   },
   "hackathon": {
@@ -297,6 +297,12 @@
     "mutations": 8,
     "detected": 8,
     "score": 100.0,
+    "recordedAt": "2026-08-31"
+  },
+  "tulevafund": {
+    "mutations": 27,
+    "detected": 26,
+    "score": 96.3,
     "recordedAt": "2026-08-31"
   },
   "user": {

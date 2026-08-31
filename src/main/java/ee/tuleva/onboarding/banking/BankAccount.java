@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.banking;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.ledger.SystemAccount;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import org.jspecify.annotations.NullMarked;
 
 @NullMarked

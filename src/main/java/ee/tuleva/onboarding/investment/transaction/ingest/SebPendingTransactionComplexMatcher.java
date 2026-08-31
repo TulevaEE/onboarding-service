@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;

@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.investment.risk;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.risk.RiskIndicatorStatus.CHANGE_CONFIRMED;
 import static ee.tuleva.onboarding.investment.risk.RiskIndicatorStatus.CHANGE_PENDING;
 import static ee.tuleva.onboarding.investment.risk.RiskIndicatorStatus.STABLE;
 import static ee.tuleva.onboarding.investment.risk.RiskIndicatorType.SRRI;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ONE;
 import static org.assertj.core.api.Assertions.assertThat;
 

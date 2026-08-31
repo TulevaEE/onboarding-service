@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.check.health;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 

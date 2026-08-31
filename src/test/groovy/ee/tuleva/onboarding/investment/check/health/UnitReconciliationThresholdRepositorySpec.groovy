@@ -4,10 +4,10 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
 import spock.lang.Specification
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK00
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75
-import static ee.tuleva.onboarding.fund.TulevaFund.TUV100
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100
 
 @DataJpaTest
 class UnitReconciliationThresholdRepositorySpec extends Specification {

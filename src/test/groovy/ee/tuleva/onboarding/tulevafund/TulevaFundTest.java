@@ -1,6 +1,6 @@
-package ee.tuleva.onboarding.fund;
+package ee.tuleva.onboarding.tulevafund;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.*;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 

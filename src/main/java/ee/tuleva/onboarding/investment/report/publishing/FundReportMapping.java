@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.report.publishing;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.YearMonth;
 import java.util.Arrays;
 import java.util.List;

@@ -4,7 +4,6 @@ import static java.math.BigDecimal.ONE;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.instrument.InstrumentReference;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService.UnresolvableBenchmarkProxyException;
@@ -14,6 +13,7 @@ import ee.tuleva.onboarding.investment.portfolio.PositionLimit;
 import ee.tuleva.onboarding.investment.portfolio.PositionLimitRepository;
 import ee.tuleva.onboarding.investment.portfolio.ProviderLimit;
 import ee.tuleva.onboarding.investment.portfolio.ProviderLimitRepository;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;

@@ -5,9 +5,9 @@ import static ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser.findValu
 import static ee.tuleva.onboarding.investment.epis.parser.EpisDates.findDate;
 import static ee.tuleva.onboarding.investment.epis.parser.EpisNumbers.parseNumber;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.epis.R45Result;
 import ee.tuleva.onboarding.investment.epis.R45TransactionType;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;

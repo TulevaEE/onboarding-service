@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.ledger;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_UNITS_OUTSTANDING;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import jakarta.persistence.EntityManager;
@@ -53,7 +53,7 @@ class EpisUnitCountLedgerRecorderIntegrationTest {
   }
 
   private BigDecimal getAccountBalance(
-      SystemAccount systemAccount, ee.tuleva.onboarding.fund.TulevaFund fund) {
+      SystemAccount systemAccount, ee.tuleva.onboarding.tulevafund.TulevaFund fund) {
     return ledgerAccountService
         .findSystemAccount(systemAccount, fund)
         .map(LedgerAccount::getBalance)

@@ -6,8 +6,8 @@ import static ee.tuleva.onboarding.investment.epis.parser.EpisNumbers.parseNumbe
 import static java.math.BigDecimal.ZERO;
 import static java.util.Objects.requireNonNullElse;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.epis.R17Result;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;

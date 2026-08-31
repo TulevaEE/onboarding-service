@@ -5,12 +5,12 @@ import static ee.tuleva.onboarding.investment.transaction.ingest.HistoricalRegis
 import static ee.tuleva.onboarding.investment.transaction.ingest.HistoricalRegistryValueParser.parseInstant;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.instrument.InstrumentReference;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.investment.transaction.InstrumentType;
 import ee.tuleva.onboarding.investment.transaction.OrderStatus;
 import ee.tuleva.onboarding.investment.transaction.TransactionType;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.LocalDate;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;

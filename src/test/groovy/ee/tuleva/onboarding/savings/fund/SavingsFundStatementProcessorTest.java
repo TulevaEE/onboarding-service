@@ -2,9 +2,9 @@ package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.banking.BankAccountType.*;
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.savings.SavingFundPaymentFixture.aPayment;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.REDEEMED;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -127,7 +127,7 @@ class SavingsFundStatementProcessorTest {
                 new BankAccount(
                     pensionIban,
                     FUND_INVESTMENT_EUR,
-                    ee.tuleva.onboarding.fund.TulevaFund.TUK75,
+                    ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75,
                     "gw-test")));
 
     processor.process(bankStatement, statementAccount);

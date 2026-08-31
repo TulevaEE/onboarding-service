@@ -3,10 +3,10 @@ package ee.tuleva.onboarding.investment.position.parser;
 import static java.math.BigDecimal.ONE;
 import static java.math.BigDecimal.ZERO;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.position.AccountType;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.report.SebReportHeaders;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;

@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.ledger;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.ledger.LedgerParty.PartyType;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

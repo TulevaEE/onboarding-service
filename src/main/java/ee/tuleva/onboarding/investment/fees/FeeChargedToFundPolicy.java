@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.fees;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;

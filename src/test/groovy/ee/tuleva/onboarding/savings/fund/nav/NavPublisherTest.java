@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.ArgumentMatchers.any;
@@ -266,7 +266,7 @@ class NavPublisherTest {
   }
 
   private NavCalculationResult buildResult(
-      ee.tuleva.onboarding.fund.TulevaFund fund,
+      ee.tuleva.onboarding.tulevafund.TulevaFund fund,
       LocalDate calculationDate,
       LocalDate positionReportDate,
       Instant calculatedAt) {

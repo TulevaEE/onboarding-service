@@ -1,11 +1,11 @@
 package ee.tuleva.onboarding.investment.fees;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.savings.fund.nav.NavFeeBases;
 import ee.tuleva.onboarding.savings.fund.nav.NavFeeResult;
 import ee.tuleva.onboarding.savings.fund.nav.NavFeeType;
 import ee.tuleva.onboarding.savings.fund.nav.NavFees;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Map;

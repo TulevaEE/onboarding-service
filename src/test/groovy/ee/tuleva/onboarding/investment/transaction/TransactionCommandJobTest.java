@@ -1,11 +1,11 @@
 package ee.tuleva.onboarding.investment.transaction;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
 import static ee.tuleva.onboarding.investment.transaction.BatchStatus.CONFIRMED;
 import static ee.tuleva.onboarding.investment.transaction.CommandStatus.FAILED;
 import static ee.tuleva.onboarding.investment.transaction.CommandStatus.PENDING;
 import static ee.tuleva.onboarding.investment.transaction.CommandStatus.PROCESSING;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.BUY;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 

@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.savings.fund.nav.NavTrackingDifference;
 import ee.tuleva.onboarding.savings.fund.nav.NavTrackingDifferences;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.LocalDate;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;

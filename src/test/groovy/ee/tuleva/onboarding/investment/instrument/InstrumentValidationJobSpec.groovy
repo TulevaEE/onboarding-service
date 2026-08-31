@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.investment.instrument
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage
-import ee.tuleva.onboarding.fund.TulevaFund
+import ee.tuleva.onboarding.tulevafund.TulevaFund
 import ee.tuleva.onboarding.investment.instrument.InstrumentDataValidator.Severity
 import ee.tuleva.onboarding.investment.instrument.InstrumentDataValidator.ValidationFinding
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation
@@ -20,7 +20,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT
 
 class InstrumentValidationJobSpec extends Specification {

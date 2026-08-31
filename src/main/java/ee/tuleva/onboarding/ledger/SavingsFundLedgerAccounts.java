@@ -1,11 +1,11 @@
 package ee.tuleva.onboarding.ledger;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.OPERATION_TYPE;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.PARTY_CODE;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.PARTY_TYPE;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.time.temporal.ChronoUnit.MICROS;
 
 import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;

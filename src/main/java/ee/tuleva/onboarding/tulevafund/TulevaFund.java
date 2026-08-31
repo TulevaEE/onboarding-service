@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.fund;
+package ee.tuleva.onboarding.tulevafund;
 
 import java.time.LocalDate;
 import java.time.LocalTime;

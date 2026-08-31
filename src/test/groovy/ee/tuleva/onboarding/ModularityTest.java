@@ -22,10 +22,9 @@ class ModularityTest {
   }
 
   @Test
-  void ledgerDependsOnNothingButTheFundVocabulary() {
-    // Ledger is core bookkeeping: the only outbound dependency it may have is the
-    // TulevaFund vocabulary, and that one goes away once the enum gets its own module.
-    var allowedDependencies = Set.of("fund");
+  void ledgerDependsOnNothingButTheTulevaFundVocabulary() {
+    // Ledger is core bookkeeping: it may only depend on dependency-free vocabulary.
+    var allowedDependencies = Set.of("tulevafund");
 
     var ledgerModule = module("ledger");
     assertThat(ledgerModule).isPresent();
@@ -39,6 +38,28 @@ class ModularityTest {
 
     assertThat(ledgerDependencies)
         .as("Ledger must not gain outbound module dependencies")
+        .isEmpty();
+  }
+
+  @Test
+  void tulevaFundVocabularyDoesNotDependOnAnyOtherModule() {
+    var tulevaFundModule = module("tulevafund");
+    assertThat(tulevaFundModule).isPresent();
+
+    var everyOtherModule =
+        modules.stream()
+            .map(ModularityTest::moduleName)
+            .filter(name -> !name.equals("tulevafund"))
+            .collect(toSet());
+
+    var tulevaFundDependencies =
+        tulevaFundModule.get().getDirectDependencies(modules).stream()
+            .map(dep -> moduleName(dep.getTargetModule()))
+            .filter(everyOtherModule::contains)
+            .toList();
+
+    assertThat(tulevaFundDependencies)
+        .as("The TulevaFund vocabulary must stay dependency-free so every module can depend on it")
         .isEmpty();
   }
 

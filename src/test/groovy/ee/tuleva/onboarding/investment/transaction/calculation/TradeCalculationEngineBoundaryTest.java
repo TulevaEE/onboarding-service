@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.investment.transaction.calculation;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
 import static ee.tuleva.onboarding.investment.transaction.CalculationWarningType.REBALANCE_NET_NOT_ACHIEVED;
 import static ee.tuleva.onboarding.investment.transaction.LimitStatus.HARD_LIMIT_EXCEEDED;
 import static ee.tuleva.onboarding.investment.transaction.LimitStatus.OK;
@@ -8,6 +7,7 @@ import static ee.tuleva.onboarding.investment.transaction.TransactionMode.BUY;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.REBALANCE;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.SELL;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.SELL_FAST;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 

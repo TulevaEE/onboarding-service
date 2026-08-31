@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.investment.report.publishing;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.YearMonth;
 import org.junit.jupiter.api.Test;
 

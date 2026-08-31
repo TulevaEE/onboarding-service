@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.fund;
 
 import ee.tuleva.onboarding.iban.IbanValidator;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import jakarta.annotation.PostConstruct;
 import java.util.EnumMap;
 import java.util.Map;

@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.investment.position;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.savings.fund.nav.NavPosition;
 import ee.tuleva.onboarding.savings.fund.nav.NavPositions;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;

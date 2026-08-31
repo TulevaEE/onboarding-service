@@ -192,4 +192,26 @@ class CapitalServiceSpec extends Specification {
         LocalDate.now()
     )
   }
+
+  def "excludes future-dated events from capital rows"() {
+    given:
+    def member = memberFixture().build()
+    def pastEvent = memberCapitalEventFixture(member).type(CAPITAL_PAYMENT).fiatValue(1000.00)
+        .ownershipUnitAmount(900.0).accountingDate(LocalDate.now().minusDays(1)).build()
+    def todayEvent = memberCapitalEventFixture(member).type(CAPITAL_PAYMENT).fiatValue(50.00)
+        .ownershipUnitAmount(40.0).accountingDate(LocalDate.now()).build()
+    def futureEvent = memberCapitalEventFixture(member).type(CAPITAL_PAYMENT).fiatValue(9999.00)
+        .ownershipUnitAmount(9000.0).accountingDate(LocalDate.now().plusDays(1)).build()
+    memberCapitalEventRepository.findAllByMemberId(member.id) >> [pastEvent, todayEvent, futureEvent]
+    aggregatedCapitalEventRepository.findTopByOrderByDateDesc() >> getAggregatedCapitalEvent(1.0)
+
+    when:
+    List<CapitalRow> capitalRows = service.getCapitalRows(member.id)
+
+    then:
+    with(capitalRows.find({ it.type() == CAPITAL_PAYMENT })) {
+      contributions() == 1050.00
+      unitCount() == new BigDecimal("940.0").setScale(5, HALF_DOWN)
+    }
+  }
 }

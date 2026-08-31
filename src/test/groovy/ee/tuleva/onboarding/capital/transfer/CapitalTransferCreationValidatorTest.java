@@ -4,7 +4,9 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.*;
 import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.*;
 import static ee.tuleva.onboarding.user.MemberFixture.memberFixture;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.capital.CapitalRow;
@@ -284,6 +286,54 @@ class CapitalTransferCreationValidatorTest {
     IllegalStateException thrown =
         assertThrows(IllegalStateException.class, () -> validator.validate(seller, buyer, command));
     assertEquals("Seller does not have enough member capital", thrown.getMessage());
+  }
+
+  @Test
+  void validateThrowsWhenOnlyTheBookValueIsZero() {
+    var sellerUser = sampleUser().member(memberFixture().id(2L).build()).build();
+    var seller = sellerUser.getMemberOrThrow();
+    var buyer = memberFixture().id(3L).build();
+
+    var command =
+        CreateCapitalTransferContractCommand.builder()
+            .buyerMemberId(3L)
+            .iban("TEST_IBAN")
+            .transferAmounts(
+                List.of(
+                    new CapitalTransferAmount(
+                        CAPITAL_PAYMENT,
+                        new BigDecimal("100.0"),
+                        new BigDecimal("0.0"),
+                        new BigDecimal("1.0"))))
+            .build();
+
+    assertThatThrownBy(() -> validator.validate(seller, buyer, command))
+        .isInstanceOf(IllegalArgumentException.class);
+    verifyNoInteractions(capitalService);
+  }
+
+  @Test
+  void validateThrowsWhenOnlyThePriceIsZero() {
+    var sellerUser = sampleUser().member(memberFixture().id(2L).build()).build();
+    var seller = sellerUser.getMemberOrThrow();
+    var buyer = memberFixture().id(3L).build();
+
+    var command =
+        CreateCapitalTransferContractCommand.builder()
+            .buyerMemberId(3L)
+            .iban("TEST_IBAN")
+            .transferAmounts(
+                List.of(
+                    new CapitalTransferAmount(
+                        CAPITAL_PAYMENT,
+                        new BigDecimal("0.0"),
+                        new BigDecimal("200.0"),
+                        new BigDecimal("1.0"))))
+            .build();
+
+    assertThatThrownBy(() -> validator.validate(seller, buyer, command))
+        .isInstanceOf(IllegalArgumentException.class);
+    verifyNoInteractions(capitalService);
   }
 
   @Test

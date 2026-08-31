@@ -67,9 +67,9 @@
   },
   "capital": {
     "mutations": 301,
-    "detected": 255,
-    "score": 84.72,
-    "recordedAt": "2026-08-30"
+    "detected": 277,
+    "score": 92.03,
+    "recordedAt": "2026-08-31"
   },
   "company": {
     "mutations": 43,

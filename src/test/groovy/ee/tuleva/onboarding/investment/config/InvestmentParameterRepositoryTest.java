@@ -96,6 +96,31 @@ class InvestmentParameterRepositoryTest {
         .hasMessageContaining("fund=TUK75");
   }
 
+  // The table has no unique constraint, so a re-seed can leave two rows on the same date. Without
+  // a tiebreaker the threshold a check runs against is whichever row the database happens to
+  // return first, and the same check can pass or breach on identical data.
+  @Test
+  void findLatestValue_globalScope_takesTheLastWrittenOfTwoRowsOnTheSameDate() {
+    insert(TRACKING_BREACH_THRESHOLD, null, new BigDecimal("0.01"), LocalDate.of(2025, 1, 1));
+    insert(TRACKING_BREACH_THRESHOLD, null, new BigDecimal("0.02"), LocalDate.of(2025, 1, 1));
+
+    BigDecimal value =
+        repository.findLatestValue(TRACKING_BREACH_THRESHOLD, LocalDate.of(2025, 6, 15));
+
+    assertThat(value).isEqualByComparingTo(new BigDecimal("0.02"));
+  }
+
+  @Test
+  void findLatestValue_fundScope_takesTheLastWrittenOfTwoRowsOnTheSameDate() {
+    insert(TRACKING_MAX_DAILY_RETURN, TUK75, new BigDecimal("0.5"), LocalDate.of(2025, 1, 1));
+    insert(TRACKING_MAX_DAILY_RETURN, TUK75, new BigDecimal("0.7"), LocalDate.of(2025, 1, 1));
+
+    BigDecimal value =
+        repository.findLatestValue(TRACKING_MAX_DAILY_RETURN, TUK75, LocalDate.of(2025, 6, 15));
+
+    assertThat(value).isEqualByComparingTo(new BigDecimal("0.7"));
+  }
+
   @Test
   void findLatestValue_throwsWhenNoRowMatches() {
     assertThatThrownBy(

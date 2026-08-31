@@ -23,7 +23,7 @@ public class InvestmentParameterRepository {
             WHERE parameter_name = :name
               AND fund_code IS NULL
               AND effective_date <= :asOf
-            ORDER BY effective_date DESC
+            ORDER BY effective_date DESC, id DESC
             LIMIT 1
             """)
         .param("name", parameter.name())
@@ -43,7 +43,7 @@ public class InvestmentParameterRepository {
             WHERE parameter_name = :name
               AND fund_code = :fundCode
               AND effective_date <= :asOf
-            ORDER BY effective_date DESC
+            ORDER BY effective_date DESC, id DESC
             LIMIT 1
             """)
         .param("name", parameter.name())

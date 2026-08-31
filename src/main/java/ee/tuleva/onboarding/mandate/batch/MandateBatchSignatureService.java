@@ -62,12 +62,7 @@ public class MandateBatchSignatureService {
         mandateBatchService.finalizeMobileSignature(
             authenticatedPerson.getUserIdOrThrow(), mandateBatchId, session, locale);
 
-    String verificationCode =
-        requireNonNull(
-            session.getVerificationCode(),
-            "Smart-ID signature session has no verification code: personalCode="
-                + session.getPersonalCode());
-    return new MobileSignatureStatusResponse(statusCode, verificationCode);
+    return new MobileSignatureStatusResponse(statusCode, session.getVerificationCode());
   }
 
   public IdCardSignatureResponse startIdCardSign(

@@ -91,9 +91,9 @@
   },
   "contribution": {
     "mutations": 35,
-    "detected": 26,
-    "score": 74.29,
-    "recordedAt": "2026-08-30"
+    "detected": 35,
+    "score": 100.0,
+    "recordedAt": "2026-08-31"
   },
   "conversion": {
     "mutations": 111,
@@ -103,9 +103,9 @@
   },
   "country": {
     "mutations": 23,
-    "detected": 17,
-    "score": 73.91,
-    "recordedAt": "2026-08-30"
+    "detected": 23,
+    "score": 100.0,
+    "recordedAt": "2026-08-31"
   },
   "currency": {
     "mutations": 0,
@@ -139,9 +139,9 @@
   },
   "ftp": {
     "mutations": 14,
-    "detected": 5,
-    "score": 35.71,
-    "recordedAt": "2026-08-30"
+    "detected": 14,
+    "score": 100.0,
+    "recordedAt": "2026-08-31"
   },
   "fund": {
     "mutations": 178,

@@ -222,6 +222,125 @@ class ThirdPillarTaxHeadroomTest {
     assertThat(headroom.hasHeadroom(person)).isTrue();
   }
 
+  // With the day-5 anchor used by monthsAgo(), monthsAgo(12) always lands just before
+  // yearsAgo(1) and monthsAgo(24) always lands just before yearsAgo(2), so only 11 of every
+  // 12 monthly contributions fall inside a given one-year window; these two tests use a
+  // salary (portion 44.00/month -> monthlyGross 1100.00 -> confidentCeiling 1584.00) and an
+  // 11-month third pillar contribution amount (144.00) chosen so 11 x 144.00 = 1584.00 lands
+  // exactly on that ceiling.
+  @Test
+  void lastYearExactlyAtTheConfidentCeilingIsNotConfidentlyBelowIt() {
+    given(episService.getContributions(person))
+        .willReturn(
+            concat(
+                monthlySalary(new BigDecimal("44.00")),
+                thirdPillarMonthly(new BigDecimal("144.00"), 11)));
+
+    assertThat(headroom.hasHeadroom(person)).isFalse();
+  }
+
+  @Test
+  void yearBeforeExactlyAtTheConfidentCeilingIsNotConfidentlyBelowIt() {
+    List<Contribution> yearBeforeContributions =
+        IntStream.rangeClosed(13, 23)
+            .mapToObj(
+                m ->
+                    (Contribution)
+                        ThirdPillarContribution.builder()
+                            .time(monthsAgo(m))
+                            .amount(new BigDecimal("144.00"))
+                            .currency(Currency.EUR)
+                            .pillar(3)
+                            .build())
+            .toList();
+
+    given(episService.getContributions(person))
+        .willReturn(concat(monthlySalary(new BigDecimal("44.00")), yearBeforeContributions));
+
+    assertThat(headroom.hasHeadroom(person)).isFalse();
+  }
+
+  @Test
+  void thirdPillarContributionsOutsideTheTwoYearWindowAreExcludedFromTheSums() {
+    List<Contribution> veryOldTopUp =
+        List.of(
+            ThirdPillarContribution.builder()
+                .time(monthsAgo(36))
+                .amount(new BigDecimal("5000.00"))
+                .currency(Currency.EUR)
+                .pillar(3)
+                .build());
+
+    given(episService.getContributions(person))
+        .willReturn(concat(monthlySalaryOf2000(), veryOldTopUp));
+
+    assertThat(headroom.hasHeadroom(person)).isTrue();
+  }
+
+  @Test
+  void secondPillarContributionsWithoutASocialTaxPortionAreExcludedFromTheMedian() {
+    Contribution missingPortion =
+        SecondPillarContribution.builder()
+            .time(monthsAgo(1))
+            .amount(BigDecimal.ONE)
+            .currency(Currency.EUR)
+            .pillar(2)
+            .socialTaxPortion(null)
+            .build();
+
+    given(episService.getContributions(person))
+        .willReturn(
+            concat(
+                concat(monthlySalaryOf2000(), List.of(missingPortion)),
+                thirdPillarMonthly(new BigDecimal("50.00"), 12)));
+
+    assertThat(headroom.hasHeadroom(person)).isTrue();
+  }
+
+  @Test
+  void manyZeroPortionMonthsWouldZeroOutTheMedianIfNotFiltered() {
+    List<Contribution> salary =
+        concat(
+            IntStream.rangeClosed(1, 3)
+                .mapToObj(m -> secondPillarPortion(monthsAgo(m), new BigDecimal("80.00")))
+                .toList(),
+            IntStream.rangeClosed(4, 12)
+                .mapToObj(m -> secondPillarPortion(monthsAgo(m), BigDecimal.ZERO))
+                .toList());
+
+    given(episService.getContributions(person))
+        .willReturn(concat(salary, thirdPillarMonthly(new BigDecimal("10.00"), 12)));
+
+    assertThat(headroom.hasHeadroom(person)).isTrue();
+  }
+
+  @Test
+  void oddNumberOfDistinctMonthlyPortionsUsesTheMiddleValueNotAnAverage() {
+    List<Contribution> salary =
+        List.of(
+            secondPillarPortion(monthsAgo(1), new BigDecimal("10.00")),
+            secondPillarPortion(monthsAgo(2), new BigDecimal("20.00")),
+            secondPillarPortion(monthsAgo(3), new BigDecimal("30.00")));
+
+    given(episService.getContributions(person))
+        .willReturn(concat(salary, thirdPillarMonthly(new BigDecimal("50.00"), 12)));
+
+    assertThat(headroom.hasHeadroom(person)).isTrue();
+  }
+
+  @Test
+  void evenNumberOfDistinctMonthlyPortionsAveragesTheTwoMiddleValues() {
+    List<Contribution> salary =
+        List.of(
+            secondPillarPortion(monthsAgo(1), new BigDecimal("40.00")),
+            secondPillarPortion(monthsAgo(2), new BigDecimal("120.00")));
+
+    given(episService.getContributions(person))
+        .willReturn(concat(salary, thirdPillarMonthly(new BigDecimal("50.00"), 12)));
+
+    assertThat(headroom.hasHeadroom(person)).isTrue();
+  }
+
   private static Contribution secondPillarPortion(Instant time, BigDecimal socialTaxPortion) {
     return SecondPillarContribution.builder()
         .time(time)

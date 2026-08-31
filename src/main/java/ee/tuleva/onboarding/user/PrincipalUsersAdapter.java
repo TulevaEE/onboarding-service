@@ -21,8 +21,7 @@ class PrincipalUsersAdapter implements PrincipalUsers {
         userService
             .findByPersonalCode(person.getPersonalCode())
             .orElseGet(() -> createUser(person));
-    Long userId =
-        requireNonNull(user.getId(), "User id missing: personalCode=" + person.getPersonalCode());
+    Long userId = requireNonNull(user.getId(), "User id missing for authenticated person");
     return new PrincipalUser(userId, user.getActive());
   }
 

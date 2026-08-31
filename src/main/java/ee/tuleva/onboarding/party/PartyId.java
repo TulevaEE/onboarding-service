@@ -27,7 +27,6 @@ public record PartyId(Type type, String code) {
   }
 
   public static PartyId from(AuthenticatedPerson person) {
-    return from(
-        requireNonNull(person.getRole(), "Role missing: personalCode=" + person.getPersonalCode()));
+    return from(requireNonNull(person.getRole(), "Role missing for authenticated person"));
   }
 }

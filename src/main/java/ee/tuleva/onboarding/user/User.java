@@ -107,6 +107,6 @@ public class User implements Person, Emailable, Serializable {
 
   @JsonIgnore
   public Long getIdOrThrow() {
-    return requireNonNull(id, "User id missing: personalCode=" + personalCode);
+    return requireNonNull(id, "User id missing: user not persisted");
   }
 }

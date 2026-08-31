@@ -45,12 +45,12 @@ public class AuthenticatedPerson implements Person, Serializable {
 
   @JsonIgnore
   public RoleType getRoleType() {
-    return requireNonNull(role, "Role missing: personalCode=" + personalCode).type();
+    return requireNonNull(role, "Role missing: userId=" + userId).type();
   }
 
   @JsonIgnore
   public String getRoleCode() {
-    return requireNonNull(role, "Role missing: personalCode=" + personalCode).code();
+    return requireNonNull(role, "Role missing: userId=" + userId).code();
   }
 
   @JsonIgnore
@@ -74,7 +74,7 @@ public class AuthenticatedPerson implements Person, Serializable {
 
   @JsonIgnore
   public Long getUserIdOrThrow() {
-    return requireNonNull(userId, "User id missing: personalCode=" + personalCode);
+    return requireNonNull(userId, "User id missing for authenticated person");
   }
 
   public @Nullable String getAttribute(String attribute) {

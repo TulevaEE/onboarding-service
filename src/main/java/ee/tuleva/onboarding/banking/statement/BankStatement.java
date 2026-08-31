@@ -133,67 +133,120 @@ public class BankStatement {
     var mismatches = new ArrayList<String>();
     if (summary == null) return mismatches;
 
-    long creditCount = entries.stream().filter(e -> e.amount().signum() > 0).count();
-    long debitCount = entries.stream().filter(e -> e.amount().signum() < 0).count();
-    BigDecimal creditSum =
-        entries.stream()
-            .filter(e -> e.amount().signum() > 0)
-            .map(BankStatementEntry::amount)
-            .reduce(ZERO, BigDecimal::add);
-    BigDecimal debitSum =
-        entries.stream()
-            .filter(e -> e.amount().signum() < 0)
-            .map(e -> e.amount().abs())
-            .reduce(ZERO, BigDecimal::add);
+    var creditSum = creditEntrySum(entries);
+    var debitSum = debitEntrySum(entries);
 
-    if (summary.totalCount() != null && entries.size() != Integer.parseInt(summary.totalCount())) {
-      mismatches.add(
-          "total entry count mismatch: expected=%s, actual=%d"
-              .formatted(summary.totalCount(), entries.size()));
-    }
-
-    if (summary.creditCount() != null && creditCount != Integer.parseInt(summary.creditCount())) {
-      mismatches.add(
-          "credit entry count mismatch: expected=%s, actual=%d"
-              .formatted(summary.creditCount(), creditCount));
-    }
-
-    if (summary.debitCount() != null && debitCount != Integer.parseInt(summary.debitCount())) {
-      mismatches.add(
-          "debit entry count mismatch: expected=%s, actual=%d"
-              .formatted(summary.debitCount(), debitCount));
-    }
-
-    if (summary.creditSum() != null && summary.creditSum().compareTo(creditSum) != 0) {
-      mismatches.add(
-          "credit sum mismatch: expected=%s, actual=%s".formatted(summary.creditSum(), creditSum));
-    }
-
-    if (summary.debitSum() != null && summary.debitSum().compareTo(debitSum) != 0) {
-      mismatches.add(
-          "debit sum mismatch: expected=%s, actual=%s".formatted(summary.debitSum(), debitSum));
-    }
-
-    var opening =
-        balances.stream()
-            .filter(b -> b.type() == OPEN)
-            .map(BankStatementBalance::balance)
-            .findFirst();
-    var closing =
-        balances.stream()
-            .filter(b -> b.type() == CLOSE)
-            .map(BankStatementBalance::balance)
-            .findFirst();
-
-    if (opening.isPresent() && closing.isPresent()) {
-      var expectedClosing = opening.get().add(creditSum).subtract(debitSum);
-      if (expectedClosing.compareTo(closing.get()) != 0) {
-        mismatches.add(
-            "balance equation mismatch: expected=%s, actual=%s"
-                .formatted(expectedClosing, closing.get()));
-      }
-    }
+    addIfPresent(mismatches, checkTotalCountMismatch(summary, entries.size()));
+    addIfPresent(mismatches, checkCreditCountMismatch(summary, creditEntryCount(entries)));
+    addIfPresent(mismatches, checkDebitCountMismatch(summary, debitEntryCount(entries)));
+    addIfPresent(mismatches, checkCreditSumMismatch(summary, creditSum));
+    addIfPresent(mismatches, checkDebitSumMismatch(summary, debitSum));
+    addIfPresent(mismatches, checkBalanceEquationMismatch(balances, creditSum, debitSum));
 
     return mismatches;
+  }
+
+  private static void addIfPresent(List<String> mismatches, @Nullable String mismatch) {
+    if (mismatch != null) {
+      mismatches.add(mismatch);
+    }
+  }
+
+  private static long creditEntryCount(List<BankStatementEntry> entries) {
+    return entries.stream().filter(e -> e.amount().signum() > 0).count();
+  }
+
+  private static long debitEntryCount(List<BankStatementEntry> entries) {
+    return entries.stream().filter(e -> e.amount().signum() < 0).count();
+  }
+
+  private static BigDecimal creditEntrySum(List<BankStatementEntry> entries) {
+    return entries.stream()
+        .filter(e -> e.amount().signum() > 0)
+        .map(BankStatementEntry::amount)
+        .reduce(ZERO, BigDecimal::add);
+  }
+
+  private static BigDecimal debitEntrySum(List<BankStatementEntry> entries) {
+    return entries.stream()
+        .filter(e -> e.amount().signum() < 0)
+        .map(e -> e.amount().abs())
+        .reduce(ZERO, BigDecimal::add);
+  }
+
+  @Nullable
+  private static String checkTotalCountMismatch(TransactionSummary summary, int actualCount) {
+    if (summary.totalCount() == null || actualCount == Integer.parseInt(summary.totalCount())) {
+      return null;
+    }
+    return "total entry count mismatch: expected=%s, actual=%d"
+        .formatted(summary.totalCount(), actualCount);
+  }
+
+  @Nullable
+  private static String checkCreditCountMismatch(TransactionSummary summary, long actualCount) {
+    if (summary.creditCount() == null || actualCount == Integer.parseInt(summary.creditCount())) {
+      return null;
+    }
+    return "credit entry count mismatch: expected=%s, actual=%d"
+        .formatted(summary.creditCount(), actualCount);
+  }
+
+  @Nullable
+  private static String checkDebitCountMismatch(TransactionSummary summary, long actualCount) {
+    if (summary.debitCount() == null || actualCount == Integer.parseInt(summary.debitCount())) {
+      return null;
+    }
+    return "debit entry count mismatch: expected=%s, actual=%d"
+        .formatted(summary.debitCount(), actualCount);
+  }
+
+  @Nullable
+  private static String checkCreditSumMismatch(TransactionSummary summary, BigDecimal actualSum) {
+    if (summary.creditSum() == null || summary.creditSum().compareTo(actualSum) == 0) {
+      return null;
+    }
+    return "credit sum mismatch: expected=%s, actual=%s".formatted(summary.creditSum(), actualSum);
+  }
+
+  @Nullable
+  private static String checkDebitSumMismatch(TransactionSummary summary, BigDecimal actualSum) {
+    if (summary.debitSum() == null || summary.debitSum().compareTo(actualSum) == 0) {
+      return null;
+    }
+    return "debit sum mismatch: expected=%s, actual=%s".formatted(summary.debitSum(), actualSum);
+  }
+
+  @Nullable
+  private static String checkBalanceEquationMismatch(
+      List<BankStatementBalance> balances, BigDecimal creditSum, BigDecimal debitSum) {
+    var opening = findOpeningBalance(balances);
+    var closing = findClosingBalance(balances);
+    if (opening == null || closing == null) {
+      return null;
+    }
+    var expectedClosing = opening.add(creditSum).subtract(debitSum);
+    if (expectedClosing.compareTo(closing) == 0) {
+      return null;
+    }
+    return "balance equation mismatch: expected=%s, actual=%s".formatted(expectedClosing, closing);
+  }
+
+  @Nullable
+  private static BigDecimal findOpeningBalance(List<BankStatementBalance> balances) {
+    return balances.stream()
+        .filter(b -> b.type() == OPEN)
+        .map(BankStatementBalance::balance)
+        .findFirst()
+        .orElse(null);
+  }
+
+  @Nullable
+  private static BigDecimal findClosingBalance(List<BankStatementBalance> balances) {
+    return balances.stream()
+        .filter(b -> b.type() == CLOSE)
+        .map(BankStatementBalance::balance)
+        .findFirst()
+        .orElse(null);
   }
 }

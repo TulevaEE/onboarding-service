@@ -4,9 +4,14 @@ import spock.lang.Specification
 import spock.lang.Unroll
 
 import jakarta.validation.Validation
+import java.time.Clock
 import java.time.Instant
+import java.time.ZoneOffset
+
+import ee.tuleva.onboarding.time.ClockHolder
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
 
 class UserSpec extends Specification {
 
@@ -107,5 +112,65 @@ class UserSpec extends Specification {
 		null      | "Smith"  || true
 		"John"    | null     || true
 		"John"    | "Smith"  || true
+	}
+
+	def "code returns the personal code"() {
+		expect:
+		sampleUser().build().code() == "38812121215"
+	}
+
+	def "name returns the full name"() {
+		expect:
+		sampleUser().build().name() == "Jordan Valdma"
+	}
+
+	def "getIdOrThrow returns the id when present"() {
+		expect:
+		sampleUser().id(42L).build().getIdOrThrow() == 42L
+	}
+
+	def "getIdOrThrow throws when id is missing"() {
+		given:
+		def user = sampleUser().id(null).build()
+
+		when:
+		user.getIdOrThrow()
+
+		then:
+		thrown(NullPointerException)
+	}
+
+	def "getMemberId returns the member's id"() {
+		expect:
+		sampleUser().build().getMemberId() == 1L
+	}
+
+	@Unroll
+	def "isMember returns #expected"() {
+		expect:
+		user.isMember() == expected
+
+		where:
+		user                          || expected
+		sampleUser().build()          || true
+		sampleUserNonMember().build() || false
+	}
+
+	@Unroll
+	def "hasReachedRetirementAge is #expected for personal code #personalCode on #today"() {
+		given:
+		ClockHolder.setClock(Clock.fixed(today, ZoneOffset.UTC))
+		def user = sampleUser().personalCode(personalCode).build()
+
+		expect:
+		user.hasReachedRetirementAge() == expected
+
+		cleanup:
+		ClockHolder.setDefaultClock()
+
+		where:
+		personalCode  | today                                  || expected
+		"35808205216" | Instant.parse("2023-08-20T12:00:00Z")  || true
+		"39901010015" | Instant.parse("2023-08-20T12:00:00Z")  || false
 	}
 }

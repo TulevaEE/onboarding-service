@@ -20,7 +20,7 @@ class UserDetailsUpdaterSpec extends Specification {
 
   def "updates user name from the auth provider on login, capitalizing it"() {
     given:
-    def user = sampleUser().firstName("Jaak").lastName("Kadakas").build()
+    def user = sampleUser().firstName("OldFirstName").lastName("Kadakas").build()
     def person = sampleAuthenticatedPersonAndMember()
         .firstName("JAAK")
         .lastName("KUUSK-ÕUNAPUU")

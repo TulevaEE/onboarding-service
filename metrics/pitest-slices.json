@@ -301,9 +301,9 @@
   },
   "user": {
     "mutations": 85,
-    "detected": 66,
-    "score": 77.65,
-    "recordedAt": "2026-08-30"
+    "detected": 85,
+    "score": 100.0,
+    "recordedAt": "2026-08-31"
   },
   "withdrawals": {
     "mutations": 24,

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.epis.EnableEpisServiceHolder;
 import ee.tuleva.onboarding.epis.EnableEpisServiceHolder.EpisServiceHolder;
+import ee.tuleva.onboarding.epis.EpisRequestHeaders;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.transaction.ExchangeTransactionDto;
 import ee.tuleva.onboarding.time.ClockHolder;
@@ -123,7 +124,12 @@ class ExchangeTransactionSynchronizerIntegrationTest {
     private List<ExchangeTransactionDto> exchangeTransactions = new ArrayList<>();
 
     public MockEpisService(RestTemplate restTemplate, JwtTokenUtil jwtTokenUtil) {
-      super(restTemplate, restTemplate, jwtTokenUtil);
+      super(
+          restTemplate,
+          restTemplate,
+          new EpisRequestHeaders(jwtTokenUtil),
+          "http://epis",
+          "http://epis");
     }
 
     @Override

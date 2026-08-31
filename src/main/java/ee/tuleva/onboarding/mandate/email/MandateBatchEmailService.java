@@ -1,23 +1,25 @@
 package ee.tuleva.onboarding.mandate.email;
 
+import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.*;
 import static ee.tuleva.onboarding.mandate.MandateType.FUND_PENSION_OPENING;
 import static ee.tuleva.onboarding.mandate.MandateType.PARTIAL_WITHDRAWAL;
-import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.*;
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.BATCH_FAILED;
+import static ee.tuleva.onboarding.notification.email.EmailType.BATCH_FAILED;
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND;
 import static ee.tuleva.onboarding.pillar.Pillar.THIRD;
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.Stream.concat;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
-import ee.tuleva.onboarding.epis.mandate.details.FundPensionOpeningMandateDetails;
-import ee.tuleva.onboarding.epis.mandate.details.PartialWithdrawalMandateDetails;
+import ee.tuleva.onboarding.mandate.PillarSuggestion;
+import ee.tuleva.onboarding.mandate.SavingsFundCharges;
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
+import ee.tuleva.onboarding.mandate.details.FundPensionOpeningMandateDetails;
+import ee.tuleva.onboarding.mandate.details.PartialWithdrawalMandateDetails;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
+import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.notification.email.EmailType;
 import ee.tuleva.onboarding.pillar.Pillar;
-import ee.tuleva.onboarding.savings.fund.SavingsFundFees;
 import ee.tuleva.onboarding.user.User;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -33,20 +35,20 @@ public class MandateBatchEmailService {
   private final EmailService emailService;
   private final EmailPersistenceService emailPersistenceService;
   private final MandateProcessorService mandateProcessor;
-  private final SavingsFundFees savingsFundFees;
+  private final SavingsFundCharges savingsFundCharges;
 
   public void sendMandateBatch(
       User user, MandateBatch mandateBatch, PillarSuggestion pillarSuggestion, Locale locale) {
+    Long mandateBatchId = mandateBatchIdOf(mandateBatch);
 
-    if (emailPersistenceService.hasEmailsFor(mandateBatch)) {
-      log.warn(
-          "Skipping mandatebatch (id={}) email as email already present", mandateBatch.getId());
+    if (emailPersistenceService.hasEmailsForMandateBatch(mandateBatchId)) {
+      log.warn("Skipping mandatebatch (id={}) email as email already present", mandateBatchId);
       return;
     }
 
-    log.info("Sending mandatebatch (id={}) email", mandateBatch.getId());
+    log.info("Sending mandatebatch (id={}) email", mandateBatchId);
 
-    EmailType emailType = EmailType.from(mandateBatch);
+    EmailType emailType = MandateEmailType.emailTypeFor(mandateBatch);
     String templateName = emailType.getTemplateName(locale);
     MandrillMessage mandrillMessage =
         emailService.newMandrillMessage(
@@ -59,20 +61,20 @@ public class MandateBatchEmailService {
         .send(user, mandrillMessage, templateName)
         .ifPresent(
             response ->
-                emailPersistenceService.save(
-                    user, response.getId(), emailType, response.getStatus(), mandateBatch));
+                emailPersistenceService.saveWithMandateBatch(
+                    user, response.getId(), emailType, response.getStatus(), mandateBatchId));
   }
 
   public void sendMandateBatchFailedEmail(User user, MandateBatch mandateBatch, Locale locale) {
+    Long mandateBatchId = mandateBatchIdOf(mandateBatch);
 
-    if (emailPersistenceService.hasEmailsFor(mandateBatch)) {
+    if (emailPersistenceService.hasEmailsForMandateBatch(mandateBatchId)) {
       log.warn(
-          "Skipping mandatebatch (id={}) failed email as email already present",
-          mandateBatch.getId());
+          "Skipping mandatebatch (id={}) failed email as email already present", mandateBatchId);
       return;
     }
 
-    log.info("Sending failed mandatebatch (id={}) email", mandateBatch.getId());
+    log.info("Sending failed mandatebatch (id={}) email", mandateBatchId);
 
     var emailType = BATCH_FAILED;
     String templateName = emailType.getTemplateName(locale);
@@ -91,8 +93,13 @@ public class MandateBatchEmailService {
         .send(user, mandrillMessage, templateName)
         .ifPresent(
             response ->
-                emailPersistenceService.save(
-                    user, response.getId(), emailType, response.getStatus(), mandateBatch));
+                emailPersistenceService.saveWithMandateBatch(
+                    user, response.getId(), emailType, response.getStatus(), mandateBatchId));
+  }
+
+  private Long mandateBatchIdOf(MandateBatch mandateBatch) {
+    return requireNonNull(
+        mandateBatch.getId(), "Mandate batch is not yet persisted: mandateBatch=" + mandateBatch);
   }
 
   private Map<String, Object> getMergeVars(
@@ -101,7 +108,7 @@ public class MandateBatchEmailService {
     map.putAll(getNameMergeVars(user));
     map.putAll(
         getPillarSuggestionMergeVars(
-            pillarSuggestion, savingsFundFees.ongoingChargesPercent(locale)));
+            pillarSuggestion, savingsFundCharges.ongoingChargesPercent(locale)));
     map.putAll(getWithdrawalMandateMergeVars(batch));
 
     return map;

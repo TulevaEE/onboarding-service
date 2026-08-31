@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
-import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.BENCHMARK;
-import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.BENCHMARK_MODEL;
-import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.MODEL_PORTFOLIO;
+import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK;
+import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK_MODEL;
+import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.contains;
@@ -12,8 +12,8 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -743,7 +743,8 @@ class TrackingDifferenceNotifierTest {
     assertThat(captor.getValue()).doesNotContain("Cash drag:");
   }
 
-  private TrackingDifferenceResult withinLimitsResult(ee.tuleva.onboarding.fund.TulevaFund fund) {
+  private TrackingDifferenceResult withinLimitsResult(
+      ee.tuleva.onboarding.tulevafund.TulevaFund fund) {
     return TrackingDifferenceResult.builder()
         .fund(fund)
         .checkDate(LocalDate.of(2026, 4, 3))

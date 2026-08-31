@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.savings.fund.nav;
 
 import java.util.List;
 
-final class NavReportAccountNames {
+public final class NavReportAccountNames {
 
   static final String CASH = "Cash account in SEB Pank";
   static final String TRADE_RECEIVABLES = "Total receivables of unsettled transactions";
@@ -18,7 +18,7 @@ final class NavReportAccountNames {
 
   // The NAV calculation takes these from our own register or from a manual adjustment, so the
   // custodian position report neither carries them nor is authoritative for them.
-  static final List<String> NOT_SOURCED_FROM_CUSTODIAN =
+  public static final List<String> NOT_SOURCED_FROM_CUSTODIAN =
       List.of(
           PENDING_SUBSCRIPTIONS, PENDING_REDEMPTIONS, BLACKROCK_RECEIVABLE, BLACKROCK_LIABILITY);
 

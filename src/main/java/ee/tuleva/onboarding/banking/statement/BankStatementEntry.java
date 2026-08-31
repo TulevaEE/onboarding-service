@@ -3,8 +3,6 @@ package ee.tuleva.onboarding.banking.statement;
 import static ee.tuleva.onboarding.banking.iso20022.camt052.CreditDebitCode.CRDT;
 import static java.time.temporal.ChronoUnit.MICROS;
 
-import ee.tuleva.onboarding.banking.iso20022.camt052.GenericOrganisationIdentification1;
-import ee.tuleva.onboarding.banking.iso20022.camt052.GenericPersonIdentification1;
 import ee.tuleva.onboarding.banking.iso20022.camt052.ReportEntry2;
 import ee.tuleva.onboarding.banking.iso20022.camt053.CreditDebitCode;
 import ee.tuleva.onboarding.banking.iso20022.camt053.DateAndDateTimeChoice;
@@ -42,126 +40,13 @@ public record BankStatementEntry(
 
     @Nullable
     public static CounterPartyDetails from(ReportEntry2 entry) {
-      var creditOrDebit = entry.getCdtDbtInd();
-
-      var entryDetails = Require.exactlyOne(entry.getNtryDtls(), "entry details");
-      var transactionDetails = Require.exactlyOne(entryDetails.getTxDtls(), "transaction details");
-      var relatedParties = transactionDetails.getRltdPties();
-
-      if (relatedParties == null) {
-        return null;
-      }
-
-      var otherParty = creditOrDebit == CRDT ? relatedParties.getDbtr() : relatedParties.getCdtr();
-
-      if (otherParty == null) {
-        return null;
-      }
-
-      var otherPartyAccount =
-          creditOrDebit == CRDT ? relatedParties.getDbtrAcct() : relatedParties.getCdtrAcct();
-
-      if (otherPartyAccount == null || otherPartyAccount.getId() == null) {
-        return null;
-      }
-
-      var iban = otherPartyAccount.getId().getIBAN();
-      if (iban == null || iban.isBlank()) {
-        return null;
-      }
-
-      var name = otherParty.getNm();
-      var partyId = otherParty.getId();
-      var prvtId = partyId == null ? null : partyId.getPrvtId();
-      var orgId = partyId == null ? null : partyId.getOrgId();
-
-      if (prvtId != null && orgId != null) {
-        throw new BankStatementParseException(
-            "Counterparty has both OrgId and PrvtId: name=" + name + ", iban=" + iban);
-      }
-
-      var idCodes =
-          Stream.concat(
-                  prvtId == null
-                      ? Stream.<String>empty()
-                      : prvtId.getOthr().stream().map(GenericPersonIdentification1::getId),
-                  orgId == null
-                      ? Stream.<String>empty()
-                      : orgId.getOthr().stream().map(GenericOrganisationIdentification1::getId))
-              .filter(id -> id != null && !id.isBlank())
-              .toList();
-      var idCode = Require.atMostOne(idCodes, "counterparty ID code");
-
-      return new CounterPartyDetails(name, iban, idCode);
+      return Camt052CounterPartyMapper.from(entry);
     }
 
     @Nullable
     static CounterPartyDetails from(
         ee.tuleva.onboarding.banking.iso20022.camt053.ReportEntry2 entry) {
-      var creditOrDebit = entry.getCdtDbtInd();
-
-      var entryDetails = Require.exactlyOne(entry.getNtryDtls(), "entry details");
-      var transactionDetails = Require.exactlyOne(entryDetails.getTxDtls(), "transaction details");
-      var relatedParties = transactionDetails.getRltdPties();
-
-      if (relatedParties == null) {
-        return null;
-      }
-
-      var otherParty =
-          creditOrDebit == CreditDebitCode.CRDT
-              ? relatedParties.getDbtr()
-              : relatedParties.getCdtr();
-
-      if (otherParty == null) {
-        return null;
-      }
-
-      var otherPartyAccount =
-          creditOrDebit == CreditDebitCode.CRDT
-              ? relatedParties.getDbtrAcct()
-              : relatedParties.getCdtrAcct();
-
-      if (otherPartyAccount == null || otherPartyAccount.getId() == null) {
-        return null;
-      }
-
-      var iban = otherPartyAccount.getId().getIBAN();
-      if (iban == null || iban.isBlank()) {
-        return null;
-      }
-
-      var name = otherParty.getNm();
-      var partyId = otherParty.getId();
-      var prvtId = partyId == null ? null : partyId.getPrvtId();
-      var orgId = partyId == null ? null : partyId.getOrgId();
-
-      if (prvtId != null && orgId != null) {
-        throw new BankStatementParseException(
-            "Counterparty has both OrgId and PrvtId: name=" + name + ", iban=" + iban);
-      }
-
-      var idCodes =
-          Stream.concat(
-                  prvtId == null
-                      ? Stream.<String>empty()
-                      : prvtId.getOthr().stream()
-                          .map(
-                              ee.tuleva.onboarding.banking.iso20022.camt053
-                                      .GenericPersonIdentification1
-                                  ::getId),
-                  orgId == null
-                      ? Stream.<String>empty()
-                      : orgId.getOthr().stream()
-                          .map(
-                              ee.tuleva.onboarding.banking.iso20022.camt053
-                                      .GenericOrganisationIdentification1
-                                  ::getId))
-              .filter(id -> id != null && !id.isBlank())
-              .toList();
-      var idCode = Require.atMostOne(idCodes, "counterparty ID code");
-
-      return new CounterPartyDetails(name, iban, idCode);
+      return Camt053CounterPartyMapper.from(entry);
     }
   }
 

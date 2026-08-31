@@ -6,7 +6,7 @@ import java.util.Collection;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 
-public class PersonalCodeAuthentication<C extends Serializable>
+public final class PersonalCodeAuthentication<C extends Serializable>
     extends AbstractAuthenticationToken {
 
   private static final long serialVersionUID = -5988919052905713277L;

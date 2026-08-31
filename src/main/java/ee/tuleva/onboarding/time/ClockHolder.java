@@ -4,7 +4,6 @@ import static java.time.temporal.ChronoUnit.DAYS;
 
 import java.time.Clock;
 import java.time.Instant;
-import java.time.ZoneId;
 
 public class ClockHolder {
 
@@ -33,9 +32,5 @@ public class ClockHolder {
 
   public static Instant sixMonthsAgo() {
     return Instant.now(clock).minus(180, DAYS);
-  }
-
-  public static Clock clock(ZoneId zone) {
-    return Clock.system(zone);
   }
 }

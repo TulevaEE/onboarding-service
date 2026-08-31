@@ -1,21 +1,22 @@
 package ee.tuleva.onboarding.payment.email
 
-import ee.tuleva.onboarding.savings.fund.SavingsFundFees
+import ee.tuleva.onboarding.mandate.MandateRepository
+import ee.tuleva.onboarding.mandate.SavingsFundCharges
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus
 import ee.tuleva.onboarding.mandate.Mandate
-import ee.tuleva.onboarding.mandate.email.PillarSuggestion
-import ee.tuleva.onboarding.mandate.email.persistence.Email
-import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService
+import ee.tuleva.onboarding.mandate.PillarSuggestion
+import ee.tuleva.onboarding.notification.email.Email
+import ee.tuleva.onboarding.notification.email.EmailPersistenceService
 import ee.tuleva.onboarding.notification.email.EmailService
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notConverted
 import static ee.tuleva.onboarding.currency.Currency.EUR
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
-import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.getAttachments
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.*
+import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture
+import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.getAttachments
+import static ee.tuleva.onboarding.notification.email.EmailType.*
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewSinglePayment
 import static ee.tuleva.onboarding.paymentrate.PaymentRatesFixture.samplePaymentRates
 
@@ -24,10 +25,11 @@ class PaymentEmailServiceSpec extends Specification {
   EmailService emailService = Mock()
   EmailPersistenceService emailPersistenceService = Mock()
 
-  SavingsFundFees savingsFundFees = Mock() {
+  SavingsFundCharges savingsFundFees = Mock() {
     ongoingChargesPercent(_) >> "0.28"
   }
-  PaymentEmailService paymentEmailService = new PaymentEmailService(emailService,
+  MandateRepository mandateRepository = Mock()
+  PaymentEmailService paymentEmailService = new PaymentEmailService(mandateRepository, emailService,
       emailPersistenceService, savingsFundFees)
 
   def "send third pillar payment success email"() {
@@ -37,7 +39,7 @@ class PaymentEmailServiceSpec extends Specification {
     def contactDetails = contactDetailsFixture()
 
     def paymentRates = samplePaymentRates()
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails.secondPillarActive, contactDetails.thirdPillarActive, conversion, paymentRates)
     def payment = aNewSinglePayment()
     def message = new MandrillMessage()
     var mergeVars = [
@@ -63,11 +65,12 @@ class PaymentEmailServiceSpec extends Specification {
     def locale = Locale.ENGLISH
     def mandrillMessageId = "mandrillMessageId123"
     def mandate = new Mandate(mandate: new byte[0])
+    mandateRepository.findById(42L) >> Optional.of(mandate)
     def mandateAttachments = getAttachments(user, mandate)
 
     emailPersistenceService.cancel(user, THIRD_PILLAR_PAYMENT_REMINDER_MANDATE) >> [new Email(
         personalCode: user.personalCode, mandrillMessageId: mandrillMessageId,
-        type: THIRD_PILLAR_PAYMENT_REMINDER_MANDATE, mandate: mandate
+        type: THIRD_PILLAR_PAYMENT_REMINDER_MANDATE, mandateId: 42L
     )]
     def mandrillResponse = new MandrillMessageStatus().tap {
       _id = "123"
@@ -91,7 +94,7 @@ class PaymentEmailServiceSpec extends Specification {
     def conversion = notConverted()
     def contactDetails = contactDetailsFixture()
     def paymentRates = samplePaymentRates()
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails.secondPillarActive, contactDetails.thirdPillarActive, conversion, paymentRates)
     def message = new MandrillMessage()
     var mergeVars = [
         "fname"              : user.firstName,
@@ -122,7 +125,7 @@ class PaymentEmailServiceSpec extends Specification {
 
     then:
     1 * emailService.send(user, message, templateName) >> Optional.of(mandrillResponse)
-    1 * emailService.newMandrillMessage(user.email, templateName, mergeVars + email.mergeVars(), tags, null) >> message
+    1 * emailService.newMandrillMessage(user.email, templateName, mergeVars + email.mergeVars(), tags) >> message
     1 * emailPersistenceService.save(user, mandrillResponse.id, email.emailType(), mandrillResponse.status)
 
     where:
@@ -154,7 +157,7 @@ class PaymentEmailServiceSpec extends Specification {
     paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.failed(), locale)
 
     then:
-    1 * emailService.newMandrillMessage(user.email, "savings_fund_payment_failed_en", mergeVars, tags, null) >> message
+    1 * emailService.newMandrillMessage(user.email, "savings_fund_payment_failed_en", mergeVars, tags) >> message
     1 * emailService.send(user, message, "savings_fund_payment_failed_en") >> Optional.of(mandrillResponse)
     1 * emailPersistenceService.save(user, mandrillResponse.id, SAVINGS_FUND_PAYMENT_FAIL, mandrillResponse.status)
   }
@@ -165,7 +168,7 @@ class PaymentEmailServiceSpec extends Specification {
     def conversion = notConverted()
     def contactDetails = contactDetailsFixture()
     def paymentRates = samplePaymentRates()
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails.secondPillarActive, contactDetails.thirdPillarActive, conversion, paymentRates)
     def message = new MandrillMessage()
     var mergeVars = [
         "fname"              : user.firstName,
@@ -196,7 +199,7 @@ class PaymentEmailServiceSpec extends Specification {
 
     then:
     1 * emailService.send(user, message, "savings_fund_payment_success_child_en") >> Optional.of(mandrillResponse)
-    1 * emailService.newMandrillMessage(user.email, "savings_fund_payment_success_child_en", mergeVars, tags, null) >> message
+    1 * emailService.newMandrillMessage(user.email, "savings_fund_payment_success_child_en", mergeVars, tags) >> message
     1 * emailPersistenceService.save(user, mandrillResponse.id, SAVINGS_FUND_PAYMENT_SUCCESS_CHILD, mandrillResponse.status)
   }
 }

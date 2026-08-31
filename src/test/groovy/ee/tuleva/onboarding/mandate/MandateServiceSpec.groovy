@@ -1,14 +1,14 @@
 package ee.tuleva.onboarding.mandate
 
-import ee.tuleva.onboarding.account.AccountStatementService
+import ee.tuleva.onboarding.applicationtype.ApplicationType
 import ee.tuleva.onboarding.aml.exception.AmlChecksMissingException
 import ee.tuleva.onboarding.conversion.UserConversionService
-import ee.tuleva.onboarding.epis.EpisService
+import ee.tuleva.onboarding.mandate.MandateContacts
 import ee.tuleva.onboarding.error.response.ErrorResponse
 import ee.tuleva.onboarding.error.response.ErrorsResponse
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.fund.FundRepository
-import ee.tuleva.onboarding.mandate.builder.ConversionDecorator
+import ee.tuleva.onboarding.conversion.ConversionDecorator
 import ee.tuleva.onboarding.mandate.builder.CreateMandateCommandToMandateConverter
 import ee.tuleva.onboarding.mandate.cancellation.CancellationMandateBuilder
 import ee.tuleva.onboarding.mandate.cancellation.InvalidApplicationTypeException
@@ -22,8 +22,9 @@ import ee.tuleva.onboarding.mandate.exception.MandateProcessingException
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService
 import ee.tuleva.onboarding.signature.SignatureFile
 import ee.tuleva.onboarding.signature.SignatureService
-import ee.tuleva.onboarding.signature.idcard.IdCardSignatureSession
-import ee.tuleva.onboarding.signature.mobileid.MobileIdSignatureSession
+import ee.tuleva.onboarding.signature.IdCardSignatureSession
+import ee.tuleva.onboarding.signature.MobileIdSignatureSession
+import ee.tuleva.onboarding.signature.SmartIdSignatureSession
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserService
 import org.springframework.context.ApplicationEventPublisher
@@ -31,12 +32,12 @@ import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.authenticatedPersonFromUser
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyConverted
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
+import static ee.tuleva.onboarding.mandate.MandateContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.MandateFixture.*
-import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.sampleTransferApplicationDto
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.SELECTION
-import static ee.tuleva.onboarding.signature.response.SignatureStatus.OUTSTANDING_TRANSACTION
-import static ee.tuleva.onboarding.signature.response.SignatureStatus.SIGNATURE
+import static ee.tuleva.onboarding.mandate.application.ApplicationSnapshotFixture.sampleTransferApplicationDto
+import static ee.tuleva.onboarding.applicationtype.ApplicationType.SELECTION
+import static ee.tuleva.onboarding.signature.SignatureStatus.OUTSTANDING_TRANSACTION
+import static ee.tuleva.onboarding.signature.SignatureStatus.SIGNATURE
 import static java.util.Locale.ENGLISH
 
 class MandateServiceSpec extends Specification {
@@ -44,21 +45,21 @@ class MandateServiceSpec extends Specification {
   MandateRepository mandateRepository = Mock()
   SignatureService signService = Mock()
   FundRepository fundRepository = Mock()
-  AccountStatementService accountStatementService = Mock()
+  PensionAccountStatement pensionAccountStatement = Mock()
   SecondPillarPaymentRateService secondPillarPaymentRateService = Mock()
-  CreateMandateCommandToMandateConverter converter = new CreateMandateCommandToMandateConverter(accountStatementService, fundRepository, new ConversionDecorator(), secondPillarPaymentRateService)
+  CreateMandateCommandToMandateConverter converter = new CreateMandateCommandToMandateConverter(pensionAccountStatement, fundRepository, new ConversionDecorator(), secondPillarPaymentRateService)
 
   MandateProcessorService mandateProcessor = Mock()
   MandateFileService mandateFileService = Mock()
   UserService userService = Mock()
-  EpisService episService = Mock()
+  MandateContacts mandateContacts = Mock()
   ApplicationEventPublisher eventPublisher = Mock()
   UserConversionService conversionService = Mock()
   MandateValidator mandateValidator = Mock()
   CancellationMandateBuilder cancellationMandateBuilder = Mock()
 
   MandateService service = new MandateService(mandateRepository, signService, converter, mandateProcessor, cancellationMandateBuilder,
-      mandateFileService, userService, episService, eventPublisher, conversionService, mandateValidator)
+      mandateFileService, userService, mandateContacts, eventPublisher, conversionService, mandateValidator)
 
   Long sampleMandateId = 1L
   User sampleUser = sampleUser()
@@ -88,7 +89,7 @@ class MandateServiceSpec extends Specification {
 
     mandate.fundTransferExchanges.first().amount ==
         createMandateCmd.fundTransferExchanges.first().amount
-    1 * episService.getContactDetails(sampleUser) >> contactDetailsFixture()
+    1 * mandateContacts.getContactDetails(sampleUser) >> contactDetailsFixture()
     1 * fundRepository.findByIsin(createMandateCmd.futureContributionFundIsin) >> Fund.builder().pillar(2).build()
     1 * eventPublisher.publishEvent(_ as BeforeMandateCreatedEvent)
     1 * conversionService.getConversion(sampleUser) >> fullyConverted()
@@ -108,7 +109,7 @@ class MandateServiceSpec extends Specification {
     1 * eventPublisher.publishEvent(_ as BeforeMandateCreatedEvent) >> { throw AmlChecksMissingException.newInstance() }
     1 * fundRepository.findByIsin(createMandateCmd.futureContributionFundIsin) >> Fund.builder().pillar(2).build()
     1 * conversionService.getConversion(sampleUser) >> fullyConverted()
-    1 * episService.getContactDetails(sampleUser) >> contactDetailsFixture()
+    1 * mandateContacts.getContactDetails(sampleUser) >> contactDetailsFixture()
     1 * mandateValidator.validate(createMandateCmd, person)
   }
 
@@ -120,16 +121,18 @@ class MandateServiceSpec extends Specification {
     def contactDetails = contactDetailsFixture()
     def applicationToCancel = sampleTransferApplicationDto()
     def mandate = sampleMandate()
+    def savedMandate = sampleMandate()
 
     1 * conversionService.getConversion(user) >> conversion
-    1 * episService.getContactDetails(user) >> contactDetails
+    1 * mandateContacts.getContactDetails(user) >> contactDetails
     1 * cancellationMandateBuilder.build(applicationToCancel, person, user, conversion, contactDetails) >> mandate
 
     when:
-    service.saveCancellation(person, applicationToCancel)
+    def result = service.saveCancellation(person, applicationToCancel)
 
     then:
-    1 * mandateRepository.save(mandate)
+    1 * mandateRepository.save(mandate) >> savedMandate
+    result == savedMandate
   }
 
   def "save: validates application type to cancel before saving"() {
@@ -160,6 +163,96 @@ class MandateServiceSpec extends Specification {
 
     then:
     session == signatureSession
+  }
+
+  def "smart id signing works"() {
+    given:
+    def user = sampleUser()
+    def signatureSession = new SmartIdSignatureSession(null, null, null)
+
+    1 * mandateFileService.getMandateFiles(sampleMandateId, user.id) >> sampleFiles()
+    1 * signService.startSmartIdSign(_ as List<SignatureFile>, user.personalCode) >>
+        signatureSession
+
+    when:
+    def session = service.smartIdSign(sampleMandateId, user.id)
+
+    then:
+    session == signatureSession
+  }
+
+  def "finalizeSmartIdSignature: get correct status if currently signing mandate"() {
+    given:
+    Mandate sampleMandate = sampleUnsignedMandate()
+    def signatureSession = new SmartIdSignatureSession(null, null, null)
+
+    1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
+    1 * signService.getSignedFile(_) >> null
+
+    when:
+    def status = service.finalizeSmartIdSignature(sampleUser.id, sampleMandate.id, signatureSession, ENGLISH)
+
+    then:
+    status == OUTSTANDING_TRANSACTION
+  }
+
+  def "finalizeSmartIdSignature: get correct status if currently signed a mandate and start processing"() {
+    given:
+    Mandate sampleMandate = sampleUnsignedMandate()
+    byte[] sampleFile = "file".getBytes()
+    def signatureSession = new SmartIdSignatureSession(null, null, null)
+
+    1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
+    1 * signService.getSignedFile(_) >> sampleFile
+    1 * mandateRepository.save({ Mandate it -> it.mandate.get() == sampleFile }) >> sampleMandate
+
+    when:
+    def status = service.finalizeSmartIdSignature(sampleUser.id, sampleMandate.id, signatureSession, ENGLISH)
+
+    then:
+    1 * mandateProcessor.start(sampleUser, sampleMandate)
+    status == OUTSTANDING_TRANSACTION
+  }
+
+  def "finalizeSmartIdSignature: get correct status and notify and invalidate EPIS cache if mandate is signed and processed"() {
+    given:
+    Mandate sampleMandate = sampleMandate()
+    def signatureSession = new SmartIdSignatureSession(null, null, null)
+
+    1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
+    1 * mandateProcessor.isFinished(sampleMandate) >> true
+    1 * mandateProcessor.getErrors(sampleMandate) >> sampleEmptyErrorsResponse
+    1 * mandateContacts.clearCache(sampleUser)
+
+    when:
+    def status = service.finalizeSmartIdSignature(sampleUser.id, sampleMandate.id, signatureSession, ENGLISH)
+
+    then:
+    status == SIGNATURE
+    1 * eventPublisher.publishEvent({ AfterMandateSignedEvent event ->
+      event.user == sampleUser
+      event.mandate == sampleMandate
+    })
+  }
+
+  def "get: returns the mandate by id"() {
+    given:
+    Mandate mandate = sampleMandate()
+    1 * mandateRepository.findById(mandate.id) >> Optional.of(mandate)
+
+    expect:
+    service.get(mandate.id) == mandate
+  }
+
+  def "get: throws when no mandate exists with the given id"() {
+    given:
+    1 * mandateRepository.findById(999L) >> Optional.empty()
+
+    when:
+    service.get(999L)
+
+    then:
+    thrown(IllegalStateException)
   }
 
   def "finalizeMobileIdSignature: get correct status if currently signing mandate"() {
@@ -219,7 +312,7 @@ class MandateServiceSpec extends Specification {
     1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
     1 * mandateProcessor.isFinished(sampleMandate) >> true
     1 * mandateProcessor.getErrors(sampleMandate) >> sampleEmptyErrorsResponse
-    1 * episService.clearCache(sampleUser)
+    1 * mandateContacts.clearCache(sampleUser)
 
     when:
     def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, signatureSession, ENGLISH)
@@ -323,7 +416,7 @@ class MandateServiceSpec extends Specification {
     1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
     1 * mandateProcessor.isFinished(sampleMandate) >> true
     1 * mandateProcessor.getErrors(sampleMandate) >> sampleEmptyErrorsResponse
-    1 * episService.clearCache(sampleUser)
+    1 * mandateContacts.clearCache(sampleUser)
 
     when:
     def status = service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, signatureSession, "signedHash", ENGLISH)
@@ -355,6 +448,7 @@ class MandateServiceSpec extends Specification {
 
   User sampleUser() {
     return User.builder()
+        .id(999)
         .personalCode("38501010002")
         .phoneNumber("5555555")
         .build()

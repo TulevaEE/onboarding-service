@@ -1,16 +1,17 @@
 package ee.tuleva.onboarding.payment.savings;
 
 import static ee.tuleva.onboarding.payment.provider.PaymentInternalReferenceService.inferPartyType;
+import static java.util.Objects.requireNonNull;
 
 import com.nimbusds.jose.JWSObject;
 import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.payment.IncomingSavingsPayment;
 import ee.tuleva.onboarding.payment.PaymentData;
+import ee.tuleva.onboarding.payment.SavingsPayments;
 import ee.tuleva.onboarding.payment.event.SavingsPaymentCreatedEvent;
 import ee.tuleva.onboarding.payment.provider.PaymentReference;
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioOrderToken;
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioTokenParser;
-import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
-import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -27,55 +28,66 @@ public class SavingsCallbackService {
   private final UserService userService;
   private final MontonioTokenParser tokenParser;
   private final SavingsChannelConfiguration savingsChannelConfiguration;
-  private final SavingFundPaymentRepository savingFundPaymentRepository;
+  private final SavingsPayments savingsPayments;
   private final ApplicationEventPublisher eventPublisher;
 
   @SneakyThrows
-  public Optional<SavingFundPayment> processToken(String serializedToken) {
+  public boolean processToken(String serializedToken) {
     var jwsObject = JWSObject.parse(serializedToken);
     tokenParser.verifyToken(jwsObject, savingsChannelConfiguration.getSecretKey());
     var token = tokenParser.parse(jwsObject);
 
-    if (!token.getPaymentStatus().equals(MontonioOrderToken.MontonioOrderStatus.PAID)) {
-      log.info("Montonio order {} not paid", token.getMerchantReference());
-      return Optional.empty();
+    var paymentStatus =
+        requireNonNull(
+            token.getPaymentStatus(),
+            "Montonio order token missing payment status: uuid=" + token.getUuid());
+    var merchantReference =
+        requireNonNull(
+            token.getMerchantReference(),
+            "Montonio order token missing merchant reference: uuid=" + token.getUuid());
+
+    if (!paymentStatus.equals(MontonioOrderToken.MontonioOrderStatus.PAID)) {
+      log.info("Montonio order {} not paid", merchantReference);
+      return false;
     }
 
-    if (!token.getMerchantReference().getPaymentType().equals(PaymentData.PaymentType.SAVINGS)) {
-      log.error("Montonio order {} not SAVINGS type", token.getMerchantReference());
-      return Optional.empty();
+    if (!merchantReference.getPaymentType().equals(PaymentData.PaymentType.SAVINGS)) {
+      log.error("Montonio order {} not SAVINGS type", merchantReference);
+      return false;
     }
 
-    if (!savingFundPaymentRepository
-        .findRecentPayments(token.getMerchantReference().getDescription())
-        .isEmpty()) {
-      log.info("Saving fund payment already exists for {}", token.getMerchantReference());
-      return Optional.empty();
+    var recipient = recipientParty(merchantReference);
+
+    var incomingPayment =
+        new IncomingSavingsPayment(
+            requireNonNull(
+                token.getSenderName(),
+                "Montonio order token missing sender name: uuid=" + token.getUuid()),
+            requireNonNull(
+                token.getSenderIban(),
+                "Montonio order token missing sender IBAN: uuid=" + token.getUuid()),
+            merchantReference.getDescription(),
+            requireNonNull(
+                token.getGrandTotal(),
+                "Montonio order token missing grand total: uuid=" + token.getUuid()),
+            requireNonNull(
+                token.getCurrency(),
+                "Montonio order token missing currency: uuid=" + token.getUuid()),
+            recipient);
+
+    if (!savingsPayments.recordIncoming(incomingPayment)) {
+      return false;
     }
-
-    var payment =
-        SavingFundPayment.builder()
-            .remitterName(token.getSenderName())
-            .remitterIban(token.getSenderIban())
-            .description(token.getMerchantReference().getDescription())
-            .amount(token.getGrandTotal())
-            .currency(token.getCurrency())
-            .build();
-
-    var paymentId = savingFundPaymentRepository.savePaymentData(payment);
-    var ref = token.getMerchantReference();
-    var recipient = recipientParty(ref);
-
-    savingFundPaymentRepository.attachParty(paymentId, recipient);
 
     userService
-        .findByPersonalCode(ref.getPersonalCode())
+        .findByPersonalCode(merchantReference.getPersonalCode())
         .ifPresent(
             user ->
                 eventPublisher.publishEvent(
-                    new SavingsPaymentCreatedEvent(this, user, ref.getLocale(), recipient)));
+                    new SavingsPaymentCreatedEvent(
+                        this, user, merchantReference.getLocale(), recipient)));
 
-    return Optional.of(payment);
+    return true;
   }
 
   private PartyId recipientParty(PaymentReference ref) {

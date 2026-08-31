@@ -5,6 +5,7 @@ import ee.tuleva.onboarding.auth.smartid.SmartIdSession;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
+import org.jspecify.annotations.Nullable;
 
 @Getter
 @Setter
@@ -12,7 +13,7 @@ import lombok.Setter;
 public class AuthenticateResponse {
 
   private final String challengeCode;
-  private final String authenticationHash;
+  private final @Nullable String authenticationHash;
 
   public static AuthenticateResponse fromMobileIdSession(MobileIDSession mobileIDSession) {
     return new AuthenticateResponse(

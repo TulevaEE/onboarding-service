@@ -2,12 +2,12 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.AML;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
-import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.PENDING;
+import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.PENDING;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.IN_REVIEW;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
 
-import ee.tuleva.onboarding.aml.AmlService;
-import ee.tuleva.onboarding.aml.risklevel.RiskLevelService;
+import ee.tuleva.onboarding.aml.RiskLevels;
+import ee.tuleva.onboarding.aml.SanctionAndPepScreener;
 import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.kyb.LegalEntityScreener;
 import ee.tuleva.onboarding.kyc.KycCountryService;
@@ -30,8 +30,8 @@ public class RedemptionVerificationService {
   private final RedemptionStatusService redemptionStatusService;
   private final UserService userService;
   private final KycCountryService kycCountryService;
-  private final AmlService amlService;
-  private final RiskLevelService riskLevelService;
+  private final SanctionAndPepScreener sanctionAndPepScreener;
+  private final RiskLevels riskLevels;
   private final SavingsFundOnboardingRepository savingsFundOnboardingRepository;
   private final LegalEntityScreener legalEntityScreener;
   private final OperationsNotificationService notificationService;
@@ -82,17 +82,17 @@ public class RedemptionVerificationService {
                         "Redemption party user not found: party=" + request.getPartyId()));
     Set<Country> countries =
         kycCountryService
-            .getCountries(user.getId())
+            .getCountries(user.getIdOrThrow())
             .orElseThrow(
                 () ->
                     new IllegalStateException(
-                        "KYC survey with country not found: userId=" + user.getId()));
+                        "KYC survey with country not found: userId=" + user.getIdOrThrow()));
 
     Set<Country> allCountries = new HashSet<>(countries);
-    allCountries.addAll(amlService.recordedCitizenships(user));
+    allCountries.addAll(sanctionAndPepScreener.recordedCitizenships(user));
 
-    boolean screeningClear = amlService.isSanctionAndPepClear(user, allCountries);
-    boolean highRisk = riskLevelService.isHighRisk(user.getPersonalCode());
+    boolean screeningClear = sanctionAndPepScreener.isSanctionAndPepClear(user, allCountries);
+    boolean highRisk = riskLevels.isHighRisk(user.getPersonalCode());
     if (highRisk) {
       log.info(
           "Redemption party is high risk: id={}, party={}", request.getId(), request.getPartyId());

@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
@@ -38,7 +39,7 @@ class SrriCalculator {
         .map(WeeklyNav::weekEnd)
         .filter(date -> !date.isBefore(from) && !date.isAfter(to))
         .map(date -> referencePoint(returns, date))
-        .filter(java.util.Objects::nonNull)
+        .filter(Objects::nonNull)
         .toList();
   }
 

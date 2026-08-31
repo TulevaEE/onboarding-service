@@ -1,11 +1,13 @@
 package ee.tuleva.onboarding.savings.fund;
 
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RETURNED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RETURNED;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.payment.PaymentRequest;
 import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.savings.SavingFundPayment;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -50,7 +52,9 @@ public class PaymentReturningService {
   }
 
   private void reserveUserBalanceForReturn(SavingFundPayment payment) {
+    var partyId =
+        requireNonNull(payment.getPartyId(), "Missing partyId: paymentId=" + payment.getId());
     savingsFundLedger.reservePaymentForCancellation(
-        payment.getPartyId(), payment.getAmount(), payment.getId());
+        LedgerRefs.from(partyId), payment.getAmount(), payment.getId());
   }
 }

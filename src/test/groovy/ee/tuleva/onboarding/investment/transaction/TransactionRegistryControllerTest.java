@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.investment.transaction;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.transaction.BatchStatus.DRAFT;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -16,7 +16,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.epis.EpisReportIngestionResult;
 import ee.tuleva.onboarding.investment.epis.EpisReportIngestionService;
 import ee.tuleva.onboarding.investment.epis.FundCycleTimeline;
@@ -36,6 +35,7 @@ import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliat
 import ee.tuleva.onboarding.investment.report.ReportType;
 import ee.tuleva.onboarding.investment.transaction.ingest.FtConfirmationVerificationService;
 import ee.tuleva.onboarding.investment.transaction.ingest.HistoricalRegistryImportService;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;

@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.*;
+import org.jspecify.annotations.Nullable;
 
 @Getter
 @Setter
@@ -16,8 +17,8 @@ import lombok.*;
 @ToString
 @EqualsAndHashCode
 public class ErrorResponse {
-  private String code;
-  private String message;
-  private String path;
+  private @Nullable String code;
+  private @Nullable String message;
+  private @Nullable String path;
   @Builder.Default private List<String> arguments = new ArrayList<>();
 }

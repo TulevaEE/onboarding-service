@@ -5,6 +5,7 @@ import ee.tuleva.onboarding.auth.principal.Person;
 import java.io.Serial;
 import java.io.Serializable;
 import lombok.Data;
+import org.jspecify.annotations.Nullable;
 
 @Data
 public class MobileIDSession implements Person, Serializable {
@@ -17,9 +18,9 @@ public class MobileIDSession implements Person, Serializable {
   private final String challenge;
   private final MidHashToSign authenticationHash;
   private final String phoneNumber;
-  private String firstName;
-  private String lastName;
-  private String personalCode;
+  private @Nullable String firstName;
+  private @Nullable String lastName;
+  private @Nullable String personalCode;
 
   public void updateSessionInfo(String firstName, String lastName, String personalCode) {
     this.firstName = firstName;

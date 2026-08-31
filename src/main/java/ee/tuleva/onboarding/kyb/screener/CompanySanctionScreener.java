@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_SANCTION;
 
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
 import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
+import ee.tuleva.onboarding.aml.sanctions.ScreenedCompany;
 import ee.tuleva.onboarding.kyb.KybCheck;
 import ee.tuleva.onboarding.kyb.KybCompanyData;
 import java.util.List;
@@ -28,7 +29,10 @@ public class CompanySanctionScreener implements KybScreener {
 
   @Override
   public List<KybCheck> screen(KybCompanyData companyData) {
-    var response = sanctionCheckService.matchCompany(companyData.company());
+    var company = companyData.company();
+    var response =
+        sanctionCheckService.matchCompany(
+            new ScreenedCompany(company.name(), company.registryCode().value()));
 
     return List.of(sanctionCheck(response), pepCheck(response));
   }
@@ -49,7 +53,7 @@ public class CompanySanctionScreener implements KybScreener {
         continue;
       }
       for (JsonNode topic : result.path("properties").path("topics")) {
-        if (topic.asText().startsWith(topicPrefix)) {
+        if (topic.asString().startsWith(topicPrefix)) {
           return true;
         }
       }
@@ -64,7 +68,7 @@ public class CompanySanctionScreener implements KybScreener {
       }
       boolean isPep = false;
       for (JsonNode topic : result.path("properties").path("topics")) {
-        if (topic.asText().startsWith("role")) {
+        if (topic.asString().startsWith("role")) {
           isPep = true;
           break;
         }
@@ -82,7 +86,7 @@ public class CompanySanctionScreener implements KybScreener {
       return true;
     }
     for (JsonNode country : countries) {
-      if (!EU_COUNTRY_CODES.contains(country.asText().toLowerCase())) {
+      if (!EU_COUNTRY_CODES.contains(country.asString().toLowerCase())) {
         return true;
       }
     }

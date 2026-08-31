@@ -16,6 +16,7 @@ import java.time.YearMonth;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
@@ -247,7 +248,7 @@ public class InvestmentReportPublisher {
     return errors;
   }
 
-  private String validateAllocation(String fundCode, InvestmentReportContext context) {
+  private @Nullable String validateAllocation(String fundCode, InvestmentReportContext context) {
     var pct = context.totalAssetsNavPercent();
     if (pct.compareTo(ALLOCATION_LOWER) < 0 || pct.compareTo(ALLOCATION_UPPER) > 0) {
       return "%s total asset allocation is %.2f%% (expected ~100%%, tolerance ±1.5%%)"

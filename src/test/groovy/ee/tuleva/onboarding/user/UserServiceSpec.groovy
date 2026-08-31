@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.user
 
-import ee.tuleva.onboarding.member.listener.MemberCreatedEvent
+import ee.tuleva.onboarding.user.MemberCreatedEvent
 import ee.tuleva.onboarding.user.exception.DuplicateEmailException
 import ee.tuleva.onboarding.user.exception.UserAlreadyAMemberException
 import ee.tuleva.onboarding.user.member.MemberRepository
@@ -40,6 +40,46 @@ class UserServiceSpec extends Specification {
     returnedUser == user
   }
 
+  def "get user by id or throw returns the user when found"() {
+    given:
+    def user = sampleUser().build()
+    userRepository.findById(1L) >> Optional.of(user)
+
+    expect:
+    service.getByIdOrThrow(1L) == user
+  }
+
+  def "get user by id or throw throws when not found"() {
+    given:
+    userRepository.findById(1L) >> Optional.empty()
+
+    when:
+    service.getByIdOrThrow(1L)
+
+    then:
+    thrown(NoSuchElementException)
+  }
+
+  def "get user by member id returns the user when found"() {
+    given:
+    def user = sampleUser().build()
+    userRepository.findByMember_Id(1L) >> Optional.of(user)
+
+    expect:
+    service.getByMemberId(1L) == user
+  }
+
+  def "get user by member id throws when not found"() {
+    given:
+    userRepository.findByMember_Id(1L) >> Optional.empty()
+
+    when:
+    service.getByMemberId(1L)
+
+    then:
+    thrown(IllegalStateException)
+  }
+
   def "can update user email and phone number based on personal code"() {
     given:
     def user = sampleUser().build()
@@ -73,6 +113,18 @@ class UserServiceSpec extends Specification {
     thrown(DuplicateEmailException)
   }
 
+  def "throws when updating a user that does not exist"() {
+    given:
+    userRepository.findByPersonalCode(personalCodeSample) >> Optional.empty()
+
+    when:
+    service.updateUser(personalCodeSample, Optional.empty(), null)
+
+    then:
+    def exception = thrown(RuntimeException)
+    exception.class == RuntimeException
+  }
+
   def "can register a non member user as a member"() {
     given:
     def user = sampleUserNonMember().build()
@@ -103,6 +155,17 @@ class UserServiceSpec extends Specification {
 
     then:
     thrown(UserAlreadyAMemberException)
+  }
+
+  def "throws when registering a nonexistent user as a member"() {
+    given:
+    userRepository.findById(1L) >> Optional.empty()
+
+    when:
+    service.registerAsMember(1L)
+
+    then:
+    thrown(IllegalStateException)
   }
 
   def "isAMember() works"() {
@@ -178,6 +241,11 @@ class UserServiceSpec extends Specification {
     '37612349128'                     | Optional.of(simpleUser().build()) | true
     '37612349128'                     | Optional.empty()                  | false
     simpleUser().build().personalCode | Optional.of(simpleUser().build()) | false
+  }
+
+  def "isExistingEmail returns false when no email is given"() {
+    expect:
+    !service.isExistingEmail(personalCodeSample, Optional.empty())
   }
 
 }

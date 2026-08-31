@@ -4,8 +4,8 @@ import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.W
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.QUANTITY_CHANGE;
 import static java.math.BigDecimal.ZERO;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.position.FundPosition;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
@@ -14,6 +14,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -63,7 +64,7 @@ class QuantityChangeChecker {
         .filter(isin -> !quantifiedByIsin.containsKey(isin));
   }
 
-  private HealthCheckFinding unexplainedChange(
+  private @Nullable HealthCheckFinding unexplainedChange(
       TulevaFund fund,
       String isin,
       BigDecimal previousQuantity,

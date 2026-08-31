@@ -1,11 +1,11 @@
 package ee.tuleva.onboarding.investment.epis;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.EPIS;
 import static ee.tuleva.onboarding.investment.report.ReportType.R45;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -16,13 +16,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser;
 import ee.tuleva.onboarding.investment.epis.parser.R45ReportParser;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportRepository;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
-import ee.tuleva.onboarding.savings.fund.nav.FundNavQueryService;
+import ee.tuleva.onboarding.savings.FundNavQueryService;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;

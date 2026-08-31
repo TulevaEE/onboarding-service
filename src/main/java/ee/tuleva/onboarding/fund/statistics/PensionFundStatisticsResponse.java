@@ -6,6 +6,7 @@ import jakarta.xml.bind.annotation.XmlElement;
 import jakarta.xml.bind.annotation.XmlRootElement;
 import java.util.List;
 import lombok.Data;
+import org.jspecify.annotations.Nullable;
 
 @Data
 @XmlRootElement(name = "RESPONSE")
@@ -13,5 +14,6 @@ import lombok.Data;
 public class PensionFundStatisticsResponse {
 
   @XmlElement(name = "PENSION_FUND_STATISTICS")
+  @Nullable
   private List<PensionFundStatistics> pensionFundStatistics;
 }

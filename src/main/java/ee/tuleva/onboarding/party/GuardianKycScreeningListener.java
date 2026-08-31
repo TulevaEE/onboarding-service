@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.party;
 
-import ee.tuleva.onboarding.aml.AmlService;
+import ee.tuleva.onboarding.aml.SanctionAndPepScreener;
 import ee.tuleva.onboarding.kyc.BeforeKycCheckedEvent;
+import ee.tuleva.onboarding.personalcode.PersonalCode;
 import ee.tuleva.onboarding.user.UserService;
-import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import java.time.Clock;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +22,7 @@ class GuardianKycScreeningListener {
 
   private final ParentChildLinkService parentChildLinkService;
   private final UserService userService;
-  private final AmlService amlService;
+  private final SanctionAndPepScreener sanctionAndPepScreener;
   private final Clock clock;
 
   @EventListener
@@ -40,7 +40,7 @@ class GuardianKycScreeningListener {
     userService
         .findByPersonalCode(guardianPersonalCode)
         .ifPresentOrElse(
-            amlService::addSanctionAndPepCheckIfMissing,
+            sanctionAndPepScreener::addSanctionAndPepCheckIfMissing,
             () ->
                 log.warn(
                     "Guardian has no user account, skipping sanction/PEP screening: guardianCode={}, childCode={}",

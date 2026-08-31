@@ -19,6 +19,7 @@ class EpisServiceRestTemplateWiringTest {
   void injectsTheDedicatedEpisTemplatesAndNotThePrimaryOne() {
     new ApplicationContextRunner()
         .withUserConfiguration(TestBeans.class)
+        .withBean(EpisRequestHeaders.class)
         .withBean(EpisService.class)
         .withPropertyValues(
             "epis.service.url=http://epis", "epis.service.long-request-url=http://epis-long")

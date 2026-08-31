@@ -2,8 +2,7 @@ package ee.tuleva.onboarding.aml.sanctions;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.country.Country;
-import ee.tuleva.onboarding.kyb.CompanyDto;
-import ee.tuleva.onboarding.user.personalcode.PersonalCode;
+import ee.tuleva.onboarding.personalcode.PersonalCode;
 import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
@@ -25,7 +24,7 @@ import tools.jackson.databind.node.ArrayNode;
 
 @Service
 @Profile("!dev")
-public class OpenSanctionsService implements PepAndSanctionCheckService {
+class OpenSanctionsService implements PepAndSanctionCheckService {
 
   private static final String ESTONIA = "ee";
 
@@ -62,8 +61,8 @@ public class OpenSanctionsService implements PepAndSanctionCheckService {
 
   @Override
   @SneakyThrows
-  public MatchResponse matchCompany(CompanyDto company) {
-    var registryCode = company.registryCode().value();
+  public MatchResponse matchCompany(ScreenedCompany company) {
+    var registryCode = company.registryCode();
     var properties =
         new CompanyProperties(List.of(company.name()), List.of(registryCode), Set.of(ESTONIA));
     var companyQuery = new CompanyQuery(properties);

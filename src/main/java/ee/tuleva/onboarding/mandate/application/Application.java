@@ -1,12 +1,12 @@
 package ee.tuleva.onboarding.mandate.application;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import ee.tuleva.onboarding.epis.mandate.ApplicationStatus;
+import ee.tuleva.onboarding.applicationtype.ApplicationType;
 import java.time.Instant;
 import lombok.Builder;
 import lombok.Data;
 import org.apache.commons.lang3.builder.CompareToBuilder;
-import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.Nullable;
 
 @Data
 @Builder
@@ -17,12 +17,12 @@ public class Application<T extends ApplicationDetails> implements Comparable<App
   private final ApplicationStatus status;
   private final T details;
 
-  public ApplicationType getType() {
+  public @Nullable ApplicationType getType() {
     return details != null ? details.getType() : null;
   }
 
   @JsonIgnore
-  public Integer getPillar() {
+  public @Nullable Integer getPillar() {
     return getDetails().getPillar();
   }
 
@@ -52,7 +52,7 @@ public class Application<T extends ApplicationDetails> implements Comparable<App
   }
 
   @Override
-  public int compareTo(@NotNull Application<?> application) {
+  public int compareTo(Application<?> application) {
     return new CompareToBuilder()
         .append(creationTime, application.creationTime)
         .append(getType(), application.getType())

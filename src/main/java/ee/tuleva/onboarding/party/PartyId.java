@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.party;
 
 import static java.util.Objects.requireNonNull;
 
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.role.Role;
 
 public record PartyId(Type type, String code) {
@@ -17,6 +18,16 @@ public record PartyId(Type type, String code) {
   }
 
   public static PartyId from(Role role) {
-    return new PartyId(Type.valueOf(role.type().name()), role.code());
+    Type type =
+        switch (role.type()) {
+          case PERSON -> Type.PERSON;
+          case LEGAL_ENTITY -> Type.LEGAL_ENTITY;
+        };
+    return new PartyId(type, role.code());
+  }
+
+  public static PartyId from(AuthenticatedPerson person) {
+    return from(
+        requireNonNull(person.getRole(), "Role missing: personalCode=" + person.getPersonalCode()));
   }
 }

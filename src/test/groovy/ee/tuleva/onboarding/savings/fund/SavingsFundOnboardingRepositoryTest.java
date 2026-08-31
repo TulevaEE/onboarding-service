@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.savings.fund;
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
-import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.*;
+import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.aml.AmlCheck;

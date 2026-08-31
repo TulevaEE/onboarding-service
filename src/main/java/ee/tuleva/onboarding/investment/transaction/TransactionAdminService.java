@@ -4,7 +4,7 @@ import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -35,6 +35,7 @@ class TransactionAdminService {
   private final TransactionOrderRepository orderRepository;
   private final TransactionAuditEventRepository auditEventRepository;
   private final TransactionPreparationService preparationService;
+  private final TransactionBatchFinalizer batchFinalizer;
   private final Clock clock;
 
   TransactionCommandResponse createAndProcess(
@@ -61,7 +62,7 @@ class TransactionAdminService {
         fund,
         mode,
         asOfDate);
-    ProcessCommandResult result = preparationService.processCommand(command);
+    @Nullable ProcessCommandResult result = preparationService.processCommand(command);
     List<TransactionOrder> orders = result == null ? List.of() : result.orders();
     return TransactionCommandResponse.from(command, orders, snapshotOf(command));
   }
@@ -142,7 +143,7 @@ class TransactionAdminService {
     } catch (ObjectOptimisticLockingFailureException e) {
       throw new ResponseStatusException(CONFLICT, "Batch was modified concurrently: id=" + id);
     }
-    preparationService.finalizeConfirmedBatch(batch);
+    batchFinalizer.finalizeConfirmedBatch(batch);
     return TransactionBatchResponse.from(
         batch, orderRepository.findByBatchId(batch.getId()), calculationSnapshot(batch.getId()));
   }

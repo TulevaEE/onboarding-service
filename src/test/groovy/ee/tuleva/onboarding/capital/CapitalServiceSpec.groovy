@@ -1,11 +1,16 @@
 package ee.tuleva.onboarding.capital
 
+import ee.tuleva.onboarding.capital.transfer.ActiveTransferCapital
 import ee.tuleva.onboarding.capital.event.AggregatedCapitalEvent
 import ee.tuleva.onboarding.capital.event.AggregatedCapitalEventRepository
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventRepository
 import ee.tuleva.onboarding.user.member.Member
 import spock.lang.Specification
 
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.LocalDate
 
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventFixture.memberCapitalEventFixture
@@ -18,7 +23,8 @@ import static java.math.RoundingMode.HALF_DOWN
 class CapitalServiceSpec extends Specification {
   MemberCapitalEventRepository memberCapitalEventRepository = Mock()
   AggregatedCapitalEventRepository aggregatedCapitalEventRepository = Mock()
-  CapitalService service = new CapitalService(memberCapitalEventRepository, aggregatedCapitalEventRepository)
+  ActiveTransferCapital activeTransferCapital = Mock()
+  CapitalService service = new CapitalService(memberCapitalEventRepository, activeTransferCapital, aggregatedCapitalEventRepository, Clock.fixed(LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant(), ZoneId.systemDefault()))
 
   def "GetCapitalStatement"() {
     given:
@@ -185,5 +191,27 @@ class CapitalServiceSpec extends Specification {
         ownershipUnitPrice,
         LocalDate.now()
     )
+  }
+
+  def "excludes future-dated events from capital rows"() {
+    given:
+    def member = memberFixture().build()
+    def pastEvent = memberCapitalEventFixture(member).type(CAPITAL_PAYMENT).fiatValue(1000.00)
+        .ownershipUnitAmount(900.0).accountingDate(LocalDate.now().minusDays(1)).build()
+    def todayEvent = memberCapitalEventFixture(member).type(CAPITAL_PAYMENT).fiatValue(50.00)
+        .ownershipUnitAmount(40.0).accountingDate(LocalDate.now()).build()
+    def futureEvent = memberCapitalEventFixture(member).type(CAPITAL_PAYMENT).fiatValue(9999.00)
+        .ownershipUnitAmount(9000.0).accountingDate(LocalDate.now().plusDays(1)).build()
+    memberCapitalEventRepository.findAllByMemberId(member.id) >> [pastEvent, todayEvent, futureEvent]
+    aggregatedCapitalEventRepository.findTopByOrderByDateDesc() >> getAggregatedCapitalEvent(1.0)
+
+    when:
+    List<CapitalRow> capitalRows = service.getCapitalRows(member.id)
+
+    then:
+    with(capitalRows.find({ it.type() == CAPITAL_PAYMENT })) {
+      contributions() == 1050.00
+      unitCount() == new BigDecimal("940.0").setScale(5, HALF_DOWN)
+    }
   }
 }

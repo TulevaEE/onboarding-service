@@ -13,7 +13,7 @@ public enum Pillar {
   }
 
   public static Pillar fromInt(int pillar) {
-    return Arrays.stream(Pillar.values())
+    return Arrays.stream(values())
         .filter(p -> p.pillar == pillar)
         .findFirst()
         .orElseThrow(() -> new IllegalArgumentException("Invalid pillar: " + pillar));

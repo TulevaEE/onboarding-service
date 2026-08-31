@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.payment.provider.montonio;
 
+import static java.util.Objects.requireNonNull;
+
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.MACSigner;
 import ee.tuleva.onboarding.payment.PaymentData;
@@ -20,9 +22,14 @@ public class MontonioOrderClient {
   private final MontonioPaymentChannelConfiguration montonioPaymentChannelConfiguration;
 
   String getPaymentUrl(MontonioOrder order, PaymentData paymentData) {
+    var paymentChannelName =
+        requireNonNull(
+            paymentData.getPaymentChannel(),
+            "Payment channel missing: paymentType=" + paymentData.getType());
     MontonioPaymentChannel paymentChannel =
-        montonioPaymentChannelConfiguration.getPaymentProviderChannel(
-            paymentData.getPaymentChannel());
+        requireNonNull(
+            montonioPaymentChannelConfiguration.getPaymentProviderChannel(paymentChannelName),
+            "No Montonio payment channel configured: paymentChannel=" + paymentChannelName);
     return getPaymentUrl(order, paymentChannel);
   }
 

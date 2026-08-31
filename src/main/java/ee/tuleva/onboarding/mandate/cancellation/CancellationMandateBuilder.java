@@ -1,22 +1,23 @@
 package ee.tuleva.onboarding.mandate.cancellation;
 
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.EARLY_WITHDRAWAL;
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.TRANSFER;
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL;
+import static ee.tuleva.onboarding.applicationtype.ApplicationType.EARLY_WITHDRAWAL;
+import static ee.tuleva.onboarding.applicationtype.ApplicationType.TRANSFER;
+import static ee.tuleva.onboarding.applicationtype.ApplicationType.WITHDRAWAL;
 import static java.util.Collections.singletonList;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.conversion.ConversionDecorator;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
-import ee.tuleva.onboarding.epis.contact.ContactDetails;
-import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
-import ee.tuleva.onboarding.epis.mandate.details.EarlyWithdrawalCancellationMandateDetails;
-import ee.tuleva.onboarding.epis.mandate.details.TransferCancellationMandateDetails;
-import ee.tuleva.onboarding.epis.mandate.details.WithdrawalCancellationMandateDetails;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
-import ee.tuleva.onboarding.mandate.builder.ConversionDecorator;
+import ee.tuleva.onboarding.mandate.MandateContactDetails;
+import ee.tuleva.onboarding.mandate.application.ApplicationSnapshot;
+import ee.tuleva.onboarding.mandate.details.EarlyWithdrawalCancellationMandateDetails;
+import ee.tuleva.onboarding.mandate.details.TransferCancellationMandateDetails;
+import ee.tuleva.onboarding.mandate.details.WithdrawalCancellationMandateDetails;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
 import ee.tuleva.onboarding.user.User;
 import lombok.RequiredArgsConstructor;
@@ -33,19 +34,24 @@ public class CancellationMandateBuilder {
   private final SecondPillarPaymentRateService secondPillarPaymentRateService;
 
   public Mandate build(
-      ApplicationDTO applicationToCancel,
+      ApplicationSnapshot applicationToCancel,
       AuthenticatedPerson authenticatedPerson,
       User user,
       ConversionResponse conversion,
-      ContactDetails contactDetails) {
+      MandateContactDetails contactDetails) {
 
     Mandate mandate = new Mandate();
     mandate.setUser(user);
-    mandate.setAddress(contactDetails.getAddress());
+    mandate.setAddress(contactDetails.address());
 
     var paymentRates = secondPillarPaymentRateService.getPaymentRates(authenticatedPerson);
     conversionDecorator.addConversionMetadata(
-        mandate.getMetadata(), conversion, contactDetails, authenticatedPerson, paymentRates);
+        mandate.getMetadata(),
+        conversion,
+        contactDetails.secondPillarActive(),
+        contactDetails.thirdPillarActive(),
+        authenticatedPerson,
+        paymentRates);
 
     if (applicationToCancel.getType() == WITHDRAWAL) {
       return buildWithdrawalCancellationMandate(mandate);
@@ -54,12 +60,12 @@ public class CancellationMandateBuilder {
     } else if (applicationToCancel.getType() == TRANSFER) {
       return buildTransferCancellationMandate(applicationToCancel, mandate);
     }
-    return null;
+    throw new IllegalArgumentException(
+        "Cannot cancel application: type=" + applicationToCancel.getType());
   }
 
   public Mandate buildWithdrawalCancellationMandate(Mandate mandate) {
     // TODO legacy fields
-    mandate.setPillar(2);
 
     mandate.setDetails(new WithdrawalCancellationMandateDetails());
     return mandate;
@@ -67,15 +73,21 @@ public class CancellationMandateBuilder {
 
   public Mandate buildEarlyWithdrawalCancellationMandate(Mandate mandate) {
     // TODO legacy fields
-    mandate.setPillar(2);
 
     mandate.setDetails(new EarlyWithdrawalCancellationMandateDetails());
     return mandate;
   }
 
   private Mandate buildTransferCancellationMandate(
-      ApplicationDTO applicationToCancel, Mandate mandate) {
-    Fund sourceFund = fundRepository.findByIsin(applicationToCancel.getSourceFundIsin());
+      ApplicationSnapshot applicationToCancel, Mandate mandate) {
+    String sourceFundIsin =
+        requireNonNull(
+            applicationToCancel.getSourceFundIsin(),
+            "Source fund isin missing: applicationId=" + applicationToCancel.getId());
+    Fund sourceFund =
+        requireNonNull(
+            fundRepository.findByIsin(sourceFundIsin),
+            "Source fund missing: isin=" + sourceFundIsin);
 
     final var exchange =
         FundTransferExchange.builder()
@@ -88,7 +100,6 @@ public class CancellationMandateBuilder {
     var exchanges = singletonList(exchange);
 
     // TODO legacy fields
-    mandate.setPillar(sourceFund.getPillar());
     mandate.setFundTransferExchanges(exchanges);
 
     mandate.setDetails(

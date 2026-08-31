@@ -49,7 +49,14 @@ public class SlackService implements OperationsNotificationService {
 
   @Override
   public void sendMessage(String message, Channel channel, Severity severity) {
-    SlackChannel slackChannel = SlackChannel.valueOf(channel.name());
+    SlackChannel slackChannel =
+        switch (channel) {
+          case AML -> SlackChannel.AML;
+          case WITHDRAWALS -> SlackChannel.WITHDRAWALS;
+          case CAPITAL_TRANSFER -> SlackChannel.CAPITAL_TRANSFER;
+          case INVESTMENT -> SlackChannel.INVESTMENT;
+          case SAVINGS -> SlackChannel.SAVINGS;
+        };
     String webhookUrl = configuration.getWebhookUrl(slackChannel);
 
     if (webhookUrl == null) {

@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.taxreport;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
+import ee.tuleva.onboarding.error.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;

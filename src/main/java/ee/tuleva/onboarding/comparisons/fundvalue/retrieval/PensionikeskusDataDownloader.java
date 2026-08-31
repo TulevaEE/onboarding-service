@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
 import static java.time.format.DateTimeFormatter.ISO_LOCAL_DATE;
+import static java.util.Objects.requireNonNull;
 import static org.springframework.http.HttpMethod.GET;
 import static org.springframework.http.HttpStatus.*;
 
@@ -13,7 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.text.ParseException;
-import java.time.Instant;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -37,6 +38,7 @@ public class PensionikeskusDataDownloader {
   public static final String PROVIDER = "PENSIONIKESKUS";
 
   private final RestTemplate restTemplate;
+  private final Clock clock;
   private static final DateTimeFormatter DEFAULT_DATE_FORMATTER = ISO_LOCAL_DATE;
   private static final DecimalFormat DEFAULT_DECIMAL_FORMAT;
 
@@ -47,8 +49,9 @@ public class PensionikeskusDataDownloader {
     DEFAULT_DECIMAL_FORMAT.setParseBigDecimal(true);
   }
 
-  public PensionikeskusDataDownloader(RestTemplateBuilder restTemplateBuilder) {
+  public PensionikeskusDataDownloader(RestTemplateBuilder restTemplateBuilder, Clock clock) {
     this.restTemplate = restTemplateBuilder.build();
+    this.clock = clock;
   }
 
   @Builder
@@ -63,7 +66,9 @@ public class PensionikeskusDataDownloader {
   public List<FundValue> downloadData(
       String baseUrl, LocalDate startDate, LocalDate endDate, CsvParserConfig config) {
     var url = buildUrl(baseUrl, startDate, endDate);
-    return restTemplate.execute(url, GET, requestCallback(), responseExtractor(config));
+    return requireNonNull(
+        restTemplate.execute(url, GET, requestCallback(), responseExtractor(config)),
+        "Pensionikeskus response is null: url=" + url);
   }
 
   private String buildUrl(String baseUrl, LocalDate startDate, LocalDate endDate) {
@@ -116,7 +121,7 @@ public class PensionikeskusDataDownloader {
       if (config.keyColumn() != null) {
         computedKey = config.keyPrefix() + "_" + columns[config.keyColumn()].trim();
       }
-      return Optional.of(new FundValue(computedKey, date, value, PROVIDER, Instant.now()));
+      return Optional.of(new FundValue(computedKey, date, value, PROVIDER, clock.instant()));
     } catch (Exception e) {
       log.error("Failed to parse line: {}. Error: {}", line, e.getMessage());
       return Optional.empty();

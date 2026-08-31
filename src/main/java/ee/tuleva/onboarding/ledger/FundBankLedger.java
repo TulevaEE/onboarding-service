@@ -4,9 +4,9 @@ import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.*;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.*;
 import static java.time.temporal.ChronoUnit.MICROS;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;

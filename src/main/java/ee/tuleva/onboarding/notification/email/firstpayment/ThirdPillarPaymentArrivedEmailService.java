@@ -1,12 +1,10 @@
 package ee.tuleva.onboarding.notification.email.firstpayment;
 
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.THIRD_PILLAR_PAYMENT_ARRIVED;
+import static ee.tuleva.onboarding.notification.email.EmailType.THIRD_PILLAR_PAYMENT_ARRIVED;
 
-import ee.tuleva.onboarding.analytics.transaction.thirdpillar.FirstThirdPillarPayment;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
+import ee.tuleva.onboarding.auth.principal.Names;
+import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
-import ee.tuleva.onboarding.savings.fund.SavingsFundFees;
-import ee.tuleva.onboarding.user.Names;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,7 +25,7 @@ public class ThirdPillarPaymentArrivedEmailService {
   private final ThirdPillarPaymentArrivedClaims claims;
   private final EmailService emailService;
   private final EmailPersistenceService emailPersistenceService;
-  private final SavingsFundFees savingsFundFees;
+  private final SavingsFundFeeRates savingsFundFees;
 
   public boolean send(FirstThirdPillarPayment payment) {
     if (!claims.claim(payment.personalCode())) {
@@ -37,7 +35,7 @@ public class ThirdPillarPaymentArrivedEmailService {
     String templateName = THIRD_PILLAR_PAYMENT_ARRIVED.getTemplateName(payment.emailLanguage());
     var message =
         emailService.newMandrillMessage(
-            payment.getEmail(), templateName, mergeVars(payment), tags(payment), null);
+            payment.getEmail(), templateName, mergeVars(payment), tags(payment));
 
     return emailService
         .send(payment, message, templateName)

@@ -1,14 +1,15 @@
 package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.ADJUSTMENT;
 import static ee.tuleva.onboarding.ledger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
 import static ee.tuleva.onboarding.ledger.UserAccount.CASH;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
+import ee.tuleva.onboarding.time.ClockConfig;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -18,12 +19,18 @@ import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.transaction.annotation.Transactional;
 
-@SpringBootTest
-@Transactional
+@DataJpaTest
+@Import({
+  LedgerService.class,
+  LedgerAccountService.class,
+  LedgerPartyService.class,
+  LedgerTransactionService.class,
+  ClockConfig.class
+})
 class LedgerTransactionMetadataTest {
 
   @Autowired private LedgerService ledgerService;

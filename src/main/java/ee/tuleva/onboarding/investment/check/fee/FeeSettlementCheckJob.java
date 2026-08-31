@@ -3,8 +3,8 @@ package ee.tuleva.onboarding.investment.check.fee;
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 
 import ee.tuleva.onboarding.deadline.BusinessDays;
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.event.RunFeeSettlementCheckRequested;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;

@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.investment.epis;
 
 import static ee.tuleva.onboarding.investment.epis.PevaRavaPhase.IGNORE;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.Map;

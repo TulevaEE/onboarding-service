@@ -1,14 +1,13 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
-import static ee.tuleva.onboarding.investment.event.PipelineStep.REPORT_EMAIL;
-import static ee.tuleva.onboarding.investment.event.PipelineStep.REPORT_PERSIST;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
+import static ee.tuleva.onboarding.pipeline.PipelineStep.REPORT_EMAIL;
+import static ee.tuleva.onboarding.pipeline.PipelineStep.REPORT_PERSIST;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
-import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
-import ee.tuleva.onboarding.investment.check.tracking.NavTrackingDifferenceGate;
-import ee.tuleva.onboarding.investment.event.PipelineTracker;
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValueWriter;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.pipeline.PipelineTracker;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -23,13 +22,13 @@ public class NavPublisher {
 
   private static final String NAV_PROVIDER = "TULEVA";
 
-  private final FundValueRepository fundValueRepository;
+  private final FundValueWriter fundValueWriter;
   private final NavReportMapper navReportMapper;
   private final NavReportRepository navReportRepository;
   private final NavReportEmailSender navReportEmailSender;
   private final NavNotifier navNotifier;
   private final OperationsNotificationService notificationService;
-  private final NavTrackingDifferenceGate trackingDifferenceGate;
+  private final NavPublicationGate trackingDifferenceGate;
   private final PipelineTracker pipelineTracker;
 
   public void publish(NavCalculationResult result) {
@@ -203,7 +202,7 @@ public class NavPublisher {
             NAV_PROVIDER,
             result.calculatedAt());
 
-    fundValueRepository.save(navValue);
+    fundValueWriter.save(navValue);
   }
 
   private void publishAum(NavCalculationResult result) {
@@ -215,6 +214,6 @@ public class NavPublisher {
             NAV_PROVIDER,
             result.calculatedAt());
 
-    fundValueRepository.save(aumValue);
+    fundValueWriter.save(aumValue);
   }
 }

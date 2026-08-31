@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.analytics.transaction.fund;
 
 import ee.tuleva.onboarding.analytics.transaction.generic.AbstractTransactionSynchronizer;
 import ee.tuleva.onboarding.analytics.transaction.generic.SyncContext;
+import ee.tuleva.onboarding.analytics.transaction.generic.SyncResult;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.transaction.FundTransactionDto;
 import java.time.LocalDate;
@@ -35,10 +36,10 @@ public class FundTransactionSynchronizer
     private final LocalDate endDate;
   }
 
-  public void sync(String fundIsin, LocalDate startDate, LocalDate endDate) {
+  public SyncResult sync(String fundIsin, LocalDate startDate, LocalDate endDate) {
     FundSyncContext context =
         FundSyncContext.builder().isin(fundIsin).startDate(startDate).endDate(endDate).build();
-    super.syncInternal(context);
+    return super.syncInternal(context);
   }
 
   @Override

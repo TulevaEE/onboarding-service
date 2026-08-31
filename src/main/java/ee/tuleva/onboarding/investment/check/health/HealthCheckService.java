@@ -3,10 +3,11 @@ package ee.tuleva.onboarding.investment.check.health;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.PASS;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
+import ee.tuleva.onboarding.investment.position.AccountType;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -138,8 +139,7 @@ public class HealthCheckService {
         .reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 
-  private List<FundPosition> filterByType(
-      List<FundPosition> positions, ee.tuleva.onboarding.investment.position.AccountType type) {
+  private List<FundPosition> filterByType(List<FundPosition> positions, AccountType type) {
     return positions.stream().filter(p -> p.getAccountType() == type).toList();
   }
 

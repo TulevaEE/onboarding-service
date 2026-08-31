@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.investment.check.limit;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.check.limit.CheckType.POSITION;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.LocalDate;

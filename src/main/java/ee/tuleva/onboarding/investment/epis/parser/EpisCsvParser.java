@@ -1,14 +1,10 @@
 package ee.tuleva.onboarding.investment.epis.parser;
 
-import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
@@ -16,9 +12,6 @@ import org.springframework.stereotype.Component;
 public class EpisCsvParser {
 
   private static final int HEADER_SCAN_ROWS = 10;
-  private static final Pattern DATE = Pattern.compile("(\\d{1,2})\\.(\\d{1,2})\\.(\\d{4})");
-  private static final Pattern COMMA_GROUPED = Pattern.compile("^-?\\d{1,3}(,\\d{3})+$");
-  private static final Pattern PERIOD_GROUPED = Pattern.compile("^-?\\d{1,3}(\\.\\d{3})+$");
 
   public EpisCsv parse(String content, String headerMarker) {
     return parse(content, headerMarker, 1);
@@ -102,57 +95,6 @@ public class EpisCsvParser {
       }
     }
     return null;
-  }
-
-  public static @Nullable BigDecimal parseNumber(
-      @Nullable String value, DecimalConvention convention) {
-    if (value == null) {
-      return null;
-    }
-    String cleaned = value.replace("%", "").replaceAll("[\\s\\u00A0]", "");
-    if (cleaned.isEmpty()) {
-      return null;
-    }
-    boolean hasComma = cleaned.indexOf(',') >= 0;
-    boolean hasPeriod = cleaned.indexOf('.') >= 0;
-    if (hasComma && hasPeriod) {
-      cleaned =
-          cleaned.lastIndexOf(',') > cleaned.lastIndexOf('.')
-              ? cleaned.replace(".", "").replace(',', '.')
-              : cleaned.replace(",", "");
-    } else if (hasComma || hasPeriod) {
-      cleaned = resolveSingleSeparator(cleaned, hasComma ? ',' : '.', convention);
-    }
-    try {
-      return new BigDecimal(cleaned);
-    } catch (NumberFormatException e) {
-      throw new IllegalArgumentException(
-          "Unparseable EPIS number: value=" + value + ", convention=" + convention, e);
-    }
-  }
-
-  private static String resolveSingleSeparator(
-      String cleaned, char separator, DecimalConvention convention) {
-    Pattern grouping = separator == ',' ? COMMA_GROUPED : PERIOD_GROUPED;
-    boolean isGrouping = grouping.matcher(cleaned).matches();
-    boolean isConventionDecimal = separator == convention.decimalSeparator();
-    boolean singleOccurrence = cleaned.indexOf(separator) == cleaned.lastIndexOf(separator);
-    boolean isDecimalUsage = isConventionDecimal && singleOccurrence;
-    if (isGrouping && !isDecimalUsage) {
-      return cleaned.replace(String.valueOf(separator), "");
-    }
-    return cleaned.replace(separator, '.');
-  }
-
-  public static @Nullable LocalDate findDate(String line) {
-    Matcher matcher = DATE.matcher(line);
-    if (!matcher.find()) {
-      return null;
-    }
-    return LocalDate.of(
-        Integer.parseInt(matcher.group(3)),
-        Integer.parseInt(matcher.group(2)),
-        Integer.parseInt(matcher.group(1)));
   }
 
   static String normalize(String value) {

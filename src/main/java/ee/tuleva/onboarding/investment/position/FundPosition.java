@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.investment.position;
 
 import static jakarta.persistence.EnumType.STRING;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Enumerated;
@@ -18,6 +18,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.jspecify.annotations.Nullable;
 
 @Data
 @Builder
@@ -33,7 +34,7 @@ public class FundPosition {
 
   @NotNull private LocalDate navDate;
 
-  private LocalDate reportDate;
+  private @Nullable LocalDate reportDate;
 
   @NotNull
   @Enumerated(STRING)
@@ -46,15 +47,15 @@ public class FundPosition {
 
   @NotNull private String accountName;
 
-  private String accountId;
+  private @Nullable String accountId;
 
-  private BigDecimal quantity;
+  private @Nullable BigDecimal quantity;
 
-  private BigDecimal marketPrice;
+  private @Nullable BigDecimal marketPrice;
 
-  private String currency;
+  private @Nullable String currency;
 
-  private BigDecimal marketValue;
+  private @Nullable BigDecimal marketValue;
 
   private Instant createdAt;
 

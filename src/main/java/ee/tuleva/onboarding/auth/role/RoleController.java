@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
-public class RoleController {
+class RoleController {
 
   private final RoleSwitchService roleSwitchService;
 

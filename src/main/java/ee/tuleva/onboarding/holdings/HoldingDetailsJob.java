@@ -3,7 +3,8 @@ package ee.tuleva.onboarding.holdings;
 import static javax.xml.XMLConstants.ACCESS_EXTERNAL_DTD;
 import static javax.xml.stream.XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES;
 
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.ftp.FtpClient;
+import ee.tuleva.onboarding.ftp.FtpClient;
+import ee.tuleva.onboarding.ftp.FtpClientFactory;
 import ee.tuleva.onboarding.holdings.converters.HoldingDetailConverter;
 import ee.tuleva.onboarding.holdings.persistence.HoldingDetail;
 import ee.tuleva.onboarding.holdings.persistence.HoldingDetailsRepository;
@@ -42,7 +43,7 @@ public class HoldingDetailsJob {
   private final LocalDate initialDate = LocalDate.of(1970, 1, 1);
 
   private final HoldingDetailsRepository repository;
-  private final FtpClient morningstarFtpClient;
+  private final FtpClientFactory morningstarFtpClientFactory;
 
   @Scheduled(cron = "0 0 * * * *", zone = "Europe/Tallinn")
   @SchedulerLock(name = "HoldingDetailsJob_runJob", lockAtMostFor = "55m", lockAtLeastFor = "5m")
@@ -67,9 +68,10 @@ public class HoldingDetailsJob {
   }
 
   private void downloadHoldingDetails(LocalDate from) {
+    FtpClient ftpClient = morningstarFtpClientFactory.create();
     try {
-      morningstarFtpClient.open();
-      List<String> fileNames = morningstarFtpClient.listFiles(PATH);
+      ftpClient.open();
+      List<String> fileNames = ftpClient.listFiles(PATH);
 
       log.info("Retrieved list of files: {}", fileNames);
       for (String fileName : fileNames) {
@@ -79,7 +81,7 @@ public class HoldingDetailsJob {
         log.info("Retrieved a file: fileName={}, fileDate={}", fileName, fileDate);
 
         if (fileDate.compareTo(from) > 0) {
-          parseHoldingDetailsFile(fileName, fileDate);
+          parseHoldingDetailsFile(ftpClient, fileName, fileDate);
         }
       }
     } catch (IOException e) {
@@ -87,18 +89,14 @@ public class HoldingDetailsJob {
     } catch (JAXBException | XMLStreamException e) {
       throw new RuntimeException(e);
     } finally {
-      closeFtpConnection();
+      closeFtpConnection(ftpClient);
     }
   }
 
-  private void parseHoldingDetailsFile(String fileName, LocalDate fileDate)
+  private void parseHoldingDetailsFile(FtpClient ftpClient, String fileName, LocalDate fileDate)
       throws IOException, JAXBException, XMLStreamException {
     log.info("Parsing file: fileName={}", fileName);
-    InputStream fileStream = morningstarFtpClient.downloadFileStream(PATH + fileName);
-
-    if (fileStream == null) {
-      throw new IllegalStateException("FTP download returned no stream: path=" + PATH + fileName);
-    }
+    InputStream fileStream = ftpClient.downloadFileStream(PATH + fileName);
 
     List<HoldingDetail> parsedDetails = new ArrayList<>();
     try (InputStream downloadedStream = fileStream;
@@ -115,16 +113,16 @@ public class HoldingDetailsJob {
           .parse();
     }
 
-    if (!morningstarFtpClient.completePendingCommand()) {
+    if (!ftpClient.completePendingCommand()) {
       throw new IllegalStateException("FTP transfer did not complete: path=" + PATH + fileName);
     }
 
     parsedDetails.forEach(this::persistHoldingDetail);
   }
 
-  private void closeFtpConnection() {
+  private void closeFtpConnection(FtpClient ftpClient) {
     try {
-      morningstarFtpClient.close();
+      ftpClient.close();
     } catch (IOException e) {
       log.error("Unable to close FTP connection: path={}", PATH, e);
     }
@@ -190,7 +188,7 @@ public class HoldingDetailsJob {
 
       while ((e = xmlEventReader.peek()) != null) {
         boolean wasCursorChanged = false;
-        if (((XMLEvent) e).isStartElement()) {
+        if (e.isStartElement()) {
           wasCursorChanged = processStartElement(xmlEventReader, (StartElement) e);
         } else if (e.isEndElement()) {
           wasCursorChanged = processEndElement(xmlEventReader, (EndElement) e);

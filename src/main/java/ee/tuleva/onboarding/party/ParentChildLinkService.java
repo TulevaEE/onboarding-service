@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.party;
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.PENDING_KYC;
 
+import ee.tuleva.onboarding.auth.role.ChildRepresentations;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
@@ -12,11 +13,12 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class ParentChildLinkService {
+public class ParentChildLinkService implements ChildRepresentations {
 
   private final ParentChildLinkRepository parentChildLinkRepository;
   private final Clock clock;
 
+  @Override
   public List<String> findActivelyRepresentedChildCodes(String parentPersonalCode) {
     return parentChildLinkRepository
         .findByParentPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
@@ -34,6 +36,7 @@ public class ParentChildLinkService {
   }
 
   // The parent acting *as* the child: requires the parent to have cleared their own KYC.
+  @Override
   public boolean isActiveRepresentation(String parentPersonalCode, String childPersonalCode) {
     return isRepresentation(parentPersonalCode, childPersonalCode, Set.of(ACTIVE));
   }
@@ -49,6 +52,7 @@ public class ParentChildLinkService {
         .toList();
   }
 
+  @Override
   public List<String> findPendingChildCodes(String parentPersonalCode) {
     return parentChildLinkRepository
         .findByParentPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(

@@ -1,11 +1,13 @@
 package ee.tuleva.onboarding.mandate.payment.rate;
 
 import static ee.tuleva.onboarding.mandate.payment.rate.PaymentRateController.*;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.mandate.Mandate;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
+import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -30,9 +32,12 @@ class PaymentRateController {
         "Setting user {} second pillar payment rate {}",
         authenticatedPerson.getUserId(),
         paymentRateCommand.getPaymentRate());
+    BigDecimal paymentRate =
+        requireNonNull(
+            paymentRateCommand.getPaymentRate(),
+            "Missing payment rate: userId=" + authenticatedPerson.getUserId());
     Mandate savedMandate =
-        paymentRateService.savePaymentRateMandate(
-            authenticatedPerson, paymentRateCommand.getPaymentRate());
-    return PaymentRateResponse.builder().mandateId(savedMandate.getId()).build();
+        paymentRateService.savePaymentRateMandate(authenticatedPerson, paymentRate);
+    return PaymentRateResponse.builder().mandateId(savedMandate.getIdOrThrow()).build();
   }
 }

@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.LocalDate;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;

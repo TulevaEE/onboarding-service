@@ -15,7 +15,7 @@ public enum BankMessageType {
   }
 
   public static BankMessageType fromXmlType(String xmlType) {
-    return Arrays.stream(BankMessageType.values())
+    return Arrays.stream(values())
         .filter(type -> type.xmlType.equals(xmlType))
         .findFirst()
         .orElseThrow(() -> new IllegalArgumentException("Cannot find XML message type"));

@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.investment.check.limit;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.check.limit.BreachSeverity.*;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.time.ClockHolder;

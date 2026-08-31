@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 import static java.math.BigDecimal.ZERO;
 import static java.time.ZoneOffset.UTC;
 import static java.util.Comparator.comparing;
+import static java.util.Objects.requireNonNull;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -88,12 +89,14 @@ public class YahooFundValueRetriever implements ComparisonIndexRetriever {
     String fetchUri = buildFetchUri(fundName, startDate, endDate);
 
     YahooFinanceResponse response =
-        restClient
-            .get()
-            .uri(fetchUri)
-            .accept(APPLICATION_JSON)
-            .retrieve()
-            .body(YahooFinanceResponse.class);
+        requireNonNull(
+            restClient
+                .get()
+                .uri(fetchUri)
+                .accept(APPLICATION_JSON)
+                .retrieve()
+                .body(YahooFinanceResponse.class),
+            "Yahoo response is null: ticker=" + fundName);
 
     Result result = response.chart().result().getFirst();
     if (result.timestamp() == null) {
@@ -112,7 +115,7 @@ public class YahooFundValueRetriever implements ComparisonIndexRetriever {
           "Yahoo Finance response timestamp and fund values count do not match: fund=" + fundName);
     }
 
-    var now = Instant.now();
+    var now = clock.instant();
     List<FundValue> allValues =
         IntStream.range(0, fundValues.size())
             .mapToObj(

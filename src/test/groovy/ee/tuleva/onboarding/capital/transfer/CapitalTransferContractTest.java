@@ -243,8 +243,7 @@ class CapitalTransferContractTest {
       assertThat(violations).hasSize(1);
       ConstraintViolation<CapitalTransferContract> violation = violations.iterator().next();
       assertThat(violation.getPropertyPath().toString()).isEqualTo("iban");
-      assertThat(violation.getMessage())
-          .isEqualTo("{ee.tuleva.onboarding.capital.transfer.iban.ValidIban.message}");
+      assertThat(violation.getMessage()).isEqualTo("{ee.tuleva.onboarding.iban.ValidIban.message}");
     }
 
     @Test
@@ -316,6 +315,70 @@ class CapitalTransferContractTest {
 
       // then
       assertThat(violations).isEmpty();
+    }
+  }
+
+  @Nested
+  class FluentTransitions {
+
+    @Test
+    void everyTransitionReturnsTheSameContractForChaining() {
+      CapitalTransferContract contract = contractBuilder.build();
+      assertThat(contract.assignBuyer(buyer)).isSameAs(contract);
+      assertThat(contract.signBySeller(sellerSignedContainer)).isSameAs(contract);
+      assertThat(contract.signByBuyer(buyerSignedContainer)).isSameAs(contract);
+      assertThat(contract.confirmPaymentByBuyer()).isSameAs(contract);
+      assertThat(contract.confirmPaymentBySeller()).isSameAs(contract);
+      assertThat(contract.cancel()).isSameAs(contract);
+    }
+
+    @Test
+    void executedMovesAnApprovedContractToExecuted() {
+      CapitalTransferContract contract =
+          contractBuilder.state(CapitalTransferContractState.APPROVED).build();
+
+      assertThat(contract.executed()).isSameAs(contract);
+      assertThat(contract.getState()).isEqualTo(CapitalTransferContractState.EXECUTED);
+    }
+
+    @Test
+    void executedRequiresAnApprovedContract() {
+      CapitalTransferContract contract = contractBuilder.build();
+
+      assertThrows(IllegalStateException.class, contract::executed);
+    }
+
+    @Test
+    void approvedAndNotifiedMovesAnExecutedContractOn() {
+      CapitalTransferContract contract =
+          contractBuilder.state(CapitalTransferContractState.EXECUTED).build();
+
+      assertThat(contract.approvedAndNotified()).isSameAs(contract);
+      assertThat(contract.getState()).isEqualTo(CapitalTransferContractState.APPROVED_AND_NOTIFIED);
+    }
+
+    @Test
+    void approvedAndNotifiedRequiresAnExecutedContract() {
+      CapitalTransferContract contract =
+          contractBuilder.state(CapitalTransferContractState.APPROVED).build();
+
+      assertThrows(IllegalStateException.class, contract::approvedAndNotified);
+    }
+  }
+
+  @Nested
+  class PartyNames {
+
+    @Test
+    void exposesSellerAndBuyerNames() {
+      CapitalTransferContract contract = contractBuilder.build();
+
+      assertThat(contract.getSellerFirstName()).isEqualTo(seller.getFirstName());
+      assertThat(contract.getSellerLastName()).isEqualTo(seller.getLastName());
+      assertThat(contract.getSellerFullName()).isEqualTo(seller.getFullName());
+      assertThat(contract.getBuyerFirstName()).isEqualTo(buyer.getFirstName());
+      assertThat(contract.getBuyerLastName()).isEqualTo(buyer.getLastName());
+      assertThat(contract.getBuyerFullName()).isEqualTo(buyer.getFullName());
     }
   }
 }

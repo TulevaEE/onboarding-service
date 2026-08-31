@@ -6,7 +6,7 @@ import static ee.tuleva.onboarding.account.portfolio.PortfolioGroup.THIRD_PILLAR
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonNonMember;
 import static ee.tuleva.onboarding.comparisons.returns.Returns.Return.Type.PERSONAL;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.CONTRIBUTION_CASH;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
@@ -15,18 +15,18 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import ee.tuleva.onboarding.account.SavingsFundNav;
 import ee.tuleva.onboarding.account.transaction.Transaction;
 import ee.tuleva.onboarding.account.transaction.TransactionService;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
-import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValueQueries;
 import ee.tuleva.onboarding.comparisons.returns.Returns;
 import ee.tuleva.onboarding.comparisons.returns.ReturnsService;
 import ee.tuleva.onboarding.comparisons.returns.provider.PersonalReturnProvider;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
-import ee.tuleva.onboarding.savings.fund.SavingsFundConfiguration;
-import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
+import ee.tuleva.onboarding.savings.SavingsFundConfiguration;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -55,9 +55,9 @@ class PortfolioServiceTest {
 
   @Mock private TransactionService transactionService;
   @Mock private FundRepository fundRepository;
-  @Mock private FundValueRepository fundValueRepository;
+  @Mock private FundValueQueries fundValueQueries;
   @Mock private ReturnsService returnsService;
-  @Mock private FundNavProvider fundNavProvider;
+  @Mock private SavingsFundNav fundNavProvider;
 
   private final Clock clock =
       Clock.fixed(TODAY.atStartOfDay(ZoneOffset.UTC).toInstant(), ZoneOffset.UTC);
@@ -72,7 +72,7 @@ class PortfolioServiceTest {
         new PortfolioService(
             transactionService,
             fundRepository,
-            fundValueRepository,
+            fundValueQueries,
             savingsFundConfiguration,
             returnsService,
             fundNavProvider,
@@ -118,8 +118,8 @@ class PortfolioServiceTest {
         .willReturn(List.of(buy(PILLAR_2, "2019-03-05T10:00:00Z", "100", "2")));
     given(fundRepository.findAll())
         .willReturn(List.of(Fund.builder().isin(PILLAR_2).pillar(2).build()));
-    given(fundValueRepository.getLatestValue(any(), any())).willReturn(Optional.empty());
-    given(fundValueRepository.findValuesBetweenDates(eq(PILLAR_2), eq(FIRST_HOLDING), eq(TO)))
+    given(fundValueQueries.getLatestValue(any(), any())).willReturn(Optional.empty());
+    given(fundValueQueries.findValuesBetweenDates(eq(PILLAR_2), eq(FIRST_HOLDING), eq(TO)))
         .willReturn(
             List.of(
                 fundValue(PILLAR_2, "2019-03-05", "2"), fundValue(PILLAR_2, "2025-12-31", "3")));
@@ -145,11 +145,11 @@ class PortfolioServiceTest {
                 Fund.builder().isin(TKF).pillar(null).build(),
                 Fund.builder().isin(PILLAR_2).pillar(2).build()));
     given(fundNavProvider.safeMaxNavDate()).willReturn(FAR_FUTURE);
-    given(fundValueRepository.getLatestValue(any(), any())).willReturn(Optional.empty());
-    given(fundValueRepository.findValuesBetweenDates(eq(TKF), eq(FROM), eq(TO)))
+    given(fundValueQueries.getLatestValue(any(), any())).willReturn(Optional.empty());
+    given(fundValueQueries.findValuesBetweenDates(eq(TKF), eq(FROM), eq(TO)))
         .willReturn(
             List.of(fundValue(TKF, "2025-01-01", "10"), fundValue(TKF, "2025-12-31", "12")));
-    given(fundValueRepository.findValuesBetweenDates(eq(PILLAR_2), eq(FROM), eq(TO)))
+    given(fundValueQueries.findValuesBetweenDates(eq(PILLAR_2), eq(FROM), eq(TO)))
         .willReturn(
             List.of(
                 fundValue(PILLAR_2, "2025-01-01", "2"), fundValue(PILLAR_2, "2025-12-31", "3")));
@@ -184,9 +184,9 @@ class PortfolioServiceTest {
         .willReturn(List.of(buy(TKF, "2024-06-01T10:00:00Z", "100", "10")));
     given(fundRepository.findAll()).willReturn(List.of(Fund.builder().isin(TKF).build()));
     given(fundNavProvider.safeMaxNavDate()).willReturn(FAR_FUTURE);
-    given(fundValueRepository.getLatestValue(TKF, FROM.minusDays(1)))
+    given(fundValueQueries.getLatestValue(TKF, FROM.minusDays(1)))
         .willReturn(Optional.of(fundValue(TKF, "2024-12-30", "11")));
-    given(fundValueRepository.findValuesBetweenDates(eq(TKF), eq(FROM), eq(TO)))
+    given(fundValueQueries.findValuesBetweenDates(eq(TKF), eq(FROM), eq(TO)))
         .willReturn(List.of(fundValue(TKF, "2025-12-31", "12")));
 
     Portfolio portfolio = portfolioService.getPortfolio(person, FROM, TO);
@@ -209,10 +209,10 @@ class PortfolioServiceTest {
             List.of(
                 Fund.builder().isin(PILLAR_2).pillar(2).build(),
                 Fund.builder().isin(PILLAR_3).pillar(3).build()));
-    given(fundValueRepository.getLatestValue(any(), any())).willReturn(Optional.empty());
-    given(fundValueRepository.findValuesBetweenDates(eq(PILLAR_2), eq(FROM), eq(TO)))
+    given(fundValueQueries.getLatestValue(any(), any())).willReturn(Optional.empty());
+    given(fundValueQueries.findValuesBetweenDates(eq(PILLAR_2), eq(FROM), eq(TO)))
         .willReturn(List.of(fundValue(PILLAR_2, "2025-12-31", "3")));
-    given(fundValueRepository.findValuesBetweenDates(eq(PILLAR_3), eq(FROM), eq(TO)))
+    given(fundValueQueries.findValuesBetweenDates(eq(PILLAR_3), eq(FROM), eq(TO)))
         .willReturn(List.of(fundValue(PILLAR_3, "2025-12-31", "6")));
     given(returnsService.get(person, FROM, TO, List.of(PersonalReturnProvider.SECOND_PILLAR)))
         .willReturn(personalReturn(PersonalReturnProvider.SECOND_PILLAR, "0.0712"));
@@ -234,8 +234,8 @@ class PortfolioServiceTest {
         .willReturn(List.of(buy(TKF, "2025-01-01T10:00:00Z", "100", "10")));
     given(fundRepository.findAll()).willReturn(List.of(Fund.builder().isin(TKF).build()));
     given(fundNavProvider.safeMaxNavDate()).willReturn(FAR_FUTURE);
-    given(fundValueRepository.getLatestValue(any(), any())).willReturn(Optional.empty());
-    given(fundValueRepository.findValuesBetweenDates(eq(TKF), eq(FROM), eq(TO)))
+    given(fundValueQueries.getLatestValue(any(), any())).willReturn(Optional.empty());
+    given(fundValueQueries.findValuesBetweenDates(eq(TKF), eq(FROM), eq(TO)))
         .willReturn(List.of(fundValue(TKF, "2025-12-31", "12")));
 
     Portfolio portfolio = portfolioService.getPortfolio(person, FROM, TO);
@@ -251,8 +251,8 @@ class PortfolioServiceTest {
         .willReturn(List.of(buy(TKF, "2025-01-01T10:00:00Z", "100", "10")));
     given(fundRepository.findAll()).willReturn(List.of(Fund.builder().isin(TKF).build()));
     given(fundNavProvider.safeMaxNavDate()).willReturn(safeMaxNavDate);
-    given(fundValueRepository.getLatestValue(TKF, FROM.minusDays(1))).willReturn(Optional.empty());
-    given(fundValueRepository.findValuesBetweenDates(eq(TKF), eq(FROM), eq(safeMaxNavDate)))
+    given(fundValueQueries.getLatestValue(TKF, FROM.minusDays(1))).willReturn(Optional.empty());
+    given(fundValueQueries.findValuesBetweenDates(eq(TKF), eq(FROM), eq(safeMaxNavDate)))
         .willReturn(
             List.of(fundValue(TKF, "2025-01-01", "10"), fundValue(TKF, "2025-11-28", "11")));
 
@@ -269,9 +269,9 @@ class PortfolioServiceTest {
         .willReturn(List.of(buy(PILLAR_2, "2025-01-01T10:00:00Z", "200", "2")));
     given(fundRepository.findAll())
         .willReturn(List.of(Fund.builder().isin(PILLAR_2).pillar(2).build()));
-    given(fundValueRepository.getLatestValue(PILLAR_2, FROM.minusDays(1)))
+    given(fundValueQueries.getLatestValue(PILLAR_2, FROM.minusDays(1)))
         .willReturn(Optional.empty());
-    given(fundValueRepository.findValuesBetweenDates(eq(PILLAR_2), eq(FROM), eq(TO)))
+    given(fundValueQueries.findValuesBetweenDates(eq(PILLAR_2), eq(FROM), eq(TO)))
         .willReturn(List.of(fundValue(PILLAR_2, "2025-12-31", "3")));
     given(returnsService.get(eq(person), eq(FROM), eq(TO), any()))
         .willReturn(personalReturn(PersonalReturnProvider.SECOND_PILLAR, "0.0712"));
@@ -287,9 +287,9 @@ class PortfolioServiceTest {
         .willReturn(List.of(buy(PILLAR_2, "2025-06-02T10:00:00Z", "200", "2")));
     given(fundRepository.findAll())
         .willReturn(List.of(Fund.builder().isin(PILLAR_2).pillar(2).build()));
-    given(fundValueRepository.getLatestValue(PILLAR_2, TODAY.minusDays(1)))
+    given(fundValueQueries.getLatestValue(PILLAR_2, TODAY.minusDays(1)))
         .willReturn(Optional.of(fundValue(PILLAR_2, "2026-01-01", "3")));
-    given(fundValueRepository.findValuesBetweenDates(eq(PILLAR_2), eq(TODAY), eq(TODAY)))
+    given(fundValueQueries.findValuesBetweenDates(eq(PILLAR_2), eq(TODAY), eq(TODAY)))
         .willReturn(List.of(fundValue(PILLAR_2, "2026-01-02", "3.05")));
 
     Portfolio portfolio = portfolioService.getPortfolio(person, TODAY, TODAY);
@@ -311,9 +311,9 @@ class PortfolioServiceTest {
         .willReturn(List.of(buy(PILLAR_2, "2025-06-02T10:00:00Z", "200", "2")));
     given(fundRepository.findAll())
         .willReturn(List.of(Fund.builder().isin(PILLAR_2).pillar(2).build()));
-    given(fundValueRepository.getLatestValue(PILLAR_2, TODAY.minusDays(1)))
+    given(fundValueQueries.getLatestValue(PILLAR_2, TODAY.minusDays(1)))
         .willReturn(Optional.of(fundValue(PILLAR_2, "2026-01-01", "3")));
-    given(fundValueRepository.findValuesBetweenDates(eq(PILLAR_2), eq(TODAY), eq(nextMonth)))
+    given(fundValueQueries.findValuesBetweenDates(eq(PILLAR_2), eq(TODAY), eq(nextMonth)))
         .willReturn(List.of(fundValue(PILLAR_2, "2026-01-02", "3.05")));
 
     Portfolio portfolio = portfolioService.getPortfolio(person, TODAY, nextMonth);

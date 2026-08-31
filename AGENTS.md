@@ -51,6 +51,14 @@ Follow **Uncle Bob** (Clean Code, SOLID), **Kent Beck** (TDD, simple design), **
 - `./gradlew spotlessApply` (Google Java style via Spotless)
 - `./gradlew spotlessCheck`
 
+### Refactoring Metrics (the oracle)
+- `./gradlew scorecard` — runs tests + PMD, aggregates everything into `metrics/scorecard.json`, and **fails on any ratchet regression** vs the previous commit's scorecard. Ratcheted down: modulith violations, module cycles, PMD violations, unmarked packages, @SpringBootTest count, top-15 class lines. Ratcheted up: line/branch coverage.
+- `ModuleMetricsTest` emits `build/metrics/modulith.json` (violations, cycles, per-module instability) and ratchets against the committed `metrics/baseline.json` — lower the baseline numbers as you fix boundaries, never raise them.
+- `./gradlew pitest -Ppitest.target='ee.tuleva.onboarding.some.package.*'` — mutation testing (PIT + Spock/JUnit). Scope to changed classes per iteration; full runs are for trend data only (incremental scores and full-run scores are not comparable).
+- `scripts/pitest-slice.sh <module>` — runs pitest for one top-level module and records it in `metrics/pitest-slices.json` (per-module mutations/detected/score/date). Mutation scores decompose by class, so the mutation-weighted aggregate over complete slices equals a full run; the scorecard reports it as `mutationScoreSliced`/`mutationsSliced`/`pitestSlicedModules`. The loop runs one slice per iteration as a rotation; once every module has a slice (now the case), the aggregate IS the headline `mutationScore`; the rotation keeps slices fresh module by module.
+- PMD complexity/cohesion thresholds live in `config/pmd/ruleset.xml`; violation counts feed the scorecard, thresholds stay fixed.
+- After improving a metric, regenerate and commit `metrics/scorecard.json` (and lower `metrics/baseline.json`) in the same commit as the improvement.
+
 ### Git
 - Always `git add` new files immediately
 - NEVER commit or push without user approval
@@ -115,7 +123,7 @@ Prefer: `text` over `varchar` unless the length is a domain invariant (e.g., `va
 - All test files under `src/test/groovy/` (including Java tests)
 - Naming: `*Test.java` / `*Spec.groovy`. Descriptive method names, no `@DisplayName`, no Spock label strings
 - Groovy BigDecimal: `10500.00` not `new BigDecimal("10500.00")`
-- 100% coverage enforced for AML and deadline packages
+- Coverage floors for AML and deadline packages are enforced via `jacocoTestCoverageVerification` (wired into `check`); floors are set at measured reality and only ratcheted up, back toward 100%
 - **AssertJ only**. Compare full objects/collections. Never assert on exception/log messages
 - Only mock injected dependencies. Never mock data classes. Prefer real instances and test fixtures
 - **BDDMockito** — prefer `given`/`willReturn` over `when`/`thenReturn` for readability

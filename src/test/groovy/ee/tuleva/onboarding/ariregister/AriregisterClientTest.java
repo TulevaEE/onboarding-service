@@ -129,6 +129,10 @@ class AriregisterClientTest {
         .andExpect(xpath("//ar:ariregister_parool", NS).evaluatesTo("testpass"))
         .andExpect(xpath("//ar:yandmed", NS).evaluatesTo("true"))
         .andExpect(xpath("//ar:iandmed", NS).evaluatesTo("true"))
+        .andExpect(xpath("//ar:kandmed", NS).evaluatesTo("false"))
+        .andExpect(xpath("//ar:dandmed", NS).evaluatesTo("false"))
+        .andExpect(xpath("//ar:maarused", NS).evaluatesTo("false"))
+        .andExpect(xpath("//ar:keel", NS).evaluatesTo("est"))
         .andRespond(withPayload(detailandmedResponsePayload()));
 
     var result = client.getCompanyDetails("99000001");
@@ -165,6 +169,7 @@ class AriregisterClientTest {
         .andExpect(xpath("//ar:ariregister_kasutajanimi", NS).evaluatesTo("testuser"))
         .andExpect(xpath("//ar:ariregister_parool", NS).evaluatesTo("testpass"))
         .andExpect(xpath("//ar:ainult_kehtivad", NS).evaluatesTo("true"))
+        .andExpect(xpath("//ar:keel", NS).evaluatesTo("est"))
         .andRespond(withPayload(beneficialOwnersResponsePayload()));
 
     var result = client.getBeneficialOwners("99000001");

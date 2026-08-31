@@ -5,7 +5,6 @@ import static jakarta.persistence.EnumType.STRING;
 
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.time.ClockHolder;
-import jakarta.annotation.Nullable;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -15,6 +14,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
+import org.jspecify.annotations.Nullable;
 
 @Data
 @Builder
@@ -106,13 +106,5 @@ public class RedemptionRequest {
 
   public PartyId getPartyId() {
     return new PartyId(partyType, partyCode);
-  }
-
-  public static class RedemptionRequestBuilder {
-    public RedemptionRequestBuilder partyId(PartyId partyId) {
-      this.partyType = partyId.type();
-      this.partyCode = partyId.code();
-      return this;
-    }
   }
 }

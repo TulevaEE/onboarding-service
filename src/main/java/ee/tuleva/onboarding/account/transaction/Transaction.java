@@ -1,18 +1,19 @@
 package ee.tuleva.onboarding.account.transaction;
 
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION;
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH;
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH_WORKPLACE;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.CONTRIBUTION;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.CONTRIBUTION_CASH;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.CONTRIBUTION_CASH_WORKPLACE;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Comparator.comparing;
 
 import ee.tuleva.onboarding.currency.Currency;
-import ee.tuleva.onboarding.epis.cashflows.CashFlow;
+import ee.tuleva.onboarding.epis.CashFlow;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.Builder;
 import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.Nullable;
 
 @Builder
 public record Transaction(
@@ -22,7 +23,7 @@ public record Transaction(
     Instant time,
     Instant priceTime,
     Instant settledTime,
-    String isin,
+    @Nullable String isin,
     CashFlow.Type type,
     BigDecimal units,
     BigDecimal nav)

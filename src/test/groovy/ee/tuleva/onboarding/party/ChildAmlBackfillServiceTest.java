@@ -33,6 +33,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import ee.tuleva.onboarding.aml.AmlCheck;
 import ee.tuleva.onboarding.aml.AmlCheckRepository;
 import ee.tuleva.onboarding.aml.AmlService;
+import ee.tuleva.onboarding.aml.SanctionAndPepScreener;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.party.ChildAmlBackfillResult.ChildResult;
@@ -68,6 +69,7 @@ class ChildAmlBackfillServiceTest {
   @Mock private CustodyVerificationService custodyVerificationService;
   @Mock private PopulationRegisterClient populationRegisterClient;
   @Mock private AmlService amlService;
+  @Mock private SanctionAndPepScreener sanctionAndPepScreener;
   @Mock private AmlCheckRepository amlCheckRepository;
   @Mock private UserRepository userRepository;
 
@@ -83,6 +85,7 @@ class ChildAmlBackfillServiceTest {
             custodyVerificationService,
             populationRegisterClient,
             amlService,
+            sanctionAndPepScreener,
             amlCheckRepository,
             userRepository,
             clock);
@@ -140,7 +143,7 @@ class ChildAmlBackfillServiceTest {
     evidenceWithCitizenship.put("citizenship", "EE");
     evidenceWithCitizenship.put("citizenships", List.of("EE"));
     verify(amlService).addCustodyRightCheck(CHILD, true, evidenceWithCitizenship);
-    verify(amlService)
+    verify(sanctionAndPepScreener)
         .addSanctionAndPepCheckIfMissing(
             new PersonImpl(CHILD, "MARI", "MAASIKAS"), Countries.of("EE"));
     assertThat(result.children())
@@ -162,7 +165,8 @@ class ChildAmlBackfillServiceTest {
     assertThat(result.children())
         .containsExactly(
             new ChildResult(CHILD, ALREADY_BACKFILLED, null, null, NOT_ATTEMPTED, false, null));
-    verifyNoInteractions(custodyVerificationService, populationRegisterClient, amlService);
+    verifyNoInteractions(
+        custodyVerificationService, populationRegisterClient, amlService, sanctionAndPepScreener);
   }
 
   @Test
@@ -182,7 +186,7 @@ class ChildAmlBackfillServiceTest {
 
     ChildAmlBackfillResult result = service.backfill(OPS, false);
 
-    verify(amlService)
+    verify(sanctionAndPepScreener)
         .addSanctionAndPepCheckIfMissing(
             new PersonImpl(CHILD, "MARI", "MAASIKAS"), Countries.of("EE"));
     assertThat(result.children())
@@ -217,7 +221,7 @@ class ChildAmlBackfillServiceTest {
     ChildAmlBackfillResult result = service.backfill(OPS, false);
 
     verify(amlService).addCustodyRightCheck(CHILD, false, evidence);
-    verify(amlService)
+    verify(sanctionAndPepScreener)
         .addSanctionAndPepCheckIfMissing(
             new PersonImpl(CHILD, "MARI", "MAASIKAS"), Countries.of("EE"));
     verify(parentChildLinkRepository, never()).save(any());
@@ -235,7 +239,7 @@ class ChildAmlBackfillServiceTest {
 
     ChildAmlBackfillResult result = service.backfill(OPS, false);
 
-    verify(amlService, never()).addSanctionAndPepCheckIfMissing(any(), any());
+    verify(sanctionAndPepScreener, never()).addSanctionAndPepCheckIfMissing(any(), any());
     verify(populationRegisterClient, never()).fetchPersonFresh(any(), any());
     assertThat(result.children()).extracting(ChildResult::screeningStatus).containsExactly(SKIPPED);
   }
@@ -267,7 +271,7 @@ class ChildAmlBackfillServiceTest {
     ChildAmlBackfillResult result = service.backfill(OPS, false);
 
     verify(amlService, never()).addCustodyRightCheck(any(), anyBoolean(), any());
-    verify(amlService)
+    verify(sanctionAndPepScreener)
         .addSanctionAndPepCheckIfMissing(
             new PersonImpl(CHILD, "MARI", "MAASIKAS"), Countries.of("EE"));
     verifyNoInteractions(custodyVerificationService);
@@ -284,7 +288,8 @@ class ChildAmlBackfillServiceTest {
     assertThat(result.children())
         .containsExactly(
             new ChildResult(ADULT, TURNED_ADULT, null, null, NOT_ATTEMPTED, false, null));
-    verifyNoInteractions(custodyVerificationService, populationRegisterClient, amlService);
+    verifyNoInteractions(
+        custodyVerificationService, populationRegisterClient, amlService, sanctionAndPepScreener);
   }
 
   @Test
@@ -345,7 +350,8 @@ class ChildAmlBackfillServiceTest {
     assertThat(result.children())
         .extracting(ChildResult::childPersonalCode, ChildResult::outcome)
         .containsExactly(tuple(OTHER_CHILD, GUARDIAN_LINK), tuple(CHILD, WOULD_PROCESS));
-    verifyNoInteractions(custodyVerificationService, populationRegisterClient, amlService);
+    verifyNoInteractions(
+        custodyVerificationService, populationRegisterClient, amlService, sanctionAndPepScreener);
   }
 
   @Test
@@ -356,7 +362,8 @@ class ChildAmlBackfillServiceTest {
 
     assertThat(result.total()).isZero();
     assertThat(result.children()).isEmpty();
-    verifyNoInteractions(custodyVerificationService, populationRegisterClient, amlService);
+    verifyNoInteractions(
+        custodyVerificationService, populationRegisterClient, amlService, sanctionAndPepScreener);
   }
 
   @Test
@@ -371,7 +378,8 @@ class ChildAmlBackfillServiceTest {
     assertThat(result.children())
         .containsExactly(
             new ChildResult(CHILD, ALREADY_BACKFILLED, null, null, NOT_ATTEMPTED, false, null));
-    verifyNoInteractions(custodyVerificationService, populationRegisterClient, amlService);
+    verifyNoInteractions(
+        custodyVerificationService, populationRegisterClient, amlService, sanctionAndPepScreener);
   }
 
   @Test

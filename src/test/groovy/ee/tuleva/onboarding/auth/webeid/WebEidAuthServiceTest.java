@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.auth.webeid;
 import static ee.tuleva.onboarding.auth.idcard.IdDocumentType.ESTONIAN_CITIZEN_ID_CARD;
 import static ee.tuleva.onboarding.auth.webeid.WebEidCertificateFixture.certificate;
 import static ee.tuleva.onboarding.auth.webeid.WebEidCertificateFixture.certificateWithIssuer;
+import static ee.tuleva.onboarding.auth.webeid.WebEidCertificateFixture.certificateWithSubjectDn;
 import static ee.tuleva.onboarding.auth.webeid.WebEidCertificateFixture.certificateWithoutClientAuth;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -33,6 +34,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class WebEidAuthServiceTest {
@@ -159,6 +161,54 @@ class WebEidAuthServiceTest {
 
     assertThatThrownBy(() -> service.authenticate(new WebEidAuthToken()))
         .isInstanceOf(WebEidAuthException.class);
+  }
+
+  @Test
+  void authenticate_failsWhenCertificateHasNoGivenName() throws AuthTokenException {
+    setupNonceStore();
+    when(authTokenValidator.validate(any(), any()))
+        .thenReturn(
+            certificateWithSubjectDn(
+                "C=EE, O=ESTEID, OU=AUTHENTICATION, SURNAME=MÄNNIK, SERIALNUMBER=PNOEE-"
+                    + TEST_PERSONAL_CODE));
+
+    assertThatThrownBy(() -> service.authenticate(new WebEidAuthToken()))
+        .isInstanceOf(WebEidAuthException.class);
+  }
+
+  @Test
+  void authenticate_failsWhenCertificateHasNoSurname() throws AuthTokenException {
+    setupNonceStore();
+    when(authTokenValidator.validate(any(), any()))
+        .thenReturn(
+            certificateWithSubjectDn(
+                "C=EE, O=ESTEID, OU=AUTHENTICATION, GIVENNAME=MARI-LIIS, SERIALNUMBER=PNOEE-"
+                    + TEST_PERSONAL_CODE));
+
+    assertThatThrownBy(() -> service.authenticate(new WebEidAuthToken()))
+        .isInstanceOf(WebEidAuthException.class);
+  }
+
+  @Test
+  void authenticate_failsWhenCertificateHasNoPersonalCode() throws AuthTokenException {
+    setupNonceStore();
+    when(authTokenValidator.validate(any(), any()))
+        .thenReturn(
+            certificateWithSubjectDn(
+                "C=EE, O=ESTEID, OU=AUTHENTICATION, GIVENNAME=MARI-LIIS, SURNAME=MÄNNIK"));
+
+    assertThatThrownBy(() -> service.authenticate(new WebEidAuthToken()))
+        .isInstanceOf(WebEidAuthException.class);
+  }
+
+  @Test
+  void extractPersonalCode_returnsSerialNumberUnchangedWhenNotEstonian() {
+    var foreignSerialNumber = "PASJP-123456789";
+
+    String personalCode =
+        ReflectionTestUtils.invokeMethod(service, "extractPersonalCode", foreignSerialNumber);
+
+    assertThat(personalCode).isEqualTo(foreignSerialNumber);
   }
 
   private void setupNonceStore() throws AuthTokenException {

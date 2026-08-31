@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.hackathon;
 
-import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.getNameMergeVars;
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.HACKATHON_REGISTRATION;
+import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.getNameMergeVars;
+import static ee.tuleva.onboarding.notification.email.EmailType.HACKATHON_REGISTRATION;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
+import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.user.User;
 import java.util.List;
@@ -27,11 +27,7 @@ public class HackathonEmailService {
 
     MandrillMessage message =
         emailService.newMandrillMessage(
-            registration.getEmail(),
-            templateName,
-            getNameMergeVars(user),
-            List.of("hackathon"),
-            null);
+            registration.getEmail(), templateName, getNameMergeVars(user), List.of("hackathon"));
 
     emailService
         .send(user, message, templateName)

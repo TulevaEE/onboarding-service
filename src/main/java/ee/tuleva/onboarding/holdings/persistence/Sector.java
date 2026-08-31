@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.holdings.persistence;
 
+import static java.util.Objects.requireNonNull;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -17,20 +19,20 @@ public enum Sector {
   TECHNOLOGY(11);
 
   private int value;
-  private static Map map = new HashMap<>();
+  private static Map<Integer, Sector> map = new HashMap<>();
 
   Sector(int value) {
     this.value = value;
   }
 
   static {
-    for (Sector sector : Sector.values()) {
+    for (Sector sector : values()) {
       map.put(sector.value, sector);
     }
   }
 
   public static Sector valueOf(int value) {
-    return (Sector) map.get(value);
+    return requireNonNull(map.get(value), "Unknown sector value: value=" + value);
   }
 
   public int getValue() {

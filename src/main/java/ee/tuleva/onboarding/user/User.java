@@ -3,14 +3,14 @@ package ee.tuleva.onboarding.user;
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
 import static jakarta.persistence.CascadeType.*;
 import static jakarta.persistence.GenerationType.*;
+import static java.util.Objects.requireNonNull;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.notification.email.Emailable;
-import ee.tuleva.onboarding.party.Party;
+import ee.tuleva.onboarding.personalcode.PersonalCode;
+import ee.tuleva.onboarding.personalcode.ValidPersonalCode;
 import ee.tuleva.onboarding.user.exception.NotAMemberException;
 import ee.tuleva.onboarding.user.member.Member;
-import ee.tuleva.onboarding.user.personalcode.PersonalCode;
-import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -19,6 +19,7 @@ import java.io.Serializable;
 import java.time.Instant;
 import java.util.Optional;
 import lombok.*;
+import org.jspecify.annotations.Nullable;
 
 @Data
 @Builder
@@ -27,21 +28,21 @@ import lombok.*;
 @AllArgsConstructor
 @NoArgsConstructor
 @EqualsAndHashCode(exclude = {"member"})
-@ToString(exclude = {"member"})
-public class User implements Person, Emailable, Serializable, Party {
+@ToString(exclude = {"member", "personalCode", "email", "phoneNumber", "firstName", "lastName"})
+public class User implements Person, Emailable, Serializable {
 
   @Id
   @GeneratedValue(strategy = IDENTITY)
-  private Long id;
+  private @Nullable Long id;
 
   @OneToOne(cascade = ALL, mappedBy = "user")
   Member member;
 
   @ValidPersonalCode private String personalCode;
 
-  @Email private String email;
+  @Email private @Nullable String email;
 
-  private String phoneNumber;
+  private @Nullable String phoneNumber;
 
   @NotBlank private String firstName;
 
@@ -76,12 +77,12 @@ public class User implements Person, Emailable, Serializable, Party {
   @PrePersist
   protected void onCreate() {
     createdDate = clock().instant();
-    updatedDate = Instant.now();
+    updatedDate = clock().instant();
   }
 
   @PreUpdate
   protected void onUpdate() {
-    updatedDate = Instant.now();
+    updatedDate = clock().instant();
   }
 
   public boolean isMember() {
@@ -96,13 +97,16 @@ public class User implements Person, Emailable, Serializable, Party {
     return getMemberOrThrow().getId();
   }
 
-  @Override
   public String code() {
     return getPersonalCode();
   }
 
-  @Override
   public String name() {
     return getFullName();
+  }
+
+  @JsonIgnore
+  public Long getIdOrThrow() {
+    return requireNonNull(id, "User id missing: personalCode=" + personalCode);
   }
 }

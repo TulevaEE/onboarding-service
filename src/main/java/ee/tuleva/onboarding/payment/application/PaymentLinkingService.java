@@ -61,8 +61,6 @@ public class PaymentLinkingService implements PaymentApplications {
 
     final var linkedCashFlow = getLinkedCashFlow(payments, cashFlowStatement.getTransactions());
 
-    log.info("Linked cash flow: {}", linkedCashFlow);
-
     for (final var entry : linkedCashFlow.entrySet()) {
       final var payment = entry.getKey();
       final var linkedCash = entry.getValue();

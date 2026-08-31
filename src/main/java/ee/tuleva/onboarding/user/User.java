@@ -28,7 +28,7 @@ import org.jspecify.annotations.Nullable;
 @AllArgsConstructor
 @NoArgsConstructor
 @EqualsAndHashCode(exclude = {"member"})
-@ToString(exclude = {"member"})
+@ToString(exclude = {"member", "personalCode", "email", "phoneNumber", "firstName", "lastName"})
 public class User implements Person, Emailable, Serializable {
 
   @Id

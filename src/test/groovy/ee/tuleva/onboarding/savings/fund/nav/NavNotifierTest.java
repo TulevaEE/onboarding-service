@@ -137,7 +137,7 @@ class NavNotifierTest {
   void notify_rendersDayChangeAndTrackingDifferenceFromServices() {
     var result = aNavCalculationResult();
     var previousNavDate = publicHolidays.previousWorkingDay(result.positionReportDate());
-    given(fundNavQueryService.findNavPerUnit("TKF100", previousNavDate))
+    given(fundNavQueryService.findPublishedNavPerUnit("TKF100", previousNavDate))
         .willReturn(Optional.of(new BigDecimal("9.8000")));
     given(
             trackingDifferenceQueryService.findLatestModelPortfolio(
@@ -164,7 +164,7 @@ class NavNotifierTest {
   @Test
   void notify_stillSendsBaseMessageWhenEnrichmentLookupFails() {
     var result = aNavCalculationResult();
-    given(fundNavQueryService.findNavPerUnit(any(), any()))
+    given(fundNavQueryService.findPublishedNavPerUnit(any(), any()))
         .willThrow(new RuntimeException("nav_report read failed"));
 
     navNotifier.notify(result);

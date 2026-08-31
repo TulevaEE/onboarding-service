@@ -218,7 +218,7 @@ class PevaRavaFlowServiceTest {
   private void givenNav(TulevaFund fund, String nav) {
     given(fundNavQueryService.findLatestNavDateOnOrBefore(fund.getCode(), AS_OF_DATE))
         .willReturn(Optional.of(NAV_DATE));
-    given(fundNavQueryService.findNavPerUnit(fund.getCode(), NAV_DATE))
+    given(fundNavQueryService.findPublishedNavPerUnit(fund.getCode(), NAV_DATE))
         .willReturn(Optional.of(new BigDecimal(nav)));
   }
 

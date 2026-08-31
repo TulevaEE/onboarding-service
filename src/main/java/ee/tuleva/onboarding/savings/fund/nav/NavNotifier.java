@@ -104,7 +104,7 @@ class NavNotifier {
     try {
       var previousNavDate = publicHolidays.previousWorkingDay(result.positionReportDate());
       return fundNavQueryService
-          .findNavPerUnit(result.fund().getCode(), previousNavDate)
+          .findPublishedNavPerUnit(result.fund().getCode(), previousNavDate)
           .filter(previous -> previous.signum() != 0)
           .map(
               previous ->

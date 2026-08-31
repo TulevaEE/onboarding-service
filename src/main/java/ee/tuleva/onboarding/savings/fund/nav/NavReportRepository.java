@@ -13,8 +13,39 @@ import org.springframework.transaction.annotation.Transactional;
 
 public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
 
-  Optional<NavReportRow> findFirstByFundCodeAndNavDateAndAccountType(
-      String fundCode, LocalDate navDate, String accountType);
+  // The NAV that actually went out. nav_report keeps every calculation for a date, so a
+  // recalculation that is still unpublished must never be served as the official price.
+  // Order by published_at first: a backdated recalculation has a lower id but a later publication.
+  @Query(
+      value =
+          """
+          SELECT market_price FROM nav_report
+          WHERE nav_date = :navDate AND fund_code = :fundCode
+            AND account_type = :accountType
+            AND published_at IS NOT NULL
+          ORDER BY published_at DESC, id DESC LIMIT 1
+          """,
+      nativeQuery = true)
+  Optional<BigDecimal> findPublishedNavPerUnit(
+      @Param("navDate") LocalDate navDate,
+      @Param("fundCode") String fundCode,
+      @Param("accountType") String accountType);
+
+  // The newest calculation whether or not it is published, for the gates that run between
+  // persisting a NAV calculation and publishing it.
+  @Query(
+      value =
+          """
+          SELECT market_price FROM nav_report
+          WHERE nav_date = :navDate AND fund_code = :fundCode
+            AND account_type = :accountType
+          ORDER BY id DESC LIMIT 1
+          """,
+      nativeQuery = true)
+  Optional<BigDecimal> findLatestNavPerUnit(
+      @Param("navDate") LocalDate navDate,
+      @Param("fundCode") String fundCode,
+      @Param("accountType") String accountType);
 
   @Query(
       value =

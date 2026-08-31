@@ -24,29 +24,31 @@ class FundNavQueryServiceTest {
   private static final LocalDate NAV_DATE = LocalDate.of(2026, 5, 7);
 
   @Test
-  void findNavPerUnit_returnsMarketPriceFromNavRow() {
-    var navRow =
-        NavReportRow.builder()
-            .fundCode("TUK00")
-            .navDate(NAV_DATE)
-            .accountType("NAV")
-            .accountName("Net Asset Value")
-            .marketPrice(new BigDecimal("0.60985"))
-            .build();
-    given(navReportRepository.findFirstByFundCodeAndNavDateAndAccountType("TUK00", NAV_DATE, "NAV"))
-        .willReturn(Optional.of(navRow));
+  void findPublishedNavPerUnit_returnsTheOfficialNavPerUnit() {
+    given(navReportRepository.findPublishedNavPerUnit(NAV_DATE, "TUK00", "NAV"))
+        .willReturn(Optional.of(new BigDecimal("0.60985")));
 
-    var result = service.findNavPerUnit("TUK00", NAV_DATE);
+    var result = service.findPublishedNavPerUnit("TUK00", NAV_DATE);
 
     assertThat(result).hasValue(new BigDecimal("0.60985"));
   }
 
   @Test
-  void findNavPerUnit_returnsEmptyWhenNoRow() {
-    given(navReportRepository.findFirstByFundCodeAndNavDateAndAccountType("TUK00", NAV_DATE, "NAV"))
+  void findPublishedNavPerUnit_returnsEmptyWhenNothingIsPublished() {
+    given(navReportRepository.findPublishedNavPerUnit(NAV_DATE, "TUK00", "NAV"))
         .willReturn(Optional.empty());
 
-    assertThat(service.findNavPerUnit("TUK00", NAV_DATE)).isEmpty();
+    assertThat(service.findPublishedNavPerUnit("TUK00", NAV_DATE)).isEmpty();
+  }
+
+  @Test
+  void findLatestNavPerUnit_readsTheNewestCalculationPublishedOrNot() {
+    given(navReportRepository.findLatestNavPerUnit(NAV_DATE, "TUK00", "NAV"))
+        .willReturn(Optional.of(new BigDecimal("0.61000")));
+
+    var result = service.findLatestNavPerUnit("TUK00", NAV_DATE);
+
+    assertThat(result).hasValue(new BigDecimal("0.61000"));
   }
 
   @Test

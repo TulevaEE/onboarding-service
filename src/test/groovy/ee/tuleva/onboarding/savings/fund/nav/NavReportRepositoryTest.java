@@ -1,9 +1,12 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
 import static ee.tuleva.onboarding.currency.Currency.EUR;
+import static org.assertj.core.api.Assertions.as;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.InstanceOfAssertFactories.BIG_DECIMAL;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -213,5 +216,70 @@ class NavReportRepositoryTest {
     navReportRepository.markAsPublished(calcId);
 
     assertThat(navReportRepository.existsPublishedByNavDateAndFundCode(navDate, "TKF100")).isTrue();
+  }
+
+  @Test
+  void findPublishedNavPerUnit_ignoresANewerUnpublishedCalculation() {
+    var navDate = LocalDate.of(2026, 8, 27);
+    var publishedCalculation = UUID.randomUUID();
+    navReportRepository.save(navRow(navDate, publishedCalculation, "1.40660000", null));
+    navReportRepository.markAsPublished(publishedCalculation);
+
+    navReportRepository.save(navRow(navDate, UUID.randomUUID(), "1.50000000", null));
+
+    assertThat(navReportRepository.findPublishedNavPerUnit(navDate, "TKF100", "NAV"))
+        .get(as(BIG_DECIMAL))
+        .isEqualByComparingTo("1.4066");
+  }
+
+  @Test
+  void findPublishedNavPerUnit_picksTheMostRecentlyPublishedNotTheHighestId() {
+    var navDate = LocalDate.of(2026, 8, 27);
+    // A backdated recalculation is saved first and published last, so id order and publication
+    // order disagree. The NAV that actually went out is the one published last.
+    navReportRepository.save(
+        navRow(navDate, UUID.randomUUID(), "1.40660000", Instant.parse("2026-08-28T12:00:00Z")));
+    navReportRepository.save(
+        navRow(navDate, UUID.randomUUID(), "1.39000000", Instant.parse("2026-08-28T09:00:00Z")));
+
+    assertThat(navReportRepository.findPublishedNavPerUnit(navDate, "TKF100", "NAV"))
+        .get(as(BIG_DECIMAL))
+        .isEqualByComparingTo("1.4066");
+  }
+
+  @Test
+  void findPublishedNavPerUnit_returnsEmptyWhenNothingIsPublishedYet() {
+    var navDate = LocalDate.of(2026, 8, 27);
+    navReportRepository.save(navRow(navDate, UUID.randomUUID(), "1.40660000", null));
+
+    assertThat(navReportRepository.findPublishedNavPerUnit(navDate, "TKF100", "NAV")).isEmpty();
+  }
+
+  @Test
+  void findLatestNavPerUnit_readsTheCalculationBeingGatedBeforeItIsPublished() {
+    var navDate = LocalDate.of(2026, 8, 27);
+    var publishedCalculation = UUID.randomUUID();
+    navReportRepository.save(navRow(navDate, publishedCalculation, "1.40660000", null));
+    navReportRepository.markAsPublished(publishedCalculation);
+
+    navReportRepository.save(navRow(navDate, UUID.randomUUID(), "1.50000000", null));
+
+    assertThat(navReportRepository.findLatestNavPerUnit(navDate, "TKF100", "NAV"))
+        .get(as(BIG_DECIMAL))
+        .isEqualByComparingTo("1.5000");
+  }
+
+  private static NavReportRow navRow(
+      LocalDate navDate, UUID calculationId, String navPerUnit, Instant publishedAt) {
+    return NavReportRow.builder()
+        .navDate(navDate)
+        .fundCode("TKF100")
+        .accountType("NAV")
+        .accountName("Net Asset Value")
+        .marketPrice(new BigDecimal(navPerUnit))
+        .marketValue(new BigDecimal("1000000.00"))
+        .calculationId(calculationId)
+        .publishedAt(publishedAt)
+        .build();
   }
 }

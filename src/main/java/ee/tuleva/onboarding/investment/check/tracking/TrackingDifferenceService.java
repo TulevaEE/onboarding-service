@@ -112,8 +112,8 @@ class TrackingDifferenceService {
     var results = new ArrayList<TrackingDifferenceResult>();
 
     var previousDate = publicHolidays.previousWorkingDay(checkDate);
-    var todayValue = fundNavQueryService.findNavPerUnit(fund.getCode(), checkDate);
-    var yesterdayValue = fundNavQueryService.findNavPerUnit(fund.getCode(), previousDate);
+    var todayValue = fundNavQueryService.findLatestNavPerUnit(fund.getCode(), checkDate);
+    var yesterdayValue = fundNavQueryService.findLatestNavPerUnit(fund.getCode(), previousDate);
 
     if (todayValue.isEmpty() || yesterdayValue.isEmpty()) {
       log.warn(

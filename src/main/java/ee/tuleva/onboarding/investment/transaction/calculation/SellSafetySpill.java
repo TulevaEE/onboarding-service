@@ -46,7 +46,8 @@ final class SellSafetySpill {
       return residual;
     }
     addInto(
-        sells, TradeDistribution.distributeCapped(sellHeadroom, residual, threshold, sellHeadroom));
+        sells,
+        CappedDistribution.distributeCapped(sellHeadroom, residual, threshold, sellHeadroom));
     return targetSellAmount.subtract(sumArray(sells));
   }
 
@@ -72,7 +73,7 @@ final class SellSafetySpill {
     }
     addInto(
         sells,
-        TradeDistribution.distributeCapped(
+        CappedDistribution.distributeCapped(
             topUpHeadroom, residual, BigDecimal.ZERO, topUpHeadroom));
     return targetSellAmount.subtract(sumArray(sells));
   }

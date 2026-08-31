@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction.calculation;
 
+import static ee.tuleva.onboarding.investment.transaction.calculation.CappedDistribution.distributeCapped;
 import static ee.tuleva.onboarding.investment.transaction.calculation.FastSellBucketing.distributeSellByOverweight;
 import static ee.tuleva.onboarding.investment.transaction.calculation.FastSellBucketing.fastSellIndices;
 import static ee.tuleva.onboarding.investment.transaction.calculation.FastSellBucketing.finalizeSells;
@@ -10,7 +11,6 @@ import static ee.tuleva.onboarding.investment.transaction.calculation.SellSafety
 import static ee.tuleva.onboarding.investment.transaction.calculation.SellSafetySpill.applySellSafetySpill;
 import static ee.tuleva.onboarding.investment.transaction.calculation.SellSafetySpill.sumArray;
 import static ee.tuleva.onboarding.investment.transaction.calculation.TradeDistribution.MIN_MEANINGFUL_AMOUNT;
-import static ee.tuleva.onboarding.investment.transaction.calculation.TradeDistribution.distributeCapped;
 import static ee.tuleva.onboarding.investment.transaction.calculation.TradeDistribution.distributeSellWithCap;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;

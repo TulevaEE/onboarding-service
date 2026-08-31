@@ -21,7 +21,7 @@ buildscript {
     }
 }
 
-val springModulithVersion = "2.1.0"
+val springModulithVersion = "2.1.1"
 
 plugins {
     java

@@ -186,57 +186,85 @@ class SettlementCheckJob {
       return;
     }
     message.append("\n\n").append(fundLabel);
-    if (!unmatched.isEmpty()) {
-      message.append("\n  Matchimata tehingud (").append(unmatched.size()).append("):");
-      for (SebPendingTransactionRow row : unmatched) {
-        message
-            .append("\n    - ISIN: ")
-            .append(row.isin())
-            .append(", kogus: ")
-            .append(row.quantity())
-            .append(", suund: ")
-            .append(row.side())
-            .append(", Our ref: ")
-            .append(row.ourRef())
-            .append(", kauplemiskuupäev: ")
-            .append(tradeDate(row));
-      }
+    appendUnmatchedSection(message, unmatched);
+    appendOverdueSection(message, overdue);
+    appendInconsistentSection(message, inconsistent);
+  }
+
+  private void appendUnmatchedSection(
+      StringBuilder message, List<SebPendingTransactionRow> unmatched) {
+    if (unmatched.isEmpty()) {
+      return;
     }
-    if (!overdue.isEmpty()) {
-      message.append("\n  Hilinenud arveldused (").append(overdue.size()).append("):");
-      for (OverdueLine line : overdue) {
-        TransactionOrder order = line.order();
-        String tag =
-            line.status() == SENT ? "SAADETUD, täitmist pole" : "TÄIDETUD, arveldus hilinenud";
-        message
-            .append("\n    - [")
-            .append(tag)
-            .append("] Order ")
-            .append(order.getId())
-            .append(", ISIN: ")
-            .append(order.getInstrumentIsin())
-            .append(", saadetud: ")
-            .append(order.getOrderTimestamp() == null ? "?" : orderDate(order.getOrderTimestamp()))
-            .append(", tähtaeg: ")
-            .append(line.deadline());
-      }
+    message.append("\n  Matchimata tehingud (").append(unmatched.size()).append("):");
+    for (SebPendingTransactionRow row : unmatched) {
+      appendUnmatchedRow(message, row);
     }
-    if (!inconsistent.isEmpty()) {
-      message.append("\n  Ebakõlalised vastavused (").append(inconsistent.size()).append("):");
-      for (InconsistentMatchedRow entry : inconsistent) {
-        message
-            .append("\n    - Order ")
-            .append(entry.order().getId())
-            .append(", põhjus: ")
-            .append(entry.reason())
-            .append(", ISIN: ")
-            .append(entry.row().isin())
-            .append(", Our ref: ")
-            .append(entry.row().ourRef())
-            .append(", Client ref: ")
-            .append(entry.row().clientRef());
-      }
+  }
+
+  private void appendUnmatchedRow(StringBuilder message, SebPendingTransactionRow row) {
+    message
+        .append("\n    - ISIN: ")
+        .append(row.isin())
+        .append(", kogus: ")
+        .append(row.quantity())
+        .append(", suund: ")
+        .append(row.side())
+        .append(", Our ref: ")
+        .append(row.ourRef())
+        .append(", kauplemiskuupäev: ")
+        .append(tradeDate(row));
+  }
+
+  private void appendOverdueSection(StringBuilder message, List<OverdueLine> overdue) {
+    if (overdue.isEmpty()) {
+      return;
     }
+    message.append("\n  Hilinenud arveldused (").append(overdue.size()).append("):");
+    for (OverdueLine line : overdue) {
+      appendOverdueLine(message, line);
+    }
+  }
+
+  private void appendOverdueLine(StringBuilder message, OverdueLine line) {
+    TransactionOrder order = line.order();
+    String tag = line.status() == SENT ? "SAADETUD, täitmist pole" : "TÄIDETUD, arveldus hilinenud";
+    message
+        .append("\n    - [")
+        .append(tag)
+        .append("] Order ")
+        .append(order.getId())
+        .append(", ISIN: ")
+        .append(order.getInstrumentIsin())
+        .append(", saadetud: ")
+        .append(order.getOrderTimestamp() == null ? "?" : orderDate(order.getOrderTimestamp()))
+        .append(", tähtaeg: ")
+        .append(line.deadline());
+  }
+
+  private void appendInconsistentSection(
+      StringBuilder message, List<InconsistentMatchedRow> inconsistent) {
+    if (inconsistent.isEmpty()) {
+      return;
+    }
+    message.append("\n  Ebakõlalised vastavused (").append(inconsistent.size()).append("):");
+    for (InconsistentMatchedRow entry : inconsistent) {
+      appendInconsistentRow(message, entry);
+    }
+  }
+
+  private void appendInconsistentRow(StringBuilder message, InconsistentMatchedRow entry) {
+    message
+        .append("\n    - Order ")
+        .append(entry.order().getId())
+        .append(", põhjus: ")
+        .append(entry.reason())
+        .append(", ISIN: ")
+        .append(entry.row().isin())
+        .append(", Our ref: ")
+        .append(entry.row().ourRef())
+        .append(", Client ref: ")
+        .append(entry.row().clientRef());
   }
 
   private static @Nullable LocalDate tradeDate(SebPendingTransactionRow row) {

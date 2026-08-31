@@ -188,9 +188,9 @@ def convention_metrics():
     log = Path("/tmp/test-output.txt")
     if log.exists():
         for line in log.open(encoding="utf-8"):
-            match = re.search(r"BUILD SUCCESSFUL in (?:(\d+)m )?(\d+)s", line)
-            if match:
-                wall_time = int(match.group(1) or 0) * 60 + int(match.group(2))
+            match = re.search(r"BUILD SUCCESSFUL in (?:(\d+)m)? ?(?:(\d+)s)?$", line.rstrip())
+            if match and (match.group(1) or match.group(2)):
+                wall_time = int(match.group(1) or 0) * 60 + int(match.group(2) or 0)
     long_classes = sum(
         1
         for f in main.rglob("*.java")

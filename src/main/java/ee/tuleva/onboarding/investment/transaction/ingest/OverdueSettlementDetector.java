@@ -59,35 +59,69 @@ class OverdueSettlementDetector {
       Set<UUID> reportClientRefs,
       Set<String> reportOurRefs,
       List<TransactionOrder> candidates) {
-    Map<Long, List<TransactionExecution>> executionsByOrderId =
-        executionRepository
-            .findByOrderIdIn(candidates.stream().map(TransactionOrder::getId).toList())
-            .stream()
-            .collect(Collectors.groupingBy(TransactionExecution::getOrderId));
+    Map<Long, List<TransactionExecution>> executionsByOrderId = executionsByOrderId(candidates);
 
     List<OverdueLine> overdue = new ArrayList<>();
     for (TransactionOrder order : candidates) {
-      if (order.getOrderStatus() == SENT) {
-        LocalDate deadline = sentDeadline(order);
-        if (deadline != null && deadline.isBefore(referenceDate)) {
-          overdue.add(new OverdueLine(order, SENT, deadline));
-        }
-      } else if (order.getOrderStatus() == EXECUTED) {
-        List<TransactionExecution> executions =
-            executionsByOrderId.getOrDefault(order.getId(), List.of());
-        LocalDate deadline = executedDeadline(order, executions);
-        if (deadline == null || !deadline.isBefore(referenceDate)) {
-          continue;
-        }
-        boolean settledSinceFreshReport =
-            fresh && !isPresentInReport(order, executions, reportClientRefs, reportOurRefs);
-        if (settledSinceFreshReport) {
-          continue;
-        }
-        overdue.add(new OverdueLine(order, EXECUTED, deadline));
-      }
+      overdueLineFor(
+              order, referenceDate, fresh, reportClientRefs, reportOurRefs, executionsByOrderId)
+          .ifPresent(overdue::add);
     }
     return overdue;
+  }
+
+  private Map<Long, List<TransactionExecution>> executionsByOrderId(
+      List<TransactionOrder> candidates) {
+    return executionRepository
+        .findByOrderIdIn(candidates.stream().map(TransactionOrder::getId).toList())
+        .stream()
+        .collect(Collectors.groupingBy(TransactionExecution::getOrderId));
+  }
+
+  private Optional<OverdueLine> overdueLineFor(
+      TransactionOrder order,
+      LocalDate referenceDate,
+      boolean fresh,
+      Set<UUID> reportClientRefs,
+      Set<String> reportOurRefs,
+      Map<Long, List<TransactionExecution>> executionsByOrderId) {
+    if (order.getOrderStatus() == SENT) {
+      return sentOverdueLine(order, referenceDate);
+    }
+    if (order.getOrderStatus() == EXECUTED) {
+      List<TransactionExecution> executions =
+          executionsByOrderId.getOrDefault(order.getId(), List.of());
+      return executedOverdueLine(
+          order, executions, referenceDate, fresh, reportClientRefs, reportOurRefs);
+    }
+    return Optional.empty();
+  }
+
+  private Optional<OverdueLine> sentOverdueLine(TransactionOrder order, LocalDate referenceDate) {
+    LocalDate deadline = sentDeadline(order);
+    if (deadline == null || !deadline.isBefore(referenceDate)) {
+      return Optional.empty();
+    }
+    return Optional.of(new OverdueLine(order, SENT, deadline));
+  }
+
+  private Optional<OverdueLine> executedOverdueLine(
+      TransactionOrder order,
+      List<TransactionExecution> executions,
+      LocalDate referenceDate,
+      boolean fresh,
+      Set<UUID> reportClientRefs,
+      Set<String> reportOurRefs) {
+    LocalDate deadline = executedDeadline(order, executions);
+    if (deadline == null || !deadline.isBefore(referenceDate)) {
+      return Optional.empty();
+    }
+    boolean settledSinceFreshReport =
+        fresh && !isPresentInReport(order, executions, reportClientRefs, reportOurRefs);
+    if (settledSinceFreshReport) {
+      return Optional.empty();
+    }
+    return Optional.of(new OverdueLine(order, EXECUTED, deadline));
   }
 
   private @Nullable LocalDate sentDeadline(TransactionOrder order) {

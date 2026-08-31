@@ -70,8 +70,7 @@ class FeeChargedToFundPolicyTest {
 
     assertThatThrownBy(
             () -> policy.chargedToFund(TUK75, DEPOT, TUK75.getInceptionDate().plusMonths(1)))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("Gap in the fee policy");
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test

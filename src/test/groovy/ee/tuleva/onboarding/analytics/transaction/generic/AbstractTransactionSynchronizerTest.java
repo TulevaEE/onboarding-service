@@ -17,6 +17,7 @@ import ee.tuleva.onboarding.time.FixedClockConfig;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -60,12 +61,13 @@ class AbstractTransactionSynchronizerTest extends FixedClockConfig {
   void emptyFetchResultSkipsDeleteAndSaveAndOpensNoTransaction() {
     synchronizer.transactionsToFetch = List.of();
 
-    synchronizer.triggerSync(context);
+    SyncResult result = synchronizer.triggerSync(context);
 
     assertThat(synchronizer.callLog)
         .containsExactly("getTransactionTypeName", "getSyncIdentifier", "fetch");
     assertThat(synchronizer.savedEntities).isEmpty();
     then(transactionManager).shouldHaveNoInteractions();
+    assertThat(result).isEqualTo(new SyncResult("test-type", "test-id", 0, 0));
   }
 
   @Test
@@ -75,7 +77,7 @@ class AbstractTransactionSynchronizerTest extends FixedClockConfig {
     synchronizer.transactionsToFetch = List.of("a", "b");
     synchronizer.deleteResult = 3;
 
-    synchronizer.triggerSync(context);
+    SyncResult result = synchronizer.triggerSync(context);
 
     assertThat(synchronizer.callLog)
         .containsExactly(
@@ -91,19 +93,22 @@ class AbstractTransactionSynchronizerTest extends FixedClockConfig {
     assertThat(synchronizer.receivedContexts).containsOnly(context);
     then(transactionManager).should().commit(status);
     then(transactionManager).should(never()).rollback(any());
+    assertThat(result).isEqualTo(new SyncResult("test-type", "test-id", 3, 2));
   }
 
   @Test
   void fetchFailureIsLoggedAndSwallowedWithoutDeleteConvertOrSave() {
     synchronizer.fetchFailure = new RuntimeException("EPIS unavailable");
 
-    assertThatCode(() -> synchronizer.triggerSync(context)).doesNotThrowAnyException();
+    AtomicReference<SyncResult> result = new AtomicReference<>();
+    assertThatCode(() -> result.set(synchronizer.triggerSync(context))).doesNotThrowAnyException();
 
     assertThat(synchronizer.callLog)
         .containsExactly("getTransactionTypeName", "getSyncIdentifier", "fetch");
     assertThat(synchronizer.savedEntities).isEmpty();
     then(transactionManager).shouldHaveNoInteractions();
     assertThat(logAppender.list).filteredOn(e -> e.getLevel() == Level.ERROR).hasSize(1);
+    assertThat(result.get()).isEqualTo(new SyncResult("test-type", "test-id", 0, 0));
   }
 
   @Test
@@ -111,12 +116,14 @@ class AbstractTransactionSynchronizerTest extends FixedClockConfig {
     synchronizer.transactionsToFetch = List.of("a");
     synchronizer.convertFailure = new RuntimeException("bad dto");
 
-    assertThatCode(() -> synchronizer.triggerSync(context)).doesNotThrowAnyException();
+    AtomicReference<SyncResult> result = new AtomicReference<>();
+    assertThatCode(() -> result.set(synchronizer.triggerSync(context))).doesNotThrowAnyException();
 
     assertThat(synchronizer.callLog)
         .containsExactly("getTransactionTypeName", "getSyncIdentifier", "fetch", "convert:a");
     then(transactionManager).shouldHaveNoInteractions();
     assertThat(logAppender.list).filteredOn(e -> e.getLevel() == Level.ERROR).hasSize(1);
+    assertThat(result.get()).isEqualTo(new SyncResult("test-type", "test-id", 0, 0));
   }
 
   @Test
@@ -126,7 +133,8 @@ class AbstractTransactionSynchronizerTest extends FixedClockConfig {
     synchronizer.transactionsToFetch = List.of("a");
     synchronizer.deleteFailure = new RuntimeException("db locked");
 
-    assertThatCode(() -> synchronizer.triggerSync(context)).doesNotThrowAnyException();
+    AtomicReference<SyncResult> result = new AtomicReference<>();
+    assertThatCode(() -> result.set(synchronizer.triggerSync(context))).doesNotThrowAnyException();
 
     assertThat(synchronizer.callLog)
         .containsExactly(
@@ -135,6 +143,7 @@ class AbstractTransactionSynchronizerTest extends FixedClockConfig {
     then(transactionManager).should().rollback(status);
     then(transactionManager).should(never()).commit(any());
     assertThat(logAppender.list).filteredOn(e -> e.getLevel() == Level.ERROR).hasSize(1);
+    assertThat(result.get()).isEqualTo(new SyncResult("test-type", "test-id", 0, 0));
   }
 
   @Test
@@ -145,7 +154,8 @@ class AbstractTransactionSynchronizerTest extends FixedClockConfig {
     synchronizer.deleteResult = 1;
     synchronizer.saveFailure = new RuntimeException("constraint violation");
 
-    assertThatCode(() -> synchronizer.triggerSync(context)).doesNotThrowAnyException();
+    AtomicReference<SyncResult> result = new AtomicReference<>();
+    assertThatCode(() -> result.set(synchronizer.triggerSync(context))).doesNotThrowAnyException();
 
     assertThat(synchronizer.callLog)
         .containsExactly(
@@ -159,6 +169,7 @@ class AbstractTransactionSynchronizerTest extends FixedClockConfig {
     then(transactionManager).should().rollback(status);
     then(transactionManager).should(never()).commit(any());
     assertThat(logAppender.list).filteredOn(e -> e.getLevel() == Level.ERROR).hasSize(1);
+    assertThat(result.get()).isEqualTo(new SyncResult("test-type", "test-id", 0, 0));
   }
 
   @Test
@@ -212,8 +223,8 @@ class AbstractTransactionSynchronizerTest extends FixedClockConfig {
       super(episService, transactionTemplate);
     }
 
-    void triggerSync(SyncContext context) {
-      syncInternal(context);
+    SyncResult triggerSync(SyncContext context) {
+      return syncInternal(context);
     }
 
     LocalDateTime callNow() {

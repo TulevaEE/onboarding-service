@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.analytics.transaction.generic.SyncResult;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.transaction.FundTransactionDto;
 import ee.tuleva.onboarding.time.FixedClockConfig;
@@ -50,6 +51,10 @@ class FundTransactionSynchronizerTest extends FixedClockConfig {
   private final LocalDate endDate = LocalDate.of(2025, 4, 15);
   private final int deletedCount = 3;
 
+  private String syncIdentifier() {
+    return String.format("ISIN=%s, range=%s to %s", fundIsin, startDate, endDate);
+  }
+
   @Test
   void syncHoldsNoTransactionAcrossTheEpisFetch() throws NoSuchMethodException {
     var sync =
@@ -82,7 +87,7 @@ class FundTransactionSynchronizerTest extends FixedClockConfig {
           .thenReturn(deletedCount);
 
       // when
-      synchronizer.sync(fundIsin, startDate, endDate);
+      SyncResult result = synchronizer.sync(fundIsin, startDate, endDate);
 
       // then
       verify(episService).getFundTransactions(fundIsin, startDate, endDate);
@@ -114,6 +119,7 @@ class FundTransactionSynchronizerTest extends FixedClockConfig {
       assertThat(secondSaved.getDateCreated()).isEqualTo(testLocalDateTime);
 
       verifyNoMoreInteractions(repository);
+      assertThat(result).isEqualTo(new SyncResult("fund", syncIdentifier(), deletedCount, 2));
     }
   }
 
@@ -129,12 +135,13 @@ class FundTransactionSynchronizerTest extends FixedClockConfig {
           .thenReturn(Collections.emptyList());
 
       // when
-      synchronizer.sync(fundIsin, startDate, endDate);
+      SyncResult result = synchronizer.sync(fundIsin, startDate, endDate);
 
       // then
       verify(episService).getFundTransactions(fundIsin, startDate, endDate);
       verify(repository, never()).deleteByIsinAndTransactionDateBetween(any(), any(), any());
       verify(repository, never()).saveAll(any());
+      assertThat(result).isEqualTo(new SyncResult("fund", syncIdentifier(), 0, 0));
     }
   }
 
@@ -151,7 +158,7 @@ class FundTransactionSynchronizerTest extends FixedClockConfig {
           .thenThrow(simulatedException);
 
       // when
-      synchronizer.sync(fundIsin, startDate, endDate);
+      SyncResult result = synchronizer.sync(fundIsin, startDate, endDate);
 
       // then
       verify(episService).getFundTransactions(fundIsin, startDate, endDate);
@@ -159,6 +166,7 @@ class FundTransactionSynchronizerTest extends FixedClockConfig {
           .deleteByIsinAndTransactionDateBetween(
               anyString(), any(LocalDate.class), any(LocalDate.class));
       verify(repository, never()).saveAll(any());
+      assertThat(result).isEqualTo(new SyncResult("fund", syncIdentifier(), 0, 0));
     }
   }
 
@@ -178,12 +186,13 @@ class FundTransactionSynchronizerTest extends FixedClockConfig {
           .thenThrow(simulatedException);
 
       // when
-      synchronizer.sync(fundIsin, startDate, endDate);
+      SyncResult result = synchronizer.sync(fundIsin, startDate, endDate);
 
       // then
       verify(episService).getFundTransactions(fundIsin, startDate, endDate);
       verify(repository).deleteByIsinAndTransactionDateBetween(fundIsin, startDate, endDate);
       verify(repository, never()).saveAll(any());
+      assertThat(result).isEqualTo(new SyncResult("fund", syncIdentifier(), 0, 0));
     }
   }
 
@@ -204,13 +213,14 @@ class FundTransactionSynchronizerTest extends FixedClockConfig {
       doThrow(simulatedException).when(repository).saveAll(anyList());
 
       // when
-      synchronizer.sync(fundIsin, startDate, endDate);
+      SyncResult result = synchronizer.sync(fundIsin, startDate, endDate);
 
       // then
       verify(episService).getFundTransactions(fundIsin, startDate, endDate);
       verify(repository).deleteByIsinAndTransactionDateBetween(fundIsin, startDate, endDate);
       verify(repository).saveAll(savedEntitiesCaptor.capture());
       assertThat(savedEntitiesCaptor.getValue()).hasSize(1);
+      assertThat(result).isEqualTo(new SyncResult("fund", syncIdentifier(), 0, 0));
     }
   }
 }

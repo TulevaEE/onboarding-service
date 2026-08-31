@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.analytics.transaction.fundbalance;
 
 import ee.tuleva.onboarding.analytics.transaction.generic.AbstractTransactionSynchronizer;
 import ee.tuleva.onboarding.analytics.transaction.generic.SyncContext;
+import ee.tuleva.onboarding.analytics.transaction.generic.SyncResult;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.transaction.TransactionFundBalanceDto;
 import ee.tuleva.onboarding.fund.TulevaFund;
@@ -41,11 +42,12 @@ public class FundBalanceSynchronizer
     private final LocalDate requestDate;
   }
 
-  public void sync(LocalDate requestDate) {
+  public SyncResult sync(LocalDate requestDate) {
     FundBalanceSyncContext context =
         FundBalanceSyncContext.builder().requestDate(requestDate).build();
-    super.syncInternal(context);
+    SyncResult result = super.syncInternal(context);
     recordUnitCounts(requestDate);
+    return result;
   }
 
   @Transactional

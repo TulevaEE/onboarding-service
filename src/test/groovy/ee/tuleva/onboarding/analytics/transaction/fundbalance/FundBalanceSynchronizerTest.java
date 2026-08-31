@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.analytics.transaction.generic.SyncResult;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.transaction.TransactionFundBalanceDto;
 import ee.tuleva.onboarding.fund.TulevaFund;
@@ -132,7 +133,7 @@ class FundBalanceSynchronizerTest extends FixedClockConfig {
       when(repository.deleteByRequestDate(syncDate)).thenReturn(deletedCount);
 
       // when
-      synchronizer.sync(syncDate);
+      SyncResult result = synchronizer.sync(syncDate);
 
       // then
       verify(episService).getFundBalances(syncDate);
@@ -149,6 +150,9 @@ class FundBalanceSynchronizerTest extends FixedClockConfig {
       assertThat(savedEntities.get(1).getIsin()).isEqualTo(FundBalanceFixture.ISIN_2);
       assertThat(savedEntities.get(1).getRequestDate()).isEqualTo(syncDate);
       assertThat(savedEntities.get(1).getDateCreated()).isEqualTo(testLocalDateTime);
+
+      assertThat(result)
+          .isEqualTo(new SyncResult("fund balance", "date=" + syncDate, deletedCount, 2));
     }
   }
 
@@ -163,12 +167,13 @@ class FundBalanceSynchronizerTest extends FixedClockConfig {
       when(episService.getFundBalances(syncDate)).thenReturn(Collections.emptyList());
 
       // when
-      synchronizer.sync(syncDate);
+      SyncResult result = synchronizer.sync(syncDate);
 
       // then
       verify(episService).getFundBalances(syncDate);
       verify(repository, never()).deleteByRequestDate(any(LocalDate.class));
       verify(repository, never()).saveAll(any());
+      assertThat(result).isEqualTo(new SyncResult("fund balance", "date=" + syncDate, 0, 0));
     }
   }
 
@@ -184,12 +189,13 @@ class FundBalanceSynchronizerTest extends FixedClockConfig {
       when(episService.getFundBalances(syncDate)).thenThrow(simulatedException);
 
       // when
-      synchronizer.sync(syncDate);
+      SyncResult result = synchronizer.sync(syncDate);
 
       // then
       verify(episService).getFundBalances(syncDate);
       verify(repository, never()).deleteByRequestDate(any(LocalDate.class));
       verify(repository, never()).saveAll(any());
+      assertThat(result).isEqualTo(new SyncResult("fund balance", "date=" + syncDate, 0, 0));
     }
   }
 
@@ -208,12 +214,13 @@ class FundBalanceSynchronizerTest extends FixedClockConfig {
       when(repository.deleteByRequestDate(syncDate)).thenThrow(simulatedException);
 
       // when
-      synchronizer.sync(syncDate);
+      SyncResult result = synchronizer.sync(syncDate);
 
       // then
       verify(episService).getFundBalances(syncDate);
       verify(repository).deleteByRequestDate(syncDate);
       verify(repository, never()).saveAll(any());
+      assertThat(result).isEqualTo(new SyncResult("fund balance", "date=" + syncDate, 0, 0));
     }
   }
 
@@ -233,13 +240,14 @@ class FundBalanceSynchronizerTest extends FixedClockConfig {
       doThrow(simulatedException).when(repository).saveAll(anyList());
 
       // when
-      synchronizer.sync(syncDate);
+      SyncResult result = synchronizer.sync(syncDate);
 
       // then
       verify(episService).getFundBalances(syncDate);
       verify(repository).deleteByRequestDate(syncDate);
       verify(repository).saveAll(savedEntitiesCaptor.capture());
       assertThat(savedEntitiesCaptor.getValue()).hasSize(1);
+      assertThat(result).isEqualTo(new SyncResult("fund balance", "date=" + syncDate, 0, 0));
     }
   }
 }

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.analytics.transaction.generic.SyncResult;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.transaction.ExchangeTransactionDto;
 import ee.tuleva.onboarding.time.FixedClockConfig;
@@ -54,6 +55,12 @@ class ExchangeTransactionSynchronizerTest extends FixedClockConfig {
   private final boolean pikFlag = false;
   private final int deletedCount = 5;
 
+  private String syncIdentifier() {
+    return String.format(
+        "reportingDate=%s, securityFrom=%s, securityTo=%s, pikFlag=%s",
+        reportingDate, securityFrom.orElse("N/A"), securityTo.orElse("N/A"), pikFlag);
+  }
+
   @Test
   void syncHoldsNoTransactionAcrossTheEpisFetch() throws NoSuchMethodException {
     var sync =
@@ -86,7 +93,7 @@ class ExchangeTransactionSynchronizerTest extends FixedClockConfig {
       when(repository.deleteByReportingDate(reportingDate)).thenReturn(deletedCount);
 
       // when
-      synchronizer.sync(reportingDate, securityFrom, securityTo, pikFlag);
+      SyncResult result = synchronizer.sync(reportingDate, securityFrom, securityTo, pikFlag);
 
       // then
       verify(episService).getExchangeTransactions(reportingDate, securityFrom, securityTo, pikFlag);
@@ -117,6 +124,7 @@ class ExchangeTransactionSynchronizerTest extends FixedClockConfig {
       assertThat(secondSaved.getDateCreated()).isEqualTo(testLocalDateTime);
 
       verifyNoMoreInteractions(repository);
+      assertThat(result).isEqualTo(new SyncResult("exchange", syncIdentifier(), deletedCount, 2));
     }
   }
 
@@ -132,12 +140,13 @@ class ExchangeTransactionSynchronizerTest extends FixedClockConfig {
           .thenReturn(Collections.emptyList());
 
       // when
-      synchronizer.sync(reportingDate, securityFrom, securityTo, pikFlag);
+      SyncResult result = synchronizer.sync(reportingDate, securityFrom, securityTo, pikFlag);
 
       // then
       verify(episService).getExchangeTransactions(reportingDate, securityFrom, securityTo, pikFlag);
       verify(repository, never()).deleteByReportingDate(any());
       verify(repository, never()).saveAll(any());
+      assertThat(result).isEqualTo(new SyncResult("exchange", syncIdentifier(), 0, 0));
     }
   }
 
@@ -154,12 +163,13 @@ class ExchangeTransactionSynchronizerTest extends FixedClockConfig {
           .thenThrow(simulatedException);
 
       // when
-      synchronizer.sync(reportingDate, securityFrom, securityTo, pikFlag);
+      SyncResult result = synchronizer.sync(reportingDate, securityFrom, securityTo, pikFlag);
 
       // then
       verify(episService).getExchangeTransactions(reportingDate, securityFrom, securityTo, pikFlag);
       verify(repository, never()).deleteByReportingDate(any(LocalDate.class));
       verify(repository, never()).saveAll(any());
+      assertThat(result).isEqualTo(new SyncResult("exchange", syncIdentifier(), 0, 0));
     }
   }
 
@@ -179,12 +189,13 @@ class ExchangeTransactionSynchronizerTest extends FixedClockConfig {
       when(repository.deleteByReportingDate(reportingDate)).thenThrow(simulatedException);
 
       // when
-      synchronizer.sync(reportingDate, securityFrom, securityTo, pikFlag);
+      SyncResult result = synchronizer.sync(reportingDate, securityFrom, securityTo, pikFlag);
 
       // then
       verify(episService).getExchangeTransactions(reportingDate, securityFrom, securityTo, pikFlag);
       verify(repository).deleteByReportingDate(reportingDate);
       verify(repository, never()).saveAll(any());
+      assertThat(result).isEqualTo(new SyncResult("exchange", syncIdentifier(), 0, 0));
     }
   }
 
@@ -205,13 +216,14 @@ class ExchangeTransactionSynchronizerTest extends FixedClockConfig {
       doThrow(simulatedException).when(repository).saveAll(anyList());
 
       // when
-      synchronizer.sync(reportingDate, securityFrom, securityTo, pikFlag);
+      SyncResult result = synchronizer.sync(reportingDate, securityFrom, securityTo, pikFlag);
 
       // then
       verify(episService).getExchangeTransactions(reportingDate, securityFrom, securityTo, pikFlag);
       verify(repository).deleteByReportingDate(reportingDate);
       verify(repository).saveAll(savedEntitiesCaptor.capture());
       assertThat(savedEntitiesCaptor.getValue()).hasSize(1);
+      assertThat(result).isEqualTo(new SyncResult("exchange", syncIdentifier(), 0, 0));
     }
   }
 }

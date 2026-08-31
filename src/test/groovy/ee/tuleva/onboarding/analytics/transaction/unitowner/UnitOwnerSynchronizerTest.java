@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.analytics.transaction.generic.SyncResult;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.transaction.UnitOwnerDto;
 import ee.tuleva.onboarding.time.FixedClockConfig;
@@ -100,7 +101,7 @@ class UnitOwnerSynchronizerTest extends FixedClockConfig {
       when(episService.getUnitOwners()).thenReturn(dtosWithBalances);
 
       // when
-      synchronizer.sync(snapshotDate);
+      SyncResult result = synchronizer.sync(snapshotDate);
 
       // then
       verify(episService).getUnitOwners();
@@ -133,6 +134,8 @@ class UnitOwnerSynchronizerTest extends FixedClockConfig {
       assertThat(secondSaved.getDateCreated()).isEqualTo(testLocalDateTime);
 
       verifyNoMoreInteractions(episService, repository);
+      assertThat(result)
+          .isEqualTo(new SyncResult("unit owner snapshot", "SnapshotDate=" + snapshotDate, 0, 2));
     }
 
     @Test
@@ -144,7 +147,7 @@ class UnitOwnerSynchronizerTest extends FixedClockConfig {
       when(episService.getUnitOwners()).thenReturn(List.of(dtoWithoutBalances));
 
       // when
-      synchronizer.sync(snapshotDate);
+      SyncResult result = synchronizer.sync(snapshotDate);
 
       // then
       verify(episService).getUnitOwners();
@@ -160,6 +163,8 @@ class UnitOwnerSynchronizerTest extends FixedClockConfig {
       assertThat(savedEntity.getDateCreated()).isEqualTo(testLocalDateTime);
 
       verifyNoMoreInteractions(episService, repository);
+      assertThat(result)
+          .isEqualTo(new SyncResult("unit owner snapshot", "SnapshotDate=" + snapshotDate, 0, 1));
     }
 
     @Test
@@ -173,7 +178,7 @@ class UnitOwnerSynchronizerTest extends FixedClockConfig {
       when(episService.getUnitOwners()).thenReturn(List.of(dtoWithEmptyBalances));
 
       // when
-      synchronizer.sync(snapshotDate);
+      SyncResult result = synchronizer.sync(snapshotDate);
 
       // then
       verify(episService).getUnitOwners();
@@ -189,6 +194,8 @@ class UnitOwnerSynchronizerTest extends FixedClockConfig {
       assertThat(savedEntity.getDateCreated()).isEqualTo(testLocalDateTime);
 
       verifyNoMoreInteractions(episService, repository);
+      assertThat(result)
+          .isEqualTo(new SyncResult("unit owner snapshot", "SnapshotDate=" + snapshotDate, 0, 1));
     }
   }
 
@@ -203,12 +210,14 @@ class UnitOwnerSynchronizerTest extends FixedClockConfig {
       when(episService.getUnitOwners()).thenReturn(Collections.emptyList());
 
       // when
-      synchronizer.sync(snapshotDate);
+      SyncResult result = synchronizer.sync(snapshotDate);
 
       // then
       verify(episService).getUnitOwners();
       verify(repository, never()).saveAll(any());
       verifyNoMoreInteractions(episService, repository);
+      assertThat(result)
+          .isEqualTo(new SyncResult("unit owner snapshot", "SnapshotDate=" + snapshotDate, 0, 0));
     }
   }
 
@@ -224,12 +233,14 @@ class UnitOwnerSynchronizerTest extends FixedClockConfig {
       when(episService.getUnitOwners()).thenThrow(simulatedException);
 
       // when
-      synchronizer.sync(snapshotDate);
+      SyncResult result = synchronizer.sync(snapshotDate);
 
       // then
       verify(episService).getUnitOwners();
       verify(repository, never()).saveAll(any());
       verifyNoMoreInteractions(episService, repository);
+      assertThat(result)
+          .isEqualTo(new SyncResult("unit owner snapshot", "SnapshotDate=" + snapshotDate, 0, 0));
     }
   }
 
@@ -248,7 +259,7 @@ class UnitOwnerSynchronizerTest extends FixedClockConfig {
       doThrow(simulatedException).when(repository).saveAll(anyList());
 
       // when
-      synchronizer.sync(snapshotDate);
+      SyncResult result = synchronizer.sync(snapshotDate);
 
       // then
       verify(episService).getUnitOwners();
@@ -258,6 +269,8 @@ class UnitOwnerSynchronizerTest extends FixedClockConfig {
       verifyNoMoreInteractions(episService);
       verify(repository).saveAll(anyList());
       verifyNoMoreInteractions(repository);
+      assertThat(result)
+          .isEqualTo(new SyncResult("unit owner snapshot", "SnapshotDate=" + snapshotDate, 0, 0));
     }
   }
 }

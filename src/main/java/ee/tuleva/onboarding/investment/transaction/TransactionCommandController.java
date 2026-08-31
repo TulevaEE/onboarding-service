@@ -163,7 +163,7 @@ public class TransactionCommandController {
   public TransactionOrderResponse setOrderType(
       @RequestHeader("X-Admin-Token") String token,
       @PathVariable Long id,
-      @Valid @RequestBody SetOrderTypeRequest request) {
+      @Valid @RequestBody SetTransactionOrderTypeRequest request) {
 
     var actor = authenticator.resolveActor(token);
 

@@ -4,4 +4,4 @@ import jakarta.validation.constraints.NotNull;
 import org.jspecify.annotations.NullMarked;
 
 @NullMarked
-public record SetOrderTypeRequest(@NotNull OrderType orderType) {}
+public record SetTransactionOrderTypeRequest(@NotNull OrderType orderType) {}

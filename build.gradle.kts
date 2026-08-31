@@ -14,7 +14,7 @@ abstract class ExecTask
         @Internal val execOps: ExecOperations,
     ) : DefaultTask()
 
-val xjc by configurations.creating
+val xjc = configurations.create("xjc")
 
 buildscript {
     repositories {

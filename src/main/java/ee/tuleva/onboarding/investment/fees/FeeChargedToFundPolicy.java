@@ -76,13 +76,6 @@ public class FeeChargedToFundPolicy {
               + date);
     }
 
-    /**
-     * A date before the fund existed is answered with the founding row rather than thrown on, so
-     * that a NAV recomputed past the inception date does not fail on the fee policy. The anchor is
-     * the fund's inception and not the earliest row's {@code valid_from}: anchoring on the row
-     * would make it back-extend over its own late start, so a policy that begins after the fund did
-     * would be silently answered for the days in between instead of reported as the gap it is.
-     */
     private boolean predatesTheFund(LocalDate date) {
       return date.isBefore(fund.getInceptionDate());
     }

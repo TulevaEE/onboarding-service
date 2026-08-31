@@ -73,23 +73,44 @@ class SebPendingTransactionReconciliationServiceTest {
         .willReturn(new TransactionMatchingProperties(null, null, null, null, null));
     SebClientNameToFundResolver resolver = new SebClientNameToFundResolver();
     QuantityAmountValidator validator = new QuantityAmountValidator();
+    ReconciliationAuditRecorder auditRecorder =
+        new ReconciliationAuditRecorder(auditEventRepository, clock);
+    SebExecutionUpserter executionUpserter =
+        new SebExecutionUpserter(mapper, executionRepository, orderRepository, auditRecorder);
+    SebMatchedRowConsistencyChecker consistencyChecker =
+        new SebMatchedRowConsistencyChecker(resolver, auditRecorder);
+    SebMatchedRowProcessor matchedRowProcessor =
+        new SebMatchedRowProcessor(
+            consistencyChecker,
+            validator,
+            new ExecutionPriceConsistencyChecker(),
+            executionUpserter,
+            executionRepository,
+            eventPublisher,
+            auditRecorder,
+            settlementRepository);
+    SebPendingRowReconciler rowReconciler =
+        new SebPendingRowReconciler(
+            new SebPendingTransactionMatcher(orderRepository),
+            new SebPendingTransactionComplexMatcher(
+                orderRepository, executionRepository, resolver, validator),
+            executionRepository,
+            orderRepository,
+            eventPublisher,
+            auditRecorder,
+            matchedRowProcessor);
     return new SebPendingTransactionReconciliationService(
         extractor,
-        new SebPendingTransactionMatcher(orderRepository),
-        new SebPendingTransactionComplexMatcher(
-            orderRepository, executionRepository, resolver, validator),
         validator,
-        resolver,
-        new ExecutionPriceConsistencyChecker(),
         matchingPolicy,
-        mapper,
         executionRepository,
         orderRepository,
         eventPublisher,
-        new ReconciliationAuditRecorder(auditEventRepository, clock),
+        auditRecorder,
         settlementRepository,
         new TransactionSettlementService(settlementRepository, orderRepository, clock),
-        reportService);
+        reportService,
+        rowReconciler);
   }
 
   @Test

@@ -12,8 +12,6 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -92,7 +90,7 @@ class TrackingDifferenceNotifier {
           hasEscalation = true;
         }
 
-        message.append(formatBreach(result, escalation));
+        message.append(new BreachMessageFormatter(result, escalation).format());
       }
 
       if (hasEscalation) {
@@ -105,11 +103,11 @@ class TrackingDifferenceNotifier {
     }
   }
 
-  private String returnLabel(TrackingDifferenceResult result) {
+  private static String returnLabel(TrackingDifferenceResult result) {
     return result.checkType() == BENCHMARK_MODEL ? "holdings" : "fund";
   }
 
-  private String formatWithinLimits(TrackingDifferenceResult result) {
+  private static String formatWithinLimits(TrackingDifferenceResult result) {
     var sb = new StringBuilder();
     sb.append(
         "\n  %s TD=%s%% (%s=%s%%, benchmark=%s%%)"
@@ -127,129 +125,6 @@ class TrackingDifferenceNotifier {
         sb.append(", navResidual not evaluated (begin-of-day holdings unavailable)");
       }
     }
-    return sb.toString();
-  }
-
-  private String formatBreach(TrackingDifferenceResult result, boolean escalation) {
-    var sb = new StringBuilder();
-    sb.append(
-        "\n🛑 [%s] %s %s: TD=%s%% (%s=%s%%, benchmark=%s%%)"
-            .formatted(
-                result.fund(),
-                result.checkType(),
-                result.checkDate(),
-                formatPercent(result.trackingDifference()),
-                returnLabel(result),
-                formatPercent(result.fundReturn()),
-                formatPercent(result.benchmarkReturn())));
-
-    if (result.checkType() == MODEL_PORTFOLIO) {
-      sb.append("\n  Action: check NAV calculation — weights, prices, cash, fees");
-    } else if (result.checkType() == BENCHMARK_MODEL) {
-      sb.append(
-          "\n  Holdings vs MSCI World/EM index. Regional/ESG spread is expected;"
-              + " check an outsized contribution for a stale price.");
-    }
-
-    if (result.checkType() == MODEL_PORTFOLIO) {
-      var navResidual = result.navResidual();
-      if (navResidual != null) {
-        sb.append(
-            "\n  NAV residual: %s%% (%s)"
-                .formatted(
-                    formatPercent(navResidual),
-                    result.navResidualBreach()
-                        ? "BLOCKS NAV — investigate pricing / NAV calc"
-                        : "non-blocking — fund-vs-model TD explained by trade timing"));
-      } else {
-        sb.append(
-            "\n  NAV residual: not evaluated — begin-of-day holdings unavailable (gate skipped)");
-      }
-    }
-
-    if (!result.securityAttributions().isEmpty()) {
-      var sorted =
-          result.securityAttributions().stream()
-              .sorted(
-                  Comparator.comparing(
-                      (SecurityAttribution a) -> a.contribution().abs(), Comparator.reverseOrder()))
-              .toList();
-
-      if (result.checkType() == BENCHMARK_MODEL) {
-        for (var attr : sorted) {
-          sb.append(
-              "\n  %s: instrument %s%%, index %s%%, contributes %s%% to TD"
-                  .formatted(
-                      attr.isin(),
-                      formatPercent(attr.securityReturn()),
-                      formatPercent(
-                          Objects.requireNonNull(
-                              attr.benchmarkReturn(),
-                              "Missing benchmark return for BENCHMARK_MODEL attribution: isin="
-                                  + attr.isin())),
-                      formatPercent(attr.contribution())));
-        }
-      } else {
-        for (var attr : sorted) {
-          sb.append(
-              "\n  %s: weight %s%%, return %s%%, impact %s%%"
-                  .formatted(
-                      attr.isin(),
-                      formatPercent(
-                          Objects.requireNonNull(
-                              attr.weightDifference(),
-                              "Missing weight difference for attribution: isin=" + attr.isin())),
-                      formatPercent(attr.securityReturn()),
-                      formatPercent(attr.contribution())));
-        }
-
-        if (result.cashDrag().signum() != 0) {
-          sb.append("\n  Cash drag: %s%%".formatted(formatPercent(result.cashDrag())));
-        }
-        if (result.feeDrag().signum() != 0) {
-          sb.append("\n  Fee drag: %s%%".formatted(formatPercent(result.feeDrag())));
-        }
-        if (result.residual().signum() != 0) {
-          sb.append("\n  Residual: %s%%".formatted(formatPercent(result.residual())));
-        }
-      }
-    }
-
-    if (escalation) {
-      sb.append(
-          "\n  [%d consecutive days, compounded TD=%s%%]"
-              .formatted(result.consecutiveBreachDays(), formatPercent(result.consecutiveNetTd())));
-      if (result.compoundedFundReturn() != null && result.compoundedBenchmarkReturn() != null) {
-        sb.append(
-            "\n  Compounded: fund=%s%%, benchmark=%s%%"
-                .formatted(
-                    formatPercent(result.compoundedFundReturn()),
-                    formatPercent(result.compoundedBenchmarkReturn())));
-      }
-
-      if (result.escalationAttributions() != null && !result.escalationAttributions().isEmpty()) {
-        sb.append("\n  Multi-day attribution (arithmetic sum of daily contributions):");
-        result.escalationAttributions().entrySet().stream()
-            .sorted(
-                Comparator.comparing(
-                    (Map.Entry<String, BigDecimal> e) -> e.getValue().abs(),
-                    Comparator.reverseOrder()))
-            .forEach(
-                e ->
-                    sb.append("\n    %s: %s%%".formatted(e.getKey(), formatPercent(e.getValue()))));
-      }
-
-      if (result.escalationCashDrag() != null && result.escalationCashDrag().signum() != 0) {
-        sb.append("\n    Cash drag: %s%%".formatted(formatPercent(result.escalationCashDrag())));
-      }
-      if (result.escalationFeeDrag() != null && result.escalationFeeDrag().signum() != 0) {
-        sb.append("\n    Fee drag: %s%%".formatted(formatPercent(result.escalationFeeDrag())));
-      }
-      if (result.escalationResidual() != null && result.escalationResidual().signum() != 0) {
-        sb.append("\n    Residual: %s%%".formatted(formatPercent(result.escalationResidual())));
-      }
-    }
-
     return sb.toString();
   }
 
@@ -274,7 +149,7 @@ class TrackingDifferenceNotifier {
             || result.escalationNavResidualBreach());
   }
 
-  private String formatPercent(BigDecimal value) {
+  private static String formatPercent(BigDecimal value) {
     var percent = value.multiply(HUNDRED).setScale(2, RoundingMode.HALF_UP);
     return (percent.signum() > 0 ? "+" : "") + percent.toPlainString();
   }

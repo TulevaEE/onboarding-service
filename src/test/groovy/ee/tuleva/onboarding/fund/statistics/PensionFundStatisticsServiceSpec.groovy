@@ -10,6 +10,7 @@ import spock.lang.Specification
 import java.nio.file.Files
 
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess
 
 @RestClientTest(PensionFundStatisticsService)
@@ -128,4 +129,91 @@ class PensionFundStatisticsServiceSpec extends Specification {
         new String(Files.readAllBytes(resource.getFile().toPath()))
     }
 
+    def "combines both pillar endpoints even when the second pillar errors"() {
+        given:
+        server.expect(requestTo(secondPillarEndpoint)).andRespond(withServerError())
+        server.expect(requestTo(thirdPillarEndpoint))
+            .andRespond(withSuccess(
+                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                    '<RESPONSE xmlns="http://corporate.epis.ee/producer/" ERROR_CODE="0">' +
+                    '<PENSION_FUND_STATISTICS ISIN="EE3600001707" VOLUME="1000.0" NAV="1.0" ACTIVE_COUNT="10"/>' +
+                    '</RESPONSE>',
+                MediaType.APPLICATION_XML))
+
+        when:
+        def statistics = service.getPensionFundStatistics()
+
+        then:
+        statistics.size() == 1
+        statistics[0].isin == "EE3600001707"
+    }
+
+    def "combines both pillar endpoints even when the second pillar is empty"() {
+        given:
+        server.expect(requestTo(secondPillarEndpoint))
+            .andRespond(withSuccess(
+                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                    '<RESPONSE xmlns="http://corporate.epis.ee/producer/" ERROR_CODE="0"></RESPONSE>',
+                MediaType.APPLICATION_XML))
+        server.expect(requestTo(thirdPillarEndpoint))
+            .andRespond(withSuccess(
+                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                    '<RESPONSE xmlns="http://corporate.epis.ee/producer/" ERROR_CODE="0">' +
+                    '<PENSION_FUND_STATISTICS ISIN="EE3600001707" VOLUME="1000.0" NAV="1.0" ACTIVE_COUNT="10"/>' +
+                    '</RESPONSE>',
+                MediaType.APPLICATION_XML))
+
+        when:
+        def statistics = service.getPensionFundStatistics()
+
+        then:
+        statistics.size() == 1
+        statistics[0].isin == "EE3600001707"
+    }
+
+    def "cached statistics retrieval delegates to the live fetch"() {
+        given:
+        server.expect(requestTo(secondPillarEndpoint))
+            .andRespond(withSuccess(
+                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                    '<RESPONSE xmlns="http://corporate.epis.ee/producer/" ERROR_CODE="0">' +
+                    '<PENSION_FUND_STATISTICS ISIN="EE3600109435" VOLUME="2000.0" NAV="0.6" ACTIVE_COUNT="5"/>' +
+                    '</RESPONSE>',
+                MediaType.APPLICATION_XML))
+        server.expect(requestTo(thirdPillarEndpoint))
+            .andRespond(withSuccess(
+                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                    '<RESPONSE xmlns="http://corporate.epis.ee/producer/" ERROR_CODE="0"></RESPONSE>',
+                MediaType.APPLICATION_XML))
+
+        when:
+        def statistics = service.getCachedStatistics()
+
+        then:
+        statistics.size() == 1
+        statistics[0].isin == "EE3600109435"
+    }
+
+    def "refreshing the cache delegates to the live fetch"() {
+        given:
+        server.expect(requestTo(secondPillarEndpoint))
+            .andRespond(withSuccess(
+                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                    '<RESPONSE xmlns="http://corporate.epis.ee/producer/" ERROR_CODE="0">' +
+                    '<PENSION_FUND_STATISTICS ISIN="EE3600109435" VOLUME="2000.0" NAV="0.6" ACTIVE_COUNT="5"/>' +
+                    '</RESPONSE>',
+                MediaType.APPLICATION_XML))
+        server.expect(requestTo(thirdPillarEndpoint))
+            .andRespond(withSuccess(
+                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                    '<RESPONSE xmlns="http://corporate.epis.ee/producer/" ERROR_CODE="0"></RESPONSE>',
+                MediaType.APPLICATION_XML))
+
+        when:
+        def statistics = service.refreshCachedStatistics()
+
+        then:
+        statistics.size() == 1
+        statistics[0].isin == "EE3600109435"
+    }
 }

@@ -97,9 +97,9 @@
   },
   "conversion": {
     "mutations": 111,
-    "detected": 96,
-    "score": 86.49,
-    "recordedAt": "2026-08-30"
+    "detected": 106,
+    "score": 95.5,
+    "recordedAt": "2026-08-31"
   },
   "country": {
     "mutations": 23,
@@ -157,9 +157,9 @@
   },
   "holdings": {
     "mutations": 45,
-    "detected": 39,
-    "score": 86.67,
-    "recordedAt": "2026-08-30"
+    "detected": 44,
+    "score": 97.78,
+    "recordedAt": "2026-08-31"
   },
   "iban": {
     "mutations": 34,
@@ -169,9 +169,9 @@
   },
   "instrument": {
     "mutations": 103,
-    "detected": 89,
-    "score": 86.41,
-    "recordedAt": "2026-08-30"
+    "detected": 95,
+    "score": 92.23,
+    "recordedAt": "2026-08-31"
   },
   "investment": {
     "mutations": 5115,

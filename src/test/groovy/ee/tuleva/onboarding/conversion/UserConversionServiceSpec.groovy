@@ -439,4 +439,22 @@ class UserConversionServiceSpec extends Specification {
       pillar: 2, fromOwnFund: true, toOwnFund: true, amount: 0.01,
       sourceIsin: tuleva2ndPillarStockFund().isin, targetIsin: tuleva2ndPillarBondFund().isin,
       sourceFundFees: tuleva2ndPillarStockFund().ongoingChargesFigure, targetFundFees: tuleva2ndPillarBondFund().ongoingChargesFigure)
+
+  def "payment is not complete when no recent cash contribution sums above zero"() {
+    given:
+    1 * conversionHoldings.forPerson(samplePerson) >> []
+    pendingMandateApplications.getPendingExchanges(_, samplePerson) >> []
+
+    conversionCashFlows.forPerson(samplePerson) >> [
+        new ConversionCashFlow(3, 500.0, Instant.parse("2018-06-01T00:00:00+02:00"), true, true, false),
+        new ConversionCashFlow(3, 100.0, Instant.parse("2019-12-01T00:00:00+02:00"), false, true, false),
+        new ConversionCashFlow(3, 0.0, Instant.parse("2019-12-20T00:00:00+02:00"), true, true, false),
+    ]
+
+    when:
+    ConversionResponse response = service.getConversion(samplePerson)
+
+    then:
+    !response.thirdPillar.paymentComplete
+  }
 }

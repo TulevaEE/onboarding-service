@@ -39,6 +39,10 @@ class PaymentLinkingServiceSpec extends Specification {
   static final defaultNegativeTransactionTime = defaultTransactionTime + tenMinutes
   static final defaultRefundTransactionTime = defaultNegativeTransactionTime + tenMinutes
   static final defaultContributionTime = defaultRefundTransactionTime + tenMinutes
+  static final tenDays = Duration.ofDays(10)
+  static final oldPaymentTime = defaultPaymentTime - tenDays
+  static final oldTransactionTime = oldPaymentTime + tenMinutes
+  static final oldNegativeTransactionTime = oldTransactionTime + tenMinutes
 
   PaymentService paymentService = Mock()
   CashFlowService cashFlowService = Mock()
@@ -82,6 +86,8 @@ class PaymentLinkingServiceSpec extends Specification {
     [transaction()]                                                                                                                  | [aPayment(123L, defaultTransactionTime - fiveDays)] | [aFailedPaymentApplication(123L, defaultTransactionTime - fiveDays)]
     and: 'If no transaction in three working days (five days), mark as failed'
     []                                                                                                                               | [aPayment(123L, defaultTransactionTime - fiveDays)] | [aFailedPaymentApplication(123L, defaultTransactionTime - fiveDays)]
+    and: 'Balanced cash without a Tuleva contribution, but payment older than 3 working days, still fails'
+    [transaction(oldTransactionTime), negativeTransaction(oldNegativeTransactionTime)]                                              | [aPayment(789L, oldPaymentTime)]                    | [aFailedPaymentApplication(789L, oldPaymentTime)]
   }
 
   private CashFlow transaction(Instant createdTime = defaultTransactionTime) {

@@ -366,6 +366,151 @@ class InvestmentReportDataServiceTest {
   }
 
   @Test
+  void getReportDataTreatsZeroPreviousMonthNavAsNoPreviousData() {
+    var sec =
+        navRow(
+            "SECURITY",
+            "Fund A",
+            "IE0009FT4LX4",
+            new BigDecimal("100"),
+            new BigDecimal("60"),
+            new BigDecimal("6000"));
+    var units = navRow("UNITS", "Total", null, null, null, new BigDecimal("10000"));
+
+    given(
+            navReportRepository.findLatestPublishedNavDate(
+                "TUK75", MARCH_2026.atDay(1), MARCH_2026.atEndOfMonth()))
+        .willReturn(NAV_DATE);
+    given(navReportRepository.findPublishedByNavDateAndFundCode(NAV_DATE, "TUK75"))
+        .willReturn(List.of(sec, units));
+    given(costBasisService.snapshotForFundAndDate(TUK75, NAV_DATE)).willReturn(List.of());
+
+    var prevDate = LocalDate.of(2026, 2, 28);
+    given(
+            navReportRepository.findLatestPublishedNavDate(
+                "TUK75", LocalDate.of(2026, 2, 1), LocalDate.of(2026, 2, 28)))
+        .willReturn(prevDate);
+    var prevSec =
+        navRow(
+            "SECURITY",
+            "Fund A",
+            "IE0009FT4LX4",
+            new BigDecimal("100"),
+            new BigDecimal("50"),
+            new BigDecimal("5000"));
+    var prevUnits = navRow("UNITS", "Total", null, null, null, BigDecimal.ZERO);
+    given(navReportRepository.findPublishedByNavDateAndFundCode(prevDate, "TUK75"))
+        .willReturn(List.of(prevSec, prevUnits));
+
+    var ctx = service.getReportData(TUK75, MARCH_2026);
+
+    // A zero previous NAV must not be used as a divisor, so change stays null
+    assertThat(ctx.securitiesSections().getFirst().totalChange()).isNull();
+  }
+
+  @Test
+  void getReportDataExcludesUnsettledReceivablesTotalRowFromPreviousMonthChange() {
+    var sec =
+        navRow(
+            "SECURITY",
+            "Fund A",
+            "IE0009FT4LX4",
+            new BigDecimal("100"),
+            new BigDecimal("60"),
+            new BigDecimal("6000"));
+    var cash = navRow("CASH", "SEB deposit", null, null, null, new BigDecimal("3000"));
+    var units = navRow("UNITS", "Total", null, null, null, new BigDecimal("10000"));
+
+    given(
+            navReportRepository.findLatestPublishedNavDate(
+                "TUK75", MARCH_2026.atDay(1), MARCH_2026.atEndOfMonth()))
+        .willReturn(NAV_DATE);
+    given(navReportRepository.findPublishedByNavDateAndFundCode(NAV_DATE, "TUK75"))
+        .willReturn(List.of(sec, cash, units));
+    given(costBasisService.snapshotForFundAndDate(TUK75, NAV_DATE)).willReturn(List.of());
+
+    var prevDate = LocalDate.of(2026, 2, 28);
+    given(
+            navReportRepository.findLatestPublishedNavDate(
+                "TUK75", LocalDate.of(2026, 2, 1), LocalDate.of(2026, 2, 28)))
+        .willReturn(prevDate);
+    var prevSec =
+        navRow(
+            "SECURITY",
+            "Fund A",
+            "IE0009FT4LX4",
+            new BigDecimal("100"),
+            new BigDecimal("50"),
+            new BigDecimal("5000"));
+    var prevCash = navRow("CASH", "SEB deposit", null, null, null, new BigDecimal("3000"));
+    var prevUnsettledTotal =
+        navRow(
+            "RECEIVABLES",
+            "Total receivables of unsettled transactions",
+            null,
+            null,
+            null,
+            new BigDecimal("9999"));
+    var prevUnits = navRow("UNITS", "Total", null, null, null, new BigDecimal("10000"));
+    given(navReportRepository.findPublishedByNavDateAndFundCode(prevDate, "TUK75"))
+        .willReturn(List.of(prevSec, prevCash, prevUnsettledTotal, prevUnits));
+
+    var ctx = service.getReportData(TUK75, MARCH_2026);
+
+    // Previous security 5000/10000=0.5 vs current 6000/10000=0.6 -> +0.1
+    assertThat(ctx.securitiesSections().getFirst().totalChange())
+        .isEqualByComparingTo(new BigDecimal("0.1"));
+    // Cash unchanged at 3000/10000=0.3 both months; the unsettled-total row must not count
+    assertThat(ctx.cashTotalChange()).isEqualByComparingTo(BigDecimal.ZERO);
+  }
+
+  @Test
+  void getReportDataSumsMultiplePreviousMonthCashRows() {
+    var sec =
+        navRow(
+            "SECURITY",
+            "Fund A",
+            "IE0009FT4LX4",
+            new BigDecimal("100"),
+            new BigDecimal("60"),
+            new BigDecimal("6000"));
+    var cash = navRow("CASH", "SEB deposit", null, null, null, new BigDecimal("4000"));
+    var units = navRow("UNITS", "Total", null, null, null, new BigDecimal("10000"));
+
+    given(
+            navReportRepository.findLatestPublishedNavDate(
+                "TUK75", MARCH_2026.atDay(1), MARCH_2026.atEndOfMonth()))
+        .willReturn(NAV_DATE);
+    given(navReportRepository.findPublishedByNavDateAndFundCode(NAV_DATE, "TUK75"))
+        .willReturn(List.of(sec, cash, units));
+    given(costBasisService.snapshotForFundAndDate(TUK75, NAV_DATE)).willReturn(List.of());
+
+    var prevDate = LocalDate.of(2026, 2, 28);
+    given(
+            navReportRepository.findLatestPublishedNavDate(
+                "TUK75", LocalDate.of(2026, 2, 1), LocalDate.of(2026, 2, 28)))
+        .willReturn(prevDate);
+    var prevSec =
+        navRow(
+            "SECURITY",
+            "Fund A",
+            "IE0009FT4LX4",
+            new BigDecimal("100"),
+            new BigDecimal("50"),
+            new BigDecimal("5000"));
+    var prevCash1 = navRow("CASH", "SEB deposit", null, null, null, new BigDecimal("1000"));
+    var prevCash2 = navRow("CASH", "EUR account", null, null, null, new BigDecimal("2000"));
+    var prevUnits = navRow("UNITS", "Total", null, null, null, new BigDecimal("10000"));
+    given(navReportRepository.findPublishedByNavDateAndFundCode(prevDate, "TUK75"))
+        .willReturn(List.of(prevSec, prevCash1, prevCash2, prevUnits));
+
+    var ctx = service.getReportData(TUK75, MARCH_2026);
+
+    // Previous cash rows must be summed: (1000+2000)/10000=0.3 vs current 4000/10000=0.4 -> +0.1
+    assertThat(ctx.cashTotalChange()).isEqualByComparingTo(new BigDecimal("0.1"));
+  }
+
+  @Test
   void findNavDatesForAllFundsReturnsAvailableDates() {
     given(
             navReportRepository.findLatestPublishedNavDate(

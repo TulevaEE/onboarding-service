@@ -67,36 +67,44 @@ public class PaymentLinkingService implements PaymentApplications {
       final var payment = entry.getKey();
       final var linkedCash = entry.getValue();
       if (linkedCash.isEmpty() || !cashIsBalanced(linkedCash)) {
-        if (hasRefund(linkedCash)) {
-          log.info("Payment {} has a refund", payment.getId());
-          applications.add(createApplication(payment, apiFund, ApplicationStatus.FAILED));
-        } else if (isTimeMoreThanThreeDaysEarlierThanReference(
-            LocalDate.now(clock), payment.getCreatedTime())) {
-          log.info("Payment is older than three working days {}", payment.getId());
-          applications.add(createApplication(payment, apiFund, ApplicationStatus.FAILED));
-        } else {
-          log.info("Cash is not balanced or no cash entries for {}", payment.getId());
-          applications.add(createApplication(payment, apiFund, ApplicationStatus.PENDING));
-        }
+        applications.add(
+            createApplication(payment, apiFund, statusForUnbalancedCash(payment, linkedCash)));
       } else if (cashIsBalanced(linkedCash)) {
-        if (hasTulevaContribution(linkedCash)) {
-          log.info("Payment {} has Tuleva fund contribution, marking as complete", payment.getId());
-          applications.add(createApplication(payment, apiFund, ApplicationStatus.COMPLETE));
-        } else {
-          if (isTimeMoreThanThreeDaysEarlierThanReference(
-              LocalDate.now(clock), payment.getCreatedTime())) {
-            log.info(
-                "Payment {} does not have a Tuleva fund contribution yet but is older than 5 days, marking as failed",
-                payment.getId());
-            applications.add(createApplication(payment, apiFund, ApplicationStatus.FAILED));
-          } else {
-            log.info("Payment {} does not have a Tuleva fund contribution yet", payment.getId());
-            applications.add(createApplication(payment, apiFund, ApplicationStatus.PENDING));
-          }
-        }
+        applications.add(
+            createApplication(payment, apiFund, statusForBalancedCash(payment, linkedCash)));
       }
     }
     return applications;
+  }
+
+  private ApplicationStatus statusForUnbalancedCash(Payment payment, List<CashFlow> linkedCash) {
+    if (hasRefund(linkedCash)) {
+      log.info("Payment {} has a refund", payment.getId());
+      return ApplicationStatus.FAILED;
+    }
+    if (isTimeMoreThanThreeDaysEarlierThanReference(
+        LocalDate.now(clock), payment.getCreatedTime())) {
+      log.info("Payment is older than three working days {}", payment.getId());
+      return ApplicationStatus.FAILED;
+    }
+    log.info("Cash is not balanced or no cash entries for {}", payment.getId());
+    return ApplicationStatus.PENDING;
+  }
+
+  private ApplicationStatus statusForBalancedCash(Payment payment, List<CashFlow> linkedCash) {
+    if (hasTulevaContribution(linkedCash)) {
+      log.info("Payment {} has Tuleva fund contribution, marking as complete", payment.getId());
+      return ApplicationStatus.COMPLETE;
+    }
+    if (isTimeMoreThanThreeDaysEarlierThanReference(
+        LocalDate.now(clock), payment.getCreatedTime())) {
+      log.info(
+          "Payment {} does not have a Tuleva fund contribution yet but is older than 5 days, marking as failed",
+          payment.getId());
+      return ApplicationStatus.FAILED;
+    }
+    log.info("Payment {} does not have a Tuleva fund contribution yet", payment.getId());
+    return ApplicationStatus.PENDING;
   }
 
   private boolean isTimeMoreThanThreeDaysEarlierThanReference(

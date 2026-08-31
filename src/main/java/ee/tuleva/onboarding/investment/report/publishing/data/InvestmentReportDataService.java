@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -204,18 +205,27 @@ public class InvestmentReportDataService {
   }
 
   private PrevMonthPercentages buildPreviousMonthPercentages(TulevaFund fund, YearMonth prevMonth) {
+    var snapshot = findPreviousNavSnapshot(fund, prevMonth);
+    if (snapshot.isEmpty()) {
+      return PrevMonthPercentages.empty();
+    }
+    return accumulatePreviousMonthPercentages(snapshot.get().rows(), snapshot.get().nav());
+  }
+
+  private Optional<PreviousNavSnapshot> findPreviousNavSnapshot(
+      TulevaFund fund, YearMonth prevMonth) {
     var startDate = prevMonth.atDay(1);
     var endDate = prevMonth.atEndOfMonth();
     var prevNavDate =
         navReportRepository.findLatestPublishedNavDate(fund.getCode(), startDate, endDate);
     if (prevNavDate == null) {
-      return PrevMonthPercentages.empty();
+      return Optional.empty();
     }
 
     var prevRows =
         navReportRepository.findPublishedByNavDateAndFundCode(prevNavDate, fund.getCode());
     if (prevRows.isEmpty()) {
-      return PrevMonthPercentages.empty();
+      return Optional.empty();
     }
 
     var prevNav =
@@ -225,32 +235,55 @@ public class InvestmentReportDataService {
             .findFirst()
             .orElse(null);
     if (prevNav == null || prevNav.signum() == 0) {
-      return PrevMonthPercentages.empty();
+      return Optional.empty();
     }
 
+    return Optional.of(new PreviousNavSnapshot(prevRows, prevNav));
+  }
+
+  private static PrevMonthPercentages accumulatePreviousMonthPercentages(
+      List<NavReportView> prevRows, BigDecimal prevNav) {
     var secTotal = BigDecimal.ZERO;
     BigDecimal cashTotal = null;
     BigDecimal recTotal = null;
 
     for (var r : prevRows) {
-      if ("SECURITY".equals(r.getAccountType()) && r.getMarketValue() != null) {
-        secTotal = secTotal.add(r.getMarketValue().divide(prevNav, 6, RoundingMode.HALF_UP));
-      } else if ("CASH".equals(r.getAccountType())
-          && r.getMarketValue() != null
-          && r.getMarketValue().signum() != 0) {
-        var pct = r.getMarketValue().divide(prevNav, 6, RoundingMode.HALF_UP);
+      if (isSecurityRowWithMarketValue(r)) {
+        secTotal = secTotal.add(percentOfNav(r.getMarketValue(), prevNav));
+      } else if (isNonZeroCashRow(r)) {
+        var pct = percentOfNav(r.getMarketValue(), prevNav);
         cashTotal = cashTotal != null ? cashTotal.add(pct) : pct;
-      } else if ("RECEIVABLES".equals(r.getAccountType())
-          && !"Total receivables of unsettled transactions".equals(r.getAccountName())
-          && r.getMarketValue() != null
-          && r.getMarketValue().signum() > 0) {
-        var pct = r.getMarketValue().divide(prevNav, 6, RoundingMode.HALF_UP);
+      } else if (isPositiveReceivablesRow(r)) {
+        var pct = percentOfNav(r.getMarketValue(), prevNav);
         recTotal = recTotal != null ? recTotal.add(pct) : pct;
       }
     }
 
     return new PrevMonthPercentages(secTotal, cashTotal, recTotal);
   }
+
+  private static boolean isSecurityRowWithMarketValue(NavReportView r) {
+    return "SECURITY".equals(r.getAccountType()) && r.getMarketValue() != null;
+  }
+
+  private static boolean isNonZeroCashRow(NavReportView r) {
+    return "CASH".equals(r.getAccountType())
+        && r.getMarketValue() != null
+        && r.getMarketValue().signum() != 0;
+  }
+
+  private static boolean isPositiveReceivablesRow(NavReportView r) {
+    return "RECEIVABLES".equals(r.getAccountType())
+        && !"Total receivables of unsettled transactions".equals(r.getAccountName())
+        && r.getMarketValue() != null
+        && r.getMarketValue().signum() > 0;
+  }
+
+  private static BigDecimal percentOfNav(BigDecimal marketValue, BigDecimal prevNav) {
+    return marketValue.divide(prevNav, 6, RoundingMode.HALF_UP);
+  }
+
+  private record PreviousNavSnapshot(List<NavReportView> rows, BigDecimal nav) {}
 
   private static @Nullable BigDecimal sumNullable(@Nullable BigDecimal a, @Nullable BigDecimal b) {
     if (a == null && b == null) return null;

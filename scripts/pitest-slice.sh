@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 
 if [ "$MODULE" = "root" ]; then
   TARGET=$(find src/main/java/ee/tuleva/onboarding -maxdepth 1 -name '*.java' ! -name 'package-info.java' \
-    -exec basename {} .java \; | sed 's/^/ee.tuleva.onboarding./' | paste -sd, -)
+    -exec basename {} .java \; | sed -e 's/^/ee.tuleva.onboarding./' -e 's/$/*/' | paste -sd, -)
   RECORD_AS="(root)"
 else
   TARGET="ee.tuleva.onboarding.${MODULE}.*"

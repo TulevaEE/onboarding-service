@@ -1,9 +1,9 @@
 {
   "(root)": {
     "mutations": 3,
-    "detected": 0,
-    "score": 0.0,
-    "recordedAt": "2026-08-30"
+    "detected": 3,
+    "score": 100.0,
+    "recordedAt": "2026-08-31"
   },
   "account": {
     "mutations": 172,
@@ -13,9 +13,9 @@
   },
   "admin": {
     "mutations": 8,
-    "detected": 3,
-    "score": 37.5,
-    "recordedAt": "2026-08-30"
+    "detected": 8,
+    "score": 100.0,
+    "recordedAt": "2026-08-31"
   },
   "administration": {
     "mutations": 14,
@@ -37,9 +37,9 @@
   },
   "applicationtype": {
     "mutations": 8,
-    "detected": 0,
-    "score": 0.0,
-    "recordedAt": "2026-08-30"
+    "detected": 8,
+    "score": 100.0,
+    "recordedAt": "2026-08-31"
   },
   "ariregister": {
     "mutations": 73,
@@ -205,9 +205,9 @@
   },
   "locale": {
     "mutations": 5,
-    "detected": 1,
-    "score": 20.0,
-    "recordedAt": "2026-08-30"
+    "detected": 5,
+    "score": 100.0,
+    "recordedAt": "2026-08-31"
   },
   "mandate": {
     "mutations": 955,
@@ -253,9 +253,9 @@
   },
   "pillar": {
     "mutations": 5,
-    "detected": 0,
-    "score": 0.0,
-    "recordedAt": "2026-08-30"
+    "detected": 5,
+    "score": 100.0,
+    "recordedAt": "2026-08-31"
   },
   "pipeline": {
     "mutations": 70,
@@ -294,10 +294,10 @@
     "recordedAt": "2026-08-30"
   },
   "time": {
-    "mutations": 9,
-    "detected": 0,
-    "score": 0.0,
-    "recordedAt": "2026-08-30"
+    "mutations": 8,
+    "detected": 8,
+    "score": 100.0,
+    "recordedAt": "2026-08-31"
   },
   "user": {
     "mutations": 85,

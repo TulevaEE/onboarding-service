@@ -57,6 +57,10 @@ class TransactionCommandControllerTest {
   @MockitoBean private TransactionAdminService adminService;
 
   private static TransactionOrderResponse orderResponse() {
+    return orderResponse(OrderType.MOC);
+  }
+
+  private static TransactionOrderResponse orderResponse(OrderType orderType) {
     return new TransactionOrderResponse(
         100L,
         "IE00BFG1TM61",
@@ -66,7 +70,7 @@ class TransactionCommandControllerTest {
         new BigDecimal("8.500000"),
         SEB,
         DRAFT,
-        OrderType.MOC,
+        orderType,
         ORDER_UUID,
         null,
         "operator note");
@@ -561,7 +565,8 @@ class TransactionCommandControllerTest {
 
   @Test
   void setOrderType_validType_invokesServiceAndReturnsOrder() throws Exception {
-    given(adminService.setOrderType(100L, OrderType.NAV, "operator-7")).willReturn(orderResponse());
+    given(adminService.setOrderType(100L, OrderType.NAV, "operator-7"))
+        .willReturn(orderResponse(OrderType.NAV));
 
     mockMvc
         .perform(
@@ -575,7 +580,7 @@ class TransactionCommandControllerTest {
                     """))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(100))
-        .andExpect(jsonPath("$.orderType").value("MOC"));
+        .andExpect(jsonPath("$.orderType").value("NAV"));
 
     then(adminService).should().setOrderType(100L, OrderType.NAV, "operator-7");
   }
@@ -583,7 +588,7 @@ class TransactionCommandControllerTest {
   @Test
   void setOrderType_withoutActor_defaultsToAdmin() throws Exception {
     given(adminService.setOrderType(100L, OrderType.RISK, "shared-admin-token"))
-        .willReturn(orderResponse());
+        .willReturn(orderResponse(OrderType.RISK));
 
     mockMvc
         .perform(

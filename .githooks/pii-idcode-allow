@@ -30,3 +30,10 @@
 39001109103
 37508295796
 39001010000
+
+# Synthetic checksum test vectors for PersonalCodeValidatorTest: the only
+# codes in this file whose first-round mod-11 sum hits 10, forcing the
+# second weighting round. Invented for mutation coverage of that round;
+# birth dates 2060/2061 lie in the future, so they can identify no one.
+66003229972
+66112229833

@@ -11,21 +11,15 @@ class RetirementAgeStalenessCheckerTest {
 
   @Test
   void tableIsFreshWhileEstablishedAgesCoverTwoYearsAhead() {
-    var lastCoveredYear = PersonalCode.lastEstablishedRetirementAgeYear() - 2;
-    var checker = new RetirementAgeStalenessChecker(clockAtStartOf(lastCoveredYear));
+    int lastEstablishedYear = PersonalCode.lastEstablishedRetirementAgeYear();
+    var freshChecker = new RetirementAgeStalenessChecker(clockInYear(lastEstablishedYear - 2));
+    var staleChecker = new RetirementAgeStalenessChecker(clockInYear(lastEstablishedYear - 1));
 
-    assertThat(checker.isRetirementAgeTableStale()).isFalse();
+    assertThat(freshChecker.isRetirementAgeTableStale()).isFalse();
+    assertThat(staleChecker.isRetirementAgeTableStale()).isTrue();
   }
 
-  @Test
-  void tableIsStaleWhenAYearThatShouldBeEstablishedIsMissing() {
-    var firstUncoveredYear = PersonalCode.lastEstablishedRetirementAgeYear() - 1;
-    var checker = new RetirementAgeStalenessChecker(clockAtStartOf(firstUncoveredYear));
-
-    assertThat(checker.isRetirementAgeTableStale()).isTrue();
-  }
-
-  private Clock clockAtStartOf(int year) {
-    return Clock.fixed(Instant.parse(year + "-01-01T10:00:00Z"), ZoneId.of("Europe/Tallinn"));
+  private static Clock clockInYear(int year) {
+    return Clock.fixed(Instant.parse(year + "-06-01T12:00:00Z"), ZoneId.of("Europe/Tallinn"));
   }
 }

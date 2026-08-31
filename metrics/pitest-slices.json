@@ -51,7 +51,7 @@
     "mutations": 20,
     "detected": 16,
     "score": 80.0,
-    "recordedAt": "2026-08-30"
+    "recordedAt": "2026-08-31"
   },
   "auth": {
     "mutations": 377,
@@ -246,10 +246,10 @@
     "recordedAt": "2026-08-30"
   },
   "personalcode": {
-    "mutations": 88,
-    "detected": 71,
-    "score": 80.68,
-    "recordedAt": "2026-08-30"
+    "mutations": 83,
+    "detected": 81,
+    "score": 97.59,
+    "recordedAt": "2026-08-31"
   },
   "pillar": {
     "mutations": 5,

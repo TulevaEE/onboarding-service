@@ -29,7 +29,7 @@ public class PersonalCodeValidator implements ConstraintValidator<ValidPersonalC
 
     try {
       int century = Integer.parseInt(personalCode.substring(0, 1));
-      int order = Integer.parseInt(personalCode.substring(7, 10));
+      Integer.parseInt(personalCode.substring(7, 10));
       int checksum = Integer.parseInt(personalCode.substring(10, 11));
 
       // only allow 20th-21st century
@@ -38,10 +38,6 @@ public class PersonalCodeValidator implements ConstraintValidator<ValidPersonalC
       }
 
       PersonalCode.getDateOfBirth(personalCode); // throws exception on invalid date
-
-      if (!(order >= 0 && order <= 999)) {
-        return false;
-      }
 
       int realChecksum = calculateChecksum(personalCode);
       return checksum == realChecksum;

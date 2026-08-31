@@ -28,7 +28,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -229,11 +228,34 @@ public class PeriodicTdAttributionService {
             .map(TrackingDifferenceEvent::getTrackingDifference)
             .reduce(ZERO, BigDecimal::add);
 
-    var coveredDays =
-        bmModelEvents.stream()
-            .map(TrackingDifferenceEvent::getCheckDate)
-            .mapToInt(d -> (int) ChronoUnit.DAYS.between(publicHolidays.previousWorkingDay(d), d))
-            .sum();
+    var coveredDays = etfLayerCoveredDays(bmModelEvents);
+    warnIfEtfLayerDoesNotTilePeriod(fund, periodStart, periodEnd, coveredDays);
+
+    var allocations = latestAllocations(modelAllocations, periodEnd);
+    var measuredIsins = measuredIsins(fund, periodStart, periodEnd, bmModelEvents);
+    var rateByIsin =
+        instrumentFeeRepository.findAllValidRates(periodEnd).stream()
+            .collect(Collectors.toMap(InstrumentFee::isin, InstrumentFee::netOcf, (a, b) -> a));
+
+    var accumulator =
+        new EtfLayerAccumulator(benchmarkLegResolver, fund, measuredIsins, rateByIsin);
+    for (var allocation : allocations) {
+      accumulator.accumulate(allocation);
+    }
+    accumulator.logWarnings(periodEnd);
+
+    return accumulator.toEtfLayer(measuredSum, coveredDays);
+  }
+
+  private int etfLayerCoveredDays(List<TrackingDifferenceEvent> bmModelEvents) {
+    return bmModelEvents.stream()
+        .map(TrackingDifferenceEvent::getCheckDate)
+        .mapToInt(d -> (int) ChronoUnit.DAYS.between(publicHolidays.previousWorkingDay(d), d))
+        .sum();
+  }
+
+  private void warnIfEtfLayerDoesNotTilePeriod(
+      TulevaFund fund, LocalDate periodStart, LocalDate periodEnd, int coveredDays) {
     var tilingDays = workingDayTilingDays(periodStart, periodEnd);
     if (coveredDays != tilingDays) {
       log.warn(
@@ -244,87 +266,6 @@ public class PeriodicTdAttributionService {
           coveredDays,
           tilingDays);
     }
-
-    var allocations = latestAllocations(modelAllocations, periodEnd);
-    var measuredIsins = measuredIsins(fund, periodStart, periodEnd, bmModelEvents);
-    var rateByIsin =
-        instrumentFeeRepository.findAllValidRates(periodEnd).stream()
-            .collect(Collectors.toMap(InstrumentFee::isin, InstrumentFee::netOcf, (a, b) -> a));
-
-    var heldOcf = ZERO;
-    var proxyOcf = ZERO;
-    var unbenchmarkedWeight = ZERO;
-    var unrestoredProxyWeight = ZERO;
-    var unpricedIsins = new LinkedHashSet<String>();
-    var unpricedProxyIsins = new LinkedHashSet<String>();
-
-    for (var allocation : allocations) {
-      var weight = allocation.getWeight();
-      var isin = allocation.getIsin();
-
-      if (!measuredIsins.contains(isin)) {
-        unbenchmarkedWeight = unbenchmarkedWeight.add(weight);
-        continue;
-      }
-
-      var ocf = rateByIsin.get(isin);
-      if (ocf == null) {
-        unpricedIsins.add(isin);
-      } else {
-        heldOcf = heldOcf.add(weight.multiply(ocf));
-      }
-
-      var proxy =
-          benchmarkLegResolver
-              .resolve(
-                  Objects.requireNonNull(isin, "Measured allocation missing isin: fund=" + fund))
-              .orElse(null);
-      if (proxy == null) {
-        continue;
-      }
-      var proxyInstrument = proxy.proxyInstrument();
-      if (proxyInstrument == null) {
-        continue;
-      }
-      var proxyIsin = proxyInstrument.getIsin();
-      var proxyRate = rateByIsin.get(proxyIsin);
-      if (proxyRate == null) {
-        unpricedProxyIsins.add(proxyIsin);
-        unrestoredProxyWeight = unrestoredProxyWeight.add(weight);
-        continue;
-      }
-      proxyOcf = proxyOcf.add(weight.multiply(proxyRate));
-    }
-
-    if (!unpricedIsins.isEmpty()) {
-      log.warn(
-          "No OCF rate for model instruments, their cost is missing from etf_ocf_drag and falls into the residual: fund={}, asOf={}, isins={}",
-          fund,
-          periodEnd,
-          unpricedIsins);
-    }
-    if (!unpricedProxyIsins.isEmpty()) {
-      log.warn(
-          "No OCF rate for benchmark proxy ETFs, so td_vs_benchmark measures against the proxies rather than the index for their share: fund={}, asOf={}, isins={}",
-          fund,
-          periodEnd,
-          unpricedProxyIsins);
-    }
-    if (unbenchmarkedWeight.signum() > 0) {
-      log.warn(
-          "Model weight outside the measured ETF layer, its OCF drag and tracking residual use different weight bases: fund={}, asOf={}, unbenchmarkedWeight={}",
-          fund,
-          periodEnd,
-          unbenchmarkedWeight);
-    }
-
-    return new EtfLayer(
-        measuredSum,
-        annualisedDrag(heldOcf, coveredDays),
-        annualisedDrag(proxyOcf, coveredDays),
-        coveredDays,
-        unbenchmarkedWeight,
-        unrestoredProxyWeight);
   }
 
   private Set<String> measuredIsins(
@@ -373,13 +314,6 @@ public class PeriodicTdAttributionService {
     }
     return (int)
         ChronoUnit.DAYS.between(publicHolidays.previousWorkingDay(firstWorkingDay), lastWorkingDay);
-  }
-
-  private BigDecimal annualisedDrag(BigDecimal weightedRate, int days) {
-    return weightedRate
-        .negate()
-        .multiply(BigDecimal.valueOf(days))
-        .divide(BigDecimal.valueOf(365), SCALE, HALF_UP);
   }
 
   private List<ModelPortfolioAllocation> latestAllocations(

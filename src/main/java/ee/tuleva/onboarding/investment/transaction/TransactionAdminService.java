@@ -35,6 +35,7 @@ class TransactionAdminService {
   private final TransactionOrderRepository orderRepository;
   private final TransactionAuditEventRepository auditEventRepository;
   private final TransactionPreparationService preparationService;
+  private final TransactionBatchFinalizer batchFinalizer;
   private final Clock clock;
 
   TransactionCommandResponse createAndProcess(
@@ -142,7 +143,7 @@ class TransactionAdminService {
     } catch (ObjectOptimisticLockingFailureException e) {
       throw new ResponseStatusException(CONFLICT, "Batch was modified concurrently: id=" + id);
     }
-    preparationService.finalizeConfirmedBatch(batch);
+    batchFinalizer.finalizeConfirmedBatch(batch);
     return TransactionBatchResponse.from(
         batch, orderRepository.findByBatchId(batch.getId()), calculationSnapshot(batch.getId()));
   }

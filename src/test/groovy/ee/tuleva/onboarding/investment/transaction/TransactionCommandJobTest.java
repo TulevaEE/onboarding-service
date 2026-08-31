@@ -28,6 +28,7 @@ class TransactionCommandJobTest {
   @Mock private TransactionCommandRepository commandRepository;
   @Mock private TransactionBatchRepository batchRepository;
   @Mock private TransactionPreparationService preparationService;
+  @Mock private TransactionBatchFinalizer batchFinalizer;
   @Mock private ApplicationEventPublisher eventPublisher;
 
   private final Clock clock =
@@ -39,7 +40,12 @@ class TransactionCommandJobTest {
   void setUp() {
     job =
         new TransactionCommandJob(
-            commandRepository, batchRepository, preparationService, eventPublisher, clock);
+            commandRepository,
+            batchRepository,
+            preparationService,
+            batchFinalizer,
+            eventPublisher,
+            clock);
   }
 
   @Test
@@ -81,7 +87,7 @@ class TransactionCommandJobTest {
 
     job.finalizeConfirmedBatches();
 
-    verify(preparationService).finalizeConfirmedBatch(batch);
+    verify(batchFinalizer).finalizeConfirmedBatch(batch);
   }
 
   @Test
@@ -90,7 +96,7 @@ class TransactionCommandJobTest {
 
     job.finalizeConfirmedBatches();
 
-    verifyNoInteractions(preparationService);
+    verifyNoInteractions(batchFinalizer);
   }
 
   @Test

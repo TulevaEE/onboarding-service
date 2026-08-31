@@ -75,6 +75,7 @@ class TransactionPipelineIntegrationTest {
   }
 
   @Autowired private TransactionPreparationService preparationService;
+  @Autowired private TransactionBatchFinalizer batchFinalizer;
   @Autowired private TransactionCommandRepository commandRepository;
   @Autowired private TransactionBatchRepository batchRepository;
   @Autowired private TransactionOrderRepository orderRepository;
@@ -145,7 +146,7 @@ class TransactionPipelineIntegrationTest {
     batchRepository.save(batch);
     entityManager.flush();
 
-    preparationService.finalizeConfirmedBatch(batch);
+    batchFinalizer.finalizeConfirmedBatch(batch);
     entityManager.flush();
 
     assertThat(batch.getStatus()).isEqualTo(SENT);
@@ -296,7 +297,7 @@ class TransactionPipelineIntegrationTest {
     batchRepository.save(batch);
     entityManager.flush();
 
-    preparationService.finalizeConfirmedBatch(batch);
+    batchFinalizer.finalizeConfirmedBatch(batch);
     entityManager.flush();
     return batch;
   }

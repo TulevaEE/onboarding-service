@@ -3,6 +3,10 @@ package ee.tuleva.onboarding.payment.savings
 
 import tools.jackson.databind.json.JsonMapper
 import com.nimbusds.jose.JWSObject
+import com.nimbusds.jose.Payload
+import com.nimbusds.jose.crypto.MACSigner
+import groovy.json.JsonOutput
+import groovy.json.JsonSlurper
 import ee.tuleva.onboarding.payment.IncomingSavingsPayment
 import ee.tuleva.onboarding.payment.SavingsPayments
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioTokenParser
@@ -150,5 +154,26 @@ class SavingsCallbackServiceSpec extends Specification {
     !recorded
   }
 
+  def "paid token without sender details is accepted and recording defers to statement processing"() {
+    given:
+    def serializedToken = withoutSenderDetails(aSerializedSavingsPaymentToken)
 
+    when:
+    def accepted = savingsCallbackService.processToken(serializedToken)
+
+    then:
+    0 * savingsPayments.recordIncoming(_)
+    0 * eventPublisher.publishEvent(_)
+    accepted
+  }
+
+  private String withoutSenderDetails(String serializedToken) {
+    def original = JWSObject.parse(serializedToken)
+    def payload = new JsonSlurper().parseText(original.payload.toString()) as Map
+    payload.remove("senderName")
+    payload.remove("senderIban")
+    def jws = new JWSObject(original.header, new Payload(JsonOutput.toJson(payload)))
+    jws.sign(new MACSigner(aSecretKey.getBytes()))
+    return jws.serialize()
+  }
 }

@@ -1,7 +1,7 @@
 version: 2.1
 orbs:
-  aws-ecr: circleci/aws-ecr@9.8.1
-  aws-cli: circleci/aws-cli@5.4.1
+  aws-ecr: circleci/aws-ecr@10.0.0
+  aws-cli: circleci/aws-cli@5.4.2
   codecov: codecov/codecov@6.0.0
   snyk: snyk/snyk@2.3.0
 

@@ -7,7 +7,7 @@
     "test": "jest"
   },
   "devDependencies": {
-    "@google/clasp": "^3.3.0",
-    "jest": "^29.7.0"
+    "@google/clasp": "^3.4.1",
+    "jest": "^30.5.0"
   }
 }

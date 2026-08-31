@@ -11,7 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.flywaydb.core.Flyway;
 import org.springframework.core.env.Environment;
-import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
 final class SharedTestPostgres {
@@ -65,7 +65,7 @@ final class SharedTestPostgres {
 
   private static Bootstrap bootstrap(Environment environment) {
     if (Arrays.asList(environment.getActiveProfiles()).contains("pg")) {
-      PostgreSQLContainer<?> container = Container.INSTANCE;
+      PostgreSQLContainer container = Container.INSTANCE;
       return new Bootstrap(
           container.getHost(),
           container.getFirstMappedPort(),
@@ -110,8 +110,8 @@ final class SharedTestPostgres {
   private static final class Container {
 
     @SuppressWarnings("resource")
-    static final PostgreSQLContainer<?> INSTANCE =
-        new PostgreSQLContainer<>(DockerImageName.parse("postgres:17-alpine"))
+    static final PostgreSQLContainer INSTANCE =
+        new PostgreSQLContainer(DockerImageName.parse("postgres:17-alpine"))
             .withCommand(
                 "postgres", "-c", "timezone=UTC", "-c", "fsync=off", "-c", "max_connections=300");
 

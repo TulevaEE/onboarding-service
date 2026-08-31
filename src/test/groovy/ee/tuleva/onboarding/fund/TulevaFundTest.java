@@ -102,4 +102,19 @@ class TulevaFundTest {
     assertThat(TulevaFund.getPillar2Funds()).containsExactly(TulevaFund.TUK75, TulevaFund.TUK00);
     assertThat(TulevaFund.getPillar3Funds()).containsExactly(TulevaFund.TUV100);
   }
+
+  @Test
+  void onlyTheSavingsFundHasNoPillar() {
+    assertThat(TulevaFund.TKF100.isSavingsFund()).isTrue();
+    assertThat(TulevaFund.TUK75.isSavingsFund()).isFalse();
+    assertThat(TulevaFund.TUK00.isSavingsFund()).isFalse();
+    assertThat(TulevaFund.TUV100.isSavingsFund()).isFalse();
+  }
+
+  @Test
+  void everyFundCurrentlyCalculatesNav() {
+    for (TulevaFund fund : TulevaFund.values()) {
+      assertThat(fund.hasNavCalculation()).isTrue();
+    }
+  }
 }

@@ -145,9 +145,9 @@
   },
   "fund": {
     "mutations": 178,
-    "detected": 139,
-    "score": 78.09,
-    "recordedAt": "2026-08-30"
+    "detected": 161,
+    "score": 90.45,
+    "recordedAt": "2026-08-31"
   },
   "hackathon": {
     "mutations": 29,

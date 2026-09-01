@@ -1,11 +1,11 @@
 package ee.tuleva.onboarding.savings.fund.reminder;
 
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON;
+import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON;
 
-import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
+import ee.tuleva.onboarding.auth.principal.Names;
+import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
-import ee.tuleva.onboarding.savings.fund.SavingsFundFees;
-import ee.tuleva.onboarding.user.Names;
+import ee.tuleva.onboarding.savings.SavingsFundFees;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -34,8 +34,7 @@ class FirstPaymentReminderSender {
                 Names.formatted(reminder.firstName()),
                 "savingsFundFee",
                 savingsFundFees.ongoingChargesPercent(reminder.locale())),
-            TAGS,
-            null);
+            TAGS);
 
     emailService
         .send(reminder, message, templateName)

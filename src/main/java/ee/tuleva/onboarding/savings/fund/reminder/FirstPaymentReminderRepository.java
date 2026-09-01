@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.savings.fund.reminder;
 
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON;
+import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON;
 
-import ee.tuleva.onboarding.user.personalcode.PersonalCode;
+import ee.tuleva.onboarding.personalcode.PersonalCode;
 import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
@@ -10,6 +10,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
@@ -23,11 +24,6 @@ class FirstPaymentReminderRepository {
   private final JdbcClient jdbcClient;
   private final Clock clock;
 
-  /**
-   * Savers whose own savings fund account was opened within the given window, who have never sent
-   * us a payment and who have not been reminded before. Children and companies are left out: they
-   * have their own reminders.
-   */
   List<FirstPaymentReminder> fetch(Instant openedFrom, Instant openedUntil) {
     return jdbcClient
         .sql(
@@ -50,8 +46,8 @@ class FirstPaymentReminderRepository {
             LEFT JOIN language_preferences ON language_preferences.personal_id = onboarding.code
             WHERE onboarding.type = 'PERSON'
               AND onboarding.status = 'COMPLETED'
-              AND onboarding.status_changed_at >= :openedFrom
-              AND onboarding.status_changed_at < :openedUntil
+              AND onboarding.updated_at >= :openedFrom
+              AND onboarding.updated_at < :openedUntil
               AND users.email IS NOT NULL
               AND NOT EXISTS (SELECT 1
                               FROM saving_fund_payment payment
@@ -96,7 +92,7 @@ class FirstPaymentReminderRepository {
     return !PersonalCode.isMinor(reminder.personalCode(), LocalDate.now(clock));
   }
 
-  private Locale localeOf(String languagePreference) {
+  private Locale localeOf(@Nullable String languagePreference) {
     return ENGLISH_PREFERENCE.equals(languagePreference) ? Locale.ENGLISH : ESTONIAN;
   }
 }

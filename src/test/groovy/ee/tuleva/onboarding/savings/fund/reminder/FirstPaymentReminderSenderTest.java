@@ -1,8 +1,6 @@
 package ee.tuleva.onboarding.savings.fund.reminder;
 
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
+import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -10,9 +8,9 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
+import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
-import ee.tuleva.onboarding.savings.fund.SavingsFundFees;
+import ee.tuleva.onboarding.savings.SavingsFundFees;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -89,11 +87,10 @@ class FirstPaymentReminderSenderTest {
     given(savingsFundFees.ongoingChargesPercent(reminder.locale())).willReturn("0.28");
     given(
             emailService.newMandrillMessage(
-                eq(reminder.email()),
-                eq(templateName),
-                eq(Map.of("fname", reminder.firstName(), "savingsFundFee", "0.28")),
-                eq(TAGS),
-                isNull()))
+                reminder.email(),
+                templateName,
+                Map.of("fname", reminder.firstName(), "savingsFundFee", "0.28"),
+                TAGS))
         .willReturn(message);
     return message;
   }

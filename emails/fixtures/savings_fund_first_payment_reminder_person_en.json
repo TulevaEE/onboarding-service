@@ -1,6 +1,6 @@
 {
   "variants": {
-    "vaikimisi": {
+    "default": {
       "FNAME": "Mari",
       "savingsFundFee": "0.28"
     }

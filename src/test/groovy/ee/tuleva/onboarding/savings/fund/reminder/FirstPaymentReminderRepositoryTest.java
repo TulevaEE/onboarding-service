@@ -1,18 +1,21 @@
 package ee.tuleva.onboarding.savings.fund.reminder;
 
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailStatus.SENT;
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON;
+import static ee.tuleva.onboarding.notification.email.EmailStatus.SENT;
+import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
-import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
+import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
+import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.PENDING;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import ee.tuleva.onboarding.company.Company;
-import ee.tuleva.onboarding.mandate.email.persistence.Email;
+import ee.tuleva.onboarding.notification.email.Email;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.time.ClockConfig;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
+import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -98,8 +101,20 @@ class FirstPaymentReminderRepositoryTest {
     assertThat(reminders)
         .extracting(FirstPaymentReminder::personalCode, FirstPaymentReminder::locale)
         .containsExactlyInAnyOrder(
-            org.assertj.core.groups.Tuple.tuple(SAVER, Locale.of("et")),
-            org.assertj.core.groups.Tuple.tuple(ENGLISH_SPEAKING_SAVER, Locale.ENGLISH));
+            tuple(SAVER, Locale.of("et")), tuple(ENGLISH_SPEAKING_SAVER, Locale.ENGLISH));
+  }
+
+  @Test
+  void countsTheDaysFromWhenTheAccountWasOpenedNotFromWhenTheApplicationStarted() {
+    accountStarted(SAVER, NOW.minus(40, DAYS));
+    accountOpened(SAVER, NOW.minus(10, DAYS));
+
+    accountStarted(JUST_OPENED, NOW.minus(10, DAYS));
+    accountOpened(JUST_OPENED, NOW.minus(2, DAYS));
+
+    var reminders = repository.fetch(OPENED_FROM, OPENED_UNTIL);
+
+    assertThat(reminders).extracting(FirstPaymentReminder::personalCode).containsExactly(SAVER);
   }
 
   @Test
@@ -160,6 +175,12 @@ class FirstPaymentReminderRepositoryTest {
             """)
         .param("registryCode", registryCode)
         .update();
+  }
+
+  private void accountStarted(String personalCode, Instant startedAt) {
+    ClockHolder.setClock(Clock.fixed(startedAt, ZoneOffset.UTC));
+    onboardingRepository.saveOnboardingStatus(personalCode, PERSON, PENDING);
+    ClockHolder.setClock(Clock.fixed(NOW, ZoneOffset.UTC));
   }
 
   private void accountOpened(String personalCode, Instant openedAt) {
@@ -223,7 +244,7 @@ class FirstPaymentReminderRepositoryTest {
             """)
         .param("personalCode", personalCode)
         .param("languagePreference", languagePreference)
-        .param("dateCreated", NOW)
+        .param("dateCreated", Timestamp.from(NOW))
         .param("snapshotDate", LocalDate.of(2026, 8, 31))
         .update();
   }

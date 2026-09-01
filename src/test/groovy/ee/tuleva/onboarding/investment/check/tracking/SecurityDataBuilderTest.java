@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.check.tracking;
 
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -299,9 +300,13 @@ class SecurityDataBuilderTest {
 
     var blended = result.stream().filter(s -> s.isin().equals("ISIN_B")).findFirst().orElseThrow();
     assertThat(blended.modelWeight()).isEqualByComparingTo("0.65");
+    // The transition leg takes 0.65, so the settled leg gives up exactly that much: it is scaled
+    // from 0.3 to 1 - 0.65 = 0.35. Keeping its original 0.3 would leave the model weighing 0.95.
     var unchanged =
         result.stream().filter(s -> s.isin().equals("ISIN_A")).findFirst().orElseThrow();
-    assertThat(unchanged.modelWeight()).isEqualByComparingTo("0.3");
+    assertThat(unchanged.modelWeight()).isEqualByComparingTo("0.35");
+    assertThat(result.stream().map(SecurityData::modelWeight).reduce(ZERO, BigDecimal::add))
+        .isEqualByComparingTo("1.00");
   }
 
   @Test

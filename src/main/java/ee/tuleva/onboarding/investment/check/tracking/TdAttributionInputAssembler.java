@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.investment.check.tracking;
 
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static java.math.BigDecimal.ZERO;
-import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.check.tracking.TdAttributionCalculator.DailyRecord;
@@ -15,11 +14,9 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -122,124 +119,44 @@ class TdAttributionInputAssembler {
             .filter(p -> p.getAccountId() != null)
             .collect(Collectors.toMap(FundPosition::getAccountId, p -> p, (a, b) -> a));
 
-    var currentWeights = getModelWeightsForDate(modelAllocations, date);
-    var previousWeights = getPreviousModelWeightsForDate(modelAllocations, date);
-    var transitionIsins =
-        findTransitionIsins(currentWeights, previousWeights, positionByIsin.keySet(), fund);
-
+    // Every weight comes from the daily check that actually ran, never from today's allocation
+    // table: a retroactive correction there must not rewrite a month that has already been
+    // measured, and the transition blending belongs in one place - the daily check - not two.
     var securityDataList = new ArrayList<SecurityDailyData>();
+    var unreproducible = new ArrayList<String>();
 
     for (var attr : attributions) {
       var isin = Objects.requireNonNull((String) attr.get("isin"), "Attribution missing isin");
-      var securityReturn = toBigDecimal(attr.get("securityReturn"));
+
+      // Events written before the daily check stored modelWeight cannot be reproduced. Leaving
+      // the instrument out keeps its effect in the residual; reading a missing weight as zero
+      // would report a model that never held it.
+      if (!attr.containsKey("modelWeight") || !attr.containsKey("weightDifference")) {
+        unreproducible.add(isin);
+        continue;
+      }
 
       var position = positionByIsin.get(isin);
-      var positionMv = position != null ? position.getMarketValue() : null;
-      var actualMv = positionMv != null ? positionMv : ZERO;
-      var normalizedActualWeight = actualMv.divide(totalSecurityValue, SCALE, HALF_UP);
-
-      var modelWeight =
-          transitionIsins.contains(isin)
-              ? normalizedActualWeight
-              : currentWeights.getOrDefault(isin, ZERO);
-      var normalizedWeightDiff = normalizedActualWeight.subtract(modelWeight);
-
       securityDataList.add(
           SecurityDailyData.builder()
               .isin(isin)
               .instrumentName(position != null ? position.getAccountName() : null)
-              .modelWeight(modelWeight)
-              .actualWeight(normalizedActualWeight)
-              .normalizedWeightDiff(normalizedWeightDiff)
-              .securityReturn(securityReturn)
+              .modelWeight(toBigDecimal(attr.get("modelWeight")))
+              .actualWeight(toBigDecimal(attr.get("actualWeight")))
+              .normalizedWeightDiff(toBigDecimal(attr.get("weightDifference")))
+              .securityReturn(toBigDecimal(attr.get("securityReturn")))
               .build());
     }
 
-    return securityDataList;
-  }
-
-  private Map<String, BigDecimal> getModelWeightsForDate(
-      List<ModelPortfolioAllocation> allVersions, LocalDate date) {
-    var activeAllocations =
-        allVersions.stream().filter(a -> !a.getEffectiveDate().isAfter(date)).toList();
-    if (activeAllocations.isEmpty()) {
-      return Map.of();
-    }
-    var latestDate =
-        activeAllocations.stream()
-            .map(ModelPortfolioAllocation::getEffectiveDate)
-            .max(LocalDate::compareTo)
-            .orElseThrow();
-    return activeAllocations.stream()
-        .filter(a -> a.getEffectiveDate().equals(latestDate))
-        .collect(
-            Collectors.toMap(
-                ModelPortfolioAllocation::getIsin, ModelPortfolioAllocation::getWeight));
-  }
-
-  private Map<String, BigDecimal> getPreviousModelWeightsForDate(
-      List<ModelPortfolioAllocation> allVersions, LocalDate date) {
-    var activeAllocations =
-        allVersions.stream().filter(a -> !a.getEffectiveDate().isAfter(date)).toList();
-    var distinctDates =
-        activeAllocations.stream()
-            .map(ModelPortfolioAllocation::getEffectiveDate)
-            .distinct()
-            .sorted()
-            .toList();
-    if (distinctDates.size() < 2) {
-      return Map.of();
-    }
-    var previousDate = distinctDates.get(distinctDates.size() - 2);
-    return activeAllocations.stream()
-        .filter(a -> a.getEffectiveDate().equals(previousDate))
-        .collect(
-            Collectors.toMap(
-                ModelPortfolioAllocation::getIsin, ModelPortfolioAllocation::getWeight));
-  }
-
-  private Set<String> findTransitionIsins(
-      Map<String, BigDecimal> currentWeights,
-      Map<String, BigDecimal> previousWeights,
-      Set<String> positionIsins,
-      TulevaFund fund) {
-
-    if (previousWeights.isEmpty()) {
-      return Set.of();
-    }
-
-    var addedIsins = new HashSet<>(currentWeights.keySet());
-    addedIsins.removeAll(previousWeights.keySet());
-    var removedIsins = new HashSet<>(previousWeights.keySet());
-    removedIsins.removeAll(currentWeights.keySet());
-
-    if (addedIsins.isEmpty() && removedIsins.isEmpty()) {
-      return Set.of();
-    }
-
-    var knownIsins = new HashSet<>(currentWeights.keySet());
-    knownIsins.addAll(previousWeights.keySet());
-    var unexpectedIsins = new HashSet<>(positionIsins);
-    unexpectedIsins.removeAll(knownIsins);
-
-    if (!unexpectedIsins.isEmpty()) {
+    if (!unreproducible.isEmpty()) {
       log.warn(
-          "Unexpected ISINs in portfolio, skipping transition blending: fund={}, unexpected={}",
+          "Daily attribution predates the stored model weight, leaving those instruments out of the period detail: fund={}, date={}, isins={}",
           fund,
-          unexpectedIsins);
-      return Set.of();
+          date,
+          unreproducible);
     }
 
-    var removedAndHeld = new HashSet<>(removedIsins);
-    removedAndHeld.retainAll(positionIsins);
-
-    if (removedAndHeld.isEmpty()) {
-      return Set.of();
-    }
-
-    var transitionIsins = new HashSet<>(addedIsins);
-    transitionIsins.addAll(removedIsins);
-    return transitionIsins;
+    return securityDataList;
   }
 
   static int countSeriesGaps(List<LocalDate> sortedEventDates, PublicHolidays publicHolidays) {

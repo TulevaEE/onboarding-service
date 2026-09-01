@@ -124,7 +124,8 @@ class TrackingDifferenceServiceTest {
         .thenReturn(new BigDecimal("0.005"));
     chargeEveryFeeToTheFund();
     var calculator = new TrackingDifferenceCalculator(parameterRepository);
-    var consecutiveBreachTracker = new ConsecutiveBreachTracker(eventRepository, calculator);
+    var consecutiveBreachTracker =
+        new ConsecutiveBreachTracker(eventRepository, calculator, publicHolidays);
     service =
         new TrackingDifferenceService(
             FIXED_CLOCK,
@@ -1473,8 +1474,8 @@ class TrackingDifferenceServiceTest {
   void consecutiveBreachCountingStopsAtNonBreach() {
     setupFundData(TUK75);
 
-    var breachEvent = breachEvent(LocalDate.of(2026, 4, 2), new BigDecimal("0.0020"));
-    var nonBreachEvent = nonBreachEvent(LocalDate.of(2026, 4, 1));
+    var breachEvent = breachEvent(LocalDate.of(2026, 4, 9), new BigDecimal("0.0020"));
+    var nonBreachEvent = nonBreachEvent(LocalDate.of(2026, 4, 8));
 
     given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 10))
         .willReturn(List.of(breachEvent, nonBreachEvent));
@@ -1494,8 +1495,8 @@ class TrackingDifferenceServiceTest {
     setupFundData(TUK75);
 
     // Prior day breached only on the NAV-correctness residual (fund-vs-model TD within limits).
-    var navResidualDay = navResidualBreachEvent(LocalDate.of(2026, 4, 2));
-    var nonBreachEvent = nonBreachEvent(LocalDate.of(2026, 4, 1));
+    var navResidualDay = navResidualBreachEvent(LocalDate.of(2026, 4, 9));
+    var nonBreachEvent = nonBreachEvent(LocalDate.of(2026, 4, 8));
 
     given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 10))
         .willReturn(List.of(navResidualDay, nonBreachEvent));
@@ -1513,8 +1514,8 @@ class TrackingDifferenceServiceTest {
   void consecutiveNetTdSumsOverBreachDays() {
     setupFundData(TUK75);
 
-    var breachEvent1 = breachEvent(LocalDate.of(2026, 4, 2), new BigDecimal("0.0020"));
-    var breachEvent2 = breachEvent(LocalDate.of(2026, 4, 1), new BigDecimal("0.0015"));
+    var breachEvent1 = breachEvent(LocalDate.of(2026, 4, 9), new BigDecimal("0.0020"));
+    var breachEvent2 = breachEvent(LocalDate.of(2026, 4, 8), new BigDecimal("0.0015"));
 
     given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 10))
         .willReturn(List.of(breachEvent1, breachEvent2));
@@ -1543,13 +1544,13 @@ class TrackingDifferenceServiceTest {
 
     var breach1 =
         breachEventWithAttribution(
-            LocalDate.of(2026, 4, 2),
+            LocalDate.of(2026, 4, 9),
             new BigDecimal("0.0020"),
             "IE00BFG1TM61",
             new BigDecimal("0.0015"));
     var breach2 =
         breachEventWithAttribution(
-            LocalDate.of(2026, 4, 1),
+            LocalDate.of(2026, 4, 8),
             new BigDecimal("0.0015"),
             "IE00BFG1TM61",
             new BigDecimal("0.0010"));
@@ -1611,7 +1612,7 @@ class TrackingDifferenceServiceTest {
     var eventWithMixedTypes =
         TrackingDifferenceEvent.builder()
             .fund(TUK75)
-            .checkDate(LocalDate.of(2026, 4, 2))
+            .checkDate(LocalDate.of(2026, 4, 9))
             .checkType(MODEL_PORTFOLIO)
             .trackingDifference(new BigDecimal("0.0020"))
             .fundReturn(new BigDecimal("0.01"))
@@ -1654,7 +1655,7 @@ class TrackingDifferenceServiceTest {
     var eventWithNullIsin =
         TrackingDifferenceEvent.builder()
             .fund(TUK75)
-            .checkDate(LocalDate.of(2026, 4, 2))
+            .checkDate(LocalDate.of(2026, 4, 9))
             .checkType(MODEL_PORTFOLIO)
             .trackingDifference(new BigDecimal("0.0020"))
             .fundReturn(new BigDecimal("0.01"))
@@ -1846,9 +1847,9 @@ class TrackingDifferenceServiceTest {
   void consecutiveBreachDaysResetsToZeroWhenTodayWithinToleranceDespitePriorStreak() {
     skipOtherFunds(TUK75);
 
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), CHECK_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE))
         .willReturn(Optional.of(new BigDecimal("10.10")));
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
         .willReturn(Optional.of(new BigDecimal("10.00")));
 
     var allocation =
@@ -1949,7 +1950,7 @@ class TrackingDifferenceServiceTest {
     var zeroReturnBreach =
         TrackingDifferenceEvent.builder()
             .fund(TUK75)
-            .checkDate(LocalDate.of(2026, 4, 2))
+            .checkDate(LocalDate.of(2026, 4, 9))
             .checkType(MODEL_PORTFOLIO)
             .trackingDifference(new BigDecimal("0.0060"))
             .fundReturn(BigDecimal.ZERO)
@@ -2563,8 +2564,10 @@ class TrackingDifferenceServiceTest {
             .weight(new BigDecimal("1.00"))
             .effectiveDate(LocalDate.of(2026, 1, 1))
             .build();
+    // No transition here: this is about what an unpriced holding does to the sleeve total.
+    // A runoff holding that IS a transition leg carries model weight and stops the check.
     given(modelPortfolioAllocationRepository.findPreviousByFundAsOf(TUK75, CHECK_DATE))
-        .willReturn(List.of(previousAllocation));
+        .willReturn(List.of());
 
     var oldPosition =
         FundPosition.builder()
@@ -2590,8 +2593,6 @@ class TrackingDifferenceServiceTest {
         .willReturn(Optional.of(resolvedPrice("102.00")));
     given(positionPriceResolver.resolve(eq("IE00NEW"), eq(PREVIOUS_DATE), any(Instant.class)))
         .willReturn(Optional.of(resolvedPrice("100.00")));
-    given(positionPriceResolver.resolve(eq("IE00OLD"), any(LocalDate.class), any()))
-        .willReturn(Optional.empty());
 
     given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
@@ -2795,7 +2796,10 @@ class TrackingDifferenceServiceTest {
             .filter(a -> a.isin().equals("IE00STABLE"))
             .findFirst()
             .orElseThrow();
-    assertThat(stableAttr.modelWeight()).isEqualByComparingTo(new BigDecimal("0.60"));
+    // The two transition legs take 0.204082 each, so the settled leg gives up exactly that
+    // much: 1 - 0.408164 = 0.591836. Before, it kept its full 0.60 and the model weighed
+    // 1.008164 - more than the whole fund.
+    assertThat(stableAttr.modelWeight()).isEqualByComparingTo(new BigDecimal("0.591836"));
 
     var newAttr =
         modelResult.get().securityAttributions().stream()

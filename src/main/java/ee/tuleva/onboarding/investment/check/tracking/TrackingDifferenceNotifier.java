@@ -16,6 +16,7 @@ import java.util.TreeMap;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -55,6 +56,38 @@ class TrackingDifferenceNotifier {
     } catch (Exception e) {
       log.error("Failed to send tracking difference run failure notification", e);
     }
+  }
+
+  void notifyResidualOutsideTolerance(
+      TulevaFund fund,
+      LocalDate periodStart,
+      LocalDate periodEnd,
+      BigDecimal residual,
+      @Nullable BigDecimal tolerance) {
+    try {
+      notificationService.sendMessage(
+          """
+          🛑 TD ATTRIBUTION UNEXPLAINED: fund=%s, period=%s to %s
+            Residual %s bps, tolerance %s bps.
+            The attribution did not explain the period's tracking difference. The components it
+            does report cannot be relied on until the gap is understood."""
+              .formatted(
+                  fund.getCode(),
+                  periodStart,
+                  periodEnd,
+                  toBps(residual),
+                  tolerance == null ? "none" : toBps(tolerance)),
+          INVESTMENT);
+    } catch (Exception e) {
+      log.error("Failed to send tracking difference residual notification", e);
+    }
+  }
+
+  private static String toBps(BigDecimal value) {
+    return value
+        .multiply(new BigDecimal("10000"))
+        .setScale(2, RoundingMode.HALF_UP)
+        .toPlainString();
   }
 
   void notify(List<TrackingDifferenceResult> results) {

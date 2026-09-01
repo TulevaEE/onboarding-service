@@ -550,7 +550,15 @@ class TrackingDifferenceNotifierTest {
 
     notifier.notify(List.of(benchmarkResult));
 
-    then(notificationService).should().sendMessage(contains("within limits"), eq(INVESTMENT));
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    // The ACWI benchmark is suppressed, so a breach on it must not raise a TD BREACH. But a run
+    // holding only benchmark results checked nothing anyone acts on, so it must not report
+    // "within limits" either - that is the same false all-clear as an empty run.
+    assertThat(captor.getValue())
+        .doesNotContain("TD BREACH DETECTED")
+        .doesNotContain("within limits")
+        .contains("produced no tracking difference results");
   }
 
   @Test

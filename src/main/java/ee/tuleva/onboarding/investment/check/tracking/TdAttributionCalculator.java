@@ -6,6 +6,7 @@ import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
+import java.math.MathContext;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -20,6 +21,8 @@ class TdAttributionCalculator {
   static final int SCALE = 10;
   private static final BigDecimal CARINO_NEAR_EQUAL = new BigDecimal("0.0000000001");
   private static final BigDecimal EXTREME_SCALE = new BigDecimal("2.0");
+  private static final BigDecimal DAYS_IN_YEAR = new BigDecimal("365");
+  private static final MathContext TOLERANCE_MATH = new MathContext(16, HALF_UP);
 
   TdAttributionResult calculate(TdAttributionInput input) {
     var dailyRecords = input.dailyRecords();
@@ -217,6 +220,30 @@ class TdAttributionCalculator {
     return cumulative.subtract(ONE).setScale(SCALE, HALF_UP);
   }
 
+  // The tolerance is stored as an annual rate and scaled by the square root of the period's share
+  // of a year, because it is a band on noise: independent daily errors accumulate with the square
+  // root of time, not linearly. A residual that instead grows linearly with the period length is a
+  // systematic leak - a component the attribution is missing - and widening the band would hide it
+  // rather than measure it. Comparing an observed quarterly residual against sqrt(3) times the
+  // monthly one is what tells the two apart.
+  @Nullable
+  static BigDecimal scaledResidualTolerance(TdAttributionInput input) {
+    var annual = input.residualTolerance();
+    if (annual == null || annual.signum() <= 0 || input.calendarDays() <= 0) {
+      return null;
+    }
+    var yearFraction =
+        BigDecimal.valueOf(input.calendarDays()).divide(DAYS_IN_YEAR, TOLERANCE_MATH);
+    return annual.multiply(yearFraction.sqrt(TOLERANCE_MATH)).setScale(SCALE, HALF_UP);
+  }
+
+  // sumCheck cannot fail - residual is defined as the tracking difference minus the components,
+  // so they always add up. How big the residual is, is the only real signal.
+  static boolean residualWithinTolerance(BigDecimal residual, TdAttributionInput input) {
+    var tolerance = scaledResidualTolerance(input);
+    return tolerance == null || residual.abs().compareTo(tolerance) <= 0;
+  }
+
   private Map<String, Object> buildChecks(
       BigDecimal tdGeometric,
       BigDecimal linkedComponentSum,
@@ -237,18 +264,28 @@ class TdAttributionCalculator {
       feeXcheck = orZero(input.mgmtFeeDragPeriod()).subtract(expectedFeeDrag).abs();
     }
 
-    return Map.of(
-        "sumCheck", sumCheck.setScale(8, HALF_UP),
-        "feeXcheck", feeXcheck.setScale(8, HALF_UP),
-        "scalingFactor", periodLink.setScale(8, HALF_UP),
-        "residualBps", residualBps.setScale(2, HALF_UP),
-        "seriesGapDays", input.seriesGapDays(),
-        "etfLayerMeasured", input.benchmarkModelSumPeriod() != null,
-        "etfLayerCoveredDays", input.etfLayerCoveredDays(),
+    var checks = new LinkedHashMap<String, Object>();
+    checks.put("sumCheck", sumCheck.setScale(8, HALF_UP));
+    checks.put("feeXcheck", feeXcheck.setScale(8, HALF_UP));
+    checks.put("scalingFactor", periodLink.setScale(8, HALF_UP));
+    checks.put("residualBps", residualBps.setScale(2, HALF_UP));
+    checks.put("residualWithinTolerance", residualWithinTolerance(residual, input));
+    var scaledTolerance = scaledResidualTolerance(input);
+    if (scaledTolerance != null) {
+      checks.put(
+          "residualToleranceBps",
+          scaledTolerance.multiply(BigDecimal.valueOf(10000)).setScale(2, HALF_UP));
+    }
+    checks.put("seriesGapDays", input.seriesGapDays());
+    checks.put("etfLayerMeasured", input.benchmarkModelSumPeriod() != null);
+    checks.put("etfLayerCoveredDays", input.etfLayerCoveredDays());
+    checks.put(
         "etfLayerUnbenchmarkedWeight",
-            orZero(input.etfLayerUnbenchmarkedWeight()).setScale(6, HALF_UP),
+        orZero(input.etfLayerUnbenchmarkedWeight()).setScale(6, HALF_UP));
+    checks.put(
         "etfLayerUnrestoredProxyWeight",
-            orZero(input.etfLayerUnrestoredProxyWeight()).setScale(6, HALF_UP));
+        orZero(input.etfLayerUnrestoredProxyWeight()).setScale(6, HALF_UP));
+    return Map.copyOf(checks);
   }
 
   private TdAttributionResult emptyResult(TdAttributionInput input) {
@@ -298,6 +335,7 @@ class TdAttributionCalculator {
       @Nullable BigDecimal benchmarkProxyOcfDragPeriod,
       BigDecimal expectedAnnualFeeRate,
       int seriesGapDays,
+      @Nullable BigDecimal residualTolerance,
       int etfLayerCoveredDays,
       BigDecimal etfLayerUnbenchmarkedWeight,
       BigDecimal etfLayerUnrestoredProxyWeight,

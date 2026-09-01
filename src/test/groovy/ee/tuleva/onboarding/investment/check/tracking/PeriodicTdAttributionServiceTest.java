@@ -23,6 +23,7 @@ import ee.tuleva.onboarding.instrument.BenchmarkCategoryProxy;
 import ee.tuleva.onboarding.instrument.InstrumentReference;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.investment.TrackingCheckType;
+import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.fees.FeeAccrual;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
@@ -81,6 +82,9 @@ class PeriodicTdAttributionServiceTest {
 
   private PeriodicTdAttributionService service;
 
+  @Mock private InvestmentParameterRepository parameterRepository;
+  @Mock private TrackingDifferenceNotifier notifier;
+
   @BeforeEach
   void setUp() {
     service =
@@ -96,7 +100,9 @@ class PeriodicTdAttributionServiceTest {
             instrumentFeeRepository,
             transactionManager,
             new PublicHolidays(),
-            new BenchmarkLegResolver(trackedInstruments()));
+            new BenchmarkLegResolver(trackedInstruments()),
+            parameterRepository,
+            notifier);
 
     // Default lenient stubs for Phase 3 data sources (overridden in specific tests)
     given(transactionExecutionRepository.sumCommissionsForFundAndPeriod(anyString(), any(), any()))
@@ -793,7 +799,7 @@ class PeriodicTdAttributionServiceTest {
         .result(
             Map.of(
                 "securityAttributions",
-                measuredIsins.stream().map(isin -> Map.<String, Object>of("isin", isin)).toList()))
+                measuredIsins.stream().map(isin -> attribution(isin, "0.5")).toList()))
         .build();
   }
 
@@ -879,11 +885,13 @@ class PeriodicTdAttributionServiceTest {
                         "isin", ISIN_DW,
                         "modelWeight", new BigDecimal("0.70"),
                         "actualWeight", new BigDecimal("0.68"),
+                        "weightDifference", new BigDecimal("-0.006122"),
                         "securityReturn", new BigDecimal(fundReturn)),
                     Map.<String, Object>of(
                         "isin", ISIN_EUROPE_ETF,
                         "modelWeight", new BigDecimal("0.30"),
                         "actualWeight", new BigDecimal("0.30"),
+                        "weightDifference", new BigDecimal("0.006122"),
                         "securityReturn", new BigDecimal(benchmarkReturn))),
                 "cashDrag",
                 ZERO,
@@ -909,30 +917,34 @@ class PeriodicTdAttributionServiceTest {
                 "securityAttributions",
                 List.of(
                     Map.<String, Object>of(
-                        "isin", isin, "securityReturn", new BigDecimal("0.001")))))
+                        "isin",
+                        isin,
+                        "securityReturn",
+                        new BigDecimal("0.001"),
+                        "modelWeight",
+                        BigDecimal.ONE,
+                        "actualWeight",
+                        BigDecimal.ONE,
+                        "weightDifference",
+                        ZERO))))
         .createdAt(Instant.now())
         .build();
   }
 
-  private TrackingDifferenceEvent twoAttributionEvent(LocalDate date, String isinA, String isinB) {
-    return TrackingDifferenceEvent.builder()
-        .fund(TUK75)
-        .checkDate(date)
-        .checkType(MODEL_PORTFOLIO)
-        .trackingDifference(new BigDecimal("0.0001"))
-        .fundReturn(new BigDecimal("0.001"))
-        .benchmarkReturn(new BigDecimal("0.0009"))
-        .breach(false)
-        .result(
-            Map.of(
-                "securityAttributions",
-                List.of(
-                    Map.<String, Object>of(
-                        "isin", isinA, "securityReturn", new BigDecimal("0.001")),
-                    Map.<String, Object>of(
-                        "isin", isinB, "securityReturn", new BigDecimal("0.001")))))
-        .createdAt(Instant.now())
-        .build();
+  // What the daily check actually stores. A fixture holding only isin and securityReturn is a
+  // pre-2026-05-06 event, which the period deliberately cannot reproduce.
+  private static Map<String, Object> attribution(String isin, String weight) {
+    return Map.<String, Object>of(
+        "isin",
+        isin,
+        "securityReturn",
+        new BigDecimal("0.001"),
+        "modelWeight",
+        new BigDecimal(weight),
+        "actualWeight",
+        new BigDecimal(weight),
+        "weightDifference",
+        ZERO);
   }
 
   private FeeAccrual feeAccrual(LocalDate date, FeeType type, String amount) {
@@ -968,8 +980,18 @@ class PeriodicTdAttributionServiceTest {
         .build();
   }
 
+  private FundPosition positionNamed(String isin, String accountName) {
+    return FundPosition.builder()
+        .fund(TUK75)
+        .accountType(SECURITY)
+        .accountId(isin)
+        .accountName(accountName)
+        .marketValue(new BigDecimal("1000000"))
+        .build();
+  }
+
   @Test
-  void blendsModelWeightsDuringTransitionInPeriodicAttribution() {
+  void reportsNoWeightDeviationForTheLegsTheDailyCheckBlended() {
     var date1 = LocalDate.of(2026, 4, 1);
     var date2 = LocalDate.of(2026, 4, 2);
 
@@ -1052,7 +1074,7 @@ class PeriodicTdAttributionServiceTest {
   }
 
   @Test
-  void skipsBlendingWhenNoModelVersionChange() {
+  void reportsTheModelWeightTheDailyCheckStored() {
     setupStandardMocks();
 
     var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
@@ -1066,71 +1088,24 @@ class PeriodicTdAttributionServiceTest {
   }
 
   @Test
-  void skipsBlendingWhenUnexpectedIsinInPeriodicAttribution() {
-    var date1 = LocalDate.of(2026, 4, 1);
-    var date2 = LocalDate.of(2026, 4, 2);
-    var isinNew = "IE00NEW";
-    var isinRogue = "IE00ROGUE";
-
-    given(
-            tdEventRepository.findDeduplicatedEventsForPeriod(
-                TUK75, MODEL_PORTFOLIO, PERIOD_START, PERIOD_END))
-        .willReturn(
-            List.of(
-                tdEvent(date1, "0.0008", "0.001"),
-                tdEventWithTransition(date2, "0.0005", "0.0007", isinNew)));
-
-    given(feeAccrualRepository.findByFundAndDateRange(TUK75, PERIOD_START, PERIOD_END))
-        .willReturn(List.of());
-    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, PERIOD_END))
-        .willReturn(Optional.empty());
-
-    given(
-            modelPortfolioAllocationRepository.findVersionsActiveDuringPeriod(
-                TUK75, PERIOD_START, PERIOD_END))
-        .willReturn(
-            List.of(
-                modelAllocation(ISIN_DW, "0.70", date1),
-                modelAllocation(ISIN_EUROPE_ETF, "0.30", date1),
-                modelAllocation(ISIN_DW, "0.70", date2),
-                modelAllocation(isinNew, "0.30", date2)));
-
-    given(fundNavQueryService.findAum(FUND_CODE, date1)).willReturn(new BigDecimal("100000000"));
-    given(fundNavQueryService.findAum(FUND_CODE, date2)).willReturn(new BigDecimal("100050000"));
-    given(fundNavQueryService.findCashValue(anyString(), any()))
-        .willReturn(new BigDecimal("1500000"));
-    given(fundNavQueryService.findSecuritiesTotalValue(anyString(), any()))
-        .willReturn(new BigDecimal("98000000"));
-    given(fundNavQueryService.findFeeAccrualLiabilities(anyString(), any()))
-        .willReturn(new BigDecimal("-50000"));
-
-    given(
-            fundPositionRepository.findByNavDateAndFundAndAccountType(
-                eq(date1), eq(TUK75), eq(SECURITY)))
-        .willReturn(List.of(position(ISIN_DW, "68600000"), position(ISIN_EUROPE_ETF, "29400000")));
-
-    given(
-            fundPositionRepository.findByNavDateAndFundAndAccountType(
-                eq(date2), eq(TUK75), eq(SECURITY)))
+  void aHeldPositionTheDailyCheckDidNotAttributeStaysOutOfThePeriodDetail() {
+    setupStandardMocks();
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(any(), eq(TUK75), eq(SECURITY)))
         .willReturn(
             List.of(
                 position(ISIN_DW, "68600000"),
-                position(ISIN_EUROPE_ETF, "20000000"),
-                position(isinNew, "5000000"),
-                position(isinRogue, "5000000")));
+                position(ISIN_EUROPE_ETF, "29400000"),
+                position("IE00ROGUE", "5000000")));
 
     var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
 
-    assertThat(result.tdGeometric()).isNotNull();
-    assertThat(result.instrumentDetails()).isNotEmpty();
-    var emDetail =
-        result.instrumentDetails().stream()
-            .filter(d -> d.isin().equals(ISIN_EUROPE_ETF))
-            .findFirst()
-            .orElseThrow();
-    assertThat(emDetail.modelWeight()).isNotEqualByComparingTo(emDetail.avgActualWeight());
+    assertThat(result.instrumentDetails())
+        .extracting(TdAttributionResult.InstrumentAttribution::isin)
+        .containsExactlyInAnyOrder(ISIN_DW, ISIN_EUROPE_ETF);
   }
 
+  // A transition day as the daily check stores it: the legs moving have their model weight blended
+  // to what the fund actually holds, and the rest of the model is rescaled back to 1.
   private TrackingDifferenceEvent tdEventWithTransition(
       LocalDate date, String fundReturn, String benchmarkReturn, String newIsin) {
     return TrackingDifferenceEvent.builder()
@@ -1149,20 +1124,19 @@ class PeriodicTdAttributionServiceTest {
                         "isin", ISIN_DW,
                         "modelWeight", new BigDecimal("0.70"),
                         "actualWeight", new BigDecimal("0.70"),
+                        "weightDifference", ZERO,
                         "securityReturn", new BigDecimal("0.001")),
                     Map.<String, Object>of(
-                        "isin",
-                        ISIN_EUROPE_ETF,
-                        "modelWeight",
-                        ZERO,
-                        "actualWeight",
-                        new BigDecimal("0.20"),
-                        "securityReturn",
-                        new BigDecimal("0.0005")),
+                        "isin", ISIN_EUROPE_ETF,
+                        "modelWeight", new BigDecimal("0.20"),
+                        "actualWeight", new BigDecimal("0.20"),
+                        "weightDifference", ZERO,
+                        "securityReturn", new BigDecimal("0.0005")),
                     Map.<String, Object>of(
                         "isin", newIsin,
-                        "modelWeight", new BigDecimal("0.30"),
+                        "modelWeight", new BigDecimal("0.10"),
                         "actualWeight", new BigDecimal("0.10"),
+                        "weightDifference", ZERO,
                         "securityReturn", new BigDecimal("0.002"))),
                 "cashDrag",
                 ZERO,
@@ -1237,7 +1211,7 @@ class PeriodicTdAttributionServiceTest {
   }
 
   @Test
-  void attributionForIsinWithNoMatchingPositionDefaultsWeightToZero() {
+  void attributionForIsinWithNoMatchingPositionFallsBackToTheIsinAsItsName() {
     var date1 = LocalDate.of(2026, 4, 1);
     var isinNoPosition = "IE00NOPOS";
 
@@ -1268,7 +1242,7 @@ class PeriodicTdAttributionServiceTest {
             .filter(d -> d.isin().equals(isinNoPosition))
             .findFirst()
             .orElseThrow();
-    assertThat(detail.avgActualWeight()).isEqualByComparingTo(ZERO);
+    assertThat(detail.avgActualWeight()).isEqualByComparingTo(BigDecimal.ONE);
     assertThat(detail.instrumentName()).isEqualTo(isinNoPosition);
   }
 
@@ -1322,7 +1296,7 @@ class PeriodicTdAttributionServiceTest {
   }
 
   @Test
-  void usesFirstPositionWhenDuplicateAccountIdsExistForADay() {
+  void namesTheInstrumentAfterTheFirstPositionWhenDuplicateAccountIdsExistForADay() {
     var date1 = LocalDate.of(2026, 4, 1);
 
     given(
@@ -1343,7 +1317,10 @@ class PeriodicTdAttributionServiceTest {
         .willReturn(new BigDecimal("1000"));
     given(fundNavQueryService.findFeeAccrualLiabilities(anyString(), any())).willReturn(ZERO);
     given(fundPositionRepository.findByNavDateAndFundAndAccountType(date1, TUK75, SECURITY))
-        .willReturn(List.of(position(ISIN_DW, "111"), position(ISIN_DW, "999")));
+        .willReturn(
+            List.of(
+                positionNamed(ISIN_DW, "Developed World"),
+                positionNamed(ISIN_DW, "Developed World (duplicate)")));
 
     var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
 
@@ -1352,7 +1329,7 @@ class PeriodicTdAttributionServiceTest {
             .filter(d -> d.isin().equals(ISIN_DW))
             .findFirst()
             .orElseThrow();
-    assertThat(detail.avgActualWeight()).isEqualByComparingTo("0.111000");
+    assertThat(detail.instrumentName()).isEqualTo("Developed World");
   }
 
   @Test
@@ -1373,28 +1350,6 @@ class PeriodicTdAttributionServiceTest {
     var withDuplicate = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
 
     assertThat(withDuplicate.etfOcfDrag()).isEqualByComparingTo(baseline.etfOcfDrag());
-  }
-
-  @Test
-  void excludesFutureDatedModelAllocationsWhenResolvingActiveWeights() {
-    setupStandardMocks();
-    given(
-            modelPortfolioAllocationRepository.findVersionsActiveDuringPeriod(
-                TUK75, PERIOD_START, PERIOD_END))
-        .willReturn(
-            List.of(
-                modelAllocation(ISIN_DW, "0.70", PERIOD_START),
-                modelAllocation(ISIN_EUROPE_ETF, "0.30", PERIOD_START),
-                modelAllocation(ISIN_DW, "0.99", PERIOD_END.plusMonths(1))));
-
-    var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
-
-    var dwDetail =
-        result.instrumentDetails().stream()
-            .filter(d -> d.isin().equals(ISIN_DW))
-            .findFirst()
-            .orElseThrow();
-    assertThat(dwDetail.modelWeight()).isEqualByComparingTo("0.70");
   }
 
   @Test
@@ -1439,99 +1394,5 @@ class PeriodicTdAttributionServiceTest {
     assertThat(result.etfOcfDrag()).isEqualByComparingTo(ZERO);
     assertThat(result.checks())
         .containsEntry("etfLayerUnbenchmarkedWeight", new BigDecimal("1.000000"));
-  }
-
-  @Test
-  void blendsModelWeightToActualWeightOnlyForTransitioningIsinAcrossDistinctModelVersions() {
-    var date1 = LocalDate.of(2026, 4, 1);
-    var date2 = LocalDate.of(2026, 4, 2);
-    var isinA = "IE00TRANSA";
-    var isinB = "IE00TRANSB";
-
-    given(
-            tdEventRepository.findDeduplicatedEventsForPeriod(
-                TUK75, MODEL_PORTFOLIO, PERIOD_START, PERIOD_END))
-        .willReturn(
-            List.of(singleAttributionEvent(date1, isinA), singleAttributionEvent(date2, isinB)));
-    given(feeAccrualRepository.findByFundAndDateRange(TUK75, PERIOD_START, PERIOD_END))
-        .willReturn(List.of());
-    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, PERIOD_END))
-        .willReturn(Optional.empty());
-    given(
-            modelPortfolioAllocationRepository.findVersionsActiveDuringPeriod(
-                TUK75, PERIOD_START, PERIOD_END))
-        .willReturn(
-            List.of(modelAllocation(isinA, "1.0", date1), modelAllocation(isinB, "1.0", date2)));
-    given(fundNavQueryService.findAum(FUND_CODE, date1)).willReturn(new BigDecimal("1000000"));
-    given(fundNavQueryService.findAum(FUND_CODE, date2)).willReturn(new BigDecimal("1000000"));
-    given(fundNavQueryService.findCashValue(anyString(), any())).willReturn(ZERO);
-    given(fundNavQueryService.findSecuritiesTotalValue(anyString(), any()))
-        .willReturn(new BigDecimal("1000000"));
-    given(fundNavQueryService.findFeeAccrualLiabilities(anyString(), any())).willReturn(ZERO);
-    given(fundPositionRepository.findByNavDateAndFundAndAccountType(date1, TUK75, SECURITY))
-        .willReturn(List.of(position(isinA, "1000000")));
-    given(fundPositionRepository.findByNavDateAndFundAndAccountType(date2, TUK75, SECURITY))
-        .willReturn(List.of(position(isinA, "300000"), position(isinB, "700000")));
-
-    var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
-
-    var bDetail =
-        result.instrumentDetails().stream()
-            .filter(d -> d.isin().equals(isinB))
-            .findFirst()
-            .orElseThrow();
-    assertThat(bDetail.modelWeight()).isEqualByComparingTo("0.7");
-  }
-
-  @Test
-  void blendsRemovedInstrumentStillHeldDespiteFutureAllocationsAndNullAccountIdPositions() {
-    var date1 = LocalDate.of(2026, 4, 1);
-    var date2 = LocalDate.of(2026, 4, 2);
-    var isinA = "IE00STILLA";
-    var isinB = "IE00REMOVB";
-
-    given(
-            tdEventRepository.findDeduplicatedEventsForPeriod(
-                TUK75, MODEL_PORTFOLIO, PERIOD_START, PERIOD_END))
-        .willReturn(List.of(twoAttributionEvent(date2, isinA, isinB)));
-    given(feeAccrualRepository.findByFundAndDateRange(TUK75, PERIOD_START, PERIOD_END))
-        .willReturn(List.of());
-    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, PERIOD_END))
-        .willReturn(Optional.empty());
-    given(
-            modelPortfolioAllocationRepository.findVersionsActiveDuringPeriod(
-                TUK75, PERIOD_START, PERIOD_END))
-        .willReturn(
-            List.of(
-                modelAllocation(isinA, "0.6", date1),
-                modelAllocation(isinB, "0.4", date1),
-                modelAllocation(isinA, "1.0", date2),
-                modelAllocation(isinA, "0.99", date2.plusMonths(2))));
-    given(fundNavQueryService.findAum(FUND_CODE, date2)).willReturn(new BigDecimal("1000000"));
-    given(fundNavQueryService.findCashValue(anyString(), any())).willReturn(ZERO);
-    given(fundNavQueryService.findSecuritiesTotalValue(anyString(), any()))
-        .willReturn(new BigDecimal("1000000"));
-    given(fundNavQueryService.findFeeAccrualLiabilities(anyString(), any())).willReturn(ZERO);
-    given(fundPositionRepository.findByNavDateAndFundAndAccountType(date2, TUK75, SECURITY))
-        .willReturn(
-            List.of(
-                position(isinA, "300000"),
-                position(isinB, "700000"),
-                FundPosition.builder()
-                    .fund(TUK75)
-                    .accountType(SECURITY)
-                    .accountId(null)
-                    .accountName("unknown")
-                    .marketValue(new BigDecimal("500000"))
-                    .build()));
-
-    var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
-
-    var bDetail =
-        result.instrumentDetails().stream()
-            .filter(d -> d.isin().equals(isinB))
-            .findFirst()
-            .orElseThrow();
-    assertThat(bDetail.modelWeight()).isEqualByComparingTo("0.7");
   }
 }

@@ -8,6 +8,8 @@ import static java.math.RoundingMode.HALF_UP;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.check.tracking.TdAttributionCalculator.DailyRecord;
 import ee.tuleva.onboarding.investment.check.tracking.TdAttributionCalculator.TdAttributionInput;
+import ee.tuleva.onboarding.investment.config.InvestmentParameter;
+import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.fees.FeeAccrual;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
@@ -32,6 +34,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -56,8 +59,24 @@ public class PeriodicTdAttributionService {
   private final PlatformTransactionManager transactionManager;
   private final PublicHolidays publicHolidays;
   private final BenchmarkLegResolver benchmarkLegResolver;
+  private final InvestmentParameterRepository parameterRepository;
+  private final TrackingDifferenceNotifier notifier;
 
   private final TdAttributionCalculator calculator = new TdAttributionCalculator();
+
+  // Absent or unusable, the tolerance is simply not applied: an unseeded parameter must not turn
+  // every period into a false alarm.
+  @Nullable
+  private BigDecimal residualTolerance(LocalDate asOf) {
+    try {
+      return parameterRepository.findLatestValue(
+          InvestmentParameter.TD_RESIDUAL_TOLERANCE_ANNUAL, asOf);
+    } catch (Exception e) {
+      log.warn(
+          "No TD residual tolerance configured, not checking the residual: {}", e.getMessage());
+      return null;
+    }
+  }
 
   public TdAttributionResult computeAttribution(
       TulevaFund fund, LocalDate periodStart, LocalDate periodEnd, PeriodType periodType) {
@@ -67,6 +86,15 @@ public class PeriodicTdAttributionService {
     var entity = toEntity(result);
 
     replaceAttributionRowInSingleTransaction(fund, periodStart, periodEnd, periodType, entity);
+
+    if (Boolean.FALSE.equals(result.checks().get("residualWithinTolerance"))) {
+      notifier.notifyResidualOutsideTolerance(
+          fund,
+          periodStart,
+          periodEnd,
+          result.residual(),
+          TdAttributionCalculator.scaledResidualTolerance(input));
+    }
 
     log.info(
         "TD attribution computed: fund={}, period={}-{}, td={}bps, residual={}bps",
@@ -189,6 +217,7 @@ public class PeriodicTdAttributionService {
         .benchmarkProxyOcfDragPeriod(etfLayer.proxyOcfDrag())
         .expectedAnnualFeeRate(expectedAnnualFeeRate)
         .seriesGapDays(seriesGapDays)
+        .residualTolerance(residualTolerance(periodEnd))
         .etfLayerCoveredDays(etfLayer.coveredDays())
         .etfLayerUnbenchmarkedWeight(etfLayer.unbenchmarkedWeight())
         .etfLayerUnrestoredProxyWeight(etfLayer.unrestoredProxyWeight())

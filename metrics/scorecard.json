@@ -33,10 +33,10 @@
     "GodClass": 2,
     "TooManyMethods": 3
   },
-  "slowest10TestClassesSeconds": 110.8,
+  "slowest10TestClassesSeconds": 137.3,
   "springBootTests": 75,
   "suiteWallTimeSeconds": 275,
-  "testClassesOver10Seconds": 3,
+  "testClassesOver10Seconds": 5,
   "testClassesTotal": 1029,
   "testIntegrationShare": 6.4,
   "testSliceShare": 13.4,

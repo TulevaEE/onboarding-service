@@ -53,6 +53,27 @@ class DeferredReturnMatcherTest {
     lenient()
         .when(bankAccounts.getIban(TKF100, BankAccountType.DEPOSIT_EUR))
         .thenReturn(DEPOSIT_IBAN);
+    lenient().when(savingsFundLedger.hasLedgerEntry(any(), eq(ADJUSTMENT))).thenReturn(false);
+  }
+
+  @Test
+  void skipsReturnPaymentThatWasManuallyAdjusted() {
+    var returnPaymentId = UUID.randomUUID();
+    var returnPayment =
+        aPayment()
+            .id(returnPaymentId)
+            .amount(new BigDecimal("-1431.90"))
+            .beneficiaryIban("EE112233445566778899")
+            .endToEndId("kickback-e2e-id")
+            .build();
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
+        .thenReturn(List.of(returnPayment));
+    when(savingsFundLedger.hasLedgerEntry(returnPaymentId, ADJUSTMENT)).thenReturn(true);
+
+    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+
+    verify(savingFundPaymentRepository, never()).findOriginalPaymentForReturn(any());
+    verify(eventPublisher, never()).publishEvent(any());
   }
 
   @Test

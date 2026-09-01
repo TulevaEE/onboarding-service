@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.ADJUSTMENT;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_BOUNCE_BACK;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_CANCELLED;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.UNATTRIBUTED_PAYMENT_RECONCILED;
@@ -51,6 +52,7 @@ public class DeferredReturnMatcher {
     var unmatchedReturns =
         savingFundPaymentRepository.findUnmatchedOutgoingReturns(depositIban).stream()
             .filter(returnPayment -> shouldRetry(returnPayment, now))
+            .filter(returnPayment -> !isManuallyAdjusted(returnPayment))
             .filter(returnPayment -> !hasReturnLedgerEntry(returnPayment))
             .toList();
 
@@ -106,6 +108,10 @@ public class DeferredReturnMatcher {
   static boolean shouldRetry(SavingFundPayment payment, Instant now) {
     return payment.getCreatedAt() == null
         || payment.getCreatedAt().isAfter(now.minus(RETRY_WINDOW));
+  }
+
+  private boolean isManuallyAdjusted(SavingFundPayment returnPayment) {
+    return savingsFundLedger.hasLedgerEntry(returnPayment.getId(), ADJUSTMENT);
   }
 
   private boolean hasReturnLedgerEntry(SavingFundPayment returnPayment) {

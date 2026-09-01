@@ -110,6 +110,21 @@
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
+    "savings_fund_company_onboarded_en": {
+      "subject": "The company's Additional Investment Fund account is open",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_company_onboarded_et": {
+      "subject": "Ettevõtte Täiendava Kogumisfondi konto on avatud",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_first_payment_reminder_child_en": {
+      "subject": "Put your child's investment fund to work",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
     "savings_fund_first_payment_reminder_child_et": {
       "subject": "Tee lapse Tuleva Kogumisfondi esimene sissemakse",
       "from_email": "tuleva@tuleva.ee",
@@ -152,16 +167,6 @@
     },
     "savings_fund_onboarding_completed_person_et": {
       "subject": "Sinu Tuleva Kogumisfondi konto on avatud",
-      "from_email": "tuleva@tuleva.ee",
-      "from_name": "Tuleva"
-    },
-    "savings_fund_company_onboarded_en": {
-      "subject": "The company's Additional Investment Fund account is open",
-      "from_email": "tuleva@tuleva.ee",
-      "from_name": "Tuleva"
-    },
-    "savings_fund_company_onboarded_et": {
-      "subject": "Ettevõtte Täiendava Kogumisfondi konto on avatud",
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },

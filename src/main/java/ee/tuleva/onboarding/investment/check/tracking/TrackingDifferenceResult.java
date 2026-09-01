@@ -33,7 +33,9 @@ record TrackingDifferenceResult(
     @Nullable BigDecimal bodImpliedFundReturn,
     @Nullable BigDecimal navResidual,
     boolean navResidualBreach,
-    boolean escalationNavResidualBreach) {
+    boolean escalationNavResidualBreach,
+    boolean escalationCountTruncated,
+    boolean escalationCountUnavailable) {
 
   boolean hasAnyBreach() {
     return breach() || navResidualBreach();

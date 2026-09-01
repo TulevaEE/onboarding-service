@@ -60,6 +60,17 @@ class TrackingDifferenceNotifier {
   void notify(List<TrackingDifferenceResult> results) {
     try {
       var alertableResults = results.stream().filter(r -> r.checkType() != BENCHMARK).toList();
+      // The ACWI benchmark is suppressed from alerts, so a run holding only benchmark results
+      // checked nothing anyone acts on - the same empty run as no results at all.
+      if (alertableResults.isEmpty()) {
+        notificationService.sendMessage(
+            """
+            ⚠️ TD RUN produced no tracking difference results to alert on
+              Nothing actionable was checked: every fund was skipped, or only the suppressed ACWI
+              benchmark ran. The reason per fund is in the logs; the daily series is unchanged.""",
+            INVESTMENT);
+        return;
+      }
       var hasAnyBreaches =
           alertableResults.stream().anyMatch(TrackingDifferenceResult::hasAnyBreach);
 
@@ -70,15 +81,6 @@ class TrackingDifferenceNotifier {
                     Collectors.groupingBy(
                         r -> r.fund().getCode(), TreeMap::new, Collectors.toList()));
         var message = new StringBuilder();
-        if (byFund.isEmpty()) {
-          var fundCodes =
-              results.stream()
-                  .map(r -> r.fund().getCode())
-                  .distinct()
-                  .sorted()
-                  .collect(Collectors.joining(", "));
-          message.append("✅ %s TD check completed: within limits".formatted(fundCodes));
-        }
         byFund.forEach(
             (fundCode, fundResults) -> {
               if (message.length() > 0) {
@@ -87,7 +89,8 @@ class TrackingDifferenceNotifier {
               message.append("✅ %s TD check completed: within limits".formatted(fundCode));
               fundResults.stream()
                   .sorted(Comparator.comparing(r -> r.checkType().name()))
-                  .forEach(r -> message.append(formatWithinLimits(r)));
+                  .forEach(
+                      r -> message.append(formatWithinLimits(r)).append(formatCountWarnings(r)));
             });
         notificationService.sendMessage(message.toString(), INVESTMENT);
         return;
@@ -96,21 +99,34 @@ class TrackingDifferenceNotifier {
       var message = new StringBuilder("🛑 TD BREACH DETECTED\n");
       var hasEscalation = false;
 
+      var decidedOnFallbackConfig = false;
+
       for (var result : alertableResults) {
         if (!result.hasAnyBreach()) {
+          message.append(formatCountWarnings(result));
           continue;
         }
 
-        var escalation = isEscalation(result);
+        var rule = escalationRule(result.checkDate());
+        var escalation = isEscalation(result, rule);
         if (escalation) {
           hasEscalation = true;
+          decidedOnFallbackConfig = decidedOnFallbackConfig || rule.fallback();
         }
 
-        message.append(new BreachMessageFormatter(result, escalation).format());
+        message
+            .append(new BreachMessageFormatter(result, escalation).format())
+            .append(formatCountWarnings(result));
       }
 
       if (hasEscalation) {
         message.insert(0, "🛑 TD ESCALATION — CONSECUTIVE BREACH DAYS\n");
+      }
+      if (decidedOnFallbackConfig) {
+        message.append(
+            "\n⚠️ The escalation parameters are not configured, so this was decided on built-in"
+                + " fallback constants rather than the configured rule. Seed"
+                + " ESCALATION_THRESHOLD_DAYS and ESCALATION_NET_TD_THRESHOLD.");
       }
 
       notificationService.sendMessage(message.toString(), INVESTMENT);
@@ -144,25 +160,43 @@ class TrackingDifferenceNotifier {
     return sb.toString();
   }
 
-  private boolean isEscalation(TrackingDifferenceResult result) {
-    int threshold;
-    BigDecimal netTdThreshold;
+  private record EscalationRule(int thresholdDays, BigDecimal netTdThreshold, boolean fallback) {}
+
+  private EscalationRule escalationRule(LocalDate checkDate) {
     try {
-      threshold = calculator.escalationThresholdDays(result.checkDate());
-      netTdThreshold = calculator.escalationNetTdThreshold(result.checkDate());
-    } catch (IllegalStateException e) {
-      log.warn("Escalation parameters not configured, using fallback: {}", e.getMessage());
-      threshold = ESCALATION_THRESHOLD_FALLBACK;
-      netTdThreshold = ESCALATION_NET_TD_THRESHOLD_FALLBACK;
+      return new EscalationRule(
+          calculator.escalationThresholdDays(checkDate),
+          calculator.escalationNetTdThreshold(checkDate),
+          false);
     } catch (Exception e) {
-      log.warn("Escalation parameter lookup failed, using fallback: {}", e.getMessage());
-      threshold = ESCALATION_THRESHOLD_FALLBACK;
-      netTdThreshold = ESCALATION_NET_TD_THRESHOLD_FALLBACK;
+      log.error("Escalation parameters unavailable, using fallback: {}", e.getMessage());
+      return new EscalationRule(
+          ESCALATION_THRESHOLD_FALLBACK, ESCALATION_NET_TD_THRESHOLD_FALLBACK, true);
     }
-    return result.consecutiveBreachDays() >= threshold
+  }
+
+  private boolean isEscalation(TrackingDifferenceResult result, EscalationRule rule) {
+    return result.consecutiveBreachDays() >= rule.thresholdDays()
         && ((result.consecutiveNetTd() != null
-                && result.consecutiveNetTd().abs().compareTo(netTdThreshold) >= 0)
+                && result.consecutiveNetTd().abs().compareTo(rule.netTdThreshold()) >= 0)
             || result.escalationNavResidualBreach());
+  }
+
+  private static String formatCountWarnings(TrackingDifferenceResult result) {
+    var sb = new StringBuilder();
+    if (result.escalationCountUnavailable()) {
+      sb.append(
+          "\n  ⚠️ The breach streak could not be counted, so this check cannot say whether the"
+              + " breach has persisted. Escalation is not being evaluated for it.");
+    }
+    if (result.escalationCountTruncated()) {
+      sb.append(
+          "\n  ⚠️ The streak fills the whole lookback window, so it has run for at least %s days"
+                  .formatted(result.consecutiveBreachDays())
+              + " and the net TD above is a lower bound. Widen ESCALATION_LOOKBACK_DAYS to measure"
+              + " it.");
+    }
+    return sb.toString();
   }
 
   private static String formatPercent(BigDecimal value) {

@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.savings;
 
 import ee.tuleva.onboarding.savings.fund.nav.NavReportAccountNames;
 import ee.tuleva.onboarding.savings.fund.nav.NavReportRepository;
-import ee.tuleva.onboarding.savings.fund.nav.NavReportRow;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;

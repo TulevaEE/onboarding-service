@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 
 import ee.tuleva.onboarding.savings.fund.nav.NavReportRepository;
-import ee.tuleva.onboarding.savings.fund.nav.NavReportRow;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Optional;

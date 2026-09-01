@@ -237,13 +237,6 @@ class TdAttributionCalculator {
     return annual.multiply(yearFraction.sqrt(TOLERANCE_MATH)).setScale(SCALE, HALF_UP);
   }
 
-  // sumCheck cannot fail - residual is defined as the tracking difference minus the components,
-  // so they always add up. How big the residual is, is the only real signal.
-  static boolean residualWithinTolerance(BigDecimal residual, TdAttributionInput input) {
-    var tolerance = scaledResidualTolerance(input);
-    return tolerance == null || residual.abs().compareTo(tolerance) <= 0;
-  }
-
   private Map<String, Object> buildChecks(
       BigDecimal tdGeometric,
       BigDecimal linkedComponentSum,
@@ -269,9 +262,13 @@ class TdAttributionCalculator {
     checks.put("feeXcheck", feeXcheck.setScale(8, HALF_UP));
     checks.put("scalingFactor", periodLink.setScale(8, HALF_UP));
     checks.put("residualBps", residualBps.setScale(2, HALF_UP));
-    checks.put("residualWithinTolerance", residualWithinTolerance(residual, input));
+    // sumCheck cannot fail - residual is defined as the tracking difference minus the components,
+    // so they always add up. How big the residual is, is the only real signal. With no tolerance
+    // configured there is no verdict to give: writing "within tolerance" would stamp a measured
+    // pass on every period that predates the parameter, which is what the backfill runs first.
     var scaledTolerance = scaledResidualTolerance(input);
     if (scaledTolerance != null) {
+      checks.put("residualWithinTolerance", residual.abs().compareTo(scaledTolerance) <= 0);
       checks.put(
           "residualToleranceBps",
           scaledTolerance.multiply(BigDecimal.valueOf(10000)).setScale(2, HALF_UP));

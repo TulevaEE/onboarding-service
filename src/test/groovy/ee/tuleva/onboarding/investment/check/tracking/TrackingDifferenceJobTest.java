@@ -46,6 +46,23 @@ class TrackingDifferenceJobTest {
     then(notifier).should(never()).notify(anyList());
   }
 
+  // A run that covered only some funds is not a run that covered them all. Posting the partial
+  // result on its own reads as the whole picture, with the skipped funds simply absent.
+  @Test
+  void adHocPartialRunNamesTheFundsItCouldNotCheck() {
+    doThrow(
+            new TrackingDifferenceService.IncompletePriceDataException(
+                "Incomplete security price data:\nTUK75: IE00MISSING1", List.of()))
+        .when(service)
+        .runChecksForFunds(anyList());
+
+    job.onTrackingDifferenceCheckRequested(new RunTrackingDifferenceCheckRequested());
+
+    then(notifier)
+        .should()
+        .notifyRunIncomplete("TD check", "Incomplete security price data:\nTUK75: IE00MISSING1");
+  }
+
   @Test
   void adHocNotifiesPartialResultsOnIncompletePriceData() {
     var partialResults = List.<TrackingDifferenceResult>of();

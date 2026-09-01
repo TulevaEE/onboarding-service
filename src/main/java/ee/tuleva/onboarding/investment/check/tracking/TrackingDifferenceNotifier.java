@@ -44,6 +44,20 @@ class TrackingDifferenceNotifier {
     }
   }
 
+  void notifyRunIncomplete(String run, String reason) {
+    try {
+      notificationService.sendMessage(
+          """
+          ⚠️ %s RAN ONLY IN PART: %s
+            Those funds were skipped, so nothing on this channel says whether their tracking
+            difference is within limits today. The result that follows covers the rest."""
+              .formatted(run, reason),
+          INVESTMENT);
+    } catch (Exception e) {
+      log.error("Failed to send tracking difference partial run notification", e);
+    }
+  }
+
   void notifyRunFailed(String run, String reason) {
     try {
       notificationService.sendMessage(
@@ -234,15 +248,17 @@ class TrackingDifferenceNotifier {
 
   private static String formatCountWarnings(TrackingDifferenceResult result) {
     var sb = new StringBuilder();
+    var subject = "%s %s".formatted(result.fund().getCode(), result.checkType());
     if (result.escalationCountUnavailable()) {
       sb.append(
-          "\n  ⚠️ The breach streak could not be counted, so this check cannot say whether the"
+          "\n  ⚠️ %s: the breach streak could not be counted, so this check cannot say whether the"
+                  .formatted(subject)
               + " breach has persisted. Escalation is not being evaluated for it.");
     }
     if (result.escalationCountTruncated()) {
       sb.append(
-          "\n  ⚠️ The streak fills the whole lookback window, so it has run for at least %s days"
-                  .formatted(result.consecutiveBreachDays())
+          "\n  ⚠️ %s: the streak fills the whole lookback window, so it has run for at least %s days"
+                  .formatted(subject, result.consecutiveBreachDays())
               + " and the net TD above is a lower bound. Widen ESCALATION_LOOKBACK_DAYS to measure"
               + " it.");
     }

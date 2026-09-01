@@ -2175,6 +2175,134 @@ class TrackingDifferenceServiceTest {
         .hasMessageContaining("IE00MISSING1");
   }
 
+  @Test
+  void throwsWhenAModelInstrumentHasAZeroAnchorPrice() {
+    skipOtherFunds(TUK75);
+
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.10")));
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.00")));
+
+    var allocation1 =
+        ModelPortfolioAllocation.builder()
+            .fund(TUK75)
+            .isin("IE00B4L5Y983")
+            .weight(new BigDecimal("0.70"))
+            .effectiveDate(LocalDate.of(2026, 1, 1))
+            .build();
+    var allocation2 =
+        ModelPortfolioAllocation.builder()
+            .fund(TUK75)
+            .isin("IE00ZEROANCHOR")
+            .weight(new BigDecimal("0.30"))
+            .effectiveDate(LocalDate.of(2026, 1, 1))
+            .build();
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, CHECK_DATE))
+        .willReturn(List.of(allocation1, allocation2));
+
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(CHECK_DATE, TUK75, SECURITY))
+        .willReturn(List.of());
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, CHECK_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(new BigDecimal("1000000"));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, CHECK_DATE, List.of(CASH)))
+        .willReturn(new BigDecimal("50000"));
+
+    given(positionPriceResolver.resolve(eq("IE00B4L5Y983"), eq(CHECK_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("102.00")));
+    given(positionPriceResolver.resolve(eq("IE00B4L5Y983"), eq(PREVIOUS_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("100.00")));
+    given(positionPriceResolver.resolve(eq("IE00ZEROANCHOR"), eq(CHECK_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("51.00")));
+    given(
+            positionPriceResolver.resolve(
+                eq("IE00ZEROANCHOR"), eq(PREVIOUS_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("0.00")));
+
+    // A zero anchor is not a price: nothing can be divided by it, so the calculator drops the
+    // instrument and its 30% model weight silently leaves the benchmark return with it.
+    assertThatThrownBy(() -> service.runChecksAsOf(CHECK_DATE))
+        .isInstanceOf(TrackingDifferenceService.IncompletePriceDataException.class)
+        .hasMessageContaining("IE00ZEROANCHOR");
+  }
+
+  @Test
+  void anIncomingTransitionLegTheFundHasNotBoughtYetNeedsNoPriceOfOurs() {
+    skipOtherFunds(TUK75);
+
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.10")));
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.00")));
+
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, CHECK_DATE))
+        .willReturn(
+            List.of(
+                ModelPortfolioAllocation.builder()
+                    .fund(TUK75)
+                    .isin("IE00NEW")
+                    .weight(new BigDecimal("1.00"))
+                    .effectiveDate(LocalDate.of(2026, 4, 1))
+                    .build()));
+    given(modelPortfolioAllocationRepository.findPreviousByFundAsOf(TUK75, CHECK_DATE))
+        .willReturn(
+            List.of(
+                ModelPortfolioAllocation.builder()
+                    .fund(TUK75)
+                    .isin("IE00OLD")
+                    .weight(new BigDecimal("1.00"))
+                    .effectiveDate(LocalDate.of(2026, 1, 1))
+                    .build()));
+
+    // The model has adopted IE00NEW but the fund still holds only IE00OLD, so IE00NEW has no
+    // price of ours yet. Gating on the raw model would abandon the whole fund's check over an
+    // instrument that carries no weight in the portfolio.
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(CHECK_DATE, TUK75, SECURITY))
+        .willReturn(
+            List.of(
+                FundPosition.builder()
+                    .fund(TUK75)
+                    .navDate(CHECK_DATE)
+                    .accountType(SECURITY)
+                    .accountId("IE00OLD")
+                    .marketValue(new BigDecimal("500000"))
+                    .build()));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, CHECK_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(new BigDecimal("1000000"));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, CHECK_DATE, List.of(CASH)))
+        .willReturn(new BigDecimal("500000"));
+
+    given(positionPriceResolver.resolve(eq("IE00NEW"), any(LocalDate.class), any()))
+        .willReturn(Optional.empty());
+    given(positionPriceResolver.resolve(eq("IE00OLD"), eq(CHECK_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("51.00")));
+    given(positionPriceResolver.resolve(eq("IE00OLD"), eq(PREVIOUS_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("50.00")));
+
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
+        .willReturn(List.of());
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var modelResult =
+        results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst().orElseThrow();
+    var oldAttr =
+        modelResult.securityAttributions().stream()
+            .filter(a -> a.isin().equals("IE00OLD"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(oldAttr.modelWeight()).isEqualByComparingTo(BigDecimal.ONE);
+    assertThat(oldAttr.actualWeight()).isEqualByComparingTo(BigDecimal.ONE);
+  }
+
   private void setupFundData(TulevaFund fund) {
     skipOtherFunds(fund);
 

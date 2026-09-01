@@ -805,6 +805,48 @@ class TrackingDifferenceNotifierTest {
         .build();
   }
 
+  @Test
+  void aBenchmarkCheckThatCoveredOnlyPartOfTheSleeveSaysSo() {
+    var result =
+        TrackingDifferenceResult.builder()
+            .fund(TUK75)
+            .checkDate(LocalDate.of(2026, 4, 3))
+            .checkType(BENCHMARK_MODEL)
+            .trackingDifference(new BigDecimal("0.0001"))
+            .fundReturn(new BigDecimal("0.0100"))
+            .benchmarkReturn(new BigDecimal("0.0099"))
+            .breach(false)
+            .securityAttributions(List.of())
+            .cashDrag(BigDecimal.ZERO)
+            .feeDrag(BigDecimal.ZERO)
+            .residual(BigDecimal.ZERO)
+            .benchmarkGapIsins(List.of("IE00NOPROXY"))
+            .benchmarkGapWeight(new BigDecimal("0.12"))
+            .build();
+
+    notifier.notify(List.of(result));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    // Every holding is supposed to have a proxy with data behind it, so a gap is a data error.
+    // Left unsaid, a check covering 88% of the sleeve reads as a clean all-clear over all of it.
+    assertThat(captor.getValue()).contains("12.00%").contains("IE00NOPROXY");
+  }
+
+  @Test
+  void anUncountableStreakWarningNamesTheFundItBelongsTo() {
+    var breaching = result(true, 2, new BigDecimal("0.003"));
+    var uncountable =
+        result(false, 0, BigDecimal.ZERO).toBuilder().escalationCountUnavailable(true).build();
+
+    notifier.notify(List.of(breaching, uncountable));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue())
+        .contains("TUK75 MODEL_PORTFOLIO: the breach streak could not be counted");
+  }
+
   private TrackingDifferenceResult result(
       boolean breach, int consecutiveBreachDays, BigDecimal consecutiveNetTd) {
     return TrackingDifferenceResult.builder()

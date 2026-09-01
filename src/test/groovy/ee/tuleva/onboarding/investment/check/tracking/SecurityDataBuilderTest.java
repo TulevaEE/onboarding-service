@@ -310,6 +310,38 @@ class SecurityDataBuilderTest {
   }
 
   @Test
+  void blendTransitionWeightsTreatsAnInstrumentParkedAtZeroPercentAsRemoved() {
+    var snapshot = new PriceSnapshot(BigDecimal.TEN, CHECK_DATE);
+    var securities =
+        List.of(
+            new SecurityData(
+                "ISIN_A", new BigDecimal("1.0"), new BigDecimal("0.35"), snapshot, snapshot),
+            new SecurityData("ISIN_B", ZERO, new BigDecimal("0.65"), snapshot, snapshot));
+    // The switch pipeline leaves the exiting instrument in the model at 0% until it is liquidated,
+    // so it is still in the allocation table. Read by ISIN presence nothing would count as removed,
+    // no blending would happen, and a holding that is 65% of the fund would be measured against a
+    // model weight of zero.
+    var allocations =
+        List.of(allocation("ISIN_A", "1.0", CHECK_DATE), allocation("ISIN_B", "0.0", CHECK_DATE));
+    var previousAllocations =
+        List.of(
+            allocation("ISIN_A", "0.3", PREVIOUS_DATE), allocation("ISIN_B", "0.7", PREVIOUS_DATE));
+    var positions =
+        List.of(position("ISIN_A", CHECK_DATE, "350000"), position("ISIN_B", CHECK_DATE, "650000"));
+
+    var result =
+        builder.blendTransitionWeights(
+            securities, allocations, previousAllocations, positions, TUK75);
+
+    var exiting = result.stream().filter(s -> s.isin().equals("ISIN_B")).findFirst().orElseThrow();
+    assertThat(exiting.modelWeight()).isEqualByComparingTo("0.65");
+    var settled = result.stream().filter(s -> s.isin().equals("ISIN_A")).findFirst().orElseThrow();
+    assertThat(settled.modelWeight()).isEqualByComparingTo("0.35");
+    assertThat(result.stream().map(SecurityData::modelWeight).reduce(ZERO, BigDecimal::add))
+        .isEqualByComparingTo("1.00");
+  }
+
+  @Test
   void blendTransitionWeightsBlendsBothAddedAndRemovedIsinsDuringAFullSwap() {
     var snapshot = new PriceSnapshot(BigDecimal.TEN, CHECK_DATE);
     var securities =

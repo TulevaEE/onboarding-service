@@ -28,6 +28,7 @@ class TrackingDifferenceJob {
       trackingDifferenceNotifier.notify(results);
       log.info("Tracking difference check completed: resultCount={}", results.size());
     } catch (TrackingDifferenceService.IncompletePriceDataException e) {
+      trackingDifferenceNotifier.notifyRunIncomplete("TD check", reasonOf(e));
       trackingDifferenceNotifier.notify(e.completedResults());
       log.error("Tracking difference check incomplete", e);
     } catch (Exception e) {
@@ -45,6 +46,7 @@ class TrackingDifferenceJob {
       trackingDifferenceNotifier.notify(results);
       log.info("Tracking difference backfill completed: resultCount={}", results.size());
     } catch (TrackingDifferenceService.IncompletePriceDataException e) {
+      trackingDifferenceNotifier.notifyRunIncomplete("TD backfill", reasonOf(e));
       trackingDifferenceNotifier.notify(e.completedResults());
       log.error("Tracking difference backfill incomplete", e);
     } catch (Exception e) {

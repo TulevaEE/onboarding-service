@@ -141,6 +141,8 @@ class SavingsFundNotifierTest {
     notifier.onDeferredReturnMatchingCompleted(event);
 
     verify(notificationService)
-        .sendMessage("Deferred return matching: matchedCount=2, totalAmount=125.00 EUR", SAVINGS);
+        .sendMessage(
+            "Deferred return matching: matchedCount=2, unmatchedCount=1, totalAmount=125.00 EUR",
+            SAVINGS);
   }
 }

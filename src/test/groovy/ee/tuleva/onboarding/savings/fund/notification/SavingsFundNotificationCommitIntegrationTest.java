@@ -241,8 +241,8 @@ class SavingsFundNotificationCommitIntegrationTest {
 
     verify(notificationService)
         .sendMessage(
-            "Deferred return matching: matchedCount=%d, totalAmount=%s EUR"
-                .formatted(1, RETURNED_CASH),
+            "Deferred return matching: matchedCount=%d, unmatchedCount=%d, totalAmount=%s EUR"
+                .formatted(1, 0, RETURNED_CASH),
             SAVINGS);
   }
 

@@ -221,6 +221,23 @@ class DeferredReturnMatcherTest {
   }
 
   @Test
+  void publishesTheCompletionEventWhenAnOutgoingPaymentMatchesNoKnownFlow() {
+    var unknownOutgoing =
+        aPayment()
+            .id(UUID.randomUUID())
+            .amount(new BigDecimal("-4272.98"))
+            .beneficiaryIban("EE001010220000000001")
+            .build();
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
+        .thenReturn(List.of(unknownOutgoing));
+
+    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+
+    verify(eventPublisher)
+        .publishEvent(new DeferredReturnMatchingCompletedEvent(0, 1, BigDecimal.ZERO));
+  }
+
+  @Test
   void noOpWhenNoUnmatchedReturns() {
     when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
         .thenReturn(List.of());

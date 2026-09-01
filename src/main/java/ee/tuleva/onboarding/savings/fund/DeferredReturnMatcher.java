@@ -14,7 +14,9 @@ import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.notification.DeferredReturnMatchingCompletedEvent;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Set;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
@@ -52,8 +54,8 @@ public class DeferredReturnMatcher {
         "Deferred return matching: found {} unmatched outgoing returns", unmatchedReturns.size());
 
     var matchedCount = 0;
-    var unmatchedCount = 0;
     var totalAmount = ZERO;
+    var unmatchedPayments = new ArrayList<SavingFundPayment>();
 
     for (SavingFundPayment returnPayment : unmatchedReturns) {
       var amount = matchReturn(returnPayment);
@@ -61,17 +63,33 @@ public class DeferredReturnMatcher {
         matchedCount++;
         totalAmount = totalAmount.add(amount);
       } else {
-        unmatchedCount++;
+        unmatchedPayments.add(returnPayment);
       }
     }
 
+    var unmatchedCount = unmatchedPayments.size();
     log.info(
         "Deferred return matching completed: matchedCount={}, unmatchedCount={}, totalAmount={}",
         matchedCount,
         unmatchedCount,
         totalAmount);
 
-    if (matchedCount > 0) {
+    if (unmatchedCount > 0) {
+      var unmatchedIds = new ArrayList<UUID>();
+      var unmatchedAmount = ZERO;
+      for (SavingFundPayment unmatched : unmatchedPayments) {
+        unmatchedIds.add(unmatched.getId());
+        unmatchedAmount = unmatchedAmount.add(unmatched.getAmount());
+      }
+      log.error(
+          "Outgoing deposit account payments match no known flow, ledger has no record of the outflow:"
+              + " count={}, paymentIds={}, totalAmount={}",
+          unmatchedCount,
+          unmatchedIds,
+          unmatchedAmount);
+    }
+
+    if (matchedCount > 0 || unmatchedCount > 0) {
       eventPublisher.publishEvent(
           new DeferredReturnMatchingCompletedEvent(matchedCount, unmatchedCount, totalAmount));
     }

@@ -19,11 +19,14 @@ import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType;
 import ee.tuleva.onboarding.banking.statement.BankStatementAccount;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
+import ee.tuleva.onboarding.ledger.InternalTransferLedger;
 import ee.tuleva.onboarding.ledger.LedgerParty.PartyType;
 import ee.tuleva.onboarding.ledger.PartyRef;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.ledger.SystemAccount;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
+import ee.tuleva.onboarding.savings.fund.redemption.RedemptionPayoutRecorder;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestRepository;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionStatusService;
@@ -53,11 +56,21 @@ class SavingsFundStatementProcessorTest {
   ManagementCompanies managementCompanies = mock(ManagementCompanies.class);
   BankAccounts bankAccounts = mock(BankAccounts.class);
   SavingsFundLedger savingsFundLedger = mock(SavingsFundLedger.class);
+  InternalTransferLedger internalTransferLedger = mock(InternalTransferLedger.class);
+  OwnAccountTransferRecorder ownAccountTransferRecorder =
+      new OwnAccountTransferRecorder(bankAccounts, internalTransferLedger);
   FundBankLedger fundBankLedger = mock(FundBankLedger.class);
   UserService userService = mock(UserService.class);
   RedemptionRequestRepository redemptionRequestRepository = mock(RedemptionRequestRepository.class);
   RedemptionStatusService redemptionStatusService = mock(RedemptionStatusService.class);
   EndToEndIdConverter endToEndIdConverter = new EndToEndIdConverter();
+  RedemptionPayoutRecorder redemptionPayoutRecorder =
+      new RedemptionPayoutRecorder(
+          savingsFundLedger,
+          userService,
+          redemptionRequestRepository,
+          redemptionStatusService,
+          endToEndIdConverter);
 
   SavingsFundStatementProcessor processor =
       new SavingsFundStatementProcessor(
@@ -66,11 +79,9 @@ class SavingsFundStatementProcessorTest {
           managementCompanies,
           bankAccounts,
           savingsFundLedger,
+          ownAccountTransferRecorder,
           fundBankLedger,
-          userService,
-          redemptionRequestRepository,
-          redemptionStatusService,
-          endToEndIdConverter);
+          redemptionPayoutRecorder);
 
   @Test
   void outgoingToFundAccount_createsLedgerTransferEntryWithBookingDate() {
@@ -92,6 +103,94 @@ class SavingsFundStatementProcessorTest {
     verify(savingsFundLedger)
         .transferToFundAccount(
             new BigDecimal("100.00"), outgoingPayment.getId(), LocalDate.of(2025, 10, 1));
+  }
+
+  @Test
+  void fundInvestmentOutgoingToDepositAccount_recordsInternalTransfer() {
+    var receivedBefore = Instant.parse("2026-09-01T06:59:59.999999Z");
+    var correctionTransfer =
+        aPayment()
+            .amount(new BigDecimal("-4272.98"))
+            .beneficiaryIban(DEPOSIT_ACCOUNT_IBAN)
+            .description("Management fee kickback 02/2026")
+            .receivedBefore(receivedBefore)
+            .build();
+    var bankStatement =
+        setupMocksForPaymentWithAccount(
+            correctionTransfer, FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR);
+    when(bankAccounts.find(DEPOSIT_ACCOUNT_IBAN))
+        .thenReturn(
+            Optional.of(new BankAccount(DEPOSIT_ACCOUNT_IBAN, DEPOSIT_EUR, TKF100, "gw-test")));
+
+    processor.process(bankStatement, statementAccount);
+
+    verify(internalTransferLedger)
+        .recordInternalTransfer(
+            SystemAccount.FUND_INVESTMENT_CASH_CLEARING,
+            SystemAccount.INCOMING_PAYMENTS_CLEARING,
+            new BigDecimal("4272.98"),
+            correctionTransfer.getId(),
+            LocalDate.of(2026, 9, 1),
+            "Management fee kickback 02/2026");
+  }
+
+  @Test
+  void fundInvestmentOutgoingToDepositAccount_withFeeLikeDescription_isNotBookedAsManagementFee() {
+    var receivedBefore = Instant.parse("2026-09-01T06:59:59.999999Z");
+    var transfer =
+        aPayment()
+            .amount(new BigDecimal("-100.00"))
+            .beneficiaryIban(DEPOSIT_ACCOUNT_IBAN)
+            .beneficiaryName("Tuleva Fondid AS")
+            .description("Valitsemistasu tagastus")
+            .receivedBefore(receivedBefore)
+            .build();
+    var bankStatement =
+        setupMocksForPaymentWithAccount(transfer, FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR);
+    when(managementCompanies.isManagementCompany("Tuleva Fondid AS")).thenReturn(true);
+    when(bankAccounts.find(DEPOSIT_ACCOUNT_IBAN))
+        .thenReturn(
+            Optional.of(new BankAccount(DEPOSIT_ACCOUNT_IBAN, DEPOSIT_EUR, TKF100, "gw-test")));
+
+    processor.process(bankStatement, statementAccount);
+
+    verify(internalTransferLedger)
+        .recordInternalTransfer(
+            SystemAccount.FUND_INVESTMENT_CASH_CLEARING,
+            SystemAccount.INCOMING_PAYMENTS_CLEARING,
+            new BigDecimal("100.00"),
+            transfer.getId(),
+            LocalDate.of(2026, 9, 1),
+            "Valitsemistasu tagastus");
+    verifyNoInteractions(fundBankLedger);
+  }
+
+  @Test
+  void depositOutgoingToWithdrawalAccount_recordsInternalTransferInsteadOfDeferredReturn() {
+    var receivedBefore = Instant.parse("2026-09-01T06:59:59.999999Z");
+    var transfer =
+        aPayment()
+            .amount(new BigDecimal("-50.00"))
+            .beneficiaryIban(WITHDRAWAL_ACCOUNT_IBAN)
+            .description("internal move")
+            .receivedBefore(receivedBefore)
+            .build();
+    var bankStatement = setupMocksForPayment(transfer);
+    when(bankAccounts.find(WITHDRAWAL_ACCOUNT_IBAN))
+        .thenReturn(
+            Optional.of(
+                new BankAccount(WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR, TKF100, "gw-test")));
+
+    processor.process(bankStatement, statementAccount);
+
+    verify(internalTransferLedger)
+        .recordInternalTransfer(
+            SystemAccount.INCOMING_PAYMENTS_CLEARING,
+            SystemAccount.PAYOUTS_CASH_CLEARING,
+            new BigDecimal("50.00"),
+            transfer.getId(),
+            LocalDate.of(2026, 9, 1),
+            "internal move");
   }
 
   @Test

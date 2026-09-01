@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings;
 
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.*;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.party.PartyId;
@@ -49,6 +50,10 @@ public class SavingFundPayment {
   @Nullable
   public LocalDate bookingDate() {
     return receivedBefore == null ? null : receivedBefore.atZone(ESTONIAN_ZONE).toLocalDate();
+  }
+
+  public LocalDate bookingDateOrThrow() {
+    return requireNonNull(bookingDate(), "Missing receivedBefore: paymentId=" + id);
   }
 
   public enum Status {

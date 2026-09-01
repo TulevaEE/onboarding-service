@@ -5,12 +5,15 @@ import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK_MODEL;
 import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -803,6 +806,106 @@ class TrackingDifferenceNotifierTest {
         .navResidual(BigDecimal.ZERO)
         .navResidualBreach(false)
         .build();
+  }
+
+  @Test
+  void aRunThatDidNotRunSaysNothingWasCheckedAtAll() {
+    notifier.notifyRunFailed("TD check", "connection reset");
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue())
+        .contains("TD check DID NOT RUN: connection reset")
+        .contains("Nothing was checked");
+  }
+
+  @Test
+  void aRunThatCoveredOnlySomeFundsNamesTheOnesItSkipped() {
+    notifier.notifyRunIncomplete("TD check", "Incomplete security price data:\nTUK75: IE00MISSING");
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue())
+        .contains("TD check RAN ONLY IN PART")
+        .contains("TUK75: IE00MISSING")
+        .contains("Those funds were skipped");
+  }
+
+  @Test
+  void anUnexplainedResidualReportsBothTheResidualAndTheBandItLeft() {
+    notifier.notifyResidualOutsideTolerance(
+        TUK75,
+        LocalDate.of(2026, 4, 1),
+        LocalDate.of(2026, 4, 30),
+        new BigDecimal("0.0012"),
+        new BigDecimal("0.0005"));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue())
+        .contains("TUK75")
+        .contains("2026-04-01 to 2026-04-30")
+        .contains("Residual 12.00 bps, tolerance 5.00 bps");
+  }
+
+  @Test
+  void anUnexplainedResidualWithNoBandConfiguredSaysThereWasNone() {
+    notifier.notifyResidualOutsideTolerance(
+        TUK75, LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30), new BigDecimal("0.0012"), null);
+
+    then(notificationService).should().sendMessage(contains("tolerance none bps"), eq(INVESTMENT));
+  }
+
+  @Test
+  void aSlackFailureIsSwallowedRatherThanBreakingTheCaller() {
+    willThrow(new RuntimeException("slack down"))
+        .given(notificationService)
+        .sendMessage(any(), eq(INVESTMENT));
+
+    // The notifier is the last step of the check. Letting Slack take the run down with it would
+    // turn a delivery problem into an unchecked NAV.
+    assertThatCode(
+            () -> {
+              notifier.notifyRunFailed("TD check", "boom");
+              notifier.notifyRunIncomplete("TD check", "boom");
+              notifier.notifyCheckCouldNotRun(TUK75, LocalDate.of(2026, 4, 3));
+              notifier.notifyResidualOutsideTolerance(
+                  TUK75, LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30), ZERO, null);
+              notifier.notify(List.of(result(true, 1, new BigDecimal("0.002"))));
+            })
+        .doesNotThrowAnyException();
+  }
+
+  @Test
+  void aBenchmarkGapWithNoWeightBehindItStillNamesTheHoldings() {
+    var result =
+        result(false, 0, ZERO).toBuilder()
+            .checkType(BENCHMARK_MODEL)
+            .benchmarkGapIsins(List.of("IE00NOPROXY"))
+            .benchmarkGapWeight(null)
+            .build();
+
+    notifier.notify(List.of(result));
+
+    then(notificationService)
+        .should()
+        .sendMessage(contains("Part of the sleeve has no benchmark proxy"), eq(INVESTMENT));
+  }
+
+  @Test
+  void aTruncatedStreakIsReportedAsALowerBoundOnTheBreachMessage() {
+    var result =
+        result(true, 10, new BigDecimal("0.006")).toBuilder()
+            .escalationCountTruncated(true)
+            .build();
+
+    notifier.notify(List.of(result));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue())
+        .contains("TUK75 MODEL_PORTFOLIO: the streak fills the whole lookback window")
+        .contains("at least 10 days");
   }
 
   @Test

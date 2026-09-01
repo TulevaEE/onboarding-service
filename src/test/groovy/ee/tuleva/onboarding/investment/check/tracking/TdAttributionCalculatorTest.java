@@ -440,6 +440,34 @@ class TdAttributionCalculatorTest {
   }
 
   @Test
+  void aReturnAtOrBelowMinusOneHundredPercentFallsBackToACoefficientOfOne() {
+    // log1p is undefined at -100%, and a fund cannot lose more than everything. The guard keeps
+    // the linking finite rather than producing NaN and poisoning every component.
+    var days =
+        List.of(
+            dailyRecord(PERIOD_START, "-1.5", "0.001", "1000000", "10000", "0", List.of()),
+            dailyRecord(
+                PERIOD_START.plusDays(1), "0.001", "0.001", "1000000", "10000", "0", List.of()));
+    var input = inputWith(days, ZERO, ZERO);
+
+    var result = calculator.calculate(input);
+
+    assertThat(result.scalingFactor()).isNotNull();
+    assertThat(result.residual()).isNotNull();
+  }
+
+  @Test
+  void aPeriodWhoseDaysAllCancelStillLinksWithoutDividingByZero() {
+    var days = List.of(dailyRecord(PERIOD_START, "0.000", "0.000", "1000000", "0", "0", List.of()));
+    var input = inputWith(days, ZERO, ZERO);
+
+    var result = calculator.calculate(input);
+
+    assertThat(result.scalingFactor()).isEqualByComparingTo(BigDecimal.ONE);
+    assertThat(result.tdGeometric()).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
   void residualToleranceScalesWithTheSquareRootOfThePeriodLength() {
     var annual = new BigDecimal("0.00175");
 

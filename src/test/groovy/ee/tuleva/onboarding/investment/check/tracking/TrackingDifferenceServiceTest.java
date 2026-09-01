@@ -780,6 +780,21 @@ class TrackingDifferenceServiceTest {
   }
 
   @Test
+  void aZeroBenchmarkValueYesterdayProducesNoBenchmarkCheckRatherThanADivideByZero() {
+    setupFundData(TUK75);
+    given(fundValueProvider.getLatestValue("MSCI_ACWI", CHECK_DATE))
+        .willReturn(Optional.of(fundValue("1010.00")));
+    given(fundValueProvider.getLatestValue("MSCI_ACWI", PREVIOUS_DATE))
+        .willReturn(Optional.of(fundValue("0.00", PREVIOUS_DATE)));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    // Same rule as a zero anchor price on a holding: nothing can be divided by it, so there is no
+    // benchmark return to report and the check must be absent rather than wrong.
+    assertThat(results).noneMatch(r -> r.checkType() == BENCHMARK);
+  }
+
+  @Test
   void benchmarkNonBreachSetsZeroCompoundedReturns() {
     setupFundData(TUK75);
 
@@ -2173,6 +2188,65 @@ class TrackingDifferenceServiceTest {
     assertThatThrownBy(() -> service.runChecksAsOf(CHECK_DATE))
         .isInstanceOf(TrackingDifferenceService.IncompletePriceDataException.class)
         .hasMessageContaining("IE00MISSING1");
+  }
+
+  @Test
+  void aPriceCarriedForwardFromAnEarlierDateIsWarnedAboutButDoesNotBlockTheCheck() {
+    skipOtherFunds(TUK75);
+
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.10")));
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.00")));
+
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, CHECK_DATE))
+        .willReturn(
+            List.of(
+                ModelPortfolioAllocation.builder()
+                    .fund(TUK75)
+                    .isin("IE00STALE")
+                    .weight(new BigDecimal("1.00"))
+                    .effectiveDate(LocalDate.of(2026, 1, 1))
+                    .build()));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(CHECK_DATE, TUK75, SECURITY))
+        .willReturn(
+            List.of(
+                FundPosition.builder()
+                    .fund(TUK75)
+                    .navDate(CHECK_DATE)
+                    .accountType(SECURITY)
+                    .accountId("IE00STALE")
+                    .marketValue(new BigDecimal("1000000"))
+                    .build()));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, CHECK_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(new BigDecimal("1000000"));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, CHECK_DATE, List.of(CASH)))
+        .willReturn(ZERO);
+
+    // A fund that did not deal on the check date has no price for it, so the provider carries the
+    // last one forward. That is the only available answer and it self-corrects when pricing
+    // resumes, so it is worth saying out loud but must not stop the check.
+    given(positionPriceResolver.resolve(eq("IE00STALE"), eq(CHECK_DATE), any(Instant.class)))
+        .willReturn(
+            Optional.of(
+                ResolvedPrice.builder()
+                    .usedPrice(new BigDecimal("102.00"))
+                    .validationStatus(ValidationStatus.OK)
+                    .priceDate(CHECK_DATE.minusDays(3))
+                    .build()));
+    given(positionPriceResolver.resolve(eq("IE00STALE"), eq(PREVIOUS_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("100.00")));
+
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
+        .willReturn(List.of());
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    assertThat(results).anyMatch(r -> r.checkType() == MODEL_PORTFOLIO);
   }
 
   @Test

@@ -108,6 +108,69 @@ class ConsecutiveBreachTrackerTest {
   }
 
   @Test
+  void anUnreadableLookbackParameterFallsBackRatherThanLosingTheStreak() {
+    given(calculator.escalationLookbackDays(CHECK_DATE))
+        .willThrow(new RuntimeException("database unavailable"));
+    given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 10))
+        .willReturn(List.of(breachEvent(THURSDAY), breachEvent(WEDNESDAY)));
+
+    var info = tracker.countConsecutiveBreaches(TUK75, MODEL_PORTFOLIO, CHECK_DATE);
+
+    assertThat(info.count()).isEqualTo(2);
+    assertThat(info.unavailable()).isFalse();
+  }
+
+  @Test
+  void anUnparseableAttributionDoesNotStopTheStreakBeingCounted() {
+    given(calculator.escalationLookbackDays(CHECK_DATE)).willReturn(10);
+    var corrupt =
+        TrackingDifferenceEvent.builder()
+            .fund(TUK75)
+            .checkDate(THURSDAY)
+            .checkType(MODEL_PORTFOLIO)
+            .trackingDifference(new BigDecimal("0.0020"))
+            .fundReturn(new BigDecimal("0.01"))
+            .benchmarkReturn(new BigDecimal("0.008"))
+            .breach(true)
+            .consecutiveBreachDays(1)
+            .result(java.util.Map.of("securityAttributions", "not a list"))
+            .build();
+    given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 10))
+        .willReturn(List.of(corrupt, breachEvent(WEDNESDAY)));
+
+    var info = tracker.countConsecutiveBreaches(TUK75, MODEL_PORTFOLIO, CHECK_DATE);
+
+    // The attribution detail is a nicety on the escalation message; the streak length is what
+    // decides whether anyone is woken up. One must not cost the other.
+    assertThat(info.count()).isEqualTo(2);
+    assertThat(info.unavailable()).isFalse();
+  }
+
+  @Test
+  void aNavResidualOnlyBreachKeepsTheStreakAlive() {
+    given(calculator.escalationLookbackDays(CHECK_DATE)).willReturn(10);
+    var navResidualOnly =
+        TrackingDifferenceEvent.builder()
+            .fund(TUK75)
+            .checkDate(THURSDAY)
+            .checkType(MODEL_PORTFOLIO)
+            .trackingDifference(new BigDecimal("0.0001"))
+            .fundReturn(new BigDecimal("0.001"))
+            .benchmarkReturn(new BigDecimal("0.0009"))
+            .breach(false)
+            .consecutiveBreachDays(0)
+            .result(java.util.Map.of("navResidualBreach", true))
+            .build();
+    given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 10))
+        .willReturn(List.of(navResidualOnly, breachEvent(WEDNESDAY)));
+
+    var info = tracker.countConsecutiveBreaches(TUK75, MODEL_PORTFOLIO, CHECK_DATE);
+
+    assertThat(info.count()).isEqualTo(2);
+    assertThat(info.hadNavResidualBreach()).isTrue();
+  }
+
+  @Test
   void aFailedCountIsCarriedOntoTheResultEvenOnADayThatDidNotBreach() {
     var result =
         tracker.updateConsecutiveCount(
@@ -127,6 +190,44 @@ class ConsecutiveBreachTrackerTest {
 
     assertThat(result.escalationCountUnavailable()).isTrue();
     assertThat(result.consecutiveBreachDays()).isZero();
+  }
+
+  @Test
+  void aResultCarryingNoComponentBreakdownStillGetsItsEscalationTotals() {
+    var breachingWithoutComponents =
+        TrackingDifferenceResult.builder()
+            .fund(TUK75)
+            .checkType(MODEL_PORTFOLIO)
+            .checkDate(CHECK_DATE)
+            .fundReturn(new BigDecimal("0.01"))
+            .benchmarkReturn(new BigDecimal("0.008"))
+            .trackingDifference(new BigDecimal("0.002"))
+            .breach(true)
+            .securityAttributions(List.of())
+            .build();
+
+    var result =
+        tracker.updateConsecutiveCount(
+            breachingWithoutComponents,
+            new ConsecutiveBreachTracker.ConsecutiveBreachInfo(
+                2,
+                new BigDecimal("0.004"),
+                new BigDecimal("0.02"),
+                new BigDecimal("0.016"),
+                java.util.Map.of(),
+                new BigDecimal("-0.0001"),
+                new BigDecimal("-0.00005"),
+                new BigDecimal("0.00002"),
+                false,
+                false,
+                false));
+
+    // A BENCHMARK result carries no cash, fee or residual breakdown at all. Adding null to the
+    // running streak totals would take the whole escalation message down with it.
+    assertThat(result.consecutiveBreachDays()).isEqualTo(3);
+    assertThat(result.escalationCashDrag()).isEqualByComparingTo("-0.0001");
+    assertThat(result.escalationFeeDrag()).isEqualByComparingTo("-0.00005");
+    assertThat(result.escalationResidual()).isEqualByComparingTo("0.00002");
   }
 
   private TrackingDifferenceResult nonBreachingResult() {

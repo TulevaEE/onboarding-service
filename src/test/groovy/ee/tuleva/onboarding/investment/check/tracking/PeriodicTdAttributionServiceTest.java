@@ -15,6 +15,8 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -23,6 +25,7 @@ import ee.tuleva.onboarding.instrument.BenchmarkCategoryProxy;
 import ee.tuleva.onboarding.instrument.InstrumentReference;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.investment.TrackingCheckType;
+import ee.tuleva.onboarding.investment.config.InvestmentParameter;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.fees.FeeAccrual;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
@@ -173,6 +176,71 @@ class PeriodicTdAttributionServiceTest {
             TUK75, PERIOD_START, PERIOD_END, MONTHLY);
     verify(attributionRepository).save(any(PeriodicTdAttribution.class));
     verify(attributionRepository).save(argThat(e -> e.getDetails().size() == 2));
+  }
+
+  @Test
+  void aResidualTheAttributionCouldNotExplainIsAlerted() {
+    setupStandardMocks();
+    given(
+            parameterRepository.findLatestValue(
+                InvestmentParameter.TD_RESIDUAL_TOLERANCE_ANNUAL, PERIOD_END))
+        .willReturn(new BigDecimal("0.00001"));
+
+    var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
+
+    assertThat(result.checks()).containsEntry("residualWithinTolerance", false);
+    then(notifier)
+        .should()
+        .notifyResidualOutsideTolerance(
+            eq(TUK75), eq(PERIOD_START), eq(PERIOD_END), eq(result.residual()), any());
+  }
+
+  @Test
+  void anUnconfiguredToleranceIsNotAnAlarmOnEveryPeriod() {
+    setupStandardMocks();
+    given(
+            parameterRepository.findLatestValue(
+                InvestmentParameter.TD_RESIDUAL_TOLERANCE_ANNUAL, PERIOD_END))
+        .willThrow(new IllegalStateException("No investment parameter found"));
+
+    var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
+
+    assertThat(result.checks()).doesNotContainKey("residualWithinTolerance");
+    then(notifier)
+        .should(never())
+        .notifyResidualOutsideTolerance(any(), any(), any(), any(), any());
+  }
+
+  @Test
+  void anEventWrittenBeforeTheDailyCheckStoredItsWeightsIsLeftOutOfThePeriodDetail() {
+    setupStandardMocks();
+    var legacyEvent =
+        TrackingDifferenceEvent.builder()
+            .fund(TUK75)
+            .checkDate(LocalDate.of(2026, 4, 1))
+            .checkType(MODEL_PORTFOLIO)
+            .trackingDifference(new BigDecimal("0.0001"))
+            .fundReturn(new BigDecimal("0.001"))
+            .benchmarkReturn(new BigDecimal("0.0009"))
+            .breach(false)
+            .result(
+                Map.of(
+                    "securityAttributions",
+                    List.of(
+                        Map.<String, Object>of(
+                            "isin", ISIN_DW, "securityReturn", new BigDecimal("0.001")))))
+            .createdAt(Instant.now())
+            .build();
+    given(
+            tdEventRepository.findDeduplicatedEventsForPeriod(
+                TUK75, MODEL_PORTFOLIO, PERIOD_START, PERIOD_END))
+        .willReturn(List.of(legacyEvent));
+
+    var result = service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
+
+    // Reading a missing weight as zero would report a model that never held the instrument.
+    // Leaving it out keeps its whole effect in the residual, where the tolerance can see it.
+    assertThat(result.instrumentDetails()).isEmpty();
   }
 
   @Test

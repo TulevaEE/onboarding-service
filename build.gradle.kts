@@ -347,6 +347,40 @@ tasks {
             }
             rule {
                 element = "PACKAGE"
+                includes = listOf("ee.tuleva.onboarding.investment.check.tracking")
+
+                limit {
+                    counter = "CLASS"
+                    value = "COVEREDRATIO"
+                    minimum = "1.0".toBigDecimal()
+                }
+
+                limit {
+                    counter = "METHOD"
+                    value = "COVEREDRATIO"
+                    minimum = "0.98".toBigDecimal()
+                }
+
+                limit {
+                    counter = "LINE"
+                    value = "COVEREDRATIO"
+                    minimum = "0.99".toBigDecimal()
+                }
+
+                limit {
+                    counter = "BRANCH"
+                    value = "COVEREDRATIO"
+                    minimum = "0.90".toBigDecimal()
+                }
+
+                limit {
+                    counter = "INSTRUCTION"
+                    value = "COVEREDRATIO"
+                    minimum = "0.98".toBigDecimal()
+                }
+            }
+            rule {
+                element = "PACKAGE"
                 includes =
                     listOf(
                         "ee.tuleva.onboarding.deadline",

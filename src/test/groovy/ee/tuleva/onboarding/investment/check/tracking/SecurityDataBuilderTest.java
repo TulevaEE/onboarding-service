@@ -342,6 +342,36 @@ class SecurityDataBuilderTest {
   }
 
   @Test
+  void blendTransitionWeightsLeavesTheRestOfTheModelAloneWhenTheLegsAlreadyExceedOne() {
+    var snapshot = new PriceSnapshot(BigDecimal.TEN, CHECK_DATE);
+    // Both legs of a switch sit in the sleeve at once until the exiting one is excluded, so the
+    // actual weights can add past 1. Rescaling then would hand the settled legs a negative model
+    // weight, which is worse than leaving them where they are.
+    var securities =
+        List.of(
+            new SecurityData(
+                "ISIN_A", new BigDecimal("0.5"), new BigDecimal("0.6"), snapshot, snapshot),
+            new SecurityData(
+                "ISIN_B", new BigDecimal("0.5"), new BigDecimal("1.2"), snapshot, snapshot));
+    var allocations = List.of(allocation("ISIN_A", "1.0", CHECK_DATE));
+    var previousAllocations =
+        List.of(
+            allocation("ISIN_A", "0.5", PREVIOUS_DATE), allocation("ISIN_B", "0.5", PREVIOUS_DATE));
+    var positions =
+        List.of(
+            position("ISIN_A", CHECK_DATE, "600000"), position("ISIN_B", CHECK_DATE, "1200000"));
+
+    var result =
+        builder.blendTransitionWeights(
+            securities, allocations, previousAllocations, positions, TUK75);
+
+    var settled = result.stream().filter(s -> s.isin().equals("ISIN_A")).findFirst().orElseThrow();
+    assertThat(settled.modelWeight()).isEqualByComparingTo("0.5");
+    var exiting = result.stream().filter(s -> s.isin().equals("ISIN_B")).findFirst().orElseThrow();
+    assertThat(exiting.modelWeight()).isEqualByComparingTo("1.2");
+  }
+
+  @Test
   void blendTransitionWeightsBlendsBothAddedAndRemovedIsinsDuringAFullSwap() {
     var snapshot = new PriceSnapshot(BigDecimal.TEN, CHECK_DATE);
     var securities =

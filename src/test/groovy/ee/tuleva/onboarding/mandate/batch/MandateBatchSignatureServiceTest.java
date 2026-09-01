@@ -4,7 +4,8 @@ import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.authenticated
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.auth.mobileid.MobileIDSession.PHONE_NUMBER;
-import static ee.tuleva.onboarding.signature.response.SignatureStatus.SIGNATURE;
+import static ee.tuleva.onboarding.signature.SignatureStatus.OUTSTANDING_TRANSACTION;
+import static ee.tuleva.onboarding.signature.SignatureStatus.SIGNATURE;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -14,10 +15,10 @@ import static org.mockito.Mockito.when;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.mandate.MandateFixture;
+import ee.tuleva.onboarding.signature.IdCardSignatureSession;
+import ee.tuleva.onboarding.signature.MobileIdSignatureSession;
 import ee.tuleva.onboarding.signature.SignatureService;
-import ee.tuleva.onboarding.signature.idcard.IdCardSignatureSession;
-import ee.tuleva.onboarding.signature.mobileid.MobileIdSignatureSession;
-import ee.tuleva.onboarding.signature.smartid.SmartIdSignatureSession;
+import ee.tuleva.onboarding.signature.SmartIdSignatureSession;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
 import java.util.Locale;
@@ -90,6 +91,24 @@ class MandateBatchSignatureServiceTest {
 
       assertThat(result.getStatusCode()).isEqualTo(SIGNATURE);
       assertThat(result.getChallengeCode()).isEqualTo("1234");
+    }
+
+    @Test
+    void earlyStatusPollWithoutVerificationCodeStillReturnsTheStatus() {
+      var mandateBatchId = 1L;
+      var mockSession = new SmartIdSignatureSession("certSessionId", "personalCode", null);
+
+      when(sessionStore.get(SmartIdSignatureSession.class)).thenReturn(Optional.of(mockSession));
+      when(localeService.getCurrentLocale()).thenReturn(Locale.ENGLISH);
+      when(mandateBatchService.finalizeMobileSignature(
+              any(), eq(mandateBatchId), eq(mockSession), eq(Locale.ENGLISH)))
+          .thenReturn(OUTSTANDING_TRANSACTION);
+
+      var user = sampleAuthenticatedPersonAndMember().build();
+      var result = mandateBatchSignatureService.getSmartIdSignatureStatus(mandateBatchId, user);
+
+      assertThat(result.getStatusCode()).isEqualTo(OUTSTANDING_TRANSACTION);
+      assertThat(result.getChallengeCode()).isNull();
     }
   }
 

@@ -11,6 +11,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -59,7 +60,7 @@ public class LegalEntityScreener {
   public ValidationResult validate(
       String registryCode,
       PersonalCode personalCode,
-      SelfCertification selfCertification,
+      @Nullable SelfCertification selfCertification,
       List<CompanyRelationship> relationships) {
     var detail = fetchCompanyDetail(registryCode);
     var beneficialOwners = ariregisterClient.getBeneficialOwners(registryCode);

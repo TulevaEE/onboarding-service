@@ -16,7 +16,7 @@ public class KycCheckService {
 
   public void check(User subject, Set<Country> countries, KycSurveyPurpose purpose) {
     eventPublisher.publishEvent(new BeforeKycCheckedEvent(subject, countries));
-    var kycCheck = kycChecker.check(subject.getId());
+    var kycCheck = kycChecker.check(subject.getIdOrThrow());
     eventPublisher.publishEvent(
         new KycCheckPerformedEvent(this, subject.getPersonalCode(), kycCheck, purpose));
   }

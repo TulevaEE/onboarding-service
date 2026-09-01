@@ -92,7 +92,7 @@ public class EuronextValueRetriever implements ComparisonIndexRetriever {
     }
 
     var storageKey = isin + "." + EURONEXT_PARIS_MARKET_IDENTIFIER_CODE;
-    var now = Instant.now();
+    var now = clock.instant();
     List<FundValue> allValues = parseCsvResponse(csvResponse, storageKey, now);
 
     logLatestValue(storageKey, allValues);

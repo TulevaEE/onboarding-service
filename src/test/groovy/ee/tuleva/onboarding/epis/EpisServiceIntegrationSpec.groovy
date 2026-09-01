@@ -1,14 +1,16 @@
 package ee.tuleva.onboarding.epis
 
+import ee.tuleva.onboarding.applicationtype.ApplicationType
 import ee.tuleva.onboarding.auth.role.Role
-import ee.tuleva.onboarding.contribution.ThirdPillarContribution
+import ee.tuleva.onboarding.epis.ThirdPillarContribution
 import ee.tuleva.onboarding.epis.application.ApplicationResponse
-import ee.tuleva.onboarding.epis.mandate.ApplicationDTO
 import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO
-import ee.tuleva.onboarding.epis.mandate.ApplicationStatus
-import ee.tuleva.onboarding.epis.mandate.MandateDto
-import ee.tuleva.onboarding.epis.mandate.command.MandateCommand
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse
+import ee.tuleva.onboarding.mandate.LegacyMandateSubmission
+import ee.tuleva.onboarding.mandate.MandateProcessResult
+import ee.tuleva.onboarding.mandate.MandateSubmissionCommand
+import ee.tuleva.onboarding.mandate.application.ApplicationSnapshot
+import ee.tuleva.onboarding.mandate.application.ApplicationStatus
 import org.mockserver.client.MockServerClient
 import org.mockserver.matchers.MatchType
 import org.mockserver.model.MediaType
@@ -36,7 +38,7 @@ import static ee.tuleva.onboarding.auth.role.RoleType.PERSON
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.epis.MandateCommandResponseFixture.sampleMandateCommandResponse
 import static ee.tuleva.onboarding.epis.cancellation.CancellationFixture.*
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.TRANSFER
+import static ee.tuleva.onboarding.applicationtype.ApplicationType.TRANSFER
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND
 import static ee.tuleva.onboarding.country.CountryFixture.countryFixture
 import static java.util.concurrent.TimeUnit.MILLISECONDS
@@ -92,7 +94,7 @@ class EpisServiceIntegrationSpec extends Specification {
                         }]
                         """, MatchType.STRICT)))
     when:
-    List<ApplicationDTO> applications = episService.getApplications(samplePerson())
+    List<ApplicationSnapshot> applications = episService.getApplications(samplePerson())
     then:
     applications.size() == 1
     applications.first().status == ApplicationStatus.PENDING
@@ -243,12 +245,12 @@ class EpisServiceIntegrationSpec extends Specification {
 
   def "can send mandates"() {
     given:
-    def fundsTransferExchange =
-        new MandateDto.MandateFundsTransferExchangeDTO("transferProcessId", 0.5, "EE123", "EE234", null)
+    def fundsTransferInstruction =
+        new LegacyMandateSubmission.FundTransferInstruction("transferProcessId", 0.5, "EE123", "EE234", null)
     def address = countryFixture().build()
-    def mandate = MandateDto.builder()
+    def submission = LegacyMandateSubmission.builder()
         .id(111L)
-        .fundTransferExchanges([fundsTransferExchange])
+        .fundTransferExchanges([fundsTransferInstruction])
         .processId("selectionProcessId")
         .createdDate(Instant.parse("2021-03-10T10:00:00Z"))
         .futureContributionFundIsin("EE345")
@@ -258,13 +260,16 @@ class EpisServiceIntegrationSpec extends Specification {
         .phoneNumber("+37288888888")
         .build()
 
-    ApplicationResponseDTO expectedResponse = new ApplicationResponseDTO(
+    ApplicationResponseDTO mockedResponse = new ApplicationResponseDTO(
         ApplicationResponse.builder()
             .processId("responseProcessId")
             .applicationType(TRANSFER)
             .successful(true)
             .build()
     )
+    MandateProcessResult expectedResult = MandateProcessResult.builder()
+        .outcomes([new MandateProcessResult.MandateProcessOutcome("responseProcessId", true, null)])
+        .build()
 
     mockServerClient
         .when(
@@ -273,40 +278,40 @@ class EpisServiceIntegrationSpec extends Specification {
                 .withPath("/mandates")
                 .withBody(json("""
             {
-              "id": ${mandate.id},
-              "processId": "${mandate.processId}",
-              "futureContributionFundIsin": "${mandate.futureContributionFundIsin}",
-              "createdDate": "${mandate.createdDate}",
-              "pillar": ${mandate.pillar},
+              "id": ${submission.id()},
+              "processId": "${submission.processId()}",
+              "futureContributionFundIsin": "${submission.futureContributionFundIsin()}",
+              "createdDate": "${submission.createdDate()}",
+              "pillar": ${submission.pillar()},
               "fundTransferExchanges": [
                 {
-                  "processId": "${fundsTransferExchange.processId}",
-                  "amount": ${fundsTransferExchange.amount},
-                  "sourceFundIsin": "${fundsTransferExchange.sourceFundIsin}",
-                  "targetFundIsin": "${fundsTransferExchange.targetFundIsin}",
-                  "targetPik": ${fundsTransferExchange.targetPik}
+                  "processId": "${fundsTransferInstruction.processId()}",
+                  "amount": ${fundsTransferInstruction.amount()},
+                  "sourceFundIsin": "${fundsTransferInstruction.sourceFundIsin()}",
+                  "targetFundIsin": "${fundsTransferInstruction.targetFundIsin()}",
+                  "targetPik": ${fundsTransferInstruction.targetPik()}
                 }
               ],
               "address": {
                 "countryCode": "${address.countryCode}"
               },
-              "email": "${mandate.email}",
-              "phoneNumber": "${mandate.phoneNumber}",
-              "paymentRate": ${mandate.paymentRate}
+              "email": "${submission.email()}",
+              "phoneNumber": "${submission.phoneNumber()}",
+              "paymentRate": ${submission.paymentRate()}
             }
           """, MatchType.STRICT))
         )
         .respond(
             response()
                 .withContentType(MediaType.APPLICATION_JSON)
-                .withBody(json(expectedResponse, MatchType.STRICT))
+                .withBody(json(mockedResponse, MatchType.STRICT))
         )
 
     when:
-    ApplicationResponseDTO response = episService.sendMandate(mandate)
+    MandateProcessResult response = episService.sendMandate(submission)
 
     then:
-    response == expectedResponse
+    response == expectedResult
   }
 
   def "can send withdrawal cancellation mandate v2"() {
@@ -325,16 +330,16 @@ class EpisServiceIntegrationSpec extends Specification {
             {
               "processId" : "${mandateCommandResponse.processId}",
               "mandateDto" : {
-                "id" : ${sampleCancellation.id},
+                "id" : ${sampleCancellation.id()},
                 "details" : {
                   "mandateType" : "WITHDRAWAL_CANCELLATION"
                 },
-                "createdDate" : "${sampleCancellation.createdDate}",
+                "createdDate" : "${sampleCancellation.createdDate()}",
                 "address" : {
-                  "countryCode" : "${sampleCancellation.address.countryCode}"
+                  "countryCode" : "${sampleCancellation.address().countryCode}"
                 },
-                "email" : "${sampleCancellation.email}",
-                "phoneNumber" : "${sampleCancellation.phoneNumber}"
+                "email" : "${sampleCancellation.email()}",
+                "phoneNumber" : "${sampleCancellation.phoneNumber()}"
               }
             }
           """, MatchType.STRICT))
@@ -347,13 +352,13 @@ class EpisServiceIntegrationSpec extends Specification {
         )
 
     when:
-    MandateCommandResponse response = episService.sendMandateV2(new MandateCommand<>("1", sampleCancellation))
+    MandateProcessResult response = episService.sendMandateV2(new MandateSubmissionCommand<>("1", sampleCancellation))
 
     then:
-    response.successful == expectedResponse.successful
-    response.processId == expectedResponse.processId
-    response.errorCode == expectedResponse.errorCode
-    response.errorMessage == expectedResponse.errorMessage
+    def outcome = response.outcomes().first()
+    outcome.successful() == expectedResponse.successful
+    outcome.processId() == expectedResponse.processId
+    outcome.errorCode() == expectedResponse.errorCode
   }
 
   def "can send early withdrawal cancellation mandate v2"() {
@@ -372,16 +377,16 @@ class EpisServiceIntegrationSpec extends Specification {
             {
               "processId" : "${mandateCommandResponse.processId}",
               "mandateDto" : {
-                "id" : ${sampleCancellation.id},
+                "id" : ${sampleCancellation.id()},
                 "details" : {
                   "mandateType" : "EARLY_WITHDRAWAL_CANCELLATION"
                 },
-                "createdDate" : "${sampleCancellation.createdDate}",
+                "createdDate" : "${sampleCancellation.createdDate()}",
                 "address" : {
-                  "countryCode" : "${sampleCancellation.address.countryCode}"
+                  "countryCode" : "${sampleCancellation.address().countryCode}"
                 },
-                "email" : "${sampleCancellation.email}",
-                "phoneNumber" : "${sampleCancellation.phoneNumber}"
+                "email" : "${sampleCancellation.email()}",
+                "phoneNumber" : "${sampleCancellation.phoneNumber()}"
               }
             }
           """, MatchType.STRICT))
@@ -394,13 +399,13 @@ class EpisServiceIntegrationSpec extends Specification {
         )
 
     when:
-    MandateCommandResponse response = episService.sendMandateV2(new MandateCommand<>("1", sampleCancellation))
+    MandateProcessResult response = episService.sendMandateV2(new MandateSubmissionCommand<>("1", sampleCancellation))
 
     then:
-    response.successful == expectedResponse.successful
-    response.processId == expectedResponse.processId
-    response.errorCode == expectedResponse.errorCode
-    response.errorMessage == expectedResponse.errorMessage
+    def outcome = response.outcomes().first()
+    outcome.successful() == expectedResponse.successful
+    outcome.processId() == expectedResponse.processId
+    outcome.errorCode() == expectedResponse.errorCode
   }
 
   def "can send transfer cancellation mandate v2"() {
@@ -421,18 +426,18 @@ class EpisServiceIntegrationSpec extends Specification {
             {
               "processId" : "${mandateCommandResponse.processId}",
               "mandateDto" : {
-                "id" : ${sampleCancellation.id},
+                "id" : ${sampleCancellation.id()},
                 "details" : {
                   "mandateType" : "TRANSFER_CANCELLATION",
                   "sourceFundIsinOfTransferToCancel" : "${anIsin}",
                   "pillar" : "SECOND"
                 },
-                "createdDate" : "${sampleCancellation.createdDate}",
+                "createdDate" : "${sampleCancellation.createdDate()}",
                 "address" : {
-                  "countryCode" : "${sampleCancellation.address.countryCode}"
+                  "countryCode" : "${sampleCancellation.address().countryCode}"
                 },
-                "email" : "${sampleCancellation.email}",
-                "phoneNumber" : "${sampleCancellation.phoneNumber}"
+                "email" : "${sampleCancellation.email()}",
+                "phoneNumber" : "${sampleCancellation.phoneNumber()}"
               }
             }
           """, MatchType.STRICT))
@@ -445,13 +450,13 @@ class EpisServiceIntegrationSpec extends Specification {
         )
 
     when:
-    MandateCommandResponse response = episService.sendMandateV2(new MandateCommand<>("1", sampleCancellation))
+    MandateProcessResult response = episService.sendMandateV2(new MandateSubmissionCommand<>("1", sampleCancellation))
 
     then:
-    response.successful == expectedResponse.successful
-    response.processId == expectedResponse.processId
-    response.errorCode == expectedResponse.errorCode
-    response.errorMessage == expectedResponse.errorMessage
+    def outcome = response.outcomes().first()
+    outcome.successful() == expectedResponse.successful
+    outcome.processId() == expectedResponse.processId
+    outcome.errorCode() == expectedResponse.errorCode
   }
 
   def "can get contributions"() {

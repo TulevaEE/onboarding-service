@@ -4,8 +4,8 @@ import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.W
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.OUTSTANDING_UNITS;
 import static java.math.BigDecimal.ZERO;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.position.FundPosition;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.stereotype.Component;

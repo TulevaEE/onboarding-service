@@ -7,17 +7,12 @@ import static java.math.RoundingMode.HALF_UP;
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
-import ee.tuleva.onboarding.fund.TulevaFund;
-import ee.tuleva.onboarding.investment.fees.FeeBases;
-import ee.tuleva.onboarding.investment.fees.FeeCalculationService;
-import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
-import ee.tuleva.onboarding.investment.fees.FeeResult;
-import ee.tuleva.onboarding.investment.fees.FeeType;
-import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
+import ee.tuleva.onboarding.savings.NavFeeBackfill;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult.SecurityDetail;
 import ee.tuleva.onboarding.savings.fund.nav.components.*;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Duration;
@@ -30,17 +25,18 @@ import java.util.Optional;
 import java.util.TreeMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class NavCalculationService {
+public class NavCalculationService implements NavFeeBackfill {
 
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
 
-  private final FundPositionRepository fundPositionRepository;
+  private final NavPositions navPositions;
   private final PublicHolidays publicHolidays;
   private final LedgerService ledgerService;
   private final NavLedgerRepository navLedgerRepository;
@@ -52,8 +48,7 @@ public class NavCalculationService {
   private final RedemptionsComponent redemptionsComponent;
   private final BlackrockAdjustmentComponent blackrockAdjustmentComponent;
   private final PositionPriceResolver positionPriceResolver;
-  private final FeeCalculationService feeCalculationService;
-  private final FeeChargedToFundPolicy feeChargedToFundPolicy;
+  private final NavFees navFees;
   private final Clock clock;
 
   @Transactional
@@ -100,7 +95,7 @@ public class NavCalculationService {
       pendingRedemptions = redemptionsComponent.calculate(context);
     }
 
-    FeeBases feeBases =
+    NavFeeBases feeBases =
         feeBases(
             securitiesValue,
             cashPosition,
@@ -110,13 +105,14 @@ public class NavCalculationService {
             payables,
             pendingRedemptions);
     Instant feeCutoff = positionReportDate.plusDays(1).atStartOfDay(ESTONIAN_ZONE).toInstant();
-    FeeResult fees =
-        feeCalculationService.calculateFeesForNav(
+    NavFeeResult fees =
+        navFees.calculateFeesForNav(
             fund, positionReportDate, feeBases, feeCutoff, context.getSecurityPrices());
     BigDecimal managementFeeAccrual =
-        navFacingAccrual(fund, FeeType.MANAGEMENT, positionReportDate, fees.managementFeeAccrual());
+        navFacingAccrual(
+            fund, NavFeeType.MANAGEMENT, positionReportDate, fees.managementFeeAccrual());
     BigDecimal depotFeeAccrual =
-        navFacingAccrual(fund, FeeType.DEPOT, positionReportDate, fees.depotFeeAccrual());
+        navFacingAccrual(fund, NavFeeType.DEPOT, positionReportDate, fees.depotFeeAccrual());
 
     BigDecimal aum =
         calculateAum(
@@ -172,10 +168,10 @@ public class NavCalculationService {
         : publicHolidays.previousWorkingDay(calculationDate);
   }
 
-  private LocalDate getPositionReportDate(TulevaFund fund, LocalDate calculationDate) {
+  private @Nullable LocalDate getPositionReportDate(TulevaFund fund, LocalDate calculationDate) {
     LocalDate expectedDate = expectedPositionReportDate(fund, calculationDate, publicHolidays);
     LocalDate actual =
-        fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, expectedDate).orElse(null);
+        navPositions.findLatestNavDateByFundAndAsOfDate(fund, expectedDate).orElse(null);
     if (actual != null && !actual.equals(expectedDate)) {
       throw new IllegalStateException(
           "Position data missing: fund="
@@ -229,8 +225,8 @@ public class NavCalculationService {
   }
 
   private BigDecimal navFacingAccrual(
-      TulevaFund fund, FeeType feeType, LocalDate navDate, BigDecimal accrual) {
-    return feeChargedToFundPolicy.chargedToFund(fund, feeType, navDate) ? accrual : ZERO;
+      TulevaFund fund, NavFeeType feeType, LocalDate navDate, BigDecimal accrual) {
+    return navFees.chargedToFund(fund, feeType, navDate) ? accrual : ZERO;
   }
 
   private BigDecimal calculateNavPerUnit(
@@ -249,20 +245,32 @@ public class NavCalculationService {
                 entry -> {
                   String isin = entry.getKey();
                   BigDecimal units = entry.getValue();
-                  var resolvedPrice = positionPriceResolver.resolve(isin, priceDate, priceCutoff);
-                  String ticker = resolvedPrice.map(ResolvedPrice::storageKey).orElse("UNKNOWN");
-                  BigDecimal price = resolvedPrice.map(ResolvedPrice::usedPrice).orElse(null);
-                  LocalDate resolvedPriceDate =
-                      resolvedPrice.map(ResolvedPrice::priceDate).orElse(null);
-                  BigDecimal marketValue =
-                      price != null ? units.multiply(price).setScale(2, HALF_UP) : null;
+                  ResolvedPrice resolvedPrice =
+                      positionPriceResolver
+                          .resolve(isin, priceDate, priceCutoff)
+                          .orElseThrow(
+                              () ->
+                                  new IllegalStateException(
+                                      "Price not resolved: fund="
+                                          + fund
+                                          + ", isin="
+                                          + isin
+                                          + ", priceDate="
+                                          + priceDate));
+                  BigDecimal price = resolvedPrice.usedPrice();
+                  BigDecimal marketValue = units.multiply(price).setScale(2, HALF_UP);
                   return new SecurityDetail(
-                      isin, ticker, units, price, marketValue, resolvedPriceDate);
+                      isin,
+                      resolvedPrice.storageKey(),
+                      units,
+                      price,
+                      marketValue,
+                      resolvedPrice.priceDate());
                 })
             .toList();
   }
 
-  private FeeBases calculateFeeBases(NavComponentContext context) {
+  private NavFeeBases calculateFeeBases(NavComponentContext context) {
     BigDecimal securitiesValue = securitiesValueComponent.calculate(context);
     BigDecimal cashPosition = cashPositionComponent.calculate(context);
     BigDecimal receivables = receivablesComponent.calculate(context);
@@ -280,7 +288,7 @@ public class NavCalculationService {
         pendingRedemptions);
   }
 
-  private FeeBases feeBases(
+  private NavFeeBases feeBases(
       BigDecimal securitiesValue,
       BigDecimal cashPosition,
       BigDecimal receivables,
@@ -294,11 +302,11 @@ public class NavCalculationService {
             .add(receivables)
             .add(pendingSubscriptions)
             .add(blackrockAdjustment);
-    return new FeeBases(assetValue.subtract(payables).subtract(pendingRedemptions), assetValue);
+    return new NavFeeBases(assetValue.subtract(payables).subtract(pendingRedemptions), assetValue);
   }
 
   public record FeeBaseValueResult(
-      FeeBases bases, LocalDate positionReportDate, Map<String, ResolvedPrice> securityPrices) {}
+      NavFeeBases bases, LocalDate positionReportDate, Map<String, ResolvedPrice> securityPrices) {}
 
   public Optional<FeeBaseValueResult> computeFeeBaseValue(
       TulevaFund fund, LocalDate calculationDate) {
@@ -329,6 +337,7 @@ public class NavCalculationService {
   }
 
   @Transactional
+  @Override
   public void backfillFees(TulevaFund fund, LocalDate from, LocalDate to) {
     for (LocalDate navDate = from; !navDate.isAfter(to); navDate = navDate.plusDays(1)) {
       var optional = computeFeeBaseValue(fund, navDate.plusDays(1));
@@ -338,7 +347,7 @@ public class NavCalculationService {
       log.info("Backfilling fees: fund={}, date={}", fund, navDate);
       var result = optional.get();
       Instant feeCutoff = navDate.atTime(fund.getNavCutoffTime()).atZone(ESTONIAN_ZONE).toInstant();
-      feeCalculationService.calculateFeesForNav(
+      navFees.calculateFeesForNav(
           fund, navDate, result.bases(), feeCutoff, result.securityPrices());
     }
     log.info("Fee backfill completed: fund={}, from={}, to={}", fund, from, to);

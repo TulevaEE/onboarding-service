@@ -27,7 +27,7 @@ import lombok.NoArgsConstructor;
 @Table(name = "nav_report")
 @AllArgsConstructor
 @NoArgsConstructor
-class NavReportRow {
+public class NavReportRow {
 
   @Id
   @GeneratedValue(strategy = IDENTITY)

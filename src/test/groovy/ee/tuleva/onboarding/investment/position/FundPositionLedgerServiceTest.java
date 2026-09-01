@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.investment.position;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -14,7 +14,10 @@ import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import ee.tuleva.onboarding.ledger.NavPositionLedger;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -45,7 +48,8 @@ class FundPositionLedgerServiceTest {
             navFeeAccrualLedger,
             feeAccrualRepository,
             navLedgerRepository,
-            publicHolidays);
+            publicHolidays,
+            Clock.fixed(Instant.parse("2026-08-01T09:00:00Z"), ZoneId.of("Europe/Tallinn")));
   }
 
   private static final LocalDate DATE = LocalDate.of(2026, 2, 5);
@@ -100,7 +104,14 @@ class FundPositionLedgerServiceTest {
     service.recordPositionsToLedger(TUK75, DATE);
 
     verify(navPositionLedger)
-        .recordPositions(TUK75, DATE, Map.of(), ZERO, ZERO, new BigDecimal("-5000.00"));
+        .recordPositions(
+            eq(TUK75),
+            eq(DATE),
+            any(Instant.class),
+            eq(Map.of()),
+            eq(ZERO),
+            eq(ZERO),
+            eq(new BigDecimal("-5000.00")));
   }
 
   @Test
@@ -125,11 +136,14 @@ class FundPositionLedgerServiceTest {
     verify(navFeeAccrualLedger).deleteFeeTransactionsByFund(TUK75);
     verify(feeAccrualRepository).deleteByFund(TUK75);
     verify(navPositionLedger)
-        .recordPositions(eq(TUK75), eq(lastWorkingDay), any(), any(), any(), any());
-    verify(navPositionLedger).recordPositions(eq(TUK75), eq(date2), any(), any(), any(), any());
-    verify(navPositionLedger).recordPositions(eq(TUK75), eq(date3), any(), any(), any(), any());
+        .recordPositions(
+            eq(TUK75), eq(lastWorkingDay), any(Instant.class), any(), any(), any(), any());
+    verify(navPositionLedger)
+        .recordPositions(eq(TUK75), eq(date2), any(Instant.class), any(), any(), any(), any());
+    verify(navPositionLedger)
+        .recordPositions(eq(TUK75), eq(date3), any(Instant.class), any(), any(), any(), any());
     verify(navPositionLedger, never())
-        .recordPositions(eq(TUK75), eq(febData), any(), any(), any(), any());
+        .recordPositions(eq(TUK75), eq(febData), any(Instant.class), any(), any(), any(), any());
   }
 
   @Test
@@ -149,9 +163,18 @@ class FundPositionLedgerServiceTest {
     service.rerecordPositions(TUK75, fromDate);
 
     verify(navPositionLedger)
-        .recordPositions(eq(TUK75), eq(lastWorkingDayBeforeStretch), any(), any(), any(), any());
-    verify(navPositionLedger).recordPositions(eq(TUK75), eq(dec29), any(), any(), any(), any());
-    verify(navPositionLedger).recordPositions(eq(TUK75), eq(dec30), any(), any(), any(), any());
+        .recordPositions(
+            eq(TUK75),
+            eq(lastWorkingDayBeforeStretch),
+            any(Instant.class),
+            any(),
+            any(),
+            any(),
+            any());
+    verify(navPositionLedger)
+        .recordPositions(eq(TUK75), eq(dec29), any(Instant.class), any(), any(), any(), any());
+    verify(navPositionLedger)
+        .recordPositions(eq(TUK75), eq(dec30), any(Instant.class), any(), any(), any(), any());
   }
 
   @Test
@@ -197,7 +220,14 @@ class FundPositionLedgerServiceTest {
     service.recordPositionsToLedger(TKF100, DATE);
 
     verify(navPositionLedger)
-        .recordPositions(TKF100, DATE, Map.of(), ZERO, new BigDecimal("500.00"), ZERO);
+        .recordPositions(
+            eq(TKF100),
+            eq(DATE),
+            any(Instant.class),
+            eq(Map.of()),
+            eq(ZERO),
+            eq(new BigDecimal("500.00")),
+            eq(ZERO));
   }
 
   @Test
@@ -244,11 +274,12 @@ class FundPositionLedgerServiceTest {
 
     verify(navPositionLedger)
         .recordPositions(
-            TKF100,
-            DATE,
-            Map.of(ISIN_A, new BigDecimal("500"), ISIN_B, new BigDecimal("-18430.331")),
-            ZERO,
-            ZERO,
-            ZERO);
+            eq(TKF100),
+            eq(DATE),
+            any(Instant.class),
+            eq(Map.of(ISIN_A, new BigDecimal("500"), ISIN_B, new BigDecimal("-18430.331"))),
+            eq(ZERO),
+            eq(ZERO),
+            eq(ZERO));
   }
 }

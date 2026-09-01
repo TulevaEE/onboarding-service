@@ -1,8 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
-import static ee.tuleva.onboarding.investment.config.InvestmentParameter.NAV_IMPACT_VOLUME_THRESHOLD;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RESERVED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RESERVED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
 import static java.math.BigDecimal.ZERO;
 import static org.mockito.ArgumentMatchers.any;
@@ -15,14 +14,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
-import ee.tuleva.onboarding.fund.TulevaFund;
-import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.party.PartyId;
-import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
+import ee.tuleva.onboarding.savings.FundNavProvider;
+import ee.tuleva.onboarding.savings.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestRepository;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -44,7 +43,7 @@ class NavTransactionImpactAlertJobTest {
   @Mock private SavingFundPaymentRepository savingFundPaymentRepository;
   @Mock private RedemptionRequestRepository redemptionRequestRepository;
   @Mock private FundNavProvider fundNavProvider;
-  @Mock private InvestmentParameterRepository investmentParameterRepository;
+  @Mock private NavImpactThreshold investmentParameters;
   @Mock private OperationsNotificationService notificationService;
   private final PublicHolidays publicHolidays = new PublicHolidays();
 
@@ -55,7 +54,7 @@ class NavTransactionImpactAlertJobTest {
     // 2026-01-17 = Saturday
     var job = jobOn("2026-01-17T08:00:00Z");
 
-    job.onFundPositionsImported();
+    job.onNavPositionInputsImported();
 
     verifyNoInteractions(notificationService);
     verifyNoInteractions(savingFundPaymentRepository);
@@ -71,7 +70,7 @@ class NavTransactionImpactAlertJobTest {
     stubTkf100Subscriptions(new BigDecimal("50000"));
     stubTkf100Redemptions(List.of());
 
-    job.onFundPositionsImported();
+    job.onNavPositionInputsImported();
 
     verify(notificationService, never()).sendMessage(contains("TKF100"), eq(SAVINGS));
   }
@@ -85,7 +84,7 @@ class NavTransactionImpactAlertJobTest {
     stubTkf100Redemptions(List.of(redemption(new BigDecimal("200000"))));
     stubNav(NAV);
 
-    job.onFundPositionsImported();
+    job.onNavPositionInputsImported();
 
     verify(notificationService).sendMessage(contains("TKF100"), eq(SAVINGS));
   }
@@ -99,7 +98,7 @@ class NavTransactionImpactAlertJobTest {
     stubTkf100Redemptions(List.of(redemption(new BigDecimal("200000"))));
     stubNav(NAV);
 
-    job.onFundPositionsImported();
+    job.onNavPositionInputsImported();
 
     verify(notificationService).sendMessage(contains("⚠️ NAV IMPACT ALERT — TKF100"), eq(SAVINGS));
   }
@@ -115,7 +114,7 @@ class NavTransactionImpactAlertJobTest {
     // 400 units × 1.50 = 600 EUR → above 500 threshold
     stubTkf100Redemptions(List.of(redemption(new BigDecimal("400"))));
 
-    job.onFundPositionsImported();
+    job.onNavPositionInputsImported();
 
     verify(notificationService).sendMessage(contains("TKF100"), eq(SAVINGS));
   }
@@ -131,7 +130,7 @@ class NavTransactionImpactAlertJobTest {
     stubTkf100RedemptionsLenient(List.of());
     stubNavLenient(NAV);
 
-    job.onFundPositionsImported();
+    job.onNavPositionInputsImported();
 
     verify(notificationService).sendMessage(contains("PEVA/RAVA"), eq(SAVINGS));
   }
@@ -145,7 +144,7 @@ class NavTransactionImpactAlertJobTest {
     stubTkf100RedemptionsLenient(List.of());
     stubNavLenient(NAV);
 
-    job.onFundPositionsImported();
+    job.onNavPositionInputsImported();
 
     verify(notificationService)
         .sendMessage(contains("⚠️ NAV IMPACT ALERT — PEVA/RAVA"), eq(SAVINGS));
@@ -160,7 +159,7 @@ class NavTransactionImpactAlertJobTest {
     stubTkf100RedemptionsLenient(List.of());
     stubNavLenient(NAV);
 
-    job.onFundPositionsImported();
+    job.onNavPositionInputsImported();
 
     verify(notificationService).sendMessage(contains("PEVA/RAVA"), eq(SAVINGS));
   }
@@ -174,7 +173,7 @@ class NavTransactionImpactAlertJobTest {
     stubTkf100RedemptionsLenient(List.of());
     stubNavLenient(NAV);
 
-    job.onFundPositionsImported();
+    job.onNavPositionInputsImported();
 
     verify(notificationService).sendMessage(contains("PEVA/RAVA"), eq(SAVINGS));
   }
@@ -187,7 +186,7 @@ class NavTransactionImpactAlertJobTest {
     stubTkf100Subscriptions(ZERO);
     stubTkf100Redemptions(List.of());
 
-    job.onFundPositionsImported();
+    job.onNavPositionInputsImported();
 
     verify(notificationService, never()).sendMessage(contains("PEVA/RAVA"), eq(SAVINGS));
   }
@@ -203,7 +202,7 @@ class NavTransactionImpactAlertJobTest {
     stubTkf100RedemptionsLenient(List.of());
     stubNavLenient(NAV);
 
-    job.onFundPositionsImported();
+    job.onNavPositionInputsImported();
 
     verify(notificationService).sendMessage(contains("R16"), eq(SAVINGS));
   }
@@ -217,7 +216,7 @@ class NavTransactionImpactAlertJobTest {
     stubTkf100RedemptionsLenient(List.of());
     stubNavLenient(NAV);
 
-    job.onFundPositionsImported();
+    job.onNavPositionInputsImported();
 
     verify(notificationService).sendMessage(contains("⚠️ NAV IMPACT ALERT — R16"), eq(SAVINGS));
   }
@@ -231,7 +230,7 @@ class NavTransactionImpactAlertJobTest {
     stubTkf100RedemptionsLenient(List.of());
     stubNavLenient(NAV);
 
-    job.onFundPositionsImported();
+    job.onNavPositionInputsImported();
 
     verify(notificationService).sendMessage(contains("R16"), eq(SAVINGS));
   }
@@ -244,7 +243,7 @@ class NavTransactionImpactAlertJobTest {
     stubTkf100Subscriptions(ZERO);
     stubTkf100Redemptions(List.of());
 
-    job.onFundPositionsImported();
+    job.onNavPositionInputsImported();
 
     verify(notificationService, never()).sendMessage(contains("R16"), eq(SAVINGS));
   }
@@ -257,7 +256,7 @@ class NavTransactionImpactAlertJobTest {
     stubTkf100Subscriptions(ZERO);
     stubTkf100Redemptions(List.of());
 
-    job.onFundPositionsImported();
+    job.onNavPositionInputsImported();
 
     verify(notificationService, never()).sendMessage(contains("R16"), eq(SAVINGS));
   }
@@ -268,10 +267,10 @@ class NavTransactionImpactAlertJobTest {
   void exceptionInTkf100_doesNotBlockPensionFundAlerts() {
     // 2026-01-02 = PEVA/RAVA execution date
     var job = jobOn("2026-01-02T08:00:00Z");
-    given(investmentParameterRepository.findLatestValue(any(), any(LocalDate.class)))
+    given(investmentParameters.navImpactVolumeThreshold(any(LocalDate.class)))
         .willThrow(new RuntimeException("DB down"));
 
-    job.onFundPositionsImported();
+    job.onNavPositionInputsImported();
 
     verify(notificationService).sendMessage(contains("PEVA/RAVA"), eq(SAVINGS));
   }
@@ -287,8 +286,8 @@ class NavTransactionImpactAlertJobTest {
     stubTkf100RedemptionsLenient(List.of());
     stubNavLenient(NAV);
 
-    job.onFundPositionsImported();
-    job.onFundPositionsImported();
+    job.onNavPositionInputsImported();
+    job.onNavPositionInputsImported();
 
     verify(notificationService).sendMessage(contains("PEVA/RAVA"), eq(SAVINGS));
   }
@@ -306,7 +305,7 @@ class NavTransactionImpactAlertJobTest {
     // requestedAmount = 400 * 1.1234 = 449.36 (from redemption helper) → below 500
     stubTkf100Redemptions(List.of(redemption(new BigDecimal("400"))));
 
-    job.onFundPositionsImported();
+    job.onNavPositionInputsImported();
 
     verify(notificationService, never()).sendMessage(contains("TKF100"), eq(SAVINGS));
   }
@@ -322,7 +321,7 @@ class NavTransactionImpactAlertJobTest {
     // requestedAmount = 100000 * 1.1234 = 112340 (fallback), total > 1M
     stubTkf100Redemptions(List.of(redemption(new BigDecimal("100000"))));
 
-    job.onFundPositionsImported();
+    job.onNavPositionInputsImported();
 
     verify(notificationService).sendMessage(contains("TKF100"), eq(SAVINGS));
   }
@@ -351,7 +350,7 @@ class NavTransactionImpactAlertJobTest {
     given(savingFundPaymentRepository.findPaymentsWithStatus(RESERVED))
         .willReturn(List.of(beforeCutoff, afterCutoff));
 
-    job.onFundPositionsImported();
+    job.onNavPositionInputsImported();
 
     verify(notificationService).sendMessage(contains("200.00"), eq(SAVINGS));
   }
@@ -364,24 +363,19 @@ class NavTransactionImpactAlertJobTest {
         savingFundPaymentRepository,
         redemptionRequestRepository,
         fundNavProvider,
-        investmentParameterRepository,
+        investmentParameters,
         notificationService,
         publicHolidays,
         clock);
   }
 
   private void stubThreshold(BigDecimal value) {
-    given(
-            investmentParameterRepository.findLatestValue(
-                eq(NAV_IMPACT_VOLUME_THRESHOLD), any(LocalDate.class)))
-        .willReturn(value);
+    given(investmentParameters.navImpactVolumeThreshold(any(LocalDate.class))).willReturn(value);
   }
 
   private void stubThresholdLenient(BigDecimal value) {
     lenient()
-        .when(
-            investmentParameterRepository.findLatestValue(
-                eq(NAV_IMPACT_VOLUME_THRESHOLD), any(LocalDate.class)))
+        .when(investmentParameters.navImpactVolumeThreshold(any(LocalDate.class)))
         .thenReturn(value);
   }
 
@@ -430,7 +424,8 @@ class NavTransactionImpactAlertJobTest {
   private RedemptionRequest redemption(BigDecimal fundUnits) {
     return RedemptionRequest.builder()
         .userId(1L)
-        .partyId(new PartyId(PartyId.Type.PERSON, "38001010000"))
+        .partyType(PartyId.Type.PERSON)
+        .partyCode("38001010000")
         .fundUnits(fundUnits)
         .requestedAmount(fundUnits.multiply(NAV))
         .customerIban("EE123456789012345678")

@@ -3,8 +3,8 @@ package ee.tuleva.onboarding.investment.check.health;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.UNIT_RECONCILIATION;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.position.FundPosition;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -41,6 +41,14 @@ class UnitReconciliationChecker {
     }
 
     var reported = unitsPositions.getFirst().getQuantity();
+    if (reported == null) {
+      return List.of(
+          finding(
+              fund,
+              WARNING,
+              "Unit reconciliation reported units unavailable: fund=%s, navDate=%s"
+                  .formatted(fund, navDate)));
+    }
     var difference = reported.subtract(authoritativeUnits).abs();
     if (difference.compareTo(threshold.getWarningUnits()) <= 0) {
       return List.of();

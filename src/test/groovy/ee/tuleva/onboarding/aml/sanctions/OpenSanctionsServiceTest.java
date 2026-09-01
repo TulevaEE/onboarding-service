@@ -8,9 +8,6 @@ import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.country.Country;
-import ee.tuleva.onboarding.kyb.CompanyDto;
-import ee.tuleva.onboarding.kyb.LegalForm;
-import ee.tuleva.onboarding.kyb.RegistryCode;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
@@ -379,8 +376,7 @@ class OpenSanctionsServiceTest {
   void canFindCompanyMatch() throws JacksonException, JSONException {
     String registryCode = "12345678";
     String companyName = "Test OÜ";
-    var company =
-        new CompanyDto(new RegistryCode(registryCode), companyName, "62011", LegalForm.OÜ);
+    var company = new ScreenedCompany(companyName, registryCode);
 
     String expectedResultsJson =
         """

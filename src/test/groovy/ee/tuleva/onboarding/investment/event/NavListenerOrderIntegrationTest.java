@@ -1,11 +1,13 @@
 package ee.tuleva.onboarding.investment.event;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
-import static ee.tuleva.onboarding.investment.event.PipelineStep.LIMIT_CHECK;
+import static ee.tuleva.onboarding.pipeline.PipelineStep.LIMIT_CHECK;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.investment.check.limit.LimitCheckJobTestBeans;
-import ee.tuleva.onboarding.savings.fund.nav.NavCalculationCompleted;
+import ee.tuleva.onboarding.pipeline.PipelineRun;
+import ee.tuleva.onboarding.pipeline.PipelineTracker;
+import ee.tuleva.onboarding.savings.NavCalculationCompleted;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;

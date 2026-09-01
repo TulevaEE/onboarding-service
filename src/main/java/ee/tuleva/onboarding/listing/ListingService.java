@@ -2,22 +2,22 @@ package ee.tuleva.onboarding.listing;
 
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.UNVESTED_WORK_COMPENSATION;
 import static ee.tuleva.onboarding.listing.Listing.State.ACTIVE;
-import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.getNameMergeVars;
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.LISTING_REPLY_TO_BUYER;
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.LISTING_REPLY_TO_SELLER;
+import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.getNameMergeVars;
+import static ee.tuleva.onboarding.notification.email.EmailType.LISTING_REPLY_TO_BUYER;
+import static ee.tuleva.onboarding.notification.email.EmailType.LISTING_REPLY_TO_SELLER;
 import static java.math.BigDecimal.ZERO;
+import static java.util.Objects.requireNonNull;
 import static org.springframework.web.util.HtmlUtils.htmlEscape;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.capital.CapitalRow;
 import ee.tuleva.onboarding.capital.CapitalService;
-import ee.tuleva.onboarding.capital.transfer.CapitalTransferContractService;
 import ee.tuleva.onboarding.locale.LocaleService;
-import ee.tuleva.onboarding.mandate.email.persistence.Email;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
+import ee.tuleva.onboarding.notification.email.Email;
+import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.notification.email.EmailType;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import ee.tuleva.onboarding.user.member.Member;
@@ -34,7 +34,6 @@ public class ListingService {
 
   private final ListingRepository listingRepository;
   private final UserService userService;
-  private final CapitalTransferContractService capitalTransferContractService;
   private final EmailPersistenceService emailPersistenceService;
   private final EmailService emailService;
   private final Clock clock;
@@ -43,7 +42,7 @@ public class ListingService {
 
   public ListingDto createListing(
       NewListingRequest request, AuthenticatedPerson authenticatedPerson) {
-    User user = userService.getById(authenticatedPerson.getUserId()).orElseThrow();
+    User user = userService.getById(authenticatedPerson.getUserIdOrThrow()).orElseThrow();
 
     if (!user.isMember()) {
       throw new IllegalArgumentException("Need to be member to create listing");
@@ -62,7 +61,7 @@ public class ListingService {
   }
 
   public List<ListingDto> findActiveListings(AuthenticatedPerson authenticatedPerson) {
-    User user = userService.getById(authenticatedPerson.getUserId()).orElseThrow();
+    User user = userService.getById(authenticatedPerson.getUserIdOrThrow()).orElseThrow();
 
     return listingRepository.findByExpiryTimeAfter(clock.instant()).stream()
         .filter(Listing::isActive)
@@ -71,7 +70,7 @@ public class ListingService {
   }
 
   public Listing cancelListing(Long id, AuthenticatedPerson authenticatedPerson) {
-    User user = userService.getById(authenticatedPerson.getUserId()).orElseThrow();
+    User user = userService.getById(authenticatedPerson.getUserIdOrThrow()).orElseThrow();
     Member member = user.getMember().orElseThrow();
     Listing listing = listingRepository.findByIdAndMemberId(id, member.getId()).orElseThrow();
     listing.cancel();
@@ -84,7 +83,7 @@ public class ListingService {
       AuthenticatedPerson authenticatedPerson) {
     var listing = listingRepository.findById(listingId).orElseThrow();
     User listingOwner = userService.getByMemberId(listing.getMemberId());
-    User userContacting = userService.getById(authenticatedPerson.getUserId()).orElseThrow();
+    User userContacting = userService.getById(authenticatedPerson.getUserIdOrThrow()).orElseThrow();
 
     var mergeVars = new HashMap<String, Object>();
     mergeVars.put("message", getContactMessage(listingId, messageRequest, authenticatedPerson));
@@ -96,7 +95,9 @@ public class ListingService {
     MandrillMessage message =
         emailService.newMandrillMessage(
             listingOwner.getEmail(),
-            userContacting.getEmail(),
+            requireNonNull(
+                userContacting.getEmail(),
+                "User contacting a listing owner has no email: userId=" + userContacting.getId()),
             templateName,
             mergeVars,
             List.of(),
@@ -120,11 +121,18 @@ public class ListingService {
       AuthenticatedPerson interestedParty) {
 
     var listing = listingRepository.findById(listingId).orElseThrow();
-    var interestedUser = userService.getByIdOrThrow(interestedParty.getUserId());
+    var interestedUser = userService.getByIdOrThrow(interestedParty.getUserIdOrThrow());
 
     var interestedUserName = htmlEscape(interestedUser.getFullName());
-    var interestedUserEmail = htmlEscape(interestedUser.getEmail());
-    var interestedUserPhoneNumber = htmlEscape(interestedUser.getPhoneNumber());
+    var interestedUserEmail =
+        htmlEscape(requireNonNull(interestedUser.getEmail(), "Interested user missing email"));
+    var phoneLine =
+        contactMessageRequest.addPhoneNumber()
+            ? "\n"
+                + htmlEscape(
+                    requireNonNull(
+                        interestedUser.getPhoneNumber(), "Interested user missing phone"))
+            : "";
     var interestedUserPersonalCode = htmlEscape(interestedUser.getPersonalCode());
 
     var bookValue = listing.getBookValue().toString();
@@ -155,9 +163,7 @@ public class ListingService {
                           ? interestedUserName + " (" + interestedUserPersonalCode + ")"
                           : interestedUserName,
                       interestedUserEmail,
-                      contactMessageRequest.addPhoneNumber()
-                          ? "\n" + interestedUserPhoneNumber
-                          : ""))
+                      phoneLine))
           .trim();
     }
 
@@ -185,7 +191,7 @@ public class ListingService {
                         ? interestedUserName + " (" + interestedUserPersonalCode + ")"
                         : interestedUserName,
                     interestedUserEmail,
-                    contactMessageRequest.addPhoneNumber() ? "\n" + interestedUserPhoneNumber : ""))
+                    phoneLine))
         .trim();
   }
 
@@ -202,7 +208,7 @@ public class ListingService {
             .reduce(ZERO, BigDecimal::add);
 
     var capitalBeingSold =
-        capitalTransferContractService
+        capitalService
             .getCapitalBeingSoldInOtherTransfers(user.getMemberOrThrow())
             .values()
             .stream()

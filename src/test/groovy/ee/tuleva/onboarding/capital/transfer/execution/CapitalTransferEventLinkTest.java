@@ -11,6 +11,7 @@ import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract.CapitalTransferAmount;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContractRepository;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContractService;
+import ee.tuleva.onboarding.capital.transfer.CapitalTransferEmailSender;
 import ee.tuleva.onboarding.user.member.Member;
 import java.math.BigDecimal;
 import java.util.List;
@@ -31,6 +32,7 @@ class CapitalTransferEventLinkTest {
   @Mock private CapitalTransferValidator validator;
   @Mock private CapitalTransferContractService capitalTransferContractService;
   @Mock private CapitalTransferEventLinkRepository linkRepository;
+  @Mock private CapitalTransferEmailSender emailSender;
 
   @Mock private CapitalTransferContract contract;
   @Mock private Member sellerMember;
@@ -49,7 +51,8 @@ class CapitalTransferEventLinkTest {
             memberCapitalEventRepository,
             validator,
             capitalTransferContractService,
-            linkRepository);
+            linkRepository,
+            emailSender);
   }
 
   @Test

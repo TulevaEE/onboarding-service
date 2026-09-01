@@ -8,8 +8,8 @@ import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.RESCREENING;
 import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.LOW;
 import static ee.tuleva.onboarding.kyc.KycSurveyPurpose.IDENTITY_ONLY;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
-import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
-import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.PENDING;
+import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
+import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.PENDING;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
@@ -126,7 +126,7 @@ class WaitingLegalEntityCompletionIntegrationTest {
             new KybSurveyInputs(
                 new PersonalCode(APPLICANT), new SelfCertification(true, true, true)));
     given(legalEntityScreener.screenLatest(any())).willAnswer(this::publishScreeningResult);
-    given(emailService.newMandrillMessage(any(), any(), any(), any(), any()))
+    given(emailService.newMandrillMessage(any(), any(), any(), any()))
         .willReturn(new MandrillMessage());
   }
 
@@ -181,9 +181,8 @@ class WaitingLegalEntityCompletionIntegrationTest {
                 applicant.getLastName(),
                 "recipientName",
                 HEALTHY_NAME),
-            List.of("savings_fund"),
-            null);
-    verify(emailService, times(1)).newMandrillMessage(any(), any(), any(), any(), any());
+            List.of("savings_fund"));
+    verify(emailService, times(1)).newMandrillMessage(any(), any(), any(), any());
   }
 
   private void performKycCheckInATransaction() {

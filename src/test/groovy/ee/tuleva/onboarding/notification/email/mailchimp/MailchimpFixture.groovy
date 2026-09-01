@@ -1,13 +1,13 @@
 package ee.tuleva.onboarding.notification.email.mailchimp
 
-import ee.tuleva.onboarding.mandate.email.persistence.Email
+import ee.tuleva.onboarding.notification.email.Email
 import io.github.erkoristhein.mailchimp.marketing.model.*
 
 import java.time.Instant
 import java.time.OffsetDateTime
 
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailStatus.SENT
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.MAILCHIMP_CAMPAIGN
+import static ee.tuleva.onboarding.notification.email.EmailStatus.SENT
+import static ee.tuleva.onboarding.notification.email.EmailType.MAILCHIMP_CAMPAIGN
 
 class MailchimpFixture {
 

@@ -30,4 +30,14 @@ class CountriesTest {
   void dedupesRepeatedCodes() {
     assertThat(Countries.of("EE", "EE")).containsExactly(new Country("EE"));
   }
+
+  @Test
+  void buildsASingletonSetFromACountry() {
+    assertThat(Countries.of(new Country("EE"))).containsExactly(new Country("EE"));
+  }
+
+  @Test
+  void isEmptyWhenTheGivenCountryIsMissing() {
+    assertThat(Countries.of((Country) null)).isEmpty();
+  }
 }

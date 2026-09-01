@@ -1,14 +1,14 @@
 package ee.tuleva.onboarding.party.email;
 
-import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.getNameMergeVars;
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.PARENT_CHILD_LINK_ADDED;
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.PARENT_CHILD_LINK_CONFIRMATION;
+import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.getNameMergeVars;
+import static ee.tuleva.onboarding.notification.email.EmailType.PARENT_CHILD_LINK_ADDED;
+import static ee.tuleva.onboarding.notification.email.EmailType.PARENT_CHILD_LINK_CONFIRMATION;
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
+import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.notification.email.EmailType;
 import ee.tuleva.onboarding.party.ParentChildLink;
 import ee.tuleva.onboarding.party.ParentChildLinkCreatedEvent;
 import ee.tuleva.onboarding.party.ParentChildLinkRepository;
@@ -93,8 +93,7 @@ public class ParentChildLinkNotificationSender {
     String templateName = emailType.getTemplateName(LOCALE);
     try {
       MandrillMessage message =
-          emailService.newMandrillMessage(
-              recipient.getEmail(), templateName, mergeVars, TAGS, null);
+          emailService.newMandrillMessage(recipient.getEmail(), templateName, mergeVars, TAGS);
       emailService
           .send(recipient, message, templateName)
           .ifPresent(

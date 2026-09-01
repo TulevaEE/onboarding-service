@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 import java.util.Locale;
 import lombok.Builder;
 import lombok.Data;
+import org.jspecify.annotations.Nullable;
 
 @Data
 @Builder
@@ -16,7 +17,7 @@ public class ApiFundBalanceResponse {
   private boolean activeContributions;
   private BigDecimal contributions;
   private BigDecimal subtractions;
-  private BigDecimal profit;
+  private @Nullable BigDecimal profit;
   private BigDecimal units;
 
   static ApiFundBalanceResponse from(FundBalance fundBalance, Locale locale) {

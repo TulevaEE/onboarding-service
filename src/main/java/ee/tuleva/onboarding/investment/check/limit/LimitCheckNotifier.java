@@ -20,80 +20,107 @@ class LimitCheckNotifier {
 
   void notify(List<LimitCheckResult> results) {
     try {
-      var hasAnyBreaches = results.stream().anyMatch(LimitCheckResult::hasBreaches);
-
-      if (!hasAnyBreaches) {
-        if (results.isEmpty()) {
-          return;
-        }
-        var fundNames =
-            results.stream().map(r -> r.fund().getCode()).collect(Collectors.joining(", "));
-        notificationService.sendMessage(
-            "✅ Limit check completed: %s within limits".formatted(fundNames), INVESTMENT);
+      if (sendAllClearIfNoBreaches(results)) {
         return;
       }
-
-      var body = new StringBuilder();
-      var worst = SOFT;
-
-      for (var result : results) {
-        if (!result.hasBreaches()) {
-          continue;
-        }
-
-        for (var breach : result.positionBreaches()) {
-          if (breach.severity() != OK) {
-            worst = worse(worst, breach.severity());
-            body.append(
-                "\n%s [%s] POSITION %s: %s=%s%%, soft=%s%%, hard=%s%%"
-                    .formatted(
-                        severityIcon(breach.severity()),
-                        breach.severity(),
-                        result.fund(),
-                        breach.label(),
-                        breach.actualPercent(),
-                        breach.softLimitPercent(),
-                        breach.hardLimitPercent()));
-          }
-        }
-
-        for (var breach : result.providerBreaches()) {
-          if (breach.severity() != OK) {
-            worst = worse(worst, breach.severity());
-            body.append(
-                "\n%s [%s] PROVIDER %s: %s=%s%%, soft=%s%%, hard=%s%%"
-                    .formatted(
-                        severityIcon(breach.severity()),
-                        breach.severity(),
-                        result.fund(),
-                        breach.provider(),
-                        breach.actualPercent(),
-                        breach.softLimitPercent(),
-                        breach.hardLimitPercent()));
-          }
-        }
-
-        if (result.reserveBreach() != null && result.reserveBreach().severity() != OK) {
-          var breach = result.reserveBreach();
-          worst = worse(worst, breach.severity());
-          body.append(
-              "\n%s [%s] RESERVE %s: cash=%s, soft=%s, hard=%s"
-                  .formatted(
-                      severityIcon(breach.severity()),
-                      breach.severity(),
-                      result.fund(),
-                      breach.cashBalance(),
-                      breach.reserveSoft(),
-                      breach.reserveHard()));
-        }
-      }
-
-      var message = "%s LIMIT BREACH DETECTED\n".formatted(severityIcon(worst)) + body;
-      notificationService.sendMessage(message, INVESTMENT);
-
+      sendBreachNotification(results);
     } catch (Exception e) {
       log.error("Failed to send limit check notification", e);
     }
+  }
+
+  private boolean sendAllClearIfNoBreaches(List<LimitCheckResult> results) {
+    var hasAnyBreaches = results.stream().anyMatch(LimitCheckResult::hasBreaches);
+    if (hasAnyBreaches) {
+      return false;
+    }
+    if (results.isEmpty()) {
+      return true;
+    }
+    var fundNames = results.stream().map(r -> r.fund().getCode()).collect(Collectors.joining(", "));
+    notificationService.sendMessage(
+        "✅ Limit check completed: %s within limits".formatted(fundNames), INVESTMENT);
+    return true;
+  }
+
+  private void sendBreachNotification(List<LimitCheckResult> results) {
+    var body = new StringBuilder();
+    var worst = SOFT;
+
+    for (var result : results) {
+      worst = worse(worst, appendResultBreaches(body, result));
+    }
+
+    var message = "%s LIMIT BREACH DETECTED\n".formatted(severityIcon(worst)) + body;
+    notificationService.sendMessage(message, INVESTMENT);
+  }
+
+  private BreachSeverity appendResultBreaches(StringBuilder body, LimitCheckResult result) {
+    if (!result.hasBreaches()) {
+      return OK;
+    }
+    var worst = OK;
+    worst = worse(worst, appendPositionBreaches(body, result));
+    worst = worse(worst, appendProviderBreaches(body, result));
+    worst = worse(worst, appendReserveBreach(body, result));
+    return worst;
+  }
+
+  private BreachSeverity appendPositionBreaches(StringBuilder body, LimitCheckResult result) {
+    var worst = OK;
+    for (var breach : result.positionBreaches()) {
+      if (breach.severity() != OK) {
+        worst = worse(worst, breach.severity());
+        body.append(
+            "\n%s [%s] POSITION %s: %s=%s%%, soft=%s%%, hard=%s%%"
+                .formatted(
+                    severityIcon(breach.severity()),
+                    breach.severity(),
+                    result.fund(),
+                    breach.label(),
+                    breach.actualPercent(),
+                    breach.softLimitPercent(),
+                    breach.hardLimitPercent()));
+      }
+    }
+    return worst;
+  }
+
+  private BreachSeverity appendProviderBreaches(StringBuilder body, LimitCheckResult result) {
+    var worst = OK;
+    for (var breach : result.providerBreaches()) {
+      if (breach.severity() != OK) {
+        worst = worse(worst, breach.severity());
+        body.append(
+            "\n%s [%s] PROVIDER %s: %s=%s%%, soft=%s%%, hard=%s%%"
+                .formatted(
+                    severityIcon(breach.severity()),
+                    breach.severity(),
+                    result.fund(),
+                    breach.provider(),
+                    breach.actualPercent(),
+                    breach.softLimitPercent(),
+                    breach.hardLimitPercent()));
+      }
+    }
+    return worst;
+  }
+
+  private BreachSeverity appendReserveBreach(StringBuilder body, LimitCheckResult result) {
+    if (result.reserveBreach() == null || result.reserveBreach().severity() == OK) {
+      return OK;
+    }
+    var breach = result.reserveBreach();
+    body.append(
+        "\n%s [%s] RESERVE %s: cash=%s, soft=%s, hard=%s"
+            .formatted(
+                severityIcon(breach.severity()),
+                breach.severity(),
+                result.fund(),
+                breach.cashBalance(),
+                breach.reserveSoft(),
+                breach.reserveHard()));
+    return breach.severity();
   }
 
   private BreachSeverity worse(BreachSeverity a, BreachSeverity b) {

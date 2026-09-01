@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.signature.smartid;
 
 import static ee.sk.smartid.HashType.SHA256;
+import static java.util.Objects.requireNonNull;
 
 import ee.sk.smartid.CertificateRequestBuilder;
 import ee.sk.smartid.SignableHash;
@@ -19,6 +20,7 @@ import ee.sk.smartid.rest.dao.SessionStatus;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import ee.tuleva.onboarding.signature.DigiDocFacade;
 import ee.tuleva.onboarding.signature.SignatureFile;
+import ee.tuleva.onboarding.signature.SmartIdSignatureSession;
 import java.security.cert.X509Certificate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +28,7 @@ import lombok.SneakyThrows;
 import org.digidoc4j.Container;
 import org.digidoc4j.DataToSign;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -46,7 +48,7 @@ public class SmartIdSigner {
   }
 
   @SneakyThrows
-  public byte[] getSignedFile(SmartIdSignatureSession session) {
+  public byte @Nullable [] getSignedFile(SmartIdSignatureSession session) {
     SessionStatus certificateSessionStatus = getSessionStatus(session.getCertificateSessionId());
     if (certificateSessionStatus == null) {
       return null;
@@ -111,11 +113,15 @@ public class SmartIdSigner {
   private byte[] finalizeSignature(
       SmartIdSignatureSession session, SessionStatus signingSessionStatus) {
     SmartIdSignature smartIdSignature =
-        signatureRequestBuilder(session.getSignableHash(), session.getDocumentNumber())
+        signatureRequestBuilder(
+                requireNonNull(session.getSignableHash()),
+                requireNonNull(session.getDocumentNumber()))
             .createSmartIdSignature(signingSessionStatus);
 
     return digiDocFacade.addSignatureToContainer(
-        smartIdSignature.getValue(), session.getDataToSign(), session.getContainer());
+        smartIdSignature.getValue(),
+        requireNonNull(session.getDataToSign()),
+        requireNonNull(session.getContainer()));
   }
 
   @NotNull

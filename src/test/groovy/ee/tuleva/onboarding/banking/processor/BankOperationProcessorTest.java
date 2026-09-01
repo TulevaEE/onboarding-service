@@ -2,11 +2,11 @@ package ee.tuleva.onboarding.banking.processor;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.INTEREST_RECEIVED;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.MANAGEMENT_FEE_REBATE;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
 import static ee.tuleva.onboarding.ledger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -314,6 +314,35 @@ class BankOperationProcessorTest {
             eq("IE00BFG1TM61"),
             eq("0P000152G5"),
             eq("iShares Developed World Screened Index Fund"),
+            eq(LocalDate.of(2025, 10, 1)));
+  }
+
+  @Test
+  void processBankOperation_recordsZeroAmountSettlementWithoutNegatingUnits() {
+    var amount = BigDecimal.ZERO;
+    var remittanceInfo = "DLA0553690/EJAP GY/11704/17.864/Buy/ Euroclear, ABNCNL2AXXX, 14448";
+    var entry = createBankOperationEntry("TRAD", amount, remittanceInfo);
+    var tradeInfo =
+        new TradeSettlementParser.TradeSettlementInfo(
+            "LU1291102447",
+            "EJAP",
+            "BNP Paribas Easy MSCI Japan Min TE UCITS ETF",
+            new BigDecimal("11704"));
+
+    when(tradeSettlementParser.parse(remittanceInfo)).thenReturn(java.util.Optional.of(tradeInfo));
+
+    processor.processBankOperation(entry, FUND_INVESTMENT_ACCOUNT);
+
+    verify(fundBankLedger)
+        .recordTradeSettlement(
+            eq(TKF100),
+            eq(amount.setScale(2, java.math.RoundingMode.HALF_UP)),
+            eq(new BigDecimal("11704.00000")),
+            any(UUID.class),
+            eq(FUND_INVESTMENT_CASH_CLEARING),
+            eq("LU1291102447"),
+            eq("EJAP"),
+            eq("BNP Paribas Easy MSCI Japan Min TE UCITS ETF"),
             eq(LocalDate.of(2025, 10, 1)));
   }
 

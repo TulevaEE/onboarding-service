@@ -15,6 +15,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -34,7 +35,7 @@ public class SmartIdAuthProvider implements AuthProvider {
   }
 
   @Override
-  public AuthenticatedPerson authenticate(String authenticationHash) {
+  public AuthenticatedPerson authenticate(@Nullable String authenticationHash) {
     var session =
         genericSessionStore
             .get(SmartIdSession.class)

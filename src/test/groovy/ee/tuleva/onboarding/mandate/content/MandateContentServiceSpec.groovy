@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.content
 
+import ee.tuleva.onboarding.applicationtype.ApplicationType
 import au.com.origin.snapshots.Expect
 import au.com.origin.snapshots.annotations.SnapshotName
 import au.com.origin.snapshots.spock.EnableSnapshots
@@ -8,11 +9,11 @@ import org.springframework.boot.test.context.SpringBootTest
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
+import static ee.tuleva.onboarding.mandate.MandateContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 import static ee.tuleva.onboarding.mandate.MandateFixture.thirdPillarMandate
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.TRANSFER
+import static ee.tuleva.onboarding.applicationtype.ApplicationType.TRANSFER
 
 @SpringBootTest
 @EnableSnapshots
@@ -83,6 +84,21 @@ class MandateContentServiceSpec extends Specification {
 
     then:
     expect.toMatchSnapshot(html)
+  }
+
+  def "future contributions mandate throws when future contribution fund isin is missing"() {
+    given:
+    def user = sampleUserNonMember().build()
+    def mandate = sampleMandate()
+    mandate.futureContributionFundIsin = null
+    def funds = sampleFunds()
+    def contactDetails = contactDetailsFixture()
+
+    when:
+    mandateContentService.getFutureContributionsFundHtml(user, mandate, funds, contactDetails)
+
+    then:
+    thrown(IllegalStateException)
   }
 
   @SnapshotName("mandate_cancellation")

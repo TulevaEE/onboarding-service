@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.populationregister;
 
+import static ee.tuleva.onboarding.auth.principal.Names.formatted;
 import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.OTHER;
 import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PERSONAL_CUSTODY;
 import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PROPERTY_CUSTODY;
@@ -8,7 +9,6 @@ import static ee.tuleva.onboarding.populationregister.CustodyValidity.VALID;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.ALIVE;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.INACTIVE;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.UNKNOWN;
-import static ee.tuleva.onboarding.user.Names.formatted;
 
 import ee.tuleva.onboarding.country.CountryCodes;
 import ee.tuleva.onboarding.populationregister.PersonResponse.Citizenship;
@@ -85,7 +85,7 @@ class PersonMapper {
   // The register returns names in uppercase (JÕEORG); present them the same way the rest of the
   // app stores names (Jõeorg), matching ParentChildLinkRegistrationService.
   private static @Nullable String capitalizeName(@Nullable String name) {
-    return formatted(name);
+    return name == null ? null : formatted(name);
   }
 
   private static CustodyRight.Type toCustodyType(@Nullable Code type) {
@@ -105,7 +105,7 @@ class PersonMapper {
   }
 
   private static List<String> toCitizenships(PersonResponse response) {
-    Stream<@Nullable Citizenship> all =
+    var all =
         Stream.concat(
             Stream.of(response.citizenship()),
             response.citizenships() == null ? Stream.of() : response.citizenships().stream());

@@ -1,28 +1,19 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.persistence;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValueQueries;
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValueWriter;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 
-public interface FundValueRepository {
+public interface FundValueRepository extends FundValueQueries, FundValueWriter {
   List<FundValue> saveAll(List<FundValue> fundValues);
 
-  Optional<FundValue> save(FundValue fundValue);
-
-  Optional<FundValue> findLastValueForFund(String fund);
-
   List<FundValue> getGlobalStockValues();
-
-  Optional<LocalDate> findEarliestDateForKey(String key);
 
   Map<String, LocalDate> findEarliestDates();
 
   Map<String, LocalDate> findLatestDateByKeys(Set<String> keys);
-
-  Optional<FundValue> getLatestValue(String key, LocalDate date);
-
-  List<FundValue> findValuesBetweenDates(String fundKey, LocalDate startDate, LocalDate endDate);
 }

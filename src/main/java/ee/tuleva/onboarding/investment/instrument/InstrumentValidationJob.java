@@ -7,7 +7,6 @@ import static java.util.stream.Collectors.toSet;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient;
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.instrument.InstrumentDataFinding;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.instrument.ReferenceDataChange;
@@ -17,6 +16,7 @@ import ee.tuleva.onboarding.investment.instrument.InstrumentDataValidator.Valida
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -29,6 +29,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
+import org.jspecify.annotations.Nullable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -54,11 +55,12 @@ class InstrumentValidationJob {
   private final Clock clock;
 
   private final AtomicReference<Set<String>> lastAlertedFindings = new AtomicReference<>(Set.of());
-  private final AtomicReference<LocalDate> lastAlertDate = new AtomicReference<>();
+  private final AtomicReference<@Nullable LocalDate> lastAlertDate = new AtomicReference<>();
   private final AtomicReference<LocalDate> lastStaleCacheAlertDate = new AtomicReference<>();
   private final AtomicReference<Set<String>> lastAlertedDataFindings =
       new AtomicReference<>(Set.of());
-  private final AtomicReference<LocalDate> lastDataFindingAlertDate = new AtomicReference<>();
+  private final AtomicReference<@Nullable LocalDate> lastDataFindingAlertDate =
+      new AtomicReference<>();
 
   @Scheduled(cron = "0 10 * * * *", zone = TIMEZONE)
   @SchedulerLock(name = "InstrumentValidationJob", lockAtMostFor = "10m", lockAtLeastFor = "1m")

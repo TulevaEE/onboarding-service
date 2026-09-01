@@ -1,11 +1,11 @@
 package ee.tuleva.onboarding.investment.epis;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 
-import ee.tuleva.onboarding.savings.fund.nav.FundNavQueryService;
+import ee.tuleva.onboarding.savings.FundNavQueryService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Optional;

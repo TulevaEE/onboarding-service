@@ -5,7 +5,7 @@ import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.HashMap;

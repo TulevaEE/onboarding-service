@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.savings.fund.taxreport;
 
-import ee.tuleva.onboarding.capital.transfer.iban.IbanValidator;
+import ee.tuleva.onboarding.iban.IbanValidator;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

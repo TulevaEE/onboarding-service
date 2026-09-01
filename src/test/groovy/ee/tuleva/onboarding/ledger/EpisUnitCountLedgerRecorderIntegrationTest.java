@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.ledger;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_UNITS_OUTSTANDING;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import jakarta.persistence.EntityManager;
@@ -9,12 +9,16 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.transaction.annotation.Transactional;
 
-@SpringBootTest
-@Transactional
+@DataJpaTest
+@Import({
+  EpisUnitCountLedgerRecorder.class,
+  LedgerAccountService.class,
+  LedgerTransactionService.class
+})
 class EpisUnitCountLedgerRecorderIntegrationTest {
 
   @Autowired EpisUnitCountLedgerRecorder recorder;
@@ -49,7 +53,7 @@ class EpisUnitCountLedgerRecorderIntegrationTest {
   }
 
   private BigDecimal getAccountBalance(
-      SystemAccount systemAccount, ee.tuleva.onboarding.fund.TulevaFund fund) {
+      SystemAccount systemAccount, ee.tuleva.onboarding.tulevafund.TulevaFund fund) {
     return ledgerAccountService
         .findSystemAccount(systemAccount, fund)
         .map(LedgerAccount::getBalance)

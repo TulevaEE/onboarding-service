@@ -7,7 +7,7 @@ import static ee.tuleva.onboarding.company.RelationshipType.BOARD_MEMBER;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
-import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
+import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
@@ -32,11 +32,12 @@ import ee.tuleva.onboarding.ledger.LedgerAccount;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.PartyId;
-import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
-import ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status;
+import ee.tuleva.onboarding.savings.FundNavProvider;
+import ee.tuleva.onboarding.savings.SavingFundPayment;
+import ee.tuleva.onboarding.savings.SavingFundPayment.Status;
+import ee.tuleva.onboarding.savings.fund.LedgerRefs;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
-import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
@@ -246,16 +247,17 @@ class RedemptionIntegrationTest {
 
     // Step 1: Reserve units (happens when redemption request created)
     var redemptionRequestId = UUID.randomUUID();
-    savingsFundLedger.reserveFundUnitsForRedemption(testParty, fundUnits, redemptionRequestId);
+    var testPartyRef = LedgerRefs.from(testParty);
+    savingsFundLedger.reserveFundUnitsForRedemption(testPartyRef, fundUnits, redemptionRequestId);
 
     // Step 2: Price and redeem (happens in batch job at T+2)
     savingsFundLedger.redeemFundUnitsFromReserved(
-        testParty, fundUnits, cashAmount, navPerUnit, redemptionRequestId);
+        testPartyRef, fundUnits, cashAmount, navPerUnit, redemptionRequestId);
 
     // Steps 3 & 4: Transfer and payout (happens during bank statement reconciliation)
     savingsFundLedger.transferFromFundAccount(cashAmount, redemptionRequestId);
     savingsFundLedger.recordRedemptionPayout(
-        testParty, cashAmount, VALID_IBAN, redemptionRequestId);
+        testPartyRef, cashAmount, VALID_IBAN, redemptionRequestId);
 
     var fundsUnitsBalance = getUserFundUnitsAccount().getBalance();
     var reservedUnitsBalance = getUserFundUnitsReservedAccount().getBalance();
@@ -358,10 +360,11 @@ class RedemptionIntegrationTest {
   private void setupUserWithFundUnits(BigDecimal cashAmount, BigDecimal fundUnits) {
     var navPerUnit = cashAmount.divide(fundUnits, 5, HALF_UP);
     var paymentId = UUID.randomUUID();
-    savingsFundLedger.recordPaymentReceived(testParty, cashAmount, paymentId);
-    savingsFundLedger.reservePaymentForSubscription(testParty, cashAmount, paymentId);
+    var testPartyRef = LedgerRefs.from(testParty);
+    savingsFundLedger.recordPaymentReceived(testPartyRef, cashAmount, paymentId);
+    savingsFundLedger.reservePaymentForSubscription(testPartyRef, cashAmount, paymentId);
     savingsFundLedger.issueFundUnitsFromReserved(
-        testParty, cashAmount, fundUnits, navPerUnit, paymentId);
+        testPartyRef, cashAmount, fundUnits, navPerUnit, paymentId);
     savingsFundLedger.transferToFundAccount(cashAmount, paymentId);
   }
 
@@ -732,10 +735,11 @@ class RedemptionIntegrationTest {
   private void setupPartyWithFundUnits(PartyId party, BigDecimal cashAmount, BigDecimal fundUnits) {
     var navPerUnit = cashAmount.divide(fundUnits, 5, HALF_UP);
     var paymentId = UUID.randomUUID();
-    savingsFundLedger.recordPaymentReceived(party, cashAmount, paymentId);
-    savingsFundLedger.reservePaymentForSubscription(party, cashAmount, paymentId);
+    var partyRef = LedgerRefs.from(party);
+    savingsFundLedger.recordPaymentReceived(partyRef, cashAmount, paymentId);
+    savingsFundLedger.reservePaymentForSubscription(partyRef, cashAmount, paymentId);
     savingsFundLedger.issueFundUnitsFromReserved(
-        party, cashAmount, fundUnits, navPerUnit, paymentId);
+        partyRef, cashAmount, fundUnits, navPerUnit, paymentId);
     savingsFundLedger.transferToFundAccount(cashAmount, paymentId);
   }
 

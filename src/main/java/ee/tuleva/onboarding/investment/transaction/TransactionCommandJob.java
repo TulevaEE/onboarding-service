@@ -23,6 +23,7 @@ public class TransactionCommandJob {
   private final TransactionCommandRepository commandRepository;
   private final TransactionBatchRepository batchRepository;
   private final TransactionPreparationService preparationService;
+  private final TransactionBatchFinalizer batchFinalizer;
   private final ApplicationEventPublisher eventPublisher;
   private final Clock clock;
 
@@ -70,7 +71,7 @@ public class TransactionCommandJob {
     log.info("Found confirmed batches: count={}", batches.size());
 
     for (var batch : batches) {
-      preparationService.finalizeConfirmedBatch(batch);
+      batchFinalizer.finalizeConfirmedBatch(batch);
     }
   }
 }

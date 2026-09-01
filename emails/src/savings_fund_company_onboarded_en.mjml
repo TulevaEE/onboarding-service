@@ -7,7 +7,7 @@
       <mj-column>
         <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
-          The Tuleva Additional Savings Fund account for your company *|RECIPIENTNAME|* is now
+          The Tuleva Additional Investment Fund account for your company *|RECIPIENTNAME|* is now
           open.
         </mj-text>
         <mj-text><strong>You can make the first deposit straight from the company's bank account:</strong></mj-text>

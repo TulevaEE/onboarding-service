@@ -1,12 +1,8 @@
 package ee.tuleva.onboarding.instrument;
 
-import ee.tuleva.onboarding.instrument.InstrumentDataFinding.AmbiguousLookupKey;
-import ee.tuleva.onboarding.instrument.InstrumentDataFinding.EodhdListedWithoutTicker;
 import jakarta.annotation.PostConstruct;
 import java.time.Clock;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -23,8 +19,7 @@ public class InstrumentReferenceService {
 
   private static final int MIN_ACCEPTABLE_ROW_COUNT_PERCENT = 80;
 
-  private final InstrumentReferenceRepository instrumentReferenceRepository;
-  private final BenchmarkCategoryProxyRepository benchmarkCategoryProxyRepository;
+  private final InstrumentSnapshotLoader snapshotLoader;
   private final Clock clock;
 
   private volatile List<InstrumentReference> instruments = List.of();
@@ -38,9 +33,9 @@ public class InstrumentReferenceService {
 
   @PostConstruct
   void init() {
-    Snapshot snapshot;
+    InstrumentSnapshotLoader.Snapshot snapshot;
     try {
-      snapshot = readSnapshot();
+      snapshot = snapshotLoader.loadSnapshot();
     } catch (Exception e) {
       throw new IllegalStateException(
           "Failed to load the instrument reference cache at startup", e);
@@ -56,7 +51,7 @@ public class InstrumentReferenceService {
   @Scheduled(cron = "0 5 * * * *", zone = "Europe/Tallinn")
   void scheduledRefresh() {
     try {
-      var snapshot = readSnapshot();
+      var snapshot = snapshotLoader.loadSnapshot();
       var liveCount = instruments.size();
       var loadedCount = snapshot.instruments().size();
 
@@ -93,7 +88,7 @@ public class InstrumentReferenceService {
     return dataFindings;
   }
 
-  private void apply(Snapshot snapshot) {
+  private void apply(InstrumentSnapshotLoader.Snapshot snapshot) {
     instruments = snapshot.instruments();
     byIsin = snapshot.byIsin();
     byBloombergTicker = snapshot.byBloombergTicker();
@@ -116,76 +111,6 @@ public class InstrumentReferenceService {
           dataFindings.stream().map(InstrumentDataFinding::describe).toList());
     }
   }
-
-  private Snapshot readSnapshot() {
-    var orderedInstruments = instrumentReferenceRepository.findAllByOrderByIdAsc();
-    var proxies = benchmarkCategoryProxyRepository.findAll();
-
-    var findings = new ArrayList<InstrumentDataFinding>();
-    var newByIsin = new HashMap<String, InstrumentReference>();
-    var newByBloomberg = new HashMap<String, InstrumentReference>();
-    var newByEodhdTicker = new HashMap<String, InstrumentReference>();
-    var newByShortTicker = new HashMap<String, InstrumentReference>();
-
-    for (var instrument : orderedInstruments) {
-      putFirstWins(newByIsin, instrument.getIsin(), instrument, "isin", findings);
-
-      if (instrument.getBloombergTicker() != null) {
-        putFirstWins(
-            newByBloomberg,
-            instrument.getBloombergTicker(),
-            instrument,
-            "bloombergTicker",
-            findings);
-      }
-
-      if (instrument.getEodhdTicker() != null) {
-        putFirstWins(
-            newByEodhdTicker, instrument.getEodhdTicker(), instrument, "eodhdTicker", findings);
-      } else if (instrument.isListedOnEodhd()) {
-        findings.add(new EodhdListedWithoutTicker(instrument.getIsin()));
-      }
-
-      if (instrument.getYahooTicker() != null) {
-        putFirstWins(
-            newByShortTicker,
-            extractShortTicker(instrument.getYahooTicker()),
-            instrument,
-            "shortTicker",
-            findings);
-      }
-    }
-
-    var newProxyByCategory = new HashMap<String, BenchmarkCategoryProxy>();
-    for (var proxy : proxies) {
-      var existing = newProxyByCategory.putIfAbsent(proxy.benchmarkCategory(), proxy);
-      if (existing != null) {
-        findings.add(
-            new AmbiguousLookupKey(
-                "benchmarkCategory",
-                proxy.benchmarkCategory(),
-                List.of(existing.etfProxyIsin(), proxy.etfProxyIsin())));
-      }
-    }
-
-    return new Snapshot(
-        List.copyOf(orderedInstruments),
-        Map.copyOf(newByIsin),
-        Map.copyOf(newByBloomberg),
-        Map.copyOf(newByEodhdTicker),
-        Map.copyOf(newByShortTicker),
-        Map.copyOf(newProxyByCategory),
-        List.copyOf(findings));
-  }
-
-  private record Snapshot(
-      List<InstrumentReference> instruments,
-      Map<String, InstrumentReference> byIsin,
-      Map<String, InstrumentReference> byBloombergTicker,
-      Map<String, InstrumentReference> byEodhdTicker,
-      Map<String, InstrumentReference> byShortTicker,
-      Map<String, BenchmarkCategoryProxy> proxyByCategory,
-      List<InstrumentDataFinding> findings) {}
 
   public Optional<InstrumentReference> findByIsin(String isin) {
     return Optional.ofNullable(byIsin.get(isin));
@@ -295,24 +220,6 @@ public class InstrumentReferenceService {
     }
 
     return new BenchmarkProxy(instrument, null);
-  }
-
-  private static void putFirstWins(
-      Map<String, InstrumentReference> map,
-      String key,
-      InstrumentReference instrument,
-      String lookup,
-      List<InstrumentDataFinding> findings) {
-    var existing = map.putIfAbsent(key, instrument);
-    if (existing != null) {
-      findings.add(
-          new AmbiguousLookupKey(lookup, key, List.of(existing.getIsin(), instrument.getIsin())));
-    }
-  }
-
-  private static String extractShortTicker(String yahooTicker) {
-    int dotIndex = yahooTicker.indexOf('.');
-    return dotIndex > 0 ? yahooTicker.substring(0, dotIndex) : yahooTicker;
   }
 
   private enum ProxyRole {

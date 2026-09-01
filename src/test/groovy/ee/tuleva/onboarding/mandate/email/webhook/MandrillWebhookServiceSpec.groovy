@@ -3,8 +3,8 @@ package ee.tuleva.onboarding.mandate.email.webhook
 import tools.jackson.databind.json.JsonMapper
 import ee.tuleva.onboarding.event.EventLog
 import ee.tuleva.onboarding.event.EventLogRepository
-import ee.tuleva.onboarding.mandate.email.persistence.Email
-import ee.tuleva.onboarding.mandate.email.persistence.EmailRepository
+import ee.tuleva.onboarding.notification.email.Email
+import ee.tuleva.onboarding.notification.email.EmailPersistenceService
 import ee.tuleva.onboarding.notification.email.EmailDeliveryFailedEvent
 import jakarta.servlet.http.HttpServletRequest
 import org.springframework.context.ApplicationEventPublisher
@@ -13,18 +13,19 @@ import spock.lang.Specification
 
 import java.time.Instant
 
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailStatus.SENT
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SECOND_PILLAR_MANDATE
+import static ee.tuleva.onboarding.notification.email.EmailStatus.SENT
+import static ee.tuleva.onboarding.notification.email.EmailType.SECOND_PILLAR_MANDATE
 import static ee.tuleva.onboarding.mandate.email.webhook.MandrillWebhookEvent.MandrillMessage
 
 class MandrillWebhookServiceSpec extends Specification {
 
-  EmailRepository emailRepository = Mock()
+  EmailPersistenceService emailPersistenceService = Mock()
   EventLogRepository eventLogRepository = Mock()
   MandrillSignatureVerifier signatureVerifier = Mock()
   JsonMapper objectMapper = JsonMapper.builder().build()
   ApplicationEventPublisher eventPublisher = Mock()
-  MandrillWebhookService service = new MandrillWebhookService(emailRepository, eventLogRepository, signatureVerifier, objectMapper, eventPublisher)
+  MandrillWebhookService service = new MandrillWebhookService(
+      eventLogRepository, emailPersistenceService, signatureVerifier, objectMapper, eventPublisher)
   HttpServletRequest request = Mock()
 
   String mandrillMessageId = "mandrill_msg_123"
@@ -40,7 +41,7 @@ class MandrillWebhookServiceSpec extends Specification {
     def email = sampleEmail()
 
     signatureVerifier.verify(request, "valid_signature") >> true
-    emailRepository.findByMandrillMessageId(mandrillMessageId) >> Optional.of(email)
+    emailPersistenceService.findByMandrillMessageId(mandrillMessageId) >> Optional.of(email)
 
     when:
     service.handleWebhook(eventsJson, "valid_signature", request)
@@ -55,7 +56,7 @@ class MandrillWebhookServiceSpec extends Specification {
     def email = sampleEmail()
 
     signatureVerifier.verify(request, "valid_signature") >> true
-    emailRepository.findByMandrillMessageId(mandrillMessageId) >> Optional.of(email)
+    emailPersistenceService.findByMandrillMessageId(mandrillMessageId) >> Optional.of(email)
 
     when:
     service.handleWebhook(eventsJson, "valid_signature", request)
@@ -93,7 +94,7 @@ class MandrillWebhookServiceSpec extends Specification {
     def email = sampleEmail()
     def event = openEvent()
 
-    emailRepository.findByMandrillMessageId(mandrillMessageId) >> Optional.of(email)
+    emailPersistenceService.findByMandrillMessageId(mandrillMessageId) >> Optional.of(email)
 
     when:
     service.processWebhookEvents([event])
@@ -113,7 +114,7 @@ class MandrillWebhookServiceSpec extends Specification {
     def email = sampleEmail()
     def event = clickEvent()
 
-    emailRepository.findByMandrillMessageId(mandrillMessageId) >> Optional.of(email)
+    emailPersistenceService.findByMandrillMessageId(mandrillMessageId) >> Optional.of(email)
 
     when:
     service.processWebhookEvents([event])
@@ -131,7 +132,7 @@ class MandrillWebhookServiceSpec extends Specification {
   def "ignores event when email not found"() {
     given:
     def event = openEvent()
-    emailRepository.findByMandrillMessageId(mandrillMessageId) >> Optional.empty()
+    emailPersistenceService.findByMandrillMessageId(mandrillMessageId) >> Optional.empty()
 
     when:
     service.processWebhookEvents([event])
@@ -152,7 +153,7 @@ class MandrillWebhookServiceSpec extends Specification {
     service.processWebhookEvents([event])
 
     then:
-    0 * emailRepository.findByMandrillMessageId(_)
+    0 * emailPersistenceService.findByMandrillMessageId(_)
     0 * eventLogRepository.save(_)
   }
 
@@ -170,7 +171,7 @@ class MandrillWebhookServiceSpec extends Specification {
             .build())
         .build()
 
-    emailRepository.findByMandrillMessageId(mandrillMessageId) >> Optional.of(email)
+    emailPersistenceService.findByMandrillMessageId(mandrillMessageId) >> Optional.of(email)
 
     when:
     service.processWebhookEvents([event])
@@ -225,6 +226,64 @@ class MandrillWebhookServiceSpec extends Specification {
     0 * eventLogRepository.save(_)
   }
 
+  def "uses the diag field when there is no bounce description"() {
+    given:
+    def event = MandrillWebhookEvent.builder()
+        .event("hard_bounce")
+        .id("event_123")
+        .ts(eventTimestamp)
+        .msg(MandrillMessage.builder()
+            .id(mandrillMessageId)
+            .email("trustee@seb.ee")
+            .subject("Subject")
+            .diag("550 mailbox unavailable")
+            .build())
+        .build()
+
+    when:
+    service.processWebhookEvents([event])
+
+    then:
+    1 * eventPublisher.publishEvent({ EmailDeliveryFailedEvent e ->
+      e.reason() == "550 mailbox unavailable"
+    })
+  }
+
+  def "falls back to the message state when no bounce description, diag, or smtp diagnostic is available"() {
+    given:
+    def event = MandrillWebhookEvent.builder()
+        .event("hard_bounce")
+        .id("event_123")
+        .ts(eventTimestamp)
+        .msg(MandrillMessage.builder()
+            .id(mandrillMessageId)
+            .email("trustee@seb.ee")
+            .subject("Subject")
+            .state("bounced")
+            .build())
+        .build()
+
+    when:
+    service.processWebhookEvents([event])
+
+    then:
+    1 * eventPublisher.publishEvent({ EmailDeliveryFailedEvent e ->
+      e.reason() == "bounced"
+    })
+  }
+
+  def "latestSmtpDiag returns null, not an empty string, when there are no smtp events"() {
+    given:
+    def msg = MandrillMessage.builder()
+        .id(mandrillMessageId)
+        .email("trustee@seb.ee")
+        .subject("Subject")
+        .build()
+
+    expect:
+    service.latestSmtpDiag(msg) == null
+  }
+
   def "handles events with minimal data"() {
     given:
     def email = sampleEmail()
@@ -239,7 +298,7 @@ class MandrillWebhookServiceSpec extends Specification {
             .build())
         .build()
 
-    emailRepository.findByMandrillMessageId(mandrillMessageId) >> Optional.of(email)
+    emailPersistenceService.findByMandrillMessageId(mandrillMessageId) >> Optional.of(email)
 
     when:
     service.processWebhookEvents([event])

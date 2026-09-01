@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 import lombok.Getter;
 import lombok.Setter;
+import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
@@ -16,7 +17,7 @@ public class SlackWebhookConfiguration {
 
   private Map<String, String> webhooks = new HashMap<>();
 
-  public String getWebhookUrl(SlackChannel channel) {
+  public @Nullable String getWebhookUrl(SlackChannel channel) {
     return webhooks.getOrDefault(channel.getConfigurationKey(), null);
   }
 }

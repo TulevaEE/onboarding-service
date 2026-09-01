@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.investment.transaction.calculation;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.BUY;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.REBALANCE;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ZERO;
 import static java.util.stream.Collectors.toMap;
 import static org.assertj.core.api.Assertions.assertThat;

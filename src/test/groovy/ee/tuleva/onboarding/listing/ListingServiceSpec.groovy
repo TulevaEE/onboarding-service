@@ -4,11 +4,10 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessage
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus
 import ee.tuleva.onboarding.capital.CapitalRow
 import ee.tuleva.onboarding.capital.CapitalService
-import ee.tuleva.onboarding.capital.transfer.CapitalTransferContractService
 import ee.tuleva.onboarding.currency.Currency
 import ee.tuleva.onboarding.locale.LocaleService
-import ee.tuleva.onboarding.mandate.email.persistence.Email
-import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService
+import ee.tuleva.onboarding.notification.email.Email
+import ee.tuleva.onboarding.notification.email.EmailPersistenceService
 import ee.tuleva.onboarding.notification.email.EmailService
 import ee.tuleva.onboarding.time.ClockHolder
 import ee.tuleva.onboarding.time.TestClockHolder
@@ -27,7 +26,7 @@ import static ee.tuleva.onboarding.listing.Listing.State.CANCELLED
 import static ee.tuleva.onboarding.listing.ListingType.BUY
 import static ee.tuleva.onboarding.listing.ListingType.SELL
 import static ee.tuleva.onboarding.listing.ListingsFixture.*
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.LISTING_REPLY_TO_SELLER
+import static ee.tuleva.onboarding.notification.email.EmailType.LISTING_REPLY_TO_SELLER
 
 class ListingServiceSpec extends Specification {
 
@@ -38,8 +37,7 @@ class ListingServiceSpec extends Specification {
   CapitalService capitalService = Mock()
   EmailPersistenceService emailPersistenceService = Mock()
   EmailService emailService = Mock()
-  CapitalTransferContractService capitalTransferContractService = Mock()
-  ListingService service = new ListingService(listingRepository, userService, capitalTransferContractService, emailPersistenceService, emailService, clock, capitalService, localeService)
+  ListingService service = new ListingService(listingRepository, userService, emailPersistenceService, emailService, clock, capitalService, localeService)
 
   def setup() {
     ClockHolder.setClock(TestClockHolder.clock)
@@ -62,7 +60,7 @@ class ListingServiceSpec extends Specification {
     listingRepository.findByExpiryTimeAfterAndMemberIdEquals(_, _) >> List.of()
     userService.getById(person.userId) >> Optional.of(user)
     capitalService.getCapitalRows(user.getMemberId()) >> List.of(new CapitalRow(CAPITAL_PAYMENT, BigDecimal.valueOf(1000), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, Currency.EUR))
-    capitalTransferContractService.getCapitalBeingSoldInOtherTransfers(user.getMemberOrThrow()) >> Map.of()
+    capitalService.getCapitalBeingSoldInOtherTransfers(user.getMemberOrThrow()) >> Map.of()
 
     when:
     def createdListing = service.createListing(request, person)
@@ -84,7 +82,7 @@ class ListingServiceSpec extends Specification {
     listingRepository.findByExpiryTimeAfterAndMemberIdEquals(_, _) >> List.of()
     userService.getById(person.userId) >> Optional.of(user)
     capitalService.getCapitalRows(user.getMemberId()) >> List.of(new CapitalRow(CAPITAL_PAYMENT, BigDecimal.valueOf(2000), BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, Currency.EUR))
-    capitalTransferContractService.getCapitalBeingSoldInOtherTransfers(user.getMemberOrThrow()) >> Map.of(CAPITAL_PAYMENT, 500)
+    capitalService.getCapitalBeingSoldInOtherTransfers(user.getMemberOrThrow()) >> Map.of(CAPITAL_PAYMENT, 500)
 
     when:
     def createdListing = service.createListing(request, person)
@@ -101,7 +99,7 @@ class ListingServiceSpec extends Specification {
     listingRepository.findByExpiryTimeAfterAndMemberIdEquals(_, _) >> List.of()
     userService.getById(person.userId) >> Optional.of(user)
     capitalService.getCapitalRows(user.getMemberId()) >> List.of(new CapitalRow(CAPITAL_PAYMENT, BigDecimal.valueOf(100), BigDecimal.valueOf(900), BigDecimal.valueOf(100), BigDecimal.valueOf(10), Currency.EUR))
-    capitalTransferContractService.getCapitalBeingSoldInOtherTransfers(user.getMemberOrThrow()) >> Map.of()
+    capitalService.getCapitalBeingSoldInOtherTransfers(user.getMemberOrThrow()) >> Map.of()
 
     when:
     service.createListing(request, person)
@@ -118,7 +116,7 @@ class ListingServiceSpec extends Specification {
     listingRepository.findByExpiryTimeAfterAndMemberIdEquals(_, _) >> List.of()
     userService.getById(person.userId) >> Optional.of(user)
     capitalService.getCapitalRows(user.getMemberId()) >> List.of(new CapitalRow(CAPITAL_PAYMENT, BigDecimal.valueOf(100), BigDecimal.valueOf(900), BigDecimal.valueOf(100), BigDecimal.valueOf(10), Currency.EUR))
-    capitalTransferContractService.getCapitalBeingSoldInOtherTransfers(user.getMemberOrThrow()) >> Map.of(CAPITAL_PAYMENT, BigDecimal.valueOf(900))
+    capitalService.getCapitalBeingSoldInOtherTransfers(user.getMemberOrThrow()) >> Map.of(CAPITAL_PAYMENT, BigDecimal.valueOf(900))
 
     when:
     service.createListing(request, person)
@@ -135,7 +133,7 @@ class ListingServiceSpec extends Specification {
     listingRepository.findByExpiryTimeAfterAndMemberIdEquals(_, _) >> List.of(activeListing().type(SELL).memberId(user.getMemberId()).bookValue(new BigDecimal("1000")).build())
     userService.getById(person.userId) >> Optional.of(user)
     capitalService.getCapitalRows(user.getMemberId()) >> List.of(new CapitalRow(CAPITAL_PAYMENT, BigDecimal.valueOf(100), BigDecimal.valueOf(900), BigDecimal.valueOf(100), BigDecimal.valueOf(10), Currency.EUR))
-    capitalTransferContractService.getCapitalBeingSoldInOtherTransfers(user.getMemberOrThrow()) >> Map.of()
+    capitalService.getCapitalBeingSoldInOtherTransfers(user.getMemberOrThrow()) >> Map.of()
 
     when:
     service.createListing(request, person)
@@ -152,7 +150,7 @@ class ListingServiceSpec extends Specification {
     listingRepository.findByExpiryTimeAfterAndMemberIdEquals(_, _) >> List.of()
     userService.getById(person.userId) >> Optional.of(user)
     capitalService.getCapitalRows(user.getMemberId()) >> List.of(new CapitalRow(UNVESTED_WORK_COMPENSATION, BigDecimal.valueOf(100), BigDecimal.valueOf(900), BigDecimal.valueOf(100), BigDecimal.valueOf(10), Currency.EUR))
-    capitalTransferContractService.getCapitalBeingSoldInOtherTransfers(user.getMemberOrThrow()) >> Map.of()
+    capitalService.getCapitalBeingSoldInOtherTransfers(user.getMemberOrThrow()) >> Map.of()
 
     when:
     service.createListing(request, person)
@@ -256,6 +254,43 @@ class ListingServiceSpec extends Specification {
 
     then:
     message.id() == 1
+  }
+
+  def "a phoneless member can contact without opting into phone sharing"() {
+    given:
+    def contacter = sampleUser().phoneNumber(null).build()
+    def contacterPerson = authenticatedPersonFromUser(contacter).build()
+    def sellListing = newListingRequest().type(SELL).bookValue(100.00).totalPrice(200.00).build().toListing(42L, 'et').tap {
+      id = 1L
+      createdTime = Instant.now()
+    }
+    userService.getByIdOrThrow(contacter.getId()) >> contacter
+    listingRepository.findById(1L) >> Optional.of(sellListing)
+
+    when:
+    def message = service.getContactMessage(1L, new ContactMessageRequest(false, false), contacterPerson)
+
+    then:
+    message.contains(contacter.getFullName())
+    !message.contains("null")
+  }
+
+  def "opting into phone sharing without a phone number fails fast"() {
+    given:
+    def contacter = sampleUser().phoneNumber(null).build()
+    def contacterPerson = authenticatedPersonFromUser(contacter).build()
+    def sellListing = newListingRequest().type(SELL).bookValue(100.00).totalPrice(200.00).build().toListing(42L, 'et').tap {
+      id = 1L
+      createdTime = Instant.now()
+    }
+    userService.getByIdOrThrow(contacter.getId()) >> contacter
+    listingRepository.findById(1L) >> Optional.of(sellListing)
+
+    when:
+    service.getContactMessage(1L, new ContactMessageRequest(false, true), contacterPerson)
+
+    then:
+    thrown(NullPointerException)
   }
 
   def "can get correct messages in estonian"() {

@@ -6,8 +6,8 @@ import spock.lang.Unroll
 
 import java.time.LocalDate
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK00
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75
 import static ee.tuleva.onboarding.investment.epis.PevaRavaPhase.*
 
 class PevaRavaPeriodServiceSpec extends Specification {

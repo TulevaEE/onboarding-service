@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
 import static ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus.OK;
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.ledger.LedgerAccountFixture.fundUnitsOutstandingAccount;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_UNITS_OUTSTANDING;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -15,12 +15,6 @@ import static org.mockito.Mockito.*;
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
-import ee.tuleva.onboarding.investment.fees.FeeBases;
-import ee.tuleva.onboarding.investment.fees.FeeCalculationService;
-import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
-import ee.tuleva.onboarding.investment.fees.FeeResult;
-import ee.tuleva.onboarding.investment.fees.FeeType;
-import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.ledger.LedgerAccountFixture.EntryFixture;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
@@ -43,7 +37,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class NavCalculationServiceTest {
 
-  @Mock private FundPositionRepository fundPositionRepository;
+  @Mock private NavPositions navPositions;
   @Spy private PublicHolidays publicHolidays = new PublicHolidays();
   @Mock private LedgerService ledgerService;
   @Mock private NavLedgerRepository navLedgerRepository;
@@ -55,10 +49,7 @@ class NavCalculationServiceTest {
   @Mock private RedemptionsComponent redemptionsComponent;
   @Mock private BlackrockAdjustmentComponent blackrockAdjustmentComponent;
   @Mock private PositionPriceResolver positionPriceResolver;
-  @Mock private FeeCalculationService feeCalculationService;
-
-  @Mock(strictness = Mock.Strictness.LENIENT)
-  private FeeChargedToFundPolicy feeChargedToFundPolicy;
+  @Mock private NavFees navFees;
 
   private NavCalculationService service;
   private Clock fixedClock;
@@ -66,10 +57,10 @@ class NavCalculationServiceTest {
   @BeforeEach
   void setUp() {
     fixedClock = Clock.fixed(Instant.parse("2025-01-15T14:00:00Z"), ZoneOffset.UTC);
-    when(feeChargedToFundPolicy.chargedToFund(any(), any(), any())).thenReturn(true);
+    lenient().when(navFees.chargedToFund(any(), any(), any())).thenReturn(true);
     service =
         new NavCalculationService(
-            fundPositionRepository,
+            navPositions,
             publicHolidays,
             ledgerService,
             navLedgerRepository,
@@ -81,8 +72,7 @@ class NavCalculationServiceTest {
             redemptionsComponent,
             blackrockAdjustmentComponent,
             positionPriceResolver,
-            feeCalculationService,
-            feeChargedToFundPolicy,
+            navFees,
             fixedClock);
   }
 
@@ -91,7 +81,7 @@ class NavCalculationServiceTest {
     LocalDate calcDate = LocalDate.of(2025, 1, 15);
     LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
 
-    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
+    when(navPositions.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
         .thenReturn(Optional.of(previousWorkingDay));
     when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100))
         .thenReturn(fundUnitsOutstandingAccount(new BigDecimal("100000.00000")));
@@ -103,10 +93,11 @@ class NavCalculationServiceTest {
     when(subscriptionsComponent.calculate(any())).thenReturn(new BigDecimal("25000.00"));
     when(blackrockAdjustmentComponent.calculate(any())).thenReturn(new BigDecimal("500.00"));
     when(redemptionsComponent.calculate(any())).thenReturn(new BigDecimal("10500.00"));
-    FeeBases expectedBases = new FeeBases(new BigDecimal("970000.00"), new BigDecimal("985500.00"));
-    when(feeCalculationService.calculateFeesForNav(
+    NavFeeBases expectedBases =
+        new NavFeeBases(new BigDecimal("970000.00"), new BigDecimal("985500.00"));
+    when(navFees.calculateFeesForNav(
             eq(TKF100), eq(previousWorkingDay), eq(expectedBases), any(), any()))
-        .thenReturn(new FeeResult(new BigDecimal("52.08"), new BigDecimal("6.85")));
+        .thenReturn(new NavFeeResult(new BigDecimal("52.08"), new BigDecimal("6.85")));
 
     NavCalculationResult result = service.calculate(TKF100, calcDate);
 
@@ -144,7 +135,7 @@ class NavCalculationServiceTest {
     LocalDate calcDate = LocalDate.of(2025, 1, 15);
     LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
 
-    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
+    when(navPositions.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
         .thenReturn(Optional.of(previousWorkingDay));
     when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100))
         .thenReturn(fundUnitsOutstandingAccount(new BigDecimal("100000.00000")));
@@ -156,11 +147,9 @@ class NavCalculationServiceTest {
     when(subscriptionsComponent.calculate(any())).thenReturn(ZERO);
     when(blackrockAdjustmentComponent.calculate(any())).thenReturn(ZERO);
     when(redemptionsComponent.calculate(any())).thenReturn(ZERO);
-    when(feeCalculationService.calculateFeesForNav(
-            eq(TKF100), eq(previousWorkingDay), any(), any(), any()))
-        .thenReturn(new FeeResult(new BigDecimal("52.08"), new BigDecimal("6.85")));
-    when(feeChargedToFundPolicy.chargedToFund(TKF100, FeeType.DEPOT, previousWorkingDay))
-        .thenReturn(false);
+    when(navFees.calculateFeesForNav(eq(TKF100), eq(previousWorkingDay), any(), any(), any()))
+        .thenReturn(new NavFeeResult(new BigDecimal("52.08"), new BigDecimal("6.85")));
+    when(navFees.chargedToFund(TKF100, NavFeeType.DEPOT, previousWorkingDay)).thenReturn(false);
 
     NavCalculationResult result = service.calculate(TKF100, calcDate);
 
@@ -178,7 +167,7 @@ class NavCalculationServiceTest {
     LocalDate calcDate = LocalDate.of(2025, 1, 15);
     LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
 
-    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
+    when(navPositions.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
         .thenReturn(Optional.of(previousWorkingDay));
     when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100))
         .thenReturn(fundUnitsOutstandingAccount(ZERO));
@@ -188,8 +177,8 @@ class NavCalculationServiceTest {
     when(receivablesComponent.calculate(any())).thenReturn(ZERO);
     when(payablesComponent.calculate(any())).thenReturn(ZERO);
     when(subscriptionsComponent.calculate(any())).thenReturn(ZERO);
-    when(feeCalculationService.calculateFeesForNav(any(), any(), any(), any(), any()))
-        .thenReturn(new FeeResult(ZERO, ZERO));
+    when(navFees.calculateFeesForNav(any(), any(), any(), any(), any()))
+        .thenReturn(new NavFeeResult(ZERO, ZERO));
     when(blackrockAdjustmentComponent.calculate(any())).thenReturn(ZERO);
 
     NavCalculationResult result = service.calculate(TKF100, calcDate);
@@ -203,7 +192,7 @@ class NavCalculationServiceTest {
     LocalDate calcDate = LocalDate.of(2025, 1, 15);
     LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
 
-    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
+    when(navPositions.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
         .thenReturn(Optional.empty());
 
     assertThatThrownBy(() -> service.calculate(TKF100, calcDate))
@@ -217,7 +206,7 @@ class NavCalculationServiceTest {
     LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
     LocalDate staleDate = LocalDate.of(2025, 1, 13);
 
-    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
+    when(navPositions.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
         .thenReturn(Optional.of(staleDate));
 
     assertThatThrownBy(() -> service.calculate(TKF100, calcDate))
@@ -229,7 +218,7 @@ class NavCalculationServiceTest {
     LocalDate calcDate = LocalDate.of(2025, 1, 15);
     LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
 
-    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
+    when(navPositions.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
         .thenReturn(Optional.of(previousWorkingDay));
     when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100))
         .thenReturn(fundUnitsOutstandingAccount(new BigDecimal("100000.00000")));
@@ -239,8 +228,8 @@ class NavCalculationServiceTest {
     when(receivablesComponent.calculate(any())).thenReturn(ZERO);
     when(payablesComponent.calculate(any())).thenReturn(ZERO);
     when(subscriptionsComponent.calculate(any())).thenReturn(ZERO);
-    when(feeCalculationService.calculateFeesForNav(any(), any(), any(), any(), any()))
-        .thenReturn(new FeeResult(ZERO, ZERO));
+    when(navFees.calculateFeesForNav(any(), any(), any(), any(), any()))
+        .thenReturn(new NavFeeResult(ZERO, ZERO));
     when(blackrockAdjustmentComponent.calculate(any())).thenReturn(new BigDecimal("-300.00"));
     when(redemptionsComponent.calculate(any())).thenReturn(ZERO);
 
@@ -254,7 +243,7 @@ class NavCalculationServiceTest {
     LocalDate calcDate = LocalDate.of(2026, 6, 29);
     LocalDate previousWorkingDay = LocalDate.of(2026, 6, 26);
 
-    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, previousWorkingDay))
+    when(navPositions.findLatestNavDateByFundAndAsOfDate(TUK75, previousWorkingDay))
         .thenReturn(Optional.of(previousWorkingDay));
     when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TUK75))
         .thenReturn(
@@ -272,8 +261,8 @@ class NavCalculationServiceTest {
     when(subscriptionsComponent.calculate(any())).thenReturn(ZERO);
     when(blackrockAdjustmentComponent.calculate(any())).thenReturn(ZERO);
     when(redemptionsComponent.calculate(any())).thenReturn(ZERO);
-    when(feeCalculationService.calculateFeesForNav(any(), any(), any(), any(), any()))
-        .thenReturn(new FeeResult(new BigDecimal("152316.55"), ZERO));
+    when(navFees.calculateFeesForNav(any(), any(), any(), any(), any()))
+        .thenReturn(new NavFeeResult(new BigDecimal("152316.55"), ZERO));
 
     NavCalculationResult result = service.calculate(TUK75, calcDate);
 
@@ -288,7 +277,7 @@ class NavCalculationServiceTest {
     LocalDate previousWorkingDay = LocalDate.of(2025, 1, 14);
     LocalDate positionDate = LocalDate.of(2025, 1, 14);
 
-    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
+    when(navPositions.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
         .thenReturn(Optional.of(positionDate));
     when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100))
         .thenReturn(fundUnitsOutstandingAccount(new BigDecimal("100000.00000")));
@@ -298,8 +287,8 @@ class NavCalculationServiceTest {
     when(receivablesComponent.calculate(any())).thenReturn(ZERO);
     when(payablesComponent.calculate(any())).thenReturn(ZERO);
     when(subscriptionsComponent.calculate(any())).thenReturn(ZERO);
-    when(feeCalculationService.calculateFeesForNav(any(), any(), any(), any(), any()))
-        .thenReturn(new FeeResult(ZERO, ZERO));
+    when(navFees.calculateFeesForNav(any(), any(), any(), any(), any()))
+        .thenReturn(new NavFeeResult(ZERO, ZERO));
     when(blackrockAdjustmentComponent.calculate(any())).thenReturn(ZERO);
     when(redemptionsComponent.calculate(any())).thenReturn(ZERO);
 
@@ -321,7 +310,7 @@ class NavCalculationServiceTest {
                 new EntryFixture(
                     new BigDecimal("20000.00000"), Instant.parse("2025-07-15T13:30:00Z"))));
 
-    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
+    when(navPositions.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
         .thenReturn(Optional.of(previousWorkingDay));
     when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100)).thenReturn(account);
 
@@ -330,8 +319,8 @@ class NavCalculationServiceTest {
     when(receivablesComponent.calculate(any())).thenReturn(ZERO);
     when(payablesComponent.calculate(any())).thenReturn(ZERO);
     when(subscriptionsComponent.calculate(any())).thenReturn(ZERO);
-    when(feeCalculationService.calculateFeesForNav(any(), any(), any(), any(), any()))
-        .thenReturn(new FeeResult(ZERO, ZERO));
+    when(navFees.calculateFeesForNav(any(), any(), any(), any(), any()))
+        .thenReturn(new NavFeeResult(ZERO, ZERO));
     when(blackrockAdjustmentComponent.calculate(any())).thenReturn(ZERO);
     when(redemptionsComponent.calculate(any())).thenReturn(ZERO);
 
@@ -355,7 +344,7 @@ class NavCalculationServiceTest {
                 new EntryFixture(
                     new BigDecimal("20000.00000"), Instant.parse("2026-01-15T09:30:00Z"))));
 
-    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, previousWorkingDay))
+    when(navPositions.findLatestNavDateByFundAndAsOfDate(TUK75, previousWorkingDay))
         .thenReturn(Optional.of(previousWorkingDay));
     when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TUK75)).thenReturn(account);
 
@@ -364,8 +353,8 @@ class NavCalculationServiceTest {
     when(receivablesComponent.calculate(any())).thenReturn(ZERO);
     when(payablesComponent.calculate(any())).thenReturn(ZERO);
     when(subscriptionsComponent.calculate(any())).thenReturn(ZERO);
-    when(feeCalculationService.calculateFeesForNav(any(), any(), any(), any(), any()))
-        .thenReturn(new FeeResult(ZERO, ZERO));
+    when(navFees.calculateFeesForNav(any(), any(), any(), any(), any()))
+        .thenReturn(new NavFeeResult(ZERO, ZERO));
     when(blackrockAdjustmentComponent.calculate(any())).thenReturn(ZERO);
     when(redemptionsComponent.calculate(any())).thenReturn(ZERO);
 
@@ -383,7 +372,7 @@ class NavCalculationServiceTest {
     Instant expectedCutoff = Instant.parse("2025-01-15T13:20:00Z");
     Instant expectedPriceCutoff = Instant.parse("2025-01-15T13:25:00Z");
 
-    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
+    when(navPositions.findLatestNavDateByFundAndAsOfDate(TKF100, previousWorkingDay))
         .thenReturn(Optional.of(previousWorkingDay));
     when(ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100))
         .thenReturn(fundUnitsOutstandingAccount(new BigDecimal("100000.00000")));
@@ -393,8 +382,8 @@ class NavCalculationServiceTest {
     when(receivablesComponent.calculate(any())).thenReturn(ZERO);
     when(payablesComponent.calculate(any())).thenReturn(ZERO);
     when(subscriptionsComponent.calculate(any())).thenReturn(ZERO);
-    when(feeCalculationService.calculateFeesForNav(any(), any(), any(), any(), any()))
-        .thenReturn(new FeeResult(ZERO, ZERO));
+    when(navFees.calculateFeesForNav(any(), any(), any(), any(), any()))
+        .thenReturn(new NavFeeResult(ZERO, ZERO));
     when(blackrockAdjustmentComponent.calculate(any())).thenReturn(ZERO);
     when(redemptionsComponent.calculate(any())).thenReturn(ZERO);
 
@@ -423,7 +412,7 @@ class NavCalculationServiceTest {
 
     // backfill for fri/sat/sun calls computeFeeBaseValue with +1 day:
     // fri+1=sat, sat+1=sun, sun+1=mon — all resolve via previousWorkingDay to friday
-    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, friday))
+    when(navPositions.findLatestNavDateByFundAndAsOfDate(TKF100, friday))
         .thenReturn(Optional.of(friday));
     when(securitiesValueComponent.calculate(any())).thenReturn(ZERO);
     when(cashPositionComponent.calculate(any())).thenReturn(new BigDecimal("1000000"));
@@ -432,22 +421,22 @@ class NavCalculationServiceTest {
     when(subscriptionsComponent.calculate(any())).thenReturn(ZERO);
     when(blackrockAdjustmentComponent.calculate(any())).thenReturn(ZERO);
     when(redemptionsComponent.calculate(any())).thenReturn(ZERO);
-    when(feeCalculationService.calculateFeesForNav(any(), any(), any(), any(), any()))
-        .thenReturn(new FeeResult(ZERO, ZERO));
+    when(navFees.calculateFeesForNav(any(), any(), any(), any(), any()))
+        .thenReturn(new NavFeeResult(ZERO, ZERO));
 
     service.backfillFees(TKF100, friday, sunday);
 
-    verify(feeCalculationService, times(3))
+    verify(navFees, times(3))
         .calculateFeesForNav(
             eq(TKF100),
             any(),
-            eq(new FeeBases(new BigDecimal("1000000"), new BigDecimal("1000000"))),
+            eq(new NavFeeBases(new BigDecimal("1000000"), new BigDecimal("1000000"))),
             any(),
             any());
-    verify(feeCalculationService).calculateFeesForNav(eq(TKF100), eq(friday), any(), any(), any());
-    verify(feeCalculationService)
+    verify(navFees).calculateFeesForNav(eq(TKF100), eq(friday), any(), any(), any());
+    verify(navFees)
         .calculateFeesForNav(eq(TKF100), eq(LocalDate.of(2026, 3, 7)), any(), any(), any());
-    verify(feeCalculationService).calculateFeesForNav(eq(TKF100), eq(sunday), any(), any(), any());
+    verify(navFees).calculateFeesForNav(eq(TKF100), eq(sunday), any(), any(), any());
   }
 
   @Test
@@ -457,7 +446,7 @@ class NavCalculationServiceTest {
     LocalDate tuesday = LocalDate.of(2026, 3, 3);
 
     // backfill calls computeFeeBaseValue(fund, tuesday) → previousWorkingDay(tuesday) = monday
-    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, monday))
+    when(navPositions.findLatestNavDateByFundAndAsOfDate(TUK75, monday))
         .thenReturn(Optional.of(monday));
     when(securitiesValueComponent.calculate(any())).thenReturn(new BigDecimal("900000000"));
     when(cashPositionComponent.calculate(any())).thenReturn(new BigDecimal("50000000"));
@@ -466,17 +455,17 @@ class NavCalculationServiceTest {
     when(subscriptionsComponent.calculate(any())).thenReturn(ZERO);
     when(blackrockAdjustmentComponent.calculate(any())).thenReturn(ZERO);
     when(redemptionsComponent.calculate(any())).thenReturn(ZERO);
-    when(feeCalculationService.calculateFeesForNav(any(), any(), any(), any(), any()))
-        .thenReturn(new FeeResult(ZERO, ZERO));
+    when(navFees.calculateFeesForNav(any(), any(), any(), any(), any()))
+        .thenReturn(new NavFeeResult(ZERO, ZERO));
 
     service.backfillFees(TUK75, monday, monday);
 
     // Fee date is Monday, base value uses Monday's position (950M)
-    verify(feeCalculationService)
+    verify(navFees)
         .calculateFeesForNav(
             eq(TUK75),
             eq(monday),
-            eq(new FeeBases(new BigDecimal("950000000"), new BigDecimal("950000000"))),
+            eq(new NavFeeBases(new BigDecimal("950000000"), new BigDecimal("950000000"))),
             any(),
             any());
   }
@@ -487,19 +476,19 @@ class NavCalculationServiceTest {
     LocalDate nextDay = LocalDate.of(2026, 3, 7);
 
     // backfill calls computeFeeBaseValue(fund, date+1) → previousWorkingDay(nextDay) = date
-    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, date))
+    when(navPositions.findLatestNavDateByFundAndAsOfDate(TKF100, date))
         .thenReturn(Optional.empty());
 
     service.backfillFees(TKF100, date, date);
 
-    verify(feeCalculationService, never()).calculateFeesForNav(any(), any(), any(), any(), any());
+    verify(navFees, never()).calculateFeesForNav(any(), any(), any(), any(), any());
   }
 
   @Test
   void computeFeeBaseValue_usesSameDayPositionOnInceptionDate() {
     LocalDate inceptionDate = TKF100.getInceptionDate();
 
-    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TKF100, inceptionDate))
+    when(navPositions.findLatestNavDateByFundAndAsOfDate(TKF100, inceptionDate))
         .thenReturn(Optional.of(inceptionDate));
     when(securitiesValueComponent.calculate(any())).thenReturn(ZERO);
     when(cashPositionComponent.calculate(any())).thenReturn(new BigDecimal("5500000.00"));
@@ -522,7 +511,7 @@ class NavCalculationServiceTest {
     LocalDate calcDate = LocalDate.of(2026, 3, 11);
     LocalDate previousWorkingDay = LocalDate.of(2026, 3, 10);
 
-    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, previousWorkingDay))
+    when(navPositions.findLatestNavDateByFundAndAsOfDate(TUK75, previousWorkingDay))
         .thenReturn(Optional.of(previousWorkingDay));
     when(securitiesValueComponent.calculate(any())).thenReturn(new BigDecimal("900000.00"));
     when(cashPositionComponent.calculate(any())).thenReturn(new BigDecimal("50000.00"));
@@ -541,8 +530,7 @@ class NavCalculationServiceTest {
   @Test
   void computeFeeBaseValue_returnsEmptyWhenNoPositionReport() {
     LocalDate date = LocalDate.of(2026, 1, 15);
-    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(
-            TKF100, LocalDate.of(2026, 1, 14)))
+    when(navPositions.findLatestNavDateByFundAndAsOfDate(TKF100, LocalDate.of(2026, 1, 14)))
         .thenReturn(Optional.empty());
 
     var result = service.computeFeeBaseValue(TKF100, date);

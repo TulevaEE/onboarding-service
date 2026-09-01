@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.ledger;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.USER_ACCOUNT;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.ASSET;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.LIABILITY;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.ADJUSTMENT;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.FEE_ACCRUAL;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 
@@ -19,11 +20,11 @@ import java.time.ZoneId;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.context.annotation.Import;
 
-@SpringBootTest
-@Transactional
+@DataJpaTest
+@Import({NavLedgerRepository.class, LedgerAccountService.class})
 class NavLedgerRepositoryTest {
 
   @Autowired NavLedgerRepository navLedgerRepository;
@@ -175,6 +176,85 @@ class NavLedgerRepositoryTest {
             MANAGEMENT_FEE_ACCRUAL.getAccountName(TKF100), ADJUSTMENT);
 
     assertThat(latest).isEmpty();
+  }
+
+  @Test
+  void sumBalanceByAccountName_sumsEntriesForUserAccountOnly() {
+    LedgerAccount account = persistUserAccount("TEST_USER_CASH", EUR);
+    LedgerAccount counter = navEquityAccount();
+    createSystemAccountEntry(account, counter, new BigDecimal("150.00"), Instant.now());
+    entityManager.flush();
+
+    BigDecimal balance = navLedgerRepository.sumBalanceByAccountName("TEST_USER_CASH");
+
+    assertThat(balance).isEqualByComparingTo("150.00");
+  }
+
+  @Test
+  void getFundUnitsBalance_sumsEntriesForUserFundUnitAccountOnly() {
+    LedgerAccount account = persistUserAccount("TEST_USER_FUND_UNITS", FUND_UNIT);
+    LedgerAccount counter = persistUserAccount("TEST_USER_FUND_UNITS_COUNTER", FUND_UNIT);
+    var amount = new BigDecimal("25.00000");
+    var transaction =
+        LedgerTransaction.builder()
+            .transactionType(ADJUSTMENT)
+            .transactionDate(Instant.now())
+            .build();
+    var entry =
+        LedgerEntry.builder()
+            .amount(amount)
+            .assetType(FUND_UNIT)
+            .account(account)
+            .transaction(transaction)
+            .build();
+    var counterEntry =
+        LedgerEntry.builder()
+            .amount(amount.negate())
+            .assetType(FUND_UNIT)
+            .account(counter)
+            .transaction(transaction)
+            .build();
+    transaction.getEntries().add(entry);
+    transaction.getEntries().add(counterEntry);
+    entityManager.persist(transaction);
+    entityManager.flush();
+
+    BigDecimal balance = navLedgerRepository.getFundUnitsBalance("TEST_USER_FUND_UNITS");
+
+    assertThat(balance).isEqualByComparingTo("25.00000");
+  }
+
+  @Test
+  void getSystemAccountBalance_sumsEntriesForSystemAccountOnly() {
+    LedgerAccount account = feeAccrualAccount();
+    LedgerAccount counter = navEquityAccount();
+    createSystemAccountEntry(account, counter, new BigDecimal("-40.00"), Instant.now());
+    entityManager.flush();
+
+    BigDecimal balance =
+        navLedgerRepository.getSystemAccountBalance(MANAGEMENT_FEE_ACCRUAL.getAccountName(TKF100));
+
+    assertThat(balance).isEqualByComparingTo("-40.00");
+  }
+
+  private LedgerAccount persistUserAccount(String name, LedgerAccount.AssetType assetType) {
+    LedgerParty owner =
+        LedgerParty.builder()
+            .partyType(LedgerParty.PartyType.PERSON)
+            .ownerId(name)
+            .details(Map.of())
+            .build();
+    entityManager.persist(owner);
+    LedgerAccount account =
+        LedgerAccount.builder()
+            .name(name)
+            .purpose(USER_ACCOUNT)
+            .owner(owner)
+            .assetType(assetType)
+            .accountType(LIABILITY)
+            .build();
+    entityManager.persist(account);
+    return account;
   }
 
   private LedgerAccount feeAccrualAccount() {

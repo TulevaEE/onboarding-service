@@ -4,7 +4,7 @@ import static ee.tuleva.onboarding.investment.risk.RiskIndicatorStatus.CHANGE_CO
 import static ee.tuleva.onboarding.investment.risk.RiskIndicatorStatus.CHANGE_PENDING;
 import static ee.tuleva.onboarding.investment.risk.RiskIndicatorStatus.STABLE;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;

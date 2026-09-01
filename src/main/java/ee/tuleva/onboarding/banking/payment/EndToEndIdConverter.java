@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.banking.payment;
 
 import java.util.Optional;
 import java.util.UUID;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -11,7 +12,7 @@ public class EndToEndIdConverter {
     return uuid.toString().replace("-", "");
   }
 
-  public Optional<UUID> toUuid(String endToEndId) {
+  public Optional<UUID> toUuid(@Nullable String endToEndId) {
     if (endToEndId == null || endToEndId.length() != 32) {
       return Optional.empty();
     }

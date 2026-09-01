@@ -3,13 +3,8 @@ package ee.tuleva.onboarding.epis;
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.account.FundBalanceDto;
-import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
-import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.epis.fund.FundDto;
 import ee.tuleva.onboarding.epis.fund.NavDto;
-import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
-import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO;
-import ee.tuleva.onboarding.epis.mandate.MandateDto;
 import ee.tuleva.onboarding.epis.transaction.ExchangeTransactionDto;
 import ee.tuleva.onboarding.epis.transaction.FundTransactionDto;
 import ee.tuleva.onboarding.epis.transaction.ThirdPillarTransactionDto;
@@ -18,6 +13,9 @@ import ee.tuleva.onboarding.epis.transaction.UnitOwnerDto;
 import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto;
+import ee.tuleva.onboarding.mandate.LegacyMandateSubmission;
+import ee.tuleva.onboarding.mandate.MandateProcessResult;
+import ee.tuleva.onboarding.mandate.application.ApplicationSnapshot;
 import java.lang.annotation.*;
 import java.time.LocalDate;
 import java.util.List;
@@ -61,7 +59,12 @@ public @interface EnableEpisServiceHolder {
 
     public EpisServiceHolder(
         RestTemplate restTemplate, JwtTokenUtil jwtTokenUtil, EpisService originalDelegate) {
-      super(restTemplate, restTemplate, jwtTokenUtil);
+      super(
+          restTemplate,
+          restTemplate,
+          new EpisRequestHeaders(jwtTokenUtil),
+          "http://epis",
+          "http://epis");
       this.restTemplate = restTemplate;
       this.jwtTokenUtil = jwtTokenUtil;
       this.originalDelegate = originalDelegate;
@@ -80,7 +83,7 @@ public @interface EnableEpisServiceHolder {
     }
 
     @Override
-    public List<ApplicationDTO> getApplications(Person person) {
+    public List<ApplicationSnapshot> getApplications(Person person) {
       return delegate.getApplications(person);
     }
 
@@ -137,7 +140,7 @@ public @interface EnableEpisServiceHolder {
     }
 
     @Override
-    public ApplicationResponseDTO sendMandate(MandateDto mandate) {
+    public MandateProcessResult sendMandate(LegacyMandateSubmission mandate) {
       return delegate.sendMandate(mandate);
     }
 

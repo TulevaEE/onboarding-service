@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.mandate.content.thymeleaf
 
-import ee.tuleva.onboarding.epis.contact.ContactDetails
+import ee.tuleva.onboarding.applicationtype.ApplicationType
+import ee.tuleva.onboarding.mandate.MandateContactDetails
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.mandate.Mandate
 import ee.tuleva.onboarding.user.User
@@ -10,10 +11,10 @@ import spock.lang.Specification
 import java.time.Instant
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
+import static ee.tuleva.onboarding.mandate.MandateContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL
+import static ee.tuleva.onboarding.applicationtype.ApplicationType.WITHDRAWAL
 import static ee.tuleva.onboarding.country.CountryFixture.countryFixture
 
 class ContextBuilderSpec extends Specification {
@@ -144,7 +145,7 @@ class ContextBuilderSpec extends Specification {
   def "ContactDetails don't overwrite User email"() {
     given:
     User user = sampleUser().email("expected@email.com").build()
-    ContactDetails preferences = contactDetailsFixture()
+    MandateContactDetails preferences = contactDetailsFixture()
     when:
     Context context = ContextBuilder.builder()
         .user(user)

@@ -71,6 +71,14 @@ public class WebEidCertificateFixture {
         false);
   }
 
+  // A subject DN missing one of SURNAME=, GIVENNAME= or SERIALNUMBER= exercises the
+  // "attribute missing from certificate" error paths in WebEidAuthService#createSession.
+  @SneakyThrows
+  public static X509Certificate certificateWithSubjectDn(String subjectDn) {
+    return buildCertificate(
+        new X500Name(subjectDn), ESTONIAN_CITIZEN_ID_CARD.getFirstIdentifier(), VALID_ISSUER, true);
+  }
+
   private static X509Certificate generateCertificate(
       String firstName,
       String lastName,
@@ -79,14 +87,6 @@ public class WebEidCertificateFixture {
       String issuerDn,
       boolean includeClientAuth)
       throws Exception {
-    KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
-    keyPairGenerator.initialize(2048);
-    KeyPair keyPair = keyPairGenerator.generateKeyPair();
-    PublicKey publicKey = keyPair.getPublic();
-    PrivateKey privateKey = keyPair.getPrivate();
-
-    BigInteger serialNumber = new BigInteger(64, new SecureRandom());
-
     X500Name subjectDN =
         new X500Name(
             "C=EE, O=ESTEID, OU=AUTHENTICATION, "
@@ -105,6 +105,20 @@ public class WebEidCertificateFixture {
                 + ", "
                 + "SERIALNUMBER=PNOEE-"
                 + personalCode);
+
+    return buildCertificate(subjectDN, documentTypeOid, issuerDn, includeClientAuth);
+  }
+
+  private static X509Certificate buildCertificate(
+      X500Name subjectDN, String documentTypeOid, String issuerDn, boolean includeClientAuth)
+      throws Exception {
+    KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+    keyPairGenerator.initialize(2048);
+    KeyPair keyPair = keyPairGenerator.generateKeyPair();
+    PublicKey publicKey = keyPair.getPublic();
+    PrivateKey privateKey = keyPair.getPrivate();
+
+    BigInteger serialNumber = new BigInteger(64, new SecureRandom());
 
     X500Name issuer = new X500Name(issuerDn);
 

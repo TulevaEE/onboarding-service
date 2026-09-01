@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.jspecify.annotations.Nullable;
 
 @Builder
 @Data
@@ -15,5 +16,5 @@ public class TrackedEventCommand {
 
   private TrackableEventType type;
 
-  @Builder.Default private Map<String, Object> data = new HashMap<>();
+  @Builder.Default private Map<String, @Nullable Object> data = new HashMap<>();
 }

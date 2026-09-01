@@ -4,15 +4,14 @@ import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthent
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonLegalEntity;
 import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.*;
-import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowFixture;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.*;
+import static ee.tuleva.onboarding.epis.CashFlowFixture.cashFlowFixture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.account.CashFlowService;
 import ee.tuleva.onboarding.auth.role.Role;
-import ee.tuleva.onboarding.savings.fund.SavingsFundTransactionService;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -26,7 +25,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class TransactionServiceTest {
 
   @Mock private CashFlowService cashFlowService;
-  @Mock private SavingsFundTransactionService savingsFundTransactionService;
+  @Mock private SavingsTransactions savingsTransactions;
 
   @InjectMocks private TransactionService service;
 
@@ -36,7 +35,7 @@ class TransactionServiceTest {
     var cashFlowStatement = cashFlowFixture();
 
     when(cashFlowService.getCashFlowStatement(person)).thenReturn(cashFlowStatement);
-    when(savingsFundTransactionService.getTransactions(person)).thenReturn(List.of());
+    when(savingsTransactions.getTransactions(person)).thenReturn(List.of());
 
     List<Transaction> transactions = service.getTransactions(person);
 
@@ -67,8 +66,7 @@ class TransactionServiceTest {
             .build();
 
     when(cashFlowService.getCashFlowStatement(person)).thenReturn(cashFlowStatement);
-    when(savingsFundTransactionService.getTransactions(person))
-        .thenReturn(List.of(savingsTransaction));
+    when(savingsTransactions.getTransactions(person)).thenReturn(List.of(savingsTransaction));
 
     List<Transaction> transactions = service.getTransactions(person);
 
@@ -93,8 +91,7 @@ class TransactionServiceTest {
             .nav(new BigDecimal("10.0000"))
             .build();
 
-    when(savingsFundTransactionService.getTransactions(person))
-        .thenReturn(List.of(savingsTransaction));
+    when(savingsTransactions.getTransactions(person)).thenReturn(List.of(savingsTransaction));
 
     List<Transaction> transactions = service.getTransactions(person);
 
@@ -106,7 +103,7 @@ class TransactionServiceTest {
   void returnsOnlySavingsTransactionsWhenRepresentingLegalEntity() {
     var person = sampleAuthenticatedPersonLegalEntity().build();
 
-    when(savingsFundTransactionService.getTransactions(person)).thenReturn(List.of());
+    when(savingsTransactions.getTransactions(person)).thenReturn(List.of());
 
     List<Transaction> transactions = service.getTransactions(person);
 
@@ -117,10 +114,10 @@ class TransactionServiceTest {
   @Test
   void returnsEmptyListWhenNoTransactions() {
     var person = sampleAuthenticatedPersonAndMember().build();
-    var emptyStatement = ee.tuleva.onboarding.epis.cashflows.CashFlowStatement.builder().build();
+    var emptyStatement = ee.tuleva.onboarding.epis.CashFlowStatement.builder().build();
 
     when(cashFlowService.getCashFlowStatement(person)).thenReturn(emptyStatement);
-    when(savingsFundTransactionService.getTransactions(person)).thenReturn(List.of());
+    when(savingsTransactions.getTransactions(person)).thenReturn(List.of());
 
     List<Transaction> transactions = service.getTransactions(person);
 

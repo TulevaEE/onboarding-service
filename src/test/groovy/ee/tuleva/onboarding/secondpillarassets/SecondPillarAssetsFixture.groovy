@@ -1,4 +1,5 @@
 package ee.tuleva.onboarding.secondpillarassets
+import ee.tuleva.onboarding.epis.SecondPillarAssets
 
 class SecondPillarAssetsFixture {
 

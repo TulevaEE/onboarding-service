@@ -35,4 +35,12 @@ public abstract class TokenGrantedEvent extends ApplicationEvent {
     }
     return IdDocumentType.valueOf(attributeValue);
   }
+
+  public @Nullable Boolean isResident() {
+    final var documentType = getIdDocumentType();
+    if (documentType == null) {
+      return null;
+    }
+    return documentType.isResident();
+  }
 }

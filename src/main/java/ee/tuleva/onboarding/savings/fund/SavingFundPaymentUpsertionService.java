@@ -1,13 +1,17 @@
 package ee.tuleva.onboarding.savings.fund;
 
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.*;
 
 import ee.tuleva.onboarding.party.PartyId;
-import java.time.Instant;
+import ee.tuleva.onboarding.savings.SavingFundDeadlinesService;
+import ee.tuleva.onboarding.savings.SavingFundPayment;
+import java.math.BigDecimal;
+import java.time.Clock;
 import java.util.*;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -21,6 +25,7 @@ public class SavingFundPaymentUpsertionService {
   private final SavingFundPaymentRepository repository;
   private final SavingFundDeadlinesService savingFundDeadlinesService;
   private final NameMatcher nameMatcher;
+  private final Clock clock;
 
   public void upsert(
       SavingFundPayment payment, Function<SavingFundPayment, SavingFundPayment.Status> onInsert) {
@@ -70,21 +75,13 @@ public class SavingFundPaymentUpsertionService {
     }
   }
 
-  public List<SavingFundPayment> getPendingPayments(PartyId partyId) {
-    return repository
-        .findPaymentsWithStatus(
-            partyId, CREATED, RECEIVED, VERIFIED, RESERVED, FROZEN, TO_BE_RETURNED)
-        .stream()
-        .toList();
-  }
-
   public void cancelPayment(PartyId partyId, UUID paymentId) {
     var payment = repository.findById(paymentId).orElseThrow();
     if (!partyId.equals(payment.getPartyId()) || payment.getCancelledAt() != null) {
       throw new NoSuchElementException();
     }
     var deadline = savingFundDeadlinesService.getCancellationDeadline(payment);
-    if (deadline.isBefore(Instant.now())) {
+    if (deadline.isBefore(clock.instant())) {
       throw new IllegalStateException("Payment cancellation deadline has passed");
     }
     repository.cancel(paymentId);
@@ -127,7 +124,7 @@ public class SavingFundPaymentUpsertionService {
             mergeAndValidateField(
                 "remitterIban", existing.getRemitterIban(), payment.getRemitterIban()))
         .remitterIdCode(
-            mergeAndValidateField(
+            mergeAndValidateNullableField(
                 "remitterIdCode", existing.getRemitterIdCode(), payment.getRemitterIdCode()))
         .remitterName(
             mergeName(
@@ -139,7 +136,7 @@ public class SavingFundPaymentUpsertionService {
             mergeAndValidateField(
                 "beneficiaryIban", existing.getBeneficiaryIban(), payment.getBeneficiaryIban()))
         .beneficiaryIdCode(
-            mergeAndValidateField(
+            mergeAndValidateNullableField(
                 "beneficiaryIdCode",
                 existing.getBeneficiaryIdCode(),
                 payment.getBeneficiaryIdCode()))
@@ -150,7 +147,8 @@ public class SavingFundPaymentUpsertionService {
                 existing.getBeneficiaryName(),
                 payment.getBeneficiaryName()))
         .externalId(
-            mergeAndValidateField("externalId", existing.getExternalId(), payment.getExternalId()))
+            mergeAndValidateNullableField(
+                "externalId", existing.getExternalId(), payment.getExternalId()))
         .createdAt(existing.getCreatedAt())
         .receivedBefore(payment.getReceivedBefore())
         .status(existing.getStatus())
@@ -158,8 +156,8 @@ public class SavingFundPaymentUpsertionService {
         .build();
   }
 
-  private java.math.BigDecimal mergeAndValidateBigDecimal(
-      String fieldName, java.math.BigDecimal existingValue, java.math.BigDecimal newValue) {
+  private BigDecimal mergeAndValidateBigDecimal(
+      String fieldName, BigDecimal existingValue, BigDecimal newValue) {
     if (existingValue == null) {
       return newValue;
     } else if (existingValue.compareTo(newValue) != 0) {
@@ -171,7 +169,20 @@ public class SavingFundPaymentUpsertionService {
     return existingValue;
   }
 
-  private <T> T mergeAndValidateField(String fieldName, T existingValue, T newValue) {
+  private <T> T mergeAndValidateField(String fieldName, @Nullable T existingValue, T newValue) {
+    if (existingValue == null) {
+      return newValue;
+    } else if (!existingValue.equals(newValue)) {
+      throw new IllegalStateException(
+          String.format(
+              "Payment field mismatch: %s existing='%s', incoming='%s'",
+              fieldName, existingValue, newValue));
+    }
+    return existingValue;
+  }
+
+  private <T> @Nullable T mergeAndValidateNullableField(
+      String fieldName, @Nullable T existingValue, @Nullable T newValue) {
     if (existingValue == null) {
       return newValue;
     } else if (newValue == null) {

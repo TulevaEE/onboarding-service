@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.aml.alert;
 
 import static ee.tuleva.onboarding.aml.alert.AmlAlertType.III_PILLAR_DEPOSIT_PERSON;
-import static ee.tuleva.onboarding.analytics.transaction.thirdpillar.AnalyticsThirdPillarTransactionFixture.exampleTransactionBuilder;
+import static ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransactionFixture.exampleTransactionBuilder;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.AML;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -10,7 +10,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import ee.tuleva.onboarding.analytics.transaction.thirdpillar.AnalyticsThirdPillarTransaction;
+import ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransaction;
 import ee.tuleva.onboarding.analytics.transaction.thirdpillar.AnalyticsThirdPillarTransactionRepository;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.math.BigDecimal;

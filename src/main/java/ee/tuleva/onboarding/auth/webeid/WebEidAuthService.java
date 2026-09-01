@@ -54,15 +54,13 @@ public class WebEidAuthService {
     try {
       var firstName =
           CertificateData.getSubjectGivenName(certificate)
-              .orElseThrow(
-                  () -> new WebEidAuthException("Missing given name in certificate", null));
+              .orElseThrow(() -> new WebEidAuthException("Missing given name in certificate"));
       var lastName =
           CertificateData.getSubjectSurname(certificate)
-              .orElseThrow(() -> new WebEidAuthException("Missing surname in certificate", null));
+              .orElseThrow(() -> new WebEidAuthException("Missing surname in certificate"));
       var serialNumber =
           CertificateData.getSubjectIdCode(certificate)
-              .orElseThrow(
-                  () -> new WebEidAuthException("Missing personal code in certificate", null));
+              .orElseThrow(() -> new WebEidAuthException("Missing personal code in certificate"));
       var personalCode = extractPersonalCode(serialNumber);
 
       var documentType = documentTypeExtractor.extract(certificate);

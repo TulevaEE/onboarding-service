@@ -1,13 +1,13 @@
 package ee.tuleva.onboarding.investment.epis.parser;
 
 import static ee.tuleva.onboarding.investment.epis.R45TransactionType.Direction.OUTFLOW;
-import static ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser.findDate;
 import static ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser.findValue;
-import static ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser.parseNumber;
+import static ee.tuleva.onboarding.investment.epis.parser.EpisDates.findDate;
+import static ee.tuleva.onboarding.investment.epis.parser.EpisNumbers.parseNumber;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.epis.R45Result;
 import ee.tuleva.onboarding.investment.epis.R45TransactionType;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -44,51 +44,7 @@ public class R45ReportParser {
     List<R45UnknownRow> unknownRows = new ArrayList<>();
 
     for (Map<String, String> row : parsed.rows()) {
-      String typeCode = trimmedUpperCase(findValue(row, "tehingu liik"));
-      String isin = normalizeIsin(findValue(row, "isin"));
-      if (typeCode.isEmpty() || isin.isEmpty()) {
-        if (!typeCode.isEmpty()) {
-          log.warn("R45 row dropped: reason=missingIsin, typeCode={}", typeCode);
-        }
-        continue;
-      }
-
-      BigDecimal units = requiredNumber(row, "osakuid", typeCode, isin);
-      BigDecimal amount = requiredNumber(row, "summa", typeCode, isin);
-      validateMagnitude(units, amount);
-
-      if (isSettledBefore(row, today)) {
-        continue;
-      }
-
-      Optional<TulevaFund> fund = TulevaFund.findByIsin(isin);
-      Optional<R45TransactionType> type = R45TransactionType.find(typeCode);
-      if (fund.isEmpty() || type.isEmpty()) {
-        String knownFundCode = fund.map(TulevaFund::getCode).orElse(null);
-        unknownRows.add(new R45UnknownRow(typeCode, isin, knownFundCode));
-        if (knownFundCode != null) {
-          flows.computeIfAbsent(knownFundCode, code -> new FlowAccumulator());
-        }
-        continue;
-      }
-      String fundCode = fund.get().getCode();
-
-      BigDecimal orderValue;
-      if (amount.signum() != 0) {
-        orderValue = amount.abs();
-      } else if (units.signum() != 0) {
-        BigDecimal nav = effectiveNav(row, navByIsin, isin);
-        if (nav.signum() == 0) {
-          unvaluedRows.add(new R45UnvaluedRow(fundCode, type.get(), units, isin));
-          flows.computeIfAbsent(fundCode, code -> new FlowAccumulator());
-          continue;
-        }
-        orderValue = units.multiply(nav).abs();
-      } else {
-        continue;
-      }
-
-      flows.computeIfAbsent(fundCode, code -> new FlowAccumulator()).add(type.get(), orderValue);
+      RowProcessor.processRow(row, today, navByIsin, flows, unvaluedRows, unknownRows);
     }
 
     Map<String, R45Result> fundResults = new LinkedHashMap<>();
@@ -184,6 +140,85 @@ public class R45ReportParser {
 
   private static String normalizeIsin(@Nullable String value) {
     return value == null ? "" : value.trim().toUpperCase(Locale.ROOT).replaceAll("\\s", "");
+  }
+
+  private static final class RowProcessor {
+
+    private static void processRow(
+        Map<String, String> row,
+        LocalDate today,
+        Map<String, BigDecimal> navByIsin,
+        Map<String, FlowAccumulator> flows,
+        List<R45UnvaluedRow> unvaluedRows,
+        List<R45UnknownRow> unknownRows) {
+      String typeCode = trimmedUpperCase(findValue(row, "tehingu liik"));
+      String isin = normalizeIsin(findValue(row, "isin"));
+      if (isIncompleteRow(typeCode, isin)) {
+        return;
+      }
+
+      BigDecimal units = requiredNumber(row, "osakuid", typeCode, isin);
+      BigDecimal amount = requiredNumber(row, "summa", typeCode, isin);
+      validateMagnitude(units, amount);
+
+      if (isSettledBefore(row, today)) {
+        return;
+      }
+
+      Optional<TulevaFund> fund = TulevaFund.findByIsin(isin);
+      Optional<R45TransactionType> type = R45TransactionType.find(typeCode);
+      if (fund.isEmpty() || type.isEmpty()) {
+        recordUnknownRow(typeCode, isin, fund, flows, unknownRows);
+        return;
+      }
+      String fundCode = fund.get().getCode();
+
+      if (amount.signum() != 0) {
+        accumulate(flows, fundCode, type.get(), amount.abs());
+        return;
+      }
+      if (units.signum() == 0) {
+        return;
+      }
+      BigDecimal nav = effectiveNav(row, navByIsin, isin);
+      if (nav.signum() == 0) {
+        unvaluedRows.add(new R45UnvaluedRow(fundCode, type.get(), units, isin));
+        flows.computeIfAbsent(fundCode, code -> new FlowAccumulator());
+        return;
+      }
+      accumulate(flows, fundCode, type.get(), units.multiply(nav).abs());
+    }
+
+    private static boolean isIncompleteRow(String typeCode, String isin) {
+      if (typeCode.isEmpty() || isin.isEmpty()) {
+        if (!typeCode.isEmpty()) {
+          log.warn("R45 row dropped: reason=missingIsin, typeCode={}", typeCode);
+        }
+        return true;
+      }
+      return false;
+    }
+
+    private static void recordUnknownRow(
+        String typeCode,
+        String isin,
+        Optional<TulevaFund> fund,
+        Map<String, FlowAccumulator> flows,
+        List<R45UnknownRow> unknownRows) {
+      String knownFundCode = fund.map(TulevaFund::getCode).orElse(null);
+      unknownRows.add(new R45UnknownRow(typeCode, isin, knownFundCode));
+      if (knownFundCode != null) {
+        flows.computeIfAbsent(knownFundCode, code -> new FlowAccumulator());
+      }
+    }
+
+    private static void accumulate(
+        Map<String, FlowAccumulator> flows,
+        String fundCode,
+        R45TransactionType type,
+        BigDecimal orderValue) {
+      flows.computeIfAbsent(fundCode, code -> new FlowAccumulator()).add(type, orderValue);
+    }
   }
 
   private static final class FlowAccumulator {

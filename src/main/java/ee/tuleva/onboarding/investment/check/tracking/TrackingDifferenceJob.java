@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceBackfillRequested;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceCheckRequested;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 @Profile({"production", "staging"})
-public class TrackingDifferenceJob {
+class TrackingDifferenceJob {
 
   private final TrackingDifferenceService trackingDifferenceService;
   private final TrackingDifferenceNotifier trackingDifferenceNotifier;

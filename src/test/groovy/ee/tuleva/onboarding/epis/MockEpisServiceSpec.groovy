@@ -1,32 +1,34 @@
 package ee.tuleva.onboarding.epis
 
+import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil
 import ee.tuleva.onboarding.epis.account.FundBalanceDto
 import ee.tuleva.onboarding.epis.application.ApplicationResponse
-import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement
-import ee.tuleva.onboarding.epis.contact.ContactDetails
+import ee.tuleva.onboarding.epis.CashFlowStatement
+import ee.tuleva.onboarding.epis.ContactDetails
 import ee.tuleva.onboarding.epis.fund.FundDto
 import ee.tuleva.onboarding.epis.fund.NavDto
-import ee.tuleva.onboarding.epis.mandate.ApplicationDTO
-import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO
-import ee.tuleva.onboarding.epis.mandate.MandateDto
 import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto
+import ee.tuleva.onboarding.mandate.LegacyMandateSubmission
+import ee.tuleva.onboarding.mandate.MandateProcessResult
+import ee.tuleva.onboarding.mandate.application.ApplicationSnapshot
 import ee.tuleva.onboarding.withdrawals.FundPensionStatus
 import org.springframework.web.client.RestTemplate
 import spock.lang.Specification
 
+import java.time.Clock
 import java.time.LocalDate
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 
 class MockEpisServiceSpec extends Specification {
 
-  EpisService episService = new MockEpisService(Mock(RestTemplate))
+  EpisService episService = new MockEpisService(Mock(RestTemplate), Mock(JwtTokenUtil), Clock.systemUTC())
 
   def "getApplications has a mock response"() {
     when:
-    List<ApplicationDTO> response = episService.getApplications(samplePerson())
+    List<ApplicationSnapshot> response = episService.getApplications(samplePerson())
     then:
     !response.isEmpty()
   }
@@ -45,6 +47,20 @@ class MockEpisServiceSpec extends Specification {
   def "getContactDetails has a mock response"() {
     when:
     ContactDetails response = episService.getContactDetails(samplePerson())
+    then:
+    response != null
+  }
+
+  def "getContactDetails with token has a mock response"() {
+    when:
+    ContactDetails response = episService.getContactDetails(samplePerson(), "some-token")
+    then:
+    response != null
+  }
+
+  def "getSecondPillarAssets has a mock response"() {
+    when:
+    SecondPillarAssets response = episService.getSecondPillarAssets(samplePerson())
     then:
     response != null
   }
@@ -72,7 +88,7 @@ class MockEpisServiceSpec extends Specification {
 
   def "sendMandate has a mock response"() {
     when:
-    ApplicationResponseDTO response = episService.sendMandate(MandateDto.builder().build())
+    MandateProcessResult response = episService.sendMandate(LegacyMandateSubmission.builder().build())
     then:
     response != null
   }

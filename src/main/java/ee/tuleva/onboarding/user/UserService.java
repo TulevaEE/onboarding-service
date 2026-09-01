@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.user;
 
-import ee.tuleva.onboarding.member.listener.MemberCreatedEvent;
 import ee.tuleva.onboarding.user.exception.DuplicateEmailException;
 import ee.tuleva.onboarding.user.exception.UserAlreadyAMemberException;
 import ee.tuleva.onboarding.user.member.Member;
@@ -8,6 +7,7 @@ import ee.tuleva.onboarding.user.member.MemberRepository;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -34,18 +34,21 @@ public class UserService {
   }
 
   public User createNewUser(User user) {
-    log.info("Creating new user for personal code {}", user.getPersonalCode());
+    log.info("Creating new user");
     try {
       return userRepository.save(user);
     } catch (DataIntegrityViolationException e) {
+      User existing =
+          userRepository.findByPersonalCode(user.getPersonalCode()).orElseThrow(() -> e);
       log.info(
-          "Personal code already taken by a concurrent login, reusing it: personalCode={}",
-          user.getPersonalCode());
-      return userRepository.findByPersonalCode(user.getPersonalCode()).orElseThrow(() -> e);
+          "Personal code already taken by a concurrent login, reusing it: userId={}",
+          existing.getId());
+      return existing;
     }
   }
 
-  public User updateUser(String personalCode, Optional<String> email, String phoneNumber) {
+  public User updateUser(
+      String personalCode, Optional<String> email, @Nullable String phoneNumber) {
     if (isExistingEmail(personalCode, email)) {
       throw DuplicateEmailException.newInstance();
     }

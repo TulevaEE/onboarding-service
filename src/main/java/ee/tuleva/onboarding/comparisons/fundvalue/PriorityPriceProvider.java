@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -44,14 +45,14 @@ public class PriorityPriceProvider {
     return resolve(isin, date, null);
   }
 
-  public Optional<FundValue> resolve(String isin, LocalDate date, Instant updatedBefore) {
+  public Optional<FundValue> resolve(String isin, LocalDate date, @Nullable Instant updatedBefore) {
     return instrumentReferenceService
         .findByIsin(isin)
         .flatMap(instrument -> resolveForInstrument(instrument, date, updatedBefore));
   }
 
   private Optional<FundValue> resolveForInstrument(
-      InstrumentReference instrument, LocalDate date, Instant updatedBefore) {
+      InstrumentReference instrument, LocalDate date, @Nullable Instant updatedBefore) {
     LocalDate earliestAllowed = date.minusDays(MAX_LOOKBACK_DAYS);
 
     return PRICE_FEEDS.stream()
@@ -69,7 +70,7 @@ public class PriorityPriceProvider {
   }
 
   private Optional<FundValue> fetchLatestValue(
-      String storageKey, LocalDate date, Instant updatedBefore) {
+      String storageKey, LocalDate date, @Nullable Instant updatedBefore) {
     if (updatedBefore != null) {
       return fundValueProvider.getLatestValue(storageKey, date, updatedBefore);
     }

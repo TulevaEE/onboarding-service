@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -21,7 +22,7 @@ class LedgerTransactionService {
   public LedgerTransaction createTransaction(
       TransactionType transactionType,
       Instant transactionDate,
-      UUID externalReference,
+      @Nullable UUID externalReference,
       Map<String, Object> metadata,
       LedgerEntryDto... ledgerEntryDtos) {
     var transaction =

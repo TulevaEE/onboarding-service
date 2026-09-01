@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
@@ -19,11 +20,11 @@ public class MontonioPaymentChannelConfiguration {
   @Getter private final Map<PaymentChannel, MontonioPaymentChannel> paymentChannels;
   private Map<String, MontonioPaymentChannel> paymentChannelsByAccessKey;
 
-  public MontonioPaymentChannel getPaymentProviderChannel(PaymentChannel paymentChannel) {
+  public @Nullable MontonioPaymentChannel getPaymentProviderChannel(PaymentChannel paymentChannel) {
     return paymentChannels.get(paymentChannel);
   }
 
-  public MontonioPaymentChannel getPaymentProviderChannel(String accessKey) {
+  public @Nullable MontonioPaymentChannel getPaymentProviderChannel(String accessKey) {
     return paymentChannelsByAccessKey.get(accessKey);
   }
 

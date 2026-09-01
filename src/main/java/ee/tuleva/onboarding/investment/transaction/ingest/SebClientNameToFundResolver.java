@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.text.Normalizer;
 import java.util.Arrays;
 import java.util.Locale;
@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -22,7 +23,7 @@ class SebClientNameToFundResolver {
               Collectors.toUnmodifiableMap(
                   fund -> normalize(fund.getDisplayName()), Function.identity()));
 
-  Optional<TulevaFund> resolve(String clientName) {
+  Optional<TulevaFund> resolve(@Nullable String clientName) {
     if (clientName == null) {
       return Optional.empty();
     }
@@ -33,7 +34,7 @@ class SebClientNameToFundResolver {
     return Optional.ofNullable(BY_NORMALIZED_DISPLAY_NAME.get(normalized));
   }
 
-  private static String normalize(String s) {
+  private static String normalize(@Nullable String s) {
     if (s == null) return "";
     String decomposed = Normalizer.normalize(s.trim(), Normalizer.Form.NFD);
     return decomposed.replaceAll("\\p{InCombiningDiacriticalMarks}+", "").toLowerCase(Locale.ROOT);

@@ -6,11 +6,10 @@ import static java.time.format.DateTimeFormatter.ofPattern;
 import static java.util.Locale.US;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
-import ee.tuleva.onboarding.fund.TulevaFund;
-import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceQueryService;
-import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceSummary;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.savings.FundNavQueryService;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult.SecurityDetail;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -32,7 +31,7 @@ class NavNotifier {
   private final OperationsNotificationService notificationService;
   private final PublicHolidays publicHolidays;
   private final FundNavQueryService fundNavQueryService;
-  private final TrackingDifferenceQueryService trackingDifferenceQueryService;
+  private final NavTrackingDifferences trackingDifferenceQueryService;
 
   void notify(NavCalculationResult result) {
     try {
@@ -56,8 +55,8 @@ class NavNotifier {
   String formatMessage(
       NavCalculationResult result,
       Optional<BigDecimal> dayChangeRatio,
-      Optional<TrackingDifferenceSummary> modelPortfolioTrackingDifference,
-      Optional<TrackingDifferenceSummary> benchmarkModelTrackingDifference) {
+      Optional<NavTrackingDifference> modelPortfolioTrackingDifference,
+      Optional<NavTrackingDifference> benchmarkModelTrackingDifference) {
     var message = new StringBuilder();
 
     message.append("NAV Calculation — %s\n\n".formatted(result.fund().getCode()));
@@ -120,19 +119,19 @@ class NavNotifier {
     }
   }
 
-  private Optional<TrackingDifferenceSummary> modelPortfolioTrackingDifference(
+  private Optional<NavTrackingDifference> modelPortfolioTrackingDifference(
       NavCalculationResult result) {
     return trackingDifference(result, trackingDifferenceQueryService::findLatestModelPortfolio);
   }
 
-  private Optional<TrackingDifferenceSummary> benchmarkModelTrackingDifference(
+  private Optional<NavTrackingDifference> benchmarkModelTrackingDifference(
       NavCalculationResult result) {
     return trackingDifference(result, trackingDifferenceQueryService::findLatestBenchmarkModel);
   }
 
-  private Optional<TrackingDifferenceSummary> trackingDifference(
+  private Optional<NavTrackingDifference> trackingDifference(
       NavCalculationResult result,
-      BiFunction<TulevaFund, LocalDate, Optional<TrackingDifferenceSummary>> query) {
+      BiFunction<TulevaFund, LocalDate, Optional<NavTrackingDifference>> query) {
     try {
       return query.apply(result.fund(), result.positionReportDate());
     } catch (Exception e) {
@@ -146,7 +145,7 @@ class NavNotifier {
   }
 
   private void appendTrackingDifference(
-      StringBuilder message, String label, Optional<TrackingDifferenceSummary> trackingDifference) {
+      StringBuilder message, String label, Optional<NavTrackingDifference> trackingDifference) {
     var value =
         trackingDifference
             .map(

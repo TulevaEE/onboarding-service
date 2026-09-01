@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -92,7 +93,7 @@ public class FundPositionImportService {
     return true;
   }
 
-  private boolean bigDecimalEquals(BigDecimal a, BigDecimal b) {
+  private boolean bigDecimalEquals(@Nullable BigDecimal a, @Nullable BigDecimal b) {
     if (a == null && b == null) return true;
     if (a == null || b == null) return false;
     return a.compareTo(b) == 0;

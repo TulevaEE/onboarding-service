@@ -4,6 +4,8 @@ import ee.tuleva.onboarding.epis.EpisService
 import ee.tuleva.onboarding.fund.FundRepository
 import spock.lang.Specification
 
+import java.time.Clock
+
 import static ee.tuleva.onboarding.fund.Fund.FundStatus.ACTIVE
 import static ee.tuleva.onboarding.fund.FundFixture.*
 
@@ -13,7 +15,7 @@ class FundNavRetrieverFactorySpec extends Specification {
   EpisService episService = Mock()
 
   FundNavRetrieverFactory fundNavRetrieverFactory =
-      new FundNavRetrieverFactory(fundRepository, episService)
+      new FundNavRetrieverFactory(fundRepository, episService, Clock.systemUTC())
 
 
   def "creates fund nav retrievers for all active funds"() {

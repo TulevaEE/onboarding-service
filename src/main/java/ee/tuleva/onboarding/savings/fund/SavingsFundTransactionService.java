@@ -1,24 +1,27 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.currency.Currency.EUR;
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH;
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.SUBTRACTION;
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.CONTRIBUTION_CASH;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.SUBTRACTION;
 import static ee.tuleva.onboarding.ledger.UserAccount.REDEMPTIONS;
 import static ee.tuleva.onboarding.ledger.UserAccount.SUBSCRIPTIONS;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.RoundingMode.UNNECESSARY;
 import static java.util.Comparator.reverseOrder;
 import static java.util.stream.Collectors.toSet;
 
+import ee.tuleva.onboarding.account.transaction.SavingsTransactions;
 import ee.tuleva.onboarding.account.transaction.Transaction;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.epis.cashflows.CashFlow;
+import ee.tuleva.onboarding.epis.CashFlow;
 import ee.tuleva.onboarding.ledger.LedgerEntry;
 import ee.tuleva.onboarding.ledger.LedgerParty.PartyType;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.LedgerTransaction;
 import ee.tuleva.onboarding.ledger.UserAccount;
 import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.savings.SavingsFundConfiguration;
+import ee.tuleva.onboarding.savings.SavingsFundOnboardingService;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestRepository;
 import java.math.BigDecimal;
@@ -38,7 +41,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class SavingsFundTransactionService {
+public class SavingsFundTransactionService implements SavingsTransactions {
 
   private final LedgerService ledgerService;
   private final SavingsFundOnboardingService savingsFundOnboardingService;
@@ -47,6 +50,7 @@ public class SavingsFundTransactionService {
   private final SavingFundPaymentRepository savingFundPaymentRepository;
 
   @Transactional
+  @Override
   public List<Transaction> getTransactions(AuthenticatedPerson person) {
     return transactionSources(person).transactions();
   }
@@ -56,7 +60,7 @@ public class SavingsFundTransactionService {
       AuthenticatedPerson person) {
     TransactionSources sources = transactionSources(person);
     return new TransactionsWithCounterparties(
-        sources.transactions(), counterpartyIbans(sources, person.toPartyId()));
+        sources.transactions(), counterpartyIbans(sources, PartyId.from(person)));
   }
 
   private record TransactionSources(
@@ -71,18 +75,18 @@ public class SavingsFundTransactionService {
   }
 
   private TransactionSources transactionSources(AuthenticatedPerson person) {
-    if (!savingsFundOnboardingService.isOnboardingCompleted(person.toPartyId())) {
+    if (!savingsFundOnboardingService.isOnboardingCompleted(PartyId.from(person))) {
       return TransactionSources.empty();
     }
 
     String ownerCode = person.getRoleCode();
-    PartyType partyType = PartyType.from(person.getRoleType());
+    PartyType partyType = LedgerRefs.partyType(person.getRoleType());
     String isin = savingsFundConfiguration.getIsin();
 
     List<LedgerEntry> subscriptionEntries = entries(ownerCode, partyType, SUBSCRIPTIONS);
     List<LedgerEntry> redemptionEntries = entries(ownerCode, partyType, REDEMPTIONS);
     List<RedemptionRequest> redemptionRequests =
-        redemptionRequests(redemptionEntries, person.toPartyId());
+        redemptionRequests(redemptionEntries, PartyId.from(person));
     Map<UUID, Instant> payoutTimes = payoutTimes(redemptionRequests);
 
     List<Transaction> transactions =
@@ -214,7 +218,11 @@ public class SavingsFundTransactionService {
         .currency(EUR)
         .time(ledgerTransaction.getTransactionDate())
         .priceTime(ledgerTransaction.getTransactionDate())
-        .settledTime(externalReference == null ? null : payoutTimes.get(externalReference))
+        .settledTime(
+            externalReference == null
+                ? ledgerTransaction.getTransactionDate()
+                : payoutTimes.getOrDefault(
+                    externalReference, ledgerTransaction.getTransactionDate()))
         .isin(isin)
         .type(type)
         .units(require(ledgerTransaction.findUserFundUnits(), "fundUnits", ledgerTransaction))

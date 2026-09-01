@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.auth
 
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent
-import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil
 import ee.tuleva.onboarding.auth.jwt.TokenType
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
@@ -41,7 +40,6 @@ class AuthServiceSpec extends Specification {
     then:
         result.accessToken == "jwtToken"
         result.refreshToken == "refreshToken"
-        1 * eventPublisher.publishEvent(_ as BeforeTokenGrantedEvent)
         1 * eventPublisher.publishEvent(_ as AfterTokenGrantedEvent)
   }
 
@@ -108,10 +106,6 @@ class AuthServiceSpec extends Specification {
     authService.authenticate(grantType, authenticationHash)
     then:
     1 * authProvider.authenticate(authenticationHash) >> authenticatedPerson
-    1 * eventPublisher.publishEvent(_ as BeforeTokenGrantedEvent) >> { BeforeTokenGrantedEvent event ->
-      assert event.grantType == grantType
-      assert event.person == authenticatedPerson
-    }
     1 * tokenService.generateTokens(authenticatedPerson) >> new AuthenticationTokens("dummyToken", "refreshToken")
     1 * eventPublisher.publishEvent(_ as AfterTokenGrantedEvent) >> { AfterTokenGrantedEvent event ->
       assert event.person == authenticatedPerson

@@ -3,8 +3,8 @@ package ee.tuleva.onboarding.savings.fund;
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember;
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonLegalEntity;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH;
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.SUBTRACTION;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.CONTRIBUTION_CASH;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.SUBTRACTION;
 import static ee.tuleva.onboarding.ledger.LedgerAccountFixture.*;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
@@ -24,6 +24,9 @@ import ee.tuleva.onboarding.ledger.LedgerAccount;
 import ee.tuleva.onboarding.ledger.LedgerAccountFixture.EntryFixture;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.savings.SavingFundPayment;
+import ee.tuleva.onboarding.savings.SavingsFundConfiguration;
+import ee.tuleva.onboarding.savings.SavingsFundOnboardingService;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestRepository;
 import java.math.BigDecimal;
@@ -207,7 +210,7 @@ class SavingsFundTransactionServiceTest {
             List.of(
                 SavingFundPayment.builder()
                     .id(paymentId)
-                    .partyId(person.toPartyId())
+                    .partyId(PartyId.from(person))
                     .remitterIban("EE123456789012345678")
                     .build()));
 

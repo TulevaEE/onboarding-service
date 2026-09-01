@@ -8,11 +8,15 @@ import jakarta.validation.ConstraintValidatorContext;
 public class RegistryCodeValidator implements ConstraintValidator<ValidRegistryCode, String> {
 
   public boolean isValid(String registryCode) {
-    return isValid(registryCode, null);
+    return isValidRegistryCode(registryCode);
   }
 
   @Override
   public boolean isValid(String registryCode, ConstraintValidatorContext context) {
+    return isValidRegistryCode(registryCode);
+  }
+
+  private static boolean isValidRegistryCode(String registryCode) {
     if (isBlank(registryCode)) {
       return false;
     }

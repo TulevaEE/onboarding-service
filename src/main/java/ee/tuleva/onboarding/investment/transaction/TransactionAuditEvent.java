@@ -20,6 +20,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcTypeCode;
+import org.jspecify.annotations.Nullable;
 
 @Data
 @Builder
@@ -35,24 +36,27 @@ public class TransactionAuditEvent {
 
   @ManyToOne
   @JoinColumn(name = "batch_id")
+  @Nullable
   private TransactionBatch batch;
 
   @Column(name = "order_id")
+  @Nullable
   private Long orderId;
 
   @NotNull private String eventType;
 
   @Column(name = "dedup_key")
+  @Nullable
   private String dedupKey;
 
-  private String actor;
+  @Nullable private String actor;
 
   @NotNull
   @Builder.Default
   @JdbcTypeCode(JSON)
   private Map<String, Object> payload = Map.of();
 
-  private Instant createdAt;
+  @Nullable private Instant createdAt;
 
   @PrePersist
   protected void onCreate() {

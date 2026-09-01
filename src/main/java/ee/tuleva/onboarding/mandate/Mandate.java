@@ -2,18 +2,17 @@ package ee.tuleva.onboarding.mandate;
 
 import static ee.tuleva.onboarding.mandate.MandateType.*;
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
+import static java.util.Objects.requireNonNull;
 import static org.hibernate.type.SqlTypes.JSON;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonView;
 import ee.tuleva.onboarding.country.Country;
-import ee.tuleva.onboarding.epis.mandate.GenericMandateDto;
-import ee.tuleva.onboarding.epis.mandate.details.*;
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
+import ee.tuleva.onboarding.mandate.details.*;
 import ee.tuleva.onboarding.mandate.generic.MandateDto;
 import ee.tuleva.onboarding.mandate.payment.rate.ValidPaymentRate;
 import ee.tuleva.onboarding.user.User;
-import jakarta.annotation.Nullable;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -24,6 +23,7 @@ import java.time.Instant;
 import java.util.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
+import org.jspecify.annotations.Nullable;
 
 @Data
 @Entity
@@ -35,7 +35,7 @@ public class Mandate implements Serializable {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   @JsonView(MandateView.Default.class)
-  private Long id;
+  private @Nullable Long id;
 
   @ManyToOne @NotNull private User user;
 
@@ -43,7 +43,6 @@ public class Mandate implements Serializable {
   @Nullable
   private String futureContributionFundIsin; // TODO: refactor this field into details
 
-  @Deprecated
   @NotNull
   @Min(2)
   @Max(3)
@@ -52,9 +51,9 @@ public class Mandate implements Serializable {
 
   @NotNull
   @JsonView(MandateView.Default.class)
-  private Instant createdDate;
+  private @Nullable Instant createdDate;
 
-  @Nullable private byte[] mandate;
+  private byte @Nullable [] mandate;
 
   @OneToMany(
       cascade = {CascadeType.ALL},
@@ -68,11 +67,13 @@ public class Mandate implements Serializable {
   @Column(name = "address")
   @NotNull
   @JsonView(MandateView.Default.class)
+  @Nullable
   private Country address;
 
   @JdbcTypeCode(JSON)
   @NotNull
-  private Map<String, Object> metadata = new HashMap<>(); // TODO: refactor this field into details
+  private Map<String, @Nullable Object> metadata =
+      new HashMap<>(); // TODO: refactor this field into details
 
   @JdbcTypeCode(JSON)
   @JsonView(MandateView.Default.class)
@@ -86,10 +87,9 @@ public class Mandate implements Serializable {
       foreignKey = @ForeignKey(name = "fk_mandate_batch"))
   private MandateBatch mandateBatch;
 
-  @Deprecated
   @ValidPaymentRate
   @JsonView(MandateView.Default.class)
-  private BigDecimal paymentRate;
+  private @Nullable BigDecimal paymentRate;
 
   @Builder
   Mandate(
@@ -98,7 +98,7 @@ public class Mandate implements Serializable {
       List<FundTransferExchange> fundTransferExchanges,
       Integer pillar,
       @Nullable Country address,
-      Map<String, Object> metadata,
+      Map<String, @Nullable Object> metadata,
       @Nullable BigDecimal paymentRate,
       MandateDetails details) {
     this.user = user;
@@ -112,8 +112,8 @@ public class Mandate implements Serializable {
   }
 
   @JsonIgnore
-  private <T extends MandateDetails> GenericMandateDto<T> buildGenericMandateDto(T details) {
-    return GenericMandateDto.<T>builder()
+  private <T extends MandateDetails> GenericMandateSubmission<T> buildSubmission(T details) {
+    return GenericMandateSubmission.<T>builder()
         .id(id)
         .createdDate(createdDate)
         .address(address)
@@ -129,17 +129,17 @@ public class Mandate implements Serializable {
   }
 
   @JsonIgnore
-  public GenericMandateDto<?> getGenericMandateDto() {
-    if (!supportsGenericMandateDto()) {
+  public GenericMandateSubmission<?> toSubmission() {
+    if (!supportsSubmission()) {
       throw new IllegalStateException("Mandate DTO not yet supported for given application");
     }
 
-    return buildGenericMandateDto(details);
+    return buildSubmission(details);
   }
 
   @JsonIgnore
   public MandateDto<?> getMandateDto() {
-    if (!supportsGenericMandateDto()) {
+    if (!supportsSubmission()) {
       throw new IllegalStateException("Mandate DTO not yet supported for given application");
     }
 
@@ -147,13 +147,34 @@ public class Mandate implements Serializable {
   }
 
   @JsonIgnore
-  public boolean supportsGenericMandateDto() {
+  public boolean supportsSubmission() {
     return details != null;
   }
 
   @PrePersist
   protected void onCreate() {
     createdDate = clock().instant();
+    syncLegacyColumns();
+  }
+
+  @PreUpdate
+  protected void onUpdate() {
+    syncLegacyColumns();
+  }
+
+  private void syncLegacyColumns() {
+    pillar = getPillar();
+    paymentRate = getPaymentRate();
+  }
+
+  public Integer getPillar() {
+    return details != null ? details.pillar().toInt() : pillar;
+  }
+
+  public @Nullable BigDecimal getPaymentRate() {
+    return details instanceof PaymentRateChangeMandateDetails rateChange
+        ? rateChange.getPaymentRate().getNumericValue()
+        : paymentRate;
   }
 
   public Optional<byte[]> getMandate() {
@@ -171,7 +192,9 @@ public class Mandate implements Serializable {
   public Map<String, List<FundTransferExchange>> getFundTransferExchangesBySourceIsin() {
     Map<String, List<FundTransferExchange>> exchangeMap = new HashMap<>();
 
-    fundTransferExchanges.stream()
+    List<FundTransferExchange> exchanges =
+        fundTransferExchanges != null ? fundTransferExchanges : List.of();
+    exchanges.stream()
         .filter(
             exchange ->
                 exchange.getAmount() == null || exchange.getAmount().compareTo(BigDecimal.ZERO) > 0)
@@ -218,12 +241,12 @@ public class Mandate implements Serializable {
 
   @JsonIgnore
   public String getEmail() {
-    return user.getEmail();
+    return requireNonNull(user.getEmail(), "User missing email: mandateId=" + id);
   }
 
   @JsonIgnore
   public String getPhoneNumber() {
-    return user.getPhoneNumber();
+    return requireNonNull(user.getPhoneNumber(), "User missing phone number: mandateId=" + id);
   }
 
   public boolean isThirdPillar() {
@@ -236,7 +259,12 @@ public class Mandate implements Serializable {
   }
 
   @JsonIgnore
-  public Country getCountry() {
+  public @Nullable Country getCountry() {
     return address;
+  }
+
+  @JsonIgnore
+  public Long getIdOrThrow() {
+    return requireNonNull(id, "Mandate id missing (not yet persisted)");
   }
 }

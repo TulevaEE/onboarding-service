@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.secondpillarassets;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.epis.SecondPillarAssets;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

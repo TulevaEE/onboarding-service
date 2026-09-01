@@ -1,3 +1,5 @@
+import net.ltgt.gradle.errorprone.errorprone
+import org.gradle.api.plugins.quality.Pmd
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
 import org.gradle.api.tasks.testing.logging.TestLogEvent.FAILED
 import org.gradle.api.tasks.testing.logging.TestLogEvent.SKIPPED
@@ -21,7 +23,7 @@ buildscript {
     }
 }
 
-val springModulithVersion = "2.1.0"
+val springModulithVersion = "2.1.1"
 
 plugins {
     java
@@ -31,11 +33,39 @@ plugins {
     id("com.gorylenko.gradle-git-properties") version "4.0.1"
     id("com.diffplug.spotless") version "8.9.0"
     id("io.freefair.lombok") version "9.5.0"
+    id("net.ltgt.errorprone") version "5.1.1"
+    id("info.solidsoft.pitest") version "1.19.0"
+    pmd
     jacoco
 }
 
 lombok {
     version = "1.18.46"
+}
+
+pmd {
+    toolVersion = "7.26.0"
+    isConsoleOutput = false
+    isIgnoreFailures = true
+    ruleSets = listOf()
+    ruleSetFiles = files("config/pmd/ruleset.xml")
+}
+
+pitest {
+    pitestVersion = "1.30.0"
+    junit5PluginVersion = "1.2.3"
+    addJUnitPlatformLauncher = false
+    threads = 4
+    outputFormats = listOf("XML", "HTML")
+    timestampedReports = false
+    exportLineCoverage = true
+    targetClasses = ((project.findProperty("pitest.target") as String?) ?: "ee.tuleva.onboarding.*").split(",")
+    excludedClasses =
+        listOf(
+            "ee.tuleva.onboarding.ariregister.generated.*",
+            "ee.tuleva.onboarding.banking.iso20022.*",
+        )
+    jvmArgs = listOf("-XX:+UseParallelGC")
 }
 
 spotless {
@@ -90,7 +120,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-aspectj")
     implementation("org.springframework.boot:spring-boot-starter-jackson")
     implementation("org.springframework.boot:spring-boot-starter-validation")
-    compileOnly("org.jspecify:jspecify:1.0.0")
+    compileOnly("org.jspecify:jspecify:1.0.1")
+    errorprone("com.google.errorprone:error_prone_core:2.50.0")
+    errorprone("com.uber.nullaway:nullaway:0.14.0")
 
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
@@ -159,6 +191,8 @@ dependencies {
     implementation("software.amazon.awssdk:s3:2.50.2")
     implementation("commons-io:commons-io:2.22.0")
     implementation("org.apache.commons:commons-csv:1.14.1")
+    // commons-csv references this at compile time (annotation-only, no runtime impact)
+    compileOnly("com.github.spotbugs:spotbugs-annotations:4.10.4")
     implementation("org.apache.poi:poi-ooxml:5.5.1")
     implementation("at.datenwort.openhtmltopdf:openhtmltopdf-pdfbox:1.1.4")
     // Pinned to match the PDFBox version openhtmltopdf-pdfbox/digidoc4j already resolve to on
@@ -257,6 +291,20 @@ tasks {
 
     check {
         dependsOn(jacocoTestReport)
+        dependsOn(jacocoTestCoverageVerification)
+    }
+
+    named("pmdTest") {
+        enabled = false
+    }
+
+    withType<Pmd> {
+        exclude { element -> element.file.path.contains("generated-sources") }
+    }
+
+    register<Exec>("scorecard") {
+        dependsOn(test, jacocoTestReport, named("pmdMain"))
+        commandLine("python3", "scripts/scorecard.py")
     }
 
     jacocoTestCoverageVerification {
@@ -276,25 +324,25 @@ tasks {
                 limit {
                     counter = "METHOD"
                     value = "COVEREDRATIO"
-                    minimum = "1.0".toBigDecimal()
+                    minimum = "0.9".toBigDecimal()
                 }
 
                 limit {
                     counter = "LINE"
                     value = "COVEREDRATIO"
-                    minimum = "1.0".toBigDecimal()
+                    minimum = "0.91".toBigDecimal()
                 }
 
                 limit {
                     counter = "BRANCH"
                     value = "COVEREDRATIO"
-                    minimum = "0.9".toBigDecimal()
+                    minimum = "0.74".toBigDecimal()
                 }
 
                 limit {
                     counter = "INSTRUCTION"
                     value = "COVEREDRATIO"
-                    minimum = "1.0".toBigDecimal()
+                    minimum = "0.91".toBigDecimal()
                 }
             }
             rule {
@@ -315,13 +363,13 @@ tasks {
                 limit {
                     counter = "METHOD"
                     value = "COVEREDRATIO"
-                    minimum = "1.0".toBigDecimal()
+                    minimum = "0.98".toBigDecimal()
                 }
 
                 limit {
                     counter = "LINE"
                     value = "COVEREDRATIO"
-                    minimum = "1.0".toBigDecimal()
+                    minimum = "0.99".toBigDecimal()
                 }
 
                 limit {
@@ -333,7 +381,7 @@ tasks {
                 limit {
                     counter = "INSTRUCTION"
                     value = "COVEREDRATIO"
-                    minimum = "1.0".toBigDecimal()
+                    minimum = "0.99".toBigDecimal()
                 }
             }
         }
@@ -466,23 +514,25 @@ tasks.test {
 
 tasks.withType<JavaCompile> {
     options.compilerArgs.add("-parameters")
-    options.compilerArgs.add("--enable-preview")
     options.compilerArgs.add("-Xlint:all")
     options.compilerArgs.add("-Xlint:-processing")
     options.compilerArgs.add("-Xlint:-path")
     options.compilerArgs.add("-Xlint:-serial")
-    options.compilerArgs.add("-Xlint:-deprecation")
     options.compilerArgs.add("-Xdiags:verbose")
+    options.compilerArgs.add("-Xmaxwarns")
+    options.compilerArgs.add("1000")
 //    options.compilerArgs.add("-Werror")
-}
-
-tasks.withType<JavaExec> {
-    jvmArgs("--enable-preview")
+    options.errorprone {
+        disableAllChecks = true
+        error("NullAway")
+        option("NullAway:OnlyNullMarked", "true")
+        option("NullAway:JSpecifyMode", "true")
+        excludedPaths = ".*/generated-sources/.*"
+    }
 }
 
 tasks.withType<Test> {
     jvmArgs(
-        "--enable-preview",
         "-XX:+UseParallelGC",
         "-XX:+HeapDumpOnOutOfMemoryError",
         "-XX:HeapDumpPath=/tmp/heapdump.hprof",

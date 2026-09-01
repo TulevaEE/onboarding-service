@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransaction;
+import ee.tuleva.onboarding.analytics.transaction.generic.SyncResult;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.transaction.ThirdPillarTransactionDto;
 import ee.tuleva.onboarding.time.FixedClockConfig;
@@ -59,6 +61,11 @@ class ThirdPillarTransactionSynchronizerTest extends FixedClockConfig {
     assertThat(sync.getAnnotation(Transactional.class)).isNull();
   }
 
+  @Test
+  void getTransactionTypeNameIsThirdPillar() {
+    assertThat(synchronizer.getTransactionTypeName()).isEqualTo("third pillar");
+  }
+
   @Nested
   @DisplayName("When EPIS returns transactions")
   class WhenTransactionsExist {
@@ -76,7 +83,7 @@ class ThirdPillarTransactionSynchronizerTest extends FixedClockConfig {
       when(repository.deleteByReportingDateBetween(startDate, endDate)).thenReturn(deletedCount);
 
       // when
-      synchronizer.sync(startDate, endDate);
+      SyncResult result = synchronizer.sync(startDate, endDate);
 
       // then
       verify(episService).getTransactions(startDate, endDate);
@@ -107,6 +114,10 @@ class ThirdPillarTransactionSynchronizerTest extends FixedClockConfig {
       assertThat(secondSaved.getDateCreated()).isEqualTo(testLocalDateTime);
 
       verifyNoMoreInteractions(repository);
+      assertThat(result)
+          .isEqualTo(
+              new SyncResult(
+                  "third pillar", "range=" + startDate + " to " + endDate, deletedCount, 2));
     }
   }
 
@@ -121,12 +132,14 @@ class ThirdPillarTransactionSynchronizerTest extends FixedClockConfig {
       when(episService.getTransactions(startDate, endDate)).thenReturn(Collections.emptyList());
 
       // when
-      synchronizer.sync(startDate, endDate);
+      SyncResult result = synchronizer.sync(startDate, endDate);
 
       // then
       verify(episService).getTransactions(startDate, endDate);
       verify(repository, never()).deleteByReportingDateBetween(any(), any());
       verify(repository, never()).saveAll(any());
+      assertThat(result)
+          .isEqualTo(new SyncResult("third pillar", "range=" + startDate + " to " + endDate, 0, 0));
     }
   }
 
@@ -142,13 +155,15 @@ class ThirdPillarTransactionSynchronizerTest extends FixedClockConfig {
       when(episService.getTransactions(startDate, endDate)).thenThrow(simulatedException);
 
       // when
-      synchronizer.sync(startDate, endDate);
+      SyncResult result = synchronizer.sync(startDate, endDate);
 
       // then
       verify(episService).getTransactions(startDate, endDate);
       verify(repository, never())
           .deleteByReportingDateBetween(any(LocalDate.class), any(LocalDate.class));
       verify(repository, never()).saveAll(any());
+      assertThat(result)
+          .isEqualTo(new SyncResult("third pillar", "range=" + startDate + " to " + endDate, 0, 0));
     }
   }
 
@@ -168,12 +183,14 @@ class ThirdPillarTransactionSynchronizerTest extends FixedClockConfig {
           .thenThrow(simulatedException);
 
       // when
-      synchronizer.sync(startDate, endDate);
+      SyncResult result = synchronizer.sync(startDate, endDate);
 
       // then
       verify(episService).getTransactions(startDate, endDate);
       verify(repository).deleteByReportingDateBetween(startDate, endDate);
       verify(repository, never()).saveAll(any());
+      assertThat(result)
+          .isEqualTo(new SyncResult("third pillar", "range=" + startDate + " to " + endDate, 0, 0));
     }
   }
 
@@ -193,13 +210,15 @@ class ThirdPillarTransactionSynchronizerTest extends FixedClockConfig {
       doThrow(simulatedException).when(repository).saveAll(anyList());
 
       // when
-      synchronizer.sync(startDate, endDate);
+      SyncResult result = synchronizer.sync(startDate, endDate);
 
       // then
       verify(episService).getTransactions(startDate, endDate);
       verify(repository).deleteByReportingDateBetween(startDate, endDate);
       verify(repository).saveAll(savedEntitiesCaptor.capture());
       assertThat(savedEntitiesCaptor.getValue()).hasSize(1);
+      assertThat(result)
+          .isEqualTo(new SyncResult("third pillar", "range=" + startDate + " to " + endDate, 0, 0));
     }
   }
 }

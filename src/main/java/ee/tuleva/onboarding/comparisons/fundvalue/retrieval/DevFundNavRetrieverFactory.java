@@ -4,6 +4,7 @@ import static java.util.Collections.emptyList;
 
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.fund.FundRepository;
+import java.time.Clock;
 import java.util.List;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
@@ -12,8 +13,9 @@ import org.springframework.stereotype.Service;
 @Profile({"dev", "staging"})
 public class DevFundNavRetrieverFactory extends FundNavRetrieverFactory {
 
-  public DevFundNavRetrieverFactory(FundRepository fundRepository, EpisService episService) {
-    super(fundRepository, episService);
+  public DevFundNavRetrieverFactory(
+      FundRepository fundRepository, EpisService episService, Clock clock) {
+    super(fundRepository, episService, clock);
   }
 
   @Override

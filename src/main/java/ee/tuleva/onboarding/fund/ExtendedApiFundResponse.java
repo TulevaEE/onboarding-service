@@ -6,8 +6,10 @@ import java.util.Locale;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import org.jspecify.annotations.NullUnmarked;
 
 @Data
+@NullUnmarked
 @NoArgsConstructor
 @EqualsAndHashCode(callSuper = true)
 class ExtendedApiFundResponse extends ApiFundResponse {

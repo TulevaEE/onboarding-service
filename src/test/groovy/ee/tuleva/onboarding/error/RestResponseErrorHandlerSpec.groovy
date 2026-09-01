@@ -4,7 +4,7 @@ import ch.qos.logback.classic.Logger
 import ch.qos.logback.classic.spi.ILoggingEvent
 import ch.qos.logback.core.read.ListAppender
 import tools.jackson.databind.json.JsonMapper
-import ee.tuleva.onboarding.error.exception.ErrorsResponseException
+import ee.tuleva.onboarding.error.ErrorsResponseException
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.mock.http.client.MockClientHttpResponse

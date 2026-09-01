@@ -1,24 +1,28 @@
 package ee.tuleva.onboarding.mandate.email;
 
-import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.*;
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.THIRD_PILLAR_SUGGEST_SECOND;
+import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.*;
+import static ee.tuleva.onboarding.notification.email.EmailType.THIRD_PILLAR_SUGGEST_SECOND;
 import static java.time.format.DateTimeFormatter.ofPattern;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static java.time.temporal.ChronoUnit.HOURS;
+import static java.util.Objects.requireNonNull;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.auth.principal.AuthenticationHolder;
+import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.deadline.MandateDeadlines;
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
+import ee.tuleva.onboarding.mandate.PillarSuggestion;
+import ee.tuleva.onboarding.mandate.SavingsFundCharges;
+import ee.tuleva.onboarding.mandate.batch.MandateBatch;
+import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.notification.email.EmailType;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
-import ee.tuleva.onboarding.savings.fund.SavingsFundFees;
 import ee.tuleva.onboarding.user.User;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -42,11 +46,11 @@ public class MandateEmailService {
   private final MandateDeadlinesService mandateDeadlinesService;
   private final SecondPillarPaymentRateService secondPillarPaymentRateService;
   private final AuthenticationHolder authenticationHolder;
-  private final SavingsFundFees savingsFundFees;
+  private final SavingsFundCharges savingsFundCharges;
 
   public void sendMandate(
       User user, Mandate mandate, PillarSuggestion pillarSuggestion, Locale locale) {
-    if (emailPersistenceService.hasEmailsFor(mandate)) {
+    if (emailPersistenceService.hasEmailsForMandate(mandate.getIdOrThrow())) {
       log.warn("Skipping mandate (id={}) email as email already present", mandate.getId());
       return;
     }
@@ -65,7 +69,7 @@ public class MandateEmailService {
 
   private void sendSecondPillarEmail(
       User user, Mandate mandate, PillarSuggestion pillarSuggestion, Locale locale) {
-    EmailType emailType = EmailType.from(mandate);
+    EmailType emailType = MandateEmailType.emailTypeFor(mandate);
     String templateName = emailType.getTemplateName(locale);
     MandrillMessage mandrillMessage =
         emailService.newMandrillMessage(
@@ -78,8 +82,12 @@ public class MandateEmailService {
         .send(user, mandrillMessage, templateName)
         .ifPresent(
             response ->
-                emailPersistenceService.save(
-                    user, response.getId(), emailType, response.getStatus(), mandate));
+                emailPersistenceService.saveWithMandate(
+                    user,
+                    response.getId(),
+                    emailType,
+                    response.getStatus(),
+                    mandate.getIdOrThrow()));
   }
 
   private Map<String, Object> getMergeVars(
@@ -105,7 +113,10 @@ public class MandateEmailService {
 
       // Add decreased/increased flags for template logic
       Integer newRate = paymentRates.getPending().orElseThrow();
-      Integer oldRate = paymentRates.getCurrent();
+      Integer oldRate =
+          requireNonNull(
+              paymentRates.getCurrent(),
+              "Missing current second pillar payment rate: personalCode=" + user.getPersonalCode());
       boolean decreased = isPaymentRateDecreased(oldRate, newRate);
       mergeVars.put("decreased", decreased);
       mergeVars.put("increased", !decreased);
@@ -117,7 +128,11 @@ public class MandateEmailService {
               .getPaymentRateFulfillmentDate()
               .format(dateTimeFormatter));
     } else {
-      MandateDeadlines deadlines = mandateDeadlinesService.getDeadlines(mandate.getCreatedDate());
+      MandateDeadlines deadlines =
+          mandateDeadlinesService.getDeadlines(
+              requireNonNull(
+                  mandate.getCreatedDate(),
+                  "Mandate createdDate missing: mandateId=" + mandate.getId()));
       mergeVars.put(
           "transferDate", deadlines.getTransferMandateFulfillmentDate().format(dateTimeFormatter));
       mergeVars.put("hasFundSelection", mandate.getFutureContributionFundIsin().isPresent());
@@ -126,14 +141,20 @@ public class MandateEmailService {
     }
 
     if (mandate.isTransferCancellation()) {
-      String sourceFundIsin = mandate.getFundTransferExchanges().get(0).getSourceFundIsin();
-      String sourceFundName = fundRepository.findByIsin(sourceFundIsin).getName(locale);
-      mergeVars.put("sourceFundName", sourceFundName);
+      List<FundTransferExchange> fundTransferExchanges =
+          requireNonNull(
+              mandate.getFundTransferExchanges(),
+              "Missing fund transfer exchanges for cancellation: mandateId=" + mandate.getId());
+      String sourceFundIsin = fundTransferExchanges.get(0).getSourceFundIsin();
+      Fund sourceFund =
+          requireNonNull(
+              fundRepository.findByIsin(sourceFundIsin), "Fund not found: isin=" + sourceFundIsin);
+      mergeVars.put("sourceFundName", sourceFund.getName(locale));
     }
 
     mergeVars.putAll(
         getPillarSuggestionMergeVars(
-            pillarSuggestion, savingsFundFees.ongoingChargesPercent(locale)));
+            pillarSuggestion, savingsFundCharges.ongoingChargesPercent(locale)));
     return mergeVars;
   }
 
@@ -207,10 +228,10 @@ public class MandateEmailService {
 
   private void scheduleThirdPillarPaymentReminderEmail(User user, Mandate mandate, Locale locale) {
     Instant sendAt = Instant.now(clock).plus(1, HOURS);
-    EmailType emailType = EmailType.from(mandate);
+    EmailType emailType = MandateEmailType.emailTypeFor(mandate);
     String templateName = emailType.getTemplateName(locale);
 
-    if (emailPersistenceService.hasEmailsToday(user, emailType, mandate)) {
+    if (hasEmailsToday(user, emailType, mandate)) {
       log.info(
           "Already has email today: personalCode={}, emailType={}, mandateId={}",
           user.getPersonalCode(),
@@ -231,21 +252,21 @@ public class MandateEmailService {
         .send(user, message, templateName, sendAt)
         .ifPresent(
             response ->
-                emailPersistenceService.save(
+                emailPersistenceService.saveWithMandate(
                     user,
                     response.getId(),
                     EmailType.THIRD_PILLAR_PAYMENT_REMINDER_MANDATE,
                     response.getStatus(),
-                    mandate));
+                    mandate.getIdOrThrow()));
   }
 
   void scheduleThirdPillarSuggestSecondEmail(
       User user, Mandate mandate, PillarSuggestion pillarSuggestion, Locale locale) {
     Instant sendAt = Instant.now(clock).plus(3, DAYS);
-    EmailType emailType = EmailType.from(mandate, pillarSuggestion);
+    EmailType emailType = MandateEmailType.emailTypeFor(mandate, pillarSuggestion);
     String templateName = emailType.getTemplateName(locale);
 
-    if (emailPersistenceService.hasEmailsToday(user, emailType, mandate)) {
+    if (hasEmailsToday(user, emailType, mandate)) {
       log.info(
           "Already has email today: personalCode={}, emailType={}, mandateId={}",
           user.getPersonalCode(),
@@ -259,8 +280,7 @@ public class MandateEmailService {
             user.getEmail(),
             templateName,
             getNameMergeVars(user),
-            List.of("pillar_3.1", "suggest_2"),
-            null);
+            List.of("pillar_3.1", "suggest_2"));
 
     emailService
         .send(user, message, templateName, sendAt)
@@ -272,5 +292,17 @@ public class MandateEmailService {
 
   boolean isPaymentRateDecreased(Integer oldRate, Integer newRate) {
     return newRate == 2 || newRate < oldRate;
+  }
+
+  private boolean hasEmailsToday(Person person, EmailType emailType, Mandate mandate) {
+    MandateBatch mandateBatch = mandate.getMandateBatch();
+    if (mandateBatch != null) {
+      Long mandateBatchId =
+          requireNonNull(
+              mandateBatch.getId(),
+              "Mandate batch is not yet persisted: mandateBatch=" + mandateBatch);
+      return emailPersistenceService.hasMandateBatchEmailsToday(person, emailType, mandateBatchId);
+    }
+    return emailPersistenceService.hasMandateEmailsToday(person, emailType, mandate.getIdOrThrow());
   }
 }

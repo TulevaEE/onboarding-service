@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -13,6 +13,7 @@ import static org.mockito.Mockito.verify;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.savings.SavingFundPayment;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
@@ -73,7 +74,8 @@ class SavingsFundReservationJobIntegrationTest {
     var payment = repository.findById(paymentId).orElseThrow();
     assertThat(payment.getStatus()).isEqualTo(RESERVED);
     verify(ledger)
-        .reservePaymentForSubscription(eq(party), eq(payment.getAmount()), eq(payment.getId()));
+        .reservePaymentForSubscription(
+            eq(LedgerRefs.from(party)), eq(payment.getAmount()), eq(payment.getId()));
   }
 
   @Test
@@ -133,10 +135,10 @@ class SavingsFundReservationJobIntegrationTest {
     // Ledger should be called for both payments, but only valid one succeeds
     verify(ledger)
         .reservePaymentForSubscription(
-            eq(party), eq(invalidPayment.getAmount()), eq(invalidPayment.getId()));
+            eq(LedgerRefs.from(party)), eq(invalidPayment.getAmount()), eq(invalidPayment.getId()));
     verify(ledger)
         .reservePaymentForSubscription(
-            eq(party), eq(validPayment.getAmount()), eq(validPayment.getId()));
+            eq(LedgerRefs.from(party)), eq(validPayment.getAmount()), eq(validPayment.getId()));
   }
 
   private SavingFundPayment.SavingFundPaymentBuilder createPayment() {

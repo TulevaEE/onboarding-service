@@ -1,13 +1,13 @@
 package ee.tuleva.onboarding.investment.epis;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.PEVA_RAVA_PAYMENT_LIMIT_BUFFER;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.PEVA_RAVA_PAYMENT_LIMIT_ROUNDING_STEP;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.PEVA_RAVA_TRADE_BUFFER_PERCENT;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.PEVA_RAVA_TRADE_ROUNDING_STEP;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.R16_BUFFER_PERCENT;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.R16_ROUNDING_STEP;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;

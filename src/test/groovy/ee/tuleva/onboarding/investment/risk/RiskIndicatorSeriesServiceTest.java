@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.investment.risk;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.risk.RiskIndicatorType.SRI;
 import static ee.tuleva.onboarding.investment.risk.RiskIndicatorType.SRRI;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.math.BigDecimal.valueOf;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -15,7 +15,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
-import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValueQueries;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -41,7 +41,7 @@ class RiskIndicatorSeriesServiceTest {
   private static final String CURRENT_HOLDING_PERIOD =
       String.valueOf(SriCalculator.HOLDING_PERIOD_TRADING_DAYS);
 
-  @Mock private FundValueRepository fundValueRepository;
+  @Mock private FundValueQueries fundValueQueries;
   @Mock private RiskIndicatorPointRepository pointRepository;
 
   private RiskIndicatorSeriesService service;
@@ -61,15 +61,15 @@ class RiskIndicatorSeriesServiceTest {
     service.refreshSeries(TKF100, SRI, 1);
 
     var start = ArgumentCaptor.forClass(LocalDate.class);
-    verify(fundValueRepository).findValuesBetweenDates(eq(ACWI), start.capture(), eq(ANCHOR));
-    assertThat(start.getValue()).isBefore(ANCHOR.minusMonths(1).minusYears(5));
+    verify(fundValueQueries).findValuesBetweenDates(eq(ACWI), start.capture(), eq(ANCHOR));
+    assertThat(start.getValue()).isEqualTo(ANCHOR.minusMonths(1).minusYears(5).minusWeeks(2));
   }
 
   @Test
   void anchorsOnTheLatestDataDateNotTheClock() {
     var prices = dailyPrices(ACWI, ANCHOR.minusYears(7), ANCHOR.minusDays(4));
-    given(fundValueRepository.findLastValueForFund(ACWI)).willReturn(Optional.of(prices.getLast()));
-    given(fundValueRepository.findValuesBetweenDates(anyString(), any(), any())).willReturn(prices);
+    given(fundValueQueries.findLastValueForFund(ACWI)).willReturn(Optional.of(prices.getLast()));
+    given(fundValueQueries.findValuesBetweenDates(anyString(), any(), any())).willReturn(prices);
     given(pointRepository.findByIndicatorTypeAndFundOrderByAsOfDateAsc(SRI, TKF100))
         .willReturn(List.of());
 
@@ -82,8 +82,8 @@ class RiskIndicatorSeriesServiceTest {
   void aSourceThatStoppedUpdatingFailsInsteadOfRecomputingTheSameSeries() {
     var lastPriceDate = ANCHOR.minusMonths(5);
     var prices = dailyPrices(ACWI, lastPriceDate.minusYears(7), lastPriceDate);
-    given(fundValueRepository.findLastValueForFund(ACWI)).willReturn(Optional.of(prices.getLast()));
-    given(fundValueRepository.findValuesBetweenDates(anyString(), any(), any())).willReturn(prices);
+    given(fundValueQueries.findLastValueForFund(ACWI)).willReturn(Optional.of(prices.getLast()));
+    given(fundValueQueries.findValuesBetweenDates(anyString(), any(), any())).willReturn(prices);
 
     assertThatThrownBy(() -> service.refreshSeries(TKF100, SRI, 1))
         .isInstanceOf(IllegalStateException.class);
@@ -121,12 +121,17 @@ class RiskIndicatorSeriesServiceTest {
     var refresh = service.refreshSeries(TKF100, SRI, 1);
 
     assertThat(drifted.getRiskClass()).isNotEqualTo(1);
+    assertThat(drifted.getObservationCount()).isNotEqualTo(1);
+    assertThat(drifted.getVolatility()).isNotEqualByComparingTo(valueOf(0.999));
     assertThat(drifted.getMetrics()).containsKey("driftHistory");
     assertThat(refresh.driftedDates()).containsExactly(ANCHOR);
     assertThat(refresh.redefinitions()).isEmpty();
     assertThat((List<Map<String, String>>) drifted.getMetrics().get("driftHistory"))
         .singleElement()
         .satisfies(entry -> assertThat(entry).containsEntry("detectedAt", ANCHOR.toString()));
+    var saved = ArgumentCaptor.forClass(List.class);
+    verify(pointRepository).saveAll(saved.capture());
+    assertThat((List<RiskIndicatorPoint>) saved.getValue()).contains(drifted);
   }
 
   @Test
@@ -146,6 +151,9 @@ class RiskIndicatorSeriesServiceTest {
     assertThat(stored.getMetrics())
         .doesNotContainKey("driftHistory")
         .containsEntry("holdingPeriodTradingDays", CURRENT_HOLDING_PERIOD);
+    var saved = ArgumentCaptor.forClass(List.class);
+    verify(pointRepository).saveAll(saved.capture());
+    assertThat((List<RiskIndicatorPoint>) saved.getValue()).contains(stored);
   }
 
   @Test
@@ -184,11 +192,10 @@ class RiskIndicatorSeriesServiceTest {
     var acwiPrices =
         dailyPrices(ACWI, ANCHOR.minusYears(7), ANCHOR.minusYears(2).minusDays(1), 2000.0);
     var navPrices = dailyPrices(TKF_ISIN, ANCHOR.minusYears(2), ANCHOR, 1.05);
-    given(fundValueRepository.findLastValueForFund(TKF_ISIN))
+    given(fundValueQueries.findLastValueForFund(TKF_ISIN))
         .willReturn(Optional.of(navPrices.getLast()));
-    given(fundValueRepository.findValuesBetweenDates(eq(ACWI), any(), any()))
-        .willReturn(acwiPrices);
-    given(fundValueRepository.findValuesBetweenDates(eq(TKF_ISIN), any(), any()))
+    given(fundValueQueries.findValuesBetweenDates(eq(ACWI), any(), any())).willReturn(acwiPrices);
+    given(fundValueQueries.findValuesBetweenDates(eq(TKF_ISIN), any(), any()))
         .willReturn(navPrices);
     given(pointRepository.findByIndicatorTypeAndFundOrderByAsOfDateAsc(SRI, TKF100))
         .willReturn(List.of());
@@ -211,10 +218,9 @@ class RiskIndicatorSeriesServiceTest {
   @Test
   void skipsFundsWhoseSourceHasAnAnchorButNoPricesInTheLoadWindow() {
     var prices = dailyPrices(ACWI, ANCHOR.minusYears(7), ANCHOR);
-    given(fundValueRepository.findLastValueForFund(anyString()))
+    given(fundValueQueries.findLastValueForFund(anyString()))
         .willReturn(Optional.of(prices.getLast()));
-    given(fundValueRepository.findValuesBetweenDates(anyString(), any(), any()))
-        .willReturn(List.of());
+    given(fundValueQueries.findValuesBetweenDates(anyString(), any(), any())).willReturn(List.of());
 
     var refresh = service.refreshSeries(TKF100, SRI, 1);
 
@@ -225,9 +231,9 @@ class RiskIndicatorSeriesServiceTest {
   @Test
   void aSegmentThatEndsBeforeTheLoadWindowOpensIsNotQueriedAtAll() {
     var navPrices = dailyPrices(TKF_ISIN, ANCHOR.minusYears(7), ANCHOR, 1.05);
-    given(fundValueRepository.findLastValueForFund(TKF_ISIN))
+    given(fundValueQueries.findLastValueForFund(TKF_ISIN))
         .willReturn(Optional.of(navPrices.getLast()));
-    given(fundValueRepository.findValuesBetweenDates(eq(TKF_ISIN), any(), any()))
+    given(fundValueQueries.findValuesBetweenDates(eq(TKF_ISIN), any(), any()))
         .willReturn(navPrices);
     given(pointRepository.findByIndicatorTypeAndFundOrderByAsOfDateAsc(SRI, TKF100))
         .willReturn(List.of());
@@ -242,13 +248,37 @@ class RiskIndicatorSeriesServiceTest {
 
     var points = serviceWith(longRetiredProxy).refreshSeries(TKF100, SRI, 1).points();
 
-    verify(fundValueRepository, never()).findValuesBetweenDates(eq(ACWI), any(), any());
+    verify(fundValueQueries, never()).findValuesBetweenDates(eq(ACWI), any(), any());
     assertThat(points).isNotEmpty();
   }
 
   @Test
+  void querySegmentUsesItsOwnExplicitStartWhenItIsLaterThanTheLoadWindow() {
+    var explicitSegmentStart = ANCHOR.minusYears(2);
+    var navPrices = dailyPrices(TKF_ISIN, explicitSegmentStart, ANCHOR, 1.05);
+    given(fundValueQueries.findLastValueForFund(TKF_ISIN))
+        .willReturn(Optional.of(navPrices.getLast()));
+    given(fundValueQueries.findValuesBetweenDates(eq(TKF_ISIN), any(), any()))
+        .willReturn(navPrices);
+    given(pointRepository.findByIndicatorTypeAndFundOrderByAsOfDateAsc(SRI, TKF100))
+        .willReturn(List.of());
+    var onlyOwnHistory =
+        new RiskIndicatorProperties(
+            Map.of(
+                TKF100,
+                List.of(new RiskIndicatorProperties.Source(TKF_ISIN, explicitSegmentStart))),
+            Map.of());
+
+    serviceWith(onlyOwnHistory).refreshSeries(TKF100, SRI, 1);
+
+    var start = ArgumentCaptor.forClass(LocalDate.class);
+    verify(fundValueQueries).findValuesBetweenDates(eq(TKF_ISIN), start.capture(), eq(ANCHOR));
+    assertThat(start.getValue()).isEqualTo(explicitSegmentStart);
+  }
+
+  @Test
   void skipsFundsWithoutSourceData() {
-    given(fundValueRepository.findLastValueForFund(anyString())).willReturn(Optional.empty());
+    given(fundValueQueries.findLastValueForFund(anyString())).willReturn(Optional.empty());
 
     var points = service.refreshSeries(TUK75, SRRI, 1).points();
 
@@ -256,16 +286,16 @@ class RiskIndicatorSeriesServiceTest {
   }
 
   private void givenPrices(List<FundValue> prices) {
-    given(fundValueRepository.findLastValueForFund(anyString()))
+    given(fundValueQueries.findLastValueForFund(anyString()))
         .willReturn(Optional.of(prices.getLast()));
-    given(fundValueRepository.findValuesBetweenDates(anyString(), any(), any())).willReturn(prices);
+    given(fundValueQueries.findValuesBetweenDates(anyString(), any(), any())).willReturn(prices);
   }
 
   private RiskIndicatorSeriesService serviceWith(RiskIndicatorProperties properties) {
     return new RiskIndicatorSeriesService(
         java.time.Clock.fixed(
             ANCHOR.atStartOfDay(java.time.ZoneOffset.UTC).toInstant(), java.time.ZoneOffset.UTC),
-        fundValueRepository,
+        fundValueQueries,
         pointRepository,
         properties,
         new SriCalculator(),

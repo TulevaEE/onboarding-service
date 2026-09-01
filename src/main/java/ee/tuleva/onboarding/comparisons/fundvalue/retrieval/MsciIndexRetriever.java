@@ -1,11 +1,12 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.StreamSupport.stream;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import java.math.BigDecimal;
-import java.time.Instant;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -25,11 +26,14 @@ public class MsciIndexRetriever implements ComparisonIndexRetriever {
   @ToString.Include private final String key;
   private final String indexCode;
   private final RestClient restClient;
+  private final Clock clock;
 
-  public MsciIndexRetriever(String key, String indexCode, RestClient.Builder restClientBuilder) {
+  public MsciIndexRetriever(
+      String key, String indexCode, RestClient.Builder restClientBuilder, Clock clock) {
     this.key = key;
     this.indexCode = indexCode;
     this.restClient = restClientBuilder.build();
+    this.clock = clock;
   }
 
   @Override
@@ -42,7 +46,9 @@ public class MsciIndexRetriever implements ComparisonIndexRetriever {
     String fetchUri = buildFetchUri(startDate, endDate);
 
     JsonNode response =
-        restClient.get().uri(fetchUri).accept(APPLICATION_JSON).retrieve().body(JsonNode.class);
+        requireNonNull(
+            restClient.get().uri(fetchUri).accept(APPLICATION_JSON).retrieve().body(JsonNode.class),
+            "MSCI response is null: fetchUri=" + fetchUri);
 
     return parseIndexLevels(response, startDate, endDate);
   }
@@ -50,12 +56,12 @@ public class MsciIndexRetriever implements ComparisonIndexRetriever {
   private List<FundValue> parseIndexLevels(
       JsonNode response, LocalDate startDate, LocalDate endDate) {
     JsonNode indexLevels = response.path("indexes").path("INDEX_LEVELS");
-    var now = Instant.now();
+    var now = clock.instant();
 
     return stream(indexLevels.spliterator(), false)
         .map(
             node -> {
-              String dateString = node.path("calc_date").asText();
+              String dateString = node.path("calc_date").asString();
               LocalDate date = LocalDate.parse(dateString, DATE_FORMATTER);
               BigDecimal value = BigDecimal.valueOf(node.path("level_eod").asDouble());
               return new FundValue(key, date, value, PROVIDER, now);

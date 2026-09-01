@@ -18,6 +18,7 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import org.jspecify.annotations.Nullable;
 
 @Data
 @Getter
@@ -49,11 +50,11 @@ public class FundTransferExchange {
    */
   @Min(0)
   @JsonView(MandateView.Default.class)
-  private BigDecimal amount;
+  private @Nullable BigDecimal amount;
 
   @JsonView(MandateView.Default.class)
-  private String targetFundIsin;
+  private @Nullable String targetFundIsin;
 
   @JsonView(MandateView.Default.class)
-  private String targetPik;
+  private @Nullable String targetPik;
 }

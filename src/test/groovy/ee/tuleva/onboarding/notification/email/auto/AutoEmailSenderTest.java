@@ -3,9 +3,9 @@ package ee.tuleva.onboarding.notification.email.auto;
 import static ee.tuleva.onboarding.analytics.earlywithdrawals.AnalyticsEarlyWithdrawalFixture.anEarlyWithdrawal;
 import static ee.tuleva.onboarding.analytics.leavers.ExchangeTransactionLeaverFixture.aLeaverWith;
 import static ee.tuleva.onboarding.analytics.leavers.ExchangeTransactionLeaverFixture.anotherLeaverWith;
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailStatus.SCHEDULED;
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SECOND_PILLAR_EARLY_WITHDRAWAL;
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SECOND_PILLAR_LEAVERS;
+import static ee.tuleva.onboarding.notification.email.EmailStatus.SCHEDULED;
+import static ee.tuleva.onboarding.notification.email.EmailType.SECOND_PILLAR_EARLY_WITHDRAWAL;
+import static ee.tuleva.onboarding.notification.email.EmailType.SECOND_PILLAR_LEAVERS;
 import static ee.tuleva.onboarding.notification.email.auto.EmailEvent.NEW_EARLY_WITHDRAWAL;
 import static ee.tuleva.onboarding.notification.email.auto.EmailEvent.NEW_LEAVER;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -17,7 +17,7 @@ import static org.mockito.quality.Strictness.*;
 import ee.tuleva.onboarding.analytics.earlywithdrawals.AnalyticsEarlyWithdrawalsRepository;
 import ee.tuleva.onboarding.analytics.leavers.ExchangeTransactionLeaver;
 import ee.tuleva.onboarding.analytics.leavers.ExchangeTransactionLeaversRepository;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
+import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.provider.MailchimpService;
 import ee.tuleva.onboarding.time.TestClockHolder;
 import java.time.Clock;
@@ -422,6 +422,33 @@ class AutoEmailSenderTest {
 
     assertThat(actualStartDate).isEqualTo(expectedStartDateFirstOfLastMonth);
     assertThat(actualEndDate).isEqualTo(expectedEndDateTomorrow);
+  }
+
+  @Test
+  @DisplayName("Sends emails when the audience exactly matches the repeat-sender threshold")
+  void sendsWhenAudienceExactlyMatchesTheRepeatThreshold() {
+    List<ExchangeTransactionLeaver> leavers =
+        Stream.generate(() -> aLeaverWith().build()).limit(200).toList();
+
+    when(leaversRepository.fetch(eq(LocalDate.of(2019, 12, 1)), eq(LocalDate.of(2020, 1, 2))))
+        .thenReturn(leavers);
+    when(withdrawalsRepository.fetch(eq(LocalDate.of(2019, 12, 1)), eq(LocalDate.of(2020, 1, 2))))
+        .thenReturn(List.of());
+    when(emailPersistenceService.getLastEmailSendDate(
+            any(ExchangeTransactionLeaver.class), eq(SECOND_PILLAR_LEAVERS)))
+        .thenReturn(Optional.empty());
+    when(emailPersistenceService.hasEmailTypeBeenSentBefore(eq(SECOND_PILLAR_LEAVERS)))
+        .thenReturn(true); // repeat sender, threshold is 200
+    when(emailPersistenceService.hasEmailTypeBeenSentBefore(eq(SECOND_PILLAR_EARLY_WITHDRAWAL)))
+        .thenReturn(true);
+
+    // When
+    autoEmailSender.sendAutoEmails();
+
+    // Then - exactly at the threshold, so it should send, not skip
+    verify(mailchimpService, times(200)).sendEvent(anyString(), eq(NEW_LEAVER), any());
+    verify(emailPersistenceService, times(200))
+        .save(any(ExchangeTransactionLeaver.class), eq(SECOND_PILLAR_LEAVERS), eq(SCHEDULED));
   }
 
   @Test

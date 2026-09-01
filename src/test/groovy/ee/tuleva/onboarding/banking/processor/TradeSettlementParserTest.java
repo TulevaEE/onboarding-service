@@ -134,4 +134,24 @@ class TradeSettlementParserTest {
   void parse_returnsEmptyForSingleSegment() {
     assertThat(parser.parse("DLA0553690")).isEmpty();
   }
+
+  @Test
+  void parse_returnsEmptyForExactlyTwoSegments() {
+    assertThat(parser.parse("DLA0553690/EJAP")).isEmpty();
+  }
+
+  @Test
+  void parse_parsesExactlyThreeSegments() {
+    given(instrumentReferenceService.findByTicker("EJAP")).willReturn(Optional.of(BNP_JAPAN));
+
+    var result = parser.parse("DLA0553690/EJAP GY/11704");
+
+    assertThat(result)
+        .contains(
+            new TradeSettlementInfo(
+                "LU1291102447",
+                "EJAP",
+                "BNP Paribas Easy MSCI Japan Min TE UCITS ETF",
+                new BigDecimal("11704")));
+  }
 }

@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.aml.alert;
 
-import static ee.tuleva.onboarding.analytics.transaction.thirdpillar.AnalyticsThirdPillarTransactionFixture.exampleTransaction;
+import static ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransactionFixture.exampleTransaction;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ee.tuleva.onboarding.analytics.transaction.thirdpillar.AnalyticsThirdPillarTransaction;
+import ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransaction;
 import java.math.BigDecimal;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

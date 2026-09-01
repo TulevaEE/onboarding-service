@@ -1,10 +1,12 @@
 package ee.tuleva.onboarding.auth.jwt
 
+import ee.tuleva.onboarding.auth.KeyStoreFixture
 import ee.tuleva.onboarding.auth.partner.PartnerPublicKeyConfiguration
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.auth.role.Role
 import io.jsonwebtoken.ExpiredJwtException
+import io.jsonwebtoken.Jwts
 import org.springframework.core.io.ClassPathResource
 import org.springframework.security.core.GrantedAuthority
 import org.springframework.security.core.authority.SimpleGrantedAuthority
@@ -16,6 +18,7 @@ import java.time.Instant
 import java.time.ZoneId
 
 import static ee.tuleva.onboarding.auth.jwt.TokenType.ACCESS
+import static ee.tuleva.onboarding.auth.jwt.TokenType.HANDOVER
 import static ee.tuleva.onboarding.auth.jwt.TokenType.REFRESH
 import static ee.tuleva.onboarding.auth.role.RoleType.*
 import static java.time.temporal.ChronoUnit.HOURS
@@ -190,5 +193,37 @@ class JwtTokenUtilSpec extends Specification {
 
     then:
         thrown(ExpiredJwtException)
+  }
+
+  def "falls back to the second partner public key when the first one does not verify the signature"() {
+    given:
+    JwtTokenUtil jwtTokenUtilWithTwoPartnerKeys = new JwtTokenUtil(
+        new ClassPathResource("test-jwt-keystore.p12"),
+        "Kalamaja123".toCharArray(),
+        "PARTNER AS",
+        "TULEVA",
+        partnerPublicKey,
+        KeyStoreFixture.partnerKeyPair.public,
+        clock)
+    String token = Jwts.builder()
+        .subject("38812121215")
+        .signWith(KeyStoreFixture.partnerKeyPair.private)
+        .expiration(Date.from(clock.instant().plus(1, HOURS)))
+        .claim("firstName", "Peeter")
+        .claim("lastName", "Meeter")
+        .claim("iss", "PARTNER AS")
+        .claim("cid", "TULEVA")
+        .claim("tokenType", "HANDOVER")
+        .compact()
+
+    when:
+    Person parsed = jwtTokenUtilWithTwoPartnerKeys.getPersonFromToken(token)
+    TokenType tokenType = jwtTokenUtilWithTwoPartnerKeys.getTypeFromToken(token)
+
+    then:
+    parsed.personalCode == "38812121215"
+    parsed.firstName == "Peeter"
+    parsed.lastName == "Meeter"
+    tokenType == HANDOVER
   }
 }

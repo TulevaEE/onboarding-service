@@ -1,16 +1,16 @@
 package ee.tuleva.onboarding.investment.epis;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
 import static ee.tuleva.onboarding.investment.epis.R16Phase.ACTIVE;
 import static ee.tuleva.onboarding.investment.epis.R16Phase.BUFFERED;
 import static ee.tuleva.onboarding.investment.epis.R16Phase.IGNORE;
 import static ee.tuleva.onboarding.investment.epis.R16Phase.VISIBLE;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;

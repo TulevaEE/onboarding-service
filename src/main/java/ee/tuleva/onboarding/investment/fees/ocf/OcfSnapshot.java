@@ -4,9 +4,10 @@ import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import org.jspecify.annotations.Nullable;
 
 public record OcfSnapshot(
-    Long id,
+    @Nullable Long id,
     String fundCode,
     LocalDate snapshotMonth,
     BigDecimal managementFeeRate,

@@ -1,8 +1,9 @@
 package ee.tuleva.onboarding.analytics.transaction.thirdpillar;
 
-import static ee.tuleva.onboarding.analytics.transaction.thirdpillar.AnalyticsThirdPillarTransactionFixture.*;
+import static ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransactionFixture.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransaction;
 import java.sql.Connection;
 import java.sql.Statement;
 import java.time.LocalDate;

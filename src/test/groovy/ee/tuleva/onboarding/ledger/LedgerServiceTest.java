@@ -1,15 +1,15 @@
 package ee.tuleva.onboarding.ledger;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.LedgerAccountFixture.sampleLedgerAccount;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
 import static ee.tuleva.onboarding.ledger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
+import static ee.tuleva.onboarding.ledger.UserAccount.FUND_UNITS;
 import static ee.tuleva.onboarding.ledger.UserAccount.SUBSCRIPTIONS;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
-import ee.tuleva.onboarding.party.PartyId;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,7 +24,7 @@ class LedgerServiceTest {
   @Mock private LedgerAccountService ledgerAccountService;
   @InjectMocks private LedgerService ledgerService;
 
-  PartyId testParty = new PartyId(PartyId.Type.PERSON, "38812121215");
+  PartyRef testParty = new PartyRef(PERSON, "38812121215");
   LedgerParty ledgerParty = LedgerParty.builder().build();
   LedgerAccount account = sampleLedgerAccount().build();
 
@@ -129,5 +129,12 @@ class LedgerServiceTest {
 
     assertThat(ledgerService.getSystemAccount(INCOMING_PAYMENTS_CLEARING, TKF100))
         .isEqualTo(account);
+  }
+
+  @Test
+  void countAccountsWithPositiveBalance_delegatesToAccountService() {
+    when(ledgerAccountService.countAccountsWithPositiveBalance(FUND_UNITS)).thenReturn(7);
+
+    assertThat(ledgerService.countAccountsWithPositiveBalance(FUND_UNITS)).isEqualTo(7);
   }
 }

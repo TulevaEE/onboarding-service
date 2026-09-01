@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.analytics.transaction.thirdpillar;
 
+import ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransaction;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;

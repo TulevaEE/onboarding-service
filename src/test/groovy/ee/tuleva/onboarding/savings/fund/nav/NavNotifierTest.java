@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
@@ -12,9 +12,8 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
-import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceQueryService;
-import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceSummary;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.savings.FundNavQueryService;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult.SecurityDetail;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -32,7 +31,7 @@ class NavNotifierTest {
 
   @Mock private OperationsNotificationService notificationService;
   @Mock private FundNavQueryService fundNavQueryService;
-  @Mock private TrackingDifferenceQueryService trackingDifferenceQueryService;
+  @Mock private NavTrackingDifferences trackingDifferenceQueryService;
   private final PublicHolidays publicHolidays = new PublicHolidays();
 
   private NavNotifier navNotifier;
@@ -88,10 +87,9 @@ class NavNotifierTest {
             result,
             Optional.of(new BigDecimal("-0.014095")),
             Optional.of(
-                new TrackingDifferenceSummary(new BigDecimal("0.000300"), new BigDecimal("0.001"))),
+                new NavTrackingDifference(new BigDecimal("0.000300"), new BigDecimal("0.001"))),
             Optional.of(
-                new TrackingDifferenceSummary(
-                    new BigDecimal("-0.000751"), new BigDecimal("0.001"))));
+                new NavTrackingDifference(new BigDecimal("-0.000751"), new BigDecimal("0.001"))));
 
     assertThat(message)
         .contains("*NAV/Unit: 9.8440 (-1.41%)*")
@@ -108,10 +106,9 @@ class NavNotifierTest {
             result,
             Optional.of(new BigDecimal("0.000245")),
             Optional.of(
-                new TrackingDifferenceSummary(new BigDecimal("0.001500"), new BigDecimal("0.001"))),
+                new NavTrackingDifference(new BigDecimal("0.001500"), new BigDecimal("0.001"))),
             Optional.of(
-                new TrackingDifferenceSummary(
-                    new BigDecimal("0.001073"), new BigDecimal("0.001"))));
+                new NavTrackingDifference(new BigDecimal("0.001073"), new BigDecimal("0.001"))));
 
     assertThat(message)
         .contains("*NAV/Unit: 9.8440 (+0.02%)*")
@@ -147,15 +144,13 @@ class NavNotifierTest {
                 TKF100, result.positionReportDate()))
         .willReturn(
             Optional.of(
-                new TrackingDifferenceSummary(
-                    new BigDecimal("0.001500"), new BigDecimal("0.001"))));
+                new NavTrackingDifference(new BigDecimal("0.001500"), new BigDecimal("0.001"))));
     given(
             trackingDifferenceQueryService.findLatestBenchmarkModel(
                 TKF100, result.positionReportDate()))
         .willReturn(
             Optional.of(
-                new TrackingDifferenceSummary(
-                    new BigDecimal("0.000500"), new BigDecimal("0.001"))));
+                new NavTrackingDifference(new BigDecimal("0.000500"), new BigDecimal("0.001"))));
 
     navNotifier.notify(result);
 

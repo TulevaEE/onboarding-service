@@ -10,6 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
@@ -43,7 +44,7 @@ public class KybScreeningService {
         .toList();
   }
 
-  private KybCheck applyOverride(KybCheck check, KybCheckOverride override) {
+  private KybCheck applyOverride(KybCheck check, @Nullable KybCheckOverride override) {
     if (override == null) {
       return check;
     }

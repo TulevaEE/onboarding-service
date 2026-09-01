@@ -1,11 +1,11 @@
 package ee.tuleva.onboarding.mandate;
 
-import ee.tuleva.onboarding.account.AccountStatementService;
-import ee.tuleva.onboarding.account.FundBalance;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
+import ee.tuleva.onboarding.mandate.PensionAccountStatement.PensionFundBalance;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
+import ee.tuleva.onboarding.mandate.command.MandateFundTransferExchangeCommand;
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
 import java.math.BigDecimal;
 import java.util.HashMap;
@@ -18,7 +18,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class MandateValidator {
 
-  private final AccountStatementService accountStatementService;
+  private final PensionAccountStatement pensionAccountStatement;
   private final FundRepository fundRepository;
 
   public void validate(CreateMandateCommand createMandateCommand, Person person) {
@@ -33,12 +33,18 @@ public class MandateValidator {
     }
   }
 
+  private List<MandateFundTransferExchangeCommand> fundTransferExchangesOrEmpty(
+      CreateMandateCommand createMandateCommand) {
+    List<MandateFundTransferExchangeCommand> fundTransferExchanges =
+        createMandateCommand.getFundTransferExchanges();
+    return fundTransferExchanges != null ? fundTransferExchanges : List.of();
+  }
+
   private Map<String, BigDecimal> summariseSourceFundTransferAmounts(
       CreateMandateCommand createMandateCommand) {
     Map<String, BigDecimal> summaryMap = new HashMap<>();
 
-    createMandateCommand
-        .getFundTransferExchanges()
+    fundTransferExchangesOrEmpty(createMandateCommand)
         .forEach(
             exchange -> {
               if (!summaryMap.containsKey(exchange.getSourceFundIsin())) {
@@ -60,7 +66,7 @@ public class MandateValidator {
   }
 
   private boolean isSameSourceToTargetTransferPresent(CreateMandateCommand createMandateCommand) {
-    return createMandateCommand.getFundTransferExchanges().stream()
+    return fundTransferExchangesOrEmpty(createMandateCommand).stream()
         .anyMatch(
             exchange ->
                 exchange.getSourceFundIsin().equalsIgnoreCase(exchange.getTargetFundIsin()));
@@ -69,18 +75,20 @@ public class MandateValidator {
   private boolean isFutureContributionsToSameFund(
       CreateMandateCommand createMandateCommand, Person person) {
     String isin = createMandateCommand.getFutureContributionFundIsin();
-    List<FundBalance> accountStatement = accountStatementService.getAccountStatement(person);
-    Fund fund = fundRepository.findByIsin(isin);
+    if (isin == null) {
+      return false;
+    }
 
-    if (isin == null || fund == null) {
+    List<PensionFundBalance> accountStatement = pensionAccountStatement.forPerson(person);
+    Fund fund = fundRepository.findByIsin(isin);
+    if (fund == null) {
       return false;
     }
 
     if (fund.getPillar() == 2) {
       return accountStatement.stream()
           .anyMatch(
-              fundBalance ->
-                  fundBalance.isActiveContributions() && fundBalance.getIsin().equals(isin));
+              fundBalance -> fundBalance.activeContributions() && fundBalance.isin().equals(isin));
     }
 
     return false;

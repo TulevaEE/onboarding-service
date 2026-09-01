@@ -1,9 +1,10 @@
 package ee.tuleva.onboarding.mandate.builder
 
-import ee.tuleva.onboarding.account.AccountStatementService
-import ee.tuleva.onboarding.account.FundBalance
+import ee.tuleva.onboarding.conversion.ConversionDecorator
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.fund.FundRepository
+import ee.tuleva.onboarding.mandate.PensionAccountStatement
+import ee.tuleva.onboarding.mandate.PensionAccountStatement.PensionFundBalance
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandWrapper
 import ee.tuleva.onboarding.mandate.command.MandateFundTransferExchangeCommand
@@ -14,17 +15,17 @@ import spock.lang.Specification
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.authenticatedPersonFromUser
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyConverted
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
+import static ee.tuleva.onboarding.mandate.MandateContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.country.CountryFixture.countryFixture
 
 class CreateMandateCommandToMandateConverterSpec extends Specification {
 
-  AccountStatementService accountStatementService = Mock()
+  PensionAccountStatement pensionAccountStatement = Mock()
   FundRepository fundRepository = Mock()
   ConversionDecorator conversionDecorator = new ConversionDecorator()
   SecondPillarPaymentRateService secondPillarPaymentRateService = Mock()
   CreateMandateCommandToMandateConverter converter =
-      new CreateMandateCommandToMandateConverter(accountStatementService, fundRepository, conversionDecorator, secondPillarPaymentRateService)
+      new CreateMandateCommandToMandateConverter(pensionAccountStatement, fundRepository, conversionDecorator, secondPillarPaymentRateService)
 
   def setup() {
     secondPillarPaymentRateService.getPaymentRates(_) >> new PaymentRates(4, null)
@@ -60,7 +61,7 @@ class CreateMandateCommandToMandateConverterSpec extends Specification {
         secondPillarPaymentRate         : 4,
         authAttributes                  : [:]
     ]
-    0 * accountStatementService.getAccountStatement(_)
+    0 * pensionAccountStatement.forPerson(_)
     1 * fundRepository.findByIsin("test") >> Fund.builder().pillar(2).isin("test").build()
   }
 
@@ -78,10 +79,8 @@ class CreateMandateCommandToMandateConverterSpec extends Specification {
     def fund = Fund.builder().pillar(3).isin(sourceIsin).build()
     def user = sampleUser().build()
     def person = authenticatedPersonFromUser(user).build()
-    def fundBalance = FundBalance.builder()
-        .units(500.1234)
-        .fund(fund)
-        .build()
+    def fundBalance = new PensionFundBalance(sourceIsin, BigDecimal.valueOf(500.1234), false)
+    def otherFundBalance = new PensionFundBalance('OTHERISIN', BigDecimal.valueOf(999.9999), false)
     def conversion = fullyConverted()
     def contactDetails = contactDetailsFixture()
     when:
@@ -108,7 +107,59 @@ class CreateMandateCommandToMandateConverterSpec extends Specification {
         secondPillarPaymentRate         : 4,
         authAttributes                  : [:]
     ]
-    1 * accountStatementService.getAccountStatement(user) >> [fundBalance]
+    1 * pensionAccountStatement.forPerson(user) >> [otherFundBalance, fundBalance]
     1 * fundRepository.findByIsin(sourceIsin) >> fund
+  }
+
+  def "derives pillar from the first fund transfer exchange when there is no future contribution isin"() {
+    given:
+    def sourceIsin = 'AA1234567'
+    def targetIsin = 'AA1234568'
+    def command = new CreateMandateCommand()
+    command.setFutureContributionFundIsin(null)
+    def fundTransfer = new MandateFundTransferExchangeCommand()
+    fundTransfer.amount = 0.5
+    fundTransfer.sourceFundIsin = sourceIsin
+    fundTransfer.targetFundIsin = targetIsin
+    command.fundTransferExchanges = [fundTransfer]
+    def fund = Fund.builder().pillar(2).isin(sourceIsin).build()
+    def user = sampleUser().build()
+    def person = authenticatedPersonFromUser(user).build()
+    def conversion = fullyConverted()
+    def contactDetails = contactDetailsFixture()
+
+    when:
+    def mandate = converter.convert(new CreateMandateCommandWrapper(command, person, user, conversion, contactDetails))
+
+    then:
+    mandate.pillar == 2
+    1 * fundRepository.findByIsin(sourceIsin) >> fund
+  }
+
+  def "throws when no matching fund balance exists for the third pillar exchange"() {
+    given:
+    def sourceIsin = 'AA1234567'
+    def targetIsin = 'AA1234568'
+    def command = new CreateMandateCommand()
+    command.setFutureContributionFundIsin(sourceIsin)
+    def fundTransfer = new MandateFundTransferExchangeCommand()
+    fundTransfer.amount = 0.5
+    fundTransfer.sourceFundIsin = sourceIsin
+    fundTransfer.targetFundIsin = targetIsin
+    command.fundTransferExchanges = [fundTransfer]
+    def fund = Fund.builder().pillar(3).isin(sourceIsin).build()
+    def user = sampleUser().build()
+    def person = authenticatedPersonFromUser(user).build()
+    def conversion = fullyConverted()
+    def contactDetails = contactDetailsFixture()
+
+    pensionAccountStatement.forPerson(user) >> []
+    fundRepository.findByIsin(sourceIsin) >> fund
+
+    when:
+    converter.convert(new CreateMandateCommandWrapper(command, person, user, conversion, contactDetails))
+
+    then:
+    thrown(IllegalStateException)
   }
 }

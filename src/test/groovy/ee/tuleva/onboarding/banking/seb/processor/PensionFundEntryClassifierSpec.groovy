@@ -90,6 +90,8 @@ class PensionFundEntryClassifierSpec extends Specification {
     "detailed ADJT from unknown party"       | entry("ADJT", 12.34, "Random Company OU", OTHER_IBAN, "korrektsioon")              | new Unclassified("unknown counterparty")
     "enriched kickback booking"              | entry("BOOK", 4370.58, "BlackRock AM", OTHER_IBAN, "Management fee kickback VP00001") | new ManagementFeeRebate()
     "entry with null remittance"             | entry("XXXX", 10.00, null, null, null)                                             | new Unclassified("subFamilyCode=XXXX")
+    "management company zero amount is a rebate" | entry("BOOK", 0.00, "Tuleva Fondid AS", OTHER_IBAN, "nullülekanne")           | new ManagementFeeRebate()
+    "registrar zero amount is a payout"      | entry("RCDT", 0.00, "AS Pensionikeskus", REGISTRAR_IBAN, "null-liikumine")         | new RegistrarPayout()
   }
 
   static TradeSettlement developedWorldSettlement(BigDecimal units) {

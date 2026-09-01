@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.payment.provider.montonio;
 
 import static ee.tuleva.onboarding.currency.Currency.EUR;
+import static java.util.Objects.requireNonNull;
 
 import com.nimbusds.jose.JWSObject;
 import com.nimbusds.jose.crypto.MACVerifier;
@@ -41,8 +42,12 @@ public class MontonioCallbackService {
     verifyToken(token);
 
     Map<String, Object> json = token.getPayload().toJSONObject();
-    String serializedInternalReference = json.get("merchantReference").toString();
-    BigDecimal amount = new BigDecimal(json.get("grandTotal").toString());
+    String serializedInternalReference =
+        requireNonNull(json.get("merchantReference"), "Missing merchantReference in token")
+            .toString();
+    BigDecimal amount =
+        new BigDecimal(
+            requireNonNull(json.get("grandTotal"), "Missing grandTotal in token").toString());
 
     PaymentReference internalReference = getInternalReference(serializedInternalReference);
 
@@ -97,10 +102,8 @@ public class MontonioCallbackService {
   }
 
   private boolean isPaymentFinalized(JWSObject token) {
-    return token
-        .getPayload()
-        .toJSONObject()
-        .get("paymentStatus")
+    Object paymentStatus = token.getPayload().toJSONObject().get("paymentStatus");
+    return requireNonNull(paymentStatus, "Missing paymentStatus in token")
         .toString()
         .equalsIgnoreCase("PAID");
   }
@@ -123,9 +126,12 @@ public class MontonioCallbackService {
 
   @SneakyThrows
   private void verifyToken(JWSObject token) {
-    String accessKey = token.getPayload().toJSONObject().get("accessKey").toString();
+    Object accessKeyValue = token.getPayload().toJSONObject().get("accessKey");
+    String accessKey = requireNonNull(accessKeyValue, "Missing accessKey in token").toString();
     MontonioPaymentChannel paymentChannelConfiguration =
-        montonioPaymentChannelConfiguration.getPaymentProviderChannel(accessKey);
+        Optional.ofNullable(
+                montonioPaymentChannelConfiguration.getPaymentProviderChannel(accessKey))
+            .orElseThrow(() -> new BadCredentialsException("Unknown payment channel"));
 
     if (!token.verify(new MACVerifier(paymentChannelConfiguration.getSecretKey().getBytes()))) {
       throw new BadCredentialsException("Token not verified");

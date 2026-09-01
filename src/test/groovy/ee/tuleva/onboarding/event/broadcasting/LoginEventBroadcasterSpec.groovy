@@ -1,12 +1,13 @@
 package ee.tuleva.onboarding.event.broadcasting
 
-import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory
+import ee.tuleva.onboarding.auth.SecurityContextRunner
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent
 import ee.tuleva.onboarding.auth.idcard.IdCardSession
 import ee.tuleva.onboarding.conversion.UserConversionService
-import ee.tuleva.onboarding.epis.contact.ContactDetailsService
+import ee.tuleva.onboarding.event.PillarActivation
+import ee.tuleva.onboarding.event.PillarActivations
 import ee.tuleva.onboarding.event.TrackableEvent
-import ee.tuleva.onboarding.mandate.builder.ConversionDecorator
+import ee.tuleva.onboarding.conversion.ConversionDecorator
 import ee.tuleva.onboarding.paymentrate.PaymentRates
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService
 import org.springframework.context.ApplicationEventPublisher
@@ -20,20 +21,22 @@ import static ee.tuleva.onboarding.auth.idcard.IdDocumentType.*
 import static ee.tuleva.onboarding.auth.mobileid.MobileIdFixture.sampleMobileIdSession
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.sampleSmartIdSession
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyConverted
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
+import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.event.TrackableEventType.LOGIN
 
 class LoginEventBroadcasterSpec extends Specification {
 
   ApplicationEventPublisher eventPublisher = Mock()
   UserConversionService conversionService = Mock()
-  ContactDetailsService contactDetailsService = Mock()
+  PillarActivations pillarActivations = Mock()
   ConversionDecorator conversionDecorator = Mock()
-  GrantedAuthorityFactory grantedAuthorityFactory = Mock()
+  SecurityContextRunner securityContextRunner = Mock() {
+    runAs(_, _, _) >> { args -> (args[2] as Runnable).run() }
+  }
   SecondPillarPaymentRateService secondPillarPaymentRateService = Mock()
 
-  LoginEventBroadcaster service = new LoginEventBroadcaster(eventPublisher, conversionService, contactDetailsService,
-      conversionDecorator, grantedAuthorityFactory, secondPillarPaymentRateService)
+  LoginEventBroadcaster service = new LoginEventBroadcaster(eventPublisher, conversionService, pillarActivations,
+      conversionDecorator, securityContextRunner, secondPillarPaymentRateService)
 
   def "OnAfterTokenGrantedEvent: Broadcast login event"() {
     given:
@@ -45,6 +48,8 @@ class LoginEventBroadcasterSpec extends Specification {
     def tokens = sampleAuthenticationTokens()
 
     def event = new AfterTokenGrantedEvent(this, samplePerson, grantType, tokens)
+
+    pillarActivations.forPerson(_) >> new PillarActivation(true, true)
 
     when:
     service.onAfterTokenGrantedEvent(event)
@@ -76,9 +81,9 @@ class LoginEventBroadcasterSpec extends Specification {
     def event = new AfterTokenGrantedEvent(this, samplePerson, SMART_ID, tokens)
 
     1 * conversionService.getConversion(samplePerson) >> conversion
-    1 * contactDetailsService.getContactDetails(samplePerson) >> contactDetails
+    1 * pillarActivations.forPerson(samplePerson) >> new PillarActivation(contactDetails.secondPillarActive, contactDetails.thirdPillarActive)
     1 * secondPillarPaymentRateService.getPaymentRates(samplePerson) >> new PaymentRates(4, null)
-    1 * conversionDecorator.addConversionMetadata(_, conversion, contactDetails, samplePerson, _) >> {
+    1 * conversionDecorator.addConversionMetadata(_, conversion, contactDetails.secondPillarActive, contactDetails.thirdPillarActive, samplePerson, _) >> {
       (data) -> data.sample = "conversion"
     }
 

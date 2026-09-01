@@ -7,9 +7,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import ee.tuleva.onboarding.aml.AmlCheck;
-import ee.tuleva.onboarding.aml.AmlCheckRepository;
-import ee.tuleva.onboarding.aml.AmlCheckType;
+import ee.tuleva.onboarding.aml.KycChecks;
 import ee.tuleva.onboarding.ariregister.AddressDetails;
 import ee.tuleva.onboarding.ariregister.BeneficialOwner;
 import ee.tuleva.onboarding.ariregister.BeneficialOwners;
@@ -28,8 +26,8 @@ class KybCompanyDataMapperTest {
   private static final SelfCertification SELF_CERT = new SelfCertification(true, true, true);
   private static final BeneficialOwners NO_BENEFICIAL_OWNERS = BeneficialOwners.none();
 
-  private final AmlCheckRepository amlCheckRepository = mock(AmlCheckRepository.class);
-  private final KybCompanyDataMapper mapper = new KybCompanyDataMapper(amlCheckRepository);
+  private final KycChecks kycChecks = mock(KycChecks.class);
+  private final KybCompanyDataMapper mapper = new KybCompanyDataMapper(kycChecks);
 
   @Test
   void mapsPersonWithMultipleRolesToSingleRelatedPerson() {
@@ -466,10 +464,7 @@ class KybCompanyDataMapperTest {
 
   @Test
   void resolvesCompletedKycStatusFromDatabase() {
-    when(amlCheckRepository
-            .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDescIdDesc(
-                eq("38888888888"), eq(AmlCheckType.KYC_CHECK), any()))
-        .thenReturn(Optional.of(kycCheck(true)));
+    when(kycChecks.latestKycCheckPassedWithinLastYear("38888888888")).thenReturn(Optional.of(true));
 
     var relationship = boardMemberRelationship("38888888888");
     var detail =
@@ -484,10 +479,8 @@ class KybCompanyDataMapperTest {
 
   @Test
   void resolvesRejectedKycStatusFromDatabase() {
-    when(amlCheckRepository
-            .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDescIdDesc(
-                eq("38888888888"), eq(AmlCheckType.KYC_CHECK), any()))
-        .thenReturn(Optional.of(kycCheck(false)));
+    when(kycChecks.latestKycCheckPassedWithinLastYear("38888888888"))
+        .thenReturn(Optional.of(false));
 
     var relationship = boardMemberRelationship("38888888888");
     var detail =
@@ -498,14 +491,6 @@ class KybCompanyDataMapperTest {
             detail, PERSONAL_CODE, List.of(relationship), NO_BENEFICIAL_OWNERS, SELF_CERT);
 
     assertThat(result.relatedPersons().getFirst().kycStatus()).isEqualTo(KybKycStatus.REJECTED);
-  }
-
-  private AmlCheck kycCheck(boolean success) {
-    return AmlCheck.builder()
-        .personalCode("38888888888")
-        .type(AmlCheckType.KYC_CHECK)
-        .success(success)
-        .build();
   }
 
   @Test

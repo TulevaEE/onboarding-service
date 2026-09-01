@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.payment.recurring
 
 
-import ee.tuleva.onboarding.error.exception.ErrorsResponseException
+import ee.tuleva.onboarding.error.ErrorsResponseException
 import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.payment.PaymentData
 import ee.tuleva.onboarding.payment.PaymentDateProvider
@@ -15,7 +15,7 @@ import java.util.Locale
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.config.JsonMapperFixture.jsonMapper
 import static ee.tuleva.onboarding.currency.Currency.EUR
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsServiceStub.stubContactDetailsService
+import static ee.tuleva.onboarding.epis.ContactDetailsServiceStub.stubContactDetailsService
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.*
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.RECURRING
 import static ee.tuleva.onboarding.payment.recurring.ThirdPillarRecipientConfigurationFixture.thirdPillarRecipientConfiguration

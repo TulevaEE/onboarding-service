@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.banking.seb.processor;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -292,6 +292,57 @@ class PensionFundStatementProcessorTest {
             any(UUID.class),
             eq(LocalDate.of(2025, 10, 1)),
             eq("Ülekanne fondi teisele kontole"));
+  }
+
+  @Test
+  void zeroAmountTradeSettlement_recordsUnitsWithoutNegating() {
+    var entry = entry(BigDecimal.ZERO, "DLA1/BDWTEIA/1450.25/34.477/Sell/");
+    when(classifier.classify(entry))
+        .thenReturn(
+            new PensionFundEntryClassifier.TradeSettlement(
+                "IE00BFG1TM61",
+                "0P000152G5",
+                "iShares Developed World Screened Index Fund",
+                new BigDecimal("1450.25")));
+
+    processor.process(statementWith(entry), TUK75_ACCOUNT);
+
+    verify(fundBankLedger)
+        .recordTradeSettlement(
+            eq(TUK75),
+            eq(BigDecimal.ZERO.setScale(2, java.math.RoundingMode.HALF_UP)),
+            eq(new BigDecimal("1450.25000")),
+            any(UUID.class),
+            eq(FUND_INVESTMENT_CASH_CLEARING),
+            eq("IE00BFG1TM61"),
+            eq("0P000152G5"),
+            eq("iShares Developed World Screened Index Fund"),
+            eq(LocalDate.of(2025, 10, 1)));
+  }
+
+  @Test
+  void openingBalance_isLocatedByTypeEvenWhenListedAfterOtherBalances() {
+    var statement =
+        new BankStatement(
+            BankStatement.BankStatementType.HISTORIC_STATEMENT,
+            new BankStatementAccount(
+                TUK75_IBAN, "Tuleva Maailma Aktsiate Pensionifond", "14118923"),
+            List.of(
+                new BankStatementBalance(
+                    BankStatementBalance.StatementBalanceType.CLOSE,
+                    LocalDate.of(2026, 2, 10),
+                    new BigDecimal("999999.99")),
+                new BankStatementBalance(
+                    BankStatementBalance.StatementBalanceType.OPEN,
+                    LocalDate.of(2026, 2, 10),
+                    new BigDecimal("123456.78"))),
+            List.of());
+
+    processor.process(statement, TUK75_ACCOUNT);
+
+    verify(fundBankLedger)
+        .seedOpeningBalanceIfFirstStatement(
+            TUK75, new BigDecimal("123456.78"), LocalDate.of(2026, 2, 10));
   }
 
   @Test

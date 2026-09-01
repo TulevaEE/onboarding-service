@@ -1,16 +1,17 @@
 package ee.tuleva.onboarding.ledger;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.BANK_FEE;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
 import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.time.ClockConfig;
 import ee.tuleva.onboarding.time.ClockHolder;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -20,11 +21,18 @@ import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.context.annotation.Import;
 
-@SpringBootTest
-@Transactional
+@DataJpaTest
+@Import({
+  LedgerService.class,
+  LedgerAccountService.class,
+  LedgerPartyService.class,
+  LedgerTransactionService.class,
+  FundBankLedger.class,
+  ClockConfig.class
+})
 class FundBankLedgerTest {
 
   private static final LocalDate BOOKING_DATE = LocalDate.of(2026, 5, 28);
@@ -427,19 +435,28 @@ class FundBankLedgerTest {
   void recordOwnAccountTransfer_booksCashAgainstTheOwnTransferAccount() {
     var cashClearingBefore = getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance();
     var ownAccountTransferBefore = getSystemAccount(OWN_ACCOUNT_TRANSFER, TUK75).getBalance();
+    var externalReference = randomUUID();
 
-    fundBankLedger.recordOwnAccountTransfer(
-        TUK75,
-        new BigDecimal("1633975.32"),
-        randomUUID(),
-        BOOKING_DATE,
-        "Ülekanne fondi teisele kontole");
+    var transaction =
+        fundBankLedger.recordOwnAccountTransfer(
+            TUK75,
+            new BigDecimal("1633975.32"),
+            externalReference,
+            BOOKING_DATE,
+            "Ülekanne fondi teisele kontole");
 
+    assertThat(transaction).isNotNull();
+    assertThat(transaction.getTransactionType())
+        .isEqualTo(LedgerTransaction.TransactionType.OWN_ACCOUNT_TRANSFER);
+    assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
+    assertThat(transaction.getMetadata().get("description"))
+        .isEqualTo("Ülekanne fondi teisele kontole");
     assertThat(
             deltaSince(cashClearingBefore, getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75)))
         .isEqualByComparingTo(new BigDecimal("1633975.32"));
     assertThat(deltaSince(ownAccountTransferBefore, getSystemAccount(OWN_ACCOUNT_TRANSFER, TUK75)))
         .isEqualByComparingTo(new BigDecimal("-1633975.32"));
+    verifyDoubleEntry(transaction);
   }
 
   @Test
@@ -560,6 +577,29 @@ class FundBankLedgerTest {
         .isEqualByComparingTo(ZERO);
     assertThat(fundBankLedger.countUnresolvedUnclassifiedEntries(TUK75)).isEqualTo(2);
     assertThat(fundBankLedger.countUnresolvedUnclassifiedEntries(TKF100)).isZero();
+  }
+
+  @Test
+  void findUnresolvedUnclassifiedEntries_returnsOnlyUnresolvedTransactions() {
+    var externalReference = randomUUID();
+    fundBankLedger.recordUnclassifiedBankEntry(
+        TUK75,
+        new BigDecimal("100.00"),
+        externalReference,
+        FUND_INVESTMENT_CASH_CLEARING,
+        BOOKING_DATE,
+        new FundBankLedger.UnclassifiedEntryDetails(null, null, "credit", "OTHR"));
+
+    var unresolved = fundBankLedger.findUnresolvedUnclassifiedEntries(TUK75);
+
+    assertThat(unresolved).hasSize(1);
+    assertThat(unresolved.get(0).getExternalReference()).isEqualTo(externalReference);
+    assertThat(fundBankLedger.findUnresolvedUnclassifiedEntries(TKF100)).isEmpty();
+
+    fundBankLedger.recordRegistrarContribution(
+        TUK75, ZERO, externalReference, BOOKING_DATE, "reclassified from suspense");
+
+    assertThat(fundBankLedger.findUnresolvedUnclassifiedEntries(TUK75)).isEmpty();
   }
 
   @Test

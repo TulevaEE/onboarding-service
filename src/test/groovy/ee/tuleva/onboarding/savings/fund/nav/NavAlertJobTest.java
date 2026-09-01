@@ -1,11 +1,11 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
@@ -283,14 +283,14 @@ class NavAlertJobTest {
     verifyNoInteractions(navReportRepository);
   }
 
-  private void stubMissing(LocalDate today, ee.tuleva.onboarding.fund.TulevaFund fund) {
+  private void stubMissing(LocalDate today, ee.tuleva.onboarding.tulevafund.TulevaFund fund) {
     LocalDate navDate = navDateFor(today);
     lenient()
         .when(navReportRepository.existsPublishedByNavDateAndFundCode(navDate, fund.getCode()))
         .thenReturn(false);
   }
 
-  private void stubPublished(LocalDate today, ee.tuleva.onboarding.fund.TulevaFund fund) {
+  private void stubPublished(LocalDate today, ee.tuleva.onboarding.tulevafund.TulevaFund fund) {
     LocalDate navDate = navDateFor(today);
     lenient()
         .when(navReportRepository.existsPublishedByNavDateAndFundCode(navDate, fund.getCode()))

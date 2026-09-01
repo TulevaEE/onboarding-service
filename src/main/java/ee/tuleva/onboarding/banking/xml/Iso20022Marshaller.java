@@ -1,7 +1,9 @@
 package ee.tuleva.onboarding.banking.xml;
 
 import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBElement;
 import java.io.*;
+import javax.xml.transform.stream.StreamSource;
 import lombok.SneakyThrows;
 import org.springframework.stereotype.Service;
 
@@ -19,9 +21,10 @@ public class Iso20022Marshaller {
   }
 
   @SneakyThrows
-  public <T> T unMarshal(String response, Class<T> responseClass, Class objectFactoryClass) {
+  public <T> JAXBElement<T> unMarshal(
+      String response, Class<T> declaredType, Class<?> objectFactoryClass) {
     JAXBContext unMarshalContext = JAXBContext.newInstance(objectFactoryClass);
     var unmarshaller = unMarshalContext.createUnmarshaller();
-    return responseClass.cast(unmarshaller.unmarshal(new StringReader(response)));
+    return unmarshaller.unmarshal(new StreamSource(new StringReader(response)), declaredType);
   }
 }

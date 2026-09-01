@@ -14,6 +14,7 @@ import java.util.UUID;
 import lombok.*;
 import org.hibernate.annotations.JdbcType;
 import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
+import org.jspecify.annotations.Nullable;
 
 @Entity
 @Table(name = "parent_child_link")
@@ -52,10 +53,10 @@ public class ParentChildLink {
   @JdbcType(PostgreSQLEnumJdbcType.class)
   private ParentChildLinkStatus status = ACTIVE;
 
-  private Instant suspendedAt;
+  private @Nullable Instant suspendedAt;
 
   @Column(nullable = false, updatable = false)
-  private Instant createdDate;
+  private @Nullable Instant createdDate;
 
   @PrePersist
   void prePersist() {

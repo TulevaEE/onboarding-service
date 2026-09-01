@@ -1,15 +1,17 @@
 package ee.tuleva.onboarding.mandate.builder;
 
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
 
-import ee.tuleva.onboarding.account.AccountStatementService;
-import ee.tuleva.onboarding.account.FundBalance;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.conversion.ConversionDecorator;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
-import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.mandate.MandateContactDetails;
+import ee.tuleva.onboarding.mandate.PensionAccountStatement;
+import ee.tuleva.onboarding.mandate.PensionAccountStatement.PensionFundBalance;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandWrapper;
 import ee.tuleva.onboarding.mandate.command.MandateFundTransferExchangeCommand;
@@ -19,24 +21,23 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.lang.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
 public class CreateMandateCommandToMandateConverter {
 
-  private final AccountStatementService accountStatementService;
+  private final PensionAccountStatement pensionAccountStatement;
   private final FundRepository fundRepository;
   private final ConversionDecorator conversionDecorator;
   private final SecondPillarPaymentRateService secondPillarPaymentRateService;
 
-  @NonNull
   public Mandate convert(CreateMandateCommandWrapper wrapper) {
     User user = wrapper.getUser();
     final var createMandateCommand = wrapper.getCreateMandateCommand();
     ConversionResponse conversion = wrapper.getConversion();
-    ContactDetails contactDetails = wrapper.getContactDetails();
+    MandateContactDetails contactDetails = wrapper.getContactDetails();
     AuthenticatedPerson authenticatedPerson = wrapper.getAuthenticatedPerson();
 
     Mandate mandate = new Mandate();
@@ -45,10 +46,18 @@ public class CreateMandateCommandToMandateConverter {
     mandate.setAddress(createMandateCommand.getAddress());
     var paymentRates = secondPillarPaymentRateService.getPaymentRates(authenticatedPerson);
     conversionDecorator.addConversionMetadata(
-        mandate.getMetadata(), conversion, contactDetails, authenticatedPerson, paymentRates);
+        mandate.getMetadata(),
+        conversion,
+        contactDetails.secondPillarActive(),
+        contactDetails.thirdPillarActive(),
+        authenticatedPerson,
+        paymentRates);
 
     List<FundTransferExchange> fundTransferExchanges =
-        createMandateCommand.getFundTransferExchanges().stream()
+        requireNonNull(
+                createMandateCommand.getFundTransferExchanges(),
+                "fundTransferExchanges must be validated first: command=" + createMandateCommand)
+            .stream()
             .map(
                 exchange ->
                     FundTransferExchange.builder()
@@ -81,11 +90,14 @@ public class CreateMandateCommandToMandateConverter {
     return fund.getPillar();
   }
 
-  private String getIsin(CreateMandateCommand createMandateCommand) {
+  private @Nullable String getIsin(CreateMandateCommand createMandateCommand) {
     if (createMandateCommand.getFutureContributionFundIsin() != null) {
       return createMandateCommand.getFutureContributionFundIsin();
     }
-    return createMandateCommand.getFundTransferExchanges().stream()
+    return requireNonNull(
+            createMandateCommand.getFundTransferExchanges(),
+            "fundTransferExchanges must be validated first: command=" + createMandateCommand)
+        .stream()
         .map(MandateFundTransferExchangeCommand::getSourceFundIsin)
         .findFirst()
         .orElse(null);
@@ -96,18 +108,19 @@ public class CreateMandateCommandToMandateConverter {
     if (pillar == 2) {
       return exchange.getAmount();
     } else if (pillar == 3) {
-      final var statement = accountStatementService.getAccountStatement(mandate.getUser());
+      final var statement = pensionAccountStatement.forPerson(mandate.getUser());
       final var balance = getFundBalance(statement, exchange.getSourceFundIsin());
-      final var exchangeAmount = balance.getUnits().multiply(exchange.getAmount());
+      final var exchangeAmount = balance.units().multiply(exchange.getAmount());
       return exchangeAmount.setScale(4, RoundingMode.HALF_UP);
     } else {
       throw new IllegalStateException("Unknown pillar " + pillar);
     }
   }
 
-  private FundBalance getFundBalance(List<FundBalance> accountStatement, String isin) {
+  private PensionFundBalance getFundBalance(
+      List<PensionFundBalance> accountStatement, String isin) {
     return accountStatement.stream()
-        .filter(fundBalance -> fundBalance.getFund().getIsin().equals(isin))
+        .filter(fundBalance -> fundBalance.isin().equals(isin))
         .findFirst()
         .orElseThrow(() -> new IllegalStateException("Fund not found: " + isin));
   }

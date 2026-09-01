@@ -1,20 +1,21 @@
 package ee.tuleva.onboarding.ledger;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.ASSET;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.LIABILITY;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_BOUNCE_BACK;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_RECEIVED;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.UNATTRIBUTED_PAYMENT;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ZERO;
 import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.time.ClockConfig;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -24,18 +25,28 @@ import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.context.annotation.Import;
 
-@SpringBootTest
-@Transactional
+@DataJpaTest
+@Import({
+  LedgerService.class,
+  LedgerAccountService.class,
+  LedgerPartyService.class,
+  LedgerTransactionService.class,
+  SavingsFundLedgerAccounts.class,
+  RedemptionLedgerRecorder.class,
+  UnattributedPaymentLedgerRecorder.class,
+  SavingsFundLedger.class,
+  ClockConfig.class
+})
 class SavingsFundLedgerTest {
 
   @Autowired LedgerService ledgerService;
   @Autowired LedgerAccountService ledgerAccountService;
   @Autowired SavingsFundLedger savingsFundLedger;
 
-  PartyId testParty = new PartyId(PartyId.Type.PERSON, "38001010001");
+  PartyRef testParty = new PartyRef(PERSON, "38001010001");
 
   @AfterEach
   void tearDown() {
@@ -142,13 +153,46 @@ class SavingsFundLedgerTest {
     var amount = new BigDecimal("1000.00");
     var externalReference = randomUUID();
     var bookingDate = LocalDate.of(2026, 6, 12);
-    savingsFundLedger.recordUnattributedPayment(amount, externalReference, bookingDate);
+    var parkedTransaction =
+        savingsFundLedger.recordUnattributedPayment(amount, externalReference, bookingDate);
 
     var transaction =
         savingsFundLedger.reconcileUnattributedPayment(
             testParty, amount, externalReference, bookingDate);
 
+    assertThat(parkedTransaction.getMetadata().get("operationType"))
+        .isEqualTo("UNATTRIBUTED_PAYMENT");
+    assertThat(
+            parkedTransaction
+                .getTransactionDate()
+                .atZone(ZoneId.of("Europe/Tallinn"))
+                .toLocalDate())
+        .isEqualTo(bookingDate);
     assertThat(transaction.getTransactionDate().atZone(ZoneId.of("Europe/Tallinn")).toLocalDate())
+        .isEqualTo(bookingDate);
+  }
+
+  @Test
+  void redemptionPayoutFlow_withBookingDate_usesBookingDate() {
+    var cashAmount = new BigDecimal("500.00");
+    var fundUnits = new BigDecimal("50.00000");
+    var navPerUnit = new BigDecimal("10.00");
+    var redemptionRequestId = randomUUID();
+    var bookingDate = LocalDate.of(2026, 6, 12);
+    savingsFundLedger.recordPaymentReceived(testParty, cashAmount, randomUUID());
+    savingsFundLedger.reserveFundUnitsForRedemption(testParty, fundUnits, redemptionRequestId);
+    savingsFundLedger.redeemFundUnitsFromReserved(
+        testParty, fundUnits, cashAmount, navPerUnit, redemptionRequestId);
+
+    var transfer =
+        savingsFundLedger.transferFromFundAccount(cashAmount, redemptionRequestId, bookingDate);
+    var payout =
+        savingsFundLedger.recordRedemptionPayout(
+            testParty, cashAmount, "EE471000001020145685", redemptionRequestId, bookingDate);
+
+    assertThat(transfer.getTransactionDate().atZone(ZoneId.of("Europe/Tallinn")).toLocalDate())
+        .isEqualTo(bookingDate);
+    assertThat(payout.getTransactionDate().atZone(ZoneId.of("Europe/Tallinn")).toLocalDate())
         .isEqualTo(bookingDate);
   }
 
@@ -289,8 +333,11 @@ class SavingsFundLedgerTest {
     var userCashReservedBefore = getUserCashReservedAccount().getBalance();
 
     savingsFundLedger.recordUnattributedPayment(amount, externalReference);
-    savingsFundLedger.recordPaymentCancelled(testParty, amount, externalReference);
+    var transaction =
+        savingsFundLedger.recordPaymentCancelled(testParty, amount, externalReference);
 
+    assertThat(transaction).isNotNull();
+    assertThat(transaction.getMetadata().get("operationType")).isEqualTo("PAYMENT_BOUNCE_BACK");
     assertThat(savingsFundLedger.hasLedgerEntry(externalReference, PAYMENT_RECEIVED)).isFalse();
     assertThat(deltaSince(unreconciledBefore, getUnreconciledBankReceiptsAccount()))
         .isEqualByComparingTo(ZERO);
@@ -406,7 +453,7 @@ class SavingsFundLedgerTest {
 
   @Test
   void recordPaymentReceived_autoCreatesPartyAndAccountsForNewUser() {
-    var newParty = new PartyId(PartyId.Type.PERSON, "99999999999");
+    var newParty = new PartyRef(PERSON, "99999999999");
     var amount = new BigDecimal("100.00");
     var externalReference = randomUUID();
 
@@ -491,9 +538,9 @@ class SavingsFundLedgerTest {
     var transaction =
         savingsFundLedger.recordAdjustment(
             "INCOMING_PAYMENTS_CLEARING",
-            (PartyId) null,
+            (PartyRef) null,
             "BANK_ADJUSTMENT",
-            (PartyId) null,
+            (PartyRef) null,
             amount,
             null,
             "Test adjustment");
@@ -532,7 +579,7 @@ class SavingsFundLedgerTest {
     var paymentId = randomUUID();
     savingsFundLedger.recordPaymentReceived(testParty, new BigDecimal("100.00"), paymentId);
 
-    var otherParty = new PartyId(PartyId.Type.PERSON, "38001010002");
+    var otherParty = new PartyRef(PERSON, "38001010002");
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -573,9 +620,9 @@ class SavingsFundLedgerTest {
     var transaction =
         savingsFundLedger.recordAdjustment(
             "TRADE_UNIT_SETTLEMENT:TKF100:LU1291102447",
-            (PartyId) null,
+            (PartyRef) null,
             "SECURITIES_CUSTODY:TKF100:LU1291102447",
-            (PartyId) null,
+            (PartyRef) null,
             units,
             null,
             "Trade unit backfill");
@@ -703,6 +750,141 @@ class SavingsFundLedgerTest {
         .isEqualByComparingTo(ZERO);
     assertThat(deltaSince(clearingBefore, getIncomingPaymentsClearingAccount()))
         .isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void reconcileUnattributedPayment_createsUnattributedPaymentWhenMissing() {
+    var amount = new BigDecimal("400.00");
+    var externalReference = randomUUID();
+    var unreconciledBefore = getUnreconciledBankReceiptsAccount().getBalance();
+    var clearingBefore = getIncomingPaymentsClearingAccount().getBalance();
+    // No recordUnattributedPayment call — simulates reconciliation without prior parking
+
+    var transaction =
+        savingsFundLedger.reconcileUnattributedPayment(testParty, amount, externalReference);
+
+    assertThat(transaction.getMetadata().get("operationType"))
+        .isEqualTo("UNATTRIBUTED_PAYMENT_RECONCILED");
+    assertThat(savingsFundLedger.hasLedgerEntry(externalReference, UNATTRIBUTED_PAYMENT)).isTrue();
+    assertThat(deltaSince(unreconciledBefore, getUnreconciledBankReceiptsAccount()))
+        .isEqualByComparingTo(ZERO);
+    assertThat(deltaSince(clearingBefore, getIncomingPaymentsClearingAccount()))
+        .isEqualByComparingTo(amount);
+    verifyDoubleEntry(transaction);
+  }
+
+  @Test
+  void recordAdjustment_systemToUser_createsCorrectLedgerEntries() {
+    var amount = new BigDecimal("15.00");
+    var clearingBefore = getIncomingPaymentsClearingAccount().getBalance();
+    var userCashBefore = getUserCashAccount().getBalance();
+
+    var transaction =
+        savingsFundLedger.recordAdjustment(
+            "INCOMING_PAYMENTS_CLEARING",
+            (PartyRef) null,
+            "CASH",
+            testParty,
+            amount,
+            null,
+            "System to user adjustment");
+
+    assertThat(transaction.getMetadata().get("operationType")).isEqualTo("ADJUSTMENT");
+    assertThat(deltaSince(clearingBefore, getIncomingPaymentsClearingAccount()))
+        .isEqualByComparingTo(amount);
+    assertThat(deltaSince(userCashBefore, getUserCashAccount()))
+        .isEqualByComparingTo(amount.negate());
+    verifyDoubleEntry(transaction);
+  }
+
+  @Test
+  void recordRedemptionPayout_withoutRedemptionRequestId_omitsMetadataKey() {
+    var amount = new BigDecimal("500.00");
+    var customerIban = "EE471000001020145685";
+
+    var transaction =
+        savingsFundLedger.recordRedemptionPayout(testParty, amount, customerIban, null);
+
+    assertThat(transaction.getExternalReference()).isNull();
+    assertThat(transaction.getMetadata()).doesNotContainKey("redemptionRequestId");
+    assertThat(transaction.getMetadata().get("customerIban")).isEqualTo(customerIban);
+    verifyDoubleEntry(transaction);
+  }
+
+  @Test
+  void redeemFundUnitsFromReserved_withoutRedemptionRequestId_omitsMetadataKey() {
+    var units = new BigDecimal("2.00000");
+    savingsFundLedger.reserveFundUnitsForRedemption(testParty, units, randomUUID());
+
+    var transaction =
+        savingsFundLedger.redeemFundUnitsFromReserved(
+            testParty, units, new BigDecimal("200.00"), new BigDecimal("100.00"), null);
+
+    assertThat(transaction.getExternalReference()).isNull();
+    assertThat(transaction.getMetadata()).doesNotContainKey("redemptionRequestId");
+    verifyDoubleEntry(transaction);
+  }
+
+  @Test
+  void hasPricingEntry_reflectsWhetherRedemptionRequestWasRecorded() {
+    var redemptionRequestId = randomUUID();
+
+    assertThat(savingsFundLedger.hasPricingEntry(redemptionRequestId)).isFalse();
+
+    savingsFundLedger.redeemFundUnitsFromReserved(
+        testParty,
+        new BigDecimal("1.00000"),
+        new BigDecimal("100.00"),
+        new BigDecimal("100.00"),
+        redemptionRequestId);
+
+    assertThat(savingsFundLedger.hasPricingEntry(redemptionRequestId)).isTrue();
+  }
+
+  @Test
+  void hasPayoutEntry_reflectsWhetherPayoutWasRecorded() {
+    var redemptionRequestId = randomUUID();
+    var customerIban = "EE471000001020145685";
+
+    assertThat(savingsFundLedger.hasPayoutEntry(redemptionRequestId)).isFalse();
+
+    savingsFundLedger.recordRedemptionPayout(
+        testParty, new BigDecimal("100.00"), customerIban, redemptionRequestId);
+
+    assertThat(savingsFundLedger.hasPayoutEntry(redemptionRequestId)).isTrue();
+  }
+
+  @Test
+  void cancelRedemptionReservation_returnsTheCancellationTransaction() {
+    var fundUnits = new BigDecimal("2.00000");
+    var externalReference = randomUUID();
+    savingsFundLedger.reserveFundUnitsForRedemption(testParty, fundUnits, randomUUID());
+
+    var transaction =
+        savingsFundLedger.cancelRedemptionReservation(testParty, fundUnits, externalReference);
+
+    assertThat(transaction).isNotNull();
+    assertThat(transaction.getTransactionType())
+        .isEqualTo(LedgerTransaction.TransactionType.REDEMPTION_CANCELLED);
+    assertThat(transaction.getMetadata().get("operationType")).isEqualTo("REDEMPTION_CANCELLED");
+    verifyDoubleEntry(transaction);
+  }
+
+  @Test
+  void recordAdjustment_debitPartyNotFound_throwsIllegalArgumentException() {
+    var unregisteredParty = new PartyRef(PERSON, "38888888888");
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            savingsFundLedger.recordAdjustment(
+                "CASH",
+                unregisteredParty,
+                "INCOMING_PAYMENTS_CLEARING",
+                null,
+                new BigDecimal("10.00"),
+                null,
+                "Unknown party"));
   }
 
   private BigDecimal deltaSince(BigDecimal before, LedgerAccount account) {

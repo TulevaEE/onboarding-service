@@ -2,22 +2,23 @@ package ee.tuleva.onboarding.mandate;
 
 import static ee.tuleva.onboarding.auth.mobileid.MobileIDSession.PHONE_NUMBER;
 import static ee.tuleva.onboarding.mandate.MandateController.MANDATES_URI;
+import static java.util.Objects.requireNonNull;
 
 import com.fasterxml.jackson.annotation.JsonView;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
+import ee.tuleva.onboarding.error.NotFoundException;
 import ee.tuleva.onboarding.error.ValidationErrorsException;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
-import ee.tuleva.onboarding.mandate.command.FinishIdCardSignCommand;
-import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand;
-import ee.tuleva.onboarding.mandate.exception.IdSessionException;
-import ee.tuleva.onboarding.mandate.exception.NotFoundException;
 import ee.tuleva.onboarding.mandate.generic.GenericMandateService;
+import ee.tuleva.onboarding.signature.*;
+import ee.tuleva.onboarding.signature.FinishIdCardSignCommand;
+import ee.tuleva.onboarding.signature.IdCardSignatureSession;
+import ee.tuleva.onboarding.signature.IdSessionException;
+import ee.tuleva.onboarding.signature.MobileIdSignatureSession;
 import ee.tuleva.onboarding.signature.SignatureFile;
-import ee.tuleva.onboarding.signature.idcard.IdCardSignatureSession;
-import ee.tuleva.onboarding.signature.mobileid.MobileIdSignatureSession;
-import ee.tuleva.onboarding.signature.response.*;
-import ee.tuleva.onboarding.signature.smartid.SmartIdSignatureSession;
+import ee.tuleva.onboarding.signature.SmartIdSignatureSession;
+import ee.tuleva.onboarding.signature.StartIdCardSignCommand;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.servlet.http.HttpServletRequest;
@@ -83,8 +84,10 @@ public class MandateController {
     MobileIdSignatureSession signatureSession =
         mandateService.mobileIdSign(
             mandateId,
-            authenticatedPerson.getUserId(),
-            authenticatedPerson.getAttribute(PHONE_NUMBER));
+            authenticatedPerson.getUserIdOrThrow(),
+            requireNonNull(
+                authenticatedPerson.getAttribute(PHONE_NUMBER),
+                "Phone number missing: mandateId=" + mandateId));
     sessionStore.save(signatureSession);
 
     return new MobileSignatureResponse(signatureSession.getVerificationCode());
@@ -112,7 +115,7 @@ public class MandateController {
 
     SignatureStatus statusCode =
         mandateService.finalizeMobileIdSignature(
-            authenticatedPerson.getUserId(), mandateId, session, locale);
+            authenticatedPerson.getUserIdOrThrow(), mandateId, session, locale);
 
     return new MobileSignatureStatusResponse(statusCode, session.getVerificationCode());
   }
@@ -129,7 +132,7 @@ public class MandateController {
         authenticatedPerson.getUserId(),
         request.getSession(false) != null ? request.getSession(false).getId() : "none");
     SmartIdSignatureSession signatureSession =
-        mandateService.smartIdSign(mandateId, authenticatedPerson.getUserId());
+        mandateService.smartIdSign(mandateId, authenticatedPerson.getUserIdOrThrow());
     sessionStore.save(signatureSession);
     log.info(
         "Smart-ID signing session saved: mandateId={}, userId={}, sessionId={}",
@@ -162,7 +165,7 @@ public class MandateController {
 
     SignatureStatus statusCode =
         mandateService.finalizeSmartIdSignature(
-            authenticatedPerson.getUserId(), mandateId, session, locale);
+            authenticatedPerson.getUserIdOrThrow(), mandateId, session, locale);
 
     return new MobileSignatureStatusResponse(statusCode, session.getVerificationCode());
   }
@@ -182,7 +185,7 @@ public class MandateController {
         request.getSession(false) != null ? request.getSession(false).getId() : "none");
     IdCardSignatureSession signatureSession =
         mandateService.idCardSign(
-            mandateId, authenticatedPerson.getUserId(), signCommand.getClientCertificate());
+            mandateId, authenticatedPerson.getUserIdOrThrow(), signCommand.clientCertificate());
 
     sessionStore.save(signatureSession);
     log.info(
@@ -220,10 +223,10 @@ public class MandateController {
 
     SignatureStatus statusCode =
         mandateService.finalizeIdCardSignature(
-            authenticatedPerson.getUserId(),
+            authenticatedPerson.getUserIdOrThrow(),
             mandateId,
             session,
-            signCommand.getSignedHash(),
+            signCommand.signedHash(),
             locale);
 
     return new IdCardSignatureStatusResponse(statusCode);
@@ -237,7 +240,7 @@ public class MandateController {
       HttpServletResponse response)
       throws IOException {
 
-    Mandate mandate = getMandateOrThrow(mandateId, authenticatedPerson.getUserId());
+    Mandate mandate = getMandateOrThrow(mandateId, authenticatedPerson.getUserIdOrThrow());
     response.addHeader("Content-Disposition", "attachment; filename=Tuleva_avaldus.bdoc");
 
     byte[] content =
@@ -256,7 +259,7 @@ public class MandateController {
       throws IOException {
 
     List<SignatureFile> files =
-        mandateFileService.getMandateFiles(mandateId, authenticatedPerson.getUserId());
+        mandateFileService.getMandateFiles(mandateId, authenticatedPerson.getUserIdOrThrow());
     response.addHeader("Content-Disposition", "attachment; filename=Tuleva_avaldus.zip");
 
     signatureFileArchiver.writeSignatureFilesToZipOutputStream(files, response.getOutputStream());

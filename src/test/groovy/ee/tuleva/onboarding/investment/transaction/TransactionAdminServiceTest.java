@@ -1,7 +1,5 @@
 package ee.tuleva.onboarding.investment.transaction;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
 import static ee.tuleva.onboarding.investment.transaction.BatchStatus.CONFIRMED;
 import static ee.tuleva.onboarding.investment.transaction.BatchStatus.DRAFT;
 import static ee.tuleva.onboarding.investment.transaction.CommandStatus.CALCULATED;
@@ -10,6 +8,8 @@ import static ee.tuleva.onboarding.investment.transaction.CommandStatus.PROCESSI
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.REBALANCE;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -20,7 +20,7 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.BDDMockito.willThrow;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -54,6 +54,7 @@ class TransactionAdminServiceTest {
   @Mock private TransactionOrderRepository orderRepository;
   @Mock private TransactionAuditEventRepository auditEventRepository;
   @Mock private TransactionPreparationService preparationService;
+  @Mock private TransactionBatchFinalizer batchFinalizer;
 
   @InjectMocks private TransactionAdminService service;
 
@@ -395,13 +396,13 @@ class TransactionAdminServiceTest {
               finalized.setStatus(BatchStatus.SENT);
               return null;
             })
-        .given(preparationService)
+        .given(batchFinalizer)
         .finalizeConfirmedBatch(batch);
     given(orderRepository.findByBatchId(10L)).willReturn(List.of());
 
     TransactionBatchResponse response = service.confirmAndFinalize(10L, "operator-7");
 
-    then(preparationService).should().finalizeConfirmedBatch(batch);
+    then(batchFinalizer).should().finalizeConfirmedBatch(batch);
     assertThat(response.status()).isEqualTo(BatchStatus.SENT);
     assertThat(batch.getConfirmedBy()).isEqualTo("operator-7");
     assertThat(batch.getConfirmedAt()).isEqualTo(Instant.parse("2026-06-11T09:00:00Z"));
@@ -417,13 +418,13 @@ class TransactionAdminServiceTest {
               assertThat(confirmed.getStatus()).isEqualTo(CONFIRMED);
               return null;
             })
-        .given(preparationService)
+        .given(batchFinalizer)
         .finalizeConfirmedBatch(batch);
     given(orderRepository.findByBatchId(10L)).willReturn(List.of());
 
     service.confirmAndFinalize(10L, "admin");
 
-    then(preparationService).should().finalizeConfirmedBatch(batch);
+    then(batchFinalizer).should().finalizeConfirmedBatch(batch);
   }
 
   @Test
@@ -448,7 +449,7 @@ class TransactionAdminServiceTest {
         .isInstanceOf(ResponseStatusException.class)
         .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
         .isEqualTo(409);
-    then(preparationService).should(never()).finalizeConfirmedBatch(any());
+    then(batchFinalizer).should(never()).finalizeConfirmedBatch(any());
   }
 
   @Test

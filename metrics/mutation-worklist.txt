@@ -1,0 +1,32 @@
+# Top surviving-mutant classes from the full baseline run (2026-08-29, score 84.4%).
+# Regenerate after each full pitest run; work top-down when strengthening tests.
+112  ee.tuleva.onboarding.investment.transaction.calculation.TradeCalculationEngine
+83  ee.tuleva.onboarding.comparisons.fundvalue.validation.FundValueIntegrityChecker
+63  ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceService
+36  ee.tuleva.onboarding.investment.check.tracking.PeriodicTdAttributionService
+30  ee.tuleva.onboarding.investment.transaction.TransactionPreparationService
+30  ee.tuleva.onboarding.investment.position.FundPositionImportJob
+24  ee.tuleva.onboarding.auth.idcard.AlbMtlsHeaderFilter$MtlsHeaderTranslatingRequest
+23  ee.tuleva.onboarding.investment.report.publishing.InvestmentReportPublisher
+22  ee.tuleva.onboarding.investment.transaction.ingest.SebPendingTransactionReconciliationService
+22  ee.tuleva.onboarding.investment.report.publishing.data.InvestmentReportDataService
+20  ee.tuleva.onboarding.investment.check.fee.FeeCheckNotifier
+19  ee.tuleva.onboarding.capital.transfer.CapitalTransferContract
+19  ee.tuleva.onboarding.banking.seb.SebGatewayConfiguration
+18  ee.tuleva.onboarding.banking.seb.SebHttpSignature
+16  ee.tuleva.onboarding.investment.transaction.ingest.ReconciliationAuditRecorder
+15  ee.tuleva.onboarding.savings.fund.SavingsFundStatementProcessor
+15  ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository
+14  ee.tuleva.onboarding.investment.check.limit.LimitCheckService
+14  ee.tuleva.onboarding.notification.email.EmailService
+14  ee.tuleva.onboarding.config.DigiDocTslRefreshJob
+14  ee.tuleva.onboarding.signature.DigiDocFacade
+14  ee.tuleva.onboarding.config.EmailConfiguration
+13  ee.tuleva.onboarding.banking.xml.XmlHelper
+12  ee.tuleva.onboarding.investment.transaction.TransactionInputService
+12  ee.tuleva.onboarding.investment.transaction.export.TransactionExportService
+12  ee.tuleva.onboarding.banking.statement.BankStatementEntry
+12  ee.tuleva.onboarding.investment.report.ReportImportJob
+12  ee.tuleva.onboarding.mandate.processor.MandateProcessorService
+12  ee.tuleva.onboarding.notification.email.firstpayment.ThirdPillarPaymentArrivedEmailService
+11  ee.tuleva.onboarding.notification.email.mailchimp.MailchimpCampaignSyncService

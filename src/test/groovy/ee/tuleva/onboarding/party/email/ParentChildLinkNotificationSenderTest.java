@@ -4,14 +4,13 @@ import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
 import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
+import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.party.ParentChildLink;
 import ee.tuleva.onboarding.party.ParentChildLinkCreatedEvent;
@@ -79,8 +78,7 @@ class ParentChildLinkNotificationSenderTest {
                 eq("new.parent@example.com"),
                 eq("parent_child_link_confirmation_et"),
                 eq(Map.of("fname", "New", "lname", "Parent", "childName", "Baby Child")),
-                eq(TAGS),
-                isNull()))
+                eq(TAGS)))
         .willReturn(confirmationMessage);
     given(
             emailService.newMandrillMessage(
@@ -92,8 +90,7 @@ class ParentChildLinkNotificationSenderTest {
                         "lname", "Guard",
                         "newRepresentativeName", "New Parent",
                         "childName", "Baby Child")),
-                eq(TAGS),
-                isNull()))
+                eq(TAGS)))
         .willReturn(addedMessage);
 
     sender.onParentChildLinkCreated(

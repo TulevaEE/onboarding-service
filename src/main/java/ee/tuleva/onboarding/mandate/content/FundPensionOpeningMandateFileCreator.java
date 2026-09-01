@@ -2,8 +2,8 @@ package ee.tuleva.onboarding.mandate.content;
 
 import static ee.tuleva.onboarding.mandate.MandateType.FUND_PENSION_OPENING;
 
-import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.mandate.MandateContactDetails;
 import ee.tuleva.onboarding.mandate.MandateType;
 import ee.tuleva.onboarding.user.User;
 import java.util.List;
@@ -18,11 +18,11 @@ class FundPensionOpeningMandateFileCreator implements MandateFileCreator {
 
   @Override
   public List<MandateContentFile> getContentFiles(
-      User user, Mandate mandate, ContactDetails contactDetails) {
+      User user, Mandate mandate, MandateContactDetails contactDetails) {
 
     String htmlContent =
         mandateContentService.getFundPensionOpeningHtml(user, mandate, contactDetails);
-    String documentNumber = mandate.getId().toString();
+    String documentNumber = mandate.getIdOrThrow().toString();
 
     return List.of(
         MandateContentFile.builder()

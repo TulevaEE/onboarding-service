@@ -1,5 +1,5 @@
 package ee.tuleva.onboarding.party;
 
-import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
+import ee.tuleva.onboarding.personalcode.ValidPersonalCode;
 
 public record CreateChildCommand(@ValidPersonalCode String childPersonalCode) {}

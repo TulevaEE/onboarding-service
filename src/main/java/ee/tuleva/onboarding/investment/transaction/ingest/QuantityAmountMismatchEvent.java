@@ -3,17 +3,18 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import org.jspecify.annotations.Nullable;
 
 record QuantityAmountMismatchEvent(
     SebPendingTransactionRow row,
     TransactionOrder order,
     MismatchKind kind,
-    BigDecimal expected,
-    BigDecimal actual,
-    BigDecimal delta,
+    @Nullable BigDecimal expected,
+    @Nullable BigDecimal actual,
+    @Nullable BigDecimal delta,
     BigDecimal tolerance,
     BigDecimal nearMissMultiplier,
-    LocalDate reportDate) {
+    @Nullable LocalDate reportDate) {
 
   enum MismatchKind {
     ETF_QUANTITY,

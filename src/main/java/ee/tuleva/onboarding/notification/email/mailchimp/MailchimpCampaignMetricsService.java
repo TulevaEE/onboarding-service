@@ -1,11 +1,11 @@
 package ee.tuleva.onboarding.notification.email.mailchimp;
 
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.MAILCHIMP_CAMPAIGN;
+import static ee.tuleva.onboarding.notification.email.EmailType.MAILCHIMP_CAMPAIGN;
 
 import ee.tuleva.onboarding.event.EventLog;
 import ee.tuleva.onboarding.event.EventLogRepository;
-import ee.tuleva.onboarding.mandate.email.persistence.Email;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailRepository;
+import ee.tuleva.onboarding.notification.email.Email;
+import ee.tuleva.onboarding.notification.email.persistence.EmailRepository;
 import java.util.List;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;

@@ -7,8 +7,8 @@
       <mj-column>
         <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
-          Lapse (*|RECIPIENTNAME|*) konto Tuleva Täiendavas Kogumisfondis on avatud. Nüüd saad teha
-          esimese sissemakse:
+          Lapse *|IF:RECIPIENTNAME|*(*|RECIPIENTNAME|*) *|END:IF|*konto Tuleva Täiendavas
+          Kogumisfondis on avatud. Nüüd saad teha esimese sissemakse:
         </mj-text>
         <mj-button href="https://pension.tuleva.ee/savings-fund/payment">
           Teen esimese sissemakse

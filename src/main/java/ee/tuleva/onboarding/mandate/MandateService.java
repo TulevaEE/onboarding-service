@@ -1,18 +1,16 @@
 package ee.tuleva.onboarding.mandate;
 
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.*;
-import static ee.tuleva.onboarding.signature.response.SignatureStatus.OUTSTANDING_TRANSACTION;
-import static ee.tuleva.onboarding.signature.response.SignatureStatus.SIGNATURE;
+import static ee.tuleva.onboarding.applicationtype.ApplicationType.*;
+import static ee.tuleva.onboarding.signature.SignatureStatus.OUTSTANDING_TRANSACTION;
+import static ee.tuleva.onboarding.signature.SignatureStatus.SIGNATURE;
 import static java.util.Arrays.asList;
 
+import ee.tuleva.onboarding.applicationtype.ApplicationType;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.conversion.UserConversionService;
-import ee.tuleva.onboarding.epis.EpisService;
-import ee.tuleva.onboarding.epis.contact.ContactDetails;
-import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
-import ee.tuleva.onboarding.mandate.application.ApplicationType;
+import ee.tuleva.onboarding.mandate.application.ApplicationSnapshot;
 import ee.tuleva.onboarding.mandate.builder.CreateMandateCommandToMandateConverter;
 import ee.tuleva.onboarding.mandate.cancellation.CancellationMandateBuilder;
 import ee.tuleva.onboarding.mandate.cancellation.InvalidApplicationTypeException;
@@ -22,18 +20,19 @@ import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
 import ee.tuleva.onboarding.mandate.event.BeforeMandateCreatedEvent;
 import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
+import ee.tuleva.onboarding.signature.IdCardSignatureSession;
+import ee.tuleva.onboarding.signature.MobileIdSignatureSession;
 import ee.tuleva.onboarding.signature.SignatureFile;
 import ee.tuleva.onboarding.signature.SignatureService;
-import ee.tuleva.onboarding.signature.idcard.IdCardSignatureSession;
-import ee.tuleva.onboarding.signature.mobileid.MobileIdSignatureSession;
-import ee.tuleva.onboarding.signature.response.SignatureStatus;
-import ee.tuleva.onboarding.signature.smartid.SmartIdSignatureSession;
+import ee.tuleva.onboarding.signature.SignatureStatus;
+import ee.tuleva.onboarding.signature.SmartIdSignatureSession;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
@@ -49,7 +48,7 @@ public class MandateService {
   private final CancellationMandateBuilder cancellationMandateBuilder;
   private final MandateFileService mandateFileService;
   private final UserService userService;
-  private final EpisService episService;
+  private final MandateContacts mandateContacts;
   private final ApplicationEventPublisher applicationEventPublisher;
   private final UserConversionService conversionService;
   private final MandateValidator mandateValidator;
@@ -57,9 +56,9 @@ public class MandateService {
   public Mandate save(
       AuthenticatedPerson authenticatedPerson, CreateMandateCommand createMandateCommand) {
     mandateValidator.validate(createMandateCommand, authenticatedPerson);
-    User user = userService.getById(authenticatedPerson.getUserId()).orElseThrow();
+    User user = userService.getById(authenticatedPerson.getUserIdOrThrow()).orElseThrow();
     ConversionResponse conversion = conversionService.getConversion(user);
-    ContactDetails contactDetails = episService.getContactDetails(user);
+    MandateContactDetails contactDetails = mandateContacts.getContactDetails(user);
     CreateMandateCommandWrapper wrapper =
         new CreateMandateCommandWrapper(
             createMandateCommand, authenticatedPerson, user, conversion, contactDetails);
@@ -68,16 +67,16 @@ public class MandateService {
   }
 
   public Mandate saveCancellation(
-      AuthenticatedPerson authenticatedPerson, ApplicationDTO applicationToCancel) {
+      AuthenticatedPerson authenticatedPerson, ApplicationSnapshot applicationToCancel) {
     ApplicationType applicationTypeToCancel = applicationToCancel.getType();
     if (!asList(WITHDRAWAL, EARLY_WITHDRAWAL, TRANSFER).contains(applicationTypeToCancel)) {
       throw new InvalidApplicationTypeException(
           "Invalid application type: " + applicationTypeToCancel);
     }
 
-    User user = userService.getById(authenticatedPerson.getUserId()).orElseThrow();
+    User user = userService.getById(authenticatedPerson.getUserIdOrThrow()).orElseThrow();
     ConversionResponse conversion = conversionService.getConversion(user);
-    ContactDetails contactDetails = episService.getContactDetails(user);
+    MandateContactDetails contactDetails = mandateContacts.getContactDetails(user);
     Mandate mandate =
         cancellationMandateBuilder.build(
             applicationToCancel, authenticatedPerson, user, conversion, contactDetails);
@@ -119,7 +118,7 @@ public class MandateService {
     return getStatus(user, mandate, signService.getSignedFile(session));
   }
 
-  private SignatureStatus getStatus(User user, Mandate mandate, byte[] signedFile) {
+  private SignatureStatus getStatus(User user, Mandate mandate, byte @Nullable [] signedFile) {
     if (signedFile != null) {
       persistSignedFile(mandate, signedFile);
       mandateProcessor.start(user, mandate);
@@ -171,7 +170,7 @@ public class MandateService {
 
   private SignatureStatus handleSignedMandate(User user, Mandate mandate, Locale locale) {
     if (mandateProcessor.isFinished(mandate)) {
-      episService.clearCache(user);
+      mandateContacts.clearCache(user);
       handleMandateProcessingErrors(mandate);
       notifyAboutSignedMandate(user, mandate, locale);
       return SIGNATURE;

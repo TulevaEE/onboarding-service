@@ -2,9 +2,11 @@ package ee.tuleva.onboarding.analytics.transaction.thirdpillar;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransaction;
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.epis.EnableEpisServiceHolder;
 import ee.tuleva.onboarding.epis.EnableEpisServiceHolder.EpisServiceHolder;
+import ee.tuleva.onboarding.epis.EpisRequestHeaders;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.transaction.ThirdPillarTransactionDto;
 import ee.tuleva.onboarding.time.ClockHolder;
@@ -152,7 +154,12 @@ class ThirdPillarTransactionSynchronizerIntegrationTest {
     private List<ThirdPillarTransactionDto> thirdPillarTransactionDtos = new ArrayList<>();
 
     public MockEpisService(RestTemplate restTemplate, JwtTokenUtil jwtTokenUtil) {
-      super(restTemplate, restTemplate, jwtTokenUtil);
+      super(
+          restTemplate,
+          restTemplate,
+          new EpisRequestHeaders(jwtTokenUtil),
+          "http://epis",
+          "http://epis");
     }
 
     @Override

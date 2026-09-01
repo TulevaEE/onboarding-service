@@ -3,10 +3,10 @@ package ee.tuleva.onboarding.investment.check.tracking;
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 
 import ee.tuleva.onboarding.deadline.BusinessDays;
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.event.RunTdAttributionBackfillRequested;
 import ee.tuleva.onboarding.investment.event.RunTdAttributionMonthlyRequested;
 import ee.tuleva.onboarding.investment.event.RunTdAttributionRequested;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -22,7 +22,7 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 @Profile({"production", "staging"})
-public class PeriodicTdAttributionJob {
+class PeriodicTdAttributionJob {
 
   private final PeriodicTdAttributionService service;
   private final BusinessDays businessDays;

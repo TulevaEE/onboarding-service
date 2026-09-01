@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.notification.email.firstpayment;
 
-import static ee.tuleva.onboarding.analytics.transaction.thirdpillar.AnalyticsThirdPillarTransactionFixture.exampleTransactionBuilder;
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.THIRD_PILLAR_PAYMENT_ARRIVED;
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.THIRD_PILLAR_PAYMENT_REMINDER_MANDATE;
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.THIRD_PILLAR_PAYMENT_SUCCESS_MANDATE;
+import static ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransactionFixture.exampleTransactionBuilder;
+import static ee.tuleva.onboarding.notification.email.EmailType.THIRD_PILLAR_PAYMENT_ARRIVED;
+import static ee.tuleva.onboarding.notification.email.EmailType.THIRD_PILLAR_PAYMENT_REMINDER_MANDATE;
+import static ee.tuleva.onboarding.notification.email.EmailType.THIRD_PILLAR_PAYMENT_SUCCESS_MANDATE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -17,14 +17,13 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
 import ee.tuleva.onboarding.analytics.transaction.thirdpillar.AnalyticsThirdPillarTransactionRepository;
-import ee.tuleva.onboarding.analytics.transaction.thirdpillar.FirstThirdPillarPayment;
 import ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwner;
 import ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwnerRepository;
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailRepository;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailStatus;
+import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.notification.email.EmailStatus;
+import ee.tuleva.onboarding.notification.email.persistence.EmailRepository;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import java.math.BigDecimal;
@@ -77,7 +76,7 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
 
   @BeforeEach
   void stubMandrill() {
-    given(emailService.newMandrillMessage(any(), any(), any(), any(), any()))
+    given(emailService.newMandrillMessage(any(), any(), any(), any()))
         .willReturn(new MandrillMessage());
     var response = org.mockito.Mockito.mock(MandrillMessageStatus.class);
     given(response.getId()).willReturn("mandrill-id");
@@ -115,7 +114,6 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
                             .minusDays(1)
                             .format(java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy"))
                             .equals(mergeVars.get("paymentDate"))),
-            any(),
             any());
     verify(emailService, times(1))
         .send(
@@ -138,7 +136,6 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
             eq("pensioner@example.com"),
             eq("third_pillar_payment_arrived_et"),
             argThat(mergeVars -> Boolean.FALSE.equals(mergeVars.get("suggestSecondPillar"))),
-            any(),
             any());
   }
 
@@ -207,7 +204,6 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
                 mergeVars ->
                     Boolean.TRUE.equals(mergeVars.get("suggestSecondPillar"))
                         && Boolean.FALSE.equals(mergeVars.get("hasTulevaUser"))),
-            any(),
             any());
     verify(emailService, times(1))
         .send(
@@ -236,7 +232,6 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
         .newMandrillMessage(
             eq("registry.fallback@example.com"),
             eq("third_pillar_payment_arrived_et"),
-            any(),
             any(),
             any());
   }
@@ -342,7 +337,6 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
                     Boolean.TRUE.equals(mergeVars.get("suggestSavingsFund"))
                         && Boolean.FALSE.equals(mergeVars.get("suggestSecondPillar"))
                         && Boolean.FALSE.equals(mergeVars.get("suggestPaymentRate"))),
-            any(),
             any());
   }
 
@@ -361,7 +355,6 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
             eq("maxed.out@example.com"),
             eq("third_pillar_payment_arrived_et"),
             argThat(mergeVars -> Boolean.FALSE.equals(mergeVars.get("suggestSavingsFund"))),
-            any(),
             any());
   }
 
@@ -407,7 +400,6 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
                     Boolean.TRUE.equals(mergeVars.get("leftSecondPillar"))
                         && Boolean.FALSE.equals(mergeVars.get("suggestSecondPillar"))
                         && Boolean.FALSE.equals(mergeVars.get("suggestPaymentRate"))),
-            any(),
             any());
   }
 

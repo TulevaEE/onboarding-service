@@ -169,10 +169,10 @@ class PaymentServiceSpec extends Specification {
 
   def "can process savings payment"() {
     given:
-    savingsCallbackService.processToken(_ as String) >> Optional.empty()
+    savingsCallbackService.processToken(_ as String) >> false
     when:
-    def returnedPayment = paymentService.processSavingsPaymentToken(aSerializedSavingsPaymentToken)
+    def recorded = paymentService.processSavingsPaymentToken(aSerializedSavingsPaymentToken)
     then:
-    returnedPayment.isEmpty()
+    !recorded
   }
 }

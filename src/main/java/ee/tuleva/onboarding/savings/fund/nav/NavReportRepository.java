@@ -11,7 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
-interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
+public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
 
   Optional<NavReportRow> findFirstByFundCodeAndNavDateAndAccountType(
       String fundCode, LocalDate navDate, String accountType);

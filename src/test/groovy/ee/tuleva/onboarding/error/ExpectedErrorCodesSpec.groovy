@@ -15,7 +15,6 @@ class ExpectedErrorCodesSpec extends Specification {
     "smart.id.user.refused"          || true
     "smart.id.account.not.found"     || true
     "smart.id.timeout"               || true
-    "smart.id.validation.failed"     || true
     "mobile.id.cancelled"            || true
     "mobile.id.timeout"              || true
     "mobile.id.no.signal"            || true
@@ -28,6 +27,7 @@ class ExpectedErrorCodesSpec extends Specification {
     "mobile.id.internal.error"       || false
     "mobile.id.error"                || false
     "smart.id.technical.error"       || false
+    "smart.id.validation.failed"     || false
     "epis.message.exception"         || false
     "something.completely.unknown"   || false
   }

@@ -14,6 +14,7 @@ import java.time.ZoneId;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -52,10 +53,13 @@ public class BankOperationProcessor {
     var clearingAccount = account.ledgerAccount();
     var subFamilyCode = entry.subFamilyCode();
 
+    if (subFamilyCode == null) {
+      parkInSuspense(entry, account, externalReference, amount, "unknown subFamilyCode");
+      return;
+    }
+
     TransactionType transactionType =
-        subFamilyCode == null
-            ? null
-            : mapSubFamilyCode(subFamilyCode, entry.remittanceInformation());
+        mapSubFamilyCode(subFamilyCode, entry.remittanceInformation());
     if (transactionType == null) {
       parkInSuspense(entry, account, externalReference, amount, "unknown subFamilyCode");
       return;
@@ -148,7 +152,8 @@ public class BankOperationProcessor {
     }
   }
 
-  private TransactionType mapSubFamilyCode(String subFamilyCode, String remittanceInformation) {
+  private @Nullable TransactionType mapSubFamilyCode(
+      String subFamilyCode, String remittanceInformation) {
     return switch (subFamilyCode) {
       case INTR -> INTEREST_RECEIVED;
       case FEES, COMM -> BANK_FEE;

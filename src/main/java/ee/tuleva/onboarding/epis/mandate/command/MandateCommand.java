@@ -1,7 +1,8 @@
 package ee.tuleva.onboarding.epis.mandate.command;
 
 import ee.tuleva.onboarding.epis.mandate.GenericMandateDto;
-import ee.tuleva.onboarding.epis.mandate.details.MandateDetails;
+import ee.tuleva.onboarding.mandate.MandateSubmissionCommand;
+import ee.tuleva.onboarding.mandate.details.MandateDetails;
 
 public class MandateCommand<TDetails extends MandateDetails> extends MandateInProcess {
   private final GenericMandateDto<TDetails> mandateDto;
@@ -13,5 +14,10 @@ public class MandateCommand<TDetails extends MandateDetails> extends MandateInPr
 
   public GenericMandateDto<TDetails> getMandateDto() {
     return mandateDto;
+  }
+
+  public static <T extends MandateDetails> MandateCommand<T> from(
+      MandateSubmissionCommand<T> command) {
+    return MandateSubmissionCommandMapper.toMandateCommand(command);
   }
 }

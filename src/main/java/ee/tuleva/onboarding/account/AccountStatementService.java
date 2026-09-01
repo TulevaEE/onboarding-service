@@ -9,6 +9,7 @@ import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -24,7 +25,7 @@ public class AccountStatementService {
   }
 
   public List<FundBalance> getAccountStatement(
-      Person person, LocalDate fromDate, LocalDate toDate) {
+      Person person, @Nullable LocalDate fromDate, @Nullable LocalDate toDate) {
     List<FundBalanceDto> accountStatement =
         episService.getAccountStatement(person, fromDate, toDate);
 

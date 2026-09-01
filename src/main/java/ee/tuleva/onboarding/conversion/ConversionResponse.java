@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.math.BigDecimal;
 import lombok.Builder;
 import lombok.Data;
+import org.jspecify.annotations.Nullable;
 
 @Builder
 @Data
@@ -57,7 +58,7 @@ public class ConversionResponse {
     private boolean selectionPartial;
     private boolean selectionComplete;
     private boolean pendingWithdrawal;
-    private Boolean paymentComplete;
+    private @Nullable Boolean paymentComplete;
     private Amount contribution;
     private Amount subtraction;
     private BigDecimal weightedAverageFee;

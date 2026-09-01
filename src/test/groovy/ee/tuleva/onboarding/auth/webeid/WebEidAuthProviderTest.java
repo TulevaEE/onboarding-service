@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.auth.idcard.IdDocumentType.OLD_ID_CARD;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -13,6 +14,7 @@ import ee.tuleva.onboarding.auth.idcard.IdCardSession;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
+import eu.webeid.security.authtoken.WebEidAuthToken;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -64,6 +66,15 @@ class WebEidAuthProviderTest {
     AuthenticatedPerson result = webEidAuthProvider.authenticate(authTokenJson);
 
     assertThat(result).isEqualTo(expectedPerson);
+    verify(webEidAuthService)
+        .authenticate(
+            argThat(
+                (WebEidAuthToken token) ->
+                    token != null
+                        && "web-eid:1".equals(token.getFormat())
+                        && "test".equals(token.getUnverifiedCertificate())
+                        && "ES384".equals(token.getAlgorithm())
+                        && "sig".equals(token.getSignature())));
   }
 
   @Test

@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.savings.fund;
 
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.VERIFIED;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPaymentFixture.aPayment;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.VERIFIED;
+import static ee.tuleva.onboarding.savings.SavingFundPaymentFixture.aPayment;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 

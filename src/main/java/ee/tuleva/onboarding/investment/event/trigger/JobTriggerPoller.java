@@ -79,7 +79,7 @@ class JobTriggerPoller {
         markCompleted(trigger);
         log.info("Job trigger completed: jobName={}", trigger.getJobName());
       } catch (Exception e) {
-        markFailed(trigger, e.getMessage());
+        markFailed(trigger, e.getMessage() == null ? e.toString() : e.getMessage());
         log.error("Job trigger failed: jobName={}", trigger.getJobName(), e);
       }
     }

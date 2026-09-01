@@ -3,12 +3,12 @@ package ee.tuleva.onboarding.mandate.content;
 import static ee.tuleva.onboarding.fund.Fund.FundStatus.ACTIVE;
 import static ee.tuleva.onboarding.mandate.MandateType.PARTIAL_WITHDRAWAL;
 
-import ee.tuleva.onboarding.epis.contact.ContactDetails;
-import ee.tuleva.onboarding.epis.mandate.details.PartialWithdrawalMandateDetails;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.mandate.MandateContactDetails;
 import ee.tuleva.onboarding.mandate.MandateType;
+import ee.tuleva.onboarding.mandate.details.PartialWithdrawalMandateDetails;
 import ee.tuleva.onboarding.user.User;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +24,7 @@ class PartialWithdrawalMandateFileCreator implements MandateFileCreator {
 
   @Override
   public List<MandateContentFile> getContentFiles(
-      User user, Mandate mandate, ContactDetails contactDetails) {
+      User user, Mandate mandate, MandateContactDetails contactDetails) {
 
     List<Fund> funds = fundRepository.findAllByPillarAndStatus(mandate.getPillar(), ACTIVE);
 
@@ -39,9 +39,8 @@ class PartialWithdrawalMandateFileCreator implements MandateFileCreator {
   }
 
   public String getFileName(Mandate mandate) {
-    var documentNumber = mandate.getId().toString();
-    var pillar =
-        ((PartialWithdrawalMandateDetails) mandate.getGenericMandateDto().getDetails()).getPillar();
+    var documentNumber = mandate.getIdOrThrow().toString();
+    var pillar = ((PartialWithdrawalMandateDetails) mandate.toSubmission().details()).getPillar();
 
     return switch (pillar) {
       case SECOND -> "yhekordse_valjamakse_avaldus" + documentNumber + ".html";

@@ -289,4 +289,72 @@ class PensionikeskusDailyStatisticsClientTest {
             .build();
     return new RetryTemplate(policy);
   }
+
+  @Test
+  void parsesWhenTasudIsTheFirstColumn() {
+    setUp();
+    var tsv = "Tasud %\tFond\n" + "0,28\tTuleva Maailma Aktsiate Pensionifond\n";
+    respondWithTsv(II_DOWNLOAD_URL, tsv);
+
+    var result = client.fetchOngoingCharges(2);
+
+    assertThat(result)
+        .usingRecursiveComparison()
+        .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+        .isEqualTo(
+            List.of(
+                new PensionikeskusFeeRow(
+                    "Tuleva Maailma Aktsiate Pensionifond", new BigDecimal("0.0028"))));
+    server.verify();
+  }
+
+  @Test
+  void skipsRowWithExactlyTooFewColumnsWithoutFailing() {
+    setUp();
+    var thirteenColumns =
+        String.join(
+            "\t",
+            "Short Fund",
+            "10.07.2026",
+            "1,0",
+            "0,1",
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9");
+    var tsv =
+        secondPillarHeader()
+            + "\n"
+            + thirteenColumns
+            + "\n"
+            + statisticsRow("Tuleva Maailma Aktsiate Pensionifond", "0,28")
+            + "\n";
+    respondWithTsv(II_DOWNLOAD_URL, tsv);
+
+    var result = client.fetchOngoingCharges(2);
+
+    assertThat(result)
+        .usingRecursiveComparison()
+        .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+        .isEqualTo(
+            List.of(
+                new PensionikeskusFeeRow(
+                    "Tuleva Maailma Aktsiate Pensionifond", new BigDecimal("0.0028"))));
+    server.verify();
+  }
+
+  @Test
+  void throwsWhenColumnsAreMissingEvenIfTheFirstColumnLooksLikeAFee() {
+    setUp();
+    respondWithTsv(II_DOWNLOAD_URL, "V\u00e4\u00e4rtus\tKuup\u00e4ev\n0,28\t10.07.2026\n");
+
+    assertThatThrownBy(() -> client.fetchOngoingCharges(2))
+        .isInstanceOf(IllegalStateException.class);
+    server.verify();
+  }
 }

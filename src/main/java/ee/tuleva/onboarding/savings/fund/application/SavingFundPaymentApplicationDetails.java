@@ -1,13 +1,14 @@
 package ee.tuleva.onboarding.savings.fund.application;
 
+import ee.tuleva.onboarding.applicationtype.ApplicationType;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.mandate.application.ApplicationDetails;
-import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.Builder;
 import lombok.Data;
+import org.jspecify.annotations.Nullable;
 
 @Data
 @Builder
@@ -16,8 +17,8 @@ public class SavingFundPaymentApplicationDetails implements ApplicationDetails {
   private final BigDecimal amount;
   private final Currency currency;
   private final UUID paymentId;
-  private final Instant cancelledAt;
-  private final Instant cancellationDeadline;
+  private final @Nullable Instant cancelledAt;
+  private final @Nullable Instant cancellationDeadline;
   private final Instant fulfillmentDeadline;
 
   @Builder.Default private ApplicationType type = ApplicationType.SAVING_FUND_PAYMENT;
@@ -26,8 +27,8 @@ public class SavingFundPaymentApplicationDetails implements ApplicationDetails {
       BigDecimal amount,
       Currency currency,
       UUID paymentId,
-      Instant cancelledAt,
-      Instant cancellationDeadline,
+      @Nullable Instant cancelledAt,
+      @Nullable Instant cancellationDeadline,
       Instant fulfillmentDeadline,
       ApplicationType type) {
     validate(type);
@@ -41,7 +42,7 @@ public class SavingFundPaymentApplicationDetails implements ApplicationDetails {
   }
 
   @Override
-  public Integer getPillar() {
+  public @Nullable Integer getPillar() {
     // TODO: Decide what we want to return here
     return null;
   }

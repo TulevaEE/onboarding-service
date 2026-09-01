@@ -2,8 +2,6 @@ package ee.tuleva.onboarding.auth.role;
 
 import static ee.tuleva.onboarding.auth.role.RoleType.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
-import static ee.tuleva.onboarding.company.RelationshipType.BOARD_MEMBER;
-import static ee.tuleva.onboarding.event.TrackableEventType.ROLE_SWITCH;
 import static java.util.Collections.unmodifiableList;
 
 import ee.tuleva.onboarding.auth.AuthenticationTokens;
@@ -11,19 +9,9 @@ import ee.tuleva.onboarding.auth.TokenService;
 import ee.tuleva.onboarding.auth.event.RoleSwitchedEvent;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
-import ee.tuleva.onboarding.company.CompanyNotFoundException;
-import ee.tuleva.onboarding.company.CompanyParty;
-import ee.tuleva.onboarding.company.CompanyPartyRepository;
-import ee.tuleva.onboarding.company.CompanyRepository;
-import ee.tuleva.onboarding.event.TrackableEvent;
-import ee.tuleva.onboarding.party.ParentChildLinkService;
-import ee.tuleva.onboarding.party.PartyId;
-import ee.tuleva.onboarding.user.User;
-import ee.tuleva.onboarding.user.UserService;
+import ee.tuleva.onboarding.auth.principal.PrincipalUsers;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
@@ -34,14 +22,13 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 @NullMarked
-public class RoleSwitchService {
+class RoleSwitchService {
 
-  private final CompanyRepository companyRepository;
-  private final CompanyPartyRepository companyPartyRepository;
+  private final CompanyRoles companyRoles;
   private final PrincipalService principalService;
   private final TokenService tokenService;
-  private final ParentChildLinkService parentChildLinkService;
-  private final UserService userService;
+  private final ChildRepresentations childRepresentations;
+  private final PrincipalUsers principalUsers;
   private final ApplicationEventPublisher applicationEventPublisher;
 
   public AuthenticationTokens switchRole(AuthenticatedPerson person, SwitchRoleCommand command) {
@@ -55,33 +42,27 @@ public class RoleSwitchService {
     var roles = new ArrayList<Role>();
     roles.add(new Role(PERSON, person.getPersonalCode(), person.getFullName()));
 
-    var companyIds =
-        companyPartyRepository
-            .findByPartyCodeAndPartyTypeAndRelationshipType(
-                person.getPersonalCode(), PartyId.Type.PERSON, BOARD_MEMBER)
-            .stream()
-            .map(CompanyParty::getCompanyId)
-            .toList();
-    companyRepository.findAllById(companyIds).stream()
-        .map(company -> new Role(LEGAL_ENTITY, company.getRegistryCode(), company.getName()))
+    companyRoles.boardMemberCompanies(person.getPersonalCode()).stream()
+        .map(company -> new Role(LEGAL_ENTITY, company.registryCode(), company.name()))
         .forEach(roles::add);
 
-    parentChildLinkService.findActivelyRepresentedChildCodes(person.getPersonalCode()).stream()
-        .map(userService::findByPersonalCode)
-        .flatMap(Optional::stream)
-        .map(child -> new Role(PERSON, child.getPersonalCode(), child.getFullName()))
+    childRepresentations.findActivelyRepresentedChildCodes(person.getPersonalCode()).stream()
+        .flatMap(
+            code ->
+                principalUsers.fullName(code).map(name -> new Role(PERSON, code, name)).stream())
         .forEach(roles::add);
 
     return unmodifiableList(roles);
   }
 
   public List<PendingOnboardingResponse> getPendingOnboardings(AuthenticatedPerson person) {
-    return parentChildLinkService.findPendingChildCodes(person.getPersonalCode()).stream()
-        .map(userService::findByPersonalCode)
-        .flatMap(Optional::stream)
-        .map(
-            child ->
-                new PendingOnboardingResponse(PERSON, child.getPersonalCode(), child.getFullName()))
+    return childRepresentations.findPendingChildCodes(person.getPersonalCode()).stream()
+        .flatMap(
+            code ->
+                principalUsers
+                    .fullName(code)
+                    .map(name -> new PendingOnboardingResponse(PERSON, code, name))
+                    .stream())
         .toList();
   }
 
@@ -96,12 +77,12 @@ public class RoleSwitchService {
 
   private AuthenticationTokens switchToRepresentedChild(
       AuthenticatedPerson person, SwitchRoleCommand command) {
-    if (!parentChildLinkService.isActiveRepresentation(person.getPersonalCode(), command.code())) {
+    if (!childRepresentations.isActiveRepresentation(person.getPersonalCode(), command.code())) {
       throw new RoleSwitchAccessDeniedException(person.getPersonalCode(), command.code());
     }
-    User child =
-        userService
-            .findByPersonalCode(command.code())
+    String childName =
+        principalUsers
+            .fullName(command.code())
             .orElseThrow(
                 () ->
                     new RoleSwitchAccessDeniedException(person.getPersonalCode(), command.code()));
@@ -109,18 +90,14 @@ public class RoleSwitchService {
         "Role switch to represented child: personalCode={}, childCode={}",
         person.getPersonalCode(),
         command.code());
-    return switchTo(person, new Role(PERSON, command.code(), child.getFullName()));
+    return switchTo(person, new Role(PERSON, command.code(), childName));
   }
 
   private AuthenticationTokens switchToCompany(
       AuthenticatedPerson person, SwitchRoleCommand command) {
-    var company =
-        companyRepository
-            .findByRegistryCode(command.code())
-            .orElseThrow(() -> new CompanyNotFoundException(command.code()));
+    var company = companyRoles.company(command.code());
 
-    if (!companyPartyRepository.existsByPartyCodeAndPartyTypeAndCompanyIdAndRelationshipType(
-        person.getPersonalCode(), PartyId.Type.PERSON, company.getId(), BOARD_MEMBER)) {
+    if (!companyRoles.isBoardMember(person.getPersonalCode(), command.code())) {
       throw new RoleSwitchAccessDeniedException(person.getPersonalCode(), command.code());
     }
 
@@ -129,16 +106,13 @@ public class RoleSwitchService {
         person.getPersonalCode(),
         command.code());
 
-    return switchTo(person, new Role(LEGAL_ENTITY, command.code(), company.getName()));
+    return switchTo(person, new Role(LEGAL_ENTITY, command.code(), company.name()));
   }
 
   private AuthenticationTokens switchTo(AuthenticatedPerson person, Role role) {
     AuthenticatedPerson switchedPerson = principalService.withRole(person, role);
     AuthenticationTokens tokens = tokenService.generateTokens(switchedPerson);
-    applicationEventPublisher.publishEvent(new RoleSwitchedEvent(switchedPerson));
-    applicationEventPublisher.publishEvent(
-        new TrackableEvent(
-            person, ROLE_SWITCH, Map.of("roleType", role.type().name(), "code", role.code())));
+    applicationEventPublisher.publishEvent(new RoleSwitchedEvent(person, switchedPerson));
     return tokens;
   }
 }

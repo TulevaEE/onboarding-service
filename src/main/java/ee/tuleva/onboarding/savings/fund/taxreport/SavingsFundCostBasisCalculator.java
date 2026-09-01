@@ -7,6 +7,7 @@ import static java.math.RoundingMode.HALF_UP;
 import ee.tuleva.onboarding.account.transaction.Transaction;
 import java.math.BigDecimal;
 import java.math.MathContext;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -157,7 +158,7 @@ public class SavingsFundCostBasisCalculator {
         .reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 
-  private static LocalDate dayOf(java.time.Instant time) {
+  private static LocalDate dayOf(Instant time) {
     return time.atZone(ESTONIAN_ZONE).toLocalDate();
   }
 }

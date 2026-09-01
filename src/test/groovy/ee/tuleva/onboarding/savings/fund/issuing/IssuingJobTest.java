@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.savings.fund.issuing;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RESERVED;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPaymentFixture.aPayment;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RESERVED;
+import static ee.tuleva.onboarding.savings.SavingFundPaymentFixture.aPayment;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ONE;
 import static java.math.BigDecimal.ZERO;
 import static java.time.DayOfWeek.*;
@@ -17,9 +17,9 @@ import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
-import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
+import ee.tuleva.onboarding.savings.FundNavProvider;
+import ee.tuleva.onboarding.savings.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
-import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
 import ee.tuleva.onboarding.savings.fund.notification.IssuingCompletedEvent;
 import java.math.BigDecimal;
 import java.time.*;

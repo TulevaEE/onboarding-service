@@ -1,22 +1,22 @@
 package ee.tuleva.onboarding.mandate
 
-import ee.tuleva.onboarding.epis.mandate.details.*
+import ee.tuleva.onboarding.mandate.details.*
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.fund.manager.FundManager
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
-import ee.tuleva.onboarding.mandate.command.FinishIdCardSignCommand
+import ee.tuleva.onboarding.signature.FinishIdCardSignCommand
 import ee.tuleva.onboarding.mandate.command.MandateFundTransferExchangeCommand
-import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand
+import ee.tuleva.onboarding.signature.StartIdCardSignCommand
 import ee.tuleva.onboarding.mandate.generic.MandateDto
 
 import java.time.Instant
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
-import static ee.tuleva.onboarding.epis.mandate.details.BankAccountDetails.BankAccountType.ESTONIAN
-import static ee.tuleva.onboarding.epis.mandate.details.PaymentRateChangeMandateDetails.PaymentRate.SIX
+import static ee.tuleva.onboarding.mandate.details.BankAccountDetails.BankAccountType.ESTONIAN
+import static ee.tuleva.onboarding.mandate.details.PaymentRateChangeMandateDetails.PaymentRate.SIX
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND
 import static ee.tuleva.onboarding.pillar.Pillar.THIRD
-import static ee.tuleva.onboarding.epis.mandate.details.TransferCancellationMandateDetails.fromFundTransferExchanges
+import static ee.tuleva.onboarding.mandate.details.TransferCancellationMandateDetails.fromFundTransferExchanges
 import static ee.tuleva.onboarding.mandate.Mandate.MandateBuilder
 import static ee.tuleva.onboarding.mandate.Mandate.builder
 import static ee.tuleva.onboarding.country.CountryFixture.countryFixture
@@ -70,11 +70,11 @@ class MandateFixture {
   }
 
   static StartIdCardSignCommand sampleStartIdCardSignCommand(String clientCertificate) {
-    return new StartIdCardSignCommand(clientCertificate: clientCertificate)
+    return new StartIdCardSignCommand(clientCertificate)
   }
 
   static FinishIdCardSignCommand sampleFinishIdCardSignCommand(String signedHash) {
-    return new FinishIdCardSignCommand(signedHash: signedHash)
+    return new FinishIdCardSignCommand(signedHash)
   }
 
   static CreateMandateCommand invalidCreateMandateCommand() {

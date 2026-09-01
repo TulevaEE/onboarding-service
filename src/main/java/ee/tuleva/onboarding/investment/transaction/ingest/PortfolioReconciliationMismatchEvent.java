@@ -1,9 +1,10 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 
 public record PortfolioReconciliationMismatchEvent(
     TulevaFund fund, LocalDate asOfDate, List<MismatchEntry> mismatches) {
@@ -13,5 +14,8 @@ public record PortfolioReconciliationMismatchEvent(
   }
 
   public record MismatchEntry(
-      String isin, BigDecimal ourQuantity, BigDecimal theirQuantity, BigDecimal delta) {}
+      String isin,
+      @Nullable BigDecimal ourQuantity,
+      @Nullable BigDecimal theirQuantity,
+      BigDecimal delta) {}
 }

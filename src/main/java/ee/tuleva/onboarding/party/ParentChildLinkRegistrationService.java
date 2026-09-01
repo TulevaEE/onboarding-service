@@ -1,14 +1,14 @@
 package ee.tuleva.onboarding.party;
 
+import static ee.tuleva.onboarding.auth.principal.Names.formatted;
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.PENDING_KYC;
 import static ee.tuleva.onboarding.party.RepresentationType.GUARDIAN;
 import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE;
-import static ee.tuleva.onboarding.user.Names.formatted;
 import static org.springframework.transaction.annotation.Propagation.REQUIRES_NEW;
 
+import ee.tuleva.onboarding.personalcode.PersonalCode;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
-import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import java.time.Clock;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;

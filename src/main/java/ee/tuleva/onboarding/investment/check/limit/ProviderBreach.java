@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.investment.check.limit;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.portfolio.Provider;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 
 public record ProviderBreach(

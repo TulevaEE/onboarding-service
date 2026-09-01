@@ -2,13 +2,13 @@ package ee.tuleva.onboarding.banking.seb;
 
 import static org.springframework.http.MediaType.APPLICATION_XML_VALUE;
 
+import ee.tuleva.onboarding.banking.ManagementCompanies;
 import ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetcher;
 import ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler;
 import ee.tuleva.onboarding.banking.seb.listener.SebBankStatementListener;
 import ee.tuleva.onboarding.banking.seb.listener.SebReconciliationListener;
 import ee.tuleva.onboarding.banking.seb.processor.PensionFundEntryClassifier;
 import ee.tuleva.onboarding.banking.seb.processor.PensionFundStatementProcessor;
-import ee.tuleva.onboarding.banking.seb.processor.SavingsFundStatementProcessor;
 import ee.tuleva.onboarding.banking.seb.processor.SebStatementRouter;
 import ee.tuleva.onboarding.banking.seb.processor.SuspenseReclassificationService;
 import ee.tuleva.onboarding.banking.seb.reconciliation.SebReconciliator;
@@ -58,7 +58,7 @@ import org.springframework.web.client.RestClient;
   SebBankAccounts.class,
   SebPaymentRequestListener.class,
   SebBankStatementListener.class,
-  SavingsFundStatementProcessor.class,
+  ManagementCompanies.class,
   PensionFundEntryClassifier.class,
   PensionFundStatementProcessor.class,
   SuspenseReclassificationService.class,

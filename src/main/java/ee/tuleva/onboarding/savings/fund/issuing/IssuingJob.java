@@ -1,13 +1,13 @@
 package ee.tuleva.onboarding.savings.fund.issuing;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RESERVED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RESERVED;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
-import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
+import ee.tuleva.onboarding.savings.FundNavProvider;
+import ee.tuleva.onboarding.savings.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
-import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
 import ee.tuleva.onboarding.savings.fund.notification.IssuingCompletedEvent;
 import java.time.*;
 import java.util.List;
@@ -81,7 +81,11 @@ public class IssuingJob {
 
   private List<SavingFundPayment> getReservedPaymentsReceivedBefore(Instant cutoff) {
     return savingFundPaymentRepository.findPaymentsWithStatus(RESERVED).stream()
-        .filter(payment -> payment.getReceivedBefore().isBefore(cutoff))
+        .filter(
+            payment -> {
+              var receivedBefore = payment.getReceivedBefore();
+              return receivedBefore != null && receivedBefore.isBefore(cutoff);
+            })
         .toList();
   }
 

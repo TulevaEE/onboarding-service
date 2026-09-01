@@ -8,7 +8,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.savings.SavingFundDeadlinesService;
+import ee.tuleva.onboarding.savings.SavingFundPayment;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -25,7 +28,8 @@ class SavingFundPaymentUpsertionServiceTest {
   SavingFundDeadlinesService deadlinesService = mock(SavingFundDeadlinesService.class);
 
   SavingFundPaymentUpsertionService service =
-      new SavingFundPaymentUpsertionService(repository, deadlinesService, new NameMatcher());
+      new SavingFundPaymentUpsertionService(
+          repository, deadlinesService, new NameMatcher(), Clock.systemUTC());
 
   @Test
   void cancelPayment_successful() {

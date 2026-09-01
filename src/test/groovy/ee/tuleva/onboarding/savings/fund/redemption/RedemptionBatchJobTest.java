@@ -3,9 +3,9 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestFixture.redemptionRequestFixture;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.time.ZoneOffset.UTC;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -23,8 +23,9 @@ import ee.tuleva.onboarding.company.CompanyRepository;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.savings.FundNavProvider;
+import ee.tuleva.onboarding.savings.fund.LedgerRefs;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
-import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
 import ee.tuleva.onboarding.savings.fund.notification.RedemptionBatchCompletedEvent;
 import ee.tuleva.onboarding.user.UserRepository;
 import java.math.BigDecimal;
@@ -171,7 +172,7 @@ class RedemptionBatchJobTest {
 
     verify(savingsFundLedger)
         .redeemFundUnitsFromReserved(
-            eq(new PartyId(PartyId.Type.PERSON, user.getPersonalCode())),
+            eq(LedgerRefs.from(new PartyId(PartyId.Type.PERSON, user.getPersonalCode()))),
             eq(new BigDecimal("10.00000")),
             any(BigDecimal.class),
             eq(BigDecimal.ONE),
@@ -653,7 +654,8 @@ class RedemptionBatchJobTest {
     var request =
         redemptionRequestFixture()
             .id(requestId)
-            .partyId(legalEntityParty)
+            .partyType(legalEntityParty.type())
+            .partyCode(legalEntityParty.code())
             .status(VERIFIED)
             .customerIban(customerIban)
             .requestedAt(now.minus(1, DAYS))
@@ -704,7 +706,8 @@ class RedemptionBatchJobTest {
     var request =
         redemptionRequestFixture()
             .id(requestId)
-            .partyId(personParty)
+            .partyType(personParty.type())
+            .partyCode(personParty.code())
             .userId(user.getId())
             .status(VERIFIED)
             .customerIban(customerIban)
@@ -754,7 +757,8 @@ class RedemptionBatchJobTest {
     var request =
         redemptionRequestFixture()
             .id(requestId)
-            .partyId(personParty)
+            .partyType(personParty.type())
+            .partyCode(personParty.code())
             .status(VERIFIED)
             .customerIban(customerIban)
             .cashAmount(new BigDecimal("10.00"))
@@ -794,7 +798,8 @@ class RedemptionBatchJobTest {
     var request =
         redemptionRequestFixture()
             .id(requestId)
-            .partyId(legalEntityParty)
+            .partyType(legalEntityParty.type())
+            .partyCode(legalEntityParty.code())
             .status(VERIFIED)
             .customerIban(customerIban)
             .cashAmount(new BigDecimal("10.00"))

@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.investment.transaction;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisCalculator;
 import ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisCalculator.ExecutionEvent;
 import ee.tuleva.onboarding.investment.transaction.portfolio.CostBasisCalculator.PriorPosition;
@@ -9,6 +8,7 @@ import ee.tuleva.onboarding.investment.transaction.portfolio.PortfolioBaselineEn
 import ee.tuleva.onboarding.investment.transaction.portfolio.PortfolioBaselineRepository;
 import ee.tuleva.onboarding.investment.transaction.portfolio.PortfolioCostBasis;
 import ee.tuleva.onboarding.investment.transaction.portfolio.PortfolioCostBasisRepository;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;

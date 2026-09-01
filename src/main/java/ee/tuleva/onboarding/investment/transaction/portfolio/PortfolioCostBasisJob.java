@@ -2,9 +2,9 @@ package ee.tuleva.onboarding.investment.transaction.portfolio;
 
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.event.RunPortfolioCostBasisRequested;
 import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisService;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.Arrays;

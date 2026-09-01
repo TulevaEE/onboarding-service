@@ -1,10 +1,11 @@
 package ee.tuleva.onboarding.investment.fees;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import org.jspecify.annotations.Nullable;
 
 public record FeeRate(
     Long id,
@@ -13,7 +14,7 @@ public record FeeRate(
     BigDecimal annualRate,
     FeeRateSource rateSource,
     LocalDate validFrom,
-    LocalDate validTo) {
+    @Nullable LocalDate validTo) {
 
   public boolean isTierBased() {
     return rateSource == FeeRateSource.TIER;

@@ -6,11 +6,13 @@ import static ee.tuleva.onboarding.aml.alert.AmlAlertType.TKF_VOLUME_49K_YEARLY;
 import static ee.tuleva.onboarding.aml.alert.TkfFlowDirection.COMBINED;
 import static ee.tuleva.onboarding.aml.alert.TkfFlowDirection.IN;
 import static ee.tuleva.onboarding.aml.alert.TkfFlowDirection.OUT;
+import static java.util.Objects.requireNonNull;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 /**
@@ -42,7 +44,10 @@ public class TkfVolumeEvaluator {
         && !depositReviewed) {
       alerts.add(
           new TkfVolumeAlert(
-              TKF_VOLUME_15K_NEW_CLIENT, IN, aggregate.depositsThisMonth(), aggregate.monthKey()));
+              TKF_VOLUME_15K_NEW_CLIENT,
+              IN,
+              requireNonNull(aggregate.depositsThisMonth()),
+              requireNonNull(aggregate.monthKey())));
     }
     if (aggregate.presentInCrm()
         && aggregate.existingClient()
@@ -52,8 +57,8 @@ public class TkfVolumeEvaluator {
           new TkfVolumeAlert(
               TKF_VOLUME_30K_EXISTING_CLIENT,
               IN,
-              aggregate.depositsThisMonth(),
-              aggregate.monthKey()));
+              requireNonNull(aggregate.depositsThisMonth()),
+              requireNonNull(aggregate.monthKey())));
     }
     if (aggregate.presentInCrm()
         && aggregate.existingClient()
@@ -63,28 +68,32 @@ public class TkfVolumeEvaluator {
           new TkfVolumeAlert(
               TKF_VOLUME_30K_EXISTING_CLIENT,
               OUT,
-              aggregate.redemptionsThisMonth(),
-              aggregate.monthKey()));
+              requireNonNull(aggregate.redemptionsThisMonth()),
+              requireNonNull(aggregate.monthKey())));
     }
     if (greaterThan(aggregate.depositsThisYear(), YEARLY_DEPOSIT_THRESHOLD) && !yearlyReviewed) {
       alerts.add(
           new TkfVolumeAlert(
-              TKF_VOLUME_49K_YEARLY, COMBINED, aggregate.depositsThisYear(), aggregate.yearKey()));
+              TKF_VOLUME_49K_YEARLY,
+              COMBINED,
+              requireNonNull(aggregate.depositsThisYear()),
+              requireNonNull(aggregate.yearKey())));
     }
     return alerts;
   }
 
-  private static boolean reviewedAfter(Instant lastManualReview, Instant breachingActivity) {
+  private static boolean reviewedAfter(
+      @Nullable Instant lastManualReview, @Nullable Instant breachingActivity) {
     return lastManualReview != null
         && breachingActivity != null
         && !breachingActivity.isAfter(lastManualReview);
   }
 
-  private static boolean atLeast(BigDecimal amount, BigDecimal threshold) {
-    return amount.compareTo(threshold) >= 0;
+  private static boolean atLeast(@Nullable BigDecimal amount, BigDecimal threshold) {
+    return amount != null && amount.compareTo(threshold) >= 0;
   }
 
-  private static boolean greaterThan(BigDecimal amount, BigDecimal threshold) {
-    return amount.compareTo(threshold) > 0;
+  private static boolean greaterThan(@Nullable BigDecimal amount, BigDecimal threshold) {
+    return amount != null && amount.compareTo(threshold) > 0;
   }
 }

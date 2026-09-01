@@ -1,13 +1,16 @@
 package ee.tuleva.onboarding.mandate.content;
 
-import ee.tuleva.onboarding.epis.contact.ContactDetails;
-import ee.tuleva.onboarding.epis.mandate.details.FundPensionOpeningMandateDetails;
-import ee.tuleva.onboarding.epis.mandate.details.PartialWithdrawalMandateDetails;
+import static java.util.Objects.requireNonNull;
+
+import ee.tuleva.onboarding.applicationtype.ApplicationType;
+import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
-import ee.tuleva.onboarding.mandate.application.ApplicationType;
+import ee.tuleva.onboarding.mandate.MandateContactDetails;
 import ee.tuleva.onboarding.mandate.content.thymeleaf.ContextBuilder;
+import ee.tuleva.onboarding.mandate.details.FundPensionOpeningMandateDetails;
+import ee.tuleva.onboarding.mandate.details.PartialWithdrawalMandateDetails;
 import ee.tuleva.onboarding.user.User;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -29,7 +32,7 @@ class MandateContentService {
       User user,
       Mandate mandate,
       List<Fund> funds,
-      ContactDetails contactDetails) {
+      MandateContactDetails contactDetails) {
     String transactionId = UUID.randomUUID().toString();
     String documentNumber = fundTransferExchanges.getFirst().getId().toString();
 
@@ -37,7 +40,7 @@ class MandateContentService {
         ContextBuilder.builder()
             .mandate(mandate)
             .user(user)
-            .address(mandate.getAddress())
+            .address(requireAddress(mandate))
             .contactDetails(contactDetails)
             .transactionId(transactionId)
             .documentNumber(documentNumber)
@@ -49,20 +52,27 @@ class MandateContentService {
   }
 
   String getFutureContributionsFundHtml(
-      User user, Mandate mandate, List<Fund> funds, ContactDetails contactDetails) {
+      User user, Mandate mandate, List<Fund> funds, MandateContactDetails contactDetails) {
     String transactionId = UUID.randomUUID().toString();
 
-    String documentNumber = mandate.getId().toString();
+    String documentNumber = mandate.getIdOrThrow().toString();
 
     Context ctx =
         ContextBuilder.builder()
             .mandate(mandate)
             .user(user)
-            .address(mandate.getAddress())
+            .address(requireAddress(mandate))
             .contactDetails(contactDetails)
             .transactionId(transactionId)
             .documentNumber(documentNumber)
-            .futureContributionFundIsin(mandate.getFutureContributionFundIsin().orElse(null))
+            .futureContributionFundIsin(
+                mandate
+                    .getFutureContributionFundIsin()
+                    .orElseThrow(
+                        () ->
+                            new IllegalStateException(
+                                "Future contribution fund ISIN missing: mandateId="
+                                    + mandate.getId())))
             .funds(funds)
             .build();
 
@@ -70,19 +80,19 @@ class MandateContentService {
   }
 
   String getPartialWithdrawalHtml(
-      User user, Mandate mandate, ContactDetails contactDetails, List<Fund> funds) {
+      User user, Mandate mandate, MandateContactDetails contactDetails, List<Fund> funds) {
     String transactionId = UUID.randomUUID().toString();
 
-    String documentNumber = mandate.getId().toString();
+    String documentNumber = mandate.getIdOrThrow().toString();
 
     PartialWithdrawalMandateDetails mandateDetails =
-        (PartialWithdrawalMandateDetails) mandate.getGenericMandateDto().getDetails();
+        (PartialWithdrawalMandateDetails) mandate.toSubmission().details();
 
     Context ctx =
         ContextBuilder.builder()
             .mandate(mandate)
             .user(user)
-            .address(mandate.getAddress())
+            .address(requireAddress(mandate))
             .contactDetails(contactDetails)
             .transactionId(transactionId)
             .documentNumber(documentNumber)
@@ -93,19 +103,20 @@ class MandateContentService {
         "partial_withdrawal_pillar_" + mandateDetails.getPillar().toInt(), ctx);
   }
 
-  String getFundPensionOpeningHtml(User user, Mandate mandate, ContactDetails contactDetails) {
+  String getFundPensionOpeningHtml(
+      User user, Mandate mandate, MandateContactDetails contactDetails) {
     String transactionId = UUID.randomUUID().toString();
 
-    String documentNumber = mandate.getId().toString();
+    String documentNumber = mandate.getIdOrThrow().toString();
 
     FundPensionOpeningMandateDetails mandateDetails =
-        (FundPensionOpeningMandateDetails) mandate.getGenericMandateDto().getDetails();
+        (FundPensionOpeningMandateDetails) mandate.toSubmission().details();
 
     Context ctx =
         ContextBuilder.builder()
             .mandate(mandate)
             .user(user)
-            .address(mandate.getAddress())
+            .address(requireAddress(mandate))
             .contactDetails(contactDetails)
             .transactionId(transactionId)
             .documentNumber(documentNumber)
@@ -119,16 +130,16 @@ class MandateContentService {
   String getMandateCancellationHtml(
       User user,
       Mandate mandate,
-      ContactDetails contactDetails,
+      MandateContactDetails contactDetails,
       ApplicationType applicationTypeToCancel) {
     String transactionId = UUID.randomUUID().toString();
-    String documentNumber = mandate.getId().toString();
+    String documentNumber = mandate.getIdOrThrow().toString();
 
     Context ctx =
         ContextBuilder.builder()
             .mandate(mandate)
             .user(user)
-            .address(mandate.getAddress())
+            .address(requireAddress(mandate))
             .contactDetails(contactDetails)
             .transactionId(transactionId)
             .documentNumber(documentNumber)
@@ -139,9 +150,9 @@ class MandateContentService {
   }
 
   String getRateChangeHtml(
-      User user, Mandate mandate, ContactDetails contactDetails, BigDecimal rate) {
+      User user, Mandate mandate, MandateContactDetails contactDetails, BigDecimal rate) {
     String transactionId = UUID.randomUUID().toString();
-    String documentNumber = mandate.getId().toString();
+    String documentNumber = mandate.getIdOrThrow().toString();
 
     BigDecimal flooredRate = rate.setScale(0, RoundingMode.FLOOR);
     Context ctx =
@@ -149,12 +160,16 @@ class MandateContentService {
             .mandate(mandate)
             .newPaymentRate(flooredRate)
             .user(user)
-            .address(mandate.getAddress())
+            .address(requireAddress(mandate))
             .contactDetails(contactDetails)
             .transactionId(transactionId)
             .documentNumber(documentNumber)
             .build();
 
     return templateEngine.process("payment_rate_change", ctx);
+  }
+
+  private static Country requireAddress(Mandate mandate) {
+    return requireNonNull(mandate.getAddress(), "Address missing: mandateId=" + mandate.getId());
   }
 }

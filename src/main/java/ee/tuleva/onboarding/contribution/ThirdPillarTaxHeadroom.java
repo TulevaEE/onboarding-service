@@ -1,7 +1,11 @@
 package ee.tuleva.onboarding.contribution;
 
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.epis.Contribution;
 import ee.tuleva.onboarding.epis.EpisService;
+import ee.tuleva.onboarding.epis.SecondPillarContribution;
+import ee.tuleva.onboarding.epis.ThirdPillarContribution;
+import ee.tuleva.onboarding.mandate.TaxHeadroom;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
@@ -12,12 +16,13 @@ import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class ThirdPillarTaxHeadroom {
+public class ThirdPillarTaxHeadroom implements TaxHeadroom {
 
   private static final BigDecimal STATE_SOCIAL_TAX_RATE = new BigDecimal("0.04");
   private static final BigDecimal DEDUCTIBLE_SHARE_OF_GROSS = new BigDecimal("0.15");
@@ -27,6 +32,7 @@ public class ThirdPillarTaxHeadroom {
   private final EpisService episService;
   private final Clock clock;
 
+  @Override
   public boolean hasHeadroom(Person person) {
     try {
       return hasConfidentHeadroom(person);
@@ -54,7 +60,7 @@ public class ThirdPillarTaxHeadroom {
     return lastYear.compareTo(confidentCeiling) < 0 && yearBefore.compareTo(confidentCeiling) < 0;
   }
 
-  private BigDecimal deriveMonthlyGross(List<Contribution> contributions) {
+  private @Nullable BigDecimal deriveMonthlyGross(List<Contribution> contributions) {
     List<SecondPillarContribution> secondPillar =
         contributions.stream()
             .filter(SecondPillarContribution.class::isInstance)

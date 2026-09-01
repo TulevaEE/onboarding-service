@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.ledger;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.*;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -41,6 +41,7 @@ class NavFeeAccrualLedgerTest {
   @Mock private LedgerAccountService ledgerAccountService;
   @Mock private LedgerTransactionService ledgerTransactionService;
   @Mock private org.springframework.jdbc.core.simple.JdbcClient jdbcClient;
+  @Mock private org.springframework.jdbc.core.simple.JdbcClient.StatementSpec statementSpec;
 
   @Mock private LedgerAccount managementFeeAccount;
   @Mock private LedgerAccount depotFeeAccount;
@@ -399,5 +400,62 @@ class NavFeeAccrualLedgerTest {
     assertThat(entries[0].amount()).isEqualByComparingTo("1500.00");
     assertThat(entries[1].account()).isEqualTo(navEquityAccount);
     assertThat(entries[1].amount()).isEqualByComparingTo("-1500.00");
+  }
+
+  @Test
+  void recordFeeAccrual_createsSystemAccountsWhenMissing() {
+    LocalDate accrualDate = LocalDate.of(2026, 2, 1);
+    when(ledgerAccountService.findSystemAccount(MANAGEMENT_FEE_ACCRUAL, TKF100))
+        .thenReturn(Optional.empty());
+    when(ledgerAccountService.createSystemAccount(MANAGEMENT_FEE_ACCRUAL, TKF100))
+        .thenReturn(managementFeeAccount);
+    when(ledgerAccountService.findSystemAccount(NAV_EQUITY, TKF100)).thenReturn(Optional.empty());
+    when(ledgerAccountService.createSystemAccount(NAV_EQUITY, TKF100)).thenReturn(navEquityAccount);
+    when(ledgerTransactionService.existsByExternalReferenceAndTransactionType(
+            any(), eq(FEE_ACCRUAL)))
+        .thenReturn(false);
+    when(ledgerTransactionService.createTransaction(
+            any(TransactionType.class),
+            any(Instant.class),
+            any(UUID.class),
+            any(),
+            any(LedgerEntryDto[].class)))
+        .thenReturn(transaction);
+
+    navFeeAccrualLedger.recordFeeAccrual(
+        TKF100, accrualDate, MANAGEMENT_FEE_ACCRUAL, new BigDecimal("52.05"), Map.of());
+
+    verify(ledgerTransactionService)
+        .createTransaction(
+            eq(FEE_ACCRUAL), any(Instant.class), any(UUID.class), any(), entriesCaptor.capture());
+    LedgerEntryDto[] entries = entriesCaptor.getValue();
+    assertThat(entries[0].account()).isEqualTo(navEquityAccount);
+    assertThat(entries[1].account()).isEqualTo(managementFeeAccount);
+  }
+
+  private void setupJdbcClientMocks() {
+    when(jdbcClient.sql(anyString())).thenReturn(statementSpec);
+    when(statementSpec.param(anyString(), org.mockito.ArgumentMatchers.any()))
+        .thenReturn(statementSpec);
+  }
+
+  @Test
+  void deleteFeeAccrualsFromDate_returnsTransactionDeleteCount() {
+    setupJdbcClientMocks();
+    when(statementSpec.update()).thenReturn(3, 8);
+
+    int result = navFeeAccrualLedger.deleteFeeAccrualsFromDate(TKF100, LocalDate.of(2026, 2, 1));
+
+    assertThat(result).isEqualTo(8);
+  }
+
+  @Test
+  void deleteFeeTransactionsByFund_returnsTransactionDeleteCount() {
+    setupJdbcClientMocks();
+    when(statementSpec.update()).thenReturn(5, 11);
+
+    int result = navFeeAccrualLedger.deleteFeeTransactionsByFund(TKF100);
+
+    assertThat(result).isEqualTo(11);
   }
 }

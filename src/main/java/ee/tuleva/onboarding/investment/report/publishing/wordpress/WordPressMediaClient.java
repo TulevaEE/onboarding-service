@@ -55,6 +55,10 @@ public class WordPressMediaClient {
                     .retrieve()
                     .body(Map.class));
 
+    if (response == null) {
+      throw new IllegalStateException("WordPress returned no response body: filename=" + slug);
+    }
+
     var sourceUrl = (String) response.get("source_url");
     if (sourceUrl == null || !VALID_WP_PDF_URL.matcher(sourceUrl).matches()) {
       throw new IllegalStateException(
@@ -85,16 +89,20 @@ public class WordPressMediaClient {
     }
 
     return media.stream()
+        .flatMap(item -> toUploadResult(item).stream())
         .filter(
-            item -> item.get("source_url") instanceof String && item.get("id") instanceof Integer)
-        .filter(
-            item -> {
-              var sourceUrl = (String) item.get("source_url");
-              return VALID_WP_PDF_URL.matcher(sourceUrl).matches()
-                  && sourceUrl.endsWith("/" + slug);
-            })
-        .map(item -> new UploadResult((Integer) item.get("id"), (String) item.get("source_url")))
+            result ->
+                VALID_WP_PDF_URL.matcher(result.sourceUrl()).matches()
+                    && result.sourceUrl().endsWith("/" + slug))
         .findFirst();
+  }
+
+  private static Optional<UploadResult> toUploadResult(Map<String, Object> item) {
+    if (item.get("id") instanceof Integer attachmentId
+        && item.get("source_url") instanceof String sourceUrl) {
+      return Optional.of(new UploadResult(attachmentId, sourceUrl));
+    }
+    return Optional.empty();
   }
 
   public void updateAcfReportField(String pageSlug, int attachmentId) {
@@ -138,7 +146,11 @@ public class WordPressMediaClient {
               + pages.size());
     }
 
-    return (Integer) pages.getFirst().get("id");
+    var id = (Integer) pages.getFirst().get("id");
+    if (id == null) {
+      throw new IllegalStateException("WordPress page missing id: slug=" + slug);
+    }
+    return id;
   }
 
   static String toWordPressSlug(String filename) {

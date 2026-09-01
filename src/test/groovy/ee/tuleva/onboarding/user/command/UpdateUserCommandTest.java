@@ -27,10 +27,9 @@ class UpdateUserCommandTest {
   @DisplayName("should pass validation with valid email and address")
   void isValid_whenAllFieldsValid_thenPasses() {
     // given
-    UpdateUserCommand command = new UpdateUserCommand();
-    command.setEmail("test@example.com");
-    command.setPhoneNumber("+3725551234");
-    command.setAddress(Country.builder().countryCode("EE").build());
+    UpdateUserCommand command =
+        new UpdateUserCommand(
+            "test@example.com", "+3725551234", Country.builder().countryCode("EE").build());
 
     // when
     Set<ConstraintViolation<UpdateUserCommand>> violations = validator.validate(command);
@@ -43,9 +42,8 @@ class UpdateUserCommandTest {
   @DisplayName("should fail validation when email is null")
   void isInvalid_whenEmailIsNull_thenFails() {
     // given
-    UpdateUserCommand command = new UpdateUserCommand();
-    command.setEmail(null);
-    command.setAddress(Country.builder().countryCode("EE").build());
+    UpdateUserCommand command =
+        new UpdateUserCommand(null, null, Country.builder().countryCode("EE").build());
 
     // when
     Set<ConstraintViolation<UpdateUserCommand>> violations = validator.validate(command);
@@ -59,9 +57,8 @@ class UpdateUserCommandTest {
   @DisplayName("should fail validation when email is invalid")
   void isInvalid_whenEmailIsInvalid_thenFails() {
     // given
-    UpdateUserCommand command = new UpdateUserCommand();
-    command.setEmail("not-an-email");
-    command.setAddress(Country.builder().countryCode("EE").build());
+    UpdateUserCommand command =
+        new UpdateUserCommand("not-an-email", null, Country.builder().countryCode("EE").build());
 
     // when
     Set<ConstraintViolation<UpdateUserCommand>> violations = validator.validate(command);
@@ -75,9 +72,8 @@ class UpdateUserCommandTest {
   @DisplayName("should fail validation when address has empty country code")
   void isInvalid_whenAddressCountryCodeIsEmpty_thenFails() {
     // given
-    UpdateUserCommand command = new UpdateUserCommand();
-    command.setEmail("test@example.com");
-    command.setAddress(Country.builder().countryCode("").build());
+    UpdateUserCommand command =
+        new UpdateUserCommand("test@example.com", null, Country.builder().countryCode("").build());
 
     // when
     Set<ConstraintViolation<UpdateUserCommand>> violations = validator.validate(command);
@@ -93,9 +89,9 @@ class UpdateUserCommandTest {
   @DisplayName("should fail validation when address has null country code")
   void isInvalid_whenAddressCountryCodeIsNull_thenFails() {
     // given
-    UpdateUserCommand command = new UpdateUserCommand();
-    command.setEmail("test@example.com");
-    command.setAddress(Country.builder().countryCode(null).build());
+    UpdateUserCommand command =
+        new UpdateUserCommand(
+            "test@example.com", null, Country.builder().countryCode(null).build());
 
     // when
     Set<ConstraintViolation<UpdateUserCommand>> violations = validator.validate(command);
@@ -111,9 +107,9 @@ class UpdateUserCommandTest {
   @DisplayName("should fail validation when address has blank country code")
   void isInvalid_whenAddressCountryCodeIsBlank_thenFails() {
     // given
-    UpdateUserCommand command = new UpdateUserCommand();
-    command.setEmail("test@example.com");
-    command.setAddress(Country.builder().countryCode("   ").build());
+    UpdateUserCommand command =
+        new UpdateUserCommand(
+            "test@example.com", null, Country.builder().countryCode("   ").build());
 
     // when
     Set<ConstraintViolation<UpdateUserCommand>> violations = validator.validate(command);
@@ -129,9 +125,7 @@ class UpdateUserCommandTest {
   @DisplayName("should pass validation when address is null")
   void isValid_whenAddressIsNull_thenPasses() {
     // given
-    UpdateUserCommand command = new UpdateUserCommand();
-    command.setEmail("test@example.com");
-    command.setAddress(null);
+    UpdateUserCommand command = new UpdateUserCommand("test@example.com", null, null);
 
     // when
     Set<ConstraintViolation<UpdateUserCommand>> violations = validator.validate(command);

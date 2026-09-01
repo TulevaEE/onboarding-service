@@ -27,7 +27,7 @@ class OnRoleSwitchEpisCacheClearerTest {
             .role(new Role(PERSON, "61506150006", "Mari Maasikas"))
             .build();
 
-    cacheClearer.onRoleSwitched(new RoleSwitchedEvent(representingChild));
+    cacheClearer.onRoleSwitched(new RoleSwitchedEvent(representingChild, representingChild));
 
     verify(episService).clearCache(representingChild);
   }

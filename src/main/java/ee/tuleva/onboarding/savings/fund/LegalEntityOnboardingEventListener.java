@@ -3,17 +3,19 @@ package ee.tuleva.onboarding.savings.fund;
 import static ee.tuleva.onboarding.kyb.KybCheckType.RELATED_PERSONS_KYC;
 import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.SUBMISSION;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
-import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
-import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.PENDING;
-import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.REJECTED;
+import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
+import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.PENDING;
+import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.REJECTED;
 import static java.util.stream.Collectors.joining;
 
 import ee.tuleva.onboarding.kyb.KybCheck;
 import ee.tuleva.onboarding.kyb.KybCheckPerformedEvent;
 import ee.tuleva.onboarding.kyb.KybScreeningTrigger;
+import ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -88,7 +90,7 @@ class LegalEntityOnboardingEventListener {
 
   private SavingsFundOnboardingStatus statusFor(
       List<KybCheck> failedGateChecks,
-      SavingsFundOnboardingStatus oldStatus,
+      @Nullable SavingsFundOnboardingStatus oldStatus,
       KybScreeningTrigger trigger) {
     if (failedGateChecks.isEmpty()) {
       return COMPLETED;
@@ -104,7 +106,7 @@ class LegalEntityOnboardingEventListener {
   // that never closed and email the applicant about it. A rejected one waits only when the person
   // resubmits the survey — monitoring re-screens rejected companies too, and must not heal them.
   private static boolean mayWaitForRelatedPersons(
-      SavingsFundOnboardingStatus oldStatus, KybScreeningTrigger trigger) {
+      @Nullable SavingsFundOnboardingStatus oldStatus, KybScreeningTrigger trigger) {
     return oldStatus == null
         || oldStatus == PENDING
         || (oldStatus == REJECTED && trigger == SUBMISSION);

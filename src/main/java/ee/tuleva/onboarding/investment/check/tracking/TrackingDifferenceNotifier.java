@@ -90,7 +90,11 @@ class TrackingDifferenceNotifier {
               fundResults.stream()
                   .sorted(Comparator.comparing(r -> r.checkType().name()))
                   .forEach(
-                      r -> message.append(formatWithinLimits(r)).append(formatCountWarnings(r)));
+                      r ->
+                          message
+                              .append(formatWithinLimits(r))
+                              .append(formatCountWarnings(r))
+                              .append(formatBenchmarkGap(r)));
             });
         notificationService.sendMessage(message.toString(), INVESTMENT);
         return;
@@ -116,7 +120,8 @@ class TrackingDifferenceNotifier {
 
         message
             .append(new BreachMessageFormatter(result, escalation).format())
-            .append(formatCountWarnings(result));
+            .append(formatCountWarnings(result))
+            .append(formatBenchmarkGap(result));
       }
 
       if (hasEscalation) {
@@ -180,6 +185,18 @@ class TrackingDifferenceNotifier {
         && ((result.consecutiveNetTd() != null
                 && result.consecutiveNetTd().abs().compareTo(rule.netTdThreshold()) >= 0)
             || result.escalationNavResidualBreach());
+  }
+
+  private static String formatBenchmarkGap(TrackingDifferenceResult result) {
+    var gapIsins = result.benchmarkGapIsins();
+    if (gapIsins == null || gapIsins.isEmpty()) {
+      return "";
+    }
+    var weight = result.benchmarkGapWeight();
+    return "\n  \u26a0\ufe0f %s of the sleeve has no benchmark proxy with data behind it, so this check did not"
+            .formatted(weight == null ? "Part" : formatPercent(weight) + "%")
+        + " measure it: %s. Every holding should have one - fix the instrument reference data."
+            .formatted(gapIsins);
   }
 
   private static String formatCountWarnings(TrackingDifferenceResult result) {

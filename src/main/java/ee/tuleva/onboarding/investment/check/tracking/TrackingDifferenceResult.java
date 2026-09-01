@@ -35,7 +35,9 @@ record TrackingDifferenceResult(
     boolean navResidualBreach,
     boolean escalationNavResidualBreach,
     boolean escalationCountTruncated,
-    boolean escalationCountUnavailable) {
+    boolean escalationCountUnavailable,
+    List<String> benchmarkGapIsins,
+    @Nullable BigDecimal benchmarkGapWeight) {
 
   boolean hasAnyBreach() {
     return breach() || navResidualBreach();

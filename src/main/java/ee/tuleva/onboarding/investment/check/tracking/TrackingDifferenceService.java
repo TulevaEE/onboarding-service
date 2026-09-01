@@ -167,10 +167,26 @@ class TrackingDifferenceService {
             checkDate,
             previousDate);
 
+    // Gate on the blended weights, not the raw model. An instrument being switched into carries
+    // its actual weight of zero until the fund buys it, so it needs no price of ours; an
+    // instrument being switched out of still carries its full holding, so it does. Either way a
+    // weight we cannot price means the model return for the day is unknowable - the check has to
+    // say so rather than quietly leave that weight out of the benchmark.
+    //
+    // A zero anchor price is not a price either: nothing can be divided by it, so the calculator
+    // drops the instrument and its model weight silently leaves the benchmark return.
+    var blendedSecurities =
+        securityDataBuilder.blendTransitionWeights(
+            securities, allocations, previousAllocations, positions, fund);
+
     var missingPrices =
-        securities.stream()
+        blendedSecurities.stream()
             .filter(s -> s.modelWeight().signum() > 0)
-            .filter(s -> s.today().price() == null || s.previous().price() == null)
+            .filter(
+                s ->
+                    s.today().price() == null
+                        || s.previous().price() == null
+                        || s.previous().price().signum() == 0)
             .map(SecurityData::isin)
             .toList();
     if (!missingPrices.isEmpty()) {
@@ -180,7 +196,7 @@ class TrackingDifferenceService {
     }
 
     var misalignedSecurities =
-        securities.stream()
+        blendedSecurities.stream()
             .filter(s -> s.modelWeight().signum() > 0)
             .filter(
                 s ->
@@ -199,10 +215,6 @@ class TrackingDifferenceService {
           previousDate,
           misalignedSecurities);
     }
-
-    var blendedSecurities =
-        securityDataBuilder.blendTransitionWeights(
-            securities, allocations, previousAllocations, positions, fund);
 
     var bodPositions =
         fundPositionRepository.findByNavDateAndFundAndAccountType(previousDate, fund, SECURITY);

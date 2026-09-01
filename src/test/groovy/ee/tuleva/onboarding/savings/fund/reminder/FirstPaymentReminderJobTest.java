@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.savings.fund.reminder;
 
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
+import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
@@ -74,6 +74,16 @@ class FirstPaymentReminderJobTest {
     job().sendReminders();
 
     verifyNoInteractions(sender);
+  }
+
+  @Test
+  void sendsEveryReminderWhenTheSegmentIsExactlyAtTheCap() {
+    given(repository.fetchForAdults(OPENED_FROM, OPENED_UNTIL)).willReturn(reminders(50));
+
+    job().sendReminders();
+
+    verify(sender, times(50)).send(any());
+    verifyNoInteractions(notificationService);
   }
 
   @Test

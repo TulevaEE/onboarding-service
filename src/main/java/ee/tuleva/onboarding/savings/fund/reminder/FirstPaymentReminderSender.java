@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.savings.fund.reminder;
 
-import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
+import ee.tuleva.onboarding.auth.principal.Names;
+import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
-import ee.tuleva.onboarding.savings.fund.SavingsFundFees;
-import ee.tuleva.onboarding.user.Names;
+import ee.tuleva.onboarding.savings.SavingsFundFees;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,7 +35,7 @@ class FirstPaymentReminderSender {
 
     var message =
         emailService.newMandrillMessage(
-            reminder.recipientEmail(), templateName, mergeVars(reminder), TAGS, null);
+            reminder.recipientEmail(), templateName, mergeVars(reminder), TAGS);
 
     emailService
         .send(reminder, message, templateName)

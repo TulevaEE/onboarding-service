@@ -110,6 +110,51 @@
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
+    "savings_fund_first_payment_reminder_child_et": {
+      "subject": "Tee lapse Tuleva Kogumisfondi esimene sissemakse",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_first_payment_reminder_company_et": {
+      "subject": "Tee ettevõtte Tuleva Kogumisfondi esimene sissemakse",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_first_payment_reminder_person_en": {
+      "subject": "Put your investment fund to work",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_first_payment_reminder_person_et": {
+      "subject": "Pane oma kogumisfond tööle",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_onboarding_abandonment_child_et": {
+      "subject": "Lapse Tuleva Kogumisfondi konto avamine jäi pooleli",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_onboarding_abandonment_company_et": {
+      "subject": "Ettevõtte Tuleva Kogumisfondi konto avamine jäi pooleli",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_onboarding_abandonment_person_et": {
+      "subject": "Sinu Tuleva Kogumisfondi konto avamine jäi pooleli",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_onboarding_completed_child_et": {
+      "subject": "Lapse Tuleva Kogumisfondi konto on avatud",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
+    "savings_fund_onboarding_completed_person_et": {
+      "subject": "Sinu Tuleva Kogumisfondi konto on avatud",
+      "from_email": "tuleva@tuleva.ee",
+      "from_name": "Tuleva"
+    },
     "savings_fund_company_onboarded_en": {
       "subject": "The company's Additional Investment Fund account is open",
       "from_email": "tuleva@tuleva.ee",
@@ -298,6 +343,14 @@
     "third_pillar_payment_success_mandate": "Sent when the third pillar payment made inside the app is completed, with the signed mandate attached. Cancels the pending payment reminder.",
     "third_pillar_suggest_second": "Scheduled three days after signing a third pillar mandate, only for adults whose second pillar is not with Tuleva.",
     "withdrawal_batch": "Sent right after signing a batch of withdrawal applications (fund pension or partial withdrawal), with the signed applications attached and the payout timing.",
+    "savings_fund_onboarding_completed_person": "Planned: sent when a person’s savings fund account is opened (KYC passed), inviting the first contribution. The event exists in code; the email trigger is not wired yet.",
+    "savings_fund_onboarding_completed_child": "Planned: sent to the parent when a child’s savings fund account is opened, inviting the first contribution. Trigger not wired yet.",
+    "savings_fund_onboarding_abandonment_person": "Planned: sent to a person who started opening a savings fund account but stopped. No signal exists yet for adults who abandon before submitting the KYC survey.",
+    "savings_fund_onboarding_abandonment_child": "Planned: sent to the parent when a child’s account opening was started but the KYC survey was never submitted (PENDING row without kyc_survey). The most ready-to-automate trigger of the batch.",
+    "savings_fund_onboarding_abandonment_company": "Planned: sent when a company’s account opening stalls. Since the company-waits flow, PENDING means waiting for related persons to verify, not abandonment, so this trigger needs its own definition before wiring.",
+    "savings_fund_first_payment_reminder_person": "Sent by a daily job at 12:00 Europe/Tallinn to a person whose own savings fund account was opened 7 to 30 days ago with no contribution yet, once per account, in Estonian or English by the saver’s language preference. Minors, children with a guardian link and board members of a company that has already paid are left out.",
+    "savings_fund_first_payment_reminder_child": "Planned: sent to the parent when a child’s account has been open for a while with no contributions. Trigger not wired yet.",
+    "savings_fund_first_payment_reminder_company": "Planned: sent to the representative when a company’s account has been open for a while with no contributions. Trigger not wired yet.",
     "savings_fund_company_onboarded": "Sent to the applicant when their company, which was waiting for review, gets its savings fund account opened, inviting the first contribution from the company bank account."
   }
 }

@@ -505,12 +505,13 @@ class R17ReportParserTest {
 
   @Test
   void classifiesPikByTheOperatorColumnEvenWhenTheAmountColumnComesFirst() {
-    // "Summa (PF valitseja)" also contains "pf valitseja". While it sits to the RIGHT of
-    // "PF valitseja/PIK" a contains-match lands on the right column by luck of column order; move
-    // it
-    // left and the operator type would read "0.00", which contains no "pik", so a PIK redemption
-    // would be booked as a switching outflow instead. The units on the row are unchanged, so the
-    // units-vs-amount cross-check cannot catch it — only an exact column match can.
+    // "Summa (PF valitseja)" also contains "pf valitseja", so the bare contains-match lands on
+    // whichever of the two columns the export puts first. In the real export the amount column
+    // sits to the right, which made the old lookup right by luck of column order rather than by
+    // rule. This header moves it left, and without the "pf valitseja/pik" candidate the operator
+    // type would read "0.00" — no "pik" in it, so a PIK redemption would be booked as a switching
+    // outflow. The row's units are unchanged either way, so the units-vs-amount cross-check cannot
+    // catch it.
     String reorderedHeader =
         "Väärtpaber;NAV;Toiming;Summa (PF valitseja);Hind;Osakud (teenustasuta);Osakud (teenustasuga);Summa;PF valitseja/PIK";
     String csv =

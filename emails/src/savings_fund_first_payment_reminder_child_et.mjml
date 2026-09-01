@@ -7,8 +7,8 @@
       <mj-column>
         <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
-          Avasid lapse nimel Tuleva Täiendava Kogumisfondi konto. Nüüd saad teha sinna esimese
-          sissemakse.
+          Avasid lapse *|IF:RECIPIENTNAME|*(*|RECIPIENTNAME|*) *|END:IF|*nimel Tuleva Täiendava
+          Kogumisfondi konto, aga esimest sissemakset ei ole veel tehtud.
         </mj-text>
         <mj-text>
           Tuleva Täiendav Kogumisfond on laiapõhjaline indeksfond, mis investeerib maailmaturu
@@ -22,7 +22,7 @@
         <mj-button href="https://pension.tuleva.ee/savings-fund/payment">
           Teen esimese sissemakse
         </mj-button>
-        <mj-text>Kui sul on tekkinud küsimusi, on sulle abiks veel need materjalid:</mj-text>
+        <mj-text>Soovi korral saad lapsele kogumise kohta uurida veel neist materjalidest:</mj-text>
         <mj-text>
           <a href="https://tuleva.ee/lapsele-kogumine/kas-koguda-lapse-voi-vanema-nimel/">
             Kas koguda lapse või vanema nimel?

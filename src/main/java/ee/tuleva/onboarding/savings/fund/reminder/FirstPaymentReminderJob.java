@@ -1,7 +1,10 @@
 package ee.tuleva.onboarding.savings.fund.reminder;
 
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static java.time.temporal.ChronoUnit.DAYS;
 
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -22,13 +25,14 @@ class FirstPaymentReminderJob {
 
   private static final int REMINDER_DELAY_IN_DAYS = 7;
   private static final int OLDEST_ACCOUNT_IN_DAYS = 30;
-  private static final int MAX_RECIPIENTS = 200;
+  private static final int MAX_RECIPIENTS = 50;
   private static final Instant MANUAL_CAMPAIGN_CUTOFF =
       LocalDate.of(2026, 8, 12).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
 
   private final Clock clock;
   private final FirstPaymentReminderRepository repository;
   private final FirstPaymentReminderSender sender;
+  private final OperationsNotificationService notificationService;
 
   @Scheduled(cron = "0 0 12 * * *", zone = "Europe/Tallinn")
   @SchedulerLock(
@@ -40,19 +44,37 @@ class FirstPaymentReminderJob {
     var openedFrom = notBeforeTheManualCampaign(now.minus(OLDEST_ACCOUNT_IN_DAYS, DAYS));
     var openedUntil = now.minus(REMINDER_DELAY_IN_DAYS, DAYS);
 
-    List<FirstPaymentReminder> reminders = repository.fetch(openedFrom, openedUntil);
+    remindSegment(
+        "adults", repository.fetchForAdults(openedFrom, openedUntil), openedFrom, openedUntil);
+    remindSegment(
+        "children", repository.fetchForChildren(openedFrom, openedUntil), openedFrom, openedUntil);
+  }
 
+  private void remindSegment(
+      String segment,
+      List<FirstPaymentReminder> reminders,
+      Instant openedFrom,
+      Instant openedUntil) {
     if (reminders.size() > MAX_RECIPIENTS) {
       log.error(
-          "Too many savings fund first payment reminders, skipping: recipients={}, maxRecipients={}, openedFrom={}, openedUntil={}",
+          "Too many savings fund first payment reminders, skipping segment: segment={}, recipients={}, maxRecipients={}, openedFrom={}, openedUntil={}",
+          segment,
           reminders.size(),
           MAX_RECIPIENTS,
           openedFrom,
           openedUntil);
+      notificationService.sendMessage(
+          "Savings fund first payment reminders skipped for %s: %d recipients is over the %d cap, nobody in that segment will be reminded until someone looks"
+              .formatted(segment, reminders.size(), MAX_RECIPIENTS),
+          SAVINGS,
+          ERROR);
       return;
     }
 
-    log.info("Sending savings fund first payment reminders: recipients={}", reminders.size());
+    log.info(
+        "Sending savings fund first payment reminders: segment={}, recipients={}",
+        segment,
+        reminders.size());
     reminders.forEach(this::remind);
   }
 

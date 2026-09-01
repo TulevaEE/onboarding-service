@@ -36,6 +36,7 @@ public enum EmailType {
   SAVINGS_FUND_PAYMENT_SUCCESS_CHILD("savings_fund_payment_success_child"),
   SAVINGS_FUND_PAYMENT_SUCCESS_COMPANY("savings_fund_payment_success_company"),
   SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON("savings_fund_first_payment_reminder_person"),
+  SAVINGS_FUND_FIRST_PAYMENT_REMINDER_CHILD("savings_fund_first_payment_reminder_child"),
   SAVINGS_FUND_PAYMENT_CANCEL("savings_fund_payment_cancelled"),
   SAVINGS_FUND_PAYMENT_FAIL("savings_fund_payment_failed"),
   SAVINGS_FUND_COMPANY_ONBOARDED("savings_fund_company_onboarded"),

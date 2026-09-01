@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.savings.fund.reminder;
 
+import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_FIRST_PAYMENT_REMINDER_CHILD;
 import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
@@ -33,10 +34,35 @@ class FirstPaymentReminderSenderTest {
 
   @InjectMocks private FirstPaymentReminderSender sender;
 
+  private static final String CHILD = "61506150006";
+
   private final FirstPaymentReminder estonianSaver =
-      new FirstPaymentReminder(SAVER, "Saver", "Example", "saver@example.com", Locale.of("et"));
+      new FirstPaymentReminder(
+          SAVER,
+          "Saver",
+          "Example",
+          "saver@example.com",
+          Locale.of("et"),
+          SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON,
+          null);
   private final FirstPaymentReminder englishSpeakingSaver =
-      new FirstPaymentReminder(SAVER, "Saver", "Example", "saver@example.com", Locale.ENGLISH);
+      new FirstPaymentReminder(
+          SAVER,
+          "Saver",
+          "Example",
+          "saver@example.com",
+          Locale.ENGLISH,
+          SAVINGS_FUND_FIRST_PAYMENT_REMINDER_PERSON,
+          null);
+  private final FirstPaymentReminder childAccount =
+      new FirstPaymentReminder(
+          CHILD,
+          "Parent",
+          "Example",
+          "parent@example.com",
+          Locale.of("et"),
+          SAVINGS_FUND_FIRST_PAYMENT_REMINDER_CHILD,
+          "jaan tamm");
 
   @Test
   void sendsTheEstonianReminderAndRecordsIt() {
@@ -70,6 +96,19 @@ class FirstPaymentReminderSenderTest {
   }
 
   @Test
+  void sendsTheChildReminderToTheParentAndRecordsItAgainstTheChildAccount() {
+    var message = messageFor(childAccount, "savings_fund_first_payment_reminder_child_et");
+    var response = mandrillResponse("message-id", "sent");
+    given(emailService.send(childAccount, message, "savings_fund_first_payment_reminder_child_et"))
+        .willReturn(Optional.of(response));
+
+    sender.send(childAccount);
+
+    verify(emailPersistenceService)
+        .save(childAccount, "message-id", SAVINGS_FUND_FIRST_PAYMENT_REMINDER_CHILD, "sent");
+  }
+
+  @Test
   void recordsNothingWhenMandrillDoesNotAcceptTheMessage() {
     var message = messageFor(estonianSaver, "savings_fund_first_payment_reminder_person_et");
     given(
@@ -87,12 +126,22 @@ class FirstPaymentReminderSenderTest {
     given(savingsFundFees.ongoingChargesPercent(reminder.locale())).willReturn("0.28");
     given(
             emailService.newMandrillMessage(
-                reminder.email(),
-                templateName,
-                Map.of("fname", reminder.firstName(), "savingsFundFee", "0.28"),
-                TAGS))
+                reminder.recipientEmail(), templateName, expectedMergeVars(reminder), TAGS))
         .willReturn(message);
     return message;
+  }
+
+  private Map<String, Object> expectedMergeVars(FirstPaymentReminder reminder) {
+    if (reminder.accountHolderName() == null) {
+      return Map.of("fname", reminder.recipientFirstName(), "savingsFundFee", "0.28");
+    }
+    return Map.of(
+        "fname",
+        reminder.recipientFirstName(),
+        "savingsFundFee",
+        "0.28",
+        "recipientName",
+        "Jaan Tamm");
   }
 
   private MandrillMessageStatus mandrillResponse(String id, String status) {

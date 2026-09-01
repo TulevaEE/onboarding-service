@@ -132,7 +132,6 @@ public class FeeCalculationService {
       LocalDate positionReportDate) {
     Map<LocalDate, BigDecimal> byDate =
         feeAccrualRepository.getUnsettledAccrualByDate(fund, feeType, positionReportDate);
-    // Rounded once at the end, exactly where getUnsettledAccrual's ROUND(SUM(...), 2) sat.
     FeeChargedToFundPolicy.Resolver resolver =
         requireNonNull(policies.get(feeType), "No fee policy resolver: feeType=" + feeType);
     BigDecimal charged = resolver.sumChargedDays(byDate);

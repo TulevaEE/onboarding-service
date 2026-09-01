@@ -70,7 +70,7 @@ public class SavingFundPaymentUpsertionService {
     } else {
       log.info("No existing payment found, inserting new payment");
       var paymentId = repository.savePaymentData(payment);
-      var status = onInsert.apply(payment);
+      var status = onInsert.apply(payment.toBuilder().id(paymentId).build());
       repository.changeStatus(paymentId, status);
     }
   }

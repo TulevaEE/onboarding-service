@@ -26,6 +26,7 @@ import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.ledger.SystemAccount;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
+import ee.tuleva.onboarding.savings.fund.notification.OwnAccountTransferRecordedEvent;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionPayoutRecorder;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestRepository;
@@ -41,6 +42,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Function;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 
 class SavingsFundStatementProcessorTest {
 
@@ -57,8 +59,9 @@ class SavingsFundStatementProcessorTest {
   BankAccounts bankAccounts = mock(BankAccounts.class);
   SavingsFundLedger savingsFundLedger = mock(SavingsFundLedger.class);
   InternalTransferLedger internalTransferLedger = mock(InternalTransferLedger.class);
+  ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
   OwnAccountTransferRecorder ownAccountTransferRecorder =
-      new OwnAccountTransferRecorder(bankAccounts, internalTransferLedger);
+      new OwnAccountTransferRecorder(bankAccounts, internalTransferLedger, eventPublisher);
   FundBankLedger fundBankLedger = mock(FundBankLedger.class);
   UserService userService = mock(UserService.class);
   RedemptionRequestRepository redemptionRequestRepository = mock(RedemptionRequestRepository.class);
@@ -132,6 +135,13 @@ class SavingsFundStatementProcessorTest {
             correctionTransfer.getId(),
             LocalDate.of(2026, 9, 1),
             "Management fee kickback 02/2026");
+    verify(eventPublisher)
+        .publishEvent(
+            new OwnAccountTransferRecordedEvent(
+                FUND_INVESTMENT_EUR,
+                DEPOSIT_EUR,
+                new BigDecimal("4272.98"),
+                correctionTransfer.getId()));
   }
 
   @Test

@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.savings.fund;
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.seb.Seb.SEB_GATEWAY_TIME_ZONE;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.*;
-import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.FUND_TRANSFER;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_BOUNCE_BACK;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_CANCELLED;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
@@ -232,6 +231,7 @@ class SavingsFundPaymentIntegrationTest {
 
     // Verify outgoing payment was created and processed
     var outgoingPayment = paymentRepository.findByExternalId("2025092915000-1").orElseThrow();
+    ownedPaymentIds.add(outgoingPayment.getId());
     assertThat(outgoingPayment.getAmount()).isEqualByComparingTo(paymentAmount.negate());
     assertThat(outgoingPayment.getStatus()).isEqualTo(PROCESSED);
     assertThat(outgoingPayment.getBeneficiaryIban()).isEqualTo(investmentIban);
@@ -458,13 +458,8 @@ class SavingsFundPaymentIntegrationTest {
         .reduce(ZERO, BigDecimal::add);
   }
 
-  // The statement processor books FUND_TRANSFER from the payment it just extracted, which has no id
-  // yet, so that transaction carries no external reference and is recognised by its type instead
   private boolean isOwnEntry(LedgerEntry entry) {
-    var transaction = entry.getTransaction();
-    return ownedPaymentIds.contains(transaction.getExternalReference())
-        || (transaction.getExternalReference() == null
-            && transaction.getTransactionType() == FUND_TRANSFER);
+    return ownedPaymentIds.contains(entry.getTransaction().getExternalReference());
   }
 
   @Test

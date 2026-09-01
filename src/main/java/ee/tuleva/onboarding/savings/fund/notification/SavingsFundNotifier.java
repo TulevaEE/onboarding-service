@@ -80,6 +80,18 @@ public class SavingsFundNotifier {
   }
 
   @TransactionalEventListener(phase = AFTER_COMMIT)
+  public void onOwnAccountTransferRecorded(OwnAccountTransferRecordedEvent event) {
+    try {
+      notificationService.sendMessage(
+          "Own account transfer between fund bank accounts: from=%s, to=%s, amount=%s EUR, paymentId=%s"
+              .formatted(event.fromAccount(), event.toAccount(), event.amount(), event.paymentId()),
+          SAVINGS);
+    } catch (Exception e) {
+      log.error("Failed to send own account transfer notification", e);
+    }
+  }
+
+  @TransactionalEventListener(phase = AFTER_COMMIT)
   public void onDeferredReturnMatchingCompleted(DeferredReturnMatchingCompletedEvent event) {
     try {
       notificationService.sendMessage(

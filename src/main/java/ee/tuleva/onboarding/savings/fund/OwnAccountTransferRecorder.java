@@ -9,9 +9,11 @@ import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.ledger.InternalTransferLedger;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
+import ee.tuleva.onboarding.savings.fund.notification.OwnAccountTransferRecordedEvent;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -21,6 +23,7 @@ class OwnAccountTransferRecorder {
 
   private final BankAccounts bankAccounts;
   private final InternalTransferLedger internalTransferLedger;
+  private final ApplicationEventPublisher eventPublisher;
 
   boolean recordOutgoingTransfer(SavingFundPayment payment, BankAccountType sourceType) {
     if (payment.getAmount().compareTo(ZERO) >= 0) {
@@ -48,6 +51,9 @@ class OwnAccountTransferRecorder {
         payment.bookingDateOrThrow(),
         requireNonNull(
             payment.getDescription(), "Missing description: paymentId=" + payment.getId()));
+    eventPublisher.publishEvent(
+        new OwnAccountTransferRecordedEvent(
+            sourceType, target.get().type(), amount, payment.getId()));
     return true;
   }
 }

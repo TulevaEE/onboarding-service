@@ -135,6 +135,35 @@ class SavingFundPaymentUpsertionServiceTest {
   }
 
   @Test
+  void upsert_invokesOnInsertWithTheGeneratedPaymentId() {
+    var generatedId = UUID.fromString("44444444-4444-4444-4444-444444444444");
+    var incomingPayment =
+        SavingFundPayment.builder()
+            .amount(new BigDecimal("400.00"))
+            .currency(EUR)
+            .description("37508295796")
+            .externalId("EXT456")
+            .remitterIban("EE123")
+            .remitterName("JAAN TAMM")
+            .receivedBefore(Instant.now())
+            .build();
+    when(repository.findByExternalId("EXT456")).thenReturn(Optional.empty());
+    when(repository.findRecentPayments("37508295796")).thenReturn(List.of());
+    when(repository.savePaymentData(incomingPayment)).thenReturn(generatedId);
+    var seenByOnInsert = new java.util.concurrent.atomic.AtomicReference<SavingFundPayment>();
+
+    service.upsert(
+        incomingPayment,
+        p -> {
+          seenByOnInsert.set(p);
+          return SavingFundPayment.Status.RECEIVED;
+        });
+
+    assertThat(seenByOnInsert.get().getId()).isEqualTo(generatedId);
+    verify(repository).changeStatus(generatedId, SavingFundPayment.Status.RECEIVED);
+  }
+
+  @Test
   void upsert_doesNotMatchExistingPaymentWithDifferentAmount() {
     var existingPayment =
         SavingFundPayment.builder()

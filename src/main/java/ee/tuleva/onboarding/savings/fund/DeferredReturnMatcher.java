@@ -14,6 +14,9 @@ import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.notification.DeferredReturnMatchingCompletedEvent;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Set;
 import java.util.UUID;
@@ -32,17 +35,22 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class DeferredReturnMatcher {
 
+  private static final Duration RETRY_WINDOW = Duration.ofDays(7);
+
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final SavingsFundLedger savingsFundLedger;
   private final ApplicationEventPublisher eventPublisher;
   private final BankAccounts bankAccounts;
+  private final Clock clock;
 
   @EventListener
   @Transactional
   public void onBankMessagesProcessed(BankMessagesProcessingCompleted event) {
     var depositIban = bankAccounts.getIban(TKF100, DEPOSIT_EUR);
+    var now = clock.instant();
     var unmatchedReturns =
         savingFundPaymentRepository.findUnmatchedOutgoingReturns(depositIban).stream()
+            .filter(returnPayment -> shouldRetry(returnPayment, now))
             .filter(returnPayment -> !hasReturnLedgerEntry(returnPayment))
             .toList();
 
@@ -89,10 +97,15 @@ public class DeferredReturnMatcher {
           unmatchedAmount);
     }
 
-    if (matchedCount > 0 || unmatchedCount > 0) {
+    if (matchedCount > 0) {
       eventPublisher.publishEvent(
           new DeferredReturnMatchingCompletedEvent(matchedCount, unmatchedCount, totalAmount));
     }
+  }
+
+  static boolean shouldRetry(SavingFundPayment payment, Instant now) {
+    return payment.getCreatedAt() == null
+        || payment.getCreatedAt().isAfter(now.minus(RETRY_WINDOW));
   }
 
   private boolean hasReturnLedgerEntry(SavingFundPayment returnPayment) {

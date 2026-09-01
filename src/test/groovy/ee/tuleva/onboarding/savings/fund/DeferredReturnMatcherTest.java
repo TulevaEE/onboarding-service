@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.*;
 import static ee.tuleva.onboarding.savings.SavingFundPaymentFixture.aPayment;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -18,6 +19,9 @@ import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.notification.DeferredReturnMatchingCompletedEvent;
 import ee.tuleva.onboarding.user.User;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -26,6 +30,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
@@ -38,6 +43,8 @@ class DeferredReturnMatcherTest {
   @Mock SavingsFundLedger savingsFundLedger;
   @Mock ApplicationEventPublisher eventPublisher;
   @Mock BankAccounts bankAccounts;
+
+  @Spy Clock clock = Clock.fixed(Instant.parse("2026-09-01T10:00:00Z"), ZoneOffset.UTC);
 
   @InjectMocks DeferredReturnMatcher deferredReturnMatcher;
 
@@ -221,7 +228,34 @@ class DeferredReturnMatcherTest {
   }
 
   @Test
-  void publishesTheCompletionEventWhenAnOutgoingPaymentMatchesNoKnownFlow() {
+  void retriesGenerouslyButNotForever() {
+    var now = Instant.parse("2026-09-01T10:00:00Z");
+    var recent =
+        aPayment().id(UUID.randomUUID()).createdAt(now.minusSeconds(6 * 24 * 3600)).build();
+    var ancient =
+        aPayment().id(UUID.randomUUID()).createdAt(now.minusSeconds(8 * 24 * 3600)).build();
+    var missingTimestamp = aPayment().id(UUID.randomUUID()).createdAt(null).build();
+
+    assertThat(DeferredReturnMatcher.shouldRetry(recent, now)).isTrue();
+    assertThat(DeferredReturnMatcher.shouldRetry(ancient, now)).isFalse();
+    assertThat(DeferredReturnMatcher.shouldRetry(missingTimestamp, now)).isTrue();
+  }
+
+  @Test
+  void skipsPaymentsOlderThanTheRetryWindowEntirely() {
+    var ancient =
+        aPayment().id(UUID.randomUUID()).createdAt(Instant.parse("2026-08-20T10:00:00Z")).build();
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
+        .thenReturn(List.of(ancient));
+
+    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+
+    verify(savingFundPaymentRepository, never()).findOriginalPaymentForReturn(any());
+    verify(eventPublisher, never()).publishEvent(any());
+  }
+
+  @Test
+  void doesNotSpamTheCompletionEventForUnmatchedOnlyRounds() {
     var unknownOutgoing =
         aPayment()
             .id(UUID.randomUUID())
@@ -233,8 +267,7 @@ class DeferredReturnMatcherTest {
 
     deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
 
-    verify(eventPublisher)
-        .publishEvent(new DeferredReturnMatchingCompletedEvent(0, 1, BigDecimal.ZERO));
+    verify(eventPublisher, never()).publishEvent(any());
   }
 
   @Test

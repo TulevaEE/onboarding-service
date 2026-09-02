@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -44,7 +45,7 @@ class LimitCheckServiceTest {
   @Mock ProviderLimitRepository providerLimitRepository;
   @Mock FundLimitRepository fundLimitRepository;
   @Mock ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
-  @Mock LimitCheckEventRepository limitCheckEventRepository;
+  @Mock LimitCheckEventWriter limitCheckEventWriter;
   @Mock PositionLimitChecker positionLimitChecker;
   @Mock ProviderLimitChecker providerLimitChecker;
   @Mock ReserveLimitChecker reserveLimitChecker;
@@ -151,14 +152,14 @@ class LimitCheckServiceTest {
     when(reserveLimitChecker.check(eq(fund), eq(new BigDecimal("80000")), eq(fundLimit)))
         .thenReturn(reserveBreach);
 
-    var results = service.runChecks();
+    var results = service.runChecks().results();
 
     var tuk75Result = results.stream().filter(r -> r.fund() == TUK75).findFirst().orElseThrow();
     assertThat(tuk75Result.positionBreaches()).containsExactly(positionBreach);
     assertThat(tuk75Result.providerBreaches()).containsExactly(providerBreach);
     assertThat(tuk75Result.reserveBreach()).isEqualTo(reserveBreach);
 
-    verify(limitCheckEventRepository, atLeast(4)).save(any(LimitCheckEvent.class));
+    verify(limitCheckEventWriter, atLeastOnce()).replaceEvents(any(), any(), anyList());
   }
 
   @Test
@@ -174,11 +175,11 @@ class LimitCheckServiceTest {
 
     service.runChecks();
 
-    verify(limitCheckEventRepository).deleteByFundAndCheckDateAndCheckType(fund, today, POSITION);
-    verify(limitCheckEventRepository).deleteByFundAndCheckDateAndCheckType(fund, today, PROVIDER);
-    verify(limitCheckEventRepository).deleteByFundAndCheckDateAndCheckType(fund, today, RESERVE);
-    verify(limitCheckEventRepository).deleteByFundAndCheckDateAndCheckType(fund, today, FREE_CASH);
-    verify(limitCheckEventRepository, times(4)).save(any(LimitCheckEvent.class));
+    var events = ArgumentCaptor.forClass(List.class);
+    verify(limitCheckEventWriter).replaceEvents(eq(fund), eq(today), events.capture());
+    assertThat(events.getValue())
+        .extracting(event -> ((LimitCheckEvent) event).getCheckType())
+        .containsExactly(POSITION, PROVIDER, RESERVE, FREE_CASH);
   }
 
   @Test
@@ -191,10 +192,10 @@ class LimitCheckServiceTest {
           .thenReturn(Optional.empty());
     }
 
-    var results = service.runChecks();
+    var results = service.runChecks().results();
 
     assertThat(results).isEmpty();
-    verify(limitCheckEventRepository, never()).save(any());
+    verify(limitCheckEventWriter, never()).replaceEvents(any(), any(), anyList());
   }
 
   @Test
@@ -255,9 +256,10 @@ class LimitCheckServiceTest {
           .thenReturn(Optional.empty());
     }
 
-    var results = service.runChecksAsOf(asOfDate);
+    var run = service.runChecksAsOf(asOfDate);
 
-    assertThat(results).isEmpty();
+    assertThat(run.results()).isEmpty();
+    assertThat(run.notChecked()).containsExactly(TulevaFund.values());
     for (var fund : TulevaFund.values()) {
       verify(fundPositionRepository).findLatestNavDateByFundAndAsOfDate(fund, asOfDate);
     }
@@ -272,9 +274,10 @@ class LimitCheckServiceTest {
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, today))
         .thenReturn(Optional.empty());
 
-    var results = service.runChecksForFunds(funds);
+    var run = service.runChecksForFunds(funds);
 
-    assertThat(results).isEmpty();
+    assertThat(run.results()).isEmpty();
+    assertThat(run.notChecked()).containsExactly(TUK75);
     verify(fundPositionRepository).findLatestNavDateByFundAndAsOfDate(TUK75, today);
     // Should NOT check any other funds
     verify(fundPositionRepository, times(1)).findLatestNavDateByFundAndAsOfDate(any(), any());
@@ -545,7 +548,7 @@ class LimitCheckServiceTest {
         .isInstanceOf(LimitCheckPartialFailureException.class)
         .satisfies(
             e -> {
-              var partial = ((LimitCheckPartialFailureException) e).getPartialResults();
+              var partial = ((LimitCheckPartialFailureException) e).getPartialRun().results();
               assertThat(partial.stream().anyMatch(r -> r.fund() == TUK75)).isTrue();
               assertThat(partial.stream().noneMatch(r -> r.fund() == TUK00)).isTrue();
               assertThat(e.getSuppressed()).hasSize(1);
@@ -730,7 +733,7 @@ class LimitCheckServiceTest {
         providerLimitRepository,
         fundLimitRepository,
         modelPortfolioAllocationRepository,
-        limitCheckEventRepository,
+        limitCheckEventWriter,
         positionLimitChecker,
         providerLimitChecker,
         reserveLimitChecker,

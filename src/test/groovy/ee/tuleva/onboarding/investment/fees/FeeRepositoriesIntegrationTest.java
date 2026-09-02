@@ -276,8 +276,10 @@ class FeeRepositoriesIntegrationTest {
           .single();
     }
 
+    // Left unrounded per day on purpose: the caller drops the days the policy does not charge and
+    // rounds what is left, so rounding here would round days that never reach the total.
     @Test
-    void getUnsettledAccrual_sumsThenRounds() {
+    void getUnsettledAccrualByDate_returnsEachDayUnroundedAndStillSumsThenRoundsTo17_68() {
       LocalDate feeMonth = LocalDate.of(2025, 1, 1);
       insertAccrualWithFeeMonth(
           TUK75, FeeType.MANAGEMENT, LocalDate.of(2025, 1, 13), feeMonth, new BigDecimal("5.891"));
@@ -286,11 +288,20 @@ class FeeRepositoriesIntegrationTest {
       insertAccrualWithFeeMonth(
           TUK75, FeeType.MANAGEMENT, LocalDate.of(2025, 1, 15), feeMonth, new BigDecimal("5.893"));
 
-      BigDecimal result =
-          feeAccrualRepository.getUnsettledAccrual(
+      var byDate =
+          feeAccrualRepository.getUnsettledAccrualByDate(
               TUK75, FeeType.MANAGEMENT, LocalDate.of(2025, 1, 15));
 
-      assertThat(result).isEqualByComparingTo(new BigDecimal("17.68"));
+      assertThat(byDate)
+          .containsOnlyKeys(
+              LocalDate.of(2025, 1, 13), LocalDate.of(2025, 1, 14), LocalDate.of(2025, 1, 15));
+      assertThat(byDate.values().stream().reduce(BigDecimal.ZERO, BigDecimal::add))
+          .isEqualByComparingTo(new BigDecimal("17.676"));
+      assertThat(
+              byDate.values().stream()
+                  .reduce(BigDecimal.ZERO, BigDecimal::add)
+                  .setScale(2, java.math.RoundingMode.HALF_UP))
+          .isEqualByComparingTo(new BigDecimal("17.68"));
     }
 
     @Test

@@ -18,30 +18,11 @@ public class FeeAccrualRepository {
 
   private final JdbcClient jdbcClient;
 
-  public BigDecimal getAccruedFeesForMonth(
-      TulevaFund fund, LocalDate feeMonth, List<FeeType> feeTypes, LocalDate beforeDate) {
-    return jdbcClient
-        .sql(
-            """
-            SELECT COALESCE(SUM(daily_amount_gross), 0)
-            FROM investment_fee_accrual
-            WHERE fund_code = :fundCode
-              AND fee_month = :feeMonth
-              AND fee_type IN (:feeTypes)
-              AND accrual_date < :beforeDate
-            """)
-        .param("fundCode", fund.name())
-        .param("feeMonth", feeMonth)
-        .param("feeTypes", feeTypes.stream().map(FeeType::name).toList())
-        .param("beforeDate", beforeDate)
-        .query(BigDecimal.class)
-        .single();
-  }
-
   /**
    * Month-to-date accruals split BY ACCRUAL DATE, so a caller can apply the charged-to-fund policy
-   * per day instead of gating the whole sum on one day's answer. Same rows as {@link
-   * #getAccruedFeesForMonth}, ungrouped.
+   * per day instead of gating the whole sum on one day's answer. There is deliberately no
+   * pre-summed variant: a single figure cannot be filtered by a policy that changes within the
+   * month, and the one that existed was how the fee came to be misstated.
    */
   public Map<LocalDate, BigDecimal> getAccruedFeesByDateForMonth(
       TulevaFund fund, LocalDate feeMonth, List<FeeType> feeTypes, LocalDate beforeDate) {
@@ -66,7 +47,7 @@ public class FeeAccrualRepository {
         .collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
   }
 
-  /** As {@link #getUnsettledAccrual}, split by accrual date and left unrounded. */
+  /** Unsettled accruals for one fee type, split by accrual date and left unrounded. */
   public Map<LocalDate, BigDecimal> getUnsettledAccrualByDate(
       TulevaFund fund, FeeType feeType, LocalDate asOfDate) {
     return jdbcClient
@@ -145,25 +126,6 @@ public class FeeAccrualRepository {
                     FeeType.valueOf(rs.getString("fee_type")),
                     rs.getBigDecimal("base_value")))
         .list();
-  }
-
-  public BigDecimal getUnsettledAccrual(TulevaFund fund, FeeType feeType, LocalDate asOfDate) {
-    return jdbcClient
-        .sql(
-            """
-            SELECT COALESCE(ROUND(SUM(daily_amount_gross), 2), 0)
-            FROM investment_fee_accrual
-            WHERE fund_code = :fundCode
-              AND fee_type = :feeType
-              AND fee_month = :feeMonth
-              AND accrual_date <= :asOfDate
-            """)
-        .param("fundCode", fund.name())
-        .param("feeType", feeType.name())
-        .param("feeMonth", asOfDate.withDayOfMonth(1))
-        .param("asOfDate", asOfDate)
-        .query(BigDecimal.class)
-        .single();
   }
 
   public Optional<FeeAccrual> findByFundAndAccrualDateAndFeeType(

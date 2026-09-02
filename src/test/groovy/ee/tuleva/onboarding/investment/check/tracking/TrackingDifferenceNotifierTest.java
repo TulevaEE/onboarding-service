@@ -35,6 +35,7 @@ class TrackingDifferenceNotifierTest {
 
   @Mock OperationsNotificationService notificationService;
   @Mock TrackingDifferenceCalculator calculator;
+  @Mock RedemptionCycleLookup redemptionCycleLookup;
 
   @InjectMocks TrackingDifferenceNotifier notifier;
 

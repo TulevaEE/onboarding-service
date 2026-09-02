@@ -32,6 +32,7 @@ class TrackingDifferenceNotifier {
 
   private final OperationsNotificationService notificationService;
   private final TrackingDifferenceCalculator calculator;
+  private final RedemptionCycleLookup redemptionCycleLookup;
 
   void notifyCheckCouldNotRun(TulevaFund fund, LocalDate navDate) {
     try {
@@ -166,7 +167,8 @@ class TrackingDifferenceNotifier {
         }
 
         message
-            .append(new BreachMessageFormatter(result, escalation).format())
+            .append(
+                new BreachMessageFormatter(result, escalation, redemptionCycle(result)).format())
             .append(formatCountWarnings(result))
             .append(formatBenchmarkGap(result));
       }
@@ -185,6 +187,13 @@ class TrackingDifferenceNotifier {
     } catch (Exception e) {
       log.error("Failed to send tracking difference notification", e);
     }
+  }
+
+  private @Nullable RedemptionCycleHint redemptionCycle(TrackingDifferenceResult result) {
+    if (result.checkType() != MODEL_PORTFOLIO) {
+      return null;
+    }
+    return redemptionCycleLookup.resolve(result.fund(), result.checkDate());
   }
 
   private static String returnLabel(TrackingDifferenceResult result) {

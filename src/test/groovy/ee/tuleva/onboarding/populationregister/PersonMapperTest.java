@@ -48,6 +48,14 @@ class PersonMapperTest {
   }
 
   @Test
+  void brazilianNumericCitizenshipCodeMapsToAlpha2() {
+    var person = toPersonWithCitizenship(new Citizenship(new Code("076", "Brasiilia")));
+
+    assertThat(person.citizenship()).isEqualTo("BR");
+    assertThat(person.citizenships()).containsExactly("BR");
+  }
+
+  @Test
   void custodyWithNonValidStatusCodeIsInvalid() {
     var response =
         response(new Custody(code("H20"), code("H2"), "38888888888", code("E"), "JAAN", "TAMM"));

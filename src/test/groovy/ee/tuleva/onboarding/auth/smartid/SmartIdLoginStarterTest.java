@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.aSessionToken;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.demoProperties;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.documentNumber;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -15,6 +16,8 @@ import static org.mockito.Mockito.mock;
 
 import ee.sk.smartid.SmartIdClient;
 import ee.sk.smartid.VerificationCodeCalculator;
+import ee.sk.smartid.exception.permanent.ServerMaintenanceException;
+import ee.sk.smartid.exception.useraccount.UserAccountNotFoundException;
 import ee.sk.smartid.rest.SmartIdConnector;
 import ee.sk.smartid.rest.dao.NotificationAuthenticationSessionResponse;
 import java.time.Clock;
@@ -91,6 +94,28 @@ class SmartIdLoginStarterTest {
         .isEqualTo("eng");
     assertThat(((DeviceLinkLogin) service.startDeviceLinkLogin("ru").getLogin()).language())
         .isEqualTo("rus");
+  }
+
+  @Test
+  void startNotificationLoginReportsAnAccountThatSmartIdNoLongerKnows() {
+    given(connector.initNotificationAuthentication(any(), eq(documentNumber)))
+        .willThrow(new UserAccountNotFoundException());
+
+    assertThatThrownBy(() -> service.startNotificationLogin(aRememberedAccount()))
+        .isInstanceOf(SmartIdException.class)
+        .extracting(e -> ((SmartIdException) e).getLoginError())
+        .isEqualTo(SmartIdLoginError.ACCOUNT_NOT_FOUND);
+  }
+
+  @Test
+  void startDeviceLinkLoginReportsAnUnavailableServiceAsATechnicalError() {
+    given(connector.initAnonymousDeviceLinkAuthentication(any()))
+        .willThrow(new ServerMaintenanceException());
+
+    assertThatThrownBy(() -> service.startDeviceLinkLogin("et"))
+        .isInstanceOf(SmartIdException.class)
+        .extracting(e -> ((SmartIdException) e).getLoginError())
+        .isEqualTo(SmartIdLoginError.TECHNICAL_ERROR);
   }
 
   @Test

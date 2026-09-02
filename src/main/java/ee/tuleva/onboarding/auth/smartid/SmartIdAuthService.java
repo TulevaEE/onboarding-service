@@ -38,11 +38,12 @@ public class SmartIdAuthService {
     }
     SmartIdLoginError recordedError = session.getError();
     if (recordedError != null) {
-      throw new SmartIdException(recordedError.toErrorsResponse());
+      throw new SmartIdException(recordedError);
     }
     try {
       SessionStatus status = finalStatus(session);
       AuthenticationIdentity identity = validate(session, status, flowTypeOf(status));
+      requireEstonianAccount(identity);
       SmartIdPerson authenticated =
           new SmartIdPerson(identity, status.getResult().getDocumentNumber());
       session.setPerson(authenticated);
@@ -62,7 +63,7 @@ public class SmartIdAuthService {
             e.getClass().getSimpleName());
       }
       session.setError(error);
-      throw new SmartIdException(error.toErrorsResponse());
+      throw new SmartIdException(error);
     }
   }
 
@@ -96,6 +97,12 @@ public class SmartIdAuthService {
             status, login.request(), properties.schemeName());
       }
     };
+  }
+
+  private static void requireEstonianAccount(AuthenticationIdentity identity) {
+    if (!"EE".equals(identity.getCountry())) {
+      throw new UnsupportedSmartIdCountryException(identity.getCountry());
+    }
   }
 
   private static void requireOffered(@Nullable FlowType flowType, Set<FlowType> offered) {

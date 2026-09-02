@@ -86,6 +86,43 @@ class SmartIdLoginControllerTest {
   }
 
   @Test
+  void startingANotificationLoginForAnAccountSmartIdNoLongerKnowsForgetsIt() throws Exception {
+    given(rememberedSmartIdAccounts.current()).willReturn(Optional.of(aRememberedAccount()));
+    given(smartIdLoginStarter.startNotificationLogin(aRememberedAccount()))
+        .willThrow(new SmartIdException(SmartIdLoginError.ACCOUNT_NOT_FOUND));
+
+    mockMvc
+        .perform(
+            post("/v1/smart-id/login")
+                .with(csrf())
+                .contentType(APPLICATION_JSON)
+                .content("{\"flow\":\"NOTIFICATION\"}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("smart.id.account.not.found"));
+
+    verify(rememberedSmartIdAccounts).forget();
+    verify(sessionStore, never()).save(any());
+  }
+
+  @Test
+  void startingANotificationLoginThatFailsForAnotherReasonKeepsTheAccount() throws Exception {
+    given(rememberedSmartIdAccounts.current()).willReturn(Optional.of(aRememberedAccount()));
+    given(smartIdLoginStarter.startNotificationLogin(aRememberedAccount()))
+        .willThrow(new SmartIdException(SmartIdLoginError.TECHNICAL_ERROR));
+
+    mockMvc
+        .perform(
+            post("/v1/smart-id/login")
+                .with(csrf())
+                .contentType(APPLICATION_JSON)
+                .content("{\"flow\":\"NOTIFICATION\"}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.errors[0].code").value("smart.id.technical.error"));
+
+    verify(rememberedSmartIdAccounts, never()).forget();
+  }
+
+  @Test
   void startingANotificationLoginWithoutARememberedAccountIsUnauthorized() throws Exception {
     given(rememberedSmartIdAccounts.current()).willReturn(Optional.empty());
 

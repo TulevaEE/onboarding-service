@@ -27,6 +27,7 @@ class SmartIdLoginErrorSpec extends Specification {
 
     where:
     exception                                             | error
+    new UnsupportedSmartIdCountryException("LT")          | UNSUPPORTED_COUNTRY
     new UserRefusedException()                            | USER_REFUSED
     new UserRefusedDisplayTextAndPinException()           | USER_REFUSED
     new UserSelectedWrongVerificationCodeException()      | USER_REFUSED
@@ -48,6 +49,7 @@ class SmartIdLoginErrorSpec extends Specification {
     TIMEOUT.toErrorsResponse() == ErrorsResponse.ofSingleError("smart.id.timeout", "Smart ID timed out waiting for the user")
     ACCOUNT_NOT_FOUND.toErrorsResponse() == ErrorsResponse.ofSingleError("smart.id.account.not.found", "Smart ID user account not found")
     VALIDATION_FAILED.toErrorsResponse() == ErrorsResponse.ofSingleError("smart.id.validation.failed", "Smart ID validation failed")
+    UNSUPPORTED_COUNTRY.toErrorsResponse() == ErrorsResponse.ofSingleError("smart.id.unsupported.country", "Only Estonian Smart ID accounts are supported")
     TECHNICAL_ERROR.toErrorsResponse() == ErrorsResponse.ofSingleError("smart.id.technical.error", "Smart ID technical error")
   }
 }

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.auth.smartid;
 
 import static ee.sk.smartid.AuthenticationCertificateLevel.QUALIFIED;
+import static ee.tuleva.onboarding.auth.smartid.SmartIdLoginError.TECHNICAL_ERROR;
 
 import ee.sk.smartid.RpChallenge;
 import ee.sk.smartid.RpChallengeGenerator;
@@ -14,6 +15,7 @@ import ee.tuleva.onboarding.auth.SmartIdProperties;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
@@ -40,7 +42,7 @@ public class SmartIdLoginStarter {
             .withCertificateLevel(QUALIFIED)
             .withInteractions(List.of(DeviceLinkInteraction.displayTextAndPin(LOGIN_PROMPT)))
             .withInitialCallbackUrl(callbackUrl.initialCallbackUri().toString());
-    var response = builder.initAuthenticationSession();
+    var response = initiate(builder::initAuthenticationSession);
     log.info("Started Smart-ID device link login: sessionId={}", response.sessionID());
     return new SmartIdSession(
         Instant.now(clock),
@@ -68,7 +70,7 @@ public class SmartIdLoginStarter {
                     NotificationInteraction.confirmationMessageAndVerificationCodeChoice(
                         LOGIN_PROMPT),
                     NotificationInteraction.displayTextAndPin(LOGIN_PROMPT)));
-    var response = builder.initAuthenticationSession();
+    var response = initiate(builder::initAuthenticationSession);
     log.info("Started Smart-ID notification login: sessionId={}", response.sessionID());
     return new SmartIdSession(
         Instant.now(clock),
@@ -76,5 +78,22 @@ public class SmartIdLoginStarter {
             response.sessionID(),
             builder.getAuthenticationSessionRequest(),
             VerificationCodeCalculator.calculate(rpChallenge.value())));
+  }
+
+  private static <T> T initiate(Supplier<T> initiation) {
+    try {
+      return initiation.get();
+    } catch (ee.sk.smartid.exception.SmartIdException e) {
+      SmartIdLoginError error = SmartIdLoginError.of(e);
+      if (error == TECHNICAL_ERROR) {
+        log.error("Smart-ID login could not be started", e);
+      } else {
+        log.info(
+            "Smart-ID login could not be started: error={}, reason={}",
+            error,
+            e.getClass().getSimpleName());
+      }
+      throw new SmartIdException(error);
+    }
   }
 }

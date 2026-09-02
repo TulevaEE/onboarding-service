@@ -19,6 +19,8 @@ public enum SmartIdLoginError {
   TIMEOUT("smart.id.timeout", "Smart ID timed out waiting for the user"),
   ACCOUNT_NOT_FOUND("smart.id.account.not.found", "Smart ID user account not found"),
   VALIDATION_FAILED("smart.id.validation.failed", "Smart ID validation failed"),
+  UNSUPPORTED_COUNTRY(
+      "smart.id.unsupported.country", "Only Estonian Smart ID accounts are supported"),
   TECHNICAL_ERROR("smart.id.technical.error", "Smart ID technical error");
 
   private final String code;
@@ -26,6 +28,7 @@ public enum SmartIdLoginError {
 
   public static SmartIdLoginError of(Exception exception) {
     return switch (exception) {
+      case UnsupportedSmartIdCountryException _ -> UNSUPPORTED_COUNTRY;
       case UserRefusedException _ -> USER_REFUSED;
       case UserSelectedWrongVerificationCodeException _ -> USER_REFUSED;
       case SessionTimeoutException _ -> TIMEOUT;

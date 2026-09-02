@@ -74,6 +74,20 @@ class SavingsFundSuccessEmailResolverTest {
   }
 
   @Test
+  void paymentForARepresentedChildWithoutAResolvableNameStillCarriesTheAccountId() {
+    String childCode = "51111111111";
+    given(
+            parentChildLinkService.findRepresentation(
+                payer.getPersonalCode(), childCode, Set.of(ACTIVE, PENDING_KYC)))
+        .willReturn(Optional.of(LINK_ID));
+    given(partyResolver.resolve(new PartyId(PERSON, childCode))).willReturn(Optional.empty());
+
+    var resolved = resolver.resolve(event(new PartyId(PERSON, childCode)));
+
+    assertThat(resolved).isEqualTo(SavingsFundPaymentEmail.childSuccess(LINK_ID));
+  }
+
+  @Test
   void paymentForAnotherPersonWhoIsNotARepresentedChildResolvesToPersonEmail() {
     String otherCode = "49001010001";
     given(
@@ -106,7 +120,7 @@ class SavingsFundSuccessEmailResolverTest {
 
     var resolved = resolver.resolve(event(new PartyId(LEGAL_ENTITY, registryCode)));
 
-    assertThat(resolved).isEqualTo(SavingsFundPaymentEmail.companySuccess(null, null));
+    assertThat(resolved).isEqualTo(SavingsFundPaymentEmail.companySuccess());
   }
 
   private static Party namedParty(String code, String name) {

@@ -15,7 +15,6 @@ import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -36,11 +35,10 @@ class SavingsFundSuccessEmailResolver {
   }
 
   private SavingsFundPaymentEmail companySuccess(PartyId recipient) {
-    var company = companyRoles.findCompany(recipient.code());
-    if (company.isEmpty()) {
-      return SavingsFundPaymentEmail.companySuccess(null, null);
-    }
-    return SavingsFundPaymentEmail.companySuccess(company.get().name(), company.get().id());
+    return companyRoles
+        .findCompany(recipient.code())
+        .map(company -> SavingsFundPaymentEmail.companySuccess(company.name(), company.id()))
+        .orElseGet(SavingsFundPaymentEmail::companySuccess);
   }
 
   private SavingsFundPaymentEmail personOrChildSuccess(User payer, PartyId recipient) {
@@ -51,15 +49,19 @@ class SavingsFundSuccessEmailResolver {
     if (linkId.isEmpty()) {
       return SavingsFundPaymentEmail.personSuccess();
     }
-    return SavingsFundPaymentEmail.childSuccess(nameOf(recipient), linkId.get());
+    return childSuccess(recipient, linkId.get());
+  }
+
+  private SavingsFundPaymentEmail childSuccess(PartyId recipient, UUID accountId) {
+    return partyResolver
+        .resolve(recipient)
+        .map(Party::name)
+        .map(childName -> SavingsFundPaymentEmail.childSuccess(childName, accountId))
+        .orElseGet(() -> SavingsFundPaymentEmail.childSuccess(accountId));
   }
 
   private Optional<UUID> representationOf(User payer, PartyId recipient) {
     return parentChildLinkService.findRepresentation(
         payer.getPersonalCode(), recipient.code(), Set.of(ACTIVE, PENDING_KYC));
-  }
-
-  private @Nullable String nameOf(PartyId recipient) {
-    return partyResolver.resolve(recipient).map(Party::name).orElse(null);
   }
 }

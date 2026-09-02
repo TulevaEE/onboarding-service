@@ -45,6 +45,11 @@ class HealthCheckServiceTest {
   @Mock QuantityChangeChecker quantityChangeChecker;
   @Mock TradedQuantitySource tradedQuantitySource;
   @Mock PayablesChecker payablesChecker;
+  @Mock NavFlowConsistencyChecker navFlowConsistencyChecker;
+
+  @Mock
+  ee.tuleva.onboarding.investment.config.InvestmentParameterRepository
+      investmentParameterRepository;
 
   @InjectMocks HealthCheckService healthCheckService;
 

@@ -268,6 +268,11 @@ class TrackingDifferenceService {
             .consecutiveBreachDays(priorBreaches.count())
             .bodHoldings(bodHoldings)
             .bodSecuritiesFraction(bodSecuritiesFraction)
+            .openingNetAssets(previousTotalNav)
+            .closingNetAssets(totalNav)
+            .previousUnits(unitsOutstanding(fund, previousDate))
+            .todayUnits(unitsOutstanding(fund, checkDate))
+            .securityQuantitiesChanged(quantitiesChanged(bodPositions, positions))
             .build();
 
     calculator
@@ -414,6 +419,31 @@ class TrackingDifferenceService {
           chargedDays,
           coveredDays);
     }
+  }
+
+  private boolean quantitiesChanged(
+      List<FundPosition> bodPositions, List<FundPosition> todayPositions) {
+    var bod = quantitiesByIsin(bodPositions);
+    var today = quantitiesByIsin(todayPositions);
+    if (!bod.keySet().equals(today.keySet())) {
+      return true;
+    }
+    return bod.entrySet().stream()
+        .anyMatch(entry -> entry.getValue().compareTo(today.get(entry.getKey())) != 0);
+  }
+
+  private Map<String, BigDecimal> quantitiesByIsin(List<FundPosition> positions) {
+    return positions.stream()
+        .filter(position -> position.getAccountId() != null && position.getQuantity() != null)
+        .collect(toMap(FundPosition::getAccountId, FundPosition::getQuantity, BigDecimal::add));
+  }
+
+  private @Nullable BigDecimal unitsOutstanding(TulevaFund fund, LocalDate navDate) {
+    return fundPositionRepository.findByNavDateAndFundAndAccountType(navDate, fund, UNITS).stream()
+        .map(FundPosition::getQuantity)
+        .filter(Objects::nonNull)
+        .findFirst()
+        .orElse(null);
   }
 
   private List<LocalDate> windowDates(LocalDate previousDate, LocalDate checkDate) {

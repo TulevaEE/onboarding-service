@@ -26,6 +26,8 @@ public interface FundPositionRepository extends JpaRepository<FundPosition, Long
   List<FundPosition> findByNavDateAndFundAndAccountType(
       LocalDate navDate, TulevaFund fund, AccountType accountType);
 
+  List<FundPosition> findByNavDateAndFund(LocalDate navDate, TulevaFund fund);
+
   @Query("SELECT MAX(fp.navDate) FROM FundPosition fp WHERE fp.fund = :fund")
   Optional<LocalDate> findLatestNavDateByFund(TulevaFund fund);
 

@@ -1,8 +1,10 @@
 package ee.tuleva.onboarding.investment.check.health;
 
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.PASS;
+import static ee.tuleva.onboarding.investment.config.InvestmentParameter.TRACKING_BREACH_THRESHOLD;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
 
+import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.position.AccountType;
 import ee.tuleva.onboarding.investment.position.FundPosition;
@@ -25,6 +27,8 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class HealthCheckService {
 
+  private static final BigDecimal NAV_FLOW_THRESHOLD_FALLBACK = new BigDecimal("0.001");
+
   private final FundPositionRepository fundPositionRepository;
   private final ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
   private final HealthCheckEventRepository healthCheckEventRepository;
@@ -39,6 +43,22 @@ public class HealthCheckService {
   private final QuantityChangeChecker quantityChangeChecker;
   private final TradedQuantitySource tradedQuantitySource;
   private final PayablesChecker payablesChecker;
+  private final NavFlowConsistencyChecker navFlowConsistencyChecker;
+  private final InvestmentParameterRepository investmentParameterRepository;
+
+  private BigDecimal navFlowThreshold(LocalDate navDate) {
+    try {
+      var threshold =
+          investmentParameterRepository.findLatestValue(TRACKING_BREACH_THRESHOLD, navDate);
+      return threshold != null ? threshold : NAV_FLOW_THRESHOLD_FALLBACK;
+    } catch (Exception e) {
+      log.warn(
+          "TRACKING_BREACH_THRESHOLD unavailable, using fallback for the NAV flow check: navDate={}",
+          navDate,
+          e);
+      return NAV_FLOW_THRESHOLD_FALLBACK;
+    }
+  }
 
   public List<HealthCheckResult> check(List<FundPosition> positions) {
     Map<TulevaFund, List<FundPosition>> byFund =
@@ -88,6 +108,11 @@ public class HealthCheckService {
                         date, fund, RECEIVABLES))
             .orElse(List.of());
 
+    var previousPositions =
+        previousNavDate
+            .map(date -> fundPositionRepository.findByNavDateAndFund(date, fund))
+            .orElse(List.of());
+
     var tradedQuantities =
         previousNavDate
             .map(date -> tradedQuantitySource.resolve(fund, date, navDate))
@@ -115,6 +140,9 @@ public class HealthCheckService {
             fund, securities, previousSecurities, liabilities, previousLiabilities));
     findings.addAll(
         quantityChangeChecker.check(fund, securities, previousSecurities, tradedQuantities));
+    findings.addAll(
+        navFlowConsistencyChecker.check(
+            fund, positions, previousPositions, navFlowThreshold(navDate)));
 
     saveEvents(fund, navDate, findings);
 

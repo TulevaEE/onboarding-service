@@ -40,7 +40,7 @@ class LimitCheckNotifierTest {
         new LimitCheckResult(
             TUK75, LocalDate.of(2026, 3, 4), List.of(breach), List.of(), null, null);
 
-    notifier.notify(List.of(result));
+    notifier.notify(LimitCheckRun.of(List.of(result)));
 
     verify(notificationService).sendMessage(contains("LIMIT BREACH"), eq(INVESTMENT));
   }
@@ -50,7 +50,7 @@ class LimitCheckNotifierTest {
     var result =
         new LimitCheckResult(TUK75, LocalDate.of(2026, 3, 4), List.of(), List.of(), null, null);
 
-    notifier.notify(List.of(result));
+    notifier.notify(LimitCheckRun.of(List.of(result)));
 
     verify(notificationService).sendMessage(contains("TUK75 within limits"), eq(INVESTMENT));
   }
@@ -64,7 +64,7 @@ class LimitCheckNotifierTest {
         new LimitCheckResult(
             TUK75, LocalDate.of(2026, 3, 4), List.of(), List.of(breach), null, null);
 
-    notifier.notify(List.of(result));
+    notifier.notify(LimitCheckRun.of(List.of(result)));
 
     verify(notificationService).sendMessage(contains("ISHARES"), eq(INVESTMENT));
   }
@@ -77,7 +77,7 @@ class LimitCheckNotifierTest {
     var result =
         new LimitCheckResult(TUK75, LocalDate.of(2026, 3, 4), List.of(), List.of(), breach, null);
 
-    notifier.notify(List.of(result));
+    notifier.notify(LimitCheckRun.of(List.of(result)));
 
     verify(notificationService).sendMessage(contains("RESERVE"), eq(INVESTMENT));
   }
@@ -88,7 +88,7 @@ class LimitCheckNotifierTest {
     var result =
         new LimitCheckResult(TUK75, LocalDate.of(2026, 3, 4), List.of(), List.of(), null, breach);
 
-    notifier.notify(List.of(result));
+    notifier.notify(LimitCheckRun.of(List.of(result)));
 
     verify(notificationService).sendMessage(contains("within limits"), eq(INVESTMENT));
   }
@@ -98,7 +98,7 @@ class LimitCheckNotifierTest {
     var result =
         new LimitCheckResult(TUK75, LocalDate.of(2026, 3, 4), List.of(), List.of(), null, null);
 
-    notifier.notify(List.of(result));
+    notifier.notify(LimitCheckRun.of(List.of(result)));
 
     verify(notificationService).sendMessage(contains("✅"), eq(INVESTMENT));
   }
@@ -111,7 +111,7 @@ class LimitCheckNotifierTest {
     var result =
         new LimitCheckResult(TUK75, LocalDate.of(2026, 3, 4), List.of(), List.of(), breach, null);
 
-    notifier.notify(List.of(result));
+    notifier.notify(LimitCheckRun.of(List.of(result)));
 
     var captor = org.mockito.ArgumentCaptor.forClass(String.class);
     verify(notificationService).sendMessage(captor.capture(), eq(INVESTMENT));
@@ -129,7 +129,7 @@ class LimitCheckNotifierTest {
     var result =
         new LimitCheckResult(TUK75, LocalDate.of(2026, 3, 4), List.of(), List.of(), breach, null);
 
-    notifier.notify(List.of(result));
+    notifier.notify(LimitCheckRun.of(List.of(result)));
 
     var captor = org.mockito.ArgumentCaptor.forClass(String.class);
     verify(notificationService).sendMessage(captor.capture(), eq(INVESTMENT));
@@ -149,7 +149,7 @@ class LimitCheckNotifierTest {
     var result =
         new LimitCheckResult(TUK75, LocalDate.of(2026, 3, 4), List.of(), List.of(soft), hard, null);
 
-    notifier.notify(List.of(result));
+    notifier.notify(LimitCheckRun.of(List.of(result)));
 
     var captor = org.mockito.ArgumentCaptor.forClass(String.class);
     verify(notificationService).sendMessage(captor.capture(), eq(INVESTMENT));
@@ -165,6 +165,6 @@ class LimitCheckNotifierTest {
     var result =
         new LimitCheckResult(TUK75, LocalDate.of(2026, 3, 4), List.of(), List.of(), null, null);
 
-    notifier.notify(List.of(result));
+    notifier.notify(LimitCheckRun.of(List.of(result)));
   }
 }

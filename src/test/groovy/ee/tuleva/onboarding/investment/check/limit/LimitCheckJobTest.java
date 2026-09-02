@@ -31,24 +31,24 @@ class LimitCheckJobTest {
   void navCompletedDelegatesToServiceForSpecificFunds() {
     var funds = List.of(TUK75, TUK00);
     var results = List.of(mock(LimitCheckResult.class));
-    when(limitCheckService.runChecksForFunds(funds)).thenReturn(results);
+    when(limitCheckService.runChecksForFunds(funds)).thenReturn(LimitCheckRun.of(results));
 
     job.onNavCalculationCompleted(new NavCalculationCompleted(funds));
 
     verify(limitCheckService).runChecksForFunds(funds);
-    verify(limitCheckNotifier).notify(results);
+    verify(limitCheckNotifier).notify(LimitCheckRun.of(results));
   }
 
   @Test
   void adHocEventDelegatesToServiceAndNotifier() {
     var allFunds = List.of(TulevaFund.values());
     var results = List.of(mock(LimitCheckResult.class));
-    when(limitCheckService.runChecksForFunds(allFunds)).thenReturn(results);
+    when(limitCheckService.runChecksForFunds(allFunds)).thenReturn(LimitCheckRun.of(results));
 
     job.onLimitCheckRequested(new RunLimitCheckRequested());
 
     verify(limitCheckService).runChecksForFunds(allFunds);
-    verify(limitCheckNotifier).notify(results);
+    verify(limitCheckNotifier).notify(LimitCheckRun.of(results));
   }
 
   @Test
@@ -88,9 +88,7 @@ class LimitCheckJobTest {
 
   @Test
   void partialFailureNotifiesBreachesAndMarksStepFailed() {
-    var breachResult = mock(LimitCheckResult.class);
-    when(breachResult.hasBreaches()).thenReturn(true);
-    var partial = List.of(breachResult);
+    var partial = new LimitCheckRun(List.of(mock(LimitCheckResult.class)), List.of(TUK00));
 
     var funds = List.of(TUK75, TUK00);
     when(limitCheckService.runChecksForFunds(funds))
@@ -103,10 +101,9 @@ class LimitCheckJobTest {
   }
 
   @Test
-  void partialFailureWithoutBreachesSkipsNotification() {
+  void partialFailureWithoutBreachesStillNamesTheFundsItCouldNotCheck() {
     var okResult = mock(LimitCheckResult.class);
-    when(okResult.hasBreaches()).thenReturn(false);
-    var partial = List.of(okResult);
+    var partial = new LimitCheckRun(List.of(okResult), List.of(TUK00));
 
     var funds = List.of(TUK75, TUK00);
     when(limitCheckService.runChecksForFunds(funds))
@@ -114,16 +111,18 @@ class LimitCheckJobTest {
 
     job.onNavCalculationCompleted(new NavCalculationCompleted(funds));
 
-    verify(limitCheckNotifier, never()).notify(any());
+    verify(limitCheckNotifier).notify(partial);
     verify(pipelineTracker).stepFailed(any(), eq("1 fund(s) failed"));
   }
 
   @Test
-  void backfillSwallowsExceptions() {
-    when(limitCheckService.backfillChecks(25)).thenThrow(new RuntimeException("DB down"));
+  void backfillFailureIsReportedRatherThanOnlyLogged() {
+    var failure = new RuntimeException("DB down");
+    when(limitCheckService.backfillChecks(25)).thenThrow(failure);
 
     job.backfillLimitChecks();
 
+    verify(limitCheckNotifier).notifyBackfillFailed(failure);
     verify(limitCheckNotifier, never()).notify(any());
   }
 }

@@ -50,16 +50,15 @@ public class LimitCheckJob {
     log.info("Starting limit check: funds={}", funds);
 
     try {
-      var results = limitCheckService.runChecksForFunds(funds);
-      limitCheckNotifier.notify(results);
+      var run = limitCheckService.runChecksForFunds(funds);
+      limitCheckNotifier.notify(run);
       pipelineTracker.stepCompleted(LIMIT_CHECK);
 
-      log.info("Limit check completed: funds={}, resultCount={}", funds, results.size());
+      log.info("Limit check completed: funds={}, resultCount={}", funds, run.results().size());
     } catch (LimitCheckPartialFailureException e) {
-      var partial = e.getPartialResults();
-      if (partial.stream().anyMatch(LimitCheckResult::hasBreaches)) {
-        limitCheckNotifier.notify(partial);
-      }
+      // Always notify: the run still says which funds it covered and which it could not, and that
+      // second list is the whole point when part of the run has failed.
+      limitCheckNotifier.notify(e.getPartialRun());
       pipelineTracker.stepFailed(LIMIT_CHECK, e.getMessage());
       log.error("Limit check failed", e);
     } catch (Exception e) {
@@ -86,6 +85,7 @@ public class LimitCheckJob {
       log.info("Limit check backfill completed: resultCount={}", results.size());
     } catch (Exception e) {
       log.error("Limit check backfill failed", e);
+      limitCheckNotifier.notifyBackfillFailed(e);
     }
   }
 }

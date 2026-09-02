@@ -5,7 +5,7 @@ import static ee.tuleva.onboarding.investment.check.limit.BreachSeverity.SOFT;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
-import java.util.List;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,41 +18,71 @@ class LimitCheckNotifier {
 
   private final OperationsNotificationService notificationService;
 
-  void notify(List<LimitCheckResult> results) {
+  void notify(LimitCheckRun run) {
     try {
-      if (sendAllClearIfNoBreaches(results)) {
+      if (run.hasBreaches()) {
+        sendBreachNotification(run);
         return;
       }
-      sendBreachNotification(results);
+      sendAllClear(run);
     } catch (Exception e) {
       log.error("Failed to send limit check notification", e);
     }
   }
 
-  private boolean sendAllClearIfNoBreaches(List<LimitCheckResult> results) {
-    var hasAnyBreaches = results.stream().anyMatch(LimitCheckResult::hasBreaches);
-    if (hasAnyBreaches) {
-      return false;
+  void notifyBackfillFailed(Exception failure) {
+    try {
+      notificationService.sendMessage(
+          "🛑 Limit check backfill FAILED — the daily re-run that repairs missed days did not"
+              + " complete, so gaps will persist until it succeeds: error=%s"
+                  .formatted(failure.getMessage()),
+          INVESTMENT);
+    } catch (Exception e) {
+      log.error("Failed to send limit check backfill failure notification", e);
     }
-    if (results.isEmpty()) {
-      return true;
-    }
-    var fundNames = results.stream().map(r -> r.fund().getCode()).collect(Collectors.joining(", "));
-    notificationService.sendMessage(
-        "✅ Limit check completed: %s within limits".formatted(fundNames), INVESTMENT);
-    return true;
   }
 
-  private void sendBreachNotification(List<LimitCheckResult> results) {
+  // A run that checked nothing at all used to say nothing at all, which is indistinguishable from
+  // a quiet day. Whatever a run did or did not cover, it now says so.
+  private void sendAllClear(LimitCheckRun run) {
+    if (run.isEmpty()) {
+      notificationService.sendMessage(
+          "⏸ Limit check ran but covered no funds — no position data for any of them", INVESTMENT);
+      return;
+    }
+    var message = new StringBuilder();
+    if (!run.results().isEmpty()) {
+      var fundNames =
+          run.results().stream().map(r -> r.fund().getCode()).collect(Collectors.joining(", "));
+      message.append("✅ Limit check completed: %s within limits".formatted(fundNames));
+    }
+    appendNotChecked(message, run);
+    notificationService.sendMessage(message.toString(), INVESTMENT);
+  }
+
+  private void sendBreachNotification(LimitCheckRun run) {
     var body = new StringBuilder();
     var worst = SOFT;
 
-    for (var result : results) {
+    for (var result : run.results()) {
       worst = worse(worst, appendResultBreaches(body, result));
     }
 
-    var message = "%s LIMIT BREACH DETECTED\n".formatted(severityIcon(worst)) + body;
-    notificationService.sendMessage(message, INVESTMENT);
+    var message =
+        new StringBuilder("%s LIMIT BREACH DETECTED\n".formatted(severityIcon(worst))).append(body);
+    appendNotChecked(message, run);
+    notificationService.sendMessage(message.toString(), INVESTMENT);
+  }
+
+  private void appendNotChecked(StringBuilder message, LimitCheckRun run) {
+    if (run.notChecked().isEmpty()) {
+      return;
+    }
+    var fundNames =
+        run.notChecked().stream().map(TulevaFund::getCode).collect(Collectors.joining(", "));
+    message
+        .append(message.isEmpty() ? "" : "\n\n")
+        .append("⏸ Not checked: %s — no limits were verified for these".formatted(fundNames));
   }
 
   private BreachSeverity appendResultBreaches(StringBuilder body, LimitCheckResult result) {

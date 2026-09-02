@@ -76,10 +76,21 @@ public class SmartIdLoginController {
             .current()
             .orElseThrow(
                 () -> new SmartIdSessionNotFoundException("No remembered Smart-ID account."));
-    SmartIdSession session = smartIdLoginStarter.startNotificationLogin(account);
+    SmartIdSession session = startNotificationLogin(account);
     sessionStore.save(session);
     return SmartIdLoginResponse.notification(
         ((NotificationLogin) session.getLogin()).verificationCode());
+  }
+
+  private SmartIdSession startNotificationLogin(RememberedSmartIdAccount account) {
+    try {
+      return smartIdLoginStarter.startNotificationLogin(account);
+    } catch (SmartIdException e) {
+      if (e.getLoginError() == SmartIdLoginError.ACCOUNT_NOT_FOUND) {
+        rememberedSmartIdAccounts.forget();
+      }
+      throw e;
+    }
   }
 
   private SmartIdSession currentSession() {

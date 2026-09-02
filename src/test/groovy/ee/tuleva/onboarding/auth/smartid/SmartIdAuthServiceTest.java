@@ -69,6 +69,25 @@ class SmartIdAuthServiceTest {
   }
 
   @Test
+  void completeLoginRejectsAccountsFromOtherCountries() {
+    SmartIdSession session = aDeviceLinkSession(now);
+    var status = completeStatus("QR");
+    var login = (DeviceLinkLogin) session.getLogin();
+    var lithuanianIdentity = anAuthenticationIdentity();
+    lithuanianIdentity.setCountry("LT");
+    given(connector.getSessionStatus(aSessionId)).willReturn(status);
+    given(deviceLinkValidator.validate(status, login.request(), null, "smart-id-demo"))
+        .willReturn(lithuanianIdentity);
+
+    assertThatThrownBy(() -> service.completeLogin(session))
+        .isInstanceOf(SmartIdException.class)
+        .extracting(e -> ((SmartIdException) e).getLoginError())
+        .isEqualTo(SmartIdLoginError.UNSUPPORTED_COUNTRY);
+    assertThat(session.getError()).isEqualTo(SmartIdLoginError.UNSUPPORTED_COUNTRY);
+    assertThat(session.getPerson()).isNull();
+  }
+
+  @Test
   void completeLoginReturnsTheRecordedPersonWithoutAskingSmartIdAgain() {
     SmartIdSession session = aDeviceLinkSession(now);
     session.setPerson(SmartIdFixture.aSmartIdPerson());

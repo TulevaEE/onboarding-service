@@ -4,6 +4,8 @@ import static ee.tuleva.onboarding.auth.authority.Authority.USER;
 import static ee.tuleva.onboarding.auth.role.RoleType.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
 import static ee.tuleva.onboarding.company.CompanyFixture.*;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
@@ -11,6 +13,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -122,6 +125,7 @@ class RoleControllerTest {
         .andExpect(jsonPath("$[1].code").value(SAMPLE_REGISTRY_CODE))
         .andExpect(jsonPath("$[1].name").value(SAMPLE_COMPANY_NAME))
         .andExpect(jsonPath("$[0].id").doesNotExist())
+        .andExpect(content().string(not(containsString("\"id\":null"))))
         .andExpect(jsonPath("$[1].id").value(COMPANY_ID.toString()));
   }
 

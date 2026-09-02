@@ -100,13 +100,13 @@ class SavingsFundSuccessEmailResolverTest {
   }
 
   @Test
-  void companyPaymentForAnUnknownCompanyResolvesToTheGenericPersonEmail() {
+  void companyPaymentForAnUnknownCompanyKeepsTheCompanyEmailWithoutNameOrAccountId() {
     String registryCode = "87654321";
     given(companyRoles.findCompany(registryCode)).willReturn(Optional.empty());
 
     var resolved = resolver.resolve(event(new PartyId(LEGAL_ENTITY, registryCode)));
 
-    assertThat(resolved).isEqualTo(SavingsFundPaymentEmail.personSuccess());
+    assertThat(resolved).isEqualTo(SavingsFundPaymentEmail.companySuccess(null, null));
   }
 
   private static Party namedParty(String code, String name) {

@@ -19,9 +19,15 @@
 <mj-text>
   <strong>You can set up the recurring payment in your company's Tuleva account:</strong>
 </mj-text>
+<mj-raw>*|IF:recipientAccountId|*</mj-raw>
 <mj-button href="https://pension.tuleva.ee/savings-fund/payment/company/*|recipientAccountId|*?language=en&type=RECURRING&utm_content=nudge_savings_fund_recurring_company">
   Set up recurring payment
 </mj-button>
+<mj-raw>*|ELSE:|*</mj-raw>
+<mj-button href="https://pension.tuleva.ee/savings-fund/payment/company?language=en&type=RECURRING&utm_content=nudge_savings_fund_recurring_company">
+  Set up recurring payment
+</mj-button>
+<mj-raw>*|END:IF|*</mj-raw>
 <mj-raw>*|ELSE:|*</mj-raw>
 <mj-text>
   Many Tuleva savers have set up a recurring payment to their savings fund. This way, they

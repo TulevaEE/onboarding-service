@@ -1,13 +1,89 @@
 {
   "variants": {
-    "ettevõtte sissemakse": {
-      "FNAME": "Mari",
-      "RECIPIENTNAME": "Mesila OÜ"
-    },
-    "konto püsimakse soovitus": {
+    "II samba soovitus": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Mesila OÜ",
-      "suggestAccountRecurringPayment": true
+      "recipientIsCompany": true,
+      "suggestSecondPillar": true,
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
+    },
+    "II samba määra tõstmise soovitus": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Mesila OÜ",
+      "recipientIsCompany": true,
+      "suggestPaymentRate": true,
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
+    },
+    "III samba soovitus": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Mesila OÜ",
+      "recipientIsCompany": true,
+      "suggestThirdPillar": true,
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
+    },
+    "III samba tasude soovitus": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Mesila OÜ",
+      "recipientIsCompany": true,
+      "suggestThirdPillar": true,
+      "thirdPillarActive": true,
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
+    },
+    "III samba püsimakse soovitus": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Mesila OÜ",
+      "recipientIsCompany": true,
+      "suggestThirdPillarRecurringPayment": true,
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
+    },
+    "III samba sissemakse tõstmise soovitus": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Mesila OÜ",
+      "recipientIsCompany": true,
+      "suggestThirdPillarRaise": true,
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
+    },
+    "kogumisfondi soovitus (ei esine)": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Mesila OÜ",
+      "recipientIsCompany": true,
+      "suggestSavingsFund": true,
+      "savingsFundFee": "0,28",
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
+    },
+    "kogumisfondi püsimakse soovitus": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Mesila OÜ",
+      "recipientIsCompany": true,
+      "suggestSavingsFundRecurringPayment": true,
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
+    },
+    "II sammas läheb kogumisfondi püsimaksest ette": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Mesila OÜ",
+      "recipientIsCompany": true,
+      "suggestSecondPillar": true,
+      "suggestSavingsFundRecurringPayment": true,
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
+    },
+    "liikmesuse soovitus": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Mesila OÜ",
+      "recipientIsCompany": true,
+      "suggestMembership": true,
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
+    },
+    "ilma soovituseta": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Mesila OÜ",
+      "recipientIsCompany": true,
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
+    },
+    "saaja nimeta": {
+      "FNAME": "Mari",
+      "recipientIsCompany": true,
+      "suggestSavingsFundRecurringPayment": true,
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
     }
   }
 }

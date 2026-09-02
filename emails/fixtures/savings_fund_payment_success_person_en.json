@@ -1,9 +1,5 @@
 {
   "variants": {
-    "account recurring suggestion": {
-      "FNAME": "Mari",
-      "suggestAccountRecurringPayment": true
-    },
     "second pillar suggestion": {
       "FNAME": "Mari",
       "suggestSecondPillar": true
@@ -36,6 +32,11 @@
     },
     "savings fund recurring suggestion": {
       "FNAME": "Mari",
+      "suggestSavingsFundRecurringPayment": true
+    },
+    "second pillar outranks the savings fund recurring suggestion": {
+      "FNAME": "Mari",
+      "suggestSecondPillar": true,
       "suggestSavingsFundRecurringPayment": true
     },
     "membership suggestion": {

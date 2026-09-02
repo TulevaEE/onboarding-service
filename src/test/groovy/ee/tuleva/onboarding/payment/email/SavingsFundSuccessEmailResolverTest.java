@@ -12,7 +12,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
-import ee.tuleva.onboarding.company.Company;
+import ee.tuleva.onboarding.auth.role.CompanyRoles;
+import ee.tuleva.onboarding.auth.role.CompanyRoles.CompanyRole;
 import ee.tuleva.onboarding.party.ParentChildLinkService;
 import ee.tuleva.onboarding.party.Party;
 import ee.tuleva.onboarding.party.PartyId;
@@ -21,6 +22,7 @@ import ee.tuleva.onboarding.payment.event.SavingsPaymentCreatedEvent;
 import ee.tuleva.onboarding.user.User;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -32,8 +34,12 @@ class SavingsFundSuccessEmailResolverTest {
 
   @Mock private ParentChildLinkService parentChildLinkService;
   @Mock private PartyResolver partyResolver;
+  @Mock private CompanyRoles companyRoles;
 
   @InjectMocks private SavingsFundSuccessEmailResolver resolver;
+
+  private static final UUID LINK_ID = UUID.fromString("33333333-3333-3333-3333-333333333333");
+  private static final UUID COMPANY_ID = UUID.fromString("44444444-4444-4444-4444-444444444444");
 
   private final User payer =
       User.builder().personalCode("38888888888").firstName("Parent").lastName("Tester").build();
@@ -55,15 +61,15 @@ class SavingsFundSuccessEmailResolverTest {
     String childCode = "51111111111";
     User child = User.builder().personalCode(childCode).firstName("Kid").lastName("Tester").build();
     given(
-            parentChildLinkService.isRepresentation(
+            parentChildLinkService.findRepresentation(
                 payer.getPersonalCode(), childCode, Set.of(ACTIVE, PENDING_KYC)))
-        .willReturn(true);
+        .willReturn(Optional.of(LINK_ID));
     given(partyResolver.resolve(new PartyId(PERSON, childCode)))
         .willReturn(Optional.of(namedParty(child.code(), child.name())));
 
     var resolved = resolver.resolve(event(new PartyId(PERSON, childCode)));
 
-    assertThat(resolved).isEqualTo(SavingsFundPaymentEmail.childSuccess(child.name()));
+    assertThat(resolved).isEqualTo(SavingsFundPaymentEmail.childSuccess(child.name(), LINK_ID));
     verify(parentChildLinkService, never()).isActiveRepresentation(any(), any());
   }
 
@@ -71,9 +77,9 @@ class SavingsFundSuccessEmailResolverTest {
   void paymentForAnotherPersonWhoIsNotARepresentedChildResolvesToPersonEmail() {
     String otherCode = "49001010001";
     given(
-            parentChildLinkService.isRepresentation(
+            parentChildLinkService.findRepresentation(
                 payer.getPersonalCode(), otherCode, Set.of(ACTIVE, PENDING_KYC)))
-        .willReturn(false);
+        .willReturn(Optional.empty());
 
     var resolved = resolver.resolve(event(new PartyId(PERSON, otherCode)));
 
@@ -82,27 +88,25 @@ class SavingsFundSuccessEmailResolverTest {
   }
 
   @Test
-  void paymentForCompanyResolvesToCompanyEmailWithCompanyName() {
+  void paymentForCompanyResolvesToCompanyEmailWithNameAndAccountId() {
     String registryCode = "12345678";
-    Company company = Company.builder().registryCode(registryCode).name("Tuleva OÜ").build();
-    given(partyResolver.resolve(new PartyId(LEGAL_ENTITY, registryCode)))
-        .willReturn(Optional.of(company));
+    given(companyRoles.findCompany(registryCode))
+        .willReturn(Optional.of(new CompanyRole(COMPANY_ID, registryCode, "Tuleva OÜ")));
 
     var resolved = resolver.resolve(event(new PartyId(LEGAL_ENTITY, registryCode)));
 
-    assertThat(resolved).isEqualTo(SavingsFundPaymentEmail.companySuccess(company.name()));
-    verifyNoInteractions(parentChildLinkService);
+    assertThat(resolved).isEqualTo(SavingsFundPaymentEmail.companySuccess("Tuleva OÜ", COMPANY_ID));
+    verifyNoInteractions(parentChildLinkService, partyResolver);
   }
 
   @Test
-  void companyPaymentWithUnresolvablePartyResolvesToCompanyEmailWithoutName() {
+  void companyPaymentForAnUnknownCompanyResolvesToTheGenericPersonEmail() {
     String registryCode = "87654321";
-    given(partyResolver.resolve(new PartyId(LEGAL_ENTITY, registryCode)))
-        .willReturn(Optional.empty());
+    given(companyRoles.findCompany(registryCode)).willReturn(Optional.empty());
 
     var resolved = resolver.resolve(event(new PartyId(LEGAL_ENTITY, registryCode)));
 
-    assertThat(resolved).isEqualTo(SavingsFundPaymentEmail.companySuccess(null));
+    assertThat(resolved).isEqualTo(SavingsFundPaymentEmail.personSuccess());
   }
 
   private static Party namedParty(String code, String name) {

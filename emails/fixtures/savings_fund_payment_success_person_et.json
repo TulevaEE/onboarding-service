@@ -1,9 +1,5 @@
 {
   "variants": {
-    "konto püsimakse soovitus": {
-      "FNAME": "Mari",
-      "suggestAccountRecurringPayment": true
-    },
     "II samba soovitus": {
       "FNAME": "Mari",
       "suggestSecondPillar": true
@@ -36,6 +32,11 @@
     },
     "kogumisfondi püsimakse soovitus": {
       "FNAME": "Mari",
+      "suggestSavingsFundRecurringPayment": true
+    },
+    "II sammas läheb kogumisfondi püsimaksest ette": {
+      "FNAME": "Mari",
+      "suggestSecondPillar": true,
       "suggestSavingsFundRecurringPayment": true
     },
     "liikmesuse soovitus": {

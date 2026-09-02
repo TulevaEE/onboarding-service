@@ -60,23 +60,14 @@ public class PaymentEmailService {
   }
 
   void sendSavingsFundPaymentEmail(
-      User user,
-      SavingsFundPaymentEmail email,
-      PillarSuggestion pillarSuggestion,
-      boolean suggestAccountRecurringPayment,
-      Locale locale) {
+      User user, SavingsFundPaymentEmail email, PillarSuggestion pillarSuggestion, Locale locale) {
     Map<String, Object> mergeVars = new HashMap<>(getNameMergeVars(user));
     mergeVars.putAll(
         getPillarSuggestionMergeVars(
             pillarSuggestion, savingsFundCharges.ongoingChargesPercent(locale)));
-    mergeVars.put("suggestAccountRecurringPayment", suggestAccountRecurringPayment);
     mergeVars.putAll(email.mergeVars());
 
-    List<String> tags =
-        suggestAccountRecurringPayment
-            ? List.of(SAVINGS_FUND_TAG, "nudge_savings_fund_recurring")
-            : getSavingsFundTags(pillarSuggestion);
-    sendSavingsFundEmail(user, email, mergeVars, tags, locale);
+    sendSavingsFundEmail(user, email, mergeVars, getSavingsFundTags(pillarSuggestion), locale);
   }
 
   void sendSavingsFundPaymentEmail(User user, SavingsFundPaymentEmail email, Locale locale) {

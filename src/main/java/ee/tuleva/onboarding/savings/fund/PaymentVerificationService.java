@@ -189,8 +189,9 @@ public class PaymentVerificationService {
   private boolean isAuthorizedRemitter(PartyId remitter, PartyId party) {
     return remitter.type() == PERSON
         && party.type() == PERSON
-        && parentChildLinkService.isRepresentation(
-            remitter.code(), party.code(), Set.of(ACTIVE, PENDING_KYC));
+        && parentChildLinkService
+            .findRepresentation(remitter.code(), party.code(), Set.of(ACTIVE, PENDING_KYC))
+            .isPresent();
   }
 
   Optional<PartyId> extractPartyIdFromDescription(String text) {

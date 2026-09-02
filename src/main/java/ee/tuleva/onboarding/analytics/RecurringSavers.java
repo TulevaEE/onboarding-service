@@ -19,19 +19,17 @@ public class RecurringSavers implements RecurringContributions {
   private final SavingsFundContributions savingsFundContributions;
   private final Clock clock;
 
-  public boolean hasRecurringSavingsFundPayments(SaverId saver) {
-    LocalDate from = LocalDate.now(clock).withDayOfMonth(1).minusMonths(LOOKBACK_MONTHS - 1);
-    return savingsFundContributions.countIssuedPaymentMonthsSince(saver, from)
-        >= MIN_CONTRIBUTION_MONTHS;
-  }
-
   @Override
   public RecurringPayments recurringPaymentsOf(String personalCode) {
+    return recurringPaymentsOf(personalCode, SaverId.person(personalCode));
+  }
+
+  public RecurringPayments recurringPaymentsOf(String personalCode, SaverId savingsFundAccount) {
     LocalDate from = LocalDate.now(clock).withDayOfMonth(1).minusMonths(LOOKBACK_MONTHS - 1);
     return new RecurringPayments(
         thirdPillarTransactions.countOwnContributionMonthsSince(personalCode, from)
             >= MIN_CONTRIBUTION_MONTHS,
-        savingsFundContributions.countIssuedPaymentMonthsSince(SaverId.person(personalCode), from)
+        savingsFundContributions.countIssuedPaymentMonthsSince(savingsFundAccount, from)
             >= MIN_CONTRIBUTION_MONTHS);
   }
 }

@@ -60,22 +60,21 @@ public class PaymentEmailSender {
 
   @EventListener
   public void onSavingsPaymentCreated(SavingsPaymentCreatedEvent event) {
-    var recipient = event.getRecipient();
-    var saverType =
-        switch (recipient.type()) {
-          case PERSON -> SaverId.Type.PERSON;
-          case LEGAL_ENTITY -> SaverId.Type.LEGAL_ENTITY;
-        };
-    var saver = new SaverId(saverType, recipient.code());
-    boolean suggestAccountRecurringPayment =
-        !recurringSavers.hasRecurringSavingsFundPayments(saver);
-    sendSavingsFundEmail(
-        event, savingsFundSuccessEmailResolver.resolve(event), suggestAccountRecurringPayment);
+    var user = event.getUser();
+    var paidAccount = paidAccount(event);
+    securityContextRunner.runAs(
+        user,
+        () ->
+            emailService.sendSavingsFundPaymentEmail(
+                user,
+                savingsFundSuccessEmailResolver.resolve(event),
+                receiptSuggestionFor(user, paidAccount),
+                event.getLocale()));
   }
 
   @EventListener
   public void onSavingsPaymentCancelled(SavingsPaymentCancelledEvent event) {
-    sendSavingsFundEmail(event, SavingsFundPaymentEmail.cancelled(), false);
+    sendSavingsFundEmail(event, SavingsFundPaymentEmail.cancelled());
   }
 
   @TransactionalEventListener(phase = AFTER_COMMIT)
@@ -85,28 +84,49 @@ public class PaymentEmailSender {
         event.getUser(), SavingsFundPaymentEmail.failed(), event.getLocale());
   }
 
-  private void sendSavingsFundEmail(
-      PaymentEvent event, SavingsFundPaymentEmail email, boolean suggestAccountRecurringPayment) {
+  private void sendSavingsFundEmail(PaymentEvent event, SavingsFundPaymentEmail email) {
     securityContextRunner.runAs(
         event.getUser(),
         () ->
             emailService.sendSavingsFundPaymentEmail(
-                event.getUser(),
-                email,
-                pillarSuggestionFor(event.getUser()),
-                suggestAccountRecurringPayment,
-                event.getLocale()));
+                event.getUser(), email, pillarSuggestionFor(event.getUser()), event.getLocale()));
+  }
+
+  private static SaverId paidAccount(SavingsPaymentCreatedEvent event) {
+    var recipient = event.getRecipient();
+    return new SaverId(
+        switch (recipient.type()) {
+          case PERSON -> SaverId.Type.PERSON;
+          case LEGAL_ENTITY -> SaverId.Type.LEGAL_ENTITY;
+        },
+        recipient.code());
   }
 
   private PillarSuggestion pillarSuggestionFor(User user) {
-    return pillarSuggestionFor(user, Set.of());
+    return pillarSuggestionFor(
+        user,
+        Set.of(),
+        SaverId.person(user.getPersonalCode()),
+        savingsFundSaverStatus.isSaver(user.getPersonalCode()));
   }
 
   private PillarSuggestion thirdPillarSuggestionFor(User user) {
-    return pillarSuggestionFor(user, Set.of(3));
+    return pillarSuggestionFor(
+        user,
+        Set.of(3),
+        SaverId.person(user.getPersonalCode()),
+        savingsFundSaverStatus.isSaver(user.getPersonalCode()));
   }
 
-  private PillarSuggestion pillarSuggestionFor(User user, Set<Integer> concernedPillars) {
+  private PillarSuggestion receiptSuggestionFor(User user, SaverId paidAccount) {
+    return pillarSuggestionFor(user, Set.of(), paidAccount, true);
+  }
+
+  private PillarSuggestion pillarSuggestionFor(
+      User user,
+      Set<Integer> concernedPillars,
+      SaverId savingsFundAccount,
+      boolean savesInSavingsFund) {
     var contactDetails = contactDetailsService.getContactDetails(user);
     return new PillarSuggestion(
         user,
@@ -116,9 +136,9 @@ public class PaymentEmailSender {
         paymentRateService.getPaymentRates(user),
         concernedPillars,
         secondPillarLeavers.hasLeft(user.getPersonalCode()),
-        savingsFundSaverStatus.isSaver(user.getPersonalCode()),
+        savesInSavingsFund,
         false,
-        recurringSavers.recurringPaymentsOf(user.getPersonalCode()),
+        recurringSavers.recurringPaymentsOf(user.getPersonalCode(), savingsFundAccount),
         thirdPillarTaxHeadroom.hasHeadroom(user));
   }
 }

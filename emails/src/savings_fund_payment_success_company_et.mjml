@@ -17,8 +17,7 @@
 
     <mj-section padding="0 24px">
       <mj-column>
-        <mj-raw>*|IF:suggestAccountRecurringPayment|*</mj-raw>
-        <mj-include path="./partials/suggest_account_recurring_company_et.mjml" />
+        <mj-include path="./partials/suggest_chain_open_et.mjml" />
         <mj-raw>*|END:IF|*</mj-raw>
       </mj-column>
     </mj-section>

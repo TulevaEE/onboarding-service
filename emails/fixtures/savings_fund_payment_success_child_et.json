@@ -1,60 +1,89 @@
 {
   "variants": {
-    "konto püsimakse soovitus": {
-      "FNAME": "Mari",
-      "RECIPIENTNAME": "Jaan Tamm",
-      "suggestAccountRecurringPayment": true
-    },
     "II samba soovitus": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Jaan Tamm",
-      "suggestSecondPillar": true
+      "recipientIsChild": true,
+      "suggestSecondPillar": true,
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
     },
     "II samba määra tõstmise soovitus": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Jaan Tamm",
-      "suggestPaymentRate": true
+      "recipientIsChild": true,
+      "suggestPaymentRate": true,
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
     },
     "III samba soovitus": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Jaan Tamm",
-      "suggestThirdPillar": true
+      "recipientIsChild": true,
+      "suggestThirdPillar": true,
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
     },
     "III samba tasude soovitus": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Jaan Tamm",
+      "recipientIsChild": true,
       "suggestThirdPillar": true,
-      "thirdPillarActive": true
+      "thirdPillarActive": true,
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
     },
     "III samba püsimakse soovitus": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Jaan Tamm",
-      "suggestThirdPillarRecurringPayment": true
+      "recipientIsChild": true,
+      "suggestThirdPillarRecurringPayment": true,
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
     },
     "III samba sissemakse tõstmise soovitus": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Jaan Tamm",
-      "suggestThirdPillarRaise": true
+      "recipientIsChild": true,
+      "suggestThirdPillarRaise": true,
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
     },
     "kogumisfondi soovitus (ei esine)": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Jaan Tamm",
+      "recipientIsChild": true,
       "suggestSavingsFund": true,
-      "savingsFundFee": "0,28"
+      "savingsFundFee": "0,28",
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
     },
     "kogumisfondi püsimakse soovitus": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Jaan Tamm",
-      "suggestSavingsFundRecurringPayment": true
+      "recipientIsChild": true,
+      "suggestSavingsFundRecurringPayment": true,
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
+    },
+    "II sammas läheb kogumisfondi püsimaksest ette": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Jaan Tamm",
+      "recipientIsChild": true,
+      "suggestSecondPillar": true,
+      "suggestSavingsFundRecurringPayment": true,
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
     },
     "liikmesuse soovitus": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Jaan Tamm",
-      "suggestMembership": true
+      "recipientIsChild": true,
+      "suggestMembership": true,
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
     },
     "ilma soovituseta": {
       "FNAME": "Mari",
-      "RECIPIENTNAME": "Jaan Tamm"
+      "RECIPIENTNAME": "Jaan Tamm",
+      "recipientIsChild": true,
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
+    },
+    "saaja nimeta": {
+      "FNAME": "Mari",
+      "recipientIsChild": true,
+      "suggestSavingsFundRecurringPayment": true,
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
     }
   }
 }

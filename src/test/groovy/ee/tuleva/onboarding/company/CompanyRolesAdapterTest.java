@@ -40,7 +40,8 @@ class CompanyRolesAdapterTest {
         .willReturn(List.of(sampleCompany().build()));
 
     assertThat(companyRolesAdapter.boardMemberCompanies(PERSONAL_CODE))
-        .containsExactly(new CompanyRole(SAMPLE_REGISTRY_CODE, SAMPLE_COMPANY_NAME));
+        .containsExactly(
+            new CompanyRole(SAMPLE_COMPANY_ID, SAMPLE_REGISTRY_CODE, SAMPLE_COMPANY_NAME));
   }
 
   @Test
@@ -59,7 +60,7 @@ class CompanyRolesAdapterTest {
         .willReturn(Optional.of(sampleCompany().build()));
 
     assertThat(companyRolesAdapter.company(SAMPLE_REGISTRY_CODE))
-        .isEqualTo(new CompanyRole(SAMPLE_REGISTRY_CODE, SAMPLE_COMPANY_NAME));
+        .isEqualTo(new CompanyRole(SAMPLE_COMPANY_ID, SAMPLE_REGISTRY_CODE, SAMPLE_COMPANY_NAME));
   }
 
   @Test

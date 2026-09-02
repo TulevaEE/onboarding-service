@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -14,6 +15,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -125,6 +127,52 @@ class FundPositionImportServiceTest {
     assertThat(existing.getMarketValue()).isEqualByComparingTo("10000");
     assertThat(existing.getUpdatedAt()).isNotNull();
     verify(repository).save(existing);
+  }
+
+  @Test
+  void upsertPositions_reportsChangedRowsPerFund_countingUpdatedAndNewRows() {
+    FundPosition changedTuk75 = createPosition(TUK75, "Asset 1");
+    FundPosition unchangedTuk00 = createPosition(TUK00, "Asset 2");
+    FundPosition newTuk75 = createPosition(TUK75, "Asset 3");
+    FundPosition changedTuk75Again = createPosition(TUK75, "Asset 4");
+
+    given(repository.findByNavDateAndFundAndAccountTypeAndAccountName(any(), any(), any(), any()))
+        .willReturn(Optional.empty());
+    given(
+            repository.findByNavDateAndFundAndAccountTypeAndAccountName(
+                changedTuk75.getNavDate(), TUK75, SECURITY, "Asset 1"))
+        .willReturn(Optional.of(withQuantity(changedTuk75, "500")));
+    given(
+            repository.findByNavDateAndFundAndAccountTypeAndAccountName(
+                changedTuk75Again.getNavDate(), TUK75, SECURITY, "Asset 4"))
+        .willReturn(Optional.of(withQuantity(changedTuk75Again, "700")));
+    given(
+            repository.findByNavDateAndFundAndAccountTypeAndAccountName(
+                unchangedTuk00.getNavDate(), TUK00, SECURITY, "Asset 2"))
+        .willReturn(Optional.of(withQuantity(unchangedTuk00, "1000")));
+
+    var result =
+        service.upsertPositions(List.of(changedTuk75, unchangedTuk00, newTuk75, changedTuk75Again));
+
+    assertThat(result.imported()).isEqualTo(1);
+    assertThat(result.updated()).isEqualTo(2);
+    assertThat(result.changedRowsByFund()).isEqualTo(Map.of(TUK75, 3));
+  }
+
+  private static FundPosition withQuantity(FundPosition incoming, String quantity) {
+    return FundPosition.builder()
+        .id(42L)
+        .navDate(incoming.getNavDate())
+        .fund(incoming.getFund())
+        .accountType(incoming.getAccountType())
+        .accountName(incoming.getAccountName())
+        .accountId(incoming.getAccountId())
+        .quantity(new BigDecimal(quantity))
+        .marketPrice(incoming.getMarketPrice())
+        .currency("EUR")
+        .marketValue(incoming.getMarketValue())
+        .createdAt(Instant.parse("2026-01-05T10:00:00Z"))
+        .build();
   }
 
   @Test

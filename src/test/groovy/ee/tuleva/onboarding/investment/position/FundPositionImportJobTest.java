@@ -10,6 +10,7 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static java.util.Map.entry;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.investment.check.health.HealthCheckNotifier;
@@ -20,6 +21,7 @@ import ee.tuleva.onboarding.investment.position.parser.SwedbankFundPositionParse
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.pipeline.PipelineTracker;
+import ee.tuleva.onboarding.savings.fund.nav.NavPositionsUpdated;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
 import java.time.Instant;
@@ -158,6 +160,84 @@ class FundPositionImportJobTest {
     job.importForProviderAndDate(SWEDBANK, date);
 
     verify(repository, times(2)).save(any(FundPosition.class));
+  }
+
+  @Test
+  void importForProviderAndDate_publishesNavPositionsUpdated_forFundsWithChangedRows() {
+    LocalDate date = LocalDate.of(2026, 1, 5);
+    given(reportService.getReport(SWEDBANK, POSITIONS, date))
+        .willReturn(Optional.of(createSwedbankReport(date)));
+    given(repository.findByNavDateAndFundAndAccountTypeAndAccountName(any(), any(), any(), any()))
+        .willReturn(Optional.empty());
+    given(
+            repository.findByNavDateAndFundAndAccountTypeAndAccountName(
+                eq(date), eq(TUK75), eq(SECURITY), eq("ISHARES DEV WLD ESG")))
+        .willReturn(
+            Optional.of(
+                FundPosition.builder()
+                    .navDate(date)
+                    .fund(TUK75)
+                    .accountType(SECURITY)
+                    .accountName("ISHARES DEV WLD ESG")
+                    .quantity(new java.math.BigDecimal("999999"))
+                    .marketValue(new java.math.BigDecimal("33500000"))
+                    .build()));
+
+    job.importForProviderAndDate(SWEDBANK, date);
+
+    var inOrder = inOrder(fundPositionLedgerService, eventPublisher);
+    inOrder.verify(fundPositionLedgerService).rerecordPositionsFromDate(TUK75, date);
+    inOrder.verify(eventPublisher).publishEvent(new NavPositionsUpdated(TUK75, date, 2));
+    verify(eventPublisher).publishEvent(new NavPositionsUpdated(TUV100, date, 1));
+  }
+
+  @Test
+  void importForProviderAndDate_doesNotPublishNavPositionsUpdated_whenNothingChanged() {
+    LocalDate date = LocalDate.of(2026, 1, 5);
+    given(reportService.getReport(SWEDBANK, POSITIONS, date))
+        .willReturn(Optional.of(createSwedbankReport(date)));
+    given(
+            repository.findByNavDateAndFundAndAccountTypeAndAccountName(
+                eq(date), eq(TUK75), eq(SECURITY), eq("ISHARES DEV WLD ESG")))
+        .willReturn(
+            Optional.of(
+                existingPosition(
+                    date, TUK75, SECURITY, "ISHARES DEV WLD ESG", "1000000", "33500000")));
+    given(
+            repository.findByNavDateAndFundAndAccountTypeAndAccountName(
+                eq(date), eq(TUK75), eq(CASH), eq("Overnight Deposit")))
+        .willReturn(
+            Optional.of(
+                existingPosition(date, TUK75, CASH, "Overnight Deposit", "5000000", "5000000")));
+    given(
+            repository.findByNavDateAndFundAndAccountTypeAndAccountName(
+                eq(date), eq(TUV100), eq(SECURITY), eq("ISHARES USA ESG")))
+        .willReturn(
+            Optional.of(
+                existingPosition(date, TUV100, SECURITY, "ISHARES USA ESG", "500000", "6000000")));
+
+    job.importForProviderAndDate(SWEDBANK, date);
+
+    verify(eventPublisher, never()).publishEvent(any(NavPositionsUpdated.class));
+    verify(fundPositionLedgerService, never()).rerecordPositionsFromDate(any(), any());
+  }
+
+  private static FundPosition existingPosition(
+      LocalDate date,
+      TulevaFund fund,
+      ee.tuleva.onboarding.investment.position.AccountType accountType,
+      String accountName,
+      String quantity,
+      String marketValue) {
+    return FundPosition.builder()
+        .navDate(date)
+        .fund(fund)
+        .accountType(accountType)
+        .accountName(accountName)
+        .quantity(new java.math.BigDecimal(quantity))
+        .marketPrice(accountType == CASH ? java.math.BigDecimal.ONE : null)
+        .marketValue(new java.math.BigDecimal(marketValue))
+        .build();
   }
 
   @Test

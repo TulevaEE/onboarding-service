@@ -21,6 +21,7 @@ import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.investment.report.ReportProvider;
 import ee.tuleva.onboarding.pipeline.PipelineTracker;
+import ee.tuleva.onboarding.savings.fund.nav.NavPositionsUpdated;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -149,13 +150,13 @@ public class FundPositionImportJob {
     Optional<InvestmentReport> report = reportService.getReport(provider, POSITIONS, date);
     if (report.isEmpty()) {
       log.info("No positions report in database: provider={}, date={}", provider, date);
-      return new ImportResult(0, 0);
+      return ImportResult.none();
     }
 
     FundPositionParser parser = parsers.get(provider);
     if (parser == null) {
       log.warn("No parser configured for provider: provider={}", provider);
-      return new ImportResult(0, 0);
+      return ImportResult.none();
     }
 
     InvestmentReport investmentReport = report.get();
@@ -173,7 +174,7 @@ public class FundPositionImportJob {
       healthCheckFailureDetail = "Import blocked: provider=%s, date=%s".formatted(provider, date);
       notifyHealth(provider, date, healthResults);
       log.error("Health check failed, import blocked: provider={}, date={}", provider, date);
-      return new ImportResult(0, 0);
+      return ImportResult.none();
     }
 
     ImportResult result = importService.upsertPositions(positions);
@@ -199,9 +200,14 @@ public class FundPositionImportJob {
 
     navFunds.forEach(fund -> fundPositionLedgerService.recordPositionsToLedger(fund, date));
 
-    if (result.updated() > 0) {
-      navFunds.forEach(fund -> fundPositionLedgerService.rerecordPositionsFromDate(fund, date));
-    }
+    result.changedRowsByFund().entrySet().stream()
+        .filter(entry -> entry.getKey().hasNavCalculation())
+        .forEach(
+            entry -> {
+              fundPositionLedgerService.rerecordPositionsFromDate(entry.getKey(), date);
+              eventPublisher.publishEvent(
+                  new NavPositionsUpdated(entry.getKey(), date, entry.getValue()));
+            });
 
     return result;
   }

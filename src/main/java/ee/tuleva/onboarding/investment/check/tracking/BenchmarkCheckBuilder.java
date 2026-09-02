@@ -186,9 +186,18 @@ class BenchmarkCheckBuilder {
     var totalWeight = ZERO;
     var attributions = new ArrayList<SecurityAttribution>();
 
+    // Every holding is supposed to have a proxy with data behind it. One that does not is a data
+    // error, so the weight it takes out of this check is carried on the result rather than being
+    // dropped - a check covering part of the sleeve must not read as a clean all-clear.
+    var gapIsins = new ArrayList<String>();
+    var gapWeight = ZERO;
+
     for (var s : validSecurities) {
       var benchmarkKey = resolveBenchmarkKey(s.isin());
       if (benchmarkKey == null) {
+        log.warn("No benchmark proxy for holding: fund={}, isin={}", fund, s.isin());
+        gapIsins.add(s.isin());
+        gapWeight = gapWeight.add(s.actualWeight());
         continue;
       }
       var bmReturn =
@@ -203,6 +212,8 @@ class BenchmarkCheckBuilder {
             fund,
             s.isin(),
             benchmarkKey);
+        gapIsins.add(s.isin());
+        gapWeight = gapWeight.add(s.actualWeight());
         continue;
       }
       var secReturn =
@@ -274,6 +285,8 @@ class BenchmarkCheckBuilder {
             .cashDrag(ZERO)
             .feeDrag(ZERO)
             .residual(ZERO)
+            .benchmarkGapIsins(List.copyOf(gapIsins))
+            .benchmarkGapWeight(gapWeight)
             .build());
   }
 

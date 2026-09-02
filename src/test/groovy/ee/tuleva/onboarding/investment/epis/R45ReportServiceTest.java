@@ -206,7 +206,7 @@ class R45ReportServiceTest {
     givenStoredReport(csv);
     given(fundNavQueryService.findLatestNavDateOnOrBefore(TUK00.getCode(), TODAY))
         .willReturn(Optional.of(LocalDate.of(2026, 8, 13)));
-    given(fundNavQueryService.findNavPerUnit(TUK00.getCode(), LocalDate.of(2026, 8, 13)))
+    given(fundNavQueryService.findPublishedNavPerUnit(TUK00.getCode(), LocalDate.of(2026, 8, 13)))
         .willReturn(Optional.of(new BigDecimal("0.65")));
 
     Map<TulevaFund, R45Result> results = service.processAndStore(REPORT_ID);

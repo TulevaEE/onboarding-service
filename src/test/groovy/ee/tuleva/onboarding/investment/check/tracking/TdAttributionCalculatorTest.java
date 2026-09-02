@@ -440,6 +440,108 @@ class TdAttributionCalculatorTest {
   }
 
   @Test
+  void aReturnAtOrBelowMinusOneHundredPercentFallsBackToACoefficientOfOne() {
+    // log1p is undefined at -100%, and a fund cannot lose more than everything. The guard keeps
+    // the linking finite rather than producing NaN and poisoning every component.
+    var days =
+        List.of(
+            dailyRecord(PERIOD_START, "-1.5", "0.001", "1000000", "10000", "0", List.of()),
+            dailyRecord(
+                PERIOD_START.plusDays(1), "0.001", "0.001", "1000000", "10000", "0", List.of()));
+    var input = inputWith(days, ZERO, ZERO);
+
+    var result = calculator.calculate(input);
+
+    assertThat(result.scalingFactor()).isNotNull();
+    assertThat(result.residual()).isNotNull();
+  }
+
+  @Test
+  void aPeriodWhoseDaysAllCancelStillLinksWithoutDividingByZero() {
+    var days = List.of(dailyRecord(PERIOD_START, "0.000", "0.000", "1000000", "0", "0", List.of()));
+    var input = inputWith(days, ZERO, ZERO);
+
+    var result = calculator.calculate(input);
+
+    assertThat(result.scalingFactor()).isEqualByComparingTo(BigDecimal.ONE);
+    assertThat(result.tdGeometric()).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void residualToleranceScalesWithTheSquareRootOfThePeriodLength() {
+    var annual = new BigDecimal("0.00175");
+
+    var month = toleranceFor(30, annual);
+    var quarter = toleranceFor(91, annual);
+    var year = toleranceFor(365, annual);
+
+    // The band is a band on noise, and independent daily errors accumulate with the square root of
+    // time. That makes the scaling law falsifiable: an observed quarterly residual near sqrt(3)
+    // times the monthly one is noise, one near 3 times is a systematic leak and a missing
+    // component, which widening the band would hide rather than measure.
+    assertThat(year).isEqualByComparingTo(annual);
+    var quarterOverMonth = quarter.divide(month, 4, java.math.RoundingMode.HALF_UP).doubleValue();
+    assertThat(quarterOverMonth).isCloseTo(Math.sqrt(91.0 / 30.0), within(0.001));
+  }
+
+  @Test
+  void aResidualInsideTheScaledBandPasses() {
+    var input =
+        toleranceInput(buildConstantDays(30, "0.0005", "0.0005"), new BigDecimal("0.00175"));
+
+    var result = calculator.calculate(input);
+
+    assertThat(result.checks()).containsEntry("residualWithinTolerance", true);
+    assertThat(result.checks()).containsEntry("residualToleranceBps", new BigDecimal("5.02"));
+  }
+
+  @Test
+  void aResidualOutsideTheScaledBandFails() {
+    var input =
+        toleranceInput(buildConstantDays(30, "0.0015", "0.0005"), new BigDecimal("0.00175"));
+
+    var result = calculator.calculate(input);
+
+    assertThat(result.checks()).containsEntry("residualWithinTolerance", false);
+  }
+
+  @Test
+  void anUnconfiguredToleranceLeavesNoVerdictRatherThanAPass() {
+    var input = toleranceInput(buildConstantDays(30, "0.0015", "0.0005"), null);
+
+    var result = calculator.calculate(input);
+
+    // Storing true here would stamp "checked and within tolerance" on every period that predates
+    // the parameter - the backfill's first act - and read exactly like a measured pass.
+    assertThat(result.checks())
+        .doesNotContainKey("residualWithinTolerance")
+        .doesNotContainKey("residualToleranceBps");
+  }
+
+  private BigDecimal toleranceFor(int calendarDays, BigDecimal annual) {
+    return java.util.Objects.requireNonNull(
+        TdAttributionCalculator.scaledResidualTolerance(
+            toleranceInput(buildConstantDays(1, "0", "0"), annual, calendarDays)));
+  }
+
+  private TdAttributionInput toleranceInput(List<DailyRecord> days, BigDecimal annual) {
+    return toleranceInput(days, annual, 30);
+  }
+
+  private TdAttributionInput toleranceInput(
+      List<DailyRecord> days, BigDecimal annual, int calendarDays) {
+    return TdAttributionInput.builder()
+        .fund(TUK75)
+        .periodStart(PERIOD_START)
+        .periodEnd(PERIOD_END)
+        .periodType(MONTHLY)
+        .calendarDays(calendarDays)
+        .residualTolerance(annual)
+        .dailyRecords(days)
+        .build();
+  }
+
+  @Test
   void surfacesSeriesGapDaysInChecks() {
     var days = buildConstantDays(5, "0.0005", "0.0005");
     var input =

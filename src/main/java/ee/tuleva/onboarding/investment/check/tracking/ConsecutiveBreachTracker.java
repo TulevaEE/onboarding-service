@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.check.tracking;
 
 import static java.math.BigDecimal.ZERO;
 
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.TrackingCheckType;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
@@ -21,6 +22,7 @@ class ConsecutiveBreachTracker {
 
   private final TrackingDifferenceEventRepository eventRepository;
   private final TrackingDifferenceCalculator calculator;
+  private final PublicHolidays publicHolidays;
 
   record ConsecutiveBreachInfo(
       int count,
@@ -31,19 +33,25 @@ class ConsecutiveBreachTracker {
       BigDecimal cashDragSum,
       BigDecimal feeDragSum,
       BigDecimal residualSum,
-      boolean hadNavResidualBreach) {}
+      boolean hadNavResidualBreach,
+      boolean truncated,
+      boolean unavailable) {}
 
   ConsecutiveBreachInfo countConsecutiveBreaches(
       TulevaFund fund, TrackingCheckType checkType, LocalDate checkDate) {
     try {
       return doCountConsecutiveBreaches(fund, checkType, checkDate);
     } catch (Exception e) {
-      log.warn(
-          "Escalation count failed, using empty: fund={}, checkType={}, error={}",
+      // "No streak" and "we could not work out the streak" are different facts, and reporting the
+      // second as the first suppresses the escalation without anyone being told.
+      log.error(
+          "Escalation count failed: fund={}, checkType={}, checkDate={}, error={}",
           fund,
           checkType,
+          checkDate,
           e.getMessage());
-      return new ConsecutiveBreachInfo(0, ZERO, ZERO, ZERO, Map.of(), ZERO, ZERO, ZERO, false);
+      return new ConsecutiveBreachInfo(
+          0, ZERO, ZERO, ZERO, Map.of(), ZERO, ZERO, ZERO, false, false, true);
     }
   }
 
@@ -69,7 +77,22 @@ class ConsecutiveBreachTracker {
     var hadNavResidualBreach = false;
     var contributionByIsin = new LinkedHashMap<String, BigDecimal>();
 
+    var expectedDate = publicHolidays.previousWorkingDay(checkDate);
     for (var event : recent) {
+      // A working day with no check says nothing about whether the breach persisted through it,
+      // so the streak ends there rather than joining two separate breaches across the hole.
+      if (!event.getCheckDate().equals(expectedDate)) {
+        log.warn(
+            "Escalation streak stops at a gap in the daily series: fund={}, checkType={}, checkDate={}, expectedPreviousDay={}, nextStoredDay={}",
+            fund,
+            checkType,
+            checkDate,
+            expectedDate,
+            event.getCheckDate());
+        break;
+      }
+      expectedDate = publicHolidays.previousWorkingDay(expectedDate);
+
       var navResidualBreach = Boolean.TRUE.equals(event.getResult().get("navResidualBreach"));
       if (!event.isBreach() && !navResidualBreach) {
         break;
@@ -102,6 +125,19 @@ class ConsecutiveBreachTracker {
     var compoundedBenchmarkReturn = compoundedBenchmark.subtract(BigDecimal.ONE);
     var compoundedTd = compoundedFundReturn.subtract(compoundedBenchmarkReturn);
 
+    // The lookback bounds the query, not the breach. A streak that consumed the whole window may
+    // run further back than the window can see, so the count and the compounded net TD are a lower
+    // bound rather than the answer.
+    var truncated = count > 0 && count == recent.size() && recent.size() >= lookback;
+    if (truncated) {
+      log.warn(
+          "Escalation streak fills the whole lookback window: fund={}, checkType={}, checkDate={}, lookbackDays={}",
+          fund,
+          checkType,
+          checkDate,
+          lookback);
+    }
+
     return new ConsecutiveBreachInfo(
         count,
         compoundedTd,
@@ -111,13 +147,19 @@ class ConsecutiveBreachTracker {
         cashDragSum,
         feeDragSum,
         residualSum,
-        hadNavResidualBreach);
+        hadNavResidualBreach,
+        truncated,
+        false);
   }
 
   TrackingDifferenceResult updateConsecutiveCount(
       TrackingDifferenceResult result, ConsecutiveBreachInfo priorBreaches) {
     if (!result.breach() && !result.navResidualBreach()) {
-      return result.toBuilder().consecutiveBreachDays(0).consecutiveNetTd(ZERO).build();
+      return result.toBuilder()
+          .consecutiveBreachDays(0)
+          .consecutiveNetTd(ZERO)
+          .escalationCountUnavailable(priorBreaches.unavailable())
+          .build();
     }
     int days = priorBreaches.count() + 1;
     var streakHadNavResidualBreach =
@@ -139,6 +181,8 @@ class ConsecutiveBreachTracker {
         .consecutiveBreachDays(days)
         .consecutiveNetTd(compoundedTd)
         .escalationNavResidualBreach(streakHadNavResidualBreach)
+        .escalationCountTruncated(priorBreaches.truncated())
+        .escalationCountUnavailable(priorBreaches.unavailable())
         .compoundedFundReturn(compoundedFund)
         .compoundedBenchmarkReturn(compoundedBenchmark)
         .escalationAttributions(

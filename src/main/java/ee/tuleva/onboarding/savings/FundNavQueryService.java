@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.savings;
 
 import ee.tuleva.onboarding.savings.fund.nav.NavReportAccountNames;
 import ee.tuleva.onboarding.savings.fund.nav.NavReportRepository;
-import ee.tuleva.onboarding.savings.fund.nav.NavReportRow;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -29,10 +28,15 @@ public class FundNavQueryService {
 
   private final NavReportRepository navReportRepository;
 
-  public Optional<BigDecimal> findNavPerUnit(String fundCode, LocalDate navDate) {
-    return navReportRepository
-        .findFirstByFundCodeAndNavDateAndAccountType(fundCode, navDate, NAV_ACCOUNT_TYPE)
-        .map(NavReportRow::getMarketPrice);
+  // The official NAV per unit: what everyone outside the calculation itself should read.
+  public Optional<BigDecimal> findPublishedNavPerUnit(String fundCode, LocalDate navDate) {
+    return navReportRepository.findPublishedNavPerUnit(navDate, fundCode, NAV_ACCOUNT_TYPE);
+  }
+
+  // The NAV per unit of the newest calculation, published or not, for the gates that run before
+  // publication and therefore have to read the calculation they are gating.
+  public Optional<BigDecimal> findLatestNavPerUnit(String fundCode, LocalDate navDate) {
+    return navReportRepository.findLatestNavPerUnit(navDate, fundCode, NAV_ACCOUNT_TYPE);
   }
 
   public Optional<LocalDate> findLatestNavDateOnOrBefore(String fundCode, LocalDate asOfDate) {

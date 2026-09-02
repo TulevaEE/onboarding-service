@@ -109,7 +109,7 @@ class R16FlowCalculationServiceTest {
   private void givenNav(String nav) {
     given(fundNavQueryService.findLatestNavDateOnOrBefore(TUK75.getCode(), AS_OF_DATE))
         .willReturn(Optional.of(NAV_DATE));
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), NAV_DATE))
+    given(fundNavQueryService.findPublishedNavPerUnit(TUK75.getCode(), NAV_DATE))
         .willReturn(Optional.of(new BigDecimal(nav)));
   }
 }

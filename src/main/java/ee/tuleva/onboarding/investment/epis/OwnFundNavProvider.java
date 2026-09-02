@@ -43,7 +43,7 @@ class OwnFundNavProvider {
   private Optional<BigDecimal> queryNav(TulevaFund fund, LocalDate asOfDate) {
     return fundNavQueryService
         .findLatestNavDateOnOrBefore(fund.getCode(), asOfDate)
-        .flatMap(navDate -> fundNavQueryService.findNavPerUnit(fund.getCode(), navDate));
+        .flatMap(navDate -> fundNavQueryService.findPublishedNavPerUnit(fund.getCode(), navDate));
   }
 
   private boolean isReasonable(TulevaFund fund, LocalDate asOfDate, BigDecimal nav) {

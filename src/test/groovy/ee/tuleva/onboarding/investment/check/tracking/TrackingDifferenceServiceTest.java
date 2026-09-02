@@ -92,7 +92,7 @@ class TrackingDifferenceServiceTest {
         .when(fundValueProvider.getLatestValue(anyString(), any(LocalDate.class)))
         .thenReturn(Optional.empty());
     lenient()
-        .when(fundNavQueryService.findNavPerUnit(anyString(), any(LocalDate.class)))
+        .when(fundNavQueryService.findLatestNavPerUnit(anyString(), any(LocalDate.class)))
         .thenReturn(Optional.empty());
     lenient()
         .when(fundNavQueryService.findLatestNavDateOnOrBefore(anyString(), any(LocalDate.class)))
@@ -124,7 +124,8 @@ class TrackingDifferenceServiceTest {
         .thenReturn(new BigDecimal("0.005"));
     chargeEveryFeeToTheFund();
     var calculator = new TrackingDifferenceCalculator(parameterRepository);
-    var consecutiveBreachTracker = new ConsecutiveBreachTracker(eventRepository, calculator);
+    var consecutiveBreachTracker =
+        new ConsecutiveBreachTracker(eventRepository, calculator, publicHolidays);
     service =
         new TrackingDifferenceService(
             FIXED_CLOCK,
@@ -258,9 +259,9 @@ class TrackingDifferenceServiceTest {
     // proving the no-double-count property holds with multiple holdings.
     skipOtherFunds(TUK75);
 
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), CHECK_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE))
         .willReturn(Optional.of(new BigDecimal("10.10")));
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
         .willReturn(Optional.of(new BigDecimal("10.00")));
 
     var isinA = "IE00AAA";
@@ -396,9 +397,9 @@ class TrackingDifferenceServiceTest {
             .willReturn(Optional.empty());
       }
     }
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), monday))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), monday))
         .willReturn(Optional.of(new BigDecimal("10.02")));
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), friday))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), friday))
         .willReturn(Optional.of(new BigDecimal("10.00")));
 
     given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, monday))
@@ -669,9 +670,9 @@ class TrackingDifferenceServiceTest {
             .thenReturn(Optional.empty());
       }
     }
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), monday))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), monday))
         .willReturn(Optional.of(new BigDecimal("10.10")));
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), friday))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), friday))
         .willReturn(Optional.of(new BigDecimal("10.00")));
 
     given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, monday))
@@ -779,6 +780,21 @@ class TrackingDifferenceServiceTest {
   }
 
   @Test
+  void aZeroBenchmarkValueYesterdayProducesNoBenchmarkCheckRatherThanADivideByZero() {
+    setupFundData(TUK75);
+    given(fundValueProvider.getLatestValue("MSCI_ACWI", CHECK_DATE))
+        .willReturn(Optional.of(fundValue("1010.00")));
+    given(fundValueProvider.getLatestValue("MSCI_ACWI", PREVIOUS_DATE))
+        .willReturn(Optional.of(fundValue("0.00", PREVIOUS_DATE)));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    // Same rule as a zero anchor price on a holding: nothing can be divided by it, so there is no
+    // benchmark return to report and the check must be absent rather than wrong.
+    assertThat(results).noneMatch(r -> r.checkType() == BENCHMARK);
+  }
+
+  @Test
   void benchmarkNonBreachSetsZeroCompoundedReturns() {
     setupFundData(TUK75);
 
@@ -802,9 +818,9 @@ class TrackingDifferenceServiceTest {
   void benchmarkCheckForTuk00UsesComponentConfig() {
     skipOtherFunds(TulevaFund.TUK00);
 
-    given(fundNavQueryService.findNavPerUnit(TulevaFund.TUK00.getCode(), CHECK_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TulevaFund.TUK00.getCode(), CHECK_DATE))
         .willReturn(Optional.of(new BigDecimal("10.10")));
-    given(fundNavQueryService.findNavPerUnit(TulevaFund.TUK00.getCode(), PREVIOUS_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TulevaFund.TUK00.getCode(), PREVIOUS_DATE))
         .willReturn(Optional.of(new BigDecimal("10.00")));
 
     var allocation =
@@ -906,9 +922,9 @@ class TrackingDifferenceServiceTest {
   void calculatesBenchmarkModelForEquityFund() {
     skipOtherFunds(TUK75);
 
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), CHECK_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE))
         .willReturn(Optional.of(new BigDecimal("10.10")));
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
         .willReturn(Optional.of(new BigDecimal("10.00")));
 
     var etfIsin = "IE00BFNM3G45";
@@ -993,9 +1009,9 @@ class TrackingDifferenceServiceTest {
   void calculatesBenchmarkModelForBondFund() {
     skipOtherFunds(TUK00);
 
-    given(fundNavQueryService.findNavPerUnit(TUK00.getCode(), CHECK_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK00.getCode(), CHECK_DATE))
         .willReturn(Optional.of(new BigDecimal("10.10")));
-    given(fundNavQueryService.findNavPerUnit(TUK00.getCode(), PREVIOUS_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK00.getCode(), PREVIOUS_DATE))
         .willReturn(Optional.of(new BigDecimal("10.00")));
 
     var bondIsin = "LU0826455353";
@@ -1064,9 +1080,9 @@ class TrackingDifferenceServiceTest {
   void calculatesBenchmarkModelForEmMutualFund() {
     skipOtherFunds(TUK75);
 
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), CHECK_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE))
         .willReturn(Optional.of(new BigDecimal("10.10")));
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
         .willReturn(Optional.of(new BigDecimal("10.00")));
 
     // EM mutual fund ISIN → should resolve to MSCI_EM
@@ -1136,9 +1152,9 @@ class TrackingDifferenceServiceTest {
   void benchmarkModelSkipsWhenBenchmarkDataMissing() {
     skipOtherFunds(TUK75);
 
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), CHECK_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE))
         .willReturn(Optional.of(new BigDecimal("10.10")));
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
         .willReturn(Optional.of(new BigDecimal("10.00")));
 
     var etfIsin = "IE00BFNM3G45";
@@ -1201,9 +1217,9 @@ class TrackingDifferenceServiceTest {
   void runChecksForFundsOnlyChecksSpecifiedFunds() {
     given(fundNavQueryService.findLatestNavDateOnOrBefore(TUK75.getCode(), CHECK_DATE))
         .willReturn(Optional.of(CHECK_DATE));
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), CHECK_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE))
         .willReturn(Optional.of(new BigDecimal("10.10")));
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
         .willReturn(Optional.of(new BigDecimal("10.00")));
 
     setupFundDataForFund(TUK75);
@@ -1218,9 +1234,9 @@ class TrackingDifferenceServiceTest {
   void calculatesBenchmarkModelForEmEtf() {
     skipOtherFunds(TUK75);
 
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), CHECK_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE))
         .willReturn(Optional.of(new BigDecimal("10.10")));
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
         .willReturn(Optional.of(new BigDecimal("10.00")));
 
     // EM ETF ISIN → should resolve to EUNM.DE (IE00B4L5YC18.XETR)
@@ -1289,9 +1305,9 @@ class TrackingDifferenceServiceTest {
   void benchmarkModelSkipsUnknownIsinInEquityFund() {
     skipOtherFunds(TUK75);
 
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), CHECK_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE))
         .willReturn(Optional.of(new BigDecimal("10.10")));
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
         .willReturn(Optional.of(new BigDecimal("10.00")));
 
     // Unknown ISIN not in instrument_reference → resolveBenchmarkKey returns null → skipped
@@ -1355,9 +1371,9 @@ class TrackingDifferenceServiceTest {
   void benchmarkModelSkipsUnknownBondIsin() {
     skipOtherFunds(TUK00);
 
-    given(fundNavQueryService.findNavPerUnit(TUK00.getCode(), CHECK_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK00.getCode(), CHECK_DATE))
         .willReturn(Optional.of(new BigDecimal("10.10")));
-    given(fundNavQueryService.findNavPerUnit(TUK00.getCode(), PREVIOUS_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK00.getCode(), PREVIOUS_DATE))
         .willReturn(Optional.of(new BigDecimal("10.00")));
 
     // Bond ISIN not in BOND_BENCHMARK_KEYS → skipped
@@ -1438,7 +1454,7 @@ class TrackingDifferenceServiceTest {
   @Test
   void skipsWhenNoNavData() {
     // Lenient default already returns Optional.empty() for findLatestNavDateOnOrBefore,
-    // so every fund is skipped before findNavPerUnit is even called.
+    // so every fund is skipped before findLatestNavPerUnit is even called.
     var results = service.runChecksAsOf(CHECK_DATE);
 
     assertThat(results).isEmpty();
@@ -1448,9 +1464,9 @@ class TrackingDifferenceServiceTest {
   void skipsWhenNoPreviousNavDate() {
     skipOtherFunds(TUK75);
 
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), CHECK_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE))
         .willReturn(Optional.of(new BigDecimal("10.10")));
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
         .willReturn(Optional.empty());
 
     var results = service.runChecksAsOf(CHECK_DATE);
@@ -1473,8 +1489,8 @@ class TrackingDifferenceServiceTest {
   void consecutiveBreachCountingStopsAtNonBreach() {
     setupFundData(TUK75);
 
-    var breachEvent = breachEvent(LocalDate.of(2026, 4, 2), new BigDecimal("0.0020"));
-    var nonBreachEvent = nonBreachEvent(LocalDate.of(2026, 4, 1));
+    var breachEvent = breachEvent(LocalDate.of(2026, 4, 9), new BigDecimal("0.0020"));
+    var nonBreachEvent = nonBreachEvent(LocalDate.of(2026, 4, 8));
 
     given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 10))
         .willReturn(List.of(breachEvent, nonBreachEvent));
@@ -1494,8 +1510,8 @@ class TrackingDifferenceServiceTest {
     setupFundData(TUK75);
 
     // Prior day breached only on the NAV-correctness residual (fund-vs-model TD within limits).
-    var navResidualDay = navResidualBreachEvent(LocalDate.of(2026, 4, 2));
-    var nonBreachEvent = nonBreachEvent(LocalDate.of(2026, 4, 1));
+    var navResidualDay = navResidualBreachEvent(LocalDate.of(2026, 4, 9));
+    var nonBreachEvent = nonBreachEvent(LocalDate.of(2026, 4, 8));
 
     given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 10))
         .willReturn(List.of(navResidualDay, nonBreachEvent));
@@ -1513,8 +1529,8 @@ class TrackingDifferenceServiceTest {
   void consecutiveNetTdSumsOverBreachDays() {
     setupFundData(TUK75);
 
-    var breachEvent1 = breachEvent(LocalDate.of(2026, 4, 2), new BigDecimal("0.0020"));
-    var breachEvent2 = breachEvent(LocalDate.of(2026, 4, 1), new BigDecimal("0.0015"));
+    var breachEvent1 = breachEvent(LocalDate.of(2026, 4, 9), new BigDecimal("0.0020"));
+    var breachEvent2 = breachEvent(LocalDate.of(2026, 4, 8), new BigDecimal("0.0015"));
 
     given(eventRepository.findMostRecentEvents(TUK75, MODEL_PORTFOLIO, CHECK_DATE, 10))
         .willReturn(List.of(breachEvent1, breachEvent2));
@@ -1543,13 +1559,13 @@ class TrackingDifferenceServiceTest {
 
     var breach1 =
         breachEventWithAttribution(
-            LocalDate.of(2026, 4, 2),
+            LocalDate.of(2026, 4, 9),
             new BigDecimal("0.0020"),
             "IE00BFG1TM61",
             new BigDecimal("0.0015"));
     var breach2 =
         breachEventWithAttribution(
-            LocalDate.of(2026, 4, 1),
+            LocalDate.of(2026, 4, 8),
             new BigDecimal("0.0015"),
             "IE00BFG1TM61",
             new BigDecimal("0.0010"));
@@ -1611,7 +1627,7 @@ class TrackingDifferenceServiceTest {
     var eventWithMixedTypes =
         TrackingDifferenceEvent.builder()
             .fund(TUK75)
-            .checkDate(LocalDate.of(2026, 4, 2))
+            .checkDate(LocalDate.of(2026, 4, 9))
             .checkType(MODEL_PORTFOLIO)
             .trackingDifference(new BigDecimal("0.0020"))
             .fundReturn(new BigDecimal("0.01"))
@@ -1654,7 +1670,7 @@ class TrackingDifferenceServiceTest {
     var eventWithNullIsin =
         TrackingDifferenceEvent.builder()
             .fund(TUK75)
-            .checkDate(LocalDate.of(2026, 4, 2))
+            .checkDate(LocalDate.of(2026, 4, 9))
             .checkType(MODEL_PORTFOLIO)
             .trackingDifference(new BigDecimal("0.0020"))
             .fundReturn(new BigDecimal("0.01"))
@@ -1846,9 +1862,9 @@ class TrackingDifferenceServiceTest {
   void consecutiveBreachDaysResetsToZeroWhenTodayWithinToleranceDespitePriorStreak() {
     skipOtherFunds(TUK75);
 
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), CHECK_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE))
         .willReturn(Optional.of(new BigDecimal("10.10")));
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
         .willReturn(Optional.of(new BigDecimal("10.00")));
 
     var allocation =
@@ -1932,9 +1948,9 @@ class TrackingDifferenceServiceTest {
   @Test
   void checkFundReturnsEmptyWhenYesterdayNavMissing() {
     skipOtherFunds(TUK75);
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), CHECK_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE))
         .willReturn(Optional.of(new BigDecimal("10.10")));
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
         .willReturn(Optional.empty());
 
     var results = service.runChecksAsOf(CHECK_DATE);
@@ -1949,7 +1965,7 @@ class TrackingDifferenceServiceTest {
     var zeroReturnBreach =
         TrackingDifferenceEvent.builder()
             .fund(TUK75)
-            .checkDate(LocalDate.of(2026, 4, 2))
+            .checkDate(LocalDate.of(2026, 4, 9))
             .checkType(MODEL_PORTFOLIO)
             .trackingDifference(new BigDecimal("0.0060"))
             .fundReturn(BigDecimal.ZERO)
@@ -1984,9 +2000,9 @@ class TrackingDifferenceServiceTest {
   @Test
   void checkFundReturnsEmptyWhenAllocationsEmpty() {
     skipOtherFunds(TUK75);
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), CHECK_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE))
         .willReturn(Optional.of(new BigDecimal("10.10")));
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
         .willReturn(Optional.of(new BigDecimal("10.00")));
     given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, CHECK_DATE))
         .willReturn(List.of());
@@ -2020,9 +2036,9 @@ class TrackingDifferenceServiceTest {
   void handlesZeroTotalNav() {
     skipOtherFunds(TUK75);
 
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), CHECK_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE))
         .willReturn(Optional.of(new BigDecimal("10.10")));
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
         .willReturn(Optional.of(new BigDecimal("10.00")));
 
     var allocation =
@@ -2074,9 +2090,9 @@ class TrackingDifferenceServiceTest {
   void usesCutoffAdjustedPriceForSecurityReturn() {
     skipOtherFunds(TUK75);
 
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), CHECK_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE))
         .willReturn(Optional.of(new BigDecimal("10.10")));
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
         .willReturn(Optional.of(new BigDecimal("10.00")));
 
     var allocation =
@@ -2129,9 +2145,9 @@ class TrackingDifferenceServiceTest {
   void throwsWhenSecurityPriceDataIncomplete() {
     skipOtherFunds(TUK75);
 
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), CHECK_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE))
         .willReturn(Optional.of(new BigDecimal("10.10")));
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
         .willReturn(Optional.of(new BigDecimal("10.00")));
 
     var allocation1 =
@@ -2174,12 +2190,199 @@ class TrackingDifferenceServiceTest {
         .hasMessageContaining("IE00MISSING1");
   }
 
+  @Test
+  void aPriceCarriedForwardFromAnEarlierDateIsWarnedAboutButDoesNotBlockTheCheck() {
+    skipOtherFunds(TUK75);
+
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.10")));
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.00")));
+
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, CHECK_DATE))
+        .willReturn(
+            List.of(
+                ModelPortfolioAllocation.builder()
+                    .fund(TUK75)
+                    .isin("IE00STALE")
+                    .weight(new BigDecimal("1.00"))
+                    .effectiveDate(LocalDate.of(2026, 1, 1))
+                    .build()));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(CHECK_DATE, TUK75, SECURITY))
+        .willReturn(
+            List.of(
+                FundPosition.builder()
+                    .fund(TUK75)
+                    .navDate(CHECK_DATE)
+                    .accountType(SECURITY)
+                    .accountId("IE00STALE")
+                    .marketValue(new BigDecimal("1000000"))
+                    .build()));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, CHECK_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(new BigDecimal("1000000"));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, CHECK_DATE, List.of(CASH)))
+        .willReturn(ZERO);
+
+    // A fund that did not deal on the check date has no price for it, so the provider carries the
+    // last one forward. That is the only available answer and it self-corrects when pricing
+    // resumes, so it is worth saying out loud but must not stop the check.
+    given(positionPriceResolver.resolve(eq("IE00STALE"), eq(CHECK_DATE), any(Instant.class)))
+        .willReturn(
+            Optional.of(
+                ResolvedPrice.builder()
+                    .usedPrice(new BigDecimal("102.00"))
+                    .validationStatus(ValidationStatus.OK)
+                    .priceDate(CHECK_DATE.minusDays(3))
+                    .build()));
+    given(positionPriceResolver.resolve(eq("IE00STALE"), eq(PREVIOUS_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("100.00")));
+
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
+        .willReturn(List.of());
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    assertThat(results).anyMatch(r -> r.checkType() == MODEL_PORTFOLIO);
+  }
+
+  @Test
+  void throwsWhenAModelInstrumentHasAZeroAnchorPrice() {
+    skipOtherFunds(TUK75);
+
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.10")));
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.00")));
+
+    var allocation1 =
+        ModelPortfolioAllocation.builder()
+            .fund(TUK75)
+            .isin("IE00B4L5Y983")
+            .weight(new BigDecimal("0.70"))
+            .effectiveDate(LocalDate.of(2026, 1, 1))
+            .build();
+    var allocation2 =
+        ModelPortfolioAllocation.builder()
+            .fund(TUK75)
+            .isin("IE00ZEROANCHOR")
+            .weight(new BigDecimal("0.30"))
+            .effectiveDate(LocalDate.of(2026, 1, 1))
+            .build();
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, CHECK_DATE))
+        .willReturn(List.of(allocation1, allocation2));
+
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(CHECK_DATE, TUK75, SECURITY))
+        .willReturn(List.of());
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, CHECK_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(new BigDecimal("1000000"));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, CHECK_DATE, List.of(CASH)))
+        .willReturn(new BigDecimal("50000"));
+
+    given(positionPriceResolver.resolve(eq("IE00B4L5Y983"), eq(CHECK_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("102.00")));
+    given(positionPriceResolver.resolve(eq("IE00B4L5Y983"), eq(PREVIOUS_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("100.00")));
+    given(positionPriceResolver.resolve(eq("IE00ZEROANCHOR"), eq(CHECK_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("51.00")));
+    given(
+            positionPriceResolver.resolve(
+                eq("IE00ZEROANCHOR"), eq(PREVIOUS_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("0.00")));
+
+    // A zero anchor is not a price: nothing can be divided by it, so the calculator drops the
+    // instrument and its 30% model weight silently leaves the benchmark return with it.
+    assertThatThrownBy(() -> service.runChecksAsOf(CHECK_DATE))
+        .isInstanceOf(TrackingDifferenceService.IncompletePriceDataException.class)
+        .hasMessageContaining("IE00ZEROANCHOR");
+  }
+
+  @Test
+  void anIncomingTransitionLegTheFundHasNotBoughtYetNeedsNoPriceOfOurs() {
+    skipOtherFunds(TUK75);
+
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.10")));
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.00")));
+
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, CHECK_DATE))
+        .willReturn(
+            List.of(
+                ModelPortfolioAllocation.builder()
+                    .fund(TUK75)
+                    .isin("IE00NEW")
+                    .weight(new BigDecimal("1.00"))
+                    .effectiveDate(LocalDate.of(2026, 4, 1))
+                    .build()));
+    given(modelPortfolioAllocationRepository.findPreviousByFundAsOf(TUK75, CHECK_DATE))
+        .willReturn(
+            List.of(
+                ModelPortfolioAllocation.builder()
+                    .fund(TUK75)
+                    .isin("IE00OLD")
+                    .weight(new BigDecimal("1.00"))
+                    .effectiveDate(LocalDate.of(2026, 1, 1))
+                    .build()));
+
+    // The model has adopted IE00NEW but the fund still holds only IE00OLD, so IE00NEW has no
+    // price of ours yet. Gating on the raw model would abandon the whole fund's check over an
+    // instrument that carries no weight in the portfolio.
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(CHECK_DATE, TUK75, SECURITY))
+        .willReturn(
+            List.of(
+                FundPosition.builder()
+                    .fund(TUK75)
+                    .navDate(CHECK_DATE)
+                    .accountType(SECURITY)
+                    .accountId("IE00OLD")
+                    .marketValue(new BigDecimal("500000"))
+                    .build()));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, CHECK_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(new BigDecimal("1000000"));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, CHECK_DATE, List.of(CASH)))
+        .willReturn(new BigDecimal("500000"));
+
+    given(positionPriceResolver.resolve(eq("IE00NEW"), any(LocalDate.class), any()))
+        .willReturn(Optional.empty());
+    given(positionPriceResolver.resolve(eq("IE00OLD"), eq(CHECK_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("51.00")));
+    given(positionPriceResolver.resolve(eq("IE00OLD"), eq(PREVIOUS_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("50.00")));
+
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
+        .willReturn(List.of());
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var modelResult =
+        results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst().orElseThrow();
+    var oldAttr =
+        modelResult.securityAttributions().stream()
+            .filter(a -> a.isin().equals("IE00OLD"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(oldAttr.modelWeight()).isEqualByComparingTo(BigDecimal.ONE);
+    assertThat(oldAttr.actualWeight()).isEqualByComparingTo(BigDecimal.ONE);
+  }
+
   private void setupFundData(TulevaFund fund) {
     skipOtherFunds(fund);
 
-    given(fundNavQueryService.findNavPerUnit(fund.getCode(), CHECK_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(fund.getCode(), CHECK_DATE))
         .willReturn(Optional.of(new BigDecimal("10.10")));
-    given(fundNavQueryService.findNavPerUnit(fund.getCode(), PREVIOUS_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(fund.getCode(), PREVIOUS_DATE))
         .willReturn(Optional.of(new BigDecimal("10.00")));
 
     var allocation =
@@ -2280,9 +2483,9 @@ class TrackingDifferenceServiceTest {
   private void setupTradeDayScenario() {
     skipOtherFunds(TUK75);
 
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), CHECK_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE))
         .willReturn(Optional.of(new BigDecimal("10.023")));
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
         .willReturn(Optional.of(new BigDecimal("10.00")));
 
     var newIsin = "IE000NEW";
@@ -2447,9 +2650,9 @@ class TrackingDifferenceServiceTest {
   void blendsModelWeightsDuringInstrumentTransition() {
     skipOtherFunds(TUK75);
 
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), CHECK_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE))
         .willReturn(Optional.of(new BigDecimal("10.10")));
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
         .willReturn(Optional.of(new BigDecimal("10.00")));
 
     var currentAllocation =
@@ -2541,9 +2744,9 @@ class TrackingDifferenceServiceTest {
   void doesNotThrowForInRunoffSecuritiesWithMissingPrices() {
     skipOtherFunds(TUK75);
 
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), CHECK_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE))
         .willReturn(Optional.of(new BigDecimal("10.10")));
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
         .willReturn(Optional.of(new BigDecimal("10.00")));
 
     var currentAllocation =
@@ -2563,8 +2766,10 @@ class TrackingDifferenceServiceTest {
             .weight(new BigDecimal("1.00"))
             .effectiveDate(LocalDate.of(2026, 1, 1))
             .build();
+    // No transition here: this is about what an unpriced holding does to the sleeve total.
+    // A runoff holding that IS a transition leg carries model weight and stops the check.
     given(modelPortfolioAllocationRepository.findPreviousByFundAsOf(TUK75, CHECK_DATE))
-        .willReturn(List.of(previousAllocation));
+        .willReturn(List.of());
 
     var oldPosition =
         FundPosition.builder()
@@ -2590,8 +2795,6 @@ class TrackingDifferenceServiceTest {
         .willReturn(Optional.of(resolvedPrice("102.00")));
     given(positionPriceResolver.resolve(eq("IE00NEW"), eq(PREVIOUS_DATE), any(Instant.class)))
         .willReturn(Optional.of(resolvedPrice("100.00")));
-    given(positionPriceResolver.resolve(eq("IE00OLD"), any(LocalDate.class), any()))
-        .willReturn(Optional.empty());
 
     given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
         .willReturn(List.of());
@@ -2605,9 +2808,9 @@ class TrackingDifferenceServiceTest {
   void skipsBlendingWhenUnexpectedPositionHeld() {
     skipOtherFunds(TUK75);
 
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), CHECK_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE))
         .willReturn(Optional.of(new BigDecimal("10.10")));
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
         .willReturn(Optional.of(new BigDecimal("10.00")));
 
     var currentAllocation =
@@ -2695,9 +2898,9 @@ class TrackingDifferenceServiceTest {
   void blendsOnlyTransitioningInstrumentsKeepsStableWeights() {
     skipOtherFunds(TUK75);
 
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), CHECK_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE))
         .willReturn(Optional.of(new BigDecimal("10.10")));
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
         .willReturn(Optional.of(new BigDecimal("10.00")));
 
     var stableAlloc =
@@ -2795,7 +2998,10 @@ class TrackingDifferenceServiceTest {
             .filter(a -> a.isin().equals("IE00STABLE"))
             .findFirst()
             .orElseThrow();
-    assertThat(stableAttr.modelWeight()).isEqualByComparingTo(new BigDecimal("0.60"));
+    // The two transition legs take 0.204082 each, so the settled leg gives up exactly that
+    // much: 1 - 0.408164 = 0.591836. Before, it kept its full 0.60 and the model weighed
+    // 1.008164 - more than the whole fund.
+    assertThat(stableAttr.modelWeight()).isEqualByComparingTo(new BigDecimal("0.591836"));
 
     var newAttr =
         modelResult.get().securityAttributions().stream()
@@ -2818,9 +3024,9 @@ class TrackingDifferenceServiceTest {
   void stopsBlendingWhenOldInstrumentFullySold() {
     skipOtherFunds(TUK75);
 
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), CHECK_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE))
         .willReturn(Optional.of(new BigDecimal("10.10")));
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
         .willReturn(Optional.of(new BigDecimal("10.00")));
 
     var currentAllocation =
@@ -2886,9 +3092,9 @@ class TrackingDifferenceServiceTest {
   void skipsBlendingWhenNoPreviousAllocations() {
     skipOtherFunds(TUK75);
 
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), CHECK_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE))
         .willReturn(Optional.of(new BigDecimal("10.10")));
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
         .willReturn(Optional.of(new BigDecimal("10.00")));
 
     var allocation =
@@ -2944,9 +3150,9 @@ class TrackingDifferenceServiceTest {
   void skipsBlendingWhenRebalanceOnlyNoInstrumentChange() {
     skipOtherFunds(TUK75);
 
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), CHECK_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE))
         .willReturn(Optional.of(new BigDecimal("10.10")));
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
         .willReturn(Optional.of(new BigDecimal("10.00")));
 
     var currentA =

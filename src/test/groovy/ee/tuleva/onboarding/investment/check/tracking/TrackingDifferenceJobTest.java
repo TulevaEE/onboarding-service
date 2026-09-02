@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceBackfillRequested;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceCheckRequested;
@@ -33,13 +34,33 @@ class TrackingDifferenceJobTest {
     then(notifier).should().notify(results);
   }
 
+  // A check that threw did not run. Logging that and saying nothing leaves the last Slack
+  // message on the channel looking like the last successful check.
   @Test
-  void adHocSwallowsExceptions() {
+  void adHocFailureIsReportedRatherThanOnlyLogged() {
     doThrow(new RuntimeException("boom")).when(service).runChecksForFunds(anyList());
 
     job.onTrackingDifferenceCheckRequested(new RunTrackingDifferenceCheckRequested());
 
-    then(notifier).shouldHaveNoInteractions();
+    then(notifier).should().notifyRunFailed("TD check", "boom");
+    then(notifier).should(never()).notify(anyList());
+  }
+
+  // A run that covered only some funds is not a run that covered them all. Posting the partial
+  // result on its own reads as the whole picture, with the skipped funds simply absent.
+  @Test
+  void adHocPartialRunNamesTheFundsItCouldNotCheck() {
+    doThrow(
+            new TrackingDifferenceService.IncompletePriceDataException(
+                "Incomplete security price data:\nTUK75: IE00MISSING1", List.of()))
+        .when(service)
+        .runChecksForFunds(anyList());
+
+    job.onTrackingDifferenceCheckRequested(new RunTrackingDifferenceCheckRequested());
+
+    then(notifier)
+        .should()
+        .notifyRunIncomplete("TD check", "Incomplete security price data:\nTUK75: IE00MISSING1");
   }
 
   @Test
@@ -68,12 +89,13 @@ class TrackingDifferenceJobTest {
   }
 
   @Test
-  void backfillSwallowsExceptions() {
+  void backfillFailureIsReportedRatherThanOnlyLogged() {
     doThrow(new RuntimeException("boom")).when(service).backfillChecks(7);
 
     job.onTrackingDifferenceBackfillRequested(new RunTrackingDifferenceBackfillRequested());
 
-    then(notifier).shouldHaveNoInteractions();
+    then(notifier).should().notifyRunFailed("TD backfill", "boom");
+    then(notifier).should(never()).notify(anyList());
   }
 
   @Test

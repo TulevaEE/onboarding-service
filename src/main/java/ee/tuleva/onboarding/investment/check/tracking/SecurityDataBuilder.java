@@ -21,6 +21,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -110,16 +111,11 @@ class SecurityDataBuilder {
       return securities;
     }
 
-    var currentIsins =
-        allocations.stream()
-            .map(ModelPortfolioAllocation::getIsin)
-            .filter(Objects::nonNull)
-            .collect(Collectors.toSet());
-    var previousIsins =
-        previousAllocations.stream()
-            .map(ModelPortfolioAllocation::getIsin)
-            .filter(Objects::nonNull)
-            .collect(Collectors.toSet());
+    // Membership is decided by carrying weight, not by appearing in the table: a switch leaves the
+    // exiting instrument in the model at 0% until it is liquidated, and read by ISIN presence
+    // nothing would ever count as removed.
+    var currentIsins = weightedIsins(allocations);
+    var previousIsins = weightedIsins(previousAllocations);
 
     var addedIsins = new HashSet<>(currentIsins);
     addedIsins.removeAll(previousIsins);
@@ -136,8 +132,15 @@ class SecurityDataBuilder {
             .filter(Objects::nonNull)
             .collect(Collectors.toSet());
 
-    var knownIsins = new HashSet<>(currentIsins);
-    knownIsins.addAll(previousIsins);
+    var knownIsins =
+        allocations.stream()
+            .map(ModelPortfolioAllocation::getIsin)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toCollection(HashSet::new));
+    previousAllocations.stream()
+        .map(ModelPortfolioAllocation::getIsin)
+        .filter(Objects::nonNull)
+        .forEach(knownIsins::add);
     var unexpectedIsins = new HashSet<>(positionIsins);
     unexpectedIsins.removeAll(knownIsins);
 
@@ -165,14 +168,54 @@ class SecurityDataBuilder {
         removedAndHeld,
         addedIsins);
 
+    // The transition legs take their actual weights, so the legs that did not move have to give
+    // up exactly that much - a model portfolio weighs 1, and one that weighs more scales the
+    // benchmark return up with it and invents a tracking difference out of nothing.
+    var transitionWeight =
+        securities.stream()
+            .filter(s -> transitionIsins.contains(s.isin()))
+            .map(SecurityData::actualWeight)
+            .reduce(ZERO, BigDecimal::add);
+    var settledModelWeight =
+        securities.stream()
+            .filter(s -> !transitionIsins.contains(s.isin()))
+            .map(SecurityData::modelWeight)
+            .reduce(ZERO, BigDecimal::add);
+    var remaining = BigDecimal.ONE.subtract(transitionWeight);
+    if (remaining.signum() < 0 || settledModelWeight.signum() == 0) {
+      log.warn(
+          "Transition legs leave no room for the rest of the model, blending without rescaling: fund={}, transitionWeight={}, settledModelWeight={}",
+          fund,
+          transitionWeight,
+          settledModelWeight);
+      remaining = settledModelWeight;
+    }
+    var scale =
+        settledModelWeight.signum() == 0
+            ? BigDecimal.ONE
+            : remaining.divide(settledModelWeight, 10, RoundingMode.HALF_UP);
+
     return securities.stream()
         .map(
             s ->
                 transitionIsins.contains(s.isin())
                     ? new SecurityData(
                         s.isin(), s.actualWeight(), s.actualWeight(), s.today(), s.previous())
-                    : s)
+                    : new SecurityData(
+                        s.isin(),
+                        s.modelWeight().multiply(scale).setScale(SCALE, RoundingMode.HALF_UP),
+                        s.actualWeight(),
+                        s.today(),
+                        s.previous()))
         .toList();
+  }
+
+  private static Set<String> weightedIsins(List<ModelPortfolioAllocation> allocations) {
+    return allocations.stream()
+        .filter(a -> a.getWeight() != null && a.getWeight().signum() > 0)
+        .map(ModelPortfolioAllocation::getIsin)
+        .filter(Objects::nonNull)
+        .collect(Collectors.toSet());
   }
 
   private SecurityData buildOneSecurityData(

@@ -3,5 +3,6 @@ package ee.tuleva.onboarding.auth.jwt;
 public enum TokenType {
   ACCESS,
   REFRESH,
-  HANDOVER
+  HANDOVER,
+  REMEMBERED_SMART_ID_ACCOUNT
 }

@@ -13,6 +13,7 @@ import jakarta.validation.constraints.NotNull;
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.Map;
+import java.util.Optional;
 import lombok.Builder;
 import lombok.Value;
 import org.jspecify.annotations.Nullable;
@@ -22,6 +23,8 @@ import org.jspecify.annotations.Nullable;
 public class AuthenticatedPerson implements Person, Serializable {
 
   @Serial private static final long serialVersionUID = 2461411670790444975L;
+
+  public static final String SMART_ID_DOCUMENT_NUMBER = "smartIdDocumentNumber";
 
   @ValidPersonalCode String personalCode;
 
@@ -79,5 +82,10 @@ public class AuthenticatedPerson implements Person, Serializable {
 
   public @Nullable String getAttribute(String attribute) {
     return attributes.get(attribute);
+  }
+
+  @JsonIgnore
+  public Optional<String> getSmartIdDocumentNumber() {
+    return Optional.ofNullable(attributes.get(SMART_ID_DOCUMENT_NUMBER));
   }
 }

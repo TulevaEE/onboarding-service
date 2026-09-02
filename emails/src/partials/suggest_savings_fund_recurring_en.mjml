@@ -1,8 +1,34 @@
+<mj-raw>*|IF:recipientIsChild|*</mj-raw>
+<mj-text>
+  You can also contribute to the Additional Investment Fund with a recurring payment. This way
+  a contribution reaches your child's account every month without you having to think about it
+  separately.
+</mj-text>
+<mj-text>
+  <strong>You can set up the recurring payment in your child's Tuleva account:</strong>
+</mj-text>
+<mj-button href="https://pension.tuleva.ee/savings-fund/payment/child/*|recipientAccountId|*?language=en&type=RECURRING&utm_content=nudge_savings_fund_recurring_child">
+  Set up recurring payment
+</mj-button>
+<mj-raw>*|ELSEIF:recipientIsCompany|*</mj-raw>
+<mj-text>
+  You can also contribute to the Additional Investment Fund with a recurring payment. This way
+  a contribution reaches your company's account every month without you having to think about it
+  separately.
+</mj-text>
+<mj-text>
+  <strong>You can set up the recurring payment in your company's Tuleva account:</strong>
+</mj-text>
+<mj-button href="https://pension.tuleva.ee/savings-fund/payment/company/*|recipientAccountId|*?language=en&type=RECURRING&utm_content=nudge_savings_fund_recurring_company">
+  Set up recurring payment
+</mj-button>
+<mj-raw>*|ELSE:|*</mj-raw>
 <mj-text>
   Many Tuleva savers have set up a recurring payment to their savings fund. This way, they
   don't have to remember to make contributions manually every time.
 </mj-text>
 <mj-text><strong>You can set up a recurring payment in your Tuleva account:</strong></mj-text>
-<mj-button href="https://pension.tuleva.ee/savings-fund/payment?language=en&utm_content=nudge_savings_fund_recurring">
+<mj-button href="https://pension.tuleva.ee/savings-fund/payment?language=en&type=RECURRING&utm_content=nudge_savings_fund_recurring">
   Set up recurring payment
 </mj-button>
+<mj-raw>*|END:IF|*</mj-raw>

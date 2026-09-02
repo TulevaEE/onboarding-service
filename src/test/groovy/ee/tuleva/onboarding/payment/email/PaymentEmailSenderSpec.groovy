@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.payment.event.SavingsPaymentFailedEvent
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService
 import ee.tuleva.onboarding.analytics.SecondPillarLeavers
 import ee.tuleva.onboarding.analytics.RecurringSavers
+import ee.tuleva.onboarding.analytics.SaverId
 import ee.tuleva.onboarding.contribution.ThirdPillarTaxHeadroom
 import ee.tuleva.onboarding.mandate.RecurringPayments
 import ee.tuleva.onboarding.mandate.SavingsFundSaverStatus
@@ -23,6 +24,7 @@ import java.util.Set
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notFullyConverted
+import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.MEMBER_FEE
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewSinglePayment
@@ -30,6 +32,9 @@ import static ee.tuleva.onboarding.paymentrate.PaymentRatesFixture.samplePayment
 import static java.util.Locale.ENGLISH
 
 class PaymentEmailSenderSpec extends Specification {
+
+  static final UUID CHILD_LINK_ID = UUID.fromString("33333333-3333-3333-3333-333333333333")
+  static final UUID COMPANY_ID = UUID.fromString("44444444-4444-4444-4444-444444444444")
 
   PaymentEmailService paymentEmailService = Mock()
   UserConversionService conversionService = Mock()
@@ -48,10 +53,7 @@ class PaymentEmailSenderSpec extends Specification {
   ThirdPillarTaxHeadroom thirdPillarTaxHeadroom = Mock(ThirdPillarTaxHeadroom) {
     hasHeadroom(_) >> false
   }
-  RecurringSavers recurringSavers = Mock() {
-    recurringPaymentsOf(_) >> new RecurringPayments(true, true)
-    hasRecurringSavingsFundPayments(_) >> true
-  }
+  RecurringSavers recurringSavers = Mock()
 
   def paymentEmailSender = new PaymentEmailSender(paymentEmailService, conversionService, securityContextRunner, contactDetailsService, paymentRateService, secondPillarLeavers, savingsFundSavers, recurringSavers, thirdPillarTaxHeadroom, savingsFundSuccessEmailResolver)
 
@@ -70,6 +72,7 @@ class PaymentEmailSenderSpec extends Specification {
     1 * contactDetailsService.getContactDetails(user) >> contactDetails
     1 * conversionService.getConversion(user) >> conversion
     1 * paymentRateService.getPaymentRates(user) >> paymentRates
+    1 * recurringSavers.recurringPaymentsOf(user.personalCode, SaverId.person(user.personalCode)) >> new RecurringPayments(true, true)
 
     when:
     paymentEmailSender.onThirdPillarPaymentCreated(paymentCreatedEvent)
@@ -93,50 +96,76 @@ class PaymentEmailSenderSpec extends Specification {
     0 * paymentEmailService.sendThirdPillarPaymentSuccessEmail(_, _, _, _)
   }
 
-  def "send resolved success email on savings payment creation"() {
+  def "savings payment receipt treats the payer as a saver and scopes the recurring cadence to the paid account"() {
     given:
     def user = sampleUser().build()
     def locale = ENGLISH
     def contactDetails = new ContactDetails()
     def conversion = notFullyConverted()
     def paymentRates = samplePaymentRates()
-    def pillarSuggestion = new PillarSuggestion(user, false, false, conversion, paymentRates, [] as Set, false, false)
+    def pillarSuggestion = new PillarSuggestion(user, false, false, conversion, paymentRates, [] as Set, false, true, false, new RecurringPayments(true, false), false)
 
     def savingsPaymentCreatedEvent = new SavingsPaymentCreatedEvent(this, user, locale, new PartyId(PERSON, user.personalCode))
 
     1 * contactDetailsService.getContactDetails(user) >> contactDetails
     1 * conversionService.getConversion(user) >> conversion
     1 * paymentRateService.getPaymentRates(user) >> paymentRates
+    1 * recurringSavers.recurringPaymentsOf(user.personalCode, SaverId.person(user.personalCode)) >> new RecurringPayments(true, false)
     1 * savingsFundSuccessEmailResolver.resolve(savingsPaymentCreatedEvent) >> SavingsFundPaymentEmail.personSuccess()
 
     when:
     paymentEmailSender.onSavingsPaymentCreated(savingsPaymentCreatedEvent)
 
     then:
-    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.personSuccess(), pillarSuggestion, false, locale)
+    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.personSuccess(), pillarSuggestion, locale)
   }
 
-  def "send email on savings payment creation for a child passes the child email with the child name"() {
+  def "child payment receipt checks the child's recurring cadence, not the parent's"() {
     given:
     def user = sampleUser().build()
     def locale = ENGLISH
     def contactDetails = new ContactDetails()
     def conversion = notFullyConverted()
     def paymentRates = samplePaymentRates()
-    def pillarSuggestion = new PillarSuggestion(user, false, false, conversion, paymentRates, [] as Set, false, false)
+    def pillarSuggestion = new PillarSuggestion(user, false, false, conversion, paymentRates, [] as Set, false, true, false, new RecurringPayments(true, false), false)
 
     def savingsPaymentCreatedEvent = new SavingsPaymentCreatedEvent(this, user, locale, new PartyId(PERSON, "51111111111"))
 
     1 * contactDetailsService.getContactDetails(user) >> contactDetails
     1 * conversionService.getConversion(user) >> conversion
     1 * paymentRateService.getPaymentRates(user) >> paymentRates
-    1 * savingsFundSuccessEmailResolver.resolve(savingsPaymentCreatedEvent) >> SavingsFundPaymentEmail.childSuccess("Kid Tester")
+    1 * recurringSavers.recurringPaymentsOf(user.personalCode, SaverId.person("51111111111")) >> new RecurringPayments(true, false)
+    1 * savingsFundSuccessEmailResolver.resolve(savingsPaymentCreatedEvent) >> SavingsFundPaymentEmail.childSuccess("Kid Tester", CHILD_LINK_ID)
 
     when:
     paymentEmailSender.onSavingsPaymentCreated(savingsPaymentCreatedEvent)
 
     then:
-    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.childSuccess("Kid Tester"), pillarSuggestion, false, locale)
+    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.childSuccess("Kid Tester", CHILD_LINK_ID), pillarSuggestion, locale)
+  }
+
+  def "company payment receipt checks the company's recurring cadence"() {
+    given:
+    def user = sampleUser().build()
+    def locale = ENGLISH
+    def contactDetails = new ContactDetails()
+    def conversion = notFullyConverted()
+    def paymentRates = samplePaymentRates()
+    def pillarSuggestion = new PillarSuggestion(user, false, false, conversion, paymentRates, [] as Set, false, true, false, new RecurringPayments(true, true), false)
+
+    def savingsPaymentCreatedEvent = new SavingsPaymentCreatedEvent(this, user, locale, new PartyId(LEGAL_ENTITY, "12345678"))
+
+    1 * contactDetailsService.getContactDetails(user) >> contactDetails
+    1 * conversionService.getConversion(user) >> conversion
+    1 * paymentRateService.getPaymentRates(user) >> paymentRates
+    1 * recurringSavers.recurringPaymentsOf(user.personalCode, new SaverId(SaverId.Type.LEGAL_ENTITY, "12345678")) >> new RecurringPayments(true, true)
+    1 * savingsFundSuccessEmailResolver.resolve(savingsPaymentCreatedEvent) >> SavingsFundPaymentEmail.companySuccess("Mesila OÜ", COMPANY_ID)
+
+    when:
+    paymentEmailSender.onSavingsPaymentCreated(savingsPaymentCreatedEvent)
+
+    then:
+    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.companySuccess("Mesila OÜ", COMPANY_ID), pillarSuggestion, locale)
   }
 
   def "send email on savings payment cancel"() {
@@ -153,12 +182,13 @@ class PaymentEmailSenderSpec extends Specification {
     1 * contactDetailsService.getContactDetails(user) >> contactDetails
     1 * conversionService.getConversion(user) >> conversion
     1 * paymentRateService.getPaymentRates(user) >> paymentRates
+    1 * recurringSavers.recurringPaymentsOf(user.personalCode, SaverId.person(user.personalCode)) >> new RecurringPayments(true, true)
 
     when:
     paymentEmailSender.onSavingsPaymentCancelled(savingsPaymentCancelledEvent)
 
     then:
-    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.cancelled(), pillarSuggestion, false, locale)
+    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.cancelled(), pillarSuggestion, locale)
   }
 
   def "send email on savings payment failure without a pillar suggestion"() {

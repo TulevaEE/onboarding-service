@@ -18,6 +18,7 @@ import ee.tuleva.onboarding.auth.AuthenticationTokens;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.company.CompanyNotFoundException;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -31,13 +32,15 @@ import org.springframework.test.web.servlet.MockMvc;
 @AutoConfigureMockMvc
 class RoleControllerTest {
 
+  private static final UUID COMPANY_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
+
   @Autowired private MockMvc mockMvc;
   @MockitoBean private RoleSwitchService roleSwitchService;
 
   private static UsernamePasswordAuthenticationToken userAuth() {
     var person =
         AuthenticatedPerson.builder()
-            .personalCode("38501010002")
+            .personalCode("38888888888")
             .firstName("Jordan")
             .lastName("Valdma")
             .userId(1L)
@@ -86,7 +89,7 @@ class RoleControllerTest {
   @Test
   void switchRoleReturns403WhenAccessDenied() throws Exception {
     when(roleSwitchService.switchRole(any(AuthenticatedPerson.class), any(SwitchRoleCommand.class)))
-        .thenThrow(new RoleSwitchAccessDeniedException("38501010002", "12345678"));
+        .thenThrow(new RoleSwitchAccessDeniedException("38888888888", "12345678"));
 
     mockMvc
         .perform(
@@ -105,18 +108,21 @@ class RoleControllerTest {
     when(roleSwitchService.getRoles(any(AuthenticatedPerson.class)))
         .thenReturn(
             List.of(
-                new Role(PERSON, "38501010002", "Jordan Valdma"),
-                new Role(LEGAL_ENTITY, SAMPLE_REGISTRY_CODE, SAMPLE_COMPANY_NAME)));
+                new RoleResponse(PERSON, "38888888888", "Jordan Valdma", null),
+                new RoleResponse(
+                    LEGAL_ENTITY, SAMPLE_REGISTRY_CODE, SAMPLE_COMPANY_NAME, COMPANY_ID)));
 
     mockMvc
         .perform(get("/v1/me/roles").with(authentication(userAuth())))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$[0].type").value("PERSON"))
-        .andExpect(jsonPath("$[0].code").value("38501010002"))
+        .andExpect(jsonPath("$[0].code").value("38888888888"))
         .andExpect(jsonPath("$[0].name").value("Jordan Valdma"))
         .andExpect(jsonPath("$[1].type").value("LEGAL_ENTITY"))
         .andExpect(jsonPath("$[1].code").value(SAMPLE_REGISTRY_CODE))
-        .andExpect(jsonPath("$[1].name").value(SAMPLE_COMPANY_NAME));
+        .andExpect(jsonPath("$[1].name").value(SAMPLE_COMPANY_NAME))
+        .andExpect(jsonPath("$[0].id").doesNotExist())
+        .andExpect(jsonPath("$[1].id").value(COMPANY_ID.toString()));
   }
 
   @Test

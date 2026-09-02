@@ -8,7 +8,9 @@ import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_PAY
 
 import ee.tuleva.onboarding.auth.principal.Names;
 import ee.tuleva.onboarding.notification.email.EmailType;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
@@ -27,12 +29,14 @@ record SavingsFundPaymentEmail(EmailType emailType, Map<String, Object> mergeVar
     return withoutRecipient(SAVINGS_FUND_PAYMENT_SUCCESS_PERSON);
   }
 
-  static SavingsFundPaymentEmail childSuccess(@Nullable String childName) {
-    return withRecipient(SAVINGS_FUND_PAYMENT_SUCCESS_CHILD, childName);
+  static SavingsFundPaymentEmail childSuccess(@Nullable String childName, UUID accountId) {
+    return withRecipient(
+        SAVINGS_FUND_PAYMENT_SUCCESS_CHILD, "recipientIsChild", childName, accountId);
   }
 
-  static SavingsFundPaymentEmail companySuccess(@Nullable String companyName) {
-    return withRecipient(SAVINGS_FUND_PAYMENT_SUCCESS_COMPANY, companyName);
+  static SavingsFundPaymentEmail companySuccess(@Nullable String companyName, UUID accountId) {
+    return withRecipient(
+        SAVINGS_FUND_PAYMENT_SUCCESS_COMPANY, "recipientIsCompany", companyName, accountId);
   }
 
   private static SavingsFundPaymentEmail withoutRecipient(EmailType emailType) {
@@ -40,10 +44,16 @@ record SavingsFundPaymentEmail(EmailType emailType, Map<String, Object> mergeVar
   }
 
   private static SavingsFundPaymentEmail withRecipient(
-      EmailType emailType, @Nullable String recipientName) {
-    return recipientName == null
-        ? withoutRecipient(emailType)
-        : new SavingsFundPaymentEmail(
-            emailType, Map.of("recipientName", Names.formatted(recipientName)));
+      EmailType emailType,
+      String recipientRoleVariable,
+      @Nullable String recipientName,
+      UUID accountId) {
+    var mergeVars = new HashMap<String, Object>();
+    mergeVars.put(recipientRoleVariable, true);
+    mergeVars.put("recipientAccountId", accountId.toString());
+    if (recipientName != null) {
+      mergeVars.put("recipientName", Names.formatted(recipientName));
+    }
+    return new SavingsFundPaymentEmail(emailType, Map.copyOf(mergeVars));
   }
 }

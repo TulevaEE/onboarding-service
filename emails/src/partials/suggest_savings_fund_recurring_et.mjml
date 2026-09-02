@@ -1,8 +1,32 @@
+<mj-raw>*|IF:recipientIsChild|*</mj-raw>
+<mj-text>
+  Täiendavasse Kogumisfondi saab koguda ka püsimaksega. Nii jõuab sissemakse lapse kontole iga kuu
+  ilma, et peaksid sellele eraldi mõtlema.
+</mj-text>
+<mj-text>
+  <strong>Püsimakse saad seadistada lapse Tuleva kontol:</strong>
+</mj-text>
+<mj-button href="https://pension.tuleva.ee/savings-fund/payment/child/*|recipientAccountId|*?type=RECURRING&utm_content=nudge_savings_fund_recurring_child">
+  Seadistan püsimakse
+</mj-button>
+<mj-raw>*|ELSEIF:recipientIsCompany|*</mj-raw>
+<mj-text>
+  Täiendavasse Kogumisfondi saab koguda ka püsimaksega. Nii jõuab sissemakse ettevõtte kontole iga
+  kuu ilma, et peaksid sellele eraldi mõtlema.
+</mj-text>
+<mj-text>
+  <strong>Püsimakse saad seadistada ettevõtte Tuleva kontol:</strong>
+</mj-text>
+<mj-button href="https://pension.tuleva.ee/savings-fund/payment/company/*|recipientAccountId|*?type=RECURRING&utm_content=nudge_savings_fund_recurring_company">
+  Seadistan püsimakse
+</mj-button>
+<mj-raw>*|ELSE:|*</mj-raw>
 <mj-text>
   Paljud Tuleva kogujad on seadistanud kogumisfondi püsimakse. Nii ei pea nad edaspidi
   sissemaksete tegemist pidevalt meeles hoidma.
 </mj-text>
 <mj-text><strong>Püsimakse saad seadistada oma Tuleva kontol:</strong></mj-text>
-<mj-button href="https://pension.tuleva.ee/savings-fund/payment?utm_content=nudge_savings_fund_recurring">
+<mj-button href="https://pension.tuleva.ee/savings-fund/payment?type=RECURRING&utm_content=nudge_savings_fund_recurring">
   Seadistan püsimakse
 </mj-button>
+<mj-raw>*|END:IF|*</mj-raw>

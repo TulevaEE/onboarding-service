@@ -22,6 +22,9 @@ import static ee.tuleva.onboarding.paymentrate.PaymentRatesFixture.samplePayment
 
 class PaymentEmailServiceSpec extends Specification {
 
+  static final UUID CHILD_LINK_ID = UUID.fromString("33333333-3333-3333-3333-333333333333")
+  static final UUID COMPANY_ID = UUID.fromString("44444444-4444-4444-4444-444444444444")
+
   EmailService emailService = Mock()
   EmailPersistenceService emailPersistenceService = Mock()
 
@@ -109,8 +112,7 @@ class PaymentEmailServiceSpec extends Specification {
         "suggestThirdPillarRecurringPayment" : pillarSuggestion.suggestThirdPillarRecurringPayment,
         "suggestThirdPillarRaise"            : pillarSuggestion.suggestThirdPillarRaise,
         "savingsFundFee"                     : "0.28",
-        "suggestSavingsFundRecurringPayment" : pillarSuggestion.suggestSavingsFundRecurringPayment,
-        "suggestAccountRecurringPayment" : false
+        "suggestSavingsFundRecurringPayment" : pillarSuggestion.suggestSavingsFundRecurringPayment
     ]
     def tags = ["savings_fund", "suggest_payment_rate", "suggest_2"] + pillarSuggestion.renderedNudgeTag().stream().toList()
     def locale = Locale.ENGLISH
@@ -121,7 +123,7 @@ class PaymentEmailServiceSpec extends Specification {
     }
 
     when:
-    paymentEmailService.sendSavingsFundPaymentEmail(user, email, pillarSuggestion, false, locale)
+    paymentEmailService.sendSavingsFundPaymentEmail(user, email, pillarSuggestion, locale)
 
     then:
     1 * emailService.send(user, message, templateName) >> Optional.of(mandrillResponse)
@@ -131,8 +133,8 @@ class PaymentEmailServiceSpec extends Specification {
     where:
     email                                               | templateName
     SavingsFundPaymentEmail.personSuccess()             | "savings_fund_payment_success_person_en"
-    SavingsFundPaymentEmail.childSuccess("Kid Tester")  | "savings_fund_payment_success_child_en"
-    SavingsFundPaymentEmail.companySuccess("Tuleva OÜ") | "savings_fund_payment_success_company_en"
+    SavingsFundPaymentEmail.childSuccess("Kid Tester", CHILD_LINK_ID)  | "savings_fund_payment_success_child_en"
+    SavingsFundPaymentEmail.companySuccess("Tuleva OÜ", COMPANY_ID) | "savings_fund_payment_success_company_en"
     SavingsFundPaymentEmail.failed()                    | "savings_fund_payment_failed_en"
     SavingsFundPaymentEmail.cancelled()                 | "savings_fund_payment_cancelled_en"
   }
@@ -174,6 +176,8 @@ class PaymentEmailServiceSpec extends Specification {
         "fname"              : user.firstName,
         "lname"              : user.lastName,
         "recipientName"      : "Kid Tester",
+        "recipientIsChild"   : true,
+        "recipientAccountId" : CHILD_LINK_ID.toString(),
         "suggestPaymentRate" : pillarSuggestion.suggestPaymentRate,
         "suggestMembership"  : pillarSuggestion.suggestMembership,
         "suggestSecondPillar": pillarSuggestion.suggestSecondPillar,
@@ -184,8 +188,7 @@ class PaymentEmailServiceSpec extends Specification {
         "suggestThirdPillarRecurringPayment" : pillarSuggestion.suggestThirdPillarRecurringPayment,
         "suggestThirdPillarRaise"            : pillarSuggestion.suggestThirdPillarRaise,
         "savingsFundFee"                     : "0.28",
-        "suggestSavingsFundRecurringPayment" : pillarSuggestion.suggestSavingsFundRecurringPayment,
-        "suggestAccountRecurringPayment" : false
+        "suggestSavingsFundRecurringPayment" : pillarSuggestion.suggestSavingsFundRecurringPayment
     ]
     def tags = ["savings_fund", "suggest_payment_rate", "suggest_2"] + pillarSuggestion.renderedNudgeTag().stream().toList()
     def locale = Locale.ENGLISH
@@ -195,7 +198,7 @@ class PaymentEmailServiceSpec extends Specification {
     }
 
     when:
-    paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.childSuccess("Kid Tester"), pillarSuggestion, false, locale)
+    paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.childSuccess("Kid Tester", CHILD_LINK_ID), pillarSuggestion, locale)
 
     then:
     1 * emailService.send(user, message, "savings_fund_payment_success_child_en") >> Optional.of(mandrillResponse)

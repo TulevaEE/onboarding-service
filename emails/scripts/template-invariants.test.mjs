@@ -9,6 +9,12 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const distDir = join(root, 'dist');
 const manifest = JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf8'));
 
+const TEMPLATE_SCOPED_VARIABLES = {
+  recipientIsChild: /_child_/,
+  recipientIsCompany: /_company_/,
+  recipientAccountId: /_(child|company)_/,
+};
+
 const distTemplates = readdirSync(distDir)
   .filter((f) => f.endsWith('.html'))
   .map((f) => basename(f, '.html'));
@@ -38,6 +44,10 @@ for (const name of distTemplates) {
       [...html.matchAll(/\*\|(?:IF|ELSEIF):([A-Za-z0-9_]+)\|\*/g)].map((m) => m[1]),
     );
     for (const variable of conditionVars) {
+      const templatesReceivingVariable = TEMPLATE_SCOPED_VARIABLES[variable];
+      if (templatesReceivingVariable && !templatesReceivingVariable.test(name)) {
+        continue;
+      }
       assert.ok(
         variants.some((vars) => Boolean(vars[variable])),
         `no fixture variant exercises ${variable}=true`,

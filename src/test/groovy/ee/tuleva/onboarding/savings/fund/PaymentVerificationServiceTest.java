@@ -35,6 +35,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
 
@@ -646,9 +647,9 @@ class PaymentVerificationServiceTest {
             .build();
     when(userRepository.findByPersonalCode(parentCode)).thenReturn(Optional.of(parent));
     when(userRepository.findByPersonalCode(childCode)).thenReturn(Optional.of(child));
-    when(parentChildLinkService.isRepresentation(
+    when(parentChildLinkService.findRepresentation(
             parentCode, childCode, Set.of(ACTIVE, PENDING_KYC)))
-        .thenReturn(false);
+        .thenReturn(Optional.empty());
 
     service.process(payment);
 
@@ -696,9 +697,9 @@ class PaymentVerificationServiceTest {
             .build();
     when(userRepository.findByPersonalCode(remitterCode)).thenReturn(Optional.empty());
     when(userRepository.findByPersonalCode(childCode)).thenReturn(Optional.of(child));
-    when(parentChildLinkService.isRepresentation(
+    when(parentChildLinkService.findRepresentation(
             remitterCode, childCode, Set.of(ACTIVE, PENDING_KYC)))
-        .thenReturn(false);
+        .thenReturn(Optional.empty());
 
     service.process(payment);
 
@@ -753,9 +754,9 @@ class PaymentVerificationServiceTest {
     when(userRepository.findByPersonalCode(childCode)).thenReturn(Optional.of(child));
     when(savingsFundOnboardingService.isOnboardingCompleted(new PartyId(PERSON, childCode)))
         .thenReturn(true);
-    when(parentChildLinkService.isRepresentation(
+    when(parentChildLinkService.findRepresentation(
             parentCode, childCode, Set.of(ACTIVE, PENDING_KYC)))
-        .thenReturn(true);
+        .thenReturn(Optional.of(UUID.randomUUID()));
 
     service.process(payment);
 
@@ -792,9 +793,9 @@ class PaymentVerificationServiceTest {
     var parentCode = "38812121215";
     var childCode = "61506150006";
     var payment = createPayment(parentCode, "for child " + childCode);
-    when(parentChildLinkService.isRepresentation(
+    when(parentChildLinkService.findRepresentation(
             parentCode, childCode, Set.of(ACTIVE, PENDING_KYC)))
-        .thenReturn(false);
+        .thenReturn(Optional.empty());
 
     service.process(payment);
 

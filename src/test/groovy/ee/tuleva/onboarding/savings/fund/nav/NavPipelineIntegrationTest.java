@@ -22,18 +22,21 @@ import ee.tuleva.onboarding.investment.fees.FeeCalculationService;
 import ee.tuleva.onboarding.investment.fees.FeeResult;
 import ee.tuleva.onboarding.investment.position.AccountType;
 import ee.tuleva.onboarding.investment.position.FundPosition;
+import ee.tuleva.onboarding.investment.position.FundPositionImportJob;
 import ee.tuleva.onboarding.investment.position.FundPositionImportService;
 import ee.tuleva.onboarding.investment.position.FundPositionLedgerService;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.investment.position.parser.SebFundPositionParser;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.ledger.*;
+import ee.tuleva.onboarding.savings.FundNavQueryService;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import ee.tuleva.onboarding.user.User;
 import jakarta.persistence.EntityManager;
 import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Timestamp;
@@ -74,6 +77,9 @@ class NavPipelineIntegrationTest {
   @Autowired FeeCalculationService feeCalculationService;
   @Autowired JdbcClient jdbcClient;
   @Autowired EntityManager entityManager;
+  @Autowired FundPositionImportJob fundPositionImportJob;
+  @Autowired FundNavQueryService fundNavQueryService;
+  @Autowired NavReportRepository navReportRepository;
 
   User testUser = sampleUser().personalCode("38001010001").build();
 
@@ -112,6 +118,111 @@ class NavPipelineIntegrationTest {
     } finally {
       ClockHolder.setDefaultClock();
     }
+  }
+
+  @Test
+  @SneakyThrows
+  void reissuedPositionReportAfterPublish_revisesNavFromCorrectedPositions() {
+    NavTestPair pair = testPairs().findFirst().orElseThrow();
+    var navData = parseNavCsv(pair.navCsvFile);
+    BigDecimal cashCorrection = new BigDecimal("10000.00");
+
+    Instant ledgerTime = navData.navDate.atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
+    ClockHolder.setClock(Clock.fixed(ledgerTime, ZoneId.of("UTC")));
+    try {
+      importPositionReport(pair.positionReportFile, navData.navDate);
+      recordPositionsToLedger(navData);
+      insertFeeRate(TKF100, "MANAGEMENT", new BigDecimal("0.0029"), navData.navDate);
+      insertFeeRate(TKF100, "DEPOT", new BigDecimal("0.01"), navData.navDate.withDayOfMonth(1));
+      insertPrices(pair.calculationDate);
+      issueFundUnits(navData.unitsOutstanding, navData.navDate);
+      entityManager.flush();
+      entityManager.clear();
+
+      var published = navCalculationService.calculate(TKF100, pair.calculationDate);
+      navPublisher.publish(published);
+      jdbcClient
+          .sql("UPDATE nav_report SET published_at = CURRENT_TIMESTAMP WHERE nav_date = :navDate")
+          .param("navDate", navData.navDate)
+          .update();
+      entityManager.flush();
+      entityManager.clear();
+      var originalCalculationId =
+          navReportRepository
+              .findLatestByNavDateAndFundCode(navData.navDate, "TKF100")
+              .getFirst()
+              .getCalculationId();
+
+      saveReissuedReportWithCashReducedBy(pair, cashCorrection);
+      seedModelPortfolioFromImportedSecurities(navData.navDate);
+      fundPositionImportJob.importForProviderAndDate(SEB, navData.navDate);
+      entityManager.flush();
+      entityManager.clear();
+
+      var expectedRevisedNav =
+          published
+              .aum()
+              .subtract(cashCorrection)
+              .divide(published.unitsOutstanding(), published.navPerUnit().scale(), HALF_UP);
+      var revisionRows =
+          navReportRepository.findAll().stream()
+              .filter(row -> row.getNavDate().equals(navData.navDate))
+              .filter(row -> !row.getCalculationId().equals(originalCalculationId))
+              .toList();
+      var revisionNavRow =
+          revisionRows.stream().filter(row -> row.getAccountType().equals("NAV")).findFirst();
+
+      assertThat(revisionRows).isNotEmpty();
+      assertThat(revisionNavRow.orElseThrow().getMarketPrice())
+          .isEqualByComparingTo(expectedRevisedNav);
+
+      navReportRepository.markAsPublished(revisionRows.getFirst().getCalculationId());
+
+      assertThat(fundNavQueryService.findPublishedNavPerUnit("TKF100", navData.navDate))
+          .contains(expectedRevisedNav.setScale(8, HALF_UP));
+    } finally {
+      ClockHolder.setDefaultClock();
+    }
+  }
+
+  @SneakyThrows
+  private void saveReissuedReportWithCashReducedBy(NavTestPair pair, BigDecimal reduction) {
+    String original = Files.readString(pair.positionReportFile);
+    String cashRow =
+        original
+            .lines()
+            .filter(line -> line.contains("Cash account in SEB Pank"))
+            .findFirst()
+            .orElseThrow();
+    String[] cells = cashRow.split(";");
+    BigDecimal cash = new BigDecimal(cells[4].replace(",", "."));
+    BigDecimal reduced = cash.subtract(reduction);
+    String reissuedRow =
+        cashRow
+            .replace(cells[4], reduced.toPlainString().replace(".", ","))
+            .replace(cells[7], reduced.setScale(2, HALF_UP).toPlainString().replace(".", ","));
+    byte[] csvBytes = original.replace(cashRow, reissuedRow).getBytes(StandardCharsets.UTF_8);
+    investmentReportService.saveReport(
+        SEB, POSITIONS, pair.navDate, new ByteArrayInputStream(csvBytes), ';', 5, Map.of());
+  }
+
+  private void seedModelPortfolioFromImportedSecurities(LocalDate effectiveDate) {
+    var securities =
+        fundPositionRepository.findByNavDateAndFundAndAccountType(effectiveDate, TKF100, SECURITY);
+    BigDecimal weight = BigDecimal.ONE.divide(BigDecimal.valueOf(securities.size()), 8, HALF_UP);
+    securities.forEach(
+        position ->
+            jdbcClient
+                .sql(
+                    """
+                    INSERT INTO investment_model_portfolio_allocation
+                      (effective_date, fund_code, isin, weight, provider)
+                    VALUES (:effectiveDate, 'TKF100', :isin, :weight, 'ISHARES')
+                    """)
+                .param("effectiveDate", effectiveDate)
+                .param("isin", position.getAccountId())
+                .param("weight", weight)
+                .update());
   }
 
   @Test

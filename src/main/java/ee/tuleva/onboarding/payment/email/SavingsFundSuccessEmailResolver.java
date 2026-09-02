@@ -38,7 +38,7 @@ class SavingsFundSuccessEmailResolver {
   private SavingsFundPaymentEmail companySuccess(PartyId recipient) {
     var company = companyRoles.findCompany(recipient.code());
     if (company.isEmpty()) {
-      return SavingsFundPaymentEmail.personSuccess();
+      return SavingsFundPaymentEmail.companySuccess(null, null);
     }
     return SavingsFundPaymentEmail.companySuccess(company.get().name(), company.get().id());
   }

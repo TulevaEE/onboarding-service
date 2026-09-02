@@ -17,9 +17,15 @@
 <mj-text>
   <strong>Püsimakse saad seadistada ettevõtte Tuleva kontol:</strong>
 </mj-text>
+<mj-raw>*|IF:recipientAccountId|*</mj-raw>
 <mj-button href="https://pension.tuleva.ee/savings-fund/payment/company/*|recipientAccountId|*?type=RECURRING&utm_content=nudge_savings_fund_recurring_company">
   Seadistan püsimakse
 </mj-button>
+<mj-raw>*|ELSE:|*</mj-raw>
+<mj-button href="https://pension.tuleva.ee/savings-fund/payment/company?type=RECURRING&utm_content=nudge_savings_fund_recurring_company">
+  Seadistan püsimakse
+</mj-button>
+<mj-raw>*|END:IF|*</mj-raw>
 <mj-raw>*|ELSE:|*</mj-raw>
 <mj-text>
   Paljud Tuleva kogujad on seadistanud kogumisfondi püsimakse. Nii ei pea nad edaspidi

@@ -34,7 +34,8 @@ record SavingsFundPaymentEmail(EmailType emailType, Map<String, Object> mergeVar
         SAVINGS_FUND_PAYMENT_SUCCESS_CHILD, "recipientIsChild", childName, accountId);
   }
 
-  static SavingsFundPaymentEmail companySuccess(@Nullable String companyName, UUID accountId) {
+  static SavingsFundPaymentEmail companySuccess(
+      @Nullable String companyName, @Nullable UUID accountId) {
     return withRecipient(
         SAVINGS_FUND_PAYMENT_SUCCESS_COMPANY, "recipientIsCompany", companyName, accountId);
   }
@@ -47,10 +48,12 @@ record SavingsFundPaymentEmail(EmailType emailType, Map<String, Object> mergeVar
       EmailType emailType,
       String recipientRoleVariable,
       @Nullable String recipientName,
-      UUID accountId) {
+      @Nullable UUID accountId) {
     var mergeVars = new HashMap<String, Object>();
     mergeVars.put(recipientRoleVariable, true);
-    mergeVars.put("recipientAccountId", accountId.toString());
+    if (accountId != null) {
+      mergeVars.put("recipientAccountId", accountId.toString());
+    }
     if (recipientName != null) {
       mergeVars.put("recipientName", Names.formatted(recipientName));
     }

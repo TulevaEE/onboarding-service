@@ -107,6 +107,28 @@ public class JwtTokenUtil implements ServiceTokenProvider {
         .compact();
   }
 
+  public String generateToken(
+      TokenType tokenType, String subject, Map<String, String> claims, Duration validity) {
+    return Jwts.builder()
+        .claims(Map.copyOf(claims))
+        .claim(TOKEN_TYPE.value, tokenType)
+        .subject(subject)
+        .issuedAt(Date.from(clock.instant()))
+        .expiration(Date.from(clock.instant().plus(validity)))
+        .signWith(signingKey)
+        .compact();
+  }
+
+  public Claims getClaimsFromToken(String token, TokenType expectedType) {
+    Claims claims = getAllClaimsFromToken(token);
+    TokenType tokenType = TokenType.valueOf(TOKEN_TYPE.stringFrom(claims));
+    if (tokenType != expectedType) {
+      throw new IllegalArgumentException(
+          "Unexpected token type: expected=" + expectedType + ", actual=" + tokenType);
+    }
+    return claims;
+  }
+
   public String generateRefreshToken(
       AuthenticatedPerson person, Collection<? extends GrantedAuthority> authorities) {
     return Jwts.builder()

@@ -19,7 +19,7 @@ import static ee.tuleva.onboarding.auth.GrantType.*
 import static ee.tuleva.onboarding.auth.idcard.IdCardSession.ID_DOCUMENT_TYPE
 import static ee.tuleva.onboarding.auth.idcard.IdDocumentType.*
 import static ee.tuleva.onboarding.auth.mobileid.MobileIdFixture.sampleMobileIdSession
-import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.sampleSmartIdSession
+import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.aDeviceLinkSession
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyConverted
 import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.event.TrackableEventType.LOGIN
@@ -68,7 +68,7 @@ class LoginEventBroadcasterSpec extends Specification {
     ID_CARD   | ESTONIAN_CITIZEN_ID_CARD | new IdCardSession("Chuck", "Norris", "38512121212", ESTONIAN_CITIZEN_ID_CARD)
     ID_CARD   | DIPLOMATIC_ID_CARD       | new IdCardSession(" Chuck ", " Norris ", " 38512121212 ", DIPLOMATIC_ID_CARD)
     MOBILE_ID | null                     | sampleMobileIdSession
-    SMART_ID  | null                     | sampleSmartIdSession
+    SMART_ID  | null                     | aDeviceLinkSession(java.time.Instant.EPOCH)
   }
 
   def "OnAfterTokenGrantedEvent: add conversion metadata"() {

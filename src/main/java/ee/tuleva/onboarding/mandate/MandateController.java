@@ -132,7 +132,7 @@ public class MandateController {
         authenticatedPerson.getUserId(),
         request.getSession(false) != null ? request.getSession(false).getId() : "none");
     SmartIdSignatureSession signatureSession =
-        mandateService.smartIdSign(mandateId, authenticatedPerson.getUserIdOrThrow());
+        mandateService.smartIdSign(mandateId, authenticatedPerson);
     sessionStore.save(signatureSession);
     log.info(
         "Smart-ID signing session saved: mandateId={}, userId={}, sessionId={}",

@@ -96,7 +96,7 @@ class MandateControllerSpec extends BaseControllerSpec {
 
   def "smart id signature start returns null challenge code"() {
     when:
-    def session = new SmartIdSignatureSession("certSessionId", "personalCode", [])
+    def session = new SmartIdSignatureSession("personalCode", [])
     1 * mandateService.smartIdSign(1L, _) >> session
     1 * sessionStore.save(session)
 
@@ -111,7 +111,7 @@ class MandateControllerSpec extends BaseControllerSpec {
 
   def "get smart id signature status returns the status and challenge code"() {
     when:
-    def session = new SmartIdSignatureSession("certSessionId", "personalCode", [])
+    def session = new SmartIdSignatureSession("personalCode", [])
     session.verificationCode = "1234"
     1 * sessionStore.get(SmartIdSignatureSession) >> Optional.of(session)
     1 * localeResolver.resolveLocale(_) >> ENGLISH

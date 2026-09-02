@@ -11,6 +11,7 @@ import ee.tuleva.onboarding.auth.mobileid.MobileIdSessionNotFoundException;
 import ee.tuleva.onboarding.auth.principal.MinorCannotSelfAuthenticateException;
 import ee.tuleva.onboarding.auth.response.AuthNotCompleteException;
 import ee.tuleva.onboarding.auth.role.RoleSwitchAccessDeniedException;
+import ee.tuleva.onboarding.auth.smartid.SmartIdCallbackRejectedException;
 import ee.tuleva.onboarding.auth.smartid.SmartIdSessionNotFoundException;
 import ee.tuleva.onboarding.auth.webeid.WebEidAuthException;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
@@ -33,6 +34,15 @@ public class AuthErrorHandler {
     log.info("Auth session not found: {}", exception.getMessage());
     return new ResponseEntity<>(
         ErrorsResponse.ofSingleError("auth.session.not.found", exception.getMessage()),
+        UNAUTHORIZED);
+  }
+
+  @ExceptionHandler(SmartIdCallbackRejectedException.class)
+  public ResponseEntity<ErrorsResponse> handleSmartIdCallbackRejected(
+      SmartIdCallbackRejectedException exception) {
+    log.info("Smart-ID callback rejected: {}", exception.getMessage());
+    return new ResponseEntity<>(
+        ErrorsResponse.ofSingleError("smart.id.callback.invalid", exception.getMessage()),
         UNAUTHORIZED);
   }
 

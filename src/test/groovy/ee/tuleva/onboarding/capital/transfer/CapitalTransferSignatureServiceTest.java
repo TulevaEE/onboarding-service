@@ -60,12 +60,12 @@ class CapitalTransferSignatureServiceTest {
     List<SignatureFile> files = List.of(signatureFile);
 
     SmartIdSignatureSession signatureSession =
-        new SmartIdSignatureSession("session-id", user.getPersonalCode(), List.of());
+        new SmartIdSignatureSession(user.getPersonalCode(), List.of());
     signatureSession.setVerificationCode("12345");
 
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
     when(contractService.getSignatureFiles(contractId, user)).thenReturn(files);
-    when(signService.startSmartIdSign(files, user.getPersonalCode())).thenReturn(signatureSession);
+    when(signService.startSmartIdSign(files, authenticatedPerson)).thenReturn(signatureSession);
 
     // when
     MobileSignatureResponse response =
@@ -91,7 +91,7 @@ class CapitalTransferSignatureServiceTest {
             .build();
 
     SmartIdSignatureSession signatureSession =
-        new SmartIdSignatureSession("session-id", user.getPersonalCode(), List.of());
+        new SmartIdSignatureSession(user.getPersonalCode(), List.of());
     signatureSession.setVerificationCode("12345");
     byte[] signedFile = "signed content".getBytes();
 
@@ -125,7 +125,7 @@ class CapitalTransferSignatureServiceTest {
             .build();
 
     SmartIdSignatureSession signatureSession =
-        new SmartIdSignatureSession("session-id", user.getPersonalCode(), List.of());
+        new SmartIdSignatureSession(user.getPersonalCode(), List.of());
     signatureSession.setVerificationCode("12345");
 
     when(sessionStore.get(SmartIdSignatureSession.class)).thenReturn(Optional.of(signatureSession));
@@ -184,7 +184,7 @@ class CapitalTransferSignatureServiceTest {
             .build();
 
     SmartIdSignatureSession signatureSession =
-        new SmartIdSignatureSession("session-id", user.getPersonalCode(), List.of());
+        new SmartIdSignatureSession(user.getPersonalCode(), List.of());
     signatureSession.setVerificationCode("12345");
     byte[] signedFile = "signed content".getBytes();
 
@@ -217,7 +217,7 @@ class CapitalTransferSignatureServiceTest {
             .build();
 
     SmartIdSignatureSession signatureSession =
-        new SmartIdSignatureSession("session-id", user.getPersonalCode(), List.of());
+        new SmartIdSignatureSession(user.getPersonalCode(), List.of());
     signatureSession.setVerificationCode("12345");
     byte[] signedFile = "signed content".getBytes();
 

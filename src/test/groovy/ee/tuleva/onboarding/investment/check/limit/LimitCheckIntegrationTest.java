@@ -58,7 +58,7 @@ class LimitCheckIntegrationTest {
   void tuk75MatchesSpreadsheetCalculations() {
     insertTuk75Data();
 
-    var results = limitCheckService.runChecks();
+    var results = limitCheckService.runChecks().results();
 
     var tuk75 = results.stream().filter(r -> r.fund() == TUK75).findFirst().orElseThrow();
 
@@ -137,7 +137,7 @@ class LimitCheckIntegrationTest {
   void tuk00IndexGroupAggregation() {
     insertTuk00Data();
 
-    var results = limitCheckService.runChecks();
+    var results = limitCheckService.runChecks().results();
 
     var tuk00 = results.stream().filter(r -> r.fund() == TUK00).findFirst().orElseThrow();
 
@@ -173,7 +173,7 @@ class LimitCheckIntegrationTest {
   void theTwoXtrackersIssuersAreCheckedSeparately() {
     insertTkf100XtrackersData();
 
-    var results = limitCheckService.runChecks();
+    var results = limitCheckService.runChecks().results();
 
     var tkf100 = results.stream().filter(r -> r.fund() == TKF100).findFirst().orElseThrow();
 
@@ -191,8 +191,8 @@ class LimitCheckIntegrationTest {
   void rerunReplacesExistingEventsInsteadOfCreatingDuplicates() {
     insertTuk75Data();
 
-    limitCheckService.runChecks();
-    limitCheckService.runChecks();
+    limitCheckService.runChecks().results();
+    limitCheckService.runChecks().results();
 
     var events = limitCheckEventRepository.findByFundAndCheckDate(TUK75, NAV_DATE);
     assertThat(events).hasSize(4);
@@ -207,7 +207,7 @@ class LimitCheckIntegrationTest {
     insertTuk75Data();
     insertUnpublishedNavReportUnits("TUK75", NAV_DATE, 99_000_000);
 
-    var results = limitCheckService.runChecks();
+    var results = limitCheckService.runChecks().results();
     var tuk75 = results.stream().filter(r -> r.fund() == TUK75).findFirst().orElseThrow();
 
     var dwBreach =
@@ -222,7 +222,7 @@ class LimitCheckIntegrationTest {
   void denominatorUsesTotalFundNavNotSecuritiesOnly() {
     insertTuk75Data();
 
-    var results = limitCheckService.runChecks();
+    var results = limitCheckService.runChecks().results();
     var tuk75 = results.stream().filter(r -> r.fund() == TUK75).findFirst().orElseThrow();
 
     // If we incorrectly used securities-only NAV (9_978_000), the % would be:

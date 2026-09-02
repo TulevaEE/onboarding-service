@@ -40,33 +40,37 @@ class LimitCheckService {
   private final ProviderLimitRepository providerLimitRepository;
   private final FundLimitRepository fundLimitRepository;
   private final ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
-  private final LimitCheckEventRepository limitCheckEventRepository;
+  private final LimitCheckEventWriter limitCheckEventWriter;
   private final PositionLimitChecker positionLimitChecker;
   private final ProviderLimitChecker providerLimitChecker;
   private final ReserveLimitChecker reserveLimitChecker;
   private final FreeCashLimitChecker freeCashLimitChecker;
   private final TransactionOrderRepository transactionOrderRepository;
 
-  List<LimitCheckResult> runChecks() {
+  LimitCheckRun runChecks() {
     return runChecksForFunds(List.of(TulevaFund.values()));
   }
 
-  List<LimitCheckResult> runChecksForFunds(List<TulevaFund> funds) {
+  LimitCheckRun runChecksForFunds(List<TulevaFund> funds) {
     return runChecksForFundsAsOf(funds, LocalDate.now(clock));
   }
 
-  List<LimitCheckResult> runChecksAsOf(LocalDate asOfDate) {
+  LimitCheckRun runChecksAsOf(LocalDate asOfDate) {
     return runChecksForFundsAsOf(List.of(TulevaFund.values()), asOfDate);
   }
 
-  List<LimitCheckResult> runChecksForFundsAsOf(List<TulevaFund> funds, LocalDate asOfDate) {
+  LimitCheckRun runChecksForFundsAsOf(List<TulevaFund> funds, LocalDate asOfDate) {
     var results = new ArrayList<LimitCheckResult>();
+    var notChecked = new ArrayList<TulevaFund>();
     var errors = new ArrayList<Exception>();
 
     for (var fund : funds) {
       var latestDate = fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, asOfDate);
       if (latestDate.isEmpty()) {
+        // Reported, not just logged: no position data means the fund was never looked at, and a
+        // run that lists only its results reads as "within limits" for the funds it skipped.
         log.warn("No position data for fund: fund={}, asOfDate={}", fund, asOfDate);
+        notChecked.add(fund);
         continue;
       }
 
@@ -76,19 +80,21 @@ class LimitCheckService {
         results.add(result);
       } catch (Exception e) {
         log.error("Limit check failed: fund={}, checkDate={}", fund, checkDate, e);
+        notChecked.add(fund);
         errors.add(e);
       }
     }
 
+    var run = new LimitCheckRun(List.copyOf(results), List.copyOf(notChecked));
     if (!errors.isEmpty()) {
       var combined =
           new LimitCheckPartialFailureException(
-              "Limit check failed for %d fund(s)".formatted(errors.size()), results);
+              "Limit check failed for %d fund(s)".formatted(errors.size()), run);
       errors.forEach(combined::addSuppressed);
       throw combined;
     }
 
-    return results;
+    return run;
   }
 
   List<LimitCheckResult> backfillChecks(int daysBack) {
@@ -98,10 +104,9 @@ class LimitCheckService {
     for (int i = daysBack; i >= 0; i--) {
       var asOfDate = today.minusDays(i);
       try {
-        var results = runChecksAsOf(asOfDate);
-        allResults.addAll(results);
+        allResults.addAll(runChecksAsOf(asOfDate).results());
       } catch (LimitCheckPartialFailureException e) {
-        allResults.addAll(e.getPartialResults());
+        allResults.addAll(e.getPartialRun().results());
       }
     }
 
@@ -148,10 +153,14 @@ class LimitCheckService {
     var freeCashBreach =
         freeCashLimitChecker.check(fund, cashTotal, liabilityTotal, pendingCashImpact, fundLimit);
 
-    saveEvent(fund, checkDate, POSITION, positionBreaches);
-    saveEvent(fund, checkDate, PROVIDER, providerBreaches);
-    saveEvent(fund, checkDate, RESERVE, reserveBreach);
-    saveEvent(fund, checkDate, FREE_CASH, freeCashBreach);
+    limitCheckEventWriter.replaceEvents(
+        fund,
+        checkDate,
+        List.of(
+            event(fund, checkDate, POSITION, positionBreaches),
+            event(fund, checkDate, PROVIDER, providerBreaches),
+            event(fund, checkDate, RESERVE, reserveBreach),
+            event(fund, checkDate, FREE_CASH, freeCashBreach)));
 
     return new LimitCheckResult(
         fund, checkDate, positionBreaches, providerBreaches, reserveBreach, freeCashBreach);
@@ -221,7 +230,7 @@ class LimitCheckService {
     return merged;
   }
 
-  private void saveEvent(
+  private LimitCheckEvent event(
       TulevaFund fund, LocalDate checkDate, CheckType checkType, List<?> breaches) {
     var hasBreaches =
         breaches.stream()
@@ -232,15 +241,15 @@ class LimitCheckService {
                   return false;
                 });
 
-    replaceEvent(fund, checkDate, checkType, hasBreaches, Map.of("breaches", breaches));
+    return event(fund, checkDate, checkType, hasBreaches, Map.of("breaches", breaches));
   }
 
-  private void saveEvent(
+  private LimitCheckEvent event(
       TulevaFund fund,
       LocalDate checkDate,
       CheckType checkType,
       @org.jspecify.annotations.Nullable ReserveBreach breach) {
-    replaceEvent(
+    return event(
         fund,
         checkDate,
         checkType,
@@ -248,12 +257,12 @@ class LimitCheckService {
         breach != null ? Map.of("breach", breach) : Map.of());
   }
 
-  private void saveEvent(
+  private LimitCheckEvent event(
       TulevaFund fund,
       LocalDate checkDate,
       CheckType checkType,
       @org.jspecify.annotations.Nullable FreeCashBreach breach) {
-    replaceEvent(
+    return event(
         fund,
         checkDate,
         checkType,
@@ -261,20 +270,18 @@ class LimitCheckService {
         breach != null ? Map.of("breach", breach) : Map.of());
   }
 
-  private void replaceEvent(
+  private LimitCheckEvent event(
       TulevaFund fund,
       LocalDate checkDate,
       CheckType checkType,
       boolean breachesFound,
       Map<String, Object> result) {
-    limitCheckEventRepository.deleteByFundAndCheckDateAndCheckType(fund, checkDate, checkType);
-    limitCheckEventRepository.save(
-        LimitCheckEvent.builder()
-            .fund(fund)
-            .checkDate(checkDate)
-            .checkType(checkType)
-            .breachesFound(breachesFound)
-            .result(result)
-            .build());
+    return LimitCheckEvent.builder()
+        .fund(fund)
+        .checkDate(checkDate)
+        .checkType(checkType)
+        .breachesFound(breachesFound)
+        .result(result)
+        .build();
   }
 }

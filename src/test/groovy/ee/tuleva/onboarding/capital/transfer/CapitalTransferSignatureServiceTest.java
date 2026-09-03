@@ -23,6 +23,7 @@ import ee.tuleva.onboarding.signature.MobileSignatureResponse;
 import ee.tuleva.onboarding.signature.MobileSignatureStatusResponse;
 import ee.tuleva.onboarding.signature.SignatureFile;
 import ee.tuleva.onboarding.signature.SignatureService;
+import ee.tuleva.onboarding.signature.SignatureStateException;
 import ee.tuleva.onboarding.signature.SignatureStatus;
 import ee.tuleva.onboarding.signature.SmartIdSignatureSession;
 import ee.tuleva.onboarding.signature.StartIdCardSignCommand;
@@ -51,7 +52,7 @@ class CapitalTransferSignatureServiceTest {
   @Test
   void startSmartIdSignature_startsSignatureSession() {
     // given
-    Long contractId = 1L;
+    long contractId = 1L;
     User user = sampleUser().build();
     AuthenticatedPerson authenticatedPerson = authenticatedPersonFromUser(user).build();
 
@@ -79,7 +80,7 @@ class CapitalTransferSignatureServiceTest {
   @Test
   void getSmartIdSignatureStatus_returnsSignatureWhenFileIsSigned() {
     // given
-    Long contractId = 1L;
+    long contractId = 1L;
     User user = sampleUser().build();
     AuthenticatedPerson authenticatedPerson = authenticatedPersonFromUser(user).build();
 
@@ -113,7 +114,7 @@ class CapitalTransferSignatureServiceTest {
   @Test
   void getSmartIdSignatureStatus_returnsOutstandingTransactionWhenFileNotSigned() {
     // given
-    Long contractId = 1L;
+    long contractId = 1L;
     User user = sampleUser().build();
     AuthenticatedPerson authenticatedPerson = authenticatedPersonFromUser(user).build();
 
@@ -145,7 +146,7 @@ class CapitalTransferSignatureServiceTest {
   @Test
   void getSmartIdSignatureStatus_throwsExceptionWhenSessionNotFound() {
     // given
-    Long contractId = 1L;
+    long contractId = 1L;
     User user = sampleUser().build();
     AuthenticatedPerson authenticatedPerson = authenticatedPersonFromUser(user).build();
 
@@ -160,7 +161,7 @@ class CapitalTransferSignatureServiceTest {
   @Test
   void getSmartIdSignatureStatus_signsByBuyerWhenSellerAlreadySigned() {
     // given
-    Long contractId = 1L;
+    long contractId = 1L;
     User user = sampleUser().build();
     AuthenticatedPerson authenticatedPerson = authenticatedPersonFromUser(user).build();
 
@@ -205,7 +206,7 @@ class CapitalTransferSignatureServiceTest {
   @Test
   void getSmartIdSignatureStatus_throwsExceptionWhenCannotSignInCurrentState() {
     // given
-    Long contractId = 1L;
+    long contractId = 1L;
     User user = sampleUser().build();
     AuthenticatedPerson authenticatedPerson = authenticatedPersonFromUser(user).build();
 
@@ -236,7 +237,7 @@ class CapitalTransferSignatureServiceTest {
   @Test
   void startIdCardSignature_startsIdCardSignatureSession() {
     // given
-    Long contractId = 1L;
+    long contractId = 1L;
     User user = sampleUser().build();
     AuthenticatedPerson authenticatedPerson = authenticatedPersonFromUser(user).build();
 
@@ -264,7 +265,7 @@ class CapitalTransferSignatureServiceTest {
 
   @Test
   void persistIdCardSignature_signsTheContractAndReturnsSignature() {
-    Long contractId = 1L;
+    long contractId = 1L;
     User user = sampleUser().build();
     AuthenticatedPerson authenticatedPerson = authenticatedPersonFromUser(user).build();
     FinishIdCardSignCommand command = new FinishIdCardSignCommand("signature");
@@ -305,7 +306,7 @@ class CapitalTransferSignatureServiceTest {
 
   @Test
   void getIdCardSignatureStatus_isSignatureOnceTheUserHasSigned() {
-    Long contractId = 1L;
+    long contractId = 1L;
     User user = sampleUser().build();
     AuthenticatedPerson authenticatedPerson = authenticatedPersonFromUser(user).build();
     Member seller = memberFixture().user(user).build();
@@ -326,7 +327,7 @@ class CapitalTransferSignatureServiceTest {
 
   @Test
   void getIdCardSignatureStatus_rejectsAContractTheUserHasNotSignedYet() {
-    Long contractId = 1L;
+    long contractId = 1L;
     User user = sampleUser().build();
     AuthenticatedPerson authenticatedPerson = authenticatedPersonFromUser(user).build();
     Member seller = memberFixture().user(user).build();
@@ -341,13 +342,13 @@ class CapitalTransferSignatureServiceTest {
 
     assertThatThrownBy(
             () -> signatureService.getIdCardSignatureStatus(contractId, authenticatedPerson))
-        .isInstanceOf(IllegalStateException.class);
+        .isInstanceOf(SignatureStateException.class);
   }
 
   @Test
   void startMobileIdSignature_startsMobileIdSignatureSession() {
     // given
-    Long contractId = 1L;
+    long contractId = 1L;
     String phoneNumber = "+37255555555";
     User user = sampleUser().build();
     AuthenticatedPerson authenticatedPerson =
@@ -377,7 +378,7 @@ class CapitalTransferSignatureServiceTest {
   @Test
   void getMobileIdSignatureStatus_returnsSignatureWhenFileIsSigned() {
     // given
-    Long contractId = 1L;
+    long contractId = 1L;
     User user = sampleUser().build();
     AuthenticatedPerson authenticatedPerson = authenticatedPersonFromUser(user).build();
 
@@ -411,7 +412,7 @@ class CapitalTransferSignatureServiceTest {
   @Test
   void getMobileIdSignatureStatus_returnsOutstandingTransactionWhenFileNotSigned() {
     // given
-    Long contractId = 1L;
+    long contractId = 1L;
     User user = sampleUser().build();
     AuthenticatedPerson authenticatedPerson = authenticatedPersonFromUser(user).build();
 

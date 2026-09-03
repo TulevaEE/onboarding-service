@@ -15,6 +15,7 @@ import ee.tuleva.onboarding.signature.MobileSignatureResponse;
 import ee.tuleva.onboarding.signature.MobileSignatureStatusResponse;
 import ee.tuleva.onboarding.signature.SignatureFile;
 import ee.tuleva.onboarding.signature.SignatureService;
+import ee.tuleva.onboarding.signature.SignatureStateException;
 import ee.tuleva.onboarding.signature.SignatureStatus;
 import ee.tuleva.onboarding.signature.SmartIdSignatureSession;
 import ee.tuleva.onboarding.signature.StartIdCardSignCommand;
@@ -114,8 +115,7 @@ public class CapitalTransferSignatureService {
     CapitalTransferContract contract = contractService.getContract(contractId, user);
 
     if (!contract.isSignedBy(user)) {
-      throw new IllegalStateException(
-          "Capital transfer contract is not signed: contractId=" + contractId);
+      throw SignatureStateException.notSigned("Capital transfer contract", contractId);
     }
     return new IdCardSignatureStatusResponse(SignatureStatus.SIGNATURE);
   }

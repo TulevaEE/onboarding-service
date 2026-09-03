@@ -24,6 +24,7 @@ import ee.tuleva.onboarding.signature.IdCardSignatureSession;
 import ee.tuleva.onboarding.signature.MobileIdSignatureSession;
 import ee.tuleva.onboarding.signature.SignatureFile;
 import ee.tuleva.onboarding.signature.SignatureService;
+import ee.tuleva.onboarding.signature.SignatureStateException;
 import ee.tuleva.onboarding.signature.SignatureStatus;
 import ee.tuleva.onboarding.signature.SmartIdSignatureSession;
 import ee.tuleva.onboarding.user.User;
@@ -154,7 +155,7 @@ public class MandateService {
     Mandate mandate = mandateRepository.findByIdAndUserId(mandateId, userId);
 
     if (mandate.isSigned()) {
-      throw new IllegalStateException("Mandate is already signed: mandateId=" + mandateId);
+      throw SignatureStateException.alreadySigned("Mandate", mandateId);
     }
     return getStatus(user, mandate, signService.getSignedFile(session, signature));
   }
@@ -164,7 +165,7 @@ public class MandateService {
     Mandate mandate = mandateRepository.findByIdAndUserId(mandateId, userId);
 
     if (!mandate.isSigned()) {
-      throw new IllegalStateException("Mandate is not signed: mandateId=" + mandateId);
+      throw SignatureStateException.notSigned("Mandate", mandateId);
     }
     return handleSignedMandate(user, mandate, locale);
   }

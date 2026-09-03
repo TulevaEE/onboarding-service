@@ -81,34 +81,42 @@ public class CapitalTransferSignatureService {
     List<SignatureFile> files = contractService.getSignatureFiles(contractId, user);
 
     IdCardSignatureSession signatureSession =
-        signService.startIdCardSign(files, signCommand.clientCertificate());
+        signService.startIdCardSign(files, signCommand.certificate());
 
     sessionStore.save(signatureSession);
 
-    return new IdCardSignatureResponse(signatureSession.getHashToSignInHex());
+    return IdCardSignatureResponse.from(signatureSession);
   }
 
-  public IdCardSignatureStatusResponse persistIdCardSignedHashAndGetProcessingStatus(
+  public IdCardSignatureStatusResponse persistIdCardSignature(
       Long contractId,
       FinishIdCardSignCommand signCommand,
       AuthenticatedPerson authenticatedPerson) {
 
-    Optional<IdCardSignatureSession> signatureSession =
-        sessionStore.get(IdCardSignatureSession.class);
     IdCardSignatureSession session =
-        signatureSession.orElseThrow(IdSessionException::cardSignatureSessionNotFound);
+        sessionStore
+            .get(IdCardSignatureSession.class)
+            .orElseThrow(IdSessionException::cardSignatureSessionNotFound);
 
     User user = userService.getByIdOrThrow(authenticatedPerson.getUserIdOrThrow());
     CapitalTransferContract contract = contractService.getContract(contractId, user);
 
-    byte[] signedFile = signService.getSignedFile(session, signCommand.signedHash());
+    byte[] signedFile = signService.getSignedFile(session, signCommand.signature());
+    finalizeSignature(contract, user, signedFile);
 
-    if (signedFile != null) {
-      finalizeSignature(contract, user, signedFile);
-      return new IdCardSignatureStatusResponse(SignatureStatus.SIGNATURE);
-    }
+    return new IdCardSignatureStatusResponse(SignatureStatus.SIGNATURE);
+  }
 
-    return new IdCardSignatureStatusResponse(SignatureStatus.OUTSTANDING_TRANSACTION);
+  public IdCardSignatureStatusResponse getIdCardSignatureStatus(
+      Long contractId, AuthenticatedPerson authenticatedPerson) {
+
+    User user = userService.getByIdOrThrow(authenticatedPerson.getUserIdOrThrow());
+    CapitalTransferContract contract = contractService.getContract(contractId, user);
+
+    return new IdCardSignatureStatusResponse(
+        contract.isSignedBy(user)
+            ? SignatureStatus.SIGNATURE
+            : SignatureStatus.OUTSTANDING_TRANSACTION);
   }
 
   public MobileSignatureResponse startMobileIdSignature(

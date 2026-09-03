@@ -165,35 +165,32 @@ public class MandateBatchService {
     return persistSignedFileIfPresentAndStartProcessing(user, mandateBatch, signedFile, locale);
   }
 
-  private SignatureStatus persistFileSignedWithIdCard(
-      User user,
-      MandateBatch mandateBatch,
-      IdCardSignatureSession session,
-      String signedHashInHex,
-      Locale locale) {
-    byte[] signedFile = signService.getSignedFile(session, signedHashInHex);
-
-    if (signedFile == null) { // TODO: use Optional
-      throw new IllegalStateException("There is no signed file to persist");
-    }
-
-    return persistSignedFileIfPresentAndStartProcessing(
-        user, mandateBatch, Optional.of(signedFile), locale);
-  }
-
-  public SignatureStatus persistIdCardSignedFileOrGetBatchProcessingStatus(
+  public SignatureStatus persistIdCardSignature(
       Long userId,
       Long mandateBatchId,
       IdCardSignatureSession session,
-      String signedHashInHex,
+      String signature,
       Locale locale) {
     User user = userService.getById(userId).orElseThrow();
     MandateBatch mandateBatch = getByIdAndUser(mandateBatchId, user).orElseThrow();
 
-    if (!mandateBatch.isSigned()) {
-      return persistFileSignedWithIdCard(user, mandateBatch, session, signedHashInHex, locale);
+    if (mandateBatch.isSigned()) {
+      throw new IllegalStateException(
+          "Mandate batch is already signed: mandateBatchId=" + mandateBatchId);
     }
+    byte[] signedFile = signService.getSignedFile(session, signature);
+    return persistSignedFileIfPresentAndStartProcessing(
+        user, mandateBatch, Optional.of(signedFile), locale);
+  }
 
+  public SignatureStatus getIdCardSignatureStatus(Long userId, Long mandateBatchId, Locale locale) {
+    User user = userService.getById(userId).orElseThrow();
+    MandateBatch mandateBatch = getByIdAndUser(mandateBatchId, user).orElseThrow();
+
+    if (!mandateBatch.isSigned()) {
+      throw new IllegalStateException(
+          "Mandate batch is not signed: mandateBatchId=" + mandateBatchId);
+    }
     return getBatchProcessingStatusAndHandleIfProcessed(user, mandateBatch, locale);
   }
 

@@ -17,6 +17,8 @@ import org.springframework.test.web.servlet.MvcResult
 
 import static ee.tuleva.onboarding.auth.mobileid.MobileIDSession.PHONE_NUMBER
 import static ee.tuleva.onboarding.mandate.MandateFixture.*
+import static ee.tuleva.onboarding.signature.SignatureStatus.OUTSTANDING_TRANSACTION
+import static ee.tuleva.onboarding.signature.SignatureStatus.SIGNATURE
 import static java.util.Locale.ENGLISH
 import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
@@ -126,34 +128,47 @@ class MandateControllerSpec extends BaseControllerSpec {
         .andExpect(jsonPath('$.challengeCode', is("1234")))
   }
 
-  def "id card signature start returns the hash to be signed by the client"() {
+  def "id card signature start returns the hash to sign and its hash function"() {
     when:
-    def session = IdCardSignatureSession.builder().hashToSignInHex("asdfg").build()
-    mandateService.idCardSign(1L, _, "clientCertificate") >> session
+    def session = IdCardSignatureSession.builder().hashToSign("asdfg").hashFunction("SHA-256").build()
+    mandateService.idCardSign(1L, _, "certificate") >> session
     1 * sessionStore.save(session)
 
     then:
     mvc
         .perform(put("/v1/mandates/1/signature/id-card")
-            .content(mapper.writeValueAsString(sampleStartIdCardSignCommand("clientCertificate")))
+            .content(mapper.writeValueAsString(sampleStartIdCardSignCommand("certificate")))
             .contentType(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath('$.hash', is("asdfg")))
+        .andExpect(jsonPath('$.hashFunction', is("SHA-256")))
   }
 
-  def "put ID card signature status returns the status code"() {
+  def "persisting the id card signature returns the processing status"() {
     when:
     def session = IdCardSignatureSession.builder().build()
     sessionStore.get(IdCardSignatureSession) >> Optional.of(session)
-    localeService.getCurrentLocale() >> ENGLISH
-    mandateService.finalizeIdCardSignature(_ as Long, 1L, session, "signedHash", ENGLISH) >> "SIGNATURE"
+    mandateService.persistIdCardSignature(_ as Long, 1L, session, "signature") >> OUTSTANDING_TRANSACTION
 
     then:
     mvc
-        .perform(put("/v1/mandates/1/signature/id-card/status")
-            .content(mapper.writeValueAsString(sampleFinishIdCardSignCommand("signedHash")))
+        .perform(put("/v1/mandates/1/signature/id-card/signature")
+            .content(mapper.writeValueAsString(sampleFinishIdCardSignCommand("signature")))
             .contentType(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath('$.statusCode', is("OUTSTANDING_TRANSACTION")))
+  }
+
+  def "id card signature status returns the processing status"() {
+    when:
+    localeService.getCurrentLocale() >> ENGLISH
+    mandateService.getIdCardSignatureStatus(_ as Long, 1L, ENGLISH) >> SIGNATURE
+
+    then:
+    mvc
+        .perform(get("/v1/mandates/1/signature/id-card/status"))
         .andExpect(status().isOk())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath('$.statusCode', is("SIGNATURE")))

@@ -100,7 +100,7 @@ class CapitalTransferContractControllerTest {
                         new BigDecimal("1.0"))))
             .build();
 
-    User sellerUser = sampleUser().id(1L).personalCode("37605030299").build();
+    User sellerUser = sampleUser().id(1L).personalCode("30303039816").build();
     Member sellerMember = memberFixture().id(1L).user(sellerUser).memberNumber(1001).build();
     User buyerUser = sampleUser().id(2L).personalCode("60001019906").build();
     Member buyerMember = memberFixture().id(2L).user(buyerUser).memberNumber(1002).build();
@@ -145,7 +145,7 @@ class CapitalTransferContractControllerTest {
   void getContract_returns_contract_by_id() throws Exception {
     // given
     Long contractId = 1L;
-    User sellerUser = sampleUser().id(1L).personalCode("37605030299").build();
+    User sellerUser = sampleUser().id(1L).personalCode("30303039816").build();
     Member sellerMember = memberFixture().id(1L).user(sellerUser).memberNumber(1001).build();
     User buyerUser = sampleUser().id(2L).personalCode("60001019906").build();
     Member buyerMember = memberFixture().id(2L).user(buyerUser).memberNumber(1002).build();
@@ -177,7 +177,7 @@ class CapitalTransferContractControllerTest {
   void getContracts_returns_my_contracts() throws Exception {
     // given
     Long contractId = 1L;
-    User sellerUser = sampleUser().id(1L).personalCode("37605030299").build();
+    User sellerUser = sampleUser().id(1L).personalCode("30303039816").build();
     Member sellerMember = memberFixture().id(1L).user(sellerUser).memberNumber(1001).build();
     User buyerUser = sampleUser().id(2L).personalCode("60001019906").build();
     Member buyerMember = memberFixture().id(2L).user(buyerUser).memberNumber(1002).build();
@@ -211,7 +211,7 @@ class CapitalTransferContractControllerTest {
         new UpdateCapitalTransferContractStateCommand();
     command.setState(PAYMENT_CONFIRMED_BY_BUYER);
 
-    User sellerUser = sampleUser().id(1L).personalCode("37605030299").build();
+    User sellerUser = sampleUser().id(1L).personalCode("30303039816").build();
     Member sellerMember = memberFixture().id(1L).user(sellerUser).memberNumber(1001).build();
     User buyerUser = sampleUser().id(2L).personalCode("60001019906").build();
     Member buyerMember = memberFixture().id(2L).user(buyerUser).memberNumber(1002).build();
@@ -251,7 +251,7 @@ class CapitalTransferContractControllerTest {
         new UpdateCapitalTransferContractStateCommand();
     command.setState(CapitalTransferContractState.PAYMENT_CONFIRMED_BY_SELLER);
 
-    User sellerUser = sampleUser().id(1L).personalCode("37605030299").build();
+    User sellerUser = sampleUser().id(1L).personalCode("30303039816").build();
     Member sellerMember = memberFixture().id(1L).user(sellerUser).memberNumber(1001).build();
     User buyerUser = sampleUser().id(2L).personalCode("60001019906").build();
     Member buyerMember = memberFixture().id(2L).user(buyerUser).memberNumber(1002).build();
@@ -288,7 +288,7 @@ class CapitalTransferContractControllerTest {
     // given
     Long contractId = 1L;
 
-    User user = sampleUser().id(1L).personalCode("37605030299").build();
+    User user = sampleUser().id(1L).personalCode("30303039816").build();
     AuthenticatedPerson authenticatedPerson = authenticatedPersonFromUser(user).build();
 
     Authentication authentication =
@@ -317,7 +317,7 @@ class CapitalTransferContractControllerTest {
   void getSmartIdSignatureStatus_returns_signature_status() throws Exception {
     // given
     Long contractId = 1L;
-    User user = sampleUser().id(1L).personalCode("37605030299").build();
+    User user = sampleUser().id(1L).personalCode("30303039816").build();
     AuthenticatedPerson authenticatedPerson = authenticatedPersonFromUser(user).build();
 
     Authentication authentication =
@@ -347,7 +347,7 @@ class CapitalTransferContractControllerTest {
   void startIdCardSignature_initiates_id_card_signature_process() throws Exception {
     // given
     Long contractId = 1L;
-    User user = sampleUser().id(1L).personalCode("37605030299").build();
+    User user = sampleUser().id(1L).personalCode("30303039816").build();
     AuthenticatedPerson authenticatedPerson = authenticatedPersonFromUser(user).build();
 
     Authentication authentication =
@@ -355,7 +355,7 @@ class CapitalTransferContractControllerTest {
 
     StartIdCardSignCommand command = new StartIdCardSignCommand("test-certificate");
 
-    IdCardSignatureResponse response = new IdCardSignatureResponse("hash-to-sign");
+    IdCardSignatureResponse response = new IdCardSignatureResponse("hash-to-sign", "SHA-256");
 
     given(
             signatureService.startIdCardSignature(
@@ -372,7 +372,8 @@ class CapitalTransferContractControllerTest {
                 .with(csrf())
                 .with(authentication(authentication)))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.hash", is("hash-to-sign")));
+        .andExpect(jsonPath("$.hash", is("hash-to-sign")))
+        .andExpect(jsonPath("$.hashFunction", is("SHA-256")));
 
     verify(signatureService)
         .startIdCardSignature(
@@ -382,49 +383,56 @@ class CapitalTransferContractControllerTest {
   }
 
   @Test
-  void persistIdCardSignedHashOrGetSignatureStatus_returns_signature_status() throws Exception {
-    // given
+  void persistIdCardSignature_returns_signature_status() throws Exception {
     Long contractId = 1L;
-    User user = sampleUser().id(1L).personalCode("37605030299").build();
+    User user = sampleUser().id(1L).personalCode("30303039816").build();
     AuthenticatedPerson authenticatedPerson = authenticatedPersonFromUser(user).build();
-
     Authentication authentication =
         new UsernamePasswordAuthenticationToken(authenticatedPerson, null, Collections.emptyList());
-
-    FinishIdCardSignCommand command = new FinishIdCardSignCommand("signed-hash");
-
-    IdCardSignatureStatusResponse response =
-        new IdCardSignatureStatusResponse(SignatureStatus.SIGNATURE);
+    FinishIdCardSignCommand command = new FinishIdCardSignCommand("signature");
 
     given(
-            signatureService.persistIdCardSignedHashAndGetProcessingStatus(
+            signatureService.persistIdCardSignature(
                 Mockito.eq(contractId),
-                Mockito.any(FinishIdCardSignCommand.class),
+                Mockito.eq(command),
                 Mockito.any(AuthenticatedPerson.class)))
-        .willReturn(response);
+        .willReturn(new IdCardSignatureStatusResponse(SignatureStatus.SIGNATURE));
 
-    // when, then
     mvc.perform(
-            put("/v1/capital-transfer-contracts/{id}/signature/id-card/status", contractId)
+            put("/v1/capital-transfer-contracts/{id}/signature/id-card/signature", contractId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(command))
                 .with(csrf())
                 .with(authentication(authentication)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.statusCode", is("SIGNATURE")));
+  }
 
-    verify(signatureService)
-        .persistIdCardSignedHashAndGetProcessingStatus(
-            Mockito.eq(contractId),
-            Mockito.any(FinishIdCardSignCommand.class),
-            Mockito.any(AuthenticatedPerson.class));
+  @Test
+  void getIdCardSignatureStatus_returns_signature_status() throws Exception {
+    Long contractId = 1L;
+    User user = sampleUser().id(1L).personalCode("30303039816").build();
+    AuthenticatedPerson authenticatedPerson = authenticatedPersonFromUser(user).build();
+    Authentication authentication =
+        new UsernamePasswordAuthenticationToken(authenticatedPerson, null, Collections.emptyList());
+
+    given(
+            signatureService.getIdCardSignatureStatus(
+                Mockito.eq(contractId), Mockito.any(AuthenticatedPerson.class)))
+        .willReturn(new IdCardSignatureStatusResponse(SignatureStatus.OUTSTANDING_TRANSACTION));
+
+    mvc.perform(
+            get("/v1/capital-transfer-contracts/{id}/signature/id-card/status", contractId)
+                .with(authentication(authentication)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.statusCode", is("OUTSTANDING_TRANSACTION")));
   }
 
   @Test
   void startMobileIdSignature_initiates_mobile_id_signature_process() throws Exception {
     // given
     Long contractId = 1L;
-    User user = sampleUser().id(1L).personalCode("37605030299").build();
+    User user = sampleUser().id(1L).personalCode("30303039816").build();
     AuthenticatedPerson authenticatedPerson = authenticatedPersonFromUser(user).build();
 
     Authentication authentication =
@@ -453,7 +461,7 @@ class CapitalTransferContractControllerTest {
   void getMobileIdSignatureStatus_returns_mobile_id_signature_status() throws Exception {
     // given
     Long contractId = 1L;
-    User user = sampleUser().id(1L).personalCode("37605030299").build();
+    User user = sampleUser().id(1L).personalCode("30303039816").build();
     AuthenticatedPerson authenticatedPerson = authenticatedPersonFromUser(user).build();
 
     Authentication authentication =

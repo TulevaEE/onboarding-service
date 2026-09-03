@@ -136,18 +136,16 @@ class BreachMessageFormatter {
     sb.append("\n    actual closing       %s".formatted(formatEur(flow.closingNetAssets())));
     sb.append(
         "\n    UNEXPLAINED          %s  (%s%% of opening)"
-            .formatted(formatEur(flow.unexplained()), formatPercent(navResidualOrZero())));
+            .formatted(
+                formatEur(flow.unexplained()),
+                formatPercent(
+                    flow.unexplained().divide(flow.openingNetAssets(), 6, RoundingMode.HALF_UP))));
     if (!flow.securityQuantitiesChanged()) {
       sb.append("\n    No security quantity changed, so trading cannot explain this.");
     }
     if (flow.marketPnl().signum() == 0) {
       sb.append("\n    No holding moved in price either.");
     }
-  }
-
-  private BigDecimal navResidualOrZero() {
-    var navResidual = result.navResidual();
-    return navResidual == null ? BigDecimal.ZERO : navResidual;
   }
 
   private void appendRedemptionCycleSection() {

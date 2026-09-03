@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.auth;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.FORBIDDEN;
 import static org.springframework.http.HttpStatus.OK;
+import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 import ee.tuleva.onboarding.auth.idcard.exception.IdCardSessionNotFoundException;
@@ -22,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.ResponseEntity;
+import org.springframework.resilience.InvocationRejectedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -54,6 +56,15 @@ public class AuthErrorHandler {
     return new ResponseEntity<>(
         ErrorsResponse.ofSingleError("id.card.document.type.not.allowed", exception.getMessage()),
         BAD_REQUEST);
+  }
+
+  @ExceptionHandler(InvocationRejectedException.class)
+  public ResponseEntity<ErrorsResponse> handleTooManyLogins(InvocationRejectedException exception) {
+    log.warn("Login rejected because too many are already in flight: {}", exception.getMessage());
+    return new ResponseEntity<>(
+        ErrorsResponse.ofSingleError(
+            "auth.too.many.requests", "Too many logins are being started right now."),
+        TOO_MANY_REQUESTS);
   }
 
   @ExceptionHandler(AuthNotCompleteException.class)

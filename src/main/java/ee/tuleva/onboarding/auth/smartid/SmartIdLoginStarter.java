@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.auth.smartid;
 
 import static ee.sk.smartid.AuthenticationCertificateLevel.QUALIFIED;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdLoginError.TECHNICAL_ERROR;
+import static org.springframework.resilience.annotation.ConcurrencyLimit.ThrottlePolicy.REJECT;
 
 import ee.sk.smartid.RpChallenge;
 import ee.sk.smartid.RpChallengeGenerator;
@@ -19,6 +20,7 @@ import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
+import org.springframework.resilience.annotation.ConcurrencyLimit;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -26,12 +28,18 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class SmartIdLoginStarter {
 
+  static final int CONCURRENT_LOGIN_STARTS = 20;
+
   private static final String LOGIN_PROMPT = "Log in to Tuleva?";
 
   private final SmartIdClient smartIdClient;
   private final SmartIdProperties properties;
   private final Clock clock;
 
+  // Anyone can start this without authenticating, and every call creates a session at Smart-ID.
+  // SK identifies relying parties by IP address and relying party UUID, so a flood from one
+  // visitor would degrade logins for every Tuleva user; excess callers are turned away instead.
+  @ConcurrencyLimit(value = CONCURRENT_LOGIN_STARTS, policy = REJECT)
   public SmartIdSession startDeviceLinkLogin(@Nullable String language) {
     String deviceLinkLanguage = DeviceLinkLanguage.of(language);
     CallbackUrl callbackUrl = CallbackUrlUtil.createCallbackUrl(properties.callbackUrl());

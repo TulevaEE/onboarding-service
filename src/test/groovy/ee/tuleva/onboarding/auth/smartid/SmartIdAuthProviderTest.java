@@ -80,7 +80,7 @@ class SmartIdAuthProviderTest {
         .isInstanceOf(AuthNotCompleteException.class);
 
     verify(sessionStore).save(session);
-    verify(rememberedAccounts, never()).remember(aSmartIdPerson());
+    verify(rememberedAccounts, never()).remember(aSmartIdPerson(), true);
   }
 
   @Test
@@ -99,7 +99,7 @@ class SmartIdAuthProviderTest {
 
     assertThat(person).isEqualTo(expected);
     verify(sessionStore).save(session);
-    verify(rememberedAccounts).remember(aSmartIdPerson());
+    verify(rememberedAccounts).remember(aSmartIdPerson(), true);
   }
 
   @Test
@@ -113,7 +113,7 @@ class SmartIdAuthProviderTest {
     assertThatThrownBy(() -> provider.authenticate(null)).isInstanceOf(SmartIdException.class);
 
     verify(sessionStore).save(session);
-    verify(rememberedAccounts, never()).forget();
+    verify(rememberedAccounts, never()).forgetEverywhere();
   }
 
   @Test
@@ -126,7 +126,7 @@ class SmartIdAuthProviderTest {
 
     assertThatThrownBy(() -> provider.authenticate(null)).isInstanceOf(SmartIdException.class);
 
-    verify(rememberedAccounts).forget();
+    verify(rememberedAccounts).forgetEverywhere();
   }
 
   @Test
@@ -139,6 +139,6 @@ class SmartIdAuthProviderTest {
 
     assertThatThrownBy(() -> provider.authenticate(null)).isInstanceOf(SmartIdException.class);
 
-    verify(rememberedAccounts, never()).forget();
+    verify(rememberedAccounts, never()).forgetEverywhere();
   }
 }

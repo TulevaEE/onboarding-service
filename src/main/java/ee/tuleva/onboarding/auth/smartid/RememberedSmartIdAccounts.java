@@ -1,16 +1,18 @@
 package ee.tuleva.onboarding.auth.smartid;
 
-import static ee.tuleva.onboarding.auth.jwt.TokenType.REMEMBERED_SMART_ID_ACCOUNT;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.springframework.http.HttpHeaders.SET_COOKIE;
 
-import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.JwtException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.time.Clock;
 import java.time.Duration;
-import java.util.Map;
+import java.time.Instant;
+import java.util.Base64;
 import java.util.Objects;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
@@ -21,42 +23,89 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+/**
+ * Marks a browser that has completed a device link login, which is the only thing that may start a
+ * push login. The browser holds an unguessable token and nothing else; the account it stands for
+ * lives in the database, so the marker can be revoked and a copied cookie gives an attacker no
+ * personal data.
+ */
 @Component
 @Slf4j
 public class RememberedSmartIdAccounts {
 
-  static final String COOKIE_NAME = "SMART_ID_REMEMBERED_ACCOUNT";
-  private static final String DOCUMENT_NUMBER = "documentNumber";
-  private static final String FIRST_NAME = "firstName";
-  private static final String LAST_NAME = "lastName";
+  static final String COOKIE_NAME = "__Secure-SMART_ID_REMEMBERED_BROWSER";
+  private static final int TOKEN_BYTES = 32;
 
-  private final JwtTokenUtil jwtTokenUtil;
+  private final RememberedBrowsers browsers;
   private final Duration validity;
   private final @Nullable String cookieDomain;
+  private final Clock clock;
+  private final SecureRandom random = new SecureRandom();
 
   public RememberedSmartIdAccounts(
-      JwtTokenUtil jwtTokenUtil,
-      @Value("${smartid.remembered-account-validity:365d}") Duration validity,
-      @Value("${server.servlet.session.cookie.domain:#{null}}") @Nullable String cookieDomain) {
-    this.jwtTokenUtil = jwtTokenUtil;
+      RememberedBrowsers browsers,
+      @Value("${smartid.remembered-browser-validity:90d}") Duration validity,
+      @Value("${server.servlet.session.cookie.domain:#{null}}") @Nullable String cookieDomain,
+      Clock clock) {
+    this.browsers = browsers;
     this.validity = validity;
     this.cookieDomain = cookieDomain;
-  }
-
-  public void remember(SmartIdPerson person) {
-    String token =
-        jwtTokenUtil.generateToken(
-            REMEMBERED_SMART_ID_ACCOUNT,
-            person.getPersonalCode(),
-            Map.of(
-                DOCUMENT_NUMBER, person.getDocumentNumber(),
-                FIRST_NAME, person.getFirstName(),
-                LAST_NAME, person.getLastName()),
-            validity);
-    addCookie(cookie(token).maxAge(validity).build());
+    this.clock = clock;
   }
 
   public Optional<RememberedSmartIdAccount> current() {
+    return currentBrowser().map(RememberedBrowser::toAccount);
+  }
+
+  /**
+   * @param deviceLinkVerified whether the login just completed proved the person holds the device.
+   *     A push login carries the earlier verification forward rather than extending it, so the
+   *     browser has to verify again with a QR or same-device link once the validity runs out.
+   */
+  public void remember(SmartIdPerson person, boolean deviceLinkVerified) {
+    Instant verifiedAt =
+        deviceLinkVerified
+            ? Instant.now(clock)
+            : currentBrowser().map(RememberedBrowser::verifiedAt).orElse(Instant.now(clock));
+
+    cookieToken().ifPresent(token -> browsers.remove(hash(token)));
+
+    String token = newToken();
+    browsers.add(
+        hash(token),
+        new RememberedBrowser(
+            person.getPersonalCode(),
+            person.getDocumentNumber(),
+            person.getFirstName(),
+            person.getLastName(),
+            verifiedAt),
+        verifiedAt.plus(validity));
+    addCookie(
+        cookie(token).maxAge(Duration.between(Instant.now(clock), verifiedAt.plus(validity))));
+  }
+
+  /** Forgets this browser only, which is what a visitor saying it is not their account asks for. */
+  public void forget() {
+    cookieToken().ifPresent(token -> browsers.remove(hash(token)));
+    expireCookie();
+  }
+
+  /** Forgets every browser remembered for this person, for when the account itself is gone. */
+  public void forgetEverywhere() {
+    currentBrowser()
+        .ifPresent(
+            browser -> {
+              int forgotten = browsers.removeAllOf(browser.personalCode());
+              log.info("Forgot every remembered Smart-ID browser: forgotten={}", forgotten);
+            });
+    expireCookie();
+  }
+
+  private Optional<RememberedBrowser> currentBrowser() {
+    return cookieToken().flatMap(token -> browsers.findUnexpired(hash(token)));
+  }
+
+  private Optional<String> cookieToken() {
     Cookie[] cookies = currentRequest().getCookies();
     if (cookies == null) {
       return Optional.empty();
@@ -65,31 +114,29 @@ public class RememberedSmartIdAccounts {
       if (COOKIE_NAME.equals(cookie.getName())
           && cookie.getValue() != null
           && !cookie.getValue().isBlank()) {
-        return parse(cookie.getValue());
+        return Optional.of(cookie.getValue());
       }
     }
     return Optional.empty();
   }
 
-  public void forget() {
-    addCookie(cookie("").maxAge(0).build());
+  private String newToken() {
+    byte[] token = new byte[TOKEN_BYTES];
+    random.nextBytes(token);
+    return Base64.getUrlEncoder().withoutPadding().encodeToString(token);
   }
 
-  private Optional<RememberedSmartIdAccount> parse(String token) {
+  static String hash(String token) {
     try {
-      Claims claims = jwtTokenUtil.getClaimsFromToken(token, REMEMBERED_SMART_ID_ACCOUNT);
-      return Optional.of(
-          new RememberedSmartIdAccount(
-              claims.getSubject(),
-              claims.get(DOCUMENT_NUMBER, String.class),
-              claims.get(FIRST_NAME, String.class),
-              claims.get(LAST_NAME, String.class)));
-    } catch (JwtException | IllegalArgumentException e) {
-      log.info(
-          "Ignoring invalid remembered Smart-ID account cookie: reason={}",
-          e.getClass().getSimpleName());
-      return Optional.empty();
+      byte[] digest = MessageDigest.getInstance("SHA-256").digest(token.getBytes(UTF_8));
+      return Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
+    } catch (NoSuchAlgorithmException e) {
+      throw new IllegalStateException("SHA-256 is not available", e);
     }
+  }
+
+  private void expireCookie() {
+    addCookie(cookie("").maxAge(Duration.ZERO));
   }
 
   private ResponseCookie.ResponseCookieBuilder cookie(String value) {
@@ -101,10 +148,10 @@ public class RememberedSmartIdAccounts {
         .domain(cookieDomain);
   }
 
-  private void addCookie(ResponseCookie cookie) {
+  private void addCookie(ResponseCookie.ResponseCookieBuilder cookie) {
     HttpServletResponse response = requestAttributes().getResponse();
-    Objects.requireNonNull(response, "No response to set the remembered Smart-ID account cookie on")
-        .addHeader(SET_COOKIE, cookie.toString());
+    Objects.requireNonNull(response, "No response to set the remembered Smart-ID browser cookie on")
+        .addHeader(SET_COOKIE, cookie.build().toString());
   }
 
   private static HttpServletRequest currentRequest() {

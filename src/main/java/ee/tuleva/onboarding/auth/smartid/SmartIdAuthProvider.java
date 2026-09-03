@@ -60,14 +60,15 @@ public class SmartIdAuthProvider implements AuthProvider {
             person,
             Map.of(
                 GRANT_TYPE, SMART_ID.name(), SMART_ID_DOCUMENT_NUMBER, person.getDocumentNumber()));
-    rememberedSmartIdAccounts.remember(person);
+    rememberedSmartIdAccounts.remember(person, session.getLogin() instanceof DeviceLinkLogin);
     return authenticatedPerson;
   }
 
   private void forgetStaleRememberedAccount(SmartIdSession session) {
     if (session.getError() == SmartIdLoginError.ACCOUNT_NOT_FOUND
         && session.getLogin() instanceof NotificationLogin) {
-      rememberedSmartIdAccounts.forget();
+      // The account is gone, so every browser remembering it is stale, not just this one.
+      rememberedSmartIdAccounts.forgetEverywhere();
     }
   }
 }

@@ -56,7 +56,11 @@ class CustodianCompletenessChecker {
       if (day.matches()) {
         continue;
       }
-      (day.needsNoCorrection(materialBasisPoints) ? lateCorrections : mismatches).add(day);
+      if (day.needsNoCorrection(materialBasisPoints)) {
+        lateCorrections.add(day);
+      } else {
+        mismatches.add(day);
+      }
     }
 
     if (!mismatches.isEmpty()) {

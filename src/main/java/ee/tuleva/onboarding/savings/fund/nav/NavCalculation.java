@@ -5,9 +5,7 @@ import static java.math.BigDecimal.ZERO;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
-import org.jspecify.annotations.NullMarked;
 
-@NullMarked
 public record NavCalculation(Instant calculatedAt, List<NavAccountLine> lines) {
 
   private static final List<String> CUSTODIAN_SOURCED_ACCOUNT_TYPES =
@@ -27,7 +25,7 @@ public record NavCalculation(Instant calculatedAt, List<NavAccountLine> lines) {
     return lines.stream().filter(line -> SECURITY.equals(line.accountType())).toList();
   }
 
-  public BigDecimal fundValue() {
+  public BigDecimal assetsUnderManagement() {
     return lines.stream()
         .filter(line -> UNITS.equals(line.accountType()))
         .map(NavAccountLine::value)

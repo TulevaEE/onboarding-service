@@ -71,7 +71,7 @@ class CustodianPositionComparator {
         differingLines(reported, recognised),
         navPredatesReport(fund, navDate, calculation),
         navImpact,
-        basisPointsOf(navImpact, calculation.fundValue()));
+        basisPointsOf(navImpact, calculation.assetsUnderManagement()));
   }
 
   private List<CustodianLineDifference> differingLines(
@@ -111,7 +111,6 @@ class CustodianPositionComparator {
   private Map<String, BigDecimal> reportedValues(List<FundPosition> positions) {
     return positions.stream()
         .filter(position -> CUSTODIAN_TYPES.contains(position.getAccountType()))
-        .filter(position -> position.getAccountName() != null)
         .collect(
             toMap(
                 FundPosition::getAccountName,
@@ -141,14 +140,14 @@ class CustodianPositionComparator {
   }
 
   private Map<String, BigDecimal> recognisedQuantities(NavCalculation calculation) {
-    return calculation.securityLines().stream()
-        .filter(line -> line.accountId() != null)
-        .collect(
-            toMap(
-                line -> requireAccountId(line.accountId()),
-                NavAccountLine::units,
-                BigDecimal::add,
-                LinkedHashMap::new));
+    var quantities = new LinkedHashMap<String, BigDecimal>();
+    for (var line : calculation.securityLines()) {
+      var isin = line.accountId();
+      if (isin != null) {
+        quantities.merge(isin, line.units(), BigDecimal::add);
+      }
+    }
+    return quantities;
   }
 
   private Map<String, BigDecimal> pricesByIsinPreferringOurNav(
@@ -157,9 +156,12 @@ class CustodianPositionComparator {
     securities(positions)
         .filter(position -> position.getMarketPrice() != null)
         .forEach(position -> prices.put(position.getAccountId(), position.getMarketPrice()));
-    calculation.securityLines().stream()
-        .filter(line -> line.accountId() != null && line.marketPrice() != null)
-        .forEach(line -> prices.put(requireAccountId(line.accountId()), line.marketPrice()));
+    for (var line : calculation.securityLines()) {
+      var isin = line.accountId();
+      if (isin != null && line.marketPrice() != null) {
+        prices.put(isin, line.marketPrice());
+      }
+    }
     return prices;
   }
 
@@ -188,13 +190,6 @@ class CustodianPositionComparator {
     var names = new TreeSet<>(first.keySet());
     names.addAll(second.keySet());
     return names;
-  }
-
-  private String requireAccountId(@Nullable String accountId) {
-    if (accountId == null) {
-      throw new IllegalStateException("Security line without an ISIN");
-    }
-    return accountId;
   }
 
   private BigDecimal value(@Nullable BigDecimal amount) {

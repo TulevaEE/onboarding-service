@@ -1,10 +1,8 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
 import java.math.BigDecimal;
-import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
-@NullMarked
 public record NavAccountLine(
     String accountType,
     String accountName,

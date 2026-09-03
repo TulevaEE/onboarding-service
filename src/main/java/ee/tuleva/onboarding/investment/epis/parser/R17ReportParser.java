@@ -157,6 +157,15 @@ public class R17ReportParser {
     return requireNonNullElse(feeBearingUnits, ZERO).add(requireNonNullElse(feeFreeUnits, ZERO));
   }
 
+  private static String requiredPfType(Map<String, String> row, String fund, String toiming) {
+    String pfType = findValue(row, "pf valitseja/pik");
+    if (pfType == null) {
+      throw new IllegalArgumentException(
+          "R17 operator column missing: fund=" + fund + ", toiming=" + toiming);
+    }
+    return lowerCase(pfType);
+  }
+
   private static String trimmed(@Nullable String value) {
     return value == null ? "" : value.trim();
   }
@@ -180,7 +189,7 @@ public class R17ReportParser {
         return;
       }
 
-      String pfType = lowerCase(findValue(row, "pf valitseja/pik", "pf valitseja", "pfvalitseja"));
+      String pfType = requiredPfType(row, fundRaw, toiming);
       BigDecimal units = requiredUnits(row, fundRaw, toiming).abs();
       if (units.signum() == 0) {
         return;

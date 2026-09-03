@@ -25,11 +25,8 @@ class SrriCalculator {
   private static final MathContext MC = MathContext.DECIMAL64;
   private static final BigDecimal SQRT_52 = BigDecimal.valueOf(52).sqrt(MC);
   private static final int SAMPLE_PERIOD_YEARS = 5;
-
   private static final int WINDOW_START_TOLERANCE_WEEKS = 2;
-
   private static final int MINIMUM_OBSERVATIONS = 200;
-
   private static final int MINIMUM_RETURNS = 2;
   private static final int VOLATILITY_SCALE = 12;
 
@@ -107,11 +104,16 @@ class SrriCalculator {
   }
 
   private boolean isPublishable(List<WeeklyReturn> window, LocalDate windowStart) {
-    return window.size() >= MINIMUM_OBSERVATIONS
-        && !window
-            .getFirst()
-            .weekEnd()
-            .isAfter(windowStart.plusWeeks(WINDOW_START_TOLERANCE_WEEKS));
+    return hasEnoughObservations(window) && reachesBackToWindowStart(window, windowStart);
+  }
+
+  private boolean hasEnoughObservations(List<WeeklyReturn> window) {
+    return window.size() >= MINIMUM_OBSERVATIONS;
+  }
+
+  private boolean reachesBackToWindowStart(List<WeeklyReturn> window, LocalDate windowStart) {
+    var earliestReturn = window.getFirst().weekEnd();
+    return !earliestReturn.isAfter(windowStart.plusWeeks(WINDOW_START_TOLERANCE_WEEKS));
   }
 
   private BigDecimal annualise(List<BigDecimal> weeklyReturns) {

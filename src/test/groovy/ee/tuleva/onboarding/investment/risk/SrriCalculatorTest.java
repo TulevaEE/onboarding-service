@@ -201,14 +201,10 @@ class SrriCalculatorTest {
     return navs;
   }
 
-  /**
-   * Coverage and count are separate gates, so pinning the count floor takes a series that clears
-   * coverage first: a run of weeks starting at the window's near edge, a gap, then a run ending on
-   * the evaluation date. 200 contiguous weeks would reach back under four years and be withheld for
-   * coverage before the count was ever consulted. Week 261 is five years on from the first Monday,
-   * so the window opens between weeks 0 and 1; the two runs yield 99 and 101 returns. Week 262
-   * carries no return of its own — it is there so week 261 counts as a complete week.
-   */
+  // 200 contiguous weeks reach back under four years, so they would be withheld for coverage
+  // before the count was ever consulted. A gap in the middle clears coverage and still lands on
+  // exactly 200 returns: weeks 1-99 give 99, weeks 161-261 give 101, and week 262 carries no
+  // return of its own — it is there only so week 261 counts as a complete week.
   private static ArrayList<FundValue> seriesCoveringTheWindowWithExactlyMinimumObservations() {
     var navs = new ArrayList<FundValue>();
     var value = 1.0;

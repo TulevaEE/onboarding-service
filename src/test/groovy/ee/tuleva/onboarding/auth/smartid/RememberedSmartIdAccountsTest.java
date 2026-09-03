@@ -1,20 +1,25 @@
 package ee.tuleva.onboarding.auth.smartid;
 
 import static ee.tuleva.onboarding.auth.smartid.RememberedSmartIdAccounts.COOKIE_NAME;
+import static ee.tuleva.onboarding.auth.smartid.RememberedSmartIdAccounts.hash;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.aRememberedAccount;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.aSmartIdPerson;
+import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.documentNumber;
+import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.firstName;
+import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.lastName;
+import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.personalCode;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.springframework.http.HttpHeaders.SET_COOKIE;
 
-import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture;
-import ee.tuleva.onboarding.auth.KeyStoreFixture;
-import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import jakarta.servlet.http.Cookie;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
@@ -26,18 +31,13 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 class RememberedSmartIdAccountsTest {
 
-  private final Clock clock = Clock.fixed(Instant.parse("2026-09-02T10:00:00Z"), ZoneOffset.UTC);
-  private final JwtTokenUtil jwtTokenUtil =
-      new JwtTokenUtil(
-          KeyStoreFixture.keyStore(),
-          KeyStoreFixture.keyStorePassword,
-          "PARTNER AS",
-          "TULEVA",
-          KeyStoreFixture.getPartnerKeyPair().getPublic(),
-          KeyStoreFixture.getPartnerKeyPair().getPublic(),
-          clock);
+  private static final Instant NOW = Instant.parse("2026-09-03T10:00:00Z");
+  private static final Duration VALIDITY = Duration.ofDays(90);
+
+  private final RememberedBrowsers browsers = mock(RememberedBrowsers.class);
   private final RememberedSmartIdAccounts accounts =
-      new RememberedSmartIdAccounts(jwtTokenUtil, Duration.ofDays(365), "tuleva.ee");
+      new RememberedSmartIdAccounts(
+          browsers, VALIDITY, "tuleva.ee", Clock.fixed(NOW, ZoneOffset.UTC));
 
   private final MockHttpServletRequest request = new MockHttpServletRequest();
   private final MockHttpServletResponse response = new MockHttpServletResponse();
@@ -52,20 +52,37 @@ class RememberedSmartIdAccountsTest {
     RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request, response));
   }
 
-  private String rememberedCookieValue() {
+  private String cookieValue() {
     String header = Objects.requireNonNull(response.getHeader(SET_COOKIE));
     return header.substring(COOKIE_NAME.length() + 1, header.indexOf(';'));
   }
 
+  private static RememberedBrowser browserVerifiedAt(Instant verifiedAt) {
+    return new RememberedBrowser(personalCode, documentNumber, firstName, lastName, verifiedAt);
+  }
+
   @Test
-  void rememberSetsALongLivedHardenedCookieOnTheSessionDomain() {
+  void remembersABrowserBehindAnOpaqueTokenCarryingNoPersonalData() {
     bindRequest();
 
-    accounts.remember(aSmartIdPerson());
+    accounts.remember(aSmartIdPerson(), true);
+
+    String token = cookieValue();
+    assertThat(token)
+        .isNotBlank()
+        .doesNotContain(personalCode, documentNumber, firstName, lastName);
+    verify(browsers).add(hash(token), browserVerifiedAt(NOW), NOW.plus(VALIDITY));
+  }
+
+  @Test
+  void setsAHardenedCookieOnTheSessionDomain() {
+    bindRequest();
+
+    accounts.remember(aSmartIdPerson(), true);
 
     assertThat(response.getHeader(SET_COOKIE))
         .startsWith(COOKIE_NAME + "=")
-        .contains("Max-Age=31536000")
+        .contains("Max-Age=" + VALIDITY.toSeconds())
         .contains("Domain=tuleva.ee")
         .contains("Path=/")
         .contains("Secure")
@@ -74,61 +91,96 @@ class RememberedSmartIdAccountsTest {
   }
 
   @Test
-  void currentReadsBackTheRememberedAccount() {
-    bindRequest();
-    accounts.remember(aSmartIdPerson());
-    bindRequest(new Cookie(COOKIE_NAME, rememberedCookieValue()));
+  void readsBackTheAccountTheTokenStandsFor() {
+    bindRequest(new Cookie(COOKIE_NAME, "a-token"));
+    given(browsers.findUnexpired(hash("a-token"))).willReturn(Optional.of(browserVerifiedAt(NOW)));
 
-    Optional<RememberedSmartIdAccount> current = accounts.current();
-
-    assertThat(current).contains(aRememberedAccount());
+    assertThat(accounts.current()).contains(aRememberedAccount());
   }
 
   @Test
-  void currentIsEmptyWithoutACookie() {
+  void hasNoAccountWithoutACookie() {
     bindRequest();
 
     assertThat(accounts.current()).isEmpty();
   }
 
   @Test
-  void currentIgnoresATamperedCookie() {
-    bindRequest();
-    accounts.remember(aSmartIdPerson());
-    bindRequest(new Cookie(COOKIE_NAME, rememberedCookieValue() + "x"));
+  void hasNoAccountWhenTheTokenIsUnknownOrPastItsValidity() {
+    bindRequest(new Cookie(COOKIE_NAME, "a-token"));
+    given(browsers.findUnexpired(hash("a-token"))).willReturn(Optional.empty());
 
     assertThat(accounts.current()).isEmpty();
   }
 
   @Test
-  void currentIgnoresAnAccessTokenPresentedAsARememberedAccount() {
-    String accessToken =
-        jwtTokenUtil.generateAccessToken(
-            AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember().build(), List.of());
-    bindRequest(new Cookie(COOKIE_NAME, accessToken));
+  void issuesAFreshTokenOnEveryLoginAndForgetsThePreviousOne() {
+    bindRequest(new Cookie(COOKIE_NAME, "old-token"));
+    given(browsers.findUnexpired(hash("old-token")))
+        .willReturn(Optional.of(browserVerifiedAt(NOW)));
 
-    assertThat(accounts.current()).isEmpty();
+    accounts.remember(aSmartIdPerson(), true);
+
+    verify(browsers).remove(hash("old-token"));
+    assertThat(cookieValue()).isNotEqualTo("old-token");
   }
 
   @Test
-  void currentIgnoresAnExpiredCookie() {
-    bindRequest();
-    new RememberedSmartIdAccounts(jwtTokenUtil, Duration.ofDays(-1), "tuleva.ee")
-        .remember(aSmartIdPerson());
-    bindRequest(new Cookie(COOKIE_NAME, rememberedCookieValue()));
+  void aPushLoginCarriesTheEarlierVerificationForwardRatherThanExtendingIt() {
+    Instant verifiedAt = NOW.minus(Duration.ofDays(30));
+    bindRequest(new Cookie(COOKIE_NAME, "old-token"));
+    given(browsers.findUnexpired(hash("old-token")))
+        .willReturn(Optional.of(browserVerifiedAt(verifiedAt)));
 
-    assertThat(accounts.current()).isEmpty();
+    accounts.remember(aSmartIdPerson(), false);
+
+    verify(browsers)
+        .add(hash(cookieValue()), browserVerifiedAt(verifiedAt), verifiedAt.plus(VALIDITY));
+    assertThat(response.getHeader(SET_COOKIE))
+        .contains("Max-Age=" + Duration.ofDays(60).toSeconds());
   }
 
   @Test
-  void forgetExpiresTheCookie() {
-    bindRequest();
+  void aDeviceLinkLoginStartsTheValidityAgain() {
+    bindRequest(new Cookie(COOKIE_NAME, "old-token"));
+    given(browsers.findUnexpired(hash("old-token")))
+        .willReturn(Optional.of(browserVerifiedAt(NOW.minus(Duration.ofDays(30)))));
+
+    accounts.remember(aSmartIdPerson(), true);
+
+    verify(browsers).add(hash(cookieValue()), browserVerifiedAt(NOW), NOW.plus(VALIDITY));
+  }
+
+  @Test
+  void forgettingDropsThisBrowserOnlyAndExpiresTheCookie() {
+    bindRequest(new Cookie(COOKIE_NAME, "a-token"));
 
     accounts.forget();
 
-    assertThat(response.getHeader(SET_COOKIE))
-        .startsWith(COOKIE_NAME + "=;")
-        .contains("Max-Age=0")
-        .contains("Domain=tuleva.ee");
+    verify(browsers).remove(hash("a-token"));
+    verify(browsers, never()).removeAllOf(personalCode);
+    assertThat(response.getHeader(SET_COOKIE)).contains("Max-Age=0");
+  }
+
+  @Test
+  void forgettingEverywhereDropsEveryBrowserOfThatPerson() {
+    bindRequest(new Cookie(COOKIE_NAME, "a-token"));
+    given(browsers.findUnexpired(hash("a-token"))).willReturn(Optional.of(browserVerifiedAt(NOW)));
+
+    accounts.forgetEverywhere();
+
+    verify(browsers).removeAllOf(personalCode);
+    assertThat(response.getHeader(SET_COOKIE)).contains("Max-Age=0");
+  }
+
+  @Test
+  void forgettingEverywhereStillExpiresTheCookieWhenTheTokenIsAlreadyGone() {
+    bindRequest(new Cookie(COOKIE_NAME, "a-token"));
+    given(browsers.findUnexpired(hash("a-token"))).willReturn(Optional.empty());
+
+    accounts.forgetEverywhere();
+
+    verify(browsers, never()).removeAllOf(personalCode);
+    assertThat(response.getHeader(SET_COOKIE)).contains("Max-Age=0");
   }
 }

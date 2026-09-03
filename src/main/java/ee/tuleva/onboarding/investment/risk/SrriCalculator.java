@@ -26,22 +26,8 @@ class SrriCalculator {
   private static final BigDecimal SQRT_52 = BigDecimal.valueOf(52).sqrt(MC);
   private static final int SAMPLE_PERIOD_YEARS = 5;
 
-  /**
-   * CESR Box 1 p3 asks for a sample covering the last five years of the life of the fund, which is
-   * a question about how far the history reaches back, not about how many rows survived inside it.
-   * Counting answers a different question: five calendar years hold 260 or 261 weekly returns
-   * depending on where the dates fall, and every week without a NAV costs two more, so a threshold
-   * set at the nominal 260 would blink on and off with the calendar. Coverage is the gate, with a
-   * fortnight of slack for that same drift.
-   */
   private static final int WINDOW_START_TOLERANCE_WEEKS = 2;
 
-  /**
-   * Not the CESR test — a floor beneath which a standard deviation says nothing however wide a
-   * period it is spread across, because a series holding one early week and one recent month would
-   * otherwise clear the coverage gate on a handful of returns. The digest reports any shortfall
-   * against the nominal 260 separately.
-   */
   private static final int MINIMUM_OBSERVATIONS = 200;
 
   private static final int MINIMUM_RETURNS = 2;

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
+import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK;
 import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -111,6 +112,89 @@ class BreachMessageFormatterTest {
     assertThat(message).doesNotContain("PEVA/RAVA").contains("NAV bridge (EUR)");
   }
 
+  @Test
+  void aBenchmarkCheckCarriesNeitherActionLineNorBridge() {
+    var benchmark = tuk75On20260901().toBuilder().checkType(BENCHMARK).build();
+
+    var message =
+        new BreachMessageFormatter(benchmark, false, RedemptionCycleHint.ordinaryDay()).format();
+
+    assertThat(message)
+        .doesNotContain("Action:")
+        .doesNotContain("NAV bridge (EUR)")
+        .doesNotContain("NAV residual");
+  }
+
+  @Test
+  void saysSoWhenNoHoldingMovedInPriceEither() {
+    var frozen =
+        tuk75On20260901().toBuilder()
+            .navFlow(navFlow(new BigDecimal("5888679.04"), false, BigDecimal.ZERO))
+            .build();
+
+    var message =
+        new BreachMessageFormatter(frozen, false, RedemptionCycleHint.ordinaryDay()).format();
+
+    assertThat(message)
+        .contains("No security quantity changed")
+        .contains("No holding moved in price either.");
+  }
+
+  @Test
+  void namesTheR17PikAlongsideTheRavaPayout() {
+    var message =
+        new BreachMessageFormatter(
+                tuk75On20260901(),
+                false,
+                new RedemptionCycleHint(
+                    true, new BigDecimal("5928109.00"), new BigDecimal("412000.00")))
+            .format();
+
+    assertThat(message).contains("R21 RAVA payout").contains("R17 PIK").contains("412,000.00");
+  }
+
+  @Test
+  void cycleFiguresStillGetNamedWhenNoBridgeCouldBeBuilt() {
+    var noBridge = tuk75On20260901().toBuilder().navFlow(null).build();
+
+    var message =
+        new BreachMessageFormatter(
+                noBridge, false, new RedemptionCycleHint(true, new BigDecimal("5928109.00"), null))
+            .format();
+
+    assertThat(message)
+        .contains("R21 RAVA payout")
+        .doesNotContain("that is the unexplained amount")
+        .doesNotContain("look wider than the redemption leg");
+  }
+
+  @Test
+  void aPayoutThatDoesNotMatchSendsTheSearchWider() {
+    var message =
+        new BreachMessageFormatter(
+                tuk75On20260901(),
+                false,
+                new RedemptionCycleHint(true, new BigDecimal("120000.00"), null))
+            .format();
+
+    assertThat(message)
+        .contains("R21 RAVA payout")
+        .contains("does not account for the unexplained amount")
+        .doesNotContain("that is the unexplained amount");
+  }
+
+  @Test
+  void aCycleThatMovedNoMoneyCannotExplainAnything() {
+    var message =
+        new BreachMessageFormatter(
+                tuk75On20260901(), false, new RedemptionCycleHint(true, BigDecimal.ZERO, null))
+            .format();
+
+    assertThat(message)
+        .contains("does not account for the unexplained amount")
+        .doesNotContain("that is the unexplained amount");
+  }
+
   private TrackingDifferenceResult tuk75On20260901() {
     return TrackingDifferenceResult.builder()
         .fund(TUK75)
@@ -137,10 +221,15 @@ class BreachMessageFormatterTest {
   }
 
   private NavFlowReconciliation navFlow(BigDecimal unexplained, boolean securityQuantitiesChanged) {
+    return navFlow(unexplained, securityQuantitiesChanged, new BigDecimal("-1735979.79"));
+  }
+
+  private NavFlowReconciliation navFlow(
+      BigDecimal unexplained, boolean securityQuantitiesChanged, BigDecimal marketPnl) {
     return new NavFlowReconciliation(
         new BigDecimal("1126972502.00"),
         new BigDecimal("1142837314.33"),
-        new BigDecimal("-1735979.79"),
+        marketPnl,
         new BigDecimal("7306865.600"),
         new BigDecimal("11718531.79"),
         new BigDecimal("6418.71"),

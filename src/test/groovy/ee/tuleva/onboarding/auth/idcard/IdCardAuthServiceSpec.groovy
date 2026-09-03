@@ -32,6 +32,7 @@ class IdCardAuthServiceSpec extends Specification {
         1 * sessionStore.save(expectedResponse)
         1 * documentTypeExtractor.checkClientAuthentication(cert)
         1 * documentTypeExtractor.checkIssuer(cert)
+        1 * documentTypeExtractor.checkCountry(cert)
         response == expectedResponse
     }
 }

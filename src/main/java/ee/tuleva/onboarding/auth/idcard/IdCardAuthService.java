@@ -27,6 +27,7 @@ public class IdCardAuthService {
     IdDocumentType documentType = documentTypeExtractor.extract(x509Certificate);
     documentTypeExtractor.checkClientAuthentication(x509Certificate);
     documentTypeExtractor.checkIssuer(x509Certificate);
+    documentTypeExtractor.checkCountry(x509Certificate);
 
     IdCardSession session =
         IdCardSession.builder()

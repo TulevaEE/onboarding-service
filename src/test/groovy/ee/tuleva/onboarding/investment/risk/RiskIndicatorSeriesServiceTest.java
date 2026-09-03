@@ -146,7 +146,7 @@ class RiskIndicatorSeriesServiceTest {
 
     assertThat(refresh.driftedDates()).isEmpty();
     assertThat(refresh.redefinitions())
-        .containsExactly(new Redefinition(ANCHOR, null, CURRENT_HOLDING_PERIOD));
+        .containsExactly(new Redefinition.HoldingPeriod(ANCHOR, null, CURRENT_HOLDING_PERIOD));
     assertThat(stored.getRiskClass()).isNotEqualTo(1);
     assertThat(stored.getMetrics())
         .doesNotContainKey("driftHistory")
@@ -154,6 +154,37 @@ class RiskIndicatorSeriesServiceTest {
     var saved = ArgumentCaptor.forClass(List.class);
     verify(pointRepository).saveAll(saved.capture());
     assertThat((List<RiskIndicatorPoint>) saved.getValue()).contains(stored);
+  }
+
+  // Restoring the SRRI coverage gate withdraws the class from points whose window does not reach
+  // back five years. Nothing upstream moved - the volatility and the observation count are the
+  // ones already stored - so reporting it as drift would tell the reader the source data changed
+  // retroactively, which is the one thing that did not happen.
+  @Test
+  void aClassThatChangedWhileTheInputsDidNotIsRedefinedRatherThanReportedAsDrift() {
+    givenPrices(dailyPrices(ACWI, ANCHOR.minusYears(7), ANCHOR));
+    var stored = new ArrayList<RiskIndicatorPoint>();
+    given(pointRepository.findByIndicatorTypeAndFundOrderByAsOfDateAsc(SRI, TKF100))
+        .willAnswer(invocation -> List.copyOf(stored));
+    given(pointRepository.saveAll(any()))
+        .willAnswer(
+            invocation -> {
+              stored.addAll(invocation.getArgument(0));
+              return invocation.getArgument(0);
+            });
+    service.refreshSeries(TKF100, SRI, 1);
+
+    var withheld = stored.getFirst();
+    var previouslyPublished = withheld.getRiskClass();
+    withheld.setRiskClass(null);
+
+    var refresh = service.refreshSeries(TKF100, SRI, 1);
+
+    assertThat(refresh.driftedDates()).isEmpty();
+    assertThat(refresh.redefinitions())
+        .containsExactly(
+            new Redefinition.PublicationRule(withheld.getAsOfDate(), null, previouslyPublished));
+    assertThat(withheld.getMetrics()).doesNotContainKey("driftHistory");
   }
 
   @Test
@@ -168,7 +199,7 @@ class RiskIndicatorSeriesServiceTest {
 
     assertThat(refresh.driftedDates()).isEmpty();
     assertThat(refresh.redefinitions())
-        .containsExactly(new Redefinition(ANCHOR, "1300", CURRENT_HOLDING_PERIOD));
+        .containsExactly(new Redefinition.HoldingPeriod(ANCHOR, "1300", CURRENT_HOLDING_PERIOD));
     assertThat(stored.getMetrics())
         .doesNotContainKey("driftHistory")
         .containsEntry("holdingPeriodTradingDays", CURRENT_HOLDING_PERIOD);

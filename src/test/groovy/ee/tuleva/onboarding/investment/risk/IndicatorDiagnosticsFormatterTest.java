@@ -116,8 +116,8 @@ class IndicatorDiagnosticsFormatterTest {
             RiskIndicatorPublication.builder().build(),
             List.of(),
             List.of(
-                new Redefinition(LocalDate.of(2026, 6, 1), "1300", "1280"),
-                new Redefinition(LocalDate.of(2026, 6, 30), "1300", "1280")),
+                new Redefinition.HoldingPeriod(LocalDate.of(2026, 6, 1), "1300", "1280"),
+                new Redefinition.HoldingPeriod(LocalDate.of(2026, 6, 30), "1300", "1280")),
             List.of());
 
     var lines = diagnosticsFormatter.withDiagnostics(new ArrayList<>(), outcome);
@@ -127,6 +127,27 @@ class IndicatorDiagnosticsFormatterTest {
             "ℹ️ TKF100 SRI: 2 varasemat referentspunkti arvutati ümber (vanim 2026-06-01, viimane"
                 + " 2026-06-30) — hoidmisperioodi kauplemispäevi 1300 → 1280. Alusandmed ei"
                 + " muutunud.");
+  }
+
+  @Test
+  void aClassWithheldByAChangedRuleIsReportedAsARedefinitionRatherThanSourceDataDrift() {
+    var outcome =
+        new RiskIndicatorService.RiskIndicatorOutcome(
+            stableSri(),
+            null,
+            RiskIndicatorPublication.builder().build(),
+            List.of(),
+            List.of(
+                new Redefinition.PublicationRule(LocalDate.of(2026, 6, 1), 4, null),
+                new Redefinition.PublicationRule(LocalDate.of(2026, 6, 30), 4, null)),
+            List.of());
+
+    var lines = diagnosticsFormatter.withDiagnostics(new ArrayList<>(), outcome);
+
+    assertThat(lines)
+        .containsExactly(
+            "ℹ️ TKF100 SRI: 2 varasemat referentspunkti arvutati ümber (vanim 2026-06-01, viimane"
+                + " 2026-06-30) — avaldamisreegel muutus, klass 4 → —. Alusandmed ei muutunud.");
   }
 
   @Test

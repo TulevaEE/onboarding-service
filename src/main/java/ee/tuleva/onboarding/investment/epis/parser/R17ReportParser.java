@@ -180,12 +180,6 @@ public class R17ReportParser {
         return;
       }
 
-      // "PF valitseja/PIK" is the real column name, verified against a genuine EPIS R17 export
-      // (Seisuga 23.08.2026). It must come first: the report ALSO carries "Summa (PF valitseja)",
-      // and both contain "pf valitseja", so a contains-match picks whichever column comes first.
-      // That happens to be the right one today only because the amount column sits to its right —
-      // a reordered export would silently classify PIK redemptions as switching flows, and the
-      // units-vs-amount cross-check cannot catch it because the row's units are unchanged.
       String pfType = lowerCase(findValue(row, "pf valitseja/pik", "pf valitseja", "pfvalitseja"));
       BigDecimal units = requiredUnits(row, fundRaw, toiming).abs();
       if (units.signum() == 0) {

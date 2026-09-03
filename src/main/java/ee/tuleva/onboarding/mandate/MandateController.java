@@ -168,7 +168,7 @@ public class MandateController implements SignatureController<Long> {
   }
 
   @Override
-  @Operation(summary = "Is the mandate signed with ID card processed")
+  @Operation(summary = "Get the ID card signing status of the mandate")
   public IdCardSignatureStatusResponse getIdCardSignatureStatus(
       @PathVariable("id") Long mandateId,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {

@@ -35,7 +35,7 @@ public interface SignatureController<TEntityId> {
       @Valid @RequestBody FinishIdCardSignCommand signCommand,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson);
 
-  @Operation(summary = "Is the entity signed with ID card processed")
+  @Operation(summary = "Get the ID card signing status of the entity")
   @GetMapping("/{id}/signature/id-card/status")
   IdCardSignatureStatusResponse getIdCardSignatureStatus(
       @PathVariable("id") TEntityId entityId,

@@ -105,7 +105,7 @@ public class CapitalTransferContractController implements SignatureController<Lo
   }
 
   @Override
-  @Operation(summary = "Get ID card signing status for a capital transfer contract")
+  @Operation(summary = "Get the ID card signing status of the capital transfer contract")
   public IdCardSignatureStatusResponse getIdCardSignatureStatus(
       @PathVariable Long id, @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     return signatureService.getIdCardSignatureStatus(id, authenticatedPerson);

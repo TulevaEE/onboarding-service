@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.auth
 
+import ee.tuleva.onboarding.auth.idcard.IdDocumentType
+import ee.tuleva.onboarding.auth.idcard.exception.UnsupportedDocumentTypeException
 import ee.tuleva.onboarding.auth.principal.MinorCannotSelfAuthenticateException
 import ee.tuleva.onboarding.auth.response.AuthNotCompleteException
 import ee.tuleva.onboarding.auth.smartid.SmartIdSessionNotFoundException
@@ -19,6 +21,16 @@ class AuthErrorHandlerSpec extends Specification {
     then:
         result.statusCode == HttpStatus.UNAUTHORIZED
         result.body == ErrorsResponse.ofSingleError("auth.session.not.found", "Smart-ID session was not found.")
+  }
+
+  def "handle UnsupportedDocumentTypeException returns BAD_REQUEST with a dedicated error code"() {
+    when:
+    def response = handler.handleUnsupportedDocumentType(
+        new UnsupportedDocumentTypeException(IdDocumentType.E_RESIDENT_DIGITAL_ID_CARD))
+
+    then:
+    response.statusCode == HttpStatus.BAD_REQUEST
+    response.body.errors[0].code == "id.card.document.type.not.allowed"
   }
 
   def "handle MinorCannotSelfAuthenticateException returns FORBIDDEN response with expected error details"() {

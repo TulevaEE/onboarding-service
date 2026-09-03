@@ -27,6 +27,25 @@ class IdDocumentTypeSpec extends Specification {
     }
 
     @Unroll
+    def "#documentType isAllowedToLogIn: #allowed"() {
+        expect:
+        documentType.isAllowedToLogIn() == allowed
+
+        where:
+        documentType                                  | allowed
+        ESTONIAN_CITIZEN_ID_CARD                      | true
+        OLD_ID_CARD                                   | true
+        DIGITAL_ID_CARD                               | true
+        OLD_DIGITAL_ID_CARD                           | true
+        LONG_TERM_RESIDENCE_CARD                      | true
+        TEMPORARY_RESIDENCE_CARD                      | true
+        EUROPEAN_CITIZEN_FAMILY_MEMBER_RESIDENCE_CARD | true
+        DIPLOMATIC_ID_CARD                            | true
+        E_RESIDENT_DIGITAL_ID_CARD                    | false
+        EUROPEAN_CITIZEN_ID_CARD                      | false
+    }
+
+    @Unroll
     def "findByIdentifier maps OID '#oid' to #expectedType"() {
         when:
         def result = IdDocumentType.findByIdentifier(oid)

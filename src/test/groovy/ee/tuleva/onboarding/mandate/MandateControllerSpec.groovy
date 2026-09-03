@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
+import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
 import ee.tuleva.onboarding.mandate.generic.GenericMandateService
 import ee.tuleva.onboarding.signature.SignatureFile
@@ -13,7 +14,6 @@ import ee.tuleva.onboarding.signature.SmartIdSignatureSession
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.MvcResult
-import org.springframework.web.servlet.LocaleResolver
 
 import static ee.tuleva.onboarding.auth.mobileid.MobileIDSession.PHONE_NUMBER
 import static ee.tuleva.onboarding.mandate.MandateFixture.*
@@ -29,12 +29,12 @@ class MandateControllerSpec extends BaseControllerSpec {
   GenericSessionStore sessionStore = Mock(GenericSessionStore)
   SignatureFileArchiver signatureFileArchiver = Mock(SignatureFileArchiver)
   MandateFileService mandateFileService = Mock(MandateFileService)
-  LocaleResolver localeResolver = Mock(LocaleResolver)
+  LocaleService localeService = Mock(LocaleService)
   GenericMandateService genericMandateService = Mock(GenericMandateService)
 
   MandateController controller =
       new MandateController(mandateRepository, mandateService, genericMandateService, sessionStore, signatureFileArchiver, mandateFileService,
-          localeResolver)
+          localeService)
   AuthenticatedPerson authenticatedPerson = AuthenticatedPersonFixture.sampleAuthenticatedPersonNonMember()
       .attributes(Map.of(PHONE_NUMBER, "5555555"))
       .build()
@@ -71,7 +71,7 @@ class MandateControllerSpec extends BaseControllerSpec {
 
     then:
     mvc
-        .perform(put("/v1/mandates/1/signature/mobileId")
+        .perform(put("/v1/mandates/1/signature/mobile-id")
             .contentType(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
@@ -82,12 +82,12 @@ class MandateControllerSpec extends BaseControllerSpec {
     when:
     def session = MobileIdSignatureSession.builder().verificationCode("1234").build()
     sessionStore.get(MobileIdSignatureSession) >> Optional.of(session)
-    localeResolver.resolveLocale(_) >> ENGLISH
+    localeService.getCurrentLocale() >> ENGLISH
     mandateService.finalizeMobileIdSignature(_ as Long, 1L, session, ENGLISH) >> "SIGNATURE"
 
     then:
     mvc
-        .perform(get("/v1/mandates/1/signature/mobileId/status"))
+        .perform(get("/v1/mandates/1/signature/mobile-id/status"))
         .andExpect(status().isOk())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath('$.statusCode', is("SIGNATURE")))
@@ -102,7 +102,7 @@ class MandateControllerSpec extends BaseControllerSpec {
 
     then:
     mvc
-        .perform(put("/v1/mandates/1/signature/smartId")
+        .perform(put("/v1/mandates/1/signature/smart-id")
             .contentType(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
@@ -114,12 +114,12 @@ class MandateControllerSpec extends BaseControllerSpec {
     def session = new SmartIdSignatureSession("certSessionId", "personalCode", [])
     session.verificationCode = "1234"
     1 * sessionStore.get(SmartIdSignatureSession) >> Optional.of(session)
-    1 * localeResolver.resolveLocale(_) >> ENGLISH
+    1 * localeService.getCurrentLocale() >> ENGLISH
     1 * mandateService.finalizeSmartIdSignature(_, 1L, session, ENGLISH) >> "SIGNATURE"
 
     then:
     mvc
-        .perform(get("/v1/mandates/1/signature/smartId/status"))
+        .perform(get("/v1/mandates/1/signature/smart-id/status"))
         .andExpect(status().isOk())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath('$.statusCode', is("SIGNATURE")))
@@ -134,7 +134,7 @@ class MandateControllerSpec extends BaseControllerSpec {
 
     then:
     mvc
-        .perform(put("/v1/mandates/1/signature/idCard")
+        .perform(put("/v1/mandates/1/signature/id-card")
             .content(mapper.writeValueAsString(sampleStartIdCardSignCommand("clientCertificate")))
             .contentType(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())
@@ -146,12 +146,12 @@ class MandateControllerSpec extends BaseControllerSpec {
     when:
     def session = IdCardSignatureSession.builder().build()
     sessionStore.get(IdCardSignatureSession) >> Optional.of(session)
-    localeResolver.resolveLocale(_) >> ENGLISH
+    localeService.getCurrentLocale() >> ENGLISH
     mandateService.finalizeIdCardSignature(_ as Long, 1L, session, "signedHash", ENGLISH) >> "SIGNATURE"
 
     then:
     mvc
-        .perform(put("/v1/mandates/1/signature/idCard/status")
+        .perform(put("/v1/mandates/1/signature/id-card/status")
             .content(mapper.writeValueAsString(sampleFinishIdCardSignCommand("signedHash")))
             .contentType(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())

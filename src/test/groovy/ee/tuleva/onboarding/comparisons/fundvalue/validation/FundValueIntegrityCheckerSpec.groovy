@@ -899,4 +899,101 @@ class FundValueIntegrityCheckerSpec extends Specification {
     then:
     0 * notificationService.sendMessage(_, _)
   }
+
+  def "buildSummary lists expected Yahoo discrepancies when there are info issues but no critical issues"() {
+    given:
+    LocalDate date = LocalDate.of(2026, 6, 10)
+    def infoIssue = new IntegrityCheckResult.Discrepancy(
+        "IWDA", date, 100.00000, 90.00000, 10.00000, 10.0000, Severity.INFO, "EODHD vs Yahoo", [])
+    def result = new FundValueIntegrityChecker.InstrumentCheckResult(
+        INSTRUMENTS[0], [] as Set, [] as Set, [], [infoIssue])
+
+    when:
+    String summary = checker.buildSummary(date, date, [result])
+
+    then:
+    summary.contains("Expected Yahoo discrepancies (1):")
+    !summary.contains("CRITICAL Issues requiring investigation")
+  }
+
+  def "buildSummary omits the expected Yahoo discrepancies section when there are neither critical nor info issues"() {
+    given:
+    LocalDate date = LocalDate.of(2026, 6, 10)
+    def result = new FundValueIntegrityChecker.InstrumentCheckResult(
+        INSTRUMENTS[0], [] as Set, [] as Set, [], [])
+
+    when:
+    String summary = checker.buildSummary(date, date, [result])
+
+    then:
+    !summary.contains("Expected Yahoo discrepancies")
+    !summary.contains("CRITICAL Issues requiring investigation")
+  }
+
+  def "buildSummary lists critical issue details plus an INFO-only section when both kinds of issues exist"() {
+    given:
+    LocalDate date = LocalDate.of(2026, 6, 10)
+    def criticalIssue = new IntegrityCheckResult.Discrepancy(
+        "IWDA", date, 100.00000, 90.00000, 10.00000, 10.0000, Severity.CRITICAL, "EODHD vs BlackRock", [])
+    def infoIssue = new IntegrityCheckResult.Discrepancy(
+        "IWDA", date, 100.00000, 90.00000, 10.00000, 10.0000, Severity.INFO, "EODHD vs Yahoo", [])
+    def result = new FundValueIntegrityChecker.InstrumentCheckResult(
+        INSTRUMENTS[0], [] as Set, [] as Set, [], [criticalIssue, infoIssue])
+
+    when:
+    String summary = checker.buildSummary(date, date, [result])
+
+    then:
+    summary.contains("CRITICAL Issues requiring investigation (1):")
+    summary.contains("IWDA [" + date + "]: EODHD vs BlackRock 100.00000 vs 90.00000, diff=10.00000 (10.0000%)")
+    summary.contains("Expected Yahoo discrepancies (1 - INFO only):")
+  }
+
+  def "buildSummary omits the INFO-only section when a critical issue has no accompanying info issues"() {
+    given:
+    LocalDate date = LocalDate.of(2026, 6, 10)
+    def criticalIssue = new IntegrityCheckResult.Discrepancy(
+        "IWDA", date, 100.00000, 90.00000, 10.00000, 10.0000, Severity.CRITICAL, "EODHD vs BlackRock", [])
+    def result = new FundValueIntegrityChecker.InstrumentCheckResult(
+        INSTRUMENTS[0], [] as Set, [] as Set, [], [criticalIssue])
+
+    when:
+    String summary = checker.buildSummary(date, date, [result])
+
+    then:
+    summary.contains("CRITICAL Issues requiring investigation (1):")
+    !summary.contains("INFO only")
+  }
+
+  def "does not send a Slack alert when the only discrepancy is INFO severity"() {
+    given:
+    def date = LocalDate.of(2026, 6, 10)
+    def infoIssue = new IntegrityCheckResult.Discrepancy(
+        "IWDA", date, 100.00000, 90.00000, 10.00000, 10.0000, Severity.INFO, "EODHD vs Yahoo", [])
+    def result = new FundValueIntegrityChecker.InstrumentCheckResult(
+        INSTRUMENTS[0], [] as Set, [] as Set, [], [infoIssue])
+
+    when:
+    checker.notifyIfCritical([result])
+
+    then:
+    0 * notificationService.sendMessage(_, _)
+  }
+
+  def "runIntegrityCheck sends a Slack alert when a critical cross-provider discrepancy is found for the day"() {
+    given:
+    def ticker = XTRACKERS_WORLD_SCREENED
+    LocalDate endDate = LocalDate.of(2026, 7, 20)
+    def xetraKey = ticker.isin + ".XETR"
+
+    fundValueRepository.findValuesBetweenDates(ticker.eodhdTicker, _, _) >> [aFundValue(ticker.eodhdTicker, endDate, 9.947)]
+    fundValueRepository.findValuesBetweenDates(xetraKey, _, _) >> [aFundValue(xetraKey, endDate, 9.969)]
+
+    when:
+    checker.runIntegrityCheck(endDate)
+
+    then:
+    1 * notificationService.sendMessage(_, OperationsNotificationService.Channel.INVESTMENT)
+  }
+
 }

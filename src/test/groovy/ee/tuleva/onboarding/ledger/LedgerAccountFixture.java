@@ -12,8 +12,8 @@ import static ee.tuleva.onboarding.ledger.UserAccount.*;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.*;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.ledger.LedgerAccount.LedgerAccountBuilder;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
@@ -325,6 +325,7 @@ public class LedgerAccountFixture {
                   .id(UUID.randomUUID())
                   .transactionType(FUND_SUBSCRIPTION)
                   .transactionDate(entry.transactionDate())
+                  .externalReference(entry.externalReference())
                   .metadata(Map.of("navPerUnit", navPerUnit))
                   .build();
           transaction.addEntry(account, entry.amount().negate());

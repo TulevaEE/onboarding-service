@@ -5,7 +5,7 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.auth.principal.Person
 import org.springframework.test.web.servlet.MockMvc
 
-import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.PENDING
+import static ee.tuleva.onboarding.mandate.application.ApplicationStatus.PENDING
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 import static ee.tuleva.onboarding.mandate.application.ApplicationFixture.transferApplication
 import static ee.tuleva.onboarding.mandate.application.ApplicationFixture.transferApplicationDetails

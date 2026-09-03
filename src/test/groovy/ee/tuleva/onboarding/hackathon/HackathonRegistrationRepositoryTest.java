@@ -28,7 +28,8 @@ class HackathonRegistrationRepositoryTest {
   @Autowired TestEntityManager entityManager;
 
   private User persistedUser() {
-    return entityManager.persistAndFlush(sampleUser().id(null).member(null).build());
+    return entityManager.persistAndFlush(
+        sampleUser().id(null).member(null).personalCode("39001109103").build());
   }
 
   private HackathonRegistration.HackathonRegistrationBuilder registration(Long userId) {

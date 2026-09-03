@@ -2,26 +2,31 @@ package ee.tuleva.onboarding.mandate.email;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notConverted;
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture;
+import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.getAttachments;
+import static ee.tuleva.onboarding.mandate.MandateContactDetailsFixture.contactDetailsFixture;
 import static ee.tuleva.onboarding.mandate.MandateFixture.*;
-import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.getAttachments;
 import static ee.tuleva.onboarding.paymentrate.PaymentRatesFixture.samplePaymentRates;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.mandate.PillarSuggestion;
+import ee.tuleva.onboarding.mandate.SavingsFundCharges;
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
 import ee.tuleva.onboarding.mandate.batch.MandateBatchFixture;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
+import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.notification.email.EmailType;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -37,11 +42,13 @@ class MandateBatchEmailServiceTest {
   @Mock private EmailPersistenceService emailPersistenceService;
 
   @Mock private MandateProcessorService mandateProcessorService;
+  @Mock private SavingsFundCharges savingsFundFees;
 
   @InjectMocks private MandateBatchEmailService mandateBatchEmailService;
 
-  private boolean areMergeVarsPresent(Map<String, Object> first, Map<String, Object> second) {
-    return first.entrySet().stream().allMatch(e -> e.getValue().equals(second.get(e.getKey())));
+  @BeforeEach
+  void stubSavingsFundFee() {
+    lenient().when(savingsFundFees.ongoingChargesPercent(any())).thenReturn("0.28");
   }
 
   @Test
@@ -58,7 +65,13 @@ class MandateBatchEmailServiceTest {
     var conversion = notConverted();
     var contactDetails = contactDetailsFixture();
     var paymentRates = samplePaymentRates();
-    var pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates);
+    var pillarSuggestion =
+        new PillarSuggestion(
+            user,
+            contactDetails.secondPillarActive(),
+            contactDetails.thirdPillarActive(),
+            conversion,
+            paymentRates);
     var message = new MandrillMessage();
 
     var file = getAttachments(user, mandateBatch).getFirst();
@@ -71,25 +84,38 @@ class MandateBatchEmailServiceTest {
         Map.ofEntries(
             Map.entry("fname", user.getFirstName()),
             Map.entry("lname", user.getLastName()),
-            Map.entry("transferDate", "03.05.2021"),
             Map.entry("suggestPaymentRate", pillarSuggestion.isSuggestPaymentRate()),
             Map.entry("suggestSecondPillar", pillarSuggestion.isSuggestSecondPillar()),
             Map.entry("suggestThirdPillar", pillarSuggestion.isSuggestThirdPillar()),
+            Map.entry("thirdPillarActive", pillarSuggestion.isThirdPillarActive()),
             Map.entry("suggestMembership", pillarSuggestion.isSuggestMembership()),
+            Map.entry("leftSecondPillar", pillarSuggestion.isLeftSecondPillar()),
+            Map.entry("suggestSavingsFund", pillarSuggestion.isSuggestSavingsFund()),
+            Map.entry(
+                "suggestThirdPillarRecurringPayment",
+                pillarSuggestion.isSuggestThirdPillarRecurringPayment()),
+            Map.entry("suggestThirdPillarRaise", pillarSuggestion.isSuggestThirdPillarRaise()),
+            Map.entry("savingsFundFee", "0.28"),
+            Map.entry(
+                "suggestSavingsFundRecurringPayment",
+                pillarSuggestion.isSuggestSavingsFundRecurringPayment()),
             Map.entry("fundPensionSecondPillar", true),
             Map.entry("fundPensionThirdPillar", false),
             Map.entry("partialWithdrawalSecondPillar", true),
             Map.entry("partialWithdrawalThirdPillar", false));
 
-    var tags = List.of("mandate_batch", "pillar_2", "fund_pension_opening", "partial_withdrawal");
+    var tags =
+        new java.util.ArrayList<>(
+            List.of("mandate_batch", "pillar_2", "fund_pension_opening", "partial_withdrawal"));
+    pillarSuggestion.renderedNudgeTag().ifPresent(tags::add);
 
-    when(emailPersistenceService.hasEmailsFor(mandateBatch)).thenReturn(false);
+    when(emailPersistenceService.hasEmailsForMandateBatch(mandateBatch.getId())).thenReturn(false);
     when(emailService.send(user, message, "withdrawal_batch_en"))
         .thenReturn(Optional.of(mandrillResponse));
     when(emailService.newMandrillMessage(
             eq(user.getEmail()),
             eq("withdrawal_batch_en"),
-            argThat(map -> areMergeVarsPresent(map, mergeVars)),
+            eq(mergeVars),
             eq(tags),
             argThat(
                 attachments ->
@@ -101,7 +127,8 @@ class MandateBatchEmailServiceTest {
     mandateBatchEmailService.sendMandateBatch(user, mandateBatch, pillarSuggestion, Locale.ENGLISH);
 
     verify(emailPersistenceService)
-        .save(user, "123", EmailType.WITHDRAWAL_BATCH, "sent", mandateBatch);
+        .saveWithMandateBatch(
+            user, "123", EmailType.WITHDRAWAL_BATCH, "sent", mandateBatch.getId());
   }
 
   @Test
@@ -122,7 +149,13 @@ class MandateBatchEmailServiceTest {
     var conversion = notConverted();
     var contactDetails = contactDetailsFixture();
     var paymentRates = samplePaymentRates();
-    var pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates);
+    var pillarSuggestion =
+        new PillarSuggestion(
+            user,
+            contactDetails.secondPillarActive(),
+            contactDetails.thirdPillarActive(),
+            conversion,
+            paymentRates);
     var message = new MandrillMessage();
 
     var file = getAttachments(user, mandateBatch).getFirst();
@@ -135,27 +168,43 @@ class MandateBatchEmailServiceTest {
         Map.ofEntries(
             Map.entry("fname", user.getFirstName()),
             Map.entry("lname", user.getLastName()),
-            Map.entry("transferDate", "03.05.2021"),
             Map.entry("suggestPaymentRate", pillarSuggestion.isSuggestPaymentRate()),
             Map.entry("suggestSecondPillar", pillarSuggestion.isSuggestSecondPillar()),
             Map.entry("suggestThirdPillar", pillarSuggestion.isSuggestThirdPillar()),
+            Map.entry("thirdPillarActive", pillarSuggestion.isThirdPillarActive()),
             Map.entry("suggestMembership", pillarSuggestion.isSuggestMembership()),
+            Map.entry("leftSecondPillar", pillarSuggestion.isLeftSecondPillar()),
+            Map.entry("suggestSavingsFund", pillarSuggestion.isSuggestSavingsFund()),
+            Map.entry(
+                "suggestThirdPillarRecurringPayment",
+                pillarSuggestion.isSuggestThirdPillarRecurringPayment()),
+            Map.entry("suggestThirdPillarRaise", pillarSuggestion.isSuggestThirdPillarRaise()),
+            Map.entry("savingsFundFee", "0.28"),
+            Map.entry(
+                "suggestSavingsFundRecurringPayment",
+                pillarSuggestion.isSuggestSavingsFundRecurringPayment()),
             Map.entry("fundPensionSecondPillar", true),
             Map.entry("fundPensionThirdPillar", true),
             Map.entry("partialWithdrawalSecondPillar", true),
             Map.entry("partialWithdrawalThirdPillar", true));
 
     var tags =
-        List.of(
-            "mandate_batch", "pillar_2", "pillar_3", "fund_pension_opening", "partial_withdrawal");
+        new java.util.ArrayList<>(
+            List.of(
+                "mandate_batch",
+                "pillar_2",
+                "pillar_3",
+                "fund_pension_opening",
+                "partial_withdrawal"));
+    pillarSuggestion.renderedNudgeTag().ifPresent(tags::add);
 
-    when(emailPersistenceService.hasEmailsFor(mandateBatch)).thenReturn(false);
+    when(emailPersistenceService.hasEmailsForMandateBatch(mandateBatch.getId())).thenReturn(false);
     when(emailService.send(user, message, "withdrawal_batch_en"))
         .thenReturn(Optional.of(mandrillResponse));
     when(emailService.newMandrillMessage(
             eq(user.getEmail()),
             eq("withdrawal_batch_en"),
-            argThat(map -> areMergeVarsPresent(map, mergeVars)),
+            eq(mergeVars),
             eq(tags),
             argThat(
                 attachments ->
@@ -167,7 +216,8 @@ class MandateBatchEmailServiceTest {
     mandateBatchEmailService.sendMandateBatch(user, mandateBatch, pillarSuggestion, Locale.ENGLISH);
 
     verify(emailPersistenceService)
-        .save(user, "123", EmailType.WITHDRAWAL_BATCH, "sent", mandateBatch);
+        .saveWithMandateBatch(
+            user, "123", EmailType.WITHDRAWAL_BATCH, "sent", mandateBatch.getId());
   }
 
   @Test
@@ -197,7 +247,6 @@ class MandateBatchEmailServiceTest {
         Map.ofEntries(
             Map.entry("fname", user.getFirstName()),
             Map.entry("lname", user.getLastName()),
-            Map.entry("transferDate", "03.05.2021"),
             Map.entry("failedMandateCount", 1),
             Map.entry("successfulMandateCount", 3),
             Map.entry("totalMandateCount", 4),
@@ -216,14 +265,14 @@ class MandateBatchEmailServiceTest {
     when(mandateProcessorService.getErrors(eq(mandate4)))
         .thenReturn(ErrorsResponse.ofSingleError("123", "Error"));
 
-    when(emailPersistenceService.hasEmailsFor(mandateBatch)).thenReturn(false);
+    when(emailPersistenceService.hasEmailsForMandateBatch(mandateBatch.getId())).thenReturn(false);
     when(emailService.send(user, message, "batch_failed_en"))
         .thenReturn(Optional.of(mandrillResponse));
 
     when(emailService.newMandrillMessage(
             eq(user.getEmail()),
             eq("batch_failed_en"),
-            argThat(map -> areMergeVarsPresent(map, mergeVars)),
+            eq(mergeVars),
             eq(tags),
             argThat(
                 attachments ->
@@ -234,7 +283,8 @@ class MandateBatchEmailServiceTest {
 
     mandateBatchEmailService.sendMandateBatchFailedEmail(user, mandateBatch, Locale.ENGLISH);
 
-    verify(emailPersistenceService).save(user, "123", EmailType.BATCH_FAILED, "sent", mandateBatch);
+    verify(emailPersistenceService)
+        .saveWithMandateBatch(user, "123", EmailType.BATCH_FAILED, "sent", mandateBatch.getId());
   }
 
   @Test
@@ -255,9 +305,15 @@ class MandateBatchEmailServiceTest {
     var conversion = notConverted();
     var contactDetails = contactDetailsFixture();
     var paymentRates = samplePaymentRates();
-    var pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates);
+    var pillarSuggestion =
+        new PillarSuggestion(
+            user,
+            contactDetails.secondPillarActive(),
+            contactDetails.thirdPillarActive(),
+            conversion,
+            paymentRates);
 
-    when(emailPersistenceService.hasEmailsFor(mandateBatch)).thenReturn(true);
+    when(emailPersistenceService.hasEmailsForMandateBatch(mandateBatch.getId())).thenReturn(true);
 
     mandateBatchEmailService.sendMandateBatch(user, mandateBatch, pillarSuggestion, Locale.ENGLISH);
 
@@ -284,7 +340,7 @@ class MandateBatchEmailServiceTest {
     var contactDetails = contactDetailsFixture();
     var paymentRates = samplePaymentRates();
 
-    when(emailPersistenceService.hasEmailsFor(mandateBatch)).thenReturn(true);
+    when(emailPersistenceService.hasEmailsForMandateBatch(mandateBatch.getId())).thenReturn(true);
 
     mandateBatchEmailService.sendMandateBatchFailedEmail(user, mandateBatch, Locale.ENGLISH);
 

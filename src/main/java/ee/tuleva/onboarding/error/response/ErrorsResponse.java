@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.error.response;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.*;
+import org.jspecify.annotations.Nullable;
 
 @Getter
 @Setter
@@ -14,7 +15,7 @@ public class ErrorsResponse {
 
   private List<ErrorResponse> errors = new ArrayList<>();
 
-  public static ErrorsResponse ofSingleError(String code, String message) {
+  public static ErrorsResponse ofSingleError(@Nullable String code, @Nullable String message) {
     return new ErrorsResponse(List.of(ErrorResponse.builder().code(code).message(message).build()));
   }
 

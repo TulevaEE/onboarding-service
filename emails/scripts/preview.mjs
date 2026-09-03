@@ -1,11 +1,16 @@
-import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } from 'node:fs';
 import { join, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { renderMergeLanguage } from './merge-language.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+const descriptions = JSON.parse(readFileSync(join(root, 'manifest.json'), 'utf8')).descriptions;
+const NEVER_SENT = / \((ei esine|cannot occur)\)$/;
 const previewDir = join(root, 'preview');
 mkdirSync(previewDir, { recursive: true });
+readdirSync(previewDir)
+  .filter((f) => f.endsWith('.html'))
+  .forEach((f) => rmSync(join(previewDir, f)));
 
 function collect(dir) {
   if (!existsSync(dir)) {
@@ -51,7 +56,7 @@ for (const { name, html, variants, group } of templates) {
   for (const [variant, vars] of Object.entries(variants)) {
     const fileName = `${name}--${variant.replaceAll(/[^a-zA-Z0-9äöüõÄÖÜÕ-]+/g, '-')}.html`;
     writeFileSync(join(previewDir, fileName), renderMergeLanguage(html, vars));
-    cards.push({ template: name, variant, fileName, group });
+    cards.push({ template: name, variant, fileName, group, neverSent: NEVER_SENT.test(variant) });
   }
 }
 
@@ -59,6 +64,11 @@ const groups = {};
 for (const card of cards) {
   ((groups[card.group] ??= {})[card.template] ??= []).push(card);
 }
+
+const card = (v) => `  <div class="variant">
+    <header><a href="${v.fileName}">${v.variant}</a></header>
+    <iframe src="${v.fileName}" loading="lazy"></iframe>
+  </div>`;
 
 const index = `<!doctype html>
 <html lang="en">
@@ -68,7 +78,11 @@ const index = `<!doctype html>
   body { font-family: system-ui, sans-serif; margin: 2rem auto; max-width: 1400px; padding: 0 1rem; }
   h1 + p { color: #555; }
   h2 { margin-top: 3rem; padding-bottom: 0.3rem; border-bottom: 2px solid #0081EE; }
-  h3 { margin-top: 2rem; font-size: 1rem; }
+  h3 { margin-top: 2rem; margin-bottom: 0.2rem; font-size: 1rem; }
+  .description { margin: 0 0 0.8rem; color: #555; font-size: 0.85rem; max-width: 70ch; }
+  details.never-sent { margin-top: 1rem; }
+  details.never-sent summary { color: #888; font-size: 0.85rem; cursor: pointer; }
+  details.never-sent .variants { margin-top: 1rem; }
   .variants { display: flex; flex-wrap: wrap; gap: 1rem; }
   .variant { border: 1px solid #ddd; border-radius: 8px; overflow: hidden; width: 420px; }
   .variant header { padding: 0.4rem 0.8rem; background: #f5f5f5; font-size: 0.85rem; }
@@ -96,20 +110,26 @@ ${Object.entries(groups)
     ([group, byTemplate]) => `
 <h2>${group}</h2>
 ${Object.entries(byTemplate)
-  .map(
-    ([template, variants]) => `
+  .map(([template, variants]) => {
+    const sent = variants.filter((v) => !v.neverSent);
+    const neverSent = variants.filter((v) => v.neverSent);
+    return `
 <h3 id="${template}">${template}</h3>
+<p class="description">${descriptions[template.replace(/_(et|en)$/, '')]}</p>
 <div class="variants">
-${variants
-  .map(
-    (v) => `  <div class="variant">
-    <header><a href="${v.fileName}">${v.variant}</a></header>
-    <iframe src="${v.fileName}" loading="lazy"></iframe>
-  </div>`,
-  )
-  .join('\n')}
-</div>`,
-  )
+${sent.map(card).join('\n')}
+</div>${
+      neverSent.length
+        ? `
+<details class="never-sent">
+  <summary>${neverSent.length} render check${neverSent.length > 1 ? 's' : ''} for branches that never send</summary>
+  <div class="variants">
+${neverSent.map(card).join('\n')}
+  </div>
+</details>`
+        : ''
+    }`;
+  })
   .join('\n')}`,
   )
   .join('\n')}

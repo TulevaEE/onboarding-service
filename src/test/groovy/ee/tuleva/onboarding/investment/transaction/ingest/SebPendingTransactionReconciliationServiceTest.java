@@ -1,19 +1,21 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
+import static ee.tuleva.onboarding.investment.transaction.OrderStatus.DRAFT;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.EXECUTED;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SENT;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SETTLED;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -71,23 +73,44 @@ class SebPendingTransactionReconciliationServiceTest {
         .willReturn(new TransactionMatchingProperties(null, null, null, null, null));
     SebClientNameToFundResolver resolver = new SebClientNameToFundResolver();
     QuantityAmountValidator validator = new QuantityAmountValidator();
+    ReconciliationAuditRecorder auditRecorder =
+        new ReconciliationAuditRecorder(auditEventRepository, clock);
+    SebExecutionUpserter executionUpserter =
+        new SebExecutionUpserter(mapper, executionRepository, orderRepository, auditRecorder);
+    SebMatchedRowConsistencyChecker consistencyChecker =
+        new SebMatchedRowConsistencyChecker(resolver, auditRecorder);
+    SebMatchedRowProcessor matchedRowProcessor =
+        new SebMatchedRowProcessor(
+            consistencyChecker,
+            validator,
+            new ExecutionPriceConsistencyChecker(),
+            executionUpserter,
+            executionRepository,
+            eventPublisher,
+            auditRecorder,
+            settlementRepository);
+    SebPendingRowReconciler rowReconciler =
+        new SebPendingRowReconciler(
+            new SebPendingTransactionMatcher(orderRepository),
+            new SebPendingTransactionComplexMatcher(
+                orderRepository, executionRepository, resolver, validator),
+            executionRepository,
+            orderRepository,
+            eventPublisher,
+            auditRecorder,
+            matchedRowProcessor);
     return new SebPendingTransactionReconciliationService(
         extractor,
-        new SebPendingTransactionMatcher(orderRepository),
-        new SebPendingTransactionComplexMatcher(
-            orderRepository, executionRepository, resolver, validator),
         validator,
-        resolver,
-        new ExecutionPriceConsistencyChecker(),
         matchingPolicy,
-        mapper,
         executionRepository,
         orderRepository,
         eventPublisher,
-        new ReconciliationAuditRecorder(auditEventRepository, clock),
+        auditRecorder,
         settlementRepository,
         new TransactionSettlementService(settlementRepository, orderRepository, clock),
-        reportService);
+        reportService,
+        rowReconciler);
   }
 
   @Test
@@ -516,6 +539,9 @@ class SebPendingTransactionReconciliationServiceTest {
 
     // Defensive: do not silently re-link — refuse to write a second execution that conflicts.
     verify(executionRepository, org.mockito.Mockito.never()).save(any());
+    assertThat(order.getOrderStatus()).isEqualTo(SENT);
+    verify(orderRepository, never())
+        .findByOrderStatusInAndOrderTimestampSince(anyCollection(), any());
   }
 
   @Test
@@ -736,6 +762,7 @@ class SebPendingTransactionReconciliationServiceTest {
     service.reconcile(reportOf(raw));
 
     verify(executionRepository, never()).save(any());
+    verify(executionRepository, never()).findAllByBrokerTransactionId(null);
     assertThat(order.getOrderStatus()).isEqualTo(SENT);
   }
 
@@ -959,6 +986,12 @@ class SebPendingTransactionReconciliationServiceTest {
     TransactionOrder presentByOurRef = executedOrder(456L);
     given(orderRepository.findByOrderStatusInAndOrderTimestampSince(anyCollection(), any()))
         .willReturn(List.of(presentByOurRef));
+    // Fully filled and trade-dated before the report: every OTHER settle-by-absence filter would
+    // pass, so only the presentOrderIds exclusion (via the Our ref lookup above) keeps it EXECUTED.
+    // Reached only if that exclusion is broken, hence lenient (real code never calls it).
+    lenient()
+        .when(executionRepository.findAllByOrderId(456L))
+        .thenReturn(List.of(executionWithTradeInstant(456L, "2026-05-11T10:00:00Z")));
 
     Map<String, Object> secondRow = validRawRow(secondClientRef);
     secondRow.put("Our ref", "DLA0888888");
@@ -1194,6 +1227,214 @@ class SebPendingTransactionReconciliationServiceTest {
     verify(executionRepository, never()).save(any());
   }
 
+  @Test
+  void reconcile_normalUpsertCombinedWithQuarantinedRow_stillRunsSettlementDetection() {
+    service = newService();
+    UUID normalRef = UUID.randomUUID();
+    TransactionOrder normalOrder = etfOrder(901L, normalRef, BUY, new BigDecimal("15007"));
+    given(orderRepository.findByOrderUuid(normalRef)).willReturn(Optional.of(normalOrder));
+    given(executionRepository.findAllByOrderId(901L)).willReturn(List.of());
+
+    UUID mismatchRef = UUID.randomUUID();
+    TransactionOrder mismatchOrder = etfOrder(902L, mismatchRef, SELL, new BigDecimal("15007"));
+    given(orderRepository.findByOrderUuid(mismatchRef)).willReturn(Optional.of(mismatchOrder));
+
+    service.reconcile(
+        twoRowReport(
+            rawRow(normalRef, "DLA-901", new BigDecimal("15007")),
+            rawRow(mismatchRef, "DLA-902", new BigDecimal("15007"))));
+
+    assertThat(normalOrder.getOrderStatus()).isEqualTo(EXECUTED);
+    verify(orderRepository).findByOrderStatusInAndOrderTimestampSince(anyCollection(), any());
+  }
+
+  @Test
+  void reconcile_quarantinedRowCombinedWithNormalUpsert_stillRunsSettlementDetection() {
+    service = newService();
+    UUID mismatchRef = UUID.randomUUID();
+    TransactionOrder mismatchOrder = etfOrder(903L, mismatchRef, SELL, new BigDecimal("15007"));
+    given(orderRepository.findByOrderUuid(mismatchRef)).willReturn(Optional.of(mismatchOrder));
+
+    UUID normalRef = UUID.randomUUID();
+    TransactionOrder normalOrder = etfOrder(904L, normalRef, BUY, new BigDecimal("15007"));
+    given(orderRepository.findByOrderUuid(normalRef)).willReturn(Optional.of(normalOrder));
+    given(executionRepository.findAllByOrderId(904L)).willReturn(List.of());
+
+    service.reconcile(
+        twoRowReport(
+            rawRow(mismatchRef, "DLA-903", new BigDecimal("15007")),
+            rawRow(normalRef, "DLA-904", new BigDecimal("15007"))));
+
+    assertThat(mismatchOrder.getOrderStatus()).isEqualTo(SENT);
+    verify(orderRepository).findByOrderStatusInAndOrderTimestampSince(anyCollection(), any());
+  }
+
+  @Test
+  void reconcile_settledReappearanceCombinedWithNormalUpsert_stillRunsSettlementDetection() {
+    service = newService();
+    UUID settledRef = UUID.randomUUID();
+    TransactionOrder settledOrder = etfOrder(905L, settledRef, BUY, new BigDecimal("15007"));
+    settledOrder.setOrderStatus(SETTLED);
+    given(orderRepository.findByOrderUuid(settledRef)).willReturn(Optional.of(settledOrder));
+    given(settlementRepository.findByOrderId(905L))
+        .willReturn(Optional.of(settlement(905L, LocalDate.of(2026, 5, 10))));
+
+    UUID normalRef = UUID.randomUUID();
+    TransactionOrder normalOrder = etfOrder(906L, normalRef, BUY, new BigDecimal("15007"));
+    given(orderRepository.findByOrderUuid(normalRef)).willReturn(Optional.of(normalOrder));
+    given(executionRepository.findAllByOrderId(906L)).willReturn(List.of());
+
+    service.reconcile(
+        twoRowReport(
+            rawRow(settledRef, "DLA-905", new BigDecimal("15007")),
+            rawRow(normalRef, "DLA-906", new BigDecimal("15007"))));
+
+    verify(orderRepository).findByOrderStatusInAndOrderTimestampSince(anyCollection(), any());
+  }
+
+  @Test
+  void reconcile_blankEconomicsCombinedWithNormalUpsert_stillRunsSettlementDetection() {
+    service = newService();
+    UUID blankRef = UUID.randomUUID();
+    TransactionOrder blankOrder = etfOrder(907L, blankRef, BUY, new BigDecimal("15007"));
+    given(orderRepository.findByOrderUuid(blankRef)).willReturn(Optional.of(blankOrder));
+
+    UUID normalRef = UUID.randomUUID();
+    TransactionOrder normalOrder = etfOrder(908L, normalRef, BUY, new BigDecimal("15007"));
+    given(orderRepository.findByOrderUuid(normalRef)).willReturn(Optional.of(normalOrder));
+    given(executionRepository.findAllByOrderId(908L)).willReturn(List.of());
+
+    service.reconcile(
+        twoRowReport(
+            rawRow(blankRef, "DLA-907", null),
+            rawRow(normalRef, "DLA-908", new BigDecimal("15007"))));
+
+    assertThat(blankOrder.getOrderStatus()).isEqualTo(SENT);
+    verify(orderRepository).findByOrderStatusInAndOrderTimestampSince(anyCollection(), any());
+  }
+
+  @Test
+  void reconcile_cumulativeMismatchCombinedWithNormalUpsert_stillRunsSettlementDetection() {
+    service = newService();
+    UUID mismatchRef = UUID.randomUUID();
+    TransactionOrder mismatchOrder = etfOrder(909L, mismatchRef, BUY, new BigDecimal("15000"));
+    given(orderRepository.findByOrderUuid(mismatchRef)).willReturn(Optional.of(mismatchOrder));
+    given(executionRepository.findAllByOrderId(909L)).willReturn(List.of());
+
+    UUID normalRef = UUID.randomUUID();
+    TransactionOrder normalOrder = etfOrder(910L, normalRef, BUY, new BigDecimal("15007"));
+    given(orderRepository.findByOrderUuid(normalRef)).willReturn(Optional.of(normalOrder));
+    given(executionRepository.findAllByOrderId(910L)).willReturn(List.of());
+
+    service.reconcile(
+        twoRowReport(
+            rawRow(mismatchRef, "DLA-909", new BigDecimal("15007")),
+            rawRow(normalRef, "DLA-910", new BigDecimal("15007"))));
+
+    assertThat(mismatchOrder.getOrderStatus()).isEqualTo(SENT);
+    verify(orderRepository).findByOrderStatusInAndOrderTimestampSince(anyCollection(), any());
+  }
+
+  @Test
+  void reconcile_rowCountExactlyAtTruncationBoundary_stillSettlesByAbsence() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder matchedOrder = sampleOrder(clientRef);
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(matchedOrder));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+    given(orderRepository.findByInstrumentIsin(any())).willReturn(List.of());
+
+    // Prior report had 10 rows; today has exactly 5 (a 50% drop == the boundary, not beyond it).
+    InvestmentReport priorReport = reportWithRows(LocalDate.of(2026, 5, 12), 10);
+    given(reportService.getPriorReport(SEB, PENDING_TRANSACTIONS, LocalDate.of(2026, 5, 13)))
+        .willReturn(Optional.of(priorReport));
+
+    service.reconcile(reportWithRowsAndMatch(LocalDate.of(2026, 5, 13), clientRef, 5));
+
+    verify(orderRepository).findByOrderStatusInAndOrderTimestampSince(anyCollection(), any());
+    verify(auditEventRepository, never())
+        .save(argThat(event -> "POSSIBLE_REPORT_TRUNCATION".equals(event.getEventType())));
+  }
+
+  @Test
+  void reconcile_absentNonSebVenueOrder_isNeverSettledByAbsence() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder matchedOrder = sampleOrder(clientRef);
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(matchedOrder));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+
+    TransactionOrder nonSebOrder = etfOrder(456L, UUID.randomUUID(), BUY, new BigDecimal("100"));
+    nonSebOrder.setOrderVenue(OrderVenue.FT);
+    nonSebOrder.setOrderStatus(EXECUTED);
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(anyCollection(), any()))
+        .willReturn(List.of(nonSebOrder));
+    // Reached only if the venue check is broken, hence lenient (real code never calls it).
+    lenient()
+        .when(executionRepository.findAllByOrderId(456L))
+        .thenReturn(List.of(executionWithTradeInstant(456L, "2026-05-11T10:00:00Z")));
+
+    service.reconcile(reportWithSingleRow(clientRef));
+
+    verify(settlementRepository, never()).save(any());
+    assertThat(nonSebOrder.getOrderStatus()).isEqualTo(EXECUTED);
+  }
+
+  @Test
+  void reconcile_absentOrderAlreadyHasSettlementRecord_isNotSettledAgain() {
+    service = newService();
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder matchedOrder = sampleOrder(clientRef);
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(matchedOrder));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+
+    TransactionOrder absentOrder = executedOrder(456L);
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(anyCollection(), any()))
+        .willReturn(List.of(absentOrder));
+    // Reached only if the existsByOrderId check is broken, hence lenient (real code never calls
+    // it, since the settlement-exists filter already excludes the order first).
+    lenient()
+        .when(executionRepository.findAllByOrderId(456L))
+        .thenReturn(List.of(executionWithTradeInstant(456L, "2026-05-11T10:00:00Z")));
+    given(settlementRepository.existsByOrderId(456L)).willReturn(true);
+
+    service.reconcile(reportWithSingleRow(clientRef));
+
+    verify(settlementRepository, never()).save(any());
+  }
+
+  @Test
+  void reconcile_orderPresentViaUnmatchableClientRef_isNotSettledByAbsence() {
+    service = newService();
+    UUID rowClientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder draftOrder = etfOrder(456L, rowClientRef, BUY, null);
+    draftOrder.setOrderStatus(DRAFT);
+    given(orderRepository.findByOrderUuid(rowClientRef)).willReturn(Optional.of(draftOrder));
+    given(orderRepository.findByInstrumentIsin("IE000F60HVH9")).willReturn(List.of());
+
+    // A normally matched companion row, so matched != 0 and settlement detection actually runs.
+    UUID normalRef = UUID.randomUUID();
+    TransactionOrder normalOrder = etfOrder(911L, normalRef, BUY, new BigDecimal("15007"));
+    given(orderRepository.findByOrderUuid(normalRef)).willReturn(Optional.of(normalOrder));
+    given(executionRepository.findAllByOrderId(911L)).willReturn(List.of());
+
+    TransactionOrder absentOrder = executedOrder(456L);
+    given(orderRepository.findByOrderStatusInAndOrderTimestampSince(anyCollection(), any()))
+        .willReturn(List.of(absentOrder));
+    // Reached only if the presentOrderIds exclusion is broken, hence lenient (real code never
+    // calls it, since that filter already excludes the order first).
+    lenient()
+        .when(executionRepository.findAllByOrderId(456L))
+        .thenReturn(List.of(executionWithTradeInstant(456L, "2026-05-11T10:00:00Z")));
+
+    service.reconcile(
+        twoRowReport(
+            validRawRow(rowClientRef), rawRow(normalRef, "DLA-911", new BigDecimal("15007"))));
+
+    verify(settlementRepository, never()).save(any());
+    assertThat(absentOrder.getOrderStatus()).isEqualTo(EXECUTED);
+  }
+
   private static TransactionOrder executedOrder(Long id) {
     return TransactionOrder.builder()
         .id(id)
@@ -1259,6 +1500,37 @@ class SebPendingTransactionReconciliationServiceTest {
         .orderVenue(OrderVenue.SEB)
         .orderUuid(clientRef)
         .orderStatus(SENT)
+        .build();
+  }
+
+  private static Map<String, Object> rawRow(UUID clientRef, String ourRef, BigDecimal quantity) {
+    Map<String, Object> raw = validRawRow(clientRef);
+    raw.put("Our ref", ourRef);
+    raw.put("Quantity", quantity);
+    return raw;
+  }
+
+  private static TransactionOrder etfOrder(
+      long id, UUID clientRef, TransactionType side, BigDecimal quantity) {
+    return TransactionOrder.builder()
+        .id(id)
+        .fund(TKF100)
+        .instrumentIsin("IE000F60HVH9")
+        .transactionType(side)
+        .instrumentType(ETF)
+        .orderQuantity(quantity)
+        .orderVenue(OrderVenue.SEB)
+        .orderUuid(clientRef)
+        .orderStatus(SENT)
+        .build();
+  }
+
+  private static InvestmentReport twoRowReport(Map<String, Object> rowA, Map<String, Object> rowB) {
+    return InvestmentReport.builder()
+        .provider(SEB)
+        .reportType(PENDING_TRANSACTIONS)
+        .reportDate(LocalDate.of(2026, 5, 13))
+        .rawData(List.of(rowA, rowB))
         .build();
   }
 

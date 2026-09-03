@@ -1,19 +1,24 @@
 package ee.tuleva.onboarding.savings.fund;
 
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.*;
 import static java.time.temporal.ChronoUnit.DAYS;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.party.PartyId;
-import ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status;
+import ee.tuleva.onboarding.savings.SavingFundPayment;
+import ee.tuleva.onboarding.savings.SavingFundPayment.Status;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -23,12 +28,23 @@ import org.springframework.stereotype.Repository;
 @RequiredArgsConstructor
 public class SavingFundPaymentRepository {
   private final NamedParameterJdbcTemplate jdbcTemplate;
+  private final Clock clock;
 
   public Optional<SavingFundPayment> findById(UUID id) {
     var result =
         jdbcTemplate.query(
             "select * from saving_fund_payment where id=:id", Map.of("id", id), this::rowMapper);
     return result.isEmpty() ? Optional.empty() : Optional.of(result.getFirst());
+  }
+
+  public List<SavingFundPayment> findAllById(Collection<UUID> ids) {
+    if (ids.isEmpty()) {
+      return List.of();
+    }
+    return jdbcTemplate.query(
+        "select * from saving_fund_payment where id in (:ids)",
+        Map.of("ids", ids),
+        this::rowMapper);
   }
 
   public UUID savePaymentData(SavingFundPayment payment) {
@@ -60,9 +76,7 @@ public class SavingFundPaymentRepository {
 
   public List<SavingFundPayment> findPaymentsWithStatus(Status status) {
     return jdbcTemplate.query(
-        """
-        select * from saving_fund_payment where status=:status
-        """,
+        "select * from saving_fund_payment where status=:status",
         Map.of("status", status.name()),
         this::rowMapper);
   }
@@ -84,11 +98,41 @@ public class SavingFundPaymentRepository {
 
   public List<SavingFundPayment> findRecentPayments(String description) {
     return jdbcTemplate.query(
-        """
-        select * from saving_fund_payment where description=:description and created_at > :recent order by created_at asc
-        """,
-        Map.of("description", description, "recent", Timestamp.from(Instant.now().minus(30, DAYS))),
+        "select * from saving_fund_payment where description=:description"
+            + " and created_at > :recent order by created_at asc",
+        Map.of(
+            "description", description, "recent", Timestamp.from(clock.instant().minus(30, DAYS))),
         this::rowMapper);
+  }
+
+  public int countIssuedPaymentMonthsSince(PartyId partyId, LocalDate fromDate) {
+    Integer count =
+        jdbcTemplate.queryForObject(
+            """
+            select count(distinct to_char(created_at, 'YYYY-MM')) from saving_fund_payment
+            where party_type = :party_type and party_code = :party_code
+              and status in ('ISSUED', 'PROCESSED')
+              and created_at >= :from_date
+            """,
+            Map.of(
+                "party_type", partyId.type().name(),
+                "party_code", partyId.code(),
+                "from_date", Timestamp.valueOf(fromDate.atStartOfDay())),
+            Integer.class);
+    return count == null ? 0 : count;
+  }
+
+  public boolean existsIssuedPaymentFor(PartyId partyId) {
+    return Boolean.TRUE.equals(
+        jdbcTemplate.queryForObject(
+            """
+            select exists(
+              select 1 from saving_fund_payment
+              where party_type = :party_type and party_code = :party_code
+                and status in ('ISSUED', 'PROCESSED'))
+            """,
+            Map.of("party_type", partyId.type().name(), "party_code", partyId.code()),
+            Boolean.class));
   }
 
   public List<SavingFundPayment> findPayments(PartyId partyId) {
@@ -181,7 +225,7 @@ public class SavingFundPaymentRepository {
     return jdbcTemplate.query("select * from saving_fund_payment", this::rowMapper);
   }
 
-  public Optional<SavingFundPayment> findOriginalPaymentForReturn(String endToEndId) {
+  public Optional<SavingFundPayment> findOriginalPaymentForReturn(@Nullable String endToEndId) {
     if (endToEndId == null || endToEndId.length() != 32) {
       return Optional.empty();
     }
@@ -235,7 +279,7 @@ public class SavingFundPaymentRepository {
     return results.isEmpty() ? Optional.empty() : Optional.of(results.getFirst());
   }
 
-  private UUID toUuid(String endToEndId) {
+  private @Nullable UUID toUuid(String endToEndId) {
     try {
       return UUID.fromString(
           endToEndId.substring(0, 8)
@@ -253,8 +297,9 @@ public class SavingFundPaymentRepository {
   }
 
   private SavingFundPayment rowMapper(ResultSet rs, int ignored) throws SQLException {
+    UUID id = UUID.fromString(requireNonNull(rs.getString("id")));
     return SavingFundPayment.builder()
-        .id(UUID.fromString(rs.getString("id")))
+        .id(id)
         .partyId(mapParty(rs))
         .externalId(rs.getString("external_id"))
         .endToEndId(rs.getString("end_to_end_id"))
@@ -268,7 +313,9 @@ public class SavingFundPaymentRepository {
         .beneficiaryIdCode(rs.getString("beneficiary_id_code"))
         .beneficiaryName(rs.getString("beneficiary_name"))
         .status(Status.valueOf(rs.getString("status")))
-        .createdAt(instant(rs, "created_at"))
+        .createdAt(
+            requireNonNull(
+                instant(rs, "created_at"), "Missing value: column=created_at, paymentId=" + id))
         .receivedBefore(instant(rs, "received_before"))
         .statusChangedAt(instant(rs, "status_changed_at"))
         .cancelledAt(instant(rs, "cancelled_at"))
@@ -276,12 +323,12 @@ public class SavingFundPaymentRepository {
         .build();
   }
 
-  private Instant instant(ResultSet rs, String column) throws SQLException {
+  private @Nullable Instant instant(ResultSet rs, String column) throws SQLException {
     var timestamp = rs.getTimestamp(column);
     return timestamp != null ? timestamp.toInstant() : null;
   }
 
-  private PartyId mapParty(ResultSet rs) throws SQLException {
+  private @Nullable PartyId mapParty(ResultSet rs) throws SQLException {
     var type = rs.getString("party_type");
     var code = rs.getString("party_code");
     return type != null && code != null ? new PartyId(PartyId.Type.valueOf(type), code) : null;
@@ -379,9 +426,11 @@ public class SavingFundPaymentRepository {
   }
 
   private Status getAndLockCurrentStatus(UUID paymentId) {
-    return jdbcTemplate.queryForObject(
-        "select status from saving_fund_payment where id=:id for update",
-        Map.of("id", paymentId),
-        Status.class);
+    return requireNonNull(
+        jdbcTemplate.queryForObject(
+            "select status from saving_fund_payment where id=:id for update",
+            Map.of("id", paymentId),
+            Status.class),
+        "Missing payment: paymentId=" + paymentId);
   }
 }

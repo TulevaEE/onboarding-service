@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.savings.fund;
 
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.VERIFIED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.VERIFIED;
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.savings.fund.notification.ReservationCompletedEvent;

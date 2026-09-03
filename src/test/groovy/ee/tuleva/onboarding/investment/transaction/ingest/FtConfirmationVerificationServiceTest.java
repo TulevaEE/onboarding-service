@@ -1,7 +1,5 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.transaction.FtConfirmationType.CANCELLATION;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.AMBIGUOUS;
 import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.CANCELLED;
@@ -14,6 +12,8 @@ import static ee.tuleva.onboarding.investment.transaction.FtVerificationStatus.P
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.EXECUTED;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -270,6 +270,23 @@ class FtConfirmationVerificationServiceTest {
   }
 
   @Test
+  void referencePriceHasNoPriceDataButMatchingDate_returnsPendingNav() {
+    givenOrderAndExecution(new BigDecimal("40434"), new BigDecimal("40434"));
+    given(positionPriceResolver.resolve(ISIN, TRADE_DATE))
+        .willReturn(
+            Optional.of(
+                ResolvedPrice.builder()
+                    .usedPrice(new BigDecimal("10.09"))
+                    .priceDate(TRADE_DATE)
+                    .validationStatus(ValidationStatus.NO_PRICE_DATA)
+                    .build()));
+
+    FtConfirmationResult result = service(DAY_AFTER_TRADE).verify(confirmation());
+
+    assertThat(result.priceStatus()).isEqualTo(PENDING_NAV);
+  }
+
+  @Test
   void referencePriceForDifferentDate_returnsPendingNav() {
     givenOrderAndExecution(new BigDecimal("40434"), new BigDecimal("40434"));
     givenReferencePrice(new BigDecimal("10.09"), TRADE_DATE.minusDays(1));
@@ -296,6 +313,19 @@ class FtConfirmationVerificationServiceTest {
   void negativeReferencePrice_returnsError() {
     givenOrderAndExecution(new BigDecimal("40434"), new BigDecimal("40434"));
     givenReferencePrice(new BigDecimal("-10.09"), TRADE_DATE);
+
+    FtConfirmationResult result =
+        service(DAY_AFTER_TRADE)
+            .verify(confirmation(new BigDecimal("40434"), new BigDecimal("10.09")));
+
+    assertThat(result.priceStatus()).isEqualTo(ERROR);
+    assertThat(result.details()).containsKey("invalidReferencePrice");
+  }
+
+  @Test
+  void zeroReferencePrice_returnsError() {
+    givenOrderAndExecution(new BigDecimal("40434"), new BigDecimal("40434"));
+    givenReferencePrice(new BigDecimal("0.00"), TRADE_DATE);
 
     FtConfirmationResult result =
         service(DAY_AFTER_TRADE)

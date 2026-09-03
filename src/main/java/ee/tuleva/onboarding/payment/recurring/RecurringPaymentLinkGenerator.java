@@ -2,11 +2,12 @@ package ee.tuleva.onboarding.payment.recurring;
 
 import static ee.tuleva.onboarding.payment.PaymentDateProvider.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.epis.contact.ContactDetails;
-import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
-import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
+import ee.tuleva.onboarding.epis.ContactDetails;
+import ee.tuleva.onboarding.epis.ContactDetailsService;
+import ee.tuleva.onboarding.error.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.payment.PaymentData;
 import ee.tuleva.onboarding.payment.PaymentData.PaymentChannel;
@@ -85,7 +86,9 @@ public class RecurringPaymentLinkGenerator implements PaymentLinkGenerator {
                 + "&i_date_first_payment="
                 + format(paymentDateProvider.tenthDayOfMonth()),
             thirdPillarConfig.getRecipientName(),
-            thirdPillarConfig.getBankAccounts().get(PaymentChannel.LHV),
+            requireNonNull(
+                thirdPillarConfig.getBankAccounts().get(PaymentChannel.LHV),
+                "Missing bank account for payment channel: channel=" + PaymentChannel.LHV),
             thirdPillarConfig.getDescription(),
             amount);
       }

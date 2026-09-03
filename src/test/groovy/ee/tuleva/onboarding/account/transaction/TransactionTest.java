@@ -1,18 +1,18 @@
 package ee.tuleva.onboarding.account.transaction;
 
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CASH;
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION;
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH;
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH_WORKPLACE;
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.OTHER;
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.REFUND;
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.SUBTRACTION;
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.TRANSFER_FROM_PIK;
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.TRANSFER_TO_PIK;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.CASH;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.CONTRIBUTION;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.CONTRIBUTION_CASH;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.CONTRIBUTION_CASH_WORKPLACE;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.OTHER;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.REFUND;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.SUBTRACTION;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.TRANSFER_FROM_PIK;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.TRANSFER_TO_PIK;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.currency.Currency;
-import ee.tuleva.onboarding.epis.cashflows.CashFlow;
+import ee.tuleva.onboarding.epis.CashFlow;
 import java.math.BigDecimal;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;

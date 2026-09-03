@@ -7,46 +7,42 @@
       <mj-column>
         <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
-          Kogud nüüd oma II&nbsp;samba pensioni koos minu ja teiste Tuleva liikmetega. Sinu
-          maksed suunatakse valitud pensionifondi alates järgmisest maksest. Kui sa soovisid
-          olemasolevad osakud vahetada, siis osakute vahetus jõustub *|transferDate|*.
+          *|IF:selectedTulevaFund|*Kogud nüüd oma II&nbsp;sambasse koos minu ja teiste Tuleva
+          liikmetega.*|ELSE:|*Sinu II&nbsp;samba avaldus on esitatud.*|END:IF|*
         </mj-text>
+        <mj-raw>*|IF:hasFundSelection|*</mj-raw>
+        <mj-raw>*|IF:hasFundTransfer|*</mj-raw>
+        <mj-text>
+          Sinu maksed suunatakse valitud fondi alates järgmisest maksest ning osakute
+          vahetus jõustub *|transferDate|*.
+        </mj-text>
+        <mj-raw>*|ELSE:|*</mj-raw>
+        <mj-text>
+          Sinu maksed suunatakse valitud fondi alates järgmisest maksest.
+        </mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+        <mj-raw>*|ELSE:|*</mj-raw>
+        <mj-text>Sinu osakute vahetus jõustub *|transferDate|*.</mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+        <mj-raw>*|IF:selectedHighFeeFund|*</mj-raw>
+        <mj-text>
+          Pane tähele: valisid fondi, mille jooksvad tasud on
+          <strong>*|selectedFundFee|*% aastas</strong>. Madalad tasud
+          annavad parimad eeldused parimaks pikaajaliseks tootluseks. Fondide tasusid saad võrrelda
+          <a href="https://tuleva.ee/vaata/pensionifondide-vordlus/?utm_content=warning_high_fee">pensionifondide võrdluses</a>.
+        </mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+        <mj-raw>*|IF:selectedConservativeFund|*</mj-raw>
+        <mj-text>
+          Pane tähele: valisid <strong>madala riskiga fondi</strong>. Kui pensionini on veel palju
+          aega, on
+          aktsiafondid ajalooliselt andnud võlakirjafondidest oluliselt parema tootluse.
+          Fonde saad võrrelda
+          <a href="https://tuleva.ee/vaata/pensionifondide-vordlus/?utm_content=warning_conservative">pensionifondide võrdluses</a>.
+        </mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
 
-        <mj-raw>*|IF:suggestThirdPillar|*</mj-raw>
-        <mj-text>
-          Järgmisena on kaval üles seada III&nbsp;sammas. Näiteks kui teed igal kuul
-          100‑eurose sissemakse, annab riik sulle kevadel 264 eurot tulumaksu tagasi.
-        </mj-text>
-        <mj-text><strong>Vaata järele, kui palju sina võidaksid maksudelt:</strong></mj-text>
-        <mj-button href="https://tuleva.ee/iii-sammas/">Arvuta oma võit</mj-button>
-
-        <mj-raw>*|ELSEIF:suggestPaymentRate|*</mj-raw>
-        <mj-text><strong>Ära jää ilma ka&nbsp;II&nbsp;samba maksuvõidust</strong></mj-text>
-        <mj-text>
-          Kuna II&nbsp;samba sissemaksed on tulumaksuvabad, siis
-          <strong>mida suurem protsent, seda suurem maksuvõit</strong>. Näiteks kui su
-          brutopalk on 2000&nbsp;eurot, saad maksuvõitu 316 eurot.&nbsp;II&nbsp;samba
-          sissemakse suurust saad muuta kord aastas kuni 6% peale.
-        </mj-text>
-        <mj-text>
-          <strong>
-            Vaata järele, kui suureks kujuneks sinu isiklik tulumaksuvõit oma II&nbsp;samba
-            panust suurendades:
-          </strong>
-        </mj-text>
-        <mj-button href="https://pension.tuleva.ee/2nd-pillar-tax-win">Vaata järele</mj-button>
-
-        <mj-raw>*|ELSEIF:suggestMembership|*</mj-raw>
-        <mj-text><strong>Kuidas saaksid Tulevas kogumisest maksimaalselt kasu?</strong></mj-text>
-        <mj-text>
-          Tuleva kuulub Eesti inimestele, kes ka ise neis fondides koguvad. Tulevas kogujana
-          ei ole sul mingit kohustust Tuleva ühistu liikmeks astuda – meiega koos võivad
-          koguda kõik Eesti inimesed. Aga kutsun sind liikmeks astumist kaaluma, sest kõige
-          rohkem saad Tulevast kasu, olles ise kaasomanik.
-        </mj-text>
-        <mj-button href="https://tuleva.ee/liikmetele/31-marts-korduma-kippuvad-kusimused/">
-          Uuri lähemalt
-        </mj-button>
+        <mj-include path="./partials/suggest_chain_open_et.mjml" />
         <mj-raw>*|END:IF|*</mj-raw>
 
         <mj-text>

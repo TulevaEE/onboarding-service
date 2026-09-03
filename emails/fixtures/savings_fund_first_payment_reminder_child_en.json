@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "child name known": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Jaan Tamm",
+      "savingsFundFee": "0.28"
+    },
+    "child name unknown": {
+      "FNAME": "Mari",
+      "savingsFundFee": "0.28"
+    }
+  }
+}

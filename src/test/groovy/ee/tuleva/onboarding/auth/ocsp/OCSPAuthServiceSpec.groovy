@@ -50,5 +50,21 @@ class OCSPAuthServiceSpec extends Specification {
         thrown(AuthenticationException)
     }
 
+    def "Test certificate is rejected when the OCSP result is not GOOD"() {
+        given:
+        def validCert = OCSPFixture.generateCertificate("Lepp,Tiit,37801145819", 1, "SHA1WITHRSA", "http://issuer.ee/ca.crl", "http://issuer.ee/ocsp")
+        def certificateStr = OCSPFixture.certToString(validCert)
+        utils.getX509Certificate(certificateStr) >> validCert
+        utils.getIssuerCertificateURI(validCert) >> new URI("http://issuer.ee/ca.crl")
+        utils.getResponderURI(validCert) >> new URI("http://issuer.ee/ocsp")
+        service.getIssuerCertificate(_) >> "caCert"
+        utils.generateOCSPRequest(_, _, _) >> new OCSPRequest("http://issuer.ee/ocsp", validCert, null)
+        service.checkCertificate(_) >> OCSPResponseType.REVOKED
 
+        when:
+        authService.checkCertificate(certificateStr)
+
+        then:
+        thrown(AuthenticationException)
+    }
 }

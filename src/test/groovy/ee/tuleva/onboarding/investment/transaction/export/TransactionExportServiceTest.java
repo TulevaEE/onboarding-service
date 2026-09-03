@@ -1,19 +1,21 @@
 package ee.tuleva.onboarding.investment.transaction.export;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.*;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.FUND;
+import static ee.tuleva.onboarding.investment.transaction.OrderType.NAV;
+import static ee.tuleva.onboarding.investment.transaction.OrderType.RISK;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.FT;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
 import static ee.tuleva.onboarding.time.TestClockHolder.now;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.*;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.fund.FundAccounts;
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.transaction.*;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -227,6 +229,30 @@ class TransactionExportServiceTest {
       assertThat(dataRow.getCell(7).getStringCellValue()).isEqualTo("Buy");
 
       assertThat(sheet.getPhysicalNumberOfRows()).isEqualTo(2);
+    }
+  }
+
+  @Test
+  void generateSebEtfExport_writesEachOrdersOwnOrderTypeAsInstructionType() throws Exception {
+    var batch = buildBatch();
+
+    var navOrder =
+        buildOrder(batch, TKF100, "IE00NAV", BUY, ETF, SEB, new BigDecimal("100000"), 500L);
+    navOrder.setOrderType(NAV);
+    var riskOrder =
+        buildOrder(batch, TKF100, "IE00RISK", BUY, ETF, SEB, new BigDecimal("200000"), 1000L);
+    riskOrder.setOrderType(RISK);
+    var mocOrder =
+        buildOrder(batch, TKF100, "IE00MOC", BUY, ETF, SEB, new BigDecimal("300000"), 1500L);
+
+    byte[] xlsx = service.generateSebEtfExport(List.of(navOrder, riskOrder, mocOrder), Map.of());
+
+    try (var workbook = WorkbookFactory.create(new ByteArrayInputStream(xlsx))) {
+      var sheet = workbook.getSheetAt(0);
+
+      assertThat(sheet.getRow(1).getCell(4).getStringCellValue()).isEqualTo("NAV");
+      assertThat(sheet.getRow(2).getCell(4).getStringCellValue()).isEqualTo("RISK");
+      assertThat(sheet.getRow(3).getCell(4).getStringCellValue()).isEqualTo("MOC");
     }
   }
 

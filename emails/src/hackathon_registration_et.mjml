@@ -6,7 +6,7 @@
     <mj-section padding-top="12px">
       <mj-column>
         <mj-text font-size="24px" font-weight="bold">Oled Tuleva häkatonile registreerunud</mj-text>
-        <mj-text>Tere,&nbsp;*|FNAME|*!</mj-text>
+        <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
           Aitäh, et tuled 9.–11.&nbsp;oktoobril Tuleva häkatonile. Kolme päevaga paneme kokku
           tiimid ja ehitame esimesed lahendused. Parim idee saab Tulevalt eelarve ja toe, et
@@ -31,7 +31,7 @@
     <mj-section padding="0 24px">
       <mj-column>
         <mj-text padding-top="12px">
-          Kohtumiseni!<br />
+          Kohtumiseni.<br />
           <strong>Annika Uudelepp</strong><br />
           Tuleva ühistu juhatuse liige
         </mj-text>

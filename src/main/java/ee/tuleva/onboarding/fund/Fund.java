@@ -23,7 +23,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 
 @Data
 @Builder
@@ -84,7 +84,7 @@ public class Fund implements Comparable<Fund> {
 
   public boolean isExitRestricted() {
     return EXIT_RESTRICTED_FUND_ISINS.contains(isin)
-        || StringUtils.containsIgnoreCase(nameEstonian, "väljumine piiratud");
+        || Strings.CI.contains(nameEstonian, "väljumine piiratud");
   }
 
   @Override

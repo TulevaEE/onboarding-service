@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.investment.transaction;
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
 import static jakarta.persistence.EnumType.STRING;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Enumerated;
@@ -23,6 +23,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.jspecify.annotations.Nullable;
 
 @Data
 @Builder
@@ -55,15 +56,15 @@ public class TransactionOrder {
   @Enumerated(STRING)
   private InstrumentType instrumentType;
 
-  private BigDecimal orderAmount;
+  @Nullable private BigDecimal orderAmount;
 
-  private BigDecimal orderQuantity;
+  @Nullable private BigDecimal orderQuantity;
 
   @NotNull
   @Enumerated(STRING)
   private OrderVenue orderVenue;
 
-  private String traderId;
+  private @Nullable String traderId;
 
   @NotNull @Builder.Default private UUID orderUuid = UUID.randomUUID();
 
@@ -72,13 +73,16 @@ public class TransactionOrder {
   @Builder.Default
   private OrderStatus orderStatus = OrderStatus.DRAFT;
 
-  @NotNull @Builder.Default private String orderType = "MOC";
+  @NotNull
+  @Enumerated(STRING)
+  @Builder.Default
+  private OrderType orderType = OrderType.MOC;
 
-  private Instant orderTimestamp;
+  @Nullable private Instant orderTimestamp;
 
-  private LocalDate expectedSettlementDate;
+  @Nullable private LocalDate expectedSettlementDate;
 
-  private String comment;
+  @Nullable private String comment;
 
   private Instant createdAt;
 

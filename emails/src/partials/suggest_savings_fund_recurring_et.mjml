@@ -1,0 +1,8 @@
+<mj-text>
+  Paljud Tuleva kogujad on seadistanud kogumisfondi püsimakse. Nii ei pea nad edaspidi
+  sissemaksete tegemist pidevalt meeles hoidma.
+</mj-text>
+<mj-text><strong>Püsimakse saad seadistada oma Tuleva kontol:</strong></mj-text>
+<mj-button href="https://pension.tuleva.ee/savings-fund/payment?utm_content=nudge_savings_fund_recurring">
+  Seadistan püsimakse
+</mj-button>

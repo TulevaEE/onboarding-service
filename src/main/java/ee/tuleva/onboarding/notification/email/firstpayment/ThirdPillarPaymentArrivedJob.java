@@ -1,7 +1,5 @@
 package ee.tuleva.onboarding.notification.email.firstpayment;
 
-import ee.tuleva.onboarding.analytics.transaction.thirdpillar.FirstThirdPillarPayment;
-import ee.tuleva.onboarding.analytics.transaction.thirdpillar.FirstThirdPillarPaymentRepository;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
@@ -18,7 +16,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class ThirdPillarPaymentArrivedJob {
 
-  private final FirstThirdPillarPaymentRepository repository;
+  private final FirstPaymentAudience firstPaymentAudience;
   private final ThirdPillarPaymentArrivedEmailService emailService;
   private final Clock clock;
   private final boolean dryRun;
@@ -27,14 +25,14 @@ public class ThirdPillarPaymentArrivedJob {
   private final int windowDays;
 
   public ThirdPillarPaymentArrivedJob(
-      FirstThirdPillarPaymentRepository repository,
+      FirstPaymentAudience firstPaymentAudience,
       ThirdPillarPaymentArrivedEmailService emailService,
       Clock clock,
       @Value("${third-pillar-payment-arrived.dry-run:true}") boolean dryRun,
       @Value("${third-pillar-payment-arrived.max-recipients:200}") int maxRecipients,
       @Value("${third-pillar-payment-arrived.history-floor:2022-01-01}") LocalDate historyFloor,
       @Value("${third-pillar-payment-arrived.window-days:30}") int windowDays) {
-    this.repository = repository;
+    this.firstPaymentAudience = firstPaymentAudience;
     this.emailService = emailService;
     this.clock = clock;
     this.dryRun = dryRun;
@@ -49,7 +47,7 @@ public class ThirdPillarPaymentArrivedJob {
       lockAtMostFor = "23h",
       lockAtLeastFor = "10m")
   public void run() {
-    Optional<LocalDate> oldestPayment = repository.oldestOwnPaymentDate();
+    Optional<LocalDate> oldestPayment = firstPaymentAudience.oldestOwnPaymentDate();
     if (oldestPayment.isEmpty() || oldestPayment.get().isAfter(historyFloor)) {
       log.error(
           "Transaction history too shallow to trust first-payment detection, refusing to run:"
@@ -60,7 +58,9 @@ public class ThirdPillarPaymentArrivedJob {
     }
 
     LocalDate windowStart = LocalDate.now(clock).minusDays(windowDays);
-    List<FirstThirdPillarPayment> audience = repository.fetchUnemailedFirstPayments(windowStart);
+    LocalDate adultBirthDateCutoff = LocalDate.now(clock).minusYears(18);
+    List<FirstThirdPillarPayment> audience =
+        firstPaymentAudience.fetchUnemailedFirstPayments(windowStart, adultBirthDateCutoff);
 
     if (audience.size() > maxRecipients) {
       log.error(

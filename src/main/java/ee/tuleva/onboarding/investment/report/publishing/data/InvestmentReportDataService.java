@@ -1,14 +1,12 @@
 package ee.tuleva.onboarding.investment.report.publishing.data;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
-import ee.tuleva.onboarding.instrument.InstrumentReference;
-import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.investment.report.publishing.FundReportMapping;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportContext;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportContext.SecuritySection;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportRow;
 import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisService;
 import ee.tuleva.onboarding.investment.transaction.PortfolioCostBasisSnapshot;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -19,10 +17,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -33,8 +31,8 @@ public class InvestmentReportDataService {
   private static final DateTimeFormatter ESTONIAN_DATE = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 
   private final NavReportViewRepository navReportRepository;
-  private final InstrumentReferenceService instrumentReferenceService;
   private final PortfolioCostBasisService costBasisService;
+  private final InvestmentReportRowsBuilder rowsBuilder;
 
   public Map<String, LocalDate> findNavDatesForAllFunds(YearMonth month) {
     var startDate = month.atDay(1);
@@ -127,14 +125,13 @@ public class InvestmentReportDataService {
             .map(NavReportView::getMarketValue)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-    var instrumentMap = loadInstrumentMap(securities);
-
     var costBasisMap =
         costBasisService.snapshotForFundAndDate(fund, navDate).stream()
             .collect(Collectors.toMap(PortfolioCostBasisSnapshot::instrumentIsin, s -> s));
 
-    var securityRows = buildSecurityRows(securities, instrumentMap, costBasisMap, fundNav);
-    var secTotalCost = securitiesTotalCostIfComplete(securityRows);
+    var rows = rowsBuilder.buildRows(securities, costBasisMap, cashRows, receivablesTotal, fundNav);
+    var securityRows = rows.securityRows();
+    var secTotalCost = InvestmentReportRowsBuilder.securitiesTotalCostIfComplete(securityRows);
     var secTotalMarketValue =
         securityRows.stream()
             .map(InvestmentReportRow::marketValueTotal)
@@ -157,7 +154,7 @@ public class InvestmentReportDataService {
             secTotalNavPercent,
             secTotalChange);
 
-    var cashReportRows = buildCashRows(cashRows, receivablesTotal, fundNav);
+    var cashReportRows = rows.cashRows();
     var cashTotalMv =
         cashReportRows.stream()
             .map(InvestmentReportRow::marketValueTotal)
@@ -194,16 +191,6 @@ public class InvestmentReportDataService {
         fundNav);
   }
 
-  private static BigDecimal securitiesTotalCostIfComplete(List<InvestmentReportRow> securityRows) {
-    if (securityRows.isEmpty()
-        || securityRows.stream().anyMatch(row -> row.avgCostTotal() == null)) {
-      return null;
-    }
-    return securityRows.stream()
-        .map(InvestmentReportRow::avgCostTotal)
-        .reduce(BigDecimal.ZERO, BigDecimal::add);
-  }
-
   private BigDecimal findFundNav(List<NavReportView> rows) {
     var fundNav =
         rows.stream()
@@ -217,118 +204,28 @@ public class InvestmentReportDataService {
     return fundNav;
   }
 
-  private Map<String, InstrumentReference> loadInstrumentMap(List<NavReportView> securities) {
-    return securities.stream()
-        .map(NavReportView::getAccountId)
-        .distinct()
-        .map(instrumentReferenceService::findByIsin)
-        .flatMap(Optional::stream)
-        .collect(Collectors.toMap(InstrumentReference::getIsin, Function.identity()));
-  }
-
-  private List<InvestmentReportRow> buildSecurityRows(
-      List<NavReportView> securities,
-      Map<String, InstrumentReference> instrumentMap,
-      Map<String, PortfolioCostBasisSnapshot> costBasisMap,
-      BigDecimal fundNav) {
-    return securities.stream()
-        .map(
-            sec -> {
-              var ref = instrumentMap.get(sec.getAccountId());
-              var displayName = ref != null ? ref.getDisplayName() : sec.getAccountName();
-              var manager = ref != null ? ref.getFundManager() : null;
-              var country = ref != null ? ref.getCountry() : null;
-              if (sec.getMarketValue() == null) {
-                throw new IllegalStateException(
-                    "SECURITY row has no market value, cannot build report: isin=%s, navAccount=%s"
-                        .formatted(sec.getAccountId(), sec.getAccountName()));
-              }
-              var marketValue = sec.getMarketValue();
-              var navPct =
-                  fundNav.signum() != 0
-                      ? marketValue.divide(fundNav, 6, RoundingMode.HALF_UP)
-                      : BigDecimal.ZERO;
-
-              var costBasis = costBasisMap.get(sec.getAccountId());
-              var avgCostPerUnit = costBasis != null ? costBasis.avgUnitCost() : null;
-              var avgCostTotal = costBasis != null ? costBasis.totalCost() : null;
-
-              return new InvestmentReportRow(
-                  displayName,
-                  manager,
-                  sec.getAccountId(),
-                  country,
-                  "EUR",
-                  avgCostPerUnit,
-                  avgCostTotal,
-                  sec.getMarketPrice(),
-                  marketValue,
-                  navPct,
-                  null);
-            })
-        .toList();
-  }
-
-  private List<InvestmentReportRow> buildCashRows(
-      List<NavReportView> cashRows, BigDecimal receivablesTotal, BigDecimal fundNav) {
-    var rows = new ArrayList<InvestmentReportRow>();
-
-    if (receivablesTotal.signum() > 0) {
-      var pct =
-          fundNav.signum() != 0
-              ? receivablesTotal.divide(fundNav, 6, RoundingMode.HALF_UP)
-              : BigDecimal.ZERO;
-      rows.add(
-          new InvestmentReportRow(
-              "Muud nõuded",
-              null,
-              null,
-              "EE",
-              "EUR",
-              null,
-              null,
-              null,
-              receivablesTotal,
-              pct,
-              null));
-    }
-
-    for (var cash : cashRows) {
-      var cashInfo = formatCashAccount(cash.getAccountName());
-      var pct =
-          fundNav.signum() != 0
-              ? cash.getMarketValue().divide(fundNav, 6, RoundingMode.HALF_UP)
-              : BigDecimal.ZERO;
-      rows.add(
-          new InvestmentReportRow(
-              cashInfo.name(),
-              cashInfo.institution(),
-              null,
-              "EE",
-              "EUR",
-              null,
-              null,
-              null,
-              cash.getMarketValue(),
-              pct,
-              null));
-    }
-    return rows;
-  }
-
   private PrevMonthPercentages buildPreviousMonthPercentages(TulevaFund fund, YearMonth prevMonth) {
+    var snapshot = findPreviousNavSnapshot(fund, prevMonth);
+    if (snapshot.isEmpty()) {
+      return PrevMonthPercentages.empty();
+    }
+    return accumulatePreviousMonthPercentages(snapshot.get().rows(), snapshot.get().nav());
+  }
+
+  private Optional<PreviousNavSnapshot> findPreviousNavSnapshot(
+      TulevaFund fund, YearMonth prevMonth) {
     var startDate = prevMonth.atDay(1);
     var endDate = prevMonth.atEndOfMonth();
     var prevNavDate =
         navReportRepository.findLatestPublishedNavDate(fund.getCode(), startDate, endDate);
     if (prevNavDate == null) {
-      return PrevMonthPercentages.empty();
+      return Optional.empty();
     }
 
     var prevRows =
         navReportRepository.findPublishedByNavDateAndFundCode(prevNavDate, fund.getCode());
     if (prevRows.isEmpty()) {
-      return PrevMonthPercentages.empty();
+      return Optional.empty();
     }
 
     var prevNav =
@@ -338,26 +235,26 @@ public class InvestmentReportDataService {
             .findFirst()
             .orElse(null);
     if (prevNav == null || prevNav.signum() == 0) {
-      return PrevMonthPercentages.empty();
+      return Optional.empty();
     }
 
+    return Optional.of(new PreviousNavSnapshot(prevRows, prevNav));
+  }
+
+  private static PrevMonthPercentages accumulatePreviousMonthPercentages(
+      List<NavReportView> prevRows, BigDecimal prevNav) {
     var secTotal = BigDecimal.ZERO;
     BigDecimal cashTotal = null;
     BigDecimal recTotal = null;
 
     for (var r : prevRows) {
-      if ("SECURITY".equals(r.getAccountType()) && r.getMarketValue() != null) {
-        secTotal = secTotal.add(r.getMarketValue().divide(prevNav, 6, RoundingMode.HALF_UP));
-      } else if ("CASH".equals(r.getAccountType())
-          && r.getMarketValue() != null
-          && r.getMarketValue().signum() != 0) {
-        var pct = r.getMarketValue().divide(prevNav, 6, RoundingMode.HALF_UP);
+      if (isSecurityRowWithMarketValue(r)) {
+        secTotal = secTotal.add(percentOfNav(r.getMarketValue(), prevNav));
+      } else if (isNonZeroCashRow(r)) {
+        var pct = percentOfNav(r.getMarketValue(), prevNav);
         cashTotal = cashTotal != null ? cashTotal.add(pct) : pct;
-      } else if ("RECEIVABLES".equals(r.getAccountType())
-          && !"Total receivables of unsettled transactions".equals(r.getAccountName())
-          && r.getMarketValue() != null
-          && r.getMarketValue().signum() > 0) {
-        var pct = r.getMarketValue().divide(prevNav, 6, RoundingMode.HALF_UP);
+      } else if (isPositiveReceivablesRow(r)) {
+        var pct = percentOfNav(r.getMarketValue(), prevNav);
         recTotal = recTotal != null ? recTotal.add(pct) : pct;
       }
     }
@@ -365,27 +262,40 @@ public class InvestmentReportDataService {
     return new PrevMonthPercentages(secTotal, cashTotal, recTotal);
   }
 
-  private static BigDecimal sumNullable(BigDecimal a, BigDecimal b) {
+  private static boolean isSecurityRowWithMarketValue(NavReportView r) {
+    return "SECURITY".equals(r.getAccountType()) && r.getMarketValue() != null;
+  }
+
+  private static boolean isNonZeroCashRow(NavReportView r) {
+    return "CASH".equals(r.getAccountType())
+        && r.getMarketValue() != null
+        && r.getMarketValue().signum() != 0;
+  }
+
+  private static boolean isPositiveReceivablesRow(NavReportView r) {
+    return "RECEIVABLES".equals(r.getAccountType())
+        && !"Total receivables of unsettled transactions".equals(r.getAccountName())
+        && r.getMarketValue() != null
+        && r.getMarketValue().signum() > 0;
+  }
+
+  private static BigDecimal percentOfNav(BigDecimal marketValue, BigDecimal prevNav) {
+    return marketValue.divide(prevNav, 6, RoundingMode.HALF_UP);
+  }
+
+  private record PreviousNavSnapshot(List<NavReportView> rows, BigDecimal nav) {}
+
+  private static @Nullable BigDecimal sumNullable(@Nullable BigDecimal a, @Nullable BigDecimal b) {
     if (a == null && b == null) return null;
     if (a == null) return b;
     if (b == null) return a;
     return a.add(b);
   }
 
-  static CashAccountInfo formatCashAccount(String accountName) {
-    if (accountName == null) return new CashAccountInfo("Arvelduskonto", accountName);
-    var lower = accountName.toLowerCase();
-    if (lower.contains("seb")) return new CashAccountInfo("Arvelduskonto", "AS SEB Pank");
-    if (lower.contains("swedbank")) return new CashAccountInfo("Arvelduskonto", "Swedbank AS");
-    if (lower.contains("lhv")) return new CashAccountInfo("Arvelduskonto", "AS LHV Pank");
-    if (lower.contains("luminor")) return new CashAccountInfo("Arvelduskonto", "Luminor Bank AS");
-    return new CashAccountInfo("Arvelduskonto", accountName);
-  }
-
-  record CashAccountInfo(String name, String institution) {}
-
   private record PrevMonthPercentages(
-      BigDecimal securitiesTotal, BigDecimal cashTotal, BigDecimal receivablesTotal) {
+      @Nullable BigDecimal securitiesTotal,
+      @Nullable BigDecimal cashTotal,
+      @Nullable BigDecimal receivablesTotal) {
     static PrevMonthPercentages empty() {
       return new PrevMonthPercentages(null, null, null);
     }

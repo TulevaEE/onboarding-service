@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.savings.fund.nav;
 import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient.Type.BCC;
 import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient.Type.CC;
 import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient.Type.TO;
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ZERO;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;

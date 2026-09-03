@@ -21,8 +21,8 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75
 import static ee.tuleva.onboarding.instrument.InstrumentReferenceFixture.anInstrument
 import static ee.tuleva.onboarding.investment.instrument.InstrumentDataValidator.Severity.FAIL
 import static ee.tuleva.onboarding.investment.instrument.InstrumentDataValidator.Severity.WARNING

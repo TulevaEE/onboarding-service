@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.error;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 
-import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import java.io.IOException;
 import java.net.URI;

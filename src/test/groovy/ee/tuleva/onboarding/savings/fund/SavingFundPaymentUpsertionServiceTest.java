@@ -8,7 +8,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.savings.SavingFundDeadlinesService;
+import ee.tuleva.onboarding.savings.SavingFundPayment;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -25,7 +28,8 @@ class SavingFundPaymentUpsertionServiceTest {
   SavingFundDeadlinesService deadlinesService = mock(SavingFundDeadlinesService.class);
 
   SavingFundPaymentUpsertionService service =
-      new SavingFundPaymentUpsertionService(repository, deadlinesService, new NameMatcher());
+      new SavingFundPaymentUpsertionService(
+          repository, deadlinesService, new NameMatcher(), Clock.systemUTC());
 
   @Test
   void cancelPayment_successful() {
@@ -128,6 +132,35 @@ class SavingFundPaymentUpsertionServiceTest {
 
     var mergedPayment = captor.getValue();
     assertThat(mergedPayment.getRemitterName()).isEqualTo("vootele Töömees");
+  }
+
+  @Test
+  void upsert_invokesOnInsertWithTheGeneratedPaymentId() {
+    var generatedId = UUID.fromString("44444444-4444-4444-4444-444444444444");
+    var incomingPayment =
+        SavingFundPayment.builder()
+            .amount(new BigDecimal("400.00"))
+            .currency(EUR)
+            .description("37508295796")
+            .externalId("EXT456")
+            .remitterIban("EE123")
+            .remitterName("JAAN TAMM")
+            .receivedBefore(Instant.now())
+            .build();
+    when(repository.findByExternalId("EXT456")).thenReturn(Optional.empty());
+    when(repository.findRecentPayments("37508295796")).thenReturn(List.of());
+    when(repository.savePaymentData(incomingPayment)).thenReturn(generatedId);
+    var seenByOnInsert = new java.util.concurrent.atomic.AtomicReference<SavingFundPayment>();
+
+    service.upsert(
+        incomingPayment,
+        p -> {
+          seenByOnInsert.set(p);
+          return SavingFundPayment.Status.RECEIVED;
+        });
+
+    assertThat(seenByOnInsert.get().getId()).isEqualTo(generatedId);
+    verify(repository).changeStatus(generatedId, SavingFundPayment.Status.RECEIVED);
   }
 
   @Test

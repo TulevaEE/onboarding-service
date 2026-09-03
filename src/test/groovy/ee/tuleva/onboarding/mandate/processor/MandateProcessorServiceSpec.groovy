@@ -1,14 +1,12 @@
 package ee.tuleva.onboarding.mandate.processor
 
-import ee.tuleva.onboarding.epis.EpisService
-import ee.tuleva.onboarding.epis.application.ApplicationResponse
-import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO
-import ee.tuleva.onboarding.epis.mandate.MandateDto
-import ee.tuleva.onboarding.epis.mandate.command.MandateCommand
-import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse
+import ee.tuleva.onboarding.mandate.MandateGateway
 import ee.tuleva.onboarding.error.response.ErrorsResponse
+import ee.tuleva.onboarding.mandate.LegacyMandateSubmission
 import ee.tuleva.onboarding.mandate.Mandate
+import ee.tuleva.onboarding.mandate.MandateProcessResult
 import ee.tuleva.onboarding.mandate.MandateRepository
+import ee.tuleva.onboarding.mandate.MandateSubmissionCommand
 import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
 import spock.lang.Unroll
@@ -22,11 +20,11 @@ class MandateProcessorServiceSpec extends Specification {
 
   MandateProcessRepository mandateProcessRepository = Mock(MandateProcessRepository)
   MandateProcessErrorResolver mandateProcessErrorResolver = Mock(MandateProcessErrorResolver)
-  EpisService episService = Mock(EpisService)
+  MandateGateway mandateGateway = Mock(MandateGateway)
   MandateRepository mandateRepository = Mock(MandateRepository)
 
   MandateProcessorService service = new MandateProcessorService(
-      mandateProcessRepository, mandateProcessErrorResolver, episService, mandateRepository)
+      mandateProcessRepository, mandateProcessErrorResolver, mandateGateway, mandateRepository)
 
 
   User sampleUser = sampleUser().build()
@@ -39,9 +37,8 @@ class MandateProcessorServiceSpec extends Specification {
     mandate.pillar = pillar
     mandate.address = address
     mandate.user = sampleUser
-    def mandateResponse = new ApplicationResponseDTO()
-    def response = new ApplicationResponse()
-    mandateResponse.mandateResponses = [response]
+    def outcome = new MandateProcessResult.MandateProcessOutcome("processId1", true, null)
+    def mandateResult = MandateProcessResult.builder().outcomes([outcome]).build()
     1 * mandateProcessRepository.findOneByProcessId(_) >> new MandateProcess()
     when:
     service.start(sampleUser, mandate)
@@ -49,14 +46,57 @@ class MandateProcessorServiceSpec extends Specification {
     3 * mandateProcessRepository.save({ MandateProcess mandateProcess ->
       mandateProcess.mandate == mandate && mandateProcess.processId != null
     }) >> { args -> args[0] }
-    1 * episService.sendMandate({ MandateDto dto ->
-      dto.pillar == mandate.pillar
-      dto.address == mandate.address
-    }) >> mandateResponse
+    1 * mandateGateway.sendMandate({ LegacyMandateSubmission submission ->
+      submission.pillar() == mandate.pillar
+      submission.address() == mandate.address
+    }) >> mandateResult
     where:
     pillar | address
     2      | countryFixture().build()
     3      | null
+  }
+
+  def "Start: legacy mandate submission carries the future contribution isin, payment rate, transfer exchanges, email and phone"() {
+    given:
+    Mandate mandate = sampleMandate()
+    mandate.paymentRate = BigDecimal.valueOf(4)
+    mandate.user = sampleUser
+    def outcome = new MandateProcessResult.MandateProcessOutcome("processId1", true, null)
+    def mandateResult = MandateProcessResult.builder().outcomes([outcome]).build()
+    mandateProcessRepository.save(_) >> { args -> args[0] }
+    mandateProcessRepository.findOneByProcessId(_) >> new MandateProcess()
+    when:
+    service.start(sampleUser, mandate)
+    then:
+    1 * mandateGateway.sendMandate({ LegacyMandateSubmission submission ->
+      submission.paymentRate() == mandate.paymentRate &&
+          submission.futureContributionFundIsin() == futureContibutionFundIsin &&
+          submission.email() == mandate.getEmail() &&
+          submission.phoneNumber() == mandate.getPhoneNumber() &&
+          submission.fundTransferExchanges().size() == 3 &&
+          submission.fundTransferExchanges().every { it.processId() != null } &&
+          (submission.fundTransferExchanges()*.sourceFundIsin as Set) == (["EE3600019790", "AE123232337"] as Set) &&
+          (submission.fundTransferExchanges()*.amount as Set) == ([new BigDecimal("0.2"), new BigDecimal("0.8"), new BigDecimal("1")] as Set) &&
+          submission.fundTransferExchanges()*.targetFundIsin.every { it == futureContibutionFundIsin }
+    }) >> mandateResult
+  }
+
+  def "Start: persists the outcome success flag and error code onto the matching mandate process"() {
+    given:
+    Mandate mandate = sampleWithdrawalCancellationMandate()
+    MandateProcess process = new MandateProcess()
+    mandateRepository.findById(mandate.id) >> Optional.of(mandate)
+    mandateProcessRepository.findOneByProcessId(_) >> process
+    def outcome = new MandateProcessResult.MandateProcessOutcome("1", false, 40551)
+    def response = MandateProcessResult.builder().outcomes([outcome]).build()
+    when:
+    service.start(sampleUser, mandate)
+    then:
+    1 * mandateGateway.sendMandateV2(_) >> response
+    // one save() for the newly created MandateProcess, one for the finalized outcome below
+    2 * mandateProcessRepository.save(_) >> { args -> args[0] }
+    process.getSuccessful() == Optional.of(false)
+    process.getErrorCode() == Optional.of(40551)
   }
 
   def "Start: starts processing cancellation mandate and saves mandate processes"() {
@@ -64,7 +104,9 @@ class MandateProcessorServiceSpec extends Specification {
     Mandate mandate = sampleWithdrawalCancellationMandate()
     mandate.address = countryFixture().build()
     mandate.user = sampleUser
-    def response = new MandateCommandResponse("1", true, null, null)
+    def response = MandateProcessResult.builder()
+        .outcomes([new MandateProcessResult.MandateProcessOutcome("1", true, null)])
+        .build()
     1 * mandateProcessRepository.findOneByProcessId(_) >> new MandateProcess()
     1 * mandateRepository.findById(mandate.id) >> Optional.ofNullable(mandate)
     when:
@@ -73,8 +115,8 @@ class MandateProcessorServiceSpec extends Specification {
     1 * mandateProcessRepository.save({ MandateProcess mandateProcess ->
       mandateProcess.mandate == mandate && mandateProcess.processId != null
     }) >> { args -> args[0] }
-    1 * episService.sendMandateV2({ MandateCommand mandateCommand ->
-      mandateCommand.getMandateDto().details.mandateType == WITHDRAWAL_CANCELLATION
+    1 * mandateGateway.sendMandateV2({ MandateSubmissionCommand cmd ->
+      cmd.submission().details().mandateType == WITHDRAWAL_CANCELLATION
     }) >> response
   }
 
@@ -83,7 +125,9 @@ class MandateProcessorServiceSpec extends Specification {
     Mandate mandate = sampleMandateWithPaymentRate()
     mandate.address = countryFixture().build()
     mandate.user = sampleUser
-    def response = new MandateCommandResponse("1", true, null, null)
+    def response = MandateProcessResult.builder()
+        .outcomes([new MandateProcessResult.MandateProcessOutcome("1", true, null)])
+        .build()
     1 * mandateProcessRepository.findOneByProcessId(_) >> new MandateProcess()
     1 * mandateRepository.findById(mandate.id) >> Optional.ofNullable(mandate)
     when:
@@ -92,8 +136,8 @@ class MandateProcessorServiceSpec extends Specification {
     1 * mandateProcessRepository.save({ MandateProcess mandateProcess ->
       mandateProcess.mandate == mandate && mandateProcess.processId != null
     }) >> { args -> args[0] }
-    1 * episService.sendMandateV2({ MandateCommand mandateCommand ->
-      mandateCommand.getMandateDto().details.mandateType == PAYMENT_RATE_CHANGE
+    1 * mandateGateway.sendMandateV2({ MandateSubmissionCommand cmd ->
+      cmd.submission().details().mandateType == PAYMENT_RATE_CHANGE
     }) >> response
   }
 //  def "Start: processes mandate with payment rate and saves processes"() {
@@ -106,7 +150,7 @@ class MandateProcessorServiceSpec extends Specification {
 //    mandateResponse.mandateResponses = [response]
 //
 //    1 * mandateProcessRepository.findOneByProcessId(_) >> new MandateProcess()
-//    1 * episService.sendMandate({ MandateDto dto ->
+//    1 * mandateGateway.sendMandate({ MandateDto dto ->
 //      dto.paymentRate.isPresent() && dto.paymentRate.get() == mandate.paymentRate
 //    }) >> mandateResponse
 //

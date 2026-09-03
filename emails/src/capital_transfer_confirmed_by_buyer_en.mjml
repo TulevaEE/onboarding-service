@@ -5,7 +5,7 @@
 
     <mj-section padding-top="12px">
       <mj-column>
-        <mj-text>Hello *|FNAME|*</mj-text>
+        <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
           *|buyerFullName|* signed the application and confirmed the payment was made. Once
           you’ve received the money, please confirm you’ve received it as well.
@@ -20,7 +20,7 @@
     <mj-section padding="0 24px">
       <mj-column>
         <mj-text padding-top="12px">
-          TÜ Tuleva members of the board<br />
+          Members of the board of Tulundusühistu Tuleva<br />
           Annika Uudelepp and Tõnu Pekk
         </mj-text>
       </mj-column>

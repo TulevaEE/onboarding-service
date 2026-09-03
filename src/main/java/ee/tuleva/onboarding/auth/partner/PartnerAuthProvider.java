@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.auth.GrantType.PARTNER;
 import static ee.tuleva.onboarding.auth.jwt.CustomClaims.FIRST_NAME;
 import static ee.tuleva.onboarding.auth.jwt.CustomClaims.LAST_NAME;
 import static java.util.Collections.unmodifiableMap;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.auth.AuthProvider;
 import ee.tuleva.onboarding.auth.GrantType;
@@ -20,6 +21,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.SneakyThrows;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -53,8 +55,11 @@ public class PartnerAuthProvider implements AuthProvider {
   }
 
   @Override
-  public AuthenticatedPerson authenticate(String handoverToken) {
-    Claims claims = jwtParser.parseSignedClaims(handoverToken).getPayload();
+  public AuthenticatedPerson authenticate(@Nullable String handoverToken) {
+    Claims claims =
+        jwtParser
+            .parseSignedClaims(requireNonNull(handoverToken, "Handover token missing"))
+            .getPayload();
     validate(claims);
     Person person = getPersonFromClaims(claims);
     Map<String, String> attributes = getAttributes(claims);
@@ -71,8 +76,8 @@ public class PartnerAuthProvider implements AuthProvider {
   private Person getPersonFromClaims(Claims claims) {
     return PersonImpl.builder()
         .personalCode(claims.getSubject())
-        .firstName(FIRST_NAME.fromClaims(claims))
-        .lastName(LAST_NAME.fromClaims(claims))
+        .firstName(FIRST_NAME.stringFrom(claims))
+        .lastName(LAST_NAME.stringFrom(claims))
         .build();
   }
 

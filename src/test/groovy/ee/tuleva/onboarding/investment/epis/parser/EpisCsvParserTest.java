@@ -263,7 +263,7 @@ class EpisCsvParserTest {
       })
   void parseNumberHandlesEstonianAndEnglishFormats(
       String input, DecimalConvention convention, String expected) {
-    BigDecimal result = EpisCsvParser.parseNumber(input, convention);
+    BigDecimal result = EpisNumbers.parseNumber(input, convention);
 
     if (expected == null) {
       assertThat(result).isNull();
@@ -274,13 +274,13 @@ class EpisCsvParserTest {
 
   @Test
   void parseNumberHandlesNull() {
-    assertThat(EpisCsvParser.parseNumber(null, DecimalConvention.COMMA_DECIMAL)).isNull();
+    assertThat(EpisNumbers.parseNumber(null, DecimalConvention.COMMA_DECIMAL)).isNull();
   }
 
   @Test
   void parseNumberHandlesBlank() {
-    assertThat(EpisCsvParser.parseNumber("", DecimalConvention.COMMA_DECIMAL)).isNull();
-    assertThat(EpisCsvParser.parseNumber("   ", DecimalConvention.COMMA_DECIMAL)).isNull();
+    assertThat(EpisNumbers.parseNumber("", DecimalConvention.COMMA_DECIMAL)).isNull();
+    assertThat(EpisNumbers.parseNumber("   ", DecimalConvention.COMMA_DECIMAL)).isNull();
   }
 
   @ParameterizedTest
@@ -292,7 +292,7 @@ class EpisCsvParserTest {
     "'1,2,3', COMMA_DECIMAL"
   })
   void parseNumberThrowsOnUnparseableValue(String input, DecimalConvention convention) {
-    assertThatThrownBy(() -> EpisCsvParser.parseNumber(input, convention))
+    assertThatThrownBy(() -> EpisNumbers.parseNumber(input, convention))
         .isInstanceOf(IllegalArgumentException.class);
   }
 }

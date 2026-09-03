@@ -20,13 +20,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract.CapitalTransferAmount;
-import ee.tuleva.onboarding.mandate.command.FinishIdCardSignCommand;
-import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand;
-import ee.tuleva.onboarding.signature.response.IdCardSignatureResponse;
-import ee.tuleva.onboarding.signature.response.IdCardSignatureStatusResponse;
-import ee.tuleva.onboarding.signature.response.MobileSignatureResponse;
-import ee.tuleva.onboarding.signature.response.MobileSignatureStatusResponse;
-import ee.tuleva.onboarding.signature.response.SignatureStatus;
+import ee.tuleva.onboarding.signature.FinishIdCardSignCommand;
+import ee.tuleva.onboarding.signature.IdCardSignatureResponse;
+import ee.tuleva.onboarding.signature.IdCardSignatureStatusResponse;
+import ee.tuleva.onboarding.signature.MobileSignatureResponse;
+import ee.tuleva.onboarding.signature.MobileSignatureStatusResponse;
+import ee.tuleva.onboarding.signature.SignatureStatus;
+import ee.tuleva.onboarding.signature.StartIdCardSignCommand;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import ee.tuleva.onboarding.user.member.Member;
@@ -353,8 +353,7 @@ class CapitalTransferContractControllerTest {
     Authentication authentication =
         new UsernamePasswordAuthenticationToken(authenticatedPerson, null, Collections.emptyList());
 
-    StartIdCardSignCommand command = new StartIdCardSignCommand();
-    command.setClientCertificate("test-certificate");
+    StartIdCardSignCommand command = new StartIdCardSignCommand("test-certificate");
 
     IdCardSignatureResponse response = new IdCardSignatureResponse("hash-to-sign");
 
@@ -392,8 +391,7 @@ class CapitalTransferContractControllerTest {
     Authentication authentication =
         new UsernamePasswordAuthenticationToken(authenticatedPerson, null, Collections.emptyList());
 
-    FinishIdCardSignCommand command = new FinishIdCardSignCommand();
-    command.setSignedHash("signed-hash");
+    FinishIdCardSignCommand command = new FinishIdCardSignCommand("signed-hash");
 
     IdCardSignatureStatusResponse response =
         new IdCardSignatureStatusResponse(SignatureStatus.SIGNATURE);

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
+import static java.util.Objects.requireNonNull;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
@@ -53,14 +54,17 @@ public class EuroAggregateBondRetriever implements ComparisonIndexRetriever {
     if (start.isAfter(end)) {
       return List.of();
     }
+    String fetchUri = fetchUri(start, end);
     JsonNode response =
-        restClient
-            .get()
-            .uri(fetchUri(start, end))
-            .header("User-Agent", "Mozilla/5.0")
-            .accept(APPLICATION_JSON)
-            .retrieve()
-            .body(JsonNode.class);
+        requireNonNull(
+            restClient
+                .get()
+                .uri(fetchUri)
+                .header("User-Agent", "Mozilla/5.0")
+                .accept(APPLICATION_JSON)
+                .retrieve()
+                .body(JsonNode.class),
+            "Yahoo response is null: fetchUri=" + fetchUri);
     return parseChart(response, start, end, clock.instant());
   }
 

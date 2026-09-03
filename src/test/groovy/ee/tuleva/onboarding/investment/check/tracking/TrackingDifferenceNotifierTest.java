@@ -1,19 +1,22 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
-import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.BENCHMARK;
-import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.BENCHMARK_MODEL;
-import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.MODEL_PORTFOLIO;
+import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK;
+import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK_MODEL;
+import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -550,7 +553,15 @@ class TrackingDifferenceNotifierTest {
 
     notifier.notify(List.of(benchmarkResult));
 
-    then(notificationService).should().sendMessage(contains("within limits"), eq(INVESTMENT));
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    // The ACWI benchmark is suppressed, so a breach on it must not raise a TD BREACH. But a run
+    // holding only benchmark results checked nothing anyone acts on, so it must not report
+    // "within limits" either - that is the same false all-clear as an empty run.
+    assertThat(captor.getValue())
+        .doesNotContain("TD BREACH DETECTED")
+        .doesNotContain("within limits")
+        .contains("produced no tracking difference results");
   }
 
   @Test
@@ -583,13 +594,31 @@ class TrackingDifferenceNotifierTest {
     given(calculator.escalationNetTdThreshold(any(LocalDate.class)))
         .willThrow(new IllegalStateException("No parameter"));
 
-    var result = result(true, 3, new BigDecimal("0.006"));
+    var result = result(true, 4, new BigDecimal("0.006"));
 
     notifier.notify(List.of(result));
 
     var captor = org.mockito.ArgumentCaptor.forClass(String.class);
     then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
     assertThat(captor.getValue()).contains("TD ESCALATION");
+  }
+
+  // Sisekord nr 4 p 11.7 escalates only once the breach "püsib enam kui kolm (3) tööpäeva", so a
+  // three-day streak is still just a breach - the fallback must not escalate one day early either.
+  @Test
+  void escalationFallbackStreakLengthMatchesTheInternalRule() {
+    given(calculator.escalationThresholdDays(any(LocalDate.class)))
+        .willThrow(new IllegalStateException("No parameter"));
+    given(calculator.escalationNetTdThreshold(any(LocalDate.class)))
+        .willThrow(new IllegalStateException("No parameter"));
+
+    var result = result(true, 3, new BigDecimal("0.006"));
+
+    notifier.notify(List.of(result));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue()).contains("TD BREACH DETECTED").doesNotContain("TD ESCALATION");
   }
 
   @Test
@@ -600,6 +629,20 @@ class TrackingDifferenceNotifierTest {
         .willThrow(new IllegalStateException("No parameter"));
 
     var result = result(true, 4, new BigDecimal("0.003"));
+
+    notifier.notify(List.of(result));
+
+    then(notificationService).should().sendMessage(contains("TD ESCALATION"), eq(INVESTMENT));
+  }
+
+  @Test
+  void escalationFallbackStillFiltersAStreakThatNetsOutBelowTheDailyThreshold() {
+    given(calculator.escalationThresholdDays(any(LocalDate.class)))
+        .willThrow(new IllegalStateException("No parameter"));
+    given(calculator.escalationNetTdThreshold(any(LocalDate.class)))
+        .willThrow(new IllegalStateException("No parameter"));
+
+    var result = result(true, 4, new BigDecimal("0.0002"));
 
     notifier.notify(List.of(result));
 
@@ -743,7 +786,8 @@ class TrackingDifferenceNotifierTest {
     assertThat(captor.getValue()).doesNotContain("Cash drag:");
   }
 
-  private TrackingDifferenceResult withinLimitsResult(ee.tuleva.onboarding.fund.TulevaFund fund) {
+  private TrackingDifferenceResult withinLimitsResult(
+      ee.tuleva.onboarding.tulevafund.TulevaFund fund) {
     return TrackingDifferenceResult.builder()
         .fund(fund)
         .checkDate(LocalDate.of(2026, 4, 3))
@@ -762,6 +806,148 @@ class TrackingDifferenceNotifierTest {
         .navResidual(BigDecimal.ZERO)
         .navResidualBreach(false)
         .build();
+  }
+
+  @Test
+  void aRunThatDidNotRunSaysNothingWasCheckedAtAll() {
+    notifier.notifyRunFailed("TD check", "connection reset");
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue())
+        .contains("TD check DID NOT RUN: connection reset")
+        .contains("Nothing was checked");
+  }
+
+  @Test
+  void aRunThatCoveredOnlySomeFundsNamesTheOnesItSkipped() {
+    notifier.notifyRunIncomplete("TD check", "Incomplete security price data:\nTUK75: IE00MISSING");
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue())
+        .contains("TD check RAN ONLY IN PART")
+        .contains("TUK75: IE00MISSING")
+        .contains("Those funds were skipped");
+  }
+
+  @Test
+  void anUnexplainedResidualReportsBothTheResidualAndTheBandItLeft() {
+    notifier.notifyResidualOutsideTolerance(
+        TUK75,
+        LocalDate.of(2026, 4, 1),
+        LocalDate.of(2026, 4, 30),
+        new BigDecimal("0.0012"),
+        new BigDecimal("0.0005"));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue())
+        .contains("TUK75")
+        .contains("2026-04-01 to 2026-04-30")
+        .contains("Residual 12.00 bps, tolerance 5.00 bps");
+  }
+
+  @Test
+  void anUnexplainedResidualWithNoBandConfiguredSaysThereWasNone() {
+    notifier.notifyResidualOutsideTolerance(
+        TUK75, LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30), new BigDecimal("0.0012"), null);
+
+    then(notificationService).should().sendMessage(contains("tolerance none bps"), eq(INVESTMENT));
+  }
+
+  @Test
+  void aSlackFailureIsSwallowedRatherThanBreakingTheCaller() {
+    willThrow(new RuntimeException("slack down"))
+        .given(notificationService)
+        .sendMessage(any(), eq(INVESTMENT));
+
+    // The notifier is the last step of the check. Letting Slack take the run down with it would
+    // turn a delivery problem into an unchecked NAV.
+    assertThatCode(
+            () -> {
+              notifier.notifyRunFailed("TD check", "boom");
+              notifier.notifyRunIncomplete("TD check", "boom");
+              notifier.notifyCheckCouldNotRun(TUK75, LocalDate.of(2026, 4, 3));
+              notifier.notifyResidualOutsideTolerance(
+                  TUK75, LocalDate.of(2026, 4, 1), LocalDate.of(2026, 4, 30), ZERO, null);
+              notifier.notify(List.of(result(true, 1, new BigDecimal("0.002"))));
+            })
+        .doesNotThrowAnyException();
+  }
+
+  @Test
+  void aBenchmarkGapWithNoWeightBehindItStillNamesTheHoldings() {
+    var result =
+        result(false, 0, ZERO).toBuilder()
+            .checkType(BENCHMARK_MODEL)
+            .benchmarkGapIsins(List.of("IE00NOPROXY"))
+            .benchmarkGapWeight(null)
+            .build();
+
+    notifier.notify(List.of(result));
+
+    then(notificationService)
+        .should()
+        .sendMessage(contains("Part of the sleeve has no benchmark proxy"), eq(INVESTMENT));
+  }
+
+  @Test
+  void aTruncatedStreakIsReportedAsALowerBoundOnTheBreachMessage() {
+    var result =
+        result(true, 10, new BigDecimal("0.006")).toBuilder()
+            .escalationCountTruncated(true)
+            .build();
+
+    notifier.notify(List.of(result));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue())
+        .contains("TUK75 MODEL_PORTFOLIO: the streak fills the whole lookback window")
+        .contains("at least 10 days");
+  }
+
+  @Test
+  void aBenchmarkCheckThatCoveredOnlyPartOfTheSleeveSaysSo() {
+    var result =
+        TrackingDifferenceResult.builder()
+            .fund(TUK75)
+            .checkDate(LocalDate.of(2026, 4, 3))
+            .checkType(BENCHMARK_MODEL)
+            .trackingDifference(new BigDecimal("0.0001"))
+            .fundReturn(new BigDecimal("0.0100"))
+            .benchmarkReturn(new BigDecimal("0.0099"))
+            .breach(false)
+            .securityAttributions(List.of())
+            .cashDrag(BigDecimal.ZERO)
+            .feeDrag(BigDecimal.ZERO)
+            .residual(BigDecimal.ZERO)
+            .benchmarkGapIsins(List.of("IE00NOPROXY"))
+            .benchmarkGapWeight(new BigDecimal("0.12"))
+            .build();
+
+    notifier.notify(List.of(result));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    // Every holding is supposed to have a proxy with data behind it, so a gap is a data error.
+    // Left unsaid, a check covering 88% of the sleeve reads as a clean all-clear over all of it.
+    assertThat(captor.getValue()).contains("12.00%").contains("IE00NOPROXY");
+  }
+
+  @Test
+  void anUncountableStreakWarningNamesTheFundItBelongsTo() {
+    var breaching = result(true, 2, new BigDecimal("0.003"));
+    var uncountable =
+        result(false, 0, BigDecimal.ZERO).toBuilder().escalationCountUnavailable(true).build();
+
+    notifier.notify(List.of(breaching, uncountable));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue())
+        .contains("TUK75 MODEL_PORTFOLIO: the breach streak could not be counted");
   }
 
   private TrackingDifferenceResult result(

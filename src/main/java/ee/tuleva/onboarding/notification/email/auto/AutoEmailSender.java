@@ -1,12 +1,12 @@
 package ee.tuleva.onboarding.notification.email.auto;
 
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailStatus.SCHEDULED;
+import static ee.tuleva.onboarding.notification.email.EmailStatus.SCHEDULED;
 
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
-import ee.tuleva.onboarding.notification.email.Emailable;
+import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
+import ee.tuleva.onboarding.notification.email.EmailType;
 import ee.tuleva.onboarding.notification.email.provider.MailchimpService;
+import ee.tuleva.onboarding.user.Emailable;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
@@ -96,12 +96,21 @@ public class AutoEmailSender {
             emailType);
         continue;
       }
+      String email = emailablePerson.getEmail();
+      if (email == null) {
+        log.info(
+            "Person has no email, skipping auto email: personalCode={}, emailType={}",
+            personalCode,
+            emailType);
+        continue;
+      }
+
       log.info(
           "Sending auto email to person: personalCode={}, emailType={}", personalCode, emailType);
 
       try {
         mailchimpService.sendEvent(
-            emailablePerson.getEmail(),
+            email,
             EmailEvent.getByEmailType(emailType),
             autoEmailRepository.getEmailProperties(emailablePerson));
         emailsSent++;

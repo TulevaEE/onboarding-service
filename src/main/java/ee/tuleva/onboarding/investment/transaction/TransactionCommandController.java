@@ -159,6 +159,23 @@ public class TransactionCommandController {
     return adminService.cancelOrder(id, request.reason(), actor);
   }
 
+  @PostMapping("/transaction-orders/{id}/order-type")
+  public TransactionOrderResponse setOrderType(
+      @RequestHeader("X-Admin-Token") String token,
+      @PathVariable Long id,
+      @Valid @RequestBody SetTransactionOrderTypeRequest request) {
+
+    var actor = authenticator.resolveActor(token);
+
+    log.info(
+        "Admin triggered transaction order type change: id={}, actor={}, orderType={}",
+        id,
+        actor,
+        request.orderType());
+
+    return adminService.setOrderType(id, request.orderType(), actor);
+  }
+
   @GetMapping("/transaction-batches/{id}/exports/{type}")
   public ResponseEntity<byte[]> downloadExport(
       @RequestHeader("X-Admin-Token") String token,

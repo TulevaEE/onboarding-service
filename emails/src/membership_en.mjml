@@ -5,15 +5,15 @@
 
     <mj-section padding-top="12px">
       <mj-column>
-        <mj-text font-family="Merriweather, Georgia, serif" font-size="26px" font-weight="700" line-height="130%">
-          Tuleva membership number&nbsp;*|memberNumber|*
+        <mj-text font-family="Merriweather, Georgia, serif" font-size="20px" font-weight="700" line-height="130%">
+          Membership number&nbsp;*|memberNumber|*
         </mj-text>
         <mj-text>
           <strong>*|FNAME|*&nbsp;*|LNAME|*</strong><br />
-          is accepted by Tulundusühistu Tuleva as a member at&nbsp;*|memberDate|*.
+          was accepted as a member of Tulundusühistu Tuleva on&nbsp;*|memberDate|*.
         </mj-text>
         <mj-text>
-          We welcome you as a member!<br />
+          We welcome you as a member.<br />
           You are now a member of Tuleva and we communicate daily in a closed
           <a href="https://www.facebook.com/groups/tuleva.ee">Facebook group</a>. There, we share
           information and engage in discussions and you can also have a say in Tuleva's
@@ -21,27 +21,7 @@
           updates via email as well.
         </mj-text>
 
-        <mj-raw>*|IF:suggestSecondPillar|*</mj-raw>
-        <mj-text>
-          Next, make sure that the fees on your current second pillar do not excessively reduce
-          your asset returns and stay below <strong>0.5%</strong> per year. You can see your
-          second pillar fees on the Tuleva website:
-        </mj-text>
-        <mj-button href="https://pension.tuleva.ee/login?language=en">
-          Log in to your pension account
-        </mj-button>
-
-        <mj-raw>*|ELSEIF:suggestPaymentRate|*</mj-raw>
-        <mj-text><strong>Don't miss out on the second pillar tax benefit.</strong></mj-text>
-        <mj-text>
-          Since second pillar contributions are exempt from income tax,
-          <strong>the higher the percentage, the greater the tax benefit</strong>. For example, if
-          your gross salary is 2000 euros, you could gain a tax benefit of 316 euros. You can
-          change the size of your second pillar contribution once a year up to 6%.
-        </mj-text>
-        <mj-button href="https://tuleva.ee/en/increase-ii-pillar-payments/">
-          Calculate&nbsp;your&nbsp;gain
-        </mj-button>
+        <mj-include path="./partials/suggest_chain_open_en.mjml" />
         <mj-raw>*|END:IF|*</mj-raw>
       </mj-column>
     </mj-section>

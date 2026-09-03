@@ -1,17 +1,16 @@
 package ee.tuleva.onboarding.investment.position;
 
-import static ee.tuleva.onboarding.investment.event.PipelineStep.HEALTH_CHECK;
-import static ee.tuleva.onboarding.investment.event.PipelineStep.POSITION_IMPORT;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SWEDBANK;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
+import static ee.tuleva.onboarding.pipeline.PipelineStep.HEALTH_CHECK;
+import static ee.tuleva.onboarding.pipeline.PipelineStep.POSITION_IMPORT;
+import static java.util.Objects.requireNonNull;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.check.health.HealthCheckNotifier;
 import ee.tuleva.onboarding.investment.check.health.HealthCheckResult;
 import ee.tuleva.onboarding.investment.check.health.HealthCheckService;
 import ee.tuleva.onboarding.investment.event.FundPositionsImported;
-import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.investment.event.ReportImportCompleted;
 import ee.tuleva.onboarding.investment.event.RunFundPositionImportRequested;
 import ee.tuleva.onboarding.investment.position.FundPositionImportService.ImportResult;
@@ -21,6 +20,8 @@ import ee.tuleva.onboarding.investment.position.parser.SwedbankFundPositionParse
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.investment.report.ReportProvider;
+import ee.tuleva.onboarding.pipeline.PipelineTracker;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
@@ -28,6 +29,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.IntStream;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -87,11 +89,17 @@ public class FundPositionImportJob {
   private void runImportPipeline() {
     pipelineTracker.stepStarted(POSITION_IMPORT);
     var totals = runImport();
-    pipelineTracker.stepCompleted(POSITION_IMPORT, totals);
+    if (totals == null) {
+      pipelineTracker.stepCompleted(POSITION_IMPORT);
+    } else {
+      pipelineTracker.stepCompleted(POSITION_IMPORT, totals);
+    }
 
     pipelineTracker.stepStarted(HEALTH_CHECK);
     if (healthCheckFailed) {
-      pipelineTracker.stepFailed(HEALTH_CHECK, healthCheckFailureDetail);
+      pipelineTracker.stepFailed(
+          HEALTH_CHECK,
+          requireNonNull(healthCheckFailureDetail, "Health check failed without a failure detail"));
     } else {
       pipelineTracker.stepCompleted(HEALTH_CHECK);
     }
@@ -100,9 +108,9 @@ public class FundPositionImportJob {
   }
 
   private boolean healthCheckFailed;
-  private String healthCheckFailureDetail;
+  private @Nullable String healthCheckFailureDetail;
 
-  public String runImport() {
+  public @Nullable String runImport() {
     healthCheckFailed = false;
     healthCheckFailureDetail = null;
     LocalDate today = LocalDate.now(clock);

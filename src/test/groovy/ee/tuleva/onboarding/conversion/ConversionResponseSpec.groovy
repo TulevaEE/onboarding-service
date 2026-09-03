@@ -69,4 +69,41 @@ class ConversionResponseSpec extends Specification {
     fullyConverted().thirdPillar    | true
   }
 
+  def "is partially converted when transfers or selection are partial"() {
+    expect:
+    ConversionResponse.Conversion.builder()
+        .transfersPartial(transfersPartial).selectionPartial(selectionPartial).build()
+        .isPartiallyConverted() == expected
+
+    where:
+    transfersPartial | selectionPartial | expected
+    true             | false            | true
+    false            | true             | true
+    true             | true             | true
+    false            | false            | false
+  }
+
+  def "pillar level partial conversion follows each pillar's conversion"() {
+    given:
+    def response = ConversionResponse.builder()
+        .secondPillar(ConversionResponse.Conversion.builder().transfersPartial(true).build())
+        .thirdPillar(ConversionResponse.Conversion.builder().selectionPartial(false).build())
+        .build()
+
+    expect:
+    response.isSecondPillarPartiallyConverted()
+    !response.isThirdPillarPartiallyConverted()
+  }
+
+  def "pillar level weighted average fees delegate to each pillar"() {
+    given:
+    def response = ConversionResponse.builder()
+        .secondPillar(ConversionResponse.Conversion.builder().weightedAverageFee(0.0049).build())
+        .thirdPillar(ConversionResponse.Conversion.builder().weightedAverageFee(0.0034).build())
+        .build()
+
+    expect:
+    response.getSecondPillarWeightedAverageFee() == 0.0049
+    response.getThirdPillarWeightedAverageFee() == 0.0034
+  }
 }

@@ -2,9 +2,9 @@ package ee.tuleva.onboarding.mandate.email.webhook;
 
 import ee.tuleva.onboarding.event.EventLog;
 import ee.tuleva.onboarding.event.EventLogRepository;
-import ee.tuleva.onboarding.mandate.email.persistence.Email;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailRepository;
+import ee.tuleva.onboarding.notification.email.Email;
 import ee.tuleva.onboarding.notification.email.EmailDeliveryFailedEvent;
+import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.Instant;
 import java.util.HashMap;
@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -26,8 +27,8 @@ import tools.jackson.databind.json.JsonMapper;
 @RequiredArgsConstructor
 public class MandrillWebhookService {
 
-  private final EmailRepository emailRepository;
   private final EventLogRepository eventLogRepository;
+  private final EmailPersistenceService emailPersistenceService;
   private final MandrillSignatureVerifier signatureVerifier;
   private final JsonMapper objectMapper;
   private final ApplicationEventPublisher eventPublisher;
@@ -102,7 +103,7 @@ public class MandrillWebhookService {
     return msg.state();
   }
 
-  private String latestSmtpDiag(MandrillWebhookEvent.MandrillMessage msg) {
+  private @Nullable String latestSmtpDiag(MandrillWebhookEvent.MandrillMessage msg) {
     if (msg.smtpEvents() == null || msg.smtpEvents().isEmpty()) {
       return null;
     }
@@ -126,7 +127,7 @@ public class MandrillWebhookService {
 
     String mandrillMessageId = event.msg().id();
 
-    emailRepository
+    emailPersistenceService
         .findByMandrillMessageId(mandrillMessageId)
         .ifPresentOrElse(
             email -> saveEventLog(event, email),
@@ -142,7 +143,7 @@ public class MandrillWebhookService {
       return;
     }
 
-    Map<String, Object> eventData = buildEventData(event, email);
+    Map<String, @Nullable Object> eventData = buildEventData(event, email);
     Instant timestamp = Instant.ofEpochSecond(event.ts());
     String eventType = event.event();
 
@@ -164,8 +165,8 @@ public class MandrillWebhookService {
         email.getMandrillMessageId());
   }
 
-  private Map<String, Object> buildEventData(MandrillWebhookEvent event, Email email) {
-    Map<String, Object> data = new HashMap<>();
+  private Map<String, @Nullable Object> buildEventData(MandrillWebhookEvent event, Email email) {
+    Map<String, @Nullable Object> data = new HashMap<>();
 
     data.put("mandrillMessageId", event.msg().id());
     data.put("emailType", email.getType().toString());

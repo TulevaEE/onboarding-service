@@ -27,7 +27,7 @@ public class SebReconciliator {
   public void reconcile(BankStatement bankStatement) {
     var closingBankBalance =
         bankStatement.getBalances().stream()
-            .filter(balance -> balance.type().equals(CLOSE))
+            .filter(balance -> CLOSE.equals(balance.type()))
             .findFirst()
             .orElseThrow();
 

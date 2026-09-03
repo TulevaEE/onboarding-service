@@ -1,0 +1,599 @@
+package ee.tuleva.onboarding.savings.fund;
+
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
+import static ee.tuleva.onboarding.banking.BankAccountType.*;
+import static ee.tuleva.onboarding.savings.SavingFundPaymentFixture.aPayment;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.REDEEMED;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
+
+import ee.tuleva.onboarding.banking.BankAccount;
+import ee.tuleva.onboarding.banking.BankAccountType;
+import ee.tuleva.onboarding.banking.BankAccounts;
+import ee.tuleva.onboarding.banking.ManagementCompanies;
+import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
+import ee.tuleva.onboarding.banking.statement.BankStatement;
+import ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType;
+import ee.tuleva.onboarding.banking.statement.BankStatementAccount;
+import ee.tuleva.onboarding.ledger.FundBankLedger;
+import ee.tuleva.onboarding.ledger.InternalTransferLedger;
+import ee.tuleva.onboarding.ledger.LedgerParty.PartyType;
+import ee.tuleva.onboarding.ledger.PartyRef;
+import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.ledger.SystemAccount;
+import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.savings.SavingFundPayment;
+import ee.tuleva.onboarding.savings.fund.notification.OwnAccountTransferRecordedEvent;
+import ee.tuleva.onboarding.savings.fund.redemption.RedemptionPayoutRecorder;
+import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest;
+import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestRepository;
+import ee.tuleva.onboarding.savings.fund.redemption.RedemptionStatusService;
+import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.UserService;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.function.Function;
+import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
+
+class SavingsFundStatementProcessorTest {
+
+  private BankAccount statementAccount;
+
+  private static final String DEPOSIT_ACCOUNT_IBAN = "EE442200221092874625";
+  private static final String FUND_INVESTMENT_IBAN = "EE552200221055544433";
+  private static final String WITHDRAWAL_ACCOUNT_IBAN = "EE662200221066655544";
+  private static final String EXTERNAL_ACCOUNT_IBAN = "EE112233445566778899";
+
+  SavingFundPaymentExtractor paymentExtractor = mock(SavingFundPaymentExtractor.class);
+  SavingFundPaymentUpsertionService paymentService = mock(SavingFundPaymentUpsertionService.class);
+  ManagementCompanies managementCompanies = mock(ManagementCompanies.class);
+  BankAccounts bankAccounts = mock(BankAccounts.class);
+  SavingsFundLedger savingsFundLedger = mock(SavingsFundLedger.class);
+  InternalTransferLedger internalTransferLedger = mock(InternalTransferLedger.class);
+  ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
+  OwnAccountTransferRecorder ownAccountTransferRecorder =
+      new OwnAccountTransferRecorder(bankAccounts, internalTransferLedger, eventPublisher);
+  FundBankLedger fundBankLedger = mock(FundBankLedger.class);
+  UserService userService = mock(UserService.class);
+  RedemptionRequestRepository redemptionRequestRepository = mock(RedemptionRequestRepository.class);
+  RedemptionStatusService redemptionStatusService = mock(RedemptionStatusService.class);
+  EndToEndIdConverter endToEndIdConverter = new EndToEndIdConverter();
+  RedemptionPayoutRecorder redemptionPayoutRecorder =
+      new RedemptionPayoutRecorder(
+          savingsFundLedger,
+          userService,
+          redemptionRequestRepository,
+          redemptionStatusService,
+          endToEndIdConverter);
+
+  SavingsFundStatementProcessor processor =
+      new SavingsFundStatementProcessor(
+          paymentExtractor,
+          paymentService,
+          managementCompanies,
+          bankAccounts,
+          savingsFundLedger,
+          ownAccountTransferRecorder,
+          fundBankLedger,
+          redemptionPayoutRecorder);
+
+  @Test
+  void outgoingToFundAccount_createsLedgerTransferEntryWithBookingDate() {
+    var receivedBefore = Instant.parse("2025-10-01T20:59:59.999999Z");
+    var outgoingPayment =
+        aPayment()
+            .amount(new BigDecimal("-100.00"))
+            .beneficiaryIban(FUND_INVESTMENT_IBAN)
+            .receivedBefore(receivedBefore)
+            .build();
+    var bankStatement = setupMocksForPayment(outgoingPayment);
+    when(bankAccounts.find(FUND_INVESTMENT_IBAN))
+        .thenReturn(
+            Optional.of(
+                new BankAccount(FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR, TKF100, "gw-test")));
+
+    processor.process(bankStatement, statementAccount);
+
+    verify(savingsFundLedger)
+        .transferToFundAccount(
+            new BigDecimal("100.00"), outgoingPayment.getId(), LocalDate.of(2025, 10, 1));
+  }
+
+  @Test
+  void fundInvestmentOutgoingToDepositAccount_recordsInternalTransfer() {
+    var receivedBefore = Instant.parse("2026-09-01T06:59:59.999999Z");
+    var correctionTransfer =
+        aPayment()
+            .amount(new BigDecimal("-4272.98"))
+            .beneficiaryIban(DEPOSIT_ACCOUNT_IBAN)
+            .description("Management fee kickback 02/2026")
+            .receivedBefore(receivedBefore)
+            .build();
+    var bankStatement =
+        setupMocksForPaymentWithAccount(
+            correctionTransfer, FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR);
+    when(bankAccounts.find(DEPOSIT_ACCOUNT_IBAN))
+        .thenReturn(
+            Optional.of(new BankAccount(DEPOSIT_ACCOUNT_IBAN, DEPOSIT_EUR, TKF100, "gw-test")));
+
+    processor.process(bankStatement, statementAccount);
+
+    verify(internalTransferLedger)
+        .recordInternalTransfer(
+            SystemAccount.FUND_INVESTMENT_CASH_CLEARING,
+            SystemAccount.INCOMING_PAYMENTS_CLEARING,
+            new BigDecimal("4272.98"),
+            correctionTransfer.getId(),
+            LocalDate.of(2026, 9, 1),
+            "Management fee kickback 02/2026");
+    verify(eventPublisher)
+        .publishEvent(
+            new OwnAccountTransferRecordedEvent(
+                FUND_INVESTMENT_EUR,
+                DEPOSIT_EUR,
+                new BigDecimal("4272.98"),
+                correctionTransfer.getId()));
+  }
+
+  @Test
+  void fundInvestmentOutgoingToDepositAccount_withFeeLikeDescription_isNotBookedAsManagementFee() {
+    var receivedBefore = Instant.parse("2026-09-01T06:59:59.999999Z");
+    var transfer =
+        aPayment()
+            .amount(new BigDecimal("-100.00"))
+            .beneficiaryIban(DEPOSIT_ACCOUNT_IBAN)
+            .beneficiaryName("Tuleva Fondid AS")
+            .description("Valitsemistasu tagastus")
+            .receivedBefore(receivedBefore)
+            .build();
+    var bankStatement =
+        setupMocksForPaymentWithAccount(transfer, FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR);
+    when(managementCompanies.isManagementCompany("Tuleva Fondid AS")).thenReturn(true);
+    when(bankAccounts.find(DEPOSIT_ACCOUNT_IBAN))
+        .thenReturn(
+            Optional.of(new BankAccount(DEPOSIT_ACCOUNT_IBAN, DEPOSIT_EUR, TKF100, "gw-test")));
+
+    processor.process(bankStatement, statementAccount);
+
+    verify(internalTransferLedger)
+        .recordInternalTransfer(
+            SystemAccount.FUND_INVESTMENT_CASH_CLEARING,
+            SystemAccount.INCOMING_PAYMENTS_CLEARING,
+            new BigDecimal("100.00"),
+            transfer.getId(),
+            LocalDate.of(2026, 9, 1),
+            "Valitsemistasu tagastus");
+    verifyNoInteractions(fundBankLedger);
+  }
+
+  @Test
+  void depositOutgoingToWithdrawalAccount_recordsInternalTransferInsteadOfDeferredReturn() {
+    var receivedBefore = Instant.parse("2026-09-01T06:59:59.999999Z");
+    var transfer =
+        aPayment()
+            .amount(new BigDecimal("-50.00"))
+            .beneficiaryIban(WITHDRAWAL_ACCOUNT_IBAN)
+            .description("internal move")
+            .receivedBefore(receivedBefore)
+            .build();
+    var bankStatement = setupMocksForPayment(transfer);
+    when(bankAccounts.find(WITHDRAWAL_ACCOUNT_IBAN))
+        .thenReturn(
+            Optional.of(
+                new BankAccount(WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR, TKF100, "gw-test")));
+
+    processor.process(bankStatement, statementAccount);
+
+    verify(internalTransferLedger)
+        .recordInternalTransfer(
+            SystemAccount.INCOMING_PAYMENTS_CLEARING,
+            SystemAccount.PAYOUTS_CASH_CLEARING,
+            new BigDecimal("50.00"),
+            transfer.getId(),
+            LocalDate.of(2026, 9, 1),
+            "internal move");
+  }
+
+  @Test
+  void outgoingReturn_defersMatchingToPostProcessingPass() {
+    var returnPayment =
+        aPayment()
+            .amount(new BigDecimal("-50.00"))
+            .beneficiaryIban(EXTERNAL_ACCOUNT_IBAN)
+            .endToEndId("nonexistent12345678901234567890")
+            .build();
+    var bankStatement = setupMocksForPayment(returnPayment);
+    when(bankAccounts.find(EXTERNAL_ACCOUNT_IBAN)).thenReturn(Optional.empty());
+
+    processor.process(bankStatement, statementAccount);
+
+    verify(savingsFundLedger, never()).recordPaymentCancelled(any(), any(), any());
+    verify(savingsFundLedger, never()).bounceBackUnattributedPayment(any(), any());
+  }
+
+  @Test
+  void outgoingPaymentToPensionFundAccount_isNotBookedAsInternalFundTransfer() {
+    var pensionIban = "EE001234567890123475";
+    var outgoingPayment =
+        aPayment()
+            .amount(new BigDecimal("-100000.00"))
+            .beneficiaryIban(pensionIban)
+            .endToEndId("nonexistent12345678901234567890")
+            .build();
+    var bankStatement = setupMocksForPayment(outgoingPayment);
+    when(bankAccounts.find(pensionIban))
+        .thenReturn(
+            Optional.of(
+                new BankAccount(
+                    pensionIban,
+                    FUND_INVESTMENT_EUR,
+                    ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75,
+                    "gw-test")));
+
+    processor.process(bankStatement, statementAccount);
+
+    verify(savingsFundLedger, never()).transferToFundAccount(any(), any(), any());
+    verify(savingsFundLedger, never()).transferToFundAccount(any(), any());
+  }
+
+  @Test
+  void incomingPayment_doesNotCreateLedgerEntry() {
+    var incomingPayment = aPayment().amount(new BigDecimal("200.00")).build();
+    var bankStatement = setupMocksForPayment(incomingPayment);
+
+    processor.process(bankStatement, statementAccount);
+
+    verify(savingsFundLedger, never()).transferToFundAccount(any(), any());
+    verify(savingsFundLedger, never()).recordPaymentCancelled(any(), any(), any());
+    verify(savingsFundLedger, never()).bounceBackUnattributedPayment(any(), any());
+  }
+
+  private BankStatement setupMocksForPayment(SavingFundPayment payment) {
+    return setupMocksForPaymentWithAccount(payment, DEPOSIT_ACCOUNT_IBAN, DEPOSIT_EUR);
+  }
+
+  private BankStatement setupMocksForPaymentWithAccount(
+      SavingFundPayment payment, String accountIban, BankAccountType accountType) {
+    var bankStatement =
+        new BankStatement(
+            BankStatementType.INTRA_DAY_REPORT,
+            new BankStatementAccount(accountIban, "Tuleva Fondid AS", "14118923"),
+            List.of(),
+            List.of());
+    statementAccount = new BankAccount(accountIban, accountType, TKF100, "gw-test");
+    when(paymentExtractor.extractPayments(bankStatement)).thenReturn(List.of(payment));
+
+    doAnswer(
+            invocation -> {
+              Function<SavingFundPayment, SavingFundPayment.Status> onInsert =
+                  invocation.getArgument(1);
+              onInsert.apply(payment);
+              return null;
+            })
+        .when(paymentService)
+        .upsert(eq(payment), any(), any());
+
+    doAnswer(
+            invocation -> {
+              Function<SavingFundPayment, SavingFundPayment.Status> onInsert =
+                  invocation.getArgument(1);
+              onInsert.apply(payment);
+              return null;
+            })
+        .when(paymentService)
+        .upsert(eq(payment), any());
+
+    return bankStatement;
+  }
+
+  @Test
+  void withdrawalOutgoing_createsLedgerEntryAndMarksRedemptionAsProcessed() {
+    User user = sampleUser().build();
+    var redemptionRequestId = UUID.randomUUID();
+    var endToEndId = endToEndIdConverter.toEndToEndId(redemptionRequestId);
+    var customerIban = EXTERNAL_ACCOUNT_IBAN;
+    var receivedBefore = Instant.parse("2025-10-01T20:59:59.999999Z");
+    var redemptionRequest =
+        RedemptionRequest.builder()
+            .id(redemptionRequestId)
+            .userId(user.getId())
+            .partyType(PartyId.Type.PERSON)
+            .partyCode(user.getPersonalCode())
+            .customerIban(customerIban)
+            .status(REDEEMED)
+            .build();
+    var outgoingPayment =
+        aPayment()
+            .amount(new BigDecimal("-500.00"))
+            .beneficiaryIban(customerIban)
+            .endToEndId(endToEndId)
+            .receivedBefore(receivedBefore)
+            .build();
+    var bankStatement =
+        setupMocksForPaymentWithAccount(outgoingPayment, WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR);
+    when(redemptionRequestRepository.findByIdAndStatus(redemptionRequestId, REDEEMED))
+        .thenReturn(Optional.of(redemptionRequest));
+    when(savingsFundLedger.hasPayoutEntry(redemptionRequestId)).thenReturn(false);
+    when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
+
+    processor.process(bankStatement, statementAccount);
+
+    var expectedParty = new PartyRef(PartyType.PERSON, user.getPersonalCode());
+    verify(savingsFundLedger)
+        .recordRedemptionPayout(
+            expectedParty,
+            new BigDecimal("500.00"),
+            customerIban,
+            redemptionRequestId,
+            LocalDate.of(2025, 10, 1));
+    verify(redemptionStatusService)
+        .changeStatus(redemptionRequestId, RedemptionRequest.Status.PROCESSED);
+  }
+
+  @Test
+  void withdrawalOutgoing_skipsLedgerEntryIfAlreadyExists() {
+    User user = sampleUser().build();
+    var redemptionRequestId = UUID.randomUUID();
+    var endToEndId = endToEndIdConverter.toEndToEndId(redemptionRequestId);
+    var redemptionRequest =
+        RedemptionRequest.builder()
+            .id(redemptionRequestId)
+            .userId(user.getId())
+            .partyType(PartyId.Type.PERSON)
+            .partyCode(user.getPersonalCode())
+            .customerIban(EXTERNAL_ACCOUNT_IBAN)
+            .status(REDEEMED)
+            .build();
+    var outgoingPayment =
+        aPayment()
+            .amount(new BigDecimal("-500.00"))
+            .beneficiaryIban(EXTERNAL_ACCOUNT_IBAN)
+            .endToEndId(endToEndId)
+            .build();
+    var bankStatement =
+        setupMocksForPaymentWithAccount(outgoingPayment, WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR);
+    when(redemptionRequestRepository.findByIdAndStatus(redemptionRequestId, REDEEMED))
+        .thenReturn(Optional.of(redemptionRequest));
+    when(savingsFundLedger.hasPayoutEntry(redemptionRequestId)).thenReturn(true);
+
+    processor.process(bankStatement, statementAccount);
+
+    verify(savingsFundLedger, never()).recordRedemptionPayout(any(), any(), any(), any());
+    verify(redemptionStatusService)
+        .changeStatus(redemptionRequestId, RedemptionRequest.Status.PROCESSED);
+  }
+
+  @Test
+  void withdrawalOutgoing_throwsWhenUserNotFound() {
+    Long missingUserId = 99999L;
+    var redemptionRequestId = UUID.randomUUID();
+    var endToEndId = endToEndIdConverter.toEndToEndId(redemptionRequestId);
+    var redemptionRequest =
+        RedemptionRequest.builder()
+            .id(redemptionRequestId)
+            .userId(missingUserId)
+            .partyType(PartyId.Type.PERSON)
+            .partyCode("38812121215")
+            .customerIban(EXTERNAL_ACCOUNT_IBAN)
+            .status(REDEEMED)
+            .build();
+    var outgoingPayment =
+        aPayment()
+            .amount(new BigDecimal("-500.00"))
+            .beneficiaryIban(EXTERNAL_ACCOUNT_IBAN)
+            .endToEndId(endToEndId)
+            .build();
+    var bankStatement =
+        setupMocksForPaymentWithAccount(outgoingPayment, WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR);
+    when(redemptionRequestRepository.findByIdAndStatus(redemptionRequestId, REDEEMED))
+        .thenReturn(Optional.of(redemptionRequest));
+    when(savingsFundLedger.hasPayoutEntry(redemptionRequestId)).thenReturn(false);
+    when(userService.getByIdOrThrow(missingUserId)).thenThrow(new NoSuchElementException());
+
+    assertThrows(
+        NoSuchElementException.class, () -> processor.process(bankStatement, statementAccount));
+  }
+
+  @Test
+  void withdrawalOutgoing_noMatchingRedemption_doesNotChangeStatus() {
+    var endToEndId = "12345678123456781234567812345678";
+    var outgoingPayment =
+        aPayment()
+            .amount(new BigDecimal("-500.00"))
+            .beneficiaryIban(EXTERNAL_ACCOUNT_IBAN)
+            .endToEndId(endToEndId)
+            .build();
+    var bankStatement =
+        setupMocksForPaymentWithAccount(outgoingPayment, WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR);
+    when(redemptionRequestRepository.findByIdAndStatus(any(), eq(REDEEMED)))
+        .thenReturn(Optional.empty());
+
+    processor.process(bankStatement, statementAccount);
+
+    verifyNoInteractions(redemptionStatusService);
+  }
+
+  @Test
+  void withdrawalIncoming_fromFundInvestment_logsBatchTransfer() {
+    var incomingPayment =
+        aPayment().amount(new BigDecimal("1000.00")).remitterIban(FUND_INVESTMENT_IBAN).build();
+    var bankStatement =
+        setupMocksForPaymentWithAccount(incomingPayment, WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR);
+    when(bankAccounts.find(FUND_INVESTMENT_IBAN))
+        .thenReturn(
+            Optional.of(
+                new BankAccount(FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR, TKF100, "gw-test")));
+
+    processor.process(bankStatement, statementAccount);
+
+    verifyNoInteractions(redemptionStatusService);
+  }
+
+  @Test
+  void fundInvestmentOutgoing_toWithdrawal_createsLedgerEntryWithBookingDate() {
+    var receivedBefore = Instant.parse("2025-10-01T20:59:59.999999Z");
+    var outgoingPayment =
+        aPayment()
+            .amount(new BigDecimal("-1000.00"))
+            .beneficiaryIban(WITHDRAWAL_ACCOUNT_IBAN)
+            .receivedBefore(receivedBefore)
+            .build();
+    var bankStatement =
+        setupMocksForPaymentWithAccount(outgoingPayment, FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR);
+    when(bankAccounts.find(WITHDRAWAL_ACCOUNT_IBAN))
+        .thenReturn(
+            Optional.of(
+                new BankAccount(WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR, TKF100, "gw-test")));
+
+    processor.process(bankStatement, statementAccount);
+
+    verify(savingsFundLedger)
+        .transferFromFundAccount(
+            new BigDecimal("1000.00"), outgoingPayment.getId(), LocalDate.of(2025, 10, 1));
+    verifyNoInteractions(redemptionStatusService);
+    verify(paymentService).upsert(eq(outgoingPayment), any());
+  }
+
+  @Test
+  void incomingInternalTransfer_depositToFundInvestment_isSkipped() {
+    var incomingPayment =
+        aPayment().amount(new BigDecimal("1000.00")).remitterIban(DEPOSIT_ACCOUNT_IBAN).build();
+    var bankStatement =
+        setupMocksForPaymentWithAccount(incomingPayment, FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR);
+    when(bankAccounts.find(DEPOSIT_ACCOUNT_IBAN))
+        .thenReturn(
+            Optional.of(new BankAccount(DEPOSIT_ACCOUNT_IBAN, DEPOSIT_EUR, TKF100, "gw-test")));
+
+    processor.process(bankStatement, statementAccount);
+
+    verify(paymentService, never()).upsert(any(), any());
+    verify(paymentService, never()).upsert(any(), any(), any());
+  }
+
+  @Test
+  void incomingInternalTransfer_fundInvestmentToWithdrawal_isSkipped() {
+    var incomingPayment =
+        aPayment().amount(new BigDecimal("1000.00")).remitterIban(FUND_INVESTMENT_IBAN).build();
+    var bankStatement =
+        setupMocksForPaymentWithAccount(incomingPayment, WITHDRAWAL_ACCOUNT_IBAN, WITHDRAWAL_EUR);
+    when(bankAccounts.find(FUND_INVESTMENT_IBAN))
+        .thenReturn(
+            Optional.of(
+                new BankAccount(FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR, TKF100, "gw-test")));
+
+    processor.process(bankStatement, statementAccount);
+
+    verify(paymentService, never()).upsert(any(), any());
+    verify(paymentService, never()).upsert(any(), any(), any());
+  }
+
+  @Test
+  void incomingInternalTransfer_fundInvestmentToDeposit_isSkipped() {
+    var incomingPayment =
+        aPayment().amount(new BigDecimal("1000.00")).remitterIban(FUND_INVESTMENT_IBAN).build();
+    var bankStatement =
+        setupMocksForPaymentWithAccount(incomingPayment, DEPOSIT_ACCOUNT_IBAN, DEPOSIT_EUR);
+    when(bankAccounts.find(FUND_INVESTMENT_IBAN))
+        .thenReturn(
+            Optional.of(
+                new BankAccount(FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR, TKF100, "gw-test")));
+
+    processor.process(bankStatement, statementAccount);
+
+    verify(paymentService, never()).upsert(any(), any());
+    verify(paymentService, never()).upsert(any(), any(), any());
+  }
+
+  @Test
+  void incomingExternalPayment_isProcessedNormally() {
+    var incomingPayment =
+        aPayment().amount(new BigDecimal("200.00")).remitterIban(EXTERNAL_ACCOUNT_IBAN).build();
+    var bankStatement = setupMocksForPayment(incomingPayment);
+    when(bankAccounts.find(EXTERNAL_ACCOUNT_IBAN)).thenReturn(Optional.empty());
+
+    processor.process(bankStatement, statementAccount);
+
+    verify(paymentService).upsert(eq(incomingPayment), any(), any());
+  }
+
+  @Test
+  void fundInvestmentOutgoing_managementFee_createsLedgerEntryWithBookingDate() {
+    var managementCompanyName = "Tuleva Fondid AS";
+    var description = "Valitsemistasu 02.-28.02.26";
+    var receivedBefore = Instant.parse("2025-10-01T20:59:59.999999Z");
+    var outgoingPayment =
+        aPayment()
+            .amount(new BigDecimal("-742.34"))
+            .beneficiaryIban(EXTERNAL_ACCOUNT_IBAN)
+            .beneficiaryName(managementCompanyName)
+            .description(description)
+            .receivedBefore(receivedBefore)
+            .build();
+    var bankStatement =
+        setupMocksForPaymentWithAccount(outgoingPayment, FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR);
+    when(managementCompanies.isManagementCompany(managementCompanyName)).thenReturn(true);
+
+    processor.process(bankStatement, statementAccount);
+
+    verify(fundBankLedger)
+        .recordManagementFeePayment(
+            TKF100,
+            new BigDecimal("742.34"),
+            outgoingPayment.getId(),
+            description,
+            LocalDate.of(2025, 10, 1));
+  }
+
+  @Test
+  void fundInvestmentOutgoing_unknownPayment_doesNotCreateLedgerEntry() {
+    var outgoingPayment =
+        aPayment()
+            .amount(new BigDecimal("-500.00"))
+            .beneficiaryIban(EXTERNAL_ACCOUNT_IBAN)
+            .beneficiaryName("Unknown Company")
+            .description("Some unknown payment")
+            .build();
+    var bankStatement =
+        setupMocksForPaymentWithAccount(outgoingPayment, FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR);
+    when(bankAccounts.find(EXTERNAL_ACCOUNT_IBAN)).thenReturn(Optional.empty());
+    when(managementCompanies.isManagementCompany("Unknown Company")).thenReturn(false);
+
+    processor.process(bankStatement, statementAccount);
+
+    verify(fundBankLedger, never()).recordManagementFeePayment(any(), any(), any(), any(), any());
+    verify(savingsFundLedger, never()).transferFromFundAccount(any(), any());
+  }
+
+  @Test
+  void outgoingInternalTransfer_isProcessedNormally() {
+    var receivedBefore = Instant.parse("2025-10-01T20:59:59.999999Z");
+    var outgoingPayment =
+        aPayment()
+            .amount(new BigDecimal("-100.00"))
+            .beneficiaryIban(FUND_INVESTMENT_IBAN)
+            .remitterIban(DEPOSIT_ACCOUNT_IBAN)
+            .receivedBefore(receivedBefore)
+            .build();
+    var bankStatement = setupMocksForPayment(outgoingPayment);
+    when(bankAccounts.find(FUND_INVESTMENT_IBAN))
+        .thenReturn(
+            Optional.of(
+                new BankAccount(FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR, TKF100, "gw-test")));
+
+    processor.process(bankStatement, statementAccount);
+
+    verify(paymentService).upsert(eq(outgoingPayment), any(), any());
+    verify(savingsFundLedger)
+        .transferToFundAccount(
+            new BigDecimal("100.00"), outgoingPayment.getId(), LocalDate.of(2025, 10, 1));
+  }
+}

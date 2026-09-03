@@ -15,11 +15,13 @@ import ee.tuleva.onboarding.config.EmailConfiguration;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.retry.RetryException;
 import org.springframework.core.retry.RetryTemplate;
@@ -45,7 +47,12 @@ public class EmailService {
   }
 
   public MandrillMessage newMandrillMessage(
-      String to,
+      @Nullable String to, String templateName, Map<String, Object> mergeVars, List<String> tags) {
+    return newMandrillMessage(to, templateName, mergeVars, tags, List.of());
+  }
+
+  public MandrillMessage newMandrillMessage(
+      @Nullable String to,
       String templateName,
       Map<String, Object> mergeVars,
       List<String> tags,
@@ -56,7 +63,7 @@ public class EmailService {
     MergeVarBucket mergeVarBucket = new MergeVarBucket();
     mergeVarBucket.setRcpt(to);
     MergeVar[] vars =
-        mergeVars.entrySet().stream()
+        withoutSelfPromotion(templateName, mergeVars).entrySet().stream()
             .map(entry -> new MergeVar(entry.getKey(), entry.getValue()))
             .toList()
             .toArray(new MergeVar[0]);
@@ -79,7 +86,7 @@ public class EmailService {
   }
 
   public MandrillMessage newMandrillMessage(
-      String to,
+      @Nullable String to,
       String replyTo,
       String templateName,
       Map<String, Object> mergeVars,
@@ -96,7 +103,7 @@ public class EmailService {
     return send(person, message, templateName, null);
   }
 
-  private static String recipientOf(MandrillMessage message) {
+  private static @Nullable String recipientOf(MandrillMessage message) {
     if (message.getTo() == null || message.getTo().isEmpty()) {
       return null;
     }
@@ -105,7 +112,7 @@ public class EmailService {
   }
 
   public Optional<MandrillMessageStatus> send(
-      Person person, MandrillMessage message, String templateName, Instant sendAt) {
+      Person person, MandrillMessage message, String templateName, @Nullable Instant sendAt) {
     if (mandrillApi == null) {
       log.warn(
           "Mandrill not initialised, not sending email for person: personalCode={}, sendAt={}, templateName={}",
@@ -215,5 +222,28 @@ public class EmailService {
       log.error(e.getLocalizedMessage(), e);
     }
     return Optional.empty();
+  }
+
+  private static Map<String, Object> withoutSelfPromotion(
+      String templateName, Map<String, Object> mergeVars) {
+    Map<String, Object> scrubbed = new HashMap<>(mergeVars);
+    if (templateName.startsWith("third_pillar") || templateName.startsWith("withdrawal_batch")) {
+      scrubbed.replace("suggestThirdPillar", false);
+    }
+    if ((templateName.startsWith("second_pillar") && !templateName.contains("payment_rate"))
+        || templateName.startsWith("payment_rate")
+        || templateName.startsWith("withdrawal_batch")) {
+      scrubbed.replace("suggestSecondPillar", false);
+    }
+    if (templateName.contains("payment_rate") || templateName.startsWith("withdrawal_batch")) {
+      scrubbed.replace("suggestPaymentRate", false);
+    }
+    if (templateName.startsWith("withdrawal_batch")) {
+      scrubbed.replace("suggestThirdPillarRaise", false);
+    }
+    if (templateName.startsWith("savings_fund")) {
+      scrubbed.replace("suggestSavingsFund", false);
+    }
+    return scrubbed;
   }
 }

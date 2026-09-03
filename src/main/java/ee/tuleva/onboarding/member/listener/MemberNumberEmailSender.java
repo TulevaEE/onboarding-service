@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.member.listener;
 
 import ee.tuleva.onboarding.member.email.MemberEmailService;
+import ee.tuleva.onboarding.user.MemberCreatedEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;

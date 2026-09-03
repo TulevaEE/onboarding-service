@@ -50,6 +50,16 @@ class RiskClassBucketSpec extends Specification {
   }
 
   @Unroll
+  def "MRM class #riskClass upper bound is #expected"() {
+    expect:
+    RiskClassBucket.range(RiskIndicatorType.SRI, riskClass).upperExclusive() == expected
+    where:
+    riskClass || expected
+    6         || 0.80
+    7         || null
+  }
+
+  @Unroll
   def "class #riskClass measures #value against its nearer bound: #expected"() {
     expect:
     RiskClassBucket.distanceToNearestBound(RiskIndicatorType.SRRI, riskClass, value) == expected

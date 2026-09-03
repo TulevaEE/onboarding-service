@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.banking;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.util.List;
 import java.util.Optional;
 import org.jspecify.annotations.NullMarked;

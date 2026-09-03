@@ -1,14 +1,11 @@
 package ee.tuleva.onboarding.epis;
 
+import static ee.tuleva.onboarding.epis.EpisResponses.requireBody;
 import static java.util.Arrays.asList;
 import static org.springframework.http.HttpMethod.GET;
 
-import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.contribution.Contribution;
 import ee.tuleva.onboarding.epis.account.FundBalanceDto;
-import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
-import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.epis.fund.FundDto;
 import ee.tuleva.onboarding.epis.fund.NavDto;
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
@@ -20,14 +17,16 @@ import ee.tuleva.onboarding.epis.transaction.*;
 import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto;
-import ee.tuleva.onboarding.secondpillarassets.SecondPillarAssets;
+import ee.tuleva.onboarding.mandate.LegacyMandateSubmission;
+import ee.tuleva.onboarding.mandate.MandateProcessResult;
+import ee.tuleva.onboarding.mandate.MandateSubmissionCommand;
+import ee.tuleva.onboarding.mandate.application.ApplicationSnapshot;
 import java.time.LocalDate;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
@@ -35,10 +34,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -66,26 +62,24 @@ public class EpisService {
   @Qualifier("episLongRequestRestTemplate")
   private final RestTemplate episLongRequestRestTemplate;
 
-  private final JwtTokenUtil jwtTokenUtil;
+  private final EpisRequestHeaders requestHeaders;
 
   @Value("${epis.service.url}")
-  @Nullable
-  String episServiceUrl;
+  private final String episServiceUrl;
 
   @Value("${epis.service.long-request-url}")
-  @Nullable
-  String episServiceLongRequestUrl;
+  private final String episServiceLongRequestUrl;
 
   @Cacheable(value = APPLICATIONS_CACHE_NAME, key = "#person.representedPersonalCode", sync = true)
-  public List<ApplicationDTO> getApplications(Person person) {
+  public List<ApplicationSnapshot> getApplications(Person person) {
     String url = episServiceUrl + "/applications";
 
     log.info("Getting applications from {} for {}", url, person.getPersonalCode());
 
-    ResponseEntity<ApplicationDTO[]> response =
-        episRestTemplate.exchange(url, GET, getHeadersEntity(), ApplicationDTO[].class);
-
-    return asList(response.getBody());
+    return ApplicationDTO.toSnapshots(
+        episRestTemplate
+            .exchange(url, GET, requestHeaders.userEntity(), ApplicationDTO[].class)
+            .getBody());
   }
 
   @Cacheable(
@@ -103,9 +97,9 @@ public class EpisService {
             .toUriString();
 
     log.info("Getting cash flows from {}", url);
-    return episRestTemplate
-        .exchange(url, GET, getHeadersEntity(), CashFlowStatement.class)
-        .getBody();
+    return requireBody(
+        episRestTemplate.exchange(url, GET, requestHeaders.userEntity(), CashFlowStatement.class),
+        "account-cash-flow-statement");
   }
 
   @Caching(
@@ -136,7 +130,7 @@ public class EpisService {
       key = "#person.representedPersonalCode",
       sync = true)
   public ContactDetails getContactDetails(Person person) {
-    return getContactDetails(person, userJwtToken());
+    return getContactDetails(person, requestHeaders.userJwtToken());
   }
 
   @Cacheable(
@@ -148,10 +142,10 @@ public class EpisService {
 
     log.info("Getting contact details from {} for {}", url, person.getPersonalCode());
 
-    ResponseEntity<ContactDetails> response =
-        episRestTemplate.exchange(url, GET, getHeadersEntity(jwtToken), ContactDetails.class);
-
-    return response.getBody();
+    return requireBody(
+        episRestTemplate.exchange(
+            url, GET, requestHeaders.entityFor(jwtToken), ContactDetails.class),
+        "contact-details");
   }
 
   @Cacheable(
@@ -171,10 +165,10 @@ public class EpisService {
 
     log.info("Getting account statement from {} for {}", url, person.getPersonalCode());
 
-    ResponseEntity<FundBalanceDto[]> response =
-        episRestTemplate.exchange(url, GET, getHeadersEntity(), FundBalanceDto[].class);
-
-    return asList(response.getBody());
+    return asList(
+        episRestTemplate
+            .exchange(url, GET, requestHeaders.userEntity(), FundBalanceDto[].class)
+            .getBody());
   }
 
   @Cacheable(value = CONTRIBUTIONS_CACHE_NAME, key = "#person.representedPersonalCode", sync = true)
@@ -183,10 +177,10 @@ public class EpisService {
 
     log.info("Getting contributions for {}", person.getPersonalCode());
 
-    ResponseEntity<Contribution[]> response =
-        episRestTemplate.exchange(url, GET, getHeadersEntity(), Contribution[].class);
-
-    return asList(response.getBody());
+    return asList(
+        episRestTemplate
+            .exchange(url, GET, requestHeaders.userEntity(), Contribution[].class)
+            .getBody());
   }
 
   @Cacheable(value = FUNDS_CACHE_NAME, unless = "#result.isEmpty()")
@@ -195,10 +189,10 @@ public class EpisService {
 
     log.info("Getting funds from {}", url);
 
-    ResponseEntity<FundDto[]> response =
-        episRestTemplate.exchange(url, GET, getHeadersEntity(), FundDto[].class);
-
-    return asList(response.getBody());
+    return asList(
+        episRestTemplate
+            .exchange(url, GET, requestHeaders.userEntity(), FundDto[].class)
+            .getBody());
   }
 
   @Cacheable(
@@ -210,10 +204,10 @@ public class EpisService {
 
     log.info("Getting fund pension calculation for {}", person.getPersonalCode());
 
-    ResponseEntity<FundPensionCalculationDto> response =
-        episRestTemplate.exchange(url, GET, getHeadersEntity(), FundPensionCalculationDto.class);
-
-    return response.getBody();
+    return requireBody(
+        episRestTemplate.exchange(
+            url, GET, requestHeaders.userEntity(), FundPensionCalculationDto.class),
+        "fund-pension-calculation");
   }
 
   @Cacheable(
@@ -225,10 +219,10 @@ public class EpisService {
 
     log.info("Getting fund pension status for {}", person.getPersonalCode());
 
-    ResponseEntity<FundPensionStatusDto> response =
-        episRestTemplate.exchange(url, GET, getHeadersEntity(), FundPensionStatusDto.class);
-
-    return response.getBody();
+    return requireBody(
+        episRestTemplate.exchange(
+            url, GET, requestHeaders.userEntity(), FundPensionStatusDto.class),
+        "fund-pension-status");
   }
 
   @Cacheable(
@@ -240,10 +234,10 @@ public class EpisService {
 
     log.info("Getting arrests/bankruptcies information for {}", person.getPersonalCode());
 
-    ResponseEntity<ArrestsBankruptciesDto> response =
-        episRestTemplate.exchange(url, GET, getHeadersEntity(), ArrestsBankruptciesDto.class);
-
-    return response.getBody();
+    return requireBody(
+        episRestTemplate.exchange(
+            url, GET, requestHeaders.userEntity(), ArrestsBankruptciesDto.class),
+        "arrests-bankruptcies");
   }
 
   @Cacheable(
@@ -255,18 +249,18 @@ public class EpisService {
 
     log.info("Getting second pillar assets for {}", person.getPersonalCode());
 
-    ResponseEntity<SecondPillarAssets> response =
-        episRestTemplate.exchange(url, GET, getHeadersEntity(), SecondPillarAssets.class);
-
-    return response.getBody();
+    return requireBody(
+        episRestTemplate.exchange(url, GET, requestHeaders.userEntity(), SecondPillarAssets.class),
+        "second-pillar-assets");
   }
 
   public NavDto getNav(String isin, LocalDate date) {
     log.info("Fetching NAV for fund from EPIS service: isin={}, date={}", isin, date);
     String url = episServiceUrl + "/navs/" + isin + "?date=" + date;
-    return episRestTemplate
-        .exchange(url, GET, new HttpEntity<>(getHeaders(serviceJwtToken())), NavDto.class)
-        .getBody();
+    return requireBody(
+        episRestTemplate.exchange(
+            url, GET, new HttpEntity<>(requestHeaders.service()), NavDto.class),
+        "navs, isin=" + isin);
   }
 
   public List<ThirdPillarTransactionDto> getTransactions(LocalDate startDate, LocalDate endDate) {
@@ -291,11 +285,11 @@ public class EpisService {
             .exchange(
                 url,
                 GET,
-                new HttpEntity<>(getHeaders(serviceJwtToken())),
+                new HttpEntity<>(requestHeaders.service()),
                 ThirdPillarTransactionDto[].class)
             .getBody();
 
-    return Arrays.asList(responseArray);
+    return asList(responseArray);
   }
 
   public List<ExchangeTransactionDto> getExchangeTransactions(
@@ -303,7 +297,6 @@ public class EpisService {
       Optional<String> securityFrom,
       Optional<String> securityTo,
       boolean pikFlag) {
-
     log.info(
         "Fetching exchange transactions from EPIS service: startDate={}, securityFrom={}, securityTo={}, pikFlag={}",
         startDate,
@@ -330,11 +323,11 @@ public class EpisService {
             .exchange(
                 url,
                 GET,
-                new HttpEntity<>(getHeaders(serviceJwtToken())),
+                new HttpEntity<>(requestHeaders.service()),
                 ExchangeTransactionDto[].class)
             .getBody();
 
-    return Arrays.asList(responseArray);
+    return asList(responseArray);
   }
 
   public List<FundTransactionDto> getFundTransactions(
@@ -359,9 +352,9 @@ public class EpisService {
 
     ResponseEntity<FundTransactionDto[]> response =
         episLongRequestRestTemplate.exchange(
-            url, GET, new HttpEntity<>(getHeaders(serviceJwtToken())), FundTransactionDto[].class);
+            url, GET, new HttpEntity<>(requestHeaders.service()), FundTransactionDto[].class);
 
-    return Arrays.asList(response.getBody());
+    return asList(response.getBody());
   }
 
   public List<TransactionFundBalanceDto> getFundBalances(LocalDate requestDate) {
@@ -381,10 +374,10 @@ public class EpisService {
         episLongRequestRestTemplate.exchange(
             url,
             GET,
-            new HttpEntity<>(getHeaders(serviceJwtToken())),
+            new HttpEntity<>(requestHeaders.service()),
             TransactionFundBalanceDto[].class);
 
-    return Arrays.asList(response.getBody());
+    return asList(response.getBody());
   }
 
   public List<UnitOwnerDto> getUnitOwners() {
@@ -401,23 +394,29 @@ public class EpisService {
 
     ResponseEntity<UnitOwnerDto[]> response =
         episLongRequestRestTemplate.exchange(
-            url, GET, new HttpEntity<>(getHeaders(serviceJwtToken())), UnitOwnerDto[].class);
+            url, GET, new HttpEntity<>(requestHeaders.service()), UnitOwnerDto[].class);
 
-    return Arrays.asList(response.getBody());
+    return asList(response.getBody());
   }
 
-  public MandateCommandResponse sendMandateV2(MandateCommand<?> mandate) {
-    String url = episServiceUrl + "/mandates-v2";
-
-    return episRestTemplate.postForObject(
-        url, new HttpEntity<>(mandate, getUserHeaders()), MandateCommandResponse.class);
+  public MandateProcessResult sendMandateV2(MandateSubmissionCommand<?> mandate) {
+    return requireBody(
+            episRestTemplate.postForObject(
+                episServiceUrl + "/mandates-v2",
+                new HttpEntity<>(MandateCommand.from(mandate), requestHeaders.user()),
+                MandateCommandResponse.class),
+            "mandates-v2")
+        .toProcessResult();
   }
 
-  public ApplicationResponseDTO sendMandate(MandateDto mandate) {
-    String url = episServiceUrl + "/mandates";
-
-    return episRestTemplate.postForObject(
-        url, new HttpEntity<>(mandate, getUserHeaders()), ApplicationResponseDTO.class);
+  public MandateProcessResult sendMandate(LegacyMandateSubmission mandate) {
+    return requireBody(
+            episRestTemplate.postForObject(
+                episServiceUrl + "/mandates",
+                new HttpEntity<>(MandateDto.from(mandate), requestHeaders.user()),
+                ApplicationResponseDTO.class),
+            "mandates")
+        .toProcessResult();
   }
 
   @CacheEvict(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.representedPersonalCode")
@@ -426,44 +425,9 @@ public class EpisService {
 
     log.info("Updating contact details for {}", contactDetails.getPersonalCode());
 
-    return episRestTemplate.postForObject(
-        url, new HttpEntity<>(contactDetails, getUserHeaders()), ContactDetails.class);
-  }
-
-  private HttpEntity<String> getHeadersEntity() {
-    return getHeadersEntity(userJwtToken());
-  }
-
-  private HttpEntity<String> getHeadersEntity(String jwtToken) {
-    return new HttpEntity<>(getHeaders(jwtToken));
-  }
-
-  private HttpHeaders getUserHeaders() {
-    return getHeaders(userJwtToken());
-  }
-
-  private HttpHeaders getHeaders(String jwtToken) {
-    HttpHeaders headers = createJsonHeaders();
-    headers.add("Authorization", "Bearer " + jwtToken);
-    return headers;
-  }
-
-  private HttpHeaders createJsonHeaders() {
-    HttpHeaders headers = new HttpHeaders();
-    headers.setContentType(MediaType.APPLICATION_JSON);
-    return headers;
-  }
-
-  private String userJwtToken() {
-    final var authentication =
-        SecurityContextHolder.getContext().getAuthentication(); // Use Authentication Holder
-    if (authentication != null) {
-      return (String) authentication.getCredentials();
-    }
-    throw new IllegalStateException("No authentication present!");
-  }
-
-  private String serviceJwtToken() {
-    return jwtTokenUtil.generateServiceToken();
+    return requireBody(
+        episRestTemplate.postForObject(
+            url, new HttpEntity<>(contactDetails, requestHeaders.user()), ContactDetails.class),
+        "contact-details");
   }
 }

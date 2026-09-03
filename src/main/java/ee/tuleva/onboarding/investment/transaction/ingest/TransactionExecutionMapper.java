@@ -5,6 +5,7 @@ import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -51,7 +52,7 @@ class TransactionExecutionMapper {
     return snapshot;
   }
 
-  private static String asString(Object value) {
+  private static @Nullable String asString(@Nullable Object value) {
     return value == null ? null : value.toString();
   }
 }

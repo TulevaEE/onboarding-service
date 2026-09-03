@@ -1,21 +1,14 @@
 package ee.tuleva.onboarding.fund;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
-import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_UNITS_OUTSTANDING;
-import static ee.tuleva.onboarding.ledger.UserAccount.FUND_UNITS;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.RoundingMode.HALF_UP;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.StreamSupport.stream;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
-import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
-import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatistics;
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatisticsService;
-import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.locale.LocaleService;
-import ee.tuleva.onboarding.savings.fund.SavingsFundConfiguration;
-import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -40,11 +33,10 @@ class FundService {
 
   private final FundRepository fundRepository;
   private final PensionFundStatisticsService pensionFundStatisticsService;
-  private final FundValueRepository fundValueRepository;
+  private final FundNavValues fundNavValues;
   private final LocaleService localeService;
-  private final LedgerService ledgerService;
-  private final SavingsFundConfiguration savingsFundConfiguration;
-  private final FundNavProvider fundNavProvider;
+  private final SavingsFundUnitStats savingsFundUnitStats;
+  private final SavingsFundNav savingsFundNav;
 
   List<ExtendedApiFundResponse> getFunds(Optional<String> fundManagerName) {
     return stream(fundsBy(fundManagerName).spliterator(), false)
@@ -65,11 +57,11 @@ class FundService {
   }
 
   private PensionFundStatistics fallbackNavStatistics(Fund fund) {
-    boolean isSavingsFund = savingsFundConfiguration.getIsin().equals(fund.getIsin());
-    Optional<FundValue> latestValue =
+    boolean isSavingsFund = savingsFundNav.isSavingsFund(fund.getIsin());
+    Optional<FundNavValues.NavPoint> latestValue =
         isSavingsFund
-            ? fundValueRepository.getLatestValue(fund.getIsin(), fundNavProvider.safeMaxNavDate())
-            : fundValueRepository.findLastValueForFund(fund.getIsin());
+            ? fundNavValues.latestValueOnOrBefore(fund.getIsin(), savingsFundNav.safeMaxNavDate())
+            : fundNavValues.lastValue(fund.getIsin());
     return latestValue
         .map(fundValue -> buildSavingsFundStatistics(fund, fundValue))
         .orElseGet(PensionFundStatistics::getNull);
@@ -77,16 +69,16 @@ class FundService {
 
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
 
-  private PensionFundStatistics buildSavingsFundStatistics(Fund fund, FundValue latestFundValue) {
-    if (!savingsFundConfiguration.getIsin().equals(fund.getIsin())) {
+  private PensionFundStatistics buildSavingsFundStatistics(
+      Fund fund, FundNavValues.NavPoint latestFundValue) {
+    if (!savingsFundNav.isSavingsFund(fund.getIsin())) {
       return PensionFundStatistics.builder().nav(latestFundValue.value()).build();
     }
 
-    var account = ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING, TKF100);
-    var currentBalance = account.getBalance();
+    var currentBalance = savingsFundUnitStats.unitsOutstanding();
     var cutoff = latestFundValue.date().plusDays(1).atStartOfDay(ESTONIAN_ZONE).toInstant();
-    var balanceAtCutoff = account.getBalanceAt(cutoff);
-    var peopleCount = ledgerService.countAccountsWithPositiveBalance(FUND_UNITS);
+    var balanceAtCutoff = savingsFundUnitStats.unitsOutstandingAt(cutoff);
+    var peopleCount = savingsFundUnitStats.unitHolderCount();
 
     boolean issuanceCompleted = currentBalance.compareTo(balanceAtCutoff) != 0;
 
@@ -101,9 +93,9 @@ class FundService {
 
     var previousNav =
         toNavScale(
-            fundValueRepository
-                .getLatestValue(fund.getIsin(), latestFundValue.date().minusDays(1))
-                .map(FundValue::value)
+            fundNavValues
+                .latestValueOnOrBefore(fund.getIsin(), latestFundValue.date().minusDays(1))
+                .map(FundNavValues.NavPoint::value)
                 .orElse(latestFundValue.value()));
     return PensionFundStatistics.builder()
         .nav(previousNav)
@@ -139,8 +131,8 @@ class FundService {
   private List<NavValueResponse> navHistoryFor(Fund fund, LocalDate startDate, LocalDate endDate) {
     LocalDate start = startDate != null ? startDate : LocalDate.EPOCH;
     LocalDate end = endDate != null ? endDate : LocalDate.of(9999, 12, 31);
-    if (savingsFundConfiguration.getIsin().equals(fund.getIsin())) {
-      LocalDate safeMaxDate = fundNavProvider.safeMaxNavDate();
+    if (savingsFundNav.isSavingsFund(fund.getIsin())) {
+      LocalDate safeMaxDate = savingsFundNav.safeMaxNavDate();
       if (end.isAfter(safeMaxDate)) {
         end = safeMaxDate;
       }
@@ -148,8 +140,8 @@ class FundService {
     if (start.isAfter(end)) {
       return List.of();
     }
-    return fundValueRepository.findValuesBetweenDates(fund.getIsin(), start, end).stream()
-        .map(fv -> new NavValueResponse(fv.date(), fv.value()))
+    return fundNavValues.valuesBetween(fund.getIsin(), start, end).stream()
+        .map(navPoint -> new NavValueResponse(navPoint.date(), navPoint.value()))
         .toList();
   }
 

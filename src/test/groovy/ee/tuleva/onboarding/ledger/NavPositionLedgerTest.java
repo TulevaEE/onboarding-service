@@ -1,11 +1,11 @@
 package ee.tuleva.onboarding.ledger;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.ASSET;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.LIABILITY;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.POSITION_UPDATE;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ZERO;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -13,14 +13,12 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
-import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
 import java.math.BigDecimal;
-import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -30,7 +28,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
-import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -42,7 +39,6 @@ class NavPositionLedgerTest {
 
   @Mock private LedgerAccountService ledgerAccountService;
   @Mock private LedgerTransactionService ledgerTransactionService;
-  @Spy private PublicHolidays publicHolidays = new PublicHolidays();
   @Mock private JdbcClient jdbcClient;
 
   @Mock private LedgerAccount securitiesUnitsAccount1;
@@ -54,20 +50,19 @@ class NavPositionLedgerTest {
   @Mock private LedgerAccount payablesAccount;
   @Mock private LedgerAccount navEquityAccount;
   @Mock private LedgerTransaction transaction;
+  @Mock private JdbcClient.StatementSpec statementSpec;
 
   @Captor private ArgumentCaptor<LedgerEntryDto[]> entriesCaptor;
   @Captor private ArgumentCaptor<Map<String, Object>> metadataCaptor;
 
   private NavPositionLedger navPositionLedger;
 
-  private final Clock clock =
-      Clock.fixed(Instant.parse("2026-02-25T08:00:00Z"), ZoneId.of("Europe/Tallinn"));
+  private static final Instant TRANSACTION_AT = Instant.parse("2026-02-25T08:00:00Z");
 
   @BeforeEach
   void setUp() {
     navPositionLedger =
-        new NavPositionLedger(
-            ledgerAccountService, ledgerTransactionService, publicHolidays, clock, jdbcClient);
+        new NavPositionLedger(ledgerAccountService, ledgerTransactionService, jdbcClient);
     when(ledgerTransactionService.existsByExternalReferenceAndTransactionType(
             any(UUID.class), eq(POSITION_UPDATE)))
         .thenReturn(false);
@@ -96,6 +91,12 @@ class NavPositionLedgerTest {
         .thenReturn(Optional.of(navEquityAccount));
   }
 
+  private void setupJdbcClientMocks() {
+    when(jdbcClient.sql(org.mockito.ArgumentMatchers.anyString())).thenReturn(statementSpec);
+    when(statementSpec.param(org.mockito.ArgumentMatchers.anyString(), any()))
+        .thenReturn(statementSpec);
+  }
+
   @Test
   void recordPositions_recordsPerIsinSecuritiesUnitsToLedger() {
     LocalDate reportDate = LocalDate.of(2026, 2, 1);
@@ -110,16 +111,18 @@ class NavPositionLedgerTest {
         .thenReturn(transaction);
 
     navPositionLedger.recordPositions(
-        TKF100, reportDate, Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")), ZERO, ZERO, ZERO);
+        TKF100,
+        reportDate,
+        TRANSACTION_AT,
+        Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")),
+        ZERO,
+        ZERO,
+        ZERO);
 
     verify(ledgerTransactionService)
         .createTransaction(
             eq(POSITION_UPDATE),
-            eq(
-                LocalDate.of(2026, 2, 2)
-                    .atTime(10, 0)
-                    .atZone(ZoneId.of("Europe/Tallinn"))
-                    .toInstant()),
+            eq(TRANSACTION_AT),
             any(UUID.class),
             any(),
             entriesCaptor.capture());
@@ -146,16 +149,12 @@ class NavPositionLedgerTest {
         .thenReturn(transaction);
 
     navPositionLedger.recordPositions(
-        TKF100, reportDate, Map.of(), new BigDecimal("50000.00"), ZERO, ZERO);
+        TKF100, reportDate, TRANSACTION_AT, Map.of(), new BigDecimal("50000.00"), ZERO, ZERO);
 
     verify(ledgerTransactionService)
         .createTransaction(
             eq(POSITION_UPDATE),
-            eq(
-                LocalDate.of(2026, 2, 2)
-                    .atTime(10, 0)
-                    .atZone(ZoneId.of("Europe/Tallinn"))
-                    .toInstant()),
+            eq(TRANSACTION_AT),
             any(UUID.class),
             any(),
             entriesCaptor.capture());
@@ -182,16 +181,12 @@ class NavPositionLedgerTest {
         .thenReturn(transaction);
 
     navPositionLedger.recordPositions(
-        TKF100, reportDate, Map.of(), ZERO, new BigDecimal("10000.00"), ZERO);
+        TKF100, reportDate, TRANSACTION_AT, Map.of(), ZERO, new BigDecimal("10000.00"), ZERO);
 
     verify(ledgerTransactionService)
         .createTransaction(
             eq(POSITION_UPDATE),
-            eq(
-                LocalDate.of(2026, 2, 2)
-                    .atTime(10, 0)
-                    .atZone(ZoneId.of("Europe/Tallinn"))
-                    .toInstant()),
+            eq(TRANSACTION_AT),
             any(UUID.class),
             any(),
             entriesCaptor.capture());
@@ -218,16 +213,12 @@ class NavPositionLedgerTest {
         .thenReturn(transaction);
 
     navPositionLedger.recordPositions(
-        TKF100, reportDate, Map.of(), ZERO, ZERO, new BigDecimal("-5000.00"));
+        TKF100, reportDate, TRANSACTION_AT, Map.of(), ZERO, ZERO, new BigDecimal("-5000.00"));
 
     verify(ledgerTransactionService)
         .createTransaction(
             eq(POSITION_UPDATE),
-            eq(
-                LocalDate.of(2026, 2, 2)
-                    .atTime(10, 0)
-                    .atZone(ZoneId.of("Europe/Tallinn"))
-                    .toInstant()),
+            eq(TRANSACTION_AT),
             any(UUID.class),
             any(),
             entriesCaptor.capture());
@@ -256,6 +247,7 @@ class NavPositionLedgerTest {
     navPositionLedger.recordPositions(
         TKF100,
         reportDate,
+        TRANSACTION_AT,
         Map.of(
             "IE00BFG1TM61", new BigDecimal("1000.00000"),
             "IE00BMDBMY19", new BigDecimal("500.00000")),
@@ -266,11 +258,7 @@ class NavPositionLedgerTest {
     verify(ledgerTransactionService)
         .createTransaction(
             eq(POSITION_UPDATE),
-            eq(
-                LocalDate.of(2026, 2, 2)
-                    .atTime(10, 0)
-                    .atZone(ZoneId.of("Europe/Tallinn"))
-                    .toInstant()),
+            eq(TRANSACTION_AT),
             any(UUID.class),
             any(),
             entriesCaptor.capture());
@@ -283,7 +271,8 @@ class NavPositionLedgerTest {
   void recordPositions_skipsWhenAllPositionsAreZero() {
     LocalDate reportDate = LocalDate.of(2026, 2, 1);
 
-    navPositionLedger.recordPositions(TKF100, reportDate, Map.of(), ZERO, ZERO, ZERO);
+    navPositionLedger.recordPositions(
+        TKF100, reportDate, TRANSACTION_AT, Map.of(), ZERO, ZERO, ZERO);
 
     verify(ledgerTransactionService, never())
         .createTransaction(
@@ -308,7 +297,13 @@ class NavPositionLedgerTest {
         .thenReturn(transaction);
 
     navPositionLedger.recordPositions(
-        TKF100, reportDate, Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")), ZERO, ZERO, ZERO);
+        TKF100,
+        reportDate,
+        TRANSACTION_AT,
+        Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")),
+        ZERO,
+        ZERO,
+        ZERO);
 
     verify(ledgerTransactionService)
         .createTransaction(
@@ -332,163 +327,19 @@ class NavPositionLedgerTest {
         .thenReturn(true);
 
     navPositionLedger.recordPositions(
-        TKF100, reportDate, Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")), ZERO, ZERO, ZERO);
+        TKF100,
+        reportDate,
+        TRANSACTION_AT,
+        Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")),
+        ZERO,
+        ZERO,
+        ZERO);
 
     verify(ledgerTransactionService, never())
         .createTransaction(
             any(TransactionType.class),
             any(Instant.class),
             any(),
-            any(),
-            any(LedgerEntryDto[].class));
-  }
-
-  @Test
-  void recordPositions_usesRealTimestampWhenProcessedOnNextWorkingDay() {
-    LocalDate reportDate = LocalDate.of(2026, 2, 3);
-    Instant realTimeNow = Instant.parse("2026-02-04T07:23:15Z");
-    Clock realTimeClock = Clock.fixed(realTimeNow, ZoneId.of("Europe/Tallinn"));
-    var realTimeLedger =
-        new NavPositionLedger(
-            ledgerAccountService,
-            ledgerTransactionService,
-            publicHolidays,
-            realTimeClock,
-            jdbcClient);
-
-    setupAccountMocks();
-    when(ledgerTransactionService.createTransaction(
-            any(TransactionType.class),
-            any(Instant.class),
-            any(UUID.class),
-            any(),
-            any(LedgerEntryDto[].class)))
-        .thenReturn(transaction);
-
-    realTimeLedger.recordPositions(
-        TKF100, reportDate, Map.of(), new BigDecimal("50000.00"), ZERO, ZERO);
-
-    verify(ledgerTransactionService)
-        .createTransaction(
-            eq(POSITION_UPDATE),
-            eq(realTimeNow),
-            any(UUID.class),
-            any(),
-            any(LedgerEntryDto[].class));
-  }
-
-  @Test
-  void recordPositions_usesFallbackTimestampWhenBackfilling() {
-    LocalDate reportDate = LocalDate.of(2026, 2, 3);
-    setupAccountMocks();
-    when(ledgerTransactionService.createTransaction(
-            any(TransactionType.class),
-            any(Instant.class),
-            any(UUID.class),
-            any(),
-            any(LedgerEntryDto[].class)))
-        .thenReturn(transaction);
-
-    navPositionLedger.recordPositions(
-        TKF100, reportDate, Map.of(), new BigDecimal("50000.00"), ZERO, ZERO);
-
-    verify(ledgerTransactionService)
-        .createTransaction(
-            eq(POSITION_UPDATE),
-            eq(
-                LocalDate.of(2026, 2, 4)
-                    .atTime(10, 0)
-                    .atZone(ZoneId.of("Europe/Tallinn"))
-                    .toInstant()),
-            any(UUID.class),
-            any(),
-            any(LedgerEntryDto[].class));
-  }
-
-  @Test
-  void recordPositions_usesFixedTimestampWhenProcessedAfterCutoff() {
-    LocalDate reportDate = LocalDate.of(2026, 2, 3);
-    Instant afterCutoff = Instant.parse("2026-02-04T14:30:00Z");
-    Clock afterCutoffClock = Clock.fixed(afterCutoff, ZoneId.of("Europe/Tallinn"));
-    var afterCutoffLedger =
-        new NavPositionLedger(
-            ledgerAccountService,
-            ledgerTransactionService,
-            publicHolidays,
-            afterCutoffClock,
-            jdbcClient);
-
-    setupAccountMocks();
-    when(ledgerTransactionService.createTransaction(
-            any(TransactionType.class),
-            any(Instant.class),
-            any(UUID.class),
-            any(),
-            any(LedgerEntryDto[].class)))
-        .thenReturn(transaction);
-
-    afterCutoffLedger.recordPositions(
-        TKF100, reportDate, Map.of(), new BigDecimal("50000.00"), ZERO, ZERO);
-
-    verify(ledgerTransactionService)
-        .createTransaction(
-            eq(POSITION_UPDATE),
-            eq(
-                LocalDate.of(2026, 2, 4)
-                    .atTime(10, 0)
-                    .atZone(ZoneId.of("Europe/Tallinn"))
-                    .toInstant()),
-            any(UUID.class),
-            any(),
-            any(LedgerEntryDto[].class));
-  }
-
-  @Test
-  void recordPositions_usesReportDateForInceptionDay() {
-    LocalDate inceptionDate = TKF100.getInceptionDate();
-    setupAccountMocks();
-    when(ledgerTransactionService.createTransaction(
-            any(TransactionType.class),
-            any(Instant.class),
-            any(UUID.class),
-            any(),
-            any(LedgerEntryDto[].class)))
-        .thenReturn(transaction);
-
-    navPositionLedger.recordPositions(
-        TKF100, inceptionDate, Map.of(), new BigDecimal("50000.00"), ZERO, ZERO);
-
-    verify(ledgerTransactionService)
-        .createTransaction(
-            eq(POSITION_UPDATE),
-            eq(inceptionDate.atTime(10, 0).atZone(ZoneId.of("Europe/Tallinn")).toInstant()),
-            any(UUID.class),
-            any(),
-            any(LedgerEntryDto[].class));
-    verify(publicHolidays, never()).nextWorkingDay(any());
-  }
-
-  @Test
-  void recordPositions_skipsWeekendForFridayReport() {
-    LocalDate friday = LocalDate.of(2026, 2, 6);
-    LocalDate monday = LocalDate.of(2026, 2, 9);
-    setupAccountMocks();
-    when(ledgerTransactionService.createTransaction(
-            any(TransactionType.class),
-            any(Instant.class),
-            any(UUID.class),
-            any(),
-            any(LedgerEntryDto[].class)))
-        .thenReturn(transaction);
-
-    navPositionLedger.recordPositions(
-        TKF100, friday, Map.of(), new BigDecimal("50000.00"), ZERO, ZERO);
-
-    verify(ledgerTransactionService)
-        .createTransaction(
-            eq(POSITION_UPDATE),
-            eq(monday.atTime(10, 0).atZone(ZoneId.of("Europe/Tallinn")).toInstant()),
-            any(UUID.class),
             any(),
             any(LedgerEntryDto[].class));
   }
@@ -507,7 +358,13 @@ class NavPositionLedgerTest {
         .thenReturn(transaction);
 
     navPositionLedger.recordPositions(
-        TKF100, reportDate, Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")), ZERO, ZERO, ZERO);
+        TKF100,
+        reportDate,
+        TRANSACTION_AT,
+        Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")),
+        ZERO,
+        ZERO,
+        ZERO);
 
     UUID expectedReference =
         UUID.nameUUIDFromBytes("POSITION_UPDATE:TKF100:2026-02-01".getBytes(UTF_8));
@@ -519,5 +376,114 @@ class NavPositionLedgerTest {
             eq(expectedReference),
             any(),
             any(LedgerEntryDto[].class));
+  }
+
+  @Test
+  void recordPositions_createsInstrumentAccountsWhenMissing() {
+    LocalDate reportDate = LocalDate.of(2026, 2, 1);
+    String unitsName = SECURITIES_UNITS.getAccountName(TKF100, "IE00BFG1TM61");
+    String equityName = SECURITIES_UNITS_EQUITY.getAccountName(TKF100, "IE00BFG1TM61");
+    when(ledgerAccountService.findSystemAccountByName(unitsName, ASSET, FUND_UNIT))
+        .thenReturn(Optional.empty());
+    when(ledgerAccountService.createSystemAccount(unitsName, ASSET, FUND_UNIT))
+        .thenReturn(securitiesUnitsAccount1);
+    when(ledgerAccountService.findSystemAccountByName(equityName, LIABILITY, FUND_UNIT))
+        .thenReturn(Optional.empty());
+    when(ledgerAccountService.createSystemAccount(equityName, LIABILITY, FUND_UNIT))
+        .thenReturn(securitiesUnitsEquityAccount1);
+    when(ledgerTransactionService.createTransaction(
+            any(TransactionType.class),
+            any(Instant.class),
+            any(UUID.class),
+            any(),
+            any(LedgerEntryDto[].class)))
+        .thenReturn(transaction);
+
+    navPositionLedger.recordPositions(
+        TKF100,
+        reportDate,
+        TRANSACTION_AT,
+        Map.of("IE00BFG1TM61", new BigDecimal("1000.00000")),
+        ZERO,
+        ZERO,
+        ZERO);
+
+    verify(ledgerTransactionService)
+        .createTransaction(any(), any(), any(), any(), entriesCaptor.capture());
+    LedgerEntryDto[] entries = entriesCaptor.getValue();
+    assertThat(entries[0].account()).isEqualTo(securitiesUnitsAccount1);
+    assertThat(entries[1].account()).isEqualTo(securitiesUnitsEquityAccount1);
+  }
+
+  @Test
+  void recordPositions_createsSystemAccountsWhenMissing() {
+    LocalDate reportDate = LocalDate.of(2026, 2, 1);
+    when(ledgerAccountService.findSystemAccount(CASH_POSITION, TKF100))
+        .thenReturn(Optional.empty());
+    when(ledgerAccountService.createSystemAccount(CASH_POSITION, TKF100)).thenReturn(cashAccount);
+    when(ledgerAccountService.findSystemAccount(NAV_EQUITY, TKF100)).thenReturn(Optional.empty());
+    when(ledgerAccountService.createSystemAccount(NAV_EQUITY, TKF100)).thenReturn(navEquityAccount);
+    when(ledgerTransactionService.createTransaction(
+            any(TransactionType.class),
+            any(Instant.class),
+            any(UUID.class),
+            any(),
+            any(LedgerEntryDto[].class)))
+        .thenReturn(transaction);
+
+    navPositionLedger.recordPositions(
+        TKF100, reportDate, TRANSACTION_AT, Map.of(), new BigDecimal("50000.00"), ZERO, ZERO);
+
+    verify(ledgerTransactionService)
+        .createTransaction(any(), any(), any(), any(), entriesCaptor.capture());
+    LedgerEntryDto[] entries = entriesCaptor.getValue();
+    assertThat(entries[0].account()).isEqualTo(cashAccount);
+    assertThat(entries[1].account()).isEqualTo(navEquityAccount);
+  }
+
+  @Test
+  void deletePositionUpdatesForDates_emptyDates_skipsDatabaseAndReturnsZero() {
+    int result = navPositionLedger.deletePositionUpdatesForDates(TKF100, List.of());
+
+    assertThat(result).isZero();
+    verifyNoInteractions(jdbcClient);
+  }
+
+  @Test
+  void deletePositionUpdatesForDates_deletesAndReturnsTransactionCount() {
+    setupJdbcClientMocks();
+    when(statementSpec.update()).thenReturn(1, 2, 3, 4, 5, 6);
+    var date1 = LocalDate.of(2026, 2, 1);
+    var date2 = LocalDate.of(2026, 2, 2);
+
+    int result = navPositionLedger.deletePositionUpdatesForDates(TKF100, List.of(date1, date2));
+
+    assertThat(result).isEqualTo(12);
+  }
+
+  @Test
+  void deletePositionUpdatesForDates_passesDeterministicReferencesForEachDate() {
+    setupJdbcClientMocks();
+    when(statementSpec.update()).thenReturn(0);
+    var date1 = LocalDate.of(2026, 2, 1);
+    var date2 = LocalDate.of(2026, 2, 2);
+    var expectedRefs =
+        List.of(
+            UUID.nameUUIDFromBytes("POSITION_UPDATE:TKF100:2026-02-01".getBytes(UTF_8)),
+            UUID.nameUUIDFromBytes("POSITION_UPDATE:TKF100:2026-02-02".getBytes(UTF_8)));
+
+    navPositionLedger.deletePositionUpdatesForDates(TKF100, List.of(date1, date2));
+
+    verify(statementSpec, times(2)).param(eq("refs"), eq(expectedRefs));
+  }
+
+  @Test
+  void deletePositionUpdatesByFund_returnsTransactionDeleteCount() {
+    setupJdbcClientMocks();
+    when(statementSpec.update()).thenReturn(3, 7);
+
+    int result = navPositionLedger.deletePositionUpdatesByFund(TKF100);
+
+    assertThat(result).isEqualTo(7);
   }
 }

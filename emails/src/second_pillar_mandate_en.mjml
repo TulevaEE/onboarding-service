@@ -7,52 +7,47 @@
       <mj-column>
         <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
-          You are now saving for your pension alongside me and other Tuleva members. Your
-          payments will be directed to the chosen pension fund from the next payment made. If
-          you wish to swap any existing shares, the exchange of units will take effect
+          *|IF:selectedTulevaFund|*You are now saving in your second pillar alongside me and
+          other Tuleva members.*|ELSE:|*Your second pillar application has been
+          submitted.*|END:IF|*
+        </mj-text>
+        <mj-raw>*|IF:hasFundSelection|*</mj-raw>
+        <mj-raw>*|IF:hasFundTransfer|*</mj-raw>
+        <mj-text>
+          Your payments will be directed to the chosen fund starting from the next
+          payment, and the exchange of your existing fund units takes effect
           on&nbsp;*|transferDate|*.
         </mj-text>
+        <mj-raw>*|ELSE:|*</mj-raw>
+        <mj-text>
+          Your payments will be directed to the chosen fund starting from the next
+          payment.
+        </mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+        <mj-raw>*|ELSE:|*</mj-raw>
+        <mj-text>
+          The exchange of your existing fund units takes effect on&nbsp;*|transferDate|*.
+        </mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+        <mj-raw>*|IF:selectedHighFeeFund|*</mj-raw>
+        <mj-text>
+          Please note: you chose a fund whose ongoing charges are
+          <strong>*|selectedFundFee|*% per year</strong>.
+          Low fees provide the best foundation for optimal long-term returns. You can compare fund fees in the
+          <a href="https://tuleva.ee/vaata/pensionifondide-vordlus/?utm_content=warning_high_fee">pension fund comparison</a>.
+        </mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+        <mj-raw>*|IF:selectedConservativeFund|*</mj-raw>
+        <mj-text>
+          Please note: you chose a <strong>low-risk fund</strong>. With many years to go until
+          retirement,
+          equity funds have historically delivered considerably better returns than bond
+          funds. You can compare funds in the
+          <a href="https://tuleva.ee/vaata/pensionifondide-vordlus/?utm_content=warning_conservative">pension fund comparison</a>.
+        </mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
 
-        <mj-raw>*|IF:suggestThirdPillar|*</mj-raw>
-        <mj-text>
-          Next, it's smart to set up the third pillar. For example, if you make a monthly
-          contribution of 100 euros, the state will refund you 264 euros in income tax next
-          spring.
-        </mj-text>
-        <mj-text><strong>Check how much you could save on taxes:</strong></mj-text>
-        <mj-button href="https://tuleva.ee/en/third-pillar/">
-          Calculate&nbsp;your&nbsp;tax&nbsp;benefit
-        </mj-button>
-
-        <mj-raw>*|ELSEIF:suggestPaymentRate|*</mj-raw>
-        <mj-text><strong>Don't miss out on the second pillar tax benefit.</strong></mj-text>
-        <mj-text>
-          Since second pillar contributions are exempt from income tax,
-          <strong>the higher the percentage, the greater the tax benefit</strong>. For
-          example, if your gross salary is 2000 euros, you could gain a tax benefit of 316
-          euros. You can change the size of your second pillar contribution once a year up to
-          6%.
-        </mj-text>
-        <mj-text>
-          <strong>
-            Check how much your personal income tax savings could be by increasing your
-            second pillar contribution:
-          </strong>
-        </mj-text>
-        <mj-button href="https://pension.tuleva.ee/2nd-pillar-tax-win">Check out</mj-button>
-
-        <mj-raw>*|ELSEIF:suggestMembership|*</mj-raw>
-        <mj-text>
-          <strong>How can you maximize the benefits of saving with Tuleva?</strong>
-        </mj-text>
-        <mj-text>
-          Tuleva's owners are the pension savers themselves. As a Tuleva pension fund client,
-          you have no obligation to become a member of Tuleva. All Estonian citizens are able
-          to save together with us in our modern, low-cost pension funds. Having said that, I
-          would still welcome you to think about becoming a member, since you benefit the
-          most from Tuleva whilst being a co-owner yourself.
-        </mj-text>
-        <mj-button href="http://https://tuleva.ee/en/faq/">Read&nbsp;more</mj-button>
+        <mj-include path="./partials/suggest_chain_open_en.mjml" />
         <mj-raw>*|END:IF|*</mj-raw>
 
         <mj-text>

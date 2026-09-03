@@ -1,24 +1,75 @@
 {
   "variants": {
-    "II pillar elsewhere": {
+    "no extra suggestion": {
+      "FNAME": "Liina",
+      "LNAME": "Kask",
+      "memberNumber": "247",
+      "memberDate": "21.05.2026"
+    },
+    "second pillar suggestion": {
       "FNAME": "Mari",
       "LNAME": "Maasikas",
       "memberNumber": "482",
       "memberDate": "12.08.2026",
       "suggestSecondPillar": true
     },
-    "raise the payment rate": {
+    "payment rate increase suggestion": {
       "FNAME": "Jaan",
       "LNAME": "Tamm",
       "memberNumber": "615",
       "memberDate": "03.07.2026",
       "suggestPaymentRate": true
     },
-    "no extra suggestion": {
-      "FNAME": "Liina",
-      "LNAME": "Kask",
-      "memberNumber": "247",
-      "memberDate": "21.05.2026"
+    "third pillar suggestion": {
+      "FNAME": "Kati",
+      "LNAME": "Ilves",
+      "memberNumber": "731",
+      "memberDate": "14.02.2026",
+      "suggestThirdPillar": true
+    },
+    "third pillar fees suggestion": {
+      "FNAME": "Kati",
+      "LNAME": "Ilves",
+      "memberNumber": "731",
+      "memberDate": "14.02.2026",
+      "suggestThirdPillar": true,
+      "thirdPillarActive": true
+    },
+    "third pillar recurring suggestion": {
+      "FNAME": "Kati",
+      "LNAME": "Ilves",
+      "memberNumber": "731",
+      "memberDate": "14.02.2026",
+      "suggestThirdPillarRecurringPayment": true
+    },
+    "third pillar raise suggestion": {
+      "FNAME": "Kati",
+      "LNAME": "Ilves",
+      "memberNumber": "731",
+      "memberDate": "14.02.2026",
+      "suggestThirdPillarRaise": true
+    },
+    "savings fund suggestion": {
+      "FNAME": "Kati",
+      "LNAME": "Ilves",
+      "memberNumber": "731",
+      "memberDate": "14.02.2026",
+      "suggestSavingsFund": true,
+      "savingsFundFee": "0.28"
+    },
+    "savings fund recurring suggestion": {
+      "FNAME": "Kati",
+      "LNAME": "Ilves",
+      "memberNumber": "731",
+      "memberDate": "14.02.2026",
+      "suggestSavingsFundRecurringPayment": true
+    },
+    "membership suggestion (cannot occur)": {
+      "FNAME": "Toomas",
+      "LNAME": "Rebane",
+      "memberNumber": "902",
+      "memberDate": "09.11.2026",
+      "suggestMembership": true
     }
   }
 }

@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;

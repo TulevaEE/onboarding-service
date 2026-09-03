@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.investment.transaction.export;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.investment.transaction.export.ExportFile.GENERIC_ORDERS;
 import static ee.tuleva.onboarding.investment.transaction.export.ExportFile.SEB_FUND;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 

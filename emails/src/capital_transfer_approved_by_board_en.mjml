@@ -5,7 +5,7 @@
 
     <mj-section padding-top="12px">
       <mj-column>
-        <mj-text>Hello *|FNAME|*</mj-text>
+        <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
           The board of the Tuleva cooperative approved the transfer of membership
           capital between members of Tuleva, *|sellerFullName|* and *|buyerFullName|*.
@@ -14,8 +14,13 @@
         </mj-text>
         <mj-button href="https://pension.tuleva.ee/account?language=en">View member capital</mj-button>
         <mj-text>
+          As the transaction has already taken place, we ask the advertiser to delete their
+          listing so that interested members no longer see the sold membership capital or send
+          new inquiries.
+        </mj-text>
+        <mj-text>
           Please note that the sales proceeds from the transfer of membership capital
-          are subject to income tax. Therefore, it must be declared in the following
+          are subject to income tax. Therefore, they must be declared in the following
           year's income tax return (by April 30).
           <a href="https://drive.google.com/file/d/14bv2QED8fPiC56kixkoAA81_Pi2G5XZt/view?usp=sharing">
             We have described tax obligations in more detail in a separate instruction
@@ -29,7 +34,7 @@
     <mj-section padding="0 24px">
       <mj-column>
         <mj-text padding-top="12px">
-          TÜ Tuleva members of the board<br />
+          Members of the board of Tulundusühistu Tuleva<br />
           Annika Uudelepp and Tõnu Pekk
         </mj-text>
       </mj-column>

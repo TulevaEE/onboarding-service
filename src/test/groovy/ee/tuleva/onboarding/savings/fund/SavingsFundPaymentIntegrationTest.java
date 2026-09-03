@@ -2,9 +2,7 @@ package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.seb.Seb.SEB_GATEWAY_TIME_ZONE;
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.*;
-import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.FUND_TRANSFER;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_BOUNCE_BACK;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_CANCELLED;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
@@ -12,8 +10,9 @@ import static ee.tuleva.onboarding.ledger.UserAccount.*;
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.PENDING_KYC;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
-import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.*;
+import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -33,6 +32,8 @@ import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.ParentChildLink;
 import ee.tuleva.onboarding.party.ParentChildLinkRepository;
 import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.savings.SavingFundPayment;
+import ee.tuleva.onboarding.savings.SavingsFundConfiguration;
 import ee.tuleva.onboarding.savings.fund.issuing.FundAccountPaymentJob;
 import ee.tuleva.onboarding.savings.fund.issuing.IssuingJob;
 import ee.tuleva.onboarding.time.ClockHolder;
@@ -230,6 +231,7 @@ class SavingsFundPaymentIntegrationTest {
 
     // Verify outgoing payment was created and processed
     var outgoingPayment = paymentRepository.findByExternalId("2025092915000-1").orElseThrow();
+    ownedPaymentIds.add(outgoingPayment.getId());
     assertThat(outgoingPayment.getAmount()).isEqualByComparingTo(paymentAmount.negate());
     assertThat(outgoingPayment.getStatus()).isEqualTo(PROCESSED);
     assertThat(outgoingPayment.getBeneficiaryIban()).isEqualTo(investmentIban);
@@ -456,13 +458,8 @@ class SavingsFundPaymentIntegrationTest {
         .reduce(ZERO, BigDecimal::add);
   }
 
-  // The statement processor books FUND_TRANSFER from the payment it just extracted, which has no id
-  // yet, so that transaction carries no external reference and is recognised by its type instead
   private boolean isOwnEntry(LedgerEntry entry) {
-    var transaction = entry.getTransaction();
-    return ownedPaymentIds.contains(transaction.getExternalReference())
-        || (transaction.getExternalReference() == null
-            && transaction.getTransactionType() == FUND_TRANSFER);
+    return ownedPaymentIds.contains(entry.getTransaction().getExternalReference());
   }
 
   @Test

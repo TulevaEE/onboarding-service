@@ -22,7 +22,8 @@ public class InstrumentReferenceServiceFixture {
     var proxyRepository = mock(BenchmarkCategoryProxyRepository.class);
     given(proxyRepository.findAll()).willReturn(proxies);
 
-    var service = new InstrumentReferenceService(instrumentRepository, proxyRepository, CLOCK);
+    var snapshotLoader = new InstrumentSnapshotLoader(instrumentRepository, proxyRepository);
+    var service = new InstrumentReferenceService(snapshotLoader, CLOCK);
     service.init();
     return service;
   }

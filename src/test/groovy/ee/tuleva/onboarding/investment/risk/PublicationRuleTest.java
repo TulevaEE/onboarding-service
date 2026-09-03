@@ -89,6 +89,21 @@ class PublicationRuleTest {
   }
 
   @Test
+  void anUnclassifiedPointDoesNotBecomeAPublishedEntry() {
+    var points = new ArrayList<ReferencePoint>();
+    for (int week = 0; week <= 35; week++) {
+      var date = START.plusWeeks(week);
+      points.add(week == 30 ? new ReferencePoint(date, null, 260, ONE, Map.of()) : point(date, 4));
+    }
+
+    var series = persistence.publish(points);
+
+    assertThat(series.points())
+        .extracting(PublishedSeries.PublishedPoint::date)
+        .doesNotContain(START.plusWeeks(30));
+  }
+
+  @Test
   void persistenceFlipsToThePrevailingClassAfterFourMonthsFullyOutsideTheCurrentClass() {
     var classes = new ArrayList<>(sameClass(30, 4));
     for (int i = 0; i < 30; i++) {

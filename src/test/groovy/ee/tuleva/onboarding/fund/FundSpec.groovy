@@ -40,4 +40,23 @@ class FundSpec extends Specification {
     then:
     isExitRestricted
   }
+
+  def "own fund follows the fund manager"() {
+    expect:
+    tuleva2ndPillarStockFund().isOwnFund()
+    !lhv3rdPillarFund().isOwnFund()
+  }
+
+  def "compares by Estonian name"() {
+    given:
+    def early = tuleva2ndPillarStockFund()
+    def late = tuleva2ndPillarStockFund()
+    early.nameEstonian = "Aktsiafond"
+    late.nameEstonian = "Võlakirjafond"
+
+    expect:
+    early.compareTo(late) < 0
+    late.compareTo(early) > 0
+    early.compareTo(early) == 0
+  }
 }

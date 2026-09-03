@@ -7,7 +7,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
-import ee.tuleva.onboarding.aml.AmlService;
+import ee.tuleva.onboarding.aml.SanctionAndPepScreener;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.kyc.BeforeKycCheckedEvent;
@@ -34,7 +34,7 @@ class GuardianKycScreeningListenerTest {
 
   @Mock private ParentChildLinkService parentChildLinkService;
   @Mock private UserService userService;
-  @Mock private AmlService amlService;
+  @Mock private SanctionAndPepScreener sanctionAndPepScreener;
 
   private final Clock clock = Clock.fixed(Instant.parse("2026-05-22T00:00:00Z"), ZoneOffset.UTC);
 
@@ -43,7 +43,8 @@ class GuardianKycScreeningListenerTest {
   @BeforeEach
   void setUp() {
     listener =
-        new GuardianKycScreeningListener(parentChildLinkService, userService, amlService, clock);
+        new GuardianKycScreeningListener(
+            parentChildLinkService, userService, sanctionAndPepScreener, clock);
   }
 
   @Test
@@ -58,8 +59,8 @@ class GuardianKycScreeningListenerTest {
     listener.beforeKycChecked(
         new BeforeKycCheckedEvent(new PersonImpl(CHILD, "Mari", "Maasikas"), Countries.of("EE")));
 
-    verify(amlService).addSanctionAndPepCheckIfMissing(guardian);
-    verify(amlService).addSanctionAndPepCheckIfMissing(otherGuardian);
+    verify(sanctionAndPepScreener).addSanctionAndPepCheckIfMissing(guardian);
+    verify(sanctionAndPepScreener).addSanctionAndPepCheckIfMissing(otherGuardian);
   }
 
   @Test
@@ -67,7 +68,7 @@ class GuardianKycScreeningListenerTest {
     listener.beforeKycChecked(
         new BeforeKycCheckedEvent(new PersonImpl(ADULT, "Jordan", "Valdma"), Countries.of("EE")));
 
-    verifyNoInteractions(parentChildLinkService, userService, amlService);
+    verifyNoInteractions(parentChildLinkService, userService, sanctionAndPepScreener);
   }
 
   @Test
@@ -78,6 +79,6 @@ class GuardianKycScreeningListenerTest {
     listener.beforeKycChecked(
         new BeforeKycCheckedEvent(new PersonImpl(CHILD, "Mari", "Maasikas"), Countries.of("EE")));
 
-    verify(amlService, never()).addSanctionAndPepCheckIfMissing(any(User.class));
+    verify(sanctionAndPepScreener, never()).addSanctionAndPepCheckIfMissing(any(User.class));
   }
 }

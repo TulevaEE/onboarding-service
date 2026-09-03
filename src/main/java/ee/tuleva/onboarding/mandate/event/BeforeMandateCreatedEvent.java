@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.country.Country;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.user.User;
 import lombok.Getter;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEvent;
 
 @Getter
@@ -22,7 +23,7 @@ public class BeforeMandateCreatedEvent extends ApplicationEvent {
     return mandate.getPillar();
   }
 
-  public Country getCountry() {
+  public @Nullable Country getCountry() {
     return mandate.getCountry();
   }
 

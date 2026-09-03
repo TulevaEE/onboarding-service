@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.analytics.transaction.exchange;
 
 import ee.tuleva.onboarding.analytics.transaction.generic.AbstractTransactionSynchronizer;
 import ee.tuleva.onboarding.analytics.transaction.generic.SyncContext;
+import ee.tuleva.onboarding.analytics.transaction.generic.SyncResult;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.transaction.ExchangeTransactionDto;
 import java.time.LocalDate;
@@ -37,7 +38,7 @@ public class ExchangeTransactionSynchronizer
     private final boolean pikFlag;
   }
 
-  public void sync(
+  public SyncResult sync(
       LocalDate startDate,
       Optional<String> securityFrom,
       Optional<String> securityTo,
@@ -49,7 +50,7 @@ public class ExchangeTransactionSynchronizer
             .securityTo(securityTo)
             .pikFlag(pikFlag)
             .build();
-    super.syncInternal(context);
+    return super.syncInternal(context);
   }
 
   @Override

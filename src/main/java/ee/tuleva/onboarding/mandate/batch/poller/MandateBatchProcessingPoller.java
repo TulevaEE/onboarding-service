@@ -2,9 +2,9 @@ package ee.tuleva.onboarding.mandate.batch.poller;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.error.response.ErrorResponse;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
+import ee.tuleva.onboarding.mandate.MandateContacts;
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
 import ee.tuleva.onboarding.mandate.event.AfterMandateBatchSignedEvent;
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
@@ -31,7 +31,7 @@ import org.springframework.stereotype.Service;
 public class MandateBatchProcessingPoller {
   private final ApplicationEventPublisher applicationEventPublisher;
   private final MandateProcessorService mandateProcessor;
-  private final EpisService episService;
+  private final MandateContacts mandateContacts;
 
   private final ExecutorService poller = Executors.newFixedThreadPool(THREAD_COUNT);
 
@@ -115,7 +115,7 @@ public class MandateBatchProcessingPoller {
   protected void onMandateProcessingFinished(MandateBatchPollingContext context) {
     log.info(
         "Mandate batch (mandateBatchId={}) processing finished, notifying", context.batch.getId());
-    episService.clearCache(context.user());
+    mandateContacts.clearCache(context.user());
     handleMandateProcessingErrors(context);
     notifyAboutSignedMandate(context);
   }

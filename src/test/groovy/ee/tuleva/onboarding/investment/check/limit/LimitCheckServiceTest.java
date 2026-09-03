@@ -1,12 +1,12 @@
 package ee.tuleva.onboarding.investment.check.limit;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.check.limit.BreachSeverity.OK;
 import static ee.tuleva.onboarding.investment.check.limit.CheckType.*;
 import static ee.tuleva.onboarding.investment.portfolio.Provider.INVESCO;
 import static ee.tuleva.onboarding.investment.portfolio.Provider.ISHARES;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
@@ -15,13 +15,13 @@ import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.portfolio.*;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionType;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -159,6 +159,26 @@ class LimitCheckServiceTest {
     assertThat(tuk75Result.reserveBreach()).isEqualTo(reserveBreach);
 
     verify(limitCheckEventRepository, atLeast(4)).save(any(LimitCheckEvent.class));
+  }
+
+  @Test
+  void deletesOnlyTheCheckTypesItRewrites() {
+    service = createService();
+    var today = LocalDate.of(2026, 3, 4);
+    var fund = TUK75;
+
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, today))
+        .thenReturn(Optional.of(today));
+    when(navReportPositionProvider.getCalculatedAum(fund, today))
+        .thenReturn(Optional.of(new BigDecimal("1000000")));
+
+    service.runChecks();
+
+    verify(limitCheckEventRepository).deleteByFundAndCheckDateAndCheckType(fund, today, POSITION);
+    verify(limitCheckEventRepository).deleteByFundAndCheckDateAndCheckType(fund, today, PROVIDER);
+    verify(limitCheckEventRepository).deleteByFundAndCheckDateAndCheckType(fund, today, RESERVE);
+    verify(limitCheckEventRepository).deleteByFundAndCheckDateAndCheckType(fund, today, FREE_CASH);
+    verify(limitCheckEventRepository, times(4)).save(any(LimitCheckEvent.class));
   }
 
   @Test

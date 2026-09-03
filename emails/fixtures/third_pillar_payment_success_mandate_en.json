@@ -1,18 +1,44 @@
 {
   "variants": {
-    "suggest second pillar": {
+    "second pillar suggestion": {
       "FNAME": "Mari",
       "suggestSecondPillar": true
     },
-    "suggest raising the rate": {
+    "payment rate increase suggestion": {
       "FNAME": "Mari",
       "suggestPaymentRate": true
     },
-    "suggest membership": {
+    "third pillar suggestion (cannot occur)": {
+      "FNAME": "Mari",
+      "suggestThirdPillar": true
+    },
+    "third pillar fees suggestion (cannot occur)": {
+      "FNAME": "Mari",
+      "suggestThirdPillar": true,
+      "thirdPillarActive": true
+    },
+    "third pillar recurring suggestion": {
+      "FNAME": "Mari",
+      "suggestThirdPillarRecurringPayment": true
+    },
+    "third pillar raise suggestion": {
+      "FNAME": "Mari",
+      "suggestThirdPillarRaise": true
+    },
+    "savings fund suggestion": {
+      "FNAME": "Mari",
+      "suggestSavingsFund": true,
+      "savingsFundFee": "0.28"
+    },
+    "savings fund recurring suggestion": {
+      "FNAME": "Mari",
+      "suggestSavingsFundRecurringPayment": true
+    },
+    "membership suggestion": {
       "FNAME": "Mari",
       "suggestMembership": true
     },
-    "suggest recurring payment": {
+    "no nudge": {
       "FNAME": "Mari"
     }
   }

@@ -29,7 +29,7 @@ public abstract class AbstractTransactionSynchronizer<DTO, E> {
 
   protected abstract String getSyncIdentifier(SyncContext context);
 
-  protected void syncInternal(SyncContext context) {
+  protected SyncResult syncInternal(SyncContext context) {
     String transactionType = getTransactionTypeName();
     String syncIdentifier = getSyncIdentifier(context);
     log.info("Starting {} transaction synchronization for {}", transactionType, syncIdentifier);
@@ -43,7 +43,7 @@ public abstract class AbstractTransactionSynchronizer<DTO, E> {
             "No {} transactions retrieved from EPIS for {}. Skipping delete and insert.",
             transactionType,
             syncIdentifier);
-        return;
+        return new SyncResult(transactionType, syncIdentifier, 0, 0);
       }
 
       List<E> entitiesToInsert =
@@ -77,6 +77,8 @@ public abstract class AbstractTransactionSynchronizer<DTO, E> {
           deletedCount,
           entitiesToInsert.size());
 
+      return new SyncResult(transactionType, syncIdentifier, deletedCount, entitiesToInsert.size());
+
     } catch (Exception e) {
       log.error(
           "{} transaction synchronization failed for {}: {}",
@@ -84,6 +86,7 @@ public abstract class AbstractTransactionSynchronizer<DTO, E> {
           syncIdentifier,
           e.getMessage(),
           e);
+      return new SyncResult(transactionType, syncIdentifier, 0, 0);
     }
   }
 

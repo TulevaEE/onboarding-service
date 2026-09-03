@@ -1,7 +1,5 @@
 package ee.tuleva.onboarding.investment.transaction;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.transaction.BatchStatus.SENT;
 import static ee.tuleva.onboarding.investment.transaction.CommandStatus.CALCULATED;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
@@ -9,6 +7,8 @@ import static ee.tuleva.onboarding.investment.transaction.OrderStatus.DRAFT;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.REBALANCE;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
@@ -57,6 +57,10 @@ class TransactionCommandControllerTest {
   @MockitoBean private TransactionAdminService adminService;
 
   private static TransactionOrderResponse orderResponse() {
+    return orderResponse(OrderType.MOC);
+  }
+
+  private static TransactionOrderResponse orderResponse(OrderType orderType) {
     return new TransactionOrderResponse(
         100L,
         "IE00BFG1TM61",
@@ -66,6 +70,7 @@ class TransactionCommandControllerTest {
         new BigDecimal("8.500000"),
         SEB,
         DRAFT,
+        orderType,
         ORDER_UUID,
         null,
         "operator note");
@@ -556,6 +561,98 @@ class TransactionCommandControllerTest {
         .andExpect(status().isOk());
 
     then(adminService).should().cancelOrder(100L, "trader error", "shared-admin-token");
+  }
+
+  @Test
+  void setOrderType_validType_invokesServiceAndReturnsOrder() throws Exception {
+    given(adminService.setOrderType(100L, OrderType.NAV, "operator-7"))
+        .willReturn(orderResponse(OrderType.NAV));
+
+    mockMvc
+        .perform(
+            post("/admin/transaction-orders/100/order-type")
+                .with(csrf())
+                .header("X-Admin-Token", "operator-7-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"orderType": "NAV"}
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(100))
+        .andExpect(jsonPath("$.orderType").value("NAV"));
+
+    then(adminService).should().setOrderType(100L, OrderType.NAV, "operator-7");
+  }
+
+  @Test
+  void setOrderType_withoutActor_defaultsToAdmin() throws Exception {
+    given(adminService.setOrderType(100L, OrderType.RISK, "shared-admin-token"))
+        .willReturn(orderResponse(OrderType.RISK));
+
+    mockMvc
+        .perform(
+            post("/admin/transaction-orders/100/order-type")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"orderType": "RISK"}
+                    """))
+        .andExpect(status().isOk());
+
+    then(adminService).should().setOrderType(100L, OrderType.RISK, "shared-admin-token");
+  }
+
+  @Test
+  void setOrderType_unknownType_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/transaction-orders/100/order-type")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"orderType": "VWAP"}
+                    """))
+        .andExpect(status().isBadRequest());
+
+    then(adminService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void setOrderType_missingType_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/transaction-orders/100/order-type")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .contentType(APPLICATION_JSON)
+                .content("{}"))
+        .andExpect(status().isBadRequest());
+
+    then(adminService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void setOrderType_notDraftOrder_returnsConflict() throws Exception {
+    given(adminService.setOrderType(100L, OrderType.NAV, "shared-admin-token"))
+        .willThrow(
+            new ResponseStatusException(CONFLICT, "Only DRAFT orders can change order type"));
+
+    mockMvc
+        .perform(
+            post("/admin/transaction-orders/100/order-type")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    {"orderType": "NAV"}
+                    """))
+        .andExpect(status().isConflict());
   }
 
   @Test

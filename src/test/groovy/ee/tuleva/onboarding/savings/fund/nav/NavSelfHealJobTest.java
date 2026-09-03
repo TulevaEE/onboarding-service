@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -13,7 +13,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -21,11 +21,13 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.concurrent.ScheduledFuture;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.boot.convert.DurationStyle;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.Trigger;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -298,11 +300,17 @@ class NavSelfHealJobTest {
                 .getMethod("scheduledPillar2Retry")
                 .getAnnotation(Scheduled.class)
                 .cron());
+    var calculationLockAtMostFor =
+        DurationStyle.detectAndParse(
+            NavCalculationJob.class
+                .getMethod("calculatePillar2Nav")
+                .getAnnotation(SchedulerLock.class)
+                .lockAtMostFor());
 
     var pillar2CalculationJobFireTime = LocalDateTime.of(2025, 1, 15, 11, 0);
 
     assertThat(cron.next(pillar2CalculationJobFireTime))
-        .isEqualTo(LocalDateTime.of(2025, 1, 15, 11, 15));
+        .isAfter(pillar2CalculationJobFireTime.plus(calculationLockAtMostFor));
   }
 
   private void stubAllPublished(LocalDate today) {

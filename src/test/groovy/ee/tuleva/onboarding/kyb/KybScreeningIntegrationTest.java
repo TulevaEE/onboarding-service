@@ -2,12 +2,14 @@ package ee.tuleva.onboarding.kyb;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
 import static ee.tuleva.onboarding.kyb.CompanyStatus.R;
+import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.RESCREENING;
+import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.SUBMISSION;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOwner;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.companyWith;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.kybPerson;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
-import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
-import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.REJECTED;
+import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
+import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.REJECTED;
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -70,7 +72,7 @@ class KybScreeningIntegrationTest {
     var person = boardMemberOwner(PERSONAL_CODE, 100.0).build();
     var data = companyWith(person);
 
-    var results = kybScreeningService.screen(data);
+    var results = kybScreeningService.screen(data, SUBMISSION);
 
     assertThat(results).hasSize(11).allMatch(KybCheck::success);
 
@@ -106,7 +108,7 @@ class KybScreeningIntegrationTest {
             .build();
     var data = companyWith(person);
 
-    var results = kybScreeningService.screen(data);
+    var results = kybScreeningService.screen(data, SUBMISSION);
 
     assertThat(results).filteredOn(c -> !c.success()).hasSize(1);
 
@@ -125,7 +127,7 @@ class KybScreeningIntegrationTest {
     var person = boardMemberOwner(PERSONAL_CODE, 100.0).build();
     var data = companyWith(person);
 
-    kybScreeningService.screen(data);
+    kybScreeningService.screen(data, SUBMISSION);
 
     var changedData =
         new KybCompanyData(
@@ -139,7 +141,7 @@ class KybScreeningIntegrationTest {
             null,
             List.of());
 
-    var secondResults = kybScreeningService.screen(changedData);
+    var secondResults = kybScreeningService.screen(changedData, RESCREENING);
 
     var dataChangedCheck =
         secondResults.stream().filter(c -> c.type() == KybCheckType.DATA_CHANGED).findFirst();
@@ -156,7 +158,7 @@ class KybScreeningIntegrationTest {
     var person = boardMemberOwner(PERSONAL_CODE, 100.0).kycStatus(KybKycStatus.REJECTED).build();
     var data = companyWith(person);
 
-    var results = kybScreeningService.screen(data);
+    var results = kybScreeningService.screen(data, SUBMISSION);
 
     var kycCheck =
         results.stream().filter(c -> c.type() == KybCheckType.RELATED_PERSONS_KYC).findFirst();
@@ -178,7 +180,7 @@ class KybScreeningIntegrationTest {
         boardMemberOwner((PersonalCode) null, 100.0).kycStatus(KybKycStatus.UNKNOWN).build();
     var data = companyWith(unidentified);
 
-    var results = kybScreeningService.screen(data);
+    var results = kybScreeningService.screen(data, SUBMISSION);
 
     var structureCheck =
         results.stream().filter(c -> c.type() == KybCheckType.COMPANY_STRUCTURE).findFirst();
@@ -219,12 +221,12 @@ class KybScreeningIntegrationTest {
             LocalDate.now(clock).minusYears(3),
             List.of());
 
-    kybScreeningService.screen(data);
+    kybScreeningService.screen(data, SUBMISSION);
     // Force a fresh read so the second screening deserializes metadata from JSON, exactly as a
     // separate production screening transaction does — not the in-transaction L1 cache.
     entityManager.flush();
     entityManager.clear();
-    var secondResults = kybScreeningService.screen(data);
+    var secondResults = kybScreeningService.screen(data, RESCREENING);
 
     var dataChanged =
         secondResults.stream()
@@ -239,7 +241,7 @@ class KybScreeningIntegrationTest {
   void missingBeneficialOwnerEvidenceKeepsCompletedCompanyCompleted() {
     var registryCode = "12345678";
     var owner = boardMemberOwner(PERSONAL_CODE, 100.0).build();
-    kybScreeningService.screen(companyWith(owner));
+    kybScreeningService.screen(companyWith(owner), SUBMISSION);
     assertThat(onboardingRepository.findStatus(registryCode, LEGAL_ENTITY)).contains(COMPLETED);
 
     entityManager.flush();
@@ -247,7 +249,8 @@ class KybScreeningIntegrationTest {
 
     var ownerWithoutBeneficialOwnerEvidence =
         boardMemberOwner(PERSONAL_CODE, 100.0).beneficialOwner(false).build();
-    var results = kybScreeningService.screen(companyWith(ownerWithoutBeneficialOwnerEvidence));
+    var results =
+        kybScreeningService.screen(companyWith(ownerWithoutBeneficialOwnerEvidence), RESCREENING);
 
     assertThat(results)
         .anyMatch(check -> check.type() == KybCheckType.SOLE_MEMBER_OWNERSHIP && !check.success());
@@ -258,14 +261,14 @@ class KybScreeningIntegrationTest {
   void ownerChangeStillRejectsCompletedCompany() {
     var registryCode = "12345678";
     var owner = boardMemberOwner(PERSONAL_CODE, 100.0).build();
-    kybScreeningService.screen(companyWith(owner));
+    kybScreeningService.screen(companyWith(owner), SUBMISSION);
 
     entityManager.flush();
     entityManager.clear();
 
     var newOwnerWithoutBeneficialOwnerEvidence =
         boardMemberOwner("49001010001", 100.0).beneficialOwner(false).build();
-    kybScreeningService.screen(companyWith(newOwnerWithoutBeneficialOwnerEvidence));
+    kybScreeningService.screen(companyWith(newOwnerWithoutBeneficialOwnerEvidence), RESCREENING);
 
     assertThat(onboardingRepository.findStatus(registryCode, LEGAL_ENTITY)).contains(REJECTED);
   }
@@ -287,12 +290,12 @@ class KybScreeningIntegrationTest {
             LocalDate.now(clock).minusYears(3),
             List.of());
 
-    kybScreeningService.screen(data);
+    kybScreeningService.screen(data, SUBMISSION);
     // Force a fresh read so the second screening deserializes metadata from JSON, exactly as a
     // separate production screening transaction does — not the in-transaction L1 cache.
     entityManager.flush();
     entityManager.clear();
-    var secondResults = kybScreeningService.screen(data);
+    var secondResults = kybScreeningService.screen(data, RESCREENING);
 
     var dataChanged =
         secondResults.stream()
@@ -307,13 +310,13 @@ class KybScreeningIntegrationTest {
   @SuppressWarnings("unchecked")
   void rescreeningAfterAGenuineOwnerChangeStillFlagsDataChanged() {
     var firstOwner = boardMemberOwner(PERSONAL_CODE, 100.0).build();
-    kybScreeningService.screen(companyWith(firstOwner));
+    kybScreeningService.screen(companyWith(firstOwner), SUBMISSION);
     entityManager.flush();
     entityManager.clear();
 
     // Genuine change: a different natural person now solely owns the company.
     var newOwner = boardMemberOwner("49001010001", 100.0).build();
-    var secondResults = kybScreeningService.screen(companyWith(newOwner));
+    var secondResults = kybScreeningService.screen(companyWith(newOwner), RESCREENING);
 
     var dataChanged =
         secondResults.stream()
@@ -340,7 +343,7 @@ class KybScreeningIntegrationTest {
             LocalDate.now(clock).minusMonths(1),
             List.of());
 
-    kybScreeningService.screen(data);
+    kybScreeningService.screen(data, SUBMISSION);
 
     var amlChecks =
         amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(
@@ -363,17 +366,18 @@ class KybScreeningIntegrationTest {
     var owner = boardMemberOwner(PERSONAL_CODE, 100.0).build();
 
     ClockHolder.setClock(Clock.fixed(NOW, ZoneOffset.UTC));
-    kybScreeningService.screen(companyFor("11111111", "62011", owner));
+    kybScreeningService.screen(companyFor("11111111", "62011", owner), SUBMISSION);
     entityManager.flush();
     entityManager.clear();
 
     ClockHolder.setClock(Clock.fixed(NOW.plus(1, DAYS), ZoneOffset.UTC));
-    kybScreeningService.screen(companyFor("22222222", "41201", owner));
+    kybScreeningService.screen(companyFor("22222222", "41201", owner), SUBMISSION);
     entityManager.flush();
     entityManager.clear();
 
     ClockHolder.setClock(Clock.fixed(NOW.plus(2, DAYS), ZoneOffset.UTC));
-    var rescreenFirstCompany = kybScreeningService.screen(companyFor("11111111", "62011", owner));
+    var rescreenFirstCompany =
+        kybScreeningService.screen(companyFor("11111111", "62011", owner), RESCREENING);
 
     var dataChanged =
         rescreenFirstCompany.stream()

@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.company;
 import static ee.tuleva.onboarding.company.RelationshipType.*;
 import static ee.tuleva.onboarding.kyb.KybCheckPerformedEventOrder.ONBOARD_COMPANY;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.ariregister.RepresentationRight;
 import ee.tuleva.onboarding.kyb.KybCheck;
@@ -68,7 +69,8 @@ public class CompanyOnboardingEventListener {
 
   private List<CompanyParty> toCompanyParties(KybRelatedPerson person, UUID companyId) {
     var parties = new ArrayList<CompanyParty>();
-    var code = person.personalCode().value();
+    var code =
+        requireNonNull(person.personalCode(), "KYB related person missing personal code").value();
     if (person.boardMember()) {
       parties.add(buildParty(code, companyId, BOARD_MEMBER));
     }

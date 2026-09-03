@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.mandate.content;
 
+import static ee.tuleva.onboarding.applicationtype.ApplicationType.EARLY_WITHDRAWAL;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture;
+import static ee.tuleva.onboarding.mandate.MandateContactDetailsFixture.contactDetailsFixture;
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleTransferCancellationMandate;
 import static ee.tuleva.onboarding.mandate.MandateType.*;
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.EARLY_WITHDRAWAL;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.Mockito.when;
 

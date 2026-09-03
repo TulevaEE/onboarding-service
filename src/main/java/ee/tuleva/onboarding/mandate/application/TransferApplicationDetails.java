@@ -1,7 +1,8 @@
 package ee.tuleva.onboarding.mandate.application;
 
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.TRANSFER;
+import static ee.tuleva.onboarding.applicationtype.ApplicationType.TRANSFER;
 
+import ee.tuleva.onboarding.applicationtype.ApplicationType;
 import ee.tuleva.onboarding.fund.ApiFundResponse;
 import java.time.Instant;
 import java.time.LocalDate;

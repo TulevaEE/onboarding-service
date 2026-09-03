@@ -1,0 +1,523 @@
+package ee.tuleva.onboarding.savings.fund;
+
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.*;
+import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.*;
+import static ee.tuleva.onboarding.savings.SavingFundPaymentFixture.aPayment;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
+
+import ee.tuleva.onboarding.banking.BankAccountType;
+import ee.tuleva.onboarding.banking.BankAccounts;
+import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankMessagesProcessingCompleted;
+import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.savings.fund.notification.DeferredReturnMatchingCompletedEvent;
+import ee.tuleva.onboarding.user.User;
+import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.Spy;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
+
+@ExtendWith(MockitoExtension.class)
+class DeferredReturnMatcherTest {
+
+  private static final String DEPOSIT_IBAN = "EE123456789012345678";
+
+  @Mock SavingFundPaymentRepository savingFundPaymentRepository;
+  @Mock SavingsFundLedger savingsFundLedger;
+  @Mock ApplicationEventPublisher eventPublisher;
+  @Mock BankAccounts bankAccounts;
+
+  @Spy Clock clock = Clock.fixed(Instant.parse("2026-09-01T10:00:00Z"), ZoneOffset.UTC);
+
+  @InjectMocks DeferredReturnMatcher deferredReturnMatcher;
+
+  @BeforeEach
+  void setUp() {
+    lenient()
+        .when(bankAccounts.getIban(TKF100, BankAccountType.DEPOSIT_EUR))
+        .thenReturn(DEPOSIT_IBAN);
+    lenient().when(savingsFundLedger.hasLedgerEntry(any(), eq(ADJUSTMENT))).thenReturn(false);
+  }
+
+  @Test
+  void skipsReturnPaymentThatWasManuallyAdjusted() {
+    var returnPaymentId = UUID.randomUUID();
+    var returnPayment =
+        aPayment()
+            .id(returnPaymentId)
+            .amount(new BigDecimal("-1431.90"))
+            .beneficiaryIban("EE112233445566778899")
+            .endToEndId("kickback-e2e-id")
+            .build();
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
+        .thenReturn(List.of(returnPayment));
+    when(savingsFundLedger.hasLedgerEntry(returnPaymentId, ADJUSTMENT)).thenReturn(true);
+
+    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+
+    verify(savingFundPaymentRepository, never()).findOriginalPaymentForReturn(any());
+    verify(eventPublisher, never()).publishEvent(any());
+  }
+
+  @Test
+  void matchesUserCancelledReturn() {
+    User user = sampleUser().build();
+    var originalPaymentId = UUID.randomUUID();
+    var endToEndId = originalPaymentId.toString().replace("-", "");
+    var originalPayment =
+        aPayment()
+            .id(originalPaymentId)
+            .partyId(new PartyId(PERSON, user.getPersonalCode()))
+            .amount(new BigDecimal("50.00"))
+            .status(RETURNED)
+            .build();
+    var returnPayment =
+        aPayment()
+            .amount(new BigDecimal("-50.00"))
+            .beneficiaryIban("EE112233445566778899")
+            .endToEndId(endToEndId)
+            .build();
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
+        .thenReturn(List.of(returnPayment));
+    when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
+        .thenReturn(Optional.of(originalPayment));
+    when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_BOUNCE_BACK))
+        .thenReturn(false);
+    when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_CANCELLED)).thenReturn(false);
+
+    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+
+    var expectedParty = new PartyId(PERSON, user.getPersonalCode());
+    verify(savingsFundLedger)
+        .recordPaymentCancelled(
+            LedgerRefs.from(expectedParty), new BigDecimal("50.00"), originalPaymentId);
+    verify(eventPublisher)
+        .publishEvent(new DeferredReturnMatchingCompletedEvent(1, 0, new BigDecimal("50.00")));
+  }
+
+  @Test
+  void skipsAndAlertsWhenPaymentManuallyReconciled() {
+    User user = sampleUser().build();
+    var originalPaymentId = UUID.randomUUID();
+    var endToEndId = originalPaymentId.toString().replace("-", "");
+    var originalPayment =
+        aPayment()
+            .id(originalPaymentId)
+            .partyId(new PartyId(PERSON, user.getPersonalCode()))
+            .amount(new BigDecimal("50.00"))
+            .status(VERIFIED)
+            .build();
+    var returnPayment =
+        aPayment()
+            .amount(new BigDecimal("-50.00"))
+            .beneficiaryIban("EE112233445566778899")
+            .endToEndId(endToEndId)
+            .build();
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
+        .thenReturn(List.of(returnPayment));
+    when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
+        .thenReturn(Optional.of(originalPayment));
+    when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_BOUNCE_BACK))
+        .thenReturn(false);
+    when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_CANCELLED)).thenReturn(false);
+    when(savingsFundLedger.hasLedgerEntry(originalPaymentId, UNATTRIBUTED_PAYMENT_RECONCILED))
+        .thenReturn(true);
+
+    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+
+    verify(savingsFundLedger, never()).recordPaymentCancelled(any(), any(), any());
+    verify(savingsFundLedger, never()).bounceBackUnattributedPayment(any(), any());
+    verify(savingFundPaymentRepository, never()).changeStatus(any(), any());
+  }
+
+  @Test
+  void matchesUnattributedBounceBack() {
+    var originalPaymentId = UUID.randomUUID();
+    var endToEndId = originalPaymentId.toString().replace("-", "");
+    var originalPayment =
+        aPayment()
+            .id(originalPaymentId)
+            .amount(new BigDecimal("75.00"))
+            .status(TO_BE_RETURNED)
+            .build();
+    var returnPayment =
+        aPayment()
+            .amount(new BigDecimal("-75.00"))
+            .beneficiaryIban("EE112233445566778899")
+            .endToEndId(endToEndId)
+            .build();
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
+        .thenReturn(List.of(returnPayment));
+    when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
+        .thenReturn(Optional.of(originalPayment));
+    when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_BOUNCE_BACK))
+        .thenReturn(false);
+    when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_CANCELLED)).thenReturn(false);
+
+    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+
+    verify(savingsFundLedger)
+        .bounceBackUnattributedPayment(new BigDecimal("75.00"), originalPaymentId);
+  }
+
+  @Test
+  void fallsBackToIbanAndAmountMatch() {
+    var originalPaymentId = UUID.randomUUID();
+    var originalPayment =
+        aPayment().id(originalPaymentId).amount(new BigDecimal("75.00")).status(RECEIVED).build();
+
+    var returnPayment =
+        aPayment()
+            .amount(new BigDecimal("-75.00"))
+            .beneficiaryIban("EE112233445566778899")
+            .endToEndId(null)
+            .build();
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
+        .thenReturn(List.of(returnPayment));
+    when(savingFundPaymentRepository.findOriginalPaymentForReturn(any()))
+        .thenReturn(Optional.empty());
+    when(savingFundPaymentRepository.findOriginalPaymentByIbanAndAmount(
+            "EE112233445566778899", new BigDecimal("-75.00")))
+        .thenReturn(Optional.of(originalPayment));
+    when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_BOUNCE_BACK))
+        .thenReturn(false);
+    when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_CANCELLED)).thenReturn(false);
+
+    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+
+    verify(savingsFundLedger)
+        .bounceBackUnattributedPayment(new BigDecimal("75.00"), originalPaymentId);
+  }
+
+  @Test
+  void skipsWhenReturnLedgerEntryAlreadyExists_userCancelled() {
+    User user = sampleUser().build();
+    var originalPaymentId = UUID.randomUUID();
+    var endToEndId = originalPaymentId.toString().replace("-", "");
+    var originalPayment =
+        aPayment()
+            .id(originalPaymentId)
+            .partyId(new PartyId(PERSON, user.getPersonalCode()))
+            .amount(new BigDecimal("50.00"))
+            .build();
+    var returnPayment = aPayment().amount(new BigDecimal("-50.00")).endToEndId(endToEndId).build();
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
+        .thenReturn(List.of(returnPayment));
+    when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
+        .thenReturn(Optional.of(originalPayment));
+    when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_BOUNCE_BACK))
+        .thenReturn(false);
+    when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_CANCELLED)).thenReturn(true);
+
+    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+
+    verify(savingsFundLedger, never()).recordPaymentCancelled(any(), any(), any());
+  }
+
+  @Test
+  void skipsWhenReturnLedgerEntryAlreadyExists_bounceBack() {
+    var originalPaymentId = UUID.randomUUID();
+    var endToEndId = originalPaymentId.toString().replace("-", "");
+    var originalPayment = aPayment().id(originalPaymentId).amount(new BigDecimal("50.00")).build();
+    var returnPayment = aPayment().amount(new BigDecimal("-50.00")).endToEndId(endToEndId).build();
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
+        .thenReturn(List.of(returnPayment));
+    when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
+        .thenReturn(Optional.of(originalPayment));
+    when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_BOUNCE_BACK)).thenReturn(true);
+
+    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+
+    verify(savingsFundLedger, never()).bounceBackUnattributedPayment(any(), any());
+  }
+
+  @Test
+  void retriesGenerouslyButNotForever() {
+    var now = Instant.parse("2026-09-01T10:00:00Z");
+    var recent =
+        aPayment().id(UUID.randomUUID()).createdAt(now.minusSeconds(6 * 24 * 3600)).build();
+    var ancient =
+        aPayment().id(UUID.randomUUID()).createdAt(now.minusSeconds(8 * 24 * 3600)).build();
+    var missingTimestamp = aPayment().id(UUID.randomUUID()).createdAt(null).build();
+
+    assertThat(DeferredReturnMatcher.shouldRetry(recent, now)).isTrue();
+    assertThat(DeferredReturnMatcher.shouldRetry(ancient, now)).isFalse();
+    assertThat(DeferredReturnMatcher.shouldRetry(missingTimestamp, now)).isTrue();
+  }
+
+  @Test
+  void skipsPaymentsOlderThanTheRetryWindowEntirely() {
+    var ancient =
+        aPayment().id(UUID.randomUUID()).createdAt(Instant.parse("2026-08-20T10:00:00Z")).build();
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
+        .thenReturn(List.of(ancient));
+
+    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+
+    verify(savingFundPaymentRepository, never()).findOriginalPaymentForReturn(any());
+    verify(eventPublisher, never()).publishEvent(any());
+  }
+
+  @Test
+  void doesNotSpamTheCompletionEventForUnmatchedOnlyRounds() {
+    var unknownOutgoing =
+        aPayment()
+            .id(UUID.randomUUID())
+            .amount(new BigDecimal("-4272.98"))
+            .beneficiaryIban("EE001010220000000001")
+            .build();
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
+        .thenReturn(List.of(unknownOutgoing));
+
+    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+
+    verify(eventPublisher, never()).publishEvent(any());
+  }
+
+  @Test
+  void noOpWhenNoUnmatchedReturns() {
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
+        .thenReturn(List.of());
+
+    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+
+    verify(savingsFundLedger, never()).recordPaymentCancelled(any(), any(), any());
+    verify(savingsFundLedger, never()).bounceBackUnattributedPayment(any(), any());
+    verify(eventPublisher, never()).publishEvent(any());
+  }
+
+  @Test
+  void matchedReturn_transitionsOriginalFromToBeReturnedToReturned() {
+    var originalPaymentId = UUID.randomUUID();
+    var endToEndId = originalPaymentId.toString().replace("-", "");
+    var originalPayment =
+        aPayment()
+            .id(originalPaymentId)
+            .amount(new BigDecimal("75.00"))
+            .status(TO_BE_RETURNED)
+            .build();
+    var returnPayment =
+        aPayment()
+            .amount(new BigDecimal("-75.00"))
+            .beneficiaryIban("EE112233445566778899")
+            .endToEndId(endToEndId)
+            .build();
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
+        .thenReturn(List.of(returnPayment));
+    when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
+        .thenReturn(Optional.of(originalPayment));
+    when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_BOUNCE_BACK))
+        .thenReturn(false);
+    when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_CANCELLED)).thenReturn(false);
+
+    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+
+    verify(savingFundPaymentRepository).changeStatus(originalPaymentId, RETURNED);
+  }
+
+  @Test
+  void matchedReturn_transitionsOriginalFromReceivedThroughToBeReturnedToReturned() {
+    var originalPaymentId = UUID.randomUUID();
+    var endToEndId = originalPaymentId.toString().replace("-", "");
+    var originalPayment =
+        aPayment()
+            .id(originalPaymentId)
+            .amount(new BigDecimal("18472.00"))
+            .status(RECEIVED)
+            .build();
+    var returnPayment =
+        aPayment()
+            .amount(new BigDecimal("-18472.00"))
+            .beneficiaryIban("EE112233445566778899")
+            .endToEndId(endToEndId)
+            .build();
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
+        .thenReturn(List.of(returnPayment));
+    when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
+        .thenReturn(Optional.of(originalPayment));
+    when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_BOUNCE_BACK))
+        .thenReturn(false);
+    when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_CANCELLED)).thenReturn(false);
+
+    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+
+    var inOrder = inOrder(savingFundPaymentRepository);
+    inOrder.verify(savingFundPaymentRepository).changeStatus(originalPaymentId, TO_BE_RETURNED);
+    inOrder.verify(savingFundPaymentRepository).changeStatus(originalPaymentId, RETURNED);
+  }
+
+  @Test
+  void matchedReturn_transitionsOriginalFromVerifiedThroughToBeReturnedToReturned() {
+    User user = sampleUser().build();
+    var originalPaymentId = UUID.randomUUID();
+    var endToEndId = originalPaymentId.toString().replace("-", "");
+    var originalPayment =
+        aPayment()
+            .id(originalPaymentId)
+            .partyId(new PartyId(PERSON, user.getPersonalCode()))
+            .amount(new BigDecimal("50.00"))
+            .status(VERIFIED)
+            .build();
+    var returnPayment =
+        aPayment()
+            .amount(new BigDecimal("-50.00"))
+            .beneficiaryIban("EE112233445566778899")
+            .endToEndId(endToEndId)
+            .build();
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
+        .thenReturn(List.of(returnPayment));
+    when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
+        .thenReturn(Optional.of(originalPayment));
+    when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_BOUNCE_BACK))
+        .thenReturn(false);
+    when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_CANCELLED)).thenReturn(false);
+
+    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+
+    var inOrder = inOrder(savingFundPaymentRepository);
+    inOrder.verify(savingFundPaymentRepository).changeStatus(originalPaymentId, TO_BE_RETURNED);
+    inOrder.verify(savingFundPaymentRepository).changeStatus(originalPaymentId, RETURNED);
+  }
+
+  @Test
+  void matchedReturn_skipsStatusChangeWhenAlreadyReturned() {
+    User user = sampleUser().build();
+    var originalPaymentId = UUID.randomUUID();
+    var endToEndId = originalPaymentId.toString().replace("-", "");
+    var originalPayment =
+        aPayment()
+            .id(originalPaymentId)
+            .partyId(new PartyId(PERSON, user.getPersonalCode()))
+            .amount(new BigDecimal("50.00"))
+            .status(RETURNED)
+            .build();
+    var returnPayment =
+        aPayment()
+            .amount(new BigDecimal("-50.00"))
+            .beneficiaryIban("EE112233445566778899")
+            .endToEndId(endToEndId)
+            .build();
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
+        .thenReturn(List.of(returnPayment));
+    when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
+        .thenReturn(Optional.of(originalPayment));
+    when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_BOUNCE_BACK))
+        .thenReturn(false);
+    when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_CANCELLED)).thenReturn(false);
+
+    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+
+    verify(savingFundPaymentRepository, never()).changeStatus(any(), any());
+  }
+
+  @Test
+  void matchedReturn_addsReturnReasonForVerifiedPayments() {
+    User user = sampleUser().build();
+    var originalPaymentId = UUID.randomUUID();
+    var endToEndId = originalPaymentId.toString().replace("-", "");
+    var originalPayment =
+        aPayment()
+            .id(originalPaymentId)
+            .partyId(new PartyId(PERSON, user.getPersonalCode()))
+            .amount(new BigDecimal("50.00"))
+            .status(VERIFIED)
+            .returnReason(null)
+            .build();
+    var returnPayment =
+        aPayment()
+            .amount(new BigDecimal("-50.00"))
+            .beneficiaryIban("EE112233445566778899")
+            .endToEndId(endToEndId)
+            .build();
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
+        .thenReturn(List.of(returnPayment));
+    when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
+        .thenReturn(Optional.of(originalPayment));
+    when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_BOUNCE_BACK))
+        .thenReturn(false);
+    when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_CANCELLED)).thenReturn(false);
+
+    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+
+    verify(savingFundPaymentRepository).addReturnReason(eq(originalPaymentId), any());
+  }
+
+  @Test
+  void originalNotFound_doesNotCreateLedgerEntry() {
+    var returnPayment =
+        aPayment()
+            .amount(new BigDecimal("-100.00"))
+            .beneficiaryIban("EE112233445566778899")
+            .endToEndId("nonexistent12345678901234567890")
+            .build();
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
+        .thenReturn(List.of(returnPayment));
+    when(savingFundPaymentRepository.findOriginalPaymentForReturn(any()))
+        .thenReturn(Optional.empty());
+    when(savingFundPaymentRepository.findOriginalPaymentByIbanAndAmount(any(), any()))
+        .thenReturn(Optional.empty());
+
+    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+
+    verify(savingsFundLedger, never()).recordPaymentCancelled(any(), any(), any());
+    verify(savingsFundLedger, never()).bounceBackUnattributedPayment(any(), any());
+    verify(eventPublisher, never()).publishEvent(any());
+  }
+
+  @Test
+  void createsBounceback_whenOriginalHasUnattributedPaymentButNoReturnEntry() {
+    User user = sampleUser().build();
+    var originalPaymentId = UUID.randomUUID();
+    var endToEndId = originalPaymentId.toString().replace("-", "");
+    var originalPayment =
+        aPayment()
+            .id(originalPaymentId)
+            .partyId(new PartyId(PERSON, user.getPersonalCode()))
+            .amount(new BigDecimal("100.00"))
+            .status(RETURNED)
+            .build();
+    var returnPayment = aPayment().amount(new BigDecimal("-100.00")).endToEndId(endToEndId).build();
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
+        .thenReturn(List.of(returnPayment));
+    when(savingFundPaymentRepository.findOriginalPaymentForReturn(endToEndId))
+        .thenReturn(Optional.of(originalPayment));
+    when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_BOUNCE_BACK))
+        .thenReturn(false);
+    when(savingsFundLedger.hasLedgerEntry(originalPaymentId, PAYMENT_CANCELLED)).thenReturn(false);
+
+    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+
+    verify(savingsFundLedger)
+        .recordPaymentCancelled(
+            LedgerRefs.from(new PartyId(PERSON, user.getPersonalCode())),
+            new BigDecimal("100.00"),
+            originalPaymentId);
+  }
+
+  @Test
+  void queriesOnlyDepositAccountReturns() {
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
+        .thenReturn(List.of());
+
+    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+
+    verify(savingFundPaymentRepository).findUnmatchedOutgoingReturns(DEPOSIT_IBAN);
+  }
+}

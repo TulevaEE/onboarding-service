@@ -1,13 +1,13 @@
 package ee.tuleva.onboarding.instrument
 
+import ee.tuleva.onboarding.time.ClockConfig
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.test.context.ActiveProfiles
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
+import org.springframework.context.annotation.Import
 import spock.lang.Specification
 
-
-@SpringBootTest
-@ActiveProfiles("test")
+@DataJpaTest
+@Import([InstrumentReferenceService, InstrumentSnapshotLoader, BenchmarkCategoryProxyRepository, ClockConfig])
 class InstrumentReferenceServiceIntSpec extends Specification {
 
   @Autowired

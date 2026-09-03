@@ -5,6 +5,8 @@ import static ee.tuleva.onboarding.aml.AmlCheckType.KYC_CHECK;
 import static ee.tuleva.onboarding.kyb.KybCheckType.*;
 import static ee.tuleva.onboarding.kyb.KybKycStatus.COMPLETED;
 import static ee.tuleva.onboarding.kyb.KybKycStatus.REJECTED;
+import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.RESCREENING;
+import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.SUBMISSION;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.*;
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -46,7 +48,7 @@ class KybEndToEndTest {
 
   @Test
   void rule31_soleOwnerBoardMemberBeneficialOwner_allChecksPass() {
-    var results = kybScreeningService.screen(rule31Pass());
+    var results = kybScreeningService.screen(rule31Pass(), SUBMISSION);
 
     assertThat(results).hasSize(11).allMatch(KybCheck::success);
     assertCheckPersisted(JAAN, KYB_SOLE_MEMBER_OWNERSHIP, true);
@@ -54,7 +56,7 @@ class KybEndToEndTest {
 
   @Test
   void rule31_notBeneficialOwner_ownershipCheckFails() {
-    var results = kybScreeningService.screen(rule31Fail_notBeneficialOwner());
+    var results = kybScreeningService.screen(rule31Fail_notBeneficialOwner(), SUBMISSION);
 
     assertCheckResult(results, SOLE_MEMBER_OWNERSHIP, false);
     assertCheckPersisted(JAAN, KYB_SOLE_MEMBER_OWNERSHIP, false);
@@ -64,7 +66,7 @@ class KybEndToEndTest {
 
   @Test
   void rule32_twoBoardMembersFullOwnership_passes() {
-    var results = kybScreeningService.screen(rule32Pass());
+    var results = kybScreeningService.screen(rule32Pass(), SUBMISSION);
 
     assertCheckResult(results, DUAL_MEMBER_OWNERSHIP, true);
     assertCheckPersisted(JAAN, KYB_DUAL_MEMBER_OWNERSHIP, true);
@@ -72,7 +74,7 @@ class KybEndToEndTest {
 
   @Test
   void rule32_twoBoardMembersIncompleteOwnership_fails() {
-    var results = kybScreeningService.screen(rule32Fail_incompleteOwnership());
+    var results = kybScreeningService.screen(rule32Fail_incompleteOwnership(), SUBMISSION);
 
     assertCheckResult(results, DUAL_MEMBER_OWNERSHIP, false);
     assertCheckPersisted(JAAN, KYB_DUAL_MEMBER_OWNERSHIP, false);
@@ -82,7 +84,7 @@ class KybEndToEndTest {
 
   @Test
   void rule33_soleBoardMemberIsOwner_passes() {
-    var results = kybScreeningService.screen(rule33Pass());
+    var results = kybScreeningService.screen(rule33Pass(), SUBMISSION);
 
     assertCheckResult(results, SINGLE_BOARD_MEMBER_OWNERSHIP, true);
     assertCheckPersisted(JAAN, KYB_SINGLE_BOARD_MEMBER_OWNERSHIP, true);
@@ -90,7 +92,7 @@ class KybEndToEndTest {
 
   @Test
   void rule33_boardMemberOwnsNoShares_fails() {
-    var results = kybScreeningService.screen(rule33Fail_boardMemberOwnsNoShares());
+    var results = kybScreeningService.screen(rule33Fail_boardMemberOwnsNoShares(), SUBMISSION);
 
     assertCheckResult(results, SINGLE_BOARD_MEMBER_OWNERSHIP, false);
     assertCheckPersisted(JAAN, KYB_SINGLE_BOARD_MEMBER_OWNERSHIP, false);
@@ -98,7 +100,7 @@ class KybEndToEndTest {
 
   @Test
   void rule33_incompleteOwnership_fails() {
-    var results = kybScreeningService.screen(rule33Fail_incompleteOwnership());
+    var results = kybScreeningService.screen(rule33Fail_incompleteOwnership(), SUBMISSION);
 
     assertCheckResult(results, SINGLE_BOARD_MEMBER_OWNERSHIP, false);
     assertCheckPersisted(JAAN, KYB_SINGLE_BOARD_MEMBER_OWNERSHIP, false);
@@ -108,7 +110,7 @@ class KybEndToEndTest {
 
   @Test
   void rule34_activeCompany_passes() {
-    var results = kybScreeningService.screen(rule34Pass());
+    var results = kybScreeningService.screen(rule34Pass(), SUBMISSION);
 
     assertCheckResult(results, COMPANY_ACTIVE, true);
     assertCheckPersisted(JAAN, KYB_COMPANY_ACTIVE, true);
@@ -116,7 +118,7 @@ class KybEndToEndTest {
 
   @Test
   void rule34_companyInLiquidation_fails() {
-    var results = kybScreeningService.screen(rule34Fail_companyInLiquidation());
+    var results = kybScreeningService.screen(rule34Fail_companyInLiquidation(), SUBMISSION);
 
     assertCheckResult(results, COMPANY_ACTIVE, false);
     assertCheckPersisted(JAAN, KYB_COMPANY_ACTIVE, false);
@@ -127,9 +129,9 @@ class KybEndToEndTest {
   @Test
   @SuppressWarnings("unchecked")
   void rule35_companyDataChangedBetweenScreenings_detected() {
-    kybScreeningService.screen(rule31Pass());
+    kybScreeningService.screen(rule31Pass(), SUBMISSION);
 
-    var secondResults = kybScreeningService.screen(rule34Fail_companyInLiquidation());
+    var secondResults = kybScreeningService.screen(rule34Fail_companyInLiquidation(), RESCREENING);
 
     var dataChangedCheck = secondResults.stream().filter(c -> c.type() == DATA_CHANGED).findFirst();
     assertThat(dataChangedCheck).isPresent();
@@ -142,7 +144,7 @@ class KybEndToEndTest {
 
   @Test
   void rule36_relatedPersonNotCitizen_kycRejected_fails() {
-    var results = kybScreeningService.screen(rule36Fail_relatedPersonNotCitizen());
+    var results = kybScreeningService.screen(rule36Fail_relatedPersonNotCitizen(), SUBMISSION);
 
     assertCheckResult(results, RELATED_PERSONS_KYC, false);
     assertCheckPersisted(JAAN, KYB_RELATED_PERSONS_KYC, false);
@@ -152,7 +154,7 @@ class KybEndToEndTest {
 
   @Test
   void rule37_relatedPersonHighRiskCountry_kycRejected_fails() {
-    var results = kybScreeningService.screen(rule37Fail_relatedPersonHighRiskCountry());
+    var results = kybScreeningService.screen(rule37Fail_relatedPersonHighRiskCountry(), SUBMISSION);
 
     assertCheckResult(results, RELATED_PERSONS_KYC, false);
   }
@@ -161,7 +163,7 @@ class KybEndToEndTest {
 
   @Test
   void rule39_relatedPersonSanctioned_kycRejected_fails() {
-    var results = kybScreeningService.screen(rule39Fail_relatedPersonSanctioned());
+    var results = kybScreeningService.screen(rule39Fail_relatedPersonSanctioned(), SUBMISSION);
 
     assertCheckResult(results, RELATED_PERSONS_KYC, false);
   }
@@ -170,7 +172,8 @@ class KybEndToEndTest {
 
   @Test
   void rule40_relatedPersonNotCitizenButResident_kycUnknown_fails() {
-    var results = kybScreeningService.screen(rule40Fail_relatedPersonNotCitizenButResident());
+    var results =
+        kybScreeningService.screen(rule40Fail_relatedPersonNotCitizenButResident(), SUBMISSION);
 
     assertCheckResult(results, RELATED_PERSONS_KYC, false);
   }
@@ -179,7 +182,7 @@ class KybEndToEndTest {
 
   @Test
   void rules36to40_allRelatedPersonsPassedKyc_passes() {
-    var results = kybScreeningService.screen(rules36to40Pass_allKycCompleted());
+    var results = kybScreeningService.screen(rules36to40Pass_allKycCompleted(), SUBMISSION);
 
     assertCheckResult(results, RELATED_PERSONS_KYC, true);
   }
@@ -215,7 +218,7 @@ class KybEndToEndTest {
             null,
             List.of());
 
-    var results = kybScreeningService.screen(data);
+    var results = kybScreeningService.screen(data, SUBMISSION);
 
     assertCheckResult(results, RELATED_PERSONS_KYC, false);
   }
@@ -224,14 +227,14 @@ class KybEndToEndTest {
 
   @Test
   void rule41_safeNaceCode_passes() {
-    var results = kybScreeningService.screen(rule41Pass());
+    var results = kybScreeningService.screen(rule41Pass(), SUBMISSION);
 
     assertCheckResult(results, HIGH_RISK_NACE, true);
   }
 
   @Test
   void rule41_highRiskNaceCode_fails() {
-    var results = kybScreeningService.screen(rule41Fail_highRiskNace());
+    var results = kybScreeningService.screen(rule41Fail_highRiskNace(), SUBMISSION);
 
     assertCheckResult(results, HIGH_RISK_NACE, false);
     assertCheckPersisted(JAAN, KYB_HIGH_RISK_NACE, false);
@@ -241,7 +244,7 @@ class KybEndToEndTest {
 
   @Test
   void rule43_noSanctionsMatch_passes() {
-    var results = kybScreeningService.screen(rule43Pass());
+    var results = kybScreeningService.screen(rule43Pass(), SUBMISSION);
 
     assertCheckResult(results, COMPANY_SANCTION, true);
     assertCheckPersisted(JAAN, KYB_COMPANY_SANCTION, true);
@@ -252,7 +255,7 @@ class KybEndToEndTest {
     when(sanctionCheckService.matchCompany(any()))
         .thenReturn(matchResponseWithTopic("sanction", "ru"));
 
-    var results = kybScreeningService.screen(rule43Pass());
+    var results = kybScreeningService.screen(rule43Pass(), SUBMISSION);
 
     assertCheckResult(results, COMPANY_SANCTION, false);
     assertCheckPersisted(JAAN, KYB_COMPANY_SANCTION, false);
@@ -265,7 +268,7 @@ class KybEndToEndTest {
     when(sanctionCheckService.matchCompany(any()))
         .thenReturn(matchResponseWithTopic("role.pep", "ee"));
 
-    var results = kybScreeningService.screen(rule44Pass());
+    var results = kybScreeningService.screen(rule44Pass(), SUBMISSION);
 
     assertCheckResult(results, COMPANY_PEP, true);
   }
@@ -274,7 +277,7 @@ class KybEndToEndTest {
 
   @Test
   void rule45_noPepMatch_passes() {
-    var results = kybScreeningService.screen(rule45Pass());
+    var results = kybScreeningService.screen(rule45Pass(), SUBMISSION);
 
     assertCheckResult(results, COMPANY_PEP, true);
     assertCheckPersisted(JAAN, KYB_COMPANY_PEP, true);
@@ -285,7 +288,7 @@ class KybEndToEndTest {
     when(sanctionCheckService.matchCompany(any()))
         .thenReturn(matchResponseWithTopic("role.pep", "ru"));
 
-    var results = kybScreeningService.screen(rule45Pass());
+    var results = kybScreeningService.screen(rule45Pass(), SUBMISSION);
 
     assertCheckResult(results, COMPANY_PEP, false);
     assertCheckPersisted(JAAN, KYB_COMPANY_PEP, false);
@@ -295,14 +298,14 @@ class KybEndToEndTest {
 
   @Test
   void rule50_legalFormIsOÜ_passes() {
-    var results = kybScreeningService.screen(rule50Pass());
+    var results = kybScreeningService.screen(rule50Pass(), SUBMISSION);
 
     assertCheckResult(results, COMPANY_LEGAL_FORM, true);
   }
 
   @Test
   void rule50_legalFormIsNotOÜ_fails() {
-    var results = kybScreeningService.screen(rule50Fail_notOÜ());
+    var results = kybScreeningService.screen(rule50Fail_notOÜ(), SUBMISSION);
 
     assertCheckResult(results, COMPANY_LEGAL_FORM, false);
     assertCheckPersisted(JAAN, KYB_COMPANY_LEGAL_FORM, false);
@@ -312,7 +315,7 @@ class KybEndToEndTest {
 
   @Test
   void selfCertification_allConfirmed_passes() {
-    var results = kybScreeningService.screen(selfCertificationPass());
+    var results = kybScreeningService.screen(selfCertificationPass(), SUBMISSION);
 
     assertCheckResult(results, SELF_CERTIFICATION, true);
     assertCheckPersisted(JAAN, KYB_SELF_CERTIFICATION, true);
@@ -320,7 +323,7 @@ class KybEndToEndTest {
 
   @Test
   void selfCertification_notConfirmed_fails() {
-    var results = kybScreeningService.screen(selfCertificationFail());
+    var results = kybScreeningService.screen(selfCertificationFail(), SUBMISSION);
 
     assertCheckResult(results, SELF_CERTIFICATION, false);
     assertCheckPersisted(JAAN, KYB_SELF_CERTIFICATION, false);
@@ -330,7 +333,7 @@ class KybEndToEndTest {
 
   @Test
   void threeRelatedPersons_companyStructureFails() {
-    var results = kybScreeningService.screen(threeRelatedPersons());
+    var results = kybScreeningService.screen(threeRelatedPersons(), SUBMISSION);
 
     assertCheckResult(results, COMPANY_STRUCTURE, false);
     var types = results.stream().map(KybCheck::type).toList();
@@ -344,7 +347,7 @@ class KybEndToEndTest {
 
   @Test
   void allChecksPersistedToAmlCheckRepository() {
-    kybScreeningService.screen(rule31Pass());
+    kybScreeningService.screen(rule31Pass(), SUBMISSION);
 
     var amlChecks =
         amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(JAAN.value(), aYearAgo());

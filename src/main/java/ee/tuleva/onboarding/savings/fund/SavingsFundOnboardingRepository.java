@@ -1,13 +1,16 @@
 package ee.tuleva.onboarding.savings.fund;
 
-import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
+import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
 
 import ee.tuleva.onboarding.kyb.KybCheckType;
 import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus;
 import java.sql.Timestamp;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -19,12 +22,32 @@ import org.springframework.transaction.annotation.Transactional;
 public class SavingsFundOnboardingRepository {
 
   private final JdbcClient jdbcClient;
+  private final Clock clock;
 
   public List<String> findPersonCodes() {
     return jdbcClient
         .sql("SELECT code FROM savings_fund_onboarding WHERE type = 'PERSON'")
         .query(String.class)
-        .list();
+        .list()
+        .stream()
+        .map(Objects::requireNonNull)
+        .toList();
+  }
+
+  public List<String> findPendingLegalEntityCodes() {
+    return jdbcClient
+        .sql(
+            """
+            SELECT code
+            FROM savings_fund_onboarding
+            WHERE type = 'LEGAL_ENTITY' AND status = 'PENDING'
+            ORDER BY code
+            """)
+        .query(String.class)
+        .list()
+        .stream()
+        .map(Objects::requireNonNull)
+        .toList();
   }
 
   public boolean isOnboardingCompleted(String code, PartyId.Type type) {
@@ -63,7 +86,10 @@ public class SavingsFundOnboardingRepository {
         .param("ownershipCheckTypes", ownershipCheckTypeNames())
         .param("since", Timestamp.from(since))
         .query(String.class)
-        .list();
+        .list()
+        .stream()
+        .map(Objects::requireNonNull)
+        .toList();
   }
 
   private static List<String> ownershipCheckTypeNames() {
@@ -79,19 +105,20 @@ public class SavingsFundOnboardingRepository {
     return jdbcClient
             .sql(
                 """
-                INSERT INTO savings_fund_onboarding (code, type, status)
-                VALUES (:code, :type, :status)
+                INSERT INTO savings_fund_onboarding (code, type, status, updated_at)
+                VALUES (:code, :type, :status, :updatedAt)
                 ON CONFLICT DO NOTHING
                 """)
             .param("code", code)
             .param("type", type.name())
             .param("status", status.name())
+            .param("updatedAt", Timestamp.from(clock.instant()))
             .update()
         > 0;
   }
 
   @Transactional
-  public void saveOnboardingStatus(
+  public Optional<SavingsFundOnboardingStatus> saveOnboardingStatus(
       String code, PartyId.Type type, SavingsFundOnboardingStatus status) {
     jdbcClient
         .sql("SELECT pg_advisory_xact_lock(:key)")
@@ -99,23 +126,36 @@ public class SavingsFundOnboardingRepository {
         .query((rs, rowNum) -> 0)
         .optional();
 
+    var previousStatus = findStatus(code, type);
+
     int updated =
         jdbcClient
             .sql(
-                "UPDATE savings_fund_onboarding SET status = :status WHERE code = :code AND type = :type")
+                """
+                UPDATE savings_fund_onboarding
+                SET status = :status, updated_at = :updatedAt
+                WHERE code = :code AND type = :type
+                """)
             .param("code", code)
             .param("type", type.name())
             .param("status", status.name())
+            .param("updatedAt", Timestamp.from(clock.instant()))
             .update();
 
     if (updated == 0) {
       jdbcClient
           .sql(
-              "INSERT INTO savings_fund_onboarding (code, type, status) VALUES (:code, :type, :status)")
+              """
+              INSERT INTO savings_fund_onboarding (code, type, status, updated_at)
+              VALUES (:code, :type, :status, :updatedAt)
+              """)
           .param("code", code)
           .param("type", type.name())
           .param("status", status.name())
+          .param("updatedAt", Timestamp.from(clock.instant()))
           .update();
     }
+
+    return previousStatus;
   }
 }

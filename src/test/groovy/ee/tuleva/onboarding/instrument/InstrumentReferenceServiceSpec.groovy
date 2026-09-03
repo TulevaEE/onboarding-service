@@ -32,7 +32,8 @@ class InstrumentReferenceServiceSpec extends Specification {
         new BenchmarkCategoryProxy(6L, "NO_INDEX_TARGET", "IE00B4L5Y983", null, null),
     ]
 
-    service = new InstrumentReferenceService(instrumentReferenceRepository, benchmarkCategoryProxyRepository, clock)
+    def loader = new InstrumentSnapshotLoader(instrumentReferenceRepository, benchmarkCategoryProxyRepository)
+    service = new InstrumentReferenceService(loader, clock)
     service.init()
   }
 
@@ -155,7 +156,8 @@ class InstrumentReferenceServiceSpec extends Specification {
         delisted,
     ]
     proxyRepo.findAll() >> []
-    def svc = new InstrumentReferenceService(repo, proxyRepo, clock)
+    def loader = new InstrumentSnapshotLoader(repo, proxyRepo)
+    def svc = new InstrumentReferenceService(loader, clock)
 
     when:
     svc.init()
@@ -279,7 +281,8 @@ class InstrumentReferenceServiceSpec extends Specification {
         [instrument("IE00NEW", "NEW.DE", "NEW.XETRA", "NEW", null, null, null, true)]
     ]
     proxyRepo.findAll() >> []
-    def svc = new InstrumentReferenceService(repo, proxyRepo, clock)
+    def loader = new InstrumentSnapshotLoader(repo, proxyRepo)
+    def svc = new InstrumentReferenceService(loader, clock)
     svc.init()
 
     when:
@@ -293,7 +296,8 @@ class InstrumentReferenceServiceSpec extends Specification {
 
   def "init populates cache"() {
     given:
-    def svc = new InstrumentReferenceService(instrumentReferenceRepository, benchmarkCategoryProxyRepository, clock)
+    def loader = new InstrumentSnapshotLoader(instrumentReferenceRepository, benchmarkCategoryProxyRepository)
+    def svc = new InstrumentReferenceService(loader, clock)
 
     when:
     svc.init()
@@ -312,7 +316,8 @@ class InstrumentReferenceServiceSpec extends Specification {
         { throw new RuntimeException("DB down") }
     ]
     proxyRepo.findAll() >> []
-    def svc = new InstrumentReferenceService(repo, proxyRepo, clock)
+    def loader = new InstrumentSnapshotLoader(repo, proxyRepo)
+    def svc = new InstrumentReferenceService(loader, clock)
     svc.init()
 
     when:
@@ -329,7 +334,8 @@ class InstrumentReferenceServiceSpec extends Specification {
     def proxyRepo = Mock(BenchmarkCategoryProxyRepository)
     repo.findAllByOrderByIdAsc() >> []
     proxyRepo.findAll() >> []
-    def svc = new InstrumentReferenceService(repo, proxyRepo, clock)
+    def loader = new InstrumentSnapshotLoader(repo, proxyRepo)
+    def svc = new InstrumentReferenceService(loader, clock)
 
     when:
     svc.init()
@@ -344,7 +350,8 @@ class InstrumentReferenceServiceSpec extends Specification {
     def proxyRepo = Mock(BenchmarkCategoryProxyRepository)
     repo.findAllByOrderByIdAsc() >> { throw new RuntimeException("DB down") }
     proxyRepo.findAll() >> []
-    def svc = new InstrumentReferenceService(repo, proxyRepo, clock)
+    def loader = new InstrumentSnapshotLoader(repo, proxyRepo)
+    def svc = new InstrumentReferenceService(loader, clock)
 
     when:
     svc.init()
@@ -359,7 +366,8 @@ class InstrumentReferenceServiceSpec extends Specification {
     def proxyRepo = Mock(BenchmarkCategoryProxyRepository)
     repo.findAllByOrderByIdAsc() >>> [instruments(10), instruments(7)]
     proxyRepo.findAll() >> []
-    def svc = new InstrumentReferenceService(repo, proxyRepo, clock)
+    def loader = new InstrumentSnapshotLoader(repo, proxyRepo)
+    def svc = new InstrumentReferenceService(loader, clock)
     svc.init()
     def refreshedAtBoot = svc.lastRefreshedAt
 
@@ -378,7 +386,8 @@ class InstrumentReferenceServiceSpec extends Specification {
     def proxyRepo = Mock(BenchmarkCategoryProxyRepository)
     repo.findAllByOrderByIdAsc() >>> [instruments(10), instruments(8)]
     proxyRepo.findAll() >> []
-    def svc = new InstrumentReferenceService(repo, proxyRepo, clock)
+    def loader = new InstrumentSnapshotLoader(repo, proxyRepo)
+    def svc = new InstrumentReferenceService(loader, clock)
     svc.init()
 
     when:
@@ -396,7 +405,8 @@ class InstrumentReferenceServiceSpec extends Specification {
     def proxyRepo = Mock(BenchmarkCategoryProxyRepository)
     repo.findAllByOrderByIdAsc() >>> [instruments(3), { throw new RuntimeException("DB down") }]
     proxyRepo.findAll() >> []
-    def svc = new InstrumentReferenceService(repo, proxyRepo, clock)
+    def loader = new InstrumentSnapshotLoader(repo, proxyRepo)
+    def svc = new InstrumentReferenceService(loader, clock)
     svc.init()
     def refreshedAtBoot = svc.lastRefreshedAt
 
@@ -417,7 +427,8 @@ class InstrumentReferenceServiceSpec extends Specification {
     setField(unlisted, "eodhdListed", false)
     repo.findAllByOrderByIdAsc() >> [unlisted]
     proxyRepo.findAll() >> []
-    def svc = new InstrumentReferenceService(repo, proxyRepo, clock)
+    def loader = new InstrumentSnapshotLoader(repo, proxyRepo)
+    def svc = new InstrumentReferenceService(loader, clock)
 
     when:
     svc.init()
@@ -432,52 +443,6 @@ class InstrumentReferenceServiceSpec extends Specification {
   def "dataFindings is empty for clean reference data"() {
     expect:
     service.dataFindings() == []
-  }
-
-  def "a colliding lookup key resolves to the first row and is reported"() {
-    given:
-    def repo = Mock(InstrumentReferenceRepository)
-    def proxyRepo = Mock(BenchmarkCategoryProxyRepository)
-    repo.findAllByOrderByIdAsc() >> [
-        instrument("IE00FIRST01", "DUP.DE", "DUP1.XETRA", "DUP1", null, null, null, true),
-        instrument("IE00SECOND1", "DUP.PA", "DUP2.XETRA", "DUP2", null, null, null, true),
-    ]
-    proxyRepo.findAll() >> []
-    def svc = new InstrumentReferenceService(repo, proxyRepo, clock)
-
-    when:
-    svc.init()
-
-    then:
-    noExceptionThrown()
-    svc.findByTicker("DUP").get().isin == "IE00FIRST01"
-    svc.findByIsin("IE00SECOND1").isPresent()
-    svc.dataFindings() == [
-        new InstrumentDataFinding.AmbiguousLookupKey("shortTicker", "DUP", ["IE00FIRST01", "IE00SECOND1"])
-    ]
-  }
-
-  def "an instrument listed on EODHD without a ticker is cached, kept out of EODHD fetching and reported"() {
-    given:
-    def repo = Mock(InstrumentReferenceRepository)
-    def proxyRepo = Mock(BenchmarkCategoryProxyRepository)
-    def contradictory = instrument("IE00NOTICK1", "NOTICK.DE", null, "NOTICK", null, null, null, true)
-    setField(contradictory, "eodhdListed", true)
-    repo.findAllByOrderByIdAsc() >> [
-        instrument("IE00OK00001", "OK.DE", "OK.XETRA", "OK", null, null, null, true),
-        contradictory,
-    ]
-    proxyRepo.findAll() >> []
-    def svc = new InstrumentReferenceService(repo, proxyRepo, clock)
-
-    when:
-    svc.init()
-
-    then:
-    noExceptionThrown()
-    svc.findByIsin("IE00NOTICK1").isPresent()
-    svc.getEodhdTickers() == ["OK.XETRA"]
-    svc.dataFindings() == [new InstrumentDataFinding.EodhdListedWithoutTicker("IE00NOTICK1")]
   }
 
   def "scheduledRefresh applies a snapshot that has findings"() {
@@ -495,7 +460,8 @@ class InstrumentReferenceServiceSpec extends Specification {
         ],
     ]
     proxyRepo.findAll() >> []
-    def svc = new InstrumentReferenceService(repo, proxyRepo, clock)
+    def loader = new InstrumentSnapshotLoader(repo, proxyRepo)
+    def svc = new InstrumentReferenceService(loader, clock)
     svc.init()
 
     when:
@@ -526,7 +492,8 @@ class InstrumentReferenceServiceSpec extends Specification {
         ],
     ]
     proxyRepo.findAll() >> []
-    def svc = new InstrumentReferenceService(repo, proxyRepo, clock)
+    def loader = new InstrumentSnapshotLoader(repo, proxyRepo)
+    def svc = new InstrumentReferenceService(loader, clock)
     svc.init()
 
     when:

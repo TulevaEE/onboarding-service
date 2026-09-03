@@ -12,7 +12,6 @@ import ee.tuleva.onboarding.instrument.InstrumentReference;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import java.math.BigDecimal;
 import java.time.Clock;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -104,7 +103,7 @@ public class EODHDValueRetriever implements ComparisonIndexRetriever {
       return List.of();
     }
 
-    var now = Instant.now();
+    var now = clock.instant();
     List<FundValue> allValues =
         Arrays.stream(response)
             .map(

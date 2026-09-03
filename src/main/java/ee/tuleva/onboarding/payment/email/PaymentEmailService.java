@@ -1,17 +1,20 @@
 package ee.tuleva.onboarding.payment.email;
 
-import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.*;
+import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.*;
 import static java.util.Collections.emptyList;
+import static java.util.Objects.requireNonNull;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageContent;
-import ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments;
-import ee.tuleva.onboarding.mandate.email.PillarSuggestion;
-import ee.tuleva.onboarding.mandate.email.persistence.Email;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
+import ee.tuleva.onboarding.mandate.MandateRepository;
+import ee.tuleva.onboarding.mandate.PillarSuggestion;
+import ee.tuleva.onboarding.mandate.SavingsFundCharges;
+import ee.tuleva.onboarding.notification.email.Email;
+import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.notification.email.EmailType;
 import ee.tuleva.onboarding.payment.Payment;
+import ee.tuleva.onboarding.payment.PaymentData.PaymentType;
 import ee.tuleva.onboarding.user.User;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
@@ -25,19 +28,27 @@ public class PaymentEmailService {
 
   private static final String SAVINGS_FUND_TAG = "savings_fund";
 
+  private final MandateRepository mandateRepository;
   private final EmailService emailService;
   private final EmailPersistenceService emailPersistenceService;
+  private final SavingsFundCharges savingsFundCharges;
+
+  private static EmailType successEmailType(Payment payment) {
+    return payment.getPaymentType() == PaymentType.SAVINGS
+        ? EmailType.SAVINGS_FUND_PAYMENT_SUCCESS
+        : EmailType.THIRD_PILLAR_PAYMENT_SUCCESS_MANDATE;
+  }
 
   void sendThirdPillarPaymentSuccessEmail(
       User user, Payment payment, PillarSuggestion pillarSuggestion, Locale locale) {
-    EmailType emailType = EmailType.from(payment);
+    EmailType emailType = successEmailType(payment);
     String templateName = emailType.getTemplateName(locale);
 
     MandrillMessage mandrillMessage =
         emailService.newMandrillMessage(
             user.getEmail(),
             emailType.getTemplateName(locale),
-            getMergeVars(user, payment, pillarSuggestion),
+            getMergeVars(user, payment, pillarSuggestion, locale),
             getTags(pillarSuggestion),
             cancelReminderEmailsAndGetMandateAttachment(user));
     emailService
@@ -49,12 +60,23 @@ public class PaymentEmailService {
   }
 
   void sendSavingsFundPaymentEmail(
-      User user, SavingsFundPaymentEmail email, PillarSuggestion pillarSuggestion, Locale locale) {
+      User user,
+      SavingsFundPaymentEmail email,
+      PillarSuggestion pillarSuggestion,
+      boolean suggestAccountRecurringPayment,
+      Locale locale) {
     Map<String, Object> mergeVars = new HashMap<>(getNameMergeVars(user));
-    mergeVars.putAll(getPillarSuggestionMergeVars(pillarSuggestion));
+    mergeVars.putAll(
+        getPillarSuggestionMergeVars(
+            pillarSuggestion, savingsFundCharges.ongoingChargesPercent(locale)));
+    mergeVars.put("suggestAccountRecurringPayment", suggestAccountRecurringPayment);
     mergeVars.putAll(email.mergeVars());
 
-    sendSavingsFundEmail(user, email, mergeVars, getSavingsFundTags(pillarSuggestion), locale);
+    List<String> tags =
+        suggestAccountRecurringPayment
+            ? List.of(SAVINGS_FUND_TAG, "nudge_savings_fund_recurring")
+            : getSavingsFundTags(pillarSuggestion);
+    sendSavingsFundEmail(user, email, mergeVars, tags, locale);
   }
 
   void sendSavingsFundPaymentEmail(User user, SavingsFundPaymentEmail email, Locale locale) {
@@ -73,7 +95,7 @@ public class PaymentEmailService {
     String templateName = email.emailType().getTemplateName(locale);
 
     MandrillMessage mandrillMessage =
-        emailService.newMandrillMessage(user.getEmail(), templateName, mergeVars, tags, null);
+        emailService.newMandrillMessage(user.getEmail(), templateName, mergeVars, tags);
     emailService
         .send(user, mandrillMessage, templateName)
         .ifPresent(
@@ -83,7 +105,7 @@ public class PaymentEmailService {
   }
 
   private Map<String, Object> getMergeVars(
-      User user, Payment payment, PillarSuggestion pillarSuggestion) {
+      User user, Payment payment, PillarSuggestion pillarSuggestion, Locale locale) {
     Map<String, Object> variables =
         new HashMap<>(
             Map.of(
@@ -92,7 +114,9 @@ public class PaymentEmailService {
                 "senderPersonalCode", user.getPersonalCode(),
                 "recipientPersonalCode", payment.getRecipientPersonalCode()));
     variables.putAll(getNameMergeVars(user));
-    variables.putAll(getPillarSuggestionMergeVars(pillarSuggestion));
+    variables.putAll(
+        getPillarSuggestionMergeVars(
+            pillarSuggestion, savingsFundCharges.ongoingChargesPercent(locale)));
 
     return variables;
   }
@@ -112,6 +136,7 @@ public class PaymentEmailService {
       tags.add("suggest_member");
     }
 
+    pillarSuggestion.renderedNudgeTag().ifPresent(tags::add);
     return tags;
   }
 
@@ -127,6 +152,7 @@ public class PaymentEmailService {
     if (pillarSuggestion.isSuggestMembership()) {
       tags.add("suggest_member");
     }
+    pillarSuggestion.renderedNudgeTag().ifPresent(tags::add);
     return tags;
   }
 
@@ -139,6 +165,14 @@ public class PaymentEmailService {
     }
 
     Email latestScheduledEmail = cancelledEmails.getFirst();
-    return EmailVariablesAttachments.getAttachments(user, latestScheduledEmail.getMandate());
+    Long mandateId =
+        requireNonNull(
+            latestScheduledEmail.getMandateId(),
+            "Scheduled reminder email is missing a mandateId: emailId="
+                + latestScheduledEmail.getId());
+    return mandateRepository
+        .findById(mandateId)
+        .map(mandate -> getAttachments(user, mandate))
+        .orElse(emptyList());
   }
 }

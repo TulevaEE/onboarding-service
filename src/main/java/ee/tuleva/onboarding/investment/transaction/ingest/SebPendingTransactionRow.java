@@ -6,22 +6,23 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Map;
 import java.util.UUID;
+import org.jspecify.annotations.Nullable;
 
 record SebPendingTransactionRow(
-    UUID clientRef,
-    String ourRef,
-    String isin,
-    BigDecimal quantity,
-    BigDecimal price,
-    BigDecimal settlementAmount,
-    BigDecimal brokerFee,
-    BigDecimal total,
-    TransactionType side,
-    Instant tradeDate,
-    LocalDate settlementDate,
-    String clientName,
-    String account,
-    String instrumentName) {
+    @Nullable UUID clientRef,
+    @Nullable String ourRef,
+    @Nullable String isin,
+    @Nullable BigDecimal quantity,
+    @Nullable BigDecimal price,
+    @Nullable BigDecimal settlementAmount,
+    @Nullable BigDecimal brokerFee,
+    @Nullable BigDecimal total,
+    @Nullable TransactionType side,
+    @Nullable Instant tradeDate,
+    @Nullable LocalDate settlementDate,
+    @Nullable String clientName,
+    @Nullable String account,
+    @Nullable String instrumentName) {
 
   static SebPendingTransactionRow fromRawData(Map<String, Object> raw) {
     return new SebPendingTransactionRow(
@@ -41,7 +42,7 @@ record SebPendingTransactionRow(
         asString(raw.get("Instrument name")));
   }
 
-  private static UUID parseUuid(Object value) {
+  private static @Nullable UUID parseUuid(@Nullable Object value) {
     if (value == null) {
       return null;
     }
@@ -52,7 +53,7 @@ record SebPendingTransactionRow(
     return UUID.fromString(s);
   }
 
-  private static String asString(Object value) {
+  private static @Nullable String asString(@Nullable Object value) {
     if (value == null) {
       return null;
     }
@@ -60,7 +61,7 @@ record SebPendingTransactionRow(
     return s.isEmpty() ? null : s;
   }
 
-  private static BigDecimal asBigDecimal(Object value) {
+  private static @Nullable BigDecimal asBigDecimal(@Nullable Object value) {
     if (value == null) {
       return null;
     }
@@ -74,7 +75,7 @@ record SebPendingTransactionRow(
     return new BigDecimal(s);
   }
 
-  private static TransactionType parseSide(Object value) {
+  private static @Nullable TransactionType parseSide(@Nullable Object value) {
     if (value == null) {
       return null;
     }
@@ -86,7 +87,7 @@ record SebPendingTransactionRow(
     };
   }
 
-  private static Instant parseInstant(Object value) {
+  private static @Nullable Instant parseInstant(@Nullable Object value) {
     if (value == null) {
       return null;
     }
@@ -97,7 +98,7 @@ record SebPendingTransactionRow(
     return Instant.parse(s);
   }
 
-  private static LocalDate parseLocalDate(Object value) {
+  private static @Nullable LocalDate parseLocalDate(@Nullable Object value) {
     if (value == null) {
       return null;
     }

@@ -1,8 +1,10 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
+import ee.tuleva.onboarding.time.ClockConfig
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.restclient.test.autoconfigure.RestClientTest
+import org.springframework.context.annotation.Import
 import org.springframework.core.io.ByteArrayResource
 import org.springframework.http.MediaType
 import org.springframework.test.web.client.MockRestServiceServer
@@ -18,6 +20,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess
 
 @RestClientTest(components = [FundAumRetriever, PensionikeskusDataDownloader, FundAumRetrieverConfiguration])
+@Import(ClockConfig)
 class FundAumRetrieverSpec extends Specification {
 
     @Autowired

@@ -1,27 +1,37 @@
 package ee.tuleva.onboarding.mandate.email
 
+import ee.tuleva.onboarding.fund.Fund
+import ee.tuleva.onboarding.fund.manager.FundManager
+import ee.tuleva.onboarding.mandate.PillarSuggestion
+import ee.tuleva.onboarding.mandate.batch.MandateBatchFixture
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus
 import ee.tuleva.onboarding.auth.principal.AuthenticationHolder
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService
 import ee.tuleva.onboarding.fund.FundRepository
-import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService
+import ee.tuleva.onboarding.notification.email.EmailPersistenceService
 import ee.tuleva.onboarding.notification.email.EmailService
 import ee.tuleva.onboarding.paymentrate.PaymentRates
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService
+import ee.tuleva.onboarding.mandate.SavingsFundCharges
 import spock.lang.Specification
+
+import java.util.Optional
 
 import java.time.Clock
 import java.time.Instant
+import java.time.ZoneId
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyConverted
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notConverted
 import static ee.tuleva.onboarding.deadline.MandateDeadlinesFixture.sampleDeadlines
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
+import static ee.tuleva.onboarding.mandate.MandateContactDetailsFixture.contactDetailsFixture
+import static ee.tuleva.onboarding.fund.FundFixture.lhv2ndPillarFund
+import static ee.tuleva.onboarding.fund.FundFixture.tuleva2ndPillarStockFund
 import static ee.tuleva.onboarding.mandate.MandateFixture.*
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.*
+import static ee.tuleva.onboarding.notification.email.EmailType.*
 import static ee.tuleva.onboarding.paymentrate.PaymentRatesFixture.samplePaymentRates
 import static java.time.ZoneOffset.UTC
 import static java.time.temporal.ChronoUnit.DAYS
@@ -36,6 +46,9 @@ class MandateEmailServiceSpec extends Specification {
   MandateDeadlinesService mandateDeadlinesService = Mock()
   SecondPillarPaymentRateService secondPillarPaymentRateService = Mock()
   AuthenticationHolder authenticationHolder = Mock()
+  SavingsFundCharges savingsFundFees = Mock() {
+    ongoingChargesPercent(_) >> "0.28"
+  }
   def now = Instant.parse("2021-09-01T10:06:01Z")
 
   MandateEmailService mandateEmailService = new MandateEmailService(emailService,
@@ -44,7 +57,8 @@ class MandateEmailServiceSpec extends Specification {
       fundRepository,
       mandateDeadlinesService,
       secondPillarPaymentRateService,
-      authenticationHolder)
+      authenticationHolder,
+      savingsFundFees)
 
   def "Send second pillar mandate email"() {
     given:
@@ -53,24 +67,37 @@ class MandateEmailServiceSpec extends Specification {
     def contactDetails = contactDetailsFixture()
     def mandate = sampleMandate()
     def paymentRates = samplePaymentRates()
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails.secondPillarActive, contactDetails.thirdPillarActive, conversion, paymentRates)
     def message = new MandrillMessage()
     def mergeVars = [
         fname              : user.firstName,
         lname              : user.lastName,
         transferDate       : "03.05.2021",
+        hasFundSelection   : true,
+        hasFundTransfer    : true,
+        selectedTulevaFund : true,
+        selectedConservativeFund : false,
+        selectedHighFeeFund : false,
         suggestPaymentRate : pillarSuggestion.suggestPaymentRate,
+        savingsFundFee : "0.28",
         suggestSecondPillar: pillarSuggestion.suggestSecondPillar,
         suggestThirdPillar : pillarSuggestion.suggestThirdPillar,
+        thirdPillarActive : pillarSuggestion.thirdPillarActive,
         suggestMembership  : pillarSuggestion.suggestMembership,
+        leftSecondPillar   : pillarSuggestion.leftSecondPillar,
+        suggestSavingsFund : pillarSuggestion.suggestSavingsFund,
+        suggestThirdPillarRecurringPayment : pillarSuggestion.suggestThirdPillarRecurringPayment,
+        suggestThirdPillarRaise : pillarSuggestion.suggestThirdPillarRaise,
+        suggestSavingsFundRecurringPayment : pillarSuggestion.suggestSavingsFundRecurringPayment,
     ]
-    def tags = ["mandate", "pillar_2", "suggest_payment_rate", "suggest_3"]
+    def tags = ["mandate", "pillar_2", "suggest_payment_rate", "suggest_3"] + pillarSuggestion.renderedNudgeTag().stream().toList()
     def mandrillResponse = new MandrillMessageStatus().tap {
       _id = "123"
       status = "sent"
     }
 
     mandateDeadlinesService.getDeadlines(mandate.createdDate) >> sampleDeadlines()
+    fundRepository.findByIsin(_) >> tuleva2ndPillarStockFund()
 
     when:
     mandateEmailService.sendMandate(user, mandate, pillarSuggestion, Locale.ENGLISH)
@@ -78,7 +105,63 @@ class MandateEmailServiceSpec extends Specification {
     then:
     1 * emailService.newMandrillMessage(user.email, "second_pillar_mandate_en", mergeVars, tags, !null) >> message
     1 * emailService.send(user, message, "second_pillar_mandate_en") >> Optional.of(mandrillResponse)
-    1 * emailPersistenceService.save(user, mandrillResponse.id, SECOND_PILLAR_MANDATE, mandrillResponse.status, mandate)
+    1 * emailPersistenceService.saveWithMandate(user, mandrillResponse.id, SECOND_PILLAR_MANDATE, mandrillResponse.status, mandate.id)
+  }
+
+  def "warns about a high fee fund when the mandate chose another manager's expensive fund"() {
+    given:
+    def user = sampleUser().build()
+    def conversion = notConverted()
+    def contactDetails = contactDetailsFixture()
+    def mandate = sampleMandate()
+    def paymentRates = samplePaymentRates()
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails.secondPillarActive, contactDetails.thirdPillarActive, conversion, paymentRates)
+    def message = new MandrillMessage()
+    def mandrillResponse = new MandrillMessageStatus().tap {
+      _id = "123"
+      status = "sent"
+    }
+
+    mandateDeadlinesService.getDeadlines(mandate.createdDate) >> sampleDeadlines()
+    fundRepository.findByIsin(_) >> lhv2ndPillarFund()
+
+    when:
+    mandateEmailService.sendMandate(user, mandate, pillarSuggestion, Locale.ENGLISH)
+
+    then:
+    1 * emailService.newMandrillMessage(user.email, "second_pillar_mandate_en",
+        { it.selectedTulevaFund == false && it.selectedHighFeeFund == true && it.selectedFundFee == "1" },
+        _, !null) >> message
+    1 * emailService.send(user, message, "second_pillar_mandate_en") >> Optional.of(mandrillResponse)
+  }
+
+  def "still warns about an expensive fund when the mandate splits between Tuleva and another manager"() {
+    given:
+    def user = sampleUser().build()
+    def conversion = notConverted()
+    def contactDetails = contactDetailsFixture()
+    def mandate = sampleMandate()
+    mandate.fundTransferExchanges.last().targetFundIsin = "EE0000EXPENSIVE"
+    def paymentRates = samplePaymentRates()
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails.secondPillarActive, contactDetails.thirdPillarActive, conversion, paymentRates)
+    def message = new MandrillMessage()
+    def mandrillResponse = new MandrillMessageStatus().tap {
+      _id = "123"
+      status = "sent"
+    }
+
+    mandateDeadlinesService.getDeadlines(mandate.createdDate) >> sampleDeadlines()
+    fundRepository.findByIsin("EE0000EXPENSIVE") >> lhv2ndPillarFund()
+    fundRepository.findByIsin(futureContibutionFundIsin) >> tuleva2ndPillarStockFund()
+
+    when:
+    mandateEmailService.sendMandate(user, mandate, pillarSuggestion, Locale.ENGLISH)
+
+    then:
+    1 * emailService.newMandrillMessage(user.email, "second_pillar_mandate_en",
+        { it.selectedTulevaFund == true && it.selectedHighFeeFund == true && it.selectedFundFee == "1" },
+        _, !null) >> message
+    1 * emailService.send(user, message, "second_pillar_mandate_en") >> Optional.of(mandrillResponse)
   }
 
   def "mandate tagging for 2nd pillar mandates"() {
@@ -87,6 +170,7 @@ class MandateEmailServiceSpec extends Specification {
     pillarSuggestion.isSuggestThirdPillar() >> suggestThirdPillar
     pillarSuggestion.isSuggestMembership() >> suggestMember
     pillarSuggestion.isSuggestPaymentRate() >> suggestPaymentRate
+    pillarSuggestion.renderedNudgeTag() >> Optional.empty()
 
 
     when:
@@ -110,9 +194,9 @@ class MandateEmailServiceSpec extends Specification {
     def contactDetails = contactDetailsFixture()
     def mandate = thirdPillarMandate()
     def paymentRates = samplePaymentRates()
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails.secondPillarActive, contactDetails.thirdPillarActive, conversion, paymentRates)
     def message = new MandrillMessage()
-    def mergeVars = [fname: user.firstName, lname: user.lastName]
+    def mergeVars = [fname: user.firstName, lname: user.lastName, hasFundTransfer: true]
     def tags = ["pillar_3.1", "reminder"]
     def locale = Locale.ENGLISH
     def sendAt = now.plus(1, HOURS)
@@ -121,8 +205,7 @@ class MandateEmailServiceSpec extends Specification {
       status = "sent"
     }
 
-    emailPersistenceService.hasEmailsFor(mandate) >> false
-
+    emailPersistenceService.hasEmailsForMandate(mandate.id) >> false
 
     when:
     mandateEmailService.sendMandate(user, mandate, pillarSuggestion, locale)
@@ -130,7 +213,7 @@ class MandateEmailServiceSpec extends Specification {
     then:
     1 * emailService.newMandrillMessage(user.email, "third_pillar_payment_reminder_mandate_en", mergeVars, tags, !null) >> message
     1 * emailService.send(user, message, "third_pillar_payment_reminder_mandate_en", sendAt) >> Optional.of(mandrillResponse)
-    1 * emailPersistenceService.save(user, mandrillResponse.id, THIRD_PILLAR_PAYMENT_REMINDER_MANDATE, mandrillResponse.status, mandate)
+    1 * emailPersistenceService.saveWithMandate(user, mandrillResponse.id, THIRD_PILLAR_PAYMENT_REMINDER_MANDATE, mandrillResponse.status, mandate.id)
   }
 
   def "schedule third pillar suggest second pillar email"() {
@@ -149,14 +232,14 @@ class MandateEmailServiceSpec extends Specification {
       status = "sent"
     }
 
-    emailPersistenceService.hasEmailsFor(mandate) >> false
+    emailPersistenceService.hasEmailsForMandate(mandate.id) >> false
 
 
     when:
     mandateEmailService.scheduleThirdPillarSuggestSecondEmail(user, mandate, pillarSuggestion, locale)
 
     then:
-    1 * emailService.newMandrillMessage(user.email, "third_pillar_suggest_second_en", mergeVars, tags, null) >> message
+    1 * emailService.newMandrillMessage(user.email, "third_pillar_suggest_second_en", mergeVars, tags) >> message
     1 * emailService.send(user, message, "third_pillar_suggest_second_en", sendAt) >> Optional.of(mandrillResponse)
     1 * emailPersistenceService.save(user, mandrillResponse.id, THIRD_PILLAR_SUGGEST_SECOND, mandrillResponse.status)
   }
@@ -181,17 +264,18 @@ class MandateEmailServiceSpec extends Specification {
       _id = "234"
       status = "sent"
     }
-    1 * emailService.newMandrillMessage(user.email, "third_pillar_payment_reminder_mandate_en", mergeVars, ["pillar_3.1", "reminder"], !null) >> paymentReminder
+    def reminderMergeVars = mergeVars + [hasFundTransfer: true]
+    1 * emailService.newMandrillMessage(user.email, "third_pillar_payment_reminder_mandate_en", reminderMergeVars, ["pillar_3.1", "reminder"], !null) >> paymentReminder
     1 * emailService.send(user, paymentReminder, "third_pillar_payment_reminder_mandate_en", now.plus(1, HOURS)) >> Optional.of(mandrillResponse1)
-    1 * emailPersistenceService.save(user, mandrillResponse1.id, THIRD_PILLAR_PAYMENT_REMINDER_MANDATE, mandrillResponse1.status, mandate)
+    1 * emailPersistenceService.saveWithMandate(user, mandrillResponse1.id, THIRD_PILLAR_PAYMENT_REMINDER_MANDATE, mandrillResponse1.status, mandate.id)
 
-    emailPersistenceService.hasEmailsFor(mandate) >> false
+    emailPersistenceService.hasEmailsForMandate(mandate.id) >> false
 
     when:
     mandateEmailService.sendMandate(user, mandate, pillarSuggestion, locale)
 
     then:
-    callCount * emailService.newMandrillMessage(user.email, "third_pillar_suggest_second_en", mergeVars, ["pillar_3.1", "suggest_2"], null) >> suggestSecond
+    callCount * emailService.newMandrillMessage(user.email, "third_pillar_suggest_second_en", mergeVars, ["pillar_3.1", "suggest_2"]) >> suggestSecond
     callCount * emailService.send(user, suggestSecond, "third_pillar_suggest_second_en", now.plus(3, DAYS)) >> Optional.of(mandrillResponse2)
     callCount * emailPersistenceService.save(user, mandrillResponse2.id, THIRD_PILLAR_SUGGEST_SECOND, mandrillResponse2.status)
 
@@ -207,10 +291,10 @@ class MandateEmailServiceSpec extends Specification {
     def conversion = notConverted()
     def contactDetails = contactDetailsFixture()
     def paymentRates = samplePaymentRates()
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails.secondPillarActive, contactDetails.thirdPillarActive, conversion, paymentRates)
     def mandate = thirdPillarMandate()
     emailService.newMandrillMessage(*_) >> new MandrillMessage()
-    emailPersistenceService.hasEmailsFor(mandate) >> false
+    emailPersistenceService.hasEmailsForMandate(mandate.id) >> false
 
     def mandrillResponse = new MandrillMessageStatus().tap {
       _id = UUID.randomUUID().toString()
@@ -231,7 +315,7 @@ class MandateEmailServiceSpec extends Specification {
     def contactDetails = contactDetailsFixture()
     def mandate = sampleMandateWithPaymentRate()
     def paymentRates = samplePaymentRates()
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails.secondPillarActive, contactDetails.thirdPillarActive, conversion, paymentRates)
     def message = new MandrillMessage()
     def authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
     def samplePaymentRates = new PaymentRates(
@@ -247,18 +331,25 @@ class MandateEmailServiceSpec extends Specification {
         decreased                 : false,  // 6 > 2, so not decreased
         increased                 : true,   // 6 > 2, so increased
         suggestPaymentRate        : pillarSuggestion.suggestPaymentRate,
+        savingsFundFee            : "0.28",
         suggestSecondPillar       : pillarSuggestion.suggestSecondPillar,
         suggestThirdPillar        : pillarSuggestion.suggestThirdPillar,
+        thirdPillarActive         : pillarSuggestion.thirdPillarActive,
         suggestMembership         : pillarSuggestion.suggestMembership,
+        leftSecondPillar   : pillarSuggestion.leftSecondPillar,
+        suggestSavingsFund : pillarSuggestion.suggestSavingsFund,
+        suggestThirdPillarRecurringPayment : pillarSuggestion.suggestThirdPillarRecurringPayment,
+        suggestThirdPillarRaise : pillarSuggestion.suggestThirdPillarRaise,
+        suggestSavingsFundRecurringPayment : pillarSuggestion.suggestSavingsFundRecurringPayment,
     ]
 
     authenticationHolder.getAuthenticatedPerson() >> authenticatedPerson
     mandateDeadlinesService.getDeadlines(mandate.createdDate) >> sampleDeadlines()
     secondPillarPaymentRateService.getPaymentRates(authenticatedPerson) >> samplePaymentRates
     mandateDeadlinesService.getDeadlines() >> sampleDeadlines()
-    emailPersistenceService.hasEmailsFor(mandate) >> false
+    emailPersistenceService.hasEmailsForMandate(mandate.id) >> false
 
-    def tags = ["mandate", "pillar_2", "suggest_payment_rate", "suggest_3"]
+    def tags = ["mandate", "pillar_2", "suggest_payment_rate", "suggest_3"] + pillarSuggestion.renderedNudgeTag().stream().toList()
 
     def mandrillResponse = new MandrillMessageStatus().tap {
       _id = "123"
@@ -271,7 +362,7 @@ class MandateEmailServiceSpec extends Specification {
     then:
     1 * emailService.newMandrillMessage(user.email, "second_pillar_payment_rate_en", mergeVars, tags, !null) >> message
     1 * emailService.send(user, message, "second_pillar_payment_rate_en") >> Optional.of(mandrillResponse)
-    1 * emailPersistenceService.save(user, mandrillResponse.id, SECOND_PILLAR_PAYMENT_RATE, mandrillResponse.status, mandate)
+    1 * emailPersistenceService.saveWithMandate(user, mandrillResponse.id, SECOND_PILLAR_PAYMENT_RATE, mandrillResponse.status, mandate.id)
   }
 
   def "Send second pillar payment rate mandate email with decreased rate"() {
@@ -281,7 +372,7 @@ class MandateEmailServiceSpec extends Specification {
     def contactDetails = contactDetailsFixture()
     def mandate = sampleMandateWithPaymentRate()
     def paymentRates = samplePaymentRates()
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails.secondPillarActive, contactDetails.thirdPillarActive, conversion, paymentRates)
     def message = new MandrillMessage()
     def authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
     def samplePaymentRates = new PaymentRates(
@@ -297,18 +388,25 @@ class MandateEmailServiceSpec extends Specification {
         decreased                 : true,   // 2 < 4 and 2 == 2, so decreased
         increased                 : false,  // not increased
         suggestPaymentRate        : pillarSuggestion.suggestPaymentRate,
+        savingsFundFee            : "0.28",
         suggestSecondPillar       : pillarSuggestion.suggestSecondPillar,
         suggestThirdPillar        : pillarSuggestion.suggestThirdPillar,
+        thirdPillarActive         : pillarSuggestion.thirdPillarActive,
         suggestMembership         : pillarSuggestion.suggestMembership,
+        leftSecondPillar   : pillarSuggestion.leftSecondPillar,
+        suggestSavingsFund : pillarSuggestion.suggestSavingsFund,
+        suggestThirdPillarRecurringPayment : pillarSuggestion.suggestThirdPillarRecurringPayment,
+        suggestThirdPillarRaise : pillarSuggestion.suggestThirdPillarRaise,
+        suggestSavingsFundRecurringPayment : pillarSuggestion.suggestSavingsFundRecurringPayment,
     ]
 
     authenticationHolder.getAuthenticatedPerson() >> authenticatedPerson
     mandateDeadlinesService.getDeadlines(mandate.createdDate) >> sampleDeadlines()
     secondPillarPaymentRateService.getPaymentRates(authenticatedPerson) >> samplePaymentRates
     mandateDeadlinesService.getDeadlines() >> sampleDeadlines()
-    emailPersistenceService.hasEmailsFor(mandate) >> false
+    emailPersistenceService.hasEmailsForMandate(mandate.id) >> false
 
-    def tags = ["mandate", "pillar_2", "suggest_payment_rate", "suggest_3"]
+    def tags = ["mandate", "pillar_2", "suggest_payment_rate", "suggest_3"] + pillarSuggestion.renderedNudgeTag().stream().toList()
 
     def mandrillResponse = new MandrillMessageStatus().tap {
       _id = "123"
@@ -321,7 +419,7 @@ class MandateEmailServiceSpec extends Specification {
     then:
     1 * emailService.newMandrillMessage(user.email, "second_pillar_payment_rate_en", mergeVars, tags, !null) >> message
     1 * emailService.send(user, message, "second_pillar_payment_rate_en") >> Optional.of(mandrillResponse)
-    1 * emailPersistenceService.save(user, mandrillResponse.id, SECOND_PILLAR_PAYMENT_RATE, mandrillResponse.status, mandate)
+    1 * emailPersistenceService.saveWithMandate(user, mandrillResponse.id, SECOND_PILLAR_PAYMENT_RATE, mandrillResponse.status, mandate.id)
   }
 
   def "Send second pillar payment rate mandate email, error when no pending rate"() {
@@ -331,7 +429,7 @@ class MandateEmailServiceSpec extends Specification {
     def contactDetails = contactDetailsFixture()
     def mandate = sampleMandateWithPaymentRate()
     def paymentRates = samplePaymentRates()
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails.secondPillarActive, contactDetails.thirdPillarActive, conversion, paymentRates)
     def authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
     def samplePaymentRates = new PaymentRates(
         2, null
@@ -341,7 +439,7 @@ class MandateEmailServiceSpec extends Specification {
     mandateDeadlinesService.getDeadlines(mandate.createdDate) >> sampleDeadlines()
     secondPillarPaymentRateService.getPaymentRates(authenticatedPerson) >> samplePaymentRates
     mandateDeadlinesService.getDeadlines() >> sampleDeadlines()
-    emailPersistenceService.hasEmailsFor(mandate) >> false
+    emailPersistenceService.hasEmailsForMandate(mandate.id) >> false
 
 
     when:
@@ -358,9 +456,9 @@ class MandateEmailServiceSpec extends Specification {
     def contactDetails = contactDetailsFixture()
     def mandate = thirdPillarMandate()
     def paymentRates = samplePaymentRates()
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
-    emailPersistenceService.hasEmailsFor(mandate) >> false
-    emailPersistenceService.hasEmailsToday(user, THIRD_PILLAR_PAYMENT_REMINDER_MANDATE, mandate) >> true
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails.secondPillarActive, contactDetails.thirdPillarActive, conversion, paymentRates)
+    emailPersistenceService.hasEmailsForMandate(mandate.id) >> false
+    emailPersistenceService.hasMandateEmailsToday(user, THIRD_PILLAR_PAYMENT_REMINDER_MANDATE, mandate.id) >> true
 
     when:
     mandateEmailService.sendMandate(user, mandate, pillarSuggestion, Locale.ENGLISH)
@@ -376,15 +474,146 @@ class MandateEmailServiceSpec extends Specification {
     def contactDetails = contactDetailsFixture()
     def mandate = thirdPillarMandate()
     def paymentRates = samplePaymentRates()
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails.secondPillarActive, contactDetails.thirdPillarActive, conversion, paymentRates)
 
-    emailPersistenceService.hasEmailsFor(mandate) >> true
+    emailPersistenceService.hasEmailsForMandate(mandate.id) >> true
 
     when:
     mandateEmailService.sendMandate(user, mandate, pillarSuggestion, Locale.ENGLISH)
 
     then:
     0 * emailService.send(*_)
+  }
+
+  def "does not send third pillar email when already sent today for a batched mandate"() {
+    given:
+    def user = sampleUser().build()
+    def conversion = fullyConverted()
+    def contactDetails = contactDetailsFixture()
+    def mandate = thirdPillarMandate()
+    def batch = MandateBatchFixture.aSavedMandateBatch([mandate])
+    mandate.mandateBatch = batch
+    def paymentRates = samplePaymentRates()
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails.secondPillarActive, contactDetails.thirdPillarActive, conversion, paymentRates)
+    emailPersistenceService.hasEmailsForMandate(mandate.id) >> false
+    emailPersistenceService.hasMandateBatchEmailsToday(user, THIRD_PILLAR_PAYMENT_REMINDER_MANDATE, batch.id) >> true
+
+    when:
+    mandateEmailService.sendMandate(user, mandate, pillarSuggestion, Locale.ENGLISH)
+
+    then:
+    0 * emailService.send(*_)
+  }
+
+  def "sends third pillar email for a batched mandate that has not emailed today"() {
+    given:
+    def user = sampleUser().build()
+    def conversion = fullyConverted()
+    def contactDetails = contactDetailsFixture()
+    def mandate = thirdPillarMandate()
+    def batch = MandateBatchFixture.aSavedMandateBatch([mandate])
+    mandate.mandateBatch = batch
+    def paymentRates = samplePaymentRates()
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails.secondPillarActive, contactDetails.thirdPillarActive, conversion, paymentRates)
+    def message = new MandrillMessage()
+    def sendAt = now.plus(1, HOURS)
+    def mandrillResponse = new MandrillMessageStatus().tap {
+      _id = "123"
+      status = "sent"
+    }
+    emailPersistenceService.hasEmailsForMandate(mandate.id) >> false
+    emailPersistenceService.hasMandateBatchEmailsToday(user, THIRD_PILLAR_PAYMENT_REMINDER_MANDATE, batch.id) >> false
+
+    when:
+    mandateEmailService.sendMandate(user, mandate, pillarSuggestion, Locale.ENGLISH)
+
+    then:
+    1 * emailService.newMandrillMessage(user.email, "third_pillar_payment_reminder_mandate_en", _, ["pillar_3.1", "reminder"], !null) >> message
+    1 * emailService.send(user, message, "third_pillar_payment_reminder_mandate_en", sendAt) >> Optional.of(mandrillResponse)
+    1 * emailPersistenceService.saveWithMandate(user, mandrillResponse.id, THIRD_PILLAR_PAYMENT_REMINDER_MANDATE, mandrillResponse.status, mandate.id)
+  }
+
+  private static String personalCodeForAge(int age) {
+    def today = Clock.systemUTC().instant().atZone(ZoneId.systemDefault()).toLocalDate()
+    def birthDate = today.minusYears(age)
+    def centuryDigit = birthDate.year < 2000 ? "3" : "5"
+    def tenDigits = String.format("%s%02d%02d%02d001",
+        centuryDigit, birthDate.year % 100, birthDate.monthValue, birthDate.dayOfMonth)
+    def digits = tenDigits.collect { it as int }
+    def checksum = weightedMod11(digits, [1, 2, 3, 4, 5, 6, 7, 8, 9, 1])
+    if (checksum == 10) {
+      checksum = weightedMod11(digits, [3, 4, 5, 6, 7, 8, 9, 1, 2, 3])
+      if (checksum == 10) {
+        checksum = 0
+      }
+    }
+    return tenDigits + checksum
+  }
+
+  private static int weightedMod11(List<Integer> digits, List<Integer> weights) {
+    int sum = 0
+    digits.eachWithIndex { d, i -> sum += d * weights[i] }
+    return sum % 11
+  }
+
+  private static Fund foreignFund(BigDecimal equityShare, BigDecimal ongoingChargesFigure) {
+    Fund.builder()
+        .isin("isin")
+        .fundManager(FundManager.builder().id(1).name("LHV").build())
+        .equityShare(equityShare)
+        .ongoingChargesFigure(ongoingChargesFigure)
+        .build()
+  }
+
+  def "selectedFundMergeVars flags a young investor's conservative low-equity fund pick"() {
+    given:
+    def mandate = emptyMandate().build()
+    fundRepository.findByIsin("isin") >> fund
+    def user = sampleUser().personalCode(personalCode).build()
+
+    expect:
+    mandateEmailService.selectedFundMergeVars(user, mandate, Locale.ENGLISH) == [
+        selectedTulevaFund      : false,
+        selectedConservativeFund: expectedConservative,
+        selectedHighFeeFund     : false,
+    ]
+
+    where:
+    personalCode                 | fund                                              || expectedConservative
+    sampleUser().build().personalCode | null                                          || false
+    sampleUser().build().personalCode | foreignFund(new BigDecimal("0.24"), new BigDecimal("0.001")) || true
+    sampleUser().build().personalCode | foreignFund(new BigDecimal("0.25"), new BigDecimal("0.001")) || false
+    personalCodeForAge(55)            | foreignFund(new BigDecimal("0.10"), new BigDecimal("0.001")) || false
+  }
+
+  def "selectedFundMergeVars flags a fund as high-fee only strictly above the 0.3% ongoing charges threshold"() {
+    given:
+    def mandate = emptyMandate().build()
+    fundRepository.findByIsin("isin") >> foreignFund(new BigDecimal("0.5"), ongoingChargesFigure)
+    def user = sampleUser().build()
+
+    expect:
+    mandateEmailService.selectedFundMergeVars(user, mandate, Locale.ENGLISH).selectedHighFeeFund == expectedHighFee
+
+    where:
+    ongoingChargesFigure     || expectedHighFee
+    new BigDecimal("0.003")  || false
+    new BigDecimal("0.0031") || true
+  }
+
+  def "selectedFundMergeVars formats the high fee percentage with a comma for Estonian and a dot otherwise"() {
+    given:
+    def mandate = emptyMandate().build()
+    fundRepository.findByIsin("isin") >> foreignFund(new BigDecimal("0.5"), new BigDecimal("0.0123"))
+    def user = sampleUser().build()
+
+    expect:
+    mandateEmailService.selectedFundMergeVars(user, mandate, locale).selectedFundFee == expectedFee
+
+    where:
+    locale           || expectedFee
+    new Locale("et") || "1,23"
+    Locale.ENGLISH   || "1.23"
   }
 
   def "isPaymentRateDecreased returns correct value for all rate combinations"() {

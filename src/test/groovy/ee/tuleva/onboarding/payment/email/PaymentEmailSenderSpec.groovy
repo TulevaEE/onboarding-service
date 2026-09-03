@@ -1,20 +1,25 @@
 package ee.tuleva.onboarding.payment.email
 
-import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory
-import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil
+import ee.tuleva.onboarding.auth.SecurityContextRunner
 import ee.tuleva.onboarding.auth.principal.MinorCannotSelfAuthenticateException
-import ee.tuleva.onboarding.auth.principal.PrincipalService
 import ee.tuleva.onboarding.conversion.UserConversionService
-import ee.tuleva.onboarding.epis.contact.ContactDetails
-import ee.tuleva.onboarding.epis.contact.ContactDetailsService
-import ee.tuleva.onboarding.mandate.email.PillarSuggestion
+import ee.tuleva.onboarding.epis.ContactDetails
+import ee.tuleva.onboarding.epis.ContactDetailsService
+import ee.tuleva.onboarding.mandate.PillarSuggestion
 import ee.tuleva.onboarding.party.PartyId
 import ee.tuleva.onboarding.payment.event.PaymentCreatedEvent
 import ee.tuleva.onboarding.payment.event.SavingsPaymentCancelledEvent
 import ee.tuleva.onboarding.payment.event.SavingsPaymentCreatedEvent
 import ee.tuleva.onboarding.payment.event.SavingsPaymentFailedEvent
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService
+import ee.tuleva.onboarding.analytics.SecondPillarLeavers
+import ee.tuleva.onboarding.analytics.RecurringSavers
+import ee.tuleva.onboarding.contribution.ThirdPillarTaxHeadroom
+import ee.tuleva.onboarding.mandate.RecurringPayments
+import ee.tuleva.onboarding.mandate.SavingsFundSaverStatus
 import spock.lang.Specification
+
+import java.util.Set
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notFullyConverted
@@ -28,15 +33,27 @@ class PaymentEmailSenderSpec extends Specification {
 
   PaymentEmailService paymentEmailService = Mock()
   UserConversionService conversionService = Mock()
-  PrincipalService principalService = Mock()
-  GrantedAuthorityFactory grantedAuthorityFactory = Mock()
-  JwtTokenUtil jwtTokenUtil = Mock()
+  SecurityContextRunner securityContextRunner = Mock() {
+    runAs(_, _) >> { args -> (args[1] as Runnable).run() }
+  }
   ContactDetailsService contactDetailsService = Mock()
   SecondPillarPaymentRateService paymentRateService = Mock()
   SavingsFundSuccessEmailResolver savingsFundSuccessEmailResolver = Mock()
+  SecondPillarLeavers secondPillarLeavers = Mock() {
+    hasLeft(_) >> false
+  }
+  SavingsFundSaverStatus savingsFundSavers = Mock() {
+    isSaver(_) >> false
+  }
+  ThirdPillarTaxHeadroom thirdPillarTaxHeadroom = Mock(ThirdPillarTaxHeadroom) {
+    hasHeadroom(_) >> false
+  }
+  RecurringSavers recurringSavers = Mock() {
+    recurringPaymentsOf(_) >> new RecurringPayments(true, true)
+    hasRecurringSavingsFundPayments(_) >> true
+  }
 
-  def paymentEmailSender = new PaymentEmailSender(paymentEmailService, conversionService, principalService,
-      grantedAuthorityFactory, jwtTokenUtil, contactDetailsService, paymentRateService, savingsFundSuccessEmailResolver)
+  def paymentEmailSender = new PaymentEmailSender(paymentEmailService, conversionService, securityContextRunner, contactDetailsService, paymentRateService, secondPillarLeavers, savingsFundSavers, recurringSavers, thirdPillarTaxHeadroom, savingsFundSuccessEmailResolver)
 
   def "send emails on payment creation"() {
     given:
@@ -46,7 +63,7 @@ class PaymentEmailSenderSpec extends Specification {
     def contactDetails = new ContactDetails()
     def conversion = notFullyConverted()
     def paymentRates = samplePaymentRates()
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    def pillarSuggestion = new PillarSuggestion(user, false, false, conversion, paymentRates, Set.of(3), false, false)
 
     def paymentCreatedEvent = new PaymentCreatedEvent(this, user, payment, locale)
 
@@ -83,7 +100,7 @@ class PaymentEmailSenderSpec extends Specification {
     def contactDetails = new ContactDetails()
     def conversion = notFullyConverted()
     def paymentRates = samplePaymentRates()
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    def pillarSuggestion = new PillarSuggestion(user, false, false, conversion, paymentRates, [] as Set, false, false)
 
     def savingsPaymentCreatedEvent = new SavingsPaymentCreatedEvent(this, user, locale, new PartyId(PERSON, user.personalCode))
 
@@ -96,7 +113,7 @@ class PaymentEmailSenderSpec extends Specification {
     paymentEmailSender.onSavingsPaymentCreated(savingsPaymentCreatedEvent)
 
     then:
-    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.personSuccess(), pillarSuggestion, locale)
+    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.personSuccess(), pillarSuggestion, false, locale)
   }
 
   def "send email on savings payment creation for a child passes the child email with the child name"() {
@@ -106,7 +123,7 @@ class PaymentEmailSenderSpec extends Specification {
     def contactDetails = new ContactDetails()
     def conversion = notFullyConverted()
     def paymentRates = samplePaymentRates()
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    def pillarSuggestion = new PillarSuggestion(user, false, false, conversion, paymentRates, [] as Set, false, false)
 
     def savingsPaymentCreatedEvent = new SavingsPaymentCreatedEvent(this, user, locale, new PartyId(PERSON, "51111111111"))
 
@@ -119,7 +136,7 @@ class PaymentEmailSenderSpec extends Specification {
     paymentEmailSender.onSavingsPaymentCreated(savingsPaymentCreatedEvent)
 
     then:
-    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.childSuccess("Kid Tester"), pillarSuggestion, locale)
+    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.childSuccess("Kid Tester"), pillarSuggestion, false, locale)
   }
 
   def "send email on savings payment cancel"() {
@@ -129,7 +146,7 @@ class PaymentEmailSenderSpec extends Specification {
     def contactDetails = new ContactDetails()
     def conversion = notFullyConverted()
     def paymentRates = samplePaymentRates()
-    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    def pillarSuggestion = new PillarSuggestion(user, false, false, conversion, paymentRates, [] as Set, false, false)
 
     def savingsPaymentCancelledEvent = new SavingsPaymentCancelledEvent(this, user, locale)
 
@@ -141,7 +158,7 @@ class PaymentEmailSenderSpec extends Specification {
     paymentEmailSender.onSavingsPaymentCancelled(savingsPaymentCancelledEvent)
 
     then:
-    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.cancelled(), pillarSuggestion, locale)
+    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, SavingsFundPaymentEmail.cancelled(), pillarSuggestion, false, locale)
   }
 
   def "send email on savings payment failure without a pillar suggestion"() {
@@ -159,7 +176,7 @@ class PaymentEmailSenderSpec extends Specification {
     0 * contactDetailsService._
     0 * conversionService._
     0 * paymentRateService._
-    0 * principalService._
+    0 * securityContextRunner._
   }
 
   def "send email on savings payment failure for a minor who cannot self authenticate"() {
@@ -169,7 +186,7 @@ class PaymentEmailSenderSpec extends Specification {
 
     def savingsPaymentFailedEvent = new SavingsPaymentFailedEvent(this, minor, locale)
 
-    principalService.getFrom(_, _) >> { throw new MinorCannotSelfAuthenticateException(minor.personalCode) }
+    securityContextRunner.runAs(_, _) >> { throw new MinorCannotSelfAuthenticateException(minor.personalCode) }
 
     when:
     paymentEmailSender.onSavingsPaymentFailed(savingsPaymentFailedEvent)

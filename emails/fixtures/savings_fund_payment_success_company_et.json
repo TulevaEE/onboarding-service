@@ -3,6 +3,11 @@
     "ettevõtte sissemakse": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Mesila OÜ"
+    },
+    "konto püsimakse soovitus": {
+      "FNAME": "Mari",
+      "RECIPIENTNAME": "Mesila OÜ",
+      "suggestAccountRecurringPayment": true
     }
   }
 }

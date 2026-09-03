@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.investment.epis;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.report.ReportType.R16_FORECASTED_PAYMENTS;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
@@ -9,7 +9,7 @@ import static org.mockito.Mockito.mock;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.investment.calendar.EstonianCalendar;
-import ee.tuleva.onboarding.savings.fund.nav.FundNavQueryService;
+import ee.tuleva.onboarding.savings.FundNavQueryService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Map;
@@ -109,7 +109,7 @@ class R16FlowCalculationServiceTest {
   private void givenNav(String nav) {
     given(fundNavQueryService.findLatestNavDateOnOrBefore(TUK75.getCode(), AS_OF_DATE))
         .willReturn(Optional.of(NAV_DATE));
-    given(fundNavQueryService.findNavPerUnit(TUK75.getCode(), NAV_DATE))
+    given(fundNavQueryService.findPublishedNavPerUnit(TUK75.getCode(), NAV_DATE))
         .willReturn(Optional.of(new BigDecimal(nav)));
   }
 }

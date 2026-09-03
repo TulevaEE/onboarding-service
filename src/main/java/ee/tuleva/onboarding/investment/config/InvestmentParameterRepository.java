@@ -1,9 +1,10 @@
 package ee.tuleva.onboarding.investment.config;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
@@ -22,7 +23,7 @@ public class InvestmentParameterRepository {
             WHERE parameter_name = :name
               AND fund_code IS NULL
               AND effective_date <= :asOf
-            ORDER BY effective_date DESC
+            ORDER BY effective_date DESC, id DESC
             LIMIT 1
             """)
         .param("name", parameter.name())
@@ -42,7 +43,7 @@ public class InvestmentParameterRepository {
             WHERE parameter_name = :name
               AND fund_code = :fundCode
               AND effective_date <= :asOf
-            ORDER BY effective_date DESC
+            ORDER BY effective_date DESC, id DESC
             LIMIT 1
             """)
         .param("name", parameter.name())
@@ -54,7 +55,7 @@ public class InvestmentParameterRepository {
   }
 
   private static IllegalStateException missing(
-      InvestmentParameter parameter, TulevaFund fund, LocalDate asOf) {
+      InvestmentParameter parameter, @Nullable TulevaFund fund, LocalDate asOf) {
     return new IllegalStateException(
         "No investment parameter found: parameter="
             + parameter

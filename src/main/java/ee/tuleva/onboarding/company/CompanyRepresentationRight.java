@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.company;
 
+import static ee.tuleva.onboarding.time.ClockHolder.clock;
 import static jakarta.persistence.GenerationType.UUID;
 
 import jakarta.persistence.*;
@@ -8,6 +9,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 import lombok.*;
+import org.jspecify.annotations.Nullable;
 
 @Entity
 @Table(name = "company_representation_right")
@@ -26,17 +28,17 @@ public class CompanyRepresentationRight {
   @Column(nullable = false)
   private UUID companyId;
 
-  private Long entryId;
+  private @Nullable Long entryId;
 
-  private String representationType;
+  private @Nullable String representationType;
 
-  private String representationTypeText;
+  private @Nullable String representationTypeText;
 
-  private String content;
+  private @Nullable String content;
 
-  private LocalDate startDate;
+  private @Nullable LocalDate startDate;
 
-  private LocalDate endDate;
+  private @Nullable LocalDate endDate;
 
   @Column(nullable = false, updatable = false)
   private Instant createdDate;
@@ -44,7 +46,7 @@ public class CompanyRepresentationRight {
   @PrePersist
   void prePersist() {
     if (createdDate == null) {
-      createdDate = Instant.now();
+      createdDate = clock().instant();
     }
   }
 }

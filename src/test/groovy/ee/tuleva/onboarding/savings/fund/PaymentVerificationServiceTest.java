@@ -4,8 +4,8 @@ import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.PENDING_KYC;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.TO_BE_RETURNED;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.VERIFIED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.TO_BE_RETURNED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.VERIFIED;
 import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -17,15 +17,20 @@ import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.event.TrackableSystemEvent;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.ParentChildLinkService;
+import ee.tuleva.onboarding.party.Party;
 import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.party.PartyLookup;
 import ee.tuleva.onboarding.party.PartyResolver;
 import ee.tuleva.onboarding.payment.event.SavingsPaymentFailedEvent;
+import ee.tuleva.onboarding.savings.SavingFundPayment;
+import ee.tuleva.onboarding.savings.SavingsFundOnboardingService;
 import ee.tuleva.onboarding.savings.fund.notification.UnattributedPaymentEvent;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -42,7 +47,19 @@ class PaymentVerificationServiceTest {
       mock(SavingsFundOnboardingService.class);
   SavingsFundLedger savingsFundLedger = mock(SavingsFundLedger.class);
   ApplicationEventPublisher applicationEventPublisher = mock(ApplicationEventPublisher.class);
-  PartyResolver partyResolver = new PartyResolver(userRepository, companyRepository);
+
+  record NamedParty(String code, String name) implements Party {}
+
+  PartyResolver partyResolver =
+      new PartyResolver(
+          List.of(
+              new PartyLookup(
+                  PERSON,
+                  code ->
+                      userRepository
+                          .findByPersonalCode(code)
+                          .map(user -> new NamedParty(user.code(), user.name()))),
+              new PartyLookup(LEGAL_ENTITY, companyRepository::findByRegistryCode)));
   ParentChildLinkService parentChildLinkService = mock(ParentChildLinkService.class);
 
   PaymentVerificationService service =
@@ -95,7 +112,7 @@ class PaymentVerificationServiceTest {
     verify(savingsFundOnboardingService).isOnboardingCompleted(new PartyId(PERSON, "37508295796"));
     verify(savingsFundLedger)
         .recordPaymentReceived(
-            new PartyId(PERSON, "37508295796"),
+            LedgerRefs.from(new PartyId(PERSON, "37508295796")),
             payment.getAmount(),
             payment.getId(),
             LocalDate.of(2025, 10, 1));
@@ -219,7 +236,7 @@ class PaymentVerificationServiceTest {
     verify(savingsFundOnboardingService).isOnboardingCompleted(new PartyId(PERSON, "37508295796"));
     verify(savingsFundLedger)
         .recordPaymentReceived(
-            new PartyId(PERSON, user.getPersonalCode()),
+            LedgerRefs.from(new PartyId(PERSON, user.getPersonalCode())),
             payment.getAmount(),
             payment.getId(),
             LocalDate.of(2025, 10, 1));
@@ -250,7 +267,7 @@ class PaymentVerificationServiceTest {
     verify(savingsFundOnboardingService).isOnboardingCompleted(new PartyId(PERSON, "37508295796"));
     verify(savingsFundLedger)
         .recordPaymentReceived(
-            new PartyId(PERSON, user.getPersonalCode()),
+            LedgerRefs.from(new PartyId(PERSON, user.getPersonalCode())),
             payment.getAmount(),
             payment.getId(),
             LocalDate.of(2025, 10, 1));
@@ -279,7 +296,7 @@ class PaymentVerificationServiceTest {
     verify(savingsFundOnboardingService).isOnboardingCompleted(new PartyId(PERSON, "37508295796"));
     verify(savingsFundLedger)
         .recordPaymentReceived(
-            new PartyId(PERSON, user.getPersonalCode()),
+            LedgerRefs.from(new PartyId(PERSON, user.getPersonalCode())),
             payment.getAmount(),
             payment.getId(),
             LocalDate.of(2025, 10, 1));
@@ -318,7 +335,7 @@ class PaymentVerificationServiceTest {
     verify(savingsFundOnboardingService).isOnboardingCompleted(new PartyId(PERSON, "37508295796"));
     verify(savingsFundLedger)
         .recordPaymentReceived(
-            new PartyId(PERSON, user.getPersonalCode()),
+            LedgerRefs.from(new PartyId(PERSON, user.getPersonalCode())),
             payment.getAmount(),
             payment.getId(),
             LocalDate.of(2025, 10, 1));
@@ -347,7 +364,7 @@ class PaymentVerificationServiceTest {
     verify(savingsFundOnboardingService).isOnboardingCompleted(new PartyId(PERSON, "37508295796"));
     verify(savingsFundLedger)
         .recordPaymentReceived(
-            new PartyId(PERSON, user.getPersonalCode()),
+            LedgerRefs.from(new PartyId(PERSON, user.getPersonalCode())),
             payment.getAmount(),
             payment.getId(),
             LocalDate.of(2025, 10, 1));
@@ -446,7 +463,7 @@ class PaymentVerificationServiceTest {
         .isOnboardingCompleted(new PartyId(LEGAL_ENTITY, "14118923"));
     verify(savingsFundLedger)
         .recordPaymentReceived(
-            new PartyId(LEGAL_ENTITY, "14118923"),
+            LedgerRefs.from(new PartyId(LEGAL_ENTITY, "14118923")),
             payment.getAmount(),
             payment.getId(),
             LocalDate.of(2025, 10, 1));
@@ -535,7 +552,7 @@ class PaymentVerificationServiceTest {
         .isOnboardingCompleted(new PartyId(LEGAL_ENTITY, "14118923"));
     verify(savingsFundLedger)
         .recordPaymentReceived(
-            new PartyId(LEGAL_ENTITY, "14118923"),
+            LedgerRefs.from(new PartyId(LEGAL_ENTITY, "14118923")),
             payment.getAmount(),
             payment.getId(),
             LocalDate.of(2025, 10, 1));
@@ -557,7 +574,7 @@ class PaymentVerificationServiceTest {
 
     verify(savingsFundLedger)
         .recordPaymentReceived(
-            new PartyId(LEGAL_ENTITY, "14118923"),
+            LedgerRefs.from(new PartyId(LEGAL_ENTITY, "14118923")),
             payment.getAmount(),
             payment.getId(),
             LocalDate.of(2025, 10, 1));
@@ -744,7 +761,7 @@ class PaymentVerificationServiceTest {
 
     verify(savingsFundLedger)
         .recordPaymentReceived(
-            new PartyId(PERSON, childCode),
+            LedgerRefs.from(new PartyId(PERSON, childCode)),
             payment.getAmount(),
             payment.getId(),
             LocalDate.of(2025, 10, 1));

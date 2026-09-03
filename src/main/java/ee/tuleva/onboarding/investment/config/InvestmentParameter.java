@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.config;
 
 public enum InvestmentParameter {
+  TD_RESIDUAL_TOLERANCE_ANNUAL,
   TRACKING_BREACH_THRESHOLD,
   TRACKING_MAX_DAILY_RETURN,
   NAV_IMPACT_VOLUME_THRESHOLD,

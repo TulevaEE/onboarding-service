@@ -7,8 +7,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-import ee.tuleva.onboarding.aml.AmlCheckRepository;
-import ee.tuleva.onboarding.aml.AmlCheckType;
+import ee.tuleva.onboarding.aml.KycChecks;
 import ee.tuleva.onboarding.ariregister.AddressDetails;
 import ee.tuleva.onboarding.ariregister.BeneficialOwner;
 import ee.tuleva.onboarding.ariregister.BeneficialOwners;
@@ -18,16 +17,17 @@ import ee.tuleva.onboarding.ariregister.CompanyRelationship;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class KybCompanyDataMapperTest {
 
-  private static final PersonalCode PERSONAL_CODE = new PersonalCode("38501010002");
+  private static final PersonalCode PERSONAL_CODE = new PersonalCode("38888888888");
   private static final SelfCertification SELF_CERT = new SelfCertification(true, true, true);
   private static final BeneficialOwners NO_BENEFICIAL_OWNERS = BeneficialOwners.none();
 
-  private final AmlCheckRepository amlCheckRepository = mock(AmlCheckRepository.class);
-  private final KybCompanyDataMapper mapper = new KybCompanyDataMapper(amlCheckRepository);
+  private final KycChecks kycChecks = mock(KycChecks.class);
+  private final KybCompanyDataMapper mapper = new KybCompanyDataMapper(kycChecks);
 
   @Test
   void mapsPersonWithMultipleRolesToSingleRelatedPerson() {
@@ -38,7 +38,7 @@ class KybCompanyDataMapperTest {
             "Juhatuse liige",
             "Jaan",
             "Tamm",
-            "38501010002",
+            "38888888888",
             LocalDate.of(1985, 1, 1),
             LocalDate.of(2020, 1, 1),
             null,
@@ -52,7 +52,7 @@ class KybCompanyDataMapperTest {
             "Osanik",
             "Jaan",
             "Tamm",
-            "38501010002",
+            "38888888888",
             LocalDate.of(1985, 1, 1),
             LocalDate.of(2020, 1, 1),
             null,
@@ -97,7 +97,7 @@ class KybCompanyDataMapperTest {
             "Juhatuse liige",
             "Jaan",
             "Tamm",
-            "38501010002",
+            "38888888888",
             null,
             null,
             null,
@@ -145,7 +145,7 @@ class KybCompanyDataMapperTest {
             "Osanik",
             "Jaan",
             "Tamm",
-            "38501010002",
+            "38888888888",
             null,
             null,
             null,
@@ -178,7 +178,7 @@ class KybCompanyDataMapperTest {
             "Osanik",
             "Jaan",
             "Tamm",
-            "38501010002",
+            "38888888888",
             null,
             null,
             null,
@@ -195,7 +195,7 @@ class KybCompanyDataMapperTest {
             PERSONAL_CODE,
             List.of(relationship),
             new BeneficialOwners(
-                List.of(new BeneficialOwner("Jaan", "Tamm", "38501010002", "O")), 0),
+                List.of(new BeneficialOwner("Jaan", "Tamm", "38888888888", "O")), 0),
             SELF_CERT);
 
     assertThat(result.relatedPersons())
@@ -217,7 +217,7 @@ class KybCompanyDataMapperTest {
             "Osanik",
             "Jaan",
             "Tamm",
-            "38501010002",
+            "38888888888",
             null,
             null,
             null,
@@ -356,7 +356,7 @@ class KybCompanyDataMapperTest {
             "Juhatuse liige",
             "Jaan",
             "Tamm",
-            "38501010002",
+            "38888888888",
             null,
             null,
             null,
@@ -427,7 +427,7 @@ class KybCompanyDataMapperTest {
             "Juhatuse liige",
             "Jaan",
             "Tamm",
-            "38501010002",
+            "38888888888",
             null,
             null,
             null,
@@ -441,7 +441,7 @@ class KybCompanyDataMapperTest {
             "Osanik",
             "Jaan",
             "Tamm",
-            "38501010002",
+            "38888888888",
             null,
             null,
             null,
@@ -464,11 +464,9 @@ class KybCompanyDataMapperTest {
 
   @Test
   void resolvesCompletedKycStatusFromDatabase() {
-    when(amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
-            eq("38501010002"), eq(AmlCheckType.KYC_CHECK), eq(true), any()))
-        .thenReturn(true);
+    when(kycChecks.latestKycCheckPassedWithinLastYear("38888888888")).thenReturn(Optional.of(true));
 
-    var relationship = boardMemberRelationship("38501010002");
+    var relationship = boardMemberRelationship("38888888888");
     var detail =
         new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
 
@@ -481,14 +479,10 @@ class KybCompanyDataMapperTest {
 
   @Test
   void resolvesRejectedKycStatusFromDatabase() {
-    when(amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
-            eq("38501010002"), eq(AmlCheckType.KYC_CHECK), eq(true), any()))
-        .thenReturn(false);
-    when(amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
-            eq("38501010002"), eq(AmlCheckType.KYC_CHECK), eq(false), any()))
-        .thenReturn(true);
+    when(kycChecks.latestKycCheckPassedWithinLastYear("38888888888"))
+        .thenReturn(Optional.of(false));
 
-    var relationship = boardMemberRelationship("38501010002");
+    var relationship = boardMemberRelationship("38888888888");
     var detail =
         new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
 
@@ -501,7 +495,7 @@ class KybCompanyDataMapperTest {
 
   @Test
   void resolvesUnknownKycStatusWhenNoCheckExists() {
-    var relationship = boardMemberRelationship("38501010002");
+    var relationship = boardMemberRelationship("38888888888");
     var detail =
         new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
 
@@ -514,7 +508,7 @@ class KybCompanyDataMapperTest {
 
   @Test
   void mapsNasdaqCsdShareholderRoleToShareholder() {
-    var shareholder = nasdaqCsdShareholder("38501010002", "Jaan", "Tamm", new BigDecimal("100.00"));
+    var shareholder = nasdaqCsdShareholder("38888888888", "Jaan", "Tamm", new BigDecimal("100.00"));
     var detail =
         new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
 

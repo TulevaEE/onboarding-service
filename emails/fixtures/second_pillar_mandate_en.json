@@ -1,23 +1,133 @@
 {
   "variants": {
-    "suggest third pillar": {
+    "fund selection only": {
       "FNAME": "Mari",
-      "transferDate": "12.08.2026",
-      "suggestThirdPillar": true
+      "transferDate": "04.01.2027",
+      "hasFundSelection": true,
+      "selectedTulevaFund": true
     },
-    "suggest payment rate": {
+    "fund transfer only": {
       "FNAME": "Mari",
-      "transferDate": "12.08.2026",
-      "suggestPaymentRate": true
+      "transferDate": "04.01.2027",
+      "hasFundTransfer": true,
+      "selectedTulevaFund": true
     },
-    "suggest membership": {
+    "fund selection and transfer": {
       "FNAME": "Mari",
-      "transferDate": "12.08.2026",
-      "suggestMembership": true
+      "transferDate": "04.01.2027",
+      "hasFundTransfer": true,
+      "hasFundSelection": true,
+      "selectedTulevaFund": true
+    },
+    "another manager's fund": {
+      "FNAME": "Mari",
+      "transferDate": "04.01.2027",
+      "hasFundSelection": true,
+      "selectedTulevaFund": false
+    },
+    "high fee fund": {
+      "FNAME": "Mari",
+      "transferDate": "04.01.2027",
+      "hasFundSelection": true,
+      "selectedTulevaFund": false,
+      "selectedHighFeeFund": true,
+      "selectedFundFee": "1.2"
+    },
+    "Tuleva and a high fee fund together": {
+      "FNAME": "Mari",
+      "transferDate": "04.01.2027",
+      "hasFundSelection": true,
+      "selectedTulevaFund": true,
+      "selectedHighFeeFund": true,
+      "selectedFundFee": "1.2"
+    },
+    "conservative fund for a young saver": {
+      "FNAME": "Mari",
+      "transferDate": "04.01.2027",
+      "hasFundSelection": true,
+      "selectedTulevaFund": true,
+      "selectedConservativeFund": true
+    },
+    "second pillar suggestion (cannot occur)": {
+      "FNAME": "Mari",
+      "transferDate": "04.01.2027",
+      "suggestSecondPillar": true,
+      "hasFundSelection": true,
+      "hasFundTransfer": true,
+      "selectedTulevaFund": true
+    },
+    "payment rate increase suggestion": {
+      "FNAME": "Mari",
+      "transferDate": "04.01.2027",
+      "suggestPaymentRate": true,
+      "hasFundSelection": true,
+      "hasFundTransfer": true,
+      "selectedTulevaFund": true
+    },
+    "third pillar suggestion": {
+      "FNAME": "Mari",
+      "transferDate": "04.01.2027",
+      "suggestThirdPillar": true,
+      "hasFundSelection": true,
+      "hasFundTransfer": true,
+      "selectedTulevaFund": true
+    },
+    "third pillar fees suggestion": {
+      "FNAME": "Mari",
+      "transferDate": "04.01.2027",
+      "suggestThirdPillar": true,
+      "hasFundSelection": true,
+      "hasFundTransfer": true,
+      "selectedTulevaFund": true,
+      "thirdPillarActive": true
+    },
+    "third pillar recurring suggestion": {
+      "FNAME": "Mari",
+      "transferDate": "04.01.2027",
+      "suggestThirdPillarRecurringPayment": true,
+      "hasFundSelection": true,
+      "hasFundTransfer": true,
+      "selectedTulevaFund": true
+    },
+    "third pillar raise suggestion": {
+      "FNAME": "Mari",
+      "transferDate": "04.01.2027",
+      "hasFundSelection": true,
+      "hasFundTransfer": true,
+      "suggestThirdPillarRaise": true,
+      "selectedTulevaFund": true
+    },
+    "savings fund suggestion": {
+      "FNAME": "Mari",
+      "transferDate": "04.01.2027",
+      "suggestSavingsFund": true,
+      "hasFundSelection": true,
+      "hasFundTransfer": true,
+      "savingsFundFee": "0.28",
+      "selectedTulevaFund": true
+    },
+    "savings fund recurring suggestion": {
+      "FNAME": "Mari",
+      "transferDate": "04.01.2027",
+      "suggestSavingsFundRecurringPayment": true,
+      "hasFundSelection": true,
+      "hasFundTransfer": true,
+      "selectedTulevaFund": true
+    },
+    "membership suggestion": {
+      "FNAME": "Mari",
+      "transferDate": "04.01.2027",
+      "suggestMembership": true,
+      "hasFundSelection": true,
+      "hasFundTransfer": true,
+      "selectedTulevaFund": true
     },
     "no branch": {
       "FNAME": "Mari",
-      "transferDate": "12.08.2026"
+      "transferDate": "04.01.2027",
+      "hasFundSelection": true,
+      "hasFundTransfer": true,
+      "selectedTulevaFund": true
     }
   }
 }

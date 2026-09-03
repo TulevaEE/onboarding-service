@@ -6,8 +6,8 @@ import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.ADJU
 import static ee.tuleva.onboarding.ledger.SystemAccount.BLACKROCK_ADJUSTMENT;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;

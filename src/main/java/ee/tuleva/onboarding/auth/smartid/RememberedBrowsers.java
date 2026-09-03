@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.auth.smartid;
 
+import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Optional;
@@ -23,7 +24,7 @@ public class RememberedBrowsers {
             WHERE token_hash = :tokenHash AND expires_at > :now
             """)
         .param("tokenHash", tokenHash)
-        .param("now", Instant.now(clock))
+        .param("now", Timestamp.from(Instant.now(clock)))
         .query(
             (rs, rowNum) ->
                 new RememberedBrowser(
@@ -50,8 +51,8 @@ public class RememberedBrowsers {
         .param("documentNumber", browser.documentNumber())
         .param("firstName", browser.firstName())
         .param("lastName", browser.lastName())
-        .param("verifiedAt", browser.verifiedAt())
-        .param("expiresAt", expiresAt)
+        .param("verifiedAt", Timestamp.from(browser.verifiedAt()))
+        .param("expiresAt", Timestamp.from(expiresAt))
         .update();
   }
 
@@ -72,7 +73,7 @@ public class RememberedBrowsers {
   public int removeExpired() {
     return jdbcClient
         .sql("DELETE FROM smart_id_remembered_browser WHERE expires_at <= :now")
-        .param("now", Instant.now(clock))
+        .param("now", Timestamp.from(Instant.now(clock)))
         .update();
   }
 }

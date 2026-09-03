@@ -18,12 +18,6 @@ public class FeeAccrualRepository {
 
   private final JdbcClient jdbcClient;
 
-  /**
-   * Month-to-date accruals split BY ACCRUAL DATE, so a caller can apply the charged-to-fund policy
-   * per day instead of gating the whole sum on one day's answer. There is deliberately no
-   * pre-summed variant: a single figure cannot be filtered by a policy that changes within the
-   * month, and the one that existed was how the fee came to be misstated.
-   */
   public Map<LocalDate, BigDecimal> getAccruedFeesByDateForMonth(
       TulevaFund fund, LocalDate feeMonth, List<FeeType> feeTypes, LocalDate beforeDate) {
     return jdbcClient
@@ -47,7 +41,6 @@ public class FeeAccrualRepository {
         .collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
   }
 
-  /** Unsettled accruals for one fee type, split by accrual date and left unrounded. */
   public Map<LocalDate, BigDecimal> getUnsettledAccrualByDate(
       TulevaFund fund, FeeType feeType, LocalDate asOfDate) {
     return jdbcClient

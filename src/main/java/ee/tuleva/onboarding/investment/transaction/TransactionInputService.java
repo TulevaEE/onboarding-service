@@ -197,8 +197,6 @@ public class TransactionInputService {
 
   private BigDecimal getAccruedFees(TulevaFund fund, LocalDate asOfDate, FeeType feeType) {
     LocalDate feeMonth = asOfDate.withDayOfMonth(1);
-    // Per accrual date, not once for asOfDate: a policy that flips mid-month must not hand its
-    // post-flip answer to the days before it.
     return feeChargedToFundPolicy
         .resolverFor(fund, feeType)
         .sumChargedDays(

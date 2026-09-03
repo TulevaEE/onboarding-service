@@ -108,9 +108,6 @@ public class NavCalculationService implements NavFeeBackfill {
     NavFeeResult fees =
         navFees.calculateFeesForNav(
             fund, positionReportDate, feeBases, feeCutoff, context.getSecurityPrices());
-    // NavFees already applies charged-to-fund per accrual date, so these are NAV-facing as they
-    // stand. Re-gating the summed figure on one day's answer here would undo that: a month with a
-    // mid-month flip would be zeroed or admitted whole.
     BigDecimal managementFeeAccrual = fees.managementFeeAccrual();
     BigDecimal depotFeeAccrual = fees.depotFeeAccrual();
 

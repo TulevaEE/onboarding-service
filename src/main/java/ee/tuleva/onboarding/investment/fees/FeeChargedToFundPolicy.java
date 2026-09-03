@@ -78,16 +78,6 @@ public class FeeChargedToFundPolicy {
               + date);
     }
 
-    /**
-     * Sum only the days this policy actually charges to the fund.
-     *
-     * <p>The reason this exists: a month-to-date accrual is a sum over many days, and asking
-     * "charged?" once — for the last of them — silently applies that answer to every earlier day. A
-     * policy that flips mid-month then puts NAV and the ledger out of step for the whole month.
-     * Per-day evaluation also keeps the gap and overlap validation in {@link #chargedOn}, which a
-     * single lookup would only apply to one date — including the back-extension rule documented on
-     * {@link #predatesTheFund}, now asked of every accrual date rather than one.
-     */
     public BigDecimal sumChargedDays(Map<LocalDate, BigDecimal> amountsByDate) {
       return amountsByDate.entrySet().stream()
           .filter(entry -> chargedOn(entry.getKey()))
@@ -95,13 +85,6 @@ public class FeeChargedToFundPolicy {
           .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    /**
-     * A date before the fund existed is answered with the founding row rather than thrown on, so
-     * that a NAV recomputed past the inception date does not fail on the fee policy. The anchor is
-     * the fund's inception and not the earliest row's {@code valid_from}: anchoring on the row
-     * would make it back-extend over its own late start, so a policy that begins after the fund did
-     * would be silently answered for the days in between instead of reported as the gap it is.
-     */
     private boolean predatesTheFund(LocalDate date) {
       return date.isBefore(fund.getInceptionDate());
     }

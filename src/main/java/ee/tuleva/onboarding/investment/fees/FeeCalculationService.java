@@ -117,9 +117,6 @@ public class FeeCalculationService {
       previousFeeMonth = feeMonth;
     }
 
-    // Charged-to-fund is applied PER ACCRUAL DATE. Gating the whole month-to-date sum on the
-    // policy's answer for one day would misstate every month in which the policy flips: the days
-    // before the flip would take the answer belonging to the days after it.
     BigDecimal mgmtFee = chargedAccrual(chargedPolicies, fund, MANAGEMENT, positionReportDate);
     BigDecimal depotFee = chargedAccrual(chargedPolicies, fund, DEPOT, positionReportDate);
     return new FeeResult(mgmtFee, depotFee);
@@ -134,9 +131,11 @@ public class FeeCalculationService {
         feeAccrualRepository.getUnsettledAccrualByDate(fund, feeType, positionReportDate);
     FeeChargedToFundPolicy.Resolver resolver =
         requireNonNull(policies.get(feeType), "No fee policy resolver: feeType=" + feeType);
-    BigDecimal charged = resolver.sumChargedDays(byDate);
-    // Scale mirrors the ROUND(SUM(...), 2) this replaced, including its plain 0 for no rows.
-    return charged.signum() == 0 ? BigDecimal.ZERO : charged.setScale(2, HALF_UP);
+    return roundedToCents(resolver.sumChargedDays(byDate));
+  }
+
+  private static BigDecimal roundedToCents(BigDecimal amount) {
+    return amount.signum() == 0 ? BigDecimal.ZERO : amount.setScale(2, HALF_UP);
   }
 
   private void recordDailyFees(

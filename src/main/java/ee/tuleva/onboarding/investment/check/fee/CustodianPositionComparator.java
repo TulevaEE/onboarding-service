@@ -76,7 +76,7 @@ class CustodianPositionComparator {
 
   private List<CustodianLineDifference> differingLines(
       Map<String, BigDecimal> reported, Map<String, BigDecimal> recognised) {
-    return accountNames(reported, recognised).stream()
+    return unionOfKeys(reported, recognised).stream()
         .map(
             name ->
                 new CustodianLineDifference(
@@ -87,21 +87,18 @@ class CustodianPositionComparator {
 
   private BigDecimal totalDifference(
       Map<String, BigDecimal> reported, Map<String, BigDecimal> recognised) {
-    return accountNames(reported, recognised).stream()
+    return unionOfKeys(reported, recognised).stream()
         .map(
             name -> reported.getOrDefault(name, ZERO).subtract(recognised.getOrDefault(name, ZERO)))
         .reduce(ZERO, BigDecimal::add);
   }
 
-  // Securities are matched on ISIN rather than name, because the custodian and the NAV report
-  // publish the same instrument under different display names. Only the quantity is compared, and
-  // it is priced at our own price, so the custodian rounding its prices cannot move the number.
   private BigDecimal securityDifference(List<FundPosition> positions, NavCalculation calculation) {
     var reported = reportedQuantities(positions);
     var recognised = recognisedQuantities(calculation);
-    var prices = pricesByIsin(positions, calculation);
+    var prices = pricesByIsinPreferringOurNav(positions, calculation);
 
-    return accountNames(reported, recognised).stream()
+    return unionOfKeys(reported, recognised).stream()
         .map(
             isin ->
                 reported
@@ -154,9 +151,7 @@ class CustodianPositionComparator {
                 LinkedHashMap::new));
   }
 
-  // Our own price wins where we have one: the custodian publishes prices rounded to fewer decimals
-  // than the NAV values them at, and that rounding must not read as a quantity difference.
-  private Map<String, BigDecimal> pricesByIsin(
+  private Map<String, BigDecimal> pricesByIsinPreferringOurNav(
       List<FundPosition> positions, NavCalculation calculation) {
     var prices = new LinkedHashMap<String, BigDecimal>();
     securities(positions)
@@ -174,8 +169,6 @@ class CustodianPositionComparator {
         .filter(position -> position.getAccountId() != null);
   }
 
-  // A position written after the calculation finished is one the calculation could not have read,
-  // so the NAV is not wrong - the custodian sent a newer report than the one it was built on.
   private boolean navPredatesReport(
       TulevaFund fund, LocalDate navDate, NavCalculation calculation) {
     return fundPositionRepository
@@ -191,7 +184,7 @@ class CustodianPositionComparator {
     return impact.multiply(BASIS_POINTS).divide(fundValue, BASIS_POINT_SCALE, HALF_UP);
   }
 
-  private Set<String> accountNames(Map<String, BigDecimal> first, Map<String, BigDecimal> second) {
+  private Set<String> unionOfKeys(Map<String, BigDecimal> first, Map<String, BigDecimal> second) {
     var names = new TreeSet<>(first.keySet());
     names.addAll(second.keySet());
     return names;

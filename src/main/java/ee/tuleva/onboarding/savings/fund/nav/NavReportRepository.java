@@ -160,8 +160,6 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
   Optional<NavReportRow> findFirstByFundCodeAndNavDateOrderByIdDesc(
       String fundCode, LocalDate navDate);
 
-  // Scoped by fund and date as well as by calculation: one calculation run covers several funds and
-  // is free to carry the same id across them, so the id alone does not identify one day's rows.
   @Query(
       """
       SELECT new ee.tuleva.onboarding.savings.fund.nav.NavAccountLine(
@@ -175,8 +173,6 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
       @Param("navDate") LocalDate navDate,
       @Param("calculationId") UUID calculationId);
 
-  // The last row the calculation wrote: a position written after it provably could not have been
-  // read by it, which is what separates a stale input from a report SEB re-sent afterwards.
   @Query(
       """
       SELECT MAX(row.createdAt) FROM NavReportRow row

@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.WARNING
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.InstanceOfAssertFactories.LIST;
 import static org.mockito.BDDMockito.given;
 
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
@@ -37,7 +38,9 @@ class CustodianCompletenessCheckerTest {
 
   @BeforeEach
   void setUp() {
-    checker = new CustodianCompletenessChecker(fundPositionRepository, comparator);
+    checker =
+        new CustodianCompletenessChecker(
+            fundPositionRepository, comparator, new BigDecimal("1.00"));
   }
 
   @Test
@@ -182,6 +185,41 @@ class CustodianCompletenessCheckerTest {
   private void givenPositionDates(LocalDate... dates) {
     given(fundPositionRepository.findDistinctNavDatesByFundBetween(TUK75, FROM, TO))
         .willReturn(List.of(dates));
+  }
+
+  // "The NAV could not have read it" and "the NAV is fine" are different claims, and the timestamp
+  // only proves the first. A re-send that corrects a wrong earlier report looks identical to one
+  // carrying a late trade, so a difference big enough to matter stays a warning either way.
+  @Test
+  void warnsAboutAReSentReportThatWouldHaveMovedTheNavMaterially() {
+    givenPositionDates(POSITION_DATE);
+    givenComparison(
+        lateCorrection(
+            POSITION_DATE,
+            new BigDecimal("-75247.49"),
+            new BigDecimal("-5.00"),
+            difference(RECEIVABLES, "325708788.10", "0.00")));
+
+    var finding = check().getFirst();
+
+    assertThat(finding.severity()).isEqualTo(WARNING);
+    assertThat(finding.message()).contains("re-sent", "-5.00 bp");
+  }
+
+  // The event row is the durable record; the Slack message is not queryable and ages out. Keeping
+  // only the dates would drop exactly the line detail this check exists to report.
+  @Test
+  void keepsTheDifferingLinesInTheFindingDetails() {
+    givenPositionDates(POSITION_DATE);
+    givenComparison(differing(POSITION_DATE, difference(RECEIVABLES, "325708788.10", "0.00")));
+
+    var finding = check().getFirst();
+
+    assertThat(finding.details().get("lines"))
+        .asInstanceOf(LIST)
+        .singleElement()
+        .asString()
+        .contains(POSITION_DATE.toString(), RECEIVABLES, "325708788.10", "0.00");
   }
 
   private void givenComparison(CustodianDayComparison comparison) {

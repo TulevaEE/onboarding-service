@@ -82,8 +82,6 @@ public interface FundPositionRepository extends JpaRepository<FundPosition, Long
   List<FundPosition> findCustodianSourced(
       TulevaFund fund, LocalDate navDate, String unitFlowAccountId);
 
-  // Import rewrites a changed row in place and stamps updated_at, so this is the moment the stored
-  // report last moved - the only way to tell a report SEB re-sent from an input we never ingested.
   @Query(
       """
       SELECT MAX(COALESCE(fp.updatedAt, fp.createdAt)) FROM FundPosition fp

@@ -17,6 +17,14 @@ record CustodianDayComparison(
     return differences.isEmpty();
   }
 
+  boolean needsNoCorrection(BigDecimal materialBasisPoints) {
+    return navPredatesReport && !movesTheNavMoreThan(materialBasisPoints);
+  }
+
+  boolean movesTheNavMoreThan(BigDecimal materialBasisPoints) {
+    return navImpactBasisPoints.abs().compareTo(materialBasisPoints) > 0;
+  }
+
   BigDecimal totalDifference() {
     return differences.stream()
         .map(CustodianLineDifference::difference)

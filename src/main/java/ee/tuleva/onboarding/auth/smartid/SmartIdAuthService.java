@@ -112,15 +112,21 @@ public class SmartIdAuthService {
     }
   }
 
+  /**
+   * A session that produced a signature has to say which flow produced it, so that it can be
+   * checked against the flows we offered. A refused or timed out session carries no signature at
+   * all; those are left to the validator, which reports the reason the person actually needs.
+   */
   private static @Nullable FlowType flowTypeOf(SessionStatus status) {
     SessionSignature signature = status.getSignature();
-    if (signature == null || signature.getFlowType() == null) {
+    if (signature == null) {
       return null;
     }
-    if (!FlowType.isSupported(signature.getFlowType())) {
+    String flowType = signature.getFlowType();
+    if (flowType == null || !FlowType.isSupported(flowType)) {
       throw new UnprocessableSmartIdResponseException(
-          "Unsupported Smart-ID flow type: flowType=" + signature.getFlowType());
+          "Unusable Smart-ID flow type: flowType=" + flowType);
     }
-    return FlowType.fromString(signature.getFlowType());
+    return FlowType.fromString(flowType);
   }
 }

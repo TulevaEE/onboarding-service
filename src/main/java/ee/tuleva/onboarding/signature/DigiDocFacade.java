@@ -57,8 +57,12 @@ public class DigiDocFacade {
 
   @SneakyThrows
   public byte[] digestToSign(DataToSign dataToSign) {
-    MessageDigest digest = MessageDigest.getInstance("SHA-256");
+    MessageDigest digest = MessageDigest.getInstance(hashFunction(dataToSign));
     return digest.digest(dataToSign.getDataToSign());
+  }
+
+  public String hashFunction(DataToSign dataToSign) {
+    return dataToSign.getDigestAlgorithm().getDssDigestAlgorithm().getJavaName();
   }
 
   @SneakyThrows

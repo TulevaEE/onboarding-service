@@ -148,20 +148,25 @@ public class MandateService {
     return getStatus(user, mandate, signService.getSignedFile(session));
   }
 
-  public SignatureStatus finalizeIdCardSignature(
-      Long userId,
-      Long mandateId,
-      IdCardSignatureSession session,
-      String signedHashInHex,
-      Locale locale) {
+  public SignatureStatus persistIdCardSignature(
+      Long userId, Long mandateId, IdCardSignatureSession session, String signature) {
     User user = userService.getById(userId).orElseThrow();
     Mandate mandate = mandateRepository.findByIdAndUserId(mandateId, userId);
 
     if (mandate.isSigned()) {
-      return handleSignedMandate(user, mandate, locale);
-    } else {
-      return handleUnsignedMandateIdCard(user, mandate, session, signedHashInHex);
+      throw new IllegalStateException("Mandate is already signed: mandateId=" + mandateId);
     }
+    return getStatus(user, mandate, signService.getSignedFile(session, signature));
+  }
+
+  public SignatureStatus getIdCardSignatureStatus(Long userId, Long mandateId, Locale locale) {
+    User user = userService.getById(userId).orElseThrow();
+    Mandate mandate = mandateRepository.findByIdAndUserId(mandateId, userId);
+
+    if (!mandate.isSigned()) {
+      throw new IllegalStateException("Mandate is not signed: mandateId=" + mandateId);
+    }
+    return handleSignedMandate(user, mandate, locale);
   }
 
   public Mandate get(Long id) {
@@ -185,18 +190,6 @@ public class MandateService {
     log.info("Mandate processing errors {}", errorsResponse);
     if (errorsResponse.hasErrors()) {
       throw new MandateProcessingException(errorsResponse);
-    }
-  }
-
-  private SignatureStatus handleUnsignedMandateIdCard(
-      User user, Mandate mandate, IdCardSignatureSession session, String signedHashInHex) {
-    byte[] signedFile = signService.getSignedFile(session, signedHashInHex);
-    if (signedFile != null) { // TODO: use Optional
-      persistSignedFile(mandate, signedFile);
-      mandateProcessor.start(user, mandate);
-      return OUTSTANDING_TRANSACTION;
-    } else {
-      throw new IllegalStateException("There is no signed file to persist");
     }
   }
 

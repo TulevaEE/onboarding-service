@@ -69,12 +69,12 @@ class MandateFixture {
     return MandateDto.builder().details(details).build()
   }
 
-  static StartIdCardSignCommand sampleStartIdCardSignCommand(String clientCertificate) {
-    return new StartIdCardSignCommand(clientCertificate)
+  static StartIdCardSignCommand sampleStartIdCardSignCommand(String certificate) {
+    return new StartIdCardSignCommand(certificate)
   }
 
-  static FinishIdCardSignCommand sampleFinishIdCardSignCommand(String signedHash) {
-    return new FinishIdCardSignCommand(signedHash)
+  static FinishIdCardSignCommand sampleFinishIdCardSignCommand(String signature) {
+    return new FinishIdCardSignCommand(signature)
   }
 
   static CreateMandateCommand invalidCreateMandateCommand() {

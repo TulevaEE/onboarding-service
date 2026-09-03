@@ -8,6 +8,8 @@ import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractFixtu
 import static ee.tuleva.onboarding.user.MemberFixture.memberFixture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -289,6 +291,31 @@ class CapitalTransferSignatureServiceTest {
 
     assertThat(response.getStatusCode()).isEqualTo(SignatureStatus.SIGNATURE);
     verify(contractService).signBySeller(contractId, signedFile, user);
+  }
+
+  @Test
+  void persistIdCardSignature_rejectsAContractTheUserHasAlreadySigned() {
+    long contractId = 1L;
+    User user = sampleUser().build();
+    AuthenticatedPerson authenticatedPerson = authenticatedPersonFromUser(user).build();
+    FinishIdCardSignCommand command = new FinishIdCardSignCommand("signature");
+    Member seller = memberFixture().user(user).build();
+    CapitalTransferContract contract =
+        sampleCapitalTransferContractWithSeller(seller)
+            .id(contractId)
+            .state(CapitalTransferContractState.SELLER_SIGNED)
+            .build();
+    IdCardSignatureSession signatureSession =
+        IdCardSignatureSession.builder().hashToSign("hash-to-sign").build();
+
+    when(sessionStore.get(IdCardSignatureSession.class)).thenReturn(Optional.of(signatureSession));
+    when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
+    when(contractService.getContract(contractId, user)).thenReturn(contract);
+
+    assertThatThrownBy(
+            () -> signatureService.persistIdCardSignature(contractId, command, authenticatedPerson))
+        .isInstanceOf(SignatureStateException.class);
+    verify(signService, never()).getSignedFile(any(IdCardSignatureSession.class), any());
   }
 
   @Test

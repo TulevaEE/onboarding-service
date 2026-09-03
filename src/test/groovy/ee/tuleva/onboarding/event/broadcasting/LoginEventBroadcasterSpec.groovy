@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.event.broadcasting
 
+import ee.tuleva.onboarding.auth.ClientConnection
 import ee.tuleva.onboarding.auth.SecurityContextRunner
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent
 import ee.tuleva.onboarding.auth.idcard.IdCardSession
@@ -34,9 +35,10 @@ class LoginEventBroadcasterSpec extends Specification {
     runAs(_, _, _) >> { args -> (args[2] as Runnable).run() }
   }
   SecondPillarPaymentRateService secondPillarPaymentRateService = Mock()
+  ClientConnection clientConnection = new ClientConnection()
 
   LoginEventBroadcaster service = new LoginEventBroadcaster(eventPublisher, conversionService, pillarActivations,
-      conversionDecorator, securityContextRunner, secondPillarPaymentRateService)
+      conversionDecorator, securityContextRunner, secondPillarPaymentRateService, clientConnection)
 
   def "OnAfterTokenGrantedEvent: Broadcast login event"() {
     given:

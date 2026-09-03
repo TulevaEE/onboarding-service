@@ -131,6 +131,20 @@ class SmartIdAuthServiceTest {
   }
 
   @Test
+  void completeLoginRejectsASessionThatDoesNotSayWhichFlowFinishedIt() {
+    SmartIdSession session = aDeviceLinkSession(now);
+    var status = completeStatus("QR");
+    status.getSignature().setFlowType(null);
+    given(connector.getSessionStatus(aSessionId)).willReturn(status);
+
+    assertThatThrownBy(() -> service.completeLogin(session))
+        .isInstanceOf(SmartIdException.class)
+        .extracting(e -> ((SmartIdException) e).getLoginError())
+        .isEqualTo(SmartIdLoginError.VALIDATION_FAILED);
+    verify(deviceLinkValidator, never()).validate(any(), any(), any(), any());
+  }
+
+  @Test
   void completeLoginRejectsAFlowTypeThatWasNotOffered() {
     SmartIdSession session = aDeviceLinkSession(now);
     given(connector.getSessionStatus(aSessionId)).willReturn(completeStatus("Notification"));

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.auth
 
 import ee.tuleva.onboarding.auth.idcard.IdDocumentType
 import ee.tuleva.onboarding.auth.idcard.exception.UnsupportedDocumentTypeException
+import ee.tuleva.onboarding.auth.idcard.exception.UnknownCountryException
 import ee.tuleva.onboarding.auth.principal.MinorCannotSelfAuthenticateException
 import ee.tuleva.onboarding.auth.response.AuthNotCompleteException
 import ee.tuleva.onboarding.auth.smartid.SmartIdSessionNotFoundException
@@ -41,6 +42,14 @@ class AuthErrorHandlerSpec extends Specification {
     then:
         result.statusCode == HttpStatus.FORBIDDEN
         result.body == [error: "MINOR_CANNOT_SELF_AUTHENTICATE", error_description: "Minor cannot self-authenticate: personalCode=38888888888"]
+  }
+
+  def "handle UnknownCountryException returns BAD_REQUEST rather than failing the request"() {
+    when:
+    def response = handler.handleUnknownCountry(new UnknownCountryException("LV"))
+    then:
+    response.statusCode == HttpStatus.BAD_REQUEST
+    response.body.errors[0].code == "id.card.country.not.allowed"
   }
 
   def "handle InvocationRejectedException returns TOO_MANY_REQUESTS so the caller backs off"() {

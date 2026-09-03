@@ -7,6 +7,7 @@ import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 import ee.tuleva.onboarding.auth.idcard.exception.IdCardSessionNotFoundException;
+import ee.tuleva.onboarding.auth.idcard.exception.UnknownCountryException;
 import ee.tuleva.onboarding.auth.idcard.exception.UnsupportedDocumentTypeException;
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.auth.mobileid.MobileIdSessionNotFoundException;
@@ -55,6 +56,14 @@ public class AuthErrorHandler {
     log.info("ID-card login refused: {}", exception.getMessage());
     return new ResponseEntity<>(
         ErrorsResponse.ofSingleError("id.card.document.type.not.allowed", exception.getMessage()),
+        BAD_REQUEST);
+  }
+
+  @ExceptionHandler(UnknownCountryException.class)
+  public ResponseEntity<ErrorsResponse> handleUnknownCountry(UnknownCountryException exception) {
+    log.info("ID-card login refused: {}", exception.getMessage());
+    return new ResponseEntity<>(
+        ErrorsResponse.ofSingleError("id.card.country.not.allowed", exception.getMessage()),
         BAD_REQUEST);
   }
 

@@ -33,6 +33,7 @@ class IdCardAuthServiceSpec extends Specification {
         1 * documentTypeExtractor.checkClientAuthentication(cert)
         1 * documentTypeExtractor.checkIssuer(cert)
         1 * documentTypeExtractor.checkCountry(cert)
+        1 * documentTypeExtractor.checkDocumentType(DIPLOMATIC_ID_CARD)
         response == expectedResponse
     }
 }

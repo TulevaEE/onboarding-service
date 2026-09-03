@@ -6,6 +6,7 @@ import static org.springframework.http.HttpStatus.OK;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 import ee.tuleva.onboarding.auth.idcard.exception.IdCardSessionNotFoundException;
+import ee.tuleva.onboarding.auth.idcard.exception.UnsupportedDocumentTypeException;
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.auth.mobileid.MobileIdSessionNotFoundException;
 import ee.tuleva.onboarding.auth.principal.MinorCannotSelfAuthenticateException;
@@ -44,6 +45,15 @@ public class AuthErrorHandler {
     return new ResponseEntity<>(
         ErrorsResponse.ofSingleError("smart.id.callback.invalid", exception.getMessage()),
         UNAUTHORIZED);
+  }
+
+  @ExceptionHandler(UnsupportedDocumentTypeException.class)
+  public ResponseEntity<ErrorsResponse> handleUnsupportedDocumentType(
+      UnsupportedDocumentTypeException exception) {
+    log.info("ID-card login refused: {}", exception.getMessage());
+    return new ResponseEntity<>(
+        ErrorsResponse.ofSingleError("id.card.document.type.not.allowed", exception.getMessage()),
+        BAD_REQUEST);
   }
 
   @ExceptionHandler(AuthNotCompleteException.class)

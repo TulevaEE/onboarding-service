@@ -66,6 +66,7 @@ public class WebEidAuthService {
       var personalCode = extractPersonalCode(serialNumber);
 
       var documentType = documentTypeExtractor.extract(certificate);
+      documentTypeExtractor.checkDocumentType(documentType);
       documentTypeExtractor.checkClientAuthentication(certificate);
       documentTypeExtractor.checkIssuer(certificate);
       documentTypeExtractor.checkCountry(certificate);

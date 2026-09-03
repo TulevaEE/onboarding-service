@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.auth.idcard.exception.UnknownCountryException
 import ee.tuleva.onboarding.auth.idcard.exception.UnknownDocumentTypeException
 import ee.tuleva.onboarding.auth.idcard.exception.UnknownExtendedKeyUsageException
 import ee.tuleva.onboarding.auth.idcard.exception.UnknownIssuerException
+import ee.tuleva.onboarding.auth.idcard.exception.UnsupportedDocumentTypeException
 import ee.tuleva.onboarding.auth.idcard.normalizer.CertificateNormalizer
 import ee.tuleva.onboarding.auth.idcard.normalizer.ProductionCertificateNormalizer
 import spock.lang.Specification
@@ -152,6 +153,25 @@ class IdDocumentTypeExtractorSpec extends Specification {
 
         then:
         thrown UnknownExtendedKeyUsageException
+    }
+
+    def "checkDocumentType refuses e-resident and EU citizen cards"() {
+        when:
+        extractor.checkDocumentType(documentType)
+
+        then:
+        thrown(UnsupportedDocumentTypeException)
+
+        where:
+        documentType << [E_RESIDENT_DIGITAL_ID_CARD, EUROPEAN_CITIZEN_ID_CARD]
+    }
+
+    def "checkDocumentType passes an Estonian citizen card"() {
+        when:
+        extractor.checkDocumentType(ESTONIAN_CITIZEN_ID_CARD)
+
+        then:
+        noExceptionThrown()
     }
 
     def "checkCountry passes for an Estonian certificate"() {

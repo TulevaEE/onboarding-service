@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.auth.idcard.exception.UnknownCountryException;
 import ee.tuleva.onboarding.auth.idcard.exception.UnknownDocumentTypeException;
 import ee.tuleva.onboarding.auth.idcard.exception.UnknownExtendedKeyUsageException;
 import ee.tuleva.onboarding.auth.idcard.exception.UnknownIssuerException;
+import ee.tuleva.onboarding.auth.idcard.exception.UnsupportedDocumentTypeException;
 import ee.tuleva.onboarding.auth.idcard.normalizer.CertificateNormalizer;
 import java.io.IOException;
 import java.security.cert.X509Certificate;
@@ -117,6 +118,12 @@ public class IdDocumentTypeExtractor {
       log.error("Failed to parse extended key usage extension", e);
     }
     throw new UnknownExtendedKeyUsageException();
+  }
+
+  public void checkDocumentType(IdDocumentType documentType) {
+    if (!documentType.isAllowedToLogIn()) {
+      throw new UnsupportedDocumentTypeException(documentType);
+    }
   }
 
   public void checkCountry(X509Certificate certificate) {

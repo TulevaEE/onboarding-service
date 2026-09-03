@@ -62,10 +62,20 @@ class IndicatorDiagnosticsFormatter {
                     redefinitions.size(),
                     first.date(),
                     redefinitions.getLast().date())
-            + " hoidmisperioodi kauplemispäevi %s → %s. Alusandmed ei muutunud."
-                .formatted(
-                    text(first.previousHoldingPeriodTradingDays()),
-                    first.holdingPeriodTradingDays()));
+            + whatChanged(first)
+            + " Alusandmed ei muutunud.");
+  }
+
+  private String whatChanged(Redefinition redefinition) {
+    return switch (redefinition) {
+      case Redefinition.HoldingPeriod holdingPeriod ->
+          " hoidmisperioodi kauplemispäevi %s → %s."
+              .formatted(text(holdingPeriod.previousTradingDays()), holdingPeriod.tradingDays());
+      case Redefinition.PublicationRule publicationRule ->
+          " avaldamisreegel muutus, klass %s → %s."
+              .formatted(
+                  text(publicationRule.previousRiskClass()), text(publicationRule.riskClass()));
+    };
   }
 
   private Optional<String> skippedLine(RiskIndicatorOutcome outcome) {

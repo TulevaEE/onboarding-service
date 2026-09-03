@@ -200,8 +200,8 @@ class IndicatorDetailFormatterTest {
             RiskIndicatorPublication.builder().build(),
             List.of(),
             List.of(
-                new Redefinition(LocalDate.of(2026, 6, 1), "1300", "1280"),
-                new Redefinition(LocalDate.of(2026, 6, 30), "1300", "1280")),
+                new Redefinition.HoldingPeriod(LocalDate.of(2026, 6, 1), "1300", "1280"),
+                new Redefinition.HoldingPeriod(LocalDate.of(2026, 6, 30), "1300", "1280")),
             List.of());
 
     assertThat(detailFormatter.detailBlock(outcome))

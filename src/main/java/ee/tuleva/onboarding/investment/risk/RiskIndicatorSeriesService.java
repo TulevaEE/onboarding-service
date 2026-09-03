@@ -142,7 +142,11 @@ class RiskIndicatorSeriesService {
       } else if (!hasDrifted(stored, point)) {
         continue;
       } else if (holdingPeriodChanged(stored, point)) {
-        var redefinition = redefinition(stored, point);
+        var redefinition = holdingPeriodRedefinition(stored, point);
+        toSave.add(applyRedefinition(stored, point, redefinition));
+        redefined.add(redefinition);
+      } else if (publishedClassChangedWhileTheMeasurementsDidNot(stored, point)) {
+        var redefinition = publicationRuleRedefinition(stored, point);
         toSave.add(applyRedefinition(stored, point, redefinition));
         redefined.add(redefinition);
       } else {
@@ -161,11 +165,26 @@ class RiskIndicatorSeriesService {
     return current != null && !current.equals(storedHoldingPeriod(stored));
   }
 
-  private Redefinition redefinition(RiskIndicatorPoint stored, ReferencePoint recomputed) {
-    return new Redefinition(
+  private Redefinition holdingPeriodRedefinition(
+      RiskIndicatorPoint stored, ReferencePoint recomputed) {
+    return new Redefinition.HoldingPeriod(
         stored.getAsOfDate(),
         storedHoldingPeriod(stored),
         Objects.requireNonNull(recomputedHoldingPeriod(recomputed)));
+  }
+
+  private boolean publishedClassChangedWhileTheMeasurementsDidNot(
+      RiskIndicatorPoint stored, ReferencePoint recomputed) {
+    var storedVolatility = stored.getVolatility();
+    return storedVolatility != null
+        && storedVolatility.compareTo(recomputed.volatility()) == 0
+        && Objects.equals(stored.getObservationCount(), recomputed.observationCount());
+  }
+
+  private Redefinition publicationRuleRedefinition(
+      RiskIndicatorPoint stored, ReferencePoint recomputed) {
+    return new Redefinition.PublicationRule(
+        stored.getAsOfDate(), stored.getRiskClass(), recomputed.riskClass());
   }
 
   private @Nullable String storedHoldingPeriod(RiskIndicatorPoint stored) {
@@ -183,7 +202,7 @@ class RiskIndicatorSeriesService {
     log.info(
         "Risk indicator point recomputed under a new definition: fund={}, type={}, date={},"
             + " storedClass={}, recomputedClass={}, storedVolatility={}, recomputedVolatility={},"
-            + " previousHoldingPeriodTradingDays={}, holdingPeriodTradingDays={}",
+            + " redefinition={}",
         stored.getFund(),
         stored.getIndicatorType(),
         stored.getAsOfDate(),
@@ -191,8 +210,7 @@ class RiskIndicatorSeriesService {
         recomputed.riskClass(),
         stored.getVolatility(),
         recomputed.volatility(),
-        redefinition.previousHoldingPeriodTradingDays(),
-        redefinition.holdingPeriodTradingDays());
+        redefinition);
 
     var metrics = new HashMap<String, Object>(stringKeyed(recomputed.metrics()));
     var history = driftHistory(stored);

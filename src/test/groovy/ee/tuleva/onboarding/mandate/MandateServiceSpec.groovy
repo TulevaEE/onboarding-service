@@ -22,6 +22,7 @@ import ee.tuleva.onboarding.mandate.exception.MandateProcessingException
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService
 import ee.tuleva.onboarding.signature.SignatureFile
 import ee.tuleva.onboarding.signature.SignatureService
+import ee.tuleva.onboarding.signature.SignatureStateException
 import ee.tuleva.onboarding.signature.IdCardSignatureSession
 import ee.tuleva.onboarding.signature.MobileIdSignatureSession
 import ee.tuleva.onboarding.signature.SmartIdSignatureSession
@@ -388,7 +389,7 @@ class MandateServiceSpec extends Specification {
     service.persistIdCardSignature(sampleUser.id, sampleMandate.id, signatureSession, "signature")
 
     then:
-    thrown(IllegalStateException)
+    thrown(SignatureStateException)
   }
 
   def "getIdCardSignatureStatus: rejects a mandate that is not signed"() {
@@ -401,7 +402,7 @@ class MandateServiceSpec extends Specification {
     service.getIdCardSignatureStatus(sampleUser.id, sampleMandate.id, ENGLISH)
 
     then:
-    thrown(IllegalStateException)
+    thrown(SignatureStateException)
   }
 
   def "getIdCardSignatureStatus: outstanding while the signed mandate is being processed"() {

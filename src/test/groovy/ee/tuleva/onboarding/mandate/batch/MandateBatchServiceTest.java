@@ -31,6 +31,7 @@ import ee.tuleva.onboarding.signature.IdCardSignatureSession;
 import ee.tuleva.onboarding.signature.MobileIdSignatureSession;
 import ee.tuleva.onboarding.signature.SignatureFile;
 import ee.tuleva.onboarding.signature.SignatureService;
+import ee.tuleva.onboarding.signature.SignatureStateException;
 import ee.tuleva.onboarding.signature.SignatureStatus;
 import ee.tuleva.onboarding.signature.SmartIdSignatureSession;
 import ee.tuleva.onboarding.user.User;
@@ -851,7 +852,7 @@ public class MandateBatchServiceTest {
           .thenReturn(Optional.of(mandateBatch));
 
       assertThrows(
-          IllegalStateException.class,
+          SignatureStateException.class,
           () ->
               mandateBatchService.getIdCardSignatureStatus(
                   user.getId(), mandateBatch.getId(), Locale.ENGLISH));
@@ -903,7 +904,7 @@ public class MandateBatchServiceTest {
           .thenReturn(Optional.of(mandateBatch));
 
       assertThrows(
-          IllegalStateException.class,
+          SignatureStateException.class,
           () ->
               mandateBatchService.persistIdCardSignature(
                   user.getId(), mandateBatch.getId(), session, "signature", Locale.ENGLISH));

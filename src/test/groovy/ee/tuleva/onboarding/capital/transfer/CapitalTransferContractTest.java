@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.capital.transfer;
 
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.CAPITAL_PAYMENT;
 import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractFixture.sampleCapitalTransferContract;
 import static ee.tuleva.onboarding.user.MemberFixture.memberFixture;
@@ -7,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import ee.tuleva.onboarding.time.ClockHolder;
+import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.member.Member;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
@@ -379,6 +381,65 @@ class CapitalTransferContractTest {
       assertThat(contract.getBuyerFirstName()).isEqualTo(buyer.getFirstName());
       assertThat(contract.getBuyerLastName()).isEqualTo(buyer.getLastName());
       assertThat(contract.getBuyerFullName()).isEqualTo(buyer.getFullName());
+    }
+  }
+
+  @Nested
+  class IsSignedBy {
+
+    private User sellerUser;
+    private User buyerUser;
+
+    @BeforeEach
+    void setUpUsers() {
+      sellerUser = sampleUser().id(11L).member(seller).build();
+      buyerUser = sampleUser().id(12L).member(buyer).build();
+    }
+
+    @Test
+    void nobodyHasSignedACreatedContract() {
+      CapitalTransferContract contract =
+          contractBuilder.state(CapitalTransferContractState.CREATED).build();
+
+      assertThat(contract.isSignedBy(sellerUser)).isFalse();
+      assertThat(contract.isSignedBy(buyerUser)).isFalse();
+    }
+
+    @Test
+    void onlyTheSellerHasSignedASellerSignedContract() {
+      CapitalTransferContract contract =
+          contractBuilder.state(CapitalTransferContractState.SELLER_SIGNED).build();
+
+      assertThat(contract.isSignedBy(sellerUser)).isTrue();
+      assertThat(contract.isSignedBy(buyerUser)).isFalse();
+    }
+
+    @Test
+    void bothPartiesHaveSignedFromBuyerSignedOnwards() {
+      CapitalTransferContract contract =
+          contractBuilder.state(CapitalTransferContractState.BUYER_SIGNED).build();
+
+      assertThat(contract.isSignedBy(sellerUser)).isTrue();
+      assertThat(contract.isSignedBy(buyerUser)).isTrue();
+    }
+
+    @Test
+    void nobodyHasSignedACancelledContract() {
+      CapitalTransferContract contract =
+          contractBuilder.state(CapitalTransferContractState.CANCELLED).build();
+
+      assertThat(contract.isSignedBy(sellerUser)).isFalse();
+      assertThat(contract.isSignedBy(buyerUser)).isFalse();
+    }
+
+    @Test
+    void aThirdPartyHasNeverSigned() {
+      User stranger =
+          sampleUser().id(13L).member(memberFixture().id(3L).memberNumber(103).build()).build();
+      CapitalTransferContract contract =
+          contractBuilder.state(CapitalTransferContractState.BUYER_SIGNED).build();
+
+      assertThat(contract.isSignedBy(stranger)).isFalse();
     }
   }
 }

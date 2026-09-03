@@ -140,6 +140,25 @@ public class CapitalTransferContract {
     return this;
   }
 
+  public boolean isSignedBy(User user) {
+    Long memberId = user.getMemberOrThrow().getId();
+    if (memberId.equals(seller.getId())) {
+      return isSignedBySeller();
+    }
+    if (memberId.equals(buyer.getId())) {
+      return isSignedByBuyer();
+    }
+    return false;
+  }
+
+  private boolean isSignedBySeller() {
+    return state != CREATED && state != CANCELLED;
+  }
+
+  private boolean isSignedByBuyer() {
+    return isSignedBySeller() && state != SELLER_SIGNED;
+  }
+
   public boolean canBeAccessedBy(User user) {
     var isSeller = user.getMemberOrThrow().getId().equals(seller.getId());
     var isBuyer = user.getMemberOrThrow().getId().equals(buyer.getId());

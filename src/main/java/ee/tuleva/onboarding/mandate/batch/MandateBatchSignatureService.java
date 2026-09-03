@@ -17,13 +17,11 @@ import ee.tuleva.onboarding.signature.SmartIdSignatureSession;
 import ee.tuleva.onboarding.signature.StartIdCardSignCommand;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
-import jakarta.validation.Valid;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.RequestBody;
 
 @Service
 @RequiredArgsConstructor
@@ -68,39 +66,49 @@ public class MandateBatchSignatureService {
   public IdCardSignatureResponse startIdCardSign(
       Long mandateBatchId,
       AuthenticatedPerson authenticatedPerson,
-      @Valid @RequestBody StartIdCardSignCommand signCommand) {
+      StartIdCardSignCommand signCommand) {
 
     User user = userService.getById(authenticatedPerson.getUserIdOrThrow()).orElseThrow();
     List<SignatureFile> files =
         mandateBatchService.getMandateBatchContentFiles(mandateBatchId, user);
 
     IdCardSignatureSession signatureSession =
-        signService.startIdCardSign(files, signCommand.clientCertificate());
+        signService.startIdCardSign(files, signCommand.certificate());
 
     sessionStore.save(signatureSession);
 
-    return new IdCardSignatureResponse(signatureSession.getHashToSignInHex());
+    return IdCardSignatureResponse.from(signatureSession);
   }
 
-  public IdCardSignatureStatusResponse persistIdCardSignedHashAndGetProcessingStatus(
+  public IdCardSignatureStatusResponse persistIdCardSignature(
       Long mandateBatchId,
-      @Valid @RequestBody FinishIdCardSignCommand signCommand,
+      FinishIdCardSignCommand signCommand,
       AuthenticatedPerson authenticatedPerson) {
 
-    Optional<IdCardSignatureSession> signatureSession =
-        sessionStore.get(IdCardSignatureSession.class);
     IdCardSignatureSession session =
-        signatureSession.orElseThrow(IdSessionException::cardSignatureSessionNotFound);
-
-    Locale locale = localeService.getCurrentLocale();
+        sessionStore
+            .get(IdCardSignatureSession.class)
+            .orElseThrow(IdSessionException::cardSignatureSessionNotFound);
 
     SignatureStatus statusCode =
-        mandateBatchService.persistIdCardSignedFileOrGetBatchProcessingStatus(
+        mandateBatchService.persistIdCardSignature(
             authenticatedPerson.getUserIdOrThrow(),
             mandateBatchId,
             session,
-            signCommand.signedHash(),
-            locale);
+            signCommand.signature(),
+            localeService.getCurrentLocale());
+
+    return new IdCardSignatureStatusResponse(statusCode);
+  }
+
+  public IdCardSignatureStatusResponse getIdCardSignatureStatus(
+      Long mandateBatchId, AuthenticatedPerson authenticatedPerson) {
+
+    SignatureStatus statusCode =
+        mandateBatchService.getIdCardSignatureStatus(
+            authenticatedPerson.getUserIdOrThrow(),
+            mandateBatchId,
+            localeService.getCurrentLocale());
 
     return new IdCardSignatureStatusResponse(statusCode);
   }

@@ -87,16 +87,26 @@ class DigiDocFacadeSpec extends Specification {
     dataToSign.dataToSign.length > 0
   }
 
-  def "hashes the bytes to be signed with SHA-256"() {
+  def "hashes the bytes to be signed with the digest algorithm of the data to sign"() {
     given:
     def dataToSign = Mock(DataToSign)
     1 * dataToSign.dataToSign >> "some data".bytes
+    dataToSign.digestAlgorithm >> DigestAlgorithm.SHA256
 
     when:
     def digest = digiDocFacade.digestToSign(dataToSign)
 
     then:
     digest == MessageDigest.getInstance("SHA-256").digest("some data".bytes)
+  }
+
+  def "names the hash function of the data to sign the way Web eID expects it"() {
+    given:
+    def dataToSign = Mock(DataToSign)
+    dataToSign.digestAlgorithm >> DigestAlgorithm.SHA256
+
+    expect:
+    digiDocFacade.hashFunction(dataToSign) == "SHA-256"
   }
 
   def "adds the finalized signature to the container and returns its bytes"() {

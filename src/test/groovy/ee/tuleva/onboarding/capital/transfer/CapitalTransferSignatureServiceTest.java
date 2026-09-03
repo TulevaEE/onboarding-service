@@ -247,7 +247,7 @@ class CapitalTransferSignatureServiceTest {
     List<SignatureFile> files = List.of(signatureFile);
 
     IdCardSignatureSession signatureSession =
-        IdCardSignatureSession.builder().hashToSignInHex("hash-to-sign").build();
+        IdCardSignatureSession.builder().hashToSign("hash-to-sign").hashFunction("SHA-256").build();
 
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
     when(contractService.getSignatureFiles(contractId, user)).thenReturn(files);
@@ -258,55 +258,77 @@ class CapitalTransferSignatureServiceTest {
         signatureService.startIdCardSignature(contractId, authenticatedPerson, command);
 
     // then
-    assertThat(response.getHash()).isEqualTo("hash-to-sign");
+    assertThat(response).isEqualTo(new IdCardSignatureResponse("hash-to-sign", "SHA-256"));
     verify(sessionStore).save(signatureSession);
   }
 
   @Test
-  void persistIdCardSignedHashAndGetProcessingStatus_returnsSignatureWhenFileIsSigned() {
-    // given
+  void persistIdCardSignature_signsTheContractAndReturnsSignature() {
     Long contractId = 1L;
     User user = sampleUser().build();
     AuthenticatedPerson authenticatedPerson = authenticatedPersonFromUser(user).build();
-
-    FinishIdCardSignCommand command = new FinishIdCardSignCommand("signed-hash");
-
+    FinishIdCardSignCommand command = new FinishIdCardSignCommand("signature");
     Member seller = memberFixture().user(user).build();
     CapitalTransferContract contract =
         sampleCapitalTransferContractWithSeller(seller)
             .id(contractId)
             .state(CapitalTransferContractState.CREATED)
             .build();
-
     IdCardSignatureSession signatureSession =
-        IdCardSignatureSession.builder().hashToSignInHex("hash-to-sign").build();
+        IdCardSignatureSession.builder().hashToSign("hash-to-sign").build();
     byte[] signedFile = "signed content".getBytes();
 
     when(sessionStore.get(IdCardSignatureSession.class)).thenReturn(Optional.of(signatureSession));
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
     when(contractService.getContract(contractId, user)).thenReturn(contract);
-    when(signService.getSignedFile(signatureSession, "signed-hash")).thenReturn(signedFile);
+    when(signService.getSignedFile(signatureSession, "signature")).thenReturn(signedFile);
 
-    // when
     IdCardSignatureStatusResponse response =
-        signatureService.persistIdCardSignedHashAndGetProcessingStatus(
-            contractId, command, authenticatedPerson);
+        signatureService.persistIdCardSignature(contractId, command, authenticatedPerson);
 
-    // then
     assertThat(response.getStatusCode()).isEqualTo(SignatureStatus.SIGNATURE);
     verify(contractService).signBySeller(contractId, signedFile, user);
   }
 
   @Test
-  void
-      persistIdCardSignedHashAndGetProcessingStatus_returnsOutstandingTransactionWhenFileNotSigned() {
-    // given
+  void persistIdCardSignature_requiresAnIdCardSignatureSession() {
+    User user = sampleUser().build();
+    AuthenticatedPerson authenticatedPerson = authenticatedPersonFromUser(user).build();
+    FinishIdCardSignCommand command = new FinishIdCardSignCommand("signature");
+
+    when(sessionStore.get(IdCardSignatureSession.class)).thenReturn(Optional.empty());
+
+    assertThatThrownBy(
+            () -> signatureService.persistIdCardSignature(1L, command, authenticatedPerson))
+        .isInstanceOf(IdSessionException.class);
+  }
+
+  @Test
+  void getIdCardSignatureStatus_isSignatureOnceTheUserHasSigned() {
     Long contractId = 1L;
     User user = sampleUser().build();
     AuthenticatedPerson authenticatedPerson = authenticatedPersonFromUser(user).build();
+    Member seller = memberFixture().user(user).build();
+    CapitalTransferContract contract =
+        sampleCapitalTransferContractWithSeller(seller)
+            .id(contractId)
+            .state(CapitalTransferContractState.SELLER_SIGNED)
+            .build();
 
-    FinishIdCardSignCommand command = new FinishIdCardSignCommand("signed-hash");
+    when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
+    when(contractService.getContract(contractId, user)).thenReturn(contract);
 
+    IdCardSignatureStatusResponse response =
+        signatureService.getIdCardSignatureStatus(contractId, authenticatedPerson);
+
+    assertThat(response.getStatusCode()).isEqualTo(SignatureStatus.SIGNATURE);
+  }
+
+  @Test
+  void getIdCardSignatureStatus_isOutstandingWhileTheUserHasNotSigned() {
+    Long contractId = 1L;
+    User user = sampleUser().build();
+    AuthenticatedPerson authenticatedPerson = authenticatedPersonFromUser(user).build();
     Member seller = memberFixture().user(user).build();
     CapitalTransferContract contract =
         sampleCapitalTransferContractWithSeller(seller)
@@ -314,20 +336,12 @@ class CapitalTransferSignatureServiceTest {
             .state(CapitalTransferContractState.CREATED)
             .build();
 
-    IdCardSignatureSession signatureSession =
-        IdCardSignatureSession.builder().hashToSignInHex("hash-to-sign").build();
-
-    when(sessionStore.get(IdCardSignatureSession.class)).thenReturn(Optional.of(signatureSession));
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
     when(contractService.getContract(contractId, user)).thenReturn(contract);
-    when(signService.getSignedFile(signatureSession, "signed-hash")).thenReturn(null);
 
-    // when
     IdCardSignatureStatusResponse response =
-        signatureService.persistIdCardSignedHashAndGetProcessingStatus(
-            contractId, command, authenticatedPerson);
+        signatureService.getIdCardSignatureStatus(contractId, authenticatedPerson);
 
-    // then
     assertThat(response.getStatusCode()).isEqualTo(SignatureStatus.OUTSTANDING_TRANSACTION);
   }
 

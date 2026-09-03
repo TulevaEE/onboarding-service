@@ -143,15 +143,15 @@ public class MandateController implements SignatureController<Long> {
       @Valid @RequestBody StartIdCardSignCommand signCommand) {
     IdCardSignatureSession signatureSession =
         mandateService.idCardSign(
-            mandateId, authenticatedPerson.getUserIdOrThrow(), signCommand.clientCertificate());
+            mandateId, authenticatedPerson.getUserIdOrThrow(), signCommand.certificate());
     sessionStore.save(signatureSession);
 
-    return new IdCardSignatureResponse(signatureSession.getHashToSignInHex());
+    return IdCardSignatureResponse.from(signatureSession);
   }
 
   @Override
-  @Operation(summary = "Persist ID-card signed mandate, and check if mandate is processed")
-  public IdCardSignatureStatusResponse persistIdCardSignedHashOrGetSignatureStatus(
+  @Operation(summary = "Persist the ID card signature of the mandate and start processing it")
+  public IdCardSignatureStatusResponse persistIdCardSignature(
       @PathVariable("id") Long mandateId,
       @Valid @RequestBody FinishIdCardSignCommand signCommand,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
@@ -161,12 +161,20 @@ public class MandateController implements SignatureController<Long> {
             .orElseThrow(IdSessionException::cardSignatureSessionNotFound);
 
     SignatureStatus statusCode =
-        mandateService.finalizeIdCardSignature(
-            authenticatedPerson.getUserIdOrThrow(),
-            mandateId,
-            session,
-            signCommand.signedHash(),
-            localeService.getCurrentLocale());
+        mandateService.persistIdCardSignature(
+            authenticatedPerson.getUserIdOrThrow(), mandateId, session, signCommand.signature());
+
+    return new IdCardSignatureStatusResponse(statusCode);
+  }
+
+  @Override
+  @Operation(summary = "Is the mandate signed with ID card processed")
+  public IdCardSignatureStatusResponse getIdCardSignatureStatus(
+      @PathVariable("id") Long mandateId,
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+    SignatureStatus statusCode =
+        mandateService.getIdCardSignatureStatus(
+            authenticatedPerson.getUserIdOrThrow(), mandateId, localeService.getCurrentLocale());
 
     return new IdCardSignatureStatusResponse(statusCode);
   }

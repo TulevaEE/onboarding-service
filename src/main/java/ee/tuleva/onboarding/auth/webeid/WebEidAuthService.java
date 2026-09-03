@@ -32,12 +32,14 @@ public class WebEidAuthService {
   }
 
   public IdCardSession authenticate(WebEidAuthToken authToken) {
+    return createSession(validate(authToken));
+  }
+
+  private X509Certificate validate(WebEidAuthToken authToken) {
     try {
       log.info("Validating Web eID auth token");
       var nonce = challengeNonceStore.getAndRemove();
-      X509Certificate certificate =
-          authTokenValidator.validate(authToken, nonce.getBase64EncodedNonce());
-      return createSession(certificate);
+      return validateToken(authToken, nonce.getBase64EncodedNonce());
     } catch (ChallengeNonceExpiredException e) {
       log.error("Web eID challenge nonce expired or not found", e);
       throw new WebEidAuthException("Challenge nonce expired or not found", e);
@@ -46,6 +48,16 @@ public class WebEidAuthService {
       throw new WebEidConfigurationException("Web eID configuration error", e);
     } catch (AuthTokenException e) {
       log.info("Web eID token validation failed: {}", e.getMessage());
+      throw new WebEidAuthException("Web eID token validation failed", e);
+    }
+  }
+
+  private X509Certificate validateToken(WebEidAuthToken authToken, String challengeNonce)
+      throws AuthTokenException {
+    try {
+      return authTokenValidator.validate(authToken, challengeNonce);
+    } catch (RuntimeException e) {
+      log.warn("Web eID token validation failed unexpectedly", e);
       throw new WebEidAuthException("Web eID token validation failed", e);
     }
   }

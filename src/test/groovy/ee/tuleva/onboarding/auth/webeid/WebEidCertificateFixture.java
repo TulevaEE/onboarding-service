@@ -3,8 +3,10 @@ package ee.tuleva.onboarding.auth.webeid;
 import static ee.tuleva.onboarding.auth.idcard.IdDocumentType.ESTONIAN_CITIZEN_ID_CARD;
 import static org.bouncycastle.asn1.x509.Extension.certificatePolicies;
 import static org.bouncycastle.asn1.x509.Extension.extendedKeyUsage;
+import static org.bouncycastle.asn1.x509.Extension.keyUsage;
 import static org.bouncycastle.asn1.x509.KeyPurposeId.id_kp_clientAuth;
 import static org.bouncycastle.asn1.x509.KeyPurposeId.id_kp_emailProtection;
+import static org.bouncycastle.asn1.x509.KeyUsage.digitalSignature;
 
 import ee.tuleva.onboarding.auth.idcard.IdDocumentType;
 import java.math.BigInteger;
@@ -23,6 +25,7 @@ import org.bouncycastle.asn1.x509.CertificatePolicies;
 import org.bouncycastle.asn1.x509.ExtendedKeyUsage;
 import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.asn1.x509.KeyPurposeId;
+import org.bouncycastle.asn1.x509.KeyUsage;
 import org.bouncycastle.asn1.x509.PolicyInformation;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.cert.X509v3CertificateBuilder;
@@ -65,6 +68,15 @@ public class WebEidCertificateFixture {
         subjectDn(firstName, lastName, personalCode),
         VALID_ISSUER,
         policies(ESTONIAN_CITIZEN_ID_CARD.getFirstIdentifier()));
+  }
+
+  public static X509Certificate certificateWithoutPolicies(
+      String firstName, String lastName, String personalCode) {
+    return buildCertificate(
+        subjectDn(firstName, lastName, personalCode),
+        VALID_ISSUER,
+        signing(),
+        clientAuthentication());
   }
 
   // A subject DN missing one of SURNAME=, GIVENNAME= or SERIALNUMBER= exercises the
@@ -115,6 +127,11 @@ public class WebEidCertificateFixture {
         extendedKeyUsage,
         false,
         new ExtendedKeyUsage(new KeyPurposeId[] {id_kp_clientAuth, id_kp_emailProtection}));
+  }
+
+  @SneakyThrows
+  private static Extension signing() {
+    return Extension.create(keyUsage, true, new KeyUsage(digitalSignature));
   }
 
   @SneakyThrows

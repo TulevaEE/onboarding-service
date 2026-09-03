@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.auth.webeid.WebEidCertificateFixture.certific
 import static ee.tuleva.onboarding.auth.webeid.WebEidCertificateFixture.certificateWithIssuer;
 import static ee.tuleva.onboarding.auth.webeid.WebEidCertificateFixture.certificateWithSubjectDn;
 import static ee.tuleva.onboarding.auth.webeid.WebEidCertificateFixture.certificateWithoutClientAuth;
+import static ee.tuleva.onboarding.auth.webeid.WebEidCertificateFixture.certificateWithoutPolicies;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -25,7 +26,11 @@ import eu.webeid.security.exceptions.AuthTokenException;
 import eu.webeid.security.exceptions.AuthTokenParseException;
 import eu.webeid.security.exceptions.ChallengeNonceExpiredException;
 import eu.webeid.security.validator.AuthTokenValidator;
+import eu.webeid.security.validator.AuthTokenValidatorBuilder;
+import java.net.URI;
+import java.security.cert.X509Certificate;
 import java.time.ZonedDateTime;
+import java.util.Base64;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -209,6 +214,54 @@ class WebEidAuthServiceTest {
         ReflectionTestUtils.invokeMethod(service, "extractPersonalCode", foreignSerialNumber);
 
     assertThat(personalCode).isEqualTo(foreignSerialNumber);
+  }
+
+  @Test
+  void authenticate_failsWhenTokenValidatorThrowsUnexpectedly() throws AuthTokenException {
+    setupNonceStore();
+    when(authTokenValidator.validate(any(), any())).thenThrow(new IllegalStateException());
+
+    assertThatThrownBy(() -> service.authenticate(new WebEidAuthToken()))
+        .isInstanceOf(WebEidAuthException.class)
+        .hasCauseInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void authenticate_propagatesNonceStoreFailures() throws AuthTokenException {
+    when(challengeNonceStore.getAndRemove()).thenThrow(new IllegalStateException());
+
+    assertThatThrownBy(() -> service.authenticate(new WebEidAuthToken()))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void authenticate_failsWhenCertificateHasNoPoliciesExtension() throws Exception {
+    setupNonceStore();
+    var certificate =
+        certificateWithoutPolicies(TEST_FIRST_NAME, TEST_LAST_NAME, TEST_PERSONAL_CODE);
+    var serviceWithRealValidator =
+        new WebEidAuthService(
+            null,
+            challengeNonceStore,
+            new AuthTokenValidatorBuilder()
+                .withSiteOrigin(URI.create("https://onboarding-service.tuleva.ee"))
+                .withTrustedCertificateAuthorities(certificate)
+                .build(),
+            new IdDocumentTypeExtractor(List.of(), new ProductionCertificateNormalizer()));
+
+    assertThatThrownBy(() -> serviceWithRealValidator.authenticate(authToken(certificate)))
+        .isInstanceOf(WebEidAuthException.class)
+        .hasCauseInstanceOf(NullPointerException.class);
+  }
+
+  private static WebEidAuthToken authToken(X509Certificate certificate) throws Exception {
+    var authToken = new WebEidAuthToken();
+    authToken.setFormat("web-eid:1.0");
+    authToken.setUnverifiedCertificate(
+        Base64.getEncoder().encodeToString(certificate.getEncoded()));
+    authToken.setAlgorithm("ES384");
+    authToken.setSignature("signature");
+    return authToken;
   }
 
   private void setupNonceStore() throws AuthTokenException {

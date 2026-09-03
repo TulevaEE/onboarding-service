@@ -528,4 +528,24 @@ class R17ReportParserTest {
     assertThat(result.get("TUK75").pikUnits()).isEqualByComparingTo("100.000");
     assertThat(result.get("TUK75").switchingNetUnits()).isEqualByComparingTo("0");
   }
+
+  // Without the operator column the row cannot be classified at all, and an empty operator type
+  // reads as "not PIK" — so the units would land in the switching total and the number would look
+  // finished while meaning something else.
+  @Test
+  void refusesARowWithNoOperatorColumnRatherThanCallingItSwitching() {
+    String headerWithoutOperator =
+        "Väärtpaber;NAV;Toiming;Hind;Osakud (teenustasuta);Osakud (teenustasuga);Summa";
+    String csv =
+        """
+        Staatus;;;;Seisuga;;Valuuta
+        Netitud;;;;15.04.2026;;EUR
+        %s
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Tagasivõtt;0.80;40.000;60.000;80.00
+        """
+            .formatted(headerWithoutOperator);
+
+    assertThatThrownBy(() -> parser.parse(csv, LOCK_DATE, EXEC_DATE))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
 }

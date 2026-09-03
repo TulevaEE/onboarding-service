@@ -179,8 +179,7 @@ public class MandateBatchService {
       throw SignatureStateException.alreadySigned("Mandate batch", mandateBatchId);
     }
     byte[] signedFile = signService.getSignedFile(session, signature);
-    return persistSignedFileIfPresentAndStartProcessing(
-        user, mandateBatch, Optional.of(signedFile), locale);
+    return persistSignedFileAndStartProcessing(user, mandateBatch, signedFile, locale);
   }
 
   public SignatureStatus getIdCardSignatureStatus(Long userId, Long mandateBatchId, Locale locale) {
@@ -233,12 +232,16 @@ public class MandateBatchService {
 
   private SignatureStatus persistSignedFileIfPresentAndStartProcessing(
       User user, MandateBatch mandateBatch, Optional<byte[]> signedFile, Locale locale) {
-    signedFile.ifPresent(
-        it -> {
-          persistSignedFile(mandateBatch, it);
-          startProcessingBatch(user, mandateBatch);
-          mandateBatchProcessingPoller.startPollingForBatchProcessingFinished(mandateBatch, locale);
-        });
+    signedFile.ifPresent(it -> persistSignedFileAndStartProcessing(user, mandateBatch, it, locale));
+
+    return OUTSTANDING_TRANSACTION;
+  }
+
+  private SignatureStatus persistSignedFileAndStartProcessing(
+      User user, MandateBatch mandateBatch, byte[] signedFile, Locale locale) {
+    persistSignedFile(mandateBatch, signedFile);
+    startProcessingBatch(user, mandateBatch);
+    mandateBatchProcessingPoller.startPollingForBatchProcessingFinished(mandateBatch, locale);
 
     return OUTSTANDING_TRANSACTION;
   }

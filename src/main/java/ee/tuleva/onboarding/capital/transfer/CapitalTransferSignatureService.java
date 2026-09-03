@@ -102,6 +102,10 @@ public class CapitalTransferSignatureService {
     User user = userService.getByIdOrThrow(authenticatedPerson.getUserIdOrThrow());
     CapitalTransferContract contract = contractService.getContract(contractId, user);
 
+    if (contract.isSignedBy(user)) {
+      throw SignatureStateException.alreadySigned("Capital transfer contract", contractId);
+    }
+
     byte[] signedFile = signService.getSignedFile(session, signCommand.signature());
     finalizeSignature(contract, user, signedFile);
 

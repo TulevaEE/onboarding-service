@@ -90,12 +90,20 @@ class CustodianCompletenessChecker {
         "The SEB position report we have stored and the NAV we published disagree on "
             + days.size()
             + " day(s). Read the line(s) below in the SEB report for that date - one side is"
-            + " missing what the other has. A day marked re-sent post-dates the NAV, but moves it"
-            + " by more than "
-            + materialBasisPoints.toPlainString()
-            + " bp, so it still needs checking:\n"
+            + " missing what the other has."
+            + reSendNote(days)
+            + "\n"
             + describe(days),
         days);
+  }
+
+  private String reSendNote(List<CustodianDayComparison> days) {
+    if (days.stream().noneMatch(CustodianDayComparison::navPredatesReport)) {
+      return "";
+    }
+    return " A day marked re-sent post-dates the NAV, but moves it by more than "
+        + materialBasisPoints.toPlainString()
+        + " bp, so it still needs checking.";
   }
 
   private FeeCheckFinding lateCorrection(TulevaFund fund, List<CustodianDayComparison> days) {

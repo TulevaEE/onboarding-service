@@ -203,7 +203,19 @@ class CustodianCompletenessCheckerTest {
     var finding = check().getFirst();
 
     assertThat(finding.severity()).isEqualTo(WARNING);
-    assertThat(finding.message()).contains("re-sent", "-5.00 bp");
+    assertThat(finding.message())
+        .contains("A day marked re-sent post-dates the NAV", "1.00 bp", "-5.00 bp");
+  }
+
+  // The re-send sentence is there to stop a reader dismissing a warning they can see is dated
+  // after the NAV. On a warning where no day is dated at all it explains nothing and reads as if
+  // one were, so it has to be absent.
+  @Test
+  void saysNothingAboutReSendsOnAWarningWhereNoDayWasReSent() {
+    givenPositionDates(POSITION_DATE);
+    givenComparison(differing(POSITION_DATE, difference(PAYABLES, "-12500.00", "0.00")));
+
+    assertThat(check().getFirst().message()).doesNotContain("re-sent");
   }
 
   // The event row is the durable record; the Slack message is not queryable and ages out. Keeping

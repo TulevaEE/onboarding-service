@@ -325,7 +325,7 @@ class CapitalTransferSignatureServiceTest {
   }
 
   @Test
-  void getIdCardSignatureStatus_isOutstandingWhileTheUserHasNotSigned() {
+  void getIdCardSignatureStatus_rejectsAContractTheUserHasNotSignedYet() {
     Long contractId = 1L;
     User user = sampleUser().build();
     AuthenticatedPerson authenticatedPerson = authenticatedPersonFromUser(user).build();
@@ -339,10 +339,9 @@ class CapitalTransferSignatureServiceTest {
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
     when(contractService.getContract(contractId, user)).thenReturn(contract);
 
-    IdCardSignatureStatusResponse response =
-        signatureService.getIdCardSignatureStatus(contractId, authenticatedPerson);
-
-    assertThat(response.getStatusCode()).isEqualTo(SignatureStatus.OUTSTANDING_TRANSACTION);
+    assertThatThrownBy(
+            () -> signatureService.getIdCardSignatureStatus(contractId, authenticatedPerson))
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test

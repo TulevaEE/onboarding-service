@@ -113,10 +113,11 @@ public class CapitalTransferSignatureService {
     User user = userService.getByIdOrThrow(authenticatedPerson.getUserIdOrThrow());
     CapitalTransferContract contract = contractService.getContract(contractId, user);
 
-    return new IdCardSignatureStatusResponse(
-        contract.isSignedBy(user)
-            ? SignatureStatus.SIGNATURE
-            : SignatureStatus.OUTSTANDING_TRANSACTION);
+    if (!contract.isSignedBy(user)) {
+      throw new IllegalStateException(
+          "Capital transfer contract is not signed: contractId=" + contractId);
+    }
+    return new IdCardSignatureStatusResponse(SignatureStatus.SIGNATURE);
   }
 
   public MobileSignatureResponse startMobileIdSignature(

@@ -71,7 +71,7 @@ class SmartIdAuthProviderTest {
   }
 
   @Test
-  void keepsPollingAndSavesTheSessionWhileTheLoginIsNotComplete() {
+  void leavesTheStoredSessionAloneWhileTheLoginIsNotComplete() {
     SmartIdSession session = aDeviceLinkSession(now.minusSeconds(170));
     given(sessionStore.get(SmartIdSession.class)).willReturn(Optional.of(session));
     given(smartIdAuthService.completeLogin(session)).willThrow(new AuthNotCompleteException());
@@ -79,7 +79,9 @@ class SmartIdAuthProviderTest {
     assertThatThrownBy(() -> provider.authenticate(null))
         .isInstanceOf(AuthNotCompleteException.class);
 
-    verify(sessionStore).save(session);
+    // Polling and the same-device callback are separate requests holding separate copies, so a
+    // poll that writes back would undo a callback that landed while it was in flight.
+    verify(sessionStore, never()).save(session);
     verify(rememberedAccounts, never()).remember(aSmartIdPerson(), true);
   }
 

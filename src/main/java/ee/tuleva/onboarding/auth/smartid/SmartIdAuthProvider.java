@@ -49,11 +49,14 @@ public class SmartIdAuthProvider implements AuthProvider {
     try {
       person = smartIdAuthService.completeLogin(session);
     } catch (SmartIdException e) {
+      genericSessionStore.save(session);
       forgetStaleRememberedAccount(session);
       throw e;
-    } finally {
-      genericSessionStore.save(session);
     }
+    // Only a finished login writes the session back. Polling and the same-device callback run as
+    // separate requests, each with its own copy, so saving an unfinished poll would overwrite the
+    // challenge verifier a callback had just stored and strand the login.
+    genericSessionStore.save(session);
 
     var authenticatedPerson =
         principalService.getFrom(

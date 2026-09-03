@@ -87,7 +87,7 @@ public class SmartIdLoginController {
       return smartIdLoginStarter.startNotificationLogin(account);
     } catch (SmartIdException e) {
       if (e.getLoginError() == SmartIdLoginError.ACCOUNT_NOT_FOUND) {
-        rememberedSmartIdAccounts.forget();
+        rememberedSmartIdAccounts.forgetEverywhere();
       }
       throw e;
     }

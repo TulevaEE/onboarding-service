@@ -100,7 +100,7 @@ class SmartIdLoginControllerTest {
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[0].code").value("smart.id.account.not.found"));
 
-    verify(rememberedSmartIdAccounts).forget();
+    verify(rememberedSmartIdAccounts).forgetEverywhere();
     verify(sessionStore, never()).save(any());
   }
 
@@ -119,7 +119,7 @@ class SmartIdLoginControllerTest {
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errors[0].code").value("smart.id.technical.error"));
 
-    verify(rememberedSmartIdAccounts, never()).forget();
+    verify(rememberedSmartIdAccounts, never()).forgetEverywhere();
   }
 
   @Test

@@ -9,6 +9,7 @@ import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.firstName;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.lastName;
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.personalCode;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -164,6 +165,17 @@ class RememberedSmartIdAccountsTest {
     accounts.remember(aSmartIdPerson(), true);
 
     verify(browsers).add(hash(cookieValue()), browserVerifiedAt(NOW), NOW.plus(VALIDITY));
+  }
+
+  @Test
+  void aPushLoginWithNothingToCarryForwardRemembersNothing() {
+    bindRequest(new Cookie(COOKIE_NAME, "old-token"));
+    given(browsers.findUnexpired(hash("old-token"))).willReturn(Optional.empty());
+
+    accounts.remember(aSmartIdPerson(), false);
+
+    verify(browsers, never()).add(any(), any(), any());
+    assertThat(response.getHeader(SET_COOKIE)).isNull();
   }
 
   @Test

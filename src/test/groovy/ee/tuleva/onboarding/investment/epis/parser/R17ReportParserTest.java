@@ -503,15 +503,12 @@ class R17ReportParserTest {
     assertThat(result.get("TUK75").switchingNetUnits()).isEqualByComparingTo("100.000");
   }
 
+  // "Summa (PF valitseja)" also contains "pf valitseja", so the old contains-match landed on
+  // whichever of the two columns the export put first. Moving the amount column left makes the
+  // operator type read "0.00" — no "pik" in it, so the PIK redemption would be booked as a
+  // switching outflow, and the row's units are the same either way so no cross-check can see it.
   @Test
   void classifiesPikByTheOperatorColumnEvenWhenTheAmountColumnComesFirst() {
-    // "Summa (PF valitseja)" also contains "pf valitseja", so the bare contains-match lands on
-    // whichever of the two columns the export puts first. In the real export the amount column
-    // sits to the right, which made the old lookup right by luck of column order rather than by
-    // rule. This header moves it left, and without the "pf valitseja/pik" candidate the operator
-    // type would read "0.00" — no "pik" in it, so a PIK redemption would be booked as a switching
-    // outflow. The row's units are unchanged either way, so the units-vs-amount cross-check cannot
-    // catch it.
     String reorderedHeader =
         "Väärtpaber;NAV;Toiming;Summa (PF valitseja);Hind;Osakud (teenustasuta);Osakud (teenustasuga);Summa;PF valitseja/PIK";
     String csv =
@@ -529,9 +526,8 @@ class R17ReportParserTest {
     assertThat(result.get("TUK75").switchingNetUnits()).isEqualByComparingTo("0");
   }
 
-  // Without the operator column the row cannot be classified at all, and an empty operator type
-  // reads as "not PIK" — so the units would land in the switching total and the number would look
-  // finished while meaning something else.
+  // An unreadable operator type would read as "not PIK", so the units would land in the switching
+  // total and the number would look finished while meaning something else.
   @Test
   void refusesARowWithNoOperatorColumnRatherThanCallingItSwitching() {
     String headerWithoutOperator =
@@ -544,6 +540,21 @@ class R17ReportParserTest {
         Tuleva Maailma Aktsiate Pensionifond;0.80;Tagasivõtt;0.80;40.000;60.000;80.00
         """
             .formatted(headerWithoutOperator);
+
+    assertThatThrownBy(() -> parser.parse(csv, LOCK_DATE, EXEC_DATE))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void refusesARowWhoseOperatorCellIsBlankRatherThanCallingItSwitching() {
+    String csv =
+        """
+        Staatus;;;;Seisuga;;Valuuta;;
+        Netitud;;;;15.04.2026;;EUR;;
+        %s
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Tagasivõtt;;0.80;40.000;60.000;80.00;0.00
+        """
+            .formatted(HEADER_ROW);
 
     assertThatThrownBy(() -> parser.parse(csv, LOCK_DATE, EXEC_DATE))
         .isInstanceOf(IllegalArgumentException.class);

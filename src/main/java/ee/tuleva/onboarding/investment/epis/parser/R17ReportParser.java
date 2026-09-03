@@ -157,13 +157,13 @@ public class R17ReportParser {
     return requireNonNullElse(feeBearingUnits, ZERO).add(requireNonNullElse(feeFreeUnits, ZERO));
   }
 
-  private static String requiredPfType(Map<String, String> row, String fund, String toiming) {
-    String pfType = findValue(row, "pf valitseja/pik");
-    if (pfType == null) {
+  private static String requiredOperatorType(Map<String, String> row, String fund, String toiming) {
+    String operatorType = lowerCase(findValue(row, "pf valitseja/pik"));
+    if (operatorType.isEmpty()) {
       throw new IllegalArgumentException(
-          "R17 operator column missing: fund=" + fund + ", toiming=" + toiming);
+          "R17 operator column missing or blank: fund=" + fund + ", toiming=" + toiming);
     }
-    return lowerCase(pfType);
+    return operatorType;
   }
 
   private static String trimmed(@Nullable String value) {
@@ -189,7 +189,7 @@ public class R17ReportParser {
         return;
       }
 
-      String pfType = requiredPfType(row, fundRaw, toiming);
+      String operatorType = requiredOperatorType(row, fundRaw, toiming);
       BigDecimal units = requiredUnits(row, fundRaw, toiming).abs();
       if (units.signum() == 0) {
         return;
@@ -202,14 +202,14 @@ public class R17ReportParser {
 
       UnitAccumulator accumulator =
           accumulators.computeIfAbsent(fund.get().getCode(), code -> new UnitAccumulator());
-      applyToiming(accumulator, toiming, pfType, units);
+      applyToiming(accumulator, toiming, operatorType, units);
     }
 
     private static void applyToiming(
-        UnitAccumulator accumulator, String toiming, String pfType, BigDecimal units) {
+        UnitAccumulator accumulator, String toiming, String operatorType, BigDecimal units) {
       boolean isTagasivott = toiming.contains("tagasivõtt") || toiming.contains("tagasivott");
       boolean isValjalase = toiming.contains("väljalase") || toiming.contains("valjalase");
-      boolean isPik = pfType.contains("pik");
+      boolean isPik = operatorType.contains("pik");
 
       if (isTagasivott && isPik) {
         accumulator.pikUnits = accumulator.pikUnits.add(units);

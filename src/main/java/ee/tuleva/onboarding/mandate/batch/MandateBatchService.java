@@ -24,6 +24,7 @@ import ee.tuleva.onboarding.signature.IdCardSignatureSession;
 import ee.tuleva.onboarding.signature.MobileIdSignatureSession;
 import ee.tuleva.onboarding.signature.SignatureFile;
 import ee.tuleva.onboarding.signature.SignatureService;
+import ee.tuleva.onboarding.signature.SignatureStateException;
 import ee.tuleva.onboarding.signature.SignatureStatus;
 import ee.tuleva.onboarding.signature.SmartIdSignatureSession;
 import ee.tuleva.onboarding.user.User;
@@ -175,8 +176,7 @@ public class MandateBatchService {
     MandateBatch mandateBatch = getByIdAndUser(mandateBatchId, user).orElseThrow();
 
     if (mandateBatch.isSigned()) {
-      throw new IllegalStateException(
-          "Mandate batch is already signed: mandateBatchId=" + mandateBatchId);
+      throw SignatureStateException.alreadySigned("Mandate batch", mandateBatchId);
     }
     byte[] signedFile = signService.getSignedFile(session, signature);
     return persistSignedFileIfPresentAndStartProcessing(
@@ -188,8 +188,7 @@ public class MandateBatchService {
     MandateBatch mandateBatch = getByIdAndUser(mandateBatchId, user).orElseThrow();
 
     if (!mandateBatch.isSigned()) {
-      throw new IllegalStateException(
-          "Mandate batch is not signed: mandateBatchId=" + mandateBatchId);
+      throw SignatureStateException.notSigned("Mandate batch", mandateBatchId);
     }
     return getBatchProcessingStatusAndHandleIfProcessed(user, mandateBatch, locale);
   }

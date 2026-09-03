@@ -5,8 +5,11 @@ import static ee.tuleva.onboarding.investment.fees.FeeType.MANAGEMENT;
 import static ee.tuleva.onboarding.investment.position.AccountType.FEE;
 import static ee.tuleva.onboarding.pipeline.PipelineStep.FEE_ACCRUAL_SYNC;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
@@ -86,6 +89,26 @@ class FeeAccrualPositionSyncJobTest {
         fund,
         feeType,
         List.of(new FeeChargedToFundPolicy.Policy(chargedToFund, LocalDate.of(2020, 1, 1), null)));
+  }
+
+  @Test
+  void sync_writesTheOtherFundsWhenOneFundHasNoResolvablePolicy() {
+    given(clock.instant()).willReturn(NOW);
+    given(clock.getZone()).willReturn(ZONE);
+
+    var navDate = LocalDate.of(2025, 3, 10);
+    given(fundPositionRepository.findDistinctNavDatesByFund(any())).willReturn(List.of());
+    given(fundPositionRepository.findDistinctNavDatesByFund(TKF100)).willReturn(List.of(navDate));
+    given(feeAccrualRepository.getUnsettledAccrualByDate(TKF100, MANAGEMENT, navDate))
+        .willReturn(Map.of(ACCRUAL_DAY, new BigDecimal("52.08")));
+    given(feeAccrualRepository.getUnsettledAccrualByDate(TKF100, DEPOT, navDate))
+        .willReturn(Map.of(ACCRUAL_DAY, new BigDecimal("6.85")));
+    given(feeChargedToFundPolicy.resolverFor(TUK75, MANAGEMENT))
+        .willThrow(new IllegalStateException("Gap in the fee policy"));
+
+    assertThatThrownBy(() -> syncJob.sync(7)).isInstanceOf(IllegalStateException.class);
+
+    verify(fundPositionImportService).upsertPositions(anyList());
   }
 
   @Test

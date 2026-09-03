@@ -19,6 +19,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -74,34 +75,53 @@ public class FeeAccrualPositionSyncJob {
   }
 
   public int sync(int daysBack) {
-    var today = LocalDate.now(clock);
-    var cutoffDate = today.minusDays(daysBack);
+    var cutoffDate = LocalDate.now(clock).minusDays(daysBack);
+    var failures = new ArrayList<Exception>();
     int total = 0;
 
     for (var fund : TulevaFund.values()) {
-      var navDates =
-          fundPositionRepository.findDistinctNavDatesByFund(fund).stream()
-              .filter(date -> !date.isBefore(cutoffDate))
-              .toList();
-
-      var managementPolicy = feeChargedToFundPolicy.resolverFor(fund, MANAGEMENT);
-      var depotPolicy = feeChargedToFundPolicy.resolverFor(fund, DEPOT);
-
-      for (var navDate : navDates) {
-        var mgmtAccrual = chargedAccrual(managementPolicy, fund, MANAGEMENT, navDate);
-        var depotAccrual = chargedAccrual(depotPolicy, fund, DEPOT, navDate);
-
-        var positions =
-            List.of(
-                feeAccrualPosition(fund, navDate, "Management Fee Accrual", mgmtAccrual),
-                feeAccrualPosition(fund, navDate, "Depot Fee Accrual", depotAccrual));
-
-        fundPositionImportService.upsertPositions(positions);
-        total += positions.size();
+      try {
+        total += syncFund(fund, cutoffDate);
+      } catch (Exception e) {
+        log.error("Fee accrual position sync failed: fund={}", fund, e);
+        failures.add(e);
       }
     }
 
+    if (!failures.isEmpty()) {
+      var combined =
+          new IllegalStateException(
+              "Fee accrual position sync failed for %d fund(s)".formatted(failures.size()));
+      failures.forEach(combined::addSuppressed);
+      throw combined;
+    }
+
     return total;
+  }
+
+  private int syncFund(TulevaFund fund, LocalDate cutoffDate) {
+    var navDates =
+        fundPositionRepository.findDistinctNavDatesByFund(fund).stream()
+            .filter(date -> !date.isBefore(cutoffDate))
+            .toList();
+
+    var managementPolicy = feeChargedToFundPolicy.resolverFor(fund, MANAGEMENT);
+    var depotPolicy = feeChargedToFundPolicy.resolverFor(fund, DEPOT);
+
+    int written = 0;
+    for (var navDate : navDates) {
+      var mgmtAccrual = chargedAccrual(managementPolicy, fund, MANAGEMENT, navDate);
+      var depotAccrual = chargedAccrual(depotPolicy, fund, DEPOT, navDate);
+
+      var positions =
+          List.of(
+              feeAccrualPosition(fund, navDate, "Management Fee Accrual", mgmtAccrual),
+              feeAccrualPosition(fund, navDate, "Depot Fee Accrual", depotAccrual));
+
+      fundPositionImportService.upsertPositions(positions);
+      written += positions.size();
+    }
+    return written;
   }
 
   private BigDecimal chargedAccrual(

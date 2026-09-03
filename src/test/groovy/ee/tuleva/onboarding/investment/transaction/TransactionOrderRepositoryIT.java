@@ -5,6 +5,8 @@ import static ee.tuleva.onboarding.investment.transaction.OrderStatus.CANCELLED;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.EXECUTED;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SENT;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SETTLED;
+import static ee.tuleva.onboarding.investment.transaction.OrderType.MOC;
+import static ee.tuleva.onboarding.investment.transaction.OrderType.NAV;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
@@ -41,6 +43,32 @@ class TransactionOrderRepositoryIT {
     TransactionOrder loaded = orderRepository.findById(order.getId()).orElseThrow();
 
     assertThat(loaded.getComment()).isEqualTo("operator note: partial fill expected");
+  }
+
+  @Test
+  void save_defaultsOrderTypeToMarketOnClose() {
+    TransactionOrder order = persistOrder(TUK75);
+
+    entityManager.flush();
+    entityManager.clear();
+
+    TransactionOrder loaded = orderRepository.findById(order.getId()).orElseThrow();
+
+    assertThat(loaded.getOrderType()).isEqualTo(MOC);
+  }
+
+  @Test
+  void save_roundTripsOrderType() {
+    TransactionOrder order = persistOrder(TUK75);
+    order.setOrderType(NAV);
+    orderRepository.save(order);
+
+    entityManager.flush();
+    entityManager.clear();
+
+    TransactionOrder loaded = orderRepository.findById(order.getId()).orElseThrow();
+
+    assertThat(loaded.getOrderType()).isEqualTo(NAV);
   }
 
   @Test

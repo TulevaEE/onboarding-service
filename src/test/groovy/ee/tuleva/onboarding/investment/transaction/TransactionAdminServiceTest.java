@@ -683,6 +683,56 @@ class TransactionAdminServiceTest {
   }
 
   @Test
+  void setOrderType_draftOrder_updatesTypeAndWritesOrderScopedAudit() {
+    TransactionOrder order = order(100L, batch(10L, DRAFT));
+    order.setOrderStatus(OrderStatus.DRAFT);
+    given(orderRepository.findById(100L)).willReturn(Optional.of(order));
+
+    TransactionOrderResponse response = service.setOrderType(100L, OrderType.NAV, "operator-7");
+
+    assertThat(response.orderType()).isEqualTo(OrderType.NAV);
+    assertThat(order.getOrderType()).isEqualTo(OrderType.NAV);
+
+    then(orderRepository).should().save(order);
+    then(auditEventRepository)
+        .should()
+        .save(
+            TransactionAuditEvent.builder()
+                .orderId(100L)
+                .eventType("ORDER_TYPE_CHANGED")
+                .actor("operator-7")
+                .createdAt(Instant.parse("2026-06-11T09:00:00Z"))
+                .payload(Map.of("from", "MOC", "to", "NAV", "actor", "operator-7"))
+                .build());
+  }
+
+  @Test
+  void setOrderType_sentOrder_throwsConflictAndMutatesNothing() {
+    TransactionOrder order = order(100L, batch(10L, BatchStatus.SENT));
+    order.setOrderStatus(OrderStatus.SENT);
+    given(orderRepository.findById(100L)).willReturn(Optional.of(order));
+
+    assertThatThrownBy(() -> service.setOrderType(100L, OrderType.NAV, "operator-7"))
+        .isInstanceOf(ResponseStatusException.class)
+        .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
+        .isEqualTo(409);
+
+    assertThat(order.getOrderType()).isEqualTo(OrderType.MOC);
+    then(orderRepository).should(never()).save(any());
+    then(auditEventRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void setOrderType_unknownOrder_throwsNotFound() {
+    given(orderRepository.findById(999L)).willReturn(Optional.empty());
+
+    assertThatThrownBy(() -> service.setOrderType(999L, OrderType.NAV, "admin"))
+        .isInstanceOf(ResponseStatusException.class)
+        .extracting(e -> ((ResponseStatusException) e).getStatusCode().value())
+        .isEqualTo(404);
+  }
+
+  @Test
   void exportFile_decodesStoredBase64Export() {
     byte[] xlsx = {1, 2, 3};
     TransactionBatch batch = batch(10L, BatchStatus.SENT);

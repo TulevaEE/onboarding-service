@@ -269,6 +269,47 @@ class TransactionAdminService {
     return TransactionOrderResponse.from(order);
   }
 
+  @Transactional
+  TransactionOrderResponse setOrderType(Long orderId, OrderType orderType, String actor) {
+    TransactionOrder order =
+        orderRepository
+            .findById(orderId)
+            .orElseThrow(
+                () ->
+                    new ResponseStatusException(
+                        NOT_FOUND, "Transaction order not found: id=" + orderId));
+    if (order.getOrderStatus() != OrderStatus.DRAFT) {
+      throw new ResponseStatusException(
+          CONFLICT,
+          "Only DRAFT orders can change order type: id="
+              + orderId
+              + ", status="
+              + order.getOrderStatus());
+    }
+    OrderType previousOrderType = order.getOrderType();
+    Instant now = Instant.now(clock);
+    log.info(
+        "Admin changed transaction order type: id={}, actor={}, from={}, to={}",
+        orderId,
+        actor,
+        previousOrderType,
+        orderType);
+    order.setOrderType(orderType);
+    orderRepository.save(order);
+
+    auditEventRepository.save(
+        TransactionAuditEvent.builder()
+            .orderId(order.getId())
+            .eventType("ORDER_TYPE_CHANGED")
+            .actor(actor)
+            .createdAt(now)
+            .payload(
+                Map.of("from", previousOrderType.name(), "to", orderType.name(), "actor", actor))
+            .build());
+
+    return TransactionOrderResponse.from(order);
+  }
+
   private static boolean isInMarket(TransactionOrder order) {
     return order.getOrderStatus() == OrderStatus.EXECUTED
         || order.getOrderStatus() == OrderStatus.SETTLED;

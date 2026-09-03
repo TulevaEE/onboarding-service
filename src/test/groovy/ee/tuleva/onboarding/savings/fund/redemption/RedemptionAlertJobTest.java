@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static org.mockito.ArgumentMatchers.contains;
@@ -59,7 +60,7 @@ class RedemptionAlertJobTest {
 
     job.checkRedemptionAlerts();
 
-    verify(notificationService).sendMessage(contains("PAYOUT WARNING"), eq(INVESTMENT));
+    verify(notificationService).sendMessage(contains("PAYOUT WARNING"), eq(INVESTMENT), eq(ERROR));
     verifyNoMoreInteractions(notificationService);
   }
 
@@ -79,7 +80,8 @@ class RedemptionAlertJobTest {
 
     job.checkRedemptionAlerts();
 
-    verify(notificationService).sendMessage(contains("LIQUIDITY WARNING"), eq(INVESTMENT));
+    verify(notificationService)
+        .sendMessage(contains("LIQUIDITY WARNING"), eq(INVESTMENT), eq(ERROR));
     verifyNoMoreInteractions(notificationService);
   }
 
@@ -99,8 +101,9 @@ class RedemptionAlertJobTest {
 
     job.checkRedemptionAlerts();
 
-    verify(notificationService).sendMessage(contains("PAYOUT WARNING"), eq(INVESTMENT));
-    verify(notificationService).sendMessage(contains("LIQUIDITY WARNING"), eq(INVESTMENT));
+    verify(notificationService).sendMessage(contains("PAYOUT WARNING"), eq(INVESTMENT), eq(ERROR));
+    verify(notificationService)
+        .sendMessage(contains("LIQUIDITY WARNING"), eq(INVESTMENT), eq(ERROR));
   }
 
   @Test
@@ -178,7 +181,7 @@ class RedemptionAlertJobTest {
 
     job.checkRedemptionAlerts();
 
-    verify(notificationService).sendMessage(contains("PAYOUT WARNING"), eq(INVESTMENT));
+    verify(notificationService).sendMessage(contains("PAYOUT WARNING"), eq(INVESTMENT), eq(ERROR));
     verifyNoMoreInteractions(notificationService);
   }
 
@@ -198,7 +201,7 @@ class RedemptionAlertJobTest {
 
     job.checkRedemptionAlerts();
 
-    verify(notificationService).sendMessage(contains("PAYOUT WARNING"), eq(INVESTMENT));
+    verify(notificationService).sendMessage(contains("PAYOUT WARNING"), eq(INVESTMENT), eq(ERROR));
     verifyNoMoreInteractions(notificationService);
   }
 

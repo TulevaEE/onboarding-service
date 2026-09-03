@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.auth.idcard
 
+import ee.tuleva.onboarding.auth.idcard.exception.UnknownCountryException
 import ee.tuleva.onboarding.auth.idcard.exception.UnknownDocumentTypeException
 import ee.tuleva.onboarding.auth.idcard.exception.UnknownExtendedKeyUsageException
 import ee.tuleva.onboarding.auth.idcard.exception.UnknownIssuerException
@@ -151,6 +152,44 @@ class IdDocumentTypeExtractorSpec extends Specification {
 
         then:
         thrown UnknownExtendedKeyUsageException
+    }
+
+    def "checkCountry passes for an Estonian certificate"() {
+        given:
+        X509Certificate cert = Mock()
+        cert.getSubjectX500Principal() >> new X500Principal(
+            "C=EE, O=ESTEID, OU=AUTHENTICATION, CN=\"DOE,JOHN,38888888888\", SURNAME=DOE, GIVENNAME=JOHN, SERIALNUMBER=PNOEE-38888888888")
+
+        when:
+        extractor.checkCountry(cert)
+
+        then:
+        noExceptionThrown()
+    }
+
+    def "checkCountry rejects a certificate from another country"() {
+        given:
+        X509Certificate cert = Mock()
+        cert.getSubjectX500Principal() >> new X500Principal(
+            "C=LV, O=ESTEID, OU=AUTHENTICATION, CN=\"DOE,JOHN,38888888888\", SURNAME=DOE, GIVENNAME=JOHN, SERIALNUMBER=PNOLV-38888888888")
+
+        when:
+        extractor.checkCountry(cert)
+
+        then:
+        thrown(UnknownCountryException)
+    }
+
+    def "checkCountry rejects a certificate without a country"() {
+        given:
+        X509Certificate cert = Mock()
+        cert.getSubjectX500Principal() >> new X500Principal("CN=Nobody")
+
+        when:
+        extractor.checkCountry(cert)
+
+        then:
+        thrown(UnknownCountryException)
     }
 
     def "checkIssuer passes for valid issuer ESTEID-SK 2015"() {

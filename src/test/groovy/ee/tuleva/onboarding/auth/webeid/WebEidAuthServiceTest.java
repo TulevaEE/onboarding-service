@@ -15,6 +15,7 @@ import static org.mockito.Mockito.when;
 import ee.tuleva.onboarding.auth.idcard.IdCardSession;
 import ee.tuleva.onboarding.auth.idcard.IdDocumentType;
 import ee.tuleva.onboarding.auth.idcard.IdDocumentTypeExtractor;
+import ee.tuleva.onboarding.auth.idcard.exception.UnknownCountryException;
 import ee.tuleva.onboarding.auth.idcard.exception.UnknownExtendedKeyUsageException;
 import ee.tuleva.onboarding.auth.idcard.exception.UnknownIssuerException;
 import ee.tuleva.onboarding.auth.idcard.normalizer.ProductionCertificateNormalizer;
@@ -203,6 +204,32 @@ class WebEidAuthServiceTest {
 
     assertThatThrownBy(() -> service.authenticate(new WebEidAuthToken()))
         .isInstanceOf(WebEidAuthException.class);
+  }
+
+  @Test
+  void authenticate_failsWhenThePersonalCodeIsNotEstonian() throws AuthTokenException {
+    setupNonceStore();
+    when(authTokenValidator.validate(any(), any()))
+        .thenReturn(
+            certificateWithSubjectDn(
+                "C=EE, O=ESTEID, OU=AUTHENTICATION, CN=\"DOE,JOHN,PASJP-123456789\", "
+                    + "SURNAME=DOE, GIVENNAME=JOHN, SERIALNUMBER=PASJP-123456789"));
+
+    assertThatThrownBy(() -> service.authenticate(new WebEidAuthToken()))
+        .isInstanceOf(WebEidAuthException.class);
+  }
+
+  @Test
+  void authenticate_failsWhenTheCertificateCountryIsNotEstonia() throws AuthTokenException {
+    setupNonceStore();
+    when(authTokenValidator.validate(any(), any()))
+        .thenReturn(
+            certificateWithSubjectDn(
+                "C=LT, O=ESTEID, OU=AUTHENTICATION, CN=\"DOE,JOHN,38888888888\", "
+                    + "SURNAME=DOE, GIVENNAME=JOHN, SERIALNUMBER=PNOEE-38888888888"));
+
+    assertThatThrownBy(() -> service.authenticate(new WebEidAuthToken()))
+        .isInstanceOf(UnknownCountryException.class);
   }
 
   @Test

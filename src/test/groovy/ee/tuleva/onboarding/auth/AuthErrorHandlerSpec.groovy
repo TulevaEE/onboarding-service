@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.auth.response.AuthNotCompleteException
 import ee.tuleva.onboarding.auth.smartid.SmartIdSessionNotFoundException
 import ee.tuleva.onboarding.error.response.ErrorsResponse
 import io.jsonwebtoken.ExpiredJwtException
+import org.springframework.resilience.InvocationRejectedException
 import org.springframework.http.HttpStatus
 import spock.lang.Specification
 
@@ -40,6 +41,14 @@ class AuthErrorHandlerSpec extends Specification {
     then:
         result.statusCode == HttpStatus.FORBIDDEN
         result.body == [error: "MINOR_CANNOT_SELF_AUTHENTICATE", error_description: "Minor cannot self-authenticate: personalCode=38888888888"]
+  }
+
+  def "handle InvocationRejectedException returns TOO_MANY_REQUESTS so the caller backs off"() {
+    when:
+    def response = handler.handleTooManyLogins(new InvocationRejectedException("limit reached", this))
+    then:
+    response.statusCode == HttpStatus.TOO_MANY_REQUESTS
+    response.body.errors[0].code == "auth.too.many.requests"
   }
 
   def "handle AuthNotCompleteException returns OK response with specific message"() {

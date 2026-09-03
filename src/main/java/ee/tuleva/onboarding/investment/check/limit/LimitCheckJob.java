@@ -56,8 +56,6 @@ public class LimitCheckJob {
 
       log.info("Limit check completed: funds={}, resultCount={}", funds, run.results().size());
     } catch (LimitCheckPartialFailureException e) {
-      // Always notify: the run still says which funds it covered and which it could not, and that
-      // second list is the whole point when part of the run has failed.
       limitCheckNotifier.notify(e.getPartialRun());
       pipelineTracker.stepFailed(LIMIT_CHECK, e.getMessage());
       log.error("Limit check failed", e);

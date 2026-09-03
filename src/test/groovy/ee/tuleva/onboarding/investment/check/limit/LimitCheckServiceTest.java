@@ -259,7 +259,7 @@ class LimitCheckServiceTest {
     var run = service.runChecksAsOf(asOfDate);
 
     assertThat(run.results()).isEmpty();
-    assertThat(run.notChecked()).containsExactly(TulevaFund.values());
+    assertThat(run.fundsNotChecked()).containsExactly(TulevaFund.values());
     for (var fund : TulevaFund.values()) {
       verify(fundPositionRepository).findLatestNavDateByFundAndAsOfDate(fund, asOfDate);
     }
@@ -277,7 +277,7 @@ class LimitCheckServiceTest {
     var run = service.runChecksForFunds(funds);
 
     assertThat(run.results()).isEmpty();
-    assertThat(run.notChecked()).containsExactly(TUK75);
+    assertThat(run.fundsNotChecked()).containsExactly(TUK75);
     verify(fundPositionRepository).findLatestNavDateByFundAndAsOfDate(TUK75, today);
     // Should NOT check any other funds
     verify(fundPositionRepository, times(1)).findLatestNavDateByFundAndAsOfDate(any(), any());

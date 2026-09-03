@@ -61,16 +61,14 @@ class LimitCheckService {
 
   LimitCheckRun runChecksForFundsAsOf(List<TulevaFund> funds, LocalDate asOfDate) {
     var results = new ArrayList<LimitCheckResult>();
-    var notChecked = new ArrayList<TulevaFund>();
+    var fundsNotChecked = new ArrayList<TulevaFund>();
     var errors = new ArrayList<Exception>();
 
     for (var fund : funds) {
       var latestDate = fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, asOfDate);
       if (latestDate.isEmpty()) {
-        // Reported, not just logged: no position data means the fund was never looked at, and a
-        // run that lists only its results reads as "within limits" for the funds it skipped.
         log.warn("No position data for fund: fund={}, asOfDate={}", fund, asOfDate);
-        notChecked.add(fund);
+        fundsNotChecked.add(fund);
         continue;
       }
 
@@ -80,12 +78,12 @@ class LimitCheckService {
         results.add(result);
       } catch (Exception e) {
         log.error("Limit check failed: fund={}, checkDate={}", fund, checkDate, e);
-        notChecked.add(fund);
+        fundsNotChecked.add(fund);
         errors.add(e);
       }
     }
 
-    var run = new LimitCheckRun(List.copyOf(results), List.copyOf(notChecked));
+    var run = new LimitCheckRun(List.copyOf(results), List.copyOf(fundsNotChecked));
     if (!errors.isEmpty()) {
       var combined =
           new LimitCheckPartialFailureException(

@@ -42,8 +42,6 @@ class LimitCheckNotifier {
     }
   }
 
-  // A run that checked nothing at all used to say nothing at all, which is indistinguishable from
-  // a quiet day. Whatever a run did or did not cover, it now says so.
   private void sendAllClear(LimitCheckRun run) {
     if (run.isEmpty()) {
       notificationService.sendMessage(
@@ -75,11 +73,11 @@ class LimitCheckNotifier {
   }
 
   private void appendNotChecked(StringBuilder message, LimitCheckRun run) {
-    if (run.notChecked().isEmpty()) {
+    if (run.fundsNotChecked().isEmpty()) {
       return;
     }
     var fundNames =
-        run.notChecked().stream().map(TulevaFund::getCode).collect(Collectors.joining(", "));
+        run.fundsNotChecked().stream().map(TulevaFund::getCode).collect(Collectors.joining(", "));
     message
         .append(message.isEmpty() ? "" : "\n\n")
         .append("⏸ Not checked: %s — no limits were verified for these".formatted(fundNames));

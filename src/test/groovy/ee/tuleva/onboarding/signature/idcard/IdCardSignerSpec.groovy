@@ -53,6 +53,18 @@ class IdCardSignerSpec extends Specification {
     invalidCertificate << ["not base64!", getEncoder().encodeToString("not a certificate".bytes)]
   }
 
+  def "rejects a signature that is not base64"() {
+    given:
+    def session = new IdCardSignatureSession("aGFzaA==", "SHA-256", Mock(DataToSign), Mock(Container))
+
+    when:
+    idCardSigner.getSignedFile(session, "not base64!")
+
+    then:
+    thrown(InvalidSignatureException)
+    0 * digiDocFacade.addSignatureToContainer(_, _, _)
+  }
+
   def "adds the base64 signature to the container of the session"() {
     given:
     def dataToSign = Mock(DataToSign)

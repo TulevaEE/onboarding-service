@@ -91,6 +91,21 @@ class RememberedSmartIdAccountsTest {
   }
 
   @Test
+  void setsAValidCookieWhereNoCookieDomainIsConfigured() {
+    var withoutDomain =
+        new RememberedSmartIdAccounts(browsers, VALIDITY, null, Clock.fixed(NOW, ZoneOffset.UTC));
+    bindRequest();
+
+    withoutDomain.remember(aSmartIdPerson(), true);
+
+    assertThat(response.getHeader(SET_COOKIE))
+        .startsWith(COOKIE_NAME + "=")
+        .doesNotContain("Domain")
+        .contains("Secure")
+        .contains("HttpOnly");
+  }
+
+  @Test
   void readsBackTheAccountTheTokenStandsFor() {
     bindRequest(new Cookie(COOKIE_NAME, "a-token"));
     given(browsers.findUnexpired(hash("a-token"))).willReturn(Optional.of(browserVerifiedAt(NOW)));

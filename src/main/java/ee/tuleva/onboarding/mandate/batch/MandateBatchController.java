@@ -75,7 +75,7 @@ public class MandateBatchController implements SignatureController<Long> {
   }
 
   @Override
-  @Operation(summary = "Is the mandate batch signed with ID card processed")
+  @Operation(summary = "Get the ID card signing status of the mandate batch")
   public IdCardSignatureStatusResponse getIdCardSignatureStatus(
       @PathVariable("id") Long mandateBatchId,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {

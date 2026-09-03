@@ -7,6 +7,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -66,16 +67,19 @@ public class FundNavQueryService {
     return navReportRepository
         .findFirstByFundCodeAndNavDateOrderByIdDesc(fundCode, navDate)
         .map(NavReportRow::getCalculationId)
-        .flatMap(
-            calculationId ->
-                navReportRepository
-                    .findLastWrittenAtByCalculationId(fundCode, navDate, calculationId)
-                    .map(
-                        calculatedAt ->
-                            new NavCalculation(
-                                calculatedAt,
-                                navReportRepository.findLinesByCalculationId(
-                                    fundCode, navDate, calculationId))));
+        .flatMap(calculationId -> calculation(fundCode, navDate, calculationId));
+  }
+
+  private Optional<NavCalculation> calculation(
+      String fundCode, LocalDate navDate, UUID calculationId) {
+    return navReportRepository
+        .findLastWrittenAtByCalculationId(fundCode, navDate, calculationId)
+        .map(
+            calculatedAt ->
+                new NavCalculation(
+                    calculatedAt,
+                    navReportRepository.findLinesByCalculationId(
+                        fundCode, navDate, calculationId)));
   }
 
   private Optional<BigDecimal> sumForLatestCalculationIncludingUnpublished(

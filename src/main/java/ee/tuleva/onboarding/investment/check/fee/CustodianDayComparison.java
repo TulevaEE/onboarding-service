@@ -21,7 +21,7 @@ record CustodianDayComparison(
     return navPredatesReport && !movesTheNavMoreThan(materialBasisPoints);
   }
 
-  boolean movesTheNavMoreThan(BigDecimal materialBasisPoints) {
+  private boolean movesTheNavMoreThan(BigDecimal materialBasisPoints) {
     return navImpactBasisPoints.abs().compareTo(materialBasisPoints) > 0;
   }
 

@@ -34,7 +34,15 @@ public class IdCardSigner {
 
   public byte[] getSignedFile(IdCardSignatureSession session, String signature) {
     return digiDocFacade.addSignatureToContainer(
-        getDecoder().decode(signature), session.getDataToSign(), session.getContainer());
+        decodeSignature(signature), session.getDataToSign(), session.getContainer());
+  }
+
+  private static byte[] decodeSignature(String signature) {
+    try {
+      return getDecoder().decode(signature);
+    } catch (IllegalArgumentException e) {
+      throw new InvalidSignatureException(e);
+    }
   }
 
   private static X509Certificate decodeCertificate(String certificate) {

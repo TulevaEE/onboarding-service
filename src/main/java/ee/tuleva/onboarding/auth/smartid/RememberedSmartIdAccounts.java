@@ -63,10 +63,14 @@ public class RememberedSmartIdAccounts {
    *     browser has to verify again with a QR or same-device link once the validity runs out.
    */
   public void remember(SmartIdPerson person, boolean deviceLinkVerified) {
-    Instant verifiedAt =
-        deviceLinkVerified
-            ? Instant.now(clock)
-            : currentBrowser().map(RememberedBrowser::verifiedAt).orElse(Instant.now(clock));
+    Optional<Instant> carriedForward = currentBrowser().map(RememberedBrowser::verifiedAt);
+    if (!deviceLinkVerified && carriedForward.isEmpty()) {
+      // A push login proves the person holds the device, but not that this browser was ever
+      // verified. Without an earlier verification to carry forward there is nothing to extend,
+      // and minting one here would let the validity be renewed forever without a device link.
+      return;
+    }
+    Instant verifiedAt = deviceLinkVerified ? Instant.now(clock) : carriedForward.orElseThrow();
 
     cookieToken().ifPresent(token -> browsers.remove(hash(token)));
 

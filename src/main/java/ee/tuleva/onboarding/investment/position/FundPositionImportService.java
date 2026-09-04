@@ -1,9 +1,17 @@
 package ee.tuleva.onboarding.investment.position;
 
+import static java.util.stream.Collectors.collectingAndThen;
+import static java.util.stream.Collectors.counting;
+import static java.util.stream.Collectors.groupingBy;
+
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
@@ -47,8 +55,8 @@ public class FundPositionImportService {
 
   @Transactional
   public ImportResult upsertPositions(List<FundPosition> positions) {
-    int imported = 0;
-    int updated = 0;
+    List<FundPosition> importedPositions = new ArrayList<>();
+    List<FundPosition> updatedPositions = new ArrayList<>();
 
     for (FundPosition position : positions) {
       Optional<FundPosition> existing =
@@ -60,22 +68,24 @@ public class FundPositionImportService {
 
       if (existing.isPresent()) {
         if (updateIfChanged(existing.get(), position)) {
-          updated++;
+          updatedPositions.add(existing.get());
         }
       } else {
         repository.save(position);
-        imported++;
+        importedPositions.add(position);
       }
     }
 
+    ImportResult result =
+        new ImportResult(List.copyOf(importedPositions), List.copyOf(updatedPositions));
     log.info(
         "Upsert completed: total={}, imported={}, updated={}, unchanged={}",
         positions.size(),
-        imported,
-        updated,
-        positions.size() - imported - updated);
+        result.imported(),
+        result.updated(),
+        positions.size() - result.changed());
 
-    return new ImportResult(imported, updated);
+    return result;
   }
 
   private boolean updateIfChanged(FundPosition existing, FundPosition incoming) {
@@ -99,5 +109,29 @@ public class FundPositionImportService {
     return a.compareTo(b) == 0;
   }
 
-  public record ImportResult(int imported, int updated) {}
+  public record ImportResult(
+      List<FundPosition> importedPositions, List<FundPosition> updatedPositions) {
+
+    public static ImportResult none() {
+      return new ImportResult(List.of(), List.of());
+    }
+
+    public int imported() {
+      return importedPositions.size();
+    }
+
+    public int updated() {
+      return updatedPositions.size();
+    }
+
+    public int changed() {
+      return imported() + updated();
+    }
+
+    public Map<TulevaFund, Integer> changedRowsByFund() {
+      return Stream.concat(importedPositions.stream(), updatedPositions.stream())
+          .collect(
+              groupingBy(FundPosition::getFund, collectingAndThen(counting(), Long::intValue)));
+    }
+  }
 }

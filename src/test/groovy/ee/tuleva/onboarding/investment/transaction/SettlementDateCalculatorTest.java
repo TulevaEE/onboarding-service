@@ -131,7 +131,7 @@ class SettlementDateCalculatorTest {
     Instant monday = tallinnInstant(LocalDate.of(2026, 1, 12), LocalTime.of(9, 15));
 
     assertThat(calculator().calculateSettlementDate(monday, FUND, CCF_ISIN))
-        .isEqualTo(LocalDate.of(2026, 1, 19));
+        .isEqualTo(LocalDate.of(2026, 1, 16));
   }
 
   @Test
@@ -172,13 +172,13 @@ class SettlementDateCalculatorTest {
     LocalDate beforeStPatricksDay = LocalDate.of(2026, 3, 12);
 
     assertThat(calculator().calculateSettlementDate(beforeStPatricksDay, FUND, IRISH_FUND_ISIN))
-        .isEqualTo(LocalDate.of(2026, 3, 20));
+        .isEqualTo(LocalDate.of(2026, 3, 19));
   }
 
   @Test
   void fund_luxembourgProviderSkipsAscensionDay() {
     givenProvider(LUXEMBOURG_FUND_ISIN, AMUNDI);
-    LocalDate beforeAscension2026 = LocalDate.of(2026, 5, 7);
+    LocalDate beforeAscension2026 = LocalDate.of(2026, 5, 8);
 
     assertThat(
             calculator().calculateSettlementDate(beforeAscension2026, FUND, LUXEMBOURG_FUND_ISIN))
@@ -195,7 +195,7 @@ class SettlementDateCalculatorTest {
         .willReturn(Optional.empty());
 
     assertThat(calculator().calculateSettlementDate(beforeStPatricksDay, FUND, UNKNOWN_ISIN))
-        .isEqualTo(LocalDate.of(2026, 3, 19));
+        .isEqualTo(LocalDate.of(2026, 3, 18));
   }
 
   @Test
@@ -208,7 +208,7 @@ class SettlementDateCalculatorTest {
         .willReturn(Optional.empty());
 
     assertThat(calculator().calculateSettlementDate(tradeDate, FUND, IRISH_FUND_ISIN))
-        .isEqualTo(LocalDate.of(2026, 3, 19));
+        .isEqualTo(LocalDate.of(2026, 3, 18));
   }
 
   @Test
@@ -221,7 +221,7 @@ class SettlementDateCalculatorTest {
     assertThat(
             calculator()
                 .calculateSettlementDate(beforeStPatricksDay, FUND, BLACKROCK_LUXEMBOURG_FUND_ISIN))
-        .isEqualTo(LocalDate.of(2026, 3, 19));
+        .isEqualTo(LocalDate.of(2026, 3, 18));
     verifyNoInteractions(allocationRepository);
   }
 
@@ -232,7 +232,7 @@ class SettlementDateCalculatorTest {
     LocalDate beforeStPatricksDay = LocalDate.of(2026, 3, 12);
 
     assertThat(calculator().calculateSettlementDate(beforeStPatricksDay, FUND, IRISH_FUND_ISIN))
-        .isEqualTo(LocalDate.of(2026, 3, 20));
+        .isEqualTo(LocalDate.of(2026, 3, 19));
   }
 
   @Test
@@ -242,7 +242,7 @@ class SettlementDateCalculatorTest {
     LocalDate beforeStPatricksDay = LocalDate.of(2026, 3, 12);
 
     assertThat(calculator().calculateSettlementDate(beforeStPatricksDay, FUND, IRISH_FUND_ISIN))
-        .isEqualTo(LocalDate.of(2026, 3, 20));
+        .isEqualTo(LocalDate.of(2026, 3, 19));
   }
 
   private void givenCountry(String isin, @Nullable String country) {

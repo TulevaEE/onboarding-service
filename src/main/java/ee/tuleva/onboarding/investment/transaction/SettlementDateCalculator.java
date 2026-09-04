@@ -27,7 +27,7 @@ import org.springframework.stereotype.Component;
 public class SettlementDateCalculator {
 
   private static final int ETF_SETTLEMENT_BUSINESS_DAYS = 2;
-  private static final int FUND_SETTLEMENT_BUSINESS_DAYS = 5;
+  private static final int FUND_SETTLEMENT_BUSINESS_DAYS = 4;
   private static final ZoneId DEFAULT_TRADE_ZONE = ZoneId.of(TIMEZONE);
 
   private final Target2Calendar target2Calendar;

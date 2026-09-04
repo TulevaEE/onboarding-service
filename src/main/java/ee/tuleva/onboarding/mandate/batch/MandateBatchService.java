@@ -24,6 +24,7 @@ import ee.tuleva.onboarding.signature.IdCardSignatureSession;
 import ee.tuleva.onboarding.signature.MobileIdSignatureSession;
 import ee.tuleva.onboarding.signature.SignatureFile;
 import ee.tuleva.onboarding.signature.SignatureService;
+import ee.tuleva.onboarding.signature.SignatureStateException;
 import ee.tuleva.onboarding.signature.SignatureStatus;
 import ee.tuleva.onboarding.signature.SmartIdSignatureSession;
 import ee.tuleva.onboarding.user.User;
@@ -165,35 +166,29 @@ public class MandateBatchService {
     return persistSignedFileIfPresentAndStartProcessing(user, mandateBatch, signedFile, locale);
   }
 
-  private SignatureStatus persistFileSignedWithIdCard(
-      User user,
-      MandateBatch mandateBatch,
-      IdCardSignatureSession session,
-      String signedHashInHex,
-      Locale locale) {
-    byte[] signedFile = signService.getSignedFile(session, signedHashInHex);
-
-    if (signedFile == null) { // TODO: use Optional
-      throw new IllegalStateException("There is no signed file to persist");
-    }
-
-    return persistSignedFileIfPresentAndStartProcessing(
-        user, mandateBatch, Optional.of(signedFile), locale);
-  }
-
-  public SignatureStatus persistIdCardSignedFileOrGetBatchProcessingStatus(
+  public SignatureStatus persistIdCardSignature(
       Long userId,
       Long mandateBatchId,
       IdCardSignatureSession session,
-      String signedHashInHex,
+      String signature,
       Locale locale) {
     User user = userService.getById(userId).orElseThrow();
     MandateBatch mandateBatch = getByIdAndUser(mandateBatchId, user).orElseThrow();
 
-    if (!mandateBatch.isSigned()) {
-      return persistFileSignedWithIdCard(user, mandateBatch, session, signedHashInHex, locale);
+    if (mandateBatch.isSigned()) {
+      throw SignatureStateException.alreadySigned("Mandate batch", mandateBatchId);
     }
+    byte[] signedFile = signService.getSignedFile(session, signature);
+    return persistSignedFileAndStartProcessing(user, mandateBatch, signedFile, locale);
+  }
 
+  public SignatureStatus getIdCardSignatureStatus(Long userId, Long mandateBatchId, Locale locale) {
+    User user = userService.getById(userId).orElseThrow();
+    MandateBatch mandateBatch = getByIdAndUser(mandateBatchId, user).orElseThrow();
+
+    if (!mandateBatch.isSigned()) {
+      throw SignatureStateException.notSigned("Mandate batch", mandateBatchId);
+    }
     return getBatchProcessingStatusAndHandleIfProcessed(user, mandateBatch, locale);
   }
 
@@ -237,12 +232,16 @@ public class MandateBatchService {
 
   private SignatureStatus persistSignedFileIfPresentAndStartProcessing(
       User user, MandateBatch mandateBatch, Optional<byte[]> signedFile, Locale locale) {
-    signedFile.ifPresent(
-        it -> {
-          persistSignedFile(mandateBatch, it);
-          startProcessingBatch(user, mandateBatch);
-          mandateBatchProcessingPoller.startPollingForBatchProcessingFinished(mandateBatch, locale);
-        });
+    signedFile.ifPresent(it -> persistSignedFileAndStartProcessing(user, mandateBatch, it, locale));
+
+    return OUTSTANDING_TRANSACTION;
+  }
+
+  private SignatureStatus persistSignedFileAndStartProcessing(
+      User user, MandateBatch mandateBatch, byte[] signedFile, Locale locale) {
+    persistSignedFile(mandateBatch, signedFile);
+    startProcessingBatch(user, mandateBatch);
+    mandateBatchProcessingPoller.startPollingForBatchProcessingFinished(mandateBatch, locale);
 
     return OUTSTANDING_TRANSACTION;
   }

@@ -1,13 +1,8 @@
 package ee.tuleva.onboarding.signature;
 
-import lombok.Builder;
-import lombok.Data;
-import lombok.RequiredArgsConstructor;
+public record IdCardSignatureResponse(String hash, String hashFunction) {
 
-@Data
-@Builder
-@RequiredArgsConstructor
-public class IdCardSignatureResponse {
-
-  private final String hash;
+  public static IdCardSignatureResponse from(IdCardSignatureSession session) {
+    return new IdCardSignatureResponse(session.getHashToSign(), session.getHashFunction());
+  }
 }

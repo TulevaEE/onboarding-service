@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import ee.tuleva.onboarding.error.NotFoundException;
 import ee.tuleva.onboarding.error.ValidationErrorsException;
+import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
 import ee.tuleva.onboarding.mandate.generic.GenericMandateService;
 import ee.tuleva.onboarding.signature.*;
@@ -21,27 +22,23 @@ import ee.tuleva.onboarding.signature.SmartIdSignatureSession;
 import ee.tuleva.onboarding.signature.StartIdCardSignCommand;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.List;
-import java.util.Locale;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.tomcat.util.http.fileupload.IOUtils;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.Errors;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.LocaleResolver;
 
 @Slf4j
 @RestController
 @RequestMapping("/v1" + MANDATES_URI)
 @RequiredArgsConstructor
-public class MandateController {
+public class MandateController implements SignatureController<Long> {
 
   public static final String MANDATES_URI = "/mandates";
 
@@ -51,7 +48,7 @@ public class MandateController {
   private final GenericSessionStore sessionStore;
   private final SignatureFileArchiver signatureFileArchiver;
   private final MandateFileService mandateFileService;
-  private final LocaleResolver localeResolver;
+  private final LocaleService localeService;
 
   @Operation(summary = "Create a mandate")
   @PostMapping
@@ -69,18 +66,11 @@ public class MandateController {
     return mandateService.save(authenticatedPerson, createMandateCommand);
   }
 
+  @Override
   @Operation(summary = "Start signing mandate with mobile ID")
-  @PutMapping("/{id}/signature/mobileId")
   public MobileSignatureResponse startMobileIdSignature(
       @PathVariable("id") Long mandateId,
-      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
-      HttpServletRequest request) {
-
-    log.info(
-        "Mobile-ID signing started: mandateId={}, userId={}, sessionId={}",
-        mandateId,
-        authenticatedPerson.getUserId(),
-        request.getSession(false) != null ? request.getSession(false).getId() : "none");
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     MobileIdSignatureSession signatureSession =
         mandateService.mobileIdSign(
             mandateId,
@@ -93,141 +83,98 @@ public class MandateController {
     return new MobileSignatureResponse(signatureSession.getVerificationCode());
   }
 
+  @Override
   @Operation(summary = "Is mandate successfully signed with mobile ID")
-  @GetMapping("/{id}/signature/mobileId/status")
   public MobileSignatureStatusResponse getMobileIdSignatureStatus(
       @PathVariable("id") Long mandateId,
-      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
-      @Parameter(hidden = true) HttpServletRequest request) {
-
-    Optional<MobileIdSignatureSession> signatureSession =
-        sessionStore.get(MobileIdSignatureSession.class);
-    log.info(
-        "Mobile-ID signing status check: mandateId={}, userId={}, sessionId={}, sessionExists={}",
-        mandateId,
-        authenticatedPerson.getUserId(),
-        request.getSession(false) != null ? request.getSession(false).getId() : "none",
-        signatureSession.isPresent());
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     MobileIdSignatureSession session =
-        signatureSession.orElseThrow(IdSessionException::mobileSignatureSessionNotFound);
-
-    Locale locale = localeResolver.resolveLocale(request);
+        sessionStore
+            .get(MobileIdSignatureSession.class)
+            .orElseThrow(IdSessionException::mobileSignatureSessionNotFound);
 
     SignatureStatus statusCode =
         mandateService.finalizeMobileIdSignature(
-            authenticatedPerson.getUserIdOrThrow(), mandateId, session, locale);
-
-    return new MobileSignatureStatusResponse(statusCode, session.getVerificationCode());
-  }
-
-  @Operation(summary = "Start signing mandate with Smart ID")
-  @PutMapping("/{id}/signature/smartId")
-  public MobileSignatureResponse startSmartIdSignature(
-      @PathVariable("id") Long mandateId,
-      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
-      HttpServletRequest request) {
-    log.info(
-        "Smart-ID signing started: mandateId={}, userId={}, sessionId={}",
-        mandateId,
-        authenticatedPerson.getUserId(),
-        request.getSession(false) != null ? request.getSession(false).getId() : "none");
-    SmartIdSignatureSession signatureSession =
-        mandateService.smartIdSign(mandateId, authenticatedPerson.getUserIdOrThrow());
-    sessionStore.save(signatureSession);
-    log.info(
-        "Smart-ID signing session saved: mandateId={}, userId={}, sessionId={}",
-        mandateId,
-        authenticatedPerson.getUserId(),
-        request.getSession(false) != null ? request.getSession(false).getId() : "none");
-
-    return new MobileSignatureResponse(null); // verificationCode is null in this instance
-  }
-
-  @Operation(summary = "Is mandate successfully signed with Smart ID")
-  @GetMapping("/{id}/signature/smartId/status")
-  public MobileSignatureStatusResponse getSmartIdSignatureStatus(
-      @PathVariable("id") Long mandateId,
-      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
-      HttpServletRequest request) {
-
-    Optional<SmartIdSignatureSession> signatureSession =
-        sessionStore.get(SmartIdSignatureSession.class);
-    log.info(
-        "Smart-ID signing status check: mandateId={}, userId={}, sessionId={}, sessionExists={}",
-        mandateId,
-        authenticatedPerson.getUserId(),
-        request.getSession(false) != null ? request.getSession(false).getId() : "none",
-        signatureSession.isPresent());
-    SmartIdSignatureSession session =
-        signatureSession.orElseThrow(IdSessionException::smartIdSignatureSessionNotFound);
-
-    Locale locale = localeResolver.resolveLocale(request);
-
-    SignatureStatus statusCode =
-        mandateService.finalizeSmartIdSignature(
-            authenticatedPerson.getUserIdOrThrow(), mandateId, session, locale);
-
-    return new MobileSignatureStatusResponse(statusCode, session.getVerificationCode());
-  }
-
-  @Operation(summary = "Start signing mandate with ID card")
-  @PutMapping("/{id}/signature/idCard")
-  public IdCardSignatureResponse startIdCardSign(
-      @PathVariable("id") Long mandateId,
-      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
-      @Valid @RequestBody StartIdCardSignCommand signCommand,
-      HttpServletRequest request) {
-
-    log.info(
-        "ID card signing started: mandateId={}, userId={}, sessionId={}",
-        mandateId,
-        authenticatedPerson.getUserId(),
-        request.getSession(false) != null ? request.getSession(false).getId() : "none");
-    IdCardSignatureSession signatureSession =
-        mandateService.idCardSign(
-            mandateId, authenticatedPerson.getUserIdOrThrow(), signCommand.clientCertificate());
-
-    sessionStore.save(signatureSession);
-    log.info(
-        "ID card signing session saved: mandateId={}, userId={}, sessionId={}",
-        mandateId,
-        authenticatedPerson.getUserId(),
-        request.getSession(false) != null ? request.getSession(false).getId() : "none");
-
-    return new IdCardSignatureResponse(signatureSession.getHashToSignInHex());
-  }
-
-  // TODO: split this into PUT and GET endpoints or migrate all logic to MandateBatch
-  // Currently first call persists signed hex, and later polling calls just check if mandates have
-  // been processsed
-  @Operation(summary = "Is mandate successfully signed with ID card")
-  @PutMapping("/{id}/signature/idCard/status")
-  public IdCardSignatureStatusResponse getIdCardSignatureStatus(
-      @PathVariable("id") Long mandateId,
-      @Valid @RequestBody FinishIdCardSignCommand signCommand,
-      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
-      HttpServletRequest request) {
-
-    Optional<IdCardSignatureSession> signatureSession =
-        sessionStore.get(IdCardSignatureSession.class);
-    log.info(
-        "ID card signing status check: mandateId={}, userId={}, sessionId={}, sessionExists={}",
-        mandateId,
-        authenticatedPerson.getUserId(),
-        request.getSession(false) != null ? request.getSession(false).getId() : "none",
-        signatureSession.isPresent());
-    IdCardSignatureSession session =
-        signatureSession.orElseThrow(IdSessionException::cardSignatureSessionNotFound);
-
-    Locale locale = localeResolver.resolveLocale(request);
-
-    SignatureStatus statusCode =
-        mandateService.finalizeIdCardSignature(
             authenticatedPerson.getUserIdOrThrow(),
             mandateId,
             session,
-            signCommand.signedHash(),
-            locale);
+            localeService.getCurrentLocale());
+
+    return new MobileSignatureStatusResponse(statusCode, session.getVerificationCode());
+  }
+
+  @Override
+  @Operation(summary = "Start signing mandate with Smart ID")
+  public MobileSignatureResponse startSmartIdSignature(
+      @PathVariable("id") Long mandateId,
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+    SmartIdSignatureSession signatureSession =
+        mandateService.smartIdSign(mandateId, authenticatedPerson.getUserIdOrThrow());
+    sessionStore.save(signatureSession);
+
+    return new MobileSignatureResponse(signatureSession.getVerificationCode());
+  }
+
+  @Override
+  @Operation(summary = "Is mandate successfully signed with Smart ID")
+  public MobileSignatureStatusResponse getSmartIdSignatureStatus(
+      @PathVariable("id") Long mandateId,
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+    SmartIdSignatureSession session =
+        sessionStore
+            .get(SmartIdSignatureSession.class)
+            .orElseThrow(IdSessionException::smartIdSignatureSessionNotFound);
+
+    SignatureStatus statusCode =
+        mandateService.finalizeSmartIdSignature(
+            authenticatedPerson.getUserIdOrThrow(),
+            mandateId,
+            session,
+            localeService.getCurrentLocale());
+
+    return new MobileSignatureStatusResponse(statusCode, session.getVerificationCode());
+  }
+
+  @Override
+  @Operation(summary = "Start signing mandate with ID card")
+  public IdCardSignatureResponse startIdCardSignature(
+      @PathVariable("id") Long mandateId,
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
+      @Valid @RequestBody StartIdCardSignCommand signCommand) {
+    IdCardSignatureSession signatureSession =
+        mandateService.idCardSign(
+            mandateId, authenticatedPerson.getUserIdOrThrow(), signCommand.certificate());
+    sessionStore.save(signatureSession);
+
+    return IdCardSignatureResponse.from(signatureSession);
+  }
+
+  @Override
+  @Operation(summary = "Persist the ID card signature of the mandate and start processing it")
+  public IdCardSignatureStatusResponse persistIdCardSignature(
+      @PathVariable("id") Long mandateId,
+      @Valid @RequestBody FinishIdCardSignCommand signCommand,
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+    IdCardSignatureSession session =
+        sessionStore
+            .get(IdCardSignatureSession.class)
+            .orElseThrow(IdSessionException::cardSignatureSessionNotFound);
+
+    SignatureStatus statusCode =
+        mandateService.persistIdCardSignature(
+            authenticatedPerson.getUserIdOrThrow(), mandateId, session, signCommand.signature());
+
+    return new IdCardSignatureStatusResponse(statusCode);
+  }
+
+  @Override
+  @Operation(summary = "Get the ID card signing status of the mandate")
+  public IdCardSignatureStatusResponse getIdCardSignatureStatus(
+      @PathVariable("id") Long mandateId,
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+    SignatureStatus statusCode =
+        mandateService.getIdCardSignatureStatus(
+            authenticatedPerson.getUserIdOrThrow(), mandateId, localeService.getCurrentLocale());
 
     return new IdCardSignatureStatusResponse(statusCode);
   }

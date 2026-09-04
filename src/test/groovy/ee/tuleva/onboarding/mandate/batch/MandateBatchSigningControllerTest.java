@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.mandate.batch;
 
 import static ee.tuleva.onboarding.auth.JwtTokenGenerator.getHeaders;
+import static ee.tuleva.onboarding.signature.SignatureStatus.OUTSTANDING_TRANSACTION;
 import static ee.tuleva.onboarding.signature.SignatureStatus.SIGNATURE;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.*;
@@ -11,7 +12,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import ee.tuleva.onboarding.mandate.MandateFixture;
 import ee.tuleva.onboarding.signature.IdCardSignatureResponse;
-import ee.tuleva.onboarding.signature.IdCardSignatureSession;
 import ee.tuleva.onboarding.signature.IdCardSignatureStatusResponse;
 import ee.tuleva.onboarding.signature.MobileIdSignatureSession;
 import ee.tuleva.onboarding.signature.MobileSignatureResponse;
@@ -139,14 +139,10 @@ public class MandateBatchSigningControllerTest {
   class IdCardTests {
 
     @Test
-    @DisplayName("start id card signature returns the hash to be signed by the client")
-    void startIdCardSignatureReturnsHash() throws Exception {
+    void startIdCardSignatureReturnsTheHashToSignAndItsHashFunction() throws Exception {
       var mandateBatchId = 1L;
-      var clientCertificate = "clientCertificate";
-      var startCommand = MandateFixture.sampleStartIdCardSignCommand(clientCertificate);
-      var mockSession = IdCardSignatureSession.builder().hashToSignInHex("asdfg").build();
-      var mockResponse =
-          IdCardSignatureResponse.builder().hash(mockSession.getHashToSignInHex()).build();
+      var startCommand = MandateFixture.sampleStartIdCardSignCommand("certificate");
+      var mockResponse = new IdCardSignatureResponse("asdfg", "SHA-256");
 
       when(mandateBatchSignatureService.startIdCardSign(
               eq(mandateBatchId), any(), eq(startCommand)))
@@ -159,27 +155,40 @@ public class MandateBatchSigningControllerTest {
                   .headers(getHeaders()))
           .andExpect(status().isOk())
           .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-          .andExpect(jsonPath("$.hash", is("asdfg")));
+          .andExpect(jsonPath("$.hash", is("asdfg")))
+          .andExpect(jsonPath("$.hashFunction", is("SHA-256")));
     }
 
     @Test
-    @DisplayName(
-        "id card signature status endpoint returns finalized status when processing is finished")
-    void finishIdCardSignatureReturnsStatusCode() throws Exception {
+    void persistIdCardSignatureReturnsTheProcessingStatus() throws Exception {
       var mandateBatchId = 1L;
-      var signedHash = "signedHash";
-      var finishCommand = MandateFixture.sampleFinishIdCardSignCommand(signedHash);
+      var finishCommand = MandateFixture.sampleFinishIdCardSignCommand("signature");
+      var mockResponse = new IdCardSignatureStatusResponse(OUTSTANDING_TRANSACTION);
 
-      var mockResponse = IdCardSignatureStatusResponse.builder().statusCode(SIGNATURE).build();
-
-      when(mandateBatchSignatureService.persistIdCardSignedHashAndGetProcessingStatus(
+      when(mandateBatchSignatureService.persistIdCardSignature(
               eq(mandateBatchId), eq(finishCommand), any()))
           .thenReturn(mockResponse);
 
       mvc.perform(
-              put("/v1/mandate-batches/{id}/signature/id-card/status", mandateBatchId)
+              put("/v1/mandate-batches/{id}/signature/id-card/signature", mandateBatchId)
                   .content(mapper.writeValueAsString(finishCommand))
                   .contentType(MediaType.APPLICATION_JSON)
+                  .headers(getHeaders()))
+          .andExpect(status().isOk())
+          .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+          .andExpect(jsonPath("$.statusCode", is(OUTSTANDING_TRANSACTION.toString())));
+    }
+
+    @Test
+    void getIdCardSignatureStatusReturnsTheProcessingStatus() throws Exception {
+      var mandateBatchId = 1L;
+      var mockResponse = new IdCardSignatureStatusResponse(SIGNATURE);
+
+      when(mandateBatchSignatureService.getIdCardSignatureStatus(eq(mandateBatchId), any()))
+          .thenReturn(mockResponse);
+
+      mvc.perform(
+              get("/v1/mandate-batches/{id}/signature/id-card/status", mandateBatchId)
                   .headers(getHeaders()))
           .andExpect(status().isOk())
           .andExpect(content().contentType(MediaType.APPLICATION_JSON))

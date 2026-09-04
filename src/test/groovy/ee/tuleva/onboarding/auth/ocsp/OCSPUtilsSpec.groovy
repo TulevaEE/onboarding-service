@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.auth.ocsp
 
-import org.apache.commons.codec.binary.Hex
 import spock.lang.Specification
 
 import java.nio.charset.StandardCharsets
@@ -86,19 +85,6 @@ class OCSPUtilsSpec extends Specification {
 
         when:
         def response = ocspUtils.getX509Certificate(certString)
-
-        then:
-        response == originalCert
-    }
-
-    def "Test if X509Certificate is properly decoded from hex"() {
-        given:
-        def originalCert = OCSPFixture.generateCertificate("Tiit,Lepp,37801145819", -1, "SHA1WITHRSA", "http://issuer.ee/ca.crl", "http://issuer.ee/ocsp")
-        def certString = OCSPFixture.certToString(originalCert)
-        def certificateInHex = Hex.encodeHexString(certString.bytes)
-
-        when:
-        def response = ocspUtils.decodeX09Certificate(certificateInHex)
 
         then:
         response == originalCert

@@ -22,6 +22,7 @@ import ee.tuleva.onboarding.mandate.exception.MandateProcessingException
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService
 import ee.tuleva.onboarding.signature.SignatureFile
 import ee.tuleva.onboarding.signature.SignatureService
+import ee.tuleva.onboarding.signature.SignatureStateException
 import ee.tuleva.onboarding.signature.IdCardSignatureSession
 import ee.tuleva.onboarding.signature.MobileIdSignatureSession
 import ee.tuleva.onboarding.signature.SmartIdSignatureSession
@@ -358,68 +359,76 @@ class MandateServiceSpec extends Specification {
     session == signatureSession
   }
 
-  def "finalizeIdCardSignature: throws exception when no signed file exist"() {
-    given:
-    Mandate sampleMandate = sampleUnsignedMandate()
-    def signatureSession = IdCardSignatureSession.builder().build()
-
-    1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
-    1 * signService.getSignedFile(signatureSession, "signedHash") >> null
-    0 * eventPublisher.publishEvent(_)
-
-    when:
-    service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, signatureSession, "signedHash", ENGLISH)
-
-    then:
-    thrown(IllegalStateException)
-  }
-
-  def "finalizeIdCardSignature: get correct status if currently signed a mandate and start processing"() {
+  def "persistIdCardSignature: persists the signed file and starts processing"() {
     given:
     Mandate sampleMandate = sampleUnsignedMandate()
     def signatureSession = IdCardSignatureSession.builder().build()
     byte[] sampleFile = "file".getBytes()
-    1 * signService.getSignedFile(signatureSession, "signedHash") >> sampleFile
+    1 * signService.getSignedFile(signatureSession, "signature") >> sampleFile
     1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
     1 * mandateRepository.save({ Mandate it -> it.mandate.get() == sampleFile }) >> sampleMandate
     0 * eventPublisher.publishEvent(_)
 
     when:
-    def status = service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, signatureSession, "signedHash", ENGLISH)
+    def status = service.persistIdCardSignature(sampleUser.id, sampleMandate.id, signatureSession, "signature")
 
     then:
     1 * mandateProcessor.start(sampleUser, sampleMandate)
     status == OUTSTANDING_TRANSACTION
   }
 
-  def "finalizeIdCardSignature: get correct status if mandate is signed and being processed"() {
+  def "persistIdCardSignature: rejects a mandate that is already signed"() {
     given:
     Mandate sampleMandate = sampleMandate()
     def signatureSession = IdCardSignatureSession.builder().build()
+    1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
+    0 * signService.getSignedFile(_, _)
+    0 * mandateProcessor.start(_, _)
 
+    when:
+    service.persistIdCardSignature(sampleUser.id, sampleMandate.id, signatureSession, "signature")
+
+    then:
+    thrown(SignatureStateException)
+  }
+
+  def "getIdCardSignatureStatus: rejects a mandate that is not signed"() {
+    given:
+    Mandate sampleMandate = sampleUnsignedMandate()
+    1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
+    0 * eventPublisher.publishEvent(_)
+
+    when:
+    service.getIdCardSignatureStatus(sampleUser.id, sampleMandate.id, ENGLISH)
+
+    then:
+    thrown(SignatureStateException)
+  }
+
+  def "getIdCardSignatureStatus: outstanding while the signed mandate is being processed"() {
+    given:
+    Mandate sampleMandate = sampleMandate()
     1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
     1 * mandateProcessor.isFinished(sampleMandate) >> false
     0 * eventPublisher.publishEvent(_)
 
     when:
-    def status = service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, signatureSession, "signedHash", ENGLISH)
+    def status = service.getIdCardSignatureStatus(sampleUser.id, sampleMandate.id, ENGLISH)
 
     then:
     status == OUTSTANDING_TRANSACTION
   }
 
-  def "finalizeIdCardSignature: get correct status and notify and invalidate EPIS cache if mandate is signed and processed"() {
+  def "getIdCardSignatureStatus: signature once processed, notifying and invalidating the EPIS cache"() {
     given:
     Mandate sampleMandate = sampleMandate()
-    def signatureSession = IdCardSignatureSession.builder().build()
-
     1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
     1 * mandateProcessor.isFinished(sampleMandate) >> true
     1 * mandateProcessor.getErrors(sampleMandate) >> sampleEmptyErrorsResponse
     1 * mandateContacts.clearCache(sampleUser)
 
     when:
-    def status = service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, signatureSession, "signedHash", ENGLISH)
+    def status = service.getIdCardSignatureStatus(sampleUser.id, sampleMandate.id, ENGLISH)
 
     then:
     status == SIGNATURE
@@ -429,18 +438,16 @@ class MandateServiceSpec extends Specification {
     })
   }
 
-  def "finalizeIdCardSignature: throw exception if mandate is signed and processed and has errors"() {
+  def "getIdCardSignatureStatus: throws when the mandate was processed with errors"() {
     given:
     Mandate sampleMandate = sampleMandate()
-    def signatureSession = IdCardSignatureSession.builder().build()
-
     1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
     1 * mandateProcessor.isFinished(sampleMandate) >> true
     1 * mandateProcessor.getErrors(sampleMandate) >> sampleErrorsResponse
     0 * eventPublisher.publishEvent(_)
 
     when:
-    service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, signatureSession, "signedHash", ENGLISH)
+    service.getIdCardSignatureStatus(sampleUser.id, sampleMandate.id, ENGLISH)
 
     then:
     thrown MandateProcessingException

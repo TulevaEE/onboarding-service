@@ -28,14 +28,17 @@ public interface SignatureController<TEntityId> {
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
       @Valid @RequestBody StartIdCardSignCommand signCommand);
 
-  // TODO: split this into PUT and GET endpoints
-  // Currently first call persists signed hex, and later polling calls just check if mandates have
-  // been processsed
-  @Operation(summary = "Persist ID-card signed entity, and check if entity is processed")
-  @PutMapping("/{id}/signature/id-card/status")
-  IdCardSignatureStatusResponse persistIdCardSignedHashOrGetSignatureStatus(
+  @Operation(summary = "Persist the ID card signature of the entity and start processing it")
+  @PutMapping("/{id}/signature/id-card/signature")
+  IdCardSignatureStatusResponse persistIdCardSignature(
       @PathVariable("id") TEntityId entityId,
       @Valid @RequestBody FinishIdCardSignCommand signCommand,
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson);
+
+  @Operation(summary = "Get the ID card signing status of the entity")
+  @GetMapping("/{id}/signature/id-card/status")
+  IdCardSignatureStatusResponse getIdCardSignatureStatus(
+      @PathVariable("id") TEntityId entityId,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson);
 
   @Operation(summary = "Start signing entity with mobile ID")

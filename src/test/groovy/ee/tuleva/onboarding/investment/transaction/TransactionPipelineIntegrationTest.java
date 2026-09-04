@@ -166,7 +166,7 @@ class TransactionPipelineIntegrationTest {
         .filter(order -> order.getInstrumentType() == FUND)
         .forEach(
             order ->
-                assertThat(order.getExpectedSettlementDate()).isEqualTo(LocalDate.of(2026, 2, 17)));
+                assertThat(order.getExpectedSettlementDate()).isEqualTo(LocalDate.of(2026, 2, 16)));
 
     Map<String, Object> metadata = batch.getMetadata();
     assertThat(metadata).containsKey("xlsxExport");

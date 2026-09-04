@@ -47,7 +47,7 @@ class IndexValueController {
       @RequestParam(defaultValue = CSV) String format,
       @RequestParam(required = false) @Nullable LocalDate startDate,
       @RequestParam(required = false) @Nullable LocalDate endDate) {
-    tokenValidator.validate(token);
+    tokenValidator.validateReadAccess(token);
 
     if (!CSV.equalsIgnoreCase(format)) {
       throw badRequest("Unsupported format: format=" + format + ", supported=" + CSV);

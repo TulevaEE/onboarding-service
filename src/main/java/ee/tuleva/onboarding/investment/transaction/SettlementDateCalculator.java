@@ -92,13 +92,6 @@ public class SettlementDateCalculator {
     };
   }
 
-  /**
-   * A fund deals on its own domicile's calendar, so the domicile has to come from the instrument.
-   * {@code instrument_reference.country} holds it per instrument; the provider is only a fallback
-   * for instruments that have no country recorded. Note that a provider is a fund <em>manager</em>
-   * and a manager can run funds in more than one domicile (BlackRock has both Irish and Luxembourg
-   * entities), so the fallback is a guess, not an answer.
-   */
   private TradingCalendar fundCalendar(String isin, LocalDate tradeDate) {
     return instrumentDomicile(isin)
         .or(() -> providerDomicile(isin, tradeDate))
@@ -126,7 +119,7 @@ public class SettlementDateCalculator {
         .map(
             domicile -> {
               log.warn(
-                  "No country in instrument_reference, using the provider's domicile: isin={}, domicile={}",
+                  "Instrument has no supported country, using the provider's domicile: isin={}, domicile={}",
                   isin,
                   domicile);
               return domicile;

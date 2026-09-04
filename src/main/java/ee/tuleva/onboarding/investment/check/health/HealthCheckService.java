@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.investment.check.health;
 
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.PASS;
-import static ee.tuleva.onboarding.investment.config.InvestmentParameter.TRACKING_BREACH_THRESHOLD;
+import static ee.tuleva.onboarding.investment.config.InvestmentParameter.NAV_FLOW_CONSISTENCY_THRESHOLD;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
 
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
@@ -27,8 +27,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class HealthCheckService {
 
-  private static final BigDecimal NAV_FLOW_THRESHOLD_FALLBACK = new BigDecimal("0.001");
-
   private final FundPositionRepository fundPositionRepository;
   private final ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
   private final HealthCheckEventRepository healthCheckEventRepository;
@@ -47,17 +45,7 @@ public class HealthCheckService {
   private final InvestmentParameterRepository investmentParameterRepository;
 
   private BigDecimal navFlowThreshold(LocalDate navDate) {
-    try {
-      var threshold =
-          investmentParameterRepository.findLatestValue(TRACKING_BREACH_THRESHOLD, navDate);
-      return threshold != null ? threshold : NAV_FLOW_THRESHOLD_FALLBACK;
-    } catch (Exception e) {
-      log.warn(
-          "TRACKING_BREACH_THRESHOLD unavailable, using fallback for the NAV flow check: navDate={}",
-          navDate,
-          e);
-      return NAV_FLOW_THRESHOLD_FALLBACK;
-    }
+    return investmentParameterRepository.findLatestValue(NAV_FLOW_CONSISTENCY_THRESHOLD, navDate);
   }
 
   public List<HealthCheckResult> check(List<FundPosition> positions) {

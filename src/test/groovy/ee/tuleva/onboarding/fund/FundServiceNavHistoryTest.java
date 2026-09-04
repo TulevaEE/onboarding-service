@@ -272,6 +272,26 @@ class FundServiceNavHistoryTest {
         .containsExactly(new NavValueResponse(LocalDate.of(2026, 2, 3), new BigDecimal("1.59583")));
   }
 
+  // Every other fixture here is already at its fund's scale or only loses a trailing zero, which
+  // rescales exactly and would pass without a RoundingMode at all. A value that genuinely rounds
+  // is what pins HALF_UP, and it is the legacy row the endpoint must not 500 over.
+  @Test
+  void getNavHistory_roundsALegacyValueCarryingMoreDecimalsThanTheFundPublishes() {
+    LocalDate start = LocalDate.of(2026, 2, 2);
+    LocalDate end = LocalDate.of(2026, 4, 14);
+    given(savingsFundNav.isSavingsFund(anyString()))
+        .willAnswer(i -> TKF_ISIN.equals(i.getArgument(0)));
+    given(fundRepository.findByIsin(TKF_ISIN)).willReturn(additionalSavingsFund());
+    given(savingsFundNav.safeMaxNavDate()).willReturn(LocalDate.of(2099, 1, 1));
+    given(fundNavValues.valuesBetween(TKF_ISIN, start, end))
+        .willReturn(List.of(new NavPoint(LocalDate.of(2026, 2, 3), new BigDecimal("1.12195"))));
+
+    List<NavValueResponse> result = fundService.getNavHistory(TKF_ISIN, start, end);
+
+    assertThat(result)
+        .containsExactly(new NavValueResponse(LocalDate.of(2026, 2, 3), new BigDecimal("1.1220")));
+  }
+
   @Test
   void getNavHistory_leavesNonTulevaFundNavUnscaled() {
     LocalDate start = LocalDate.of(2026, 2, 2);

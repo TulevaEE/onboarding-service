@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.check.health;
 
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.NOT_RUN;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.NAV_FLOW_CONSISTENCY;
 import static ee.tuleva.onboarding.investment.position.AccountType.CASH;
@@ -19,7 +20,8 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import org.jspecify.annotations.Nullable;
+import java.util.Optional;
+import java.util.TreeSet;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -47,22 +49,22 @@ class NavFlowConsistencyChecker {
 
     var previousUnits = outstandingUnits(previousPositions);
     var todayUnits = outstandingUnits(todayPositions);
-    if (previousUnits == null || todayUnits == null || todayUnits.signum() <= 0) {
+    if (previousUnits.isEmpty() || todayUnits.isEmpty() || todayUnits.get().signum() <= 0) {
       return List.of();
     }
 
     var marketPnl = marketPnl(previousPositions, todayPositions);
-    if (marketPnl == null) {
-      return List.of();
+    if (!marketPnl.isComplete()) {
+      return List.of(couldNotRun(fund, marketPnl.unpricedHoldings()));
     }
 
-    var unitsChange = todayUnits.subtract(previousUnits);
-    var navPerUnit = closingNetAssets.divide(todayUnits, SCALE, HALF_UP);
+    var unitsChange = todayUnits.get().subtract(previousUnits.get());
+    var navPerUnit = closingNetAssets.divide(todayUnits.get(), SCALE, HALF_UP);
     var unitFlow = unitsChange.multiply(navPerUnit);
     var unexplained =
         closingNetAssets
             .subtract(openingNetAssets)
-            .subtract(marketPnl)
+            .subtract(marketPnl.amount())
             .subtract(unitFlow)
             .setScale(EUR_SCALE, HALF_UP);
     var fraction = unexplained.divide(openingNetAssets, SCALE, HALF_UP);
@@ -82,7 +84,7 @@ class NavFlowConsistencyChecker {
                 .formatted(
                     unexplained.toPlainString(),
                     fraction.toPlainString(),
-                    marketPnl.setScale(EUR_SCALE, HALF_UP).toPlainString(),
+                    marketPnl.amount().setScale(EUR_SCALE, HALF_UP).toPlainString(),
                     unitFlow.setScale(EUR_SCALE, HALF_UP).toPlainString(),
                     unitsChange.toPlainString(),
                     SecurityQuantities.changedBetween(previousPositions, todayPositions))));
@@ -96,31 +98,47 @@ class NavFlowConsistencyChecker {
         .reduce(ZERO, BigDecimal::add);
   }
 
-  private @Nullable BigDecimal outstandingUnits(List<FundPosition> positions) {
+  private Optional<BigDecimal> outstandingUnits(List<FundPosition> positions) {
     return positions.stream()
         .filter(position -> position.getAccountType() == UNITS)
         .map(FundPosition::getQuantity)
         .filter(Objects::nonNull)
-        .findFirst()
-        .orElse(null);
+        .findFirst();
   }
 
-  private @Nullable BigDecimal marketPnl(
+  private MarketPnl marketPnl(
       List<FundPosition> previousPositions, List<FundPosition> todayPositions) {
     var todayPrices = pricesByIsin(todayPositions);
     var previousPrices = pricesByIsin(previousPositions);
-    var previousQuantities = SecurityQuantities.byIsin(previousPositions);
 
-    var pnl = ZERO;
-    for (var holding : previousQuantities.entrySet()) {
+    var amount = ZERO;
+    var unpricedHoldings = new TreeSet<String>();
+    for (var holding : SecurityQuantities.byIsin(previousPositions).entrySet()) {
       var todayPrice = todayPrices.get(holding.getKey());
       var previousPrice = previousPrices.get(holding.getKey());
       if (todayPrice == null || previousPrice == null) {
-        return null;
+        unpricedHoldings.add(holding.getKey());
+      } else {
+        amount = amount.add(holding.getValue().multiply(todayPrice.subtract(previousPrice)));
       }
-      pnl = pnl.add(holding.getValue().multiply(todayPrice.subtract(previousPrice)));
     }
-    return pnl;
+    return new MarketPnl(amount, List.copyOf(unpricedHoldings));
+  }
+
+  private record MarketPnl(BigDecimal amount, List<String> unpricedHoldings) {
+    private boolean isComplete() {
+      return unpricedHoldings.isEmpty();
+    }
+  }
+
+  private HealthCheckFinding couldNotRun(TulevaFund fund, List<String> unpricedHoldings) {
+    return new HealthCheckFinding(
+        fund,
+        NAV_FLOW_CONSISTENCY,
+        NOT_RUN,
+        ("NAV flow could not be reconciled: holdings priced on only one of the two days"
+                + " cannot be marked to market, unpricedHoldings=%s")
+            .formatted(String.join(",", unpricedHoldings)));
   }
 
   private Map<String, BigDecimal> pricesByIsin(List<FundPosition> positions) {

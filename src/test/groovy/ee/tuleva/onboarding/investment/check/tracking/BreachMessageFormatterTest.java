@@ -23,8 +23,6 @@ class BreachMessageFormatterTest {
                 new RedemptionCycleHint(true, new BigDecimal("5928109.00"), BigDecimal.ZERO))
             .format();
 
-    System.out.println(message);
-
     assertThat(message)
         .contains("NAV bridge (EUR)")
         .contains("UNEXPLAINED")
@@ -42,9 +40,6 @@ class BreachMessageFormatterTest {
         new BreachMessageFormatter(
                 tuk75On20260901(), false, RedemptionCycleHint.executionDateWithoutFigures())
             .format();
-
-    System.out.println("\n\n---------- FALLBACK (no R17/R21 ingested) ----------");
-    System.out.println(message);
 
     assertThat(message)
         .contains("PEVA/RAVA execution date")

@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.investment.check.health;
 
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.*;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.COMPLETENESS;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.NAV_FLOW_CONSISTENCY;
+import static ee.tuleva.onboarding.investment.config.InvestmentParameter.NAV_FLOW_CONSISTENCY_THRESHOLD;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.*;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -78,6 +80,36 @@ class HealthCheckServiceTest {
     assertThat(results.getFirst().fund()).isEqualTo(TUK75);
     assertThat(results.getFirst().checkDate()).isEqualTo(NAV_DATE);
     verify(completenessChecker).check(eq(TUK75), eq(NAV_DATE), eq(positions));
+  }
+
+  // Only @Mock fields were added when this checker was wired in, so an unstubbed mock returned
+  // null and nothing here failed if the wiring were deleted. That is how a double-counted
+  // netAssets reached a green build.
+  @Test
+  void runsTheNavFlowCheckAgainstBothDaysPositionsAndReportsWhatItFinds() {
+    var positions = List.of(securityPosition(TUK75, "IE001", new BigDecimal("1000")));
+    var previousPositions = List.of(securityPosition(TUK75, "IE001", new BigDecimal("900")));
+    var previousNavDate = NAV_DATE.minusDays(1);
+    var threshold = new BigDecimal("0.001");
+
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, NAV_DATE))
+        .willReturn(List.of());
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, previousNavDate))
+        .willReturn(Optional.of(previousNavDate));
+    given(fundPositionRepository.findByNavDateAndFund(previousNavDate, TUK75))
+        .willReturn(previousPositions);
+    given(investmentParameterRepository.findLatestValue(NAV_FLOW_CONSISTENCY_THRESHOLD, NAV_DATE))
+        .willReturn(threshold);
+
+    var finding =
+        new HealthCheckFinding(TUK75, NAV_FLOW_CONSISTENCY, WARNING, "NAV flow does not reconcile");
+    given(navFlowConsistencyChecker.check(TUK75, positions, previousPositions, threshold))
+        .willReturn(List.of(finding));
+
+    var results = healthCheckService.check(positions);
+
+    assertThat(results.getFirst().findings()).contains(finding);
+    verify(navFlowConsistencyChecker).check(TUK75, positions, previousPositions, threshold);
   }
 
   @Test

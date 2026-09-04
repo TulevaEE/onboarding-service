@@ -104,6 +104,34 @@ class NavFlowConsistencyCheckerTest {
         .contains("quantitiesChanged=true");
   }
 
+  // The gate is a strict "less than", so a fraction sitting exactly on the threshold warns.
+  @Test
+  void aGapExactlyOnTheThresholdWarns() {
+    var previous =
+        positions(security("IE00A", "10000", "100", "1000000"), units("1000000"), total("1000000"));
+    var today =
+        positions(
+            security("IE00A", "10000", "100", "1000000"),
+            cash("1000"),
+            units("1000000"),
+            total("1001000"));
+
+    var findings = checker.check(TUK75, today, previous, new BigDecimal("0.001"));
+
+    assertThat(findings).hasSize(1);
+    assertThat(findings.getFirst().severity()).isEqualTo(WARNING);
+  }
+
+  // Dividing the gap by a fund that was empty yesterday says nothing, so there is nothing to check.
+  @Test
+  void aFundWithNothingInItYesterdayHasNoFractionToReport() {
+    var previous = positions(units("1000000"), total("0"));
+    var today =
+        positions(security("IE00A", "10000", "100", "1000000"), units("1000000"), total("1000000"));
+
+    assertThat(checker.check(TUK75, today, previous, THRESHOLD)).isEmpty();
+  }
+
   @Test
   void aFirstEverImportHasNothingToReconcileAgainst() {
     var today = positions(security("IE00A", "10000", "100", "1000000"), units("800000"));

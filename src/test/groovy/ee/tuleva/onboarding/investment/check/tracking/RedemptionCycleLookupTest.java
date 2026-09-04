@@ -56,8 +56,10 @@ class RedemptionCycleLookupTest {
 
     assertThat(hint.executionDate()).isTrue();
     assertThat(hint.hasFigures()).isTrue();
-    assertThat(hint.ravaEur()).isEqualByComparingTo(new BigDecimal("5928109.00"));
-    assertThat(hint.pikEur()).isEqualByComparingTo(new BigDecimal("120000.00"));
+    assertThat(hint)
+        .isEqualTo(
+            new RedemptionCycleHint(
+                true, new BigDecimal("5928109.00"), new BigDecimal("120000.00")));
   }
 
   @Test

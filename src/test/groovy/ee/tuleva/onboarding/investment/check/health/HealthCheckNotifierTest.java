@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.check.health;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.*;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.COMPLETENESS;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.ISIN_MATCH;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.NAV_FLOW_CONSISTENCY;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
@@ -62,6 +63,22 @@ class HealthCheckNotifierTest {
     assertThat(notified).isTrue();
     verify(notificationService).sendMessage(contains("Import warning"), eq(INVESTMENT));
     verify(notificationService).sendMessage(contains("[WARNING]"), eq(INVESTMENT));
+  }
+
+  // A check that declined to answer is not a clean import and not a warning about the fund, so
+  // it has to read as its own thing rather than borrowing either headline.
+  @Test
+  void sendsCouldNotRunWhenACheckDeclinedToAnswer() {
+    var finding =
+        new HealthCheckFinding(
+            TUK75, NAV_FLOW_CONSISTENCY, NOT_RUN, "TUK75: unpricedHoldings=IE00A");
+    var result = new HealthCheckResult(TUK75, DATE, List.of(finding));
+
+    var notified = notifier.notify(SEB, DATE, List.of(result));
+
+    assertThat(notified).isTrue();
+    verify(notificationService).sendMessage(contains("could not run"), eq(INVESTMENT));
+    verify(notificationService).sendMessage(contains("[NOT_RUN]"), eq(INVESTMENT));
   }
 
   @Test

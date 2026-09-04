@@ -579,6 +579,52 @@ class PendingOrderImpactServiceTest {
   }
 
   @Test
+  void aSellPlacedInEurosReducesTheValueButNotTheUnitsBecauseNoUnitCountWasGiven() {
+    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
+        .willReturn(
+            List.of(
+                order(
+                    1L,
+                    "IE00A",
+                    TransactionType.SELL,
+                    InstrumentType.ETF,
+                    OrderStatus.SENT,
+                    null,
+                    new BigDecimal("4000"))));
+    given(executionRepository.findByOrderIdIn(List.of(1L))).willReturn(List.of());
+
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
+
+    assertThat(impact.unreportedPositionValues())
+        .containsExactly(Map.entry("IE00A", new BigDecimal("-4000")));
+    assertThat(impact.unreportedPositionQuantities()).isEmpty();
+    assertThat(impact.pendingSells()).isEqualByComparingTo(new BigDecimal("4000"));
+  }
+
+  @Test
+  void anUnfilledFundSellReducesTheValueButContributesNoUnits() {
+    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
+        .willReturn(
+            List.of(
+                order(
+                    1L,
+                    "IE00B",
+                    TransactionType.SELL,
+                    InstrumentType.FUND,
+                    OrderStatus.SENT,
+                    new BigDecimal("20"),
+                    new BigDecimal("1000"))));
+    given(executionRepository.findByOrderIdIn(List.of(1L))).willReturn(List.of());
+
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
+
+    assertThat(impact.unreportedPositionValues())
+        .containsExactly(Map.entry("IE00B", new BigDecimal("-1000")));
+    assertThat(impact.unreportedPositionQuantities()).isEmpty();
+    assertThat(impact.pendingSells()).isEqualByComparingTo(new BigDecimal("1000"));
+  }
+
+  @Test
   void anUnexecutedEtfBuyNeverInflatesTheQuantityAvailableToSell() {
     // A sell may be sized against a position that has not landed yet, but only once the buy is
     // EXECUTED and the real quantity is known. A SENT order with no fill is an intention, not a

@@ -13,6 +13,7 @@ import static java.util.stream.Collectors.toMap;
 
 import ee.tuleva.onboarding.investment.position.AccountType;
 import ee.tuleva.onboarding.investment.position.FundPosition;
+import ee.tuleva.onboarding.investment.position.SecurityQuantities;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.util.List;
@@ -84,7 +85,7 @@ class NavFlowConsistencyChecker {
                     marketPnl.setScale(EUR_SCALE, HALF_UP).toPlainString(),
                     unitFlow.setScale(EUR_SCALE, HALF_UP).toPlainString(),
                     unitsChange.toPlainString(),
-                    quantitiesChanged(previousPositions, todayPositions))));
+                    SecurityQuantities.changedBetween(previousPositions, todayPositions))));
   }
 
   private BigDecimal netAssets(List<FundPosition> positions) {
@@ -108,7 +109,7 @@ class NavFlowConsistencyChecker {
       List<FundPosition> previousPositions, List<FundPosition> todayPositions) {
     var todayPrices = pricesByIsin(todayPositions);
     var previousPrices = pricesByIsin(previousPositions);
-    var previousQuantities = quantitiesByIsin(previousPositions);
+    var previousQuantities = SecurityQuantities.byIsin(previousPositions);
 
     var pnl = ZERO;
     for (var holding : previousQuantities.entrySet()) {
@@ -120,21 +121,6 @@ class NavFlowConsistencyChecker {
       pnl = pnl.add(holding.getValue().multiply(todayPrice.subtract(previousPrice)));
     }
     return pnl;
-  }
-
-  private boolean quantitiesChanged(
-      List<FundPosition> previousPositions, List<FundPosition> todayPositions) {
-    var previous = quantitiesByIsin(previousPositions);
-    var today = quantitiesByIsin(todayPositions);
-    if (!previous.keySet().equals(today.keySet())) {
-      return true;
-    }
-    return previous.entrySet().stream()
-        .anyMatch(entry -> entry.getValue().compareTo(today.get(entry.getKey())) != 0);
-  }
-
-  private Map<String, BigDecimal> quantitiesByIsin(List<FundPosition> positions) {
-    return SecurityQuantities.byIsin(securities(positions));
   }
 
   private Map<String, BigDecimal> pricesByIsin(List<FundPosition> positions) {

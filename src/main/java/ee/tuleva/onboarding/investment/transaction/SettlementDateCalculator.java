@@ -52,14 +52,22 @@ public class SettlementDateCalculator {
         .settlementTerms(isin)
         .map(
             terms ->
-                calendarFor(instrumentType, isin, acceptanceDate)
-                    .addBusinessDays(acceptanceDate, terms.daysFromAcceptance()))
+                settleFrom(
+                    dealingDay(acceptanceDate, instrumentType, isin), terms.daysFromAcceptance()))
         .orElseGet(() -> flatSettlementDate(acceptanceDate, instrumentType, isin));
   }
 
   public LocalDate addBusinessDays(
       LocalDate tradeDate, InstrumentType instrumentType, String isin, int businessDays) {
-    return calendarFor(instrumentType, isin, tradeDate).addBusinessDays(tradeDate, businessDays);
+    return settleFrom(dealingDay(tradeDate, instrumentType, isin), businessDays);
+  }
+
+  private LocalDate dealingDay(LocalDate date, InstrumentType instrumentType, String isin) {
+    return dealingCalendar(instrumentType, isin, date).nextOrSameBusinessDay(date);
+  }
+
+  private LocalDate settleFrom(LocalDate acceptanceDate, int businessDays) {
+    return target2Calendar.addBusinessDays(acceptanceDate, businessDays);
   }
 
   private LocalDate flatSettlementDate(
@@ -76,15 +84,15 @@ public class SettlementDateCalculator {
       Instant submittedAt, InstrumentType instrumentType, String isin, SettlementTerms terms) {
     ZonedDateTime submitted = submittedAt.atZone(terms.cutoffZone());
     LocalDate submissionDate = submitted.toLocalDate();
-    TradingCalendar calendar = calendarFor(instrumentType, isin, submissionDate);
+    TradingCalendar dealing = dealingCalendar(instrumentType, isin, submissionDate);
     LocalDate acceptanceDate =
         submitted.toLocalTime().isAfter(terms.cutoffTime())
-            ? calendar.addBusinessDays(submissionDate, 1)
-            : calendar.nextOrSameBusinessDay(submissionDate);
-    return calendar.addBusinessDays(acceptanceDate, terms.daysFromAcceptance());
+            ? dealing.addBusinessDays(submissionDate, 1)
+            : dealing.nextOrSameBusinessDay(submissionDate);
+    return settleFrom(acceptanceDate, terms.daysFromAcceptance());
   }
 
-  private TradingCalendar calendarFor(
+  private TradingCalendar dealingCalendar(
       InstrumentType instrumentType, String isin, LocalDate tradeDate) {
     return switch (instrumentType) {
       case ETF -> target2Calendar;

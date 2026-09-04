@@ -123,39 +123,41 @@ class OverdueSettlementDetectorTest {
   }
 
   @Test
-  void collectOverdue_fundDeadlineUsesDomicileCalendar_irishHolidayDefersOverdue() {
-    // FUND order on Tue 2026-03-10, 5-business-day threshold. On TARGET2 the deadline is
-    // 2026-03-17, but the Irish domicile calendar skips St Patrick's Day (Mar 17), deferring the
-    // deadline to 2026-03-18. As of 2026-03-18 the order is therefore NOT yet overdue.
-    LocalDate stPatricksWeek = LocalDate.of(2026, 3, 18); // Wednesday
+  void collectOverdue_fundOrderedOnANonDealingDay_dealsLaterAndIsNotYetOverdue() {
+    // FUND order placed ON St Patrick's Day, 5-business-day threshold. The Irish domicile calendar
+    // makes it a non-dealing day, so the fund deals on Mar 18 and the deadline is 2026-03-25. As of
+    // 2026-03-25 the order is therefore NOT yet overdue.
+    LocalDate afterTheDeadlineWindow = LocalDate.of(2026, 3, 25); // Wednesday
     givenProvider("IE00BFG1TM61", Provider.ISHARES);
     TransactionOrder sentFund =
-        order(1L, FUND, SENT, dateOnly(2026, 3, 10), TUV100, "IE00BFG1TM61", SENT_UUID);
+        order(1L, FUND, SENT, dateOnly(2026, 3, 17), TUV100, "IE00BFG1TM61", SENT_UUID);
     given(executionRepository.findByOrderIdIn(any())).willReturn(List.of());
 
     List<OverdueLine> overdue =
-        detector().collectOverdue(stPatricksWeek, true, Set.of(), Set.of(), List.of(sentFund));
+        detector()
+            .collectOverdue(afterTheDeadlineWindow, true, Set.of(), Set.of(), List.of(sentFund));
 
     assertThat(overdue).isEmpty();
   }
 
   @Test
-  void collectOverdue_fundDeadlineOnTarget2WithoutProvider_isOverdueOnStPatricksDay() {
-    // Same FUND order as above, but with no resolvable provider the calculator falls back to
-    // TARGET2, whose deadline is 2026-03-17 (St Patrick's Day is a regular TARGET2 business day).
-    // As of 2026-03-18 the order is overdue, confirming the domicile calendar is what defers it.
-    LocalDate stPatricksWeek = LocalDate.of(2026, 3, 18); // Wednesday
+  void collectOverdue_fundWithoutADomicileDealsSameDayAndIsAlreadyOverdue() {
+    // Same FUND order as above, but with no resolvable domicile the calculator falls back to
+    // TARGET2, on which St Patrick's Day is a normal dealing day. The deadline is therefore
+    // 2026-03-24 and the order is overdue, confirming the domicile calendar is what defers it.
+    LocalDate afterTheDeadlineWindow = LocalDate.of(2026, 3, 25); // Wednesday
     TransactionOrder sentFund =
-        order(1L, FUND, SENT, dateOnly(2026, 3, 10), TUV100, "EE3600109443", SENT_UUID);
+        order(1L, FUND, SENT, dateOnly(2026, 3, 17), TUV100, "EE3600109443", SENT_UUID);
     given(executionRepository.findByOrderIdIn(any())).willReturn(List.of());
 
     List<OverdueLine> overdue =
-        detector().collectOverdue(stPatricksWeek, true, Set.of(), Set.of(), List.of(sentFund));
+        detector()
+            .collectOverdue(afterTheDeadlineWindow, true, Set.of(), Set.of(), List.of(sentFund));
 
     assertThat(overdue).hasSize(1);
     assertThat(overdue.get(0).order()).isEqualTo(sentFund);
     assertThat(overdue.get(0).status()).isEqualTo(SENT);
-    assertThat(overdue.get(0).deadline()).isEqualTo(LocalDate.of(2026, 3, 17));
+    assertThat(overdue.get(0).deadline()).isEqualTo(LocalDate.of(2026, 3, 24));
   }
 
   @Test

@@ -34,8 +34,11 @@ public class SignatureService {
   }
 
   public IdCardSignatureSession startIdCardSign(
-      List<SignatureFile> files, String signingCertificate) {
-    return idCardSigner.startSign(files, signingCertificate);
+      List<SignatureFile> files,
+      String signingCertificate,
+      List<String> supportedHashFunctions,
+      String personalCode) {
+    return idCardSigner.startSign(files, signingCertificate, supportedHashFunctions, personalCode);
   }
 
   public byte[] getSignedFile(IdCardSignatureSession session, String signature) {

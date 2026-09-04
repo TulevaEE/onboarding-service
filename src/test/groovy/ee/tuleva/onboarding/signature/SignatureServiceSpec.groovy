@@ -70,10 +70,10 @@ class SignatureServiceSpec extends Specification {
         given:
         def signingCertificate = "signingCertificate"
         def signatureSession = Mock(IdCardSignatureSession)
-        1 * idCardSigner.startSign(files, signingCertificate) >> signatureSession
+        1 * idCardSigner.startSign(files, signingCertificate, ["SHA-256"], personalCode) >> signatureSession
 
         when:
-        def session = service.startIdCardSign(files, signingCertificate)
+        def session = service.startIdCardSign(files, signingCertificate, ["SHA-256"], personalCode)
 
         then:
         session == signatureSession

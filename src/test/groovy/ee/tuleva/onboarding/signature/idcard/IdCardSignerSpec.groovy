@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.signature.IdCardSignatureSession
 import ee.tuleva.onboarding.signature.SignatureFile
 import org.digidoc4j.Container
 import org.digidoc4j.DataToSign
+import org.digidoc4j.DigestAlgorithm
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.idcard.IdDocumentType.ESTONIAN_CITIZEN_ID_CARD
@@ -17,9 +18,11 @@ class IdCardSignerSpec extends Specification {
   DigiDocFacade digiDocFacade = Mock()
   IdCardSigner idCardSigner = new IdCardSigner(digiDocFacade)
 
+  def personalCode = "38888888888"
   def files = [new SignatureFile("fileName", "mimeType", "content".bytes)]
-  def certificate = WebEidCertificateFixture.certificate("TEST", "USER", "38888888888", ESTONIAN_CITIZEN_ID_CARD)
+  def certificate = WebEidCertificateFixture.certificate("TEST", "USER", personalCode, ESTONIAN_CITIZEN_ID_CARD)
   def certificateInBase64 = getEncoder().encodeToString(certificate.encoded)
+  def supportedHashFunctions = ["SHA-224", "SHA-256", "SHA-384", "SHA-512"]
 
   def "starts an id card signature from a base64 DER certificate and returns the base64 hash to sign"() {
     given:
@@ -28,12 +31,12 @@ class IdCardSignerSpec extends Specification {
     def digestToSign = "digest".bytes
 
     1 * digiDocFacade.buildContainer(files) >> container
-    1 * digiDocFacade.dataToSign(container, certificate) >> dataToSign
+    1 * digiDocFacade.dataToSign(container, certificate, _ as DigestAlgorithm) >> dataToSign
     1 * digiDocFacade.digestToSign(dataToSign) >> digestToSign
     1 * digiDocFacade.hashFunction(dataToSign) >> "SHA-256"
 
     when:
-    def session = idCardSigner.startSign(files, certificateInBase64)
+    def session = idCardSigner.startSign(files, certificateInBase64, supportedHashFunctions, personalCode)
 
     then:
     getDecoder().decode(session.hashToSign) == digestToSign
@@ -42,9 +45,42 @@ class IdCardSignerSpec extends Specification {
     session.dataToSign == dataToSign
   }
 
+  def "signs with the digest algorithm the signing certificate calls for"() {
+    given:
+    def container = Mock(Container)
+    def dataToSign = Mock(DataToSign)
+    digiDocFacade.buildContainer(files) >> container
+    digiDocFacade.digestToSign(dataToSign) >> "digest".bytes
+    digiDocFacade.hashFunction(dataToSign) >> "SHA-256"
+
+    when:
+    idCardSigner.startSign(files, certificateInBase64, supportedHashFunctions, personalCode)
+
+    then:
+    1 * digiDocFacade.dataToSign(container, certificate, DigestAlgorithm.SHA256) >> dataToSign
+  }
+
+  def "rejects a certificate that belongs to someone other than the signer"() {
+    when:
+    idCardSigner.startSign(files, certificateInBase64, supportedHashFunctions, "38812121215")
+
+    then:
+    thrown(SigningCertificateMismatchException)
+    0 * digiDocFacade.buildContainer(_)
+  }
+
+  def "rejects a certificate whose digest algorithm the card cannot sign with"() {
+    when:
+    idCardSigner.startSign(files, certificateInBase64, ["SHA-512"], personalCode)
+
+    then:
+    thrown(UnsupportedHashFunctionException)
+    0 * digiDocFacade.buildContainer(_)
+  }
+
   def "rejects a signing certificate that is not a base64 DER certificate"() {
     when:
-    idCardSigner.startSign(files, invalidCertificate)
+    idCardSigner.startSign(files, invalidCertificate, supportedHashFunctions, personalCode)
 
     then:
     thrown(InvalidSigningCertificateException)

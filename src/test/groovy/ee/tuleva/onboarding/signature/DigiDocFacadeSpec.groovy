@@ -8,6 +8,7 @@ import org.digidoc4j.ContainerBuilder
 import org.digidoc4j.DataToSign
 import org.digidoc4j.DigestAlgorithm
 import org.digidoc4j.Signature
+import org.digidoc4j.SignatureProfile
 import spock.lang.Specification
 
 import java.security.MessageDigest
@@ -80,10 +81,11 @@ class DigiDocFacadeSpec extends Specification {
         "TEST", "USER", "38888888888", IdDocumentType.ESTONIAN_CITIZEN_ID_CARD)
 
     when:
-    def dataToSign = digiDocFacade.dataToSign(container, certificate)
+    def dataToSign = digiDocFacade.dataToSign(container, certificate, DigestAlgorithm.SHA256)
 
     then:
     dataToSign.digestAlgorithm == DigestAlgorithm.SHA256
+    dataToSign.signatureParameters.signatureProfile == SignatureProfile.LT
     dataToSign.dataToSign.length > 0
   }
 

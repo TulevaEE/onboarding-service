@@ -353,7 +353,8 @@ class CapitalTransferContractControllerTest {
     Authentication authentication =
         new UsernamePasswordAuthenticationToken(authenticatedPerson, null, Collections.emptyList());
 
-    StartIdCardSignCommand command = new StartIdCardSignCommand("test-certificate");
+    StartIdCardSignCommand command =
+        new StartIdCardSignCommand("test-certificate", List.of("SHA-256"));
 
     IdCardSignatureResponse response = new IdCardSignatureResponse("hash-to-sign", "SHA-256");
 

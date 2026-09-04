@@ -950,6 +950,83 @@ class TrackingDifferenceNotifierTest {
         .contains("TUK75 MODEL_PORTFOLIO: the breach streak could not be counted");
   }
 
+  @Test
+  void aBackfillThatRewroteNothingSaysTheStoredEventsKeptTheirOldDefinition() {
+    notifier.notifyBackfillSummary(7, List.of());
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue())
+        .contains("TD BACKFILL produced no results: daysBack=7")
+        .contains("still carries the definition it was");
+  }
+
+  @Test
+  void aBackfillReportsOneLinePerSubjectRatherThanOnePerRewrittenDay() {
+    var results =
+        List.of(
+            result(false, 0, ZERO).toBuilder().checkDate(LocalDate.of(2026, 4, 1)).build(),
+            result(true, 1, new BigDecimal("0.0015")).toBuilder()
+                .checkDate(LocalDate.of(2026, 4, 3))
+                .build(),
+            result(false, 0, ZERO).toBuilder()
+                .checkDate(LocalDate.of(2026, 4, 2))
+                .checkType(BENCHMARK_MODEL)
+                .build());
+
+    notifier.notifyBackfillSummary(30, results);
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue())
+        .contains("TD BACKFILL COMPLETE: daysBack=30")
+        .contains("TUK75 BENCHMARK_MODEL: 1 check dates 2026-04-02 to 2026-04-02, 0 breaches")
+        .contains("TUK75 MODEL_PORTFOLIO: 2 check dates 2026-04-01 to 2026-04-03, 1 breaches");
+  }
+
+  @Test
+  void theLargestBackfilledTdIsTheOneFurthestFromZeroInEitherDirection() {
+    var results =
+        List.of(
+            result(false, 0, ZERO).toBuilder()
+                .checkDate(LocalDate.of(2026, 4, 1))
+                .trackingDifference(new BigDecimal("-0.0240"))
+                .build(),
+            result(false, 0, ZERO).toBuilder()
+                .checkDate(LocalDate.of(2026, 4, 2))
+                .trackingDifference(new BigDecimal("0.0080"))
+                .build());
+
+    notifier.notifyBackfillSummary(7, results);
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue()).contains("largest TD -2.40%");
+  }
+
+  @Test
+  void aBackfillSummaryThatCannotBeSentLeavesTheRewrittenDaysInPlace() {
+    willThrow(new RuntimeException("Slack down"))
+        .given(notificationService)
+        .sendMessage(any(String.class), eq(INVESTMENT));
+
+    assertThatCode(() -> notifier.notifyBackfillSummary(7, List.of(result(false, 0, ZERO))))
+        .doesNotThrowAnyException();
+  }
+
+  @Test
+  void aFundCheckedOnTwoBasesListsThemInAStableOrder() {
+    var modelPortfolio = result(false, 0, ZERO);
+    var benchmarkModel = result(false, 0, ZERO).toBuilder().checkType(BENCHMARK_MODEL).build();
+
+    notifier.notify(List.of(modelPortfolio, benchmarkModel));
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    assertThat(captor.getValue().indexOf("BENCHMARK_MODEL"))
+        .isLessThan(captor.getValue().indexOf("MODEL_PORTFOLIO"));
+  }
+
   private TrackingDifferenceResult result(
       boolean breach, int consecutiveBreachDays, BigDecimal consecutiveNetTd) {
     return TrackingDifferenceResult.builder()

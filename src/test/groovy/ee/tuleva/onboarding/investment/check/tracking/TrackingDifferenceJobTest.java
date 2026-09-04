@@ -138,4 +138,13 @@ class TrackingDifferenceJobTest {
 
     then(notifier).should().notifyBackfillSummary(7, partialResults);
   }
+
+  @Test
+  void aBackfillFailureCarryingNoMessageIsNamedByItsTypeInsteadOfNull() {
+    doThrow(new NullPointerException()).when(service).backfillChecks(7);
+
+    job.onTrackingDifferenceBackfillRequested(new RunTrackingDifferenceBackfillRequested(7));
+
+    then(notifier).should().notifyRunFailed("TD backfill", "NullPointerException");
+  }
 }

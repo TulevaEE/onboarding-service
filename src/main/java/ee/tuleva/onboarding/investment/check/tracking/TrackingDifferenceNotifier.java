@@ -104,6 +104,54 @@ class TrackingDifferenceNotifier {
         .toPlainString();
   }
 
+  // A backfill rewrites hundreds of fund-days. Posting each one buries the channel it is meant to
+  // inform, so the run reports its shape - how far it reached, what it rewrote, where the breaches
+  // are - and the days themselves stay in the table for a query to answer.
+  void notifyBackfillSummary(int daysBack, List<TrackingDifferenceResult> results) {
+    try {
+      if (results.isEmpty()) {
+        notificationService.sendMessage(
+            """
+            ⚠️ TD BACKFILL produced no results: daysBack=%d
+              Nothing was rewritten, so every stored event still carries the definition it was
+              written with. The reason per fund is in the logs."""
+                .formatted(daysBack),
+            INVESTMENT);
+        return;
+      }
+
+      var message = new StringBuilder("✅ TD BACKFILL COMPLETE: daysBack=%d\n".formatted(daysBack));
+      results.stream()
+          .collect(
+              Collectors.groupingBy(
+                  r -> "%s %s".formatted(r.fund().getCode(), r.checkType()),
+                  TreeMap::new,
+                  Collectors.toList()))
+          .forEach((subject, group) -> message.append(formatBackfillGroup(subject, group)));
+      notificationService.sendMessage(message.toString(), INVESTMENT);
+    } catch (Exception e) {
+      log.error("Failed to send tracking difference backfill summary", e);
+    }
+  }
+
+  private static String formatBackfillGroup(String subject, List<TrackingDifferenceResult> group) {
+    var dates = group.stream().map(TrackingDifferenceResult::checkDate).sorted().toList();
+    var breaches = group.stream().filter(TrackingDifferenceResult::hasAnyBreach).count();
+    var worst =
+        group.stream()
+            .map(TrackingDifferenceResult::trackingDifference)
+            .max(Comparator.comparing(BigDecimal::abs))
+            .orElse(BigDecimal.ZERO);
+    return "\n  %s: %d check dates %s to %s, %d breaches, largest TD %s%%"
+        .formatted(
+            subject,
+            dates.size(),
+            dates.getFirst(),
+            dates.getLast(),
+            breaches,
+            formatPercent(worst));
+  }
+
   void notify(List<TrackingDifferenceResult> results) {
     try {
       var alertableResults = results.stream().filter(r -> r.checkType() != BENCHMARK).toList();

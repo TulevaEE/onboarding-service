@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.check.health;
 
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.NOT_RUN;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.NAV_FLOW_CONSISTENCY;
 import static ee.tuleva.onboarding.investment.position.AccountType.CASH;
@@ -56,12 +57,21 @@ class NavFlowConsistencyCheckerTest {
         .contains("quantitiesChanged=false");
   }
 
+  // A holding sold out during the day leaves no price to mark it against, so the day's market
+  // P&L is genuinely unknowable from the position report - and a settlement day is exactly when
+  // this check matters, so it has to say it could not run rather than return quietly.
   @Test
-  void aHoldingWithNoPriceTodayLeavesTheCheckSilentRatherThanGuessing() {
+  void aHoldingSoldOutDuringTheDayLeavesTheCheckUnableToRunRatherThanSilent() {
     var previous = positions(security("IE00A", "10000", "100", "1000000"), units("1000000"));
     var today = positions(cash("1000000"), units("800000"));
 
-    assertThat(checker.check(TUK75, today, previous, THRESHOLD)).isEmpty();
+    var findings = checker.check(TUK75, today, previous, THRESHOLD);
+
+    assertThat(findings).hasSize(1);
+    var finding = findings.getFirst();
+    assertThat(finding.checkType()).isEqualTo(NAV_FLOW_CONSISTENCY);
+    assertThat(finding.severity()).isEqualTo(NOT_RUN);
+    assertThat(finding.message()).contains("IE00A");
   }
 
   // SebFundPositionParser stores the report's "Total" row as AccountType.NAV, so every imported

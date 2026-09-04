@@ -15,10 +15,6 @@ public enum Domicile {
 
   private final String countryCode;
 
-  /**
-   * Resolves an ISO 3166-1 alpha-2 country code, as stored in {@code instrument_reference.country}.
-   * Empty for a null, blank or unsupported code — the caller decides what to fall back to.
-   */
   public static Optional<Domicile> forCountryCode(@Nullable String countryCode) {
     if (countryCode == null || countryCode.isBlank()) {
       return Optional.empty();

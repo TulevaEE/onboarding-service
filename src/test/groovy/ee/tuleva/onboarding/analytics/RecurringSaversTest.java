@@ -23,6 +23,7 @@ class RecurringSaversTest {
   private static final LocalDate EXPECTED_FROM = LocalDate.of(2025, 12, 1);
   private static final String PERSONAL_CODE = "38888888888";
   private static final SaverId SAVER = SaverId.person(PERSONAL_CODE);
+  private static final SaverId CHILD = SaverId.person("51111111111");
 
   @Mock private AnalyticsThirdPillarTransactionRepository thirdPillarTransactions;
   @Mock private SavingsFundContributions savingsFundContributions;
@@ -35,19 +36,25 @@ class RecurringSaversTest {
   }
 
   @Test
-  void hasRecurringSavingsFundPaymentsIsTrueAtTheThreeMonthThreshold() {
-    given(savingsFundContributions.countIssuedPaymentMonthsSince(SAVER, EXPECTED_FROM))
+  void recurringPaymentsOfScopesTheSavingsFundCadenceToTheGivenAccount() {
+    given(thirdPillarTransactions.countOwnContributionMonthsSince(PERSONAL_CODE, EXPECTED_FROM))
         .willReturn(3);
+    given(savingsFundContributions.countIssuedPaymentMonthsSince(CHILD, EXPECTED_FROM))
+        .willReturn(2);
 
-    assertThat(recurringSavers.hasRecurringSavingsFundPayments(SAVER)).isTrue();
+    assertThat(recurringSavers.recurringPaymentsOf(PERSONAL_CODE, CHILD))
+        .isEqualTo(new RecurringPayments(true, false));
   }
 
   @Test
-  void hasRecurringSavingsFundPaymentsIsFalseJustBelowTheThreeMonthThreshold() {
-    given(savingsFundContributions.countIssuedPaymentMonthsSince(SAVER, EXPECTED_FROM))
+  void recurringPaymentsOfIsTrueForTheGivenAccountAtTheThreeMonthThreshold() {
+    given(thirdPillarTransactions.countOwnContributionMonthsSince(PERSONAL_CODE, EXPECTED_FROM))
         .willReturn(2);
+    given(savingsFundContributions.countIssuedPaymentMonthsSince(CHILD, EXPECTED_FROM))
+        .willReturn(3);
 
-    assertThat(recurringSavers.hasRecurringSavingsFundPayments(SAVER)).isFalse();
+    assertThat(recurringSavers.recurringPaymentsOf(PERSONAL_CODE, CHILD))
+        .isEqualTo(new RecurringPayments(false, true));
   }
 
   @Test

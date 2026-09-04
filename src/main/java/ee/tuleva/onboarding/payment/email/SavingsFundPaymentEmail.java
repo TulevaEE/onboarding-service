@@ -9,41 +9,61 @@ import static ee.tuleva.onboarding.notification.email.EmailType.SAVINGS_FUND_PAY
 import ee.tuleva.onboarding.auth.principal.Names;
 import ee.tuleva.onboarding.notification.email.EmailType;
 import java.util.Map;
+import java.util.UUID;
 import org.jspecify.annotations.NullMarked;
-import org.jspecify.annotations.Nullable;
 
 @NullMarked
 record SavingsFundPaymentEmail(EmailType emailType, Map<String, Object> mergeVars) {
 
+  private static final String ACCOUNT_ID = "recipientAccountId";
+  private static final String NAME = "recipientName";
+
   static SavingsFundPaymentEmail cancelled() {
-    return withoutRecipient(SAVINGS_FUND_PAYMENT_CANCEL);
+    return new SavingsFundPaymentEmail(SAVINGS_FUND_PAYMENT_CANCEL, Map.of());
   }
 
   static SavingsFundPaymentEmail failed() {
-    return withoutRecipient(SAVINGS_FUND_PAYMENT_FAIL);
+    return new SavingsFundPaymentEmail(SAVINGS_FUND_PAYMENT_FAIL, Map.of());
   }
 
   static SavingsFundPaymentEmail personSuccess() {
-    return withoutRecipient(SAVINGS_FUND_PAYMENT_SUCCESS_PERSON);
+    return new SavingsFundPaymentEmail(SAVINGS_FUND_PAYMENT_SUCCESS_PERSON, Map.of());
   }
 
-  static SavingsFundPaymentEmail childSuccess(@Nullable String childName) {
-    return withRecipient(SAVINGS_FUND_PAYMENT_SUCCESS_CHILD, childName);
+  static SavingsFundPaymentEmail childSuccess(UUID accountId) {
+    return new SavingsFundPaymentEmail(
+        SAVINGS_FUND_PAYMENT_SUCCESS_CHILD,
+        Map.of("recipientIsChild", true, ACCOUNT_ID, accountId.toString()));
   }
 
-  static SavingsFundPaymentEmail companySuccess(@Nullable String companyName) {
-    return withRecipient(SAVINGS_FUND_PAYMENT_SUCCESS_COMPANY, companyName);
+  static SavingsFundPaymentEmail childSuccess(String childName, UUID accountId) {
+    return new SavingsFundPaymentEmail(
+        SAVINGS_FUND_PAYMENT_SUCCESS_CHILD,
+        Map.of(
+            "recipientIsChild",
+            true,
+            ACCOUNT_ID,
+            accountId.toString(),
+            NAME,
+            Names.formatted(childName)));
   }
 
-  private static SavingsFundPaymentEmail withoutRecipient(EmailType emailType) {
-    return new SavingsFundPaymentEmail(emailType, Map.of());
+  // A company that is not on file yet: the receipt is still the company one, its call to
+  // action just opens the company account the reader represents rather than a named one.
+  static SavingsFundPaymentEmail companySuccess() {
+    return new SavingsFundPaymentEmail(
+        SAVINGS_FUND_PAYMENT_SUCCESS_COMPANY, Map.of("recipientIsCompany", true));
   }
 
-  private static SavingsFundPaymentEmail withRecipient(
-      EmailType emailType, @Nullable String recipientName) {
-    return recipientName == null
-        ? withoutRecipient(emailType)
-        : new SavingsFundPaymentEmail(
-            emailType, Map.of("recipientName", Names.formatted(recipientName)));
+  static SavingsFundPaymentEmail companySuccess(String companyName, UUID accountId) {
+    return new SavingsFundPaymentEmail(
+        SAVINGS_FUND_PAYMENT_SUCCESS_COMPANY,
+        Map.of(
+            "recipientIsCompany",
+            true,
+            ACCOUNT_ID,
+            accountId.toString(),
+            NAME,
+            Names.formatted(companyName)));
   }
 }

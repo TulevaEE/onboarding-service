@@ -19,7 +19,9 @@ import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.auth.principal.PrincipalUsers;
 import ee.tuleva.onboarding.company.CompanyNotFoundException;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -42,12 +44,14 @@ class RoleSwitchServiceTest {
   private final AuthenticatedPerson person = sampleAuthenticatedPersonAndMember().build();
 
   private static final String CHILD_CODE = "61506150006";
+  private static final UUID COMPANY_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
+  private static final UUID CHILD_LINK_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
   private static final String CHILD_NAME = "Mari Maasikas";
 
   @Test
   void switchRoleToCompany() {
     when(companyRoles.company(SAMPLE_REGISTRY_CODE))
-        .thenReturn(new CompanyRole(SAMPLE_REGISTRY_CODE, SAMPLE_COMPANY_NAME));
+        .thenReturn(new CompanyRole(COMPANY_ID, SAMPLE_REGISTRY_CODE, SAMPLE_COMPANY_NAME));
     when(companyRoles.isBoardMember(person.getPersonalCode(), SAMPLE_REGISTRY_CODE))
         .thenReturn(true);
     when(principalService.withRole(any(), any())).thenReturn(person);
@@ -64,7 +68,7 @@ class RoleSwitchServiceTest {
   @Test
   void switchToCompanyPublishesAuditEvent() {
     when(companyRoles.company(SAMPLE_REGISTRY_CODE))
-        .thenReturn(new CompanyRole(SAMPLE_REGISTRY_CODE, SAMPLE_COMPANY_NAME));
+        .thenReturn(new CompanyRole(COMPANY_ID, SAMPLE_REGISTRY_CODE, SAMPLE_COMPANY_NAME));
     when(companyRoles.isBoardMember(person.getPersonalCode(), SAMPLE_REGISTRY_CODE))
         .thenReturn(true);
     when(principalService.withRole(any(), any())).thenReturn(person);
@@ -79,7 +83,7 @@ class RoleSwitchServiceTest {
   @Test
   void switchToCompanyPublishesNoAuditEventWhenTokenGenerationFails() {
     when(companyRoles.company(SAMPLE_REGISTRY_CODE))
-        .thenReturn(new CompanyRole(SAMPLE_REGISTRY_CODE, SAMPLE_COMPANY_NAME));
+        .thenReturn(new CompanyRole(COMPANY_ID, SAMPLE_REGISTRY_CODE, SAMPLE_COMPANY_NAME));
     when(companyRoles.isBoardMember(person.getPersonalCode(), SAMPLE_REGISTRY_CODE))
         .thenReturn(true);
     when(principalService.withRole(any(), any())).thenReturn(person);
@@ -154,7 +158,7 @@ class RoleSwitchServiceTest {
   @Test
   void switchToCompanyThrowsWhenNotBoardMember() {
     when(companyRoles.company(SAMPLE_REGISTRY_CODE))
-        .thenReturn(new CompanyRole(SAMPLE_REGISTRY_CODE, SAMPLE_COMPANY_NAME));
+        .thenReturn(new CompanyRole(COMPANY_ID, SAMPLE_REGISTRY_CODE, SAMPLE_COMPANY_NAME));
     when(companyRoles.isBoardMember(person.getPersonalCode(), SAMPLE_REGISTRY_CODE))
         .thenReturn(false);
 
@@ -168,7 +172,7 @@ class RoleSwitchServiceTest {
   @Test
   void shareholderWithoutBoardMembershipCannotSwitchRole() {
     when(companyRoles.company(SAMPLE_REGISTRY_CODE))
-        .thenReturn(new CompanyRole(SAMPLE_REGISTRY_CODE, SAMPLE_COMPANY_NAME));
+        .thenReturn(new CompanyRole(COMPANY_ID, SAMPLE_REGISTRY_CODE, SAMPLE_COMPANY_NAME));
     when(companyRoles.isBoardMember(person.getPersonalCode(), SAMPLE_REGISTRY_CODE))
         .thenReturn(false);
 
@@ -182,9 +186,10 @@ class RoleSwitchServiceTest {
   @Test
   void getRolesReturnsSelfAndBoardMemberCompanies() {
     when(companyRoles.boardMemberCompanies(person.getPersonalCode()))
-        .thenReturn(List.of(new CompanyRole(SAMPLE_REGISTRY_CODE, SAMPLE_COMPANY_NAME)));
+        .thenReturn(
+            List.of(new CompanyRole(COMPANY_ID, SAMPLE_REGISTRY_CODE, SAMPLE_COMPANY_NAME)));
 
-    List<Role> result = roleSwitchService.getRoles(person);
+    List<RoleResponse> result = roleSwitchService.getRoles(person);
 
     assertThat(result).hasSize(2);
     assertThat(result.getFirst().type()).isEqualTo(PERSON);
@@ -193,14 +198,16 @@ class RoleSwitchServiceTest {
     assertThat(result.getLast().type()).isEqualTo(LEGAL_ENTITY);
     assertThat(result.getLast().code()).isEqualTo(SAMPLE_REGISTRY_CODE);
     assertThat(result.getLast().name()).isEqualTo(SAMPLE_COMPANY_NAME);
+    assertThat(result.getFirst().id()).isNull();
+    assertThat(result.getLast().id()).isEqualTo(COMPANY_ID);
   }
 
   @Test
   void getRolesExcludesCompaniesWhereUserIsOnlyShareholder() {
     when(companyRoles.boardMemberCompanies(person.getPersonalCode()))
-        .thenReturn(List.of(new CompanyRole("11111111", SAMPLE_COMPANY_NAME)));
+        .thenReturn(List.of(new CompanyRole(COMPANY_ID, "11111111", SAMPLE_COMPANY_NAME)));
 
-    List<Role> result = roleSwitchService.getRoles(person);
+    List<RoleResponse> result = roleSwitchService.getRoles(person);
 
     assertThat(result).hasSize(2);
     assertThat(result.getFirst().type()).isEqualTo(PERSON);
@@ -210,19 +217,20 @@ class RoleSwitchServiceTest {
   @Test
   void getRolesIncludesActivelyRepresentedChildren() {
     when(companyRoles.boardMemberCompanies(person.getPersonalCode())).thenReturn(List.of());
-    when(childRepresentations.findActivelyRepresentedChildCodes(person.getPersonalCode()))
-        .thenReturn(List.of(CHILD_CODE));
+    when(childRepresentations.findActivelyRepresentedChildren(person.getPersonalCode()))
+        .thenReturn(Map.of(CHILD_CODE, CHILD_LINK_ID));
     when(principalUsers.fullName(CHILD_CODE)).thenReturn(Optional.of(CHILD_NAME));
 
-    List<Role> result = roleSwitchService.getRoles(person);
+    List<RoleResponse> result = roleSwitchService.getRoles(person);
 
     assertThat(result).hasSize(2);
     assertThat(result.getFirst().type()).isEqualTo(PERSON);
     assertThat(result.getFirst().code()).isEqualTo(person.getPersonalCode());
-    Role childRole = result.getLast();
+    RoleResponse childRole = result.getLast();
     assertThat(childRole.type()).isEqualTo(PERSON);
     assertThat(childRole.code()).isEqualTo(CHILD_CODE);
     assertThat(childRole.name()).isEqualTo("Mari Maasikas");
+    assertThat(childRole.id()).isEqualTo(CHILD_LINK_ID);
   }
 
   @Test
@@ -349,7 +357,7 @@ class RoleSwitchServiceTest {
             .userId(999L)
             .build();
     when(companyRoles.company(SAMPLE_REGISTRY_CODE))
-        .thenReturn(new CompanyRole(SAMPLE_REGISTRY_CODE, SAMPLE_COMPANY_NAME));
+        .thenReturn(new CompanyRole(COMPANY_ID, SAMPLE_REGISTRY_CODE, SAMPLE_COMPANY_NAME));
     when(companyRoles.isBoardMember("39911223344", SAMPLE_REGISTRY_CODE)).thenReturn(false);
 
     assertThatThrownBy(

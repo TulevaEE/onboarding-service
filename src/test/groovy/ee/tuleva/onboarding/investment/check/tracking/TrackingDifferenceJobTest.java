@@ -78,21 +78,48 @@ class TrackingDifferenceJobTest {
   }
 
   @Test
-  void backfillEventDelegatesToServiceAndNotifier() {
+  void backfillEventDelegatesToServiceAndSummarises() {
     var results = List.<TrackingDifferenceResult>of();
     given(service.backfillChecks(7)).willReturn(results);
 
-    job.onTrackingDifferenceBackfillRequested(new RunTrackingDifferenceBackfillRequested());
+    job.onTrackingDifferenceBackfillRequested(new RunTrackingDifferenceBackfillRequested(7));
 
     then(service).should().backfillChecks(7);
-    then(notifier).should().notify(results);
+    then(notifier).should().notifyBackfillSummary(7, results);
+  }
+
+  // A backfill deep enough to reach a corrected daily check is the whole point of the parameter:
+  // fixing the check leaves every already-written event behind it, and only a run that reaches
+  // back that far rewrites them.
+  @Test
+  void backfillReachesAsFarBackAsTheEventAsksFor() {
+    var results = List.<TrackingDifferenceResult>of();
+    given(service.backfillChecks(40)).willReturn(results);
+
+    job.onTrackingDifferenceBackfillRequested(new RunTrackingDifferenceBackfillRequested(40));
+
+    then(service).should().backfillChecks(40);
+    then(service).should(never()).backfillChecks(7);
+  }
+
+  // One line per fund and check type, not one per fund-day: a 40-day backfill produces hundreds
+  // of results, and posting them individually buries the channel it is meant to inform.
+  @Test
+  void backfillSummarisesRatherThanPostingEveryDay() {
+    var results = List.<TrackingDifferenceResult>of();
+    given(service.backfillChecks(40)).willReturn(results);
+
+    job.onTrackingDifferenceBackfillRequested(new RunTrackingDifferenceBackfillRequested(40));
+
+    then(notifier).should().notifyBackfillSummary(40, results);
+    then(notifier).should(never()).notify(anyList());
   }
 
   @Test
   void backfillFailureIsReportedRatherThanOnlyLogged() {
     doThrow(new RuntimeException("boom")).when(service).backfillChecks(7);
 
-    job.onTrackingDifferenceBackfillRequested(new RunTrackingDifferenceBackfillRequested());
+    job.onTrackingDifferenceBackfillRequested(new RunTrackingDifferenceBackfillRequested(7));
 
     then(notifier).should().notifyRunFailed("TD backfill", "boom");
     then(notifier).should(never()).notify(anyList());
@@ -107,8 +134,8 @@ class TrackingDifferenceJobTest {
         .when(service)
         .backfillChecks(7);
 
-    job.onTrackingDifferenceBackfillRequested(new RunTrackingDifferenceBackfillRequested());
+    job.onTrackingDifferenceBackfillRequested(new RunTrackingDifferenceBackfillRequested(7));
 
-    then(notifier).should().notify(partialResults);
+    then(notifier).should().notifyBackfillSummary(7, partialResults);
   }
 }

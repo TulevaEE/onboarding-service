@@ -7,6 +7,7 @@ import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
 import ee.tuleva.onboarding.admin.AdminTokenValidator;
 import ee.tuleva.onboarding.investment.check.tracking.PeriodType;
 import ee.tuleva.onboarding.investment.check.tracking.PeriodicTdAttributionService;
+import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceBackfillRequested;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.fees.ocf.OcfCalculationService;
 import ee.tuleva.onboarding.investment.position.FundPositionImportJob;
@@ -33,6 +34,7 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Profile;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
@@ -66,6 +68,7 @@ public class InvestmentAdminController {
   private final InvestmentReportPdfGenerator investmentReportPdfGenerator;
   private final PeriodicTdAttributionService tdAttributionService;
   private final OcfCalculationService ocfCalculationService;
+  private final ApplicationEventPublisher eventPublisher;
   private final Clock clock;
 
   @PostMapping("/reimport-positions")
@@ -227,6 +230,24 @@ public class InvestmentAdminController {
 
     tdAttributionService.computeForAllFunds(from, to, type);
     return "TD attribution computed for all funds: %s to %s".formatted(from, to);
+  }
+
+  // The daily check writes the events the attribution reads, so a fix to the check leaves every
+  // event before it carrying the old definition. Rewriting them needs a reach the fixed 7-day
+  // trigger does not have.
+  @PostMapping("/tracking-difference-backfill")
+  public String backfillTrackingDifference(
+      @RequestHeader("X-Admin-Token") String token,
+      @RequestParam(defaultValue = "7") int daysBack) {
+
+    tokenValidator.validate(token);
+    if (daysBack < 0) {
+      throw new ResponseStatusException(BAD_REQUEST, "daysBack must not be negative: " + daysBack);
+    }
+
+    log.info("Admin triggered tracking difference backfill: daysBack={}", daysBack);
+    eventPublisher.publishEvent(new RunTrackingDifferenceBackfillRequested(daysBack));
+    return "Tracking difference backfill requested for last %d days".formatted(daysBack);
   }
 
   @PostMapping("/td-attribution-backfill")

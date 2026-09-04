@@ -700,6 +700,140 @@ class TdAttributionCalculatorTest {
   }
 
   @Test
+  void averageWeightsUseThePeriodDayCountSoAnInstrumentPresentHalfTheMonthIsDilutedNotInflated() {
+    var held =
+        SecurityDailyData.builder()
+            .isin("IE001")
+            .instrumentName("Held all month")
+            .modelWeight(new BigDecimal("0.50"))
+            .actualWeight(new BigDecimal("0.50"))
+            .normalizedWeightDiff(ZERO)
+            .securityReturn(ZERO)
+            .build();
+    var enteredLate =
+        SecurityDailyData.builder()
+            .isin("IE002")
+            .instrumentName("Entered on the second day")
+            .modelWeight(new BigDecimal("0.50"))
+            .actualWeight(new BigDecimal("0.50"))
+            .normalizedWeightDiff(ZERO)
+            .securityReturn(ZERO)
+            .build();
+
+    var days =
+        List.of(
+            dailyRecord(PERIOD_START, "0", "0", "1000000", "0", "0", List.of(held)),
+            dailyRecord(
+                PERIOD_START.plusDays(1),
+                "0",
+                "0",
+                "1000000",
+                "0",
+                "0",
+                List.of(held, enteredLate)));
+
+    var result = calculator.calculate(inputWith(days, ZERO, ZERO));
+
+    var lateComer =
+        result.instrumentDetails().stream()
+            .filter(detail -> detail.isin().equals("IE002"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(lateComer.avgActualWeight()).isEqualByComparingTo(new BigDecimal("0.25"));
+    assertThat(lateComer.modelWeight()).isEqualByComparingTo(new BigDecimal("0.25"));
+  }
+
+  @Test
+  void averageActualWeightsSumToOneAcrossAPeriodWithAnEntryAndAnExit() {
+    var exiting =
+        SecurityDailyData.builder()
+            .isin("IE001")
+            .modelWeight(new BigDecimal("1.00"))
+            .actualWeight(BigDecimal.ONE)
+            .normalizedWeightDiff(ZERO)
+            .securityReturn(ZERO)
+            .build();
+    var entering =
+        SecurityDailyData.builder()
+            .isin("IE002")
+            .modelWeight(new BigDecimal("1.00"))
+            .actualWeight(BigDecimal.ONE)
+            .normalizedWeightDiff(ZERO)
+            .securityReturn(ZERO)
+            .build();
+
+    var days =
+        List.of(
+            dailyRecord(PERIOD_START, "0", "0", "1000000", "0", "0", List.of(exiting)),
+            dailyRecord(
+                PERIOD_START.plusDays(1), "0", "0", "1000000", "0", "0", List.of(entering)));
+
+    var result = calculator.calculate(inputWith(days, ZERO, ZERO));
+
+    var summedActualWeight =
+        result.instrumentDetails().stream()
+            .map(TdAttributionResult.InstrumentAttribution::avgActualWeight)
+            .reduce(ZERO, BigDecimal::add);
+    assertThat(summedActualWeight).isEqualByComparingTo(BigDecimal.ONE);
+  }
+
+  @Test
+  void securityReturnStaysCompoundedOverTheDaysTheInstrumentWasHeld() {
+    var present =
+        SecurityDailyData.builder()
+            .isin("IE002")
+            .modelWeight(new BigDecimal("0.50"))
+            .actualWeight(new BigDecimal("0.50"))
+            .normalizedWeightDiff(ZERO)
+            .securityReturn(new BigDecimal("0.10"))
+            .build();
+
+    var days =
+        List.of(
+            dailyRecord(PERIOD_START, "0", "0", "1000000", "0", "0", List.of()),
+            dailyRecord(PERIOD_START.plusDays(1), "0", "0", "1000000", "0", "0", List.of(present)));
+
+    var result = calculator.calculate(inputWith(days, ZERO, ZERO));
+
+    var detail =
+        result.instrumentDetails().stream()
+            .filter(d -> d.isin().equals("IE002"))
+            .findFirst()
+            .orElseThrow();
+    assertThat(detail.securityReturn()).isEqualByComparingTo(new BigDecimal("0.10"));
+  }
+
+  @Test
+  void reportsHowManyDaysCouldNotBeAttributedSoAnInflatedResidualIsNotReadAsAQuietPeriod() {
+    var days =
+        List.of(
+            dailyRecord(PERIOD_START, "0.001", "0.001", "1000000", "0", "0", List.of()),
+            dailyRecord(PERIOD_START.plusDays(1), "0.001", "0.001", "0", "0", "0", List.of()),
+            dailyRecord(
+                PERIOD_START.plusDays(2), "0.001", "0.001", "1000000", "0", "0", List.of()));
+
+    var result = calculator.calculate(inputWith(days, ZERO, ZERO));
+
+    assertThat(result.checks()).containsEntry("attributedDays", 2);
+    assertThat(result.checks()).containsEntry("unattributedDays", 1);
+    assertThat(result.navEventCount()).isEqualTo(3);
+  }
+
+  @Test
+  void reportsNoUnattributedDaysForACleanPeriod() {
+    var days =
+        List.of(
+            dailyRecord(PERIOD_START, "0.001", "0.001", "1000000", "0", "0", List.of()),
+            dailyRecord(
+                PERIOD_START.plusDays(1), "0.001", "0.001", "1000000", "0", "0", List.of()));
+
+    var result = calculator.calculate(inputWith(days, ZERO, ZERO));
+
+    assertThat(result.checks()).containsEntry("attributedDays", 2);
+    assertThat(result.checks()).containsEntry("unattributedDays", 0);
+  }
+
+  @Test
   void anIndexBenchmarkedHoldingsOwnOcfIsSplitOutOfTheMeasuredSumRatherThanAddedToIt() {
     var days = buildConstantDays(20, "0.0005", "0.0005");
     var etfOcfDrag = new BigDecimal("-0.00016438");

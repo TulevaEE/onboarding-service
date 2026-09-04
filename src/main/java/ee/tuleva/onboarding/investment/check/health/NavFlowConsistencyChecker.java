@@ -2,18 +2,22 @@ package ee.tuleva.onboarding.investment.check.health;
 
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.NAV_FLOW_CONSISTENCY;
+import static ee.tuleva.onboarding.investment.position.AccountType.CASH;
+import static ee.tuleva.onboarding.investment.position.AccountType.LIABILITY;
+import static ee.tuleva.onboarding.investment.position.AccountType.RECEIVABLES;
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static ee.tuleva.onboarding.investment.position.AccountType.UNITS;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
+import static java.util.stream.Collectors.toMap;
 
+import ee.tuleva.onboarding.investment.position.AccountType;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
@@ -21,6 +25,9 @@ import org.springframework.stereotype.Component;
 class NavFlowConsistencyChecker {
 
   private static final int SCALE = 8;
+  private static final int EUR_SCALE = 2;
+  private static final List<AccountType> NET_ASSET_TYPES =
+      List.of(SECURITY, CASH, RECEIVABLES, LIABILITY);
 
   List<HealthCheckFinding> check(
       TulevaFund fund,
@@ -56,7 +63,7 @@ class NavFlowConsistencyChecker {
             .subtract(openingNetAssets)
             .subtract(marketPnl)
             .subtract(unitFlow)
-            .setScale(2, HALF_UP);
+            .setScale(EUR_SCALE, HALF_UP);
     var fraction = unexplained.divide(openingNetAssets, SCALE, HALF_UP);
 
     if (fraction.abs().compareTo(threshold) < 0) {
@@ -74,15 +81,15 @@ class NavFlowConsistencyChecker {
                 .formatted(
                     unexplained.toPlainString(),
                     fraction.toPlainString(),
-                    marketPnl.setScale(2, HALF_UP).toPlainString(),
-                    unitFlow.setScale(2, HALF_UP).toPlainString(),
+                    marketPnl.setScale(EUR_SCALE, HALF_UP).toPlainString(),
+                    unitFlow.setScale(EUR_SCALE, HALF_UP).toPlainString(),
                     unitsChange.toPlainString(),
                     quantitiesChanged(previousPositions, todayPositions))));
   }
 
   private BigDecimal netAssets(List<FundPosition> positions) {
     return positions.stream()
-        .filter(position -> position.getAccountType() != UNITS)
+        .filter(position -> NET_ASSET_TYPES.contains(position.getAccountType()))
         .map(FundPosition::getMarketValue)
         .filter(Objects::nonNull)
         .reduce(ZERO, BigDecimal::add);
@@ -134,7 +141,7 @@ class NavFlowConsistencyChecker {
     return securities(positions).stream()
         .filter(position -> position.getAccountId() != null && position.getMarketPrice() != null)
         .collect(
-            Collectors.toMap(
+            toMap(
                 FundPosition::getAccountId,
                 FundPosition::getMarketPrice,
                 (first, second) -> first));

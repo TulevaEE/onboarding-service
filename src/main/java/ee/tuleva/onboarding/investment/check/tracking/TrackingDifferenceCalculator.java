@@ -26,6 +26,7 @@ import org.springframework.stereotype.Component;
 class TrackingDifferenceCalculator {
 
   private static final int SCALE = 6;
+  private static final int EUR_SCALE = 2;
 
   private final InvestmentParameterRepository parameterRepository;
 
@@ -221,17 +222,17 @@ class TrackingDifferenceCalculator {
         openingNetAssets
             .multiply(bodSecuritiesFraction)
             .multiply(impliedSleeveReturn(bodHoldings))
-            .setScale(2, HALF_UP);
-    var feeAccrual = feeDrag.negate().multiply(openingNetAssets).setScale(2, HALF_UP);
+            .setScale(EUR_SCALE, HALF_UP);
+    var feeAccrual = feeDrag.negate().multiply(openingNetAssets).setScale(EUR_SCALE, HALF_UP);
     var unitsChange = todayUnits.subtract(previousUnits);
-    var unitFlow = unitsChange.multiply(input.todayNav()).setScale(2, HALF_UP);
+    var unitFlow = unitsChange.multiply(input.todayNav()).setScale(EUR_SCALE, HALF_UP);
     var unexplained =
         closingNetAssets
             .subtract(openingNetAssets)
             .subtract(marketPnl)
             .subtract(unitFlow)
             .add(feeAccrual)
-            .setScale(2, HALF_UP);
+            .setScale(EUR_SCALE, HALF_UP);
 
     return new NavFlowReconciliation(
         openingNetAssets,

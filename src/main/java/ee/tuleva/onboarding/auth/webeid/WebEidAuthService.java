@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.auth.webeid;
 
 import ee.tuleva.onboarding.auth.idcard.IdCardSession;
 import ee.tuleva.onboarding.auth.idcard.IdDocumentTypeExtractor;
+import ee.tuleva.onboarding.personalcode.PersonalCode;
 import eu.webeid.security.authtoken.WebEidAuthToken;
 import eu.webeid.security.certificate.CertificateData;
 import eu.webeid.security.challenge.ChallengeNonceGenerator;
@@ -61,7 +62,7 @@ public class WebEidAuthService {
       var serialNumber =
           CertificateData.getSubjectIdCode(certificate)
               .orElseThrow(() -> new WebEidAuthException("Missing personal code in certificate"));
-      var personalCode = extractPersonalCode(serialNumber);
+      var personalCode = PersonalCode.fromSubjectIdCode(serialNumber);
 
       var documentType = documentTypeExtractor.extract(certificate);
       documentTypeExtractor.checkClientAuthentication(certificate);
@@ -76,12 +77,5 @@ public class WebEidAuthService {
     } catch (CertificateEncodingException e) {
       throw new WebEidAuthException("Failed to read certificate data", e);
     }
-  }
-
-  private String extractPersonalCode(String serialNumber) {
-    if (serialNumber.startsWith("PNOEE-")) {
-      return serialNumber.substring(6);
-    }
-    return serialNumber;
   }
 }

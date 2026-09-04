@@ -187,4 +187,14 @@ class PersonalCodeTest {
     assertThat(PersonalCode.getRetirementAge("36203105216")).isEqualTo(65); // 65y1m
     assertThat(PersonalCode.getRetirementAge("39912310015")).isEqualTo(65); // 65y3m
   }
+
+  @Test
+  void fromSubjectIdCodeStripsTheEstonianPrefix() {
+    assertThat(PersonalCode.fromSubjectIdCode("PNOEE-38888888888")).isEqualTo("38888888888");
+  }
+
+  @Test
+  void fromSubjectIdCodeLeavesANonEstonianSubjectIdCodeAlone() {
+    assertThat(PersonalCode.fromSubjectIdCode("PASJP-123456789")).isEqualTo("PASJP-123456789");
+  }
 }

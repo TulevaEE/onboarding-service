@@ -73,7 +73,11 @@ public class MandateBatchSignatureService {
         mandateBatchService.getMandateBatchContentFiles(mandateBatchId, user);
 
     IdCardSignatureSession signatureSession =
-        signService.startIdCardSign(files, signCommand.certificate());
+        signService.startIdCardSign(
+            files,
+            signCommand.certificate(),
+            signCommand.supportedHashFunctions(),
+            user.getPersonalCode());
 
     sessionStore.save(signatureSession);
 

@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.signature.DigiDocFacade
 import ee.tuleva.onboarding.signature.MobileIdSignatureSession
 import ee.tuleva.onboarding.signature.SignatureFile
 import org.digidoc4j.Container
+import org.digidoc4j.DigestAlgorithm
 import org.digidoc4j.DataToSign
 import spock.lang.Specification
 
@@ -48,7 +49,7 @@ class MobileIdSignerSpec extends Specification {
         }) >> certificateResponse
         1 * mobileIdClient.createMobileIdCertificate(certificateResponse) >> certificate
         1 * digiDocFacade.buildContainer(files) >> container
-        1 * digiDocFacade.dataToSign(container, certificate) >> dataToSign
+        1 * digiDocFacade.dataToSign(container, certificate, DigestAlgorithm.SHA256) >> dataToSign
         1 * dataToSign.getDataToSign() >> "dataToSign".bytes
         1 * mobileIdConnector.sign({ it.phoneNumber == phoneNumber && it.nationalIdentityNumber == personalCode }) >> new MidSignatureResponse(sessionId)
 

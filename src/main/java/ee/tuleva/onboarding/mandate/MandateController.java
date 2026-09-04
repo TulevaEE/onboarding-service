@@ -142,8 +142,7 @@ public class MandateController implements SignatureController<Long> {
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
       @Valid @RequestBody StartIdCardSignCommand signCommand) {
     IdCardSignatureSession signatureSession =
-        mandateService.idCardSign(
-            mandateId, authenticatedPerson.getUserIdOrThrow(), signCommand.certificate());
+        mandateService.idCardSign(mandateId, authenticatedPerson.getUserIdOrThrow(), signCommand);
     sessionStore.save(signatureSession);
 
     return IdCardSignatureResponse.from(signatureSession);

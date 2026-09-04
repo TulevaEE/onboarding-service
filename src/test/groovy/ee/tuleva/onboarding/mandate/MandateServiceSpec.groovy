@@ -346,14 +346,14 @@ class MandateServiceSpec extends Specification {
 
   def "id card signing works"() {
     given:
-    def user = sampleUser()
     def signatureSession = IdCardSignatureSession.builder().build()
 
-    1 * mandateFileService.getMandateFiles(sampleMandateId, user.id) >> sampleFiles()
-    1 * signService.startIdCardSign(_ as List<SignatureFile>, "signingCertificate") >> signatureSession
+    1 * mandateFileService.getMandateFiles(sampleMandateId, sampleUser.id) >> sampleFiles()
+    1 * signService.startIdCardSign(
+        _ as List<SignatureFile>, "signingCertificate", ["SHA-256"], sampleUser.personalCode) >> signatureSession
 
     when:
-    def session = service.idCardSign(sampleMandateId, user.id, "signingCertificate")
+    def session = service.idCardSign(sampleMandateId, sampleUser.id, sampleStartIdCardSignCommand("signingCertificate"))
 
     then:
     session == signatureSession

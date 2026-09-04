@@ -131,7 +131,7 @@ class MandateControllerSpec extends BaseControllerSpec {
   def "id card signature start returns the hash to sign and its hash function"() {
     when:
     def session = IdCardSignatureSession.builder().hashToSign("asdfg").hashFunction("SHA-256").build()
-    mandateService.idCardSign(1L, _, "certificate") >> session
+    mandateService.idCardSign(1L, _, sampleStartIdCardSignCommand("certificate")) >> session
     1 * sessionStore.save(session)
 
     then:

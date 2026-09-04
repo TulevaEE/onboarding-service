@@ -70,7 +70,7 @@ class MandateFixture {
   }
 
   static StartIdCardSignCommand sampleStartIdCardSignCommand(String certificate) {
-    return new StartIdCardSignCommand(certificate)
+    return new StartIdCardSignCommand(certificate, ["SHA-256"])
   }
 
   static FinishIdCardSignCommand sampleFinishIdCardSignCommand(String signature) {

@@ -48,10 +48,12 @@ public class DigiDocFacade {
     return files.getFirst().isContainer();
   }
 
-  public DataToSign dataToSign(Container container, X509Certificate certificate) {
+  public DataToSign dataToSign(
+      Container container, X509Certificate certificate, DigestAlgorithm digestAlgorithm) {
     return SignatureBuilder.aSignature(container)
         .withSigningCertificate(certificate)
-        .withSignatureDigestAlgorithm(DigestAlgorithm.SHA256)
+        .withSignatureDigestAlgorithm(digestAlgorithm)
+        .withSignatureProfile(SignatureProfile.LT)
         .buildDataToSign();
   }
 

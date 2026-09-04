@@ -178,7 +178,9 @@ class MandateBatchSignatureServiceTest {
       when(userService.getById(eq(authenticatedPerson.getUserId()))).thenReturn(Optional.of(user));
       when(mandateBatchService.getMandateBatchContentFiles(eq(mandateBatchId), eq(user)))
           .thenReturn(List.of());
-      when(signService.startIdCardSign(any(), eq(certificate))).thenReturn(mockSession);
+      when(signService.startIdCardSign(
+              any(), eq(certificate), eq(List.of("SHA-256")), eq(user.getPersonalCode())))
+          .thenReturn(mockSession);
 
       var result =
           mandateBatchSignatureService.startIdCardSign(

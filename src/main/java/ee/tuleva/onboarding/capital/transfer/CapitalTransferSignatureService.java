@@ -82,7 +82,11 @@ public class CapitalTransferSignatureService {
     List<SignatureFile> files = contractService.getSignatureFiles(contractId, user);
 
     IdCardSignatureSession signatureSession =
-        signService.startIdCardSign(files, signCommand.certificate());
+        signService.startIdCardSign(
+            files,
+            signCommand.certificate(),
+            signCommand.supportedHashFunctions(),
+            user.getPersonalCode());
 
     sessionStore.save(signatureSession);
 

@@ -27,6 +27,7 @@ import ee.tuleva.onboarding.signature.SignatureService;
 import ee.tuleva.onboarding.signature.SignatureStateException;
 import ee.tuleva.onboarding.signature.SignatureStatus;
 import ee.tuleva.onboarding.signature.SmartIdSignatureSession;
+import ee.tuleva.onboarding.signature.StartIdCardSignCommand;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
@@ -127,9 +128,15 @@ public class MandateService {
     return OUTSTANDING_TRANSACTION;
   }
 
-  public IdCardSignatureSession idCardSign(Long mandateId, Long userId, String signingCertificate) {
+  public IdCardSignatureSession idCardSign(
+      Long mandateId, Long userId, StartIdCardSignCommand signCommand) {
+    User user = userService.getById(userId).orElseThrow();
     List<SignatureFile> files = mandateFileService.getMandateFiles(mandateId, userId);
-    return signService.startIdCardSign(files, signingCertificate);
+    return signService.startIdCardSign(
+        files,
+        signCommand.certificate(),
+        signCommand.supportedHashFunctions(),
+        user.getPersonalCode());
   }
 
   public SignatureStatus finalizeMobileIdSignature(

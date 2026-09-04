@@ -27,6 +27,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.digidoc4j.Container;
 import org.digidoc4j.DataToSign;
+import org.digidoc4j.DigestAlgorithm;
 import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
@@ -91,7 +92,8 @@ public class SmartIdSigner {
 
     Container container = digiDocFacade.buildContainer(files);
 
-    DataToSign dataToSign = digiDocFacade.dataToSign(container, certificate);
+    DataToSign dataToSign =
+        digiDocFacade.dataToSign(container, certificate, DigestAlgorithm.SHA256);
     byte[] digestToSign = digiDocFacade.digestToSign(dataToSign);
 
     SignableHash signableHash = signableHash(digestToSign);

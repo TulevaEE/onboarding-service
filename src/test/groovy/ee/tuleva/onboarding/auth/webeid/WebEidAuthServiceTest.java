@@ -34,7 +34,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class WebEidAuthServiceTest {
@@ -199,16 +198,6 @@ class WebEidAuthServiceTest {
 
     assertThatThrownBy(() -> service.authenticate(new WebEidAuthToken()))
         .isInstanceOf(WebEidAuthException.class);
-  }
-
-  @Test
-  void extractPersonalCode_returnsSerialNumberUnchangedWhenNotEstonian() {
-    var foreignSerialNumber = "PASJP-123456789";
-
-    String personalCode =
-        ReflectionTestUtils.invokeMethod(service, "extractPersonalCode", foreignSerialNumber);
-
-    assertThat(personalCode).isEqualTo(foreignSerialNumber);
   }
 
   private void setupNonceStore() throws AuthTokenException {

@@ -243,7 +243,8 @@ class CapitalTransferSignatureServiceTest {
     User user = sampleUser().build();
     AuthenticatedPerson authenticatedPerson = authenticatedPersonFromUser(user).build();
 
-    StartIdCardSignCommand command = new StartIdCardSignCommand("test-certificate");
+    StartIdCardSignCommand command =
+        new StartIdCardSignCommand("test-certificate", List.of("SHA-256"));
 
     SignatureFile signatureFile =
         new SignatureFile("test.pdf", "application/pdf", "test content".getBytes());
@@ -254,7 +255,9 @@ class CapitalTransferSignatureServiceTest {
 
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
     when(contractService.getSignatureFiles(contractId, user)).thenReturn(files);
-    when(signService.startIdCardSign(files, "test-certificate")).thenReturn(signatureSession);
+    when(signService.startIdCardSign(
+            files, "test-certificate", List.of("SHA-256"), user.getPersonalCode()))
+        .thenReturn(signatureSession);
 
     // when
     IdCardSignatureResponse response =

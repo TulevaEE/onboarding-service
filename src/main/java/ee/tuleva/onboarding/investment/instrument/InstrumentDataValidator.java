@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.instrument.InstrumentReference;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService.UnresolvableBenchmarkProxyException;
+import ee.tuleva.onboarding.investment.calendar.Domicile;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.portfolio.PositionLimit;
@@ -63,6 +64,7 @@ public class InstrumentDataValidator {
     checkProviderLimits(fund, allocations, effectiveDate, findings);
     checkBenchmarkProxies(isins, findings);
     checkActive(isins, findings);
+    checkFundDomicile(isins, findings);
     checkTickerConsistency(allocations, findings);
 
     if (effectiveDate.isAfter(LocalDate.now(clock))) {
@@ -184,6 +186,22 @@ public class InstrumentDataValidator {
                 Severity.FAIL,
                 "ISIN %s is active=false in instrument_reference — prices not being fetched"
                     .formatted(isin)));
+      }
+    }
+  }
+
+  private void checkFundDomicile(Set<String> isins, List<ValidationFinding> findings) {
+    for (var isin : isins) {
+      var instrument = activeInstrument(isin).orElse(null);
+      if (instrument == null || instrument.isExchangeTraded()) {
+        continue;
+      }
+      if (Domicile.forCountryCode(instrument.getCountry()).isEmpty()) {
+        findings.add(
+            new ValidationFinding(
+                Severity.FAIL,
+                "ISIN %s has no supported fund domicile in instrument_reference (country=%s) — settlement dates fall back to the provider's domicile, which is a guess"
+                    .formatted(isin, instrument.getCountry())));
       }
     }
   }

@@ -379,6 +379,38 @@ class InstrumentDataValidatorSpec extends Specification {
     findings.isEmpty()
   }
 
+  def "FAIL when a mutual fund has no country, before a wrong settlement date is ever calculated"() {
+    given:
+    allocationRepository.findByFundAndEffectiveDate(TUK75, effectiveDate) >> [allocation(isin1, 1.0)]
+    instrumentReferenceService.findByIsin(isin1) >> Optional.of(instrument(isin: isin1, country: country))
+    positionLimitRepository.findLatestByFundAsOf(TUK75, effectiveDate) >> [positionLimit(isin1)]
+    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of(new BenchmarkProxy(null, "MSCI_WORLD"))
+
+    when:
+    def findings = validator.validate(TUK75, effectiveDate)
+
+    then:
+    findings.any { it.severity() == FAIL && it.message().contains(isin1) && it.message().contains("domicile") }
+
+    where:
+    country << [null, "", "GB"]
+  }
+
+  def "no domicile finding for an ETF, which settles on TARGET2 wherever it is domiciled"() {
+    given:
+    allocationRepository.findByFundAndEffectiveDate(TUK75, effectiveDate) >> [allocation(isin1, 1.0)]
+    instrumentReferenceService.findByIsin(isin1) >> Optional.of(
+        instrument(isin: isin1, country: null, eodhdTicker: "SGAS.XETRA"))
+    positionLimitRepository.findLatestByFundAsOf(TUK75, effectiveDate) >> [positionLimit(isin1)]
+    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of(new BenchmarkProxy(null, "MSCI_WORLD"))
+
+    when:
+    def findings = validator.validate(TUK75, effectiveDate)
+
+    then:
+    findings.every { !it.message().contains("domicile") }
+  }
+
   private ModelPortfolioAllocation allocation(String isin, BigDecimal weight, Provider provider = null) {
     ModelPortfolioAllocation.builder()
         .effectiveDate(effectiveDate).fund(TUK75).isin(isin).weight(weight).provider(provider).build()
@@ -394,6 +426,7 @@ class InstrumentDataValidatorSpec extends Specification {
     def fixture = anInstrument()
         .active(props.containsKey("active") ? props.active : true)
         .eodhdListed(props.containsKey("eodhdListed") ? props.eodhdListed : true)
+        .country(props.containsKey("country") ? props.country : "IE")
     if (props.benchmarkCategory) fixture.benchmarkCategory(props.benchmarkCategory)
     if (props.eodhdTicker) fixture.eodhdTicker(props.eodhdTicker)
     if (props.yahooTicker) fixture.yahooTicker(props.yahooTicker)

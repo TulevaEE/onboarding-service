@@ -106,13 +106,21 @@ class TdAttributionCalculator {
         aumDays > 0 ? totalCashPct.divide(BigDecimal.valueOf(aumDays), SCALE, HALF_UP) : ZERO;
 
     int navEventCount = dailyRecords.size();
+    var attributedDays = aumDays;
 
     var checks =
-        buildChecks(tdGeometricRounded, explained.add(residual), residual, periodLink, input);
+        buildChecks(
+            tdGeometricRounded,
+            explained.add(residual),
+            residual,
+            periodLink,
+            input,
+            attributedDays,
+            navEventCount);
 
     var instrumentDetails =
         instrumentContributions.values().stream()
-            .map(acc -> acc.toAttribution(periodCoefficient))
+            .map(acc -> acc.toAttribution(periodCoefficient, attributedDays))
             .toList();
 
     var etfLayer = computeEtfLayer(input, tdGeometricRounded);
@@ -242,7 +250,9 @@ class TdAttributionCalculator {
       BigDecimal linkedComponentSum,
       BigDecimal residual,
       BigDecimal periodLink,
-      TdAttributionInput input) {
+      TdAttributionInput input,
+      int attributedDays,
+      int navEventCount) {
     var sumCheck = tdGeometric.subtract(linkedComponentSum).abs();
     var residualBps = residual.multiply(BigDecimal.valueOf(10000));
 
@@ -258,6 +268,8 @@ class TdAttributionCalculator {
     }
 
     var checks = new LinkedHashMap<String, Object>();
+    checks.put("attributedDays", attributedDays);
+    checks.put("unattributedDays", navEventCount - attributedDays);
     checks.put("sumCheck", sumCheck.setScale(8, HALF_UP));
     checks.put("feeXcheck", feeXcheck.setScale(8, HALF_UP));
     checks.put("scalingFactor", periodLink.setScale(8, HALF_UP));
@@ -309,7 +321,7 @@ class TdAttributionCalculator {
         .avgAum(ZERO)
         .avgCashPct(ZERO)
         .instrumentDetails(List.of())
-        .checks(Map.of("etfLayerMeasured", false))
+        .checks(Map.of("etfLayerMeasured", false, "attributedDays", 0, "unattributedDays", 0))
         .build();
   }
 
@@ -365,7 +377,6 @@ class TdAttributionCalculator {
     BigDecimal totalActualWeight = ZERO;
     BigDecimal contributionNumerator = ZERO;
     BigDecimal compoundReturn = ONE;
-    int days = 0;
 
     InstrumentAccumulator(String isin) {
       this.isin = isin;
@@ -379,14 +390,21 @@ class TdAttributionCalculator {
       totalActualWeight = totalActualWeight.add(sec.actualWeight());
       contributionNumerator = contributionNumerator.add(dailyCoefficient.multiply(contribution));
       compoundReturn = compoundReturn.multiply(ONE.add(sec.securityReturn()));
-      days++;
     }
 
-    TdAttributionResult.InstrumentAttribution toAttribution(BigDecimal periodCoefficient) {
+    // A shared denominator is what lets the weights sum to one across a period containing an entry
+    // or an exit - the period this detail is read for. Dividing by each instrument's own days
+    // gives every row a different denominator and a half-held instrument its undiluted weight.
+    TdAttributionResult.InstrumentAttribution toAttribution(
+        BigDecimal periodCoefficient, int attributedDays) {
       var avgModel =
-          days > 0 ? totalModelWeight.divide(BigDecimal.valueOf(days), 6, HALF_UP) : ZERO;
+          attributedDays > 0
+              ? totalModelWeight.divide(BigDecimal.valueOf(attributedDays), 6, HALF_UP)
+              : ZERO;
       var avgActual =
-          days > 0 ? totalActualWeight.divide(BigDecimal.valueOf(days), 6, HALF_UP) : ZERO;
+          attributedDays > 0
+              ? totalActualWeight.divide(BigDecimal.valueOf(attributedDays), 6, HALF_UP)
+              : ZERO;
       var linkedContribution =
           periodCoefficient.signum() == 0
               ? contributionNumerator.setScale(8, HALF_UP)

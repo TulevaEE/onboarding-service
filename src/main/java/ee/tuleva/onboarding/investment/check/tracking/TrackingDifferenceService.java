@@ -20,6 +20,7 @@ import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
+import ee.tuleva.onboarding.investment.position.SecurityQuantities;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
@@ -272,7 +273,7 @@ class TrackingDifferenceService {
             .closingNetAssets(totalNav)
             .previousUnits(unitsOutstanding(fund, previousDate))
             .todayUnits(unitsOutstanding(fund, checkDate))
-            .securityQuantitiesChanged(quantitiesChanged(bodPositions, positions))
+            .securityQuantitiesChanged(SecurityQuantities.changedBetween(bodPositions, positions))
             .build();
 
     calculator
@@ -419,23 +420,6 @@ class TrackingDifferenceService {
           chargedDays,
           coveredDays);
     }
-  }
-
-  private boolean quantitiesChanged(
-      List<FundPosition> bodPositions, List<FundPosition> todayPositions) {
-    var bod = quantitiesByIsin(bodPositions);
-    var today = quantitiesByIsin(todayPositions);
-    if (!bod.keySet().equals(today.keySet())) {
-      return true;
-    }
-    return bod.entrySet().stream()
-        .anyMatch(entry -> entry.getValue().compareTo(today.get(entry.getKey())) != 0);
-  }
-
-  private Map<String, BigDecimal> quantitiesByIsin(List<FundPosition> positions) {
-    return positions.stream()
-        .filter(position -> position.getAccountId() != null && position.getQuantity() != null)
-        .collect(toMap(FundPosition::getAccountId, FundPosition::getQuantity, BigDecimal::add));
   }
 
   private @Nullable BigDecimal unitsOutstanding(TulevaFund fund, LocalDate navDate) {

@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.PAYAB
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.investment.position.FundPosition;
+import ee.tuleva.onboarding.investment.position.SecurityQuantities;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.util.List;

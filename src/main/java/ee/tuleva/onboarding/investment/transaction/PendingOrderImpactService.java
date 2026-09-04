@@ -107,10 +107,28 @@ class PendingOrderImpactService {
       return;
     }
     unreportedValues.merge(isin, signed(order, unfilledValue), BigDecimal::add);
+    addUnfilledSellQuantity(order, executed, isin, unreportedQuantities);
+  }
+
+  private static void addUnfilledSellQuantity(
+      TransactionOrder order,
+      ExecutedTotals executed,
+      String isin,
+      Map<String, BigDecimal> unreportedQuantities) {
+    if (order.getTransactionType() == BUY) {
+      return;
+    }
     BigDecimal unfilledQuantity = unfilledQuantity(order, executed);
     if (order.getInstrumentType() == ETF && unfilledQuantity.signum() != 0) {
       unreportedQuantities.merge(isin, signed(order, unfilledQuantity), BigDecimal::add);
     }
+  }
+
+  private static BigDecimal unfilledQuantity(TransactionOrder order, ExecutedTotals executed) {
+    BigDecimal orderQuantity = order.getOrderQuantity();
+    return orderQuantity == null
+        ? ZERO
+        : orderQuantity.abs().subtract(executed.quantity()).max(ZERO);
   }
 
   private static boolean isMissingFromPositionReport(
@@ -129,13 +147,6 @@ class PendingOrderImpactService {
       return false;
     }
     return reportedDate.isAfter(positionDate);
-  }
-
-  private static BigDecimal unfilledQuantity(TransactionOrder order, ExecutedTotals executed) {
-    BigDecimal orderQuantity = order.getOrderQuantity();
-    return orderQuantity == null
-        ? ZERO
-        : orderQuantity.abs().subtract(executed.quantity()).max(ZERO);
   }
 
   private record ExecutedTotals(BigDecimal consideration, BigDecimal quantity) {

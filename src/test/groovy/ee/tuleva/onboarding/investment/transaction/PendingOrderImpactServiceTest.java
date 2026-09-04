@@ -64,8 +64,9 @@ class PendingOrderImpactServiceTest {
 
     assertThat(impact.unreportedPositionValues())
         .containsExactly(Map.entry("IE00A", new BigDecimal("5000")));
-    assertThat(impact.unreportedPositionQuantities())
-        .containsExactly(Map.entry("IE00A", new BigDecimal("100")));
+    // A SENT buy with no fills reserves its cash but adds NO units: the quantity we asked
+    // for is not the quantity we will get, so it must not become sellable inventory.
+    assertThat(impact.unreportedPositionQuantities()).isEmpty();
     assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("5000"));
     assertThat(impact.pendingSells()).isEqualByComparingTo(ZERO);
   }
@@ -140,8 +141,9 @@ class PendingOrderImpactServiceTest {
 
     assertThat(impact.unreportedPositionValues())
         .containsExactly(Map.entry("IE00A", new BigDecimal("5000")));
-    assertThat(impact.unreportedPositionQuantities())
-        .containsExactly(Map.entry("IE00A", new BigDecimal("100")));
+    // A SENT buy with no fills reserves its cash but adds NO units: the quantity we asked
+    // for is not the quantity we will get, so it must not become sellable inventory.
+    assertThat(impact.unreportedPositionQuantities()).isEmpty();
     assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("5000"));
   }
 
@@ -514,6 +516,8 @@ class PendingOrderImpactServiceTest {
 
     var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
 
+    // Both fills are EXECUTED, so both are real quantities; only the one the custodian has not
+    // reported yet is synthesized.
     assertThat(impact.unreportedPositionValues())
         .containsExactly(Map.entry("IE00A", new BigDecimal("2000")));
     assertThat(impact.unreportedPositionQuantities())
@@ -545,7 +549,7 @@ class PendingOrderImpactServiceTest {
   }
 
   @Test
-  void theUnfilledRemainderIsSynthesizedBecauseItsCashIsAlreadyReserved() {
+  void theUnfilledRemainderReservesCashButAddsNoUnitsToTheHolding() {
     given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
         .willReturn(
             List.of(
@@ -564,10 +568,88 @@ class PendingOrderImpactServiceTest {
 
     var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
 
+    // The 60 executed units are already in the custodian report (reportedDate == POSITION_DATE),
+    // so they are not synthesized. The 40 unfilled units reserve their cash — hence the 2000 of
+    // value — but nobody has executed them, so they add NO quantity: their real size is not known
+    // and may never be 40.
     assertThat(impact.unreportedPositionValues())
         .containsExactly(Map.entry("IE00A", new BigDecimal("2000")));
-    assertThat(impact.unreportedPositionQuantities())
-        .containsExactly(Map.entry("IE00A", new BigDecimal("40")));
+    assertThat(impact.unreportedPositionQuantities()).isEmpty();
+    assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("5000"));
+  }
+
+  @Test
+  void aSellPlacedInEurosReducesTheValueButNotTheUnitsBecauseNoUnitCountWasGiven() {
+    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
+        .willReturn(
+            List.of(
+                order(
+                    1L,
+                    "IE00A",
+                    TransactionType.SELL,
+                    InstrumentType.ETF,
+                    OrderStatus.SENT,
+                    null,
+                    new BigDecimal("4000"))));
+    given(executionRepository.findByOrderIdIn(List.of(1L))).willReturn(List.of());
+
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
+
+    assertThat(impact.unreportedPositionValues())
+        .containsExactly(Map.entry("IE00A", new BigDecimal("-4000")));
+    assertThat(impact.unreportedPositionQuantities()).isEmpty();
+    assertThat(impact.pendingSells()).isEqualByComparingTo(new BigDecimal("4000"));
+  }
+
+  @Test
+  void anUnfilledFundSellReducesTheValueButContributesNoUnits() {
+    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
+        .willReturn(
+            List.of(
+                order(
+                    1L,
+                    "IE00B",
+                    TransactionType.SELL,
+                    InstrumentType.FUND,
+                    OrderStatus.SENT,
+                    new BigDecimal("20"),
+                    new BigDecimal("1000"))));
+    given(executionRepository.findByOrderIdIn(List.of(1L))).willReturn(List.of());
+
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
+
+    assertThat(impact.unreportedPositionValues())
+        .containsExactly(Map.entry("IE00B", new BigDecimal("-1000")));
+    assertThat(impact.unreportedPositionQuantities()).isEmpty();
+    assertThat(impact.pendingSells()).isEqualByComparingTo(new BigDecimal("1000"));
+  }
+
+  @Test
+  void anUnexecutedEtfBuyNeverInflatesTheQuantityAvailableToSell() {
+    // A sell may be sized against a position that has not landed yet, but only once the buy is
+    // EXECUTED and the real quantity is known. A SENT order with no fill is an intention, not a
+    // holding: synthesizing its order quantity would let a later sell dispose of units we do not
+    // own. Its cash stays reserved either way.
+    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
+        .willReturn(
+            List.of(
+                order(
+                    1L,
+                    "IE00A",
+                    TransactionType.BUY,
+                    InstrumentType.ETF,
+                    OrderStatus.SENT,
+                    new BigDecimal("100"),
+                    new BigDecimal("5000"))));
+    given(executionRepository.findByOrderIdIn(List.of(1L))).willReturn(List.of());
+    given(positionPriceResolver.resolve("IE00A", AS_OF_DATE))
+        .willReturn(Optional.of(ResolvedPrice.builder().usedPrice(new BigDecimal("50")).build()));
+
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
+
+    assertThat(impact.unreportedPositionQuantities()).isEmpty();
+    assertThat(impact.unreportedPositionValues())
+        .containsExactly(Map.entry("IE00A", new BigDecimal("5000")));
     assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("5000"));
   }
 

@@ -62,8 +62,6 @@ public class SecurityConfiguration {
                     .permitAll()
                     .requestMatchers(GET, "/v1/benchmarks/world-market/returns")
                     .permitAll()
-                    .requestMatchers(GET, "/v1/index-values")
-                    .permitAll()
                     .requestMatchers(HEAD, "/v1/members")
                     .permitAll()
                     .requestMatchers(GET, "/v1/statistics/investor-count")

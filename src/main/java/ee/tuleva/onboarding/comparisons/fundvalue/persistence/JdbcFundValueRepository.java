@@ -330,7 +330,7 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
 
   @Override
   public List<FundValue> findValuesBetweenDatesForKeys(
-      List<String> keys, LocalDate startDate, LocalDate endDate) {
+      List<String> keys, LocalDate startDate, LocalDate endDate, int maxRows) {
     if (keys.isEmpty()) {
       return List.of();
     }
@@ -341,13 +341,15 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
         WHERE key IN (:keys)
         AND date BETWEEN :startDate AND :endDate
         ORDER BY key, date
+        LIMIT :maxRows
         """;
 
     Map<String, Object> params =
         Map.of(
             "keys", keys,
             "startDate", startDate,
-            "endDate", endDate);
+            "endDate", endDate,
+            "maxRows", maxRows);
 
     return jdbcTemplate.query(query, params, new FundValueRowMapper());
   }

@@ -94,9 +94,9 @@ class MandateControllerSpec extends BaseControllerSpec {
         .andExpect(jsonPath('$.challengeCode', is("1234")))
   }
 
-  def "smart id signature start returns null challenge code"() {
+  def "smart id signature start returns no challenge code while the certificate is still being chosen"() {
     when:
-    def session = new SmartIdSignatureSession("certSessionId", "personalCode", [])
+    def session = new SmartIdSignatureSession("personalCode", [])
     1 * mandateService.smartIdSign(1L, _) >> session
     1 * sessionStore.save(session)
 
@@ -109,9 +109,25 @@ class MandateControllerSpec extends BaseControllerSpec {
         .andExpect(jsonPath('$.challengeCode', is(null)))
   }
 
+  def "smart id signature start returns the challenge code as soon as signing has begun"() {
+    when:
+    def session = new SmartIdSignatureSession("personalCode", [])
+    session.verificationCode = "4321"
+    1 * mandateService.smartIdSign(1L, _) >> session
+    1 * sessionStore.save(session)
+
+    then:
+    mvc
+        .perform(put("/v1/mandates/1/signature/smartId")
+            .contentType(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath('$.challengeCode', is("4321")))
+  }
+
   def "get smart id signature status returns the status and challenge code"() {
     when:
-    def session = new SmartIdSignatureSession("certSessionId", "personalCode", [])
+    def session = new SmartIdSignatureSession("personalCode", [])
     session.verificationCode = "1234"
     1 * sessionStore.get(SmartIdSignatureSession) >> Optional.of(session)
     1 * localeResolver.resolveLocale(_) >> ENGLISH

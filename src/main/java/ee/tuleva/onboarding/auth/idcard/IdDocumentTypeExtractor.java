@@ -5,9 +5,11 @@ import static org.bouncycastle.asn1.x509.Extension.certificatePolicies;
 import static org.bouncycastle.asn1.x509.Extension.extendedKeyUsage;
 import static org.bouncycastle.cert.jcajce.JcaX509ExtensionUtils.parseExtensionValue;
 
+import ee.tuleva.onboarding.auth.idcard.exception.UnknownCountryException;
 import ee.tuleva.onboarding.auth.idcard.exception.UnknownDocumentTypeException;
 import ee.tuleva.onboarding.auth.idcard.exception.UnknownExtendedKeyUsageException;
 import ee.tuleva.onboarding.auth.idcard.exception.UnknownIssuerException;
+import ee.tuleva.onboarding.auth.idcard.exception.UnsupportedDocumentTypeException;
 import ee.tuleva.onboarding.auth.idcard.normalizer.CertificateNormalizer;
 import java.io.IOException;
 import java.security.cert.X509Certificate;
@@ -16,6 +18,10 @@ import java.util.List;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.asn1.DLSequence;
+import org.bouncycastle.asn1.x500.RDN;
+import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.asn1.x500.style.BCStyle;
+import org.bouncycastle.asn1.x500.style.IETFUtils;
 import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -25,6 +31,7 @@ import org.springframework.stereotype.Component;
 public class IdDocumentTypeExtractor {
 
   private static final String AUTHENTICATION_POLICY_ID = "0.4.0.2042.1.2";
+  private static final String ESTONIA = "EE";
   private static final String CLIENT_AUTHENTICATION_ID = "1.3.6.1.5.5.7.3.2";
 
   private static final List<String> DEFAULT_VALID_ISSUERS =
@@ -111,6 +118,22 @@ public class IdDocumentTypeExtractor {
       log.error("Failed to parse extended key usage extension", e);
     }
     throw new UnknownExtendedKeyUsageException();
+  }
+
+  public void checkDocumentType(IdDocumentType documentType) {
+    if (!documentType.isAllowedToLogIn()) {
+      throw new UnsupportedDocumentTypeException(documentType);
+    }
+  }
+
+  public void checkCountry(X509Certificate certificate) {
+    X500Name subject = X500Name.getInstance(certificate.getSubjectX500Principal().getEncoded());
+    RDN[] countries = subject.getRDNs(BCStyle.C);
+    String country =
+        countries.length == 0 ? "" : IETFUtils.valueToString(countries[0].getFirst().getValue());
+    if (!ESTONIA.equals(country)) {
+      throw new UnknownCountryException(country);
+    }
   }
 
   public void checkIssuer(X509Certificate certificate) {

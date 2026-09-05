@@ -167,9 +167,12 @@ pensionikeskus:
     third-pillar-fee-comparison-url: https://www.pensionikeskus.ee/iii-sammas/vabatahtlikud-fondid/fonditasude-vordlus/
 
 smartid:
-  relyingPartyUUID: ${SMARTID_RELYING_PARTY_UUID:00000000-0000-0000-0000-000000000000}
-  relyingPartyName: ${SMARTID_RELYING_PARTY_NAME:Demo}
-  hostUrl: https://sid.demo.sk.ee/smart-id-rp/v1/
+  relyingPartyUUID: ${SMARTID_RELYING_PARTY_UUID:00000000-0000-4000-8000-000000000000}
+  relyingPartyName: ${SMARTID_RELYING_PARTY_NAME:DEMO}
+  hostUrl: https://sid.demo.sk.ee/smart-id-rp/v3/
+  scheme-name: smart-id-demo
+  callback-url: ${FRONTEND_URL:https://local.tuleva.ee}/login/smart-id/callback
+  trusted-ca-certificates: classpath:smart-id/demo/*.pem
 
 web-eid:
   origin: ${FRONTEND_URL:https://local.tuleva.ee}
@@ -369,7 +372,10 @@ mobile-id:
     name: "Tuleva"
 
 smartid:
-  hostUrl: https://rp-api.smart-id.com/v1
+  hostUrl: https://rp-api.smart-id.com/v3/
+  scheme-name: smart-id
+  callback-url: ${frontend.url}/login/smart-id/callback
+  trusted-ca-certificates: classpath:smart-id/live/*.pem
 
 truststore:
   path: "/truststore.jks"

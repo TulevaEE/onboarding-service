@@ -94,7 +94,7 @@ public class MandateBatchSigningControllerTest {
     @DisplayName("start smart id signature returns null challenge code")
     void startSmartIdSignatureReturnsNullChallengeCode() throws Exception {
       var mandateBatchId = 1L;
-      var mockSession = new SmartIdSignatureSession("certSessionId", "personalCode", null);
+      var mockSession = new SmartIdSignatureSession("personalCode", null);
       mockSession.setVerificationCode(null);
 
       var mockResponse = new MobileSignatureResponse(mockSession.getVerificationCode());
@@ -115,7 +115,7 @@ public class MandateBatchSigningControllerTest {
     @DisplayName("get smart id signature status returns the status and challenge code")
     void getSmartIdSignatureStatusReturnsStatusAndChallengeCode() throws Exception {
       var mandateBatchId = 1L;
-      var mockSession = new SmartIdSignatureSession("certSessionId", "personalCode", null);
+      var mockSession = new SmartIdSignatureSession("personalCode", null);
       mockSession.setVerificationCode("1234");
       var mockResponse =
           new MobileSignatureStatusResponse(SIGNATURE, mockSession.getVerificationCode());

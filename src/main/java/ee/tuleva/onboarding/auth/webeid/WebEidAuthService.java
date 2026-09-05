@@ -22,6 +22,8 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class WebEidAuthService {
 
+  private static final String ESTONIAN_PERSONAL_CODE_PREFIX = "PNOEE-";
+
   private final ChallengeNonceGenerator challengeNonceGenerator;
   private final ChallengeNonceStore challengeNonceStore;
   private final AuthTokenValidator authTokenValidator;
@@ -76,8 +78,10 @@ public class WebEidAuthService {
       var personalCode = extractPersonalCode(serialNumber);
 
       var documentType = documentTypeExtractor.extract(certificate);
+      documentTypeExtractor.checkDocumentType(documentType);
       documentTypeExtractor.checkClientAuthentication(certificate);
       documentTypeExtractor.checkIssuer(certificate);
+      documentTypeExtractor.checkCountry(certificate);
 
       return IdCardSession.builder()
           .firstName(firstName)
@@ -91,9 +95,9 @@ public class WebEidAuthService {
   }
 
   private String extractPersonalCode(String serialNumber) {
-    if (serialNumber.startsWith("PNOEE-")) {
-      return serialNumber.substring(6);
+    if (!serialNumber.startsWith(ESTONIAN_PERSONAL_CODE_PREFIX)) {
+      throw new WebEidAuthException("Personal code in certificate is not Estonian");
     }
-    return serialNumber;
+    return serialNumber.substring(ESTONIAN_PERSONAL_CODE_PREFIX.length());
   }
 }

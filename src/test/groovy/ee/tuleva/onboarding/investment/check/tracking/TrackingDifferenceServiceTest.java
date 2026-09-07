@@ -336,6 +336,83 @@ class TrackingDifferenceServiceTest {
   }
 
   @Test
+  void navFlowSurfacesTheCashLeftBehindWhenARedemptionPayoutIsNotBooked() {
+    // The 2026-09-01 PEVA/RAVA shape: units are cancelled for the RAVA payout but the payout
+    // liability is never booked, so net assets stay put while units drop and NAV/unit jumps.
+    var isin = "IE00A";
+    given(fundNavQueryService.findLatestNavDateOnOrBefore(TUK75.getCode(), CHECK_DATE))
+        .willReturn(Optional.of(CHECK_DATE));
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE))
+        .willReturn(Optional.of(new BigDecimal("1.25")));
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+        .willReturn(Optional.of(new BigDecimal("1.00")));
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, CHECK_DATE))
+        .willReturn(
+            List.of(
+                ModelPortfolioAllocation.builder()
+                    .fund(TUK75)
+                    .isin(isin)
+                    .weight(BigDecimal.ONE)
+                    .effectiveDate(LocalDate.of(2026, 1, 1))
+                    .build()));
+    given(positionPriceResolver.resolve(eq(isin), eq(CHECK_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("100.00")));
+    given(positionPriceResolver.resolve(eq(isin), eq(PREVIOUS_DATE), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("100.00")));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(CHECK_DATE, TUK75, SECURITY))
+        .willReturn(List.of(securityPosition(CHECK_DATE, isin, "1000000")));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(PREVIOUS_DATE, TUK75, SECURITY))
+        .willReturn(List.of(securityPosition(PREVIOUS_DATE, isin, "1000000")));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, CHECK_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(new BigDecimal("1000000"));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, PREVIOUS_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(new BigDecimal("1000000"));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, CHECK_DATE, List.of(CASH)))
+        .willReturn(ZERO);
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(CHECK_DATE, TUK75, UNITS))
+        .willReturn(List.of(unitsPosition(CHECK_DATE, "800000")));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(PREVIOUS_DATE, TUK75, UNITS))
+        .willReturn(List.of(unitsPosition(PREVIOUS_DATE, "1000000")));
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var model =
+        results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst().orElseThrow();
+    var flow = model.navFlow();
+    assertThat(flow).isNotNull();
+    assertThat(flow.marketPnl()).isEqualByComparingTo(ZERO);
+    assertThat(flow.unitsChange()).isEqualByComparingTo(new BigDecimal("-200000"));
+    assertThat(flow.unitFlow()).isEqualByComparingTo(new BigDecimal("-250000"));
+    assertThat(flow.unexplained()).isEqualByComparingTo(new BigDecimal("250000"));
+    assertThat(model.navResidual()).isEqualByComparingTo(new BigDecimal("0.25"));
+  }
+
+  private FundPosition securityPosition(LocalDate navDate, String isin, String marketValue) {
+    return FundPosition.builder()
+        .fund(TUK75)
+        .navDate(navDate)
+        .accountType(SECURITY)
+        .accountId(isin)
+        .marketValue(new BigDecimal(marketValue))
+        .build();
+  }
+
+  private FundPosition unitsPosition(LocalDate navDate, String quantity) {
+    return FundPosition.builder()
+        .fund(TUK75)
+        .navDate(navDate)
+        .accountType(UNITS)
+        .quantity(new BigDecimal(quantity))
+        .build();
+  }
+
+  @Test
   void modelSwitchTradeDayBreachesTdButNavResidualWithinLimits() {
     // Reproduces the TUK75 2026-06-22 incident: the model already counts a freshly bought
     // instrument (+0.81%) while the fund still held its begin-of-day portfolio (+0.23%) intraday

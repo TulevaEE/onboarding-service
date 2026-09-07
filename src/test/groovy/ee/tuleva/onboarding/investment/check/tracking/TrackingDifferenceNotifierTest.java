@@ -35,6 +35,7 @@ class TrackingDifferenceNotifierTest {
 
   @Mock OperationsNotificationService notificationService;
   @Mock TrackingDifferenceCalculator calculator;
+  @Mock RedemptionCycleLookup redemptionCycleLookup;
 
   @InjectMocks TrackingDifferenceNotifier notifier;
 
@@ -1025,6 +1026,43 @@ class TrackingDifferenceNotifierTest {
     then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
     assertThat(captor.getValue().indexOf("BENCHMARK_MODEL"))
         .isLessThan(captor.getValue().indexOf("MODEL_PORTFOLIO"));
+  }
+
+  // Only the @Mock field was added when the lookup was wired in, so resolve() returned null in
+  // every test and the PEVA/RAVA section was never proved to reach a message.
+  @Test
+  void namesThePevaRavaCycleOnAModelPortfolioBreach() {
+    var result = result(true, 1, new BigDecimal("0.0015"));
+    given(redemptionCycleLookup.resolve(TUK75, result.checkDate()))
+        .willReturn(new RedemptionCycleHint(true, new BigDecimal("5928109.00"), null));
+
+    notifier.notify(List.of(result));
+
+    then(notificationService).should().sendMessage(contains("PEVA/RAVA"), eq(INVESTMENT));
+  }
+
+  @Test
+  void doesNotLookUpARedemptionCycleForABenchmarkCheck() {
+    var result =
+        TrackingDifferenceResult.builder()
+            .fund(TUK75)
+            .checkDate(LocalDate.of(2026, 4, 3))
+            .checkType(BENCHMARK)
+            .trackingDifference(new BigDecimal("0.0015"))
+            .fundReturn(new BigDecimal("0.0100"))
+            .benchmarkReturn(new BigDecimal("0.0085"))
+            .breach(true)
+            .consecutiveBreachDays(1)
+            .consecutiveNetTd(new BigDecimal("0.0015"))
+            .securityAttributions(List.of())
+            .cashDrag(ZERO)
+            .feeDrag(ZERO)
+            .residual(ZERO)
+            .build();
+
+    notifier.notify(List.of(result));
+
+    then(redemptionCycleLookup).shouldHaveNoInteractions();
   }
 
   private TrackingDifferenceResult result(

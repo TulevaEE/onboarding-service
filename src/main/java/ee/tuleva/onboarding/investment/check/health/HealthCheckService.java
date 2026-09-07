@@ -1,8 +1,10 @@
 package ee.tuleva.onboarding.investment.check.health;
 
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.PASS;
+import static ee.tuleva.onboarding.investment.config.InvestmentParameter.NAV_FLOW_CONSISTENCY_THRESHOLD;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
 
+import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.position.AccountType;
 import ee.tuleva.onboarding.investment.position.FundPosition;
@@ -39,6 +41,12 @@ public class HealthCheckService {
   private final QuantityChangeChecker quantityChangeChecker;
   private final TradedQuantitySource tradedQuantitySource;
   private final PayablesChecker payablesChecker;
+  private final NavFlowConsistencyChecker navFlowConsistencyChecker;
+  private final InvestmentParameterRepository investmentParameterRepository;
+
+  private BigDecimal navFlowThreshold(LocalDate navDate) {
+    return investmentParameterRepository.findLatestValue(NAV_FLOW_CONSISTENCY_THRESHOLD, navDate);
+  }
 
   public List<HealthCheckResult> check(List<FundPosition> positions) {
     Map<TulevaFund, List<FundPosition>> byFund =
@@ -88,6 +96,11 @@ public class HealthCheckService {
                         date, fund, RECEIVABLES))
             .orElse(List.of());
 
+    var previousPositions =
+        previousNavDate
+            .map(date -> fundPositionRepository.findByNavDateAndFund(date, fund))
+            .orElse(List.of());
+
     var tradedQuantities =
         previousNavDate
             .map(date -> tradedQuantitySource.resolve(fund, date, navDate))
@@ -115,6 +128,9 @@ public class HealthCheckService {
             fund, securities, previousSecurities, liabilities, previousLiabilities));
     findings.addAll(
         quantityChangeChecker.check(fund, securities, previousSecurities, tradedQuantities));
+    findings.addAll(
+        navFlowConsistencyChecker.check(
+            fund, positions, previousPositions, navFlowThreshold(navDate)));
 
     saveEvents(fund, navDate, findings);
 

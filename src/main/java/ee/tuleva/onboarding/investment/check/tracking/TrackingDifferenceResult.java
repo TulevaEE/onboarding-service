@@ -32,6 +32,7 @@ record TrackingDifferenceResult(
     BigDecimal residual,
     @Nullable BigDecimal bodImpliedFundReturn,
     @Nullable BigDecimal navResidual,
+    @Nullable NavFlowReconciliation navFlow,
     boolean navResidualBreach,
     boolean escalationNavResidualBreach,
     boolean escalationCountTruncated,

@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.fund;
 
-import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.RoundingMode.HALF_UP;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.stream.StreamSupport.stream;
@@ -9,6 +8,7 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatistics;
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatisticsService;
 import ee.tuleva.onboarding.locale.LocaleService;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -83,7 +83,7 @@ class FundService {
     boolean issuanceCompleted = currentBalance.compareTo(balanceAtCutoff) != 0;
 
     if (issuanceCompleted) {
-      var nav = toNavScale(latestFundValue.value());
+      var nav = toNavScale(fund.getIsin(), latestFundValue.value());
       return PensionFundStatistics.builder()
           .nav(nav)
           .volume(currentBalance.multiply(nav).setScale(2, HALF_UP))
@@ -93,6 +93,7 @@ class FundService {
 
     var previousNav =
         toNavScale(
+            fund.getIsin(),
             fundNavValues
                 .latestValueOnOrBefore(fund.getIsin(), latestFundValue.date().minusDays(1))
                 .map(FundNavValues.NavPoint::value)
@@ -104,8 +105,10 @@ class FundService {
         .build();
   }
 
-  private BigDecimal toNavScale(BigDecimal nav) {
-    return nav.setScale(TKF100.getNavScale());
+  private BigDecimal toNavScale(String isin, BigDecimal nav) {
+    return TulevaFund.findByIsin(isin)
+        .map(tulevaFund -> nav.setScale(tulevaFund.getNavScale(), HALF_UP))
+        .orElse(nav);
   }
 
   private static final DateTimeFormatter ESTONIAN_DATE = DateTimeFormatter.ofPattern("dd.MM.yyyy");
@@ -141,7 +144,9 @@ class FundService {
       return List.of();
     }
     return fundNavValues.valuesBetween(fund.getIsin(), start, end).stream()
-        .map(navPoint -> new NavValueResponse(navPoint.date(), navPoint.value()))
+        .map(
+            navPoint ->
+                new NavValueResponse(navPoint.date(), toNavScale(fund.getIsin(), navPoint.value())))
         .toList();
   }
 

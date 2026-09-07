@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.check.health;
 
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.FAIL;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.NOT_RUN;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.PASS;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
@@ -114,6 +115,9 @@ public class HealthCheckNotifier {
     if (active.stream().anyMatch(t -> t.current == WARNING)) {
       return "Import warning: %s %s\n".formatted(provider, date);
     }
+    if (active.stream().anyMatch(t -> t.current == NOT_RUN)) {
+      return "Import check could not run: %s %s\n".formatted(provider, date);
+    }
     return "✅ Import cleared: %s %s\n".formatted(provider, date);
   }
 
@@ -121,6 +125,7 @@ public class HealthCheckNotifier {
     return switch (severity) {
       case FAIL -> "🛑";
       case WARNING -> "⚠️";
+      case NOT_RUN -> "⏸";
       case PASS -> "✅";
     };
   }

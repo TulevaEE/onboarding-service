@@ -20,6 +20,7 @@ import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
+import ee.tuleva.onboarding.investment.position.SecurityQuantities;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
@@ -268,6 +269,11 @@ class TrackingDifferenceService {
             .consecutiveBreachDays(priorBreaches.count())
             .bodHoldings(bodHoldings)
             .bodSecuritiesFraction(bodSecuritiesFraction)
+            .openingNetAssets(previousTotalNav)
+            .closingNetAssets(totalNav)
+            .previousUnits(unitsOutstanding(fund, previousDate))
+            .todayUnits(unitsOutstanding(fund, checkDate))
+            .securityQuantitiesChanged(SecurityQuantities.changedBetween(bodPositions, positions))
             .build();
 
     calculator
@@ -414,6 +420,14 @@ class TrackingDifferenceService {
           chargedDays,
           coveredDays);
     }
+  }
+
+  private @Nullable BigDecimal unitsOutstanding(TulevaFund fund, LocalDate navDate) {
+    return fundPositionRepository.findByNavDateAndFundAndAccountType(navDate, fund, UNITS).stream()
+        .map(FundPosition::getQuantity)
+        .filter(Objects::nonNull)
+        .findFirst()
+        .orElse(null);
   }
 
   private List<LocalDate> windowDates(LocalDate previousDate, LocalDate checkDate) {

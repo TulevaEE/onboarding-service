@@ -397,14 +397,8 @@ class TdAttributionCalculator {
     // gives every row a different denominator and a half-held instrument its undiluted weight.
     TdAttributionResult.InstrumentAttribution toAttribution(
         BigDecimal periodCoefficient, int attributedDays) {
-      var avgModel =
-          attributedDays > 0
-              ? totalModelWeight.divide(BigDecimal.valueOf(attributedDays), 6, HALF_UP)
-              : ZERO;
-      var avgActual =
-          attributedDays > 0
-              ? totalActualWeight.divide(BigDecimal.valueOf(attributedDays), 6, HALF_UP)
-              : ZERO;
+      var avgModel = totalModelWeight.divide(BigDecimal.valueOf(attributedDays), 6, HALF_UP);
+      var avgActual = totalActualWeight.divide(BigDecimal.valueOf(attributedDays), 6, HALF_UP);
       var linkedContribution =
           periodCoefficient.signum() == 0
               ? contributionNumerator.setScale(8, HALF_UP)

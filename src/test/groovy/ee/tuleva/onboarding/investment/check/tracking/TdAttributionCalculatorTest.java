@@ -542,6 +542,30 @@ class TdAttributionCalculatorTest {
   }
 
   @Test
+  void anExtremePeriodLinkMultiplierStillScalesTheFeeDrag() {
+    var days =
+        List.of(
+            dailyRecord(PERIOD_START, "1.0", "0", "1000000", "0", "0", List.of()),
+            dailyRecord(PERIOD_START.plusDays(1), "1.0", "0", "1000000", "0", "0", List.of()),
+            dailyRecord(PERIOD_START.plusDays(2), "1.0", "0", "1000000", "0", "0", List.of()));
+    var input =
+        TdAttributionInput.builder()
+            .fund(TUK75)
+            .periodStart(PERIOD_START)
+            .periodEnd(PERIOD_END)
+            .periodType(MONTHLY)
+            .calendarDays(30)
+            .mgmtFeeDragPeriod(new BigDecimal("-0.001"))
+            .depotFeeDragPeriod(ZERO)
+            .dailyRecords(days)
+            .build();
+
+    var result = calculator.calculate(input);
+
+    assertThat(result.mgmtFeeDrag()).isLessThan(new BigDecimal("-0.002"));
+  }
+
+  @Test
   void surfacesSeriesGapDaysInChecks() {
     var days = buildConstantDays(5, "0.0005", "0.0005");
     var input =

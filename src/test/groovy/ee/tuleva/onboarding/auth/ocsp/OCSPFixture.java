@@ -5,6 +5,7 @@ import java.io.StringWriter;
 import java.math.BigInteger;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
@@ -45,6 +46,17 @@ import org.bouncycastle.operator.bc.BcRSAContentSignerBuilder;
 public class OCSPFixture {
   public static String sampleExampleServer = "http://aia.sk.ee/esteid2015";
   private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(OCSPFixture.class);
+  private static final KeyPair KEY_PAIR = generateKeyPair();
+
+  private static KeyPair generateKeyPair() {
+    try {
+      KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+      keyPairGenerator.initialize(2048);
+      return keyPairGenerator.generateKeyPair();
+    } catch (NoSuchAlgorithmException e) {
+      throw new RuntimeException("Failed to generate test key pair", e);
+    }
+  }
 
   public static X509Certificate generateCertificate(
       String dn, int days, String algorithm, String urlCA, String urlOCSP) throws Exception {
@@ -56,9 +68,7 @@ public class OCSPFixture {
       throws Exception {
 
     try {
-      KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
-      keyPairGenerator.initialize(2048);
-      KeyPair keyPair = keyPairGenerator.generateKeyPair();
+      KeyPair keyPair = KEY_PAIR;
       PublicKey publicKey = keyPair.getPublic();
       PrivateKey privateKey = keyPair.getPrivate();
 
@@ -180,9 +190,7 @@ public class OCSPFixture {
   public static X509Certificate generateCertificateWithOnlyDocumentTypePolicy(
       String documentTypeOid) {
     try {
-      KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
-      keyPairGenerator.initialize(2048);
-      KeyPair keyPair = keyPairGenerator.generateKeyPair();
+      KeyPair keyPair = KEY_PAIR;
       PrivateKey privateKey = keyPair.getPrivate();
       PublicKey publicKey = keyPair.getPublic();
 
@@ -230,9 +238,7 @@ public class OCSPFixture {
   private static X509Certificate generateCertificateWithPolicies(
       String documentTypeOid, String authPolicyOid, X500Name issuer, PolicyOrder policyOrder) {
     try {
-      KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
-      keyPairGenerator.initialize(2048);
-      KeyPair keyPair = keyPairGenerator.generateKeyPair();
+      KeyPair keyPair = KEY_PAIR;
       PrivateKey privateKey = keyPair.getPrivate();
       PublicKey publicKey = keyPair.getPublic();
 

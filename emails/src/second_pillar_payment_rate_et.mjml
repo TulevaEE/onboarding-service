@@ -9,7 +9,9 @@
         <mj-text>
           Sinu II&nbsp;samba sissemakse suurus on muudetud. *|IF:increased|*Alates
           <strong>*|paymentRateFulfillmentDate|*</strong> hakkad II&nbsp;sambasse maksma
-          <strong>*|newPaymentRate|*%</strong> oma brutopalgast.*|ELSE:|*Alates
+          <strong>*|newPaymentRate|*%</strong> oma brutopalgast.*|IF:maxPaymentRate|* See
+          tähendab, et kasutad II&nbsp;samba maksuvõitu täies mahus.*|ELSE:|* Nii paned iga
+          kuu oma tuleviku heaks rohkem kõrvale.*|END:IF|**|ELSE:|*Alates
           <strong>*|paymentRateFulfillmentDate|*</strong> langeb sinu II&nbsp;samba sissemakse suurus
           ja hakkad panustama <strong>*|newPaymentRate|*%</strong> oma brutopalgast.*|END:IF|*
         </mj-text>

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.calendar;
 
 import java.util.Arrays;
+import java.util.Locale;
 import java.util.Optional;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -16,10 +17,10 @@ public enum Domicile {
   private final String countryCode;
 
   public static Optional<Domicile> forCountryCode(@Nullable String countryCode) {
-    if (countryCode == null || countryCode.isBlank()) {
+    if (countryCode == null) {
       return Optional.empty();
     }
-    String normalized = countryCode.strip().toUpperCase();
+    String normalized = countryCode.strip().toUpperCase(Locale.ROOT);
     return Arrays.stream(values()).filter(it -> it.countryCode.equals(normalized)).findFirst();
   }
 }

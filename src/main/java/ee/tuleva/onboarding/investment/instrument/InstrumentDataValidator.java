@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.instrument;
 
+import static ee.tuleva.onboarding.investment.transaction.InstrumentType.FUND;
 import static java.math.BigDecimal.ONE;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
@@ -64,7 +65,7 @@ public class InstrumentDataValidator {
     checkProviderLimits(fund, allocations, effectiveDate, findings);
     checkBenchmarkProxies(isins, findings);
     checkActive(isins, findings);
-    checkFundDomicile(isins, findings);
+    checkFundDomicile(allocations, findings);
     checkTickerConsistency(allocations, findings);
 
     if (effectiveDate.isAfter(LocalDate.now(clock))) {
@@ -190,19 +191,21 @@ public class InstrumentDataValidator {
     }
   }
 
-  private void checkFundDomicile(Set<String> isins, List<ValidationFinding> findings) {
-    for (var isin : isins) {
-      var instrument = activeInstrument(isin).orElse(null);
-      if (instrument == null || instrument.isExchangeTraded()) {
+  private void checkFundDomicile(
+      List<ModelPortfolioAllocation> allocations, List<ValidationFinding> findings) {
+    for (var allocation : allocations) {
+      if (allocation.getInstrumentType() != FUND || allocation.getIsin() == null) {
         continue;
       }
-      if (Domicile.forCountryCode(instrument.getCountry()).isEmpty()) {
-        findings.add(
-            new ValidationFinding(
-                Severity.FAIL,
-                "ISIN %s has no supported fund domicile in instrument_reference (country=%s) — settlement dates fall back to the provider's domicile, which is a guess"
-                    .formatted(isin, instrument.getCountry())));
+      var instrument = activeInstrument(allocation.getIsin()).orElse(null);
+      if (instrument == null || Domicile.forCountryCode(instrument.getCountry()).isPresent()) {
+        continue;
       }
+      findings.add(
+          new ValidationFinding(
+              Severity.FAIL,
+              "ISIN %s has no fund domicile in instrument_reference (country=%s) — its settlement date falls back to the provider's domicile, which is a guess"
+                  .formatted(allocation.getIsin(), instrument.getCountry())));
     }
   }
 

@@ -66,8 +66,8 @@ public class SettlementDateCalculator {
     return dealingCalendar(instrumentType, isin, date).nextOrSameBusinessDay(date);
   }
 
-  private LocalDate settleFrom(LocalDate acceptanceDate, int businessDays) {
-    return target2Calendar.addBusinessDays(acceptanceDate, businessDays);
+  private LocalDate settleFrom(LocalDate dealingDay, int businessDays) {
+    return target2Calendar.addBusinessDays(dealingDay, businessDays);
   }
 
   private LocalDate flatSettlementDate(
@@ -119,18 +119,19 @@ public class SettlementDateCalculator {
   }
 
   private Optional<Domicile> providerDomicile(String isin, LocalDate tradeDate) {
-    return allocationRepository
-        .findFirstByIsinAndProviderIsNotNullAndEffectiveDateLessThanEqualOrderByEffectiveDateDesc(
-            isin, tradeDate)
-        .map(ModelPortfolioAllocation::getProvider)
-        .map(Provider::getDomicile)
-        .map(
-            domicile -> {
-              log.warn(
-                  "Instrument has no supported country, using the provider's domicile: isin={}, domicile={}",
-                  isin,
-                  domicile);
-              return domicile;
-            });
+    Optional<Domicile> domicile =
+        allocationRepository
+            .findFirstByIsinAndProviderIsNotNullAndEffectiveDateLessThanEqualOrderByEffectiveDateDesc(
+                isin, tradeDate)
+            .map(ModelPortfolioAllocation::getProvider)
+            .map(Provider::getDomicile);
+    domicile.ifPresent(
+        it ->
+            log.warn(
+                "Fund has no supported domicile of its own, dealing on its provider's:"
+                    + " isin={}, domicile={}",
+                isin,
+                it));
+    return domicile;
   }
 }

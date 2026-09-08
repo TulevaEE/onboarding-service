@@ -40,9 +40,7 @@ class SettlementDateCalculatorTest {
   private static final String LUXEMBOURG_FUND_ISIN = "LU1437018838";
   private static final String UNKNOWN_ISIN = "XX0000000000";
   private static final String CCF_ISIN = "IE0009FT4LX4";
-  // iShares Euro Aggregate Bond Index Fund — run by Blackrock Luxembourg SA, held by TUK00. Its
-  // allocation rows carry provider ISHARES, whose enum domicile is IRELAND.
-  private static final String BLACKROCK_LUXEMBOURG_FUND_ISIN = "LU0826455353";
+  private static final String LUXEMBOURG_FUND_WITH_AN_IRISH_PROVIDER_ISIN = "LU0826455353";
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
   private static final SettlementTerms CCF_TERMS =
       new SettlementTerms(LocalTime.of(9, 30), TALLINN, 3);
@@ -166,8 +164,6 @@ class SettlementDateCalculatorTest {
         .isEqualTo(LocalDate.of(2025, 4, 23));
   }
 
-  // The domicile decides when the fund deals, so an order placed on an Irish holiday waits for the
-  // next dealing day. 17 March is a dealing holiday but not a TARGET2 one.
   @Test
   void fund_orderPlacedOnAnIrishHolidayIsDealtOnTheNextDealingDay() {
     givenProvider(IRISH_FUND_ISIN, ISHARES);
@@ -177,10 +173,6 @@ class SettlementDateCalculatorTest {
         .isEqualTo(LocalDate.of(2026, 3, 24));
   }
 
-  // Cash settles through TARGET2, not the fund's own calendar: two of these settled on 1 June 2026,
-  // an Irish bank holiday, which counting on the Irish calendar could never produce. Counted the
-  // old
-  // way this would be 19 March, because 17 March would be skipped.
   @Test
   void fund_settlementDaysAreCountedOnTarget2NotTheFundsCalendar() {
     givenProvider(IRISH_FUND_ISIN, ISHARES);
@@ -227,14 +219,13 @@ class SettlementDateCalculatorTest {
 
   @Test
   void fund_domicileComesFromTheInstrumentsCountryNotItsManagers() {
-    givenCountry(BLACKROCK_LUXEMBOURG_FUND_ISIN, "LU");
+    givenCountry(LUXEMBOURG_FUND_WITH_AN_IRISH_PROVIDER_ISIN, "LU");
     LocalDate beforeStPatricksDay = LocalDate.of(2026, 3, 12);
 
-    // 17 March is an Irish holiday but not a Luxembourg one. Grouping this fund under its manager
-    // (BlackRock → ISHARES → IRELAND) would skip it and settle a day late, on 20 March.
     assertThat(
             calculator()
-                .calculateSettlementDate(beforeStPatricksDay, FUND, BLACKROCK_LUXEMBOURG_FUND_ISIN))
+                .calculateSettlementDate(
+                    beforeStPatricksDay, FUND, LUXEMBOURG_FUND_WITH_AN_IRISH_PROVIDER_ISIN))
         .isEqualTo(LocalDate.of(2026, 3, 18));
     verifyNoInteractions(allocationRepository);
   }

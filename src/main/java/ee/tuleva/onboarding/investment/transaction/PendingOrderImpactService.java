@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
+import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
@@ -107,17 +108,16 @@ class PendingOrderImpactService {
       return;
     }
     unreportedValues.merge(isin, signed(order, unfilledValue), BigDecimal::add);
-    addUnfilledSellQuantity(order, executed, isin, unreportedQuantities);
+    if (order.getTransactionType() == SELL) {
+      addUnfilledQuantity(order, executed, isin, unreportedQuantities);
+    }
   }
 
-  private static void addUnfilledSellQuantity(
+  private static void addUnfilledQuantity(
       TransactionOrder order,
       ExecutedTotals executed,
       String isin,
       Map<String, BigDecimal> unreportedQuantities) {
-    if (order.getTransactionType() == BUY) {
-      return;
-    }
     BigDecimal unfilledQuantity = unfilledQuantity(order, executed);
     if (order.getInstrumentType() == ETF && unfilledQuantity.signum() != 0) {
       unreportedQuantities.merge(isin, signed(order, unfilledQuantity), BigDecimal::add);

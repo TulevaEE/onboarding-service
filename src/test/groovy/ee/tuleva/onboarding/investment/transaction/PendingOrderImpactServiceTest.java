@@ -64,8 +64,6 @@ class PendingOrderImpactServiceTest {
 
     assertThat(impact.unreportedPositionValues())
         .containsExactly(Map.entry("IE00A", new BigDecimal("5000")));
-    // A SENT buy with no fills reserves its cash but adds NO units: the quantity we asked
-    // for is not the quantity we will get, so it must not become sellable inventory.
     assertThat(impact.unreportedPositionQuantities()).isEmpty();
     assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("5000"));
     assertThat(impact.pendingSells()).isEqualByComparingTo(ZERO);
@@ -141,8 +139,6 @@ class PendingOrderImpactServiceTest {
 
     assertThat(impact.unreportedPositionValues())
         .containsExactly(Map.entry("IE00A", new BigDecimal("5000")));
-    // A SENT buy with no fills reserves its cash but adds NO units: the quantity we asked
-    // for is not the quantity we will get, so it must not become sellable inventory.
     assertThat(impact.unreportedPositionQuantities()).isEmpty();
     assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("5000"));
   }
@@ -516,8 +512,6 @@ class PendingOrderImpactServiceTest {
 
     var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
 
-    // Both fills are EXECUTED, so both are real quantities; only the one the custodian has not
-    // reported yet is synthesized.
     assertThat(impact.unreportedPositionValues())
         .containsExactly(Map.entry("IE00A", new BigDecimal("2000")));
     assertThat(impact.unreportedPositionQuantities())
@@ -568,10 +562,6 @@ class PendingOrderImpactServiceTest {
 
     var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
 
-    // The 60 executed units are already in the custodian report (reportedDate == POSITION_DATE),
-    // so they are not synthesized. The 40 unfilled units reserve their cash — hence the 2000 of
-    // value — but nobody has executed them, so they add NO quantity: their real size is not known
-    // and may never be 40.
     assertThat(impact.unreportedPositionValues())
         .containsExactly(Map.entry("IE00A", new BigDecimal("2000")));
     assertThat(impact.unreportedPositionQuantities()).isEmpty();
@@ -626,10 +616,6 @@ class PendingOrderImpactServiceTest {
 
   @Test
   void anUnexecutedEtfBuyNeverInflatesTheQuantityAvailableToSell() {
-    // A sell may be sized against a position that has not landed yet, but only once the buy is
-    // EXECUTED and the real quantity is known. A SENT order with no fill is an intention, not a
-    // holding: synthesizing its order quantity would let a later sell dispose of units we do not
-    // own. Its cash stays reserved either way.
     given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
         .willReturn(
             List.of(

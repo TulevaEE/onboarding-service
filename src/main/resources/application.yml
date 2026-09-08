@@ -131,6 +131,10 @@ seb-gateway:
     password: changeit
   url: ''
   reconciliation-delay: 5m
+  retry:
+    delay: 200ms
+    multiplier: 3
+    max-delay: 10s
   management-company-name: 'Tuleva Fondid AS'
   accounts:
     DEPOSIT_EUR: 'SEB_DEPOSIT_PLACEHOLDER'

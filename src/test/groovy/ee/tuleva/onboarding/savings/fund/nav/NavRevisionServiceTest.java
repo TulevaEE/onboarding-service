@@ -3,8 +3,6 @@ package ee.tuleva.onboarding.savings.fund.nav;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.contains;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -79,7 +77,12 @@ class NavRevisionServiceTest {
 
     verify(navPublisher, never()).publishRevision(any(), any());
     verify(notificationService)
-        .sendMessage(contains("fund=TUK75, navDate=2026-09-01"), eq(SAVINGS));
+        .sendMessage(
+            """
+            🔴 NAV revision FAILED after the custodian position report changed: fund=TUK75, navDate=2026-09-01, changedRows=4
+            The published NAV for that date may be stale. Recalculate manually:
+            POST /admin/calculate-nav?fundCode=TUK75&date=2026-09-02&publish=false""",
+            SAVINGS);
   }
 
   private static NavCalculationResult revisedResult() {

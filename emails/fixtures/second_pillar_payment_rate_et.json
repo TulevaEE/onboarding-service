@@ -58,6 +58,14 @@
       "newPaymentRate": "4",
       "suggestSavingsFundRecurringPayment": true
     },
+    "määr tõusis 6% peale": {
+      "FNAME": "Mari",
+      "increased": true,
+      "maxPaymentRate": true,
+      "paymentRateFulfillmentDate": "01.01.2027",
+      "newPaymentRate": "6",
+      "suggestThirdPillar": true
+    },
     "liikmesuse soovitus": {
       "FNAME": "Mari",
       "increased": true,

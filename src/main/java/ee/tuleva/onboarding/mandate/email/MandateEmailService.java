@@ -120,6 +120,7 @@ public class MandateEmailService {
       boolean decreased = isPaymentRateDecreased(oldRate, newRate);
       mergeVars.put("decreased", decreased);
       mergeVars.put("increased", !decreased);
+      mergeVars.put("maxPaymentRate", isMaxPaymentRate(newRate));
 
       mergeVars.put(
           "paymentRateFulfillmentDate",
@@ -285,6 +286,10 @@ public class MandateEmailService {
 
   boolean isPaymentRateDecreased(Integer oldRate, Integer newRate) {
     return newRate == 2 || newRate < oldRate;
+  }
+
+  boolean isMaxPaymentRate(Integer newRate) {
+    return newRate == 6;
   }
 
   private boolean hasEmailsToday(Person person, EmailType emailType, Mandate mandate) {

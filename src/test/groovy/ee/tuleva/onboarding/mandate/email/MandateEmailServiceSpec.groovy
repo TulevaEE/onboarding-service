@@ -332,6 +332,7 @@ class MandateEmailServiceSpec extends Specification {
         oldPaymentRate            : samplePaymentRates.current,
         decreased                 : false,  // 6 > 2, so not decreased
         increased                 : true,   // 6 > 2, so increased
+        maxPaymentRate            : true,   // 6 is the highest rate
         suggestPaymentRate        : pillarSuggestion.suggestPaymentRate,
         savingsFundFee            : "0.28",
         suggestSecondPillar       : pillarSuggestion.suggestSecondPillar,
@@ -389,6 +390,7 @@ class MandateEmailServiceSpec extends Specification {
         oldPaymentRate            : samplePaymentRates.current,
         decreased                 : true,   // 2 < 4 and 2 == 2, so decreased
         increased                 : false,  // not increased
+        maxPaymentRate            : false,  // 2 is not the highest rate
         suggestPaymentRate        : pillarSuggestion.suggestPaymentRate,
         savingsFundFee            : "0.28",
         suggestSecondPillar       : pillarSuggestion.suggestSecondPillar,

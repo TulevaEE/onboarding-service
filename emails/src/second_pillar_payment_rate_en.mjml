@@ -9,7 +9,9 @@
         <mj-text>
           Your second pillar contribution rate has been changed. *|IF:increased|*From
           <strong>*|paymentRateFulfillmentDate|*</strong> you will start saving
-          <strong>*|newPaymentRate|*%</strong> of your monthly gross income into your second pillar.*|ELSE:|*From
+          <strong>*|newPaymentRate|*%</strong> of your monthly gross income into your second pillar.*|IF:maxPaymentRate|*
+          This means you are making full use of the second pillar tax benefit.*|ELSE:|* This puts
+          a little more aside for your future every month.*|END:IF|**|ELSE:|*From
           <strong>*|paymentRateFulfillmentDate|*</strong> your second pillar contribution will
           decrease and you will start contributing <strong>*|newPaymentRate|*%</strong> of your
           gross salary.*|END:IF|*

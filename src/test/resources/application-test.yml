@@ -99,7 +99,7 @@ payment-provider:
       secret-key: exampleSecretKeyexampleSecretKeyexampleSecretKey
 
 opensanctions:
-  url: https://dummyUrl
+  url: http://localhost:9
 
 async:
   enabled: false

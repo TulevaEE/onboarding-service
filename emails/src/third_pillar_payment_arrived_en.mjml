@@ -24,7 +24,7 @@
           whenever you like. You do not need to create a separate account with us, you already
           have one. Just log in:
         </mj-text>
-        <mj-button href="https://pension.tuleva.ee/login">Log in to your account</mj-button>
+        <mj-button href="https://pension.tuleva.ee/login">Log in</mj-button>
         <mj-raw>*|END:IF|*</mj-raw>
       </mj-column>
     </mj-section>

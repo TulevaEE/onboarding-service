@@ -24,6 +24,8 @@ import java.time.ZoneId
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
+import static ee.tuleva.onboarding.fund.Fund.RiskLevel.HIGH_RISK
+import static ee.tuleva.onboarding.fund.Fund.RiskLevel.LOW_RISK
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyConverted
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notConverted
 import static ee.tuleva.onboarding.deadline.MandateDeadlinesFixture.sampleDeadlines
@@ -556,16 +558,16 @@ class MandateEmailServiceSpec extends Specification {
     return sum % 11
   }
 
-  private static Fund foreignFund(BigDecimal equityShare, BigDecimal ongoingChargesFigure) {
+  private static Fund foreignFund(Fund.RiskLevel riskLevel, BigDecimal ongoingChargesFigure) {
     Fund.builder()
         .isin("isin")
         .fundManager(FundManager.builder().id(1).name("LHV").build())
-        .equityShare(equityShare)
+        .riskLevel(riskLevel)
         .ongoingChargesFigure(ongoingChargesFigure)
         .build()
   }
 
-  def "selectedFundMergeVars flags a young investor's conservative low-equity fund pick"() {
+  def "selectedFundMergeVars flags a young investor's low risk fund pick"() {
     given:
     def mandate = emptyMandate().build()
     fundRepository.findByIsin("isin") >> fund
@@ -579,17 +581,17 @@ class MandateEmailServiceSpec extends Specification {
     ]
 
     where:
-    personalCode                 | fund                                              || expectedConservative
-    sampleUser().build().personalCode | null                                          || false
-    sampleUser().build().personalCode | foreignFund(new BigDecimal("0.24"), new BigDecimal("0.001")) || true
-    sampleUser().build().personalCode | foreignFund(new BigDecimal("0.25"), new BigDecimal("0.001")) || false
-    personalCodeForAge(55)            | foreignFund(new BigDecimal("0.10"), new BigDecimal("0.001")) || false
+    personalCode                      | fund                                            || expectedConservative
+    sampleUser().build().personalCode | null                                            || false
+    sampleUser().build().personalCode | foreignFund(LOW_RISK, new BigDecimal("0.001"))  || true
+    sampleUser().build().personalCode | foreignFund(HIGH_RISK, new BigDecimal("0.001")) || false
+    personalCodeForAge(55)            | foreignFund(LOW_RISK, new BigDecimal("0.001"))  || false
   }
 
   def "selectedFundMergeVars flags a fund as high-fee only strictly above the 0.3% ongoing charges threshold"() {
     given:
     def mandate = emptyMandate().build()
-    fundRepository.findByIsin("isin") >> foreignFund(new BigDecimal("0.5"), ongoingChargesFigure)
+    fundRepository.findByIsin("isin") >> foreignFund(HIGH_RISK, ongoingChargesFigure)
     def user = sampleUser().build()
 
     expect:
@@ -604,7 +606,7 @@ class MandateEmailServiceSpec extends Specification {
   def "selectedFundMergeVars formats the high fee percentage with a comma for Estonian and a dot otherwise"() {
     given:
     def mandate = emptyMandate().build()
-    fundRepository.findByIsin("isin") >> foreignFund(new BigDecimal("0.5"), new BigDecimal("0.0123"))
+    fundRepository.findByIsin("isin") >> foreignFund(HIGH_RISK, new BigDecimal("0.0123"))
     def user = sampleUser().build()
 
     expect:

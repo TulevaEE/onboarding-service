@@ -173,16 +173,9 @@ public class MandateEmailService {
     boolean selectedTulevaFund = selectedFunds.stream().anyMatch(Fund::isOwnFund);
     var mergeVars = new HashMap<String, Object>();
     mergeVars.put("selectedTulevaFund", selectedTulevaFund);
-    BigDecimal conservativeEquityShare = new BigDecimal("0.25");
-    boolean youngInConservativeFund =
-        user.getAge() < 55
-            && !selectedFunds.isEmpty()
-            && selectedFunds.stream()
-                .anyMatch(
-                    fund ->
-                        fund.getEquityShare() != null
-                            && fund.getEquityShare().compareTo(conservativeEquityShare) < 0);
-    mergeVars.put("selectedConservativeFund", youngInConservativeFund);
+    boolean youngInLowRiskFund =
+        user.getAge() < 55 && selectedFunds.stream().anyMatch(Fund::isLowRisk);
+    mergeVars.put("selectedConservativeFund", youngInLowRiskFund);
     BigDecimal highFeeThreshold = new BigDecimal("0.003");
     BigDecimal highestFee =
         selectedFunds.stream()

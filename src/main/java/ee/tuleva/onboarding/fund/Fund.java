@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.fund;
 
+import static ee.tuleva.onboarding.fund.Fund.RiskLevel.LOW_RISK;
 import static jakarta.persistence.EnumType.STRING;
 
 import ee.tuleva.onboarding.fund.manager.FundManager;
@@ -56,7 +57,9 @@ public class Fund implements Comparable<Fund> {
 
   @NotNull private BigDecimal managementFeeRate;
 
-  @NotNull private BigDecimal equityShare;
+  @NotNull
+  @Enumerated(STRING)
+  private RiskLevel riskLevel;
 
   @NotNull private BigDecimal ongoingChargesFigure;
 
@@ -74,8 +77,17 @@ public class Fund implements Comparable<Fund> {
     PAYOUTS_FORBIDDEN // Väljamaksed keelatud
   }
 
+  public enum RiskLevel {
+    LOW_RISK,
+    HIGH_RISK
+  }
+
   public String getName(Locale locale) {
     return Locale.ENGLISH.getLanguage().equals(locale.getLanguage()) ? nameEnglish : nameEstonian;
+  }
+
+  public boolean isLowRisk() {
+    return riskLevel == LOW_RISK;
   }
 
   public boolean isOwnFund() {

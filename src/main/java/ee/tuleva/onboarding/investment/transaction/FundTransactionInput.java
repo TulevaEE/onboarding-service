@@ -31,9 +31,11 @@ public record FundTransactionInput(
     @Nullable BigDecimal appliedCash,
     @Nullable BigDecimal ledgerCash,
     @Nullable LocalDate positionDate,
-    @Nullable LocalDate modelEffectiveDate) {
+    @Nullable LocalDate modelEffectiveDate,
+    List<CalculationWarning> inputWarnings) {
 
   public static class FundTransactionInputBuilder {
+    private List<CalculationWarning> inputWarnings = List.of();
     private BigDecimal receivables = ZERO;
     private Map<String, InstrumentType> instrumentTypes = Map.of();
     private Map<String, OrderVenue> orderVenues = Map.of();

@@ -2,6 +2,10 @@ package ee.tuleva.onboarding.investment.position;
 
 import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.FAIL;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.COMPLETENESS;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.ISIN_MATCH;
 import static ee.tuleva.onboarding.investment.position.AccountType.CASH;
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
@@ -13,9 +17,12 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.check.health.HealthCheckFinding;
 import ee.tuleva.onboarding.investment.check.health.HealthCheckNotifier;
 import ee.tuleva.onboarding.investment.check.health.HealthCheckResult;
 import ee.tuleva.onboarding.investment.check.health.HealthCheckService;
+import ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity;
+import ee.tuleva.onboarding.investment.check.health.HealthCheckType;
 import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.investment.position.parser.SebFundPositionParser;
 import ee.tuleva.onboarding.investment.position.parser.SwedbankFundPositionParser;
@@ -223,22 +230,36 @@ class FundPositionImportJobTest {
         .recordPositionsToLedger(any(TulevaFund.class), any());
   }
 
+  // The report carries two TUK75 rows and one TUV100 row: a FAIL on one fund must not cost the
+  // other
+  // its positions for the day.
   @Test
-  void importForProviderAndDate_blocksImportOnHealthCheckFail() {
+  void importForProviderAndDate_blocksOnlyTheFundThatFailedItsHealthCheck() {
     LocalDate date = LocalDate.of(2026, 1, 5);
     when(reportService.getReport(SWEDBANK, POSITIONS, date))
         .thenReturn(Optional.of(createSwedbankReport(date)));
-    var failResult =
-        new HealthCheckResult(
-            TUK75,
-            date,
+    when(repository.findByNavDateAndFundAndAccountTypeAndAccountName(any(), any(), any(), any()))
+        .thenReturn(Optional.empty());
+    when(healthCheckService.check(anyList()))
+        .thenReturn(List.of(healthCheckResult(TUK75, date, FAIL, ISIN_MATCH, "unknown ISIN")));
+
+    var result = job.importForProviderAndDate(SWEDBANK, date);
+
+    assertThat(result.imported()).isEqualTo(1);
+    verify(repository, times(1)).save(any(FundPosition.class));
+    verify(healthCheckNotifier).notify(eq(SWEDBANK), eq(date), anyList());
+  }
+
+  @Test
+  void importForProviderAndDate_importsNothingWhenEveryFundInTheReportFailed() {
+    LocalDate date = LocalDate.of(2026, 1, 5);
+    when(reportService.getReport(SWEDBANK, POSITIONS, date))
+        .thenReturn(Optional.of(createSwedbankReport(date)));
+    when(healthCheckService.check(anyList()))
+        .thenReturn(
             List.of(
-                new ee.tuleva.onboarding.investment.check.health.HealthCheckFinding(
-                    TUK75,
-                    ee.tuleva.onboarding.investment.check.health.HealthCheckType.ISIN_MATCH,
-                    ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.FAIL,
-                    "unknown ISIN")));
-    when(healthCheckService.check(anyList())).thenReturn(List.of(failResult));
+                healthCheckResult(TUK75, date, FAIL, ISIN_MATCH, "unknown ISIN"),
+                healthCheckResult(TUV100, date, FAIL, COMPLETENESS, "negative quantity")));
 
     var result = job.importForProviderAndDate(SWEDBANK, date);
 
@@ -249,27 +270,43 @@ class FundPositionImportJobTest {
   }
 
   @Test
+  void importForProviderAndDate_doesNotRecordToLedgerForABlockedFund() {
+    LocalDate date = LocalDate.of(2026, 1, 5);
+    when(reportService.getReport(SWEDBANK, POSITIONS, date))
+        .thenReturn(Optional.of(createSwedbankReport(date)));
+    when(repository.findByNavDateAndFundAndAccountTypeAndAccountName(any(), any(), any(), any()))
+        .thenReturn(Optional.empty());
+    when(healthCheckService.check(anyList()))
+        .thenReturn(List.of(healthCheckResult(TUK75, date, FAIL, ISIN_MATCH, "unknown ISIN")));
+
+    job.importForProviderAndDate(SWEDBANK, date);
+
+    verify(fundPositionLedgerService, never()).recordPositionsToLedger(eq(TUK75), any());
+  }
+
+  @Test
   void importForProviderAndDate_proceedsAndNotifiesOnWarning() {
     LocalDate date = LocalDate.of(2026, 1, 5);
     when(reportService.getReport(SWEDBANK, POSITIONS, date))
         .thenReturn(Optional.of(createSwedbankReport(date)));
     when(repository.findByNavDateAndFundAndAccountTypeAndAccountName(any(), any(), any(), any()))
         .thenReturn(Optional.empty());
-    var warningResult =
-        new HealthCheckResult(
-            TUK75,
-            date,
-            List.of(
-                new ee.tuleva.onboarding.investment.check.health.HealthCheckFinding(
-                    TUK75,
-                    ee.tuleva.onboarding.investment.check.health.HealthCheckType.COMPLETENESS,
-                    ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING,
-                    "no CASH")));
-    when(healthCheckService.check(anyList())).thenReturn(List.of(warningResult));
+    when(healthCheckService.check(anyList()))
+        .thenReturn(List.of(healthCheckResult(TUK75, date, WARNING, COMPLETENESS, "no CASH")));
 
     job.importForProviderAndDate(SWEDBANK, date);
 
     verify(repository, times(3)).save(any(FundPosition.class));
     verify(healthCheckNotifier).notify(eq(SWEDBANK), eq(date), anyList());
+  }
+
+  private HealthCheckResult healthCheckResult(
+      TulevaFund fund,
+      LocalDate date,
+      HealthCheckSeverity severity,
+      HealthCheckType checkType,
+      String message) {
+    return new HealthCheckResult(
+        fund, date, List.of(new HealthCheckFinding(fund, checkType, severity, message)));
   }
 }

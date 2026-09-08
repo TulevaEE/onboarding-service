@@ -91,10 +91,12 @@ public class TradeCalculationEngine {
 
   private List<CalculationWarning> warnings(
       FundTransactionInput input, TransactionMode mode, List<TradeCalculation> trades) {
-    if (mode != TransactionMode.REBALANCE || input.positions().isEmpty()) {
-      return List.of();
+    // Warnings raised while gathering the input travel in every mode, not just REBALANCE.
+    List<CalculationWarning> warnings = new ArrayList<>(input.inputWarnings());
+    if (mode == TransactionMode.REBALANCE && !input.positions().isEmpty()) {
+      warnings.addAll(rebalanceWarnings(input, trades));
     }
-    return rebalanceWarnings(input, trades);
+    return List.copyOf(warnings);
   }
 
   private List<CalculationWarning> rebalanceWarnings(

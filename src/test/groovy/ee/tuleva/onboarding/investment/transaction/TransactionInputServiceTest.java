@@ -163,6 +163,47 @@ class TransactionInputServiceTest {
     assertThat(result.liabilities()).isEqualByComparingTo(new BigDecimal("5000"));
   }
 
+  // A hand-maintained reference row must not be able to stop an order from being created.
+  @Test
+  void gatherInput_reservesTheAccrualAndWarnsWhenTheFeePolicyDoesNotResolve() {
+    var positionDate = AS_OF_DATE;
+    given(feeChargedToFundPolicy.chargedToFund(TUV100, FeeType.DEPOT, AS_OF_DATE))
+        .willThrow(new IllegalStateException("Gap in the fee policy"));
+    given(feeChargedToFundPolicy.chargedToFund(TUV100, FeeType.MANAGEMENT, AS_OF_DATE))
+        .willReturn(true);
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(positionDate));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
+        .willReturn(List.of());
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
+        .willReturn(List.of());
+    given(
+            feeAccrualRepository.getAccruedFeesForMonth(
+                eq(TUV100), any(), eq(List.of(FeeType.DEPOT)), any()))
+        .willReturn(new BigDecimal("120"));
+    given(
+            feeAccrualRepository.getAccruedFeesForMonth(
+                eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT)), any()))
+        .willReturn(new BigDecimal("3000"));
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(List.of());
+    given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(zeroFundLimit(TUV100)));
+    given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
+    given(r45ReportService.getLatestFlows()).willReturn(Map.of());
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+
+    assertThat(result.liabilityBreakdown().depotFee()).isEqualByComparingTo("120");
+    assertThat(result.inputWarnings())
+        .singleElement()
+        .satisfies(
+            warning -> {
+              assertThat(warning.type()).isEqualTo(CalculationWarningType.FEE_POLICY_UNRESOLVED);
+              assertThat(warning.message()).contains("TUV100", "DEPOT");
+            });
+  }
+
   @Test
   void gatherInput_leavesOutADepotFeeThatIsExcludedFromNav() {
     var positionDate = AS_OF_DATE;

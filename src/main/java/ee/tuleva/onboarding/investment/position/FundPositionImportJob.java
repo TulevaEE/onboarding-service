@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.investment.event.PipelineStep.POSITION_IMPORT
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SWEDBANK;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
+import static java.util.stream.Collectors.toCollection;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.check.health.HealthCheckNotifier;
@@ -23,9 +24,11 @@ import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.investment.report.ReportProvider;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.IntStream;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -160,15 +163,33 @@ public class FundPositionImportJob {
         "Parsed fund positions: provider={}, date={}, count={}", provider, date, positions.size());
 
     var healthResults = healthCheckService.check(positions);
-    if (healthResults.stream().anyMatch(HealthCheckResult::hasFails)) {
+    // Blocking per fund, not per file: one fund's unusable figures must not stop the other three
+    // from being imported, and the checks themselves are already scoped to a single fund.
+    Set<TulevaFund> blockedFunds =
+        healthResults.stream()
+            .filter(HealthCheckResult::hasFails)
+            .map(HealthCheckResult::fund)
+            .collect(toCollection(() -> EnumSet.noneOf(TulevaFund.class)));
+
+    if (!blockedFunds.isEmpty()) {
       healthCheckFailed = true;
-      healthCheckFailureDetail = "Import blocked: provider=%s, date=%s".formatted(provider, date);
+      healthCheckFailureDetail =
+          "Import blocked: provider=%s, date=%s, funds=%s".formatted(provider, date, blockedFunds);
+      log.error(
+          "Health check failed, import blocked for these funds: provider={}, date={}, funds={}",
+          provider,
+          date,
+          blockedFunds);
+    }
+
+    List<FundPosition> importablePositions =
+        positions.stream().filter(position -> !blockedFunds.contains(position.getFund())).toList();
+    if (importablePositions.isEmpty()) {
       notifyHealth(provider, date, healthResults);
-      log.error("Health check failed, import blocked: provider={}, date={}", provider, date);
       return new ImportResult(0, 0);
     }
 
-    ImportResult result = importService.upsertPositions(positions);
+    ImportResult result = importService.upsertPositions(importablePositions);
 
     notifyHealth(provider, date, healthResults);
     if (result.imported() > 0 || result.updated() > 0) {
@@ -183,7 +204,7 @@ public class FundPositionImportJob {
         investmentReport.getRawData().size());
 
     List<TulevaFund> navFunds =
-        positions.stream()
+        importablePositions.stream()
             .map(FundPosition::getFund)
             .filter(TulevaFund::hasNavCalculation)
             .distinct()

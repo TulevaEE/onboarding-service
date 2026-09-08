@@ -9,6 +9,7 @@ import static ee.tuleva.onboarding.investment.config.InvestmentParameter.R16_ROU
 import static ee.tuleva.onboarding.investment.epis.PevaRavaPhase.DONE;
 import static ee.tuleva.onboarding.investment.position.AccountType.CASH;
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
+import static ee.tuleva.onboarding.investment.transaction.CalculationWarningType.FEE_POLICY_UNRESOLVED;
 import static java.math.BigDecimal.ONE;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.CEILING;
@@ -114,8 +115,9 @@ public class TransactionInputService {
         applyUnreportedPositions(getPositions(fund, positionDate), pendingOrders);
     BigDecimal reportCash = getCashBalance(fund, positionDate);
     BigDecimal appliedCash = cashOverride == null ? reportCash : cashOverride;
-    BigDecimal managementFee = getAccruedFees(fund, asOfDate, FeeType.MANAGEMENT);
-    BigDecimal depotFee = getAccruedFees(fund, asOfDate, FeeType.DEPOT);
+    List<CalculationWarning> inputWarnings = new ArrayList<>();
+    BigDecimal managementFee = getAccruedFees(fund, asOfDate, FeeType.MANAGEMENT, inputWarnings);
+    BigDecimal depotFee = getAccruedFees(fund, asOfDate, FeeType.DEPOT, inputWarnings);
     List<ModelPortfolioAllocation> allocations = getModelAllocations(fund, asOfDate);
     List<ModelPortfolioAllocation> previousAllocations =
         modelPortfolioAllocationRepository.findPreviousByFundAsOf(fund, asOfDate).stream()
@@ -215,6 +217,7 @@ public class TransactionInputService {
         .ledgerCash(ledgerCash)
         .positionDate(positionDate)
         .modelEffectiveDate(modelEffectiveDate)
+        .inputWarnings(List.copyOf(inputWarnings))
         .build();
   }
 
@@ -311,12 +314,37 @@ public class TransactionInputService {
         .reduce(ZERO, BigDecimal::add);
   }
 
-  private BigDecimal getAccruedFees(TulevaFund fund, LocalDate asOfDate, FeeType feeType) {
-    if (!feeChargedToFundPolicy.chargedToFund(fund, feeType, asOfDate)) {
+  private BigDecimal getAccruedFees(
+      TulevaFund fund,
+      LocalDate asOfDate,
+      FeeType feeType,
+      List<CalculationWarning> inputWarnings) {
+    if (!isChargedToFund(fund, feeType, asOfDate, inputWarnings)) {
       return ZERO;
     }
     LocalDate feeMonth = asOfDate.withDayOfMonth(1);
     return feeAccrualRepository.getAccruedFeesForMonth(fund, feeMonth, List.of(feeType), asOfDate);
+  }
+
+  // An unconfigured, gapped or overlapping fee policy must not stop an order from being created:
+  // the accrual is small next to the portfolio, so the calculation reserves it — the conservative
+  // direction — and the operator sees why on the draft.
+  private boolean isChargedToFund(
+      TulevaFund fund,
+      FeeType feeType,
+      LocalDate asOfDate,
+      List<CalculationWarning> inputWarnings) {
+    try {
+      return feeChargedToFundPolicy.chargedToFund(fund, feeType, asOfDate);
+    } catch (IllegalStateException e) {
+      String message =
+          ("Fee policy does not resolve, reserving the accrual as if it were charged to the fund:"
+                  + " fund=%s, feeType=%s, asOfDate=%s, reason=%s")
+              .formatted(fund.name(), feeType, asOfDate, e.getMessage());
+      log.warn(message);
+      inputWarnings.add(new CalculationWarning(FEE_POLICY_UNRESOLVED, message));
+      return true;
+    }
   }
 
   private List<ModelPortfolioAllocation> getModelAllocations(TulevaFund fund, LocalDate asOfDate) {

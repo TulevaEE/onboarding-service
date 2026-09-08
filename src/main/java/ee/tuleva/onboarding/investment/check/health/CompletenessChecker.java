@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.check.health;
 
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.FAIL;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.COMPLETENESS;
 import static ee.tuleva.onboarding.investment.position.AccountType.CASH;
@@ -38,6 +39,8 @@ class CompletenessChecker {
               "%s: no CASH position found for navDate=%s".formatted(fund, navDate)));
     }
 
+    // A holding you cannot own must not reach the NAV input. This FAILs, and since the import gate
+    // blocks per fund, it takes down only this fund's positions for the day.
     positions.stream()
         .filter(position -> position.getAccountType() == SECURITY)
         .filter(position -> position.getQuantity() != null && position.getQuantity().signum() < 0)
@@ -47,7 +50,7 @@ class CompletenessChecker {
                     new HealthCheckFinding(
                         fund,
                         COMPLETENESS,
-                        WARNING,
+                        FAIL,
                         "%s: negative SECURITY quantity %s for %s"
                             .formatted(
                                 fund,

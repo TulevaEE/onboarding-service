@@ -27,6 +27,7 @@ import ee.tuleva.onboarding.investment.position.FundPositionLedgerService;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.investment.position.parser.SebFundPositionParser;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
+import ee.tuleva.onboarding.investment.report.SebReportSource;
 import ee.tuleva.onboarding.ledger.*;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
@@ -63,6 +64,7 @@ class NavPipelineIntegrationTest {
 
   @Autowired InvestmentReportService investmentReportService;
   @Autowired SebFundPositionParser sebFundPositionParser;
+  @Autowired SebReportSource sebReportSource;
   @Autowired FundPositionImportService fundPositionImportService;
   @Autowired FundPositionRepository fundPositionRepository;
   @Autowired NavPositionLedger navPositionLedger;
@@ -613,9 +615,17 @@ class NavPipelineIntegrationTest {
   @SneakyThrows
   private void importPositionReport(Path positionReportFile, LocalDate reportDate) {
     byte[] csvBytes = Files.readAllBytes(positionReportFile);
+    // Go through the real preamble extraction: the importer strips the first five rows into
+    // metadata, so that is where the 'As of' date comes from in production.
     var report =
         investmentReportService.saveReport(
-            SEB, POSITIONS, reportDate, new ByteArrayInputStream(csvBytes), ';', 5, Map.of());
+            SEB,
+            POSITIONS,
+            reportDate,
+            new ByteArrayInputStream(csvBytes),
+            ';',
+            5,
+            sebReportSource.extractCsvMetadata(csvBytes));
     var positions =
         sebFundPositionParser.parse(report.getRawData(), reportDate, report.getMetadata());
     fundPositionImportService.importNewPositions(positions);

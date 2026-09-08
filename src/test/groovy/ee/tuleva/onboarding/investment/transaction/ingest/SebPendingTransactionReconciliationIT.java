@@ -93,7 +93,7 @@ class SebPendingTransactionReconciliationIT {
                 .reportType(PENDING_TRANSACTIONS)
                 .reportDate(LocalDate.of(2026, 2, 13))
                 .rawData(rawData)
-                .metadata(Map.of("source", "fixture"))
+                .metadata(Map.of("source", "fixture", "asOfDate", "2026-02-12"))
                 .createdAt(Instant.now())
                 .build());
   }
@@ -307,7 +307,7 @@ class SebPendingTransactionReconciliationIT {
                         splitRow(splitClientRef, "DLA0935620", "34985"),
                         splitRow(splitClientRef, "DLA0936075", "377403"),
                         splitRow(splitClientRef, "DLA0927877", "64611")))
-                .metadata(Map.of("source", "fixture"))
+                .metadata(Map.of("source", "fixture", "asOfDate", "2026-06-23"))
                 .createdAt(Instant.now())
                 .build());
 
@@ -368,7 +368,7 @@ class SebPendingTransactionReconciliationIT {
                     List.of(
                         splitRowAtPrice(clientRef, "DLA1000001", "100000", "9.99"),
                         splitRowAtPrice(clientRef, "DLA1000002", "100000", "10.40")))
-                .metadata(Map.of("source", "fixture"))
+                .metadata(Map.of("source", "fixture", "asOfDate", "2026-06-23"))
                 .createdAt(Instant.now())
                 .build());
 

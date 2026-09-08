@@ -1,11 +1,14 @@
 package ee.tuleva.onboarding.investment.position.parser;
 
+import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
+import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
 import static java.math.BigDecimal.ONE;
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.position.AccountType;
 import ee.tuleva.onboarding.investment.position.FundPosition;
+import ee.tuleva.onboarding.investment.report.MissingReportAsOfDateException;
 import ee.tuleva.onboarding.investment.report.SebReportHeaders;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -42,12 +45,15 @@ public class SebFundPositionParser implements FundPositionParser {
   @Override
   public List<FundPosition> parse(
       List<Map<String, Object>> rawData, LocalDate reportDate, Map<String, Object> metadata) {
+    if (rawData.isEmpty()) {
+      return List.of();
+    }
+
     LocalDate navDate = SebReportHeaders.asOfDate(metadata, rawData);
     LocalDate sentDate = SebReportHeaders.sentDate(metadata, rawData);
 
     if (navDate == null) {
-      log.warn("No 'As of' date found in SEB data, falling back to report date");
-      navDate = reportDate;
+      throw new MissingReportAsOfDateException(SEB, POSITIONS);
     }
     if (sentDate == null) {
       log.warn("No 'Sent' date found in SEB data, falling back to report date");

@@ -10,6 +10,7 @@ import static ee.tuleva.onboarding.investment.transaction.ingest.ReconciliationA
 import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
+import ee.tuleva.onboarding.investment.report.MissingReportAsOfDateEvent;
 import ee.tuleva.onboarding.investment.report.SebReportHeaders;
 import ee.tuleva.onboarding.investment.transaction.OrderStatus;
 import ee.tuleva.onboarding.investment.transaction.OrderVenue;
@@ -65,11 +66,21 @@ public class SebPendingTransactionReconciliationService {
 
   @Transactional
   public void reconcile(InvestmentReport report) {
+    LocalDate reportDate = report.getReportDate();
+    LocalDate asOfDate = SebReportHeaders.asOfDate(report);
+    if (asOfDate == null) {
+      log.error(
+          "No 'As of' date in SEB pending transactions report, refusing to reconcile it:"
+              + " reportDate={}",
+          reportDate);
+      eventPublisher.publishEvent(
+          new MissingReportAsOfDateEvent(SEB, PENDING_TRANSACTIONS, reportDate));
+      return;
+    }
+
     SebPendingTransactionExtractor.ExtractionResult extraction =
         extractor.extractWithDiagnostics(report);
     List<SebPendingTransactionRow> rows = extraction.rows();
-    LocalDate reportDate = report.getReportDate();
-    LocalDate asOfDate = asOfDate(report);
     TransactionMatchingProperties matchingProperties = matchingPolicy.current();
     log.info(
         "Reconciling SEB pending transactions: reportDate={}, rowCount={}, malformedCount={}",
@@ -438,18 +449,6 @@ public class SebPendingTransactionReconciliationService {
           .ifPresent(orderIds::add);
     }
     return orderIds;
-  }
-
-  private LocalDate asOfDate(InvestmentReport report) {
-    LocalDate asOfDate = SebReportHeaders.asOfDate(report);
-    if (asOfDate == null) {
-      log.warn(
-          "No 'As of' date in SEB pending transactions report, falling back to report date:"
-              + " reportDate={}",
-          report.getReportDate());
-      return report.getReportDate();
-    }
-    return asOfDate;
   }
 
   private boolean wouldOrphanExistingExecution(

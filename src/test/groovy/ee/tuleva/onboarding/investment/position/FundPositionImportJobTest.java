@@ -21,6 +21,7 @@ import ee.tuleva.onboarding.investment.position.parser.SebFundPositionParser;
 import ee.tuleva.onboarding.investment.position.parser.SwedbankFundPositionParser;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
+import ee.tuleva.onboarding.investment.report.MissingReportAsOfDateEvent;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -158,6 +159,29 @@ class FundPositionImportJobTest {
     job.importForProviderAndDate(SWEDBANK, date);
 
     verify(repository, times(2)).save(any(FundPosition.class));
+  }
+
+  // runImport swallows exceptions into a log line, so a refused report has to alert from here or it
+  // is silently skipped every day the file stays broken.
+  @Test
+  void importForProviderAndDate_alertsAndImportsNothingWhenTheReportCarriesNoAsOfDate() {
+    LocalDate date = LocalDate.of(2026, 1, 5);
+    var report =
+        InvestmentReport.builder()
+            .provider(SEB)
+            .reportType(POSITIONS)
+            .reportDate(date)
+            .rawData(List.of(Map.of("Client name", "TKF100", "Market Value (EUR)", "1000")))
+            .metadata(Map.of())
+            .createdAt(Instant.now())
+            .build();
+    when(reportService.getReport(SEB, POSITIONS, date)).thenReturn(Optional.of(report));
+
+    var result = job.importForProviderAndDate(SEB, date);
+
+    assertThat(result.imported()).isEqualTo(0);
+    verify(repository, never()).save(any(FundPosition.class));
+    verify(eventPublisher).publishEvent(new MissingReportAsOfDateEvent(SEB, POSITIONS, date));
   }
 
   @Test

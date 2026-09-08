@@ -20,6 +20,8 @@ import ee.tuleva.onboarding.investment.position.parser.SebFundPositionParser;
 import ee.tuleva.onboarding.investment.position.parser.SwedbankFundPositionParser;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
+import ee.tuleva.onboarding.investment.report.MissingReportAsOfDateEvent;
+import ee.tuleva.onboarding.investment.report.MissingReportAsOfDateException;
 import ee.tuleva.onboarding.investment.report.ReportProvider;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -151,11 +153,20 @@ public class FundPositionImportJob {
     }
 
     InvestmentReport investmentReport = report.get();
-    List<FundPosition> positions =
-        parser.parse(
-            investmentReport.getRawData(),
-            investmentReport.getReportDate(),
-            investmentReport.getMetadata());
+    List<FundPosition> positions;
+    try {
+      positions =
+          parser.parse(
+              investmentReport.getRawData(),
+              investmentReport.getReportDate(),
+              investmentReport.getMetadata());
+    } catch (MissingReportAsOfDateException e) {
+      // runImport swallows every exception into a log line, so this has to alert here or the
+      // report is silently skipped day after day.
+      log.error("Positions report refused: provider={}, date={}", provider, date, e);
+      eventPublisher.publishEvent(new MissingReportAsOfDateEvent(provider, POSITIONS, date));
+      return new ImportResult(0, 0);
+    }
     log.info(
         "Parsed fund positions: provider={}, date={}, count={}", provider, date, positions.size());
 

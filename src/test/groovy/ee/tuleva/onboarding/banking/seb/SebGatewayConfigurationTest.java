@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.retry.RetryTemplate;
 import org.springframework.scheduling.TaskScheduler;
+import org.springframework.util.backoff.ExponentialBackOff;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
@@ -30,14 +31,22 @@ class SebGatewayConfigurationTest {
   private static final String KEYSTORE_PATH = "src/test/resources/banking/seb/test-seb-gateway.p12";
   private static final String KEYSTORE_PASSWORD = "testpass";
   private static final String KEY_ALIAS = "test";
+  private static final SebGatewayProperties.Retry FAST_RETRY =
+      new SebGatewayProperties.Retry(Duration.ofMillis(1), 1, Duration.ofMillis(1));
 
   private final SebGatewayConfiguration config =
-      new SebGatewayConfiguration(
-          new SebGatewayProperties(
-              true,
-              "https://seb-gateway.example.com",
-              new SebGatewayProperties.Keystore(KEYSTORE_PATH, KEYSTORE_PASSWORD),
-              Duration.ofSeconds(30)));
+      configurationWith("https://seb-gateway.example.com", FAST_RETRY);
+
+  private static SebGatewayConfiguration configurationWith(
+      String url, SebGatewayProperties.Retry retry) {
+    return new SebGatewayConfiguration(
+        new SebGatewayProperties(
+            true,
+            url,
+            new SebGatewayProperties.Keystore(KEYSTORE_PATH, KEYSTORE_PASSWORD),
+            Duration.ofSeconds(30),
+            retry));
+  }
 
   @Test
   void sebGatewayKeyStore_loadsThePkcs12KeystoreFromTheConfiguredPath() throws Exception {
@@ -135,12 +144,7 @@ class SebGatewayConfigurationTest {
     server.start();
     try {
       var localConfig =
-          new SebGatewayConfiguration(
-              new SebGatewayProperties(
-                  true,
-                  "http://localhost:" + server.getAddress().getPort(),
-                  new SebGatewayProperties.Keystore(KEYSTORE_PATH, KEYSTORE_PASSWORD),
-                  Duration.ofSeconds(30)));
+          configurationWith("http://localhost:" + server.getAddress().getPort(), FAST_RETRY);
       KeyStore keyStore = localConfig.sebGatewayKeyStore();
       RestClient client =
           localConfig.sebGatewayRestClient(keyStore, localConfig.sebTlsStrategyFactory());
@@ -169,6 +173,23 @@ class SebGatewayConfigurationTest {
 
     assertThat(result).isEqualTo("ok");
     assertThat(attempts.get()).isEqualTo(3);
+  }
+
+  @Test
+  void sebGatewayRetryTemplate_backsOffWithTheConfiguredRetryProperties() {
+    var configuredConfig =
+        configurationWith(
+            "https://seb-gateway.example.com",
+            new SebGatewayProperties.Retry(Duration.ofMillis(5), 2, Duration.ofMillis(40)));
+
+    var backOff = configuredConfig.sebGatewayRetryTemplate().getRetryPolicy().getBackOff();
+
+    var expected = new ExponentialBackOff();
+    expected.setMaxAttempts(7);
+    expected.setInitialInterval(5);
+    expected.setMultiplier(2);
+    expected.setMaxInterval(40);
+    assertThat(backOff).usingRecursiveComparison().isEqualTo(expected);
   }
 
   @Test

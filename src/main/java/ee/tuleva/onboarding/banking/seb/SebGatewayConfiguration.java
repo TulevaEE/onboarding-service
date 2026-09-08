@@ -172,14 +172,15 @@ public class SebGatewayConfiguration {
 
   @Bean
   RetryTemplate sebGatewayRetryTemplate() {
+    var retry = properties.retry();
     var policy =
         RetryPolicy.builder()
             .includes(HttpServerErrorException.class, ResourceAccessException.class)
             .excludes(HttpClientErrorException.class)
             .maxRetries(7)
-            .delay(Duration.ofMillis(200))
-            .multiplier(3)
-            .maxDelay(Duration.ofSeconds(10))
+            .delay(retry.delay())
+            .multiplier(retry.multiplier())
+            .maxDelay(retry.maxDelay())
             .build();
     return new RetryTemplate(policy);
   }
@@ -201,8 +202,10 @@ public class SebGatewayConfiguration {
 
 @ConfigurationProperties(prefix = "seb-gateway")
 record SebGatewayProperties(
-    boolean enabled, String url, Keystore keystore, Duration reconciliationDelay) {
+    boolean enabled, String url, Keystore keystore, Duration reconciliationDelay, Retry retry) {
   record Keystore(String path, String password) {}
+
+  record Retry(Duration delay, double multiplier, Duration maxDelay) {}
 }
 
 @FunctionalInterface

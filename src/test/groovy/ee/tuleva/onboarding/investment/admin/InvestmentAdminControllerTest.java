@@ -46,13 +46,15 @@ import org.springframework.context.annotation.Import;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(InvestmentAdminController.class)
 @Import(AdminTokenValidator.class)
 @TestPropertySource(properties = {"admin.api-token=valid-token", "admin.ops-token=ops-token"})
 @WithMockUser
-@org.springframework.test.context.event.RecordApplicationEvents
+@RecordApplicationEvents
 class InvestmentAdminControllerTest {
 
   @Autowired private MockMvc mockMvc;
@@ -77,7 +79,7 @@ class InvestmentAdminControllerTest {
 
   @MockitoBean private Clock clock;
 
-  @Autowired private org.springframework.test.context.event.ApplicationEvents events;
+  @Autowired private ApplicationEvents events;
 
   @Test
   void backfillFees_callsServiceWithFundAndDateRange() throws Exception {

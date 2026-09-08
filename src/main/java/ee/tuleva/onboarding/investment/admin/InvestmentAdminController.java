@@ -232,9 +232,6 @@ public class InvestmentAdminController {
     return "TD attribution computed for all funds: %s to %s".formatted(from, to);
   }
 
-  // The daily check writes the events the attribution reads, so a fix to the check leaves every
-  // event before it carrying the old definition. Rewriting them needs a reach the fixed 7-day
-  // trigger does not have.
   @PostMapping("/tracking-difference-backfill")
   public String backfillTrackingDifference(
       @RequestHeader("X-Admin-Token") String token,

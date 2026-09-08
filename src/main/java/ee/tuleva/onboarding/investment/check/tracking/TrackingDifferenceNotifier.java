@@ -105,9 +105,6 @@ class TrackingDifferenceNotifier {
         .toPlainString();
   }
 
-  // A backfill rewrites hundreds of fund-days. Posting each one buries the channel it is meant to
-  // inform, so the run reports its shape - how far it reached, what it rewrote, where the breaches
-  // are - and the days themselves stay in the table for a query to answer.
   void notifyBackfillSummary(int daysBack, List<TrackingDifferenceResult> results) {
     try {
       if (results.isEmpty()) {
@@ -128,14 +125,17 @@ class TrackingDifferenceNotifier {
                   r -> "%s %s".formatted(r.fund().getCode(), r.checkType()),
                   TreeMap::new,
                   Collectors.toList()))
-          .forEach((subject, group) -> message.append(formatBackfillGroup(subject, group)));
+          .forEach(
+              (fundAndCheckType, group) ->
+                  message.append(formatBackfillGroup(fundAndCheckType, group)));
       notificationService.sendMessage(message.toString(), INVESTMENT);
     } catch (Exception e) {
       log.error("Failed to send tracking difference backfill summary", e);
     }
   }
 
-  private static String formatBackfillGroup(String subject, List<TrackingDifferenceResult> group) {
+  private static String formatBackfillGroup(
+      String fundAndCheckType, List<TrackingDifferenceResult> group) {
     var dates = group.stream().map(TrackingDifferenceResult::checkDate).sorted().toList();
     var breaches = group.stream().filter(TrackingDifferenceResult::hasAnyBreach).count();
     var worst =
@@ -145,7 +145,7 @@ class TrackingDifferenceNotifier {
             .orElse(BigDecimal.ZERO);
     return "\n  %s: %d check dates %s to %s, %d breaches, largest TD %s%%"
         .formatted(
-            subject,
+            fundAndCheckType,
             dates.size(),
             dates.getFirst(),
             dates.getLast(),

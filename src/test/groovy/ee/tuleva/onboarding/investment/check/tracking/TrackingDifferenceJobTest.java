@@ -88,9 +88,6 @@ class TrackingDifferenceJobTest {
     then(notifier).should().notifyBackfillSummary(7, results);
   }
 
-  // A backfill deep enough to reach a corrected daily check is the whole point of the parameter:
-  // fixing the check leaves every already-written event behind it, and only a run that reaches
-  // back that far rewrites them.
   @Test
   void backfillReachesAsFarBackAsTheEventAsksFor() {
     var results = List.<TrackingDifferenceResult>of();
@@ -102,8 +99,6 @@ class TrackingDifferenceJobTest {
     then(service).should(never()).backfillChecks(7);
   }
 
-  // One line per fund and check type, not one per fund-day: a 40-day backfill produces hundreds
-  // of results, and posting them individually buries the channel it is meant to inform.
   @Test
   void backfillSummarisesRatherThanPostingEveryDay() {
     var results = List.<TrackingDifferenceResult>of();

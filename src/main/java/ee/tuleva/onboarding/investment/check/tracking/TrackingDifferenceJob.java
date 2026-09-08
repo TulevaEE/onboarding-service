@@ -39,15 +39,15 @@ class TrackingDifferenceJob {
 
   @EventListener
   void onTrackingDifferenceBackfillRequested(RunTrackingDifferenceBackfillRequested event) {
-    log.info("Starting tracking difference backfill");
+    log.info("Starting tracking difference backfill: daysBack={}", event.daysBack());
 
     try {
-      var results = trackingDifferenceService.backfillChecks(7);
-      trackingDifferenceNotifier.notify(results);
+      var results = trackingDifferenceService.backfillChecks(event.daysBack());
+      trackingDifferenceNotifier.notifyBackfillSummary(event.daysBack(), results);
       log.info("Tracking difference backfill completed: resultCount={}", results.size());
     } catch (TrackingDifferenceService.IncompletePriceDataException e) {
       trackingDifferenceNotifier.notifyRunIncomplete("TD backfill", reasonOf(e));
-      trackingDifferenceNotifier.notify(e.completedResults());
+      trackingDifferenceNotifier.notifyBackfillSummary(event.daysBack(), e.completedResults());
       log.error("Tracking difference backfill incomplete", e);
     } catch (Exception e) {
       log.error("Tracking difference backfill failed", e);

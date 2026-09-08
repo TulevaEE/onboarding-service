@@ -78,21 +78,43 @@ class TrackingDifferenceJobTest {
   }
 
   @Test
-  void backfillEventDelegatesToServiceAndNotifier() {
+  void backfillEventDelegatesToServiceAndSummarises() {
     var results = List.<TrackingDifferenceResult>of();
     given(service.backfillChecks(7)).willReturn(results);
 
-    job.onTrackingDifferenceBackfillRequested(new RunTrackingDifferenceBackfillRequested());
+    job.onTrackingDifferenceBackfillRequested(new RunTrackingDifferenceBackfillRequested(7));
 
     then(service).should().backfillChecks(7);
-    then(notifier).should().notify(results);
+    then(notifier).should().notifyBackfillSummary(7, results);
+  }
+
+  @Test
+  void backfillReachesAsFarBackAsTheEventAsksFor() {
+    var results = List.<TrackingDifferenceResult>of();
+    given(service.backfillChecks(40)).willReturn(results);
+
+    job.onTrackingDifferenceBackfillRequested(new RunTrackingDifferenceBackfillRequested(40));
+
+    then(service).should().backfillChecks(40);
+    then(service).should(never()).backfillChecks(7);
+  }
+
+  @Test
+  void backfillSummarisesRatherThanPostingEveryDay() {
+    var results = List.<TrackingDifferenceResult>of();
+    given(service.backfillChecks(40)).willReturn(results);
+
+    job.onTrackingDifferenceBackfillRequested(new RunTrackingDifferenceBackfillRequested(40));
+
+    then(notifier).should().notifyBackfillSummary(40, results);
+    then(notifier).should(never()).notify(anyList());
   }
 
   @Test
   void backfillFailureIsReportedRatherThanOnlyLogged() {
     doThrow(new RuntimeException("boom")).when(service).backfillChecks(7);
 
-    job.onTrackingDifferenceBackfillRequested(new RunTrackingDifferenceBackfillRequested());
+    job.onTrackingDifferenceBackfillRequested(new RunTrackingDifferenceBackfillRequested(7));
 
     then(notifier).should().notifyRunFailed("TD backfill", "boom");
     then(notifier).should(never()).notify(anyList());
@@ -107,8 +129,17 @@ class TrackingDifferenceJobTest {
         .when(service)
         .backfillChecks(7);
 
-    job.onTrackingDifferenceBackfillRequested(new RunTrackingDifferenceBackfillRequested());
+    job.onTrackingDifferenceBackfillRequested(new RunTrackingDifferenceBackfillRequested(7));
 
-    then(notifier).should().notify(partialResults);
+    then(notifier).should().notifyBackfillSummary(7, partialResults);
+  }
+
+  @Test
+  void aBackfillFailureCarryingNoMessageIsNamedByItsTypeInsteadOfNull() {
+    doThrow(new NullPointerException()).when(service).backfillChecks(7);
+
+    job.onTrackingDifferenceBackfillRequested(new RunTrackingDifferenceBackfillRequested(7));
+
+    then(notifier).should().notifyRunFailed("TD backfill", "NullPointerException");
   }
 }

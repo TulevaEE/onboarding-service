@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.admin;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -16,6 +17,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import ee.tuleva.onboarding.admin.AdminTokenValidator;
+import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceBackfillRequested;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.position.FundPositionImportJob;
 import ee.tuleva.onboarding.investment.position.FundPositionLedgerService;
@@ -44,12 +46,15 @@ import org.springframework.context.annotation.Import;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(InvestmentAdminController.class)
 @Import(AdminTokenValidator.class)
 @TestPropertySource(properties = {"admin.api-token=valid-token", "admin.ops-token=ops-token"})
 @WithMockUser
+@RecordApplicationEvents
 class InvestmentAdminControllerTest {
 
   @Autowired private MockMvc mockMvc;
@@ -74,6 +79,8 @@ class InvestmentAdminControllerTest {
 
   @MockitoBean private Clock clock;
 
+  @Autowired private ApplicationEvents events;
+
   @Test
   void backfillFees_callsServiceWithFundAndDateRange() throws Exception {
     mockMvc
@@ -90,6 +97,60 @@ class InvestmentAdminControllerTest {
 
     verify(navFeeBackfill)
         .backfillFees(TulevaFund.TKF100, LocalDate.of(2026, 2, 3), LocalDate.of(2026, 2, 3));
+  }
+
+  @Test
+  void backfillTrackingDifference_publishesTheReachTheCallerAskedFor() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/tracking-difference-backfill")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("daysBack", "40"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("40")));
+
+    assertThat(events.stream(RunTrackingDifferenceBackfillRequested.class))
+        .containsExactly(new RunTrackingDifferenceBackfillRequested(40));
+  }
+
+  @Test
+  void backfillTrackingDifference_defaultsToAWeekWhenNoReachIsGiven() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/tracking-difference-backfill")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token"))
+        .andExpect(status().isOk());
+
+    assertThat(events.stream(RunTrackingDifferenceBackfillRequested.class))
+        .containsExactly(new RunTrackingDifferenceBackfillRequested(7));
+  }
+
+  @Test
+  void backfillTrackingDifference_rejectsANegativeReachWithoutPublishing() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/tracking-difference-backfill")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("daysBack", "-1"))
+        .andExpect(status().isBadRequest());
+
+    assertThat(events.stream(RunTrackingDifferenceBackfillRequested.class)).isEmpty();
+  }
+
+  @Test
+  void backfillTrackingDifference_rejectsInvalidToken() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/tracking-difference-backfill")
+                .with(csrf())
+                .header("X-Admin-Token", "wrong-token")
+                .param("daysBack", "40"))
+        .andExpect(status().isUnauthorized());
+
+    assertThat(events.stream(RunTrackingDifferenceBackfillRequested.class)).isEmpty();
   }
 
   @Test

@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 public class NudgeDecisionService {
 
   private final NudgeInputsAssembler inputsAssembler;
+  private final OfflineNudgeInputs offlineInputs;
   private final SecurityContextRunner securityContextRunner;
 
   public NudgeDecision decide(User user, NudgeContext context) {
@@ -21,6 +22,14 @@ public class NudgeDecisionService {
   public NudgeDecision decide(User user, NudgeAccount actingParty, NudgeContext context) {
     NudgeInputs inputs =
         securityContextRunner.callAs(user, () -> inputsAssembler.assemble(user, actingParty));
+    return decided(user, context, inputs);
+  }
+
+  public NudgeDecision decideOffline(User user, NudgeContext context) {
+    return decided(user, context, offlineInputs.assemble(user, context));
+  }
+
+  private NudgeDecision decided(User user, NudgeContext context, NudgeInputs inputs) {
     NudgeDecision decision = NudgeRules.decide(inputs, context);
     log.info(
         "Nudge decided: userId={}, context={}, nudge={}", user.getId(), context, decision.key());

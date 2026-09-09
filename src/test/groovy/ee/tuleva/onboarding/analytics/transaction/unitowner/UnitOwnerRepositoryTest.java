@@ -244,4 +244,18 @@ class UnitOwnerRepositoryTest {
     assertThat(repository.hasLeftSecondPillar(PERSON_ID_1)).isFalse();
     assertThat(repository.hasLeftSecondPillar(PERSON_ID_2)).isTrue();
   }
+
+  @Test
+  void findInLatestSnapshot_returnsThePersonFromTheNewestSnapshotOnly() {
+    repository.save(
+        entityBuilder(PERSON_ID_1, SNAPSHOT_DATE_1, creationTime).p2choice("LXK75").build());
+    repository.save(
+        entityBuilder(PERSON_ID_1, SNAPSHOT_DATE_2, creationTime).p2choice("TUK75").build());
+    repository.save(entityBuilder(PERSON_ID_2, SNAPSHOT_DATE_1, creationTime).build());
+
+    assertThat(repository.findInLatestSnapshot(PERSON_ID_1))
+        .map(UnitOwner::getP2choice)
+        .contains("TUK75");
+    assertThat(repository.findInLatestSnapshot(PERSON_ID_2)).isEmpty();
+  }
 }

@@ -82,7 +82,9 @@ public class ThirdPillarPaymentArrivedEmailService {
       return userService
           .findByPersonalCode(payment.personalCode())
           .map(
-              user -> nudgeDecisionService.decide(user, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED));
+              user ->
+                  nudgeDecisionService.decideOffline(
+                      user, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED));
     } catch (RuntimeException e) {
       log.warn("Sending the payment arrived email without a nudge, the decision failed", e);
       return Optional.empty();

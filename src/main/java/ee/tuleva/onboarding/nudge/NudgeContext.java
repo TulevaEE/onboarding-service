@@ -28,4 +28,8 @@ public enum NudgeContext {
   public boolean suppresses(NudgeKey key) {
     return suppressed.contains(key);
   }
+
+  public boolean impliesThirdPillar() {
+    return suppressed.contains(THIRD_PILLAR_START);
+  }
 }

@@ -77,7 +77,7 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
 
   @BeforeEach
   void stubMandrill() {
-    given(nudgeDecisionService.decide(any(User.class), any(NudgeContext.class)))
+    given(nudgeDecisionService.decideOffline(any(User.class), any(NudgeContext.class)))
         .willReturn(NudgeDecision.of(NudgeKey.SECOND_PILLAR_TRANSFER));
     given(emailService.newMandrillMessage(any(), any(), any(), any()))
         .willReturn(new MandrillMessage());

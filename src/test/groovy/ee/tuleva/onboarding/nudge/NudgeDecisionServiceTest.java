@@ -45,6 +45,7 @@ class NudgeDecisionServiceTest {
   @Mock private FeeComparisonCalculator feeComparisonCalculator;
   @Mock private ActingParties actingParties;
   @Mock private SecurityContextRunner securityContextRunner;
+  @Mock private OfflineNudgeInputs offlineInputs;
 
   private NudgeDecisionService service;
 
@@ -66,6 +67,7 @@ class NudgeDecisionServiceTest {
                 feeComparisonCalculator,
                 new KnownLookups(
                     leaverStatus, recurringStatus, saverStatus, taxHeadroom, actingParties)),
+            offlineInputs,
             securityContextRunner);
     lenient()
         .when(securityContextRunner.callAs(any(), any()))
@@ -92,6 +94,17 @@ class NudgeDecisionServiceTest {
     service.decide(member, child, SAVINGS_FUND_PAYMENT);
 
     verify(securityContextRunner).callAs(eq(member), any());
+  }
+
+  @Test
+  void theOfflineDecisionNeverMintsASecurityContextOrTouchesEpisBackedInputs() {
+    given(offlineInputs.assemble(member, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
+        .willReturn(NudgeInputsFixture.everythingSorted().member(false).build());
+
+    assertThat(service.decideOffline(member, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
+        .isEqualTo(NudgeDecision.of(NudgeKey.MEMBERSHIP));
+    org.mockito.Mockito.verifyNoInteractions(
+        securityContextRunner, pillarStatus, conversionService, paymentRateService, taxHeadroom);
   }
 
   @Test

@@ -84,6 +84,33 @@ class HealthCheckServiceTest {
     verify(completenessChecker).check(eq(TUK75), eq(NAV_DATE), eq(positions));
   }
 
+  // A threshold row that does not reach back to the checked nav date threw out of checkFund, and
+  // FundPositionImportJob catches per date - so the whole date's positions were dropped, every
+  // other check for it went unsaved and unreported, and the pipeline still said it had succeeded.
+  @Test
+  void aNavDateWithNoThresholdRowStillRunsEveryOtherCheck() {
+    var positions = List.of(securityPosition(TUK75, "IE001", new BigDecimal("1000")));
+    var previousPositions = List.of(securityPosition(TUK75, "IE001", new BigDecimal("900")));
+    var previousNavDate = NAV_DATE.minusDays(1);
+
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, NAV_DATE))
+        .willReturn(List.of());
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, previousNavDate))
+        .willReturn(Optional.of(previousNavDate));
+    given(fundPositionRepository.findByNavDateAndFund(previousNavDate, TUK75))
+        .willReturn(previousPositions);
+    given(
+            investmentParameterRepository.findLatestValueIfPresent(
+                NAV_FLOW_CONSISTENCY_THRESHOLD, NAV_DATE))
+        .willReturn(Optional.empty());
+
+    var results = healthCheckService.check(positions);
+
+    assertThat(results).hasSize(1);
+    verify(completenessChecker).check(eq(TUK75), eq(NAV_DATE), eq(positions));
+    verify(navFlowConsistencyChecker).check(TUK75, positions, previousPositions, null);
+  }
+
   // Only @Mock fields were added when this checker was wired in, so an unstubbed mock returned
   // null and nothing here failed if the wiring were deleted. That is how a double-counted
   // netAssets reached a green build.
@@ -100,8 +127,10 @@ class HealthCheckServiceTest {
         .willReturn(Optional.of(previousNavDate));
     given(fundPositionRepository.findByNavDateAndFund(previousNavDate, TUK75))
         .willReturn(previousPositions);
-    given(investmentParameterRepository.findLatestValue(NAV_FLOW_CONSISTENCY_THRESHOLD, NAV_DATE))
-        .willReturn(threshold);
+    given(
+            investmentParameterRepository.findLatestValueIfPresent(
+                NAV_FLOW_CONSISTENCY_THRESHOLD, NAV_DATE))
+        .willReturn(Optional.of(threshold));
 
     var finding =
         new HealthCheckFinding(TUK75, NAV_FLOW_CONSISTENCY, WARNING, "NAV flow does not reconcile");

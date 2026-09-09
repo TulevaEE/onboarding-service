@@ -16,6 +16,12 @@ public class InvestmentParameterRepository {
   private final JdbcClient jdbcClient;
 
   public BigDecimal findLatestValue(InvestmentParameter parameter, LocalDate asOf) {
+    return findLatestValueIfPresent(parameter, asOf)
+        .orElseThrow(() -> missing(parameter, null, asOf));
+  }
+
+  public Optional<BigDecimal> findLatestValueIfPresent(
+      InvestmentParameter parameter, LocalDate asOf) {
     return jdbcClient
         .sql(
             """
@@ -30,8 +36,7 @@ public class InvestmentParameterRepository {
         .param("name", parameter.name())
         .param("asOf", asOf)
         .query(BigDecimal.class)
-        .optional()
-        .orElseThrow(() -> missing(parameter, null, asOf));
+        .optional();
   }
 
   public BigDecimal findLatestValue(

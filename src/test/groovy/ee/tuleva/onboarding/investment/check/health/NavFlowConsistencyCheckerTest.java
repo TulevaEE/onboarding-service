@@ -132,6 +132,82 @@ class NavFlowConsistencyCheckerTest {
     assertThat(checker.check(TUK75, today, previous, THRESHOLD)).isEmpty();
   }
 
+  // A threshold row that does not reach back to the nav date being checked used to throw out of
+  // HealthCheckService, and the import job swallows that per date - so one missing parameter row
+  // silently dropped every check for the date while the pipeline still reported success.
+  @Test
+  void aMissingThresholdSaysTheCheckCouldNotRunRatherThanBreakingTheImport() {
+    var previous =
+        positions(security("IE00A", "10000", "100", "1000000"), units("1000000"), total("1000000"));
+    var today =
+        positions(security("IE00A", "10000", "102", "1020000"), units("1000000"), total("1020000"));
+
+    var findings = checker.check(TUK75, today, previous, null);
+
+    assertThat(findings).hasSize(1);
+    var finding = findings.getFirst();
+    assertThat(finding.checkType()).isEqualTo(NAV_FLOW_CONSISTENCY);
+    assertThat(finding.severity()).isEqualTo(NOT_RUN);
+    assertThat(finding.message()).contains("NAV_FLOW_CONSISTENCY_THRESHOLD");
+  }
+
+  // SebFundPositionParser defaults every row it does not recognise to SECURITY, so a renamed or
+  // added report line arrives as a security with no ISIN: counted in net assets, invisible to the
+  // mark-to-market loop, and its whole daily movement lands in the residual as a phantom breach.
+  @Test
+  void aValuedSecurityRowWithNoIsinCannotBeMarkedSoTheCheckCannotRun() {
+    var previous =
+        positions(
+            security("IE00A", "10000", "100", "1000000"),
+            valued(SECURITY, "Accrued interest", "5000"),
+            units("1000000"));
+    var today =
+        positions(
+            security("IE00A", "10000", "102", "1020000"),
+            valued(SECURITY, "Accrued interest", "9000"),
+            units("1000000"));
+
+    var findings = checker.check(TUK75, today, previous, THRESHOLD);
+
+    assertThat(findings).hasSize(1);
+    var finding = findings.getFirst();
+    assertThat(finding.severity()).isEqualTo(NOT_RUN);
+    assertThat(finding.message()).contains("Accrued interest");
+  }
+
+  // A zero-valued row carries no movement to explain, so it must not be able to silence a fund.
+  @Test
+  void aSecurityRowWithNoIsinAndNoValueDoesNotStopTheCheck() {
+    var previous =
+        positions(
+            security("IE00A", "10000", "100", "1000000"),
+            valued(SECURITY, "Closed account", "0"),
+            units("1000000"));
+    var today =
+        positions(
+            security("IE00A", "10000", "102", "1020000"),
+            valued(SECURITY, "Closed account", "0"),
+            units("1000000"));
+
+    assertThat(checker.check(TUK75, today, previous, THRESHOLD)).isEmpty();
+  }
+
+  // Today's missing units row is OutstandingUnitsChecker's finding to make. Yesterday's is
+  // nobody's,
+  // so returning quietly here left a partial previous-day report looking like a clean
+  // reconciliation.
+  @Test
+  void aPreviousDayWithoutAUnitsRowSaysTheCheckCouldNotRun() {
+    var previous = positions(security("IE00A", "10000", "100", "1000000"));
+    var today = positions(security("IE00A", "10000", "102", "1020000"), units("1000000"));
+
+    var findings = checker.check(TUK75, today, previous, THRESHOLD);
+
+    assertThat(findings).hasSize(1);
+    assertThat(findings.getFirst().severity()).isEqualTo(NOT_RUN);
+    assertThat(findings.getFirst().message()).contains("units");
+  }
+
   @Test
   void aFirstEverImportHasNothingToReconcileAgainst() {
     var today = positions(security("IE00A", "10000", "100", "1000000"), units("800000"));

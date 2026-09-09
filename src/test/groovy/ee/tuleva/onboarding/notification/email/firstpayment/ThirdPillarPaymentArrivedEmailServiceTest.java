@@ -79,7 +79,7 @@ class ThirdPillarPaymentArrivedEmailServiceTest {
 
   @Test
   void returnsTrueAndPersistsTheSentEmailWithTheNudgeWhenMandrillAccepts() {
-    given(nudgeDecisionService.decide(user, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
+    given(nudgeDecisionService.decideOffline(user, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
         .willReturn(NudgeDecision.of(NudgeKey.SECOND_PILLAR_PAYMENT_RATE));
     var response = mock(MandrillMessageStatus.class);
     given(response.getId()).willReturn("mandrill-id");
@@ -96,7 +96,8 @@ class ThirdPillarPaymentArrivedEmailServiceTest {
 
   @Test
   void returnsFalseAndDoesNotPersistWhenMandrillFailsToSend() {
-    given(nudgeDecisionService.decide(any(), any())).willReturn(NudgeDecision.of(NudgeKey.NONE));
+    given(nudgeDecisionService.decideOffline(any(), any()))
+        .willReturn(NudgeDecision.of(NudgeKey.NONE));
 
     boolean result = service.send(payment(true));
 
@@ -114,7 +115,7 @@ class ThirdPillarPaymentArrivedEmailServiceTest {
 
   @Test
   void rendersTheDecidedNudgeForAnAccountHolder() {
-    given(nudgeDecisionService.decide(user, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
+    given(nudgeDecisionService.decideOffline(user, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
         .willReturn(NudgeDecision.of(NudgeKey.SECOND_PILLAR_TRANSFER));
     Map<String, Object> expected = baseMergeVars(true);
     expected.putAll(NudgeDecision.of(NudgeKey.SECOND_PILLAR_TRANSFER).mergeVars(Locale.of("et")));
@@ -158,7 +159,7 @@ class ThirdPillarPaymentArrivedEmailServiceTest {
 
   @Test
   void sendsWithoutANudgeWhenTheDecisionFailsSoTheClaimIsNotWasted() {
-    given(nudgeDecisionService.decide(user, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
+    given(nudgeDecisionService.decideOffline(user, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
         .willThrow(new IllegalStateException("EPIS down"));
 
     service.send(payment(true));

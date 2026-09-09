@@ -64,10 +64,10 @@ public class FirstThirdPillarPaymentRepository {
                fa.first_payment_date,
                (u.id IS NOT NULL) AS has_tuleva_user,
                (COALESCE(uo.p2_rava_status, '') <> 'R'
-                 AND (uo.personal_id IS NULL
-                   OR uo.p2_choice IS NULL
-                   OR uo.p2_choice NOT IN ('TUK75', 'TUK00'))) AS suggest_second_pillar,
+                 AND uo.p2_choice IS NOT NULL
+                 AND uo.p2_choice NOT IN ('TUK75', 'TUK00')) AS suggest_second_pillar,
                (COALESCE(uo.p2_rava_status, '') <> 'R'
+                 AND uo.p2_choice IS NOT NULL
                  AND COALESCE(uo.p2_next_rate, uo.p2_rate, 2) < 6) AS suggest_payment_rate,
                (m.id IS NULL) AS suggest_membership,
                (COALESCE(uo.p2_rava_status, '') = 'R') AS left_second_pillar,

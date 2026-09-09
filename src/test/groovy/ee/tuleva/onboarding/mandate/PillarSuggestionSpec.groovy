@@ -25,9 +25,9 @@ class PillarSuggestionSpec extends Specification {
 
     where:
     secondPillarActive | secondPillarPartiallyConverted | secondPillarWeightedAverageFee | suggestSecondPillar
-    false              | false                          | null                           | true
+    false              | false                          | null                           | false
     true               | false                          | null                           | true
-    false              | true                           | null                           | true
+    false              | true                           | null                           | false
     true               | true                           | 0.003                          | false
     true               | true                           | 0.006                          | true
   }
@@ -170,7 +170,7 @@ class PillarSuggestionSpec extends Specification {
     pillarSuggestion.isSuggestPaymentRate()
   }
 
-  def "does not suggest a payment rate increase without an active second pillar"() {
+  def "never suggests second pillar steps without an active second pillar"() {
     when:
     user.getAge() >> 40
     conversion.isSecondPillarPartiallyConverted() >> false
@@ -178,7 +178,7 @@ class PillarSuggestionSpec extends Specification {
     def pillarSuggestion = new PillarSuggestion(user, false, false, conversion, paymentRates)
 
     then:
-    pillarSuggestion.isSuggestSecondPillar()
+    !pillarSuggestion.isSuggestSecondPillar()
     !pillarSuggestion.isSuggestPaymentRate()
   }
 
@@ -296,24 +296,24 @@ class PillarSuggestionSpec extends Specification {
     when:
     user.getAge() >> 40
     user.isMember() >> member
-    conversion.isSecondPillarPartiallyConverted() >> secondPillarActive
+    conversion.isSecondPillarPartiallyConverted() >> secondPillarConverted
     conversion.isThirdPillarPartiallyConverted() >> true
     conversion.getSecondPillarWeightedAverageFee() >> 0.003
     conversion.getThirdPillarWeightedAverageFee() >> 0.003
     paymentRates.canIncrease() >> canIncrease
     def pillarSuggestion =
         new PillarSuggestion(
-            user, secondPillarActive, true, conversion, paymentRates, [] as Set, false, savesInSavingsFund)
+            user, true, true, conversion, paymentRates, [] as Set, false, savesInSavingsFund)
 
     then:
     pillarSuggestion.renderedNudgeTag() == Optional.ofNullable(tag)
 
     where:
-    secondPillarActive | canIncrease | savesInSavingsFund | member | tag
-    false              | false       | true               | false  | "nudge_second_pillar"
-    true               | true        | true               | false  | "nudge_payment_rate"
-    true               | false       | false              | false  | "nudge_savings_fund"
-    true               | false       | true               | false  | "nudge_membership"
-    true               | false       | true               | true   | "nudge_none"
+    secondPillarConverted | canIncrease | savesInSavingsFund | member | tag
+    false                 | false       | true               | false  | "nudge_second_pillar"
+    true                  | true        | true               | false  | "nudge_payment_rate"
+    true                  | false       | false              | false  | "nudge_savings_fund"
+    true                  | false       | true               | false  | "nudge_membership"
+    true                  | false       | true               | true   | "nudge_none"
   }
 }

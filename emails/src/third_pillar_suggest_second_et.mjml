@@ -7,12 +7,12 @@
       <mj-column>
         <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
-          Alustasid kogumist Tuleva madalate tasudega III&nbsp;samba fondis. Märkasin, et
-          II&nbsp;sambasse sa veel koos meiega ei kogu.
+          Alustasid kogumist Tuleva madalate tasudega III&nbsp;samba fondis. II&nbsp;sambasse
+          kogud praegu mujal.
         </mj-text>
         <mj-text>
-          Kui kogud täna oma II&nbsp;sammast pangafondis, siis tasub vaadata üle, kas kogud ikka
-          madalate tasudega ja hästi hajutatud indeksfondis.
+          Oled III&nbsp;samba puhul juba valinud madala tasuga indeksfondi. Tasub vaadata, kas
+          sinu II&nbsp;samba fond järgib samu põhimõtteid: madalad tasud ja lai hajutatus.
         </mj-text>
         <mj-text>
           <strong>
@@ -20,7 +20,7 @@
             indeksfondis:
           </strong>
         </mj-text>
-        <mj-button href="https://pension.tuleva.ee/login">Arvuta oma võit</mj-button>
+        <mj-button href="https://pension.tuleva.ee/login">Vaatan järele</mj-button>
       </mj-column>
     </mj-section>
 

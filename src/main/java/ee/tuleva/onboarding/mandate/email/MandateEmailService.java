@@ -16,12 +16,12 @@ import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
-import ee.tuleva.onboarding.mandate.PillarSuggestion;
-import ee.tuleva.onboarding.mandate.SavingsFundCharges;
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
 import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.notification.email.EmailType;
+import ee.tuleva.onboarding.nudge.NudgeDecision;
+import ee.tuleva.onboarding.nudge.NudgeKey;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
 import ee.tuleva.onboarding.user.User;
 import java.math.BigDecimal;
@@ -46,21 +46,19 @@ public class MandateEmailService {
   private final MandateDeadlinesService mandateDeadlinesService;
   private final SecondPillarPaymentRateService secondPillarPaymentRateService;
   private final AuthenticationHolder authenticationHolder;
-  private final SavingsFundCharges savingsFundCharges;
 
-  public void sendMandate(
-      User user, Mandate mandate, PillarSuggestion pillarSuggestion, Locale locale) {
+  public void sendMandate(User user, Mandate mandate, NudgeDecision decision, Locale locale) {
     if (emailPersistenceService.hasEmailsForMandate(mandate.getIdOrThrow())) {
       log.warn("Skipping mandate (id={}) email as email already present", mandate.getId());
       return;
     }
 
     switch (mandate.getPillar()) {
-      case 2 -> sendSecondPillarEmail(user, mandate, pillarSuggestion, locale);
+      case 2 -> sendSecondPillarEmail(user, mandate, decision, locale);
       case 3 -> {
         scheduleThirdPillarPaymentReminderEmail(user, mandate, locale);
-        if (pillarSuggestion.isSuggestSecondPillar()) {
-          scheduleThirdPillarSuggestSecondEmail(user, mandate, pillarSuggestion, locale);
+        if (decision.key() == NudgeKey.SECOND_PILLAR_TRANSFER) {
+          scheduleThirdPillarSuggestSecondEmail(user, mandate, locale);
         }
       }
       default -> throw new IllegalArgumentException("Unknown pillar: " + mandate.getPillar());
@@ -68,15 +66,15 @@ public class MandateEmailService {
   }
 
   private void sendSecondPillarEmail(
-      User user, Mandate mandate, PillarSuggestion pillarSuggestion, Locale locale) {
+      User user, Mandate mandate, NudgeDecision decision, Locale locale) {
     EmailType emailType = MandateEmailType.emailTypeFor(mandate);
     String templateName = emailType.getTemplateName(locale);
     MandrillMessage mandrillMessage =
         emailService.newMandrillMessage(
             user.getEmail(),
             templateName,
-            getMergeVars(user, mandate, pillarSuggestion, locale),
-            getSecondPillarMandateTags(pillarSuggestion),
+            getMergeVars(user, mandate, decision, locale),
+            List.of("mandate", "pillar_2", decision.tag()),
             getAttachments(user, mandate));
     emailService
         .send(user, mandrillMessage, templateName)
@@ -87,11 +85,12 @@ public class MandateEmailService {
                     response.getId(),
                     emailType,
                     response.getStatus(),
-                    mandate.getIdOrThrow()));
+                    mandate.getIdOrThrow(),
+                    decision.tag()));
   }
 
   private Map<String, Object> getMergeVars(
-      User user, Mandate mandate, PillarSuggestion pillarSuggestion, Locale locale) {
+      User user, Mandate mandate, NudgeDecision decision, Locale locale) {
     var mergeVars = new HashMap<String, Object>();
     mergeVars.putAll(getNameMergeVars(user));
 
@@ -152,9 +151,7 @@ public class MandateEmailService {
       mergeVars.put("sourceFundName", sourceFund.getName(locale));
     }
 
-    mergeVars.putAll(
-        getPillarSuggestionMergeVars(
-            pillarSuggestion, savingsFundCharges.ongoingChargesPercent(locale)));
+    mergeVars.putAll(decision.mergeVars(locale));
     return mergeVars;
   }
 
@@ -193,24 +190,6 @@ public class MandateEmailService {
           "selectedFundFee", "et".equals(locale.getLanguage()) ? fee.replace('.', ',') : fee);
     }
     return mergeVars;
-  }
-
-  private List<String> getSecondPillarMandateTags(PillarSuggestion pillarSuggestion) {
-    List<String> tags = new ArrayList<>();
-    tags.add("mandate");
-    tags.add("pillar_2");
-    if (pillarSuggestion.isSuggestPaymentRate()) {
-      tags.add("suggest_payment_rate");
-    }
-    if (pillarSuggestion.isSuggestThirdPillar()) {
-      tags.add("suggest_3");
-    }
-    if (pillarSuggestion.isSuggestMembership()) {
-      tags.add("suggest_member");
-    }
-
-    pillarSuggestion.renderedNudgeTag().ifPresent(tags::add);
-    return tags;
   }
 
   private Map<String, Object> getThirdPillarReminderMergeVars(User user, Mandate mandate) {
@@ -253,10 +232,9 @@ public class MandateEmailService {
                     mandate.getIdOrThrow()));
   }
 
-  void scheduleThirdPillarSuggestSecondEmail(
-      User user, Mandate mandate, PillarSuggestion pillarSuggestion, Locale locale) {
+  void scheduleThirdPillarSuggestSecondEmail(User user, Mandate mandate, Locale locale) {
     Instant sendAt = Instant.now(clock).plus(3, DAYS);
-    EmailType emailType = MandateEmailType.emailTypeFor(mandate, pillarSuggestion);
+    EmailType emailType = THIRD_PILLAR_SUGGEST_SECOND;
     String templateName = emailType.getTemplateName(locale);
 
     if (hasEmailsToday(user, emailType, mandate)) {

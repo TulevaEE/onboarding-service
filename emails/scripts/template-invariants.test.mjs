@@ -13,6 +13,7 @@ const TEMPLATE_SCOPED_VARIABLES = {
   recipientIsChild: /_child_/,
   recipientIsCompany: /_company_/,
   recipientAccountId: /_(child|company)_/,
+  hasFeeComparison: /^(?!second_pillar_mandate_)/,
 };
 
 const distTemplates = readdirSync(distDir)

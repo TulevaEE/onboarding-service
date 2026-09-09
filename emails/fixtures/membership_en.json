@@ -13,6 +13,18 @@
       "memberDate": "12.08.2026",
       "suggestSecondPillar": true
     },
+    "Second pillar fee comparison": {
+      "FNAME": "Mari",
+      "LNAME": "Maasikas",
+      "memberNumber": "482",
+      "memberDate": "12.08.2026",
+      "suggestSecondPillar": true,
+      "hasFeeComparison": true,
+      "secondPillarFeePercent": "0.65",
+      "secondPillarFeeAmount": 130,
+      "tulevaFeeAmount": 56,
+      "secondPillarSavingsAmount": 74
+    },
     "payment rate increase suggestion": {
       "FNAME": "Jaan",
       "LNAME": "Tamm",

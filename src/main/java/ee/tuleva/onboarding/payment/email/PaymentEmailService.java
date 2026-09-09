@@ -7,18 +7,17 @@ import static java.util.Objects.requireNonNull;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageContent;
 import ee.tuleva.onboarding.mandate.MandateRepository;
-import ee.tuleva.onboarding.mandate.PillarSuggestion;
-import ee.tuleva.onboarding.mandate.SavingsFundCharges;
 import ee.tuleva.onboarding.notification.email.Email;
 import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.notification.email.EmailType;
+import ee.tuleva.onboarding.nudge.NudgeDecision;
 import ee.tuleva.onboarding.payment.Payment;
-import ee.tuleva.onboarding.payment.PaymentData.PaymentType;
 import ee.tuleva.onboarding.user.User;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -31,50 +30,42 @@ public class PaymentEmailService {
   private final MandateRepository mandateRepository;
   private final EmailService emailService;
   private final EmailPersistenceService emailPersistenceService;
-  private final SavingsFundCharges savingsFundCharges;
-
-  private static EmailType successEmailType(Payment payment) {
-    return payment.getPaymentType() == PaymentType.SAVINGS
-        ? EmailType.SAVINGS_FUND_PAYMENT_SUCCESS
-        : EmailType.THIRD_PILLAR_PAYMENT_SUCCESS_MANDATE;
-  }
 
   void sendThirdPillarPaymentSuccessEmail(
-      User user, Payment payment, PillarSuggestion pillarSuggestion, Locale locale) {
-    EmailType emailType = successEmailType(payment);
+      User user, Payment payment, NudgeDecision decision, Locale locale) {
+    EmailType emailType = EmailType.THIRD_PILLAR_PAYMENT_SUCCESS_MANDATE;
     String templateName = emailType.getTemplateName(locale);
 
     MandrillMessage mandrillMessage =
         emailService.newMandrillMessage(
             user.getEmail(),
-            emailType.getTemplateName(locale),
-            getMergeVars(user, payment, pillarSuggestion, locale),
-            getTags(pillarSuggestion),
+            templateName,
+            getMergeVars(user, payment, decision, locale),
+            List.of("pillar_3.1", "mandate", "payment", decision.tag()),
             cancelReminderEmailsAndGetMandateAttachment(user));
     emailService
         .send(user, mandrillMessage, templateName)
         .ifPresent(
             response ->
                 emailPersistenceService.save(
-                    user, response.getId(), emailType, response.getStatus()));
+                    user, response.getId(), emailType, response.getStatus(), decision.tag()));
   }
 
   void sendSavingsFundPaymentEmail(
-      User user, SavingsFundPaymentEmail email, PillarSuggestion pillarSuggestion, Locale locale) {
+      User user, SavingsFundPaymentEmail email, NudgeDecision decision, Locale locale) {
     Map<String, Object> mergeVars = new HashMap<>(getNameMergeVars(user));
-    mergeVars.putAll(
-        getPillarSuggestionMergeVars(
-            pillarSuggestion, savingsFundCharges.ongoingChargesPercent(locale)));
+    mergeVars.putAll(decision.mergeVars(locale));
     mergeVars.putAll(email.mergeVars());
 
-    sendSavingsFundEmail(user, email, mergeVars, getSavingsFundTags(pillarSuggestion), locale);
+    sendSavingsFundEmail(
+        user, email, mergeVars, List.of(SAVINGS_FUND_TAG, decision.tag()), decision.tag(), locale);
   }
 
   void sendSavingsFundPaymentEmail(User user, SavingsFundPaymentEmail email, Locale locale) {
     Map<String, Object> mergeVars = new HashMap<>(getNameMergeVars(user));
     mergeVars.putAll(email.mergeVars());
 
-    sendSavingsFundEmail(user, email, mergeVars, List.of(SAVINGS_FUND_TAG), locale);
+    sendSavingsFundEmail(user, email, mergeVars, List.of(SAVINGS_FUND_TAG), null, locale);
   }
 
   private void sendSavingsFundEmail(
@@ -82,6 +73,7 @@ public class PaymentEmailService {
       SavingsFundPaymentEmail email,
       Map<String, Object> mergeVars,
       List<String> tags,
+      @Nullable String nudge,
       Locale locale) {
     String templateName = email.emailType().getTemplateName(locale);
 
@@ -90,13 +82,19 @@ public class PaymentEmailService {
     emailService
         .send(user, mandrillMessage, templateName)
         .ifPresent(
-            response ->
+            response -> {
+              if (nudge == null) {
                 emailPersistenceService.save(
-                    user, response.getId(), email.emailType(), response.getStatus()));
+                    user, response.getId(), email.emailType(), response.getStatus());
+              } else {
+                emailPersistenceService.save(
+                    user, response.getId(), email.emailType(), response.getStatus(), nudge);
+              }
+            });
   }
 
   private Map<String, Object> getMergeVars(
-      User user, Payment payment, PillarSuggestion pillarSuggestion, Locale locale) {
+      User user, Payment payment, NudgeDecision decision, Locale locale) {
     Map<String, Object> variables =
         new HashMap<>(
             Map.of(
@@ -105,46 +103,9 @@ public class PaymentEmailService {
                 "senderPersonalCode", user.getPersonalCode(),
                 "recipientPersonalCode", payment.getRecipientPersonalCode()));
     variables.putAll(getNameMergeVars(user));
-    variables.putAll(
-        getPillarSuggestionMergeVars(
-            pillarSuggestion, savingsFundCharges.ongoingChargesPercent(locale)));
+    variables.putAll(decision.mergeVars(locale));
 
     return variables;
-  }
-
-  private List<String> getTags(PillarSuggestion pillarSuggestion) {
-    List<String> tags = new ArrayList<>();
-    tags.add("pillar_3.1");
-    tags.add("mandate");
-    tags.add("payment");
-    if (pillarSuggestion.isSuggestPaymentRate()) {
-      tags.add("suggest_payment_rate");
-    }
-    if (pillarSuggestion.isSuggestSecondPillar()) {
-      tags.add("suggest_2");
-    }
-    if (pillarSuggestion.isSuggestMembership()) {
-      tags.add("suggest_member");
-    }
-
-    pillarSuggestion.renderedNudgeTag().ifPresent(tags::add);
-    return tags;
-  }
-
-  private List<String> getSavingsFundTags(PillarSuggestion pillarSuggestion) {
-    List<String> tags = new ArrayList<>();
-    tags.add(SAVINGS_FUND_TAG);
-    if (pillarSuggestion.isSuggestPaymentRate()) {
-      tags.add("suggest_payment_rate");
-    }
-    if (pillarSuggestion.isSuggestSecondPillar()) {
-      tags.add("suggest_2");
-    }
-    if (pillarSuggestion.isSuggestMembership()) {
-      tags.add("suggest_member");
-    }
-    pillarSuggestion.renderedNudgeTag().ifPresent(tags::add);
-    return tags;
   }
 
   private List<MessageContent> cancelReminderEmailsAndGetMandateAttachment(User user) {

@@ -24,6 +24,10 @@ import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.notification.email.EmailStatus;
 import ee.tuleva.onboarding.notification.email.persistence.EmailRepository;
+import ee.tuleva.onboarding.nudge.NudgeContext;
+import ee.tuleva.onboarding.nudge.NudgeDecision;
+import ee.tuleva.onboarding.nudge.NudgeDecisionService;
+import ee.tuleva.onboarding.nudge.NudgeKey;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import java.math.BigDecimal;
@@ -55,12 +59,8 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
   private static final String LONG_TIME_SAVER = TestPersonalCodes.withValidChecksum("3881212121");
   private static final String EMPLOYER_PAID = TestPersonalCodes.withValidChecksum("3900101000");
   private static final String REGISTRY_ONLY = TestPersonalCodes.withValidChecksum("3870101000");
-  private static final String PENSIONER = TestPersonalCodes.withValidChecksum("3550101000");
   private static final String UNDERAGE = TestPersonalCodes.withValidChecksum("5160101000");
   private static final String DECEASED = TestPersonalCodes.withValidChecksum("3840101000");
-  private static final String SECOND_PILLAR_LEAVER =
-      TestPersonalCodes.withValidChecksum("3830101000");
-  private static final String MAXED_OUT = TestPersonalCodes.withValidChecksum("3820101000");
 
   @Autowired private ThirdPillarPaymentArrivedJob job;
   @Autowired private AnalyticsThirdPillarTransactionRepository transactionRepository;
@@ -73,9 +73,12 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
   @Autowired private ThirdPillarPaymentArrivedEmailService paymentArrivedEmailService;
 
   @MockitoBean private EmailService emailService;
+  @MockitoBean private NudgeDecisionService nudgeDecisionService;
 
   @BeforeEach
   void stubMandrill() {
+    given(nudgeDecisionService.decide(any(User.class), any(NudgeContext.class)))
+        .willReturn(NudgeDecision.of(NudgeKey.SECOND_PILLAR_TRANSFER));
     given(emailService.newMandrillMessage(any(), any(), any(), any()))
         .willReturn(new MandrillMessage());
     var response = org.mockito.Mockito.mock(MandrillMessageStatus.class);
@@ -122,21 +125,6 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
             eq("third_pillar_payment_arrived_et"));
     assertThat(sentEmailCount()).isEqualTo(1);
     assertThat(claimCount()).isEqualTo(1);
-  }
-
-  @Test
-  void neverSuggestsTheSecondPillarToSomeoneAtRetirementAge() {
-    saveUser(PENSIONER, "pensioner@example.com");
-    saveOwnPayment(PENSIONER, LocalDate.now().minusDays(1), new BigDecimal("100.00"));
-
-    job.run();
-
-    verify(emailService)
-        .newMandrillMessage(
-            eq("pensioner@example.com"),
-            eq("third_pillar_payment_arrived_et"),
-            argThat(mergeVars -> Boolean.FALSE.equals(mergeVars.get("suggestSecondPillar"))),
-            any());
   }
 
   @Test
@@ -202,7 +190,7 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
             eq("third_pillar_payment_arrived_en"),
             argThat(
                 mergeVars ->
-                    Boolean.TRUE.equals(mergeVars.get("suggestSecondPillar"))
+                    !mergeVars.containsKey("suggestSecondPillar")
                         && Boolean.FALSE.equals(mergeVars.get("hasTulevaUser"))),
             any());
     verify(emailService, times(1))
@@ -294,11 +282,6 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
                 "EST",
                 new BigDecimal("100.00"),
                 LocalDate.now().minusDays(1),
-                false,
-                true,
-                true,
-                true,
-                false,
                 false));
 
     assertThat(sent).isFalse();
@@ -317,45 +300,6 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
     verify(emailService, times(1)).send(any(Person.class), any(), any());
     assertThat(claimCount()).isEqualTo(1);
     assertThat(sentEmailCount()).isZero();
-  }
-
-  @Test
-  void suggestsTheSavingsFundOnlyToMaxedOutNonSavers() {
-    saveUnitOwner(
-        MAXED_OUT,
-        builder -> builder.email("maxed.out@example.com").p2choice("TUK75").p2nextRate(6));
-    saveOwnPayment(MAXED_OUT, LocalDate.now().minusDays(1), new BigDecimal("400.00"));
-
-    job.run();
-
-    verify(emailService)
-        .newMandrillMessage(
-            eq("maxed.out@example.com"),
-            eq("third_pillar_payment_arrived_et"),
-            argThat(
-                mergeVars ->
-                    Boolean.TRUE.equals(mergeVars.get("suggestSavingsFund"))
-                        && Boolean.FALSE.equals(mergeVars.get("suggestSecondPillar"))
-                        && Boolean.FALSE.equals(mergeVars.get("suggestPaymentRate"))),
-            any());
-  }
-
-  @Test
-  void doesNotSuggestTheSavingsFundToAnExistingSaver() {
-    saveUnitOwner(
-        MAXED_OUT,
-        builder -> builder.email("maxed.out@example.com").p2choice("TUK75").p2nextRate(6));
-    saveIssuedSavingsFundPayment(MAXED_OUT);
-    saveOwnPayment(MAXED_OUT, LocalDate.now().minusDays(1), new BigDecimal("400.00"));
-
-    job.run();
-
-    verify(emailService)
-        .newMandrillMessage(
-            eq("maxed.out@example.com"),
-            eq("third_pillar_payment_arrived_et"),
-            argThat(mergeVars -> Boolean.FALSE.equals(mergeVars.get("suggestSavingsFund"))),
-            any());
   }
 
   @Test
@@ -380,41 +324,6 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
 
     verifyNoInteractions(emailService);
     assertThat(claimCount()).isZero();
-  }
-
-  @Test
-  void marksASecondPillarLeaverAndSuppressesSecondPillarNudges() {
-    saveUnitOwner(
-        SECOND_PILLAR_LEAVER,
-        builder -> builder.email("leaver@example.com").p2ravaStatus("R").p2choice("LXK00"));
-    saveOwnPayment(SECOND_PILLAR_LEAVER, LocalDate.now().minusDays(1), new BigDecimal("200.00"));
-
-    job.run();
-
-    verify(emailService)
-        .newMandrillMessage(
-            eq("leaver@example.com"),
-            eq("third_pillar_payment_arrived_et"),
-            argThat(
-                mergeVars ->
-                    Boolean.TRUE.equals(mergeVars.get("leftSecondPillar"))
-                        && Boolean.FALSE.equals(mergeVars.get("suggestSecondPillar"))
-                        && Boolean.FALSE.equals(mergeVars.get("suggestPaymentRate"))),
-            any());
-  }
-
-  private void saveIssuedSavingsFundPayment(String personalCode) {
-    jdbcClient
-        .sql(
-            """
-            INSERT INTO saving_fund_payment
-              (id, party_type, party_code, amount, currency, status, created_at, status_changed_at)
-            VALUES
-              (:id, 'PERSON', :code, 100.00, 'EUR', 'ISSUED', now(), now())
-            """)
-        .param("id", java.util.UUID.randomUUID())
-        .param("code", personalCode)
-        .update();
   }
 
   private void saveOwnPayment(String personalCode, LocalDate date, BigDecimal amount) {

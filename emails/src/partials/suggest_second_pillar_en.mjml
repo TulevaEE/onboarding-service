@@ -1,3 +1,27 @@
+<mj-raw>*|IF:hasFeeComparison|*</mj-raw>
+<mj-text><strong>Euros paid in fees earn no returns</strong></mj-text>
+<mj-text>
+  You are saving your second pillar in high fee funds (*|secondPillarFeePercent|*% per year).
+  This year you will pay *|secondPillarFeeAmount|*&nbsp;€ in fees, and in the Tuleva fund you
+  would pay *|tulevaFeeAmount|*&nbsp;€. You would save *|secondPillarSavingsAmount|*&nbsp;€ per
+  year, which would earn you additional income.
+</mj-text>
+<mj-table padding="8px 0" font-size="16px" line-height="150%" color="#212529">
+  <tr>
+    <th style="padding: 0 0 8px; text-align: left; font-size: 13px; font-weight: 400; color: #6C757D;"></th>
+    <th style="padding: 0 0 8px; text-align: right; font-size: 13px; font-weight: 400; color: #6C757D;">Fees per year</th>
+  </tr>
+  <tr>
+    <td style="padding: 8px 0; border-top: 1px solid #E5E5E5;">Tuleva World Stocks Pension Fund</td>
+    <td style="padding: 8px 0; border-top: 1px solid #E5E5E5; text-align: right; white-space: nowrap;">*|tulevaFeeAmount|*&nbsp;€</td>
+  </tr>
+  <tr>
+    <td style="padding: 8px 0; border-top: 1px solid #E5E5E5;">Your current funds</td>
+    <td style="padding: 8px 0; border-top: 1px solid #E5E5E5; text-align: right; white-space: nowrap;">*|secondPillarFeeAmount|*&nbsp;€</td>
+  </tr>
+</mj-table>
+<mj-button href="https://pension.tuleva.ee/2nd-pillar-flow?utm_content=nudge_second_pillar">Learn more</mj-button>
+<mj-raw>*|ELSE:|*</mj-raw>
 <mj-text>
   If you're not saving your second pillar with us at Tuleva, make sure your second pillar
   fund fees are below 0.3% per year, as low fees provide the best foundation for optimal
@@ -8,3 +32,4 @@
   pillar:</strong>
 </mj-text>
 <mj-button href="https://pension.tuleva.ee/login?utm_content=nudge_second_pillar">Check out your fees</mj-button>
+<mj-raw>*|END:IF|*</mj-raw>

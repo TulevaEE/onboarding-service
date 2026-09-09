@@ -6,8 +6,10 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import java.util.Map;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
@@ -25,6 +27,19 @@ public class SecurityContextRunner {
       action.run();
     } finally {
       SecurityContextHolder.clearContext();
+    }
+  }
+
+  public <T> T callAs(Person person, Supplier<T> action) {
+    Authentication previous = SecurityContextHolder.getContext().getAuthentication();
+    try {
+      setupSecurityContext(person);
+      return action.get();
+    } finally {
+      SecurityContextHolder.clearContext();
+      if (previous != null) {
+        SecurityContextHolder.getContext().setAuthentication(previous);
+      }
     }
   }
 

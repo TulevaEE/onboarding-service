@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.mandate.email
 
-import ee.tuleva.onboarding.mandate.PillarSuggestion
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.mandate.MandateFixture.*
@@ -33,17 +32,5 @@ class MandateEmailTypeSpec extends Specification {
 
     then:
     thrown(IllegalArgumentException)
-  }
-
-  def "emailTypeFor(Mandate, PillarSuggestion) always resolves to the second pillar suggestion nudge"() {
-    given:
-    def pillarSuggestion = Mock(PillarSuggestion)
-    pillarSuggestion.isSuggestSecondPillar() >> suggestSecondPillar
-
-    expect:
-    MandateEmailType.emailTypeFor(thirdPillarMandate(), pillarSuggestion) == THIRD_PILLAR_SUGGEST_SECOND
-
-    where:
-    suggestSecondPillar << [true, false]
   }
 }

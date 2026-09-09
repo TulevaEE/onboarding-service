@@ -1,3 +1,27 @@
+<mj-raw>*|IF:hasFeeComparison|*</mj-raw>
+<mj-text><strong>Tasudeks makstud eurod tootlust ei teeni</strong></mj-text>
+<mj-text>
+  Kogud II&nbsp;sammast kõrge tasuga fondides (*|secondPillarFeePercent|*% aastas). Sel aastal
+  maksad tasudeks *|secondPillarFeeAmount|*&nbsp;€, Tuleva fondis maksaksid
+  *|tulevaFeeAmount|*&nbsp;€. Säästaksid *|secondPillarSavingsAmount|*&nbsp;€ aastas, mis teenib
+  sulle täiendavalt tulu.
+</mj-text>
+<mj-table padding="8px 0" font-size="16px" line-height="150%" color="#212529">
+  <tr>
+    <th style="padding: 0 0 8px; text-align: left; font-size: 13px; font-weight: 400; color: #6C757D;"></th>
+    <th style="padding: 0 0 8px; text-align: right; font-size: 13px; font-weight: 400; color: #6C757D;">Tasud aastas</th>
+  </tr>
+  <tr>
+    <td style="padding: 8px 0; border-top: 1px solid #E5E5E5;">Tuleva Maailma Aktsiate Pensionifond</td>
+    <td style="padding: 8px 0; border-top: 1px solid #E5E5E5; text-align: right; white-space: nowrap;">*|tulevaFeeAmount|*&nbsp;€</td>
+  </tr>
+  <tr>
+    <td style="padding: 8px 0; border-top: 1px solid #E5E5E5;">Sinu praegused fondid</td>
+    <td style="padding: 8px 0; border-top: 1px solid #E5E5E5; text-align: right; white-space: nowrap;">*|secondPillarFeeAmount|*&nbsp;€</td>
+  </tr>
+</mj-table>
+<mj-button href="https://pension.tuleva.ee/2nd-pillar-flow?utm_content=nudge_second_pillar">Vaata lähemalt</mj-button>
+<mj-raw>*|ELSE:|*</mj-raw>
 <mj-text>
   Kui sa ei kogu oma II&nbsp;sammast veel koos meiega Tulevas, siis veendu, et sinu
   II&nbsp;samba fonditasud jääksid alla 0,3% aastas, sest madalad tasud annavad parimad
@@ -7,3 +31,4 @@
   <strong>Vaata järele, kui palju maksad täna aastas oma II&nbsp;samba tasudeks:</strong>
 </mj-text>
 <mj-button href="https://pension.tuleva.ee/login?utm_content=nudge_second_pillar">Vaata oma tasud üle</mj-button>
+<mj-raw>*|END:IF|*</mj-raw>

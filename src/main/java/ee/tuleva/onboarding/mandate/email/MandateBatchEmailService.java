@@ -10,8 +10,6 @@ import static java.util.Objects.requireNonNull;
 import static java.util.stream.Stream.concat;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
-import ee.tuleva.onboarding.mandate.PillarSuggestion;
-import ee.tuleva.onboarding.mandate.SavingsFundCharges;
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
 import ee.tuleva.onboarding.mandate.details.FundPensionOpeningMandateDetails;
 import ee.tuleva.onboarding.mandate.details.PartialWithdrawalMandateDetails;
@@ -35,10 +33,8 @@ public class MandateBatchEmailService {
   private final EmailService emailService;
   private final EmailPersistenceService emailPersistenceService;
   private final MandateProcessorService mandateProcessor;
-  private final SavingsFundCharges savingsFundCharges;
 
-  public void sendMandateBatch(
-      User user, MandateBatch mandateBatch, PillarSuggestion pillarSuggestion, Locale locale) {
+  public void sendMandateBatch(User user, MandateBatch mandateBatch, Locale locale) {
     Long mandateBatchId = mandateBatchIdOf(mandateBatch);
 
     if (emailPersistenceService.hasEmailsForMandateBatch(mandateBatchId)) {
@@ -54,8 +50,8 @@ public class MandateBatchEmailService {
         emailService.newMandrillMessage(
             user.getEmail(),
             templateName,
-            getMergeVars(user, mandateBatch, pillarSuggestion, locale),
-            getMandateBatchTags(mandateBatch, pillarSuggestion),
+            getMergeVars(user, mandateBatch),
+            getMandateBatchTags(mandateBatch),
             getAttachments(user, mandateBatch));
     emailService
         .send(user, mandrillMessage, templateName)
@@ -100,18 +96,6 @@ public class MandateBatchEmailService {
   private Long mandateBatchIdOf(MandateBatch mandateBatch) {
     return requireNonNull(
         mandateBatch.getId(), "Mandate batch is not yet persisted: mandateBatch=" + mandateBatch);
-  }
-
-  private Map<String, Object> getMergeVars(
-      User user, MandateBatch batch, PillarSuggestion pillarSuggestion, Locale locale) {
-    var map = new HashMap<String, Object>();
-    map.putAll(getNameMergeVars(user));
-    map.putAll(
-        getPillarSuggestionMergeVars(
-            pillarSuggestion, savingsFundCharges.ongoingChargesPercent(locale)));
-    map.putAll(getWithdrawalMandateMergeVars(batch));
-
-    return map;
   }
 
   private Map<String, Object> getMergeVars(User user, MandateBatch batch) {
@@ -173,12 +157,6 @@ public class MandateBatchEmailService {
                 ((PartialWithdrawalMandateDetails) mandate.getMandateDto().getDetails())
                     .getPillar())
         .collect(Collectors.toSet());
-  }
-
-  private List<String> getMandateBatchTags(MandateBatch batch, PillarSuggestion pillarSuggestion) {
-    List<String> tags = getMandateBatchTags(batch);
-    pillarSuggestion.renderedNudgeTag().ifPresent(tags::add);
-    return tags;
   }
 
   private List<String> getMandateBatchTags(MandateBatch batch) {

@@ -6,6 +6,17 @@
       "hasTulevaUser": true,
       "suggestSecondPillar": true
     },
+    "Second pillar fee comparison": {
+      "FNAME": "Mari",
+      "paymentDate": "12.08.2026",
+      "hasTulevaUser": true,
+      "suggestSecondPillar": true,
+      "hasFeeComparison": true,
+      "secondPillarFeePercent": "0.65",
+      "secondPillarFeeAmount": 130,
+      "tulevaFeeAmount": 56,
+      "secondPillarSavingsAmount": 74
+    },
     "payment rate increase suggestion": {
       "FNAME": "Mari",
       "paymentDate": "12.08.2026",

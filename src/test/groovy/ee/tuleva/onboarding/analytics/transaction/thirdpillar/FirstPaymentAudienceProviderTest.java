@@ -48,12 +48,7 @@ class FirstPaymentAudienceProviderTest {
             "EST",
             BigDecimal.TEN,
             LocalDate.of(2026, 1, 15),
-            true,
-            false,
-            true,
-            false,
-            false,
-            false);
+            true);
     given(firstPaymentRepository.fetchUnemailedFirstPayments(windowStart, adultBirthDateCutoff))
         .willReturn(List.of(payment));
 

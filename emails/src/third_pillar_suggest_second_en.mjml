@@ -7,13 +7,13 @@
       <mj-column>
         <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
-          You have started to save in Tuleva’s third pillar fund with low fees and a
-          fact-based investment strategy. I noticed that you are not yet saving your
-          second pillar with us.
+          You have started saving in Tuleva’s third pillar fund, with low fees and a fact-based
+          investment strategy. Your second pillar is currently invested elsewhere.
         </mj-text>
         <mj-text>
-          If you're currently saving in a bank's second pillar fund, it's worth checking
-          whether you're really investing in a low-fee, well-diversified index fund.
+          For your third pillar you have already chosen a low-fee index fund. It is worth
+          checking whether your second pillar fund follows the same principles: low fees and
+          broad diversification.
         </mj-text>
         <mj-text>
           <strong>
@@ -22,7 +22,7 @@
           </strong>
         </mj-text>
         <mj-button href="https://pension.tuleva.ee/login?language=en">
-          Calculate your savings
+          Check your second pillar
         </mj-button>
       </mj-column>
     </mj-section>

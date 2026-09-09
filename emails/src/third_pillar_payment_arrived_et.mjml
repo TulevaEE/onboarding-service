@@ -7,9 +7,12 @@
       <mj-column>
         <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
         <mj-text>
-          Sinu sissemakse jõudis pärale *|paymentDate|*. Sellega oled 30%
-          tublimate Eesti inimeste seas, kes III&nbsp;sambas koguvad. Fondiosakud on sinu
-          pensionikontol olemas.
+          Sinu sissemakse jõudis pärale *|paymentDate|* ja fondiosakud on sinu pensionikontol
+          olemas.
+        </mj-text>
+        <mj-text>
+          III&nbsp;sambas kogub vaid 30% Eesti inimestest. Sina kuulud nende hulka ja panustad
+          teadlikult oma tuleviku heaks.
         </mj-text>
 
         <mj-raw>*|IF:hasTulevaUser|*</mj-raw>

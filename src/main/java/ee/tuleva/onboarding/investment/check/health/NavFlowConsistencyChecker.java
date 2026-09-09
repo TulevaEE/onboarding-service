@@ -22,6 +22,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.TreeSet;
+import java.util.stream.Stream;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -36,7 +38,7 @@ class NavFlowConsistencyChecker {
       TulevaFund fund,
       List<FundPosition> todayPositions,
       List<FundPosition> previousPositions,
-      BigDecimal threshold) {
+      @Nullable BigDecimal threshold) {
     if (previousPositions.isEmpty()) {
       return List.of();
     }
@@ -47,15 +49,39 @@ class NavFlowConsistencyChecker {
       return List.of();
     }
 
-    var previousUnits = outstandingUnits(previousPositions);
     var todayUnits = outstandingUnits(todayPositions);
-    if (previousUnits.isEmpty() || todayUnits.isEmpty() || todayUnits.get().signum() <= 0) {
+    if (todayUnits.isEmpty() || todayUnits.get().signum() <= 0) {
       return List.of();
+    }
+
+    var previousUnits = outstandingUnits(previousPositions);
+    if (previousUnits.isEmpty()) {
+      return List.of(
+          couldNotRun(
+              fund, "the previous day's report carries no outstanding units to reconcile against"));
+    }
+
+    var unmarkableAccounts = unmarkableAccounts(previousPositions, todayPositions);
+    if (!unmarkableAccounts.isEmpty()) {
+      return List.of(
+          couldNotRun(
+              fund,
+              "valued securities without an ISIN cannot be marked to market, unmarkableAccounts=%s"
+                  .formatted(String.join(",", unmarkableAccounts))));
     }
 
     var marketPnl = marketPnl(previousPositions, todayPositions);
     if (!marketPnl.isComplete()) {
-      return List.of(couldNotRun(fund, marketPnl.unpricedHoldings()));
+      return List.of(
+          couldNotRun(
+              fund,
+              ("holdings priced on only one of the two days cannot be marked to market,"
+                      + " unpricedHoldings=%s")
+                  .formatted(String.join(",", marketPnl.unpricedHoldings()))));
+    }
+
+    if (threshold == null) {
+      return List.of(couldNotRun(fund, "NAV_FLOW_CONSISTENCY_THRESHOLD is not configured yet"));
     }
 
     var unitsChange = todayUnits.get().subtract(previousUnits.get());
@@ -131,14 +157,29 @@ class NavFlowConsistencyChecker {
     }
   }
 
-  private HealthCheckFinding couldNotRun(TulevaFund fund, List<String> unpricedHoldings) {
+  private List<String> unmarkableAccounts(
+      List<FundPosition> previousPositions, List<FundPosition> todayPositions) {
+    return Stream.concat(
+            securities(previousPositions).stream(), securities(todayPositions).stream())
+        .filter(position -> position.getAccountId() == null)
+        .filter(this::carriesValue)
+        .map(FundPosition::getAccountName)
+        .distinct()
+        .sorted()
+        .toList();
+  }
+
+  private boolean carriesValue(FundPosition position) {
+    var marketValue = position.getMarketValue();
+    return marketValue != null && marketValue.signum() != 0;
+  }
+
+  private HealthCheckFinding couldNotRun(TulevaFund fund, String reason) {
     return new HealthCheckFinding(
         fund,
         NAV_FLOW_CONSISTENCY,
         NOT_RUN,
-        ("NAV flow could not be reconciled: holdings priced on only one of the two days"
-                + " cannot be marked to market, unpricedHoldings=%s")
-            .formatted(String.join(",", unpricedHoldings)));
+        "NAV flow could not be reconciled: %s".formatted(reason));
   }
 
   private Map<String, BigDecimal> pricesByIsin(List<FundPosition> positions) {

@@ -74,6 +74,27 @@ class InvestmentParameterRepositoryTest {
   }
 
   @Test
+  void findLatestValueIfPresent_globalScope_returnsTheValue() {
+    insert(TRACKING_BREACH_THRESHOLD, null, new BigDecimal("0.01"), LocalDate.of(2025, 1, 1));
+
+    assertThat(
+            repository.findLatestValueIfPresent(
+                TRACKING_BREACH_THRESHOLD, LocalDate.of(2025, 6, 15)))
+        .hasValueSatisfying(
+            value -> assertThat(value).isEqualByComparingTo(new BigDecimal("0.01")));
+  }
+
+  @Test
+  void findLatestValueIfPresent_globalScope_isEmptyWhenNoRowIsEffectiveYet() {
+    insert(TRACKING_BREACH_THRESHOLD, null, new BigDecimal("0.01"), LocalDate.of(2025, 1, 1));
+
+    assertThat(
+            repository.findLatestValueIfPresent(
+                TRACKING_BREACH_THRESHOLD, LocalDate.of(2024, 6, 15)))
+        .isEmpty();
+  }
+
+  @Test
   void findLatestValue_fundScope_returnsRowForFund() {
     insert(TRACKING_MAX_DAILY_RETURN, TUK75, new BigDecimal("0.5"), LocalDate.of(2025, 1, 1));
     insert(TRACKING_MAX_DAILY_RETURN, TKF100, new BigDecimal("0.6"), LocalDate.of(2025, 1, 1));

@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -44,8 +45,10 @@ public class HealthCheckService {
   private final NavFlowConsistencyChecker navFlowConsistencyChecker;
   private final InvestmentParameterRepository investmentParameterRepository;
 
-  private BigDecimal navFlowThreshold(LocalDate navDate) {
-    return investmentParameterRepository.findLatestValue(NAV_FLOW_CONSISTENCY_THRESHOLD, navDate);
+  private @Nullable BigDecimal navFlowThreshold(LocalDate navDate) {
+    return investmentParameterRepository
+        .findLatestValueIfPresent(NAV_FLOW_CONSISTENCY_THRESHOLD, navDate)
+        .orElse(null);
   }
 
   public List<HealthCheckResult> check(List<FundPosition> positions) {

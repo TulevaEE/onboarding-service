@@ -1,5 +1,4 @@
 [
-  { "key": "ACCOUNT_RECURRING", "tag": "nudge_savings_fund_recurring" },
   { "key": "SECOND_PILLAR_TRANSFER", "tag": "nudge_second_pillar", "feeComparison": { "currentFeePercent": 0.65, "currentFeeAmount": 130, "tulevaFeeAmount": 56, "savingsAmount": 74 } },
   { "key": "SECOND_PILLAR_TRANSFER", "tag": "nudge_second_pillar" },
   { "key": "SECOND_PILLAR_PAYMENT_RATE", "tag": "nudge_payment_rate" },

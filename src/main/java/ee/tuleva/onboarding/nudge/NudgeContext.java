@@ -32,4 +32,8 @@ public enum NudgeContext {
   public boolean impliesThirdPillar() {
     return suppressed.contains(THIRD_PILLAR_START);
   }
+
+  public boolean impliesSavingsFundSaver() {
+    return suppressed.contains(SAVINGS_FUND);
+  }
 }

@@ -84,7 +84,7 @@ class NudgeControllerTest {
     given(
             nudgeDecisionService.decide(
                 eq(user), eq(NudgeAccount.of(person.getRole())), eq(SAVINGS_FUND_PAYMENT)))
-        .willReturn(NudgeDecision.of(NudgeKey.ACCOUNT_RECURRING));
+        .willReturn(NudgeDecision.of(NudgeKey.SAVINGS_FUND_RECURRING));
 
     mvc.perform(
             get("/v1/me/nudge")
@@ -93,7 +93,8 @@ class NudgeControllerTest {
         .andExpect(status().isOk())
         .andExpect(
             content()
-                .json("{\"key\":\"ACCOUNT_RECURRING\",\"tag\":\"nudge_savings_fund_recurring\"}"));
+                .json(
+                    "{\"key\":\"SAVINGS_FUND_RECURRING\",\"tag\":\"nudge_savings_fund_recurring\"}"));
   }
 
   @Test

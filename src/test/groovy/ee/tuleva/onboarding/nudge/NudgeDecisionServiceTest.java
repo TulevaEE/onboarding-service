@@ -139,18 +139,26 @@ class NudgeDecisionServiceTest {
     given(recurringStatus.savingsFund(child)).willReturn(false);
 
     assertThat(service.decide(member, child, SAVINGS_FUND_PAYMENT))
-        .isEqualTo(NudgeDecision.of(NudgeKey.ACCOUNT_RECURRING));
+        .isEqualTo(NudgeDecision.of(NudgeKey.SAVINGS_FUND_RECURRING));
     assertThat(service.decide(member, self, SAVINGS_FUND_PAYMENT))
         .isEqualTo(NudgeDecision.of(NudgeKey.NONE));
   }
 
   @Test
-  void aCompanyPayerWithAStandingOrderGetsNoPersonalNudges() {
+  void aCompanyPayerGoesThroughTheSameChainAsEveryoneElse() {
     given(recurringStatus.savingsFund(company)).willReturn(true);
     given(pillarStatus.of(member)).willReturn(new PillarActivity(false, false));
 
     assertThat(service.decide(member, company, SAVINGS_FUND_PAYMENT))
-        .isEqualTo(NudgeDecision.of(NudgeKey.NONE));
+        .isEqualTo(NudgeDecision.secondPillarTransfer(null));
+  }
+
+  @Test
+  void aSavingsFundPaymentMakesThePayerASaverEvenBeforeTheUnitsAreIssued() {
+    given(recurringStatus.savingsFund(self)).willReturn(false);
+
+    assertThat(service.decide(member, self, SAVINGS_FUND_PAYMENT))
+        .isEqualTo(NudgeDecision.of(NudgeKey.SAVINGS_FUND_RECURRING));
   }
 
   @Test

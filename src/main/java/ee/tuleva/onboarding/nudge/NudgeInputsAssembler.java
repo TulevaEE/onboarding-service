@@ -26,18 +26,21 @@ class NudgeInputsAssembler {
   private final FeeComparisonCalculator feeComparisonCalculator;
   private final KnownLookups lookups;
 
-  NudgeInputs assemble(User user, NudgeAccount actingParty) {
+  NudgeInputs assemble(User user, NudgeAccount actingParty, NudgeContext context) {
     PillarActivity pillars = pillarStatus.of(user);
     ConversionResponse conversion = conversionService.getConversion(user);
     PaymentRates paymentRates = paymentRateService.getPaymentRates(user);
-    NudgeAccount self = NudgeAccount.self(user);
-    Known ownSavingsFundRecurring = lookups.savingsFundRecurring(self);
-    Known ownSavingsFundSaver = lookups.savesFor(self);
+    Known savingsFundRecurring = lookups.savingsFundRecurring(actingParty);
+    Known savingsFundSaver =
+        context.impliesSavingsFundSaver() ? Known.YES : lookups.savesFor(actingParty);
+    Known savesInSavingsFund =
+        savingsFundSaver.isYes()
+            ? Known.YES
+            : lookups.savesForAnyRepresentedParty(user, lookups.savesFor(NudgeAccount.self(user)));
     return NudgeInputs.builder()
         .adult(user.getAge() >= 18)
         .reachedRetirementAge(user.hasReachedRetirementAge())
         .member(user.isMember())
-        .actingAsLegalEntity(actingParty.isLegalEntity())
         .secondPillarActive(pillars.secondPillarActive())
         .thirdPillarActive(pillars.thirdPillarActive())
         .secondPillarPartiallyConverted(conversion.isSecondPillarPartiallyConverted())
@@ -53,13 +56,9 @@ class NudgeInputsAssembler {
         .leftSecondPillar(lookups.leftSecondPillar(user))
         .thirdPillarRecurring(
             pillars.thirdPillarActive() ? lookups.thirdPillarRecurring(user) : Known.NO)
-        .ownSavingsFundRecurring(ownSavingsFundRecurring)
-        .accountRecurring(
-            actingParty.equals(self)
-                ? ownSavingsFundRecurring
-                : lookups.savingsFundRecurring(actingParty))
-        .savesInSavingsFund(lookups.savesForAnyRepresentedParty(user, ownSavingsFundSaver))
-        .ownSavingsFundSaver(ownSavingsFundSaver)
+        .savingsFundRecurring(savingsFundRecurring)
+        .savesInSavingsFund(savesInSavingsFund)
+        .savingsFundSaver(savingsFundSaver)
         .taxHeadroom(pillars.thirdPillarActive() ? lookups.taxHeadroom(user) : Known.NO)
         .feeComparison(feeComparison(user, conversion))
         .savingsFundFeePercent(savingsFundFeeRate.ongoingChargesPercent())

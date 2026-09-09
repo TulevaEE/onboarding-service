@@ -19,13 +19,12 @@ class OfflineNudgeInputs {
             .orElse(PensionRegistrySnapshot.UNKNOWN_PERSON);
     boolean thirdPillarActive = registry.thirdPillarActive() || context.impliesThirdPillar();
     NudgeAccount self = NudgeAccount.self(user);
-    Known ownSavingsFundRecurring = lookups.savingsFundRecurring(self);
-    Known ownSavingsFundSaver = lookups.savesFor(self);
+    Known savingsFundRecurring = lookups.savingsFundRecurring(self);
+    Known savingsFundSaver = lookups.savesFor(self);
     return NudgeInputs.builder()
         .adult(user.getAge() >= 18)
         .reachedRetirementAge(user.hasReachedRetirementAge())
         .member(user.isMember())
-        .actingAsLegalEntity(false)
         .secondPillarActive(registry.secondPillarActive())
         .thirdPillarActive(thirdPillarActive)
         .secondPillarPartiallyConverted(registry.secondPillarAtTuleva())
@@ -39,10 +38,9 @@ class OfflineNudgeInputs {
         .pendingSecondPillarWithdrawal(false)
         .leftSecondPillar(Known.of(registry.leftSecondPillar()))
         .thirdPillarRecurring(thirdPillarActive ? lookups.thirdPillarRecurring(user) : Known.NO)
-        .ownSavingsFundRecurring(ownSavingsFundRecurring)
-        .accountRecurring(ownSavingsFundRecurring)
-        .savesInSavingsFund(lookups.savesForAnyRepresentedParty(user, ownSavingsFundSaver))
-        .ownSavingsFundSaver(ownSavingsFundSaver)
+        .savingsFundRecurring(savingsFundRecurring)
+        .savesInSavingsFund(lookups.savesForAnyRepresentedParty(user, savingsFundSaver))
+        .savingsFundSaver(savingsFundSaver)
         .taxHeadroom(Known.UNKNOWN)
         .feeComparison(null)
         .savingsFundFeePercent(savingsFundFeeRate.ongoingChargesPercent())

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.notification.email.firstpayment;
 
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.notification.email.EmailType.THIRD_PILLAR_PAYMENT_ARRIVED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -12,8 +13,15 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
 import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.nudge.NudgeContext;
+import ee.tuleva.onboarding.nudge.NudgeDecision;
+import ee.tuleva.onboarding.nudge.NudgeDecisionService;
+import ee.tuleva.onboarding.nudge.NudgeKey;
+import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -25,30 +33,30 @@ class ThirdPillarPaymentArrivedEmailServiceTest {
 
   private static final String PERSONAL_CODE = TestPersonalCodes.withValidChecksum("3860101000");
   private static final LocalDate PAYMENT_DATE = LocalDate.parse("2026-08-16");
-  private static final String SAVINGS_FUND_FEE = "0.30";
 
   private final ThirdPillarPaymentArrivedClaims claims =
       mock(ThirdPillarPaymentArrivedClaims.class);
   private final EmailService emailService = mock(EmailService.class);
   private final EmailPersistenceService emailPersistenceService =
       mock(EmailPersistenceService.class);
-  private final SavingsFundFeeRates savingsFundFees = mock(SavingsFundFeeRates.class);
+  private final UserService userService = mock(UserService.class);
+  private final NudgeDecisionService nudgeDecisionService = mock(NudgeDecisionService.class);
+  private final User user = sampleUser().personalCode(PERSONAL_CODE).build();
 
   private final ThirdPillarPaymentArrivedEmailService service =
       new ThirdPillarPaymentArrivedEmailService(
-          claims, emailService, emailPersistenceService, savingsFundFees);
+          claims, emailService, emailPersistenceService, userService, nudgeDecisionService);
 
   @BeforeEach
   void setUp() {
     given(claims.claim(PERSONAL_CODE)).willReturn(true);
-    given(savingsFundFees.ongoingChargesPercent(any(Locale.class))).willReturn(SAVINGS_FUND_FEE);
     given(emailService.newMandrillMessage(any(), any(), any(), any()))
         .willReturn(new MandrillMessage());
     given(emailService.send(any(), any(), any())).willReturn(Optional.empty());
+    given(userService.findByPersonalCode(PERSONAL_CODE)).willReturn(Optional.of(user));
   }
 
-  private FirstThirdPillarPayment payment(
-      boolean hasTulevaUser, boolean suggestSecondPillar, boolean suggestPaymentRate) {
+  private static FirstThirdPillarPayment payment(boolean hasTulevaUser) {
     return new FirstThirdPillarPayment(
         PERSONAL_CODE,
         "First",
@@ -57,111 +65,109 @@ class ThirdPillarPaymentArrivedEmailServiceTest {
         "EST",
         new BigDecimal("100.00"),
         PAYMENT_DATE,
-        hasTulevaUser,
-        suggestSecondPillar,
-        suggestPaymentRate,
-        true,
-        false,
-        false);
+        hasTulevaUser);
   }
 
-  private Map<String, Object> expectedMergeVars(FirstThirdPillarPayment payment) {
-    return Map.ofEntries(
-        Map.entry("fname", "First"),
-        Map.entry("lname", "Last"),
-        Map.entry("paymentDate", "16.08.2026"),
-        Map.entry("hasTulevaUser", payment.hasTulevaUser()),
-        Map.entry("leftSecondPillar", payment.leftSecondPillar()),
-        Map.entry("suggestSecondPillar", payment.suggestSecondPillar()),
-        Map.entry("suggestPaymentRate", payment.suggestPaymentRate()),
-        Map.entry("suggestMembership", payment.suggestMembership()),
-        Map.entry("suggestSavingsFund", payment.suggestSavingsFund()),
-        Map.entry("suggestThirdPillarRecurringPayment", true),
-        Map.entry("suggestThirdPillarRaise", false),
-        Map.entry("thirdPillarActive", true),
-        Map.entry("suggestSavingsFundRecurringPayment", false),
-        Map.entry("savingsFundFee", SAVINGS_FUND_FEE));
+  private static Map<String, Object> baseMergeVars(boolean hasTulevaUser) {
+    Map<String, Object> vars = new HashMap<>();
+    vars.put("fname", "First");
+    vars.put("lname", "Last");
+    vars.put("paymentDate", "16.08.2026");
+    vars.put("hasTulevaUser", hasTulevaUser);
+    return vars;
   }
 
   @Test
-  void returnsTrueAndPersistsTheSentEmailWhenMandrillAccepts() {
-    var payment = payment(true, true, true);
+  void returnsTrueAndPersistsTheSentEmailWithTheNudgeWhenMandrillAccepts() {
+    given(nudgeDecisionService.decide(user, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
+        .willReturn(NudgeDecision.of(NudgeKey.SECOND_PILLAR_PAYMENT_RATE));
     var response = mock(MandrillMessageStatus.class);
     given(response.getId()).willReturn("mandrill-id");
     given(response.getStatus()).willReturn("sent");
     given(emailService.send(any(), any(), any())).willReturn(Optional.of(response));
+    var payment = payment(true);
 
     boolean result = service.send(payment);
 
     assertThat(result).isTrue();
     verify(emailPersistenceService)
-        .save(payment, "mandrill-id", THIRD_PILLAR_PAYMENT_ARRIVED, "sent");
+        .save(payment, "mandrill-id", THIRD_PILLAR_PAYMENT_ARRIVED, "sent", "nudge_payment_rate");
   }
 
   @Test
   void returnsFalseAndDoesNotPersistWhenMandrillFailsToSend() {
-    var payment = payment(true, true, true);
-    given(emailService.send(any(), any(), any())).willReturn(Optional.empty());
+    given(nudgeDecisionService.decide(any(), any())).willReturn(NudgeDecision.of(NudgeKey.NONE));
 
-    boolean result = service.send(payment);
+    boolean result = service.send(payment(true));
 
     assertThat(result).isFalse();
     verifyNoInteractions(emailPersistenceService);
   }
 
   @Test
-  void tagsIncludeALoginNudgeWhenThePersonHasNoTulevaAccount() {
-    var payment = payment(false, true, true);
+  void doesNotSendWhenTheClaimIsAlreadyTaken() {
+    given(claims.claim(PERSONAL_CODE)).willReturn(false);
 
-    service.send(payment);
-
-    verify(emailService)
-        .newMandrillMessage(
-            "first.last@example.com",
-            "third_pillar_payment_arrived_et",
-            expectedMergeVars(payment),
-            List.of("third_pillar_payment_arrived", "nudge_log_in"));
+    assertThat(service.send(payment(true))).isFalse();
+    verifyNoInteractions(emailService, nudgeDecisionService);
   }
 
   @Test
-  void tagsIncludeASecondPillarNudgeWhenSuggested() {
-    var payment = payment(true, true, true);
+  void rendersTheDecidedNudgeForAnAccountHolder() {
+    given(nudgeDecisionService.decide(user, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
+        .willReturn(NudgeDecision.of(NudgeKey.SECOND_PILLAR_TRANSFER));
+    Map<String, Object> expected = baseMergeVars(true);
+    expected.putAll(NudgeDecision.of(NudgeKey.SECOND_PILLAR_TRANSFER).mergeVars(Locale.of("et")));
 
-    service.send(payment);
+    service.send(payment(true));
 
     verify(emailService)
         .newMandrillMessage(
             "first.last@example.com",
             "third_pillar_payment_arrived_et",
-            expectedMergeVars(payment),
+            expected,
             List.of("third_pillar_payment_arrived", "nudge_second_pillar"));
   }
 
   @Test
-  void tagsIncludeAPaymentRateNudgeWhenSecondPillarIsNotSuggestedButPaymentRateIs() {
-    var payment = payment(true, false, true);
-
-    service.send(payment);
+  void asksThePersonWithoutAnAccountToLogInInstead() {
+    service.send(payment(false));
 
     verify(emailService)
         .newMandrillMessage(
             "first.last@example.com",
             "third_pillar_payment_arrived_et",
-            expectedMergeVars(payment),
-            List.of("third_pillar_payment_arrived", "nudge_payment_rate"));
+            baseMergeVars(false),
+            List.of("third_pillar_payment_arrived", "nudge_log_in"));
+    verifyNoInteractions(nudgeDecisionService);
   }
 
   @Test
-  void tagsFallBackToTheRecurringNudgeWhenNoOtherNudgeApplies() {
-    var payment = payment(true, false, false);
+  void sendsWithoutANudgeWhenTheAccountCannotBeLoaded() {
+    given(userService.findByPersonalCode(PERSONAL_CODE)).willReturn(Optional.empty());
 
-    service.send(payment);
+    service.send(payment(true));
 
     verify(emailService)
         .newMandrillMessage(
             "first.last@example.com",
             "third_pillar_payment_arrived_et",
-            expectedMergeVars(payment),
-            List.of("third_pillar_payment_arrived", "nudge_third_pillar_recurring"));
+            baseMergeVars(true),
+            List.of("third_pillar_payment_arrived", "nudge_none"));
+  }
+
+  @Test
+  void sendsWithoutANudgeWhenTheDecisionFailsSoTheClaimIsNotWasted() {
+    given(nudgeDecisionService.decide(user, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
+        .willThrow(new IllegalStateException("EPIS down"));
+
+    service.send(payment(true));
+
+    verify(emailService)
+        .newMandrillMessage(
+            "first.last@example.com",
+            "third_pillar_payment_arrived_et",
+            baseMergeVars(true),
+            List.of("third_pillar_payment_arrived", "nudge_none"));
   }
 }

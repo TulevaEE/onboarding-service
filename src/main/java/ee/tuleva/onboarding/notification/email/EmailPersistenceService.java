@@ -25,11 +25,15 @@ public class EmailPersistenceService {
   private final Clock clock;
 
   public Email save(Person person, EmailType type, EmailStatus status) {
-    return save(person, null, type, status.name(), null, null);
+    return save(person, null, type, status.name(), null, null, null);
   }
 
   public Email save(Person person, String messageId, EmailType type, String status) {
-    return save(person, messageId, type, status, null, null);
+    return save(person, messageId, type, status, null, null, null);
+  }
+
+  public Email save(Person person, String messageId, EmailType type, String status, String nudge) {
+    return save(person, messageId, type, status, null, null, nudge);
   }
 
   public boolean hasEmailsForMandate(Long mandateId) {
@@ -42,12 +46,22 @@ public class EmailPersistenceService {
 
   public Email saveWithMandate(
       Person person, String messageId, EmailType type, String status, Long mandateId) {
-    return save(person, messageId, type, status, mandateId, null);
+    return save(person, messageId, type, status, mandateId, null, null);
+  }
+
+  public Email saveWithMandate(
+      Person person,
+      String messageId,
+      EmailType type,
+      String status,
+      Long mandateId,
+      String nudge) {
+    return save(person, messageId, type, status, mandateId, null, nudge);
   }
 
   public Email saveWithMandateBatch(
       Person person, String messageId, EmailType type, String status, Long mandateBatchId) {
-    return save(person, messageId, type, status, null, mandateBatchId);
+    return save(person, messageId, type, status, null, mandateBatchId, null);
   }
 
   private Email save(
@@ -56,7 +70,8 @@ public class EmailPersistenceService {
       EmailType type,
       String status,
       @Nullable Long mandateId,
-      @Nullable Long mandateBatchId) {
+      @Nullable Long mandateBatchId,
+      @Nullable String nudge) {
     Email scheduledEmail =
         Email.builder()
             .personalCode(person.getPersonalCode())
@@ -65,6 +80,7 @@ public class EmailPersistenceService {
             .status(EmailStatus.valueOf(status.toUpperCase()))
             .mandateId(mandateId)
             .mandateBatchId(mandateBatchId)
+            .nudge(nudge)
             .build();
     log.info("Saving an email: email={}", scheduledEmail);
     try {

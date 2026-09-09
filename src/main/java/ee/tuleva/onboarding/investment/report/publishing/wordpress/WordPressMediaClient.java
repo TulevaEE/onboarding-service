@@ -8,6 +8,7 @@ import java.util.Optional;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.retry.RetryTemplate;
 import org.springframework.http.MediaType;
@@ -23,6 +24,7 @@ public class WordPressMediaClient {
 
   private static final String DEFAULT_EXTENSION = "pdf";
   private static final int MAX_BASE_SLUG_LENGTH = 100;
+  private static final String ACF_REPORT_FIELD = "investment_report_file";
 
   private final RestClient restClient;
   private final RetryTemplate retryTemplate;
@@ -108,21 +110,48 @@ public class WordPressMediaClient {
   public void updateAcfReportField(String pageSlug, int attachmentId) {
     var pageId = findPageIdBySlug(pageSlug);
 
-    retryTemplate.invoke(
-        () ->
-            restClient
-                .post()
-                .uri("/pages/{pageId}", pageId)
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(Map.of("acf", Map.of("investment_report_file", attachmentId)))
-                .retrieve()
-                .body(Map.class));
+    var response =
+        retryTemplate.invoke(
+            () ->
+                restClient
+                    .post()
+                    .uri("/pages/{pageId}", pageId)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(Map.of("acf", Map.of(ACF_REPORT_FIELD, attachmentId)))
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<Map<String, Object>>() {}));
+
+    assertReportFileStored(pageSlug, pageId, attachmentId, response);
 
     log.info(
         "Updated ACF investment_report_file: pageSlug={}, pageId={}, attachmentId={}",
         pageSlug,
         pageId,
         attachmentId);
+  }
+
+  private static void assertReportFileStored(
+      String pageSlug, int pageId, int attachmentId, @Nullable Map<String, Object> response) {
+    var stored = storedReportFile(response);
+    if (!String.valueOf(attachmentId).equals(stored)) {
+      throw new IllegalStateException(
+          "WordPress accepted the page update but ACF did not store the report file: pageSlug="
+              + pageSlug
+              + ", pageId="
+              + pageId
+              + ", expected="
+              + attachmentId
+              + ", actual="
+              + stored);
+    }
+  }
+
+  private static @Nullable String storedReportFile(@Nullable Map<String, Object> response) {
+    if (response == null || !(response.get("acf") instanceof Map<?, ?> acf)) {
+      return null;
+    }
+    var value = acf.get(ACF_REPORT_FIELD);
+    return value == null ? null : String.valueOf(value);
   }
 
   private int findPageIdBySlug(String slug) {

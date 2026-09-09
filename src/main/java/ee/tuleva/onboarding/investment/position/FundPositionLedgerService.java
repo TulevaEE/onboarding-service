@@ -34,6 +34,13 @@ public class FundPositionLedgerService {
 
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
 
+  private static final List<String> LIABILITIES_ACCRUED_OUTSIDE_THE_POSITION_REPORT =
+      List.of(
+          "Payables of redeemed units",
+          "Management Fee Payable",
+          "Payables to Depository Bank",
+          "Liabilities Other");
+
   private final FundPositionRepository fundPositionRepository;
   private final NavPositionLedger navPositionLedger;
   private final NavFeeAccrualLedger navFeeAccrualLedger;
@@ -188,11 +195,39 @@ public class FundPositionLedgerService {
   }
 
   private BigDecimal calculateTradePayables(TulevaFund fund, LocalDate date) {
-    return fundPositionRepository.findByNavDateAndFundAndAccountType(date, fund, LIABILITY).stream()
+    List<FundPosition> liabilities =
+        fundPositionRepository.findByNavDateAndFundAndAccountType(date, fund, LIABILITY);
+    reportUnrecognisedLiabilities(fund, date, liabilities);
+    return liabilities.stream()
         .filter(p -> isTradePayable(p.getAccountName()))
         .map(FundPosition::getMarketValue)
         .filter(Objects::nonNull)
         .reduce(ZERO, BigDecimal::add);
+  }
+
+  private void reportUnrecognisedLiabilities(
+      TulevaFund fund, LocalDate date, List<FundPosition> liabilities) {
+    unrecognisedLiabilities(liabilities)
+        .forEach(
+            position ->
+                log.error(
+                    "Liability row is not a recognised trade payable and stays out of the fee base:"
+                        + " fund={}, date={}, accountName={}, marketValue={}",
+                    fund,
+                    date,
+                    position.getAccountName(),
+                    position.getMarketValue()));
+  }
+
+  List<FundPosition> unrecognisedLiabilities(List<FundPosition> liabilities) {
+    return liabilities.stream()
+        .filter(position -> !isTradePayable(position.getAccountName()))
+        .filter(position -> !isAccruedOutsideThePositionReport(position.getAccountName()))
+        .toList();
+  }
+
+  private boolean isAccruedOutsideThePositionReport(String accountName) {
+    return LIABILITIES_ACCRUED_OUTSIDE_THE_POSITION_REPORT.stream().anyMatch(accountName::contains);
   }
 
   private boolean isTradePayable(String accountName) {

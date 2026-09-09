@@ -160,7 +160,9 @@ class WordPressMediaClientTest {
   void updateAcfReportFieldFindsPageAndUpdates() throws Exception {
     var pagesResponse =
         objectMapper.writeValueAsString(List.of(Map.of("id", 123, "slug", "test-page")));
-    var updateResponse = objectMapper.writeValueAsString(Map.of("id", 123));
+    var updateResponse =
+        objectMapper.writeValueAsString(
+            Map.of("id", 123, "acf", Map.of("investment_report_file", 42)));
 
     server
         .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/pages?slug=test-page"))
@@ -170,6 +172,72 @@ class WordPressMediaClientTest {
         .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/pages/123"))
         .andExpect(method(org.springframework.http.HttpMethod.POST))
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andRespond(withSuccess(updateResponse, MediaType.APPLICATION_JSON));
+
+    client.updateAcfReportField("test-page", 42);
+
+    server.verify();
+  }
+
+  @Test
+  void updateAcfReportFieldThrowsWhenAcfSilentlyDroppedTheWrite() throws Exception {
+    var pagesResponse =
+        objectMapper.writeValueAsString(List.of(Map.of("id", 123, "slug", "test-page")));
+    var updateResponse = objectMapper.writeValueAsString(Map.of("id", 123));
+
+    server
+        .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/pages?slug=test-page"))
+        .andRespond(withSuccess(pagesResponse, MediaType.APPLICATION_JSON));
+
+    server
+        .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/pages/123"))
+        .andExpect(method(org.springframework.http.HttpMethod.POST))
+        .andRespond(withSuccess(updateResponse, MediaType.APPLICATION_JSON));
+
+    assertThatThrownBy(() -> client.updateAcfReportField("test-page", 42))
+        .isInstanceOf(IllegalStateException.class);
+
+    server.verify();
+  }
+
+  @Test
+  void updateAcfReportFieldThrowsWhenAcfHoldsADifferentAttachment() throws Exception {
+    var pagesResponse =
+        objectMapper.writeValueAsString(List.of(Map.of("id", 123, "slug", "test-page")));
+    var updateResponse =
+        objectMapper.writeValueAsString(
+            Map.of("id", 123, "acf", Map.of("investment_report_file", 41)));
+
+    server
+        .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/pages?slug=test-page"))
+        .andRespond(withSuccess(pagesResponse, MediaType.APPLICATION_JSON));
+
+    server
+        .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/pages/123"))
+        .andExpect(method(org.springframework.http.HttpMethod.POST))
+        .andRespond(withSuccess(updateResponse, MediaType.APPLICATION_JSON));
+
+    assertThatThrownBy(() -> client.updateAcfReportField("test-page", 42))
+        .isInstanceOf(IllegalStateException.class);
+
+    server.verify();
+  }
+
+  @Test
+  void updateAcfReportFieldAcceptsAttachmentIdReturnedAsString() throws Exception {
+    var pagesResponse =
+        objectMapper.writeValueAsString(List.of(Map.of("id", 123, "slug", "test-page")));
+    var updateResponse =
+        objectMapper.writeValueAsString(
+            Map.of("id", 123, "acf", Map.of("investment_report_file", "42")));
+
+    server
+        .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/pages?slug=test-page"))
+        .andRespond(withSuccess(pagesResponse, MediaType.APPLICATION_JSON));
+
+    server
+        .expect(requestTo("https://tuleva.ee/wp-json/wp/v2/pages/123"))
+        .andExpect(method(org.springframework.http.HttpMethod.POST))
         .andRespond(withSuccess(updateResponse, MediaType.APPLICATION_JSON));
 
     client.updateAcfReportField("test-page", 42);

@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.config;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -35,6 +36,12 @@ public class InvestmentParameterRepository {
 
   public BigDecimal findLatestValue(
       InvestmentParameter parameter, TulevaFund fund, LocalDate asOf) {
+    return findLatestValueIfPresent(parameter, fund, asOf)
+        .orElseThrow(() -> missing(parameter, fund, asOf));
+  }
+
+  public Optional<BigDecimal> findLatestValueIfPresent(
+      InvestmentParameter parameter, TulevaFund fund, LocalDate asOf) {
     return jdbcClient
         .sql(
             """
@@ -50,8 +57,7 @@ public class InvestmentParameterRepository {
         .param("fundCode", fund.name())
         .param("asOf", asOf)
         .query(BigDecimal.class)
-        .optional()
-        .orElseThrow(() -> missing(parameter, fund, asOf));
+        .optional();
   }
 
   private static IllegalStateException missing(

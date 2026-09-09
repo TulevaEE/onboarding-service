@@ -162,14 +162,14 @@ class NavFlowConsistencyChecker {
     return Stream.concat(
             securities(previousPositions).stream(), securities(todayPositions).stream())
         .filter(position -> position.getAccountId() == null)
-        .filter(this::carriesValue)
+        .filter(NavFlowConsistencyChecker::carriesValue)
         .map(FundPosition::getAccountName)
         .distinct()
         .sorted()
         .toList();
   }
 
-  private boolean carriesValue(FundPosition position) {
+  private static boolean carriesValue(FundPosition position) {
     var marketValue = position.getMarketValue();
     return marketValue != null && marketValue.signum() != 0;
   }

@@ -17,7 +17,7 @@ import static ee.tuleva.onboarding.auth.role.RoleType.LEGAL_ENTITY
 import static ee.tuleva.onboarding.auth.role.RoleType.PERSON
 import static ee.tuleva.onboarding.nudge.NudgeContext.SAVINGS_FUND_PAYMENT
 import static ee.tuleva.onboarding.nudge.NudgeContext.THIRD_PILLAR_PAYMENT
-import static ee.tuleva.onboarding.nudge.NudgeKey.ACCOUNT_RECURRING
+import static ee.tuleva.onboarding.nudge.NudgeKey.SAVINGS_FUND_RECURRING
 import static ee.tuleva.onboarding.nudge.NudgeKey.MEMBERSHIP
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.MEMBER_FEE
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewSinglePayment
@@ -70,7 +70,7 @@ class PaymentEmailSenderSpec extends Specification {
   def "savings payment receipt decides the nudge for the paid account: #description"() {
     given:
     def user = sampleUser().build()
-    def decision = NudgeDecision.of(ACCOUNT_RECURRING)
+    def decision = NudgeDecision.of(SAVINGS_FUND_RECURRING)
     def event = new SavingsPaymentCreatedEvent(this, user, ENGLISH, recipient)
     1 * savingsFundSuccessEmailResolver.resolve(event) >> email
 

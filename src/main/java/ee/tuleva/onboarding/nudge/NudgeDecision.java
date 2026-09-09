@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.nudge;
 
 import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
-import static ee.tuleva.onboarding.nudge.NudgeKey.ACCOUNT_RECURRING;
 import static ee.tuleva.onboarding.nudge.NudgeKey.MEMBERSHIP;
 import static ee.tuleva.onboarding.nudge.NudgeKey.SAVINGS_FUND;
 import static ee.tuleva.onboarding.nudge.NudgeKey.SAVINGS_FUND_RECURRING;
@@ -54,9 +53,7 @@ public record NudgeDecision(
     vars.put("suggestThirdPillarRecurringPayment", key == THIRD_PILLAR_RECURRING);
     vars.put("suggestThirdPillarRaise", key == THIRD_PILLAR_RAISE);
     vars.put("suggestSavingsFund", key == SAVINGS_FUND);
-    vars.put(
-        "suggestSavingsFundRecurringPayment",
-        key == SAVINGS_FUND_RECURRING || key == ACCOUNT_RECURRING);
+    vars.put("suggestSavingsFundRecurringPayment", key == SAVINGS_FUND_RECURRING);
     vars.put("suggestMembership", key == MEMBERSHIP);
     vars.put("hasFeeComparison", feeComparison != null);
     if (feeComparison != null) {

@@ -31,7 +31,7 @@ final class SavingsNudges {
   }
 
   private static Optional<NudgeDecision> savingsFundRecurring(NudgeInputs in) {
-    if (in.adult() && in.ownSavingsFundSaver().isYes() && in.ownSavingsFundRecurring().isNo()) {
+    if (in.adult() && in.savingsFundSaver().isYes() && in.savingsFundRecurring().isNo()) {
       return Optional.of(of(SAVINGS_FUND_RECURRING));
     }
     return Optional.empty();

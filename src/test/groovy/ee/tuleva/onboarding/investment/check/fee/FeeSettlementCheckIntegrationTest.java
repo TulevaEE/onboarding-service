@@ -98,12 +98,40 @@ class FeeSettlementCheckIntegrationTest {
     accrueFor(LAST_DAY_OF_MAY);
     accrueFor(FIRST_DAY_OF_JUNE);
 
-    navFeeAccrualLedger.deleteFeeAccrualsFromDate(TUK75, MAY);
+    deleteFeeAccrualLedgerTransactionsFrom(TUK75, MAY);
 
     runMonthlyChecks();
 
     assertThat(findEvent("SETTLEMENT_COMPLETENESS", "MANAGEMENT").get("severity"))
         .isEqualTo("FAIL");
+  }
+
+  private void deleteFeeAccrualLedgerTransactionsFrom(TulevaFund fund, LocalDate fromDate) {
+    Instant cutoff = fromDate.atTime(9, 0).atZone(ESTONIAN_ZONE).toInstant();
+    jdbcClient
+        .sql(
+            """
+            DELETE FROM ledger.entry
+            WHERE transaction_id IN (
+              SELECT id FROM ledger.transaction
+              WHERE transaction_type = 'FEE_ACCRUAL'
+                AND CAST(metadata AS VARCHAR) LIKE :fundPattern
+                AND transaction_date >= :cutoff)
+            """)
+        .param("fundPattern", "%\"fund\":%\"" + fund.name() + "\"%")
+        .param("cutoff", Timestamp.from(cutoff))
+        .update();
+    jdbcClient
+        .sql(
+            """
+            DELETE FROM ledger.transaction
+            WHERE transaction_type = 'FEE_ACCRUAL'
+              AND CAST(metadata AS VARCHAR) LIKE :fundPattern
+              AND transaction_date >= :cutoff
+            """)
+        .param("fundPattern", "%\"fund\":%\"" + fund.name() + "\"%")
+        .param("cutoff", Timestamp.from(cutoff))
+        .update();
   }
 
   @Test

@@ -43,7 +43,7 @@ class NudgeChainOrderTest {
 
   private static List<String> chainFlagsInRuleOrder() {
     return java.util.Arrays.stream(NudgeKey.values())
-        .filter(key -> key != NudgeKey.ACCOUNT_RECURRING && key != NudgeKey.NONE)
+        .filter(key -> key != NudgeKey.NONE)
         .map(key -> NudgeDecision.of(key).mergeVars(java.util.Locale.ENGLISH))
         .map(
             vars ->

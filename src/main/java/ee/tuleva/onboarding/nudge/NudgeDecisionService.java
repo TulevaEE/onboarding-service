@@ -21,7 +21,8 @@ public class NudgeDecisionService {
 
   public NudgeDecision decide(User user, NudgeAccount actingParty, NudgeContext context) {
     NudgeInputs inputs =
-        securityContextRunner.callAs(user, () -> inputsAssembler.assemble(user, actingParty));
+        securityContextRunner.callAs(
+            user, () -> inputsAssembler.assemble(user, actingParty, context));
     return decided(user, context, inputs);
   }
 

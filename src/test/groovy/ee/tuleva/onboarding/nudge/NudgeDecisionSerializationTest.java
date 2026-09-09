@@ -22,7 +22,6 @@ class NudgeDecisionSerializationTest {
 
   private static List<NudgeDecision> everyDecisionShape() {
     var decisions = new ArrayList<NudgeDecision>();
-    decisions.add(NudgeDecision.of(NudgeKey.ACCOUNT_RECURRING));
     decisions.add(
         NudgeDecision.secondPillarTransfer(new FeeComparison(new BigDecimal("0.65"), 130, 56, 74)));
     decisions.add(NudgeDecision.secondPillarTransfer(null));
@@ -91,14 +90,6 @@ class NudgeDecisionSerializationTest {
     assertThat(vars)
         .containsEntry("suggestThirdPillar", true)
         .containsEntry("thirdPillarActive", true);
-  }
-
-  @Test
-  void accountRecurringRendersTheSavingsFundRecurringPartial() {
-    Map<String, Object> vars =
-        NudgeDecision.of(NudgeKey.ACCOUNT_RECURRING).mergeVars(Locale.ENGLISH);
-
-    assertThat(vars).containsEntry("suggestSavingsFundRecurringPayment", true);
   }
 
   @Test

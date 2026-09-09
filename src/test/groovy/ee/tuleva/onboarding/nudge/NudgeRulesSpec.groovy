@@ -16,22 +16,21 @@ class NudgeRulesSpec extends Specification {
     NudgeRules.decide(everythingSorted().build(), NudgeContext.THIRD_PILLAR_PAYMENT) == NudgeDecision.of(NONE)
   }
 
-  def "the paid account's missing standing order comes first, but only after a savings fund payment"() {
+  def "a savings fund payment nudges the paid account's missing standing order in its chain position"() {
     given:
-    def inputs = everythingSorted().accountRecurring(NO).member(false).build()
+    def inputs = everythingSorted().savingsFundRecurring(NO).member(false).build()
 
     expect:
-    NudgeRules.decide(inputs, NudgeContext.SAVINGS_FUND_PAYMENT) == NudgeDecision.of(ACCOUNT_RECURRING)
-    NudgeRules.decide(inputs, NudgeContext.THIRD_PILLAR_PAYMENT) == NudgeDecision.of(MEMBERSHIP)
+    NudgeRules.decide(inputs, NudgeContext.SAVINGS_FUND_PAYMENT) == NudgeDecision.of(SAVINGS_FUND_RECURRING)
+    NudgeRules.decide(inputs, NudgeContext.THIRD_PILLAR_PAYMENT) == NudgeDecision.of(SAVINGS_FUND_RECURRING)
   }
 
-  def "a company payer gets the company's standing order nudge or nothing personal"() {
+  def "a company payer goes through the same chain as everyone else"() {
     given:
-    def company = everythingSorted().actingAsLegalEntity(true).member(false).secondPillarActive(false)
+    def inputs = everythingSorted().secondPillarActive(false).savingsFundRecurring(NO).build()
 
     expect:
-    NudgeRules.decide(company.accountRecurring(NO).build(), NudgeContext.SAVINGS_FUND_PAYMENT) == NudgeDecision.of(ACCOUNT_RECURRING)
-    NudgeRules.decide(company.accountRecurring(YES).build(), NudgeContext.SAVINGS_FUND_PAYMENT) == NudgeDecision.of(NONE)
+    NudgeRules.decide(inputs, NudgeContext.SAVINGS_FUND_PAYMENT) == NudgeDecision.secondPillarTransfer(null)
   }
 
   def "second pillar transfer: #description"() {
@@ -173,20 +172,20 @@ class NudgeRulesSpec extends Specification {
     given:
     def inputs = everythingSorted()
         .savesInSavingsFund(saves)
-        .ownSavingsFundSaver(ownSaver)
-        .ownSavingsFundRecurring(ownRecurring)
+        .savingsFundSaver(saver)
+        .savingsFundRecurring(recurring)
         .build()
 
     expect:
     NudgeRules.decide(inputs, context) == expected
 
     where:
-    description                                       | saves   | ownSaver | ownRecurring | context              || expected
+    description                                       | saves   | saver    | recurring    | context              || expected
     "not a saver anywhere"                            | NO      | NO       | NO           | NudgeContext.THIRD_PILLAR_PAYMENT || NudgeDecision.savingsFund(0.28)
     "not after a savings fund payment"                | NO      | NO       | NO           | NudgeContext.SAVINGS_FUND_PAYMENT || NudgeDecision.of(NONE)
     "unknown saver status skips the savings nudges"   | UNKNOWN | UNKNOWN  | NO           | NudgeContext.THIRD_PILLAR_PAYMENT || NudgeDecision.of(NONE)
-    "own account without a standing order"            | YES     | YES      | NO           | NudgeContext.THIRD_PILLAR_PAYMENT || NudgeDecision.of(SAVINGS_FUND_RECURRING)
-    "saves only for a child, no nudge about own account"| YES   | NO       | NO           | NudgeContext.THIRD_PILLAR_PAYMENT || NudgeDecision.of(NONE)
+    "the account in question has no standing order"   | YES     | YES      | NO           | NudgeContext.THIRD_PILLAR_PAYMENT || NudgeDecision.of(SAVINGS_FUND_RECURRING)
+    "saves only through another account, no nudge here"| YES    | NO       | NO           | NudgeContext.THIRD_PILLAR_PAYMENT || NudgeDecision.of(NONE)
   }
 
   def "membership comes last and not right after joining"() {

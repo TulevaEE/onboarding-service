@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.mandate;
+package ee.tuleva.onboarding.nudge;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 

@@ -1,0 +1,14 @@
+[
+  { "key": "ACCOUNT_RECURRING", "tag": "nudge_savings_fund_recurring" },
+  { "key": "SECOND_PILLAR_TRANSFER", "tag": "nudge_second_pillar", "feeComparison": { "currentFeePercent": 0.65, "currentFeeAmount": 130, "tulevaFeeAmount": 56, "savingsAmount": 74 } },
+  { "key": "SECOND_PILLAR_TRANSFER", "tag": "nudge_second_pillar" },
+  { "key": "SECOND_PILLAR_PAYMENT_RATE", "tag": "nudge_payment_rate" },
+  { "key": "THIRD_PILLAR_START", "tag": "nudge_third_pillar" },
+  { "key": "THIRD_PILLAR_FEES", "tag": "nudge_third_pillar" },
+  { "key": "THIRD_PILLAR_RECURRING", "tag": "nudge_third_pillar_recurring" },
+  { "key": "THIRD_PILLAR_RAISE", "tag": "nudge_third_pillar_raise" },
+  { "key": "SAVINGS_FUND", "tag": "nudge_savings_fund", "savingsFundFeePercent": 0.28 },
+  { "key": "SAVINGS_FUND_RECURRING", "tag": "nudge_savings_fund_recurring" },
+  { "key": "MEMBERSHIP", "tag": "nudge_membership" },
+  { "key": "NONE", "tag": "nudge_none" }
+]

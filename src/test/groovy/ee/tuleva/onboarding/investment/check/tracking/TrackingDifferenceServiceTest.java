@@ -734,6 +734,44 @@ class TrackingDifferenceServiceTest {
             event -> asList(event.getArgumentArray()).containsAll(List.of(FeeType.DEPOT, sunday)));
   }
 
+  @Test
+  void aFeeTypeWithNoAccrualAtAllIsReportedAsUncoveredNotSilentlySkipped() {
+    var monday = LocalDate.of(2026, 4, 13);
+    var friday = LocalDate.of(2026, 4, 10);
+    var saturday = LocalDate.of(2026, 4, 11);
+    var sunday = LocalDate.of(2026, 4, 12);
+    setupFundDataForMonday(monday);
+    given(feeAccrualRepository.findByFundAndDateRange(TUK75, saturday, monday))
+        .willReturn(
+            List.of(
+                accrual(FeeType.DEPOT, saturday, new BigDecimal("3.00")),
+                accrual(FeeType.DEPOT, sunday, new BigDecimal("3.00")),
+                accrual(FeeType.DEPOT, monday, new BigDecimal("3.00"))));
+
+    service.runChecksAsOf(monday);
+
+    assertThat(serviceLogs.list)
+        .filteredOn(event -> event.getLevel() == Level.WARN)
+        .extracting(event -> asList(event.getArgumentArray()))
+        .contains(List.of(TUK75, FeeType.MANAGEMENT, friday, monday, 3, 0));
+  }
+
+  @Test
+  void aWindowWithNoAccrualsAtAllReportsEveryFeeTypeAsUncovered() {
+    setupFundData(TUK75);
+    given(feeAccrualRepository.findByFundAndDateRange(TUK75, CHECK_DATE, CHECK_DATE))
+        .willReturn(List.of());
+
+    service.runChecksAsOf(CHECK_DATE);
+
+    assertThat(serviceLogs.list)
+        .filteredOn(event -> event.getLevel() == Level.WARN)
+        .extracting(event -> asList(event.getArgumentArray()))
+        .contains(
+            List.of(TUK75, FeeType.MANAGEMENT, PREVIOUS_DATE, CHECK_DATE, 1, 0),
+            List.of(TUK75, FeeType.DEPOT, PREVIOUS_DATE, CHECK_DATE, 1, 0));
+  }
+
   private void setupFundDataForMonday(LocalDate monday) {
     var friday = publicHolidays.previousWorkingDay(monday);
     var isin = "IE00B4L5Y983";

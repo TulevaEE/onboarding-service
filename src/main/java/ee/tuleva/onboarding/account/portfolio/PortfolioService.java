@@ -51,7 +51,7 @@ public class PortfolioService {
   public Portfolio getPortfolio(
       AuthenticatedPerson person, @Nullable LocalDate from, LocalDate to) {
     List<Transaction> transactions = transactionService.getTransactions(person);
-    LocalDate startDate = from == null ? firstHoldingDate(transactions, to) : from;
+    LocalDate startDate = from == null ? allTimeStart(transactions, to) : from;
     Map<String, PortfolioGroup> groupByIsin = groupByIsin();
     Set<String> heldIsins = PortfolioValuation.heldIsins(transactions, groupByIsin);
 
@@ -68,10 +68,11 @@ public class PortfolioService {
         .build();
   }
 
-  private static LocalDate firstHoldingDate(List<Transaction> transactions, LocalDate to) {
+  private static LocalDate allTimeStart(List<Transaction> transactions, LocalDate to) {
     return transactions.stream()
         .map(PortfolioValuation::pricingDayOf)
         .min(naturalOrder())
+        .map(firstHolding -> earlierOf(firstHolding, to))
         .orElse(to);
   }
 

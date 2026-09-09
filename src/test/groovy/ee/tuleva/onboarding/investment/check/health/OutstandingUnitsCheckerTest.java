@@ -62,6 +62,22 @@ class OutstandingUnitsCheckerTest {
         .satisfies(f -> assertThat(f.severity()).isEqualTo(WARNING));
   }
 
+  @Test
+  void warnsWhenQuantityIsNegative() {
+    var positions = List.of(unitsPosition(new BigDecimal("-1500.00")));
+
+    var findings = checker.check(TUK75, NAV_DATE, positions);
+
+    assertThat(findings)
+        .singleElement()
+        .satisfies(
+            f -> {
+              assertThat(f.fund()).isEqualTo(TUK75);
+              assertThat(f.checkType()).isEqualTo(OUTSTANDING_UNITS);
+              assertThat(f.severity()).isEqualTo(WARNING);
+            });
+  }
+
   private FundPosition unitsPosition(BigDecimal quantity) {
     return FundPosition.builder()
         .navDate(NAV_DATE)

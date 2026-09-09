@@ -19,10 +19,10 @@ import org.springframework.web.client.RestClient;
 
 @Configuration
 @EnableConfigurationProperties(WordPressProperties.class)
+@ConditionalOnProperty(name = "investment-report-publishing.enabled", havingValue = "true")
 class WordPressConfiguration {
 
   @Bean
-  @ConditionalOnProperty(name = "investment-report-publishing.enabled", havingValue = "true")
   WordPressMediaClient wordPressMediaClient(WordPressProperties properties) {
     var credentials = properties.username() + ":" + properties.appPassword();
     var basicAuth = Base64.getEncoder().encodeToString(credentials.getBytes());

@@ -89,12 +89,23 @@ public class EpisCsvParser {
 
   private static @Nullable String valueOfColumnContaining(
       Map<String, String> row, String normalizedKeyword) {
-    for (Map.Entry<String, String> entry : row.entrySet()) {
-      if (entry.getKey().contains(normalizedKeyword)) {
-        return entry.getValue();
-      }
+    List<Map.Entry<String, String>> matches =
+        row.entrySet().stream()
+            .filter(entry -> entry.getKey().contains(normalizedKeyword))
+            .toList();
+    if (matches.size() > 1) {
+      throw ambiguousHeaderMatch(normalizedKeyword, matches);
     }
-    return null;
+    return matches.isEmpty() ? null : matches.getFirst().getValue();
+  }
+
+  private static IllegalArgumentException ambiguousHeaderMatch(
+      String normalizedKeyword, List<Map.Entry<String, String>> matches) {
+    return new IllegalArgumentException(
+        "Ambiguous EPIS CSV header match: keyword="
+            + normalizedKeyword
+            + ", matchedHeaders="
+            + matches.stream().map(Map.Entry::getKey).toList());
   }
 
   static String normalize(String value) {

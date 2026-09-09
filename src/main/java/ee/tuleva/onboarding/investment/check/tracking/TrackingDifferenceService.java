@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.check.tracking;
 import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
 import static java.math.BigDecimal.ZERO;
+import static java.util.Arrays.stream;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.mapping;
@@ -32,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
@@ -318,25 +320,25 @@ class TrackingDifferenceService {
     var accruals =
         feeAccrualRepository.findByFundAndDateRange(fund, previousDate.plusDays(1), checkDate);
     var chargedResolvers =
-        accruals.stream()
-            .map(FeeAccrual::feeType)
-            .distinct()
+        stream(FeeType.values())
             .collect(
                 toMap(identity(), feeType -> feeChargedToFundPolicy.resolverFor(fund, feeType)));
     var chargedAccruals =
-        accruals.stream()
-            .filter(
-                a ->
-                    Objects.requireNonNull(
-                            chargedResolvers.get(a.feeType()),
-                            "No charged-to-fund resolver: feeType=" + a.feeType())
-                        .chargedOn(a.accrualDate()))
+        chargedResolvers.values().stream()
+            .flatMap(resolver -> chargedAccruals(accruals, resolver))
             .toList();
     warnOnIncompleteAccrualCoverage(
         fund, previousDate, checkDate, chargedResolvers, chargedAccruals);
     var accrued =
         chargedAccruals.stream().map(FeeAccrual::dailyAmountGross).reduce(ZERO, BigDecimal::add);
     return accrued.divide(base, SCALE, RoundingMode.HALF_UP);
+  }
+
+  private Stream<FeeAccrual> chargedAccruals(
+      List<FeeAccrual> accruals, FeeChargedToFundPolicy.Resolver resolver) {
+    return accruals.stream()
+        .filter(accrual -> accrual.feeType() == resolver.feeType())
+        .filter(accrual -> resolver.chargedOn(accrual.accrualDate()));
   }
 
   private BigDecimal feeFractionBase(
@@ -362,15 +364,6 @@ class TrackingDifferenceService {
       LocalDate checkDate,
       Map<FeeType, FeeChargedToFundPolicy.Resolver> chargedResolvers,
       List<FeeAccrual> chargedAccruals) {
-    if (chargedResolvers.isEmpty()) {
-      log.warn(
-          "No fee accruals for the check window, the uncovered fee will surface as tracking residual: fund={}, previousDate={}, checkDate={}, windowDays={}",
-          fund,
-          previousDate,
-          checkDate,
-          windowDates(previousDate, checkDate).size());
-      return;
-    }
     var coveredDatesByFeeType =
         chargedAccruals.stream()
             .collect(groupingBy(FeeAccrual::feeType, mapping(FeeAccrual::accrualDate, toSet())));

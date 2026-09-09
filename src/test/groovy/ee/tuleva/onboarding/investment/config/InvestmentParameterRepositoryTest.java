@@ -131,6 +131,36 @@ class InvestmentParameterRepositoryTest {
         .hasMessageContaining("asOf=2025-06-15");
   }
 
+  @Test
+  void findLatestValueIfPresent_fundScope_returnsEmptyWhenNoRowMatches() {
+    assertThat(
+            repository.findLatestValueIfPresent(
+                TRACKING_MAX_DAILY_RETURN, TUK75, LocalDate.of(2025, 6, 15)))
+        .isEmpty();
+  }
+
+  @Test
+  void findLatestValueIfPresent_fundScope_returnsTheLatestRowForTheFund() {
+    insert(TRACKING_MAX_DAILY_RETURN, TUK75, new BigDecimal("0.5"), LocalDate.of(2024, 1, 1));
+    insert(TRACKING_MAX_DAILY_RETURN, TUK75, new BigDecimal("0.7"), LocalDate.of(2025, 1, 1));
+    insert(TRACKING_MAX_DAILY_RETURN, TKF100, new BigDecimal("0.9"), LocalDate.of(2025, 1, 1));
+
+    assertThat(
+            repository.findLatestValueIfPresent(
+                TRACKING_MAX_DAILY_RETURN, TUK75, LocalDate.of(2025, 6, 15)))
+        .hasValueSatisfying(value -> assertThat(value).isEqualByComparingTo(new BigDecimal("0.7")));
+  }
+
+  @Test
+  void findLatestValueIfPresent_fundScope_ignoresGlobalRows() {
+    insert(TRACKING_MAX_DAILY_RETURN, null, new BigDecimal("0.1"), LocalDate.of(2025, 1, 1));
+
+    assertThat(
+            repository.findLatestValueIfPresent(
+                TRACKING_MAX_DAILY_RETURN, TUK75, LocalDate.of(2025, 6, 15)))
+        .isEmpty();
+  }
+
   private void insert(
       InvestmentParameter parameter,
       TulevaFund fund,

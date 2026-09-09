@@ -49,6 +49,8 @@ interface FeeCheckEventRepository extends JpaRepository<FeeCheckEvent, Long> {
   // A deviating row counts as outstanding while no later run of its own check type and scope came
   // back clean, so a check that has deviated since its very first run is included rather than
   // skipped for having no clean run to measure from.
+  // A run that could not look found no deviation but is no evidence there is none, so NOT_RUN is
+  // excluded from the clean rows: a coverage gap must not close an unfixed deviation.
   @Query(
       """
       SELECT MIN(event.checkDate) FROM FeeCheckEvent event
@@ -62,6 +64,8 @@ interface FeeCheckEventRepository extends JpaRepository<FeeCheckEvent, Long> {
             AND clean.checkType = event.checkType
             AND clean.feeScope = event.feeScope
             AND clean.deviationFound = false
+            AND clean.severity <>
+                ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.NOT_RUN
             AND clean.checkDate >= event.checkDate)
       """)
   Optional<LocalDate> findOldestUnresolvedDailyDeviationDate(TulevaFund fund);

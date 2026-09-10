@@ -83,6 +83,8 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
     given(response.getId()).willReturn("mandrill-id");
     given(response.getStatus()).willReturn("sent");
     given(emailService.send(any(Person.class), any(), any())).willReturn(Optional.of(response));
+    given(emailService.send(any(Person.class), any(), any(), any()))
+        .willReturn(Optional.of(response));
   }
 
   @AfterEach
@@ -124,6 +126,47 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
             eq("third_pillar_payment_arrived_et"));
     assertThat(sentEmailCount()).isEqualTo(1);
     assertThat(claimCount()).isEqualTo(1);
+  }
+
+  @Test
+  void schedulesTheSecondPillarLetterForAPayerWithoutAnAccountWhoseSecondPillarIsElsewhere() {
+    saveUnitOwner(REGISTRY_ONLY, "registry.only@example.com", "EST", "LXK75");
+    saveOwnPayment(REGISTRY_ONLY, LocalDate.now().minusDays(1), new BigDecimal("100.00"));
+
+    job.run();
+
+    verify(emailService)
+        .newMandrillMessage(
+            eq("registry.only@example.com"), eq("third_pillar_suggest_second_et"), any(), any());
+    verify(emailService)
+        .send(
+            argThat((Person person) -> REGISTRY_ONLY.equals(person.getPersonalCode())),
+            any(),
+            eq("third_pillar_suggest_second_et"),
+            any(Instant.class));
+  }
+
+  @Test
+  void doesNotScheduleTheSecondPillarLetterForAPayerWhoAlreadySawTheNudge() {
+    saveUser(ACCOUNT_HOLDER, "account.holder@example.com");
+    saveUnitOwner(ACCOUNT_HOLDER, builder -> builder.p2choice("LXK75"));
+    saveOwnPayment(ACCOUNT_HOLDER, LocalDate.now().minusDays(1), new BigDecimal("300.00"));
+
+    job.run();
+
+    verify(emailService, never())
+        .newMandrillMessage(any(), eq("third_pillar_suggest_second_et"), any(), any());
+  }
+
+  @Test
+  void doesNotScheduleTheSecondPillarLetterWhenTheSecondPillarIsAlreadyWithTuleva() {
+    saveUnitOwner(REGISTRY_ONLY, "registry.only@example.com", "EST", "TUK75");
+    saveOwnPayment(REGISTRY_ONLY, LocalDate.now().minusDays(1), new BigDecimal("100.00"));
+
+    job.run();
+
+    verify(emailService, never())
+        .newMandrillMessage(any(), eq("third_pillar_suggest_second_et"), any(), any());
   }
 
   @Test

@@ -13,7 +13,10 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
 import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -34,9 +37,11 @@ class ThirdPillarPaymentArrivedEmailServiceTest {
       mock(EmailPersistenceService.class);
   private final SavingsFundFeeRates savingsFundFees = mock(SavingsFundFeeRates.class);
 
+  private final Clock clock = Clock.fixed(Instant.parse("2026-08-18T10:00:00Z"), ZoneOffset.UTC);
+
   private final ThirdPillarPaymentArrivedEmailService service =
       new ThirdPillarPaymentArrivedEmailService(
-          claims, emailService, emailPersistenceService, savingsFundFees);
+          claims, emailService, emailPersistenceService, savingsFundFees, clock);
 
   @BeforeEach
   void setUp() {

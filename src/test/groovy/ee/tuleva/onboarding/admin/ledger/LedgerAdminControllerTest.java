@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -14,12 +15,18 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import ee.tuleva.onboarding.admin.AdminTokenValidator;
 import ee.tuleva.onboarding.ledger.BlackrockAdjustmentResult;
+import ee.tuleva.onboarding.ledger.LedgerParty;
 import ee.tuleva.onboarding.ledger.LedgerTransaction;
 import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
+import ee.tuleva.onboarding.ledger.PartyReclassification;
+import ee.tuleva.onboarding.ledger.PartyRef;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.ledger.UserAccount;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -220,6 +227,97 @@ class LedgerAdminControllerTest {
                 .param("fundCode", "TUK75")
                 .param("amount", "38531.70")
                 .param("date", "2026-04-02"))
+        .andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void createReclassifications_movesTheBalanceBetweenTwoParties() throws Exception {
+    var transactionId = UUID.randomUUID();
+    var redemptionId = UUID.randomUUID();
+    var mispostedPayoutId = UUID.randomUUID();
+    when(savingsFundLedger.reclassifyBetweenParties(any()))
+        .thenReturn(
+            List.of(
+                LedgerTransaction.builder()
+                    .id(transactionId)
+                    .externalReference(redemptionId)
+                    .metadata(Map.of("account", "CASH_REDEMPTION"))
+                    .build()));
+
+    mockMvc
+        .perform(
+            post("/admin/reclassifications")
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    [
+                      {
+                        "account": "CASH_REDEMPTION",
+                        "debitPartyCode": "12345678",
+                        "debitPartyType": "LEGAL_ENTITY",
+                        "creditPartyCode": "39107050268",
+                        "creditPartyType": "PERSON",
+                        "amount": 2991.94,
+                        "externalReference": "%s",
+                        "correctedTransactionId": "%s",
+                        "description": "Payout was booked to the representative"
+                      }
+                    ]
+                    """
+                        .formatted(redemptionId, mispostedPayoutId)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].transactionId").value(transactionId.toString()));
+
+    verify(savingsFundLedger)
+        .reclassifyBetweenParties(
+            List.of(
+                new PartyReclassification(
+                    UserAccount.CASH_REDEMPTION,
+                    new PartyRef(LedgerParty.PartyType.LEGAL_ENTITY, "12345678"),
+                    new PartyRef(LedgerParty.PartyType.PERSON, "39107050268"),
+                    new BigDecimal("2991.94"),
+                    redemptionId,
+                    mispostedPayoutId,
+                    "Payout was booked to the representative")));
+  }
+
+  @Test
+  void createReclassifications_withBlankDescription_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/reclassifications")
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .contentType(APPLICATION_JSON)
+                .content(
+                    """
+                    [
+                      {
+                        "account": "CASH_REDEMPTION",
+                        "debitPartyCode": "12345678",
+                        "debitPartyType": "LEGAL_ENTITY",
+                        "creditPartyCode": "39107050268",
+                        "creditPartyType": "PERSON",
+                        "amount": 2991.94,
+                        "description": " "
+                      }
+                    ]
+                    """))
+        .andExpect(status().isBadRequest());
+    verifyNoInteractions(savingsFundLedger);
+  }
+
+  @Test
+  void createReclassifications_withInvalidToken_returnsUnauthorized() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/reclassifications")
+                .with(csrf())
+                .header("X-Admin-Token", "wrong-token")
+                .contentType(APPLICATION_JSON)
+                .content("[]"))
         .andExpect(status().isUnauthorized());
   }
 }

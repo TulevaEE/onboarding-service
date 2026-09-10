@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.admin.ledger;
 
 import static org.springframework.format.annotation.DateTimeFormat.ISO.DATE;
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
 
 import ee.tuleva.onboarding.admin.AdminTokenValidator;
 import ee.tuleva.onboarding.ledger.BlackrockAdjustmentResult;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 @Slf4j
 @RestController
@@ -70,6 +72,35 @@ public class LedgerAdminController {
 
     log.info("All adjustments completed: count={}", results.size());
     return results;
+  }
+
+  @Transactional
+  @PostMapping("/reclassifications")
+  public List<Map<String, String>> createReclassifications(
+      @RequestHeader("X-Admin-Token") String token,
+      @RequestBody List<ReclassificationRequest> requests) {
+
+    tokenValidator.validateWithOpsAccess(token);
+    if (requests.stream().anyMatch(request -> request.description().isBlank())) {
+      throw new ResponseStatusException(BAD_REQUEST, "A description is required");
+    }
+
+    log.info("Admin triggered reclassifications: count={}", requests.size());
+
+    var transactions =
+        savingsFundLedger.reclassifyBetweenParties(
+            requests.stream().map(ReclassificationRequest::toReclassification).toList());
+    transactions.forEach(
+        transaction ->
+            log.info(
+                "Reclassification recorded: transactionId={}, account={}, externalReference={}, correctedTransactionId={}",
+                transaction.getId(),
+                transaction.getMetadata().get("account"),
+                transaction.getExternalReference(),
+                transaction.getMetadata().get("correctedTransactionId")));
+    return transactions.stream()
+        .map(transaction -> Map.of("transactionId", transaction.getId().toString()))
+        .toList();
   }
 
   @PostMapping("/blackrock-adjustment")

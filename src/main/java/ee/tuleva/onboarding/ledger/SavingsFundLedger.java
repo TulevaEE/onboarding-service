@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.ledger;
 
+import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.LIABILITY;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.*;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.*;
 
@@ -10,6 +11,8 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
@@ -413,6 +416,82 @@ public class SavingsFundLedger {
         metadataBuilder,
         accounts.entry(debitAccount, amount),
         accounts.entry(creditAccount, amount.negate()));
+  }
+
+  @Transactional
+  public List<LedgerTransaction> reclassifyBetweenParties(List<PartyReclassification> moves) {
+    moves.forEach(SavingsFundLedger::validate);
+    var resolved = moves.stream().map(this::resolve).toList();
+    rejectIfAnyAccountWouldBeLeftInDebit(resolved);
+    return resolved.stream().map(this::record).toList();
+  }
+
+  private record ResolvedReclassification(
+      PartyReclassification move, LedgerAccount debitAccount, LedgerAccount creditAccount) {}
+
+  private ResolvedReclassification resolve(PartyReclassification move) {
+    return new ResolvedReclassification(
+        move,
+        accounts.resolvePartyAccount(move.debitParty(), move.account()),
+        accounts.resolvePartyAccount(move.creditParty(), move.account()));
+  }
+
+  private static void rejectIfAnyAccountWouldBeLeftInDebit(List<ResolvedReclassification> moves) {
+    var resultingBalances = new LinkedHashMap<UUID, BigDecimal>();
+    var accountsById = new HashMap<UUID, LedgerAccount>();
+    for (var move : moves) {
+      for (var side : List.of(move.debitAccount(), move.creditAccount())) {
+        accountsById.putIfAbsent(side.getId(), side);
+        resultingBalances.putIfAbsent(side.getId(), side.getBalance());
+      }
+      resultingBalances.merge(move.debitAccount().getId(), move.move().amount(), BigDecimal::add);
+      resultingBalances.merge(
+          move.creditAccount().getId(), move.move().amount().negate(), BigDecimal::add);
+    }
+    resultingBalances.forEach(
+        (accountId, balance) -> {
+          if (balance.signum() > 0) {
+            throw new IllegalStateException(
+                "Reclassification would leave a holder account in debit: accountId="
+                    + accountId
+                    + ", resultingBalance="
+                    + balance);
+          }
+        });
+  }
+
+  private static void validate(PartyReclassification move) {
+    if (move.account().getAccountType() != LIABILITY) {
+      throw new IllegalArgumentException(
+          "Only holder liability accounts can be reclassified: account=" + move.account());
+    }
+    if (move.debitParty().equals(move.creditParty())) {
+      throw new IllegalArgumentException(
+          "Reclassification needs two different parties: account=" + move.account());
+    }
+    if (move.amount().signum() <= 0) {
+      throw new IllegalArgumentException(
+          "Reclassification amount must be positive: amount=" + move.amount());
+    }
+  }
+
+  private LedgerTransaction record(ResolvedReclassification resolved) {
+    var move = resolved.move();
+    var metadata = new HashMap<String, Object>();
+    metadata.put(OPERATION_TYPE.getKey(), "PARTY_RECLASSIFICATION");
+    metadata.put("account", move.account().name());
+    metadata.put(DESCRIPTION.getKey(), move.description());
+    if (move.correctedTransactionId() != null) {
+      metadata.put("correctedTransactionId", move.correctedTransactionId().toString());
+    }
+
+    return ledgerTransactionService.createTransaction(
+        ADJUSTMENT,
+        Instant.now(clock),
+        move.externalReference(),
+        metadata,
+        accounts.entry(resolved.debitAccount(), move.amount()),
+        accounts.entry(resolved.creditAccount(), move.amount().negate()));
   }
 
   public boolean hasLedgerEntry(UUID externalReference, TransactionType transactionType) {

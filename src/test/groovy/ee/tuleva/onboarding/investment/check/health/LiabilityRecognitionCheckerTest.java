@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.check.health;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.LIABILITY_RECOGNITION;
 import static ee.tuleva.onboarding.investment.position.AccountType.LIABILITY;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -72,6 +73,44 @@ class LiabilityRecognitionCheckerTest {
                 WARNING,
                 "Unrecognised LIABILITY row stays out of trade payables: navDate=2026-04-15,"
                     + " accountName=Liabilities Other, marketValue=-6000.00"));
+  }
+
+  @Test
+  void warnsOnARedemptionPayableThatCarriesAnotherFundsIsin() {
+    var liabilities =
+        List.of(
+            FundPosition.builder()
+                .navDate(NAV_DATE)
+                .fund(TUK75)
+                .accountType(LIABILITY)
+                .accountName("Payables of redeemed units")
+                .accountId(TUK00.getIsin())
+                .marketValue(new BigDecimal("-138440.80"))
+                .build());
+
+    assertThat(checker.check(TUK75, NAV_DATE, liabilities))
+        .containsExactly(
+            new HealthCheckFinding(
+                TUK75,
+                LIABILITY_RECOGNITION,
+                WARNING,
+                "Unrecognised LIABILITY row stays out of trade payables: navDate=2026-04-15,"
+                    + " accountName=Payables of redeemed units, marketValue=-138440.80"));
+  }
+
+  @Test
+  void warnsOnARedemptionPayableThatCarriesNoIsinAtAll() {
+    var liabilities =
+        List.of(liability("Payables of redeemed units", new BigDecimal("-138440.80")));
+
+    assertThat(checker.check(TUK75, NAV_DATE, liabilities))
+        .containsExactly(
+            new HealthCheckFinding(
+                TUK75,
+                LIABILITY_RECOGNITION,
+                WARNING,
+                "Unrecognised LIABILITY row stays out of trade payables: navDate=2026-04-15,"
+                    + " accountName=Payables of redeemed units, marketValue=-138440.80"));
   }
 
   @Test

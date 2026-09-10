@@ -78,7 +78,8 @@ class RedemptionBatchJobTest {
             savingFundPaymentRepository,
             new EndToEndIdConverter(),
             companyRepository,
-            userRepository);
+            userRepository,
+            transactionTemplate);
     return new RedemptionBatchJob(
         clock,
         new PublicHolidays(),
@@ -131,7 +132,7 @@ class RedemptionBatchJobTest {
 
     when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
-    when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
     when(savingsFundLedger.hasPricingEntry(requestId)).thenReturn(true);
     doAnswer(
             invocation -> {
@@ -165,6 +166,7 @@ class RedemptionBatchJobTest {
     when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
     when(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR)).thenReturn("EE111111111111111111");
     when(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR)).thenReturn("EE222222222222222222");
     when(savingFundPaymentRepository.findRemitterNameByIban(
@@ -302,6 +304,7 @@ class RedemptionBatchJobTest {
     when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
     when(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR)).thenReturn("EE111111111111111111");
     when(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR)).thenReturn("EE222222222222222222");
     when(savingFundPaymentRepository.findRemitterNameByIban(
@@ -374,6 +377,7 @@ class RedemptionBatchJobTest {
     when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
     when(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR)).thenReturn("EE111111111111111111");
     when(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR)).thenReturn("EE222222222222222222");
     when(savingFundPaymentRepository.findRemitterNameByIban(
@@ -414,6 +418,7 @@ class RedemptionBatchJobTest {
     when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
     when(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR)).thenReturn("EE111111111111111111");
     when(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR)).thenReturn("EE222222222222222222");
     when(savingFundPaymentRepository.findRemitterNameByIban(
@@ -459,6 +464,7 @@ class RedemptionBatchJobTest {
         .thenReturn(List.of(request))
         .thenReturn(List.of()); // Second run finds no VERIFIED requests
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
     when(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR)).thenReturn("EE111111111111111111");
     when(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR)).thenReturn("EE222222222222222222");
     when(savingFundPaymentRepository.findRemitterNameByIban(
@@ -500,7 +506,7 @@ class RedemptionBatchJobTest {
 
     when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
-    when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
     when(savingsFundLedger.hasPricingEntry(requestId)).thenReturn(true);
 
     doAnswer(
@@ -537,6 +543,7 @@ class RedemptionBatchJobTest {
     when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
     when(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR)).thenReturn("EE111111111111111111");
     when(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR)).thenReturn("EE222222222222222222");
     when(savingFundPaymentRepository.findRemitterNameByIban(
@@ -584,6 +591,7 @@ class RedemptionBatchJobTest {
     when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
     when(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR)).thenReturn("EE111111111111111111");
     when(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR)).thenReturn("EE222222222222222222");
 
@@ -635,12 +643,14 @@ class RedemptionBatchJobTest {
             .reviewedBy("AML Specialist")
             .reviewReason("Source of funds confirmed")
             .reviewedAt(now.minus(1, DAYS))
+            .holdReleasedAt(now.minus(1, DAYS))
             .requestedAt(now.minus(2, DAYS))
             .build();
 
     when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
     when(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR)).thenReturn("EE111111111111111111");
     when(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR)).thenReturn("EE222222222222222222");
     when(savingFundPaymentRepository.findRemitterNameByIban(
@@ -684,6 +694,7 @@ class RedemptionBatchJobTest {
 
     when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
     when(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR)).thenReturn("withdrawal-IBAN");
     when(savingFundPaymentRepository.findRemitterNameByIban(
             eq(new PartyId(PartyId.Type.PERSON, user.getPersonalCode())), eq(customerIban)))
@@ -702,6 +713,29 @@ class RedemptionBatchJobTest {
     verify(eventPublisher).publishEvent(new RequestPaymentEvent(expectedPayment, requestId));
     verify(redemptionStatusService).changeStatus(requestId, REDEEMED);
     assertThat(request.getErrorReason()).isNull();
+  }
+
+  @Test
+  void retryFailedPayout_refusesARequestThatIsStillOnAmlHold() {
+    var batchJob = createBatchJob(Instant.parse("2025-01-15T15:00:00Z"));
+
+    var requestId = UUID.randomUUID();
+    var request =
+        redemptionRequestFixture()
+            .id(requestId)
+            .status(FAILED)
+            .cashAmount(new BigDecimal("10.00"))
+            .holdReason("PEP")
+            .build();
+
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
+
+    assertThatThrownBy(() -> batchJob.retryFailedPayout(requestId))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("AML hold");
+
+    verify(eventPublisher, never()).publishEvent(any());
+    verify(redemptionStatusService, never()).changeStatus(any(), any());
   }
 
   @Test
@@ -776,6 +810,7 @@ class RedemptionBatchJobTest {
     when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
     when(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR)).thenReturn("EE111111111111111111");
     when(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR)).thenReturn("EE222222222222222222");
     when(savingFundPaymentRepository.findRemitterNameByIban(eq(legalEntityParty), eq(customerIban)))
@@ -829,6 +864,7 @@ class RedemptionBatchJobTest {
     when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
     when(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR)).thenReturn("EE111111111111111111");
     when(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR)).thenReturn("EE222222222222222222");
     when(savingFundPaymentRepository.findRemitterNameByIban(eq(personParty), eq(customerIban)))
@@ -879,6 +915,7 @@ class RedemptionBatchJobTest {
     when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
     when(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR)).thenReturn("EE111111111111111111");
     when(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR)).thenReturn("EE222222222222222222");
     when(savingFundPaymentRepository.findRemitterNameByIban(eq(personParty), eq(customerIban)))
@@ -920,6 +957,7 @@ class RedemptionBatchJobTest {
     when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
         .thenReturn(List.of(request));
     when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(redemptionRequestRepository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
     when(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR)).thenReturn("EE111111111111111111");
     when(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR)).thenReturn("EE222222222222222222");
     when(savingFundPaymentRepository.findRemitterNameByIban(eq(legalEntityParty), eq(customerIban)))

@@ -82,11 +82,19 @@ public class RedemptionRequest {
 
   @JsonIgnore @Nullable private String holdReason;
 
+  @JsonIgnore @Nullable private String holdComment;
+
   @JsonIgnore @Nullable private Instant holdAt;
 
   @JsonIgnore @Nullable private String heldBy;
 
   @JsonIgnore @Nullable private Instant holdNotifiedAt;
+
+  @JsonIgnore @Nullable private Instant holdReleasedAt;
+
+  // Set when a frozen order is released back into the queue: the batch job then prices it at the
+  // next dealing date instead of the one it missed while frozen.
+  @JsonIgnore @Nullable private Instant requeuedAt;
 
   @Column(nullable = false)
   private Instant updatedAt;
@@ -121,6 +129,6 @@ public class RedemptionRequest {
   }
 
   public boolean hasActiveHold() {
-    return holdReason != null && reviewedAt == null;
+    return holdReason != null && holdReleasedAt == null;
   }
 }

@@ -313,7 +313,7 @@ class SavingsFundAdminControllerTest {
         .andExpect(status().isOk());
 
     verify(redemptionHoldService)
-        .holdPayout(requestId, "MANUAL: TKF volume alert", "AML Specialist");
+        .holdPayoutManually(requestId, "AML Specialist", "TKF volume alert");
   }
 
   @Test
@@ -329,7 +329,7 @@ class SavingsFundAdminControllerTest {
                 .param("reason", " "))
         .andExpect(status().isBadRequest());
 
-    verify(redemptionHoldService, never()).holdPayout(any(), any(), any());
+    verify(redemptionHoldService, never()).holdPayoutManually(any(), any(), any());
   }
 
   @Test

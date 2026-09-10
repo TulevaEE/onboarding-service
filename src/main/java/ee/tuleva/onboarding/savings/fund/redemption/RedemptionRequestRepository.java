@@ -31,7 +31,7 @@ public interface RedemptionRequestRepository extends CrudRepository<RedemptionRe
       """
       SELECT r FROM RedemptionRequest r
       WHERE r.status = :status
-        AND COALESCE(r.reviewedAt, r.requestedAt) < :cutoff
+        AND COALESCE(r.requeuedAt, r.requestedAt) < :cutoff
       """)
   List<RedemptionRequest> findAcceptedBefore(
       @Param("status") Status status, @Param("cutoff") Instant cutoff);
@@ -40,12 +40,23 @@ public interface RedemptionRequestRepository extends CrudRepository<RedemptionRe
       """
       SELECT r FROM RedemptionRequest r
       WHERE r.holdReason IS NOT NULL
-        AND r.reviewedAt IS NULL
+        AND r.holdReleasedAt IS NULL
         AND r.holdNotifiedAt IS NULL
         AND r.status IN :statuses
       """)
   List<RedemptionRequest> findWithUnsentHoldNotification(
       @Param("statuses") Collection<Status> statuses);
+
+  @Modifying
+  @Transactional
+  @Query(
+      """
+      UPDATE RedemptionRequest r
+         SET r.holdNotifiedAt = :notifiedAt
+       WHERE r.id = :id
+         AND r.holdNotifiedAt IS NULL
+      """)
+  int markHoldNotified(@Param("id") UUID id, @Param("notifiedAt") Instant notifiedAt);
 
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query("SELECT r FROM RedemptionRequest r WHERE r.id = :id")

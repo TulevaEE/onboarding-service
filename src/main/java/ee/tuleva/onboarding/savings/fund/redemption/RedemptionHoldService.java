@@ -2,12 +2,14 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -18,8 +20,10 @@ import org.springframework.transaction.support.TransactionTemplate;
 public class RedemptionHoldService {
 
   static final String SYSTEM = "SYSTEM";
+  static final String MANUAL = "MANUAL";
 
-  private static final List<Status> HOLDABLE_STATUSES = List.of(FROZEN, VERIFIED, PAYOUT_HELD);
+  private static final List<Status> HOLDABLE_STATUSES =
+      List.of(RESERVED, FROZEN, VERIFIED, PAYOUT_HELD);
 
   private final RedemptionRequestRepository repository;
   private final RedemptionStatusService redemptionStatusService;
@@ -34,7 +38,7 @@ public class RedemptionHoldService {
       throw new IllegalStateException(
           "Only reserved redemptions can be frozen: id=" + id + ", status=" + request.getStatus());
     }
-    recordHold(request, reason, SYSTEM);
+    startHold(request, reason, SYSTEM, request.getHoldComment());
     redemptionStatusService.changeStatus(id, FROZEN);
     if (notifier.notifyFrozen(request)) {
       markNotified(request);
@@ -44,6 +48,15 @@ public class RedemptionHoldService {
 
   @Transactional
   public void holdPayout(UUID id, String reason, String by) {
+    holdPayout(id, reason, by, null);
+  }
+
+  @Transactional
+  public void holdPayoutManually(UUID id, String by, String comment) {
+    holdPayout(id, MANUAL, by, comment);
+  }
+
+  private void holdPayout(UUID id, String reason, String by, @Nullable String comment) {
     RedemptionRequest request = findForUpdate(id);
     if (request.getStatus() != RESERVED && request.getStatus() != VERIFIED) {
       throw new IllegalStateException(
@@ -52,14 +65,11 @@ public class RedemptionHoldService {
               + ", status="
               + request.getStatus());
     }
-    if (request.getReviewedAt() != null) {
-      throw new IllegalStateException("Redemption was already released once: id=" + id);
+    if (request.hasActiveHold()) {
+      addHoldReason(request, reason);
+      return;
     }
-    if (request.getHoldReason() != null) {
-      throw new IllegalStateException(
-          "Redemption is already on hold: id=" + id + ", reason=" + request.getHoldReason());
-    }
-    recordHold(request, reason, by);
+    startHold(request, reason, by, comment);
     if (notifier.notifyPayoutHold(request)) {
       markNotified(request);
     }
@@ -70,7 +80,7 @@ public class RedemptionHoldService {
   // after the transaction that records the release has committed.
   public void release(UUID id, String by, String reason) {
     var releasedFrom = transactionTemplate.execute(tx -> recordRelease(id, by, reason));
-    notifier.notifyReleased(id, by);
+    notifier.notifyReleased(id);
     if (releasedFrom == PAYOUT_HELD) {
       payoutService.payOutHeld(id);
     }
@@ -81,15 +91,22 @@ public class RedemptionHoldService {
     Status status = request.getStatus();
     switch (status) {
       case FROZEN -> {
+        request.setRequeuedAt(clock().instant());
         recordReview(request, by, reason);
         redemptionStatusService.changeStatus(id, VERIFIED);
       }
-      case VERIFIED, PAYOUT_HELD -> {
+      case VERIFIED -> {
         if (!request.hasActiveHold()) {
           throw new IllegalStateException(
               "Nothing to release: id=" + id + ", status=" + status + ", no active hold");
         }
         recordReview(request, by, reason);
+      }
+      case PAYOUT_HELD -> {
+        // A release that raced the batch job between pricing and holding is still paid out.
+        if (request.hasActiveHold()) {
+          recordReview(request, by, reason);
+        }
       }
       default ->
           throw new IllegalStateException(
@@ -99,19 +116,34 @@ public class RedemptionHoldService {
     return status;
   }
 
-  @Transactional
   public void resendUnsentHoldNotifications() {
     for (RedemptionRequest request : repository.findWithUnsentHoldNotification(HOLDABLE_STATUSES)) {
       if (notifier.notifyHold(request)) {
-        markNotified(request);
+        repository.markHoldNotified(request.getId(), clock().instant());
       }
     }
   }
 
-  private void recordHold(RedemptionRequest request, String reason, String by) {
+  private void addHoldReason(RedemptionRequest request, String reason) {
+    String existing = requireNonNull(request.getHoldReason());
+    if (!List.of(existing.split(",")).contains(reason)) {
+      request.setHoldReason(existing + "," + reason);
+      repository.save(request);
+    }
+    log.info(
+        "Redemption already on hold, reason added: id={}, reasons={}",
+        request.getId(),
+        request.getHoldReason());
+  }
+
+  private void startHold(
+      RedemptionRequest request, String reason, String by, @Nullable String comment) {
     request.setHoldReason(reason);
+    request.setHoldComment(comment);
     request.setHoldAt(clock().instant());
     request.setHeldBy(by);
+    request.setHoldNotifiedAt(null);
+    request.setHoldReleasedAt(null);
     repository.save(request);
   }
 
@@ -119,6 +151,7 @@ public class RedemptionHoldService {
     request.setReviewedBy(by);
     request.setReviewReason(reason);
     request.setReviewedAt(clock().instant());
+    request.setHoldReleasedAt(clock().instant());
     repository.save(request);
   }
 

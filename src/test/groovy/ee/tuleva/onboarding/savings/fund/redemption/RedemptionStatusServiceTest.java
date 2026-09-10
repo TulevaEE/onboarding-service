@@ -4,6 +4,8 @@ import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Sta
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestFixture.redemptionRequestFixture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -93,6 +95,33 @@ class RedemptionStatusServiceTest {
     var captor = ArgumentCaptor.forClass(RedemptionRequest.class);
     verify(repository).save(captor.capture());
     assertThat(captor.getValue().getStatus()).isEqualTo(REDEEMED);
+  }
+
+  @Test
+  void changeStatus_withExpectedCurrentStatus_transitionsWhenItStillHolds() {
+    var requestId = UUID.randomUUID();
+    var request = redemptionRequestFixture().id(requestId).status(RESERVED).build();
+
+    when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
+
+    redemptionStatusService.changeStatus(requestId, RESERVED, VERIFIED);
+
+    assertThat(request.getStatus()).isEqualTo(VERIFIED);
+    verify(repository).save(request);
+  }
+
+  @Test
+  void changeStatus_withExpectedCurrentStatus_refusesAStaleDecision() {
+    var requestId = UUID.randomUUID();
+    var request = redemptionRequestFixture().id(requestId).status(FROZEN).build();
+
+    when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
+
+    assertThatThrownBy(() -> redemptionStatusService.changeStatus(requestId, RESERVED, VERIFIED))
+        .isInstanceOf(IllegalStateException.class);
+
+    assertThat(request.getStatus()).isEqualTo(FROZEN);
+    verify(repository, never()).save(any());
   }
 
   @Test

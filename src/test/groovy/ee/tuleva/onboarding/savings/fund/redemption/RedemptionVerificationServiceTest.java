@@ -10,6 +10,7 @@ import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_SANCTION;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldService.SYSTEM;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestFixture.redemptionRequestFixture;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerificationService.HIGH_RISK;
@@ -73,7 +74,7 @@ class RedemptionVerificationServiceTest {
 
     service.process(request);
 
-    verify(redemptionStatusService).changeStatus(requestId, VERIFIED);
+    verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
     verifyNoInteractions(holdService);
   }
 
@@ -93,7 +94,7 @@ class RedemptionVerificationServiceTest {
 
     verify(holdService).freeze(requestId, SANCTION);
     verify(holdService, never()).holdPayout(any(), any(), any());
-    verify(redemptionStatusService, never()).changeStatus(any(), any());
+    verifyNoInteractions(redemptionStatusService);
     verify(riskLevels, never()).isHighRisk(any());
   }
 
@@ -113,7 +114,7 @@ class RedemptionVerificationServiceTest {
     service.process(request);
 
     verify(holdService).holdPayout(requestId, PEP, SYSTEM);
-    verify(redemptionStatusService).changeStatus(requestId, VERIFIED);
+    verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
     verify(holdService, never()).freeze(any(), any());
   }
 
@@ -133,7 +134,7 @@ class RedemptionVerificationServiceTest {
     service.process(request);
 
     verify(holdService).holdPayout(requestId, HIGH_RISK, SYSTEM);
-    verify(redemptionStatusService).changeStatus(requestId, VERIFIED);
+    verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
   }
 
   @Test
@@ -152,7 +153,7 @@ class RedemptionVerificationServiceTest {
     service.process(request);
 
     verify(holdService).holdPayout(requestId, "PEP,HIGH_RISK", SYSTEM);
-    verify(redemptionStatusService).changeStatus(requestId, VERIFIED);
+    verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
   }
 
   @Test
@@ -170,7 +171,7 @@ class RedemptionVerificationServiceTest {
     service.process(request);
 
     verifyNoInteractions(holdService);
-    verify(redemptionStatusService, never()).changeStatus(any(), any());
+    verifyNoInteractions(redemptionStatusService);
     verify(riskLevels, never()).isHighRisk(any());
   }
 
@@ -190,7 +191,7 @@ class RedemptionVerificationServiceTest {
 
     service.process(request);
 
-    verify(redemptionStatusService).changeStatus(requestId, VERIFIED);
+    verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
   }
 
   @Test
@@ -210,7 +211,7 @@ class RedemptionVerificationServiceTest {
     service.process(request);
 
     verify(sanctionAndPepScreener).screeningOutcome(user, Countries.of("EE", "RU"));
-    verify(redemptionStatusService).changeStatus(requestId, VERIFIED);
+    verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
   }
 
   @Test
@@ -245,7 +246,7 @@ class RedemptionVerificationServiceTest {
 
     service.process(request);
 
-    verify(redemptionStatusService).changeStatus(requestId, VERIFIED);
+    verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
     verifyNoInteractions(holdService);
     verify(legalEntityScreener, never()).screenLatest(registryCode);
   }
@@ -264,7 +265,7 @@ class RedemptionVerificationServiceTest {
     service.process(request);
 
     verify(holdService).holdPayout(requestId, KYB_NOT_COMPLETED, SYSTEM);
-    verify(redemptionStatusService).changeStatus(requestId, VERIFIED);
+    verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
     verify(legalEntityScreener, never()).screenLatest(registryCode);
   }
 
@@ -283,7 +284,7 @@ class RedemptionVerificationServiceTest {
 
     service.process(request);
 
-    verify(redemptionStatusService).changeStatus(requestId, VERIFIED);
+    verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
     verifyNoInteractions(holdService);
   }
 
@@ -303,7 +304,7 @@ class RedemptionVerificationServiceTest {
     service.process(request);
 
     verify(holdService).holdPayout(requestId, KYB_NOT_COMPLETED, SYSTEM);
-    verify(redemptionStatusService).changeStatus(requestId, VERIFIED);
+    verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
   }
 
   @Test
@@ -325,7 +326,7 @@ class RedemptionVerificationServiceTest {
     service.process(request);
 
     verify(holdService).freeze(requestId, SANCTION);
-    verify(redemptionStatusService, never()).changeStatus(any(), any());
+    verifyNoInteractions(redemptionStatusService);
   }
 
   @Test
@@ -345,7 +346,7 @@ class RedemptionVerificationServiceTest {
     service.process(request);
 
     verify(holdService).holdPayout(requestId, KYB_SCREENING_FAILED, SYSTEM);
-    verify(redemptionStatusService).changeStatus(requestId, VERIFIED);
+    verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
   }
 
   private static RedemptionRequest personRequest(UUID requestId, long userId, String personalCode) {

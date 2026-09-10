@@ -22,6 +22,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
@@ -115,18 +116,20 @@ public class RedemptionBatchJob {
     BigDecimal totalCashAmount = ZERO;
 
     for (RedemptionRequest request : toProcess) {
+      List<RedemptionRequest> held = new ArrayList<>();
       try {
         BigDecimal cashAmount =
             transactionTemplate.execute(
                 ignored -> {
                   RedemptionRequest toUpdate =
-                      redemptionRequestRepository.findById(request.getId()).orElseThrow();
+                      redemptionRequestRepository.findByIdForUpdate(request.getId()).orElseThrow();
 
                   if (toUpdate.getCashAmount() != null) {
                     log.info(
                         "Skipping pricing for already priced redemption: id={}, cashAmount={}",
                         request.getId(),
                         toUpdate.getCashAmount());
+                    holdPayoutIfFlagged(toUpdate, held);
                     return toUpdate.getCashAmount();
                   }
 
@@ -152,6 +155,7 @@ public class RedemptionBatchJob {
                       request.getFundUnits(),
                       amount,
                       nav);
+                  holdPayoutIfFlagged(toUpdate, held);
                   return amount;
                 });
         totalCashAmount = totalCashAmount.add(cashAmount);
@@ -159,6 +163,7 @@ public class RedemptionBatchJob {
         log.error("Failed to price redemption request: id={}", request.getId(), e);
         payoutService.markAsFailed(request.getId(), e);
       }
+      held.forEach(holdNotifier::notifyPayoutHeldAtPricing);
     }
 
     if (totalCashAmount.compareTo(ZERO) > 0) {
@@ -200,7 +205,6 @@ public class RedemptionBatchJob {
       }
 
       if (updated.hasActiveHold()) {
-        holdPayout(updated);
         heldCount++;
         continue;
       }
@@ -216,14 +220,18 @@ public class RedemptionBatchJob {
     return new PayoutResult(payoutCount, heldCount);
   }
 
-  private void holdPayout(RedemptionRequest request) {
-    redemptionStatusService.changeStatus(request.getId(), PAYOUT_HELD);
-    holdNotifier.notifyPayoutHeldAtPricing(request);
-    log.info(
-        "Held payout of redemption under AML review: id={}, cashAmount={}, reason={}",
-        request.getId(),
-        request.getCashAmount(),
-        request.getHoldReason());
+  // Runs inside the pricing transaction with the row locked: a priced request under AML hold is
+  // PAYOUT_HELD in the same commit, so it can neither be paid nor priced twice.
+  private void holdPayoutIfFlagged(RedemptionRequest request, List<RedemptionRequest> held) {
+    if (request.hasActiveHold() && request.getStatus() == VERIFIED) {
+      redemptionStatusService.changeStatus(request.getId(), PAYOUT_HELD);
+      held.add(request);
+      log.info(
+          "Held payout of redemption under AML review: id={}, cashAmount={}, reason={}",
+          request.getId(),
+          request.getCashAmount(),
+          request.getHoldReason());
+    }
   }
 
   @Transactional
@@ -240,6 +248,10 @@ public class RedemptionBatchJob {
     }
     if (request.getCashAmount() == null) {
       throw new IllegalStateException("Cannot retry payout, not priced: id=" + requestId);
+    }
+    if (request.hasActiveHold()) {
+      throw new IllegalStateException(
+          "Cannot retry payout, redemption is on AML hold, release it first: id=" + requestId);
     }
 
     request.setErrorReason(null);

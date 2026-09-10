@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Sta
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.PAYOUT_HELD;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.REDEEMED;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
@@ -26,6 +27,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 @Slf4j
@@ -41,16 +43,30 @@ class RedemptionPayoutService {
   private final EndToEndIdConverter endToEndIdConverter;
   private final CompanyRepository companyRepository;
   private final UserRepository userRepository;
+  private final TransactionTemplate transactionTemplate;
 
-  public void payOut(RedemptionRequest request) {
+  void payOut(RedemptionRequest request) {
     sendPayout(request);
     markAsRedeemed(request.getId());
   }
 
-  public void payOutHeld(UUID requestId) {
+  // The claim (PAYOUT_HELD -> REDEEMED under a row lock) commits before the bank is called, so two
+  // concurrent releases cannot both send the money; a failed send is recorded as FAILED for retry.
+  void payOutHeld(UUID requestId) {
+    RedemptionRequest claimed =
+        requireNonNull(transactionTemplate.execute(tx -> claimHeldPayout(requestId)));
+    try {
+      sendPayout(claimed);
+    } catch (Exception e) {
+      log.error("Failed to pay out released redemption: id={}", requestId, e);
+      markAsFailed(requestId, e);
+    }
+  }
+
+  private RedemptionRequest claimHeldPayout(UUID requestId) {
     RedemptionRequest request =
         redemptionRequestRepository
-            .findById(requestId)
+            .findByIdForUpdate(requestId)
             .orElseThrow(
                 () -> new NoSuchElementException("Redemption request not found: id=" + requestId));
     if (request.getStatus() != PAYOUT_HELD) {
@@ -60,15 +76,14 @@ class RedemptionPayoutService {
               + ", status="
               + request.getStatus());
     }
-    try {
-      payOut(request);
-    } catch (Exception e) {
-      log.error("Failed to pay out released redemption: id={}", requestId, e);
-      markAsFailed(requestId, e);
+    if (request.getCashAmount() == null) {
+      throw new IllegalStateException("Cannot pay out, not priced: id=" + requestId);
     }
+    markAsRedeemed(requestId);
+    return request;
   }
 
-  public void sendPayout(RedemptionRequest request) {
+  void sendPayout(RedemptionRequest request) {
     BigDecimal cashAmount = request.getCashAmount();
     if (cashAmount == null) {
       throw new IllegalStateException("Cannot pay out, not priced: id=" + request.getId());
@@ -84,22 +99,17 @@ class RedemptionPayoutService {
             .description("Fondi tagasivõtmine")
             .build();
     eventPublisher.publishEvent(new RequestPaymentEvent(paymentRequest, request.getId()));
-    log.info(
-        "Sent redemption payout: id={}, amount={}, iban={}, beneficiaryName={}",
-        request.getId(),
-        cashAmount,
-        request.getCustomerIban(),
-        beneficiaryName);
+    log.info("Sent redemption payout: id={}, amount={}", request.getId(), cashAmount);
   }
 
-  public void markAsRedeemed(UUID requestId) {
+  void markAsRedeemed(UUID requestId) {
     redemptionStatusService.changeStatus(requestId, REDEEMED);
     RedemptionRequest request = redemptionRequestRepository.findById(requestId).orElseThrow();
     request.setProcessedAt(Instant.now(clock));
     redemptionRequestRepository.save(request);
   }
 
-  public void markAsFailed(UUID requestId, Exception e) {
+  void markAsFailed(UUID requestId, Exception e) {
     try {
       RedemptionRequest request = redemptionRequestRepository.findById(requestId).orElseThrow();
       request.setErrorReason(e.toString());

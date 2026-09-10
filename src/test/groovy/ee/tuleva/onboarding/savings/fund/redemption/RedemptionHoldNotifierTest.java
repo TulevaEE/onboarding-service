@@ -84,13 +84,11 @@ class RedemptionHoldNotifierTest {
   }
 
   @Test
-  void notifyReleased_namesTheReleaser() {
-    assertThat(notifier.notifyReleased(REQUEST_ID, "AML Specialist")).isTrue();
+  void notifyReleased_carriesOnlyTheRequestId() {
+    assertThat(notifier.notifyReleased(REQUEST_ID)).isTrue();
 
     verify(notificationService)
-        .sendMessage(
-            "AML: redemption released: id=2db696b5-00ee-4937-87b4-8192c675e4b5, by=AML Specialist",
-            AML);
+        .sendMessage("AML: redemption released: id=2db696b5-00ee-4937-87b4-8192c675e4b5", AML);
   }
 
   @Test

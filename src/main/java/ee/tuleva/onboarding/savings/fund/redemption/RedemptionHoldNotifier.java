@@ -45,8 +45,8 @@ class RedemptionHoldNotifier {
             .formatted(request.getId(), request.getCashAmount(), request.getNavPerUnit()));
   }
 
-  boolean notifyReleased(UUID requestId, String by) {
-    return send("AML: redemption released: id=%s, by=%s".formatted(requestId, by));
+  boolean notifyReleased(UUID requestId) {
+    return send("AML: redemption released: id=%s".formatted(requestId));
   }
 
   boolean notifyUnscreened(int count) {

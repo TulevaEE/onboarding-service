@@ -11,6 +11,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -34,6 +36,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @ExtendWith(MockitoExtension.class)
 class RedemptionPayoutServiceTest {
@@ -48,11 +52,19 @@ class RedemptionPayoutServiceTest {
   @Mock private SavingFundPaymentRepository savingFundPaymentRepository;
   @Mock private CompanyRepository companyRepository;
   @Mock private UserRepository userRepository;
+  @Mock private TransactionTemplate transactionTemplate;
 
   private RedemptionPayoutService service;
 
   @BeforeEach
   void setUp() {
+    doAnswer(
+            invocation -> {
+              TransactionCallback<?> callback = invocation.getArgument(0);
+              return callback.doInTransaction(null);
+            })
+        .when(transactionTemplate)
+        .execute(any());
     service =
         new RedemptionPayoutService(
             Clock.fixed(NOW, UTC),
@@ -63,24 +75,18 @@ class RedemptionPayoutServiceTest {
             savingFundPaymentRepository,
             new EndToEndIdConverter(),
             companyRepository,
-            userRepository);
+            userRepository,
+            transactionTemplate);
   }
 
   @Test
-  void payOutHeld_sendsThePaymentAndMarksRedeemed() {
+  void payOutHeld_claimsThePayoutBeforeSendingThePayment() {
     var user = sampleUser().build();
     var party = new PartyId(PERSON, user.getPersonalCode());
     var requestId = UUID.fromString("2db696b5-00ee-4937-87b4-8192c675e4b5");
-    var request =
-        redemptionRequestFixture()
-            .id(requestId)
-            .userId(user.getId())
-            .status(PAYOUT_HELD)
-            .customerIban(CUSTOMER_IBAN)
-            .cashAmount(new BigDecimal("25.00"))
-            .holdReason("PEP")
-            .reviewedAt(NOW)
-            .build();
+    var request = heldRequest(requestId, user.getId());
+    given(redemptionRequestRepository.findByIdForUpdate(requestId))
+        .willReturn(Optional.of(request));
     given(redemptionRequestRepository.findById(requestId)).willReturn(Optional.of(request));
     given(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR)).willReturn("withdrawal-IBAN");
     given(savingFundPaymentRepository.findRemitterNameByIban(party, CUSTOMER_IBAN))
@@ -96,8 +102,11 @@ class RedemptionPayoutServiceTest {
             .amount(new BigDecimal("25.00"))
             .description("Fondi tagasivõtmine")
             .build();
-    verify(eventPublisher).publishEvent(new RequestPaymentEvent(expectedPayment, requestId));
-    verify(redemptionStatusService).changeStatus(requestId, REDEEMED);
+    var inOrder = inOrder(redemptionStatusService, eventPublisher);
+    inOrder.verify(redemptionStatusService).changeStatus(requestId, REDEEMED);
+    inOrder
+        .verify(eventPublisher)
+        .publishEvent(new RequestPaymentEvent(expectedPayment, requestId));
     assertThat(request.getProcessedAt()).isEqualTo(NOW);
   }
 
@@ -106,16 +115,9 @@ class RedemptionPayoutServiceTest {
     var user = sampleUser().build();
     var party = new PartyId(PERSON, user.getPersonalCode());
     var requestId = UUID.randomUUID();
-    var request =
-        redemptionRequestFixture()
-            .id(requestId)
-            .userId(user.getId())
-            .status(PAYOUT_HELD)
-            .customerIban(CUSTOMER_IBAN)
-            .cashAmount(new BigDecimal("25.00"))
-            .holdReason("PEP")
-            .reviewedAt(NOW)
-            .build();
+    var request = heldRequest(requestId, user.getId());
+    given(redemptionRequestRepository.findByIdForUpdate(requestId))
+        .willReturn(Optional.of(request));
     given(redemptionRequestRepository.findById(requestId)).willReturn(Optional.of(request));
     given(savingFundPaymentRepository.findRemitterNameByIban(party, CUSTOMER_IBAN))
         .willReturn(Optional.empty());
@@ -124,8 +126,8 @@ class RedemptionPayoutServiceTest {
     service.payOutHeld(requestId);
 
     verify(eventPublisher, never()).publishEvent(any(RequestPaymentEvent.class));
+    verify(redemptionStatusService).changeStatus(requestId, REDEEMED);
     verify(redemptionStatusService).changeStatus(requestId, FAILED);
-    verify(redemptionStatusService, never()).changeStatus(requestId, REDEEMED);
     assertThat(request.getErrorReason()).contains("Beneficiary name not resolvable");
   }
 
@@ -138,20 +140,49 @@ class RedemptionPayoutServiceTest {
             .status(VERIFIED)
             .cashAmount(new BigDecimal("25.00"))
             .build();
-    given(redemptionRequestRepository.findById(requestId)).willReturn(Optional.of(request));
+    given(redemptionRequestRepository.findByIdForUpdate(requestId))
+        .willReturn(Optional.of(request));
 
     assertThatThrownBy(() -> service.payOutHeld(requestId))
         .isInstanceOf(IllegalStateException.class);
 
+    verify(redemptionStatusService, never()).changeStatus(any(), any());
     verify(eventPublisher, never()).publishEvent(any());
+  }
+
+  @Test
+  void payOutHeld_rejectsRequestThatWasNeverPriced() {
+    var requestId = UUID.randomUUID();
+    var request =
+        redemptionRequestFixture().id(requestId).status(PAYOUT_HELD).holdReason("PEP").build();
+    given(redemptionRequestRepository.findByIdForUpdate(requestId))
+        .willReturn(Optional.of(request));
+
+    assertThatThrownBy(() -> service.payOutHeld(requestId))
+        .isInstanceOf(IllegalStateException.class);
+
+    verify(redemptionStatusService, never()).changeStatus(any(), any());
   }
 
   @Test
   void payOutHeld_throwsWhenRequestNotFound() {
     var requestId = UUID.randomUUID();
-    given(redemptionRequestRepository.findById(requestId)).willReturn(Optional.empty());
+    given(redemptionRequestRepository.findByIdForUpdate(requestId)).willReturn(Optional.empty());
 
     assertThatThrownBy(() -> service.payOutHeld(requestId))
         .isInstanceOf(NoSuchElementException.class);
+  }
+
+  private static RedemptionRequest heldRequest(UUID requestId, Long userId) {
+    return redemptionRequestFixture()
+        .id(requestId)
+        .userId(userId)
+        .status(PAYOUT_HELD)
+        .customerIban(CUSTOMER_IBAN)
+        .cashAmount(new BigDecimal("25.00"))
+        .holdReason("PEP")
+        .holdReleasedAt(NOW)
+        .reviewedAt(NOW)
+        .build();
   }
 }

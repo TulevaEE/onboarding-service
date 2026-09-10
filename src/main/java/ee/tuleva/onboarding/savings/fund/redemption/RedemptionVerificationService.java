@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_SANCTION;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.PENDING;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldService.SYSTEM;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
 
 import ee.tuleva.onboarding.aml.RiskLevels;
@@ -70,14 +71,14 @@ public class RedemptionVerificationService {
       case FREEZE -> holdService.freeze(request.getId(), verdict.reason());
       case HOLD_PAYOUT -> {
         holdService.holdPayout(request.getId(), verdict.reason(), SYSTEM);
-        redemptionStatusService.changeStatus(request.getId(), VERIFIED);
+        redemptionStatusService.changeStatus(request.getId(), RESERVED, VERIFIED);
       }
       case CLEAR -> {
         log.info(
             "Redemption verification passed: id={}, party={}",
             request.getId(),
             request.getPartyId());
-        redemptionStatusService.changeStatus(request.getId(), VERIFIED);
+        redemptionStatusService.changeStatus(request.getId(), RESERVED, VERIFIED);
       }
     }
   }

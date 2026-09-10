@@ -1,11 +1,13 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldService.MANUAL;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldService.SYSTEM;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestFixture.redemptionRequestFixture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
@@ -60,6 +62,7 @@ class RedemptionHoldServiceTest {
     assertThat(request.getHoldAt()).isEqualTo(TestClockHolder.now);
     assertThat(request.getHeldBy()).isEqualTo(SYSTEM);
     assertThat(request.getHoldNotifiedAt()).isEqualTo(TestClockHolder.now);
+    assertThat(request.getHoldReleasedAt()).isNull();
     assertThat(request.hasActiveHold()).isTrue();
     verify(redemptionStatusService).changeStatus(requestId, FROZEN);
   }
@@ -101,40 +104,74 @@ class RedemptionHoldServiceTest {
     given(repository.findByIdForUpdate(requestId)).willReturn(Optional.of(request));
     given(notifier.notifyPayoutHold(request)).willReturn(false);
 
-    service.holdPayout(requestId, "MANUAL: volume alert", "AML Specialist");
+    service.holdPayoutManually(requestId, "AML Specialist", "TKF volume alert");
 
     assertThat(request.hasActiveHold()).isTrue();
+    assertThat(request.getHoldReason()).isEqualTo(MANUAL);
+    assertThat(request.getHoldComment()).isEqualTo("TKF volume alert");
     assertThat(request.getHeldBy()).isEqualTo("AML Specialist");
     assertThat(request.getHoldNotifiedAt()).isNull();
   }
 
   @Test
-  void holdPayout_rejectsRequestThatIsAlreadyOnHold() {
+  void holdPayout_addsAReasonToAnActiveHoldInsteadOfFailing() {
+    var requestId = UUID.randomUUID();
+    var request =
+        redemptionRequestFixture()
+            .id(requestId)
+            .status(RESERVED)
+            .holdReason(MANUAL)
+            .heldBy("AML Specialist")
+            .build();
+    given(repository.findByIdForUpdate(requestId)).willReturn(Optional.of(request));
+
+    service.holdPayout(requestId, "PEP", SYSTEM);
+
+    assertThat(request.getHoldReason()).isEqualTo("MANUAL,PEP");
+    assertThat(request.getHeldBy()).isEqualTo("AML Specialist");
+    verify(notifier, never()).notifyPayoutHold(any());
+  }
+
+  @Test
+  void holdPayout_doesNotRepeatAReasonAlreadyOnTheHold() {
     var requestId = UUID.randomUUID();
     var request =
         redemptionRequestFixture().id(requestId).status(VERIFIED).holdReason("PEP").build();
     given(repository.findByIdForUpdate(requestId)).willReturn(Optional.of(request));
 
-    assertThatThrownBy(() -> service.holdPayout(requestId, "HIGH_RISK", SYSTEM))
-        .isInstanceOf(IllegalStateException.class);
+    service.holdPayout(requestId, "PEP", SYSTEM);
 
     assertThat(request.getHoldReason()).isEqualTo("PEP");
+    verify(repository, never()).save(any());
   }
 
   @Test
-  void holdPayout_rejectsRequestThatWasAlreadyReleasedOnce() {
+  void holdPayout_startsANewHoldAfterAnEarlierRelease() {
     var requestId = UUID.randomUUID();
     var request =
         redemptionRequestFixture()
             .id(requestId)
             .status(VERIFIED)
             .holdReason("PEP")
-            .reviewedAt(TestClockHolder.now)
+            .heldBy(SYSTEM)
+            .holdNotifiedAt(TestClockHolder.now.minusSeconds(7200))
+            .holdReleasedAt(TestClockHolder.now.minusSeconds(3600))
+            .reviewedBy("AML Specialist")
+            .reviewedAt(TestClockHolder.now.minusSeconds(3600))
             .build();
     given(repository.findByIdForUpdate(requestId)).willReturn(Optional.of(request));
+    given(notifier.notifyPayoutHold(request)).willReturn(true);
 
-    assertThatThrownBy(() -> service.holdPayout(requestId, "MANUAL: again", "AML Specialist"))
-        .isInstanceOf(IllegalStateException.class);
+    service.holdPayoutManually(requestId, "Ops", "TKF volume alert");
+
+    assertThat(request.hasActiveHold()).isTrue();
+    assertThat(request.getHoldReason()).isEqualTo(MANUAL);
+    assertThat(request.getHoldComment()).isEqualTo("TKF volume alert");
+    assertThat(request.getHeldBy()).isEqualTo("Ops");
+    assertThat(request.getHoldAt()).isEqualTo(TestClockHolder.now);
+    assertThat(request.getHoldNotifiedAt()).isEqualTo(TestClockHolder.now);
+    assertThat(request.getHoldReleasedAt()).isNull();
+    assertThat(request.getReviewedBy()).isEqualTo("AML Specialist");
   }
 
   @Test
@@ -143,7 +180,7 @@ class RedemptionHoldServiceTest {
     var request = redemptionRequestFixture().id(requestId).status(REDEEMED).build();
     given(repository.findByIdForUpdate(requestId)).willReturn(Optional.of(request));
 
-    assertThatThrownBy(() -> service.holdPayout(requestId, "MANUAL: too late", "AML Specialist"))
+    assertThatThrownBy(() -> service.holdPayoutManually(requestId, "AML Specialist", "too late"))
         .isInstanceOf(IllegalStateException.class);
 
     assertThat(request.getHoldReason()).isNull();
@@ -162,14 +199,16 @@ class RedemptionHoldServiceTest {
     assertThat(request.getReviewedBy()).isEqualTo("Contact person");
     assertThat(request.getReviewReason()).isEqualTo("False positive, namesake");
     assertThat(request.getReviewedAt()).isEqualTo(TestClockHolder.now);
+    assertThat(request.getHoldReleasedAt()).isEqualTo(TestClockHolder.now);
+    assertThat(request.getRequeuedAt()).isEqualTo(TestClockHolder.now);
     assertThat(request.hasActiveHold()).isFalse();
     verify(redemptionStatusService).changeStatus(requestId, VERIFIED);
-    verify(notifier).notifyReleased(requestId, "Contact person");
+    verify(notifier).notifyReleased(requestId);
     verify(payoutService, never()).payOutHeld(any());
   }
 
   @Test
-  void release_flaggedVerifiedRequest_clearsTheHoldWithoutChangingTheStatus() {
+  void release_flaggedVerifiedRequest_clearsTheHoldWithoutChangingTheStatusOrDealingDay() {
     runTransactionsInline();
     var requestId = UUID.randomUUID();
     var request =
@@ -180,9 +219,11 @@ class RedemptionHoldServiceTest {
 
     assertThat(request.hasActiveHold()).isFalse();
     assertThat(request.getReviewedBy()).isEqualTo("AML Specialist");
+    assertThat(request.getHoldReleasedAt()).isEqualTo(TestClockHolder.now);
+    assertThat(request.getRequeuedAt()).isNull();
     verify(redemptionStatusService, never()).changeStatus(any(), any());
     verify(payoutService, never()).payOutHeld(any());
-    verify(notifier).notifyReleased(requestId, "AML Specialist");
+    verify(notifier).notifyReleased(requestId);
   }
 
   @Test
@@ -202,6 +243,29 @@ class RedemptionHoldServiceTest {
   }
 
   @Test
+  void release_heldPayoutWhoseHoldWasReleasedDuringTheBatch_stillPaysOut() {
+    runTransactionsInline();
+    var requestId = UUID.randomUUID();
+    var request =
+        redemptionRequestFixture()
+            .id(requestId)
+            .status(PAYOUT_HELD)
+            .holdReason("PEP")
+            .holdReleasedAt(TestClockHolder.now.minusSeconds(60))
+            .reviewedBy("AML Specialist")
+            .reviewReason("Source of funds confirmed")
+            .reviewedAt(TestClockHolder.now.minusSeconds(60))
+            .build();
+    given(repository.findByIdForUpdate(requestId)).willReturn(Optional.of(request));
+
+    service.release(requestId, "Ops", "second attempt");
+
+    assertThat(request.getReviewedBy()).isEqualTo("AML Specialist");
+    assertThat(request.getReviewedAt()).isEqualTo(TestClockHolder.now.minusSeconds(60));
+    verify(payoutService).payOutHeld(requestId);
+  }
+
+  @Test
   void release_rejectsVerifiedRequestWithoutAnActiveHold() {
     runTransactionsInline();
     var requestId = UUID.randomUUID();
@@ -211,7 +275,7 @@ class RedemptionHoldServiceTest {
     assertThatThrownBy(() -> service.release(requestId, "AML Specialist", "reason"))
         .isInstanceOf(IllegalStateException.class);
 
-    verify(notifier, never()).notifyReleased(any(), any());
+    verify(notifier, never()).notifyReleased(any());
     verify(payoutService, never()).payOutHeld(any());
   }
 
@@ -240,7 +304,7 @@ class RedemptionHoldServiceTest {
   }
 
   @Test
-  void resendUnsentHoldNotifications_marksOnlyTheDeliveredOnes() {
+  void resendUnsentHoldNotifications_marksOnlyTheDeliveredOnesWithoutRewritingTheRow() {
     var frozen =
         redemptionRequestFixture()
             .id(UUID.randomUUID())
@@ -253,15 +317,18 @@ class RedemptionHoldServiceTest {
             .status(PAYOUT_HELD)
             .holdReason("PEP")
             .build();
-    given(repository.findWithUnsentHoldNotification(List.of(FROZEN, VERIFIED, PAYOUT_HELD)))
+    given(
+            repository.findWithUnsentHoldNotification(
+                List.of(RESERVED, FROZEN, VERIFIED, PAYOUT_HELD)))
         .willReturn(List.of(frozen, held));
     given(notifier.notifyHold(frozen)).willReturn(true);
     given(notifier.notifyHold(held)).willReturn(false);
 
     service.resendUnsentHoldNotifications();
 
-    assertThat(frozen.getHoldNotifiedAt()).isEqualTo(TestClockHolder.now);
-    assertThat(held.getHoldNotifiedAt()).isNull();
+    verify(repository).markHoldNotified(frozen.getId(), TestClockHolder.now);
+    verify(repository, never()).markHoldNotified(eq(held.getId()), any());
+    verify(repository, never()).save(any());
   }
 
   private void runTransactionsInline() {

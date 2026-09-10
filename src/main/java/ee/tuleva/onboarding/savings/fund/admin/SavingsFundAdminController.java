@@ -118,7 +118,7 @@ public class SavingsFundAdminController {
     requireText(reason, "reason");
 
     log.info("Admin holding redemption payout: id={}, by={}", id, by);
-    redemptionHoldService.holdPayout(id, "MANUAL: " + reason, by);
+    redemptionHoldService.holdPayoutManually(id, by, reason);
 
     return "Held redemption payout: id=" + id;
   }

@@ -149,15 +149,12 @@ public class RedemptionService {
         partyId.type(), partyId.code(), List.of(RESERVED, FROZEN, VERIFIED, PAYOUT_HELD));
   }
 
-  public RedemptionRequest getRedemption(UUID id) {
-    return redemptionRequestRepository
-        .findById(id)
-        .orElseThrow(() -> new IllegalArgumentException("Redemption not found: id=" + id));
-  }
-
   @Transactional
   public void cancelRedemption(UUID id, AuthenticatedPerson authenticatedPerson) {
-    RedemptionRequest request = getRedemption(id);
+    RedemptionRequest request =
+        redemptionRequestRepository
+            .findByIdForUpdate(id)
+            .orElseThrow(() -> new IllegalArgumentException("Redemption not found: id=" + id));
     PartyId requestParty = request.getPartyId();
     PartyId actorParty = PartyId.from(authenticatedPerson);
 

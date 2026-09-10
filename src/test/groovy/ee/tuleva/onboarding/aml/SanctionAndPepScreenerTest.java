@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.aml;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
+import static ee.tuleva.onboarding.aml.ScreeningOutcome.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.junit.jupiter.api.Assertions.*;
@@ -530,8 +531,7 @@ class SanctionAndPepScreenerTest {
     when(pepAndSanctionCheckService.match(user, country))
         .thenThrow(new RuntimeException("screening service down"));
 
-    assertEquals(
-        ScreeningOutcome.UNAVAILABLE, sanctionAndPepScreener.screeningOutcome(user, country));
+    assertThat(sanctionAndPepScreener.screeningOutcome(user, country)).isEqualTo(UNAVAILABLE);
   }
 
   @Test
@@ -556,7 +556,7 @@ class SanctionAndPepScreenerTest {
                     .success(false)
                     .build()));
 
-    assertEquals(ScreeningOutcome.PEP_HIT, sanctionAndPepScreener.screeningOutcome(user, country));
+    assertThat(sanctionAndPepScreener.screeningOutcome(user, country)).isEqualTo(PEP_HIT);
   }
 
   @Test
@@ -575,8 +575,7 @@ class SanctionAndPepScreenerTest {
             "123", POLITICALLY_EXPOSED_PERSON_AUTO))
         .thenReturn(Optional.empty());
 
-    assertEquals(
-        ScreeningOutcome.UNAVAILABLE, sanctionAndPepScreener.screeningOutcome(user, country));
+    assertThat(sanctionAndPepScreener.screeningOutcome(user, country)).isEqualTo(UNAVAILABLE);
   }
 
   @Test
@@ -601,7 +600,7 @@ class SanctionAndPepScreenerTest {
                     .success(true)
                     .build()));
 
-    assertEquals(ScreeningOutcome.CLEAR, sanctionAndPepScreener.screeningOutcome(user, country));
+    assertThat(sanctionAndPepScreener.screeningOutcome(user, country)).isEqualTo(CLEAR);
   }
 
   @Test
@@ -626,8 +625,7 @@ class SanctionAndPepScreenerTest {
             Optional.of(
                 AmlCheck.builder().personalCode("123").type(SANCTION).success(false).build()));
 
-    assertEquals(
-        ScreeningOutcome.SANCTION_HIT, sanctionAndPepScreener.screeningOutcome(user, country));
+    assertThat(sanctionAndPepScreener.screeningOutcome(user, country)).isEqualTo(SANCTION_HIT);
   }
 
   @Test
@@ -641,8 +639,7 @@ class SanctionAndPepScreenerTest {
             eq("123"), any(AmlCheckType.class)))
         .thenReturn(Optional.empty());
 
-    assertEquals(
-        ScreeningOutcome.UNAVAILABLE, sanctionAndPepScreener.screeningOutcome(user, country));
+    assertThat(sanctionAndPepScreener.screeningOutcome(user, country)).isEqualTo(UNAVAILABLE);
   }
 
   @Test

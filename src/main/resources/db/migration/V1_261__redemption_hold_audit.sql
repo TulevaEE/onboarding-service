@@ -1,7 +1,10 @@
 ALTER TABLE redemption_request ADD COLUMN hold_reason TEXT;
+ALTER TABLE redemption_request ADD COLUMN hold_comment TEXT;
 ALTER TABLE redemption_request ADD COLUMN hold_at TIMESTAMPTZ;
 ALTER TABLE redemption_request ADD COLUMN held_by TEXT;
 ALTER TABLE redemption_request ADD COLUMN hold_notified_at TIMESTAMPTZ;
+ALTER TABLE redemption_request ADD COLUMN hold_released_at TIMESTAMPTZ;
+ALTER TABLE redemption_request ADD COLUMN requeued_at TIMESTAMPTZ;
 
 -- IN_REVIEW is retired: a sanctions hit now freezes the order (FROZEN) and any other AML suspicion
 -- lets the order execute but holds the payout (PAYOUT_HELD). Production had no IN_REVIEW rows when

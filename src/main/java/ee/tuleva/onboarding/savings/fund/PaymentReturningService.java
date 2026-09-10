@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_RECEIVED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RETURNED;
 import static java.util.Objects.requireNonNull;
 
@@ -28,7 +29,7 @@ public class PaymentReturningService {
     sendReturnPaymentOrder(payment);
     savingFundPaymentRepository.changeStatus(payment.getId(), RETURNED);
 
-    if (isUserCancelledPayment(payment)) {
+    if (wasCreditedToHolder(payment)) {
       reserveUserBalanceForReturn(payment);
     }
   }
@@ -47,8 +48,9 @@ public class PaymentReturningService {
     eventPublisher.publishEvent(new RequestPaymentEvent(paymentRequest, UUID.randomUUID()));
   }
 
-  private boolean isUserCancelledPayment(SavingFundPayment payment) {
-    return payment.getPartyId() != null;
+  private boolean wasCreditedToHolder(SavingFundPayment payment) {
+    return payment.getPartyId() != null
+        && savingsFundLedger.hasLedgerEntry(payment.getId(), PAYMENT_RECEIVED);
   }
 
   private void reserveUserBalanceForReturn(SavingFundPayment payment) {

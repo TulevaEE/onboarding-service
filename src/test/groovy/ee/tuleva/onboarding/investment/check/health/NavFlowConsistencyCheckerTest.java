@@ -175,6 +175,44 @@ class NavFlowConsistencyCheckerTest {
     assertThat(finding.message()).contains("Accrued interest");
   }
 
+  // byIsin sums the quantities of two rows carrying one ISIN while pricesByIsin keeps whichever
+  // price it saw first, so a report pricing the same instrument two ways valued the whole summed
+  // holding at an arbitrary one of them. One instrument has one price on one day; two means the
+  // report contradicts itself and there is nothing honest to mark against.
+  @Test
+  void theSameIsinPricedTwoWaysInOneReportStopsTheCheck() {
+    var previous =
+        positions(
+            security("IE00A", "6000", "100", "600000"),
+            security("IE00A", "4000", "99", "396000"),
+            units("1000000"));
+    var today = positions(security("IE00A", "10000", "102", "1020000"), units("1000000"));
+
+    var findings = checker.check(TUK75, today, previous, THRESHOLD);
+
+    assertThat(findings).hasSize(1);
+    assertThat(findings.getFirst().severity()).isEqualTo(NOT_RUN);
+    assertThat(findings.getFirst().message()).contains("IE00A");
+  }
+
+  // The same holding split across two accounts at one price is ordinary, and summing its quantities
+  // is exactly right - so the guard above must not fire on it.
+  @Test
+  void theSameIsinSplitAcrossTwoAccountsAtOnePriceReconciles() {
+    var previous =
+        positions(
+            security("IE00A", "6000", "100", "600000"),
+            security("IE00A", "4000", "100.00", "400000"),
+            units("1000000"));
+    var today =
+        positions(
+            security("IE00A", "6000", "102", "612000"),
+            security("IE00A", "4000", "102", "408000"),
+            units("1000000"));
+
+    assertThat(checker.check(TUK75, today, previous, THRESHOLD)).isEmpty();
+  }
+
   // A zero-valued row carries no movement to explain, so it must not be able to silence a fund.
   @Test
   void aSecurityRowWithNoIsinAndNoValueDoesNotStopTheCheck() {

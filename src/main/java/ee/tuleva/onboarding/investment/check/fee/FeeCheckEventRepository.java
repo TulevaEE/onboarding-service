@@ -49,9 +49,8 @@ interface FeeCheckEventRepository extends JpaRepository<FeeCheckEvent, Long> {
   // A deviating row counts as outstanding while no later run of its own check type and scope came
   // back clean, so a check that has deviated since its very first run is included rather than
   // skipped for having no clean run to measure from.
-  // A NOT_RUN row found no deviation only because it could not look, which is no evidence that
-  // there is none, so it is excluded from the clean rows: a coverage gap must not close an
-  // unfixed deviation.
+  // A NOT_RUN row reports no deviation only because it could not look, so it is excluded from the
+  // clean rows: a coverage gap must not close an unfixed deviation.
   @Query(
       """
       SELECT MIN(event.checkDate) FROM FeeCheckEvent event

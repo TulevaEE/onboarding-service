@@ -29,6 +29,11 @@ import org.jspecify.annotations.Nullable;
 @NoArgsConstructor
 public class FundPosition {
 
+  private static final List<String> TRADE_PAYABLE_ACCOUNT_NAMES =
+      List.of("payables of unsettled transactions", "Trade Settlement Payable");
+
+  private static final String REDEMPTION_PAYABLE_ACCOUNT_NAME = "Payables of redeemed units";
+
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
@@ -62,19 +67,12 @@ public class FundPosition {
 
   private Instant updatedAt;
 
-  private static final List<String> TRADE_PAYABLE_ACCOUNT_NAMES =
-      List.of("payables of unsettled transactions", "Trade Settlement Payable");
-
-  private static final String REDEMPTION_PAYABLE_ACCOUNT_NAME = "Payables of redeemed units";
-
   public boolean isTradePayable() {
-    return accountName != null
-        && TRADE_PAYABLE_ACCOUNT_NAMES.stream().anyMatch(accountName::contains);
+    return TRADE_PAYABLE_ACCOUNT_NAMES.stream().anyMatch(accountName::contains);
   }
 
   public boolean isRedemptionPayableOf(TulevaFund redeemedFund) {
-    return accountName != null
-        && accountName.contains(REDEMPTION_PAYABLE_ACCOUNT_NAME)
+    return accountName.contains(REDEMPTION_PAYABLE_ACCOUNT_NAME)
         && redeemedFund.getIsin().equals(accountId);
   }
 }

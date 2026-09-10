@@ -1,10 +1,13 @@
 package ee.tuleva.onboarding.investment.epis.parser;
 
+import static java.util.Arrays.stream;
+
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
@@ -73,18 +76,18 @@ public class EpisCsvParser {
   }
 
   public static @Nullable String findValue(Map<String, String> row, String... keywords) {
-    for (String keyword : keywords) {
-      String normalizedKeyword = normalize(keyword);
-      String exactColumnMatch = row.get(normalizedKeyword);
-      if (exactColumnMatch != null) {
-        return exactColumnMatch;
-      }
-      String containsMatch = valueOfColumnContaining(row, normalizedKeyword);
-      if (containsMatch != null) {
-        return containsMatch;
-      }
-    }
-    return null;
+    return stream(keywords)
+        .map(keyword -> valueOfColumn(row, normalize(keyword)))
+        .filter(Objects::nonNull)
+        .findFirst()
+        .orElse(null);
+  }
+
+  private static @Nullable String valueOfColumn(Map<String, String> row, String normalizedKeyword) {
+    String exactColumnMatch = row.get(normalizedKeyword);
+    return exactColumnMatch != null
+        ? exactColumnMatch
+        : valueOfColumnContaining(row, normalizedKeyword);
   }
 
   private static @Nullable String valueOfColumnContaining(
@@ -96,7 +99,7 @@ public class EpisCsvParser {
     if (matches.size() > 1) {
       throw ambiguousHeaderMatch(normalizedKeyword, matches);
     }
-    return matches.isEmpty() ? null : matches.getFirst().getValue();
+    return matches.stream().map(Map.Entry::getValue).findFirst().orElse(null);
   }
 
   private static IllegalArgumentException ambiguousHeaderMatch(

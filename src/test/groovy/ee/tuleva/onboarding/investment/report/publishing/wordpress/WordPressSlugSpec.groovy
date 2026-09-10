@@ -3,12 +3,12 @@ package ee.tuleva.onboarding.investment.report.publishing.wordpress
 import spock.lang.Specification
 import spock.lang.Unroll
 
-class WordPressMediaClientSpec extends Specification {
+class WordPressSlugSpec extends Specification {
 
   @Unroll
-  def "toWordPressSlug(#filename) == #expectedSlug"() {
+  def "slug(#filename) == #expectedSlug"() {
     expect:
-    WordPressMediaClient.toWordPressSlug(filename) == expectedSlug
+    WordPressSlug.of(filename) == expectedSlug
     expectedSlug ==~ /[a-z0-9-]+\.[a-z0-9]+/
 
     where:
@@ -49,9 +49,9 @@ class WordPressMediaClientSpec extends Specification {
   }
 
   @Unroll
-  def "toWordPressSlug rejects a filename that sanitises to nothing: #filename"() {
+  def "slug rejects a filename that sanitises to nothing: #filename"() {
     when:
-    WordPressMediaClient.toWordPressSlug(filename)
+    WordPressSlug.of(filename)
 
     then:
     thrown(IllegalArgumentException)

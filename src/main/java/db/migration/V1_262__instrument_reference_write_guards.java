@@ -4,21 +4,7 @@ import java.sql.Statement;
 import org.flywaydb.core.api.migration.BaseJavaMigration;
 import org.flywaydb.core.api.migration.Context;
 
-// Java rather than SQL because H2 cannot parse plpgsql, following V1_250.
-//
-// Instrument changes are typed into a console, so these invariants have to fail at the moment of
-// the change. Neither is expressible as a CHECK or a foreign key: both span two rows.
-//
-//   1. An instrument that is still a benchmark proxy may not be deactivated. active = false stops
-//      price fetching and takes the row out of both watchdogs, while resolveBenchmarkProxy looks
-//      the proxy up by ISIN and keeps resolving it -- a benchmark leg measuring against a frozen
-//      price series, with nothing alerting.
-//   2. A benchmark category may not be pointed at an inactive instrument: same end state, reached
-//      from the other side.
-//
-// updated_at is stamped here too: nothing writes these tables through JPA, so without a trigger
-// the column keeps its INSERT value forever and reads as "this row has never changed".
-public class V1_264__instrument_reference_write_guards extends BaseJavaMigration {
+public class V1_262__instrument_reference_write_guards extends BaseJavaMigration {
 
   private static final String POSTGRESQL = "PostgreSQL";
 

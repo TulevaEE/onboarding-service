@@ -12,6 +12,8 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -31,7 +33,7 @@ public class HealthCheckNotifier {
         for (var checkType : HealthCheckType.values()) {
           var current = currentSeverity(result, checkType);
           var previous = previousSeverity(result.fund(), result.checkDate(), checkType);
-          if (current == previous) {
+          if (current == previous && !reasonChanged(result, checkType, current)) {
             continue;
           }
           transitions.add(new Transition(result, checkType, current, previous));
@@ -61,6 +63,47 @@ public class HealthCheckNotifier {
         .map(HealthCheckFinding::severity)
         .max(Enum::compareTo)
         .orElse(PASS);
+  }
+
+  // A check that could not run has several reasons it could not, and they are not interchangeable:
+  // a missing threshold row and a holding that left the report unexplained need different work. The
+  // severity alone cannot tell them apart, so for NOT_RUN the reason is compared too. WARNING keeps
+  // to severity - its message carries the day's EUR figures and would re-notify every run.
+  private boolean reasonChanged(
+      HealthCheckResult result, HealthCheckType checkType, HealthCheckSeverity current) {
+    if (current != NOT_RUN) {
+      return false;
+    }
+    var rows =
+        eventRepository.findTop2ByFundAndCheckDateAndCheckTypeOrderByCreatedAtDesc(
+            result.fund(), result.checkDate(), checkType);
+    if (rows.size() < 2) {
+      return false;
+    }
+    return !messages(result, checkType).equals(storedMessages(rows.get(1)));
+  }
+
+  private List<String> messages(HealthCheckResult result, HealthCheckType checkType) {
+    return result.findings().stream()
+        .filter(finding -> finding.checkType() == checkType)
+        .map(HealthCheckFinding::message)
+        .sorted()
+        .toList();
+  }
+
+  @SuppressWarnings("unchecked")
+  private List<String> storedMessages(HealthCheckEvent event) {
+    var findings = event.getResult().get("findings");
+    if (!(findings instanceof List<?> list)) {
+      return List.of();
+    }
+    return list.stream()
+        .filter(Map.class::isInstance)
+        .map(finding -> ((Map<String, Object>) finding).get("message"))
+        .filter(Objects::nonNull)
+        .map(Object::toString)
+        .sorted()
+        .toList();
   }
 
   private HealthCheckSeverity previousSeverity(

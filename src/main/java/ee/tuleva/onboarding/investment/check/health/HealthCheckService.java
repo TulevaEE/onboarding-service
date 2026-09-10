@@ -9,6 +9,8 @@ import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationReposit
 import ee.tuleva.onboarding.investment.position.AccountType;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
+import ee.tuleva.onboarding.investment.transaction.ExecutedPrice;
+import ee.tuleva.onboarding.investment.transaction.ExecutedPriceSource;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -44,6 +46,8 @@ public class HealthCheckService {
   private final PayablesChecker payablesChecker;
   private final NavFlowConsistencyChecker navFlowConsistencyChecker;
   private final InvestmentParameterRepository investmentParameterRepository;
+  private final ExecutedPriceSource executedPriceSource;
+  private final ExitMarkResolver exitMarkResolver;
 
   private @Nullable BigDecimal navFlowThreshold(LocalDate navDate) {
     return investmentParameterRepository
@@ -52,20 +56,26 @@ public class HealthCheckService {
   }
 
   public List<HealthCheckResult> check(List<FundPosition> positions) {
+    if (positions.isEmpty()) {
+      return List.of();
+    }
     Map<TulevaFund, List<FundPosition>> byFund =
         positions.stream().collect(Collectors.groupingBy(FundPosition::getFund));
+    var executedSellsByFund =
+        executedPriceSource.executedSellPricesByFund(positions.getFirst().getNavDate());
 
     var results = new ArrayList<HealthCheckResult>();
     for (var entry : byFund.entrySet()) {
       var fund = entry.getKey();
       var fundPositions = entry.getValue();
-      var result = checkFund(fund, fundPositions);
+      var result = checkFund(fund, fundPositions, executedSellsByFund.getOrDefault(fund, Map.of()));
       results.add(result);
     }
     return results;
   }
 
-  private HealthCheckResult checkFund(TulevaFund fund, List<FundPosition> positions) {
+  private HealthCheckResult checkFund(
+      TulevaFund fund, List<FundPosition> positions, Map<String, ExecutedPrice> executedSells) {
     var navDate = positions.getFirst().getNavDate();
 
     var securities = filterByType(positions, SECURITY);
@@ -133,7 +143,11 @@ public class HealthCheckService {
         quantityChangeChecker.check(fund, securities, previousSecurities, tradedQuantities));
     findings.addAll(
         navFlowConsistencyChecker.check(
-            fund, positions, previousPositions, navFlowThreshold(navDate)));
+            fund,
+            positions,
+            previousPositions,
+            navFlowThreshold(navDate),
+            exitMarkResolver.resolve(navDate, executedSells)));
 
     saveEvents(fund, navDate, findings);
 

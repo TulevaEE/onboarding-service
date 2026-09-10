@@ -65,10 +65,6 @@ public class HealthCheckNotifier {
         .orElse(PASS);
   }
 
-  // A check that could not run has several reasons it could not, and they are not interchangeable:
-  // a missing threshold row and a holding that left the report unexplained need different work. The
-  // severity alone cannot tell them apart, so for NOT_RUN the reason is compared too. WARNING keeps
-  // to severity - its message carries the day's EUR figures and would re-notify every run.
   private boolean reasonChanged(
       HealthCheckResult result, HealthCheckType checkType, HealthCheckSeverity current) {
     if (current != NOT_RUN) {

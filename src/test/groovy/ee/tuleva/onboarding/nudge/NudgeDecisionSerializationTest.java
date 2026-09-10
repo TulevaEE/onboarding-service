@@ -94,7 +94,36 @@ class NudgeDecisionSerializationTest {
         .containsEntry("suggestSavingsFundRecurringPayment", false)
         .containsEntry("suggestMembership", false)
         .containsEntry("hasFeeComparison", false)
+        .containsEntry("anyPillarSuggestion", true)
         .doesNotContainKeys("savingsFundFee", "secondPillarFeePercent");
+  }
+
+  @Test
+  void anyPillarSuggestionIsRaisedForPensionPillarNudgesOnly() {
+    List<NudgeKey> flagged =
+        java.util.Arrays.stream(NudgeKey.values())
+            .filter(
+                key ->
+                    Boolean.TRUE.equals(
+                        NudgeDecision.of(key).mergeVars(Locale.ENGLISH).get("anyPillarSuggestion")))
+            .toList();
+
+    assertThat(flagged)
+        .containsExactly(
+            NudgeKey.SECOND_PILLAR_TRANSFER,
+            NudgeKey.SECOND_PILLAR_PAYMENT_RATE,
+            NudgeKey.THIRD_PILLAR_START,
+            NudgeKey.THIRD_PILLAR_FEES,
+            NudgeKey.THIRD_PILLAR_RECURRING,
+            NudgeKey.THIRD_PILLAR_RAISE);
+  }
+
+  @Test
+  void anyPillarSuggestionStaysRaisedWhenTheSecondPillarNudgeCarriesAFeeComparison() {
+    NudgeDecision transfer =
+        NudgeDecision.secondPillarTransfer(new FeeComparison(new BigDecimal("0.65"), 130, 56, 74));
+
+    assertThat(transfer.mergeVars(Locale.ENGLISH)).containsEntry("anyPillarSuggestion", true);
   }
 
   @Test

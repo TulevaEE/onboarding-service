@@ -2,7 +2,8 @@
   "variants": {
     "second pillar suggestion": {
       "FNAME": "Mari",
-      "suggestSecondPillar": true
+      "suggestSecondPillar": true,
+      "anyPillarSuggestion": true
     },
     "Second pillar fee comparison": {
       "FNAME": "Mari",
@@ -11,28 +12,34 @@
       "secondPillarFeePercent": "0.65",
       "secondPillarFeeAmount": 130,
       "tulevaFeeAmount": 56,
-      "secondPillarSavingsAmount": 74
+      "secondPillarSavingsAmount": 74,
+      "anyPillarSuggestion": true
     },
     "payment rate increase suggestion": {
       "FNAME": "Mari",
-      "suggestPaymentRate": true
+      "suggestPaymentRate": true,
+      "anyPillarSuggestion": true
     },
     "third pillar suggestion": {
       "FNAME": "Mari",
-      "suggestThirdPillar": true
+      "suggestThirdPillar": true,
+      "anyPillarSuggestion": true
     },
     "third pillar fees suggestion": {
       "FNAME": "Mari",
       "suggestThirdPillar": true,
-      "thirdPillarActive": true
+      "thirdPillarActive": true,
+      "anyPillarSuggestion": true
     },
     "third pillar recurring suggestion": {
       "FNAME": "Mari",
-      "suggestThirdPillarRecurringPayment": true
+      "suggestThirdPillarRecurringPayment": true,
+      "anyPillarSuggestion": true
     },
     "third pillar raise suggestion": {
       "FNAME": "Mari",
-      "suggestThirdPillarRaise": true
+      "suggestThirdPillarRaise": true,
+      "anyPillarSuggestion": true
     },
     "savings fund suggestion (cannot occur)": {
       "FNAME": "Mari",
@@ -46,7 +53,8 @@
     "second pillar outranks the savings fund recurring suggestion": {
       "FNAME": "Mari",
       "suggestSecondPillar": true,
-      "suggestSavingsFundRecurringPayment": true
+      "suggestSavingsFundRecurringPayment": true,
+      "anyPillarSuggestion": true
     },
     "membership suggestion": {
       "FNAME": "Mari",

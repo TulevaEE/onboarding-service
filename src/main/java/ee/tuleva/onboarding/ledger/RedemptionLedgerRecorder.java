@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -130,6 +131,7 @@ class RedemptionLedgerRecorder {
     LedgerParty ledgerParty = accounts.getParty(party);
     LedgerAccount userCashRedemptionAccount = accounts.getUserCashRedemptionAccount(ledgerParty);
     LedgerAccount payoutsCashAccount = accounts.getPayoutsCashClearingAccount();
+    rejectIfPricedForAnotherParty(redemptionRequestId, userCashRedemptionAccount);
 
     var metadataBuilder = new HashMap<>(accounts.partyMetadata(party, REDEMPTION_PAYOUT));
     metadataBuilder.put(CUSTOMER_IBAN.getKey(), customerIban);
@@ -144,5 +146,27 @@ class RedemptionLedgerRecorder {
         metadataBuilder,
         accounts.entry(payoutsCashAccount, amount.negate()),
         accounts.entry(userCashRedemptionAccount, amount));
+  }
+
+  private void rejectIfPricedForAnotherParty(
+      @Nullable UUID redemptionRequestId, LedgerAccount userCashRedemptionAccount) {
+    if (redemptionRequestId == null) {
+      return;
+    }
+    ledgerTransactionService
+        .findByExternalReferenceAndTransactionType(redemptionRequestId, REDEMPTION_REQUEST)
+        .ifPresent(
+            pricing -> {
+              boolean pricedForThisParty =
+                  pricing.getEntries().stream()
+                      .anyMatch(entry -> entry.getAccount().equals(userCashRedemptionAccount));
+              if (!pricedForThisParty) {
+                throw new IllegalStateException(
+                    "Redemption payout party differs from the priced redemption's party: redemptionRequestId="
+                        + redemptionRequestId
+                        + ", pricingTransactionId="
+                        + pricing.getId());
+              }
+            });
   }
 }

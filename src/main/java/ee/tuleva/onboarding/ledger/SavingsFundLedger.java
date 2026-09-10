@@ -494,6 +494,14 @@ public class SavingsFundLedger {
         accounts.entry(resolved.creditAccount(), move.amount().negate()));
   }
 
+  public List<UUID> findHolderAccountIdsInDebit() {
+    return ledgerTransactionService.findHolderAccountIdsInDebit();
+  }
+
+  public List<UUID> findPayoutIdsBookedToAnotherPartyThanPriced() {
+    return ledgerTransactionService.findPayoutIdsBookedToAnotherPartyThanPriced();
+  }
+
   public boolean hasLedgerEntry(UUID externalReference, TransactionType transactionType) {
     return ledgerTransactionService.existsByExternalReferenceAndTransactionType(
         externalReference, transactionType);

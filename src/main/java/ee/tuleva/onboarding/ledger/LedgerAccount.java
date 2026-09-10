@@ -95,6 +95,10 @@ public class LedgerAccount {
   @Nullable
   private Instant createdAt;
 
+  public boolean isHolderLiabilityAccount() {
+    return owner != null && accountType == AccountType.LIABILITY;
+  }
+
   public BigDecimal getBalance() {
     if (entries == null || entries.isEmpty()) return ZERO;
     return entries.stream().map(LedgerEntry::getAmount).reduce(ZERO, BigDecimal::add);

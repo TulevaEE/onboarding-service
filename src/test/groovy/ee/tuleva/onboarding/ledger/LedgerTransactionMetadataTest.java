@@ -67,8 +67,8 @@ class LedgerTransactionMetadataTest {
             Instant.now(clock),
             UUID.randomUUID(),
             metadata,
-            new LedgerEntryDto(cashAccount, new BigDecimal("100.00")),
-            new LedgerEntryDto(systemAccount, new BigDecimal("-100.00")));
+            new LedgerEntryDto(systemAccount, new BigDecimal("100.00")),
+            new LedgerEntryDto(cashAccount, new BigDecimal("-100.00")));
 
     String rawJson =
         jdbcClient

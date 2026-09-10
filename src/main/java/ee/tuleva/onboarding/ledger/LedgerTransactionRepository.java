@@ -50,4 +50,32 @@ interface LedgerTransactionRepository extends JpaRepository<LedgerTransaction, U
   List<LedgerTransaction> findUnresolvedByTransactionTypeAndAccountName(
       @Param("transactionType") TransactionType transactionType,
       @Param("accountName") String accountName);
+
+  @Query(
+      """
+      select a.id from LedgerAccount a join a.entries e
+      where a.owner is not null and a.accountType = ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.LIABILITY
+      group by a.id having sum(e.amount) > 0
+      """)
+  List<UUID> findHolderAccountIdsInDebit();
+
+  @Query(
+      """
+      select distinct p.id from LedgerTransaction p join p.entries pe
+      where p.transactionType = ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.REDEMPTION_PAYOUT
+        and pe.account.owner is not null
+        and p.externalReference is not null
+        and not exists (
+          select 1 from LedgerTransaction r join r.entries re
+          where r.transactionType = ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.REDEMPTION_REQUEST
+            and r.externalReference = p.externalReference
+            and re.account = pe.account)
+        and not exists (
+          select 1 from LedgerTransaction c join c.entries ce
+          where c.transactionType = ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.ADJUSTMENT
+            and c.externalReference = p.externalReference
+            and ce.account = pe.account
+            and ce.amount < 0)
+      """)
+  List<UUID> findPayoutIdsBookedToAnotherPartyThanPriced();
 }

@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
 import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -33,11 +34,32 @@ class LedgerTransactionService {
             .metadata(metadata)
             .build();
 
+    rejectIfAHolderAccountWouldBeLeftInDebit(ledgerEntryDtos);
     for (LedgerEntryDto ledgerEntryDto : ledgerEntryDtos) {
       transaction.addEntry(ledgerEntryDto.account, ledgerEntryDto.amount);
     }
 
     return ledgerTransactionRepository.saveAndFlush(transaction);
+  }
+
+  private static void rejectIfAHolderAccountWouldBeLeftInDebit(LedgerEntryDto... entries) {
+    var projected = new LinkedHashMap<LedgerAccount, BigDecimal>();
+    for (LedgerEntryDto entry : entries) {
+      if (entry.account().isHolderLiabilityAccount()) {
+        projected.merge(entry.account(), entry.amount(), BigDecimal::add);
+      }
+    }
+    projected.forEach(
+        (account, delta) -> {
+          BigDecimal resultingBalance = account.getBalance().add(delta);
+          if (resultingBalance.signum() > 0) {
+            throw new IllegalStateException(
+                "Transaction would leave a holder account in debit: accountId="
+                    + account.getId()
+                    + ", resultingBalance="
+                    + resultingBalance);
+          }
+        });
   }
 
   public boolean existsByExternalReferenceAndTransactionType(
@@ -70,6 +92,14 @@ class LedgerTransactionService {
       UUID externalReference, TransactionType transactionType) {
     return ledgerTransactionRepository.findByExternalReferenceAndTransactionType(
         externalReference, transactionType);
+  }
+
+  public List<UUID> findHolderAccountIdsInDebit() {
+    return ledgerTransactionRepository.findHolderAccountIdsInDebit();
+  }
+
+  public List<UUID> findPayoutIdsBookedToAnotherPartyThanPriced() {
+    return ledgerTransactionRepository.findPayoutIdsBookedToAnotherPartyThanPriced();
   }
 
   public record LedgerEntryDto(LedgerAccount account, BigDecimal amount) {}

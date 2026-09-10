@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.check.health;
 
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.*;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.COMPLETENESS;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.LIABILITY_RECOGNITION;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.NAV_FLOW_CONSISTENCY;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.NAV_FLOW_CONSISTENCY_THRESHOLD;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
@@ -48,6 +49,7 @@ class HealthCheckServiceTest {
   @Mock TradedQuantitySource tradedQuantitySource;
   @Mock PayablesChecker payablesChecker;
   @Mock NavFlowConsistencyChecker navFlowConsistencyChecker;
+  @Mock LiabilityRecognitionChecker liabilityRecognitionChecker;
 
   @Mock
   ee.tuleva.onboarding.investment.config.InvestmentParameterRepository
@@ -110,6 +112,27 @@ class HealthCheckServiceTest {
 
     assertThat(results.getFirst().findings()).contains(finding);
     verify(navFlowConsistencyChecker).check(TUK75, positions, previousPositions, threshold);
+  }
+
+  @Test
+  void checksTodaysLiabilityRowsForOnesTheLedgerHasNoTreatmentFor() {
+    var unrecognised = unrecognisedLiabilityPosition(TUK75, new BigDecimal("-8400.00"));
+    var positions = List.of(securityPosition(TUK75, "IE001", new BigDecimal("1000")), unrecognised);
+
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, NAV_DATE))
+        .willReturn(List.of());
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, NAV_DATE.minusDays(1)))
+        .willReturn(Optional.empty());
+
+    var finding =
+        new HealthCheckFinding(TUK75, LIABILITY_RECOGNITION, WARNING, "unrecognised liability");
+    given(liabilityRecognitionChecker.check(TUK75, NAV_DATE, List.of(unrecognised)))
+        .willReturn(List.of(finding));
+
+    var results = healthCheckService.check(positions);
+
+    assertThat(results.getFirst().findings()).contains(finding);
+    verify(liabilityRecognitionChecker).check(TUK75, NAV_DATE, List.of(unrecognised));
   }
 
   @Test
@@ -349,6 +372,16 @@ class HealthCheckServiceTest {
         .fund(fund)
         .accountType(LIABILITY)
         .accountName("Total payables of unsettled transactions")
+        .marketValue(marketValue)
+        .build();
+  }
+
+  private FundPosition unrecognisedLiabilityPosition(TulevaFund fund, BigDecimal marketValue) {
+    return FundPosition.builder()
+        .navDate(NAV_DATE)
+        .fund(fund)
+        .accountType(LIABILITY)
+        .accountName("Accrued expenses payable")
         .marketValue(marketValue)
         .build();
   }

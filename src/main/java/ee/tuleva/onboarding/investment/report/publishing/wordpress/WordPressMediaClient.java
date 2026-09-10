@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.investment.report.publishing.wordpress;
 
+import static java.util.stream.StreamSupport.stream;
+
+import java.math.BigDecimal;
 import java.text.Normalizer;
 import java.util.List;
 import java.util.Locale;
@@ -25,13 +28,16 @@ public class WordPressMediaClient {
   private static final String DEFAULT_EXTENSION = "pdf";
   private static final int MAX_BASE_SLUG_LENGTH = 100;
   private static final String ACF_REPORT_FIELD = "investment_report_file";
+  private static final List<String> ACF_ATTACHMENT_ID_KEYS = List.of("ID", "id");
 
   private final RestClient restClient;
   private final RetryTemplate retryTemplate;
+  private final String missingConfiguration;
 
   public record UploadResult(int attachmentId, String sourceUrl) {}
 
   public UploadResult upload(String filename, byte[] pdfBytes) {
+    refuseWhenUnconfigured();
     var slug = toWordPressSlug(filename);
 
     var existing = findExistingMedia(slug);
@@ -108,6 +114,7 @@ public class WordPressMediaClient {
   }
 
   public void updateAcfReportField(String pageSlug, int attachmentId) {
+    refuseWhenUnconfigured();
     var pageId = findPageIdBySlug(pageSlug);
 
     var response =
@@ -130,10 +137,18 @@ public class WordPressMediaClient {
         attachmentId);
   }
 
+  private void refuseWhenUnconfigured() {
+    if (!missingConfiguration.isEmpty()) {
+      throw new IllegalStateException(
+          "WordPress report publishing is enabled but not configured: missing="
+              + missingConfiguration);
+    }
+  }
+
   private static void assertReportFileStored(
       String pageSlug, int pageId, int attachmentId, @Nullable Map<String, Object> response) {
     var stored = storedReportFile(response);
-    if (!String.valueOf(attachmentId).equals(stored)) {
+    if (!isAttachmentId(stored, attachmentId)) {
       throw new IllegalStateException(
           "WordPress accepted the page update but ACF did not store the report file: pageSlug="
               + pageSlug
@@ -146,12 +161,42 @@ public class WordPressMediaClient {
     }
   }
 
-  private static @Nullable String storedReportFile(@Nullable Map<String, Object> response) {
+  private static @Nullable Object storedReportFile(@Nullable Map<String, Object> response) {
     if (response == null || !(response.get("acf") instanceof Map<?, ?> acf)) {
       return null;
     }
-    var value = acf.get(ACF_REPORT_FIELD);
-    return value == null ? null : String.valueOf(value);
+    return acf.get(ACF_REPORT_FIELD);
+  }
+
+  private static boolean isAttachmentId(@Nullable Object stored, int attachmentId) {
+    if (stored == null) {
+      return false;
+    }
+    return switch (stored) {
+      case Number number -> isSameNumber(number.toString(), attachmentId);
+      case CharSequence text -> isSameNumber(text.toString(), attachmentId);
+      case Map<?, ?> attachment -> holdsAttachmentId(attachment, attachmentId);
+      case Iterable<?> attachments -> holdsAttachmentId(attachments, attachmentId);
+      default -> false;
+    };
+  }
+
+  private static boolean holdsAttachmentId(Map<?, ?> attachment, int attachmentId) {
+    return ACF_ATTACHMENT_ID_KEYS.stream()
+        .anyMatch(key -> isAttachmentId(attachment.get(key), attachmentId));
+  }
+
+  private static boolean holdsAttachmentId(Iterable<?> attachments, int attachmentId) {
+    return stream(attachments.spliterator(), false)
+        .anyMatch(attachment -> isAttachmentId(attachment, attachmentId));
+  }
+
+  private static boolean isSameNumber(String value, int attachmentId) {
+    try {
+      return new BigDecimal(value.trim()).compareTo(BigDecimal.valueOf(attachmentId)) == 0;
+    } catch (NumberFormatException notANumber) {
+      return false;
+    }
   }
 
   private int findPageIdBySlug(String slug) {

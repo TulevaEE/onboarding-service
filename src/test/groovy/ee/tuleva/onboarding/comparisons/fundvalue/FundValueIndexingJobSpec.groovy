@@ -7,6 +7,7 @@ import ch.qos.logback.core.read.ListAppender
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.BlackRockFundValueRetriever
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.ComparisonIndexRetriever
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.ComparisonIndexUnavailableException
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.DeutscheBoerseValueRetriever
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EODHDValueRetriever
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EuronextValueRetriever
@@ -60,8 +61,16 @@ class FundValueIndexingJobSpec extends Specification {
     }
 
     private List<ILoggingEvent> errorEventsContaining(String substring) {
+        return eventsContaining(Level.ERROR, substring)
+    }
+
+    private List<ILoggingEvent> warnEventsContaining(String substring) {
+        return eventsContaining(Level.WARN, substring)
+    }
+
+    private List<ILoggingEvent> eventsContaining(Level level, String substring) {
         return logAppender.list.findAll {
-            it.level == Level.ERROR && it.formattedMessage.contains(substring)
+            it.level == level && it.formattedMessage.contains(substring)
         }
     }
 
@@ -414,6 +423,57 @@ class FundValueIndexingJobSpec extends Specification {
         then:
         0 * workingDayRetriever.retrieveValuesForRange(_, _)
         1 * anyDayRetriever.retrieveValuesForRange(FundValueIndexingJob.EARLIEST_DATE, saturday) >> []
+    }
+
+    def "logs WARN instead of ERROR when a retriever reports its source temporarily unavailable"() {
+        given:
+        fundValueRetriever.getKey() >> "MSCI_ACWI"
+        fundValueRetriever.expectedStorageKeys() >> Set.of("MSCI_ACWI")
+        fundValueRetriever.stalenessThreshold() >> Duration.ofDays(7)
+        fundValueRepository.findLatestDateByKeys(_) >> ["MSCI_ACWI": TODAY.minusDays(1)]
+        fundValueRetriever.retrieveValuesForRange(_, _) >> {
+            throw new ComparisonIndexUnavailableException("MSCI answered with an HTML error page instead of JSON")
+        }
+
+        when:
+        fundValueIndexingJob.refreshAll()
+
+        then:
+        errorEventsContaining("MSCI_ACWI").isEmpty()
+        warnEventsContaining("MSCI_ACWI").size() == 1
+    }
+
+    def "logs ERROR when a retriever fails unexpectedly"() {
+        given:
+        fundValueRetriever.getKey() >> "MSCI_ACWI"
+        fundValueRetriever.expectedStorageKeys() >> Set.of("MSCI_ACWI")
+        fundValueRetriever.stalenessThreshold() >> Duration.ofDays(7)
+        fundValueRepository.findLatestDateByKeys(_) >> ["MSCI_ACWI": TODAY.minusDays(1)]
+        fundValueRetriever.retrieveValuesForRange(_, _) >> { throw new RuntimeException("boom") }
+
+        when:
+        fundValueIndexingJob.refreshAll()
+
+        then:
+        errorEventsContaining("MSCI_ACWI").size() == 1
+        warnEventsContaining("MSCI_ACWI").isEmpty()
+    }
+
+    def "escalates to ERROR when a retriever's source stays unavailable past its staleness threshold"() {
+        given:
+        fundValueRetriever.getKey() >> "MSCI_ACWI"
+        fundValueRetriever.expectedStorageKeys() >> Set.of("MSCI_ACWI")
+        fundValueRetriever.stalenessThreshold() >> Duration.ofDays(5)
+        fundValueRepository.findLatestDateByKeys(_) >> ["MSCI_ACWI": TODAY.minusDays(6)]
+        fundValueRetriever.retrieveValuesForRange(_, _) >> {
+            throw new ComparisonIndexUnavailableException("MSCI answered with an HTML error page instead of JSON")
+        }
+
+        when:
+        fundValueIndexingJob.refreshAll()
+
+        then:
+        errorEventsContaining("MSCI_ACWI").size() == 1
     }
 
     private static List<FundValue> fakeFundValues() {

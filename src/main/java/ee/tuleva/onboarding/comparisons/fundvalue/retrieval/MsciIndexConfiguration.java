@@ -4,6 +4,7 @@ import java.time.Clock;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.client.RestClient;
+import tools.jackson.databind.json.JsonMapper;
 
 @Configuration
 class MsciIndexConfiguration {
@@ -13,17 +14,20 @@ class MsciIndexConfiguration {
   static final String MSCI_EM_KEY = "MSCI_EM";
 
   @Bean
-  MsciIndexRetriever msciAcwiIndexRetriever(RestClient.Builder restClientBuilder, Clock clock) {
-    return new MsciIndexRetriever(MSCI_ACWI_KEY, "892400", restClientBuilder, clock);
+  MsciIndexRetriever msciAcwiIndexRetriever(
+      RestClient.Builder restClientBuilder, JsonMapper jsonMapper, Clock clock) {
+    return new MsciIndexRetriever(MSCI_ACWI_KEY, "892400", restClientBuilder, jsonMapper, clock);
   }
 
   @Bean
-  MsciIndexRetriever msciWorldIndexRetriever(RestClient.Builder restClientBuilder, Clock clock) {
-    return new MsciIndexRetriever(MSCI_WORLD_KEY, "990100", restClientBuilder, clock);
+  MsciIndexRetriever msciWorldIndexRetriever(
+      RestClient.Builder restClientBuilder, JsonMapper jsonMapper, Clock clock) {
+    return new MsciIndexRetriever(MSCI_WORLD_KEY, "990100", restClientBuilder, jsonMapper, clock);
   }
 
   @Bean
-  MsciIndexRetriever msciEmIndexRetriever(RestClient.Builder restClientBuilder, Clock clock) {
-    return new MsciIndexRetriever(MSCI_EM_KEY, "891800", restClientBuilder, clock);
+  MsciIndexRetriever msciEmIndexRetriever(
+      RestClient.Builder restClientBuilder, JsonMapper jsonMapper, Clock clock) {
+    return new MsciIndexRetriever(MSCI_EM_KEY, "891800", restClientBuilder, jsonMapper, clock);
   }
 }

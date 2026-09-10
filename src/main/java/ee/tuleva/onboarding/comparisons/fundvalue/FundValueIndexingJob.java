@@ -6,6 +6,7 @@ import static java.util.Comparator.naturalOrder;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.BlackRockFundValueRetriever;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.ComparisonIndexRetriever;
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.ComparisonIndexUnavailableException;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.DeutscheBoerseValueRetriever;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EODHDValueRetriever;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EuronextValueRetriever;
@@ -103,6 +104,11 @@ public class FundValueIndexingJob {
       }
 
       fetchAndSave(retriever, startDate.get());
+    } catch (ComparisonIndexUnavailableException e) {
+      log.warn(
+          "Comparison index source unavailable, retrying on next run: fund={}, reason={}",
+          fund,
+          e.getMessage());
     } catch (Exception e) {
       log.error("Failed to refresh retriever: fund={}", fund, e);
     }

@@ -731,6 +731,7 @@ class TrackingDifferenceCalculatorTest {
                 new BigDecimal("1.02"),
                 new BigDecimal("1.00"),
                 bodHolding("IE00A", new BigDecimal("1.00"), "102", "100"))
+            .tradeFlow(BigDecimal.ZERO)
             .openingNetAssets(new BigDecimal("1000000"))
             .closingNetAssets(new BigDecimal("1122000"))
             .previousUnits(new BigDecimal("1000000"))
@@ -754,6 +755,7 @@ class TrackingDifferenceCalculatorTest {
                 new BigDecimal("1.25"),
                 new BigDecimal("1.00"),
                 bodHolding("IE00A", new BigDecimal("1.00"), "100", "100"))
+            .tradeFlow(BigDecimal.ZERO)
             .openingNetAssets(new BigDecimal("1000000"))
             .closingNetAssets(new BigDecimal("1000000"))
             .previousUnits(new BigDecimal("1000000"))
@@ -778,6 +780,7 @@ class TrackingDifferenceCalculatorTest {
                 new BigDecimal("1.25"),
                 new BigDecimal("1.00"),
                 bodHolding("IE00A", new BigDecimal("1.00"), "100", "100"))
+            .tradeFlow(BigDecimal.ZERO)
             .openingNetAssets(new BigDecimal("1000000"))
             .closingNetAssets(new BigDecimal("1000000"))
             .previousUnits(new BigDecimal("1000000"))
@@ -789,9 +792,7 @@ class TrackingDifferenceCalculatorTest {
     assertThat(result).isPresent();
     var flow = result.get().navFlow();
     assertThat(flow).isNotNull();
-    assertThat(
-            flow.unexplained().divide(flow.openingNetAssets(), 6, java.math.RoundingMode.HALF_UP))
-        .isEqualByComparingTo(result.get().navResidual());
+    assertThat(flow.unexplainedFraction()).isEqualByComparingTo(result.get().navResidual());
   }
 
   @Test
@@ -802,6 +803,7 @@ class TrackingDifferenceCalculatorTest {
                 new BigDecimal("1.00"),
                 bodHolding("IE00A", new BigDecimal("0.50"), "102", "100"),
                 bodHolding("IE00B", new BigDecimal("0.50"), "50", "50"))
+            .tradeFlow(BigDecimal.ZERO)
             .openingNetAssets(new BigDecimal("1000000"))
             .closingNetAssets(new BigDecimal("1010000"))
             .previousUnits(new BigDecimal("1000000"))

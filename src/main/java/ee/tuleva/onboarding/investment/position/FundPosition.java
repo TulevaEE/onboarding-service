@@ -72,9 +72,9 @@ public class FundPosition {
         && TRADE_PAYABLE_ACCOUNT_NAMES.stream().anyMatch(accountName::contains);
   }
 
-  public boolean isRedemptionPayableOf(TulevaFund fund) {
+  public boolean isRedemptionPayableOf(TulevaFund redeemedFund) {
     return accountName != null
         && accountName.contains(REDEMPTION_PAYABLE_ACCOUNT_NAME)
-        && fund.getIsin().equals(accountId);
+        && redeemedFund.getIsin().equals(accountId);
   }
 }

@@ -39,12 +39,7 @@ class LiabilityRecognitionCheckerTest {
 
     assertThat(checker.check(TUK75, NAV_DATE, liabilities))
         .containsExactly(
-            new HealthCheckFinding(
-                TUK75,
-                LIABILITY_RECOGNITION,
-                WARNING,
-                "Unrecognised LIABILITY row stays out of trade payables: navDate=2026-04-15,"
-                    + " accountName=Payables for FX forward settlement, marketValue=-42000.00"));
+            unrecognised("Payables for FX forward settlement", new BigDecimal("-42000.00")));
   }
 
   @Test
@@ -52,13 +47,7 @@ class LiabilityRecognitionCheckerTest {
     var liabilities = List.of(liability("Liabilities Other", new BigDecimal("-6000.00")));
 
     assertThat(checker.check(TUK75, NAV_DATE, liabilities))
-        .containsExactly(
-            new HealthCheckFinding(
-                TUK75,
-                LIABILITY_RECOGNITION,
-                WARNING,
-                "Unrecognised LIABILITY row stays out of trade payables: navDate=2026-04-15,"
-                    + " accountName=Liabilities Other, marketValue=-6000.00"));
+        .containsExactly(unrecognised("Liabilities Other", new BigDecimal("-6000.00")));
   }
 
   @Test
@@ -66,13 +55,7 @@ class LiabilityRecognitionCheckerTest {
     var liabilities = List.of(unitFlowLiability("Liabilities Other", new BigDecimal("-6000.00")));
 
     assertThat(checker.check(TUK75, NAV_DATE, liabilities))
-        .containsExactly(
-            new HealthCheckFinding(
-                TUK75,
-                LIABILITY_RECOGNITION,
-                WARNING,
-                "Unrecognised LIABILITY row stays out of trade payables: navDate=2026-04-15,"
-                    + " accountName=Liabilities Other, marketValue=-6000.00"));
+        .containsExactly(unrecognised("Liabilities Other", new BigDecimal("-6000.00")));
   }
 
   @Test
@@ -89,13 +72,7 @@ class LiabilityRecognitionCheckerTest {
                 .build());
 
     assertThat(checker.check(TUK75, NAV_DATE, liabilities))
-        .containsExactly(
-            new HealthCheckFinding(
-                TUK75,
-                LIABILITY_RECOGNITION,
-                WARNING,
-                "Unrecognised LIABILITY row stays out of trade payables: navDate=2026-04-15,"
-                    + " accountName=Payables of redeemed units, marketValue=-138440.80"));
+        .containsExactly(unrecognised("Payables of redeemed units", new BigDecimal("-138440.80")));
   }
 
   @Test
@@ -104,13 +81,7 @@ class LiabilityRecognitionCheckerTest {
         List.of(liability("Payables of redeemed units", new BigDecimal("-138440.80")));
 
     assertThat(checker.check(TUK75, NAV_DATE, liabilities))
-        .containsExactly(
-            new HealthCheckFinding(
-                TUK75,
-                LIABILITY_RECOGNITION,
-                WARNING,
-                "Unrecognised LIABILITY row stays out of trade payables: navDate=2026-04-15,"
-                    + " accountName=Payables of redeemed units, marketValue=-138440.80"));
+        .containsExactly(unrecognised("Payables of redeemed units", new BigDecimal("-138440.80")));
   }
 
   @Test
@@ -123,18 +94,8 @@ class LiabilityRecognitionCheckerTest {
 
     assertThat(checker.check(TUK75, NAV_DATE, liabilities))
         .containsExactly(
-            new HealthCheckFinding(
-                TUK75,
-                LIABILITY_RECOGNITION,
-                WARNING,
-                "Unrecognised LIABILITY row stays out of trade payables: navDate=2026-04-15,"
-                    + " accountName=Accrued expenses payable, marketValue=-8400.00"),
-            new HealthCheckFinding(
-                TUK75,
-                LIABILITY_RECOGNITION,
-                WARNING,
-                "Unrecognised LIABILITY row stays out of trade payables: navDate=2026-04-15,"
-                    + " accountName=Liabilities Other, marketValue=-6000.00"));
+            unrecognised("Accrued expenses payable", new BigDecimal("-8400.00")),
+            unrecognised("Liabilities Other", new BigDecimal("-6000.00")));
   }
 
   @Test
@@ -149,18 +110,22 @@ class LiabilityRecognitionCheckerTest {
                 .build());
 
     assertThat(checker.check(TUK75, NAV_DATE, liabilities))
-        .containsExactly(
-            new HealthCheckFinding(
-                TUK75,
-                LIABILITY_RECOGNITION,
-                WARNING,
-                "Unrecognised LIABILITY row stays out of trade payables: navDate=2026-04-15,"
-                    + " accountName=Accrued expenses payable, marketValue=null"));
+        .containsExactly(unrecognised("Accrued expenses payable", null));
   }
 
   @Test
   void noFindingsWhenTheReportCarriesNoLiabilityRows() {
     assertThat(checker.check(TUK75, NAV_DATE, List.of())).isEmpty();
+  }
+
+  private HealthCheckFinding unrecognised(String accountName, BigDecimal marketValue) {
+    return new HealthCheckFinding(
+        TUK75,
+        LIABILITY_RECOGNITION,
+        WARNING,
+        ("Unrecognised LIABILITY row stays out of trade payables:"
+                + " navDate=%s, accountName=%s, marketValue=%s")
+            .formatted(NAV_DATE, accountName, marketValue));
   }
 
   private FundPosition liability(String accountName, BigDecimal marketValue) {

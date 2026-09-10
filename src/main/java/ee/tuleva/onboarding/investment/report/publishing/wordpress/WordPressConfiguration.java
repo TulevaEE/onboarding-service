@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.report.publishing.wordpress;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.time.Duration.ofMillis;
 import static java.time.Duration.ofSeconds;
 
@@ -26,22 +27,25 @@ class WordPressConfiguration {
 
   @Bean
   WordPressMediaClient wordPressMediaClient(WordPressProperties properties) {
-    if (!properties.isFullyConfigured()) {
+    var missingProperties = properties.missingPropertyNames();
+    if (!missingProperties.isEmpty()) {
       log.warn(
           "WordPress report publishing is enabled but not configured, so publishing will fail"
               + " until it is: missing={}",
-          properties.missingPropertyNames());
+          missingProperties);
     }
+    return new WordPressMediaClient(
+        wordPressRestClient(properties), wordPressRetryTemplate(), missingProperties);
+  }
 
-    var credentials = properties.username() + ":" + properties.appPassword();
-    var basicAuth = Base64.getEncoder().encodeToString(credentials.getBytes());
-
+  private static RestClient wordPressRestClient(WordPressProperties properties) {
+    var basicAuth = basicAuth(properties);
     var requestFactory =
         new JdkClientHttpRequestFactory(
             HttpClient.newBuilder().connectTimeout(ofSeconds(5)).build());
     requestFactory.setReadTimeout(ofSeconds(30));
 
-    var restClientBuilder =
+    var builder =
         RestClient.builder()
             .requestFactory(requestFactory)
             .requestInterceptor(
@@ -51,10 +55,14 @@ class WordPressConfiguration {
                 });
     var apiBase = properties.apiBase();
     if (apiBase != null) {
-      restClientBuilder.baseUrl(apiBase);
+      builder.baseUrl(apiBase);
     }
-    return new WordPressMediaClient(
-        restClientBuilder.build(), wordPressRetryTemplate(), properties.missingPropertyNames());
+    return builder.build();
+  }
+
+  private static String basicAuth(WordPressProperties properties) {
+    var credentials = properties.username() + ":" + properties.appPassword();
+    return Base64.getEncoder().encodeToString(credentials.getBytes(UTF_8));
   }
 
   private static RetryTemplate wordPressRetryTemplate() {

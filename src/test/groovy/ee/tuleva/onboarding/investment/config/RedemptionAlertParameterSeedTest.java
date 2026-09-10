@@ -16,9 +16,6 @@ import org.springframework.context.annotation.Import;
 @Import(InvestmentParameterRepository.class)
 class RedemptionAlertParameterSeedTest {
 
-  // RedemptionAlertJob asks as of the run date and skips when nothing is effective yet, so
-  // thresholds seeded at their own deploy date would silence every alert the job has already
-  // raised. Both numbers are seeded from the day the unified job started applying them.
   private static final LocalDate FIRST_UNIFIED_ALERT_RUN = LocalDate.of(2026, 5, 19);
 
   @Autowired private InvestmentParameterRepository repository;

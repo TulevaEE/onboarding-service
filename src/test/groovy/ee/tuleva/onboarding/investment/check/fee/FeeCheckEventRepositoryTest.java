@@ -176,9 +176,6 @@ class FeeCheckEventRepositoryTest {
     assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75)).isEmpty();
   }
 
-  // A day the check could not look at found no deviation, which is not the same claim as there
-  // being none. Letting it clear the window closes an unfixed deviation, and the next run that
-  // no longer covers the divergent date reports the whole thing as cleared.
   @Test
   void aRunThatCouldNotCheckDoesNotResolveAnOpenDeviation() {
     saveOn(LocalDate.of(2026, 6, 1), FEE_BASE_COMPLETENESS, ALL, FAIL);
@@ -188,8 +185,6 @@ class FeeCheckEventRepositoryTest {
         .contains(LocalDate.of(2026, 6, 1));
   }
 
-  // A coverage gap only defers the question. Once a run does look and comes back clean, the
-  // deviation is resolved and the window must narrow again.
   @Test
   void aCleanRunAfterADayTheCheckCouldNotRunStillResolvesTheDeviation() {
     saveOn(LocalDate.of(2026, 6, 1), FEE_BASE_COMPLETENESS, ALL, FAIL);
@@ -199,8 +194,6 @@ class FeeCheckEventRepositoryTest {
     assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75)).isEmpty();
   }
 
-  // INFO means we looked, found a difference and it needs no correction. That resolves the
-  // deviation exactly as a PASS does.
   @Test
   void aDeviationExplainedAsNeedingNoActionIsNoLongerOutstanding() {
     saveOn(LocalDate.of(2026, 6, 1), CUSTODIAN_POSITION_COMPLETENESS, ALL, FAIL);
@@ -209,8 +202,6 @@ class FeeCheckEventRepositoryTest {
     assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75)).isEmpty();
   }
 
-  // Not looking is not a deviation either: a coverage gap must not widen the window on its own,
-  // or every fund with no position report yet would drag the window back indefinitely.
   @Test
   void aRunThatCouldNotCheckIsNotItselfAnOpenDeviation() {
     saveOn(LocalDate.of(2026, 6, 1), FEE_BASE_COMPLETENESS, ALL, NOT_RUN);

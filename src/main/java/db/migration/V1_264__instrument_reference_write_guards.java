@@ -18,7 +18,7 @@ import org.flywaydb.core.api.migration.Context;
 //
 // updated_at is stamped here too: nothing writes these tables through JPA, so without a trigger
 // the column keeps its INSERT value forever and reads as "this row has never changed".
-public class V1_259__instrument_reference_write_guards extends BaseJavaMigration {
+public class V1_264__instrument_reference_write_guards extends BaseJavaMigration {
 
   private static final String POSTGRESQL = "PostgreSQL";
 

@@ -1,10 +1,14 @@
 package ee.tuleva.onboarding.notification.email.firstpayment;
 
 import static ee.tuleva.onboarding.notification.email.EmailType.THIRD_PILLAR_PAYMENT_ARRIVED;
+import static ee.tuleva.onboarding.notification.email.EmailType.THIRD_PILLAR_SUGGEST_SECOND;
+import static java.time.temporal.ChronoUnit.DAYS;
 
 import ee.tuleva.onboarding.auth.principal.Names;
 import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,6 +30,7 @@ public class ThirdPillarPaymentArrivedEmailService {
   private final EmailService emailService;
   private final EmailPersistenceService emailPersistenceService;
   private final SavingsFundFeeRates savingsFundFees;
+  private final Clock clock;
 
   public boolean send(FirstThirdPillarPayment payment) {
     if (!claims.claim(payment.personalCode())) {
@@ -43,6 +48,7 @@ public class ThirdPillarPaymentArrivedEmailService {
             response -> {
               emailPersistenceService.save(
                   payment, response.getId(), THIRD_PILLAR_PAYMENT_ARRIVED, response.getStatus());
+              scheduleSecondPillarLetter(payment);
               return true;
             })
         .orElseGet(
@@ -52,6 +58,39 @@ public class ThirdPillarPaymentArrivedEmailService {
                   payment.personalCode());
               return false;
             });
+  }
+
+  private void scheduleSecondPillarLetter(FirstThirdPillarPayment payment) {
+    if (payment.hasTulevaUser() || !payment.suggestSecondPillar()) {
+      return;
+    }
+
+    String templateName = THIRD_PILLAR_SUGGEST_SECOND.getTemplateName(payment.emailLanguage());
+    var message =
+        emailService.newMandrillMessage(
+            payment.getEmail(),
+            templateName,
+            nameMergeVars(payment),
+            List.of("pillar_3.1", "suggest_2"));
+
+    emailService
+        .send(payment, message, templateName, Instant.now(clock).plus(3, DAYS))
+        .ifPresentOrElse(
+            response ->
+                emailPersistenceService.save(
+                    payment, response.getId(), THIRD_PILLAR_SUGGEST_SECOND, response.getStatus()),
+            () ->
+                log.error(
+                    "Second pillar letter failed to schedule: personalCode={}",
+                    payment.personalCode()));
+  }
+
+  private Map<String, Object> nameMergeVars(FirstThirdPillarPayment payment) {
+    return Map.of(
+        "fname",
+        Names.formatted(payment.getFirstName()),
+        "lname",
+        Names.formatted(payment.getLastName()));
   }
 
   private Map<String, Object> mergeVars(FirstThirdPillarPayment payment) {

@@ -37,6 +37,20 @@ class WordPressConfigurationTest {
   }
 
   @Test
+  void uploadRefusesToRunWhenNoWordPressPropertyIsConfigured() {
+    contextRunner
+        .withPropertyValues("investment-report-publishing.enabled=true")
+        .run(
+            context ->
+                assertThatThrownBy(
+                        () ->
+                            context
+                                .getBean(WordPressMediaClient.class)
+                                .upload("report.pdf", new byte[] {1}))
+                    .isInstanceOf(IllegalStateException.class));
+  }
+
+  @Test
   void publishingRefusesToRunWhenTheAppPasswordIsBlank() {
     contextRunner
         .withPropertyValues(

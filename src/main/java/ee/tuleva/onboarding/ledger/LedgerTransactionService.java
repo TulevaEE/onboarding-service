@@ -1,5 +1,10 @@
 package ee.tuleva.onboarding.ledger;
 
+import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.LIABILITY;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.ADJUSTMENT;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.REDEMPTION_PAYOUT;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.REDEMPTION_REQUEST;
+
 import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
 import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
@@ -95,11 +100,12 @@ class LedgerTransactionService {
   }
 
   public List<UUID> findHolderAccountIdsInDebit() {
-    return ledgerTransactionRepository.findHolderAccountIdsInDebit();
+    return ledgerTransactionRepository.findHolderAccountIdsInDebit(LIABILITY);
   }
 
   public List<UUID> findPayoutIdsBookedToAnotherPartyThanPriced() {
-    return ledgerTransactionRepository.findPayoutIdsBookedToAnotherPartyThanPriced();
+    return ledgerTransactionRepository.findPayoutIdsBookedToAnotherPartyThanPriced(
+        REDEMPTION_PAYOUT, REDEMPTION_REQUEST, ADJUSTMENT);
   }
 
   public record LedgerEntryDto(LedgerAccount account, BigDecimal amount) {}

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.ledger;
 
+import ee.tuleva.onboarding.ledger.LedgerAccount.AccountType;
 import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
 import java.util.List;
 import java.util.Optional;
@@ -54,28 +55,31 @@ interface LedgerTransactionRepository extends JpaRepository<LedgerTransaction, U
   @Query(
       """
       select a.id from LedgerAccount a join a.entries e
-      where a.owner is not null and a.accountType = ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.LIABILITY
+      where a.owner is not null and a.accountType = :accountType
       group by a.id having sum(e.amount) > 0
       """)
-  List<UUID> findHolderAccountIdsInDebit();
+  List<UUID> findHolderAccountIdsInDebit(@Param("accountType") AccountType accountType);
 
   @Query(
       """
       select distinct p.id from LedgerTransaction p join p.entries pe
-      where p.transactionType = ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.REDEMPTION_PAYOUT
+      where p.transactionType = :payout
         and pe.account.owner is not null
         and p.externalReference is not null
         and not exists (
           select 1 from LedgerTransaction r join r.entries re
-          where r.transactionType = ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.REDEMPTION_REQUEST
+          where r.transactionType = :pricing
             and r.externalReference = p.externalReference
             and re.account = pe.account)
         and not exists (
           select 1 from LedgerTransaction c join c.entries ce
-          where c.transactionType = ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.ADJUSTMENT
+          where c.transactionType = :adjustment
             and c.externalReference = p.externalReference
             and ce.account = pe.account
             and ce.amount < 0)
       """)
-  List<UUID> findPayoutIdsBookedToAnotherPartyThanPriced();
+  List<UUID> findPayoutIdsBookedToAnotherPartyThanPriced(
+      @Param("payout") TransactionType payout,
+      @Param("pricing") TransactionType pricing,
+      @Param("adjustment") TransactionType adjustment);
 }

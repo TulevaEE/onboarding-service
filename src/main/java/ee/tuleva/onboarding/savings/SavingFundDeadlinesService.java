@@ -15,6 +15,7 @@ public class SavingFundDeadlinesService {
   private final Clock estonianClock;
 
   private static final LocalTime CUTOFF_TIME = LocalTime.of(16, 0);
+  private static final LocalTime SCREENING_RETRY_CUTOFF_TIME = LocalTime.of(15, 0);
 
   private LocalDate firstWorkingDayOnOrAfter(LocalDate date) {
     return publicHolidays.nextWorkingDay(date.minusDays(1));
@@ -35,19 +36,26 @@ public class SavingFundDeadlinesService {
     return getCancellationDeadlineFrom(payment.getCreatedAt());
   }
 
+  public Instant getScreeningRetryDeadline(RedemptionRequest redemptionRequest) {
+    return dealingDay(redemptionRequest.getRequestedAt())
+        .atTime(SCREENING_RETRY_CUTOFF_TIME)
+        .atZone(estonianClock.getZone())
+        .toInstant();
+  }
+
   private Instant getCancellationDeadlineFrom(Instant eventInstant) {
-    ZoneId zone = estonianClock.getZone();
-    ZonedDateTime zdt = eventInstant.atZone(zone);
+    return dealingDay(eventInstant).atTime(CUTOFF_TIME).atZone(estonianClock.getZone()).toInstant();
+  }
+
+  private LocalDate dealingDay(Instant eventInstant) {
+    ZonedDateTime zdt = eventInstant.atZone(estonianClock.getZone());
     LocalDate date = zdt.toLocalDate();
     LocalTime time = zdt.toLocalTime();
 
     LocalDate firstWorkingDay = firstWorkingDayOnOrAfter(date);
-    LocalDate deadlineDate =
-        missedTodaysCutoff(date, time, firstWorkingDay)
-            ? publicHolidays.nextWorkingDay(firstWorkingDay)
-            : firstWorkingDay;
-
-    return deadlineDate.atTime(CUTOFF_TIME).atZone(zone).toInstant();
+    return missedTodaysCutoff(date, time, firstWorkingDay)
+        ? publicHolidays.nextWorkingDay(firstWorkingDay)
+        : firstWorkingDay;
   }
 
   public Instant getFulfillmentDeadline(SavingFundPayment payment) {

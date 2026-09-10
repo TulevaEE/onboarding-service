@@ -273,6 +273,7 @@ class TrackingDifferenceService {
             .closingNetAssets(totalNav)
             .previousUnits(unitsOutstanding(fund, previousDate))
             .todayUnits(unitsOutstanding(fund, checkDate))
+            .tradeFlow(TradeFlow.atMark(blendedSecurities, bodPositions, positions))
             .securityQuantitiesChanged(SecurityQuantities.changedBetween(bodPositions, positions))
             .build();
 

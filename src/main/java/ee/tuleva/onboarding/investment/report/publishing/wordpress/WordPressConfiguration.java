@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.investment.report.publishing.wordpress;
 
 import static java.time.Duration.ofMillis;
 import static java.time.Duration.ofSeconds;
-import static java.util.Objects.requireNonNullElse;
 
 import java.net.http.HttpClient;
 import java.util.Base64;
@@ -42,18 +41,20 @@ class WordPressConfiguration {
             HttpClient.newBuilder().connectTimeout(ofSeconds(5)).build());
     requestFactory.setReadTimeout(ofSeconds(30));
 
-    var restClient =
+    var restClientBuilder =
         RestClient.builder()
-            .baseUrl(requireNonNullElse(properties.apiBase(), ""))
             .requestFactory(requestFactory)
             .requestInterceptor(
                 (request, body, execution) -> {
                   request.getHeaders().set("Authorization", "Basic " + basicAuth);
                   return execution.execute(request, body);
-                })
-            .build();
+                });
+    var apiBase = properties.apiBase();
+    if (apiBase != null) {
+      restClientBuilder.baseUrl(apiBase);
+    }
     return new WordPressMediaClient(
-        restClient, wordPressRetryTemplate(), properties.missingPropertyNames());
+        restClientBuilder.build(), wordPressRetryTemplate(), properties.missingPropertyNames());
   }
 
   private static RetryTemplate wordPressRetryTemplate() {

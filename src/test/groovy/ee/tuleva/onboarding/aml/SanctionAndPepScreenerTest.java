@@ -524,17 +524,63 @@ class SanctionAndPepScreenerTest {
   }
 
   @Test
-  void isSanctionAndPepClear_failsClosedWhenScreeningThrows() {
+  void screeningOutcome_isUnavailableWhenScreeningThrows() {
     User user = createUser("123", "First", "Last", 1L);
     Set<Country> country = Countries.of("EE");
     when(pepAndSanctionCheckService.match(user, country))
         .thenThrow(new RuntimeException("screening service down"));
 
-    assertFalse(sanctionAndPepScreener.isSanctionAndPepClear(user, country));
+    assertEquals(
+        ScreeningOutcome.UNAVAILABLE, sanctionAndPepScreener.screeningOutcome(user, country));
   }
 
   @Test
-  void isSanctionAndPepClear_trueWhenLatestScreeningChecksPass() {
+  void screeningOutcome_isPepHitWhenOnlyTheLatestPepCheckHasFailed() {
+    User user = createUser("123", "First", "Last", 1L);
+    Set<Country> country = Countries.of("EE");
+    MatchResponse emptyResponse =
+        new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode());
+    when(pepAndSanctionCheckService.match(user, country)).thenReturn(emptyResponse);
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
+            "123", SANCTION))
+        .thenReturn(
+            Optional.of(
+                AmlCheck.builder().personalCode("123").type(SANCTION).success(true).build()));
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
+            "123", POLITICALLY_EXPOSED_PERSON_AUTO))
+        .thenReturn(
+            Optional.of(
+                AmlCheck.builder()
+                    .personalCode("123")
+                    .type(POLITICALLY_EXPOSED_PERSON_AUTO)
+                    .success(false)
+                    .build()));
+
+    assertEquals(ScreeningOutcome.PEP_HIT, sanctionAndPepScreener.screeningOutcome(user, country));
+  }
+
+  @Test
+  void screeningOutcome_isUnavailableWhenOnlyThePepRecordIsMissing() {
+    User user = createUser("123", "First", "Last", 1L);
+    Set<Country> country = Countries.of("EE");
+    MatchResponse emptyResponse =
+        new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode());
+    when(pepAndSanctionCheckService.match(user, country)).thenReturn(emptyResponse);
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
+            "123", SANCTION))
+        .thenReturn(
+            Optional.of(
+                AmlCheck.builder().personalCode("123").type(SANCTION).success(true).build()));
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
+            "123", POLITICALLY_EXPOSED_PERSON_AUTO))
+        .thenReturn(Optional.empty());
+
+    assertEquals(
+        ScreeningOutcome.UNAVAILABLE, sanctionAndPepScreener.screeningOutcome(user, country));
+  }
+
+  @Test
+  void screeningOutcome_isClearWhenLatestScreeningChecksPass() {
     User user = createUser("123", "First", "Last", 1L);
     Set<Country> country = Countries.of("EE");
     MatchResponse emptyResponse =
@@ -555,11 +601,11 @@ class SanctionAndPepScreenerTest {
                     .success(true)
                     .build()));
 
-    assertTrue(sanctionAndPepScreener.isSanctionAndPepClear(user, country));
+    assertEquals(ScreeningOutcome.CLEAR, sanctionAndPepScreener.screeningOutcome(user, country));
   }
 
   @Test
-  void isSanctionAndPepClear_falseWhenLatestSanctionCheckHasFailed() {
+  void screeningOutcome_isSanctionHitWhenLatestSanctionCheckHasFailed() {
     User user = createUser("123", "First", "Last", 1L);
     Set<Country> country = Countries.of("EE");
     ArrayNode results = objectMapper.createArrayNode();
@@ -580,11 +626,12 @@ class SanctionAndPepScreenerTest {
             Optional.of(
                 AmlCheck.builder().personalCode("123").type(SANCTION).success(false).build()));
 
-    assertFalse(sanctionAndPepScreener.isSanctionAndPepClear(user, country));
+    assertEquals(
+        ScreeningOutcome.SANCTION_HIT, sanctionAndPepScreener.screeningOutcome(user, country));
   }
 
   @Test
-  void isSanctionAndPepClear_falseWhenNoScreeningRecordExists() {
+  void screeningOutcome_isUnavailableWhenNoScreeningRecordExists() {
     User user = createUser("123", "First", "Last", 1L);
     Set<Country> country = Countries.of("EE");
     MatchResponse emptyResponse =
@@ -594,7 +641,8 @@ class SanctionAndPepScreenerTest {
             eq("123"), any(AmlCheckType.class)))
         .thenReturn(Optional.empty());
 
-    assertFalse(sanctionAndPepScreener.isSanctionAndPepClear(user, country));
+    assertEquals(
+        ScreeningOutcome.UNAVAILABLE, sanctionAndPepScreener.screeningOutcome(user, country));
   }
 
   @Test

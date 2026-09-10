@@ -18,16 +18,17 @@ public class RedemptionStatusService {
 
   private static final Set<StatusTransition> ALLOWED_TRANSITIONS =
       Set.of(
-          new StatusTransition(RESERVED, IN_REVIEW),
+          new StatusTransition(RESERVED, FROZEN),
           new StatusTransition(RESERVED, VERIFIED),
           new StatusTransition(RESERVED, CANCELLED),
           new StatusTransition(RESERVED, FAILED),
-          new StatusTransition(IN_REVIEW, VERIFIED),
-          new StatusTransition(IN_REVIEW, CANCELLED),
-          new StatusTransition(IN_REVIEW, FAILED),
+          new StatusTransition(FROZEN, VERIFIED),
+          new StatusTransition(VERIFIED, PAYOUT_HELD),
           new StatusTransition(VERIFIED, CANCELLED),
           new StatusTransition(VERIFIED, REDEEMED),
           new StatusTransition(VERIFIED, FAILED),
+          new StatusTransition(PAYOUT_HELD, REDEEMED),
+          new StatusTransition(PAYOUT_HELD, FAILED),
           new StatusTransition(REDEEMED, PROCESSED),
           new StatusTransition(REDEEMED, FAILED),
           new StatusTransition(FAILED, REDEEMED));

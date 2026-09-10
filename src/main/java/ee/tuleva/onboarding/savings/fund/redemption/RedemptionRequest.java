@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED;
 import static jakarta.persistence.EnumType.STRING;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.time.ClockHolder;
 import jakarta.persistence.*;
@@ -71,11 +72,21 @@ public class RedemptionRequest {
 
   @Nullable private String errorReason;
 
-  @Nullable private String reviewedBy;
+  // RedemptionController returns this entity to the customer, and RahaPTS forbids telling the
+  // customer about an AML suspicion, so the review and hold columns never leave the server.
+  @JsonIgnore @Nullable private String reviewedBy;
 
-  @Nullable private String reviewReason;
+  @JsonIgnore @Nullable private String reviewReason;
 
-  @Nullable private Instant reviewedAt;
+  @JsonIgnore @Nullable private Instant reviewedAt;
+
+  @JsonIgnore @Nullable private String holdReason;
+
+  @JsonIgnore @Nullable private Instant holdAt;
+
+  @JsonIgnore @Nullable private String heldBy;
+
+  @JsonIgnore @Nullable private Instant holdNotifiedAt;
 
   @Column(nullable = false)
   private Instant updatedAt;
@@ -96,15 +107,20 @@ public class RedemptionRequest {
 
   public enum Status {
     RESERVED,
-    IN_REVIEW,
-    CANCELLED,
+    FROZEN,
     VERIFIED,
+    PAYOUT_HELD,
     REDEEMED,
     PROCESSED,
+    CANCELLED,
     FAILED
   }
 
   public PartyId getPartyId() {
     return new PartyId(partyType, partyCode);
+  }
+
+  public boolean hasActiveHold() {
+    return holdReason != null && reviewedAt == null;
   }
 }

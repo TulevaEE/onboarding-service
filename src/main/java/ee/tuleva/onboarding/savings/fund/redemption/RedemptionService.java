@@ -26,7 +26,6 @@ import ee.tuleva.onboarding.savings.fund.notification.RedemptionRequestedEvent;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -46,7 +45,7 @@ public class RedemptionService {
   private static final int FUND_UNITS_SCALE = 5;
   private static final BigDecimal MAX_WITHDRAWAL_TOLERANCE = new BigDecimal("0.01");
   private static final Set<RedemptionRequest.Status> CANCELLABLE_STATUSES =
-      EnumSet.of(RESERVED, IN_REVIEW, VERIFIED);
+      Set.of(RESERVED, VERIFIED);
 
   private final RedemptionRequestRepository redemptionRequestRepository;
   private final RedemptionStatusService redemptionStatusService;
@@ -147,7 +146,7 @@ public class RedemptionService {
 
   public List<RedemptionRequest> getPendingRedemptionsForParty(PartyId partyId) {
     return redemptionRequestRepository.findByPartyTypeAndPartyCodeAndStatusIn(
-        partyId.type(), partyId.code(), List.of(RESERVED, IN_REVIEW, VERIFIED));
+        partyId.type(), partyId.code(), List.of(RESERVED, FROZEN, VERIFIED, PAYOUT_HELD));
   }
 
   public RedemptionRequest getRedemption(UUID id) {

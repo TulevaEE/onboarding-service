@@ -25,7 +25,7 @@ import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationService;
 import ee.tuleva.onboarding.savings.fund.nav.NavPublisher;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionBatchJob;
-import ee.tuleva.onboarding.savings.fund.redemption.RedemptionReviewService;
+import ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -53,7 +53,7 @@ class SavingsFundAdminControllerTest {
   @MockitoBean private NavCalculationService navCalculationService;
   @MockitoBean private NavPublisher navPublisher;
   @MockitoBean private RedemptionBatchJob redemptionBatchJob;
-  @MockitoBean private RedemptionReviewService redemptionReviewService;
+  @MockitoBean private RedemptionHoldService redemptionHoldService;
   @MockitoBean private IbanWhitelistService ibanWhitelistService;
   @MockitoBean private UnattributedPaymentAttributionService unattributedPaymentAttributionService;
   @MockitoBean private Clock clock;
@@ -221,68 +221,115 @@ class SavingsFundAdminControllerTest {
   }
 
   @Test
-  void approveRedemptionReview_withOpsToken_delegatesToService() throws Exception {
+  void retryRedemptionPayout_withOpsToken_invokesBatchJobAndReturnsOk() throws Exception {
+    var requestId = UUID.randomUUID();
+
+    mockMvc
+        .perform(
+            post("/admin/redemptions/{id}/retry-payout", requestId)
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token"))
+        .andExpect(status().isOk());
+
+    verify(redemptionBatchJob).retryFailedPayout(requestId);
+  }
+
+  @Test
+  void releaseRedemption_withOpsToken_delegatesToService() throws Exception {
     var requestId = UUID.fromString("2db696b5-00ee-4937-87b4-8192c675e4b5");
 
     mockMvc
         .perform(
-            post("/admin/redemptions/{id}/approve-review", requestId)
+            post("/admin/redemptions/{id}/release", requestId)
                 .with(csrf())
                 .header("X-Admin-Token", "ops-token")
-                .param("approvedBy", "AML Specialist")
+                .param("by", "AML Specialist")
                 .param("reason", "reviewed, source of funds clear"))
         .andExpect(status().isOk());
 
-    verify(redemptionReviewService)
-        .approve(requestId, "AML Specialist", "reviewed, source of funds clear");
+    verify(redemptionHoldService)
+        .release(requestId, "AML Specialist", "reviewed, source of funds clear");
   }
 
   @Test
-  void approveRedemptionReview_withBlankReason_returnsBadRequest() throws Exception {
+  void releaseRedemption_withBlankReason_returnsBadRequest() throws Exception {
     var requestId = UUID.randomUUID();
 
     mockMvc
         .perform(
-            post("/admin/redemptions/{id}/approve-review", requestId)
+            post("/admin/redemptions/{id}/release", requestId)
                 .with(csrf())
                 .header("X-Admin-Token", "ops-token")
-                .param("approvedBy", "AML Specialist")
+                .param("by", "AML Specialist")
                 .param("reason", " "))
         .andExpect(status().isBadRequest());
 
-    verify(redemptionReviewService, never()).approve(any(), any(), any());
+    verify(redemptionHoldService, never()).release(any(), any(), any());
   }
 
   @Test
-  void approveRedemptionReview_withBlankApprover_returnsBadRequest() throws Exception {
+  void releaseRedemption_withBlankBy_returnsBadRequest() throws Exception {
     var requestId = UUID.randomUUID();
 
     mockMvc
         .perform(
-            post("/admin/redemptions/{id}/approve-review", requestId)
+            post("/admin/redemptions/{id}/release", requestId)
                 .with(csrf())
                 .header("X-Admin-Token", "ops-token")
-                .param("approvedBy", " ")
+                .param("by", " ")
                 .param("reason", "reviewed"))
         .andExpect(status().isBadRequest());
 
-    verify(redemptionReviewService, never()).approve(any(), any(), any());
+    verify(redemptionHoldService, never()).release(any(), any(), any());
   }
 
   @Test
-  void approveRedemptionReview_withInvalidToken_returnsUnauthorized() throws Exception {
+  void releaseRedemption_withInvalidToken_returnsUnauthorized() throws Exception {
     var requestId = UUID.randomUUID();
 
     mockMvc
         .perform(
-            post("/admin/redemptions/{id}/approve-review", requestId)
+            post("/admin/redemptions/{id}/release", requestId)
                 .with(csrf())
                 .header("X-Admin-Token", "wrong-token")
-                .param("approvedBy", "AML Specialist")
+                .param("by", "AML Specialist")
                 .param("reason", "reviewed"))
         .andExpect(status().isUnauthorized());
 
-    verify(redemptionReviewService, never()).approve(any(), any(), any());
+    verify(redemptionHoldService, never()).release(any(), any(), any());
+  }
+
+  @Test
+  void holdRedemptionPayout_withOpsToken_delegatesToServiceAsManualHold() throws Exception {
+    var requestId = UUID.fromString("2db696b5-00ee-4937-87b4-8192c675e4b5");
+
+    mockMvc
+        .perform(
+            post("/admin/redemptions/{id}/hold", requestId)
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .param("by", "AML Specialist")
+                .param("reason", "TKF volume alert"))
+        .andExpect(status().isOk());
+
+    verify(redemptionHoldService)
+        .holdPayout(requestId, "MANUAL: TKF volume alert", "AML Specialist");
+  }
+
+  @Test
+  void holdRedemptionPayout_withBlankReason_returnsBadRequest() throws Exception {
+    var requestId = UUID.randomUUID();
+
+    mockMvc
+        .perform(
+            post("/admin/redemptions/{id}/hold", requestId)
+                .with(csrf())
+                .header("X-Admin-Token", "ops-token")
+                .param("by", "AML Specialist")
+                .param("reason", " "))
+        .andExpect(status().isBadRequest());
+
+    verify(redemptionHoldService, never()).holdPayout(any(), any(), any());
   }
 
   @Test

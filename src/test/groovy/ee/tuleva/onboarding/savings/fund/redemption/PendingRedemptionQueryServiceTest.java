@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
-import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.IN_REVIEW;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.FROZEN;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.PAYOUT_HELD;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -46,7 +47,7 @@ class PendingRedemptionQueryServiceTest {
             .build();
     given(
             redemptionRequestRepository.findByPartyTypeAndPartyCodeAndStatusIn(
-                partyId.type(), partyId.code(), List.of(RESERVED, IN_REVIEW, VERIFIED)))
+                partyId.type(), partyId.code(), List.of(RESERVED, FROZEN, VERIFIED, PAYOUT_HELD)))
         .willReturn(List.of(request));
     given(deadlinesService.getCancellationDeadline(request)).willReturn(cancellationDeadline);
     given(deadlinesService.getFulfillmentDeadline(request)).willReturn(fulfillmentDeadline);

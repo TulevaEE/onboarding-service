@@ -5,6 +5,7 @@ import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status;
 import jakarta.persistence.LockModeType;
 import jakarta.transaction.Transactional;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -34,6 +35,17 @@ public interface RedemptionRequestRepository extends CrudRepository<RedemptionRe
       """)
   List<RedemptionRequest> findAcceptedBefore(
       @Param("status") Status status, @Param("cutoff") Instant cutoff);
+
+  @Query(
+      """
+      SELECT r FROM RedemptionRequest r
+      WHERE r.holdReason IS NOT NULL
+        AND r.reviewedAt IS NULL
+        AND r.holdNotifiedAt IS NULL
+        AND r.status IN :statuses
+      """)
+  List<RedemptionRequest> findWithUnsentHoldNotification(
+      @Param("statuses") Collection<Status> statuses);
 
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query("SELECT r FROM RedemptionRequest r WHERE r.id = :id")

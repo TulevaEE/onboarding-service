@@ -14,7 +14,7 @@ import ee.tuleva.onboarding.savings.fund.admin.SavingsFundAdminController;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationService;
 import ee.tuleva.onboarding.savings.fund.nav.NavPublisher;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionBatchJob;
-import ee.tuleva.onboarding.savings.fund.redemption.RedemptionReviewService;
+import ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldService;
 import java.time.Clock;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,7 +41,7 @@ class WhitelistIbanEndpointIntegrationTest {
   @MockitoBean private NavCalculationService navCalculationService;
   @MockitoBean private NavPublisher navPublisher;
   @MockitoBean private RedemptionBatchJob redemptionBatchJob;
-  @MockitoBean private RedemptionReviewService redemptionReviewService;
+  @MockitoBean private RedemptionHoldService redemptionHoldService;
   @MockitoBean private UnattributedPaymentAttributionService unattributedPaymentAttributionService;
   @MockitoBean private Clock clock;
 

@@ -40,18 +40,81 @@ class RedemptionStatusServiceTest {
   }
 
   @Test
-  @DisplayName("changeStatus transitions from RESERVED to IN_REVIEW")
-  void changeStatus_reservedToInReview_succeeds() {
+  void changeStatus_reservedToFrozen_succeeds() {
     var requestId = UUID.randomUUID();
     var request = redemptionRequestFixture().id(requestId).status(RESERVED).build();
 
     when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
 
-    redemptionStatusService.changeStatus(requestId, IN_REVIEW);
+    redemptionStatusService.changeStatus(requestId, FROZEN);
 
     var captor = ArgumentCaptor.forClass(RedemptionRequest.class);
     verify(repository).save(captor.capture());
-    assertThat(captor.getValue().getStatus()).isEqualTo(IN_REVIEW);
+    assertThat(captor.getValue().getStatus()).isEqualTo(FROZEN);
+  }
+
+  @Test
+  void changeStatus_frozenToVerified_succeeds() {
+    var requestId = UUID.randomUUID();
+    var request = redemptionRequestFixture().id(requestId).status(FROZEN).build();
+
+    when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
+
+    redemptionStatusService.changeStatus(requestId, VERIFIED);
+
+    var captor = ArgumentCaptor.forClass(RedemptionRequest.class);
+    verify(repository).save(captor.capture());
+    assertThat(captor.getValue().getStatus()).isEqualTo(VERIFIED);
+  }
+
+  @Test
+  void changeStatus_verifiedToPayoutHeld_succeeds() {
+    var requestId = UUID.randomUUID();
+    var request = redemptionRequestFixture().id(requestId).status(VERIFIED).build();
+
+    when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
+
+    redemptionStatusService.changeStatus(requestId, PAYOUT_HELD);
+
+    var captor = ArgumentCaptor.forClass(RedemptionRequest.class);
+    verify(repository).save(captor.capture());
+    assertThat(captor.getValue().getStatus()).isEqualTo(PAYOUT_HELD);
+  }
+
+  @Test
+  void changeStatus_payoutHeldToRedeemed_succeeds() {
+    var requestId = UUID.randomUUID();
+    var request = redemptionRequestFixture().id(requestId).status(PAYOUT_HELD).build();
+
+    when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
+
+    redemptionStatusService.changeStatus(requestId, REDEEMED);
+
+    var captor = ArgumentCaptor.forClass(RedemptionRequest.class);
+    verify(repository).save(captor.capture());
+    assertThat(captor.getValue().getStatus()).isEqualTo(REDEEMED);
+  }
+
+  @Test
+  void changeStatus_frozenToCancelled_throws() {
+    var requestId = UUID.randomUUID();
+    var request = redemptionRequestFixture().id(requestId).status(FROZEN).build();
+
+    when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
+
+    assertThatThrownBy(() -> redemptionStatusService.changeStatus(requestId, CANCELLED))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void changeStatus_payoutHeldToCancelled_throws() {
+    var requestId = UUID.randomUUID();
+    var request = redemptionRequestFixture().id(requestId).status(PAYOUT_HELD).build();
+
+    when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
+
+    assertThatThrownBy(() -> redemptionStatusService.changeStatus(requestId, CANCELLED))
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test

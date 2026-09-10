@@ -60,13 +60,14 @@ class SavingsFundNotifierTest {
   @Test
   void onRedemptionBatchCompleted_sendsNotification() {
     var event =
-        new RedemptionBatchCompletedEvent(2, 2, new BigDecimal("500.00"), new BigDecimal("9.9918"));
+        new RedemptionBatchCompletedEvent(
+            2, 1, 1, new BigDecimal("500.00"), new BigDecimal("9.9918"));
 
     notifier.onRedemptionBatchCompleted(event);
 
     verify(notificationService)
         .sendMessage(
-            "Savings fund redemption batch: requests=2, payouts=2, totalCashAmount=500.00 EUR, NAV=9.9918",
+            "Savings fund redemption batch: requests=2, payouts=1, held=1, totalCashAmount=500.00 EUR, NAV=9.9918",
             SAVINGS);
   }
 

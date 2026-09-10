@@ -21,6 +21,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
@@ -68,6 +70,15 @@ class NavFlowConsistencyChecker {
               fund,
               "valued securities without an ISIN cannot be marked to market, unmarkableAccounts=%s"
                   .formatted(String.join(",", unmarkableAccounts))));
+    }
+
+    var conflictinglyPriced = conflictinglyPricedHoldings(previousPositions, todayPositions);
+    if (!conflictinglyPriced.isEmpty()) {
+      return List.of(
+          couldNotRun(
+              fund,
+              "the same holding is priced two ways within one report, conflictinglyPriced=%s"
+                  .formatted(String.join(",", conflictinglyPriced))));
     }
 
     var marketPnl = marketPnl(previousPositions, todayPositions);
@@ -166,6 +177,30 @@ class NavFlowConsistencyChecker {
         .map(FundPosition::getAccountName)
         .distinct()
         .sorted()
+        .toList();
+  }
+
+  private List<String> conflictinglyPricedHoldings(
+      List<FundPosition> previousPositions, List<FundPosition> todayPositions) {
+    return Stream.of(previousPositions, todayPositions)
+        .flatMap(positions -> conflictinglyPricedHoldings(positions).stream())
+        .distinct()
+        .sorted()
+        .toList();
+  }
+
+  private List<String> conflictinglyPricedHoldings(List<FundPosition> positions) {
+    Map<String, Set<BigDecimal>> pricesByIsin = new TreeMap<>();
+    for (var position : securities(positions)) {
+      var isin = position.getAccountId();
+      var marketPrice = position.getMarketPrice();
+      if (isin != null && marketPrice != null) {
+        pricesByIsin.computeIfAbsent(isin, key -> new TreeSet<>()).add(marketPrice);
+      }
+    }
+    return pricesByIsin.entrySet().stream()
+        .filter(entry -> entry.getValue().size() > 1)
+        .map(Map.Entry::getKey)
         .toList();
   }
 

@@ -39,7 +39,7 @@ import org.springframework.context.ApplicationEventPublisher;
 class RedemptionPayoutServiceTest {
 
   private static final Instant NOW = Instant.parse("2025-01-15T15:00:00Z");
-  private static final String CUSTOMER_IBAN = "EE067700771004704071";
+  private static final String CUSTOMER_IBAN = "EE123456789012345678";
 
   @Mock private RedemptionRequestRepository redemptionRequestRepository;
   @Mock private RedemptionStatusService redemptionStatusService;

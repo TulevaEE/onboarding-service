@@ -1,11 +1,9 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
-import ee.tuleva.onboarding.ledger.LedgerParty.PartyType;
-import ee.tuleva.onboarding.ledger.PartyRef;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
-import ee.tuleva.onboarding.user.UserService;
+import ee.tuleva.onboarding.savings.fund.LedgerRefs;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +16,6 @@ import org.springframework.stereotype.Component;
 public class RedemptionPayoutRecorder {
 
   private final SavingsFundLedger savingsFundLedger;
-  private final UserService userService;
   private final RedemptionRequestRepository redemptionRequestRepository;
   private final RedemptionStatusService redemptionStatusService;
   private final EndToEndIdConverter endToEndIdConverter;
@@ -42,8 +39,7 @@ public class RedemptionPayoutRecorder {
       log.error(
           "Ledger payout entry already exists but status is REDEEMED: id={}", request.getId());
     } else {
-      var user = userService.getByIdOrThrow(request.getUserId());
-      var party = new PartyRef(PartyType.PERSON, user.getPersonalCode());
+      var party = LedgerRefs.from(request.getPartyId());
       var amount = payment.getAmount().negate();
       log.info(
           "Creating ledger entry for redemption payout: redemptionId={}, amount={}",

@@ -99,6 +99,7 @@ class MandateBatchEmailServiceTest {
             Map.entry(
                 "suggestSavingsFundRecurringPayment",
                 pillarSuggestion.isSuggestSavingsFundRecurringPayment()),
+            Map.entry("anyPillarSuggestion", pillarSuggestion.isAnyPillarSuggestion()),
             Map.entry("fundPensionSecondPillar", true),
             Map.entry("fundPensionThirdPillar", false),
             Map.entry("partialWithdrawalSecondPillar", true),
@@ -183,6 +184,7 @@ class MandateBatchEmailServiceTest {
             Map.entry(
                 "suggestSavingsFundRecurringPayment",
                 pillarSuggestion.isSuggestSavingsFundRecurringPayment()),
+            Map.entry("anyPillarSuggestion", pillarSuggestion.isAnyPillarSuggestion()),
             Map.entry("fundPensionSecondPillar", true),
             Map.entry("fundPensionThirdPillar", true),
             Map.entry("partialWithdrawalSecondPillar", true),

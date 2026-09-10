@@ -30,7 +30,8 @@ public class EmailVariablesAttachments {
         Map.entry("suggestThirdPillarRaise", pillarSuggestion.isSuggestThirdPillarRaise()),
         Map.entry(
             "suggestSavingsFundRecurringPayment",
-            pillarSuggestion.isSuggestSavingsFundRecurringPayment()));
+            pillarSuggestion.isSuggestSavingsFundRecurringPayment()),
+        Map.entry("anyPillarSuggestion", pillarSuggestion.isAnyPillarSuggestion()));
   }
 
   public static Map<String, Object> getNameMergeVars(User user) {

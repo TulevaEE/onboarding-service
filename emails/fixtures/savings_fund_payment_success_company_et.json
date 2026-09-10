@@ -5,21 +5,24 @@
       "RECIPIENTNAME": "Mesila OÜ",
       "recipientIsCompany": true,
       "suggestSecondPillar": true,
-      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d",
+      "anyPillarSuggestion": true
     },
     "II samba määra tõstmise soovitus": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Mesila OÜ",
       "recipientIsCompany": true,
       "suggestPaymentRate": true,
-      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d",
+      "anyPillarSuggestion": true
     },
     "III samba soovitus": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Mesila OÜ",
       "recipientIsCompany": true,
       "suggestThirdPillar": true,
-      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d",
+      "anyPillarSuggestion": true
     },
     "III samba tasude soovitus": {
       "FNAME": "Mari",
@@ -27,21 +30,24 @@
       "recipientIsCompany": true,
       "suggestThirdPillar": true,
       "thirdPillarActive": true,
-      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d",
+      "anyPillarSuggestion": true
     },
     "III samba püsimakse soovitus": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Mesila OÜ",
       "recipientIsCompany": true,
       "suggestThirdPillarRecurringPayment": true,
-      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d",
+      "anyPillarSuggestion": true
     },
     "III samba sissemakse tõstmise soovitus": {
       "FNAME": "Mari",
       "RECIPIENTNAME": "Mesila OÜ",
       "recipientIsCompany": true,
       "suggestThirdPillarRaise": true,
-      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d",
+      "anyPillarSuggestion": true
     },
     "kogumisfondi soovitus (ei esine)": {
       "FNAME": "Mari",
@@ -64,7 +70,8 @@
       "recipientIsCompany": true,
       "suggestSecondPillar": true,
       "suggestSavingsFundRecurringPayment": true,
-      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d"
+      "recipientAccountId": "0f6f9d1e-4c1a-4b2a-9c3d-8e7f6a5b4c3d",
+      "anyPillarSuggestion": true
     },
     "liikmesuse soovitus": {
       "FNAME": "Mari",

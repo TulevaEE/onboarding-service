@@ -17,6 +17,10 @@
 
     <mj-section padding="0 24px">
       <mj-column>
+        <mj-raw>*|IF:anyPillarSuggestion|*</mj-raw>
+        <mj-text><strong>How can you make your pension pillars work harder?</strong></mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+
         <mj-include path="./partials/suggest_chain_open_en.mjml" />
         <mj-raw>*|END:IF|*</mj-raw>
       </mj-column>

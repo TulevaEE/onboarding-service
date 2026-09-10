@@ -25,6 +25,7 @@ public class PillarSuggestion {
   private final boolean suggestThirdPillarRecurringPayment;
   private final boolean suggestThirdPillarRaise;
   private final boolean suggestSavingsFundRecurringPayment;
+  private final boolean anyPillarSuggestion;
 
   public PillarSuggestion(
       User user,
@@ -195,6 +196,12 @@ public class PillarSuggestion {
             && !suggestThirdPillarRaise;
     this.suggestSavingsFundRecurringPayment =
         adult && savesInSavingsFund && !recurringPayments.savingsFund();
+    this.anyPillarSuggestion =
+        suggestSecondPillar
+            || suggestPaymentRate
+            || suggestThirdPillar
+            || suggestThirdPillarRecurringPayment
+            || suggestThirdPillarRaise;
   }
 
   public Optional<String> renderedNudgeTag() {

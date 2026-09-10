@@ -119,45 +119,7 @@ public class RedemptionBatchJob {
       List<RedemptionRequest> held = new ArrayList<>();
       try {
         BigDecimal cashAmount =
-            transactionTemplate.execute(
-                ignored -> {
-                  RedemptionRequest toUpdate =
-                      redemptionRequestRepository.findByIdForUpdate(request.getId()).orElseThrow();
-
-                  if (toUpdate.getCashAmount() != null) {
-                    log.info(
-                        "Skipping pricing for already priced redemption: id={}, cashAmount={}",
-                        request.getId(),
-                        toUpdate.getCashAmount());
-                    holdPayoutIfFlagged(toUpdate, held);
-                    return toUpdate.getCashAmount();
-                  }
-
-                  if (savingsFundLedger.hasPricingEntry(request.getId())) {
-                    log.warn(
-                        "Ledger entry already exists for redemption pricing: id={}",
-                        request.getId());
-                    return ZERO;
-                  }
-
-                  PartyId party = toUpdate.getPartyId();
-                  BigDecimal amount = request.getFundUnits().multiply(nav).setScale(2, HALF_UP);
-                  toUpdate.setCashAmount(amount);
-                  toUpdate.setNavPerUnit(nav);
-                  redemptionRequestRepository.save(toUpdate);
-
-                  savingsFundLedger.redeemFundUnitsFromReserved(
-                      LedgerRefs.from(party), request.getFundUnits(), amount, nav, request.getId());
-
-                  log.info(
-                      "Priced redemption request: id={}, fundUnits={}, cashAmount={}, nav={}",
-                      request.getId(),
-                      request.getFundUnits(),
-                      amount,
-                      nav);
-                  holdPayoutIfFlagged(toUpdate, held);
-                  return amount;
-                });
+            transactionTemplate.execute(ignored -> priceRequest(request, nav, held));
         totalCashAmount = totalCashAmount.add(cashAmount);
       } catch (Exception e) {
         log.error("Failed to price redemption request: id={}", request.getId(), e);
@@ -174,6 +136,44 @@ public class RedemptionBatchJob {
           new RedemptionBatchCompletedEvent(
               toProcess.size(), result.payoutCount(), result.heldCount(), totalCashAmount, nav));
     }
+  }
+
+  private BigDecimal priceRequest(
+      RedemptionRequest request, BigDecimal nav, List<RedemptionRequest> held) {
+    RedemptionRequest toUpdate =
+        redemptionRequestRepository.findByIdForUpdate(request.getId()).orElseThrow();
+
+    if (toUpdate.getCashAmount() != null) {
+      log.info(
+          "Skipping pricing for already priced redemption: id={}, cashAmount={}",
+          request.getId(),
+          toUpdate.getCashAmount());
+      holdPayoutIfFlagged(toUpdate, held);
+      return toUpdate.getCashAmount();
+    }
+
+    if (savingsFundLedger.hasPricingEntry(request.getId())) {
+      log.warn("Ledger entry already exists for redemption pricing: id={}", request.getId());
+      return ZERO;
+    }
+
+    PartyId party = toUpdate.getPartyId();
+    BigDecimal amount = request.getFundUnits().multiply(nav).setScale(2, HALF_UP);
+    toUpdate.setCashAmount(amount);
+    toUpdate.setNavPerUnit(nav);
+    redemptionRequestRepository.save(toUpdate);
+
+    savingsFundLedger.redeemFundUnitsFromReserved(
+        LedgerRefs.from(party), request.getFundUnits(), amount, nav, request.getId());
+
+    log.info(
+        "Priced redemption request: id={}, fundUnits={}, cashAmount={}, nav={}",
+        request.getId(),
+        request.getFundUnits(),
+        amount,
+        nav);
+    holdPayoutIfFlagged(toUpdate, held);
+    return amount;
   }
 
   private void transferFromFundAccount(BigDecimal totalAmount) {

@@ -42,6 +42,7 @@ public class HealthCheckService {
   private final TradedQuantitySource tradedQuantitySource;
   private final PayablesChecker payablesChecker;
   private final NavFlowConsistencyChecker navFlowConsistencyChecker;
+  private final LiabilityRecognitionChecker liabilityRecognitionChecker;
   private final InvestmentParameterRepository investmentParameterRepository;
 
   private BigDecimal navFlowThreshold(LocalDate navDate) {
@@ -126,6 +127,7 @@ public class HealthCheckService {
     findings.addAll(
         payablesChecker.check(
             fund, securities, previousSecurities, liabilities, previousLiabilities));
+    findings.addAll(liabilityRecognitionChecker.check(fund, navDate, liabilities));
     findings.addAll(
         quantityChangeChecker.check(fund, securities, previousSecurities, tradedQuantities));
     findings.addAll(

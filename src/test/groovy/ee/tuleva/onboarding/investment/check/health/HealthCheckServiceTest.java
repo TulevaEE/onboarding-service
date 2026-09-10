@@ -55,6 +55,10 @@ class HealthCheckServiceTest {
   ee.tuleva.onboarding.investment.config.InvestmentParameterRepository
       investmentParameterRepository;
 
+  @Mock ee.tuleva.onboarding.investment.transaction.ExecutedPriceSource executedPriceSource;
+
+  @Mock ExitMarkResolver exitMarkResolver;
+
   @InjectMocks HealthCheckService healthCheckService;
 
   @Test
@@ -108,7 +112,49 @@ class HealthCheckServiceTest {
 
     assertThat(results).hasSize(1);
     verify(completenessChecker).check(eq(TUK75), eq(NAV_DATE), eq(positions));
-    verify(navFlowConsistencyChecker).check(TUK75, positions, previousPositions, null);
+    verify(navFlowConsistencyChecker).check(TUK75, positions, previousPositions, null, Map.of());
+  }
+
+  // ExitMarkResolver owns the pairing between an executed price and the published price it is
+  // attributed against. The service's part is to hand it the nav date being reconciled - the
+  // pairing needs it, since a mutual fund's dealing NAV is struck before that date - and to pass
+  // the marks it returns through to the checker.
+  @Test
+  void handsTheNavDateToTheExitMarkResolverAndPassesItsMarksToTheCheck() {
+    var positions = List.of(securityPosition(TUK75, "IE001", new BigDecimal("1000")));
+    var previousPositions = List.of(securityPosition(TUK75, "IE001", new BigDecimal("900")));
+    var previousNavDate = NAV_DATE.minusDays(1);
+    var tradeDate = NAV_DATE.minusDays(2);
+    var executedSells =
+        Map.of(
+            "IE001",
+            new ee.tuleva.onboarding.investment.transaction.ExecutedPrice(
+                new BigDecimal("99"), new BigDecimal("900"), tradeDate));
+    var exitMarks =
+        Map.of(
+            "IE001",
+            new ExitMark(
+                new BigDecimal("99"),
+                new ExitMark.PublishedPrice(new BigDecimal("101"), previousNavDate)));
+
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, NAV_DATE))
+        .willReturn(List.of());
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, previousNavDate))
+        .willReturn(Optional.of(previousNavDate));
+    given(fundPositionRepository.findByNavDateAndFund(previousNavDate, TUK75))
+        .willReturn(previousPositions);
+    given(
+            investmentParameterRepository.findLatestValueIfPresent(
+                NAV_FLOW_CONSISTENCY_THRESHOLD, NAV_DATE))
+        .willReturn(Optional.of(new BigDecimal("0.001")));
+    given(executedPriceSource.executedSellPricesByFund(NAV_DATE))
+        .willReturn(Map.of(TUK75, executedSells));
+    given(exitMarkResolver.resolve(NAV_DATE, executedSells)).willReturn(exitMarks);
+
+    healthCheckService.check(positions);
+
+    verify(navFlowConsistencyChecker)
+        .check(TUK75, positions, previousPositions, new BigDecimal("0.001"), exitMarks);
   }
 
   // Only @Mock fields were added when this checker was wired in, so an unstubbed mock returned
@@ -134,13 +180,14 @@ class HealthCheckServiceTest {
 
     var finding =
         new HealthCheckFinding(TUK75, NAV_FLOW_CONSISTENCY, WARNING, "NAV flow does not reconcile");
-    given(navFlowConsistencyChecker.check(TUK75, positions, previousPositions, threshold))
+    given(navFlowConsistencyChecker.check(TUK75, positions, previousPositions, threshold, Map.of()))
         .willReturn(List.of(finding));
 
     var results = healthCheckService.check(positions);
 
     assertThat(results.getFirst().findings()).contains(finding);
-    verify(navFlowConsistencyChecker).check(TUK75, positions, previousPositions, threshold);
+    verify(navFlowConsistencyChecker)
+        .check(TUK75, positions, previousPositions, threshold, Map.of());
   }
 
   @Test

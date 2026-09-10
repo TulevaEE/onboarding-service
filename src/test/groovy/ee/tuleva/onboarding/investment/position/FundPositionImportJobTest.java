@@ -328,6 +328,35 @@ class FundPositionImportJobTest {
     verify(healthCheckNotifier).notify(eq(SWEDBANK), eq(date), anyList());
   }
 
+  // A check that could not run is not a check that failed. The nav flow check reports NOT_RUN for a
+  // missing threshold row or an exit it cannot price, and the day's positions must still import.
+  @Test
+  void importForProviderAndDate_proceedsAndNotifiesOnNotRun() {
+    LocalDate date = LocalDate.of(2026, 1, 5);
+    when(reportService.getReport(SWEDBANK, POSITIONS, date))
+        .thenReturn(Optional.of(createSwedbankReport(date)));
+    when(repository.findByNavDateAndFundAndAccountTypeAndAccountName(any(), any(), any(), any()))
+        .thenReturn(Optional.empty());
+    var notRunResult =
+        new HealthCheckResult(
+            TUK75,
+            date,
+            List.of(
+                new ee.tuleva.onboarding.investment.check.health.HealthCheckFinding(
+                    TUK75,
+                    ee.tuleva.onboarding.investment.check.health.HealthCheckType
+                        .NAV_FLOW_CONSISTENCY,
+                    ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.NOT_RUN,
+                    "NAV flow could not be reconciled: NAV_FLOW_CONSISTENCY_THRESHOLD is not"
+                        + " configured yet")));
+    when(healthCheckService.check(anyList())).thenReturn(List.of(notRunResult));
+
+    job.importForProviderAndDate(SWEDBANK, date);
+
+    verify(repository, times(3)).save(any(FundPosition.class));
+    verify(healthCheckNotifier).notify(eq(SWEDBANK), eq(date), anyList());
+  }
+
   @Test
   void importForProviderAndDate_proceedsAndNotifiesOnWarning() {
     LocalDate date = LocalDate.of(2026, 1, 5);

@@ -14,6 +14,7 @@ import static org.mockito.Mockito.*;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -137,6 +138,49 @@ class HealthCheckNotifierTest {
     var notified = notifier.notify(SEB, DATE, List.of(result));
 
     assertThat(notified).isFalse();
+  }
+
+  // A check that could not run for a new reason needs saying out loud: the reasons call for
+  // different work, and severity alone cannot tell a missing threshold row from an unexplained
+  // exit.
+  @Test
+  void sendsAgainWhenTheReasonACheckCouldNotRunChanges() {
+    givenPreviousNotRun(NAV_FLOW_CONSISTENCY, "could not be reconciled: no threshold configured");
+    var finding =
+        new HealthCheckFinding(
+            TUK75,
+            NAV_FLOW_CONSISTENCY,
+            NOT_RUN,
+            "could not be reconciled: unexplainedExits=IE00A");
+    var result = new HealthCheckResult(TUK75, DATE, List.of(finding));
+
+    assertThat(notifier.notify(SEB, DATE, List.of(result))).isTrue();
+  }
+
+  @Test
+  void silentWhenTheSameCheckCouldNotRunForTheSameReason() {
+    givenPreviousNotRun(NAV_FLOW_CONSISTENCY, "could not be reconciled: no threshold configured");
+    var finding =
+        new HealthCheckFinding(
+            TUK75,
+            NAV_FLOW_CONSISTENCY,
+            NOT_RUN,
+            "could not be reconciled: no threshold configured");
+    var result = new HealthCheckResult(TUK75, DATE, List.of(finding));
+
+    assertThat(notifier.notify(SEB, DATE, List.of(result))).isFalse();
+  }
+
+  private void givenPreviousNotRun(HealthCheckType checkType, String message) {
+    var stored =
+        HealthCheckEvent.builder()
+            .severity(NOT_RUN)
+            .result(Map.of("findings", List.of(Map.of("message", message))))
+            .build();
+    lenient()
+        .doReturn(List.of(stored, stored))
+        .when(eventRepository)
+        .findTop2ByFundAndCheckDateAndCheckTypeOrderByCreatedAtDesc(TUK75, DATE, checkType);
   }
 
   private void givenPreviousSeverity(HealthCheckType checkType, HealthCheckSeverity severity) {

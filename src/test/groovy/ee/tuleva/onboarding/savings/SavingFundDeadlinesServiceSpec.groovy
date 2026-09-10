@@ -77,6 +77,24 @@ class SavingFundDeadlinesServiceSpec extends Specification {
     "Tue Dec 23 17:00 -> Mon Dec 29 (EET)" | "2025-12-23T15:00:00Z"   | "2025-12-29T14:00:00Z"
   }
 
+  def "getScreeningRetryDeadline_isFifteenHundredOnTheDealingDay: #description"() {
+    given:
+    def redemptionRequest = redemptionRequestFixture()
+        .requestedAt(Instant.parse(requestedAt))
+        .build()
+
+    expect:
+    service.getScreeningRetryDeadline(redemptionRequest) == Instant.parse(expectedDeadline)
+
+    where:
+    description                                  | requestedAt              | expectedDeadline
+    "Thu 22:19 EEST -> Fri 15:00"                | "2026-08-27T19:19:35Z"   | "2026-08-28T12:00:00Z"
+    "Fri 10:00 EEST -> Fri 15:00 (same day)"     | "2026-08-28T07:00:00Z"   | "2026-08-28T12:00:00Z"
+    "Fri 15:30 EEST -> Fri 15:00 (already past)" | "2026-08-28T12:30:00Z"   | "2026-08-28T12:00:00Z"
+    "Fri 17:00 EEST -> Mon 15:00"                | "2026-08-28T14:00:00Z"   | "2026-08-31T12:00:00Z"
+    "Tue Dec 23 17:00 -> Mon Dec 29 15:00 (EET)" | "2025-12-23T15:00:00Z"   | "2025-12-29T13:00:00Z"
+  }
+
   def "getFulfillmentDeadline_returnsCorrectDeadlineForRedemptionRequest: #description"() {
     given:
     def redemptionRequest = redemptionRequestFixture()

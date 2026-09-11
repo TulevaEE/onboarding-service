@@ -16,32 +16,51 @@ public class AdminTokenValidator {
 
   private final String adminApiToken;
   private final String opsToken;
+  private final String readToken;
 
   public AdminTokenValidator(
       @Value("${admin.api-token:}") String adminApiToken,
-      @Value("${admin.ops-token:}") String opsToken) {
+      @Value("${admin.ops-token:}") String opsToken,
+      @Value("${admin.read-token:}") String readToken) {
     this.adminApiToken = adminApiToken;
     this.opsToken = opsToken;
+    this.readToken = readToken;
   }
 
   public void validate(String token) {
     if (adminApiToken.isBlank()) {
-      throw new ResponseStatusException(SERVICE_UNAVAILABLE, "Admin API not configured");
+      throw notConfigured();
     }
-    if (!MessageDigest.isEqual(adminApiToken.getBytes(UTF_8), token.getBytes(UTF_8))) {
-      throw new ResponseStatusException(UNAUTHORIZED, "Invalid admin token");
+    if (!matches(adminApiToken, token)) {
+      throw unauthorized();
     }
   }
 
   public void validateWithOpsAccess(String token) {
-    boolean matchesAdmin =
-        !adminApiToken.isBlank()
-            && MessageDigest.isEqual(adminApiToken.getBytes(UTF_8), token.getBytes(UTF_8));
-    boolean matchesOps =
-        !opsToken.isBlank()
-            && MessageDigest.isEqual(opsToken.getBytes(UTF_8), token.getBytes(UTF_8));
-    if (!matchesAdmin && !matchesOps) {
-      throw new ResponseStatusException(UNAUTHORIZED, "Invalid admin token");
+    if (!matches(adminApiToken, token) && !matches(opsToken, token)) {
+      throw unauthorized();
     }
+  }
+
+  public void validateReadAccess(String token) {
+    if (readToken.isBlank() && adminApiToken.isBlank()) {
+      throw notConfigured();
+    }
+    if (!matches(readToken, token) && !matches(adminApiToken, token)) {
+      throw unauthorized();
+    }
+  }
+
+  private static boolean matches(String configured, String presented) {
+    return !configured.isBlank()
+        && MessageDigest.isEqual(configured.getBytes(UTF_8), presented.getBytes(UTF_8));
+  }
+
+  private static ResponseStatusException notConfigured() {
+    return new ResponseStatusException(SERVICE_UNAVAILABLE, "Admin API not configured");
+  }
+
+  private static ResponseStatusException unauthorized() {
+    return new ResponseStatusException(UNAUTHORIZED, "Invalid admin token");
   }
 }

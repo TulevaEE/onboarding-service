@@ -39,6 +39,8 @@ public class SecurityConfiguration {
                         "/authenticate",
                         "/oauth/token",
                         "/oauth/refresh-token",
+                        "/v1/smart-id/login",
+                        "/v1/smart-id/login/**",
                         "/idLogin",
                         "/notifications/payments",
                         "/v1/emails/webhooks/**",

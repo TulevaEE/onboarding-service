@@ -2,27 +2,32 @@ package ee.tuleva.onboarding.config;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-import ee.sk.smartid.AuthenticationResponseValidator;
+import ee.sk.smartid.CertificateChoiceResponseValidator;
+import ee.sk.smartid.CertificateValidator;
+import ee.sk.smartid.CertificateValidatorImpl;
+import ee.sk.smartid.DeviceLinkAuthenticationResponseValidator;
+import ee.sk.smartid.NotificationAuthenticationResponseValidator;
+import ee.sk.smartid.SignatureResponseValidator;
 import ee.sk.smartid.SmartIdClient;
 import ee.sk.smartid.exception.permanent.SmartIdClientException;
 import ee.sk.smartid.rest.SmartIdConnector;
+import ee.tuleva.onboarding.auth.SmartIdProperties;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
-import java.util.Enumeration;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
 
 @Configuration
+@EnableConfigurationProperties(SmartIdProperties.class)
 @RequiredArgsConstructor
 public class SmartIdClientConfiguration {
 
@@ -30,9 +35,11 @@ public class SmartIdClientConfiguration {
   private String trustStorePath;
 
   @Bean
-  @ConfigurationProperties(prefix = "smartid")
-  public SmartIdClient smartIdClient(KeyStore trustStore) {
+  public SmartIdClient smartIdClient(SmartIdProperties properties, KeyStore trustStore) {
     SmartIdClient smartIdClient = new SmartIdClient();
+    smartIdClient.setRelyingPartyUUID(properties.relyingPartyUUID());
+    smartIdClient.setRelyingPartyName(properties.relyingPartyName());
+    smartIdClient.setHostUrl(properties.hostUrl());
     smartIdClient.setSessionStatusResponseSocketOpenTime(SECONDS, 1L);
     smartIdClient.setTrustStore(trustStore);
     return smartIdClient;
@@ -44,24 +51,36 @@ public class SmartIdClientConfiguration {
   }
 
   @Bean
-  public AuthenticationResponseValidator authenticationResponseValidator(KeyStore trustStore) {
-    AuthenticationResponseValidator validator = new AuthenticationResponseValidator();
-    initializeTrustedCertificatesFromTrustStore(validator, trustStore);
-    return validator;
+  public CertificateValidator smartIdCertificateValidator(
+      SmartIdProperties properties, ResourceLoader resourceLoader) {
+    return new CertificateValidatorImpl(
+        SmartIdTrustedCaCertificates.load(resourceLoader, properties.trustedCaCertificates()));
   }
 
-  private void initializeTrustedCertificatesFromTrustStore(
-      AuthenticationResponseValidator validator, KeyStore trustStore) {
-    try {
-      Enumeration<String> aliases = trustStore.aliases();
-      while (aliases.hasMoreElements()) {
-        String alias = aliases.nextElement();
-        X509Certificate certificate = (X509Certificate) trustStore.getCertificate(alias);
-        validator.addTrustedCACertificate(certificate);
-      }
-    } catch (KeyStoreException e) {
-      throw new SmartIdClientException("Error initializing trusted CA certificates", e);
-    }
+  @Bean
+  public DeviceLinkAuthenticationResponseValidator deviceLinkAuthenticationResponseValidator(
+      CertificateValidator smartIdCertificateValidator) {
+    return DeviceLinkAuthenticationResponseValidator.defaultSetupWithCertificateValidator(
+        smartIdCertificateValidator);
+  }
+
+  @Bean
+  public NotificationAuthenticationResponseValidator notificationAuthenticationResponseValidator(
+      CertificateValidator smartIdCertificateValidator) {
+    return NotificationAuthenticationResponseValidator.defaultSetupWithCertificateValidator(
+        smartIdCertificateValidator);
+  }
+
+  @Bean
+  public CertificateChoiceResponseValidator certificateChoiceResponseValidator(
+      CertificateValidator smartIdCertificateValidator) {
+    return new CertificateChoiceResponseValidator(smartIdCertificateValidator);
+  }
+
+  @Bean
+  public SignatureResponseValidator signatureResponseValidator(
+      CertificateValidator smartIdCertificateValidator) {
+    return new SignatureResponseValidator(smartIdCertificateValidator);
   }
 
   @Bean

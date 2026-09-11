@@ -43,7 +43,7 @@ public class CapitalTransferSignatureService {
     List<SignatureFile> files = contractService.getSignatureFiles(contractId, user);
 
     SmartIdSignatureSession signatureSession =
-        signService.startSmartIdSign(files, user.getPersonalCode());
+        signService.startSmartIdSign(files, authenticatedPerson);
     sessionStore.save(signatureSession);
 
     return new MobileSignatureResponse(signatureSession.getVerificationCode());

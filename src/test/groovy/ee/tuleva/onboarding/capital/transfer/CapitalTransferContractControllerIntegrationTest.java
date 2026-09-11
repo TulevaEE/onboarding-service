@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.C
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.MEMBERSHIP_BONUS;
 import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -262,11 +263,17 @@ class CapitalTransferContractControllerIntegrationTest {
             new SignatureFile(
                 "contract.pdf", "application/pdf", "Contract content placeholder".getBytes()));
     SmartIdSignatureSession sellerSession =
-        new SmartIdSignatureSession("seller-session-id", "37605030299", files);
+        new SmartIdSignatureSession(sellerUser.getPersonalCode(), files);
     sellerSession.setVerificationCode("verification1");
 
     when(sessionStore.get(SmartIdSignatureSession.class)).thenReturn(Optional.of(sellerSession));
-    when(signatureService.startSmartIdSign(any(), eq("37605030299"))).thenReturn(sellerSession);
+    when(signatureService.startSmartIdSign(
+            any(),
+            argThat(
+                signer ->
+                    signer != null
+                        && sellerUser.getPersonalCode().equals(signer.getPersonalCode()))))
+        .thenReturn(sellerSession);
 
     // when
     mockMvc
@@ -303,11 +310,17 @@ class CapitalTransferContractControllerIntegrationTest {
 
     // given
     SmartIdSignatureSession buyerSession =
-        new SmartIdSignatureSession("buyer-session-id", "60001019906", files);
+        new SmartIdSignatureSession(buyerUser.getPersonalCode(), files);
     buyerSession.setVerificationCode("verification2");
 
     when(sessionStore.get(SmartIdSignatureSession.class)).thenReturn(Optional.of(buyerSession));
-    when(signatureService.startSmartIdSign(any(), eq("60001019906"))).thenReturn(buyerSession);
+    when(signatureService.startSmartIdSign(
+            any(),
+            argThat(
+                signer ->
+                    signer != null
+                        && buyerUser.getPersonalCode().equals(signer.getPersonalCode()))))
+        .thenReturn(buyerSession);
     when(signatureService.getSignedFile(buyerSession))
         .thenReturn("signed content by buyer".getBytes());
 

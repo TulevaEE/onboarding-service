@@ -96,7 +96,7 @@ class MandateBatchSignatureServiceTest {
     @Test
     void earlyStatusPollWithoutVerificationCodeStillReturnsTheStatus() {
       var mandateBatchId = 1L;
-      var mockSession = new SmartIdSignatureSession("certSessionId", "personalCode", null);
+      var mockSession = new SmartIdSignatureSession("personalCode", null);
 
       when(sessionStore.get(SmartIdSignatureSession.class)).thenReturn(Optional.of(mockSession));
       when(localeService.getCurrentLocale()).thenReturn(Locale.ENGLISH);
@@ -120,7 +120,7 @@ class MandateBatchSignatureServiceTest {
     @DisplayName("start smart id signature returns null challenge code")
     void startSmartIdSignatureReturnsNullChallengeCode() {
       var mandateBatchId = 1L;
-      var mockSession = new SmartIdSignatureSession("certSessionId", "personalCode", null);
+      var mockSession = new SmartIdSignatureSession("personalCode", null);
       mockSession.setVerificationCode(null);
       var user = sampleUser().build();
       var authenticatedPerson = authenticatedPersonFromUser(user).build();
@@ -128,7 +128,7 @@ class MandateBatchSignatureServiceTest {
       when(userService.getById(eq(authenticatedPerson.getUserId()))).thenReturn(Optional.of(user));
       when(mandateBatchService.getMandateBatchContentFiles(eq(mandateBatchId), eq(user)))
           .thenReturn(List.of());
-      when(signService.startSmartIdSign(any(), eq(user.getPersonalCode()))).thenReturn(mockSession);
+      when(signService.startSmartIdSign(any(), eq(authenticatedPerson))).thenReturn(mockSession);
 
       var result =
           mandateBatchSignatureService.startSmartIdSignature(mandateBatchId, authenticatedPerson);
@@ -141,7 +141,7 @@ class MandateBatchSignatureServiceTest {
     @DisplayName("get smart id signature status returns the status and challenge code")
     void getSmartIdSignatureStatusReturnsStatusAndChallengeCode() {
       var mandateBatchId = 1L;
-      var mockSession = new SmartIdSignatureSession("certSessionId", "personalCode", null);
+      var mockSession = new SmartIdSignatureSession("personalCode", null);
       mockSession.setVerificationCode("1234");
 
       when(sessionStore.get(SmartIdSignatureSession.class)).thenReturn(Optional.of(mockSession));

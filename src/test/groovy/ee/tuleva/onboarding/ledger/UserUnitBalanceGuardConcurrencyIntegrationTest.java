@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.savings.fund.LedgerRefs;
 import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -56,7 +57,7 @@ class UserUnitBalanceGuardConcurrencyIntegrationTest {
     assumeTrue(isPostgres(), "Row locks only serialise for real on PostgreSQL");
 
     String ownerId = "conc-" + UUID.randomUUID();
-    PartyId party = new PartyId(LEGAL_ENTITY, ownerId);
+    PartyRef party = LedgerRefs.from(new PartyId(LEGAL_ENTITY, ownerId));
     var transactionTemplate = new TransactionTemplate(transactionManager);
 
     long succeeded;
@@ -88,7 +89,7 @@ class UserUnitBalanceGuardConcurrencyIntegrationTest {
     assumeTrue(isPostgres(), "Row locks only serialise for real on PostgreSQL");
 
     String ownerId = "conc-" + UUID.randomUUID();
-    PartyId party = new PartyId(LEGAL_ENTITY, ownerId);
+    PartyRef party = LedgerRefs.from(new PartyId(LEGAL_ENTITY, ownerId));
     var transactionTemplate = new TransactionTemplate(transactionManager);
 
     long succeeded;
@@ -127,7 +128,7 @@ class UserUnitBalanceGuardConcurrencyIntegrationTest {
     assertThat(reservedBalance).isEqualByComparingTo(BigDecimal.ZERO);
   }
 
-  private void giveTheParty(PartyId party) {
+  private void giveTheParty(PartyRef party) {
     savingsFundLedger.recordPaymentReceived(party, CASH, UUID.randomUUID());
     savingsFundLedger.reservePaymentForSubscription(party, CASH, UUID.randomUUID());
     savingsFundLedger.issueFundUnitsFromReserved(party, CASH, HELD_UNITS, NAV, UUID.randomUUID());

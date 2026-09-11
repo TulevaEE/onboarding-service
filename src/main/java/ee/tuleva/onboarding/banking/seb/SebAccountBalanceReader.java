@@ -8,6 +8,7 @@ import java.util.Optional;
 import javax.xml.parsers.DocumentBuilderFactory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 import org.w3c.dom.Element;
 import org.xml.sax.InputSource;
@@ -64,11 +65,11 @@ public class SebAccountBalanceReader {
     return Optional.empty();
   }
 
-  private static BigDecimal signed(BigDecimal amount, String creditDebitIndicator) {
+  private static BigDecimal signed(BigDecimal amount, @Nullable String creditDebitIndicator) {
     return "DBIT".equals(creditDebitIndicator) ? amount.negate() : amount;
   }
 
-  private static String text(Element parent, String localName) {
+  private static @Nullable String text(Element parent, String localName) {
     var found = parent.getElementsByTagNameNS("*", localName);
     return found.getLength() == 0 ? null : found.item(0).getTextContent().trim();
   }

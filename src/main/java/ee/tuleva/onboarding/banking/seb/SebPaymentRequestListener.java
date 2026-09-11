@@ -60,7 +60,9 @@ public class SebPaymentRequestListener {
       // The row stays ATTEMPTED for anything that might still have reached the bank; only a
       // definitive rejection is recorded as failed.
       if (isDefinitiveRejection(e)) {
-        outgoingPaymentService.recordFailed(paymentRequest.endToEndId(), e.getMessage());
+        var reason = e.getMessage();
+        outgoingPaymentService.recordFailed(
+            paymentRequest.endToEndId(), reason != null ? reason : e.getClass().getSimpleName());
       }
       throw e;
     }

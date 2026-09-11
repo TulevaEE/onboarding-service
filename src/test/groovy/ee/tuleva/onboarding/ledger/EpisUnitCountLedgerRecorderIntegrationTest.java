@@ -17,7 +17,8 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 @Import({
   EpisUnitCountLedgerRecorder.class,
   LedgerAccountService.class,
-  LedgerTransactionService.class
+  LedgerTransactionService.class,
+  UserUnitBalanceGuard.class
 })
 class EpisUnitCountLedgerRecorderIntegrationTest {
 

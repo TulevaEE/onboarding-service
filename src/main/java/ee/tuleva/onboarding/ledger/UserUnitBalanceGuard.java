@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.ADJUSTMENT;
 import static java.math.BigDecimal.ZERO;
 import static java.util.Comparator.comparing;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
 import java.math.BigDecimal;
@@ -102,8 +103,8 @@ public class UserUnitBalanceGuard {
 
   private void lockInDeterministicOrder(Collection<LedgerAccount> accounts) {
     accounts.stream()
-        .sorted(comparing(LedgerAccount::getId))
-        .forEach(account -> ledgerAccountRepository.lockAccount(account.getId()));
+        .sorted(comparing(account -> requireNonNull(account.getId())))
+        .forEach(account -> ledgerAccountRepository.lockAccount(requireNonNull(account.getId())));
   }
 
   private Map<LedgerAccount, BigDecimal> guardedDeltas(

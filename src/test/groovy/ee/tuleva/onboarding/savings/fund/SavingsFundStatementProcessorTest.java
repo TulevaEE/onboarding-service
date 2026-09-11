@@ -16,6 +16,7 @@ import ee.tuleva.onboarding.banking.ManagementCompanies;
 import ee.tuleva.onboarding.banking.check.payment.OutgoingPaymentMatcher;
 import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
+import ee.tuleva.onboarding.banking.processor.BankOperationProcessor;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType;
 import ee.tuleva.onboarding.banking.statement.BankStatementAccount;

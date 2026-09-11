@@ -17,7 +17,7 @@ import ee.tuleva.onboarding.banking.payment.OutgoingPaymentRepository;
 import ee.tuleva.onboarding.banking.payment.OutgoingPaymentService;
 import ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus;
 import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration;
-import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
+import ee.tuleva.onboarding.savings.SavingFundPayment;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;

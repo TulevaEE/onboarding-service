@@ -453,22 +453,12 @@ class InstrumentValidationJobSpec extends Specification {
     0 * changedRepository.markNotified(_)
   }
 
-  def "leaves an undescribable change unstamped and unmailed, and reports it once it can be described"() {
+  def "mails an undescribable change as raw values and stamps it, instead of retrying it forever"() {
     given:
     noAllocations()
     def changedRepository = Mock(ReferenceDataHistoryRepository)
-    changedRepository.unnotifiedChanges() >>> [
-        [change(7L, "UPDATE", '{"active":', '{"active": false}')],
-        [change(7L, "UPDATE", '{"active": true}', '{"active": false}')],
-    ]
+    changedRepository.unnotifiedChanges() >> [change(7L, "UPDATE", '{"active":', '{"active": false}')]
     def jobUnderTest = jobWith(changedRepository)
-
-    when:
-    jobUnderTest.run()
-
-    then:
-    0 * emailService.sendSystemEmail(_)
-    0 * changedRepository.markNotified(_)
 
     when:
     jobUnderTest.run()
@@ -476,9 +466,31 @@ class InstrumentValidationJobSpec extends Specification {
     then:
     1 * emailService.sendSystemEmail({ MandrillMessage msg ->
       msg.subject == "[CHANGED] Instrument reference data" &&
-          msg.text.contains("active: true -> false")
+          msg.text.contains("could not be described:") &&
+          msg.text.contains('new_values: {"active": false}')
     }) >> true
     1 * changedRepository.markNotified([7L])
+  }
+
+  def "one undescribable change does not hold back the rest of the change set"() {
+    given:
+    noAllocations()
+    def changedRepository = Mock(ReferenceDataHistoryRepository)
+    changedRepository.unnotifiedChanges() >> [
+        change(7L, "UPDATE", '{"active":', '{"active": false}'),
+        change(8L, "UPDATE", '{"active": true}', '{"active": false}'),
+    ]
+    def jobUnderTest = jobWith(changedRepository)
+
+    when:
+    jobUnderTest.run()
+
+    then:
+    1 * emailService.sendSystemEmail({ MandrillMessage msg ->
+      msg.text.contains("could not be described:") &&
+          msg.text.contains("active: true -> false")
+    }) >> true
+    1 * changedRepository.markNotified([7L, 8L])
   }
 
   def "validates the funds even when the stale cache check blows up"() {

@@ -3,7 +3,11 @@ package ee.tuleva.onboarding.investment.check.fee;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckScope.ALL;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckScope.MANAGEMENT;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.FAIL;
+import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.INFO;
+import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.NOT_RUN;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.PASS;
+import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.WARNING;
+import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.CUSTODIAN_POSITION_COMPLETENESS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.FEE_BASE_COMPLETENESS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.SETTLEMENT_COMPLETENESS;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
@@ -172,6 +176,39 @@ class FeeCheckEventRepositoryTest {
     assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75)).isEmpty();
   }
 
+  @Test
+  void aRunThatCouldNotCheckDoesNotResolveAnOpenDeviation() {
+    saveOn(LocalDate.of(2026, 6, 1), FEE_BASE_COMPLETENESS, ALL, FAIL);
+    saveOn(LocalDate.of(2026, 6, 2), FEE_BASE_COMPLETENESS, ALL, NOT_RUN);
+
+    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75))
+        .contains(LocalDate.of(2026, 6, 1));
+  }
+
+  @Test
+  void aCleanRunAfterADayTheCheckCouldNotRunStillResolvesTheDeviation() {
+    saveOn(LocalDate.of(2026, 6, 1), FEE_BASE_COMPLETENESS, ALL, FAIL);
+    saveOn(LocalDate.of(2026, 6, 2), FEE_BASE_COMPLETENESS, ALL, NOT_RUN);
+    saveOn(LocalDate.of(2026, 6, 3), FEE_BASE_COMPLETENESS, ALL, PASS);
+
+    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75)).isEmpty();
+  }
+
+  @Test
+  void aDeviationExplainedAsNeedingNoActionIsNoLongerOutstanding() {
+    saveOn(LocalDate.of(2026, 6, 1), CUSTODIAN_POSITION_COMPLETENESS, ALL, FAIL);
+    saveOn(LocalDate.of(2026, 6, 2), CUSTODIAN_POSITION_COMPLETENESS, ALL, INFO);
+
+    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75)).isEmpty();
+  }
+
+  @Test
+  void aRunThatCouldNotCheckIsNotItselfAnOpenDeviation() {
+    saveOn(LocalDate.of(2026, 6, 1), FEE_BASE_COMPLETENESS, ALL, NOT_RUN);
+
+    assertThat(repository.findOldestUnresolvedDailyDeviationDate(TUK75)).isEmpty();
+  }
+
   private void saveOn(
       LocalDate checkDate, FeeCheckType checkType, FeeCheckScope scope, FeeCheckSeverity severity) {
     var event = event(checkType, scope, null, severity);
@@ -218,7 +255,7 @@ class FeeCheckEventRepositoryTest {
         .checkType(checkType)
         .feeScope(scope)
         .severity(severity)
-        .deviationFound(severity == FAIL)
+        .deviationFound(severity == WARNING || severity == FAIL)
         .result(Map.of())
         .build();
   }

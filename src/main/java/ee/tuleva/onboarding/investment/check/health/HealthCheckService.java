@@ -9,6 +9,8 @@ import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationReposit
 import ee.tuleva.onboarding.investment.position.AccountType;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
+import ee.tuleva.onboarding.investment.transaction.ExecutedPrice;
+import ee.tuleva.onboarding.investment.transaction.ExecutedPriceSource;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -20,6 +22,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -42,27 +45,38 @@ public class HealthCheckService {
   private final TradedQuantitySource tradedQuantitySource;
   private final PayablesChecker payablesChecker;
   private final NavFlowConsistencyChecker navFlowConsistencyChecker;
+  private final LiabilityRecognitionChecker liabilityRecognitionChecker;
   private final InvestmentParameterRepository investmentParameterRepository;
+  private final ExecutedPriceSource executedPriceSource;
+  private final ExitMarkResolver exitMarkResolver;
 
-  private BigDecimal navFlowThreshold(LocalDate navDate) {
-    return investmentParameterRepository.findLatestValue(NAV_FLOW_CONSISTENCY_THRESHOLD, navDate);
+  private @Nullable BigDecimal navFlowThreshold(LocalDate navDate) {
+    return investmentParameterRepository
+        .findLatestValueIfPresent(NAV_FLOW_CONSISTENCY_THRESHOLD, navDate)
+        .orElse(null);
   }
 
   public List<HealthCheckResult> check(List<FundPosition> positions) {
+    if (positions.isEmpty()) {
+      return List.of();
+    }
     Map<TulevaFund, List<FundPosition>> byFund =
         positions.stream().collect(Collectors.groupingBy(FundPosition::getFund));
+    var executedSellsByFund =
+        executedPriceSource.executedSellPricesByFund(positions.getFirst().getNavDate());
 
     var results = new ArrayList<HealthCheckResult>();
     for (var entry : byFund.entrySet()) {
       var fund = entry.getKey();
       var fundPositions = entry.getValue();
-      var result = checkFund(fund, fundPositions);
+      var result = checkFund(fund, fundPositions, executedSellsByFund.getOrDefault(fund, Map.of()));
       results.add(result);
     }
     return results;
   }
 
-  private HealthCheckResult checkFund(TulevaFund fund, List<FundPosition> positions) {
+  private HealthCheckResult checkFund(
+      TulevaFund fund, List<FundPosition> positions, Map<String, ExecutedPrice> executedSells) {
     var navDate = positions.getFirst().getNavDate();
 
     var securities = filterByType(positions, SECURITY);
@@ -126,11 +140,16 @@ public class HealthCheckService {
     findings.addAll(
         payablesChecker.check(
             fund, securities, previousSecurities, liabilities, previousLiabilities));
+    findings.addAll(liabilityRecognitionChecker.check(fund, navDate, liabilities));
     findings.addAll(
         quantityChangeChecker.check(fund, securities, previousSecurities, tradedQuantities));
     findings.addAll(
         navFlowConsistencyChecker.check(
-            fund, positions, previousPositions, navFlowThreshold(navDate)));
+            fund,
+            positions,
+            previousPositions,
+            navFlowThreshold(navDate),
+            exitMarkResolver.resolve(navDate, executedSells)));
 
     saveEvents(fund, navDate, findings);
 

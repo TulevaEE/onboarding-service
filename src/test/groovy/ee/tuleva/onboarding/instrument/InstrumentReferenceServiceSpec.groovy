@@ -445,6 +445,17 @@ class InstrumentReferenceServiceSpec extends Specification {
     service.dataFindings() == []
   }
 
+  def "a proxy ISIN with no instrument row at all is left to resolveBenchmarkProxy, not reported"() {
+    expect:
+    service.dataFindings() == []
+
+    when:
+    service.resolveBenchmarkProxy("BOND_GLOBAL", true)
+
+    then:
+    thrown(InstrumentReferenceService.UnresolvableBenchmarkProxyException)
+  }
+
   def "scheduledRefresh applies a snapshot that has findings"() {
     given:
     def repo = Mock(InstrumentReferenceRepository)

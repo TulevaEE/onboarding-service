@@ -229,6 +229,60 @@ class EpisCsvParserTest {
   }
 
   @Test
+  void refusesAKeywordThatMatchesMoreThanOneHeader() {
+    String csv =
+        """
+        Väärtpaber;Summa (teenustasuga);Summa (PF valitseja)
+        Tuleva III Samba Pensionifond;80,00;999,00
+        """;
+
+    Map<String, String> row = parser.parse(csv, "Väärtpaber").rows().getFirst();
+
+    assertThatThrownBy(() -> EpisCsvParser.findValue(row, "summa"))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void resolvesTheColumnWhenExactlyOneHeaderMatchesByContains() {
+    String csv =
+        """
+        Väärtpaber;Summa (teenustasuga)
+        Tuleva III Samba Pensionifond;80,00
+        """;
+
+    Map<String, String> row = parser.parse(csv, "Väärtpaber").rows().getFirst();
+
+    assertThat(EpisCsvParser.findValue(row, "summa")).isEqualTo("80,00");
+  }
+
+  @Test
+  void prefersTheExactHeaderOverTwoOthersThatMerelyContainTheKeyword() {
+    String csv =
+        """
+        Väärtpaber;Summa (teenustasuga);Summa;Summa (PF valitseja)
+        Tuleva III Samba Pensionifond;80,00;70,00;999,00
+        """;
+
+    Map<String, String> row = parser.parse(csv, "Väärtpaber").rows().getFirst();
+
+    assertThat(EpisCsvParser.findValue(row, "summa")).isEqualTo("70,00");
+  }
+
+  @Test
+  void refusesAnAmbiguousKeywordRatherThanFallingThroughToTheNextAlias() {
+    String csv =
+        """
+        Väärtpaber;Summa (teenustasuga);Summa (PF valitseja);Osakuid
+        Tuleva III Samba Pensionifond;80,00;999,00;100,000
+        """;
+
+    Map<String, String> row = parser.parse(csv, "Väärtpaber").rows().getFirst();
+
+    assertThatThrownBy(() -> EpisCsvParser.findValue(row, "summa", "osakuid"))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
   void throwsWhenHeaderMarkerNotFoundInFirstTenRows() {
     String csv =
         """

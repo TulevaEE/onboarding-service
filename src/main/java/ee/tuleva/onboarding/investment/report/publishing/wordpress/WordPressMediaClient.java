@@ -1,8 +1,6 @@
 package ee.tuleva.onboarding.investment.report.publishing.wordpress;
 
-import java.text.Normalizer;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -21,16 +19,15 @@ public class WordPressMediaClient {
       Pattern.compile(
           "^https://tuleva\\.ee/wp-content/uploads/\\d{4}/\\d{2}/[A-Za-z0-9._-]+\\.pdf$");
 
-  private static final String DEFAULT_EXTENSION = "pdf";
-  private static final int MAX_BASE_SLUG_LENGTH = 100;
-
   private final RestClient restClient;
   private final RetryTemplate retryTemplate;
+  private final List<String> missingProperties;
 
   public record UploadResult(int attachmentId, String sourceUrl) {}
 
   public UploadResult upload(String filename, byte[] pdfBytes) {
-    var slug = toWordPressSlug(filename);
+    refuseWhenUnconfigured();
+    var slug = WordPressSlug.of(filename);
 
     var existing = findExistingMedia(slug);
     if (existing.isPresent()) {
@@ -106,23 +103,50 @@ public class WordPressMediaClient {
   }
 
   public void updateAcfReportField(String pageSlug, int attachmentId) {
+    refuseWhenUnconfigured();
     var pageId = findPageIdBySlug(pageSlug);
 
-    retryTemplate.invoke(
-        () ->
-            restClient
-                .post()
-                .uri("/pages/{pageId}", pageId)
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(Map.of("acf", Map.of("investment_report_file", attachmentId)))
-                .retrieve()
-                .body(Map.class));
+    var response =
+        retryTemplate.invoke(
+            () ->
+                restClient
+                    .post()
+                    .uri("/pages/{pageId}", pageId)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(AcfReportField.pageUpdate(attachmentId))
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<Map<String, Object>>() {}));
+
+    assertReportFileStored(pageSlug, pageId, attachmentId, AcfReportField.storedIn(response));
 
     log.info(
         "Updated ACF investment_report_file: pageSlug={}, pageId={}, attachmentId={}",
         pageSlug,
         pageId,
         attachmentId);
+  }
+
+  private void refuseWhenUnconfigured() {
+    if (!missingProperties.isEmpty()) {
+      throw new IllegalStateException(
+          "WordPress report publishing is enabled but not configured: missing="
+              + missingProperties);
+    }
+  }
+
+  private static void assertReportFileStored(
+      String pageSlug, int pageId, int attachmentId, AcfReportField storedField) {
+    if (!storedField.holds(attachmentId)) {
+      throw new IllegalStateException(
+          "WordPress accepted the page update but ACF did not store the report file: pageSlug="
+              + pageSlug
+              + ", pageId="
+              + pageId
+              + ", expected="
+              + attachmentId
+              + ", actual="
+              + storedField.storedValue());
+    }
   }
 
   private int findPageIdBySlug(String slug) {
@@ -151,37 +175,6 @@ public class WordPressMediaClient {
       throw new IllegalStateException("WordPress page missing id: slug=" + slug);
     }
     return id;
-  }
-
-  static String toWordPressSlug(String filename) {
-    var dotIndex = filename.lastIndexOf('.');
-    var base = dotIndex > 0 ? filename.substring(0, dotIndex) : filename;
-    var extension = dotIndex > 0 ? filename.substring(dotIndex + 1) : DEFAULT_EXTENSION;
-    var baseSlug = toHyphenatedWords(base);
-    if (baseSlug.isEmpty()) {
-      throw new IllegalArgumentException(
-          "Filename sanitises to an empty slug: filename=" + filename);
-    }
-    var extensionSlug = toSingleWord(extension);
-    return baseSlug + "." + (extensionSlug.isEmpty() ? DEFAULT_EXTENSION : extensionSlug);
-  }
-
-  private static String toHyphenatedWords(String value) {
-    var hyphenated = asciiSlug(value);
-    return hyphenated
-        .substring(0, Math.min(hyphenated.length(), MAX_BASE_SLUG_LENGTH))
-        .replaceAll("(^-+)|(-+$)", "");
-  }
-
-  private static String toSingleWord(String value) {
-    return asciiSlug(value).replace("-", "");
-  }
-
-  private static String asciiSlug(String value) {
-    return Normalizer.normalize(value, Normalizer.Form.NFD)
-        .replaceAll("\\p{M}+", "")
-        .toLowerCase(Locale.ROOT)
-        .replaceAll("[^a-z0-9]+", "-");
   }
 
   private static String truncate(String s, int maxLen) {

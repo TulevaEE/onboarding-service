@@ -819,6 +819,35 @@ class TrackingDifferenceCalculatorTest {
     assertThat(flow.unexplained()).isEqualByComparingTo(BigDecimal.ZERO);
   }
 
+  // Mid-transition the securities can be worth more than the fund: on 25.08.2026 the CCF proceeds
+  // were still a receivable while the Amundi was already held, so the sleeve stood above 100% of
+  // net assets. Clamping that to 1 would under-state the market leg and push the difference into
+  // unexplained, turning a legitimate book into a breach.
+  @Test
+  void navFlowReconcilesWhenSecuritiesAreWorthMoreThanTheFund() {
+    var input =
+        navFlowInput(
+                new BigDecimal("1.0108"),
+                new BigDecimal("1.00"),
+                bodHolding("IE00A", new BigDecimal("1.00"), "101", "100"))
+            .tradeFlow(BigDecimal.ZERO)
+            .bodSecuritiesFraction(new BigDecimal("1.08"))
+            .openingNetAssets(new BigDecimal("1000000"))
+            .closingNetAssets(new BigDecimal("1010800"))
+            .previousUnits(new BigDecimal("1000000"))
+            .todayUnits(new BigDecimal("1000000"))
+            .build();
+
+    var result = calculator.calculate(input);
+
+    assertThat(result).isPresent();
+    var flow = result.get().navFlow();
+    assertThat(flow).isNotNull();
+    assertThat(flow.marketPnl()).isEqualByComparingTo(new BigDecimal("10800"));
+    assertThat(flow.unexplained()).isEqualByComparingTo(BigDecimal.ZERO);
+    assertThat(result.get().navResidualBreach()).isFalse();
+  }
+
   private TrackingInput.TrackingInputBuilder navFlowInput(
       BigDecimal todayNav,
       BigDecimal yesterdayNav,

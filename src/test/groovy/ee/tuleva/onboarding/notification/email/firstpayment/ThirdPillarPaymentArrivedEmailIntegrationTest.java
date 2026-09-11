@@ -61,6 +61,7 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
   private static final String SECOND_PILLAR_LEAVER =
       TestPersonalCodes.withValidChecksum("3830101000");
   private static final String MAXED_OUT = TestPersonalCodes.withValidChecksum("3820101000");
+  private static final String NO_SECOND_PILLAR = TestPersonalCodes.withValidChecksum("3810101000");
 
   @Autowired private ThirdPillarPaymentArrivedJob job;
   @Autowired private AnalyticsThirdPillarTransactionRepository transactionRepository;
@@ -97,6 +98,7 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
   @Test
   void sendsTheEmailOnceToAFirstTimePayerWithAnAccount() {
     saveUser(ACCOUNT_HOLDER, "account.holder@example.com");
+    saveUnitOwner(ACCOUNT_HOLDER, builder -> builder.p2choice("LXK75"));
     saveOwnPayment(ACCOUNT_HOLDER, LocalDate.now().minusDays(1), new BigDecimal("300.00"));
 
     job.run();
@@ -122,6 +124,24 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
             eq("third_pillar_payment_arrived_et"));
     assertThat(sentEmailCount()).isEqualTo(1);
     assertThat(claimCount()).isEqualTo(1);
+  }
+
+  @Test
+  void neverSuggestsSecondPillarStepsWhenTheFundChoiceIsUnknown() {
+    saveUnitOwner(NO_SECOND_PILLAR, builder -> builder.email("no.second.pillar@example.com"));
+    saveOwnPayment(NO_SECOND_PILLAR, LocalDate.now().minusDays(1), new BigDecimal("100.00"));
+
+    job.run();
+
+    verify(emailService)
+        .newMandrillMessage(
+            eq("no.second.pillar@example.com"),
+            eq("third_pillar_payment_arrived_et"),
+            argThat(
+                mergeVars ->
+                    Boolean.FALSE.equals(mergeVars.get("suggestSecondPillar"))
+                        && Boolean.FALSE.equals(mergeVars.get("suggestPaymentRate"))),
+            any());
   }
 
   @Test

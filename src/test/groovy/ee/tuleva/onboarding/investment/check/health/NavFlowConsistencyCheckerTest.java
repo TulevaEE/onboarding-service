@@ -147,6 +147,27 @@ class NavFlowConsistencyCheckerTest {
     assertThat(checker.check(TUK75, today, previous, THRESHOLD, Map.of())).isEmpty();
   }
 
+  // Selling part of a holding leaves it on the report, still priced, and the ootel report still
+  // carries an executed price for the part that left. The report's own mark is the better one - it
+  // covers the whole position - so the exit mark must lose to it. Marking the full opening quantity
+  // at the execution price instead would value the part that stayed at the price the part that left
+  // went out at, and invent a dealing cost over the whole line.
+  @Test
+  void aPartlySoldHoldingIsMarkedAtTheReportPriceRatherThanItsExecutionPrice() {
+    var previous = positions(security("IE00A", "10000", "100", "1000000"), units("1000000"));
+    var today =
+        positions(security("IE00A", "6000", "102", "612000"), cash("408000"), units("1000000"));
+
+    var exitMarks =
+        Map.of(
+            "IE00A",
+            new ExitMark(
+                new BigDecimal("99"),
+                new ExitMark.PublishedPrice(new BigDecimal("101"), LocalDate.parse("2026-08-25"))));
+
+    assertThat(checker.check(TUK75, today, previous, THRESHOLD, exitMarks)).isEmpty();
+  }
+
   // SebFundPositionParser stores the report's "Total" row as AccountType.NAV, so every imported
   // day carries the net asset total alongside the very lines that sum to it. Counting both makes
   // opening net assets twice the truth, and a day where only prices moved starts warning.

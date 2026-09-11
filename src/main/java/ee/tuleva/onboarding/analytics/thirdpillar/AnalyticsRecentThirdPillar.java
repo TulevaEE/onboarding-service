@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.analytics.thirdpillar;
 
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
+import ee.tuleva.onboarding.personalcode.ValidPersonalCode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;

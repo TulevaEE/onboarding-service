@@ -6,14 +6,12 @@ import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.aml.exception.AmlChecksMissingException;
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
-import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
-import ee.tuleva.onboarding.auth.idcard.IdDocumentType;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.country.Country;
-import ee.tuleva.onboarding.epis.contact.ContactDetails;
-import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
-import ee.tuleva.onboarding.epis.contact.event.ContactDetailsUpdatedEvent;
+import ee.tuleva.onboarding.epis.ContactDetails;
+import ee.tuleva.onboarding.epis.ContactDetailsService;
+import ee.tuleva.onboarding.epis.ContactDetailsUpdatedEvent;
 import ee.tuleva.onboarding.kyc.BeforeKycCheckedEvent;
 import ee.tuleva.onboarding.mandate.event.BeforeMandateCreatedEvent;
 import ee.tuleva.onboarding.user.User;
@@ -31,6 +29,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class AmlAutoCheckerTest {
 
   @Mock private AmlService amlService;
+  @Mock private SanctionAndPepScreener sanctionAndPepScreener;
   @Mock private UserService userService;
   @Mock private ContactDetailsService contactDetailsService;
 
@@ -40,7 +39,6 @@ class AmlAutoCheckerTest {
   @Mock private ContactDetails mockContactDetails;
   private final Country mandateCountry = new Country("EE");
   private final Set<Country> mockCountries = Countries.of("EE");
-  @Mock private IdDocumentType mockIdDocumentType;
 
   private static AuthenticatedPerson createTestPerson(String personalCode) {
     return AuthenticatedPerson.builder()
@@ -56,18 +54,17 @@ class AmlAutoCheckerTest {
       "beforeLogin: Should check user with residency status when document type is present and user exists")
   void beforeLogin_checksUser_whenDocumentPresentAndUserExists() {
     // given
-    BeforeTokenGrantedEvent mockEvent = mock(BeforeTokenGrantedEvent.class);
+    AfterTokenGrantedEvent mockEvent = mock(AfterTokenGrantedEvent.class);
     String personalCode = "38001010000";
     AuthenticatedPerson testPerson = createTestPerson(personalCode);
 
     when(mockEvent.getPerson()).thenReturn(testPerson);
     when(userService.findByPersonalCode(testPerson.getPersonalCode()))
         .thenReturn(Optional.of(mockUser));
-    when(mockEvent.getIdDocumentType()).thenReturn(mockIdDocumentType);
-    when(mockIdDocumentType.isResident()).thenReturn(true);
+    when(mockEvent.isResident()).thenReturn(true);
 
     // when
-    amlAutoChecker.beforeLogin(mockEvent);
+    amlAutoChecker.onLogin(mockEvent);
 
     // then
     verify(amlService).checkUserBeforeLogin(mockUser, testPerson, true);
@@ -78,17 +75,17 @@ class AmlAutoCheckerTest {
       "beforeLogin: Should check user with null residency status when document type is null and user exists")
   void beforeLogin_checksUser_whenDocumentNullAndUserExists() {
     // given
-    BeforeTokenGrantedEvent mockEvent = mock(BeforeTokenGrantedEvent.class);
+    AfterTokenGrantedEvent mockEvent = mock(AfterTokenGrantedEvent.class);
     String personalCode = "38001010001";
     AuthenticatedPerson testPerson = createTestPerson(personalCode);
 
     when(mockEvent.getPerson()).thenReturn(testPerson);
     when(userService.findByPersonalCode(testPerson.getPersonalCode()))
         .thenReturn(Optional.of(mockUser));
-    when(mockEvent.getIdDocumentType()).thenReturn(null);
+    when(mockEvent.isResident()).thenReturn(null);
 
     // when
-    amlAutoChecker.beforeLogin(mockEvent);
+    amlAutoChecker.onLogin(mockEvent);
 
     // then
     verify(amlService).checkUserBeforeLogin(mockUser, testPerson, null);
@@ -98,7 +95,7 @@ class AmlAutoCheckerTest {
   @DisplayName("beforeLogin: Should throw IllegalStateException if user is not found")
   void beforeLogin_throwsException_whenUserNotFound() {
     // given
-    BeforeTokenGrantedEvent mockEvent = mock(BeforeTokenGrantedEvent.class);
+    AfterTokenGrantedEvent mockEvent = mock(AfterTokenGrantedEvent.class);
     String personalCode = "38001010002";
     AuthenticatedPerson testPerson = createTestPerson(personalCode);
 
@@ -110,7 +107,7 @@ class AmlAutoCheckerTest {
         assertThrows(
             IllegalStateException.class,
             () -> {
-              amlAutoChecker.beforeLogin(mockEvent);
+              amlAutoChecker.onLogin(mockEvent);
             });
 
     // then
@@ -169,7 +166,7 @@ class AmlAutoCheckerTest {
   void contactDetailsUpdated_addsCheck() {
     // given
     ContactDetailsUpdatedEvent mockEvent = mock(ContactDetailsUpdatedEvent.class);
-    when(mockEvent.getUser()).thenReturn(mockUser);
+    when(mockEvent.getPerson()).thenReturn(mockUser);
 
     // when
     amlAutoChecker.contactDetailsUpdated(mockEvent);
@@ -197,7 +194,7 @@ class AmlAutoCheckerTest {
     assertDoesNotThrow(() -> amlAutoChecker.beforeMandateCreated(mockEvent));
 
     // then
-    verify(amlService).addSanctionAndPepCheckIfMissing(mockUser, mockCountries);
+    verify(sanctionAndPepScreener).addSanctionAndPepCheckIfMissing(mockUser, mockCountries);
     verify(amlService).allChecksPassed(mockUser, mandate);
   }
 
@@ -218,7 +215,7 @@ class AmlAutoCheckerTest {
     assertDoesNotThrow(() -> amlAutoChecker.beforeMandateCreated(mockEvent));
 
     // then
-    verify(amlService, never()).addSanctionAndPepCheckIfMissing(any(), any());
+    verify(sanctionAndPepScreener, never()).addSanctionAndPepCheckIfMissing(any(), any());
     verify(amlService).allChecksPassed(mockUser, mandate);
   }
 
@@ -246,7 +243,7 @@ class AmlAutoCheckerTest {
 
     // then
     assertNotNull(exception);
-    verify(amlService).addSanctionAndPepCheckIfMissing(mockUser, mockCountries);
+    verify(sanctionAndPepScreener).addSanctionAndPepCheckIfMissing(mockUser, mockCountries);
     verify(amlService).allChecksPassed(mockUser, mandate);
   }
 
@@ -261,6 +258,6 @@ class AmlAutoCheckerTest {
     amlAutoChecker.beforeKycChecked(event);
 
     // then
-    verify(amlService).addSanctionAndPepCheckIfMissing(person, mockCountries);
+    verify(sanctionAndPepScreener).addSanctionAndPepCheckIfMissing(person, mockCountries);
   }
 }

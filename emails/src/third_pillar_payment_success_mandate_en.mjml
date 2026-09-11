@@ -1,0 +1,34 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
+        <mj-text>
+          Your contribution is complete. This puts you among the 30% of dedicated people in
+          Estonia who save in the third pillar. Your new units will appear in your pension account by the
+          end of the next working day. If you made the transfer over the weekend, you’ll see the
+          new units in your pension account by Tuesday evening.
+        </mj-text>
+
+        <mj-include path="./partials/suggest_chain_open_en.mjml" />
+
+        <mj-raw>*|END:IF|*</mj-raw>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="./partials/contact_en.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">
+          Tõnu Pekk<br />
+          Tuleva Founder and Fund Manager
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_pension_en.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

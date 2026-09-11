@@ -7,7 +7,7 @@ import static ee.tuleva.onboarding.auth.authority.Authority.USER;
 import static ee.tuleva.onboarding.kyc.KycSurveyPurpose.IDENTITY_ONLY;
 import static ee.tuleva.onboarding.kyc.KycSurveyPurpose.PERSONAL_ONBOARDING;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
-import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
+import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
@@ -199,9 +199,10 @@ class KycShortSurveyRegressionTest {
 
   private void assertThatKybRelatedPersonsKycRequirementIsSatisfied() {
     assertThat(
-            amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
-                user.getPersonalCode(), KYC_CHECK, true, aYearAgo()))
-        .isTrue();
+            amlCheckRepository
+                .findFirstByPersonalCodeAndTypeAndCreatedTimeAfterOrderByCreatedTimeDescIdDesc(
+                    user.getPersonalCode(), KYC_CHECK, aYearAgo()))
+        .hasValueSatisfying(check -> assertThat(check.isSuccess()).isTrue());
   }
 
   private void assertThatKycCheckAmlCheckIsPersisted() {

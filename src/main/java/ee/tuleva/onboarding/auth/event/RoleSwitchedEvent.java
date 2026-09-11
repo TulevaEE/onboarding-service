@@ -4,4 +4,4 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import org.jspecify.annotations.NullMarked;
 
 @NullMarked
-public record RoleSwitchedEvent(AuthenticatedPerson person) {}
+public record RoleSwitchedEvent(AuthenticatedPerson originalPerson, AuthenticatedPerson person) {}

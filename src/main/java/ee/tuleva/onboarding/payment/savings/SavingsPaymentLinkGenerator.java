@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.payment.savings;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.currency.Currency;
-import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
+import ee.tuleva.onboarding.error.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.payment.PaymentData;
@@ -44,18 +44,21 @@ public class SavingsPaymentLinkGenerator implements PaymentLinkGenerator {
           "Invalid payment channel: " + paymentData.getPaymentChannel());
     }
     var bic = channel.getBic();
-    if (paymentData.getAmount() == null || paymentData.getAmount().compareTo(MIN_AMOUNT) < 0) {
+    var amount = paymentData.getAmount();
+    if (amount == null || amount.compareTo(MIN_AMOUNT) < 0) {
       throw new IllegalArgumentException("Amount must be at least " + MIN_AMOUNT);
     }
-    if (paymentData.getCurrency() == null || !paymentData.getCurrency().equals(Currency.EUR)) {
-      throw new IllegalArgumentException("Invalid currency: " + paymentData.getCurrency());
+    var currency = paymentData.getCurrency();
+    if (currency == null || !currency.equals(Currency.EUR)) {
+      throw new IllegalArgumentException("Invalid currency: " + currency);
     }
-    var order = buildOrder(paymentData, person, bic);
+    var order = buildOrder(paymentData, person, bic, amount, currency);
     var url = orderClient.getPaymentUrl(order, savingsChannelConfiguration);
     return new RedirectLink(url);
   }
 
-  private MontonioOrder buildOrder(PaymentData paymentData, Person person, String bic) {
+  private MontonioOrder buildOrder(
+      PaymentData paymentData, Person person, String bic, BigDecimal amount, Currency currency) {
     var now = clock.instant();
     var description =
         String.format("%s, %d", paymentData.getRecipientPersonalCode(), now.getEpochSecond());
@@ -66,14 +69,14 @@ public class SavingsPaymentLinkGenerator implements PaymentLinkGenerator {
             paymentInternalReferenceService.getPaymentReference(person, paymentData, description))
         .returnUrl(savingsChannelConfiguration.getReturnUrl())
         .notificationUrl(savingsChannelConfiguration.getNotificationUrl())
-        .grandTotal(paymentData.getAmount())
-        .currency(paymentData.getCurrency())
+        .grandTotal(amount)
+        .currency(currency)
         .exp(now.getEpochSecond() + 600)
         .locale(getLanguage())
         .payment(
             MontonioOrder.MontonioPaymentMethod.builder()
-                .amount(paymentData.getAmount())
-                .currency(paymentData.getCurrency())
+                .amount(amount)
+                .currency(currency)
                 .methodOptions(
                     MontonioOrder.MontonioPaymentMethod.MontonioPaymentMethodOptions.builder()
                         .preferredProvider(bic)

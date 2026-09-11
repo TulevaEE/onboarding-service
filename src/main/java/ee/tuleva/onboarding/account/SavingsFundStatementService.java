@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.account;
 
 import static ee.tuleva.onboarding.currency.Currency.EUR;
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
@@ -12,9 +12,7 @@ import ee.tuleva.onboarding.ledger.LedgerAccount;
 import ee.tuleva.onboarding.ledger.LedgerParty.PartyType;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.UserAccount;
-import ee.tuleva.onboarding.savings.fund.SavingsFundConfiguration;
-import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
-import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
+import ee.tuleva.onboarding.party.PartyId;
 import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.function.Function;
@@ -26,16 +24,17 @@ import org.springframework.stereotype.Service;
 public class SavingsFundStatementService {
 
   private final LedgerService ledgerService;
-  private final SavingsFundOnboardingService savingsFundOnboardingService;
-  private final FundNavProvider navProvider;
+  private final SavingsOnboardingCompletion savingsFundOnboardingService;
+  private final SavingsFundNav navProvider;
   private final FundRepository fundRepository;
-  private final SavingsFundConfiguration savingsFundConfiguration;
+  private final SavingsFundIsin savingsFundConfiguration;
 
   public Optional<FundBalance> getAccountStatement(AuthenticatedPerson person) {
-    String ownerCode = person.getRoleCode();
-    PartyType partyType = PartyType.from(person.getRoleType());
+    PartyId partyId = PartyId.from(person);
+    String ownerCode = partyId.code();
+    PartyType partyType = partyType(partyId.type());
 
-    if (savingsFundOnboardingService.isOnboardingCompleted(person.toPartyId())) {
+    if (savingsFundOnboardingService.isOnboardingCompleted(partyId)) {
       return Optional.of(
           statement(
               account ->
@@ -53,6 +52,13 @@ public class SavingsFundStatementService {
                                 .findPartyAccount(ownerCode, partyType, account)
                                 .map(LedgerAccount::getBalance)
                                 .orElse(BigDecimal.ZERO)));
+  }
+
+  private static PartyType partyType(PartyId.Type type) {
+    return switch (type) {
+      case PERSON -> PartyType.PERSON;
+      case LEGAL_ENTITY -> PartyType.LEGAL_ENTITY;
+    };
   }
 
   private FundBalance statement(Function<UserAccount, BigDecimal> balances) {

@@ -4,7 +4,9 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
+import static org.mockito.Mockito.mock;
 
+import ee.tuleva.onboarding.error.RestResponseErrorHandler;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
@@ -24,8 +26,19 @@ import org.springframework.web.client.RestTemplate;
 
 class RestTemplateConfigurationTest {
 
+  private final RestTemplateConfiguration configuration = new RestTemplateConfiguration();
   private final RestTemplateCustomizer loggingCustomizer =
-      new RestTemplateConfiguration().loggingRestTemplateCustomizer();
+      configuration.loggingRestTemplateCustomizer();
+
+  @Test
+  void restTemplateUsesTheProvidedErrorHandler() {
+    RestTemplateBuilder builder = new RestTemplateBuilder();
+    RestResponseErrorHandler errorHandler = mock(RestResponseErrorHandler.class);
+
+    RestTemplate restTemplate = configuration.restTemplate(builder, errorHandler);
+
+    assertThat(restTemplate.getErrorHandler()).isSameAs(errorHandler);
+  }
 
   @Test
   @Timeout(value = 5, unit = SECONDS, threadMode = ThreadMode.SEPARATE_THREAD)

@@ -1,0 +1,50 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Welcome,&nbsp;*|FNAME|*</mj-text>
+        <mj-text>
+          I’m glad you’ve decided to start saving in the third pillar with us.
+        </mj-text>
+        <mj-raw>*|IF:hasFundTransfer|*</mj-raw>
+        <mj-text>
+          Your application to exchange your existing fund units has been forwarded to
+          Pensionikeskus, and the units are usually exchanged within a few working days.
+        </mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+        <mj-text>
+          Your contribution has not reached the Tuleva III Pillar Pension Fund yet. If you made
+          a payment from your internet bank or set up a recurring payment, your contribution
+          will show up in your pension account one working day after payment.
+        </mj-text>
+        <mj-text>
+          As a reminder: the state gives back 22% income tax on third pillar contributions.
+          For example, a 100 euro monthly payment brings back 264&nbsp;euros in the spring.
+        </mj-text>
+        <mj-text>
+          <strong>See how you can maximize your tax savings with the third pillar:</strong>
+        </mj-text>
+        <mj-button href="https://tuleva.ee/en/third-pillar/">Calculate your tax saving</mj-button>
+        <mj-text>
+          Attached is a copy of your third pillar application, which we have sent to the
+          Pension Registry.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="./partials/contact_en.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">
+          Tõnu Pekk<br />
+          Tuleva Founder and Fund Manager
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_pension_en.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

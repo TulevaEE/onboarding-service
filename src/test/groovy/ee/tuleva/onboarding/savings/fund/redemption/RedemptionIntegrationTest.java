@@ -7,7 +7,8 @@ import static ee.tuleva.onboarding.company.RelationshipType.BOARD_MEMBER;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
-import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
+import static ee.tuleva.onboarding.savings.SavingFundPaymentFixture.aPayment;
+import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
@@ -22,6 +23,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.role.Role;
+import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
 import ee.tuleva.onboarding.banking.seb.SebGatewayClient;
 import ee.tuleva.onboarding.company.Company;
@@ -29,14 +31,16 @@ import ee.tuleva.onboarding.company.CompanyParty;
 import ee.tuleva.onboarding.company.CompanyPartyRepository;
 import ee.tuleva.onboarding.company.CompanyRepository;
 import ee.tuleva.onboarding.ledger.LedgerAccount;
+import ee.tuleva.onboarding.ledger.LedgerParty;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.PartyId;
-import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
-import ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status;
+import ee.tuleva.onboarding.savings.FundNavProvider;
+import ee.tuleva.onboarding.savings.SavingFundPayment;
+import ee.tuleva.onboarding.savings.SavingFundPayment.Status;
+import ee.tuleva.onboarding.savings.fund.LedgerRefs;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
-import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
@@ -74,6 +78,8 @@ class RedemptionIntegrationTest {
   @Autowired RedemptionVerificationService redemptionVerificationService;
   @Autowired RedemptionRequestRepository redemptionRequestRepository;
   @Autowired RedemptionBatchJob redemptionBatchJob;
+  @Autowired RedemptionPayoutRecorder redemptionPayoutRecorder;
+  @Autowired EndToEndIdConverter endToEndIdConverter;
   @Autowired SavingsFundLedger savingsFundLedger;
   @Autowired SavingsFundOnboardingRepository savingsFundOnboardingRepository;
   @Autowired LedgerService ledgerService;
@@ -246,16 +252,17 @@ class RedemptionIntegrationTest {
 
     // Step 1: Reserve units (happens when redemption request created)
     var redemptionRequestId = UUID.randomUUID();
-    savingsFundLedger.reserveFundUnitsForRedemption(testParty, fundUnits, redemptionRequestId);
+    var testPartyRef = LedgerRefs.from(testParty);
+    savingsFundLedger.reserveFundUnitsForRedemption(testPartyRef, fundUnits, redemptionRequestId);
 
     // Step 2: Price and redeem (happens in batch job at T+2)
     savingsFundLedger.redeemFundUnitsFromReserved(
-        testParty, fundUnits, cashAmount, navPerUnit, redemptionRequestId);
+        testPartyRef, fundUnits, cashAmount, navPerUnit, redemptionRequestId);
 
     // Steps 3 & 4: Transfer and payout (happens during bank statement reconciliation)
     savingsFundLedger.transferFromFundAccount(cashAmount, redemptionRequestId);
     savingsFundLedger.recordRedemptionPayout(
-        testParty, cashAmount, VALID_IBAN, redemptionRequestId);
+        testPartyRef, cashAmount, VALID_IBAN, redemptionRequestId);
 
     var fundsUnitsBalance = getUserFundUnitsAccount().getBalance();
     var reservedUnitsBalance = getUserFundUnitsReservedAccount().getBalance();
@@ -358,10 +365,11 @@ class RedemptionIntegrationTest {
   private void setupUserWithFundUnits(BigDecimal cashAmount, BigDecimal fundUnits) {
     var navPerUnit = cashAmount.divide(fundUnits, 5, HALF_UP);
     var paymentId = UUID.randomUUID();
-    savingsFundLedger.recordPaymentReceived(testParty, cashAmount, paymentId);
-    savingsFundLedger.reservePaymentForSubscription(testParty, cashAmount, paymentId);
+    var testPartyRef = LedgerRefs.from(testParty);
+    savingsFundLedger.recordPaymentReceived(testPartyRef, cashAmount, paymentId);
+    savingsFundLedger.reservePaymentForSubscription(testPartyRef, cashAmount, paymentId);
     savingsFundLedger.issueFundUnitsFromReserved(
-        testParty, cashAmount, fundUnits, navPerUnit, paymentId);
+        testPartyRef, cashAmount, fundUnits, navPerUnit, paymentId);
     savingsFundLedger.transferToFundAccount(cashAmount, paymentId);
   }
 
@@ -550,6 +558,48 @@ class RedemptionIntegrationTest {
   }
 
   @Test
+  void bankPayout_ofLegalEntityRedemption_settlesTheCompanyAccountNotTheBoardMembers() {
+    var registryCode = "16001234";
+    var companyName = "Acme Holding OÜ";
+    var companyIban = "EE442200221092874625";
+    var redemptionAmount = new BigDecimal("25.00");
+    setUpLegalEntity(registryCode, companyName, companyIban);
+    var leAuthenticatedPerson =
+        authenticatedPersonFromUser(testUser)
+            .role(new Role(LEGAL_ENTITY, registryCode, companyName))
+            .build();
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2025-09-26T14:00:00Z"), UTC));
+    var requestId =
+        redemptionService
+            .createRedemptionRequest(leAuthenticatedPerson, redemptionAmount, EUR, companyIban)
+            .getId();
+    redemptionStatusService.changeStatus(requestId, VERIFIED);
+    ClockHolder.setClock(Clock.fixed(Instant.parse("2025-09-30T15:00:00Z"), UTC));
+    redemptionBatchJob.runJob();
+    var companyCashRedemption =
+        ledgerService.getPartyAccount(
+            registryCode, LedgerParty.PartyType.LEGAL_ENTITY, CASH_REDEMPTION);
+    assertThat(companyCashRedemption.getBalance()).isEqualByComparingTo(redemptionAmount.negate());
+
+    redemptionPayoutRecorder.recordOutgoingPayout(
+        aPayment()
+            .amount(redemptionAmount.negate())
+            .beneficiaryIban(companyIban)
+            .endToEndId(endToEndIdConverter.toEndToEndId(requestId))
+            .receivedBefore(Instant.parse("2025-09-30T15:30:00Z"))
+            .build());
+
+    assertThat(companyCashRedemption.getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(
+            ledgerService
+                .getPartyAccount(testUser.getPersonalCode(), PERSON, CASH_REDEMPTION)
+                .getBalance())
+        .isEqualByComparingTo(ZERO);
+    assertThat(redemptionRequestRepository.findById(requestId).orElseThrow().getStatus())
+        .isEqualTo(PROCESSED);
+  }
+
+  @Test
   void createRedemption_legalEntityNonBoardMember_denied() {
     var registryCode = "16002345";
     var companyName = "Other OÜ";
@@ -732,10 +782,11 @@ class RedemptionIntegrationTest {
   private void setupPartyWithFundUnits(PartyId party, BigDecimal cashAmount, BigDecimal fundUnits) {
     var navPerUnit = cashAmount.divide(fundUnits, 5, HALF_UP);
     var paymentId = UUID.randomUUID();
-    savingsFundLedger.recordPaymentReceived(party, cashAmount, paymentId);
-    savingsFundLedger.reservePaymentForSubscription(party, cashAmount, paymentId);
+    var partyRef = LedgerRefs.from(party);
+    savingsFundLedger.recordPaymentReceived(partyRef, cashAmount, paymentId);
+    savingsFundLedger.reservePaymentForSubscription(partyRef, cashAmount, paymentId);
     savingsFundLedger.issueFundUnitsFromReserved(
-        party, cashAmount, fundUnits, navPerUnit, paymentId);
+        partyRef, cashAmount, fundUnits, navPerUnit, paymentId);
     savingsFundLedger.transferToFundAccount(cashAmount, paymentId);
   }
 

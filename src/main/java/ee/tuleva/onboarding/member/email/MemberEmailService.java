@@ -1,11 +1,11 @@
 package ee.tuleva.onboarding.member.email;
 
-import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.getNameMergeVars;
+import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.getNameMergeVars;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
+import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.notification.email.EmailType;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.member.Member;
 import java.time.ZoneId;
@@ -28,7 +28,7 @@ public class MemberEmailService {
   public void sendMemberNumber(User user, Locale locale) {
     log.info("Sending member number email to user: {}", user.getId());
     Member member = user.getMemberOrThrow();
-    EmailType emailType = EmailType.from(member);
+    EmailType emailType = EmailType.MEMBERSHIP;
     String templateName = emailType.getTemplateName(locale);
 
     MandrillMessage message =
@@ -36,16 +36,7 @@ public class MemberEmailService {
             user.getEmail(),
             emailType.getTemplateName(locale),
             getMergeVars(user, member),
-            List.of("memberNumber"),
-            null);
-
-    if (message == null) {
-      log.warn(
-          "Failed to create mandrill message, not sending member number email for userId {}, member #{}",
-          user.getId(),
-          member.getMemberNumber());
-      return;
-    }
+            List.of("memberNumber"));
 
     emailService
         .send(user, message, templateName)

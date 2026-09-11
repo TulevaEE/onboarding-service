@@ -2,29 +2,30 @@ package ee.tuleva.onboarding.investment.report.publishing.pdf;
 
 import java.math.BigDecimal;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 
 public record InvestmentReportContext(
     String fundTitle,
     String reportDate,
     List<SecuritySection> securitiesSections,
-    BigDecimal securitiesTotalCost,
+    @Nullable BigDecimal securitiesTotalCost,
     BigDecimal securitiesTotalMarketValue,
     BigDecimal securitiesTotalNavPercent,
-    BigDecimal securitiesTotalChange,
+    @Nullable BigDecimal securitiesTotalChange,
     List<InvestmentReportRow> cashRows,
     BigDecimal cashTotalMarketValue,
     BigDecimal cashTotalNavPercent,
-    BigDecimal cashTotalChange,
+    @Nullable BigDecimal cashTotalChange,
     BigDecimal totalAssetsMarketValue,
-    BigDecimal totalAssetsCost,
+    @Nullable BigDecimal totalAssetsCost,
     BigDecimal totalAssetsNavPercent,
     BigDecimal fundNav) {
 
   public record SecuritySection(
       String heading,
       List<InvestmentReportRow> rows,
-      BigDecimal totalCost,
+      @Nullable BigDecimal totalCost,
       BigDecimal totalMarketValue,
       BigDecimal totalNavPercent,
-      BigDecimal totalChange) {}
+      @Nullable BigDecimal totalChange) {}
 }

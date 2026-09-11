@@ -2,8 +2,11 @@ package ee.tuleva.onboarding.auth.webeid;
 
 import static ee.tuleva.onboarding.auth.idcard.IdDocumentType.ESTONIAN_CITIZEN_ID_CARD;
 import static org.bouncycastle.asn1.x509.Extension.certificatePolicies;
+import static org.bouncycastle.asn1.x509.Extension.extendedKeyUsage;
+import static org.bouncycastle.asn1.x509.Extension.keyUsage;
 import static org.bouncycastle.asn1.x509.KeyPurposeId.id_kp_clientAuth;
 import static org.bouncycastle.asn1.x509.KeyPurposeId.id_kp_emailProtection;
+import static org.bouncycastle.asn1.x509.KeyUsage.digitalSignature;
 
 import ee.tuleva.onboarding.auth.idcard.IdDocumentType;
 import java.math.BigInteger;
@@ -22,6 +25,7 @@ import org.bouncycastle.asn1.x509.CertificatePolicies;
 import org.bouncycastle.asn1.x509.ExtendedKeyUsage;
 import org.bouncycastle.asn1.x509.Extension;
 import org.bouncycastle.asn1.x509.KeyPurposeId;
+import org.bouncycastle.asn1.x509.KeyUsage;
 import org.bouncycastle.asn1.x509.PolicyInformation;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.cert.X509v3CertificateBuilder;
@@ -40,45 +44,99 @@ public class WebEidCertificateFixture {
       "C=EE, O=SK ID Solutions AS, OID.2.5.4.97=NTREE-10747013, CN=ESTEID2018";
   private static final String AUTH_POLICY_OID = "0.4.0.2042.1.2";
 
-  @SneakyThrows
   public static X509Certificate certificate(
       String firstName, String lastName, String personalCode, IdDocumentType documentType) {
-    return generateCertificate(
-        firstName, lastName, personalCode, documentType.getFirstIdentifier(), VALID_ISSUER, true);
+    return buildCertificate(
+        subjectDn(firstName, lastName, personalCode),
+        VALID_ISSUER,
+        policies(documentType.getFirstIdentifier()),
+        clientAuthentication());
   }
 
-  @SneakyThrows
   public static X509Certificate certificateWithIssuer(
       String firstName, String lastName, String personalCode, String issuer) {
-    return generateCertificate(
-        firstName,
-        lastName,
-        personalCode,
-        ESTONIAN_CITIZEN_ID_CARD.getFirstIdentifier(),
+    return buildCertificate(
+        subjectDn(firstName, lastName, personalCode),
         issuer,
-        true);
+        policies(ESTONIAN_CITIZEN_ID_CARD.getFirstIdentifier()),
+        clientAuthentication());
+  }
+
+  public static X509Certificate certificateWithoutClientAuth(
+      String firstName, String lastName, String personalCode) {
+    return buildCertificate(
+        subjectDn(firstName, lastName, personalCode),
+        VALID_ISSUER,
+        policies(ESTONIAN_CITIZEN_ID_CARD.getFirstIdentifier()));
+  }
+
+  public static X509Certificate certificateWithoutPolicies(
+      String firstName, String lastName, String personalCode) {
+    return buildCertificate(
+        subjectDn(firstName, lastName, personalCode),
+        VALID_ISSUER,
+        signing(),
+        clientAuthentication());
+  }
+
+  // A subject DN missing one of SURNAME=, GIVENNAME= or SERIALNUMBER= exercises the
+  // "attribute missing from certificate" error paths in WebEidAuthService#createSession.
+  public static X509Certificate certificateWithSubjectDn(String subjectDn) {
+    return buildCertificate(
+        new X500Name(subjectDn),
+        VALID_ISSUER,
+        policies(ESTONIAN_CITIZEN_ID_CARD.getFirstIdentifier()),
+        clientAuthentication());
+  }
+
+  private static X500Name subjectDn(String firstName, String lastName, String personalCode) {
+    return new X500Name(
+        "C=EE, O=ESTEID, OU=AUTHENTICATION, "
+            + "CN=\""
+            + lastName
+            + ","
+            + firstName
+            + ","
+            + personalCode
+            + "\", "
+            + "SURNAME="
+            + lastName
+            + ", "
+            + "GIVENNAME="
+            + firstName
+            + ", "
+            + "SERIALNUMBER=PNOEE-"
+            + personalCode);
   }
 
   @SneakyThrows
-  public static X509Certificate certificateWithoutClientAuth(
-      String firstName, String lastName, String personalCode) {
-    return generateCertificate(
-        firstName,
-        lastName,
-        personalCode,
-        ESTONIAN_CITIZEN_ID_CARD.getFirstIdentifier(),
-        VALID_ISSUER,
-        false);
+  private static Extension policies(String documentTypeOid) {
+    return Extension.create(
+        certificatePolicies,
+        false,
+        new CertificatePolicies(
+            new PolicyInformation[] {
+              new PolicyInformation(new ASN1ObjectIdentifier(documentTypeOid)),
+              new PolicyInformation(new ASN1ObjectIdentifier(AUTH_POLICY_OID))
+            }));
   }
 
-  private static X509Certificate generateCertificate(
-      String firstName,
-      String lastName,
-      String personalCode,
-      String documentTypeOid,
-      String issuerDn,
-      boolean includeClientAuth)
-      throws Exception {
+  @SneakyThrows
+  private static Extension clientAuthentication() {
+    return Extension.create(
+        extendedKeyUsage,
+        false,
+        new ExtendedKeyUsage(new KeyPurposeId[] {id_kp_clientAuth, id_kp_emailProtection}));
+  }
+
+  @SneakyThrows
+  private static Extension signing() {
+    return Extension.create(keyUsage, true, new KeyUsage(digitalSignature));
+  }
+
+  @SneakyThrows
+  private static X509Certificate buildCertificate(
+      X500Name subjectDN, String issuerDn, Extension... extensions) {
     KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
     keyPairGenerator.initialize(2048);
     KeyPair keyPair = keyPairGenerator.generateKeyPair();
@@ -86,25 +144,6 @@ public class WebEidCertificateFixture {
     PrivateKey privateKey = keyPair.getPrivate();
 
     BigInteger serialNumber = new BigInteger(64, new SecureRandom());
-
-    X500Name subjectDN =
-        new X500Name(
-            "C=EE, O=ESTEID, OU=AUTHENTICATION, "
-                + "CN=\""
-                + lastName
-                + ","
-                + firstName
-                + ","
-                + personalCode
-                + "\", "
-                + "SURNAME="
-                + lastName
-                + ", "
-                + "GIVENNAME="
-                + firstName
-                + ", "
-                + "SERIALNUMBER=PNOEE-"
-                + personalCode);
 
     X500Name issuer = new X500Name(issuerDn);
 
@@ -122,20 +161,8 @@ public class WebEidCertificateFixture {
 
     X509v3CertificateBuilder certGen =
         new X509v3CertificateBuilder(issuer, serialNumber, from, to, subjectDN, subPubKeyInfo);
-
-    CertificatePolicies policies =
-        new CertificatePolicies(
-            new PolicyInformation[] {
-              new PolicyInformation(new ASN1ObjectIdentifier(documentTypeOid)),
-              new PolicyInformation(new ASN1ObjectIdentifier(AUTH_POLICY_OID))
-            });
-    certGen.addExtension(certificatePolicies, false, policies);
-
-    if (includeClientAuth) {
-      certGen.addExtension(
-          Extension.extendedKeyUsage,
-          false,
-          new ExtendedKeyUsage(new KeyPurposeId[] {id_kp_clientAuth, id_kp_emailProtection}));
+    for (Extension extension : extensions) {
+      certGen.addExtension(extension);
     }
 
     return new JcaX509CertificateConverter()

@@ -1,13 +1,13 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.CREATED;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.ISSUED;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.PROCESSED;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RECEIVED;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RESERVED;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RETURNED;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.VERIFIED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.CREATED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.ISSUED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.PROCESSED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RECEIVED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RESERVED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RETURNED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.VERIFIED;
 import static java.time.temporal.ChronoUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -16,7 +16,9 @@ import static org.assertj.core.api.Assertions.within;
 import static org.junit.jupiter.params.provider.EnumSource.Mode.EXCLUDE;
 
 import ee.tuleva.onboarding.party.PartyId;
-import ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status;
+import ee.tuleva.onboarding.savings.SavingFundPayment;
+import ee.tuleva.onboarding.savings.SavingFundPayment.Status;
+import ee.tuleva.onboarding.time.ClockConfig;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import java.math.BigDecimal;
@@ -35,7 +37,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 @DataJpaTest
-@Import(SavingFundPaymentRepository.class)
+@Import({SavingFundPaymentRepository.class, ClockConfig.class})
 class SavingFundPaymentRepositoryTest {
 
   @Autowired SavingFundPaymentRepository repository;
@@ -330,6 +332,24 @@ class SavingFundPaymentRepositoryTest {
         .containsExactlyInAnyOrder(id1, id2);
     assertThat(repository.findPayments(party2)).hasSize(1);
     assertThat(repository.findPayments(party2)).extracting("id").containsExactlyInAnyOrder(id3);
+  }
+
+  @Test
+  void findAllById() {
+    var id1 = repository.savePaymentData(createPayment().externalId("1").build());
+    var id2 = repository.savePaymentData(createPayment().externalId("2").build());
+    repository.savePaymentData(createPayment().externalId("3").build());
+
+    assertThat(repository.findAllById(List.of(id1, id2, UUID.randomUUID())))
+        .extracting("id")
+        .containsExactlyInAnyOrder(id1, id2);
+  }
+
+  @Test
+  void findAllByIdWithoutIds() {
+    repository.savePaymentData(createPayment().build());
+
+    assertThat(repository.findAllById(List.of())).isEmpty();
   }
 
   @Test

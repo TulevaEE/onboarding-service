@@ -1,17 +1,17 @@
 package ee.tuleva.onboarding.investment.fees;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.*;
 import static ee.tuleva.onboarding.ledger.SystemAccount.DEPOT_FEE_ACCRUAL;
 import static ee.tuleva.onboarding.ledger.SystemAccount.MANAGEMENT_FEE_ACCRUAL;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.*;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -27,6 +27,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class FeeCalculationServiceTest {
+
+  private static final LocalDate ACCRUAL_DAY = LocalDate.of(2000, 1, 2);
 
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
 
@@ -121,10 +123,11 @@ class FeeCalculationServiceTest {
     when(calculator2.calculate(eq(TKF100), any(LocalDate.class), any(FeeBases.class)))
         .thenReturn(depotAccrual);
     stubZeroLedgerBalance();
-    when(feeAccrualRepository.getUnsettledAccrual(TKF100, FeeType.MANAGEMENT, positionReportDate))
-        .thenReturn(new BigDecimal("400.00"));
-    when(feeAccrualRepository.getUnsettledAccrual(TKF100, FeeType.DEPOT, positionReportDate))
-        .thenReturn(new BigDecimal("50.00"));
+    when(feeAccrualRepository.getUnsettledAccrualByDate(
+            TKF100, FeeType.MANAGEMENT, positionReportDate))
+        .thenReturn(Map.of(ACCRUAL_DAY, new BigDecimal("400.00")));
+    when(feeAccrualRepository.getUnsettledAccrualByDate(TKF100, FeeType.DEPOT, positionReportDate))
+        .thenReturn(Map.of(ACCRUAL_DAY, new BigDecimal("50.00")));
 
     FeeResult result =
         service.calculateFeesForNav(
@@ -243,9 +246,10 @@ class FeeCalculationServiceTest {
     when(navLedgerRepository.getSystemAccountBalanceBefore(
             DEPOT_FEE_ACCRUAL.getAccountName(TKF100), settlementCutoff))
         .thenReturn(new BigDecimal("-200.00"));
-    when(feeAccrualRepository.getUnsettledAccrual(TKF100, FeeType.MANAGEMENT, mar1))
-        .thenReturn(ZERO);
-    when(feeAccrualRepository.getUnsettledAccrual(TKF100, FeeType.DEPOT, mar1)).thenReturn(ZERO);
+    when(feeAccrualRepository.getUnsettledAccrualByDate(TKF100, FeeType.MANAGEMENT, mar1))
+        .thenReturn(Map.of());
+    when(feeAccrualRepository.getUnsettledAccrualByDate(TKF100, FeeType.DEPOT, mar1))
+        .thenReturn(Map.of());
 
     service.calculateFeesForNav(TKF100, mar1, new FeeBases(baseValue, baseValue), feeCutoff, null);
 
@@ -281,8 +285,8 @@ class FeeCalculationServiceTest {
   private void stubZeroLedgerBalance() {
     when(navLedgerRepository.getSystemAccountBalanceBefore(any(), any(Instant.class)))
         .thenReturn(ZERO);
-    when(feeAccrualRepository.getUnsettledAccrual(any(), any(), any(LocalDate.class)))
-        .thenReturn(ZERO);
+    when(feeAccrualRepository.getUnsettledAccrualByDate(any(), any(), any(LocalDate.class)))
+        .thenReturn(Map.of());
   }
 
   @Test
@@ -303,10 +307,11 @@ class FeeCalculationServiceTest {
             eq(TKF100), eq(positionReportDate), eq(new FeeBases(baseValue, baseValue))))
         .thenReturn(depotAccrual);
     stubZeroLedgerBalance();
-    when(feeAccrualRepository.getUnsettledAccrual(TKF100, FeeType.MANAGEMENT, positionReportDate))
-        .thenReturn(new BigDecimal("400.12"));
-    when(feeAccrualRepository.getUnsettledAccrual(TKF100, FeeType.DEPOT, positionReportDate))
-        .thenReturn(new BigDecimal("50.34"));
+    when(feeAccrualRepository.getUnsettledAccrualByDate(
+            TKF100, FeeType.MANAGEMENT, positionReportDate))
+        .thenReturn(Map.of(ACCRUAL_DAY, new BigDecimal("400.12")));
+    when(feeAccrualRepository.getUnsettledAccrualByDate(TKF100, FeeType.DEPOT, positionReportDate))
+        .thenReturn(Map.of(ACCRUAL_DAY, new BigDecimal("50.34")));
 
     FeeResult result =
         service.calculateFeesForNav(

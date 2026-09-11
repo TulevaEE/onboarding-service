@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.investment.report.publishing;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.YearMonth;
 import org.junit.jupiter.api.Test;
 
@@ -17,6 +17,17 @@ class FundReportMappingTest {
   @Test
   void allReturnsFourMappings() {
     assertThat(FundReportMapping.all()).hasSize(4);
+  }
+
+  @Test
+  void pageSlugsPointAtThePagesThatCarryTheAcfReportField() {
+    assertThat(FundReportMapping.all())
+        .extracting(FundReportMapping::pageSlug)
+        .containsExactly(
+            "tuleva-maailma-aktsiate-pensionifond",
+            "tuleva-maailma-volakirjade-pensionifond",
+            "tuleva-iii-samba-pensionifond",
+            "tuleva-taiendav-kogumisfond-dokumendid");
   }
 
   @Test
@@ -42,13 +53,11 @@ class FundReportMappingTest {
   @Test
   void tkf100ExcludedFromEmail() {
     assertThat(FundReportMapping.TKF100.includeInEmail()).isFalse();
-    assertThat(FundReportMapping.TKF100.pageSlug()).isNotNull();
   }
 
   @Test
   void tuk75IncludedInEmail() {
     assertThat(FundReportMapping.TUK75.includeInEmail()).isTrue();
-    assertThat(FundReportMapping.TUK75.pageSlug()).isNotNull();
   }
 
   @Test

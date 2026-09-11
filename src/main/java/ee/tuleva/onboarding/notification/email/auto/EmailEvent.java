@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.notification.email.auto;
 
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.*;
+import static ee.tuleva.onboarding.notification.email.EmailType.*;
 
-import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
+import ee.tuleva.onboarding.notification.email.EmailType;
 import java.util.Arrays;
 import lombok.RequiredArgsConstructor;
 
@@ -17,7 +17,7 @@ public enum EmailEvent {
   private final EmailType emailType;
 
   public static EmailEvent getByEmailType(EmailType emailType) {
-    return Arrays.stream(EmailEvent.values())
+    return Arrays.stream(values())
         .filter(emailEvent -> emailEvent.emailType.equals(emailType))
         .findFirst()
         .orElseThrow(

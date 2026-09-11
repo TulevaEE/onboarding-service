@@ -11,7 +11,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
+import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.user.User;
 import java.time.Instant;
 import java.util.List;
@@ -52,8 +52,7 @@ class HackathonEmailServiceTest {
                 "participant@example.com",
                 "hackathon_registration_et",
                 Map.of("fname", user.getFirstName(), "lname", user.getLastName()),
-                List.of("hackathon"),
-                null))
+                List.of("hackathon")))
         .willReturn(message);
     given(emailService.send(user, message, "hackathon_registration_et")).willReturn(empty());
 
@@ -72,8 +71,7 @@ class HackathonEmailServiceTest {
                 "participant@example.com",
                 "hackathon_registration_et",
                 Map.of("fname", user.getFirstName(), "lname", user.getLastName()),
-                List.of("hackathon"),
-                null))
+                List.of("hackathon")))
         .willReturn(message);
     given(emailService.send(user, message, "hackathon_registration_et")).willReturn(empty());
 

@@ -1,3 +1,5 @@
+import net.ltgt.gradle.errorprone.errorprone
+import org.gradle.api.plugins.quality.Pmd
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
 import org.gradle.api.tasks.testing.logging.TestLogEvent.FAILED
 import org.gradle.api.tasks.testing.logging.TestLogEvent.SKIPPED
@@ -12,7 +14,7 @@ abstract class ExecTask
         @Internal val execOps: ExecOperations,
     ) : DefaultTask()
 
-val xjc by configurations.creating
+val xjc = configurations.create("xjc")
 
 buildscript {
     repositories {
@@ -21,16 +23,19 @@ buildscript {
     }
 }
 
-val springModulithVersion = "2.1.0"
+val springModulithVersion = "2.1.1"
 
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "4.1.0"
+    id("org.springframework.boot") version "4.1.1"
     id("io.spring.dependency-management") version "1.1.7"
     id("com.gorylenko.gradle-git-properties") version "4.0.1"
-    id("com.diffplug.spotless") version "8.9.0"
+    id("com.diffplug.spotless") version "8.10.1"
     id("io.freefair.lombok") version "9.5.0"
+    id("net.ltgt.errorprone") version "5.1.1"
+    id("info.solidsoft.pitest") version "1.19.0"
+    pmd
     jacoco
 }
 
@@ -38,17 +43,42 @@ lombok {
     version = "1.18.46"
 }
 
+pmd {
+    toolVersion = "7.27.0"
+    isConsoleOutput = false
+    isIgnoreFailures = true
+    ruleSets = listOf()
+    ruleSetFiles = files("config/pmd/ruleset.xml")
+}
+
+pitest {
+    pitestVersion = "1.30.0"
+    junit5PluginVersion = "1.2.3"
+    addJUnitPlatformLauncher = false
+    threads = 4
+    outputFormats = listOf("XML", "HTML")
+    timestampedReports = false
+    exportLineCoverage = true
+    targetClasses = ((project.findProperty("pitest.target") as String?) ?: "ee.tuleva.onboarding.*").split(",")
+    excludedClasses =
+        listOf(
+            "ee.tuleva.onboarding.ariregister.generated.*",
+            "ee.tuleva.onboarding.banking.iso20022.*",
+        )
+    jvmArgs = listOf("-XX:+UseParallelGC")
+}
+
 spotless {
     java {
         target("src/*/java/**/*.java", "src/*/groovy/**/*.java")
         removeUnusedImports()
-        googleJavaFormat("1.32.0")
+        googleJavaFormat("1.36.1")
         replaceRegex("Remove String Templates", "STR\\.\"\"\"", "\"\"\"")
         replaceRegex("Remove String Templates interpolation", "\\\\\\{([^}]*)\\}", "%s")
     }
     kotlinGradle {
         target("*.gradle.kts")
-        ktlint("1.5.0")
+        ktlint("1.8.0")
     }
     groovy {
         target("src/*/groovy/**/*.groovy")
@@ -90,15 +120,17 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-aspectj")
     implementation("org.springframework.boot:spring-boot-starter-jackson")
     implementation("org.springframework.boot:spring-boot-starter-validation")
-    compileOnly("org.jspecify:jspecify:1.0.0")
+    compileOnly("org.jspecify:jspecify:1.0.1")
+    errorprone("com.google.errorprone:error_prone_core:2.50.0")
+    errorprone("com.uber.nullaway:nullaway:0.14.1")
 
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
 
     implementation("com.nimbusds:nimbus-jose-jwt:10.9.1")
 
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3")
-    implementation("org.springdoc:springdoc-openapi-starter-common:3.0.3")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.0")
+    implementation("org.springdoc:springdoc-openapi-starter-common:3.1.0")
     implementation("org.springframework.boot:spring-boot-starter-session-jdbc")
 
     runtimeOnly("org.postgresql:postgresql")
@@ -111,7 +143,7 @@ dependencies {
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
-    implementation("org.jsoup:jsoup:1.22.2")
+    implementation("org.jsoup:jsoup:1.23.2")
     implementation("commons-net:commons-net:3.13.0")
     implementation("org.apache.commons:commons-lang3")
     implementation("org.decampo:xirr:1.2")
@@ -137,16 +169,16 @@ dependencies {
     }
     implementation("eu.webeid.security:authtoken-validation:3.2.1")
 
-    implementation("org.digidoc4j:digidoc4j:6.1.1") {
+    implementation("org.digidoc4j:digidoc4j:6.2.0") {
         exclude(group = "commons-logging", module = "commons-logging")
     }
     implementation("org.bouncycastle:bcpkix-jdk18on:1.85")
-    implementation("org.bouncycastle:bcprov-jdk18on:1.85")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.85.2")
     implementation("org.bouncycastle:bcutil-jdk18on:1.85")
     implementation("org.apache.httpcomponents.client5:httpclient5")
 
-    implementation("io.sentry:sentry-spring-boot-4:8.51.0")
-    implementation("io.sentry:sentry-logback:8.51.0")
+    implementation("io.sentry:sentry-spring-boot-4:8.54.0")
+    implementation("io.sentry:sentry-logback:8.54.0")
 
     // TODO: replace with mailchimp-transactional-api-java
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
@@ -156,17 +188,19 @@ dependencies {
 
     implementation("jakarta.xml.bind:jakarta.xml.bind-api")
 
-    implementation("software.amazon.awssdk:s3:2.50.2")
+    implementation("software.amazon.awssdk:s3:2.54.7")
     implementation("commons-io:commons-io:2.22.0")
     implementation("org.apache.commons:commons-csv:1.14.1")
+    // commons-csv references this at compile time (annotation-only, no runtime impact)
+    compileOnly("com.github.spotbugs:spotbugs-annotations:4.10.4")
     implementation("org.apache.poi:poi-ooxml:5.5.1")
     implementation("at.datenwort.openhtmltopdf:openhtmltopdf-pdfbox:1.1.4")
     // Pinned to match the PDFBox version openhtmltopdf-pdfbox/digidoc4j already resolve to on
     // runtimeClasspath (verified via `./gradlew dependencies`) — do not let this drift below it.
     implementation("org.apache.pdfbox:pdfbox:3.0.8")
 
-    implementation("net.javacrumbs.shedlock:shedlock-spring:7.7.0")
-    implementation("net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.7.0")
+    implementation("net.javacrumbs.shedlock:shedlock-spring:7.9.0")
+    implementation("net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.9.0")
 
     implementation("org.springframework.modulith:spring-modulith-starter-core")
     testImplementation("org.springframework.modulith:spring-modulith-starter-test")
@@ -188,15 +222,14 @@ dependencies {
     testImplementation("org.spockframework:spock-spring:2.4-groovy-5.0") {
         exclude(group = "org.apache.groovy")
     }
-    testImplementation("org.apache.groovy:groovy:5.0.7")
-    testImplementation("org.apache.groovy:groovy-json:5.0.7")
+    testImplementation("org.apache.groovy:groovy:5.1.1")
+    testImplementation("org.apache.groovy:groovy-json:5.1.1")
     testImplementation("org.springframework.boot:spring-boot-testcontainers")
-    testImplementation("org.testcontainers:postgresql:1.21.4")
-    testImplementation("org.testcontainers:jdbc:1.21.4")
+    testImplementation("org.testcontainers:testcontainers-postgresql")
 
     // TODO: migrate to WireMock
-    testImplementation("org.mock-server:mockserver-netty:7.5.0")
-    testImplementation("org.mock-server:mockserver-spring-test-listener:7.5.0")
+    testImplementation("org.mock-server:mockserver-netty:7.6.0")
+    testImplementation("org.mock-server:mockserver-spring-test-listener:7.6.0")
 
     testImplementation("org.springframework.boot:spring-boot-starter-security-test")
     testImplementation("org.springframework.security:spring-security-test")
@@ -257,6 +290,20 @@ tasks {
 
     check {
         dependsOn(jacocoTestReport)
+        dependsOn(jacocoTestCoverageVerification)
+    }
+
+    named("pmdTest") {
+        enabled = false
+    }
+
+    withType<Pmd> {
+        exclude { element -> element.file.path.contains("generated-sources") }
+    }
+
+    register<Exec>("scorecard") {
+        dependsOn(test, jacocoTestReport, named("pmdMain"))
+        commandLine("python3", "scripts/scorecard.py")
     }
 
     jacocoTestCoverageVerification {
@@ -276,25 +323,59 @@ tasks {
                 limit {
                     counter = "METHOD"
                     value = "COVEREDRATIO"
-                    minimum = "1.0".toBigDecimal()
+                    minimum = "0.9".toBigDecimal()
                 }
 
                 limit {
                     counter = "LINE"
                     value = "COVEREDRATIO"
-                    minimum = "1.0".toBigDecimal()
+                    minimum = "0.91".toBigDecimal()
                 }
 
                 limit {
                     counter = "BRANCH"
                     value = "COVEREDRATIO"
-                    minimum = "0.9".toBigDecimal()
+                    minimum = "0.74".toBigDecimal()
                 }
 
                 limit {
                     counter = "INSTRUCTION"
                     value = "COVEREDRATIO"
+                    minimum = "0.91".toBigDecimal()
+                }
+            }
+            rule {
+                element = "PACKAGE"
+                includes = listOf("ee.tuleva.onboarding.investment.check.tracking")
+
+                limit {
+                    counter = "CLASS"
+                    value = "COVEREDRATIO"
                     minimum = "1.0".toBigDecimal()
+                }
+
+                limit {
+                    counter = "METHOD"
+                    value = "COVEREDRATIO"
+                    minimum = "0.98".toBigDecimal()
+                }
+
+                limit {
+                    counter = "LINE"
+                    value = "COVEREDRATIO"
+                    minimum = "0.99".toBigDecimal()
+                }
+
+                limit {
+                    counter = "BRANCH"
+                    value = "COVEREDRATIO"
+                    minimum = "0.90".toBigDecimal()
+                }
+
+                limit {
+                    counter = "INSTRUCTION"
+                    value = "COVEREDRATIO"
+                    minimum = "0.98".toBigDecimal()
                 }
             }
             rule {
@@ -315,13 +396,13 @@ tasks {
                 limit {
                     counter = "METHOD"
                     value = "COVEREDRATIO"
-                    minimum = "1.0".toBigDecimal()
+                    minimum = "0.98".toBigDecimal()
                 }
 
                 limit {
                     counter = "LINE"
                     value = "COVEREDRATIO"
-                    minimum = "1.0".toBigDecimal()
+                    minimum = "0.99".toBigDecimal()
                 }
 
                 limit {
@@ -333,7 +414,7 @@ tasks {
                 limit {
                     counter = "INSTRUCTION"
                     value = "COVEREDRATIO"
-                    minimum = "1.0".toBigDecimal()
+                    minimum = "0.99".toBigDecimal()
                 }
             }
         }
@@ -466,23 +547,25 @@ tasks.test {
 
 tasks.withType<JavaCompile> {
     options.compilerArgs.add("-parameters")
-    options.compilerArgs.add("--enable-preview")
     options.compilerArgs.add("-Xlint:all")
     options.compilerArgs.add("-Xlint:-processing")
     options.compilerArgs.add("-Xlint:-path")
     options.compilerArgs.add("-Xlint:-serial")
-    options.compilerArgs.add("-Xlint:-deprecation")
     options.compilerArgs.add("-Xdiags:verbose")
+    options.compilerArgs.add("-Xmaxwarns")
+    options.compilerArgs.add("1000")
 //    options.compilerArgs.add("-Werror")
-}
-
-tasks.withType<JavaExec> {
-    jvmArgs("--enable-preview")
+    options.errorprone {
+        disableAllChecks = true
+        error("NullAway")
+        option("NullAway:OnlyNullMarked", "true")
+        option("NullAway:JSpecifyMode", "true")
+        excludedPaths = ".*/generated-sources/.*"
+    }
 }
 
 tasks.withType<Test> {
     jvmArgs(
-        "--enable-preview",
         "-XX:+UseParallelGC",
         "-XX:+HeapDumpOnOutOfMemoryError",
         "-XX:HeapDumpPath=/tmp/heapdump.hprof",

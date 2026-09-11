@@ -1,11 +1,12 @@
 package ee.tuleva.onboarding.analytics.leavers;
 
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SECOND_PILLAR_LEAVERS;
+import static ee.tuleva.onboarding.notification.email.EmailType.SECOND_PILLAR_LEAVERS;
 
-import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
+import ee.tuleva.onboarding.notification.email.EmailType;
 import ee.tuleva.onboarding.notification.email.auto.AutoEmailRepository;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -52,7 +53,7 @@ public class ExchangeTransactionLeaversRepository
             (et.security_from = 'EE3600109435' OR et.security_from = 'EE3600109443') AND
             et.security_to <> 'EE3600109435' AND
             et.security_to <> 'EE3600109443' AND
-            fund.ongoing_charges_figure >= 0.005 AND
+            fund.ongoing_charges_figure >= 0.003 AND
             mcmp.email IS NOT NULL AND TRIM(mcmp.email) <> '' AND
             (mcmp.keel = 'ENG' OR mcmp.keel = 'EST') AND
             et.percentage >= 10
@@ -70,7 +71,10 @@ public class ExchangeTransactionLeaversRepository
         .param("startDate", startDate)
         .param("endDate", endDate)
         .query(ExchangeTransactionLeaver.class)
-        .list();
+        .list()
+        .stream()
+        .map(Objects::requireNonNull)
+        .toList();
   }
 
   @Override

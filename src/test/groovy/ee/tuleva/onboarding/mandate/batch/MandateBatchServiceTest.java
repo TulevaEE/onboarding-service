@@ -6,37 +6,35 @@ import static ee.tuleva.onboarding.mandate.MandateType.FUND_PENSION_OPENING;
 import static ee.tuleva.onboarding.mandate.MandateType.PARTIAL_WITHDRAWAL;
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.INITIALIZED;
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.SIGNED;
-import static ee.tuleva.onboarding.signature.response.SignatureStatus.OUTSTANDING_TRANSACTION;
-import static ee.tuleva.onboarding.signature.response.SignatureStatus.SIGNATURE;
+import static ee.tuleva.onboarding.signature.SignatureStatus.OUTSTANDING_TRANSACTION;
+import static ee.tuleva.onboarding.signature.SignatureStatus.SIGNATURE;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-import ee.tuleva.onboarding.aml.WithdrawalNotifier;
 import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture;
-import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.error.response.ErrorResponse;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.mandate.MandateContacts;
 import ee.tuleva.onboarding.mandate.MandateFileService;
+import ee.tuleva.onboarding.mandate.WithdrawalReadiness;
 import ee.tuleva.onboarding.mandate.batch.poller.MandateBatchProcessingPoller;
 import ee.tuleva.onboarding.mandate.event.AfterMandateBatchSignedEvent;
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
 import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
 import ee.tuleva.onboarding.mandate.generic.GenericMandateService;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
+import ee.tuleva.onboarding.personalcode.PersonalCode;
+import ee.tuleva.onboarding.signature.IdCardSignatureSession;
+import ee.tuleva.onboarding.signature.MobileIdSignatureSession;
 import ee.tuleva.onboarding.signature.SignatureFile;
 import ee.tuleva.onboarding.signature.SignatureService;
-import ee.tuleva.onboarding.signature.idcard.IdCardSignatureSession;
-import ee.tuleva.onboarding.signature.mobileid.MobileIdSignatureSession;
-import ee.tuleva.onboarding.signature.response.SignatureStatus;
-import ee.tuleva.onboarding.signature.smartid.SmartIdSignatureSession;
+import ee.tuleva.onboarding.signature.SignatureStatus;
+import ee.tuleva.onboarding.signature.SmartIdSignatureSession;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
-import ee.tuleva.onboarding.user.personalcode.PersonalCode;
-import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityDto;
-import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityService;
 import java.util.List;
 import java.util.Locale;
 import java.util.NoSuchElementException;
@@ -59,13 +57,12 @@ public class MandateBatchServiceTest {
 
   @Mock private MandateFileService mandateFileService;
   @Mock private GenericMandateService genericMandateService;
-  @Mock private WithdrawalEligibilityService withdrawalEligibilityService;
+  @Mock private WithdrawalReadiness withdrawalReadiness;
   @Mock private UserService userService;
   @Mock private MandateProcessorService mandateProcessor;
   @Mock private MandateBatchProcessingPoller mandateBatchProcessingPoller;
-  @Mock private EpisService episService;
+  @Mock private MandateContacts mandateContacts;
   @Mock private ApplicationEventPublisher applicationEventPublisher;
-  @Mock private WithdrawalNotifier withdrawalNotifier;
 
   @Mock private SignatureService signService;
 
@@ -171,22 +168,19 @@ public class MandateBatchServiceTest {
             .build();
     var aMandateBatchDto = MandateBatchDto.from(aMandateBatch);
 
-    var aWithdrawalEligibility =
-        WithdrawalEligibilityDto.builder()
-            .hasReachedEarlyRetirementAge(true)
-            .canWithdrawThirdPillarWithReducedTax(true)
-            .age(65)
-            .recommendedDurationYears(20)
-            .arrestsOrBankruptciesPresent(false)
-            .build();
+    var aWithdrawalReadiness = new WithdrawalReadiness.Readiness(true, true);
 
-    when(withdrawalEligibilityService.getWithdrawalEligibility(authenticatedPerson))
-        .thenReturn(aWithdrawalEligibility);
+    when(withdrawalReadiness.forPerson(authenticatedPerson)).thenReturn(aWithdrawalReadiness);
     when(genericMandateService.createGenericMandate(any(), any(), any()))
         .thenReturn(aFundPensionOpeningMandate);
     when(mandateBatchRepository.save(
             argThat(mandateBatch -> mandateBatch.getStatus().equals(INITIALIZED))))
-        .thenReturn(aMandateBatch);
+        .thenAnswer(
+            invocation -> {
+              MandateBatch savedBatch = invocation.getArgument(0);
+              savedBatch.setId(1L);
+              return savedBatch;
+            });
 
     MandateBatch result =
         mandateBatchService.createMandateBatch(authenticatedPerson, aMandateBatchDto);
@@ -194,12 +188,13 @@ public class MandateBatchServiceTest {
     assertThat(result.getMandates().size()).isEqualTo(2);
     assertThat(result.getStatus()).isEqualTo(INITIALIZED);
 
-    verify(withdrawalNotifier, times(1))
-        .notifyWithdrawalBatchCreated(
-            eq(PersonalCode.getAge(authenticatedPerson.getPersonalCode())),
-            eq(aMandateBatchDto.getWithdrawalBatchPillars()),
-            eq(Set.of(FUND_PENSION_OPENING)),
-            any());
+    verify(applicationEventPublisher, times(1))
+        .publishEvent(
+            new WithdrawalBatchCreated(
+                PersonalCode.getAge(authenticatedPerson.getPersonalCode()),
+                aMandateBatchDto.getWithdrawalBatchPillars(),
+                Set.of(FUND_PENSION_OPENING),
+                1L));
   }
 
   @Test
@@ -217,22 +212,19 @@ public class MandateBatchServiceTest {
             .build();
     var aMandateBatchDto = MandateBatchDto.from(aMandateBatch);
 
-    var aWithdrawalEligibility =
-        WithdrawalEligibilityDto.builder()
-            .hasReachedEarlyRetirementAge(false)
-            .canWithdrawThirdPillarWithReducedTax(true)
-            .age(56)
-            .recommendedDurationYears(20)
-            .arrestsOrBankruptciesPresent(false)
-            .build();
+    var aWithdrawalReadiness = new WithdrawalReadiness.Readiness(true, false);
 
-    when(withdrawalEligibilityService.getWithdrawalEligibility(authenticatedPerson))
-        .thenReturn(aWithdrawalEligibility);
+    when(withdrawalReadiness.forPerson(authenticatedPerson)).thenReturn(aWithdrawalReadiness);
     when(genericMandateService.createGenericMandate(any(), any(), any()))
         .thenReturn(aFundPensionOpeningMandate);
     when(mandateBatchRepository.save(
             argThat(mandateBatch -> mandateBatch.getStatus().equals(INITIALIZED))))
-        .thenReturn(aMandateBatch);
+        .thenAnswer(
+            invocation -> {
+              MandateBatch savedBatch = invocation.getArgument(0);
+              savedBatch.setId(1L);
+              return savedBatch;
+            });
 
     MandateBatch result =
         mandateBatchService.createMandateBatch(authenticatedPerson, aMandateBatchDto);
@@ -240,12 +232,13 @@ public class MandateBatchServiceTest {
     assertThat(result.getMandates().size()).isEqualTo(2);
     assertThat(result.getStatus()).isEqualTo(INITIALIZED);
 
-    verify(withdrawalNotifier, times(1))
-        .notifyWithdrawalBatchCreated(
-            eq(PersonalCode.getAge(authenticatedPerson.getPersonalCode())),
-            eq(aMandateBatchDto.getWithdrawalBatchPillars()),
-            eq(Set.of(FUND_PENSION_OPENING)),
-            any());
+    verify(applicationEventPublisher, times(1))
+        .publishEvent(
+            new WithdrawalBatchCreated(
+                PersonalCode.getAge(authenticatedPerson.getPersonalCode()),
+                aMandateBatchDto.getWithdrawalBatchPillars(),
+                Set.of(FUND_PENSION_OPENING),
+                1L));
   }
 
   @Test
@@ -263,17 +256,9 @@ public class MandateBatchServiceTest {
             .build();
     var aMandateBatchDto = MandateBatchDto.from(aMandateBatch);
 
-    var aWithdrawalEligibility =
-        WithdrawalEligibilityDto.builder()
-            .hasReachedEarlyRetirementAge(false)
-            .canWithdrawThirdPillarWithReducedTax(false)
-            .age(35)
-            .recommendedDurationYears(50)
-            .arrestsOrBankruptciesPresent(false)
-            .build();
+    var aWithdrawalReadiness = new WithdrawalReadiness.Readiness(false, false);
 
-    when(withdrawalEligibilityService.getWithdrawalEligibility(authenticatedPerson))
-        .thenReturn(aWithdrawalEligibility);
+    when(withdrawalReadiness.forPerson(authenticatedPerson)).thenReturn(aWithdrawalReadiness);
 
     assertThrows(
         IllegalArgumentException.class,
@@ -295,17 +280,9 @@ public class MandateBatchServiceTest {
             .build();
     var aMandateBatchDto = MandateBatchDto.from(aMandateBatch);
 
-    var aWithdrawalEligibility =
-        WithdrawalEligibilityDto.builder()
-            .hasReachedEarlyRetirementAge(false)
-            .canWithdrawThirdPillarWithReducedTax(true)
-            .age(56)
-            .recommendedDurationYears(50)
-            .arrestsOrBankruptciesPresent(false)
-            .build();
+    var aWithdrawalReadiness = new WithdrawalReadiness.Readiness(true, false);
 
-    when(withdrawalEligibilityService.getWithdrawalEligibility(authenticatedPerson))
-        .thenReturn(aWithdrawalEligibility);
+    when(withdrawalReadiness.forPerson(authenticatedPerson)).thenReturn(aWithdrawalReadiness);
 
     assertThrows(
         IllegalArgumentException.class,
@@ -328,17 +305,9 @@ public class MandateBatchServiceTest {
             .build();
     var aMandateBatchDto = MandateBatchDto.from(aMandateBatch);
 
-    var aWithdrawalEligibility =
-        WithdrawalEligibilityDto.builder()
-            .hasReachedEarlyRetirementAge(false)
-            .canWithdrawThirdPillarWithReducedTax(false)
-            .age(25)
-            .recommendedDurationYears(50)
-            .arrestsOrBankruptciesPresent(false)
-            .build();
+    var aWithdrawalReadiness = new WithdrawalReadiness.Readiness(false, false);
 
-    when(withdrawalEligibilityService.getWithdrawalEligibility(authenticatedPerson))
-        .thenReturn(aWithdrawalEligibility);
+    when(withdrawalReadiness.forPerson(authenticatedPerson)).thenReturn(aWithdrawalReadiness);
 
     assertThrows(
         IllegalArgumentException.class,
@@ -360,35 +329,33 @@ public class MandateBatchServiceTest {
             .build();
     var aMandateBatchDto = MandateBatchDto.from(aMandateBatch);
 
-    var aWithdrawalEligibility =
-        WithdrawalEligibilityDto.builder()
-            .hasReachedEarlyRetirementAge(false)
-            .canWithdrawThirdPillarWithReducedTax(false)
-            .age(35)
-            .recommendedDurationYears(50)
-            .arrestsOrBankruptciesPresent(false)
-            .build();
+    var aWithdrawalReadiness = new WithdrawalReadiness.Readiness(false, false);
 
-    when(withdrawalEligibilityService.getWithdrawalEligibility(authenticatedPerson))
-        .thenReturn(aWithdrawalEligibility);
+    when(withdrawalReadiness.forPerson(authenticatedPerson)).thenReturn(aWithdrawalReadiness);
 
     when(genericMandateService.createGenericMandate(any(), any(), any()))
         .thenReturn(aThirdPillarPartialWithdrawalMandate);
     when(mandateBatchRepository.save(
             argThat(mandateBatch -> mandateBatch.getStatus().equals(INITIALIZED))))
-        .thenReturn(aMandateBatch);
+        .thenAnswer(
+            invocation -> {
+              MandateBatch savedBatch = invocation.getArgument(0);
+              savedBatch.setId(1L);
+              return savedBatch;
+            });
 
     MandateBatch result =
         mandateBatchService.createMandateBatch(authenticatedPerson, aMandateBatchDto);
 
     assertThat(result.getMandates().size()).isEqualTo(1);
     assertThat(result.getStatus()).isEqualTo(INITIALIZED);
-    verify(withdrawalNotifier, times(1))
-        .notifyWithdrawalBatchCreated(
-            eq(PersonalCode.getAge(authenticatedPerson.getPersonalCode())),
-            eq(aMandateBatchDto.getWithdrawalBatchPillars()),
-            eq(Set.of(PARTIAL_WITHDRAWAL)),
-            any());
+    verify(applicationEventPublisher, times(1))
+        .publishEvent(
+            new WithdrawalBatchCreated(
+                PersonalCode.getAge(authenticatedPerson.getPersonalCode()),
+                aMandateBatchDto.getWithdrawalBatchPillars(),
+                Set.of(PARTIAL_WITHDRAWAL),
+                1L));
   }
 
   @Test
@@ -405,25 +372,22 @@ public class MandateBatchServiceTest {
             .build();
     var aMandateBatchDto = MandateBatchDto.from(aMandateBatch);
 
-    var aWithdrawalEligibility =
-        WithdrawalEligibilityDto.builder()
-            .hasReachedEarlyRetirementAge(true)
-            .canWithdrawThirdPillarWithReducedTax(true)
-            .age(65)
-            .recommendedDurationYears(20)
-            .arrestsOrBankruptciesPresent(false)
-            .build();
+    var aWithdrawalReadiness = new WithdrawalReadiness.Readiness(true, true);
 
-    when(withdrawalEligibilityService.getWithdrawalEligibility(authenticatedPerson))
-        .thenReturn(aWithdrawalEligibility);
+    when(withdrawalReadiness.forPerson(authenticatedPerson)).thenReturn(aWithdrawalReadiness);
     when(genericMandateService.createGenericMandate(any(), any(), any()))
         .thenReturn(aFundPensionOpeningMandate);
     when(mandateBatchRepository.save(
             argThat(mandateBatch -> mandateBatch.getStatus().equals(INITIALIZED))))
-        .thenReturn(aMandateBatch);
+        .thenAnswer(
+            invocation -> {
+              MandateBatch savedBatch = invocation.getArgument(0);
+              savedBatch.setId(1L);
+              return savedBatch;
+            });
     doThrow(new IllegalStateException())
-        .when(withdrawalNotifier)
-        .notifyWithdrawalBatchCreated(anyInt(), any(), any(), any());
+        .when(applicationEventPublisher)
+        .publishEvent(any(WithdrawalBatchCreated.class));
 
     MandateBatch result =
         mandateBatchService.createMandateBatch(authenticatedPerson, aMandateBatchDto);
@@ -471,7 +435,7 @@ public class MandateBatchServiceTest {
               user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
 
       assertThat(SIGNATURE).isEqualTo(status);
-      verify(episService, times(1)).clearCache(user);
+      verify(mandateContacts, times(1)).clearCache(user);
       verify(applicationEventPublisher, times(2)).publishEvent(any(AfterMandateSignedEvent.class));
       verify(applicationEventPublisher, times(1))
           .publishEvent(any(AfterMandateBatchSignedEvent.class));
@@ -514,7 +478,7 @@ public class MandateBatchServiceTest {
       assertThat(exception).isNotNull();
       assertThat(errors.size()).isEqualTo(2);
 
-      verify(episService, times(1)).clearCache(user);
+      verify(mandateContacts, times(1)).clearCache(user);
       verify(applicationEventPublisher, never()).publishEvent(any());
       verify(signService, never()).getSignedFile(any(SmartIdSignatureSession.class));
     }
@@ -544,7 +508,7 @@ public class MandateBatchServiceTest {
               user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
 
       assertThat(OUTSTANDING_TRANSACTION).isEqualTo(status);
-      verify(episService, never()).clearCache(any());
+      verify(mandateContacts, never()).clearCache(any());
       verify(applicationEventPublisher, never()).publishEvent(any());
       verify(signService, never()).getSignedFile(any(SmartIdSignatureSession.class));
     }
@@ -647,7 +611,7 @@ public class MandateBatchServiceTest {
               user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
 
       assertThat(SIGNATURE).isEqualTo(status);
-      verify(episService, times(1)).clearCache(user);
+      verify(mandateContacts, times(1)).clearCache(user);
       verify(applicationEventPublisher, times(2)).publishEvent(any(AfterMandateSignedEvent.class));
       verify(applicationEventPublisher, times(1))
           .publishEvent(any(AfterMandateBatchSignedEvent.class));
@@ -690,7 +654,7 @@ public class MandateBatchServiceTest {
       assertThat(exception).isNotNull();
       assertThat(errors.size()).isEqualTo(2);
 
-      verify(episService, times(1)).clearCache(user);
+      verify(mandateContacts, times(1)).clearCache(user);
       verify(applicationEventPublisher, never()).publishEvent(any());
       verify(signService, never()).getSignedFile(any(MobileIdSignatureSession.class));
     }
@@ -720,7 +684,7 @@ public class MandateBatchServiceTest {
               user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
 
       assertThat(OUTSTANDING_TRANSACTION).isEqualTo(status);
-      verify(episService, never()).clearCache(any());
+      verify(mandateContacts, never()).clearCache(any());
       verify(applicationEventPublisher, never()).publishEvent(any());
       verify(signService, never()).getSignedFile(any(MobileIdSignatureSession.class));
     }
@@ -823,7 +787,7 @@ public class MandateBatchServiceTest {
               user.getId(), mandateBatch.getId(), session, "hash", Locale.ENGLISH);
 
       assertThat(SIGNATURE).isEqualTo(status);
-      verify(episService, times(1)).clearCache(user);
+      verify(mandateContacts, times(1)).clearCache(user);
       verify(applicationEventPublisher, times(2)).publishEvent(any(AfterMandateSignedEvent.class));
       verify(applicationEventPublisher, times(1))
           .publishEvent(any(AfterMandateBatchSignedEvent.class));
@@ -866,7 +830,7 @@ public class MandateBatchServiceTest {
       assertThat(exception).isNotNull();
       assertThat(errors.size()).isEqualTo(2);
 
-      verify(episService, times(1)).clearCache(user);
+      verify(mandateContacts, times(1)).clearCache(user);
       verify(applicationEventPublisher, never()).publishEvent(any());
     }
 
@@ -895,7 +859,7 @@ public class MandateBatchServiceTest {
               user.getId(), mandateBatch.getId(), session, "hash", Locale.ENGLISH);
 
       assertThat(OUTSTANDING_TRANSACTION).isEqualTo(status);
-      verify(episService, never()).clearCache(any());
+      verify(mandateContacts, never()).clearCache(any());
       verify(applicationEventPublisher, never()).publishEvent(any());
     }
 

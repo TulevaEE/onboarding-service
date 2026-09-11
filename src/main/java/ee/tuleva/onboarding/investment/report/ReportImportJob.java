@@ -1,13 +1,13 @@
 package ee.tuleva.onboarding.investment.report;
 
 import static ee.tuleva.onboarding.investment.JobRunSchedule.*;
-import static ee.tuleva.onboarding.investment.event.PipelineStep.REPORT_IMPORT;
+import static ee.tuleva.onboarding.pipeline.PipelineStep.REPORT_IMPORT;
 
-import ee.tuleva.onboarding.investment.event.PipelineNotifier;
-import ee.tuleva.onboarding.investment.event.PipelineRun;
-import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.investment.event.ReportImportCompleted;
 import ee.tuleva.onboarding.investment.event.RunReportImportRequested;
+import ee.tuleva.onboarding.pipeline.PipelineNotifier;
+import ee.tuleva.onboarding.pipeline.PipelineRun;
+import ee.tuleva.onboarding.pipeline.PipelineTracker;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;

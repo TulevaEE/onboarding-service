@@ -5,6 +5,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import lombok.Builder;
+import org.jspecify.annotations.Nullable;
 
 @Builder
 public record InstrumentFee(
@@ -15,7 +16,7 @@ public record InstrumentFee(
     BigDecimal rebateRate,
     BigDecimal netOcf,
     LocalDate validFrom,
-    LocalDate validTo,
+    @Nullable LocalDate validTo,
     String source) {
 
   public static InstrumentFee fromResultSet(ResultSet rs, int rowNum) throws SQLException {

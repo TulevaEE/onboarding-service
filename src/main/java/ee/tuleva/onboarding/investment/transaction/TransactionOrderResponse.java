@@ -16,6 +16,7 @@ public record TransactionOrderResponse(
     @Nullable BigDecimal orderQuantity,
     OrderVenue orderVenue,
     OrderStatus orderStatus,
+    OrderType orderType,
     UUID orderUuid,
     @Nullable LocalDate expectedSettlementDate,
     @Nullable String comment) {
@@ -30,6 +31,7 @@ public record TransactionOrderResponse(
         order.getOrderQuantity(),
         order.getOrderVenue(),
         order.getOrderStatus(),
+        order.getOrderType(),
         order.getOrderUuid(),
         order.getExpectedSettlementDate(),
         order.getComment());

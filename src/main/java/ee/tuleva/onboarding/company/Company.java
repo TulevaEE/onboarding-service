@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.company;
 
+import static ee.tuleva.onboarding.time.ClockHolder.clock;
 import static jakarta.persistence.GenerationType.UUID;
 
 import ee.tuleva.onboarding.party.Party;
@@ -36,7 +37,7 @@ public class Company implements Party {
   @PrePersist
   void prePersist() {
     if (createdDate == null) {
-      createdDate = Instant.now();
+      createdDate = clock().instant();
     }
   }
 

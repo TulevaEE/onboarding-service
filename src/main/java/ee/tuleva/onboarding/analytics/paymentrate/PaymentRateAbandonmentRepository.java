@@ -1,11 +1,12 @@
 package ee.tuleva.onboarding.analytics.paymentrate;
 
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.PAYMENT_RATE_ABANDONMENT;
+import static ee.tuleva.onboarding.notification.email.EmailType.PAYMENT_RATE_ABANDONMENT;
 
-import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
+import ee.tuleva.onboarding.notification.email.EmailType;
 import ee.tuleva.onboarding.notification.email.auto.AutoEmailRepository;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -110,7 +111,10 @@ public class PaymentRateAbandonmentRepository
         .param("endDate", endDate)
         .param("emailType", getEmailType().name())
         .query(PaymentRateAbandonment.class)
-        .list();
+        .list()
+        .stream()
+        .map(Objects::requireNonNull)
+        .toList();
   }
 
   @Override

@@ -1,11 +1,11 @@
 package ee.tuleva.onboarding.investment.transaction;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
 import static ee.tuleva.onboarding.investment.transaction.BatchStatus.CONFIRMED;
 import static ee.tuleva.onboarding.investment.transaction.CommandStatus.FAILED;
 import static ee.tuleva.onboarding.investment.transaction.CommandStatus.PENDING;
 import static ee.tuleva.onboarding.investment.transaction.CommandStatus.PROCESSING;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.BUY;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
@@ -28,6 +28,7 @@ class TransactionCommandJobTest {
   @Mock private TransactionCommandRepository commandRepository;
   @Mock private TransactionBatchRepository batchRepository;
   @Mock private TransactionPreparationService preparationService;
+  @Mock private TransactionBatchFinalizer batchFinalizer;
   @Mock private ApplicationEventPublisher eventPublisher;
 
   private final Clock clock =
@@ -39,7 +40,12 @@ class TransactionCommandJobTest {
   void setUp() {
     job =
         new TransactionCommandJob(
-            commandRepository, batchRepository, preparationService, eventPublisher, clock);
+            commandRepository,
+            batchRepository,
+            preparationService,
+            batchFinalizer,
+            eventPublisher,
+            clock);
   }
 
   @Test
@@ -81,7 +87,7 @@ class TransactionCommandJobTest {
 
     job.finalizeConfirmedBatches();
 
-    verify(preparationService).finalizeConfirmedBatch(batch);
+    verify(batchFinalizer).finalizeConfirmedBatch(batch);
   }
 
   @Test
@@ -90,7 +96,7 @@ class TransactionCommandJobTest {
 
     job.finalizeConfirmedBatches();
 
-    verifyNoInteractions(preparationService);
+    verifyNoInteractions(batchFinalizer);
   }
 
   @Test

@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import org.jspecify.annotations.Nullable;
 import org.springframework.boot.actuate.audit.listener.AuditApplicationEvent;
 
 @Getter
@@ -13,9 +14,9 @@ public class TrackableSystemEvent extends AuditApplicationEvent {
   private static final String SYSTEM_PRINCIPAL = "onboarding-service";
 
   private final TrackableEventType type;
-  private final Map<String, Object> data;
+  private final Map<String, @Nullable Object> data;
 
-  public TrackableSystemEvent(TrackableEventType type, Map<String, Object> data) {
+  public TrackableSystemEvent(TrackableEventType type, Map<String, @Nullable Object> data) {
     super(SYSTEM_PRINCIPAL, String.valueOf(type), data);
     this.type = type;
     this.data = new HashMap<>(data);

@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.epis;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 

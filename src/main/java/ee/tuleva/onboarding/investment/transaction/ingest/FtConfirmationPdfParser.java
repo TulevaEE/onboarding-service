@@ -3,9 +3,9 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 import static ee.tuleva.onboarding.investment.transaction.FtConfirmationType.CANCELLATION;
 import static ee.tuleva.onboarding.investment.transaction.FtConfirmationType.NORMAL;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmation;
 import ee.tuleva.onboarding.investment.transaction.FtConfirmationType;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;

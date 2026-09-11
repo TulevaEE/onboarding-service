@@ -5,6 +5,7 @@ import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.user.User;
 import java.util.Locale;
 import lombok.Getter;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEvent;
 
 @Getter
@@ -25,7 +26,7 @@ public class AfterMandateSignedEvent extends ApplicationEvent {
     return mandate.getPillar();
   }
 
-  public Country getAddress() {
+  public @Nullable Country getAddress() {
     return mandate.getAddress();
   }
 }

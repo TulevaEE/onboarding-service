@@ -74,6 +74,20 @@ class SrriCalculatorTest {
   }
 
   @Test
+  void excludesNonPositiveNavs() {
+    var navs =
+        List.of(
+            nav(weekEnd(FIRST_MONDAY), 100.0),
+            nav(weekEnd(FIRST_MONDAY.plusWeeks(1)), 105.0),
+            nav(weekEnd(FIRST_MONDAY.plusWeeks(2)), 0.0),
+            nav(FIRST_MONDAY.plusWeeks(3), 200.0));
+
+    var points = calculator.calculate(navs, FIRST_MONDAY, weekEnd(FIRST_MONDAY.plusWeeks(2)));
+
+    assertThat(points).isEmpty();
+  }
+
+  @Test
   void usesTheLastNavOfEachWeek() {
     var navs =
         List.of(
@@ -104,6 +118,16 @@ class SrriCalculatorTest {
   }
 
   @Test
+  void excludesReturnsAfterTheEvaluationDate() {
+    var navs = weeklyNavs(FIRST_MONDAY, List.of(100.0, 105.0, 110.0, 120.0, 999.0));
+    var earlierEvalDate = weekEnd(FIRST_MONDAY.plusWeeks(1));
+
+    var points = calculator.calculate(navs, earlierEvalDate, earlierEvalDate);
+
+    assertThat(points).isEmpty();
+  }
+
+  @Test
   void publishesNoClassButKeepsVolatilityWhenHistoryIsTooShort() {
     var navs = weeklyNavs(FIRST_MONDAY, List.of(100.0, 110.0, 99.0, 108.9, 108.9));
     var evalDate = weekEnd(FIRST_MONDAY.plusWeeks(3));
@@ -115,7 +139,18 @@ class SrriCalculatorTest {
   }
 
   @Test
-  void publishesAClassOnceTheFiveYearWindowHasEnoughObservations() {
+  void publishesAClassAtExactlyTheMinimumObservationCount() {
+    var navs = seriesCoveringTheWindowWithExactlyMinimumObservations();
+    var evalDate = navs.getLast().date().minusWeeks(1);
+
+    var point = calculator.calculate(navs, evalDate, evalDate).getFirst();
+
+    assertThat(point.observationCount()).isEqualTo(200);
+    assertThat(point.riskClass()).isNotNull();
+  }
+
+  @Test
+  void publishesAClassOnceTheHistoryReachesBackFiveYears() {
     var navs = fiveYearsOfNavs(300);
     var evalDate = navs.getLast().date().minusWeeks(1);
 
@@ -126,7 +161,7 @@ class SrriCalculatorTest {
   }
 
   @Test
-  void publishesAClassOnObservationCountAloneEvenWhenTheWindowReachesPastTheFirstNav() {
+  void publishesNoClassWhileTheHistoryFallsShortOfFiveYearsEvenWithPlentyOfObservations() {
     var navs = fiveYearsOfNavs(250);
     var evalDate = navs.getLast().date().minusWeeks(1);
 
@@ -134,7 +169,8 @@ class SrriCalculatorTest {
 
     assertThat(point.observationCount()).isGreaterThanOrEqualTo(200);
     assertThat((LocalDate) point.metrics().get("windowStart")).isBefore(navs.getFirst().date());
-    assertThat(point.riskClass()).isNotNull();
+    assertThat(point.riskClass()).isNull();
+    assertThat(point.volatility()).isPositive();
   }
 
   @Test
@@ -161,6 +197,22 @@ class SrriCalculatorTest {
     var navs = new ArrayList<FundValue>();
     for (int i = 0; i < values.size(); i++) {
       navs.add(nav(weekEnd(firstMonday.plusWeeks(i)), values.get(i)));
+    }
+    return navs;
+  }
+
+  // 200 contiguous weeks reach back under four years, so they would be withheld for coverage
+  // before the count was ever consulted. A gap in the middle clears coverage and still lands on
+  // exactly 200 returns: weeks 1-99 give 99, weeks 161-261 give 101, and week 262 carries no
+  // return of its own — it is there only so week 261 counts as a complete week.
+  private static ArrayList<FundValue> seriesCoveringTheWindowWithExactlyMinimumObservations() {
+    var navs = new ArrayList<FundValue>();
+    var value = 1.0;
+    for (int week = 0; week <= 262; week++) {
+      value *= 1 + 0.01 * Math.sin(week);
+      if (week <= 99 || week >= 160) {
+        navs.add(nav(weekEnd(FIRST_MONDAY.plusWeeks(week)), value));
+      }
     }
     return navs;
   }

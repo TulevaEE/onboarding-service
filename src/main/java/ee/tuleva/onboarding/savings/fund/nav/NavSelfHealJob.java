@@ -1,12 +1,12 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
@@ -49,7 +49,7 @@ public class NavSelfHealJob {
         new NavPipeline(TUV100, List.of(TUV100)));
   }
 
-  @Scheduled(cron = "0 15/5 11 * * MON-FRI", zone = "Europe/Tallinn")
+  @Scheduled(cron = "0 6/5 11 * * MON-FRI", zone = "Europe/Tallinn")
   @SchedulerLock(name = "NavSelfHealRetry_pillar2", lockAtMostFor = "4m", lockAtLeastFor = "1m")
   public void scheduledPillar2Retry() {
     healIfNeeded();

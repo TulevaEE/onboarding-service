@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.investment.risk;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.risk.RiskIndicatorStatus.STABLE;
 import static ee.tuleva.onboarding.investment.risk.RiskIndicatorType.SRI;
 import static ee.tuleva.onboarding.investment.risk.RiskIndicatorType.SRRI;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -12,8 +12,8 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.risk.RiskIndicatorProperties.Source;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
@@ -177,6 +177,123 @@ class RiskIndicatorServiceTest {
     var indicator = onlyIndicator(run);
     assertThat(indicator.hasClass()).isFalse();
     assertThat(indicator.latestObservationCount()).isEqualTo(260);
+  }
+
+  @Test
+  void notifiedStateIsClearedWhenThePublishedClassMoves() {
+    storedPoints(SRI, TKF100, daily(200, 4));
+    var evaluationDate = START.plusDays(199);
+    var existing =
+        RiskIndicatorPublication.builder()
+            .indicatorType(SRI)
+            .fund(TKF100)
+            .evaluationDate(evaluationDate)
+            .publishedClass(5)
+            .status(STABLE)
+            .notified(true)
+            .notifiedDisclosedClass(5)
+            .build();
+    given(
+            publicationRepository.findByIndicatorTypeAndFundAndEvaluationDate(
+                SRI, TKF100, evaluationDate))
+        .willReturn(Optional.of(existing));
+
+    service.evaluateAllFunds(28);
+
+    assertThat(existing.getNotified()).isFalse();
+    assertThat(existing.getNotifiedDisclosedClass()).isNull();
+  }
+
+  @Test
+  void notifiedStateIsClearedWhenOnlyTheStatusChanges() {
+    storedPoints(SRI, TKF100, daily(200, 4));
+    var evaluationDate = START.plusDays(199);
+    var existing =
+        RiskIndicatorPublication.builder()
+            .indicatorType(SRI)
+            .fund(TKF100)
+            .evaluationDate(evaluationDate)
+            .publishedClass(4)
+            .status(RiskIndicatorStatus.CHANGE_CONFIRMED)
+            .notified(true)
+            .build();
+    given(
+            publicationRepository.findByIndicatorTypeAndFundAndEvaluationDate(
+                SRI, TKF100, evaluationDate))
+        .willReturn(Optional.of(existing));
+
+    service.evaluateAllFunds(28);
+
+    assertThat(existing.getNotified()).isFalse();
+  }
+
+  @Test
+  void notifiedStateSurvivesWhenNothingAboutThePublicationChanged() {
+    storedPoints(SRI, TKF100, daily(200, 4));
+    var evaluationDate = START.plusDays(199);
+    var existing =
+        RiskIndicatorPublication.builder()
+            .indicatorType(SRI)
+            .fund(TKF100)
+            .evaluationDate(evaluationDate)
+            .publishedClass(4)
+            .status(STABLE)
+            .notified(true)
+            .notifiedDisclosedClass(7)
+            .build();
+    given(
+            publicationRepository.findByIndicatorTypeAndFundAndEvaluationDate(
+                SRI, TKF100, evaluationDate))
+        .willReturn(Optional.of(existing));
+
+    service.evaluateAllFunds(28);
+
+    assertThat(existing.getNotified()).isTrue();
+    assertThat(existing.getNotifiedDisclosedClass()).isEqualTo(7);
+  }
+
+  @Test
+  void sriFundsAreEvaluatedUnderTheMajorityRuleRatherThanPersistence() {
+    storedPoints(SRI, TKF100, transitioningSeries(200, 4, 90, 5));
+
+    var run = service.evaluateAllFunds(28);
+
+    assertThat(onlyIndicator(run).publishedClass()).isEqualTo(5);
+  }
+
+  @Test
+  void previousPublishedClassIsRecordedOnceAChangeIsConfirmed() {
+    storedPoints(SRI, TKF100, transitioningSeries(200, 4, 90, 5));
+
+    var run = service.evaluateAllFunds(28);
+
+    onlyIndicator(run);
+    var outcome = run.outcomes().getFirst();
+    assertThat(outcome.indicator().previousPublishedClass()).isEqualTo(4);
+    assertThat(outcome.publication()).isNotNull();
+    assertThat(outcome.publication().getPreviousPublishedClass()).isEqualTo(4);
+  }
+
+  private List<RiskIndicatorPoint> transitioningSeries(
+      int firstDays, int firstClass, int secondDays, int secondClass) {
+    var points = new ArrayList<RiskIndicatorPoint>();
+    for (int day = 0; day < firstDays; day++) {
+      points.add(riskIndicatorPoint(START.plusDays(day), firstClass));
+    }
+    for (int day = firstDays; day < firstDays + secondDays; day++) {
+      points.add(riskIndicatorPoint(START.plusDays(day), secondClass));
+    }
+    return points;
+  }
+
+  private RiskIndicatorPoint riskIndicatorPoint(LocalDate date, int riskClass) {
+    return RiskIndicatorPoint.builder()
+        .asOfDate(date)
+        .riskClass(riskClass)
+        .observationCount(260)
+        .volatility(new BigDecimal("0.15"))
+        .metrics(Map.of())
+        .build();
   }
 
   private PublishedRiskIndicator onlyIndicator(RiskIndicatorService.RiskIndicatorRun run) {

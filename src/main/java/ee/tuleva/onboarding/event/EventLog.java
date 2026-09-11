@@ -15,6 +15,7 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcTypeCode;
+import org.jspecify.annotations.Nullable;
 
 @Data
 @Builder
@@ -36,5 +37,5 @@ public class EventLog {
   private String type;
 
   @JdbcTypeCode(JSON)
-  private Map<String, Object> data;
+  private Map<String, @Nullable Object> data;
 }

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.payment;
 
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.payment.PaymentData.*;
+import static ee.tuleva.onboarding.time.ClockHolder.clock;
 import static jakarta.persistence.EnumType.STRING;
 
 import ee.tuleva.onboarding.currency.Currency;
@@ -49,7 +50,7 @@ public class Payment implements Comparable<Payment> {
 
   @PrePersist
   protected void onCreate() {
-    createdTime = Instant.now();
+    createdTime = clock().instant();
   }
 
   @Override

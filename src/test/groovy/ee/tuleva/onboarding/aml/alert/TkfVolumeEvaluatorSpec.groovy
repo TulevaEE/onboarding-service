@@ -143,4 +143,22 @@ class TkfVolumeEvaluatorSpec extends Specification {
     expect:
     evaluator.evaluate(agg).isEmpty()
   }
+
+  def "evaluates a yearly-shape aggregate with null monthly fields without failing"() {
+    given:
+    def agg = new TkfVolumeAggregate(
+        "38001010000", null, null, null, null, null, 50000.00, YEAR_FLOW, "2026", true, true, null, PERSON)
+
+    expect:
+    evaluator.evaluate(agg).collect { it.type() } == [TKF_VOLUME_49K_YEARLY]
+  }
+
+  def "evaluates a monthly-shape aggregate with null yearly fields without failing"() {
+    given:
+    def agg = new TkfVolumeAggregate(
+        "38001010000", 16000.00, 0.00, FLOW, null, "2026-06", null, null, null, true, false, null, PERSON)
+
+    expect:
+    evaluator.evaluate(agg).collect { it.type() } == [TKF_VOLUME_15K_NEW_CLIENT]
+  }
 }

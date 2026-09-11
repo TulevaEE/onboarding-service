@@ -5,7 +5,7 @@ import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.mandate.FundTransferExchange
 import ee.tuleva.onboarding.mandate.Mandate
 import ee.tuleva.onboarding.mandate.MandateType
-import ee.tuleva.onboarding.mandate.builder.ConversionDecorator
+import ee.tuleva.onboarding.conversion.ConversionDecorator
 import ee.tuleva.onboarding.paymentrate.PaymentRates
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService
 import spock.lang.Specification
@@ -13,10 +13,10 @@ import spock.lang.Specification
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.authenticatedPersonFromUser
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyConverted
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
-import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.sampleEarlyWithdrawalApplicationDto
-import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.sampleTransferApplicationDto
-import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.sampleWithdrawalApplicationDto
+import static ee.tuleva.onboarding.mandate.MandateContactDetailsFixture.contactDetailsFixture
+import static ee.tuleva.onboarding.mandate.application.ApplicationSnapshotFixture.sampleEarlyWithdrawalApplicationDto
+import static ee.tuleva.onboarding.mandate.application.ApplicationSnapshotFixture.sampleTransferApplicationDto
+import static ee.tuleva.onboarding.mandate.application.ApplicationSnapshotFixture.sampleWithdrawalApplicationDto
 
 class CancellationMandateBuilderSpec extends Specification {
 
@@ -47,7 +47,7 @@ class CancellationMandateBuilderSpec extends Specification {
     mandate.address == contactDetails.address
     mandate.futureContributionFundIsin == Optional.empty()
     mandate.fundTransferExchanges == null
-    mandate.getGenericMandateDto().getMandateType() == MandateType.WITHDRAWAL_CANCELLATION
+    mandate.toSubmission().getMandateType() == MandateType.WITHDRAWAL_CANCELLATION
     mandate.metadata == [
         isSecondPillarActive            : contactDetails.secondPillarActive,
         isSecondPillarFullyConverted    : conversion.secondPillarFullyConverted,
@@ -79,7 +79,7 @@ class CancellationMandateBuilderSpec extends Specification {
     mandate.address == contactDetails.address
     mandate.futureContributionFundIsin == Optional.empty()
     mandate.fundTransferExchanges == null
-    mandate.getGenericMandateDto().getMandateType() == MandateType.EARLY_WITHDRAWAL_CANCELLATION
+    mandate.toSubmission().getMandateType() == MandateType.EARLY_WITHDRAWAL_CANCELLATION
     mandate.metadata == [
         isSecondPillarActive            : contactDetails.secondPillarActive,
         isSecondPillarFullyConverted    : conversion.secondPillarFullyConverted,

@@ -2,10 +2,9 @@ package ee.tuleva.onboarding.investment.check.health;
 
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.OUTSTANDING_UNITS;
-import static java.math.BigDecimal.ZERO;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.position.FundPosition;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.stereotype.Component;
@@ -25,7 +24,7 @@ class OutstandingUnitsChecker {
     }
 
     var quantity = unitsPositions.getFirst().getQuantity();
-    if (quantity == null || quantity.compareTo(ZERO) == 0) {
+    if (quantity == null || quantity.signum() <= 0) {
       return List.of(
           new HealthCheckFinding(
               fund,

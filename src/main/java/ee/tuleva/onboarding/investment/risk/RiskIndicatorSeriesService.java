@@ -3,9 +3,9 @@ package ee.tuleva.onboarding.investment.risk;
 import static ee.tuleva.onboarding.investment.risk.RiskIndicatorType.SRI;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
-import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValueQueries;
 import ee.tuleva.onboarding.investment.risk.RiskIndicatorProperties.Source;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.Period;
@@ -31,7 +31,7 @@ class RiskIndicatorSeriesService {
   private static final Period SRRI_PRECEDING_PRICE_BUFFER = Period.ofMonths(1);
 
   private final Clock clock;
-  private final FundValueRepository fundValueRepository;
+  private final FundValueQueries fundValueQueries;
   private final RiskIndicatorPointRepository pointRepository;
   private final RiskIndicatorProperties properties;
   private final SriCalculator sriCalculator;
@@ -93,7 +93,7 @@ class RiskIndicatorSeriesService {
         continue;
       }
       prices.addAll(
-          fundValueRepository.findValuesBetweenDates(segment.key(), segmentStart, segmentEnd));
+          fundValueQueries.findValuesBetweenDates(segment.key(), segmentStart, segmentEnd));
     }
     return prices;
   }
@@ -116,7 +116,7 @@ class RiskIndicatorSeriesService {
 
   private @Nullable LocalDate anchorDate(List<Source> segments) {
     var activeKey = segments.getLast().key();
-    return fundValueRepository.findLastValueForFund(activeKey).map(FundValue::date).orElse(null);
+    return fundValueQueries.findLastValueForFund(activeKey).map(FundValue::date).orElse(null);
   }
 
   private String sourceKeys(List<Source> segments) {
@@ -142,7 +142,11 @@ class RiskIndicatorSeriesService {
       } else if (!hasDrifted(stored, point)) {
         continue;
       } else if (holdingPeriodChanged(stored, point)) {
-        var redefinition = redefinition(stored, point);
+        var redefinition = holdingPeriodRedefinition(stored, point);
+        toSave.add(applyRedefinition(stored, point, redefinition));
+        redefined.add(redefinition);
+      } else if (publishedClassChangedWhileTheMeasurementsDidNot(stored, point)) {
+        var redefinition = publicationRuleRedefinition(stored, point);
         toSave.add(applyRedefinition(stored, point, redefinition));
         redefined.add(redefinition);
       } else {
@@ -161,11 +165,26 @@ class RiskIndicatorSeriesService {
     return current != null && !current.equals(storedHoldingPeriod(stored));
   }
 
-  private Redefinition redefinition(RiskIndicatorPoint stored, ReferencePoint recomputed) {
-    return new Redefinition(
+  private Redefinition holdingPeriodRedefinition(
+      RiskIndicatorPoint stored, ReferencePoint recomputed) {
+    return new Redefinition.HoldingPeriod(
         stored.getAsOfDate(),
         storedHoldingPeriod(stored),
         Objects.requireNonNull(recomputedHoldingPeriod(recomputed)));
+  }
+
+  private boolean publishedClassChangedWhileTheMeasurementsDidNot(
+      RiskIndicatorPoint stored, ReferencePoint recomputed) {
+    var storedVolatility = stored.getVolatility();
+    return storedVolatility != null
+        && storedVolatility.compareTo(recomputed.volatility()) == 0
+        && Objects.equals(stored.getObservationCount(), recomputed.observationCount());
+  }
+
+  private Redefinition publicationRuleRedefinition(
+      RiskIndicatorPoint stored, ReferencePoint recomputed) {
+    return new Redefinition.PublicationRule(
+        stored.getAsOfDate(), stored.getRiskClass(), recomputed.riskClass());
   }
 
   private @Nullable String storedHoldingPeriod(RiskIndicatorPoint stored) {
@@ -183,7 +202,7 @@ class RiskIndicatorSeriesService {
     log.info(
         "Risk indicator point recomputed under a new definition: fund={}, type={}, date={},"
             + " storedClass={}, recomputedClass={}, storedVolatility={}, recomputedVolatility={},"
-            + " previousHoldingPeriodTradingDays={}, holdingPeriodTradingDays={}",
+            + " redefinition={}",
         stored.getFund(),
         stored.getIndicatorType(),
         stored.getAsOfDate(),
@@ -191,8 +210,7 @@ class RiskIndicatorSeriesService {
         recomputed.riskClass(),
         stored.getVolatility(),
         recomputed.volatility(),
-        redefinition.previousHoldingPeriodTradingDays(),
-        redefinition.holdingPeriodTradingDays());
+        redefinition);
 
     var metrics = new HashMap<String, Object>(stringKeyed(recomputed.metrics()));
     var history = driftHistory(stored);

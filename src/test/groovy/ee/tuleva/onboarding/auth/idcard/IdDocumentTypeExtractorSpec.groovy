@@ -107,6 +107,17 @@ class IdDocumentTypeExtractorSpec extends Specification {
         "1.3.6.1.4.1.51361.2.1.1"      | "0.4.0.194112.1.2"
     }
 
+    def "rejects certificate whose policies extension has no authentication policy at all"() {
+        given:
+        def cert = generateCertificateWithOnlyDocumentTypePolicy("1.3.6.1.4.1.51361.1.1.1")
+
+        when:
+        extractor.extract(cert)
+
+        then:
+        thrown UnknownDocumentTypeException
+    }
+
     def "rejects 2025 certificate with missing auth policy"() {
         given:
         def cert = generate2025CertificateWithPolicies("1.3.6.1.4.1.51361.2.1.1", "0.4.0.194112.1.2")

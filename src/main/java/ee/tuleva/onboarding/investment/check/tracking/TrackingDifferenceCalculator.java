@@ -8,11 +8,13 @@ import static ee.tuleva.onboarding.investment.config.InvestmentParameter.TRACKIN
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.TrackingCheckType;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import lombok.Builder;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,7 @@ import org.springframework.stereotype.Component;
 class TrackingDifferenceCalculator {
 
   private static final int SCALE = 6;
+  private static final int EUR_SCALE = 2;
 
   private final InvestmentParameterRepository parameterRepository;
 
@@ -83,15 +86,20 @@ class TrackingDifferenceCalculator {
 
     var validSecurities =
         input.securities().stream()
-            .filter(s -> s.today().price() != null && s.previous().price() != null)
-            .filter(s -> s.previous().price().signum() != 0)
+            .filter(
+                s ->
+                    s.today().price() != null
+                        && s.previous().price() != null
+                        && s.previous().price().signum() != 0)
             .toList();
 
     var benchmarkReturn =
         validSecurities.stream()
             .map(
                 s -> {
-                  var secReturn = rawDailyReturn(s.today().price(), s.previous().price());
+                  var secReturn =
+                      rawDailyReturn(
+                          s.today().requirePrice(s.isin()), s.previous().requirePrice(s.isin()));
                   return s.modelWeight().multiply(secReturn);
                 })
             .reduce(ZERO, BigDecimal::add)
@@ -104,7 +112,9 @@ class TrackingDifferenceCalculator {
         validSecurities.stream()
             .map(
                 s -> {
-                  var secReturn = rawDailyReturn(s.today().price(), s.previous().price());
+                  var secReturn =
+                      rawDailyReturn(
+                          s.today().requirePrice(s.isin()), s.previous().requirePrice(s.isin()));
                   var weightDiff =
                       s.actualWeight().subtract(s.modelWeight()).setScale(SCALE, HALF_UP);
                   var contribution = weightDiff.multiply(secReturn).setScale(SCALE, HALF_UP);
@@ -151,6 +161,7 @@ class TrackingDifferenceCalculator {
             .bodImpliedFundReturn(navResidual.bodImpliedFundReturn())
             .navResidual(navResidual.value())
             .navResidualBreach(navResidual.breach())
+            .navFlow(computeNavFlow(input, feeDrag))
             .build());
   }
 
@@ -161,12 +172,7 @@ class TrackingDifferenceCalculator {
         || input.bodHoldings().isEmpty()) {
       return NavResidualCheck.notEvaluated();
     }
-    var impliedSleeveReturn =
-        input.bodHoldings().stream()
-            .filter(b -> b.today().price() != null && b.previous().price() != null)
-            .filter(b -> b.previous().price().signum() != 0)
-            .map(b -> b.weight().multiply(rawDailyReturn(b.today().price(), b.previous().price())))
-            .reduce(ZERO, BigDecimal::add);
+    var impliedSleeveReturn = impliedSleeveReturn(input.bodHoldings());
     var bodImpliedFundReturn =
         input
             .bodSecuritiesFraction()
@@ -176,6 +182,67 @@ class TrackingDifferenceCalculator {
     var value = fundReturn.subtract(bodImpliedFundReturn).setScale(SCALE, HALF_UP);
     var breach = value.abs().compareTo(breachThreshold) >= 0;
     return new NavResidualCheck(bodImpliedFundReturn, value, breach);
+  }
+
+  private BigDecimal impliedSleeveReturn(List<BodHolding> bodHoldings) {
+    return bodHoldings.stream()
+        .filter(
+            b ->
+                b.today().price() != null
+                    && b.previous().price() != null
+                    && b.previous().price().signum() != 0)
+        .map(
+            b ->
+                b.weight()
+                    .multiply(
+                        rawDailyReturn(
+                            b.today().requirePrice(b.isin()), b.previous().requirePrice(b.isin()))))
+        .reduce(ZERO, BigDecimal::add);
+  }
+
+  @Nullable
+  private NavFlowReconciliation computeNavFlow(TrackingInput input, BigDecimal feeDrag) {
+    var openingNetAssets = input.openingNetAssets();
+    var closingNetAssets = input.closingNetAssets();
+    var previousUnits = input.previousUnits();
+    var todayUnits = input.todayUnits();
+    var bodHoldings = input.bodHoldings();
+    var bodSecuritiesFraction = input.bodSecuritiesFraction();
+    if (openingNetAssets == null
+        || closingNetAssets == null
+        || previousUnits == null
+        || todayUnits == null
+        || bodHoldings == null
+        || bodSecuritiesFraction == null
+        || openingNetAssets.signum() <= 0) {
+      return null;
+    }
+
+    var marketPnl =
+        openingNetAssets
+            .multiply(bodSecuritiesFraction)
+            .multiply(impliedSleeveReturn(bodHoldings))
+            .setScale(EUR_SCALE, HALF_UP);
+    var feeAccrual = feeDrag.negate().multiply(openingNetAssets).setScale(EUR_SCALE, HALF_UP);
+    var unitsChange = todayUnits.subtract(previousUnits);
+    var unitFlow = unitsChange.multiply(input.todayNav()).setScale(EUR_SCALE, HALF_UP);
+    var unexplained =
+        closingNetAssets
+            .subtract(openingNetAssets)
+            .subtract(marketPnl)
+            .subtract(unitFlow)
+            .add(feeAccrual)
+            .setScale(EUR_SCALE, HALF_UP);
+
+    return new NavFlowReconciliation(
+        openingNetAssets,
+        closingNetAssets,
+        marketPnl,
+        unitsChange,
+        unitFlow,
+        feeAccrual,
+        unexplained,
+        input.securityQuantitiesChanged());
   }
 
   BigDecimal maxDailyReturn(LocalDate asOf) {
@@ -203,9 +270,22 @@ class TrackingDifferenceCalculator {
       BigDecimal accruedFeeFraction,
       int consecutiveBreachDays,
       @Nullable List<BodHolding> bodHoldings,
-      @Nullable BigDecimal bodSecuritiesFraction) {}
+      @Nullable BigDecimal bodSecuritiesFraction,
+      @Nullable BigDecimal openingNetAssets,
+      @Nullable BigDecimal closingNetAssets,
+      @Nullable BigDecimal previousUnits,
+      @Nullable BigDecimal todayUnits,
+      boolean securityQuantitiesChanged) {}
 
-  record PriceSnapshot(@Nullable BigDecimal price, @Nullable LocalDate date) {}
+  record PriceSnapshot(@Nullable BigDecimal price, @Nullable LocalDate date) {
+    BigDecimal requirePrice(String isin) {
+      return Objects.requireNonNull(price, "Missing price: isin=" + isin);
+    }
+
+    LocalDate requireDate(String isin) {
+      return Objects.requireNonNull(date, "Missing price date: isin=" + isin);
+    }
+  }
 
   record SecurityData(
       String isin,

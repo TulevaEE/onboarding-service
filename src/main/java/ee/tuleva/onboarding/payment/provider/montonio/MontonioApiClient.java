@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.payment.provider.montonio;
 
+import static java.util.Objects.requireNonNull;
 import static org.springframework.http.MediaType.*;
 
 import java.util.Map;
@@ -30,7 +31,7 @@ public class MontonioApiClient {
             .retrieve()
             .body(MontonioOrderResponse.class);
 
-    return orderResponse.paymentUrl();
+    return requireNonNull(orderResponse, "Empty Montonio order response").paymentUrl();
   }
 
   private String ordersUri() {

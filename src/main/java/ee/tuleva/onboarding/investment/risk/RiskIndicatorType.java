@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.risk;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 
 public enum RiskIndicatorType {
   SRI,

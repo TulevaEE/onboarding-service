@@ -15,6 +15,7 @@ import java.time.ZoneId
 
 import static ee.tuleva.onboarding.auth.GrantType.*
 import static ee.tuleva.onboarding.auth.KeyStoreFixture.getKeyPair
+import static ee.tuleva.onboarding.auth.KeyStoreFixture.getPartnerKeyPair
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.auth.partner.PublicKeyTestHelper.publicKeyToResource
 import static java.time.temporal.ChronoUnit.HOURS
@@ -136,6 +137,49 @@ class PartnerAuthProviderSpec extends Specification {
 
     when:
     def response = partnerAuthProvider.authenticate(handoverToken)
+
+    then:
+    response == authenticatedPerson
+  }
+
+  def "falls back to the second partner public key when the first one does not verify the signature"() {
+    given:
+    def sampleUserId = 123L
+    PartnerAuthProvider providerWithDistinctPartnerKeys = new PartnerAuthProvider(
+        partnerPublicKey1, partnerKeyPair.public, clock, principalService)
+
+    def handoverToken = Jwts.builder()
+        .subject(samplePerson.personalCode)
+        .signWith(partnerKeyPair.private)
+        .expiration(Date.from(clock.instant().plus(1, HOURS)))
+        .claim("tokenType", "HANDOVER")
+        .claim("firstName", samplePerson.firstName)
+        .claim("lastName", samplePerson.lastName)
+        .claim("iss", "testpartner")
+        .claim("authenticationMethod", "SMART_ID")
+        .claim("signingMethod", "SMART_ID")
+        .claim("documentNumber", "PNOEE-30303039816-MOCK-Q")
+        .compact()
+
+    def person = PersonImpl.builder()
+        .personalCode(samplePerson.personalCode)
+        .firstName(samplePerson.firstName)
+        .lastName(samplePerson.lastName).build()
+
+    def authenticatedPerson = AuthenticatedPerson.builder()
+        .firstName(samplePerson.firstName)
+        .lastName(samplePerson.lastName)
+        .personalCode(samplePerson.personalCode)
+        .userId(sampleUserId)
+        .build()
+
+    1 * principalService.getFrom(*_) >> { Person prsn, Map<String, String> attrs ->
+      assert prsn == person
+      return authenticatedPerson
+    }
+
+    when:
+    def response = providerWithDistinctPartnerKeys.authenticate(handoverToken)
 
     then:
     response == authenticatedPerson

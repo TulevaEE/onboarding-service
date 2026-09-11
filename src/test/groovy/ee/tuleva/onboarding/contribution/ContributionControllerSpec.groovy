@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.contribution
 
+import ee.tuleva.onboarding.epis.ThirdPillarContribution
+import ee.tuleva.onboarding.epis.SecondPillarContribution
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.epis.EpisService
 

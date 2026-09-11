@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.auth.response;
 
-import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
+import ee.tuleva.onboarding.error.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import java.io.Serial;
 

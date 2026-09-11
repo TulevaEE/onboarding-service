@@ -5,6 +5,7 @@ import java.io.StringWriter;
 import java.math.BigInteger;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
@@ -45,6 +46,17 @@ import org.bouncycastle.operator.bc.BcRSAContentSignerBuilder;
 public class OCSPFixture {
   public static String sampleExampleServer = "http://aia.sk.ee/esteid2015";
   private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(OCSPFixture.class);
+  private static final KeyPair KEY_PAIR = generateKeyPair();
+
+  private static KeyPair generateKeyPair() {
+    try {
+      KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+      keyPairGenerator.initialize(2048);
+      return keyPairGenerator.generateKeyPair();
+    } catch (NoSuchAlgorithmException e) {
+      throw new RuntimeException("Failed to generate test key pair", e);
+    }
+  }
 
   public static X509Certificate generateCertificate(
       String dn, int days, String algorithm, String urlCA, String urlOCSP) throws Exception {
@@ -56,9 +68,7 @@ public class OCSPFixture {
       throws Exception {
 
     try {
-      KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
-      keyPairGenerator.initialize(2048);
-      KeyPair keyPair = keyPairGenerator.generateKeyPair();
+      KeyPair keyPair = KEY_PAIR;
       PublicKey publicKey = keyPair.getPublic();
       PrivateKey privateKey = keyPair.getPrivate();
 
@@ -175,6 +185,51 @@ public class OCSPFixture {
         PolicyOrder.AUTH_POLICY_FIRST);
   }
 
+  // No authentication policy OID present at all (as opposed to an incorrect one), so the
+  // certificate policies extension contains only the document type policy.
+  public static X509Certificate generateCertificateWithOnlyDocumentTypePolicy(
+      String documentTypeOid) {
+    try {
+      KeyPair keyPair = KEY_PAIR;
+      PrivateKey privateKey = keyPair.getPrivate();
+      PublicKey publicKey = keyPair.getPublic();
+
+      BigInteger serialNumber = new BigInteger(64, new SecureRandom());
+      X500Name issuer =
+          new X500Name("C=EE, O=SK ID Solutions AS, OID.2.5.4.97=NTREE-10747013, CN=ESTEID2018");
+      X500Name subjectDN = new X500Name("C=EE, O=Test, CN=Test User");
+
+      Date from = new Date();
+      Date to = new Date(from.getTime() + 365 * 86400000L);
+
+      SubjectPublicKeyInfo subPubKeyInfo = SubjectPublicKeyInfo.getInstance(publicKey.getEncoded());
+      AlgorithmIdentifier sigAlgId =
+          new DefaultSignatureAlgorithmIdentifierFinder().find("SHA256WITHRSA");
+      AlgorithmIdentifier digAlgId = new DefaultDigestAlgorithmIdentifierFinder().find(sigAlgId);
+      AsymmetricKeyParameter privateKeyAsymKeyParam =
+          PrivateKeyFactory.createKey(privateKey.getEncoded());
+      ContentSigner sigGen =
+          new BcRSAContentSignerBuilder(sigAlgId, digAlgId).build(privateKeyAsymKeyParam);
+
+      X509v3CertificateBuilder certGen =
+          new X509v3CertificateBuilder(issuer, serialNumber, from, to, subjectDN, subPubKeyInfo);
+
+      CertificatePolicies policies =
+          new CertificatePolicies(
+              new PolicyInformation[] {
+                new PolicyInformation(new ASN1ObjectIdentifier(documentTypeOid))
+              });
+      certGen.addExtension(Extension.certificatePolicies, false, policies);
+
+      X509CertificateHolder certificateHolder = certGen.build(sigGen);
+      return new JcaX509CertificateConverter()
+          .setProvider(new BouncyCastleProvider())
+          .getCertificate(certificateHolder);
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to generate test certificate", e);
+    }
+  }
+
   public enum PolicyOrder {
     DOCUMENT_TYPE_FIRST,
     AUTH_POLICY_FIRST
@@ -183,9 +238,7 @@ public class OCSPFixture {
   private static X509Certificate generateCertificateWithPolicies(
       String documentTypeOid, String authPolicyOid, X500Name issuer, PolicyOrder policyOrder) {
     try {
-      KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
-      keyPairGenerator.initialize(2048);
-      KeyPair keyPair = keyPairGenerator.generateKeyPair();
+      KeyPair keyPair = KEY_PAIR;
       PrivateKey privateKey = keyPair.getPrivate();
       PublicKey publicKey = keyPair.getPublic();
 

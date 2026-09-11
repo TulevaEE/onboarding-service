@@ -1,0 +1,44 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
+        <mj-text>
+          Alustasid oma osaühingu jaoks Tuleva Täiendava Kogumisfondi konto avamist, aga see jäi
+          pooleli. Konto avamine võtab mõne hetke:
+        </mj-text>
+        <mj-button href="https://pension.tuleva.ee/savings-fund/onboarding/company">
+          Jätkan konto avamist
+        </mj-button>
+        <mj-text>
+          Kogumisfond on madala tasuga laiapõhjaline indeksfond. Iga fondi paigutatud euro eest
+          omandad osaluse ligi 2500 maailma suurimas börsiettevõttes. Jooksvad tasud on *|savingsFundFee|*%&nbsp;aastas
+           ning sisenemis-, väljumis- ega edukustasu ei lisandu.
+        </mj-text>
+        <mj-text>
+          Osakuid saab tagasi müüa igal tööpäeval ja vara laekub pangakontole kolme tööpäeva
+          jooksul pärast osakute müüki.
+        </mj-text>
+        <mj-text>
+          Kui sul tekib konto avamisel küsimusi, kirjuta
+          <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> või helista
+          <a href="tel:+3726445100">644&nbsp;5100</a>.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">
+          Tõnu Pekk<br />
+          Tuleva asutaja ja fondijuht
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_savings_et.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

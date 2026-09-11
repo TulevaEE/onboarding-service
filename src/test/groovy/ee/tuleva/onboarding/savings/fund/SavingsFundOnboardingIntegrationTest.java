@@ -6,7 +6,7 @@ import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.*;
 import static ee.tuleva.onboarding.kyc.KycSurveyPurpose.IDENTITY_ONLY;
 import static ee.tuleva.onboarding.kyc.KycSurveyPurpose.PERSONAL_ONBOARDING;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
-import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.*;
+import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.event.TrackableEvent;

@@ -3,16 +3,16 @@ package ee.tuleva.onboarding.savings.fund.notification;
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.authenticatedPersonFromUser;
 import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_BOUNCE_BACK;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_CANCELLED;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.ISSUED;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.PROCESSED;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RECEIVED;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RESERVED;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.VERIFIED;
-import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.COMPLETED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.ISSUED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.PROCESSED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RECEIVED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RESERVED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.VERIFIED;
+import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ONE;
 import static java.time.ZoneOffset.UTC;
 import static java.util.Collections.disjoint;
@@ -34,12 +34,13 @@ import ee.tuleva.onboarding.event.EventLogRepository;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.party.PartyId;
-import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
+import ee.tuleva.onboarding.savings.FundNavProvider;
+import ee.tuleva.onboarding.savings.SavingFundPayment;
+import ee.tuleva.onboarding.savings.fund.LedgerRefs;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.savings.fund.issuing.FundAccountPaymentJob;
 import ee.tuleva.onboarding.savings.fund.issuing.IssuingJob;
-import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionService;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
@@ -240,8 +241,8 @@ class SavingsFundNotificationCommitIntegrationTest {
 
     verify(notificationService)
         .sendMessage(
-            "Deferred return matching: matchedCount=%d, totalAmount=%s EUR"
-                .formatted(1, RETURNED_CASH),
+            "Deferred return matching: matchedCount=%d, unmatchedCount=%d, totalAmount=%s EUR"
+                .formatted(1, 0, RETURNED_CASH),
             SAVINGS);
   }
 
@@ -317,8 +318,8 @@ class SavingsFundNotificationCommitIntegrationTest {
     paymentRepository.changeStatus(paymentId, RECEIVED);
     paymentRepository.changeStatus(paymentId, VERIFIED);
     paymentRepository.changeStatus(paymentId, RESERVED);
-    savingsFundLedger.recordPaymentReceived(party, ISSUED_CASH, paymentId);
-    savingsFundLedger.reservePaymentForSubscription(party, ISSUED_CASH, paymentId);
+    savingsFundLedger.recordPaymentReceived(LedgerRefs.from(party), ISSUED_CASH, paymentId);
+    savingsFundLedger.reservePaymentForSubscription(LedgerRefs.from(party), ISSUED_CASH, paymentId);
     assertNoForeignReservedPayments();
     return paymentId;
   }
@@ -341,7 +342,7 @@ class SavingsFundNotificationCommitIntegrationTest {
   }
 
   private void holdFundUnits() {
-    var party = new PartyId(PartyId.Type.PERSON, REDEEMER_CODE);
+    var party = LedgerRefs.from(new PartyId(PartyId.Type.PERSON, REDEEMER_CODE));
     savingsFundLedger.recordPaymentReceived(party, HELD_CASH, HELD_UNITS_REFERENCE);
     savingsFundLedger.reservePaymentForSubscription(party, HELD_CASH, HELD_UNITS_REFERENCE);
     savingsFundLedger.issueFundUnitsFromReserved(

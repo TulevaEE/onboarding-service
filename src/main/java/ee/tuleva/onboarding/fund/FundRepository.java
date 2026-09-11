@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.config.CacheConfiguration.FUND_TABLE_CACHE;
 
 import ee.tuleva.onboarding.fund.Fund.FundStatus;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.repository.CrudRepository;
@@ -21,7 +22,7 @@ public interface FundRepository extends CrudRepository<Fund, Long> {
       cacheNames = FUND_TABLE_CACHE,
       key = "'byIsin:' + #isin",
       unless = "#result == null")
-  Fund findByIsin(String isin);
+  @Nullable Fund findByIsin(String isin);
 
   @Cacheable(
       cacheManager = "ttlCacheManager",

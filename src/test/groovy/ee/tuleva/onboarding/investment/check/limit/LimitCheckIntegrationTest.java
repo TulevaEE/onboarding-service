@@ -1,9 +1,11 @@
 package ee.tuleva.onboarding.investment.check.limit;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.check.limit.BreachSeverity.*;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.math.BigDecimal;
@@ -56,7 +58,7 @@ class LimitCheckIntegrationTest {
   void tuk75MatchesSpreadsheetCalculations() {
     insertTuk75Data();
 
-    var results = limitCheckService.runChecks();
+    var results = limitCheckService.runChecks().results();
 
     var tuk75 = results.stream().filter(r -> r.fund() == TUK75).findFirst().orElseThrow();
 
@@ -135,7 +137,7 @@ class LimitCheckIntegrationTest {
   void tuk00IndexGroupAggregation() {
     insertTuk00Data();
 
-    var results = limitCheckService.runChecks();
+    var results = limitCheckService.runChecks().results();
 
     var tuk00 = results.stream().filter(r -> r.fund() == TUK00).findFirst().orElseThrow();
 
@@ -168,11 +170,29 @@ class LimitCheckIntegrationTest {
   }
 
   @Test
+  void theTwoXtrackersIssuersAreCheckedSeparately() {
+    insertTkf100XtrackersData();
+
+    var results = limitCheckService.runChecks().results();
+
+    var tkf100 = results.stream().filter(r -> r.fund() == TKF100).findFirst().orElseThrow();
+
+    // Both ETFs are run by DWS Investment S.A. but issued by two umbrellas, so they are two
+    // groups. Under one provider they would be 21,00% against a 20,00% hard limit.
+    assertThat(tkf100.providerBreaches())
+        .extracting(
+            b -> b.provider().name(), ProviderBreach::actualPercent, ProviderBreach::severity)
+        .containsExactlyInAnyOrder(
+            tuple("XTRACKERS_IE", new BigDecimal("19.0000"), OK),
+            tuple("XTRACKERS_LU", new BigDecimal("2.0000"), OK));
+  }
+
+  @Test
   void rerunReplacesExistingEventsInsteadOfCreatingDuplicates() {
     insertTuk75Data();
 
-    limitCheckService.runChecks();
-    limitCheckService.runChecks();
+    limitCheckService.runChecks().results();
+    limitCheckService.runChecks().results();
 
     var events = limitCheckEventRepository.findByFundAndCheckDate(TUK75, NAV_DATE);
     assertThat(events).hasSize(4);
@@ -187,7 +207,7 @@ class LimitCheckIntegrationTest {
     insertTuk75Data();
     insertUnpublishedNavReportUnits("TUK75", NAV_DATE, 99_000_000);
 
-    var results = limitCheckService.runChecks();
+    var results = limitCheckService.runChecks().results();
     var tuk75 = results.stream().filter(r -> r.fund() == TUK75).findFirst().orElseThrow();
 
     var dwBreach =
@@ -202,7 +222,7 @@ class LimitCheckIntegrationTest {
   void denominatorUsesTotalFundNavNotSecuritiesOnly() {
     insertTuk75Data();
 
-    var results = limitCheckService.runChecks();
+    var results = limitCheckService.runChecks().results();
     var tuk75 = results.stream().filter(r -> r.fund() == TUK75).findFirst().orElseThrow();
 
     // If we incorrectly used securities-only NAV (9_978_000), the % would be:
@@ -411,6 +431,43 @@ class LimitCheckIntegrationTest {
         .param("navDate", navDate)
         .param("fund", fund)
         .param("marketValue", BigDecimal.valueOf(aum))
+        .update();
+  }
+
+  private void insertTkf100XtrackersData() {
+    record Security(String isin, String provider, long marketValue) {}
+
+    var securities =
+        new Security[] {
+          new Security("IE00BJZ2DC62", "XTRACKERS_IE", 1_900_000),
+          new Security("LU0476289540", "XTRACKERS_LU", 200_000),
+        };
+
+    for (var s : securities) {
+      insertFundPosition("TKF100", NAV_DATE, "SECURITY", s.isin, s.marketValue);
+      insertPositionLimit("TKF100", s.isin, s.isin, null, 19.65, 20.0);
+      insertModelPortfolioAllocation("TKF100", s.isin, s.provider);
+      insertProviderLimit("TKF100", s.provider, 19.65, 20.0);
+    }
+
+    insertNavReportUnits("TKF100", NAV_DATE, 10_000_000);
+    insertFundLimit("TKF100", 5_000, 3_000, 10_000);
+  }
+
+  private void insertProviderLimit(
+      String fund, String provider, double softPercent, double hardPercent) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO investment_provider_limit
+            (effective_date, fund_code, provider, soft_limit_percent, hard_limit_percent)
+            VALUES (:effectiveDate, :fund, :provider, :soft, :hard)
+            """)
+        .param("effectiveDate", LocalDate.of(2025, 6, 30))
+        .param("fund", fund)
+        .param("provider", provider)
+        .param("soft", BigDecimal.valueOf(softPercent))
+        .param("hard", BigDecimal.valueOf(hardPercent))
         .update();
   }
 

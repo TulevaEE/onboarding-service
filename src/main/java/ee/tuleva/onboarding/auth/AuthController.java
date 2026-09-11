@@ -26,6 +26,7 @@ import java.net.URLDecoder;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
@@ -76,9 +77,9 @@ public class AuthController {
   }
 
   @PostMapping({"/oauth/token", "/login", "/v1/tokens"})
-  public AuthenticationTokens login(
+  public @Nullable AuthenticationTokens login(
       @RequestParam("grant_type") String grantType,
-      @RequestParam(required = false) String authenticationHash) {
+      @RequestParam(required = false) @Nullable String authenticationHash) {
     return authService.authenticate(GrantType.valueOf(grantType.toUpperCase()), authenticationHash);
   }
 

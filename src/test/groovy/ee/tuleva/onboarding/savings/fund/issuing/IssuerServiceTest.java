@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.savings.fund.issuing;
 
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.ISSUED;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RESERVED;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPaymentFixture.aPayment;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.ISSUED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RESERVED;
+import static ee.tuleva.onboarding.savings.SavingFundPaymentFixture.aPayment;
 import static java.math.BigDecimal.ONE;
 import static java.math.BigDecimal.TEN;
 import static java.math.RoundingMode.HALF_DOWN;
@@ -12,6 +12,7 @@ import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.savings.fund.LedgerRefs;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import java.math.BigDecimal;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,7 +44,7 @@ class IssuerServiceTest {
 
     var issuedUnits = TEN.divide(ONE, 5, HALF_DOWN);
     verify(savingsFundLedger)
-        .issueFundUnitsFromReserved(party, TEN, issuedUnits, ONE, payment.getId());
+        .issueFundUnitsFromReserved(LedgerRefs.from(party), TEN, issuedUnits, ONE, payment.getId());
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), ISSUED);
   }
 

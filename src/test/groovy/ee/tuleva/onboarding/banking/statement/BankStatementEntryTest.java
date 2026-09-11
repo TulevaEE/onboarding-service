@@ -39,29 +39,29 @@ class BankStatementEntryTest {
 
     @Test
     void extractsFromUnstructuredRemittanceInfo() {
-      var entry = entryWithRemittanceInfo(unstructuredRemittance("38501010002"));
+      var entry = entryWithRemittanceInfo(unstructuredRemittance("38888888888"));
 
       var result = BankStatementEntry.from(entry, RECEIVED_BEFORE);
 
-      assertThat(result.remittanceInformation()).isEqualTo("38501010002");
+      assertThat(result.remittanceInformation()).isEqualTo("38888888888");
     }
 
     @Test
     void extractsFromStructuredCreditorReference() {
-      var entry = entryWithRemittanceInfo(structuredCreditorRefRemittance("38501010002"));
+      var entry = entryWithRemittanceInfo(structuredCreditorRefRemittance("38888888888"));
 
       var result = BankStatementEntry.from(entry, RECEIVED_BEFORE);
 
-      assertThat(result.remittanceInformation()).isEqualTo("38501010002");
+      assertThat(result.remittanceInformation()).isEqualTo("38888888888");
     }
 
     @Test
     void extractsFromStructuredAdditionalRemittanceInfo() {
-      var entry = entryWithRemittanceInfo(structuredAdditionalRemittance("38501010002"));
+      var entry = entryWithRemittanceInfo(structuredAdditionalRemittance("38888888888"));
 
       var result = BankStatementEntry.from(entry, RECEIVED_BEFORE);
 
-      assertThat(result.remittanceInformation()).isEqualTo("38501010002");
+      assertThat(result.remittanceInformation()).isEqualTo("38888888888");
     }
 
     @Test
@@ -98,6 +98,34 @@ class BankStatementEntryTest {
 
       assertThatThrownBy(() -> BankStatementEntry.from(entry, RECEIVED_BEFORE))
           .isInstanceOf(BankStatementParseException.class);
+    }
+
+    @Test
+    void unstructuredRemittance_filtersOutBlankValuesBeforeCheckingForAmbiguity() {
+      var remittanceInfo = new RemittanceInformation5();
+      remittanceInfo.getUstrd().add("");
+      remittanceInfo.getUstrd().add("38888888888");
+
+      var entry = entryWithRemittanceInfo(remittanceInfo);
+
+      var result = BankStatementEntry.from(entry, RECEIVED_BEFORE);
+
+      assertThat(result.remittanceInformation()).isEqualTo("38888888888");
+    }
+
+    @Test
+    void structuredRemittance_filtersOutBlankValuesBeforeCheckingForAmbiguity() {
+      var strd = new StructuredRemittanceInformation7();
+      strd.getAddtlRmtInf().add("");
+      strd.getAddtlRmtInf().add("38888888888");
+      var remittanceInfo = new RemittanceInformation5();
+      remittanceInfo.getStrd().add(strd);
+
+      var entry = entryWithRemittanceInfo(remittanceInfo);
+
+      var result = BankStatementEntry.from(entry, RECEIVED_BEFORE);
+
+      assertThat(result.remittanceInformation()).isEqualTo("38888888888");
     }
 
     private ReportEntry2 entryWithRemittanceInfo(RemittanceInformation5 remittanceInfo) {
@@ -174,6 +202,94 @@ class BankStatementEntryTest {
 
       assertThatThrownBy(() -> BankStatementEntry.from(entry, RECEIVED_BEFORE))
           .isInstanceOf(BankStatementParseException.class);
+    }
+
+    @Test
+    void filtersOutBlankIdCodesBeforeCheckingForAmbiguity() {
+      var entry =
+          creditEntryWithCounterparty(
+              orgIdWithBlankEntry("10060701"), "Acme OÜ", "EE157700771001802057");
+
+      var result = BankStatementEntry.from(entry, RECEIVED_BEFORE);
+
+      assertThat(result.details().getIdCode()).contains("10060701");
+    }
+
+    @Test
+    void detailsAreNullWhenRelatedPartiesAreMissing() {
+      var entry = creditEntryWithRelatedParties(null);
+
+      var result = BankStatementEntry.from(entry, RECEIVED_BEFORE);
+
+      assertThat(result.details()).isNull();
+    }
+
+    @Test
+    void detailsAreNullWhenDebtorIsMissing() {
+      var entry = creditEntryWithRelatedParties(new TransactionParty2());
+
+      var result = BankStatementEntry.from(entry, RECEIVED_BEFORE);
+
+      assertThat(result.details()).isNull();
+    }
+
+    @Test
+    void detailsAreNullWhenDebtorAccountIsMissing() {
+      var debtor = new PartyIdentification32();
+      debtor.setNm("Acme OÜ");
+      var relatedParties = new TransactionParty2();
+      relatedParties.setDbtr(debtor);
+
+      var entry = creditEntryWithRelatedParties(relatedParties);
+
+      var result = BankStatementEntry.from(entry, RECEIVED_BEFORE);
+
+      assertThat(result.details()).isNull();
+    }
+
+    @Test
+    void detailsAreNullWhenIbanIsBlank() {
+      var entry = creditEntryWithCounterparty(orgId("10060701"), "Acme OÜ", "");
+
+      var result = BankStatementEntry.from(entry, RECEIVED_BEFORE);
+
+      assertThat(result.details()).isNull();
+    }
+
+    private Party6Choice orgIdWithBlankEntry(String code) {
+      var blank = new GenericOrganisationIdentification1();
+      blank.setId("");
+      var real = new GenericOrganisationIdentification1();
+      real.setId(code);
+      var organisationId = new OrganisationIdentification4();
+      organisationId.getOthr().add(blank);
+      organisationId.getOthr().add(real);
+      var party = new Party6Choice();
+      party.setOrgId(organisationId);
+      return party;
+    }
+
+    private ReportEntry2 creditEntryWithRelatedParties(TransactionParty2 relatedParties) {
+      var amount = new ActiveOrHistoricCurrencyAndAmount();
+      amount.setValue(new BigDecimal("100.00"));
+      amount.setCcy("EUR");
+
+      var remittanceInfo = new RemittanceInformation5();
+      remittanceInfo.getUstrd().add("Test payment");
+
+      var transaction = new EntryTransaction2();
+      transaction.setRmtInf(remittanceInfo);
+      transaction.setRltdPties(relatedParties);
+
+      var entryDetails = new EntryDetails1();
+      entryDetails.getTxDtls().add(transaction);
+
+      var entry = new ReportEntry2();
+      entry.setAmt(amount);
+      entry.setCdtDbtInd(CreditDebitCode.CRDT);
+      entry.setNtryRef("EXT-001");
+      entry.getNtryDtls().add(entryDetails);
+      return entry;
     }
 
     private ReportEntry2 creditEntryWithCounterparty(
@@ -266,6 +382,104 @@ class BankStatementEntryTest {
           .isInstanceOf(BankStatementParseException.class);
     }
 
+    @Test
+    void filtersOutBlankIdCodesBeforeCheckingForAmbiguity() {
+      var entry =
+          creditEntryWithCounterparty(
+              orgIdWithBlankEntry("10060701"), "Acme OÜ", "EE157700771001802057");
+
+      var result = BankStatementEntry.from(entry, TALLINN);
+
+      assertThat(result.details().getIdCode()).contains("10060701");
+    }
+
+    @Test
+    void detailsAreNullWhenRelatedPartiesAreMissing() {
+      var entry = creditEntryWithRelatedParties(null);
+
+      var result = BankStatementEntry.from(entry, TALLINN);
+
+      assertThat(result.details()).isNull();
+    }
+
+    @Test
+    void detailsAreNullWhenDebtorIsMissing() {
+      var entry =
+          creditEntryWithRelatedParties(
+              new ee.tuleva.onboarding.banking.iso20022.camt053.TransactionParty2());
+
+      var result = BankStatementEntry.from(entry, TALLINN);
+
+      assertThat(result.details()).isNull();
+    }
+
+    @Test
+    void detailsAreNullWhenDebtorAccountIsMissing() {
+      var debtor = new ee.tuleva.onboarding.banking.iso20022.camt053.PartyIdentification32();
+      debtor.setNm("Acme OÜ");
+      var relatedParties = new ee.tuleva.onboarding.banking.iso20022.camt053.TransactionParty2();
+      relatedParties.setDbtr(debtor);
+
+      var entry = creditEntryWithRelatedParties(relatedParties);
+
+      var result = BankStatementEntry.from(entry, TALLINN);
+
+      assertThat(result.details()).isNull();
+    }
+
+    @Test
+    void detailsAreNullWhenIbanIsBlank() {
+      var entry = creditEntryWithCounterparty(orgId("10060701"), "Acme OÜ", "");
+
+      var result = BankStatementEntry.from(entry, TALLINN);
+
+      assertThat(result.details()).isNull();
+    }
+
+    private ee.tuleva.onboarding.banking.iso20022.camt053.ReportEntry2
+        creditEntryWithRelatedParties(
+            ee.tuleva.onboarding.banking.iso20022.camt053.TransactionParty2 relatedParties) {
+      var amount =
+          new ee.tuleva.onboarding.banking.iso20022.camt053.ActiveOrHistoricCurrencyAndAmount();
+      amount.setValue(new BigDecimal("100.00"));
+      amount.setCcy("EUR");
+
+      var remittanceInfo =
+          new ee.tuleva.onboarding.banking.iso20022.camt053.RemittanceInformation5();
+      remittanceInfo.getUstrd().add("Test payment");
+
+      var transaction = new ee.tuleva.onboarding.banking.iso20022.camt053.EntryTransaction2();
+      transaction.setRmtInf(remittanceInfo);
+      transaction.setRltdPties(relatedParties);
+
+      var entryDetails = new ee.tuleva.onboarding.banking.iso20022.camt053.EntryDetails1();
+      entryDetails.getTxDtls().add(transaction);
+
+      var entry = new ee.tuleva.onboarding.banking.iso20022.camt053.ReportEntry2();
+      entry.setAmt(amount);
+      entry.setCdtDbtInd(ee.tuleva.onboarding.banking.iso20022.camt053.CreditDebitCode.CRDT);
+      entry.setNtryRef("EXT-001");
+      entry.getNtryDtls().add(entryDetails);
+      return entry;
+    }
+
+    private ee.tuleva.onboarding.banking.iso20022.camt053.Party6Choice orgIdWithBlankEntry(
+        String code) {
+      var blank =
+          new ee.tuleva.onboarding.banking.iso20022.camt053.GenericOrganisationIdentification1();
+      blank.setId("");
+      var real =
+          new ee.tuleva.onboarding.banking.iso20022.camt053.GenericOrganisationIdentification1();
+      real.setId(code);
+      var organisationId =
+          new ee.tuleva.onboarding.banking.iso20022.camt053.OrganisationIdentification4();
+      organisationId.getOthr().add(blank);
+      organisationId.getOthr().add(real);
+      var party = new ee.tuleva.onboarding.banking.iso20022.camt053.Party6Choice();
+      party.setOrgId(organisationId);
+      return party;
+    }
+
     private ee.tuleva.onboarding.banking.iso20022.camt053.ReportEntry2 creditEntryWithCounterparty(
         ee.tuleva.onboarding.banking.iso20022.camt053.Party6Choice counterpartyId,
         String name,
@@ -330,6 +544,144 @@ class BankStatementEntryTest {
       personId.getOthr().add(generic);
       party.setPrvtId(personId);
       return party;
+    }
+  }
+
+  @Nested
+  class SubFamilyCodeExtraction {
+
+    @Test
+    void extractsSubFamilyCodeFromBankTransactionCode() {
+      var amount = new ActiveOrHistoricCurrencyAndAmount();
+      amount.setValue(new BigDecimal("100.00"));
+      amount.setCcy("EUR");
+
+      var remittanceInfo = new RemittanceInformation5();
+      remittanceInfo.getUstrd().add("payment");
+      var transaction = new EntryTransaction2();
+      transaction.setRmtInf(remittanceInfo);
+      var entryDetails = new EntryDetails1();
+      entryDetails.getTxDtls().add(transaction);
+
+      var family = new BankTransactionCodeStructure6();
+      family.setCd("RCDT");
+      family.setSubFmlyCd("BOOK");
+      var domain = new BankTransactionCodeStructure5();
+      domain.setCd("PMNT");
+      domain.setFmly(family);
+      var bankTxCode = new BankTransactionCodeStructure4();
+      bankTxCode.setDomn(domain);
+
+      var entry = new ReportEntry2();
+      entry.setAmt(amount);
+      entry.setCdtDbtInd(CreditDebitCode.CRDT);
+      entry.setNtryRef("EXT-001");
+      entry.getNtryDtls().add(entryDetails);
+      entry.setBkTxCd(bankTxCode);
+
+      var result = BankStatementEntry.from(entry, RECEIVED_BEFORE);
+
+      assertThat(result.subFamilyCode()).isEqualTo("BOOK");
+    }
+  }
+
+  @Nested
+  class Camt053RemittanceInformationExtraction {
+
+    @Test
+    void unstructuredRemittance_filtersOutBlankValuesBeforeCheckingForAmbiguity() {
+      var remittanceInfo =
+          new ee.tuleva.onboarding.banking.iso20022.camt053.RemittanceInformation5();
+      remittanceInfo.getUstrd().add("");
+      remittanceInfo.getUstrd().add("38888888888");
+
+      var entry = entryWithRemittanceInfo(remittanceInfo);
+
+      var result = BankStatementEntry.from(entry, TALLINN);
+
+      assertThat(result.remittanceInformation()).isEqualTo("38888888888");
+    }
+
+    @Test
+    void structuredRemittance_filtersOutNullAndBlankValuesBeforeCheckingForAmbiguity() {
+      var strd =
+          new ee.tuleva.onboarding.banking.iso20022.camt053.StructuredRemittanceInformation7();
+      strd.getAddtlRmtInf().add(null);
+      strd.getAddtlRmtInf().add("");
+      strd.getAddtlRmtInf().add("38888888888");
+      var remittanceInfo =
+          new ee.tuleva.onboarding.banking.iso20022.camt053.RemittanceInformation5();
+      remittanceInfo.getStrd().add(strd);
+
+      var entry = entryWithRemittanceInfo(remittanceInfo);
+
+      var result = BankStatementEntry.from(entry, TALLINN);
+
+      assertThat(result.remittanceInformation()).isEqualTo("38888888888");
+    }
+
+    private ee.tuleva.onboarding.banking.iso20022.camt053.ReportEntry2 entryWithRemittanceInfo(
+        ee.tuleva.onboarding.banking.iso20022.camt053.RemittanceInformation5 remittanceInfo) {
+      var amount =
+          new ee.tuleva.onboarding.banking.iso20022.camt053.ActiveOrHistoricCurrencyAndAmount();
+      amount.setValue(new BigDecimal("100.00"));
+      amount.setCcy("EUR");
+
+      var transaction = new ee.tuleva.onboarding.banking.iso20022.camt053.EntryTransaction2();
+      transaction.setRmtInf(remittanceInfo);
+
+      var entryDetails = new ee.tuleva.onboarding.banking.iso20022.camt053.EntryDetails1();
+      entryDetails.getTxDtls().add(transaction);
+
+      var entry = new ee.tuleva.onboarding.banking.iso20022.camt053.ReportEntry2();
+      entry.setAmt(amount);
+      entry.setCdtDbtInd(ee.tuleva.onboarding.banking.iso20022.camt053.CreditDebitCode.CRDT);
+      entry.setNtryRef("EXT-001");
+      entry.getNtryDtls().add(entryDetails);
+      return entry;
+    }
+  }
+
+  @Nested
+  class Camt053SubFamilyCodeExtraction {
+
+    @Test
+    void extractsSubFamilyCodeFromBankTransactionCode() {
+      var amount =
+          new ee.tuleva.onboarding.banking.iso20022.camt053.ActiveOrHistoricCurrencyAndAmount();
+      amount.setValue(new BigDecimal("100.00"));
+      amount.setCcy("EUR");
+
+      var remittanceInfo =
+          new ee.tuleva.onboarding.banking.iso20022.camt053.RemittanceInformation5();
+      remittanceInfo.getUstrd().add("payment");
+      var transaction = new ee.tuleva.onboarding.banking.iso20022.camt053.EntryTransaction2();
+      transaction.setRmtInf(remittanceInfo);
+      var entryDetails = new ee.tuleva.onboarding.banking.iso20022.camt053.EntryDetails1();
+      entryDetails.getTxDtls().add(transaction);
+
+      var family =
+          new ee.tuleva.onboarding.banking.iso20022.camt053.BankTransactionCodeStructure6();
+      family.setCd("RCDT");
+      family.setSubFmlyCd("BOOK");
+      var domain =
+          new ee.tuleva.onboarding.banking.iso20022.camt053.BankTransactionCodeStructure5();
+      domain.setCd("PMNT");
+      domain.setFmly(family);
+      var bankTxCode =
+          new ee.tuleva.onboarding.banking.iso20022.camt053.BankTransactionCodeStructure4();
+      bankTxCode.setDomn(domain);
+
+      var entry = new ee.tuleva.onboarding.banking.iso20022.camt053.ReportEntry2();
+      entry.setAmt(amount);
+      entry.setCdtDbtInd(ee.tuleva.onboarding.banking.iso20022.camt053.CreditDebitCode.CRDT);
+      entry.setNtryRef("EXT-001");
+      entry.getNtryDtls().add(entryDetails);
+      entry.setBkTxCd(bankTxCode);
+
+      var result = BankStatementEntry.from(entry, TALLINN);
+
+      assertThat(result.subFamilyCode()).isEqualTo("BOOK");
     }
   }
 }

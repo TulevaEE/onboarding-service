@@ -2,8 +2,8 @@ package ee.tuleva.onboarding.investment.transaction;
 
 import static java.util.stream.Collectors.toUnmodifiableSet;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.transaction.export.ExportFile;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;

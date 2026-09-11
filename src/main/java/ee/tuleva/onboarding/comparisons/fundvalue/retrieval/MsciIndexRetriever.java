@@ -1,11 +1,13 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.StreamSupport.stream;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import java.math.BigDecimal;
-import java.time.Instant;
+import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -14,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 @Slf4j
 @ToString(onlyExplicitlyIncluded = true)
@@ -25,11 +28,20 @@ public class MsciIndexRetriever implements ComparisonIndexRetriever {
   @ToString.Include private final String key;
   private final String indexCode;
   private final RestClient restClient;
+  private final JsonMapper jsonMapper;
+  private final Clock clock;
 
-  public MsciIndexRetriever(String key, String indexCode, RestClient.Builder restClientBuilder) {
+  public MsciIndexRetriever(
+      String key,
+      String indexCode,
+      RestClient.Builder restClientBuilder,
+      JsonMapper jsonMapper,
+      Clock clock) {
     this.key = key;
     this.indexCode = indexCode;
     this.restClient = restClientBuilder.build();
+    this.jsonMapper = jsonMapper;
+    this.clock = clock;
   }
 
   @Override
@@ -38,24 +50,42 @@ public class MsciIndexRetriever implements ComparisonIndexRetriever {
   }
 
   @Override
+  public Duration stalenessThreshold() {
+    return Duration.ofDays(5);
+  }
+
+  @Override
   public List<FundValue> retrieveValuesForRange(LocalDate startDate, LocalDate endDate) {
     String fetchUri = buildFetchUri(startDate, endDate);
 
-    JsonNode response =
-        restClient.get().uri(fetchUri).accept(APPLICATION_JSON).retrieve().body(JsonNode.class);
+    String body =
+        requireNonNull(
+            restClient.get().uri(fetchUri).accept(APPLICATION_JSON).retrieve().body(String.class),
+            "MSCI response is null: fetchUri=" + fetchUri);
+    if (isHtmlErrorPage(body)) {
+      throw new ComparisonIndexUnavailableException(
+          "MSCI answered with an HTML error page instead of JSON: key="
+              + key
+              + ", fetchUri="
+              + fetchUri);
+    }
 
-    return parseIndexLevels(response, startDate, endDate);
+    return parseIndexLevels(jsonMapper.readTree(body), startDate, endDate);
+  }
+
+  private static boolean isHtmlErrorPage(String body) {
+    return body.stripLeading().startsWith("<");
   }
 
   private List<FundValue> parseIndexLevels(
       JsonNode response, LocalDate startDate, LocalDate endDate) {
     JsonNode indexLevels = response.path("indexes").path("INDEX_LEVELS");
-    var now = Instant.now();
+    var now = clock.instant();
 
     return stream(indexLevels.spliterator(), false)
         .map(
             node -> {
-              String dateString = node.path("calc_date").asText();
+              String dateString = node.path("calc_date").asString();
               LocalDate date = LocalDate.parse(dateString, DATE_FORMATTER);
               BigDecimal value = BigDecimal.valueOf(node.path("level_eod").asDouble());
               return new FundValue(key, date, value, PROVIDER, now);

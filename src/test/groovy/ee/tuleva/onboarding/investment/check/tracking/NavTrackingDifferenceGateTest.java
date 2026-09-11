@@ -1,13 +1,14 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.never;
 
-import ee.tuleva.onboarding.investment.event.PipelineTracker;
+import ee.tuleva.onboarding.investment.TrackingCheckType;
+import ee.tuleva.onboarding.pipeline.PipelineTracker;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;

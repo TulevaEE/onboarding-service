@@ -1,0 +1,30 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
+        <mj-text>
+          Soovisid oma sissemakse Tuleva Kogumisfondi peatada. Me saime sinu soovi õigeaegselt
+          kätte ja saadame laekunud raha tänase päeva jooksul sinu kontole tagasi.
+        </mj-text>
+        <mj-text>Kui tahad uue sissemakse teha, siis vajuta siia.</mj-text>
+        <mj-button href="https://pension.tuleva.ee/savings-fund/payment">Tuleva konto</mj-button>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="./partials/contact_et.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">
+          Tõnu Pekk<br />
+          Tuleva asutaja ja fondijuht
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_savings_short_et.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

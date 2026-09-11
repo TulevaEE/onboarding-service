@@ -1,0 +1,39 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text font-family="Merriweather, Georgia, serif" font-size="20px" font-weight="700" line-height="130%">
+          Liikmetunnistus nr *|memberNumber|*
+        </mj-text>
+        <mj-text>
+          <strong>*|FNAME|*&nbsp;*|LNAME|*</strong><br />
+          on Tulundusühistu Tuleva liikmeks vastu võetud&nbsp;*|memberDate|*.
+        </mj-text>
+        <mj-text>
+          Tere tulemast ühistu liikmeks.<br />
+          Kuulud nüüd Tuleva omanikeringi ja igapäevaselt suhtleme kinnises
+          <a href="https://www.facebook.com/groups/tuleva.ee">Facebooki grupis</a>. Seal jagame
+          infot, peame arutelusid ja saad kaasa rääkida Tuleva tegemistes. Ära muretse, kui sul
+          Facebooki pole. Olulistest teemadest kirjutame alati sulle ka e-kirja teel.
+        </mj-text>
+
+        <mj-include path="./partials/suggest_chain_open_et.mjml" />
+        <mj-raw>*|END:IF|*</mj-raw>
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">
+          Juhatuse liikmed<br />
+          Tõnu Pekk ja Annika Uudelepp
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_pension_et.mjml" />
+    <mj-include path="./partials/footer_bottom_coop.mjml" />
+  </mj-body>
+</mjml>

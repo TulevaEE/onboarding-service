@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.capital.transfer.execution;
 
 import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.APPROVED_AND_NOTIFIED;
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.CAPITAL_TRANSFER_APPROVED_BY_BOARD;
+import static ee.tuleva.onboarding.notification.email.EmailType.CAPITAL_TRANSFER_APPROVED_BY_BOARD;
 
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEvent;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventRepository;
@@ -10,6 +10,7 @@ import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract.CapitalTransferAmount;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContractRepository;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContractService;
+import ee.tuleva.onboarding.capital.transfer.CapitalTransferEmailSender;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -31,6 +32,7 @@ public class CapitalTransferExecutor {
   private final CapitalTransferValidator validator;
   private final CapitalTransferContractService contractService;
   private final CapitalTransferEventLinkRepository linkRepository;
+  private final CapitalTransferEmailSender emailSender;
 
   @Transactional
   public void execute(CapitalTransferContract contract) {
@@ -64,14 +66,14 @@ public class CapitalTransferExecutor {
 
   private void sendApprovedByBoardEmails(CapitalTransferContract transfer) {
     try {
-      contractService.sendContractEmail(
+      emailSender.sendContractEmail(
           transfer.getBuyer().getUser(), CAPITAL_TRANSFER_APPROVED_BY_BOARD, transfer);
     } catch (Exception e) {
       log.error("Failed to send approved email to buyer for contract {}", transfer.getId(), e);
     }
 
     try {
-      contractService.sendContractEmail(
+      emailSender.sendContractEmail(
           transfer.getSeller().getUser(), CAPITAL_TRANSFER_APPROVED_BY_BOARD, transfer);
     } catch (Exception e) {
       log.error("Failed to send approved email to seller for contract {}", transfer.getId(), e);

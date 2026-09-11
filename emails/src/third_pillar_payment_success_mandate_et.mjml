@@ -1,0 +1,34 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
+        <mj-text>
+          Sissemakse on tehtud. Sellega oled 30% tublimate Eesti inimeste seas, kes
+          III&nbsp;sambas koguvad. Uued osakud jõuavad sinu pensionikontole järgmise tööpäeva
+          lõpuks. Kui kandsid raha üle nädalavahetusel, näed uusi osakuid oma pensionikontol
+          teisipäeva õhtuks.
+        </mj-text>
+
+        <mj-include path="./partials/suggest_chain_open_et.mjml" />
+
+        <mj-raw>*|END:IF|*</mj-raw>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="./partials/contact_et.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">
+          Tõnu Pekk<br />
+          Tuleva asutaja ja fondijuht
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_pension_et.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

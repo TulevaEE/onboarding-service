@@ -32,7 +32,7 @@ public class PortfolioCsvProcessor {
             .setAllowMissingColumnNames(true)
             .setTrim(true)
             .setIgnoreEmptyLines(true)
-            .build()
+            .get()
             .parse(new InputStreamReader(csvInputStream, StandardCharsets.UTF_8))) {
 
       List<Map<String, Object>> recordsList = new ArrayList<>();

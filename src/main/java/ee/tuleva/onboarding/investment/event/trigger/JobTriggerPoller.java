@@ -23,7 +23,8 @@ class JobTriggerPoller {
   private static final Map<String, Supplier<Object>> EVENTS =
       Map.ofEntries(
           Map.entry("TrackingDifferenceJob", RunTrackingDifferenceCheckRequested::new),
-          Map.entry("TrackingDifferenceBackfillJob", RunTrackingDifferenceBackfillRequested::new),
+          Map.entry(
+              "TrackingDifferenceBackfillJob", () -> new RunTrackingDifferenceBackfillRequested(7)),
           Map.entry("LimitCheckJob", RunLimitCheckRequested::new),
           Map.entry("FeeCheckJob", RunFeeCheckRequested::new),
           Map.entry("FeeSettlementCheckJob", RunFeeSettlementCheckRequested::new),
@@ -79,7 +80,7 @@ class JobTriggerPoller {
         markCompleted(trigger);
         log.info("Job trigger completed: jobName={}", trigger.getJobName());
       } catch (Exception e) {
-        markFailed(trigger, e.getMessage());
+        markFailed(trigger, e.getMessage() == null ? e.toString() : e.getMessage());
         log.error("Job trigger failed: jobName={}", trigger.getJobName(), e);
       }
     }

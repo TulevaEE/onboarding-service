@@ -8,9 +8,10 @@ import static org.springframework.http.MediaType.APPLICATION_JSON;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
+import ee.tuleva.onboarding.instrument.InstrumentReference;
+import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import java.math.BigDecimal;
 import java.time.Clock;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -44,16 +45,19 @@ public class EODHDValueRetriever implements ComparisonIndexRetriever {
   private final Clock clock;
   private final String apiToken;
   private final FundValueProvider fundValueProvider;
+  private final InstrumentReferenceService instrumentReferenceService;
 
   public EODHDValueRetriever(
       RestClient.Builder restClientBuilder,
       Clock clock,
       @Value("${eodhd.api-token:}") String apiToken,
-      FundValueProvider fundValueProvider) {
+      FundValueProvider fundValueProvider,
+      InstrumentReferenceService instrumentReferenceService) {
     this.restClient = restClientBuilder.build();
     this.clock = clock;
     this.apiToken = apiToken;
     this.fundValueProvider = fundValueProvider;
+    this.instrumentReferenceService = instrumentReferenceService;
   }
 
   @Override
@@ -68,13 +72,15 @@ public class EODHDValueRetriever implements ComparisonIndexRetriever {
 
   @Override
   public Set<String> expectedStorageKeys() {
-    return Stream.concat(FundTicker.getEodhdTickers().stream(), FOREX_TICKERS.stream())
+    return Stream.concat(
+            instrumentReferenceService.getEodhdTickers().stream(), FOREX_TICKERS.stream())
         .collect(toSet());
   }
 
   @Override
   public List<FundValue> retrieveValuesForRange(LocalDate startDate, LocalDate endDate) {
-    return Stream.concat(FundTicker.getEodhdTickers().stream(), FOREX_TICKERS.stream())
+    return Stream.concat(
+            instrumentReferenceService.getEodhdTickers().stream(), FOREX_TICKERS.stream())
         .flatMap(ticker -> retrieveValuesForTicker(ticker, startDate, endDate).stream())
         .toList();
   }
@@ -97,7 +103,7 @@ public class EODHDValueRetriever implements ComparisonIndexRetriever {
       return List.of();
     }
 
-    var now = Instant.now();
+    var now = clock.instant();
     List<FundValue> allValues =
         Arrays.stream(response)
             .map(
@@ -179,8 +185,9 @@ public class EODHDValueRetriever implements ComparisonIndexRetriever {
   }
 
   private Optional<FundValue> euronextValueOn(String ticker, LocalDate date) {
-    return FundTicker.findByEodhdTicker(ticker)
-        .flatMap(FundTicker::getEuronextParisStorageKey)
+    return instrumentReferenceService
+        .findByEodhdTicker(ticker)
+        .flatMap(InstrumentReference::getEuronextParisStorageKey)
         .flatMap(storageKey -> fundValueProvider.getLatestValue(storageKey, date))
         .filter(euronextValue -> euronextValue.date().equals(date));
   }

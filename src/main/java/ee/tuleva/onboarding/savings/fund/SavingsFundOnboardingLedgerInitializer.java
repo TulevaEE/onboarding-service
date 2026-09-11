@@ -1,7 +1,8 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import ee.tuleva.onboarding.ledger.LedgerParty.PartyType;
 import ee.tuleva.onboarding.ledger.LedgerService;
-import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.ledger.PartyRef;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -14,7 +15,7 @@ class SavingsFundOnboardingLedgerInitializer {
 
   @EventListener
   void onOnboardingCompleted(SavingsFundOnboardingCompletedEvent event) {
-    var party = new PartyId(PartyId.Type.PERSON, event.person().getPersonalCode());
+    var party = new PartyRef(PartyType.PERSON, event.person().getPersonalCode());
     ledgerService.initializeAccounts(party);
   }
 }

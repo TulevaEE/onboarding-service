@@ -13,6 +13,7 @@ import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -27,7 +28,7 @@ public class IDCardAuthProvider implements AuthProvider {
   }
 
   @Override
-  public AuthenticatedPerson authenticate(String authenticationHash) {
+  public AuthenticatedPerson authenticate(@Nullable String authenticationHash) {
     Optional<IdCardSession> session = sessionStore.get(IdCardSession.class);
     if (session.isEmpty()) {
       throw new IdCardSessionNotFoundException();

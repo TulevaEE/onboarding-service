@@ -21,7 +21,7 @@ public final class CountryCodes {
   private static final Map<Integer, String> ISO_3166_1_NUMERIC_TO_ALPHA2 =
       parseNumericToAlpha2Pairs(
           """
-          004=AF,012=DZ,024=AO,036=AU,040=AT,056=BE,070=BA,100=BG,104=MM,108=BI,
+          004=AF,012=DZ,024=AO,036=AU,040=AT,056=BE,070=BA,076=BR,100=BG,104=MM,108=BI,
           112=BY,120=CM,124=CA,140=CF,156=CN,180=CD,191=HR,192=CU,196=CY,203=CZ,
           208=DK,233=EE,246=FI,250=FR,275=PS,276=DE,300=GR,320=GT,324=GN,332=HT,
           348=HU,352=IS,356=IN,364=IR,368=IQ,372=IE,380=IT,392=JP,400=JO,408=KP,

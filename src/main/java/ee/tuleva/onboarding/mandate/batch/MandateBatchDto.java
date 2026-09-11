@@ -6,9 +6,9 @@ import static ee.tuleva.onboarding.pillar.Pillar.THIRD;
 import static java.util.stream.Collectors.toSet;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import ee.tuleva.onboarding.epis.mandate.details.FundPensionOpeningMandateDetails;
-import ee.tuleva.onboarding.epis.mandate.details.PartialWithdrawalMandateDetails;
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.mandate.details.FundPensionOpeningMandateDetails;
+import ee.tuleva.onboarding.mandate.details.PartialWithdrawalMandateDetails;
 import ee.tuleva.onboarding.mandate.generic.MandateDto;
 import ee.tuleva.onboarding.pillar.Pillar;
 import jakarta.annotation.Nullable;

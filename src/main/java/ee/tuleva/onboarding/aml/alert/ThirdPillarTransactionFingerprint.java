@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.aml.alert;
 
-import ee.tuleva.onboarding.analytics.transaction.thirdpillar.AnalyticsThirdPillarTransaction;
+import ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransaction;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import org.springframework.util.DigestUtils;

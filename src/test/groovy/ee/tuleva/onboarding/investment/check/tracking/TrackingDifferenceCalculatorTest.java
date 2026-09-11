@@ -1,12 +1,12 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
-import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.MODEL_PORTFOLIO;
+import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.ESCALATION_LOOKBACK_DAYS;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.ESCALATION_NET_TD_THRESHOLD;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.ESCALATION_THRESHOLD_DAYS;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.TRACKING_BREACH_THRESHOLD;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.TRACKING_MAX_DAILY_RETURN;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
@@ -697,6 +697,141 @@ class TrackingDifferenceCalculatorTest {
     org.assertj.core.api.Assertions.assertThatThrownBy(
             () -> calculator.escalationNetTdThreshold(CHECK_DATE))
         .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void navFlowIsNotEvaluatedWithoutNetAssetsAndUnits() {
+    var input =
+        TrackingInput.builder()
+            .fund(TUK75)
+            .checkDate(CHECK_DATE)
+            .checkType(MODEL_PORTFOLIO)
+            .todayNav(new BigDecimal("10.20"))
+            .yesterdayNav(new BigDecimal("10.00"))
+            .securities(
+                List.of(
+                    security(
+                        "IE00A", new BigDecimal("1.00"), new BigDecimal("1.00"), "102", "100")))
+            .cashWeight(BigDecimal.ZERO)
+            .accruedFeeFraction(BigDecimal.ZERO)
+            .bodHoldings(List.of(bodHolding("IE00A", new BigDecimal("1.00"), "102", "100")))
+            .bodSecuritiesFraction(new BigDecimal("1.00"))
+            .build();
+
+    var result = calculator.calculate(input);
+
+    assertThat(result).isPresent();
+    assertThat(result.get().navFlow()).isNull();
+  }
+
+  @Test
+  void navFlowLeavesNothingUnexplainedWhenPricesAndUnitFlowAccountForEverything() {
+    var input =
+        navFlowInput(
+                new BigDecimal("1.02"),
+                new BigDecimal("1.00"),
+                bodHolding("IE00A", new BigDecimal("1.00"), "102", "100"))
+            .openingNetAssets(new BigDecimal("1000000"))
+            .closingNetAssets(new BigDecimal("1122000"))
+            .previousUnits(new BigDecimal("1000000"))
+            .todayUnits(new BigDecimal("1100000"))
+            .build();
+
+    var result = calculator.calculate(input);
+
+    assertThat(result).isPresent();
+    var flow = result.get().navFlow();
+    assertThat(flow).isNotNull();
+    assertThat(flow.marketPnl()).isEqualByComparingTo(new BigDecimal("20000"));
+    assertThat(flow.unitFlow()).isEqualByComparingTo(new BigDecimal("102000"));
+    assertThat(flow.unexplained()).isEqualByComparingTo(BigDecimal.ZERO);
+  }
+
+  @Test
+  void navFlowUnexplainedIsTheRedemptionPayoutLeftBehindInTheFund() {
+    var input =
+        navFlowInput(
+                new BigDecimal("1.25"),
+                new BigDecimal("1.00"),
+                bodHolding("IE00A", new BigDecimal("1.00"), "100", "100"))
+            .openingNetAssets(new BigDecimal("1000000"))
+            .closingNetAssets(new BigDecimal("1000000"))
+            .previousUnits(new BigDecimal("1000000"))
+            .todayUnits(new BigDecimal("800000"))
+            .build();
+
+    var result = calculator.calculate(input);
+
+    assertThat(result).isPresent();
+    var flow = result.get().navFlow();
+    assertThat(flow).isNotNull();
+    assertThat(flow.marketPnl()).isEqualByComparingTo(BigDecimal.ZERO);
+    assertThat(flow.unitsChange()).isEqualByComparingTo(new BigDecimal("-200000"));
+    assertThat(flow.unitFlow()).isEqualByComparingTo(new BigDecimal("-250000"));
+    assertThat(flow.unexplained()).isEqualByComparingTo(new BigDecimal("250000"));
+  }
+
+  @Test
+  void navFlowUnexplainedOverOpeningNetAssetsEqualsNavResidual() {
+    var input =
+        navFlowInput(
+                new BigDecimal("1.25"),
+                new BigDecimal("1.00"),
+                bodHolding("IE00A", new BigDecimal("1.00"), "100", "100"))
+            .openingNetAssets(new BigDecimal("1000000"))
+            .closingNetAssets(new BigDecimal("1000000"))
+            .previousUnits(new BigDecimal("1000000"))
+            .todayUnits(new BigDecimal("800000"))
+            .build();
+
+    var result = calculator.calculate(input);
+
+    assertThat(result).isPresent();
+    var flow = result.get().navFlow();
+    assertThat(flow).isNotNull();
+    assertThat(
+            flow.unexplained().divide(flow.openingNetAssets(), 6, java.math.RoundingMode.HALF_UP))
+        .isEqualByComparingTo(result.get().navResidual());
+  }
+
+  @Test
+  void navFlowIgnoresAHoldingWhosePriceIsStaleOnBothLegs() {
+    var input =
+        navFlowInput(
+                new BigDecimal("1.01"),
+                new BigDecimal("1.00"),
+                bodHolding("IE00A", new BigDecimal("0.50"), "102", "100"),
+                bodHolding("IE00B", new BigDecimal("0.50"), "50", "50"))
+            .openingNetAssets(new BigDecimal("1000000"))
+            .closingNetAssets(new BigDecimal("1010000"))
+            .previousUnits(new BigDecimal("1000000"))
+            .todayUnits(new BigDecimal("1000000"))
+            .build();
+
+    var result = calculator.calculate(input);
+
+    assertThat(result).isPresent();
+    var flow = result.get().navFlow();
+    assertThat(flow).isNotNull();
+    assertThat(flow.marketPnl()).isEqualByComparingTo(new BigDecimal("10000"));
+    assertThat(flow.unexplained()).isEqualByComparingTo(BigDecimal.ZERO);
+  }
+
+  private TrackingInput.TrackingInputBuilder navFlowInput(
+      BigDecimal todayNav,
+      BigDecimal yesterdayNav,
+      TrackingDifferenceCalculator.BodHolding... bodHoldings) {
+    return TrackingInput.builder()
+        .fund(TUK75)
+        .checkDate(CHECK_DATE)
+        .checkType(MODEL_PORTFOLIO)
+        .todayNav(todayNav)
+        .yesterdayNav(yesterdayNav)
+        .securities(List.of())
+        .cashWeight(BigDecimal.ZERO)
+        .accruedFeeFraction(BigDecimal.ZERO)
+        .bodHoldings(List.of(bodHoldings))
+        .bodSecuritiesFraction(BigDecimal.ONE);
   }
 
   private SecurityData security(

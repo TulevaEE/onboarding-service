@@ -4,7 +4,7 @@ import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.F
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.NAV_UNIT_IMPACT;
 import static java.math.RoundingMode.HALF_UP;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.util.List;
 import org.jspecify.annotations.Nullable;

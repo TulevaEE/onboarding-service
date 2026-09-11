@@ -3,12 +3,14 @@ package ee.tuleva.onboarding.savings.fund;
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
-import static ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus.*;
+import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.aml.AmlCheck;
 import ee.tuleva.onboarding.aml.AmlCheckType;
 import ee.tuleva.onboarding.company.Company;
+import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.time.ClockConfig;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.time.Clock;
 import java.time.Instant;
@@ -19,13 +21,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 import org.springframework.context.annotation.Import;
+import org.springframework.jdbc.core.simple.JdbcClient;
 
 @DataJpaTest
-@Import(SavingsFundOnboardingRepository.class)
+@Import({SavingsFundOnboardingRepository.class, ClockConfig.class})
 class SavingsFundOnboardingRepositoryTest {
 
   @Autowired SavingsFundOnboardingRepository repository;
   @Autowired TestEntityManager entityManager;
+  @Autowired JdbcClient jdbcClient;
 
   @AfterEach
   void resetClock() {
@@ -64,6 +68,15 @@ class SavingsFundOnboardingRepositoryTest {
   private Company company(String registryCode) {
     return entityManager.persist(
         Company.builder().registryCode(registryCode).name("Test OÜ " + registryCode).build());
+  }
+
+  private Instant updatedAt(String code, PartyId.Type type) {
+    return jdbcClient
+        .sql("SELECT updated_at FROM savings_fund_onboarding WHERE code = :code AND type = :type")
+        .param("code", code)
+        .param("type", type.name())
+        .query((rs, rowNum) -> rs.getTimestamp("updated_at").toInstant())
+        .single();
   }
 
   private void amlCheck(Company company, AmlCheckType type, boolean success, Instant createdTime) {
@@ -106,6 +119,19 @@ class SavingsFundOnboardingRepositoryTest {
   }
 
   @Test
+  void saveOnboardingStatus_returnsEmptyWhenNoRecordExisted() {
+    assertThat(repository.saveOnboardingStatus("87654321", LEGAL_ENTITY, PENDING)).isEmpty();
+  }
+
+  @Test
+  void saveOnboardingStatus_returnsThePreviousStatusWhenRecordExisted() {
+    repository.saveOnboardingStatus("12121212", LEGAL_ENTITY, PENDING);
+
+    assertThat(repository.saveOnboardingStatus("12121212", LEGAL_ENTITY, COMPLETED))
+        .contains(PENDING);
+  }
+
+  @Test
   void findPersonCodes_returnsEveryOnboardedPersonRegardlessOfStatus() {
     repository.saveOnboardingStatus("60001019906", PERSON, COMPLETED);
     repository.saveOnboardingStatus("38888888888", PERSON, PENDING);
@@ -115,12 +141,72 @@ class SavingsFundOnboardingRepositoryTest {
         .containsExactlyInAnyOrder("60001019906", "38888888888");
   }
 
+  // Concurrent verifications re-screen the same waiting set. Taking the companies in a stable
+  // order keeps their per-company locks in a consistent sequence.
+  @Test
+  void findPendingLegalEntityCodes_returnsOnlyPendingLegalEntitiesOrderedByCode() {
+    repository.saveOnboardingStatus("33333333", LEGAL_ENTITY, PENDING);
+    repository.saveOnboardingStatus("11111111", LEGAL_ENTITY, PENDING);
+    repository.saveOnboardingStatus("22222222", LEGAL_ENTITY, COMPLETED);
+    repository.saveOnboardingStatus("44444444", LEGAL_ENTITY, PENDING);
+    repository.saveOnboardingStatus("38888888888", PERSON, PENDING);
+
+    assertThat(repository.findPendingLegalEntityCodes())
+        .containsExactly("11111111", "33333333", "44444444");
+  }
+
   @Test
   void saveOnboardingStatus_separatesPersonAndLegalEntity() {
     repository.saveOnboardingStatus("14118923", LEGAL_ENTITY, COMPLETED);
 
     assertThat(repository.isOnboardingCompleted("14118923", LEGAL_ENTITY)).isTrue();
     assertThat(repository.isOnboardingCompleted("14118923", PERSON)).isFalse();
+  }
+
+  @Test
+  void saveOnboardingStatus_stampsUpdatedAtWithTheClock() {
+    var startedAt = Instant.parse("2026-08-01T10:00:00Z");
+    ClockHolder.setClock(Clock.fixed(startedAt, ZoneOffset.UTC));
+
+    repository.saveOnboardingStatus("38888888888", PERSON, PENDING);
+
+    assertThat(updatedAt("38888888888", PERSON)).isEqualTo(startedAt);
+  }
+
+  @Test
+  void saveOnboardingStatus_movesUpdatedAtWhenTheStatusChanges() {
+    var startedAt = Instant.parse("2026-08-01T10:00:00Z");
+    var completedAt = Instant.parse("2026-08-05T10:00:00Z");
+    ClockHolder.setClock(Clock.fixed(startedAt, ZoneOffset.UTC));
+    repository.saveOnboardingStatus("38888888888", PERSON, PENDING);
+
+    ClockHolder.setClock(Clock.fixed(completedAt, ZoneOffset.UTC));
+    repository.saveOnboardingStatus("38888888888", PERSON, COMPLETED);
+
+    assertThat(updatedAt("38888888888", PERSON)).isEqualTo(completedAt);
+  }
+
+  @Test
+  void saveOnboardingStatus_movesUpdatedAtOnEveryWrite() {
+    var completedAt = Instant.parse("2026-08-05T10:00:00Z");
+    var rewrittenAt = Instant.parse("2026-08-20T10:00:00Z");
+    ClockHolder.setClock(Clock.fixed(completedAt, ZoneOffset.UTC));
+    repository.saveOnboardingStatus("38888888888", PERSON, COMPLETED);
+
+    ClockHolder.setClock(Clock.fixed(rewrittenAt, ZoneOffset.UTC));
+    repository.saveOnboardingStatus("38888888888", PERSON, COMPLETED);
+
+    assertThat(updatedAt("38888888888", PERSON)).isEqualTo(rewrittenAt);
+  }
+
+  @Test
+  void insertOnboardingStatusIfAbsent_stampsUpdatedAtWithTheClock() {
+    var startedAt = Instant.parse("2026-08-01T10:00:00Z");
+    ClockHolder.setClock(Clock.fixed(startedAt, ZoneOffset.UTC));
+
+    repository.insertOnboardingStatusIfAbsent("38888888888", PERSON, PENDING);
+
+    assertThat(updatedAt("38888888888", PERSON)).isEqualTo(startedAt);
   }
 
   @Test

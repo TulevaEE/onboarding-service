@@ -1,17 +1,18 @@
 package ee.tuleva.onboarding.mandate.generic;
 
 import static ee.tuleva.onboarding.mandate.MandateType.*;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.conversion.ConversionDecorator;
 import ee.tuleva.onboarding.conversion.UserConversionService;
-import ee.tuleva.onboarding.epis.EpisService;
-import ee.tuleva.onboarding.epis.mandate.details.TransferCancellationMandateDetails;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.mandate.MandateContacts;
 import ee.tuleva.onboarding.mandate.MandateType;
-import ee.tuleva.onboarding.mandate.builder.ConversionDecorator;
+import ee.tuleva.onboarding.mandate.details.TransferCancellationMandateDetails;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
@@ -24,14 +25,14 @@ public class TransferCancellationMandateFactory
 
   public TransferCancellationMandateFactory(
       UserService userService,
-      EpisService episService,
+      MandateContacts mandateContacts,
       UserConversionService conversionService,
       ConversionDecorator conversionDecorator,
       SecondPillarPaymentRateService secondPillarPaymentRateService,
       FundRepository fundRepository) {
     super(
         userService,
-        episService,
+        mandateContacts,
         conversionService,
         conversionDecorator,
         secondPillarPaymentRateService);
@@ -44,9 +45,10 @@ public class TransferCancellationMandateFactory
       MandateDto<TransferCancellationMandateDetails> mandateCreationDto) {
     Mandate mandate = this.setupMandate(authenticatedPerson, mandateCreationDto);
 
+    String sourceFundIsin = mandateCreationDto.getDetails().getSourceFundIsinOfTransferToCancel();
     Fund sourceFund =
-        fundRepository.findByIsin(
-            mandateCreationDto.getDetails().getSourceFundIsinOfTransferToCancel());
+        requireNonNull(
+            fundRepository.findByIsin(sourceFundIsin), "Fund not found: isin=" + sourceFundIsin);
 
     final var exchange =
         FundTransferExchange.builder()
@@ -57,7 +59,6 @@ public class TransferCancellationMandateFactory
             .build();
 
     // TODO legacy fields
-    mandate.setPillar(sourceFund.getPillar());
     mandate.setFundTransferExchanges(List.of(exchange));
 
     return mandate;

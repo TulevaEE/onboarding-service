@@ -1,0 +1,28 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
+        <mj-text>
+          *|sellerFullName|* kinnitas raha laekumist ja saatis avalduse Tuleva ühistu
+          juhatusele kinnitamiseks. <strong>Avaldus vaadatakse läbi ühe nädala jooksul</strong>
+          ning otsusest teavitatakse mõlemat tehingu osapoolt meili teel.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="./partials/contact_et.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">
+          Tulundusühistu Tuleva juhatuse liikmed<br />
+          Annika Uudelepp ja Tõnu Pekk
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/footer_bottom_coop.mjml" />
+  </mj-body>
+</mjml>

@@ -5,7 +5,6 @@ import static ee.tuleva.onboarding.investment.report.ReportType.R16_FORECASTED_P
 import static ee.tuleva.onboarding.investment.report.ReportType.R17_PEVA;
 import static ee.tuleva.onboarding.investment.report.ReportType.R21_RAVA;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.epis.parser.R16ParsedFlow;
 import ee.tuleva.onboarding.investment.epis.parser.R16ReportParser;
 import ee.tuleva.onboarding.investment.epis.parser.R17ReportParser;
@@ -13,6 +12,7 @@ import ee.tuleva.onboarding.investment.epis.parser.R21ReportParser;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportRepository;
 import ee.tuleva.onboarding.investment.report.ReportType;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.YearMonth;

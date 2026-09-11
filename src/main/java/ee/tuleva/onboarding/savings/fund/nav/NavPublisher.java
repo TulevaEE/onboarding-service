@@ -1,14 +1,13 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
-import static ee.tuleva.onboarding.investment.event.PipelineStep.REPORT_EMAIL;
-import static ee.tuleva.onboarding.investment.event.PipelineStep.REPORT_PERSIST;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
+import static ee.tuleva.onboarding.pipeline.PipelineStep.REPORT_EMAIL;
+import static ee.tuleva.onboarding.pipeline.PipelineStep.REPORT_PERSIST;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
-import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
-import ee.tuleva.onboarding.investment.check.tracking.NavTrackingDifferenceGate;
-import ee.tuleva.onboarding.investment.event.PipelineTracker;
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValueWriter;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.pipeline.PipelineTracker;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -23,13 +22,13 @@ public class NavPublisher {
 
   private static final String NAV_PROVIDER = "TULEVA";
 
-  private final FundValueRepository fundValueRepository;
+  private final FundValueWriter fundValueWriter;
   private final NavReportMapper navReportMapper;
   private final NavReportRepository navReportRepository;
   private final NavReportEmailSender navReportEmailSender;
   private final NavNotifier navNotifier;
   private final OperationsNotificationService notificationService;
-  private final NavTrackingDifferenceGate trackingDifferenceGate;
+  private final NavPublicationGate trackingDifferenceGate;
   private final PipelineTracker pipelineTracker;
 
   public void publish(NavCalculationResult result) {
@@ -50,6 +49,28 @@ public class NavPublisher {
         "Published NAV: fund={}, date={}, navPerUnit={}, aum={}",
         result.fund(),
         result.calculationDate(),
+        result.navPerUnit(),
+        result.aum());
+  }
+
+  void publishRevision(NavCalculationResult result, NavRevision revision) {
+    UUID calculationId = UUID.randomUUID();
+    List<NavReportRow> reportRows = persistReportRows(result, calculationId);
+
+    if (reportRows.isEmpty()) {
+      throw new IllegalStateException(
+          "NAV revision rows not persisted: fund=%s, date=%s"
+              .formatted(result.fund().getCode(), result.positionReportDate()));
+    }
+
+    String reason = revision.describe(result);
+    routeToInternalReview(
+        result, reportRows, calculationId, reason, revisionActionMessage(result, reason));
+
+    log.info(
+        "Published NAV revision: fund={}, date={}, navPerUnit={}, aum={}",
+        result.fund(),
+        result.positionReportDate(),
         result.navPerUnit(),
         result.aum());
   }
@@ -99,7 +120,12 @@ public class NavPublisher {
       NavCalculationResult result, List<NavReportRow> reportRows, UUID calculationId) {
     Optional<String> gateFailure = checkGates(result);
     if (gateFailure.isPresent()) {
-      routeToInternalReview(result, reportRows, calculationId, gateFailure.get());
+      routeToInternalReview(
+          result,
+          reportRows,
+          calculationId,
+          gateFailure.get(),
+          reviewActionMessage(result, gateFailure.get()));
       return;
     }
 
@@ -126,9 +152,10 @@ public class NavPublisher {
       NavCalculationResult result,
       List<NavReportRow> reportRows,
       UUID calculationId,
-      String reason) {
+      String reason,
+      String actionMessage) {
     log.error(
-        "NAV report held by TD gate, routing to internal review (NOT sent to SEB): fund={}, date={}, reason={}",
+        "NAV report held for internal review (NOT sent to SEB): fund={}, date={}, reason={}",
         result.fund(),
         result.positionReportDate(),
         reason);
@@ -136,7 +163,7 @@ public class NavPublisher {
     if (navReportEmailSender.sendForReview(reportRows, result)) {
       navReportRepository.markAsPublished(calculationId);
       pipelineTracker.stepCompleted(REPORT_EMAIL);
-      notificationService.sendMessage(reviewActionMessage(result, reason), SAVINGS);
+      notificationService.sendMessage(actionMessage, SAVINGS);
     } else {
       pipelineTracker.stepFailed(REPORT_EMAIL, "internal review email failed");
       log.error(
@@ -162,6 +189,25 @@ public class NavPublisher {
         3. Optional (needs compliance sign-off) — widen the TD gate going forward:
            INSERT INTO investment_parameter (parameter_name, fund_code, effective_date, numeric_value) VALUES ('TRACKING_BREACH_THRESHOLD', NULL, CURRENT_DATE, 0.005);"""
         .formatted(reason, result.fund().getCode());
+  }
+
+  private String revisionActionMessage(NavCalculationResult result, String reason) {
+    String fundCode = result.fund().getCode();
+    String savingsFundStep =
+        result.fund().isSavingsFund()
+            ? "\n4. %s only: the public NAV in index_values is append-only and still holds the earlier value; correct it manually."
+                .formatted(fundCode)
+            : "";
+    return """
+        🔴 NAV REVISED after the custodian position report changed — held for review, NOT sent to SEB.
+        fund=%s, navDate=%s: %s
+        The revised CSV report was emailed to funds@tuleva.ee.
+
+        What to do now:
+        1. Check the changed rows against the new SEB position report.
+        2. If SEB has not received the revised NAV yet, forward the "%s NAV arvutamine ..." email to trustee@seb.ee.
+        3. This revision now supersedes the earlier calculation in nav_report; no DB change is needed.%s"""
+        .formatted(fundCode, result.positionReportDate(), reason, fundCode, savingsFundStep);
   }
 
   private boolean sendEmail(List<NavReportRow> reportRows, NavCalculationResult result) {
@@ -203,7 +249,7 @@ public class NavPublisher {
             NAV_PROVIDER,
             result.calculatedAt());
 
-    fundValueRepository.save(navValue);
+    fundValueWriter.save(navValue);
   }
 
   private void publishAum(NavCalculationResult result) {
@@ -215,6 +261,6 @@ public class NavPublisher {
             NAV_PROVIDER,
             result.calculatedAt());
 
-    fundValueRepository.save(aumValue);
+    fundValueWriter.save(aumValue);
   }
 }

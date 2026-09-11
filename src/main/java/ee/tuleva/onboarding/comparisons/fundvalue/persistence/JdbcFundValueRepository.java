@@ -6,6 +6,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.*;
@@ -25,6 +26,7 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
   static final BigDecimal MAX_DEVIATION = new BigDecimal("0.20");
 
   private final NamedParameterJdbcTemplate jdbcTemplate;
+  private final Clock clock;
 
   private static final String FIND_LAST_VALUE_QUERY =
       """
@@ -159,13 +161,12 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
 
     @Override
     public FundValue mapRow(ResultSet rs, int rowNum) throws SQLException {
-      var timestamp = rs.getTimestamp("updated_at");
       return new FundValue(
           rs.getString("key"),
           rs.getDate("date").toLocalDate(),
           rs.getBigDecimal("value"),
           rs.getString("provider"),
-          timestamp != null ? timestamp.toInstant() : null);
+          rs.getTimestamp("updated_at").toInstant());
     }
   }
 
@@ -187,7 +188,7 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
     if (fundValue.key().startsWith("AUM_")) {
       return false;
     }
-    if (fundValue.date().isBefore(LocalDate.now().minusYears(1))) {
+    if (fundValue.date().isBefore(LocalDate.now(clock).minusYears(1))) {
       return false;
     }
     LocalDate previousDate = fundValue.date().minusDays(7);

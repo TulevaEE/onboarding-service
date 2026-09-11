@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.transaction;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -64,8 +64,7 @@ class PendingOrderImpactServiceTest {
 
     assertThat(impact.unreportedPositionValues())
         .containsExactly(Map.entry("IE00A", new BigDecimal("5000")));
-    assertThat(impact.unreportedPositionQuantities())
-        .containsExactly(Map.entry("IE00A", new BigDecimal("100")));
+    assertThat(impact.unreportedPositionQuantities()).isEmpty();
     assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("5000"));
     assertThat(impact.pendingSells()).isEqualByComparingTo(ZERO);
   }
@@ -140,8 +139,7 @@ class PendingOrderImpactServiceTest {
 
     assertThat(impact.unreportedPositionValues())
         .containsExactly(Map.entry("IE00A", new BigDecimal("5000")));
-    assertThat(impact.unreportedPositionQuantities())
-        .containsExactly(Map.entry("IE00A", new BigDecimal("100")));
+    assertThat(impact.unreportedPositionQuantities()).isEmpty();
     assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("5000"));
   }
 
@@ -545,7 +543,7 @@ class PendingOrderImpactServiceTest {
   }
 
   @Test
-  void theUnfilledRemainderIsSynthesizedBecauseItsCashIsAlreadyReserved() {
+  void theUnfilledRemainderReservesCashButAddsNoUnitsToTheHolding() {
     given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
         .willReturn(
             List.of(
@@ -566,8 +564,78 @@ class PendingOrderImpactServiceTest {
 
     assertThat(impact.unreportedPositionValues())
         .containsExactly(Map.entry("IE00A", new BigDecimal("2000")));
-    assertThat(impact.unreportedPositionQuantities())
-        .containsExactly(Map.entry("IE00A", new BigDecimal("40")));
+    assertThat(impact.unreportedPositionQuantities()).isEmpty();
+    assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("5000"));
+  }
+
+  @Test
+  void aSellPlacedInEurosReducesTheValueButNotTheUnitsBecauseNoUnitCountWasGiven() {
+    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
+        .willReturn(
+            List.of(
+                order(
+                    1L,
+                    "IE00A",
+                    TransactionType.SELL,
+                    InstrumentType.ETF,
+                    OrderStatus.SENT,
+                    null,
+                    new BigDecimal("4000"))));
+    given(executionRepository.findByOrderIdIn(List.of(1L))).willReturn(List.of());
+
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
+
+    assertThat(impact.unreportedPositionValues())
+        .containsExactly(Map.entry("IE00A", new BigDecimal("-4000")));
+    assertThat(impact.unreportedPositionQuantities()).isEmpty();
+    assertThat(impact.pendingSells()).isEqualByComparingTo(new BigDecimal("4000"));
+  }
+
+  @Test
+  void anUnfilledFundSellReducesTheValueButContributesNoUnits() {
+    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
+        .willReturn(
+            List.of(
+                order(
+                    1L,
+                    "IE00B",
+                    TransactionType.SELL,
+                    InstrumentType.FUND,
+                    OrderStatus.SENT,
+                    new BigDecimal("20"),
+                    new BigDecimal("1000"))));
+    given(executionRepository.findByOrderIdIn(List.of(1L))).willReturn(List.of());
+
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
+
+    assertThat(impact.unreportedPositionValues())
+        .containsExactly(Map.entry("IE00B", new BigDecimal("-1000")));
+    assertThat(impact.unreportedPositionQuantities()).isEmpty();
+    assertThat(impact.pendingSells()).isEqualByComparingTo(new BigDecimal("1000"));
+  }
+
+  @Test
+  void anUnexecutedEtfBuyNeverInflatesTheQuantityAvailableToSell() {
+    given(orderRepository.findUnsettledOrders(TUV100, AS_OF_DATE))
+        .willReturn(
+            List.of(
+                order(
+                    1L,
+                    "IE00A",
+                    TransactionType.BUY,
+                    InstrumentType.ETF,
+                    OrderStatus.SENT,
+                    new BigDecimal("100"),
+                    new BigDecimal("5000"))));
+    given(executionRepository.findByOrderIdIn(List.of(1L))).willReturn(List.of());
+    given(positionPriceResolver.resolve("IE00A", AS_OF_DATE))
+        .willReturn(Optional.of(ResolvedPrice.builder().usedPrice(new BigDecimal("50")).build()));
+
+    var impact = service.calculate(TUV100, AS_OF_DATE, POSITION_DATE);
+
+    assertThat(impact.unreportedPositionQuantities()).isEmpty();
+    assertThat(impact.unreportedPositionValues())
+        .containsExactly(Map.entry("IE00A", new BigDecimal("5000")));
     assertThat(impact.pendingBuys()).isEqualByComparingTo(new BigDecimal("5000"));
   }
 

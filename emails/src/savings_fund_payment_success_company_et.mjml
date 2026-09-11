@@ -1,0 +1,37 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
+        <mj-text>
+          Sinu sissemakse ettevõtte Tuleva Täiendavasse Kogumisfondi on tehtud.
+          *|IF:RECIPIENTNAME|*Saaja on *|RECIPIENTNAME|* ja osakud jõuavad ettevõtte kontole
+          kahe tööpäeva jooksul.*|ELSE:|*Osakud jõuavad ettevõtte kontole kahe tööpäeva
+          jooksul.*|END:IF|*
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-include path="./partials/suggest_chain_open_et.mjml" />
+        <mj-raw>*|END:IF|*</mj-raw>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="./partials/contact_et.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">
+          Tõnu Pekk<br />
+          Tuleva asutaja ja fondijuht
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_savings_et.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

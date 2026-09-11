@@ -10,6 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
@@ -43,7 +44,7 @@ public class KybScreeningService {
         .toList();
   }
 
-  private KybCheck applyOverride(KybCheck check, KybCheckOverride override) {
+  private KybCheck applyOverride(KybCheck check, @Nullable KybCheckOverride override) {
     if (override == null) {
       return check;
     }
@@ -53,7 +54,7 @@ public class KybScreeningService {
     return new KybCheck(check.type(), override.isForcedSuccess(), metadata);
   }
 
-  public List<KybCheck> screen(KybCompanyData companyData) {
+  public List<KybCheck> screen(KybCompanyData companyData, KybScreeningTrigger trigger) {
     var screenerResults = validate(companyData);
 
     var dataChangedCheck =
@@ -69,7 +70,8 @@ public class KybScreeningService {
             companyData.personalCode(),
             companyData.relatedPersons(),
             results,
-            companyData.representationRights()));
+            companyData.representationRights(),
+            trigger));
 
     return results;
   }

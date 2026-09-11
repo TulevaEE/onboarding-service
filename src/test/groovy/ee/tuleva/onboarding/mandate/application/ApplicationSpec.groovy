@@ -1,13 +1,14 @@
 package ee.tuleva.onboarding.mandate.application
 
+import ee.tuleva.onboarding.applicationtype.ApplicationType
 import ee.tuleva.onboarding.fund.ApiFundResponse
 import ee.tuleva.onboarding.fund.Fund
 import spock.lang.Specification
 
-import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.*
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.EARLY_WITHDRAWAL
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.TRANSFER
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL
+import static ee.tuleva.onboarding.mandate.application.ApplicationStatus.*
+import static ee.tuleva.onboarding.applicationtype.ApplicationType.EARLY_WITHDRAWAL
+import static ee.tuleva.onboarding.applicationtype.ApplicationType.TRANSFER
+import static ee.tuleva.onboarding.applicationtype.ApplicationType.WITHDRAWAL
 
 class ApplicationSpec extends Specification {
 
@@ -50,6 +51,21 @@ class ApplicationSpec extends Specification {
     !Application.builder().build().isPending()
   }
 
+  def "isComplete"() {
+    expect:
+    Application.builder().status(COMPLETE).build().isComplete()
+    !Application.builder().status(PENDING).build().isComplete()
+    !Application.builder().status(FAILED).build().isComplete()
+    !Application.builder().build().isComplete()
+  }
+
+  def "hasStatus"() {
+    expect:
+    Application.builder().status(PENDING).build().hasStatus(PENDING)
+    !Application.builder().status(PENDING).build().hasStatus(COMPLETE)
+    !Application.builder().build().hasStatus(PENDING)
+  }
+
   def "getPillar"() {
     def secondPillarFund = new ApiFundResponse(Fund.builder().pillar(2).build(), Locale.ENGLISH)
     def secondPillarExchange = new Exchange(secondPillarFund, secondPillarFund, null, BigDecimal.ONE)
@@ -61,5 +77,22 @@ class ApplicationSpec extends Specification {
         )
         .build()
         .getPillar() == 2
+  }
+
+  def "getPillar throws when the transfer exchanges span different pillars than the source fund"() {
+    def secondPillarFund = new ApiFundResponse(Fund.builder().pillar(2).build(), Locale.ENGLISH)
+    def thirdPillarFund = new ApiFundResponse(Fund.builder().pillar(3).build(), Locale.ENGLISH)
+    def thirdPillarExchange = new Exchange(thirdPillarFund, thirdPillarFund, null, BigDecimal.TEN)
+
+    when:
+    Application.builder()
+        .details(
+            TransferApplicationDetails.builder().sourceFund(secondPillarFund).exchange(thirdPillarExchange).build()
+        )
+        .build()
+        .getPillar()
+
+    then:
+    thrown(IllegalStateException)
   }
 }

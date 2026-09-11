@@ -1,18 +1,18 @@
 package ee.tuleva.onboarding.investment.transaction.export;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.*;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.FUND;
 import static ee.tuleva.onboarding.investment.transaction.OrderVenue.SEB;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.*;
 import static java.math.BigDecimal.ZERO;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import ee.tuleva.onboarding.fund.FundAccounts;
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.transaction.OrderVenue;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionType;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -28,6 +28,7 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -177,7 +178,7 @@ public class TransactionExportService {
         row.createCell(1).setCellValue(fundAccounts.securitiesAccount(order.getFund()));
         row.createCell(2).setCellValue(order.getInstrumentIsin());
         row.createCell(3).setCellValue(ricByIsin.getOrDefault(order.getInstrumentIsin(), ""));
-        row.createCell(4).setCellValue("MOC");
+        row.createCell(4).setCellValue(order.getOrderType().name());
         if (order.getOrderQuantity() != null) {
           row.createCell(6).setCellValue(order.getOrderQuantity().doubleValue());
         }
@@ -345,7 +346,7 @@ public class TransactionExportService {
     final TransactionType transactionType;
     BigDecimal totalQuantity = ZERO;
     BigDecimal totalAmount = ZERO;
-    LocalDate settlementDate;
+    @Nullable LocalDate settlementDate;
     final Map<TulevaFund, BigDecimal> quantityByFund = new LinkedHashMap<>();
 
     AggregatedFtOrder(String isin, TransactionType transactionType) {

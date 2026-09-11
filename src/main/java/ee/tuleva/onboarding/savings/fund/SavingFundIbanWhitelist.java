@@ -10,6 +10,7 @@ import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.*;
+import org.jspecify.annotations.Nullable;
 
 @Entity
 @Table(name = "saving_fund_iban_whitelist")
@@ -37,7 +38,7 @@ class SavingFundIbanWhitelist {
   @Column(nullable = false)
   private String iban;
 
-  @Column private String comment;
+  @Column @Nullable private String comment;
 
   @Column(nullable = false, updatable = false)
   private Instant createdAt;

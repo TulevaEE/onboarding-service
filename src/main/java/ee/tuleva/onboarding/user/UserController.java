@@ -2,11 +2,9 @@ package ee.tuleva.onboarding.user;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.epis.EpisService;
-import ee.tuleva.onboarding.epis.contact.ContactDetails;
-import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
 import ee.tuleva.onboarding.error.ValidationErrorsException;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
+import ee.tuleva.onboarding.user.UserContacts.ContactSummary;
 import ee.tuleva.onboarding.user.command.UpdateUserCommand;
 import ee.tuleva.onboarding.user.response.UserResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -28,19 +26,18 @@ import org.springframework.web.bind.annotation.RestController;
 public class UserController {
 
   private final UserService userService;
-  private final EpisService episService;
-  private final ContactDetailsService contactDetailsService;
+  private final UserContacts userContacts;
   private final SecondPillarPaymentRateService secondPillarPaymentRateService;
 
   @Operation(summary = "Get info about the current user")
   @GetMapping("/me")
   public UserResponse me(@AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-    Long userId = authenticatedPerson.getUserId();
+    Long userId = authenticatedPerson.getUserIdOrThrow();
     User user = userService.getById(userId).orElseThrow();
-    ContactDetails contactDetails = episService.getContactDetails(authenticatedPerson);
+    ContactSummary contactSummary = userContacts.forPerson(authenticatedPerson);
     return UserResponse.from(
         user,
-        contactDetails,
+        contactSummary,
         secondPillarPaymentRateService.getPaymentRates(authenticatedPerson),
         authenticatedPerson.getRole());
   }
@@ -63,16 +60,14 @@ public class UserController {
 
     User user =
         userService.updateUser(
-            authenticatedPerson.getPersonalCode(),
-            Optional.of(cmd.getEmail()),
-            cmd.getPhoneNumber());
+            authenticatedPerson.getPersonalCode(), Optional.of(cmd.email()), cmd.phoneNumber());
 
-    if (cmd.getAddress() != null) {
-      ContactDetails contactDetails =
-          contactDetailsService.updateContactDetails(user, cmd.getAddress());
+    if (cmd.address() != null) {
+      ContactSummary contactSummary =
+          userContacts.update(user, user.getEmail(), user.getPhoneNumber(), cmd.address());
       return UserResponse.from(
           user,
-          contactDetails,
+          contactSummary,
           secondPillarPaymentRateService.getPaymentRates(authenticatedPerson));
     }
 

@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.asn1.DLSequence;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -48,38 +49,49 @@ public class IdDocumentTypeExtractor {
   public IdDocumentType extract(X509Certificate certificate) {
     try {
       byte[] encodedExtensionValue = certificate.getExtensionValue(certificatePolicies.getId());
-      if (encodedExtensionValue != null) {
-        var extensionValue = (DLSequence) parseExtensionValue(encodedExtensionValue);
-        String documentTypeOid = null;
-        boolean hasAuthPolicy = false;
-
-        for (int i = 0; i < extensionValue.size(); i++) {
-          var policy = (DLSequence) extensionValue.getObjectAt(i);
-          String oid = policy.getObjectAt(0).toString();
-          if (Objects.equals(oid, AUTHENTICATION_POLICY_ID)) {
-            hasAuthPolicy = true;
-          } else if (documentTypeOid == null) {
-            documentTypeOid = oid;
-          } else {
-            throw new UnknownDocumentTypeException("Unexpected additional policy OID: " + oid);
-          }
-        }
-
-        if (hasAuthPolicy && documentTypeOid != null) {
-          return IdDocumentType.findByIdentifier(normalizer.normalizeOid(documentTypeOid));
-        } else if (!hasAuthPolicy) {
-          throw new UnknownDocumentTypeException("Missing authentication policy");
-        } else {
-          throw new UnknownDocumentTypeException("Missing document type policy");
-        }
-      } else {
+      if (encodedExtensionValue == null) {
         log.error("Certificate policies extension missing");
+        throw new UnknownDocumentTypeException();
       }
+      var extensionValue = (DLSequence) parseExtensionValue(encodedExtensionValue);
+      return resolveDocumentType(classifyPolicies(extensionValue));
     } catch (IOException e) {
       log.error("Failed to parse certificate policies extension", e);
+      throw new UnknownDocumentTypeException();
     }
-    throw new UnknownDocumentTypeException();
   }
+
+  private static PolicyClassification classifyPolicies(DLSequence extensionValue) {
+    String documentTypeOid = null;
+    boolean hasAuthPolicy = false;
+
+    for (int i = 0; i < extensionValue.size(); i++) {
+      var policy = (DLSequence) extensionValue.getObjectAt(i);
+      String oid = policy.getObjectAt(0).toString();
+      if (Objects.equals(oid, AUTHENTICATION_POLICY_ID)) {
+        hasAuthPolicy = true;
+      } else if (documentTypeOid == null) {
+        documentTypeOid = oid;
+      } else {
+        throw new UnknownDocumentTypeException("Unexpected additional policy OID: " + oid);
+      }
+    }
+
+    return new PolicyClassification(documentTypeOid, hasAuthPolicy);
+  }
+
+  private IdDocumentType resolveDocumentType(PolicyClassification classification) {
+    if (!classification.hasAuthPolicy()) {
+      throw new UnknownDocumentTypeException("Missing authentication policy");
+    }
+    String documentTypeOid = classification.documentTypeOid();
+    if (documentTypeOid == null) {
+      throw new UnknownDocumentTypeException("Missing document type policy");
+    }
+    return IdDocumentType.findByIdentifier(normalizer.normalizeOid(documentTypeOid));
+  }
+
+  private record PolicyClassification(@Nullable String documentTypeOid, boolean hasAuthPolicy) {}
 
   public void checkClientAuthentication(X509Certificate certificate) {
     try {

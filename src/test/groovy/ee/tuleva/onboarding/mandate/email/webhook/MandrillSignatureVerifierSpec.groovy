@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.email.webhook
 
+import jakarta.servlet.http.HttpServletRequest
 import org.springframework.mock.web.MockHttpServletRequest
 import spock.lang.Specification
 
@@ -104,5 +105,30 @@ class MandrillSignatureVerifierSpec extends Specification {
 
     then:
     result
+  }
+
+  def "verify returns false when an unexpected error occurs during verification"() {
+    given:
+    verifier.webhookKey = webhookKey
+    def request = Mock(HttpServletRequest) {
+      getScheme() >> "https"
+      getServerName() >> "onboarding-service.tuleva.ee"
+      getRequestURI() >> "/v1/emails/webhooks/mandrill"
+      getParameterMap() >> { throw new RuntimeException("boom") }
+    }
+
+    when:
+    def result = verifier.verify(request, "some_signature")
+
+    then:
+    !result
+  }
+
+  def "buildSignedData treats a parameter with no values as an empty string"() {
+    given:
+    Map<String, String[]> params = ["empty_param": new String[0]]
+
+    expect:
+    verifier.buildSignedData("https://example.com/path", params) == "https://example.com/pathempty_param"
   }
 }

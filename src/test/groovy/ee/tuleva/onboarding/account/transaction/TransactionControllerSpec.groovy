@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.account.transaction
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.currency.Currency
-import ee.tuleva.onboarding.epis.cashflows.CashFlow
+import ee.tuleva.onboarding.epis.CashFlow
 import org.springframework.test.web.servlet.MockMvc
 
 import java.time.Instant

@@ -6,7 +6,7 @@ import static ee.tuleva.onboarding.aml.alert.AmlAlertType.III_PILLAR_DEPOSIT_PER
 import static ee.tuleva.onboarding.aml.alert.AmlAlertType.III_PILLAR_DEPOSIT_TRANSFER;
 import static ee.tuleva.onboarding.aml.alert.AmlAlertType.III_PILLAR_WITHDRAWAL;
 
-import ee.tuleva.onboarding.analytics.transaction.thirdpillar.AnalyticsThirdPillarTransaction;
+import ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransaction;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;

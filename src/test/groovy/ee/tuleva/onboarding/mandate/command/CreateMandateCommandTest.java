@@ -33,6 +33,12 @@ class CreateMandateCommandTest {
   }
 
   @Test
+  void isInvalidWhenFutureContributionIsinIsBlank() {
+    assertThat(validator.validate(commandWith("", List.of()))).hasSize(1);
+    assertThat(validator.validate(commandWith("   ", List.of()))).hasSize(1);
+  }
+
+  @Test
   void isValidWhenFutureContributionIsinPresent() {
     CreateMandateCommand command = commandWith("EE3600109435", List.of());
 

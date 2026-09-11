@@ -4,7 +4,7 @@ import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -35,6 +35,7 @@ class TransactionAdminService {
   private final TransactionOrderRepository orderRepository;
   private final TransactionAuditEventRepository auditEventRepository;
   private final TransactionPreparationService preparationService;
+  private final TransactionBatchFinalizer batchFinalizer;
   private final Clock clock;
 
   TransactionCommandResponse createAndProcess(
@@ -61,7 +62,7 @@ class TransactionAdminService {
         fund,
         mode,
         asOfDate);
-    ProcessCommandResult result = preparationService.processCommand(command);
+    @Nullable ProcessCommandResult result = preparationService.processCommand(command);
     List<TransactionOrder> orders = result == null ? List.of() : result.orders();
     return TransactionCommandResponse.from(command, orders, snapshotOf(command));
   }
@@ -142,7 +143,7 @@ class TransactionAdminService {
     } catch (ObjectOptimisticLockingFailureException e) {
       throw new ResponseStatusException(CONFLICT, "Batch was modified concurrently: id=" + id);
     }
-    preparationService.finalizeConfirmedBatch(batch);
+    batchFinalizer.finalizeConfirmedBatch(batch);
     return TransactionBatchResponse.from(
         batch, orderRepository.findByBatchId(batch.getId()), calculationSnapshot(batch.getId()));
   }
@@ -263,6 +264,47 @@ class TransactionAdminService {
             .actor(actor)
             .createdAt(now)
             .payload(Map.of("reason", reason, "actor", actor))
+            .build());
+
+    return TransactionOrderResponse.from(order);
+  }
+
+  @Transactional
+  TransactionOrderResponse setOrderType(Long orderId, OrderType orderType, String actor) {
+    TransactionOrder order =
+        orderRepository
+            .findById(orderId)
+            .orElseThrow(
+                () ->
+                    new ResponseStatusException(
+                        NOT_FOUND, "Transaction order not found: id=" + orderId));
+    if (order.getOrderStatus() != OrderStatus.DRAFT) {
+      throw new ResponseStatusException(
+          CONFLICT,
+          "Only DRAFT orders can change order type: id="
+              + orderId
+              + ", status="
+              + order.getOrderStatus());
+    }
+    OrderType previousOrderType = order.getOrderType();
+    Instant now = Instant.now(clock);
+    log.info(
+        "Admin changed transaction order type: id={}, actor={}, from={}, to={}",
+        orderId,
+        actor,
+        previousOrderType,
+        orderType);
+    order.setOrderType(orderType);
+    orderRepository.save(order);
+
+    auditEventRepository.save(
+        TransactionAuditEvent.builder()
+            .orderId(order.getId())
+            .eventType("ORDER_TYPE_CHANGED")
+            .actor(actor)
+            .createdAt(now)
+            .payload(
+                Map.of("from", previousOrderType.name(), "to", orderType.name(), "actor", actor))
             .build());
 
     return TransactionOrderResponse.from(order);

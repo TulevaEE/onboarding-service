@@ -1,13 +1,14 @@
 package ee.tuleva.onboarding.savings.fund.application;
 
+import ee.tuleva.onboarding.applicationtype.ApplicationType;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.mandate.application.ApplicationDetails;
-import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.Builder;
 import lombok.Data;
+import org.jspecify.annotations.Nullable;
 
 @Data
 @Builder
@@ -41,7 +42,7 @@ public class SavingFundWithdrawalApplicationDetails implements ApplicationDetail
   }
 
   @Override
-  public Integer getPillar() {
+  public @Nullable Integer getPillar() {
     return null;
   }
 

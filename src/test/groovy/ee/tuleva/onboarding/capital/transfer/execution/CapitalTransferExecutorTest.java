@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.capital.transfer.execution;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.*;
 import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.APPROVED_AND_NOTIFIED;
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.CAPITAL_TRANSFER_APPROVED_BY_BOARD;
+import static ee.tuleva.onboarding.notification.email.EmailType.CAPITAL_TRANSFER_APPROVED_BY_BOARD;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -15,6 +15,7 @@ import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract.CapitalTransferAmount;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContractRepository;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContractService;
+import ee.tuleva.onboarding.capital.transfer.CapitalTransferEmailSender;
 import ee.tuleva.onboarding.user.member.Member;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -36,6 +37,7 @@ public class CapitalTransferExecutorTest {
   @Mock private CapitalTransferValidator validator;
   @Mock private CapitalTransferEventLinkRepository linkRepository;
   @Mock private CapitalTransferContractService capitalTransferContractService;
+  @Mock private CapitalTransferEmailSender emailSender;
 
   @Mock private CapitalTransferContract contract;
   @Mock private Member seller;
@@ -56,7 +58,8 @@ public class CapitalTransferExecutorTest {
             memberCapitalEventRepository,
             validator,
             capitalTransferContractService,
-            linkRepository);
+            linkRepository,
+            emailSender);
   }
 
   @Test
@@ -138,10 +141,10 @@ public class CapitalTransferExecutorTest {
     verify(contract).executed();
     verify(contractRepository).save(contract);
 
-    verify(capitalTransferContractService, times(1))
+    verify(emailSender, times(1))
         .sendContractEmail(
             eq(seller.getUser()), eq(CAPITAL_TRANSFER_APPROVED_BY_BOARD), eq(contract));
-    verify(capitalTransferContractService, times(1))
+    verify(emailSender, times(1))
         .sendContractEmail(
             eq(buyer.getUser()), eq(CAPITAL_TRANSFER_APPROVED_BY_BOARD), eq(contract));
 

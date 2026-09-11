@@ -1,0 +1,39 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
+        <mj-text>
+          Your second pillar contribution rate has been changed. *|IF:increased|*From
+          <strong>*|paymentRateFulfillmentDate|*</strong> you will start saving
+          <strong>*|newPaymentRate|*%</strong> of your monthly gross income into your second pillar.*|IF:maxPaymentRate|*
+          This means you are making full use of the second pillar tax benefit.*|ELSE:|* This puts
+          a little more aside for your future every month.*|END:IF|**|ELSE:|*From
+          <strong>*|paymentRateFulfillmentDate|*</strong> your second pillar contribution will
+          decrease and you will start contributing <strong>*|newPaymentRate|*%</strong> of your
+          gross salary.*|END:IF|*
+        </mj-text>
+        <mj-text>
+          Attached is a copy of the application you just made on our website and which we have
+          sent to Pensionikeskus.
+        </mj-text>
+
+        <mj-include path="./partials/suggest_chain_open_en.mjml" />
+
+        <mj-raw>*|END:IF|*</mj-raw>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="./partials/contact_en.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">Tuleva</mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_pension_en.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

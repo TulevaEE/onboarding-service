@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository
 import spock.lang.Specification
 
+import java.time.Clock
 import java.time.LocalDate
 
 import static ee.tuleva.onboarding.comparisons.fundvalue.FundValueFixture.aFundValue
@@ -18,7 +19,7 @@ class UnionStockIndexRetrieverSpec extends Specification {
 
     void setup() {
         fundValueRepository = Mock(FundValueRepository)
-        retriever = new UnionStockIndexRetriever(fundValueRepository)
+        retriever = new UnionStockIndexRetriever(fundValueRepository, Clock.systemUTC())
     }
 
     def "it is configured for the right fund"() {

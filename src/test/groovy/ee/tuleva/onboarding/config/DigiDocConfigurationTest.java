@@ -9,6 +9,26 @@ import org.junit.jupiter.api.Test;
 
 class DigiDocConfigurationTest {
 
+  private final DigiDocConfiguration digiDocConfiguration = new DigiDocConfiguration();
+
+  @Test
+  void digiDocConfigProdUsesProductionModeAndTrustsOnlyEstonia() {
+    Configuration configuration = digiDocConfiguration.digiDocConfigProd();
+
+    assertThat(configuration).isNotNull();
+    assertThat(configuration.isTest()).isFalse();
+    assertThat(configuration.getTrustedTerritories()).containsExactly("EE");
+  }
+
+  @Test
+  void digiDocConfigDevUsesTestModeAndTrustsEstonianTestTerritory() {
+    Configuration configuration = digiDocConfiguration.digiDocConfigDev();
+
+    assertThat(configuration).isNotNull();
+    assertThat(configuration.isTest()).isTrue();
+    assertThat(configuration.getTrustedTerritories()).containsExactly("EE_T");
+  }
+
   @Test
   @DisplayName("Default test TSL contains Test ESTEID2025 certificate")
   void defaultTestTslContainsTestEsteid2025() {

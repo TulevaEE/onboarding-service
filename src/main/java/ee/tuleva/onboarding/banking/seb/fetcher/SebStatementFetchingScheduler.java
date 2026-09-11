@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.banking.seb.fetcher;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static java.util.Objects.requireNonNullElse;
 
 import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.BankAccounts;
@@ -47,7 +48,9 @@ public class SebStatementFetchingScheduler {
         eventPublisher.publishEvent(new FetchSebEodTransactionsRequested(account));
       } catch (Exception exception) {
         log.error("SEB end-of-day transactions fetch failed: account={}", account, exception);
-        eventPublisher.publishEvent(new SebEodFetchFailedEvent(account, exception.getMessage()));
+        eventPublisher.publishEvent(
+            new SebEodFetchFailedEvent(
+                account, requireNonNullElse(exception.getMessage(), exception.toString())));
       }
     }
   }

@@ -8,6 +8,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -86,7 +87,11 @@ public class CostBasisCalculator {
   }
 
   private static BigDecimal requirePositive(
-      BigDecimal value, String field, String fundIsin, String instrumentIsin, LocalDate asOfDate) {
+      @Nullable BigDecimal value,
+      String field,
+      String fundIsin,
+      String instrumentIsin,
+      LocalDate asOfDate) {
     if (value == null || value.signum() <= 0) {
       throw new IllegalStateException(
           String.format(
@@ -108,7 +113,10 @@ public class CostBasisCalculator {
   }
 
   public record ExecutionEvent(
-      TransactionType side, BigDecimal quantity, BigDecimal unitPrice, BigDecimal commission) {
+      TransactionType side,
+      @Nullable BigDecimal quantity,
+      @Nullable BigDecimal unitPrice,
+      @Nullable BigDecimal commission) {
 
     public static ExecutionEvent of(TransactionExecution execution, TransactionType side) {
       return new ExecutionEvent(

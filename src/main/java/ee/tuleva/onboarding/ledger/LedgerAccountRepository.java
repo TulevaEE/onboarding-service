@@ -8,6 +8,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.jspecify.annotations.Nullable;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
@@ -17,7 +18,7 @@ import org.springframework.stereotype.Repository;
 interface LedgerAccountRepository extends CrudRepository<LedgerAccount, UUID> {
 
   Optional<LedgerAccount> findByOwnerAndNameAndPurposeAndAssetTypeAndAccountType(
-      LedgerParty owner,
+      @Nullable LedgerParty owner,
       String name,
       AccountPurpose purpose,
       AssetType assetType,

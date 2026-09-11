@@ -32,12 +32,14 @@ public class WebEidAuthService {
   }
 
   public IdCardSession authenticate(WebEidAuthToken authToken) {
+    return createSession(validate(authToken));
+  }
+
+  private X509Certificate validate(WebEidAuthToken authToken) {
     try {
       log.info("Validating Web eID auth token");
       var nonce = challengeNonceStore.getAndRemove();
-      X509Certificate certificate =
-          authTokenValidator.validate(authToken, nonce.getBase64EncodedNonce());
-      return createSession(certificate);
+      return validateToken(authToken, nonce.getBase64EncodedNonce());
     } catch (ChallengeNonceExpiredException e) {
       log.error("Web eID challenge nonce expired or not found", e);
       throw new WebEidAuthException("Challenge nonce expired or not found", e);
@@ -50,19 +52,27 @@ public class WebEidAuthService {
     }
   }
 
+  private X509Certificate validateToken(WebEidAuthToken authToken, String challengeNonce)
+      throws AuthTokenException {
+    try {
+      return authTokenValidator.validate(authToken, challengeNonce);
+    } catch (RuntimeException e) {
+      log.warn("Web eID token validation failed unexpectedly", e);
+      throw new WebEidAuthException("Web eID token validation failed", e);
+    }
+  }
+
   private IdCardSession createSession(X509Certificate certificate) {
     try {
       var firstName =
           CertificateData.getSubjectGivenName(certificate)
-              .orElseThrow(
-                  () -> new WebEidAuthException("Missing given name in certificate", null));
+              .orElseThrow(() -> new WebEidAuthException("Missing given name in certificate"));
       var lastName =
           CertificateData.getSubjectSurname(certificate)
-              .orElseThrow(() -> new WebEidAuthException("Missing surname in certificate", null));
+              .orElseThrow(() -> new WebEidAuthException("Missing surname in certificate"));
       var serialNumber =
           CertificateData.getSubjectIdCode(certificate)
-              .orElseThrow(
-                  () -> new WebEidAuthException("Missing personal code in certificate", null));
+              .orElseThrow(() -> new WebEidAuthException("Missing personal code in certificate"));
       var personalCode = extractPersonalCode(serialNumber);
 
       var documentType = documentTypeExtractor.extract(certificate);

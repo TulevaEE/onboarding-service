@@ -131,6 +131,10 @@ seb-gateway:
     password: changeit
   url: ''
   reconciliation-delay: 5m
+  retry:
+    delay: 200ms
+    multiplier: 3
+    max-delay: 10s
   management-company-name: 'Tuleva Fondid AS'
   accounts:
     DEPOSIT_EUR: 'SEB_DEPOSIT_PLACEHOLDER'
@@ -493,7 +497,7 @@ google-drive:
 investment-report-publishing:
   enabled: ${INVESTMENT_REPORT_PUBLISHING_ENABLED:false}
   wordpress:
-    api-base: https://tuleva.ee/wp-json/wp/v2
+    api-base: ${WP_API_BASE:https://tuleva.ee/wp-json/wp/v2}
     username: ${WP_USERNAME:}
     app-password: ${WP_APP_PASSWORD:}
 
@@ -556,3 +560,8 @@ sentry:
 population-register:
   url: ${POPULATION_REGISTER_URL:https://xroad-consumer.tuleva.ee/r1/EE/GOV/70008440/rr/domesticDataExchange/v1}
   client-id: ${POPULATION_REGISTER_CLIENT_ID:EE/COM/14118923/tuleva-fund-management}
+
+third-pillar-payment-arrived:
+  cron: "0 0 12 * * *"
+  dry-run: false
+  max-recipients: 200

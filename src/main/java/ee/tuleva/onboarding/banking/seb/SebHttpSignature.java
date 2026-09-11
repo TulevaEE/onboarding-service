@@ -9,6 +9,7 @@ import java.security.cert.X509Certificate;
 import java.util.Base64;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import org.jspecify.annotations.Nullable;
 
 @RequiredArgsConstructor
 public class SebHttpSignature {
@@ -66,7 +67,7 @@ public class SebHttpSignature {
     return dn;
   }
 
-  private static String extractDnComponent(String dn, String component) {
+  private static @Nullable String extractDnComponent(String dn, String component) {
     int start = dn.indexOf(component);
     if (start < 0) return null;
     start += component.length();

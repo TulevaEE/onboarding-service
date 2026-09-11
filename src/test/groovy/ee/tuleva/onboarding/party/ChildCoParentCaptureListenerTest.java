@@ -7,7 +7,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
-import ee.tuleva.onboarding.aml.AmlService;
+import ee.tuleva.onboarding.aml.SanctionAndPepScreener;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
@@ -29,7 +29,7 @@ class ChildCoParentCaptureListenerTest {
   @Mock private CustodyVerificationService custodyVerificationService;
   @Mock private ParentChildLinkRegistrationService parentChildLinkRegistrationService;
   @Mock private UserService userService;
-  @Mock private AmlService amlService;
+  @Mock private SanctionAndPepScreener sanctionAndPepScreener;
 
   @InjectMocks private ChildCoParentCaptureListener listener;
 
@@ -54,7 +54,7 @@ class ChildCoParentCaptureListenerTest {
 
     listener.onChildOnboarded(new ChildOnboardedEvent(PARENT, CHILD, "Mari", "Maasikas"));
 
-    verify(amlService).addSanctionAndPepCheckIfMissing(coParent);
+    verify(sanctionAndPepScreener).addSanctionAndPepCheckIfMissing(coParent);
   }
 
   @Test
@@ -67,7 +67,7 @@ class ChildCoParentCaptureListenerTest {
 
     verify(parentChildLinkRegistrationService)
         .registerPending(CO_PARENT, CHILD, "Mari", "Maasikas");
-    verify(amlService, never()).addSanctionAndPepCheckIfMissing(any(User.class));
+    verify(sanctionAndPepScreener, never()).addSanctionAndPepCheckIfMissing(any(User.class));
   }
 
   @Test
@@ -76,7 +76,7 @@ class ChildCoParentCaptureListenerTest {
     given(custodyVerificationService.findGuardiansWithAssetManagement(CHILD, PARENT))
         .willReturn(List.of(CO_PARENT));
     given(userService.findByPersonalCode(CO_PARENT)).willReturn(Optional.of(coParent));
-    given(amlService.addSanctionAndPepCheckIfMissing(coParent))
+    given(sanctionAndPepScreener.addSanctionAndPepCheckIfMissing(coParent))
         .willThrow(new RuntimeException("screening unavailable"));
 
     listener.onChildOnboarded(new ChildOnboardedEvent(PARENT, CHILD, "Mari", "Maasikas"));

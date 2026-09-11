@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.mandate.payment.rate;
 
-import static ee.tuleva.onboarding.epis.mandate.details.PaymentRateChangeMandateDetails.PaymentRate.fromValue;
+import static ee.tuleva.onboarding.mandate.details.PaymentRateChangeMandateDetails.PaymentRate.fromValue;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.epis.mandate.details.PaymentRateChangeMandateDetails;
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.mandate.details.PaymentRateChangeMandateDetails;
 import ee.tuleva.onboarding.mandate.generic.GenericMandateService;
 import ee.tuleva.onboarding.mandate.generic.MandateDto;
 import java.math.BigDecimal;

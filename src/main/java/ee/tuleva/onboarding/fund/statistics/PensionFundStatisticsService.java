@@ -58,7 +58,8 @@ public class PensionFundStatisticsService {
     try {
       PensionFundStatisticsResponse response =
           restTemplate.getForObject(endpoint, PensionFundStatisticsResponse.class);
-      List<PensionFundStatistics> result = response.getPensionFundStatistics();
+      List<PensionFundStatistics> result =
+          response == null ? null : response.getPensionFundStatistics();
 
       if (result == null) {
         log.info("Pension fund statistics is empty");

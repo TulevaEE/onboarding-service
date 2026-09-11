@@ -42,7 +42,7 @@ public class KybDataChangeDetector {
 
     for (var current : currentChecks) {
       var previous = previousByType.get(current.type());
-      if (isExistingCheck(previous) && changed(previous, current)) {
+      if (previous != null && changed(previous, current)) {
         changes.add(changedCheckEntry(previous, current));
       }
     }
@@ -54,10 +54,6 @@ public class KybDataChangeDetector {
     }
 
     return new KybCheck(DATA_CHANGED, changes.isEmpty(), Map.of("changes", changes));
-  }
-
-  private boolean isExistingCheck(KybCheck previous) {
-    return previous != null;
   }
 
   private boolean isRemovedCheck(KybCheck previous, Map<KybCheckType, KybCheck> currentByType) {

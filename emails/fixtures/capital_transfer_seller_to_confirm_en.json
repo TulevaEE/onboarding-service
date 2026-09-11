@@ -1,0 +1,9 @@
+{
+  "variants": {
+    "seller confirms payment received": {
+      "FNAME": "Mari",
+      "buyerFullName": "Jaan Tamm",
+      "contractId": "12345"
+    }
+  }
+}

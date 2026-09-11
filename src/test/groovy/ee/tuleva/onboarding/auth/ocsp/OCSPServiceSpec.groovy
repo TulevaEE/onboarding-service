@@ -25,6 +25,7 @@ import static ee.tuleva.onboarding.auth.ocsp.OCSPFixture.generateCertificate
 import static ee.tuleva.onboarding.auth.ocsp.OCSPFixture.sampleExampleServer
 import static ee.tuleva.onboarding.auth.ocsp.OCSPResponseType.GOOD
 import static ee.tuleva.onboarding.auth.ocsp.OCSPResponseType.REVOKED
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.header
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess
@@ -55,6 +56,7 @@ class OCSPServiceSpec extends Specification {
         def expectedResponse = readFile("sampleCert.pem.crt")
 
         server.expect(requestTo(sampleExampleServer))
+            .andExpect(header("Accept", MediaType.APPLICATION_OCTET_STREAM_VALUE))
             .andRespond(withSuccess(responseBody,
                 MediaType.APPLICATION_OCTET_STREAM))
         when:
@@ -71,6 +73,8 @@ class OCSPServiceSpec extends Specification {
         def ocspRequest = new OCSPRequest(sampleExampleServer, validCert, ocspGen.build())
 
         server.expect(requestTo(sampleExampleServer))
+            .andExpect(header("Content-Type", "application/ocsp-request"))
+            .andExpect(header("Accept", "application/ocsp-response"))
             .andRespond(withSuccess(responseBody,
                 MediaType.APPLICATION_OCTET_STREAM))
         when:

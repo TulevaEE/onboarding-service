@@ -1,0 +1,11 @@
+{
+  "variants": {
+    "reminder": {
+      "FNAME": "Mari"
+    },
+    "with fund transfer": {
+      "FNAME": "Mari",
+      "hasFundTransfer": true
+    }
+  }
+}

@@ -1,18 +1,16 @@
 package ee.tuleva.onboarding.investment.transaction;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
 import static ee.tuleva.onboarding.investment.epis.SettlementTimingWarning.Type.PEVA_DEADLINE_MISS;
 import static ee.tuleva.onboarding.investment.transaction.BatchStatus.*;
 import static ee.tuleva.onboarding.investment.transaction.CommandStatus.*;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.BUY;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.REBALANCE;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.SELL;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
@@ -22,31 +20,20 @@ import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
 import ee.tuleva.onboarding.comparisons.fundvalue.ValidationStatus;
 import ee.tuleva.onboarding.investment.epis.SettlementTimingWarning;
 import ee.tuleva.onboarding.investment.epis.SettlementTimingWarningService;
-import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
-import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.transaction.calculation.TradeCalculationEngine;
-import ee.tuleva.onboarding.investment.transaction.export.CustodianOrderEmailSender;
-import ee.tuleva.onboarding.investment.transaction.export.GoogleDriveProperties;
-import ee.tuleva.onboarding.investment.transaction.export.TransactionExportService;
-import ee.tuleva.onboarding.investment.transaction.export.TransactionExportUploader;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @ExtendWith(MockitoExtension.class)
 class TransactionPreparationServiceTest {
@@ -57,24 +44,26 @@ class TransactionPreparationServiceTest {
   @Mock private TransactionOrderRepository orderRepository;
   @Mock private TransactionAuditEventRepository auditEventRepository;
   @Mock private TransactionCommandRepository commandRepository;
-  @Mock private SettlementDateCalculator settlementDateCalculator;
-  @Mock private TransactionExportService exportService;
-  @Mock private ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
-  @Mock private ApplicationEventPublisher eventPublisher;
-  @Mock private GoogleDriveProperties driveProperties;
-  @Mock private TransactionExportUploader exportUploader;
-  @Mock private CustodianOrderEmailSender custodianOrderEmailSender;
   @Mock private PositionPriceResolver positionPriceResolver;
   @Mock private SettlementTimingWarningService settlementTimingWarningService;
   @Mock private Clock clock;
 
-  @InjectMocks private TransactionPreparationService service;
+  private TransactionPreparationService service;
 
-  @AfterEach
-  void clearSynchronization() {
-    if (TransactionSynchronizationManager.isSynchronizationActive()) {
-      TransactionSynchronizationManager.clearSynchronization();
-    }
+  @BeforeEach
+  void setUp() {
+    var orderFactory = new TransactionOrderFactory(positionPriceResolver);
+    service =
+        new TransactionPreparationService(
+            inputService,
+            calculationEngine,
+            batchRepository,
+            orderRepository,
+            auditEventRepository,
+            commandRepository,
+            orderFactory,
+            settlementTimingWarningService,
+            clock);
   }
 
   private static BigDecimal netInvestable(FundTransactionInput input) {
@@ -244,7 +233,7 @@ class TransactionPreparationServiceTest {
 
     service.processCommand(command);
 
-    var expectedInput = TransactionPreparationService.serializeInput(input, manualAdjustments);
+    var expectedInput = TransactionInputPayloads.serializeInput(input, manualAdjustments);
     verify(auditEventRepository)
         .save(
             argThat(
@@ -264,6 +253,12 @@ class TransactionPreparationServiceTest {
   @SuppressWarnings("unchecked")
   private static Object summaryValue(TransactionAuditEvent event, String key) {
     return ((Map<String, Object>) event.getPayload().get("summary")).get(key);
+  }
+
+  @SuppressWarnings("unchecked")
+  private static List<String> priceResolutionIsins(TransactionAuditEvent event) {
+    var priceResolutions = (List<Map<String, Object>>) event.getPayload().get("priceResolutions");
+    return priceResolutions.stream().map(entry -> (String) entry.get("isin")).toList();
   }
 
   @Test
@@ -325,6 +320,8 @@ class TransactionPreparationServiceTest {
                   return warnings.size() == 1
                       && "PEVA_DEADLINE_MISS".equals(warnings.get(0).get("type"))
                       && "TUK75".equals(warnings.get(0).get("fund"))
+                      && "2026-05-04".equals(warnings.get(0).get("sellSettlementDate"))
+                      && "2026-05-01".equals(warnings.get(0).get("deadlineDate"))
                       && "FUND sell settles after execution".equals(warnings.get(0).get("message"));
                 }));
   }
@@ -514,6 +511,121 @@ class TransactionPreparationServiceTest {
   }
 
   @Test
+  void processCommand_onSuccess_setsProcessedAtUsingClock() {
+    var command =
+        TransactionCommand.builder()
+            .id(18L)
+            .fund(TUV100)
+            .mode(BUY)
+            .asOfDate(LocalDate.of(2026, 1, 15))
+            .manualAdjustments(Map.of())
+            .status(PROCESSING)
+            .build();
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(List.of())
+            .modelWeights(List.of())
+            .grossPortfolioValue(new BigDecimal("1000000"))
+            .cashBuffer(ZERO)
+            .liabilities(ZERO)
+            .freeCash(ZERO)
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+    var calculationResult =
+        new FundCalculationResult(
+            TUV100, BUY, input, List.of(), netInvestable(input), null, List.of());
+    var fixedInstant = Instant.parse("2026-01-15T10:00:00Z");
+    given(clock.instant()).willReturn(fixedInstant);
+    given(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of())).willReturn(input);
+    given(calculationEngine.calculate(input, BUY)).willReturn(calculationResult);
+    given(batchRepository.save(any(TransactionBatch.class)))
+        .willAnswer(
+            invocation -> {
+              TransactionBatch batch = invocation.getArgument(0);
+              batch.setId(1L);
+              return batch;
+            });
+
+    service.processCommand(command);
+
+    assertThat(command.getProcessedAt()).isEqualTo(fixedInstant);
+  }
+
+  @Test
+  void processCommand_leavesEtfOrderQuantityNullWhenResolvedPriceHasNoUsedPrice() {
+    var command = givenSingleEtfBuyCommandPricedAt(null);
+
+    var result = service.processCommand(command);
+
+    var order = orderByIsin(result, "IE00ETF");
+    assertThat(order.getOrderQuantity()).isNull();
+    assertThat(order.getComment()).isNull();
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void processCommand_enrichesAuditOutputWithOrderDetailsPerIsin() {
+    var command =
+        TransactionCommand.builder()
+            .id(19L)
+            .fund(TUV100)
+            .mode(BUY)
+            .asOfDate(LocalDate.of(2026, 1, 15))
+            .manualAdjustments(Map.of())
+            .status(PROCESSING)
+            .build();
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(List.of(new PositionSnapshot("IE00A", new BigDecimal("500000"))))
+            .modelWeights(List.of(new ModelWeight("IE00A", new BigDecimal("1.00"))))
+            .grossPortfolioValue(new BigDecimal("1000000"))
+            .cashBuffer(new BigDecimal("50000"))
+            .liabilities(ZERO)
+            .freeCash(new BigDecimal("100000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+    var trades =
+        List.of(
+            new TradeCalculation(
+                "IE00A", new BigDecimal("100000"), new BigDecimal("0.60"), LimitStatus.OK));
+    var calculationResult =
+        new FundCalculationResult(
+            TUV100, BUY, input, trades, netInvestable(input), null, List.of());
+    given(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of())).willReturn(input);
+    given(calculationEngine.calculate(input, BUY)).willReturn(calculationResult);
+    given(batchRepository.save(any(TransactionBatch.class)))
+        .willAnswer(
+            invocation -> {
+              TransactionBatch batch = invocation.getArgument(0);
+              batch.setId(1L);
+              return batch;
+            });
+    given(positionPriceResolver.resolve("IE00A", command.getAsOfDate()))
+        .willReturn(Optional.of(ResolvedPrice.builder().usedPrice(new BigDecimal("2")).build()));
+
+    service.processCommand(command);
+
+    verify(auditEventRepository)
+        .save(
+            argThat(
+                event -> {
+                  var output = (List<Map<String, Object>>) event.getPayload().get("output");
+                  var trade = output.get(0);
+                  return "BUY".equals(trade.get("side"))
+                      && "SEB".equals(trade.get("venue"))
+                      && "ETF".equals(trade.get("instrumentType"))
+                      && "50000.000000".equals(trade.get("quantity"));
+                }));
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
   void serializeInput_serializesAllFieldsToPlainStrings() {
     var input =
         FundTransactionInput.builder()
@@ -531,11 +643,13 @@ class TransactionPreparationServiceTest {
                     "IE00A",
                     new PositionLimitSnapshot(new BigDecimal("0.10"), new BigDecimal("0.15"))))
             .fastSellIsins(Set.of("IE00A"))
+            .positionDate(LocalDate.of(2026, 1, 14))
+            .modelEffectiveDate(LocalDate.of(2026, 1, 1))
             .build();
 
     var manualAdjustments = Map.<String, Object>of("IE00A", "10000");
 
-    var result = TransactionPreparationService.serializeInput(input, manualAdjustments);
+    var result = TransactionInputPayloads.serializeInput(input, manualAdjustments);
 
     assertThat(result).containsEntry("grossPortfolioValue", "1000000");
     assertThat(result).containsEntry("freeCash", "100000");
@@ -543,11 +657,26 @@ class TransactionPreparationServiceTest {
     assertThat(result).containsEntry("liabilities", "0");
     assertThat(result).containsEntry("receivables", "0");
     assertThat(result).containsEntry("minTransactionThreshold", "5000");
+    assertThat(result).containsEntry("positionDate", "2026-01-14");
+    assertThat(result).containsEntry("modelEffectiveDate", "2026-01-01");
+    assertThat(result).doesNotContainKey("liabilityBreakdown");
     assertThat(result).containsKey("positions");
-    assertThat(result).containsKey("modelWeights");
-    assertThat(result).containsKey("positionLimits");
     assertThat(result).containsKey("fastSellIsins");
     assertThat(result).containsEntry("manualAdjustments", manualAdjustments);
+
+    var modelWeights = (List<Map<String, Object>>) result.get("modelWeights");
+    assertThat(modelWeights)
+        .singleElement()
+        .satisfies(
+            weight -> {
+              assertThat(weight).containsEntry("isin", "IE00A");
+              assertThat(weight).containsEntry("weight", "1.00");
+            });
+
+    var positionLimits = (Map<String, Map<String, Object>>) result.get("positionLimits");
+    assertThat(positionLimits.get("IE00A"))
+        .containsEntry("softLimit", "0.10")
+        .containsEntry("hardLimit", "0.15");
   }
 
   @Test
@@ -574,7 +703,7 @@ class TransactionPreparationServiceTest {
             .fastSellIsins(Set.of())
             .build();
 
-    var result = TransactionPreparationService.serializeInput(input, Map.of());
+    var result = TransactionInputPayloads.serializeInput(input, Map.of());
 
     var positions = (List<Map<String, Object>>) result.get("positions");
     assertThat(positions)
@@ -607,7 +736,7 @@ class TransactionPreparationServiceTest {
             .fastSellIsins(Set.of())
             .build();
 
-    var result = TransactionPreparationService.serializeInput(input, Map.of());
+    var result = TransactionInputPayloads.serializeInput(input, Map.of());
 
     var positions = (List<Map<String, Object>>) result.get("positions");
     assertThat(positions)
@@ -635,28 +764,33 @@ class TransactionPreparationServiceTest {
                 new LiabilityBreakdown(
                     new BigDecimal("3000"),
                     new BigDecimal("2000"),
-                    ZERO,
-                    ZERO,
+                    new BigDecimal("700"),
+                    new BigDecimal("800"),
                     new BigDecimal("-4000"),
                     new BigDecimal("1500"),
                     new BigDecimal("500"),
-                    ZERO,
-                    ZERO,
-                    ZERO))
+                    new BigDecimal("600"),
+                    new BigDecimal("900"),
+                    new BigDecimal("400")))
             .reportCash(new BigDecimal("100000"))
             .appliedCash(new BigDecimal("100000"))
             .ledgerCash(new BigDecimal("95000"))
             .build();
 
-    var result = TransactionPreparationService.serializeInput(input, Map.of());
+    var result = TransactionInputPayloads.serializeInput(input, Map.of());
 
     var breakdown = (Map<String, Object>) result.get("liabilityBreakdown");
     assertThat(breakdown)
         .containsEntry("managementFee", "3000")
         .containsEntry("depotFee", "2000")
+        .containsEntry("pevaRava", "700")
+        .containsEntry("r16", "800")
         .containsEntry("r45Net", "-4000")
         .containsEntry("pendingBuys", "1500")
-        .containsEntry("pendingSells", "500");
+        .containsEntry("pendingSells", "500")
+        .containsEntry("unreconciledBankReceipts", "600")
+        .containsEntry("fundUnitsReservedValue", "900")
+        .containsEntry("incomingPaymentsClearing", "400");
     assertThat(result).containsEntry("reportCash", "100000");
     assertThat(result).containsEntry("appliedCash", "100000");
     assertThat(result).containsEntry("ledgerCash", "95000");
@@ -670,7 +804,7 @@ class TransactionPreparationServiceTest {
             new TradeCalculation(
                 "IE00A", new BigDecimal("100000"), new BigDecimal("0.60"), LimitStatus.OK));
 
-    var result = TransactionPreparationService.serializeTrades(trades, Map.of(), Map.of());
+    var result = TransactionAuditPayloads.serializeTrades(trades, Map.of(), Map.of());
 
     assertThat(result)
         .singleElement()
@@ -702,7 +836,7 @@ class TransactionPreparationServiceTest {
             .build();
 
     var result =
-        TransactionPreparationService.serializeTrades(trades, Map.of("IE00ETF", order), Map.of());
+        TransactionAuditPayloads.serializeTrades(trades, Map.of("IE00ETF", order), Map.of());
 
     assertThat(result.get(0))
         .containsEntry("isin", "IE00ETF")
@@ -728,7 +862,7 @@ class TransactionPreparationServiceTest {
     resolutions.put("IE00ETF", resolved);
     resolutions.put("LU00NOPRICE", null);
 
-    var result = TransactionPreparationService.serializePriceResolutions(resolutions);
+    var result = TransactionAuditPayloads.serializePriceResolutions(resolutions);
 
     assertThat(result.get(0))
         .containsEntry("isin", "IE00ETF")
@@ -853,121 +987,6 @@ class TransactionPreparationServiceTest {
                         && event.getBatch() != null
                         && TUV100.equals(event.getBatch().getFund())
                         && event.getPayload().containsKey("input")));
-  }
-
-  @Test
-  void finalizeConfirmedBatch_setsOrderTimestampsAndSettlementDatesAndStoresExports() {
-    when(clock.instant()).thenReturn(Instant.parse("2026-01-15T10:00:00Z"));
-
-    var batch =
-        TransactionBatch.builder()
-            .id(1L)
-            .fund(TUV100)
-            .status(CONFIRMED)
-            .createdBy("system")
-            .metadata(new HashMap<>(Map.of("commandId", 1L)))
-            .build();
-
-    var order =
-        TransactionOrder.builder()
-            .batch(batch)
-            .fund(TUV100)
-            .instrumentIsin("IE00A")
-            .transactionType(TransactionType.BUY)
-            .instrumentType(InstrumentType.ETF)
-            .orderAmount(new BigDecimal("100000"))
-            .orderQuantity(new BigDecimal("9876.543210"))
-            .orderVenue(OrderVenue.SEB)
-            .orderStatus(OrderStatus.DRAFT)
-            .build();
-
-    var allocation =
-        ModelPortfolioAllocation.builder()
-            .fund(TUV100)
-            .isin("IE00A")
-            .label("iShares ESG")
-            .ticker("ESGM.DE")
-            .bbgTicker("ESGM GY")
-            .weight(new BigDecimal("0.60"))
-            .effectiveDate(LocalDate.of(2026, 1, 1))
-            .build();
-
-    when(orderRepository.findByBatchId(batch.getId())).thenReturn(List.of(order));
-    when(settlementDateCalculator.calculateSettlementDate(
-            any(Instant.class), eq(InstrumentType.ETF), any()))
-        .thenReturn(LocalDate.of(2026, 1, 19));
-    when(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, LocalDate.of(2026, 1, 15)))
-        .thenReturn(List.of(allocation));
-    when(exportService.generateOrdersExport(any())).thenReturn(new byte[] {1, 2, 3});
-    when(exportService.generateSebFundExport(any(), any())).thenReturn(new byte[] {4, 5});
-    when(exportService.generateSebEtfExport(any(), any())).thenReturn(new byte[] {6, 7});
-    when(exportService.generateFtEtfExport(any(), any(), any(), any()))
-        .thenReturn(new byte[] {8, 9});
-    when(exportService.generateUuidWorkbook(any())).thenReturn(new byte[] {10, 11});
-
-    service.finalizeConfirmedBatch(batch);
-
-    assertThat(order.getOrderTimestamp()).isNotNull();
-    assertThat(order.getExpectedSettlementDate()).isEqualTo(LocalDate.of(2026, 1, 19));
-    assertThat(order.getOrderStatus()).isEqualTo(OrderStatus.SENT);
-    assertThat(batch.getStatus()).isEqualTo(SENT);
-    assertThat(batch.getMetadata()).containsKey("xlsxExport");
-    assertThat(batch.getMetadata()).containsKey("sebFundXlsx");
-    assertThat(batch.getMetadata()).containsKey("sebEtfXlsx");
-    assertThat(batch.getMetadata()).containsKey("ftEtfXlsx");
-    assertThat(batch.getMetadata()).containsKey("uuidWorkbookXlsx");
-
-    verify(exportService).generateSebFundExport(eq(List.of(order)), any());
-    verify(exportService).generateSebEtfExport(eq(List.of(order)), any());
-    verify(exportService).generateFtEtfExport(eq(List.of(order)), any(), any(), any());
-    verify(exportService).generateUuidWorkbook(eq(List.of(order)));
-    verify(orderRepository).saveAll(List.of(order));
-    verify(batchRepository).save(batch);
-    verify(auditEventRepository).save(any(TransactionAuditEvent.class));
-    verify(eventPublisher).publishEvent(any(BatchFinalizedEvent.class));
-  }
-
-  @Test
-  void finalizeConfirmedBatch_derivesTradeDateInTallinnZoneNotClockZone() {
-    given(clock.instant()).willReturn(Instant.parse("2026-01-15T23:30:00Z"));
-
-    var batch =
-        TransactionBatch.builder()
-            .id(1L)
-            .fund(TUV100)
-            .status(CONFIRMED)
-            .createdBy("system")
-            .metadata(new HashMap<>(Map.of("commandId", 1L)))
-            .build();
-
-    var order =
-        TransactionOrder.builder()
-            .batch(batch)
-            .fund(TUV100)
-            .instrumentIsin("IE00A")
-            .transactionType(TransactionType.BUY)
-            .instrumentType(InstrumentType.ETF)
-            .orderAmount(new BigDecimal("100000"))
-            .orderQuantity(new BigDecimal("9876.543210"))
-            .orderVenue(OrderVenue.SEB)
-            .orderStatus(OrderStatus.DRAFT)
-            .build();
-
-    given(orderRepository.findByBatchId(batch.getId())).willReturn(List.of(order));
-    given(settlementDateCalculator.calculateSettlementDate(any(Instant.class), any(), any()))
-        .willReturn(LocalDate.of(2026, 1, 20));
-    given(exportService.generateOrdersExport(any())).willReturn(new byte[] {1});
-    given(exportService.generateSebFundExport(any(), any())).willReturn(new byte[] {2});
-    given(exportService.generateSebEtfExport(any(), any())).willReturn(new byte[] {3});
-    given(exportService.generateFtEtfExport(any(), any(), any(), any())).willReturn(new byte[] {4});
-    given(exportService.generateUuidWorkbook(any())).willReturn(new byte[] {5});
-
-    service.finalizeConfirmedBatch(batch);
-
-    verify(modelPortfolioAllocationRepository)
-        .findLatestByFundAsOf(TUV100, LocalDate.of(2026, 1, 16));
-    verify(auditEventRepository)
-        .save(argThat(event -> "2026-01-16".equals(event.getPayload().get("tradeDate"))));
   }
 
   @Test
@@ -1123,6 +1142,10 @@ class TransactionPreparationServiceTest {
 
     var fundOrder = orderByIsin(result, "LU00FUND");
     assertThat(fundOrder.getOrderQuantity()).isNull();
+    assertThat(etfBuyOrder.getComment()).isNull();
+
+    verify(auditEventRepository)
+        .save(argThat(event -> priceResolutionIsins(event).equals(List.of("IE00ETF", "IE00ETF2"))));
   }
 
   @Test
@@ -1220,59 +1243,6 @@ class TransactionPreparationServiceTest {
     assertThat(command.getStatus()).isEqualTo(FAILED);
     assertThat(command.getErrorMessage()).isNotNull();
     assertThat(command.getProcessedAt()).isNotNull();
-  }
-
-  @Test
-  void finalizeConfirmedBatch_failsWhenNonAmountOrderHasNullQuantity_withoutGeneratingExports() {
-    given(clock.instant()).willReturn(Instant.parse("2026-01-15T10:00:00Z"));
-
-    var batch =
-        TransactionBatch.builder()
-            .id(1L)
-            .fund(TUV100)
-            .status(CONFIRMED)
-            .createdBy("system")
-            .metadata(new HashMap<>(Map.of("commandId", 1L)))
-            .build();
-    var etfOrderWithoutQuantity =
-        TransactionOrder.builder()
-            .batch(batch)
-            .fund(TUV100)
-            .instrumentIsin("IE00A")
-            .transactionType(TransactionType.BUY)
-            .instrumentType(InstrumentType.ETF)
-            .orderAmount(new BigDecimal("100000"))
-            .orderVenue(OrderVenue.SEB)
-            .orderStatus(OrderStatus.DRAFT)
-            .build();
-
-    given(orderRepository.findByBatchId(batch.getId()))
-        .willReturn(List.of(etfOrderWithoutQuantity));
-
-    assertThatThrownBy(() -> service.finalizeConfirmedBatch(batch))
-        .isInstanceOf(IllegalStateException.class);
-
-    assertThat(batch.getStatus()).isEqualTo(CONFIRMED);
-    verifyNoInteractions(exportService);
-    verify(orderRepository, never()).saveAll(any());
-  }
-
-  @Test
-  void finalizeConfirmedBatch_alreadySentBatch_doesNotReFinalizeOrReSend() {
-    var batch =
-        TransactionBatch.builder()
-            .id(1L)
-            .fund(TUV100)
-            .status(SENT)
-            .createdBy("system")
-            .metadata(new HashMap<>(Map.of("commandId", 1L)))
-            .build();
-
-    assertThatThrownBy(() -> service.finalizeConfirmedBatch(batch))
-        .isInstanceOf(IllegalStateException.class);
-
-    verifyNoInteractions(exportService);
-    verify(orderRepository, never()).saveAll(any());
   }
 
   private TransactionCommand givenSingleEtfBuyCommandPricedAt(BigDecimal price) {
@@ -1546,114 +1516,6 @@ class TransactionPreparationServiceTest {
   }
 
   @Test
-  void finalizeConfirmedBatch_uploadsToDriveWhenEnabled() {
-    when(clock.instant()).thenReturn(Instant.parse("2026-01-15T10:00:00Z"));
-
-    var batch =
-        TransactionBatch.builder()
-            .id(1L)
-            .fund(TUV100)
-            .status(CONFIRMED)
-            .createdBy("system")
-            .metadata(new HashMap<>(Map.of("commandId", 1L)))
-            .build();
-
-    var order =
-        TransactionOrder.builder()
-            .batch(batch)
-            .fund(TUV100)
-            .instrumentIsin("IE00A")
-            .transactionType(TransactionType.BUY)
-            .instrumentType(InstrumentType.ETF)
-            .orderAmount(new BigDecimal("100000"))
-            .orderQuantity(new BigDecimal("9876.543210"))
-            .orderVenue(OrderVenue.SEB)
-            .orderStatus(OrderStatus.DRAFT)
-            .build();
-
-    when(orderRepository.findByBatchId(batch.getId())).thenReturn(List.of(order));
-    when(settlementDateCalculator.calculateSettlementDate(any(Instant.class), any(), any()))
-        .thenReturn(LocalDate.of(2026, 1, 19));
-    when(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, LocalDate.of(2026, 1, 15)))
-        .thenReturn(List.of());
-    when(exportService.generateOrdersExport(any())).thenReturn(new byte[] {1});
-    when(exportService.generateSebFundExport(any(), any())).thenReturn(new byte[] {2});
-    when(exportService.generateSebEtfExport(any(), any())).thenReturn(new byte[] {3});
-    when(exportService.generateFtEtfExport(any(), any(), any(), any())).thenReturn(new byte[] {4});
-    when(exportService.generateUuidWorkbook(any())).thenReturn(new byte[] {5});
-    when(driveProperties.enabled()).thenReturn(true);
-    when(driveProperties.rootFolderId()).thenReturn("root-folder-id");
-    when(exportUploader.uploadExports(any(), any(), any(), any()))
-        .thenReturn(Map.of("sebFundXlsx", "https://drive.google.com/file1"));
-
-    service.finalizeConfirmedBatch(batch);
-
-    assertThat(batch.getMetadata()).containsKey("driveFileUrls");
-    verify(exportUploader).uploadExports(eq("root-folder-id"), eq(TUV100), any(), any());
-  }
-
-  @Test
-  void finalizeConfirmedBatch_uploadsToDriveOnlyAfterCommit() {
-    when(clock.instant()).thenReturn(Instant.parse("2026-01-15T10:00:00Z"));
-
-    var batch =
-        TransactionBatch.builder()
-            .id(1L)
-            .fund(TUV100)
-            .status(CONFIRMED)
-            .createdBy("system")
-            .metadata(new HashMap<>(Map.of("commandId", 1L)))
-            .build();
-
-    var order =
-        TransactionOrder.builder()
-            .batch(batch)
-            .fund(TUV100)
-            .instrumentIsin("IE00A")
-            .transactionType(TransactionType.BUY)
-            .instrumentType(InstrumentType.ETF)
-            .orderAmount(new BigDecimal("100000"))
-            .orderQuantity(new BigDecimal("9876.543210"))
-            .orderVenue(OrderVenue.SEB)
-            .orderStatus(OrderStatus.DRAFT)
-            .build();
-
-    given(orderRepository.findByBatchId(batch.getId())).willReturn(List.of(order));
-    given(settlementDateCalculator.calculateSettlementDate(any(Instant.class), any(), any()))
-        .willReturn(LocalDate.of(2026, 1, 19));
-    given(
-            modelPortfolioAllocationRepository.findLatestByFundAsOf(
-                TUV100, LocalDate.of(2026, 1, 15)))
-        .willReturn(List.of());
-    given(exportService.generateOrdersExport(any())).willReturn(new byte[] {1});
-    given(exportService.generateSebFundExport(any(), any())).willReturn(new byte[] {2});
-    given(exportService.generateSebEtfExport(any(), any())).willReturn(new byte[] {3});
-    given(exportService.generateFtEtfExport(any(), any(), any(), any())).willReturn(new byte[] {4});
-    given(exportService.generateUuidWorkbook(any())).willReturn(new byte[] {5});
-    given(driveProperties.enabled()).willReturn(true);
-    given(driveProperties.rootFolderId()).willReturn("root-folder-id");
-    given(exportUploader.uploadExports(any(), any(), any(), any()))
-        .willReturn(Map.of("sebFundXlsx", "https://drive.google.com/file1"));
-
-    TransactionSynchronizationManager.initSynchronization();
-
-    service.finalizeConfirmedBatch(batch);
-
-    verifyNoInteractions(exportUploader);
-    verifyNoInteractions(custodianOrderEmailSender);
-    verify(eventPublisher, never()).publishEvent(any(BatchFinalizedEvent.class));
-
-    var synchronizations = TransactionSynchronizationManager.getSynchronizations();
-    assertThat(synchronizations).hasSize(1);
-    synchronizations.forEach(TransactionSynchronization::afterCommit);
-
-    verify(exportUploader).uploadExports(eq("root-folder-id"), eq(TUV100), any(), any());
-    assertThat(batch.getMetadata()).containsKey("driveFileUrls");
-    verify(custodianOrderEmailSender).send(eq(TUV100), any(), any());
-    verify(eventPublisher).publishEvent(any(BatchFinalizedEvent.class));
-  }
-
-  @Test
   void serializeTrades_recordsThePriceTheQuantityWasSizedOn() {
     var trades =
         List.of(
@@ -1667,7 +1529,7 @@ class TransactionPreparationServiceTest {
             .build();
 
     var result =
-        TransactionPreparationService.serializeTrades(
+        TransactionAuditPayloads.serializeTrades(
             trades, Map.of(), Map.of("IE00ETF", resolvedPrice));
 
     assertThat(result)
@@ -1706,7 +1568,7 @@ class TransactionPreparationServiceTest {
         new FundCalculationResult(
             TUV100, REBALANCE, input, trades, new BigDecimal("1000000"), null, List.of());
 
-    var drift = TransactionPreparationService.serializeModelDrift(input, result);
+    var drift = TransactionAuditPayloads.serializeModelDrift(input, result);
 
     assertThat(drift)
         .containsEntry("totalAbsoluteDriftBefore", "0.200000")
@@ -1729,13 +1591,53 @@ class TransactionPreparationServiceTest {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
+  void serializeModelDrift_normalizesTargetWeightByModelWeightSumWhenNotFullyAllocated() {
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(
+                List.of(
+                    new PositionSnapshot("IE00A", new BigDecimal("100000")),
+                    new PositionSnapshot("IE00B", new BigDecimal("200000"))))
+            .modelWeights(
+                List.of(
+                    new ModelWeight("IE00A", new BigDecimal("0.20")),
+                    new ModelWeight("IE00B", new BigDecimal("0.30"))))
+            .grossPortfolioValue(new BigDecimal("1000000"))
+            .cashBuffer(ZERO)
+            .liabilities(ZERO)
+            .freeCash(ZERO)
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .build();
+    var result =
+        new FundCalculationResult(
+            TUV100, REBALANCE, input, List.of(), new BigDecimal("500000"), null, List.of());
+
+    var drift = TransactionAuditPayloads.serializeModelDrift(input, result);
+
+    assertThat((List<Map<String, Object>>) drift.get("positions"))
+        .satisfiesExactly(
+            first ->
+                assertThat(first)
+                    .containsEntry("isin", "IE00A")
+                    .containsEntry("targetWeight", "0.200000"),
+            second ->
+                assertThat(second)
+                    .containsEntry("isin", "IE00B")
+                    .containsEntry("targetWeight", "0.300000"));
+  }
+
+  @Test
   void serializeCalculationWarnings_serializesTypeAndMessage() {
     var warnings =
         List.of(
             new CalculationWarning(
                 CalculationWarningType.REBALANCE_NET_CASH_MISMATCH, "inputs do not reconcile"));
 
-    var result = TransactionPreparationService.serializeCalculationWarnings(warnings);
+    var result = TransactionAuditPayloads.serializeCalculationWarnings(warnings);
 
     assertThat(result)
         .singleElement()

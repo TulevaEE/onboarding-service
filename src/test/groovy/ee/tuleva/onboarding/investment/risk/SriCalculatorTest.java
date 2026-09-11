@@ -90,6 +90,26 @@ class SriCalculatorTest {
   }
 
   @Test
+  void publishesAtExactlyTheAnnexTwoMinimumObservationCount() {
+    var prices = new ArrayList<FundValue>();
+    var monday = LocalDate.of(2020, 1, 6);
+    for (int week = 0; week <= 200; week++) {
+      prices.add(new FundValue(KEY, monday.plusWeeks(week), valueOf(100), "MSCI", Instant.EPOCH));
+      if (week < 200) {
+        prices.add(
+            new FundValue(
+                KEY, monday.plusWeeks(week).plusDays(3), valueOf(100), "MSCI", Instant.EPOCH));
+      }
+    }
+    var evalDate = monday.plusWeeks(200);
+
+    var point = calculator.calculate(prices, evalDate, evalDate).points().getFirst();
+
+    assertThat(point.observationCount()).isEqualTo(400);
+    assertThat(point.riskClass()).isNotNull();
+  }
+
+  @Test
   void twoCalendarYearsOfPricesGetAClassEvenWhenHolidaysThinTheDayCount() {
     var evalDate = LocalDate.of(2026, 1, 2);
     var prices = weekdayPricesWithHolidays(evalDate.minusYears(2).minusWeeks(1), evalDate);
@@ -199,6 +219,57 @@ class SriCalculatorTest {
 
     assertThat(series.points()).isEmpty();
     assertThat(series.skippedDates()).isEmpty();
+  }
+
+  @Test
+  void excludesNonPositivePrices() {
+    var prices =
+        List.of(
+            new FundValue(KEY, LocalDate.of(2026, 1, 1), valueOf(100), "MSCI", Instant.EPOCH),
+            new FundValue(KEY, LocalDate.of(2026, 1, 2), BigDecimal.ZERO, "MSCI", Instant.EPOCH),
+            new FundValue(KEY, LocalDate.of(2026, 1, 5), valueOf(101), "MSCI", Instant.EPOCH));
+
+    var series = calculator.calculate(prices, LocalDate.of(2026, 1, 5), LocalDate.of(2026, 1, 5));
+
+    assertThat(series.points()).isEmpty();
+    assertThat(series.skippedDates()).isEmpty();
+  }
+
+  @Test
+  void valueAtRiskSubtractsHalfVarianceTimesHorizonFromTheCornishFisherTerm() {
+    var returns = new double[] {0.0, 0.008, -0.008, 0.008, -0.008};
+    var prices = pricesFrom(returns, LocalDate.of(2024, 1, 1));
+    var evalDate = prices.getLast().date();
+
+    var point = calculator.calculate(prices, evalDate, evalDate).points().getFirst();
+
+    assertThat((double) point.metrics().get("valueAtRisk"))
+        .isCloseTo(-0.6019036943770, within(1e-6));
+  }
+
+  @Test
+  void valueAtRiskSubtractsTheSkewSquaredTerm() {
+    var returns = new double[] {0.0, 0.006, 0.006, -0.012};
+    var prices = pricesFrom(returns, LocalDate.of(2024, 1, 1));
+    var evalDate = prices.getLast().date();
+
+    var point = calculator.calculate(prices, evalDate, evalDate).points().getFirst();
+
+    var skew = -1 / Math.sqrt(2);
+    var excessKurtosis = -1.5;
+    var sigma = 0.006 * Math.sqrt(2);
+    var horizon = SriCalculator.HOLDING_PERIOD_TRADING_DAYS;
+    var rootHorizon = Math.sqrt(horizon);
+    var expected =
+        -sigma
+                * rootHorizon
+                * (1.95996398454005
+                    - 0.47357647 * (skew / rootHorizon)
+                    + 0.068717874 * (excessKurtosis / horizon)
+                    - 0.146067276 * (skew * skew / horizon))
+            - 0.5 * sigma * sigma * horizon;
+
+    assertThat((double) point.metrics().get("valueAtRisk")).isCloseTo(expected, within(1e-7));
   }
 
   @Test

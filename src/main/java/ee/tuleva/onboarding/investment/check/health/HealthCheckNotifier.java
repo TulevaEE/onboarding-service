@@ -1,16 +1,19 @@
 package ee.tuleva.onboarding.investment.check.health;
 
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.FAIL;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.NOT_RUN;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.PASS;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.report.ReportProvider;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -30,7 +33,7 @@ public class HealthCheckNotifier {
         for (var checkType : HealthCheckType.values()) {
           var current = currentSeverity(result, checkType);
           var previous = previousSeverity(result.fund(), result.checkDate(), checkType);
-          if (current == previous) {
+          if (current == previous && !reasonChanged(result, checkType, current)) {
             continue;
           }
           transitions.add(new Transition(result, checkType, current, previous));
@@ -60,6 +63,43 @@ public class HealthCheckNotifier {
         .map(HealthCheckFinding::severity)
         .max(Enum::compareTo)
         .orElse(PASS);
+  }
+
+  private boolean reasonChanged(
+      HealthCheckResult result, HealthCheckType checkType, HealthCheckSeverity current) {
+    if (current != NOT_RUN) {
+      return false;
+    }
+    var rows =
+        eventRepository.findTop2ByFundAndCheckDateAndCheckTypeOrderByCreatedAtDesc(
+            result.fund(), result.checkDate(), checkType);
+    if (rows.size() < 2) {
+      return false;
+    }
+    return !messages(result, checkType).equals(storedMessages(rows.get(1)));
+  }
+
+  private List<String> messages(HealthCheckResult result, HealthCheckType checkType) {
+    return result.findings().stream()
+        .filter(finding -> finding.checkType() == checkType)
+        .map(HealthCheckFinding::message)
+        .sorted()
+        .toList();
+  }
+
+  @SuppressWarnings("unchecked")
+  private List<String> storedMessages(HealthCheckEvent event) {
+    var findings = event.getResult().get("findings");
+    if (!(findings instanceof List<?> list)) {
+      return List.of();
+    }
+    return list.stream()
+        .filter(Map.class::isInstance)
+        .map(finding -> ((Map<String, Object>) finding).get("message"))
+        .filter(Objects::nonNull)
+        .map(Object::toString)
+        .sorted()
+        .toList();
   }
 
   private HealthCheckSeverity previousSeverity(
@@ -114,6 +154,9 @@ public class HealthCheckNotifier {
     if (active.stream().anyMatch(t -> t.current == WARNING)) {
       return "Import warning: %s %s\n".formatted(provider, date);
     }
+    if (active.stream().anyMatch(t -> t.current == NOT_RUN)) {
+      return "Import check could not run: %s %s\n".formatted(provider, date);
+    }
     return "✅ Import cleared: %s %s\n".formatted(provider, date);
   }
 
@@ -121,6 +164,7 @@ public class HealthCheckNotifier {
     return switch (severity) {
       case FAIL -> "🛑";
       case WARNING -> "⚠️";
+      case NOT_RUN -> "⏸";
       case PASS -> "✅";
     };
   }

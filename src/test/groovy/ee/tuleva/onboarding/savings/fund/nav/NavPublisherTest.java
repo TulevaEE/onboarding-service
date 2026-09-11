@@ -1,20 +1,21 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
-import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
-import ee.tuleva.onboarding.investment.check.tracking.NavTrackingDifferenceGate;
-import ee.tuleva.onboarding.investment.event.PipelineTracker;
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValueWriter;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.pipeline.PipelineTracker;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -32,13 +33,13 @@ import org.springframework.dao.DataIntegrityViolationException;
 @ExtendWith(MockitoExtension.class)
 class NavPublisherTest {
 
-  @Mock private FundValueRepository fundValueRepository;
+  @Mock private FundValueWriter fundValueWriter;
   @Mock private NavReportMapper navReportMapper;
   @Mock private NavReportRepository navReportRepository;
   @Mock private NavReportEmailSender navReportEmailSender;
   @Mock private NavNotifier navNotifier;
   @Mock private OperationsNotificationService notificationService;
-  @Mock private NavTrackingDifferenceGate trackingDifferenceGate;
+  @Mock private NavPublicationGate trackingDifferenceGate;
   @Mock private PipelineTracker pipelineTracker;
 
   @InjectMocks private NavPublisher navPublisher;
@@ -58,7 +59,7 @@ class NavPublisherTest {
     navPublisher.publish(result);
 
     ArgumentCaptor<FundValue> captor = forClass(FundValue.class);
-    verify(fundValueRepository, times(2)).save(captor.capture());
+    verify(fundValueWriter, times(2)).save(captor.capture());
 
     var savedValues = captor.getAllValues();
 
@@ -157,7 +158,7 @@ class NavPublisherTest {
 
     navPublisher.publish(result);
 
-    verifyNoInteractions(fundValueRepository);
+    verifyNoInteractions(fundValueWriter);
     verify(navNotifier).notify(result);
     verify(navReportEmailSender).send(any(), eq(result));
   }
@@ -197,7 +198,7 @@ class NavPublisherTest {
 
     navPublisher.publish(result);
 
-    verify(fundValueRepository, times(2)).save(any());
+    verify(fundValueWriter, times(2)).save(any());
     verifyNoInteractions(navReportEmailSender);
     verify(navReportRepository, never()).markAsPublished(any(UUID.class));
     verify(notificationService).sendMessage(contains("has no rows"), eq(SAVINGS));
@@ -266,8 +267,64 @@ class NavPublisherTest {
     verify(navReportRepository).markAsPublished(reportRow.getCalculationId());
   }
 
+  @Test
+  void publishRevision_persistsRowsAndRoutesToInternalReview_withoutTrusteeEmailOrFundValues() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    var result = buildResult(TUK75, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
+    var reportRow = NavReportRow.builder().navDate(yesterday).fundCode("TUK75").build();
+    given(navReportMapper.map(result)).willReturn(List.of(reportRow));
+    given(navReportEmailSender.sendForReview(any(), eq(result))).willReturn(true);
+
+    navPublisher.publishRevision(result, new NavRevision(new BigDecimal("9.75000"), 4));
+
+    verify(navReportRepository).replaceByNavDateAndFundCode(eq(yesterday), eq("TUK75"), any());
+    assertThat(reportRow.getCalculationId()).isNotNull();
+    verify(navReportEmailSender).sendForReview(any(), eq(result));
+    verify(navReportRepository).markAsPublished(reportRow.getCalculationId());
+    verify(notificationService)
+        .sendMessage(
+            contains(
+                "Position report re-imported with 4 changed rows: publishedNav=9.75000, revisedNav=9.69941 (-0.52%)"),
+            eq(SAVINGS));
+    verify(navReportEmailSender, never()).send(any(), any());
+    verify(fundValueWriter, never()).save(any());
+    verify(trackingDifferenceGate, never()).check(any(), any());
+    verify(navNotifier, never()).notify(any());
+  }
+
+  @Test
+  void publishRevision_throws_whenNoReportRowsPersisted() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    var result = buildResult(TUK75, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
+    given(navReportMapper.map(result)).willReturn(List.of());
+
+    assertThatThrownBy(
+            () -> navPublisher.publishRevision(result, new NavRevision(new BigDecimal("9.75"), 1)))
+        .isInstanceOf(IllegalStateException.class);
+
+    verify(navReportEmailSender, never()).sendForReview(any(), any());
+    verify(navReportRepository, never()).markAsPublished(any(UUID.class));
+  }
+
+  @Test
+  void publishRevision_pointsAtFundValueApiCorrection_forSavingsFund() {
+    LocalDate today = LocalDate.of(2025, 1, 15);
+    LocalDate yesterday = LocalDate.of(2025, 1, 14);
+    var result = buildResult(TKF100, today, yesterday, Instant.parse("2025-01-15T14:00:00Z"));
+    given(navReportMapper.map(result))
+        .willReturn(List.of(NavReportRow.builder().navDate(yesterday).fundCode("TKF100").build()));
+    given(navReportEmailSender.sendForReview(any(), eq(result))).willReturn(true);
+
+    navPublisher.publishRevision(result, new NavRevision(new BigDecimal("9.75000"), 1));
+
+    verify(notificationService).sendMessage(contains("index_values"), eq(SAVINGS));
+    verify(fundValueWriter, never()).save(any());
+  }
+
   private NavCalculationResult buildResult(
-      ee.tuleva.onboarding.fund.TulevaFund fund,
+      ee.tuleva.onboarding.tulevafund.TulevaFund fund,
       LocalDate calculationDate,
       LocalDate positionReportDate,
       Instant calculatedAt) {

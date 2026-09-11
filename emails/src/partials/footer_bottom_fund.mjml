@@ -1,0 +1,32 @@
+<mj-section padding="8px 24px 24px">
+  <mj-column>
+    <mj-divider />
+    <mj-social mode="horizontal" align="center" icon-size="24px" icon-padding="8px" padding="8px 0">
+      <mj-social-element
+        href="https://tuleva.ee"
+        src="https://cdn-images.mailchimp.com/icons/social-block-v3/block-icons-v3/website-icon-gray-40.png"
+        alt="Website icon"
+      />
+      <mj-social-element
+        href="https://www.facebook.com/Tuleva.ee"
+        src="https://cdn-images.mailchimp.com/icons/social-block-v3/block-icons-v3/facebook-icon-gray-40.png"
+        alt="Facebook icon"
+      />
+      <mj-social-element
+        href="https://instagram.com/tulevafondid"
+        src="https://cdn-images.mailchimp.com/icons/social-block-v3/block-icons-v3/instagram-icon-gray-40.png"
+        alt="Instagram icon"
+      />
+      <mj-social-element
+        href="https://open.spotify.com/show/2xkhKRzBNBa1JgC11okyCL"
+        src="https://cdn-images.mailchimp.com/icons/social-block-v3/block-icons-v3/spotify-icon-gray-40.png"
+        alt="Spotify icon"
+      />
+    </mj-social>
+    <mj-divider />
+    <mj-text align="center" font-size="13px" line-height="150%" color="#6C757D" padding="8px 0 0">
+      Tuleva Fondid AS<br />
+      Telliskivi 60/1, 10412 Tallinn
+    </mj-text>
+  </mj-column>
+</mj-section>

@@ -12,6 +12,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 
@@ -192,7 +193,7 @@ public class TkfVolumeReader {
     return partyType != LEGAL_ENTITY && rs.getBoolean("existing_client");
   }
 
-  private static Instant toInstant(Timestamp timestamp) {
+  private static @Nullable Instant toInstant(@Nullable Timestamp timestamp) {
     return timestamp == null ? null : timestamp.toInstant();
   }
 }

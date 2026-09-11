@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.account;
 
-import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
+import ee.tuleva.onboarding.error.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 
 public class PensionRegistryAccountStatementConnectionException extends ErrorsResponseException {

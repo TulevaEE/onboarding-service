@@ -28,8 +28,7 @@ public class AmlCheckService {
   }
 
   public List<AmlCheckType> getMissingChecks(Person person) {
-    final var checks =
-        stream(AmlCheckType.values()).filter(AmlCheckType::isManual).collect(toList());
+    final var checks = stream(values()).filter(AmlCheckType::isManual).collect(toList());
     final var existingChecks =
         amlService.getChecks(person).stream().map(AmlCheck::getType).toList();
     checks.removeAll(existingChecks);

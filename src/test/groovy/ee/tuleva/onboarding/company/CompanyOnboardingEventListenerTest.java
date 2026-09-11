@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.company;
 
 import static ee.tuleva.onboarding.company.RelationshipType.*;
 import static ee.tuleva.onboarding.kyb.KybCheckType.*;
+import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.RESCREENING;
+import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.SUBMISSION;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOnly;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOwner;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.shareholderOwner;
@@ -56,7 +58,8 @@ class CompanyOnboardingEventListenerTest {
             new PersonalCode("38501010001"),
             List.of(person1, person2, person3),
             checks,
-            List.of());
+            List.of(),
+            SUBMISSION);
     given(companyRepository.findByRegistryCode("12345678")).willReturn(Optional.empty());
     given(companyRepository.save(any(Company.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
@@ -105,7 +108,13 @@ class CompanyOnboardingEventListenerTest {
             new RepresentationRight("YHISESINDUS", "Ühine esindusõigus", null, null, null, 67890L));
     var event =
         new KybCheckPerformedEvent(
-            this, company, new PersonalCode("38501010001"), List.of(person2), checks, rights);
+            this,
+            company,
+            new PersonalCode("38501010001"),
+            List.of(person2),
+            checks,
+            rights,
+            SUBMISSION);
     given(companyRepository.findByRegistryCode("12345678")).willReturn(Optional.of(existing));
 
     listener.onKybCheckPerformed(event);
@@ -141,7 +150,13 @@ class CompanyOnboardingEventListenerTest {
     var checks = List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of()));
     var event =
         new KybCheckPerformedEvent(
-            this, company, new PersonalCode("38501010001"), List.of(person2), checks, List.of());
+            this,
+            company,
+            new PersonalCode("38501010001"),
+            List.of(person2),
+            checks,
+            List.of(),
+            SUBMISSION);
     given(companyRepository.findByRegistryCode("12345678")).willReturn(Optional.of(existing));
 
     listener.onKybCheckPerformed(event);
@@ -164,7 +179,13 @@ class CompanyOnboardingEventListenerTest {
             new KybCheck(DATA_CHANGED, true, Map.of()));
     var event =
         new KybCheckPerformedEvent(
-            this, company, new PersonalCode("38501010001"), List.of(person2), checks, List.of());
+            this,
+            company,
+            new PersonalCode("38501010001"),
+            List.of(person2),
+            checks,
+            List.of(),
+            RESCREENING);
     given(companyRepository.findByRegistryCode("12345678")).willReturn(Optional.of(existing));
 
     listener.onKybCheckPerformed(event);
@@ -189,7 +210,13 @@ class CompanyOnboardingEventListenerTest {
             new KybCheck(DATA_CHANGED, false, Map.of()));
     var event =
         new KybCheckPerformedEvent(
-            this, company, new PersonalCode("38501010001"), List.of(person1), checks, List.of());
+            this,
+            company,
+            new PersonalCode("38501010001"),
+            List.of(person1),
+            checks,
+            List.of(),
+            SUBMISSION);
     given(companyRepository.findByRegistryCode("12345678")).willReturn(Optional.of(existing));
 
     listener.onKybCheckPerformed(event);
@@ -207,7 +234,13 @@ class CompanyOnboardingEventListenerTest {
             new KybCheck(DATA_CHANGED, false, Map.of()));
     var event =
         new KybCheckPerformedEvent(
-            this, company, new PersonalCode("38501010001"), List.of(person1), checks, List.of());
+            this,
+            company,
+            new PersonalCode("38501010001"),
+            List.of(person1),
+            checks,
+            List.of(),
+            SUBMISSION);
     given(companyRepository.findByRegistryCode("12345678")).willReturn(Optional.empty());
     given(companyRepository.save(any(Company.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
@@ -226,7 +259,13 @@ class CompanyOnboardingEventListenerTest {
             new KybCheck(COMPANY_AGE, false, Map.of()));
     var event =
         new KybCheckPerformedEvent(
-            this, company, new PersonalCode("38501010001"), List.of(person1), checks, List.of());
+            this,
+            company,
+            new PersonalCode("38501010001"),
+            List.of(person1),
+            checks,
+            List.of(),
+            SUBMISSION);
     given(companyRepository.findByRegistryCode("12345678")).willReturn(Optional.empty());
     given(companyRepository.save(any(Company.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
@@ -246,7 +285,13 @@ class CompanyOnboardingEventListenerTest {
             new KybCheck(DATA_CHANGED, false, Map.of()));
     var event =
         new KybCheckPerformedEvent(
-            this, company, new PersonalCode("38501010001"), List.of(person1), checks, List.of());
+            this,
+            company,
+            new PersonalCode("38501010001"),
+            List.of(person1),
+            checks,
+            List.of(),
+            SUBMISSION);
     given(companyRepository.findByRegistryCode("12345678")).willReturn(Optional.empty());
     given(companyRepository.save(any(Company.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
@@ -274,7 +319,13 @@ class CompanyOnboardingEventListenerTest {
             new KybCheck(COMPANY_STRUCTURE, false, Map.of()));
     var event =
         new KybCheckPerformedEvent(
-            this, company, new PersonalCode("38501010001"), List.of(person1), checks, List.of());
+            this,
+            company,
+            new PersonalCode("38501010001"),
+            List.of(person1),
+            checks,
+            List.of(),
+            SUBMISSION);
     given(companyRepository.findByRegistryCode("12345678")).willReturn(Optional.of(existing));
 
     listener.onKybCheckPerformed(event);

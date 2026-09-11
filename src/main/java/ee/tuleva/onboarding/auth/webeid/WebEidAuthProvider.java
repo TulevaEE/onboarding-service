@@ -14,6 +14,7 @@ import eu.webeid.security.authtoken.WebEidAuthToken;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;
@@ -35,7 +36,7 @@ public class WebEidAuthProvider implements AuthProvider {
   }
 
   @Override
-  public AuthenticatedPerson authenticate(String authTokenJson) {
+  public @Nullable AuthenticatedPerson authenticate(@Nullable String authTokenJson) {
     if (authTokenJson == null) {
       return null;
     }

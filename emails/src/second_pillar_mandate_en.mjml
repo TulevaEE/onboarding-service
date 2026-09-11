@@ -1,0 +1,72 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Hello,&nbsp;*|FNAME|*</mj-text>
+        <mj-text>
+          *|IF:selectedTulevaFund|*You are now saving in your second pillar alongside me and
+          other Tuleva members.*|ELSE:|*Your second pillar application has been
+          submitted.*|END:IF|*
+        </mj-text>
+        <mj-raw>*|IF:hasFundSelection|*</mj-raw>
+        <mj-raw>*|IF:hasFundTransfer|*</mj-raw>
+        <mj-text>
+          Your payments will be directed to the chosen fund starting from the next
+          payment, and the exchange of your existing fund units takes effect
+          on&nbsp;*|transferDate|*.
+        </mj-text>
+        <mj-raw>*|ELSE:|*</mj-raw>
+        <mj-text>
+          Your payments will be directed to the chosen fund starting from the next
+          payment.
+        </mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+        <mj-raw>*|ELSE:|*</mj-raw>
+        <mj-text>
+          The exchange of your existing fund units takes effect on&nbsp;*|transferDate|*.
+        </mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+        <mj-raw>*|IF:selectedHighFeeFund|*</mj-raw>
+        <mj-text>
+          Please note: you chose a fund whose ongoing charges are
+          <strong>*|selectedFundFee|*% per year</strong>.
+          Low fees provide the best foundation for optimal long-term returns. You can compare fund fees in the
+          <a href="https://tuleva.ee/vaata/pensionifondide-vordlus/?utm_content=warning_high_fee">pension fund comparison</a>.
+        </mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+        <mj-raw>*|IF:selectedConservativeFund|*</mj-raw>
+        <mj-text>
+          Please note: you chose a <strong>low-risk fund</strong>. With many years to go until
+          retirement,
+          equity funds have historically delivered considerably better returns than bond
+          funds. You can compare funds in the
+          <a href="https://tuleva.ee/vaata/pensionifondide-vordlus/?utm_content=warning_conservative">pension fund comparison</a>.
+        </mj-text>
+        <mj-raw>*|END:IF|*</mj-raw>
+
+        <mj-include path="./partials/suggest_chain_open_en.mjml" />
+        <mj-raw>*|END:IF|*</mj-raw>
+
+        <mj-text>
+          Attached is a copy of the application you just made on our website and which we
+          have sent to Pensionikeskus.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="./partials/contact_en.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">
+          Tõnu Pekk<br />
+          Tuleva Founder and Fund Manager
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_pension_en.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

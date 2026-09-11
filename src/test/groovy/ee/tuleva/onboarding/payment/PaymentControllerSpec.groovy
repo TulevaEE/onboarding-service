@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.payment
 import tools.jackson.databind.json.JsonMapper
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
-import ee.tuleva.onboarding.savings.fund.SavingFundPayment
 import ee.tuleva.onboarding.user.User
 import org.springframework.http.MediaType
 
@@ -219,7 +218,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
     given:
     def mvc = mockMvc(paymentController)
 
-    1 * paymentService.processSavingsPaymentToken(aSerializedSavingsPaymentToken) >> Optional.of(SavingFundPayment.builder().build())
+    1 * paymentService.processSavingsPaymentToken(aSerializedSavingsPaymentToken) >> true
     expect:
     mvc.perform(get("/v1/payments/savings/callback")
         .param("order-token", aSerializedSavingsPaymentToken))
@@ -230,7 +229,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
     given:
     def mvc = mockMvc(paymentController)
 
-    1 * paymentService.processSavingsPaymentToken(aSerializedSavingsPaymentToken) >> Optional.empty()
+    1 * paymentService.processSavingsPaymentToken(aSerializedSavingsPaymentToken) >> false
     expect:
     mvc.perform(get("/v1/payments/savings/callback")
         .param("order-token", aSerializedSavingsPaymentToken))

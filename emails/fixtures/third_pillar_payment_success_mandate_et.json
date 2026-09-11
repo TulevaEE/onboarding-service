@@ -1,0 +1,45 @@
+{
+  "variants": {
+    "II samba soovitus": {
+      "FNAME": "Mari",
+      "suggestSecondPillar": true
+    },
+    "II samba määra tõstmise soovitus": {
+      "FNAME": "Mari",
+      "suggestPaymentRate": true
+    },
+    "III samba soovitus (ei esine)": {
+      "FNAME": "Mari",
+      "suggestThirdPillar": true
+    },
+    "III samba tasude soovitus (ei esine)": {
+      "FNAME": "Mari",
+      "suggestThirdPillar": true,
+      "thirdPillarActive": true
+    },
+    "III samba püsimakse soovitus": {
+      "FNAME": "Mari",
+      "suggestThirdPillarRecurringPayment": true
+    },
+    "III samba sissemakse tõstmise soovitus": {
+      "FNAME": "Mari",
+      "suggestThirdPillarRaise": true
+    },
+    "kogumisfondi soovitus": {
+      "FNAME": "Mari",
+      "suggestSavingsFund": true,
+      "savingsFundFee": "0,28"
+    },
+    "kogumisfondi püsimakse soovitus": {
+      "FNAME": "Mari",
+      "suggestSavingsFundRecurringPayment": true
+    },
+    "liikmesuse soovitus": {
+      "FNAME": "Mari",
+      "suggestMembership": true
+    },
+    "ilma soovituseta": {
+      "FNAME": "Mari"
+    }
+  }
+}

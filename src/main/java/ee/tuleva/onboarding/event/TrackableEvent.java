@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import org.jspecify.annotations.Nullable;
 import org.springframework.boot.actuate.audit.listener.AuditApplicationEvent;
 
 @Getter
@@ -13,13 +14,14 @@ public class TrackableEvent extends AuditApplicationEvent {
 
   private final Person person;
   private final TrackableEventType type;
-  private final Map<String, Object> data;
+  private final Map<String, @Nullable Object> data;
 
   public TrackableEvent(Person person, TrackableEventType type) {
     this(person, type, Map.of());
   }
 
-  public TrackableEvent(Person person, TrackableEventType type, Map<String, Object> data) {
+  public TrackableEvent(
+      Person person, TrackableEventType type, Map<String, @Nullable Object> data) {
     super(person.getPersonalCode(), String.valueOf(type), data);
     this.person = person;
     this.type = type;

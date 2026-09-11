@@ -1,7 +1,9 @@
 package ee.tuleva.onboarding.mandate.generic;
 
-import ee.tuleva.onboarding.epis.mandate.details.MandateDetails;
+import static java.util.Objects.requireNonNull;
+
 import ee.tuleva.onboarding.mandate.MandateType;
+import ee.tuleva.onboarding.mandate.details.MandateDetails;
 import java.time.Instant;
 import tools.jackson.core.JsonParser;
 import tools.jackson.databind.DeserializationContext;
@@ -16,12 +18,16 @@ public class MandateDtoDeserializer
     JsonNode root = ctxt.readTree(parser);
 
     JsonNode detailsNode = root.get("details");
-    MandateType type = MandateType.valueOf(detailsNode.get("mandateType").asText());
+    MandateType type = MandateType.valueOf(detailsNode.get("mandateType").asString());
     if (type == MandateType.UNKNOWN) {
       throw new IllegalArgumentException("Unknown mandateType: " + type);
     }
 
-    MandateDetails details = ctxt.readTreeAsValue(detailsNode, type.getMandateDetailsClass());
+    MandateDetails details =
+        ctxt.readTreeAsValue(
+            detailsNode,
+            requireNonNull(
+                type.getMandateDetailsClass(), "Mandate type has no details class: type=" + type));
 
     var mandateDtoBuilder = MandateDto.builder();
 
@@ -30,7 +36,7 @@ public class MandateDtoDeserializer
     }
 
     if (root.hasNonNull("createdDate")) {
-      mandateDtoBuilder.createdDate(Instant.parse(root.get("createdDate").asText()));
+      mandateDtoBuilder.createdDate(Instant.parse(root.get("createdDate").asString()));
     }
 
     return mandateDtoBuilder.details(details).build();

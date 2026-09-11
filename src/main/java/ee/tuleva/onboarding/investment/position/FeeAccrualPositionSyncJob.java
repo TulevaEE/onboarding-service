@@ -2,22 +2,24 @@ package ee.tuleva.onboarding.investment.position;
 
 import static ee.tuleva.onboarding.investment.JobRunSchedule.FEE_ACCRUAL_POSITION_BACKFILL;
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
-import static ee.tuleva.onboarding.investment.event.PipelineStep.FEE_ACCRUAL_SYNC;
 import static ee.tuleva.onboarding.investment.fees.FeeType.DEPOT;
 import static ee.tuleva.onboarding.investment.fees.FeeType.MANAGEMENT;
 import static ee.tuleva.onboarding.investment.position.AccountType.FEE;
+import static ee.tuleva.onboarding.pipeline.PipelineStep.FEE_ACCRUAL_SYNC;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.event.FeeAccrualPositionsSynced;
 import ee.tuleva.onboarding.investment.event.FundPositionsImported;
-import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.investment.event.RunFeeAccrualPositionSyncRequested;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
 import ee.tuleva.onboarding.investment.fees.FeeType;
+import ee.tuleva.onboarding.pipeline.PipelineTracker;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -73,41 +75,64 @@ public class FeeAccrualPositionSyncJob {
   }
 
   public int sync(int daysBack) {
-    var today = LocalDate.now(clock);
-    var cutoffDate = today.minusDays(daysBack);
+    var cutoffDate = LocalDate.now(clock).minusDays(daysBack);
+    var failures = new ArrayList<Exception>();
     int total = 0;
 
     for (var fund : TulevaFund.values()) {
-      var navDates =
-          fundPositionRepository.findDistinctNavDatesByFund(fund).stream()
-              .filter(date -> !date.isBefore(cutoffDate))
-              .toList();
-
-      var managementPolicy = feeChargedToFundPolicy.resolverFor(fund, MANAGEMENT);
-      var depotPolicy = feeChargedToFundPolicy.resolverFor(fund, DEPOT);
-
-      for (var navDate : navDates) {
-        var mgmtAccrual = chargedAccrual(managementPolicy, fund, MANAGEMENT, navDate);
-        var depotAccrual = chargedAccrual(depotPolicy, fund, DEPOT, navDate);
-
-        var positions =
-            List.of(
-                feeAccrualPosition(fund, navDate, "Management Fee Accrual", mgmtAccrual),
-                feeAccrualPosition(fund, navDate, "Depot Fee Accrual", depotAccrual));
-
-        fundPositionImportService.upsertPositions(positions);
-        total += positions.size();
+      try {
+        total += syncFund(fund, cutoffDate);
+      } catch (Exception e) {
+        log.error("Fee accrual position sync failed: fund={}", fund, e);
+        failures.add(e);
       }
+    }
+
+    if (!failures.isEmpty()) {
+      var combined =
+          new IllegalStateException(
+              "Fee accrual position sync failed for %d fund(s)".formatted(failures.size()));
+      failures.forEach(combined::addSuppressed);
+      throw combined;
     }
 
     return total;
   }
 
+  private int syncFund(TulevaFund fund, LocalDate cutoffDate) {
+    var navDates =
+        fundPositionRepository.findDistinctNavDatesByFund(fund).stream()
+            .filter(date -> !date.isBefore(cutoffDate))
+            .toList();
+
+    var managementPolicy = feeChargedToFundPolicy.resolverFor(fund, MANAGEMENT);
+    var depotPolicy = feeChargedToFundPolicy.resolverFor(fund, DEPOT);
+
+    int written = 0;
+    for (var navDate : navDates) {
+      var mgmtAccrual = chargedAccrual(managementPolicy, fund, MANAGEMENT, navDate);
+      var depotAccrual = chargedAccrual(depotPolicy, fund, DEPOT, navDate);
+
+      var positions =
+          List.of(
+              feeAccrualPosition(fund, navDate, "Management Fee Accrual", mgmtAccrual),
+              feeAccrualPosition(fund, navDate, "Depot Fee Accrual", depotAccrual));
+
+      fundPositionImportService.upsertPositions(positions);
+      written += positions.size();
+    }
+    return written;
+  }
+
   private BigDecimal chargedAccrual(
       FeeChargedToFundPolicy.Resolver policy, TulevaFund fund, FeeType feeType, LocalDate navDate) {
-    return policy.chargedOn(navDate)
-        ? feeAccrualRepository.getUnsettledAccrual(fund, feeType, navDate)
-        : BigDecimal.ZERO;
+    return roundedToCents(
+        policy.sumChargedDays(
+            feeAccrualRepository.getUnsettledAccrualByDate(fund, feeType, navDate)));
+  }
+
+  private static BigDecimal roundedToCents(BigDecimal amount) {
+    return amount.signum() == 0 ? BigDecimal.ZERO : amount.setScale(2, RoundingMode.HALF_UP);
   }
 
   private FundPosition feeAccrualPosition(

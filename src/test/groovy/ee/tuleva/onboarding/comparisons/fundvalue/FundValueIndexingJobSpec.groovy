@@ -7,11 +7,11 @@ import ch.qos.logback.core.read.ListAppender
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.BlackRockFundValueRetriever
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.ComparisonIndexRetriever
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.ComparisonIndexUnavailableException
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.DeutscheBoerseValueRetriever
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EODHDValueRetriever
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EuronextValueRetriever
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundNavRetrieverFactory
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.MorningstarNavRetriever
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.YahooFundValueRetriever
@@ -61,8 +61,16 @@ class FundValueIndexingJobSpec extends Specification {
     }
 
     private List<ILoggingEvent> errorEventsContaining(String substring) {
+        return eventsContaining(Level.ERROR, substring)
+    }
+
+    private List<ILoggingEvent> warnEventsContaining(String substring) {
+        return eventsContaining(Level.WARN, substring)
+    }
+
+    private List<ILoggingEvent> eventsContaining(Level level, String substring) {
         return logAppender.list.findAll {
-            it.level == Level.ERROR && it.formattedMessage.contains(substring)
+            it.level == level && it.formattedMessage.contains(substring)
         }
     }
 
@@ -334,25 +342,6 @@ class FundValueIndexingJobSpec extends Specification {
         1 * dynamicRetriever.retrieveValuesForRange(FundValueIndexingJob.EARLIEST_DATE, TODAY) >> []
     }
 
-    def "every FundTicker position is resolvable via a NAV-critical retriever before NAV publish"() {
-        expect:
-        FundTicker.values().each { ticker ->
-            Set<String> sources = [] as Set<String>
-            if (ticker.blackrockProductId != null) sources << BlackRockFundValueRetriever.KEY
-            if (ticker.morningstarId != null) sources << MorningstarNavRetriever.KEY
-            if (ticker.eodhdTicker != null) sources << EODHDValueRetriever.KEY
-            if (ticker.xetraStorageKey.isPresent()) sources << DeutscheBoerseValueRetriever.KEY
-            if (ticker.euronextParisStorageKey.isPresent()) sources << EuronextValueRetriever.KEY
-
-            Set<String> covered = sources.intersect(FundValueIndexingJob.NAV_CRITICAL_RETRIEVER_KEYS)
-            assert !covered.isEmpty():
-                "FundTicker ${ticker.name()} (ISIN ${ticker.isin}) has no price source in NAV_CRITICAL_RETRIEVER_KEYS. " +
-                "Sources=${sources}, critical=${FundValueIndexingJob.NAV_CRITICAL_RETRIEVER_KEYS}. " +
-                "Either add a covering retriever key to NAV_CRITICAL_RETRIEVER_KEYS, " +
-                "or ensure this FundTicker provides blackrockProductId / morningstarId / eodhdTicker."
-        }
-    }
-
     def "refreshForNavCalculation refreshes only NAV-critical retrievers"() {
         given:
         def blackrock = Mock(ComparisonIndexRetriever)
@@ -434,6 +423,57 @@ class FundValueIndexingJobSpec extends Specification {
         then:
         0 * workingDayRetriever.retrieveValuesForRange(_, _)
         1 * anyDayRetriever.retrieveValuesForRange(FundValueIndexingJob.EARLIEST_DATE, saturday) >> []
+    }
+
+    def "logs WARN instead of ERROR when a retriever reports its source temporarily unavailable"() {
+        given:
+        fundValueRetriever.getKey() >> "MSCI_ACWI"
+        fundValueRetriever.expectedStorageKeys() >> Set.of("MSCI_ACWI")
+        fundValueRetriever.stalenessThreshold() >> Duration.ofDays(7)
+        fundValueRepository.findLatestDateByKeys(_) >> ["MSCI_ACWI": TODAY.minusDays(1)]
+        fundValueRetriever.retrieveValuesForRange(_, _) >> {
+            throw new ComparisonIndexUnavailableException("MSCI answered with an HTML error page instead of JSON")
+        }
+
+        when:
+        fundValueIndexingJob.refreshAll()
+
+        then:
+        errorEventsContaining("MSCI_ACWI").isEmpty()
+        warnEventsContaining("MSCI_ACWI").size() == 1
+    }
+
+    def "logs ERROR when a retriever fails unexpectedly"() {
+        given:
+        fundValueRetriever.getKey() >> "MSCI_ACWI"
+        fundValueRetriever.expectedStorageKeys() >> Set.of("MSCI_ACWI")
+        fundValueRetriever.stalenessThreshold() >> Duration.ofDays(7)
+        fundValueRepository.findLatestDateByKeys(_) >> ["MSCI_ACWI": TODAY.minusDays(1)]
+        fundValueRetriever.retrieveValuesForRange(_, _) >> { throw new RuntimeException("boom") }
+
+        when:
+        fundValueIndexingJob.refreshAll()
+
+        then:
+        errorEventsContaining("MSCI_ACWI").size() == 1
+        warnEventsContaining("MSCI_ACWI").isEmpty()
+    }
+
+    def "escalates to ERROR when a retriever's source stays unavailable past its staleness threshold"() {
+        given:
+        fundValueRetriever.getKey() >> "MSCI_ACWI"
+        fundValueRetriever.expectedStorageKeys() >> Set.of("MSCI_ACWI")
+        fundValueRetriever.stalenessThreshold() >> Duration.ofDays(5)
+        fundValueRepository.findLatestDateByKeys(_) >> ["MSCI_ACWI": TODAY.minusDays(6)]
+        fundValueRetriever.retrieveValuesForRange(_, _) >> {
+            throw new ComparisonIndexUnavailableException("MSCI answered with an HTML error page instead of JSON")
+        }
+
+        when:
+        fundValueIndexingJob.refreshAll()
+
+        then:
+        errorEventsContaining("MSCI_ACWI").size() == 1
     }
 
     private static List<FundValue> fakeFundValues() {

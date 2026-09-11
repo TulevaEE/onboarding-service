@@ -4,14 +4,7 @@ import ee.tuleva.onboarding.country.Country;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotNull;
-import lombok.Data;
+import org.jspecify.annotations.Nullable;
 
-@Data
-public class UpdateUserCommand {
-
-  @NotNull @Email private String email;
-
-  private String phoneNumber;
-
-  @Valid private Country address;
-}
+public record UpdateUserCommand(
+    @NotNull @Email String email, @Nullable String phoneNumber, @Valid @Nullable Country address) {}

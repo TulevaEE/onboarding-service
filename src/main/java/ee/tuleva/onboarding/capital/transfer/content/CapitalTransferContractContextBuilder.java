@@ -5,7 +5,7 @@ import static java.util.stream.Collectors.toList;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState;
-import ee.tuleva.onboarding.epis.mandate.details.BankAccountDetails;
+import ee.tuleva.onboarding.mandate.details.BankAccountDetails;
 import ee.tuleva.onboarding.user.member.Member;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;

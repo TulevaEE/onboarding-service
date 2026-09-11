@@ -229,6 +229,60 @@ class EpisCsvParserTest {
   }
 
   @Test
+  void refusesAKeywordThatMatchesMoreThanOneHeader() {
+    String csv =
+        """
+        Väärtpaber;Summa (teenustasuga);Summa (PF valitseja)
+        Tuleva III Samba Pensionifond;80,00;999,00
+        """;
+
+    Map<String, String> row = parser.parse(csv, "Väärtpaber").rows().getFirst();
+
+    assertThatThrownBy(() -> EpisCsvParser.findValue(row, "summa"))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void resolvesTheColumnWhenExactlyOneHeaderMatchesByContains() {
+    String csv =
+        """
+        Väärtpaber;Summa (teenustasuga)
+        Tuleva III Samba Pensionifond;80,00
+        """;
+
+    Map<String, String> row = parser.parse(csv, "Väärtpaber").rows().getFirst();
+
+    assertThat(EpisCsvParser.findValue(row, "summa")).isEqualTo("80,00");
+  }
+
+  @Test
+  void prefersTheExactHeaderOverTwoOthersThatMerelyContainTheKeyword() {
+    String csv =
+        """
+        Väärtpaber;Summa (teenustasuga);Summa;Summa (PF valitseja)
+        Tuleva III Samba Pensionifond;80,00;70,00;999,00
+        """;
+
+    Map<String, String> row = parser.parse(csv, "Väärtpaber").rows().getFirst();
+
+    assertThat(EpisCsvParser.findValue(row, "summa")).isEqualTo("70,00");
+  }
+
+  @Test
+  void refusesAnAmbiguousKeywordRatherThanFallingThroughToTheNextAlias() {
+    String csv =
+        """
+        Väärtpaber;Summa (teenustasuga);Summa (PF valitseja);Osakuid
+        Tuleva III Samba Pensionifond;80,00;999,00;100,000
+        """;
+
+    Map<String, String> row = parser.parse(csv, "Väärtpaber").rows().getFirst();
+
+    assertThatThrownBy(() -> EpisCsvParser.findValue(row, "summa", "osakuid"))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
   void throwsWhenHeaderMarkerNotFoundInFirstTenRows() {
     String csv =
         """
@@ -263,7 +317,7 @@ class EpisCsvParserTest {
       })
   void parseNumberHandlesEstonianAndEnglishFormats(
       String input, DecimalConvention convention, String expected) {
-    BigDecimal result = EpisCsvParser.parseNumber(input, convention);
+    BigDecimal result = EpisNumbers.parseNumber(input, convention);
 
     if (expected == null) {
       assertThat(result).isNull();
@@ -274,13 +328,13 @@ class EpisCsvParserTest {
 
   @Test
   void parseNumberHandlesNull() {
-    assertThat(EpisCsvParser.parseNumber(null, DecimalConvention.COMMA_DECIMAL)).isNull();
+    assertThat(EpisNumbers.parseNumber(null, DecimalConvention.COMMA_DECIMAL)).isNull();
   }
 
   @Test
   void parseNumberHandlesBlank() {
-    assertThat(EpisCsvParser.parseNumber("", DecimalConvention.COMMA_DECIMAL)).isNull();
-    assertThat(EpisCsvParser.parseNumber("   ", DecimalConvention.COMMA_DECIMAL)).isNull();
+    assertThat(EpisNumbers.parseNumber("", DecimalConvention.COMMA_DECIMAL)).isNull();
+    assertThat(EpisNumbers.parseNumber("   ", DecimalConvention.COMMA_DECIMAL)).isNull();
   }
 
   @ParameterizedTest
@@ -292,7 +346,7 @@ class EpisCsvParserTest {
     "'1,2,3', COMMA_DECIMAL"
   })
   void parseNumberThrowsOnUnparseableValue(String input, DecimalConvention convention) {
-    assertThatThrownBy(() -> EpisCsvParser.parseNumber(input, convention))
+    assertThatThrownBy(() -> EpisNumbers.parseNumber(input, convention))
         .isInstanceOf(IllegalArgumentException.class);
   }
 }

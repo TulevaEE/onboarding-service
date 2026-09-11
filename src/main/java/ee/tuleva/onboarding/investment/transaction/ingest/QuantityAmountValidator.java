@@ -10,6 +10,7 @@ import java.math.MathContext;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -99,8 +100,8 @@ class QuantityAmountValidator {
       SebPendingTransactionRow row,
       TransactionOrder order,
       MismatchKind kind,
-      BigDecimal expected,
-      BigDecimal actual,
+      @Nullable BigDecimal expected,
+      @Nullable BigDecimal actual,
       TransactionMatchingProperties properties) {
     BigDecimal delta = expected == null || actual == null ? null : actual.subtract(expected).abs();
     return new QuantityAmountMismatchEvent(
@@ -140,7 +141,9 @@ class QuantityAmountValidator {
   }
 
   private static BigDecimal sumExecutedValue(
-      TransactionOrder order, List<TransactionExecution> executions, String excludeBrokerRef) {
+      TransactionOrder order,
+      List<TransactionExecution> executions,
+      @Nullable String excludeBrokerRef) {
     boolean amount = kind(order) == MismatchKind.FUND_BUY_AMOUNT;
     return executions.stream()
         .filter(
@@ -181,7 +184,7 @@ class QuantityAmountValidator {
   }
 
   private static boolean withinToleranceOf(
-      BigDecimal expectedValue,
+      @Nullable BigDecimal expectedValue,
       TransactionOrder order,
       SebPendingTransactionRow row,
       TransactionMatchingProperties properties,
@@ -212,18 +215,18 @@ class QuantityAmountValidator {
     return MismatchKind.FUND_SELL_QUANTITY;
   }
 
-  private static BigDecimal expected(TransactionOrder order) {
+  private static @Nullable BigDecimal expected(TransactionOrder order) {
     return kind(order) == MismatchKind.FUND_BUY_AMOUNT
         ? order.getOrderAmount()
         : order.getOrderQuantity();
   }
 
-  private static BigDecimal actual(TransactionOrder order, SebPendingTransactionRow row) {
+  private static @Nullable BigDecimal actual(TransactionOrder order, SebPendingTransactionRow row) {
     return kind(order) == MismatchKind.FUND_BUY_AMOUNT ? row.total() : row.quantity();
   }
 
   private static boolean quantityWithinTolerance(
-      BigDecimal orderQuantity, BigDecimal execQuantity, BigDecimal tolerance) {
+      @Nullable BigDecimal orderQuantity, @Nullable BigDecimal execQuantity, BigDecimal tolerance) {
     if (orderQuantity == null || execQuantity == null) {
       return false;
     }
@@ -232,7 +235,7 @@ class QuantityAmountValidator {
   }
 
   private static boolean amountWithinRelativeTolerance(
-      BigDecimal orderAmount, BigDecimal execAmount, BigDecimal tolerance) {
+      @Nullable BigDecimal orderAmount, @Nullable BigDecimal execAmount, BigDecimal tolerance) {
     if (orderAmount == null || execAmount == null) {
       return false;
     }

@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.ftp.FtpClient
-import org.apache.commons.net.ftp.FTPClient
+import ee.tuleva.onboarding.ftp.FtpClient
+import ee.tuleva.onboarding.ftp.FtpClientFactory
 import org.mockftpserver.fake.FakeFtpServer
 import org.mockftpserver.fake.UserAccount
 import org.mockftpserver.fake.filesystem.DirectoryEntry
@@ -14,6 +14,7 @@ import spock.lang.Shared
 import spock.lang.Specification
 
 import java.nio.file.Files
+import java.time.Clock
 
 import static ee.tuleva.onboarding.comparisons.fundvalue.FundValueFixture.aFundValue
 import static ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.GlobalStockIndexRetriever.KEY
@@ -55,9 +56,9 @@ class GlobalStockIndexRetrieverSpec extends Specification {
     }
 
     void setup() {
-        FtpClient ftpClient = new FtpClient(new FTPClient(), FTP_HOST, FTP_USERNAME, FTP_PASSWORD,
+        FtpClientFactory ftpClientFactory = new FtpClientFactory(FTP_HOST, FTP_USERNAME, FTP_PASSWORD,
             fakeFtpServer.getServerControlPort())
-        retriever = new GlobalStockIndexRetriever(ftpClient)
+        retriever = new GlobalStockIndexRetriever(ftpClientFactory, Clock.systemUTC())
     }
 
     void cleanupSpec() {
@@ -133,10 +134,26 @@ class GlobalStockIndexRetrieverSpec extends Specification {
         assertThat(values).usingRecursiveComparison().ignoringFields("updatedAt").isEqualTo(expected)
     }
 
+    def "it creates and closes its own ftp client per retrieval"() {
+        given:
+        FtpClient ftpClient = Mock(FtpClient)
+        FtpClientFactory factory = Mock(FtpClientFactory)
+        GlobalStockIndexRetriever retriever = new GlobalStockIndexRetriever(factory, Clock.systemUTC())
+        ftpClient.listFiles(_ as String) >> []
+
+        when:
+        retriever.retrieveValuesForRange(parse("2020-03-26"), parse("2020-03-27"))
+
+        then:
+        1 * factory.create() >> ftpClient
+        1 * ftpClient.open()
+        1 * ftpClient.close()
+    }
+
     def "it should handle ftp client open/close exception"() {
         given:
         FtpClient ftpClient = Mock(FtpClient)
-        GlobalStockIndexRetriever retriever = new GlobalStockIndexRetriever(ftpClient)
+        GlobalStockIndexRetriever retriever = new GlobalStockIndexRetriever(factoryReturning(ftpClient), Clock.systemUTC())
         ftpClient.open() >> { throw new IOException("Test Exception") }
         ftpClient.close() >> { throw new IOException("Test Exception") }
 
@@ -150,7 +167,7 @@ class GlobalStockIndexRetrieverSpec extends Specification {
     def "it should handle ftp client download exception"() {
         given:
         FtpClient ftpClient = Mock(FtpClient)
-        GlobalStockIndexRetriever retriever = new GlobalStockIndexRetriever(ftpClient)
+        GlobalStockIndexRetriever retriever = new GlobalStockIndexRetriever(factoryReturning(ftpClient), Clock.systemUTC())
         ftpClient.listFiles(_ as String) >> { return ['DMRI_XI_MSTAR_USA_D_20200324.zip', 'DMRI_XI_MSTAR_USA_D_20200325.zip'] }
         ftpClient.downloadFileStream(_ as String) >> { throw new IOException('Test Exception') }
 
@@ -159,5 +176,11 @@ class GlobalStockIndexRetrieverSpec extends Specification {
 
         then:
         noExceptionThrown()
+    }
+
+    private FtpClientFactory factoryReturning(FtpClient client) {
+        FtpClientFactory factory = Stub(FtpClientFactory)
+        factory.create() >> client
+        return factory
     }
 }

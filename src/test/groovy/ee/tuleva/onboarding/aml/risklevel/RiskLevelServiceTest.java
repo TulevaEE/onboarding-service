@@ -619,7 +619,7 @@ class RiskLevelServiceTest {
 
   @Test
   void isHighRisk_trueWhenLatestThirdPillarSnapshotIsHigh() {
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDesc(
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDescIdDesc(
             "123", List.of(RISK_LEVEL, RISK_LEVEL_OVERRIDE)))
         .thenReturn(Optional.of(checkWithLevel(RISK_LEVEL, 1)));
 
@@ -628,10 +628,10 @@ class RiskLevelServiceTest {
 
   @Test
   void isHighRisk_trueWhenLatestTkfOverrideLevelIsHighString() {
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDesc(
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDescIdDesc(
             "123", List.of(RISK_LEVEL, RISK_LEVEL_OVERRIDE)))
         .thenReturn(Optional.empty());
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDesc(
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDescIdDesc(
             "123", List.of(TKF_RISK_LEVEL, TKF_RISK_LEVEL_OVERRIDE)))
         .thenReturn(Optional.of(checkWithLevel(TKF_RISK_LEVEL_OVERRIDE, "1")));
 
@@ -640,10 +640,10 @@ class RiskLevelServiceTest {
 
   @Test
   void isHighRisk_falseWhenLatestRowsAreNotHighOrMissing() {
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDesc(
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDescIdDesc(
             "123", List.of(RISK_LEVEL, RISK_LEVEL_OVERRIDE)))
         .thenReturn(Optional.of(checkWithLevel(RISK_LEVEL, 2)));
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDesc(
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDescIdDesc(
             "123", List.of(TKF_RISK_LEVEL, TKF_RISK_LEVEL_OVERRIDE)))
         .thenReturn(Optional.empty());
 
@@ -652,7 +652,7 @@ class RiskLevelServiceTest {
 
   @Test
   void isHighRisk_trueWhenLevelIsMalformed() {
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDesc(
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDescIdDesc(
             "123", List.of(RISK_LEVEL, RISK_LEVEL_OVERRIDE)))
         .thenReturn(Optional.of(checkWithLevel(RISK_LEVEL, "not-a-number")));
 
@@ -661,7 +661,7 @@ class RiskLevelServiceTest {
 
   @Test
   void isHighRisk_trueWhenAutomaticSnapshotHasNoLevel() {
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDesc(
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDescIdDesc(
             "123", List.of(RISK_LEVEL, RISK_LEVEL_OVERRIDE)))
         .thenReturn(Optional.of(checkWithLevel(RISK_LEVEL, null)));
 
@@ -670,10 +670,10 @@ class RiskLevelServiceTest {
 
   @Test
   void isHighRisk_falseWhenLatestRowIsOverrideWithoutLevel() {
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDesc(
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDescIdDesc(
             "123", List.of(RISK_LEVEL, RISK_LEVEL_OVERRIDE)))
         .thenReturn(Optional.of(checkWithLevel(RISK_LEVEL_OVERRIDE, null)));
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDesc(
+    when(amlCheckRepository.findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDescIdDesc(
             "123", List.of(TKF_RISK_LEVEL, TKF_RISK_LEVEL_OVERRIDE)))
         .thenReturn(Optional.of(checkWithLevel(TKF_RISK_LEVEL_OVERRIDE, null)));
 

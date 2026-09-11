@@ -6,6 +6,7 @@ import static java.util.stream.Collectors.toList;
 import ee.tuleva.onboarding.aml.AmlCheck;
 import ee.tuleva.onboarding.aml.AmlCheckRepository;
 import ee.tuleva.onboarding.aml.AmlCheckType;
+import ee.tuleva.onboarding.aml.RiskLevels;
 import ee.tuleva.onboarding.aml.notification.AmlCheckCreatedEvent;
 import ee.tuleva.onboarding.aml.notification.AmlRiskLevelJobRunEvent;
 import ee.tuleva.onboarding.time.ClockHolder;
@@ -16,6 +17,7 @@ import java.util.Map;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -23,7 +25,7 @@ import org.springframework.util.StringUtils;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class RiskLevelService {
+public class RiskLevelService implements RiskLevels {
 
   private final AmlRiskReader amlRiskReader;
   private final TkfRiskReader tkfRiskReader;
@@ -36,6 +38,7 @@ public class RiskLevelService {
     scorePillar("III pillar", amlRiskReader, RISK_LEVEL, mediumRiskIndividualSelectionProbability);
   }
 
+  @Override
   public boolean isHighRisk(String personalCode) {
     return latestLevelIsHigh(personalCode, List.of(RISK_LEVEL, RISK_LEVEL_OVERRIDE))
         || latestLevelIsHigh(personalCode, List.of(TKF_RISK_LEVEL, TKF_RISK_LEVEL_OVERRIDE));
@@ -43,7 +46,7 @@ public class RiskLevelService {
 
   private boolean latestLevelIsHigh(String personalCode, List<AmlCheckType> types) {
     return amlCheckRepository
-        .findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDesc(personalCode, types)
+        .findFirstByPersonalCodeAndTypeInOrderByCreatedTimeDescIdDesc(personalCode, types)
         .map(this::isHighRiskLevel)
         .orElse(false);
   }
@@ -70,7 +73,7 @@ public class RiskLevelService {
     return type == RISK_LEVEL_OVERRIDE || type == TKF_RISK_LEVEL_OVERRIDE;
   }
 
-  private Integer parseLevel(Object level) {
+  private @Nullable Integer parseLevel(Object level) {
     if (level instanceof Number number) {
       return number.intValue();
     }

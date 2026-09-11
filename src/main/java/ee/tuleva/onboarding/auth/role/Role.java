@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.auth.role;
 import static ee.tuleva.onboarding.auth.role.RoleType.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.auth.role.RoleType.PERSON;
 
-import ee.tuleva.onboarding.user.personalcode.PersonalCodeValidator;
+import ee.tuleva.onboarding.personalcode.PersonalCodeValidator;
 import jakarta.validation.constraints.NotNull;
 import java.io.Serializable;
 import java.util.regex.Pattern;

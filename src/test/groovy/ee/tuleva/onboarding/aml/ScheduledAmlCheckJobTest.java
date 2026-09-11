@@ -12,7 +12,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class ScheduledAmlCheckJobTest {
 
-  @Mock private AmlService amlService;
+  @Mock private AmlBatchScreener amlBatchScreener;
 
   @InjectMocks private ScheduledAmlCheckJob scheduledAmlCheckJob;
 
@@ -22,7 +22,7 @@ class ScheduledAmlCheckJobTest {
     scheduledAmlCheckJob.run();
 
     // then
-    verify(amlService, times(1)).runAmlChecksOnThirdPillarCustomers();
+    verify(amlBatchScreener, times(1)).runAmlChecksOnThirdPillarCustomers();
   }
 
   @Test
@@ -31,6 +31,6 @@ class ScheduledAmlCheckJobTest {
     scheduledAmlCheckJob.run();
 
     // then
-    verify(amlService, times(1)).runAmlChecksOnSavingsFundCustomers();
+    verify(amlBatchScreener, times(1)).runAmlChecksOnSavingsFundCustomers();
   }
 }

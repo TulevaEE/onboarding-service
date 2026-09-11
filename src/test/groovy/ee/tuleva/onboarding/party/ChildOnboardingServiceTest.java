@@ -5,7 +5,6 @@ import static ee.tuleva.onboarding.event.TrackableEventType.MINOR_CUSTODY_VERIFI
 import static ee.tuleva.onboarding.party.ChildOnboardingService.CUSTODY_MAX_AGE;
 import static ee.tuleva.onboarding.party.CustodyVerification.Outcome.NO_CUSTODY;
 import static ee.tuleva.onboarding.party.CustodyVerification.Outcome.OK;
-import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.populationregister.CustodyRight.Type.PROPERTY_CUSTODY;
 import static ee.tuleva.onboarding.populationregister.CustodyValidity.VALID;
 import static ee.tuleva.onboarding.populationregister.PopulationRegisterPerson.Status.ALIVE;
@@ -16,13 +15,13 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.aml.AmlService;
+import ee.tuleva.onboarding.aml.SanctionAndPepScreener;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.populationregister.CustodyRight;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterPerson;
-import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -46,8 +45,9 @@ class ChildOnboardingServiceTest {
 
   @Mock private CustodyVerificationService custodyVerificationService;
   @Mock private ParentChildLinkRegistrationService parentChildLinkRegistrationService;
-  @Mock private SavingsFundOnboardingService savingsFundOnboardingService;
+  @Mock private ChildSavingsOnboarding childSavingsOnboarding;
   @Mock private AmlService amlService;
+  @Mock private SanctionAndPepScreener sanctionAndPepScreener;
   @Mock private ApplicationEventPublisher applicationEventPublisher;
 
   private final Clock clock = Clock.fixed(Instant.parse("2026-05-22T00:00:00Z"), ZoneOffset.UTC);
@@ -60,8 +60,9 @@ class ChildOnboardingServiceTest {
         new ChildOnboardingService(
             custodyVerificationService,
             parentChildLinkRegistrationService,
-            savingsFundOnboardingService,
+            childSavingsOnboarding,
             amlService,
+            sanctionAndPepScreener,
             applicationEventPublisher,
             clock);
   }
@@ -110,8 +111,7 @@ class ChildOnboardingServiceTest {
             List.of(
                 new CustodyRight(CHILD, PROPERTY_CUSTODY, VALID, ALIVE, "Mari", "Maasikas"),
                 new CustodyRight(secondChild, PROPERTY_CUSTODY, VALID, ALIVE, "Jüri", "Tamm")));
-    given(savingsFundOnboardingService.isOnboardingCompleted(new PartyId(PERSON, CHILD)))
-        .willReturn(true);
+    given(childSavingsOnboarding.isCompleted((CHILD))).willReturn(true);
 
     assertThat(service.findEligibleChildren(parent))
         .containsExactly(
@@ -126,8 +126,7 @@ class ChildOnboardingServiceTest {
                 PARENT, CUSTODY_MAX_AGE))
         .willReturn(
             List.of(new CustodyRight(CHILD, PROPERTY_CUSTODY, VALID, ALIVE, "Mari", "Maasikas")));
-    given(savingsFundOnboardingService.isOnboardingCompleted(new PartyId(PERSON, CHILD)))
-        .willReturn(false);
+    given(childSavingsOnboarding.isCompleted((CHILD))).willReturn(false);
 
     assertThat(service.findEligibleChildren(parent))
         .containsExactly(new EligibleChild(CHILD, "Mari", "Maasikas", false));
@@ -157,7 +156,7 @@ class ChildOnboardingServiceTest {
     assertThat(result.lastName()).isEqualTo("MAASIKAS");
     assertThat(result.dateOfBirth()).isEqualTo(LocalDate.of(2015, 6, 15));
     verify(parentChildLinkRegistrationService).register(PARENT, CHILD, "MARI", "MAASIKAS");
-    verify(savingsFundOnboardingService).seedPersonOnboardingIfAbsent(CHILD);
+    verify(childSavingsOnboarding).seedIfAbsent(CHILD);
     var expectedEvidence = new LinkedHashMap<String, Object>(evidence);
     expectedEvidence.put("citizenship", "EE");
     expectedEvidence.put("citizenships", List.of("EE"));
@@ -176,7 +175,7 @@ class ChildOnboardingServiceTest {
 
     service.onboardChild(parent, CHILD);
 
-    verify(amlService)
+    verify(sanctionAndPepScreener)
         .addSanctionAndPepCheckIfMissing(
             new PersonImpl(CHILD, "MARI", "MAASIKAS"), Countries.of("EE"));
   }
@@ -191,7 +190,7 @@ class ChildOnboardingServiceTest {
 
     service.onboardChild(parent, CHILD);
 
-    verify(amlService)
+    verify(sanctionAndPepScreener)
         .addSanctionAndPepCheckIfMissing(
             new PersonImpl(PARENT, "Jordan", "Valdma"), Countries.of("RU"));
     var expectedEvidence = new LinkedHashMap<String, Object>(evidence);
@@ -212,7 +211,7 @@ class ChildOnboardingServiceTest {
 
     service.onboardChild(parent, CHILD);
 
-    verify(amlService)
+    verify(sanctionAndPepScreener)
         .addSanctionAndPepCheckIfMissing(
             new PersonImpl(PARENT, "Jordan", "Valdma"), Countries.<String>of());
   }
@@ -228,7 +227,7 @@ class ChildOnboardingServiceTest {
 
     service.onboardChild(parent, CHILD);
 
-    verify(amlService)
+    verify(sanctionAndPepScreener)
         .addSanctionAndPepCheckIfMissing(
             new PersonImpl(CHILD, "MARI", "MAASIKAS"), Countries.<String>of());
     var expectedEvidence = new LinkedHashMap<String, Object>(evidence);
@@ -245,7 +244,7 @@ class ChildOnboardingServiceTest {
 
     service.onboardChild(parent, CHILD);
 
-    verify(amlService, never()).addSanctionAndPepCheckIfMissing(any(), any());
+    verify(sanctionAndPepScreener, never()).addSanctionAndPepCheckIfMissing(any(), any());
   }
 
   @Test
@@ -282,7 +281,7 @@ class ChildOnboardingServiceTest {
     assertThat(result.firstName()).isNull();
     verify(amlService).addCustodyRightCheck(CHILD, false, evidence);
     verify(parentChildLinkRegistrationService, never()).register(any(), any(), any(), any());
-    verify(savingsFundOnboardingService, never()).seedPersonOnboardingIfAbsent(any());
+    verify(childSavingsOnboarding, never()).seedIfAbsent(any());
     verify(applicationEventPublisher)
         .publishEvent(new TrackableEvent(parent, MINOR_CUSTODY_VERIFICATION, evidence));
   }
@@ -298,7 +297,7 @@ class ChildOnboardingServiceTest {
 
     service.onboardChild(parent, CHILD);
 
-    verify(amlService)
+    verify(sanctionAndPepScreener)
         .addSanctionAndPepCheckIfMissing(
             new PersonImpl(CHILD, "MARI", "MAASIKAS"), Countries.of("EE", "RU"));
   }

@@ -1,15 +1,16 @@
 package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.ADJUSTMENT;
 import static ee.tuleva.onboarding.ledger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
 import static ee.tuleva.onboarding.ledger.UserAccount.CASH;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
+import ee.tuleva.onboarding.time.ClockConfig;
 import ee.tuleva.onboarding.user.User;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -21,11 +22,17 @@ import java.util.stream.StreamSupport;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.context.annotation.Import;
 
-@SpringBootTest
-@Transactional
+@DataJpaTest
+@Import({
+  LedgerService.class,
+  LedgerAccountService.class,
+  LedgerPartyService.class,
+  LedgerTransactionService.class,
+  ClockConfig.class
+})
 public class LedgerTransactionIntegrationTest {
 
   @Autowired private LedgerService ledgerService;
@@ -61,13 +68,13 @@ public class LedgerTransactionIntegrationTest {
         Instant.now(clock),
         UUID.randomUUID(),
         Map.of("operationType", "TEST_TRANSACTION"),
-        new LedgerEntryDto(cashAccount, new BigDecimal("1000.00")),
-        new LedgerEntryDto(systemAccount, new BigDecimal("-1000.00")));
+        new LedgerEntryDto(systemAccount, new BigDecimal("1000.00")),
+        new LedgerEntryDto(cashAccount, new BigDecimal("-1000.00")));
 
-    assertThat(getCashAccount(user).getBalance()).isEqualByComparingTo("1000.00");
+    assertThat(getCashAccount(user).getBalance()).isEqualByComparingTo("-1000.00");
     assertThat(getCashAccount(user).getEntries().size()).isEqualTo(1);
 
-    assertThat(getSystemAccount().getBalance()).isEqualByComparingTo("-1000.00");
+    assertThat(getSystemAccount().getBalance()).isEqualByComparingTo("1000.00");
     assertThat(getSystemAccount().getEntries().size()).isEqualTo(1);
 
     ledgerTransactionService.createTransaction(
@@ -75,8 +82,8 @@ public class LedgerTransactionIntegrationTest {
         Instant.now(clock),
         UUID.randomUUID(),
         Map.of("operationType", "TEST_TRANSACTION_2"),
-        new LedgerEntryDto(cashAccount, new BigDecimal("-1000.00")),
-        new LedgerEntryDto(systemAccount, new BigDecimal("1000.00")));
+        new LedgerEntryDto(cashAccount, new BigDecimal("1000.00")),
+        new LedgerEntryDto(systemAccount, new BigDecimal("-1000.00")));
 
     assertThat(getCashAccount(user).getBalance()).isEqualByComparingTo(ZERO);
     assertThat(getCashAccount(user).getEntries().size()).isEqualTo(2);
@@ -99,24 +106,24 @@ public class LedgerTransactionIntegrationTest {
         Instant.now(clock),
         externalReference1,
         Map.of("operationType", "PAYMENT", "externalReference", externalReference1.toString()),
-        new LedgerEntryDto(cashAccount, new BigDecimal("100.00")),
-        new LedgerEntryDto(systemAccount, new BigDecimal("-100.00")));
+        new LedgerEntryDto(systemAccount, new BigDecimal("100.00")),
+        new LedgerEntryDto(cashAccount, new BigDecimal("-100.00")));
 
     ledgerTransactionService.createTransaction(
         ADJUSTMENT,
         Instant.now(clock),
         externalReference2,
         Map.of("operationType", "PAYMENT", "externalReference", externalReference2.toString()),
-        new LedgerEntryDto(cashAccount, new BigDecimal("200.00")),
-        new LedgerEntryDto(systemAccount, new BigDecimal("-200.00")));
+        new LedgerEntryDto(systemAccount, new BigDecimal("200.00")),
+        new LedgerEntryDto(cashAccount, new BigDecimal("-200.00")));
 
     ledgerTransactionService.createTransaction(
         ADJUSTMENT,
         Instant.now(clock),
         UUID.randomUUID(),
         Map.of("operationType", "OTHER_TRANSACTION"),
-        new LedgerEntryDto(cashAccount, new BigDecimal("300.00")),
-        new LedgerEntryDto(systemAccount, new BigDecimal("-300.00")));
+        new LedgerEntryDto(systemAccount, new BigDecimal("300.00")),
+        new LedgerEntryDto(cashAccount, new BigDecimal("-300.00")));
 
     var allTransactions = ledgerTransactionRepository.findAll();
     var transactionsWithRef1 =

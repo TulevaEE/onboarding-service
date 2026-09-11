@@ -4,9 +4,11 @@ import static java.math.BigDecimal.ONE;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
+import java.math.MathContext;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +22,8 @@ class TdAttributionCalculator {
   static final int SCALE = 10;
   private static final BigDecimal CARINO_NEAR_EQUAL = new BigDecimal("0.0000000001");
   private static final BigDecimal EXTREME_SCALE = new BigDecimal("2.0");
+  private static final BigDecimal DAYS_IN_YEAR = new BigDecimal("365");
+  private static final MathContext TOLERANCE_MATH = new MathContext(16, HALF_UP);
 
   TdAttributionResult calculate(TdAttributionInput input) {
     var dailyRecords = input.dailyRecords();
@@ -42,7 +46,7 @@ class TdAttributionCalculator {
 
     var totalAum = ZERO;
     var totalCashPct = ZERO;
-    int aumDays = 0;
+    int attributedDays = 0;
 
     var instrumentContributions = new LinkedHashMap<String, InstrumentAccumulator>();
 
@@ -54,7 +58,7 @@ class TdAttributionCalculator {
       }
 
       totalAum = totalAum.add(aum);
-      aumDays++;
+      attributedDays++;
 
       var dailyCoefficient = carinoCoefficient(day.fundReturn(), day.modelReturn());
       coefficientSum = coefficientSum.add(dailyCoefficient);
@@ -82,7 +86,7 @@ class TdAttributionCalculator {
     var nonSecurityDrag = linkDaily(nonSecDragNumerator, periodCoefficient);
     var weightDeviation = linkDaily(weightDevNumerator, periodCoefficient);
 
-    var periodLink = periodLinkMultiplier(coefficientSum, periodCoefficient, aumDays, input);
+    var periodLink = periodLinkMultiplier(coefficientSum, periodCoefficient, attributedDays, input);
     var mgmtFeeDrag = orZero(input.mgmtFeeDragPeriod()).multiply(periodLink).setScale(8, HALF_UP);
     var depotFeeDrag = orZero(input.depotFeeDragPeriod()).multiply(periodLink).setScale(8, HALF_UP);
     var transactionCosts =
@@ -98,19 +102,24 @@ class TdAttributionCalculator {
             .add(transactionCosts);
     var residual = tdGeometricRounded.subtract(explained);
 
-    var avgAum = aumDays > 0 ? totalAum.divide(BigDecimal.valueOf(aumDays), 2, HALF_UP) : ZERO;
+    var avgAum =
+        attributedDays > 0 ? totalAum.divide(BigDecimal.valueOf(attributedDays), 2, HALF_UP) : ZERO;
     var avgCashPct =
-        aumDays > 0 ? totalCashPct.divide(BigDecimal.valueOf(aumDays), SCALE, HALF_UP) : ZERO;
-
-    int navEventCount = dailyRecords.size();
+        attributedDays > 0
+            ? totalCashPct.divide(BigDecimal.valueOf(attributedDays), SCALE, HALF_UP)
+            : ZERO;
 
     var checks =
-        buildChecks(tdGeometricRounded, explained.add(residual), residual, periodLink, input);
+        buildChecks(
+            tdGeometricRounded,
+            explained.add(residual),
+            residual,
+            periodLink,
+            input,
+            attributedDays);
 
     var instrumentDetails =
-        instrumentContributions.values().stream()
-            .map(acc -> acc.toAttribution(periodCoefficient))
-            .toList();
+        toAttributions(instrumentContributions.values(), periodCoefficient, attributedDays);
 
     var etfLayer = computeEtfLayer(input, tdGeometricRounded);
 
@@ -133,12 +142,21 @@ class TdAttributionCalculator {
         .etfOcfDrag(etfLayer.ocfDrag())
         .etfTrackingResidual(etfLayer.trackingResidual())
         .tdVsBenchmark(etfLayer.tdVsBenchmark())
-        .navEventCount(navEventCount)
+        .navEventCount(dailyRecords.size())
         .avgAum(avgAum)
         .avgCashPct(avgCashPct.setScale(6, HALF_UP))
         .instrumentDetails(instrumentDetails)
         .checks(checks)
         .build();
+  }
+
+  private static List<TdAttributionResult.InstrumentAttribution> toAttributions(
+      Collection<InstrumentAccumulator> accumulators,
+      BigDecimal periodCoefficient,
+      int attributedDays) {
+    return accumulators.stream()
+        .map(accumulator -> accumulator.toAttribution(periodCoefficient, attributedDays))
+        .toList();
   }
 
   private record EtfLayer(
@@ -217,12 +235,30 @@ class TdAttributionCalculator {
     return cumulative.subtract(ONE).setScale(SCALE, HALF_UP);
   }
 
+  // The tolerance is stored as an annual rate and scaled by the square root of the period's share
+  // of a year, because it is a band on noise: independent daily errors accumulate with the square
+  // root of time, not linearly. A residual that instead grows linearly with the period length is a
+  // systematic leak - a component the attribution is missing - and widening the band would hide it
+  // rather than measure it. Comparing an observed quarterly residual against sqrt(3) times the
+  // monthly one is what tells the two apart.
+  @Nullable
+  static BigDecimal scaledResidualTolerance(TdAttributionInput input) {
+    var annual = input.residualTolerance();
+    if (annual == null || annual.signum() <= 0 || input.calendarDays() <= 0) {
+      return null;
+    }
+    var yearFraction =
+        BigDecimal.valueOf(input.calendarDays()).divide(DAYS_IN_YEAR, TOLERANCE_MATH);
+    return annual.multiply(yearFraction.sqrt(TOLERANCE_MATH)).setScale(SCALE, HALF_UP);
+  }
+
   private Map<String, Object> buildChecks(
       BigDecimal tdGeometric,
       BigDecimal linkedComponentSum,
       BigDecimal residual,
       BigDecimal periodLink,
-      TdAttributionInput input) {
+      TdAttributionInput input,
+      int attributedDays) {
     var sumCheck = tdGeometric.subtract(linkedComponentSum).abs();
     var residualBps = residual.multiply(BigDecimal.valueOf(10000));
 
@@ -237,18 +273,34 @@ class TdAttributionCalculator {
       feeXcheck = orZero(input.mgmtFeeDragPeriod()).subtract(expectedFeeDrag).abs();
     }
 
-    return Map.of(
-        "sumCheck", sumCheck.setScale(8, HALF_UP),
-        "feeXcheck", feeXcheck.setScale(8, HALF_UP),
-        "scalingFactor", periodLink.setScale(8, HALF_UP),
-        "residualBps", residualBps.setScale(2, HALF_UP),
-        "seriesGapDays", input.seriesGapDays(),
-        "etfLayerMeasured", input.benchmarkModelSumPeriod() != null,
-        "etfLayerCoveredDays", input.etfLayerCoveredDays(),
+    var checks = new LinkedHashMap<String, Object>();
+    checks.put("attributedDays", attributedDays);
+    checks.put("unattributedDays", input.dailyRecords().size() - attributedDays);
+    checks.put("sumCheck", sumCheck.setScale(8, HALF_UP));
+    checks.put("feeXcheck", feeXcheck.setScale(8, HALF_UP));
+    checks.put("scalingFactor", periodLink.setScale(8, HALF_UP));
+    checks.put("residualBps", residualBps.setScale(2, HALF_UP));
+    // sumCheck cannot fail - residual is defined as the tracking difference minus the components,
+    // so they always add up. How big the residual is, is the only real signal. With no tolerance
+    // configured there is no verdict to give: writing "within tolerance" would stamp a measured
+    // pass on every period that predates the parameter, which is what the backfill runs first.
+    var scaledTolerance = scaledResidualTolerance(input);
+    if (scaledTolerance != null) {
+      checks.put("residualWithinTolerance", residual.abs().compareTo(scaledTolerance) <= 0);
+      checks.put(
+          "residualToleranceBps",
+          scaledTolerance.multiply(BigDecimal.valueOf(10000)).setScale(2, HALF_UP));
+    }
+    checks.put("seriesGapDays", input.seriesGapDays());
+    checks.put("etfLayerMeasured", input.benchmarkModelSumPeriod() != null);
+    checks.put("etfLayerCoveredDays", input.etfLayerCoveredDays());
+    checks.put(
         "etfLayerUnbenchmarkedWeight",
-            orZero(input.etfLayerUnbenchmarkedWeight()).setScale(6, HALF_UP),
+        orZero(input.etfLayerUnbenchmarkedWeight()).setScale(6, HALF_UP));
+    checks.put(
         "etfLayerUnrestoredProxyWeight",
-            orZero(input.etfLayerUnrestoredProxyWeight()).setScale(6, HALF_UP));
+        orZero(input.etfLayerUnrestoredProxyWeight()).setScale(6, HALF_UP));
+    return Map.copyOf(checks);
   }
 
   private TdAttributionResult emptyResult(TdAttributionInput input) {
@@ -275,11 +327,11 @@ class TdAttributionCalculator {
         .avgAum(ZERO)
         .avgCashPct(ZERO)
         .instrumentDetails(List.of())
-        .checks(Map.of("etfLayerMeasured", false))
+        .checks(Map.of("etfLayerMeasured", false, "attributedDays", 0, "unattributedDays", 0))
         .build();
   }
 
-  private static BigDecimal orZero(BigDecimal value) {
+  private static BigDecimal orZero(@Nullable BigDecimal value) {
     return value != null ? value : ZERO;
   }
 
@@ -298,6 +350,7 @@ class TdAttributionCalculator {
       @Nullable BigDecimal benchmarkProxyOcfDragPeriod,
       BigDecimal expectedAnnualFeeRate,
       int seriesGapDays,
+      @Nullable BigDecimal residualTolerance,
       int etfLayerCoveredDays,
       BigDecimal etfLayerUnbenchmarkedWeight,
       BigDecimal etfLayerUnrestoredProxyWeight,
@@ -330,7 +383,6 @@ class TdAttributionCalculator {
     BigDecimal totalActualWeight = ZERO;
     BigDecimal contributionNumerator = ZERO;
     BigDecimal compoundReturn = ONE;
-    int days = 0;
 
     InstrumentAccumulator(String isin) {
       this.isin = isin;
@@ -344,14 +396,12 @@ class TdAttributionCalculator {
       totalActualWeight = totalActualWeight.add(sec.actualWeight());
       contributionNumerator = contributionNumerator.add(dailyCoefficient.multiply(contribution));
       compoundReturn = compoundReturn.multiply(ONE.add(sec.securityReturn()));
-      days++;
     }
 
-    TdAttributionResult.InstrumentAttribution toAttribution(BigDecimal periodCoefficient) {
-      var avgModel =
-          days > 0 ? totalModelWeight.divide(BigDecimal.valueOf(days), 6, HALF_UP) : ZERO;
-      var avgActual =
-          days > 0 ? totalActualWeight.divide(BigDecimal.valueOf(days), 6, HALF_UP) : ZERO;
+    TdAttributionResult.InstrumentAttribution toAttribution(
+        BigDecimal periodCoefficient, int attributedDays) {
+      var avgModel = totalModelWeight.divide(BigDecimal.valueOf(attributedDays), 6, HALF_UP);
+      var avgActual = totalActualWeight.divide(BigDecimal.valueOf(attributedDays), 6, HALF_UP);
       var linkedContribution =
           periodCoefficient.signum() == 0
               ? contributionNumerator.setScale(8, HALF_UP)

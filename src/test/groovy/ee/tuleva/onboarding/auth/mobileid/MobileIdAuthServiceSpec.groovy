@@ -57,6 +57,20 @@ class MobileIdAuthServiceSpec extends Specification {
         isLoginComplete
     }
 
+    def "IsLoginComplete: updates the session with the authenticated person's identity"() {
+        given:
+        def session = new MobileIDSession(sampleSessionId, "challenge", hash, samplePhoneNumber)
+        1 * poller.fetchFinalAuthenticationSessionStatus(_) >> getSampleMidSessionComplete()
+        1 * client.createMobileIdAuthentication(_, _) >> new MidAuthentication.MobileIdAuthenticationBuilder().withResult("OK").withSignatureValueInBase64("bGVhc3VyZS4=").build()
+        1 * validator.validate(_) >> getSampleMidAuthResult(true)
+        when:
+        mobileIdAuthService.isLoginComplete(session)
+        then:
+        session.firstName == "Teet"
+        session.lastName == "Pauskar"
+        session.personalCode == sampleIdCode
+    }
+
     def "IsLoginComplete: Fetch invalid state of mobile id login"() {
         given:
         1 * poller.fetchFinalAuthenticationSessionStatus(_) >> getSampleMidSessionComplete()

@@ -1,12 +1,10 @@
 package ee.tuleva.onboarding.kyb;
 
-import static ee.tuleva.onboarding.aml.AmlCheckType.KYC_CHECK;
 import static ee.tuleva.onboarding.kyb.KybKycStatus.*;
 import static ee.tuleva.onboarding.kyb.KybRelationshipRoles.*;
-import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 import static java.util.stream.Collectors.toSet;
 
-import ee.tuleva.onboarding.aml.AmlCheckRepository;
+import ee.tuleva.onboarding.aml.KycChecks;
 import ee.tuleva.onboarding.ariregister.AddressDetails;
 import ee.tuleva.onboarding.ariregister.BeneficialOwner;
 import ee.tuleva.onboarding.ariregister.BeneficialOwners;
@@ -29,16 +27,24 @@ class KybCompanyDataMapper {
 
   private static final String NATURAL_PERSON_TYPE = "F"; // füüsiline isik (natural person)
 
-  private final AmlCheckRepository amlCheckRepository;
+  private final KycChecks kycChecks;
 
   KybCompanyData toKybCompanyData(
       CompanyDetail detail,
       PersonalCode personalCode,
       List<CompanyRelationship> relationships,
       BeneficialOwners beneficialOwners,
-      SelfCertification selfCertification) {
+      @Nullable SelfCertification selfCertification) {
 
-    var status = detail.getStatus().map(CompanyStatus::valueOf).orElse(null);
+    var status =
+        detail
+            .getStatus()
+            .map(CompanyStatus::valueOf)
+            .orElseThrow(
+                () ->
+                    new IllegalStateException(
+                        "Company detail missing status: registryCode=%s"
+                            .formatted(detail.getRegistryCode())));
     var legalForm = detail.getLegalForm().map(LegalForm::fromString).orElse(null);
 
     var address = detail.getAddress();
@@ -150,14 +156,9 @@ class KybCompanyDataMapper {
   }
 
   private KybKycStatus resolveKycStatus(String personalCode) {
-    if (amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
-        personalCode, KYC_CHECK, true, aYearAgo())) {
-      return COMPLETED;
-    }
-    if (amlCheckRepository.existsByPersonalCodeAndTypeAndSuccessAndCreatedTimeAfter(
-        personalCode, KYC_CHECK, false, aYearAgo())) {
-      return REJECTED;
-    }
-    return UNKNOWN;
+    return kycChecks
+        .latestKycCheckPassedWithinLastYear(personalCode)
+        .map(passed -> passed ? COMPLETED : REJECTED)
+        .orElse(UNKNOWN);
   }
 }

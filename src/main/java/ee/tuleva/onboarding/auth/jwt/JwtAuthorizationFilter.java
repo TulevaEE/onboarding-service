@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -32,7 +32,7 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
   protected void doFilterInternal(
       HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) {
     final var requestTokenHeader = request.getHeader("Authorization");
-    if (StringUtils.startsWith(requestTokenHeader, "Bearer ")) {
+    if (Strings.CS.startsWith(requestTokenHeader, "Bearer ")) {
       final var accessToken = requestTokenHeader.substring(7);
       // Frontend sends null when token is missing, remove if fixed
       if (accessToken.equals("null")) {

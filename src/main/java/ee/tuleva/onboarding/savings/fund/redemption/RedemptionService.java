@@ -1,27 +1,27 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.currency.Currency.EUR;
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.UserAccount.FUND_UNITS;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.capital.transfer.iban.IbanValidator;
 import ee.tuleva.onboarding.company.BoardMembershipService;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.event.TrackableEventType;
-import ee.tuleva.onboarding.ledger.LedgerParty;
+import ee.tuleva.onboarding.iban.IbanValidator;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.savings.FundNavProvider;
+import ee.tuleva.onboarding.savings.SavingFundDeadlinesService;
+import ee.tuleva.onboarding.savings.SavingsFundOnboardingService;
 import ee.tuleva.onboarding.savings.fund.IbanWhitelistService;
-import ee.tuleva.onboarding.savings.fund.SavingFundDeadlinesService;
+import ee.tuleva.onboarding.savings.fund.LedgerRefs;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
-import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
-import ee.tuleva.onboarding.savings.fund.nav.FundNavProvider;
 import ee.tuleva.onboarding.savings.fund.notification.RedemptionRequestedEvent;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -74,7 +74,7 @@ public class RedemptionService {
     validateAmountPrecision(amount);
 
     String canonicalIban = IbanValidator.canonicalize(customerIban);
-    PartyId partyId = authenticatedPerson.toPartyId();
+    PartyId partyId = PartyId.from(authenticatedPerson);
     validateOnboarding(authenticatedPerson);
     validateIbanBelongsToParty(canonicalIban, partyId);
 
@@ -86,8 +86,9 @@ public class RedemptionService {
 
     RedemptionRequest request =
         RedemptionRequest.builder()
-            .userId(authenticatedPerson.getUserId())
-            .partyId(partyId)
+            .userId(authenticatedPerson.getUserIdOrThrow())
+            .partyType(partyId.type())
+            .partyCode(partyId.code())
             .fundUnits(fundUnits)
             .requestedAmount(amount)
             .customerIban(canonicalIban)
@@ -96,7 +97,8 @@ public class RedemptionService {
 
     RedemptionRequest saved = redemptionRequestRepository.save(request);
 
-    savingsFundLedger.reserveFundUnitsForRedemption(partyId, fundUnits, saved.getId());
+    savingsFundLedger.reserveFundUnitsForRedemption(
+        LedgerRefs.from(partyId), fundUnits, saved.getId());
     log.info(
         "Created redemption request: id={}, userId={}, party={}, requestedAmount={}, fundUnits={}, nav={}, customerIban={}",
         saved.getId(),
@@ -109,7 +111,7 @@ public class RedemptionService {
 
     applicationEventPublisher.publishEvent(
         new RedemptionRequestedEvent(
-            saved.getId(), authenticatedPerson.getUserId(), partyId, amount, fundUnits));
+            saved.getId(), authenticatedPerson.getUserIdOrThrow(), partyId, amount, fundUnits));
 
     if (!authenticatedPerson.isActingAsSelf() && partyId.type() == PartyId.Type.PERSON) {
       applicationEventPublisher.publishEvent(
@@ -158,7 +160,7 @@ public class RedemptionService {
   public void cancelRedemption(UUID id, AuthenticatedPerson authenticatedPerson) {
     RedemptionRequest request = getRedemption(id);
     PartyId requestParty = request.getPartyId();
-    PartyId actorParty = authenticatedPerson.toPartyId();
+    PartyId actorParty = PartyId.from(authenticatedPerson);
 
     if (!requestParty.equals(actorParty)) {
       throw new AccessDeniedException(
@@ -183,7 +185,7 @@ public class RedemptionService {
     validateCancellationDeadline(request);
 
     savingsFundLedger.cancelRedemptionReservation(
-        requestParty, request.getFundUnits(), request.getId());
+        LedgerRefs.from(requestParty), request.getFundUnits(), request.getId());
     redemptionStatusService.changeStatus(id, CANCELLED);
     log.info(
         "Cancelled redemption request: id={}, userId={}, party={}",
@@ -208,7 +210,7 @@ public class RedemptionService {
   }
 
   private void validateOnboarding(AuthenticatedPerson authenticatedPerson) {
-    PartyId partyId = authenticatedPerson.toPartyId();
+    PartyId partyId = PartyId.from(authenticatedPerson);
     if (partyId.type() == PartyId.Type.LEGAL_ENTITY
         && !boardMembershipService.isBoardMember(
             authenticatedPerson.getPersonalCode(), partyId.code())) {
@@ -236,7 +238,7 @@ public class RedemptionService {
 
   private BigDecimal getEffectiveAvailableFundUnits(PartyId partyId) {
     return ledgerService
-        .getPartyAccount(partyId.code(), LedgerParty.PartyType.from(partyId.type()), FUND_UNITS)
+        .getPartyAccount(partyId.code(), LedgerRefs.partyType(partyId.type()), FUND_UNITS)
         .getBalance()
         .negate();
   }

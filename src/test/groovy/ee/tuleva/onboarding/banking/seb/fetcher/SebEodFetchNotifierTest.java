@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.banking.seb.fetcher;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.banking.BankAccount;

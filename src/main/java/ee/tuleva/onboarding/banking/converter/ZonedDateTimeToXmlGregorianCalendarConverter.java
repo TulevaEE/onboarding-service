@@ -7,7 +7,6 @@ import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.XMLGregorianCalendar;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.convert.converter.Converter;
-import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -16,7 +15,6 @@ public class ZonedDateTimeToXmlGregorianCalendarConverter
     implements Converter<ZonedDateTime, XMLGregorianCalendar> {
 
   @Override
-  @NonNull
   public XMLGregorianCalendar convert(ZonedDateTime zonedDateTime) {
     try {
       GregorianCalendar calendar = GregorianCalendar.from(zonedDateTime);

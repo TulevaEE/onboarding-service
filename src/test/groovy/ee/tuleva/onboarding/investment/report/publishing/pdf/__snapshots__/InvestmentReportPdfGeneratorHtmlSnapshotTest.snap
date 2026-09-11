@@ -1,0 +1,537 @@
+ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportPdfGeneratorHtmlSnapshotTest.boundaryReportWithZeroNegativeAndNullAmounts=[
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8"/>
+    <style>
+        @page {
+            size: A4 landscape;
+            margin: 15mm 10mm 10mm 10mm;
+        }
+        body {
+            font-family: 'Roboto', sans-serif;
+            font-size: 9pt;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+        .fund-title {
+            font-family: 'Merriweather', serif;
+            font-size: 16pt;
+            font-weight: bold;
+            color: #002F63;
+            margin: 0 0 4px 0;
+        }
+        .report-subtitle {
+            font-size: 11pt;
+            font-style: italic;
+            color: #00AEEA;
+            margin: 0 0 2px 0;
+        }
+        .report-date {
+            font-size: 10pt;
+            margin: 0 0 12px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 8px;
+        }
+        th {
+            background-color: #002F63;
+            color: white;
+            font-weight: bold;
+            font-size: 8pt;
+            text-align: center;
+            vertical-align: middle;
+            padding: 6px 4px;
+            border: 1px solid #002F63;
+        }
+        th.left { text-align: left; }
+        td {
+            padding: 3px 4px;
+            vertical-align: middle;
+            font-size: 9pt;
+        }
+        td.num { text-align: right; }
+        td.center { text-align: center; }
+        .section-header td {
+            background-color: #F0F4F7;
+            font-weight: bold;
+            padding: 4px;
+        }
+        .section-subheader td {
+            background-color: #F0F4F7;
+            font-style: italic;
+            padding: 4px;
+        }
+        .section-total td {
+            background-color: #F0F4F7;
+            font-weight: bold;
+            padding: 4px;
+        }
+        .grand-total td {
+            font-weight: bold;
+            padding: 5px 4px;
+        }
+        .spacer { height: 8px; }
+        .placeholder { color: #999; }
+    </style>
+</head>
+<body>
+<div class="fund-title">Tuleva III Samba Pensionifond</div>
+<div class="report-subtitle">Investeeringute aruanne</div>
+<div class="report-date">seisuga <span>31.01.2026</span></div>
+
+<!-- TABLE 1: FONDIOSAKUD (Securities) -->
+<table>
+    <thead>
+    <tr>
+        <th class="left" style="width:28%">Nimetus</th>
+        <th class="left" style="width:19%">Fondivalitseja nimi</th>
+        <th style="width:8%">ISIN-kood</th>
+        <th style="width:3%">Riik</th>
+        <th style="width:4%">Valuuta</th>
+        <th style="width:6%">Keskmine soetus-maksumus ühikule</th>
+        <th style="width:8%">Keskmine soetus-maksumus kokku</th>
+        <th style="width:5%">Turu-väärtus ühikule</th>
+        <th style="width:8%">Turuväärtus kokku</th>
+        <th style="width:6%">Osakaal fondi puhas-väärtusest</th>
+        <th style="width:5%">Osakaalu muutus võrreldes eelneva kuuga</th>
+    </tr>
+    </thead>
+    <tbody>
+    <!-- FONDIOSAKUD section header -->
+    <tr class="section-header">
+        <td colspan="11">FONDIOSAKUD</td>
+    </tr>
+    <!-- Per-section (Aktsiafondid / Võlakirjafondid) -->
+    
+        <tr class="section-subheader">
+            <td colspan="11">Aktsiafondid</td>
+        </tr>
+        <!-- Individual security rows -->
+        <tr>
+            <td>Sularaha ootel positsioon</td>
+            <td></td>
+            <td class="center"></td>
+            <td class="center"></td>
+            <td class="center">EUR</td>
+            
+            <td class="num placeholder">&#8212;</td>
+            
+            <td class="num placeholder">&#8212;</td>
+            
+            <td class="num"></td>
+            <td class="num">0</td>
+            <td class="num">0.00%</td>
+            <td class="num"></td>
+        </tr>
+        <!-- Section total -->
+        <tr class="section-total">
+            <td>Aktsiafondid kokku</td>
+            <td></td><td></td><td></td><td></td><td></td>
+            
+            <td class="num"></td>
+            <td></td>
+            <td class="num">0</td>
+            <td class="num">0.00%</td>
+            
+            <td class="num"></td>
+        </tr>
+    
+    <!-- FONDIOSAKUD KOKKU -->
+    <tr class="section-total">
+        <td>FONDIOSAKUD KOKKU</td>
+        <td></td><td></td><td></td><td></td><td></td>
+        
+        <td class="num"></td>
+        <td></td>
+        <td class="num">0</td>
+        <td class="num">0.00%</td>
+        
+        <td class="num"></td>
+    </tr>
+    </tbody>
+</table>
+
+<!-- TABLE 2: HOIUSED (Deposits) -->
+<table>
+    <thead>
+    <tr>
+        <th class="left" style="width:28%">Nimetus</th>
+        <th class="left" style="width:19%">Krediidiasutus</th>
+        <th style="width:8%"></th>
+        <th style="width:3%">Riik</th>
+        <th style="width:4%">Valuuta</th>
+        <th style="width:6%"></th>
+        <th style="width:8%">Keskmine soetus-maksumus kokku</th>
+        <th style="width:5%"></th>
+        <th style="width:8%">Turuväärtus kokku</th>
+        <th style="width:6%">Osakaal fondi puhas-väärtusest</th>
+        <th style="width:5%">Osakaalu muutus võrreldes eelneva kuuga</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="section-header">
+        <td colspan="11">HOIUSED</td>
+    </tr>
+    <tr>
+        <td>Arvelduskonto</td>
+        <td>AS SEB Pank</td>
+        <td></td>
+        <td class="center">EE</td>
+        <td class="center">EUR</td>
+        <td></td>
+        <td class="num">0</td>
+        <td></td>
+        <td class="num">0</td>
+        <td class="num">0.00%</td>
+        <td class="num"></td>
+    </tr>
+    <tr>
+        <td>Arveldus USD</td>
+        <td>AS LHV Pank</td>
+        <td></td>
+        <td class="center">EE</td>
+        <td class="center">USD</td>
+        <td></td>
+        <td class="num">-250</td>
+        <td></td>
+        <td class="num">-250</td>
+        <td class="num">-0.01%</td>
+        <td class="num"></td>
+    </tr>
+    <tr class="section-total">
+        <td>HOIUSED KOKKU</td>
+        <td></td><td></td><td></td><td></td><td></td>
+        <td class="num">-250</td>
+        <td></td>
+        <td class="num">-250</td>
+        <td class="num">-0.01%</td>
+        
+        <td class="num"></td>
+    </tr>
+    </tbody>
+</table>
+
+<!-- FOOTER: Total assets + Fund NAV -->
+<table>
+    <tbody>
+    <tr class="grand-total">
+        <td style="width:28%">AKTIVATE TURUVÄÄRTUS KOKKU</td>
+        <td style="width:19%"></td><td style="width:8%"></td><td style="width:3%"></td><td style="width:4%"></td><td style="width:6%"></td>
+        
+        <td class="num" style="width:8%"></td>
+        <td style="width:5%"></td>
+        <td class="num" style="width:8%">-250</td>
+        <td class="num" style="width:6%">-0.01%</td>
+        <td style="width:5%"></td>
+    </tr>
+    <tr class="grand-total">
+        <td>FONDI PUHASVÄÄRTUS</td>
+        <td></td><td></td><td></td><td></td><td></td>
+        <td></td><td></td>
+        <td class="num">0</td>
+        <td></td><td></td>
+    </tr>
+    </tbody>
+</table>
+</body>
+</html>
+
+]
+
+
+ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportPdfGeneratorHtmlSnapshotTest.multiSectionReportWithMixedNullsAndSignedChanges=[
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8"/>
+    <style>
+        @page {
+            size: A4 landscape;
+            margin: 15mm 10mm 10mm 10mm;
+        }
+        body {
+            font-family: 'Roboto', sans-serif;
+            font-size: 9pt;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+        .fund-title {
+            font-family: 'Merriweather', serif;
+            font-size: 16pt;
+            font-weight: bold;
+            color: #002F63;
+            margin: 0 0 4px 0;
+        }
+        .report-subtitle {
+            font-size: 11pt;
+            font-style: italic;
+            color: #00AEEA;
+            margin: 0 0 2px 0;
+        }
+        .report-date {
+            font-size: 10pt;
+            margin: 0 0 12px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 8px;
+        }
+        th {
+            background-color: #002F63;
+            color: white;
+            font-weight: bold;
+            font-size: 8pt;
+            text-align: center;
+            vertical-align: middle;
+            padding: 6px 4px;
+            border: 1px solid #002F63;
+        }
+        th.left { text-align: left; }
+        td {
+            padding: 3px 4px;
+            vertical-align: middle;
+            font-size: 9pt;
+        }
+        td.num { text-align: right; }
+        td.center { text-align: center; }
+        .section-header td {
+            background-color: #F0F4F7;
+            font-weight: bold;
+            padding: 4px;
+        }
+        .section-subheader td {
+            background-color: #F0F4F7;
+            font-style: italic;
+            padding: 4px;
+        }
+        .section-total td {
+            background-color: #F0F4F7;
+            font-weight: bold;
+            padding: 4px;
+        }
+        .grand-total td {
+            font-weight: bold;
+            padding: 5px 4px;
+        }
+        .spacer { height: 8px; }
+        .placeholder { color: #999; }
+    </style>
+</head>
+<body>
+<div class="fund-title">Tuleva Maailma Aktsiate Pensionifond</div>
+<div class="report-subtitle">Investeeringute aruanne</div>
+<div class="report-date">seisuga <span>30.06.2026</span></div>
+
+<!-- TABLE 1: FONDIOSAKUD (Securities) -->
+<table>
+    <thead>
+    <tr>
+        <th class="left" style="width:28%">Nimetus</th>
+        <th class="left" style="width:19%">Fondivalitseja nimi</th>
+        <th style="width:8%">ISIN-kood</th>
+        <th style="width:3%">Riik</th>
+        <th style="width:4%">Valuuta</th>
+        <th style="width:6%">Keskmine soetus-maksumus ühikule</th>
+        <th style="width:8%">Keskmine soetus-maksumus kokku</th>
+        <th style="width:5%">Turu-väärtus ühikule</th>
+        <th style="width:8%">Turuväärtus kokku</th>
+        <th style="width:6%">Osakaal fondi puhas-väärtusest</th>
+        <th style="width:5%">Osakaalu muutus võrreldes eelneva kuuga</th>
+    </tr>
+    </thead>
+    <tbody>
+    <!-- FONDIOSAKUD section header -->
+    <tr class="section-header">
+        <td colspan="11">FONDIOSAKUD</td>
+    </tr>
+    <!-- Per-section (Aktsiafondid / Võlakirjafondid) -->
+    
+        <tr class="section-subheader">
+            <td colspan="11">Aktsiafondid</td>
+        </tr>
+        <!-- Individual security rows -->
+        <tr>
+            <td>CCF Developed World</td>
+            <td>BlackRock Asset Management Ireland Limited</td>
+            <td class="center">IE0009FT4LX4</td>
+            <td class="center">IE</td>
+            <td class="center">EUR</td>
+            
+            <td class="num placeholder">&#8212;</td>
+            
+            <td class="num placeholder">&#8212;</td>
+            <td class="num">50.12</td>
+            
+            <td class="num">5 000 000</td>
+            <td class="num">65.00%</td>
+            <td class="num"></td>
+        </tr>
+        <tr>
+            <td>Tuleva World Stock Index Fund</td>
+            <td>Tuleva Fondid AS</td>
+            <td class="center">EE3600001707</td>
+            <td class="center">EE</td>
+            <td class="center">EUR</td>
+            <td class="num">9.87</td>
+            
+            <td class="num">1 234 567</td>
+            
+            <td class="num">11.22</td>
+            
+            <td class="num">1 500 000</td>
+            <td class="num">19.50%</td>
+            <td class="num"></td>
+        </tr>
+        <!-- Section total -->
+        <tr class="section-total">
+            <td>Aktsiafondid kokku</td>
+            <td></td><td></td><td></td><td></td><td></td>
+            <td class="num">1 234 567</td>
+            
+            <td></td>
+            <td class="num">6 500 000</td>
+            <td class="num">84.50%</td>
+            <td class="num">+1.25%</td>
+            
+        </tr>
+    
+        <tr class="section-subheader">
+            <td colspan="11">Võlakirjafondid</td>
+        </tr>
+        <!-- Individual security rows -->
+        <tr>
+            <td>Tuleva Maailma Võlakirjade Indeksifond</td>
+            <td>Tuleva Fondid AS</td>
+            <td class="center">EE3600001715</td>
+            <td class="center">EE</td>
+            <td class="center">EUR</td>
+            
+            <td class="num placeholder">&#8212;</td>
+            <td class="num">50 000</td>
+            
+            
+            <td class="num"></td>
+            <td class="num">52 000</td>
+            <td class="num">0.68%</td>
+            <td class="num"></td>
+        </tr>
+        <!-- Section total -->
+        <tr class="section-total">
+            <td>Võlakirjafondid kokku</td>
+            <td></td><td></td><td></td><td></td><td></td>
+            
+            <td class="num"></td>
+            <td></td>
+            <td class="num">52 000</td>
+            <td class="num">0.68%</td>
+            <td class="num">-0.10%</td>
+            
+        </tr>
+    
+    <!-- FONDIOSAKUD KOKKU -->
+    <tr class="section-total">
+        <td>FONDIOSAKUD KOKKU</td>
+        <td></td><td></td><td></td><td></td><td></td>
+        <td class="num">1 284 567</td>
+        
+        <td></td>
+        <td class="num">6 552 000</td>
+        <td class="num">85.18%</td>
+        <td class="num">+1.15%</td>
+        
+    </tr>
+    </tbody>
+</table>
+
+<!-- TABLE 2: HOIUSED (Deposits) -->
+<table>
+    <thead>
+    <tr>
+        <th class="left" style="width:28%">Nimetus</th>
+        <th class="left" style="width:19%">Krediidiasutus</th>
+        <th style="width:8%"></th>
+        <th style="width:3%">Riik</th>
+        <th style="width:4%">Valuuta</th>
+        <th style="width:6%"></th>
+        <th style="width:8%">Keskmine soetus-maksumus kokku</th>
+        <th style="width:5%"></th>
+        <th style="width:8%">Turuväärtus kokku</th>
+        <th style="width:6%">Osakaal fondi puhas-väärtusest</th>
+        <th style="width:5%">Osakaalu muutus võrreldes eelneva kuuga</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr class="section-header">
+        <td colspan="11">HOIUSED</td>
+    </tr>
+    <tr>
+        <td>Arvelduskonto</td>
+        <td>AS SEB Pank</td>
+        <td></td>
+        <td class="center">EE</td>
+        <td class="center">EUR</td>
+        <td></td>
+        <td class="num">300 000</td>
+        <td></td>
+        <td class="num">300 000</td>
+        <td class="num">3.90%</td>
+        <td class="num"></td>
+    </tr>
+    <tr>
+        <td>Arveldus USD</td>
+        <td>AS LHV Pank</td>
+        <td></td>
+        <td class="center">EE</td>
+        <td class="center">USD</td>
+        <td></td>
+        <td class="num">-1 500</td>
+        <td></td>
+        <td class="num">-1 500</td>
+        <td class="num">-0.02%</td>
+        <td class="num"></td>
+    </tr>
+    <tr class="section-total">
+        <td>HOIUSED KOKKU</td>
+        <td></td><td></td><td></td><td></td><td></td>
+        <td class="num">298 500</td>
+        <td></td>
+        <td class="num">298 500</td>
+        <td class="num">3.88%</td>
+        <td class="num">-0.07%</td>
+        
+    </tr>
+    </tbody>
+</table>
+
+<!-- FOOTER: Total assets + Fund NAV -->
+<table>
+    <tbody>
+    <tr class="grand-total">
+        <td style="width:28%">AKTIVATE TURUVÄÄRTUS KOKKU</td>
+        <td style="width:19%"></td><td style="width:8%"></td><td style="width:3%"></td><td style="width:4%"></td><td style="width:6%"></td>
+        <td class="num" style="width:8%">1 284 567</td>
+        
+        <td style="width:5%"></td>
+        <td class="num" style="width:8%">6 850 500</td>
+        <td class="num" style="width:6%">89.06%</td>
+        <td style="width:5%"></td>
+    </tr>
+    <tr class="grand-total">
+        <td>FONDI PUHASVÄÄRTUS</td>
+        <td></td><td></td><td></td><td></td><td></td>
+        <td></td><td></td>
+        <td class="num">7 690 000</td>
+        <td></td><td></td>
+    </tr>
+    </tbody>
+</table>
+</body>
+</html>
+
+]

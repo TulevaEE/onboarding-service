@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.fund;
 
 import static ee.tuleva.onboarding.config.CacheConfiguration.FUND_TABLE_CACHE;
 import static ee.tuleva.onboarding.fund.Fund.FundStatus.ACTIVE;
+import static ee.tuleva.onboarding.fund.Fund.RiskLevel.HIGH_RISK;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -16,7 +17,6 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 import org.springframework.cache.CacheManager;
 import org.springframework.context.annotation.Import;
-import org.springframework.dao.InvalidDataAccessApiUsageException;
 import org.springframework.test.context.TestPropertySource;
 
 @DataJpaTest
@@ -71,7 +71,7 @@ class FundRepositoryCachingTest {
     Fund cached = fundRepository.findByIsin("EE0000000005");
 
     assertThatThrownBy(() -> fundRepository.save(null))
-        .isInstanceOf(InvalidDataAccessApiUsageException.class);
+        .isInstanceOf(IllegalArgumentException.class);
     entityManager.getEntityManager().clear();
     Fund afterFailedSave = fundRepository.findByIsin("EE0000000005");
 
@@ -93,7 +93,7 @@ class FundRepositoryCachingTest {
             .nameEnglish("Tuleva World Stocks Pension Fund")
             .shortName("TUK75")
             .pillar(2)
-            .equityShare(BigDecimal.ZERO)
+            .riskLevel(HIGH_RISK)
             .managementFeeRate(new BigDecimal("0.0034"))
             .ongoingChargesFigure(new BigDecimal("0.005"))
             .status(ACTIVE)

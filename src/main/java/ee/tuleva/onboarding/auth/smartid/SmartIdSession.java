@@ -5,6 +5,7 @@ import java.io.Serial;
 import java.io.Serializable;
 import java.time.Instant;
 import lombok.Data;
+import org.jspecify.annotations.Nullable;
 
 @Data
 public class SmartIdSession implements Serializable {
@@ -15,7 +16,7 @@ public class SmartIdSession implements Serializable {
   private final String personalCode;
   private final AuthenticationHash authenticationHash;
   private final Instant createdAt;
-  private SmartIdPerson person;
-  private String errorCode;
-  private String errorMessage;
+  private @Nullable SmartIdPerson person;
+  private @Nullable String errorCode;
+  private @Nullable String errorMessage;
 }

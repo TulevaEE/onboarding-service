@@ -1,8 +1,10 @@
 package ee.tuleva.onboarding.savings.fund;
 
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RESERVED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RESERVED;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.savings.SavingFundPayment;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,8 +22,10 @@ public class PaymentReservationService {
   public void process(SavingFundPayment payment) {
     log.info("Processing reservation for payment {}", payment.getId());
 
+    var partyId =
+        requireNonNull(payment.getPartyId(), "Missing partyId: paymentId=" + payment.getId());
     savingsFundLedger.reservePaymentForSubscription(
-        payment.getPartyId(), payment.getAmount(), payment.getId());
+        LedgerRefs.from(partyId), payment.getAmount(), payment.getId());
 
     log.info("Reservation completed for payment {}", payment.getId());
     savingFundPaymentRepository.changeStatus(payment.getId(), RESERVED);

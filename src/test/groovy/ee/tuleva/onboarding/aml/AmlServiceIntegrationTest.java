@@ -54,6 +54,7 @@ public class AmlServiceIntegrationTest {
   }
 
   @Autowired private AmlService amlService;
+  @Autowired private SanctionAndPepScreener sanctionAndPepScreener;
   @Autowired private AmlCheckRepository amlCheckRepository;
   @Autowired private PepAndSanctionCheckService checkService;
   @Autowired private UserConversionService userConversionService;
@@ -121,7 +122,7 @@ public class AmlServiceIntegrationTest {
     Set<Country> country = Countries.of("EE");
 
     // when
-    List<AmlCheck> checks = amlService.addSanctionAndPepCheckIfMissing(user, country);
+    List<AmlCheck> checks = sanctionAndPepScreener.addSanctionAndPepCheckIfMissing(user, country);
 
     // then
     assertThat(checks).hasSize(2);
@@ -152,7 +153,7 @@ public class AmlServiceIntegrationTest {
     when(matchResponse.query()).thenReturn(query);
     when(checkService.match(any(), any())).thenReturn(matchResponse);
 
-    amlService.addSanctionAndPepCheckIfMissing(user, country);
+    sanctionAndPepScreener.addSanctionAndPepCheckIfMissing(user, country);
     entityManager.flush();
     entityManager.clear();
 
@@ -187,7 +188,7 @@ public class AmlServiceIntegrationTest {
     Set<Country> country = Countries.of("EE");
 
     amlService.checkUserBeforeLogin(user, user, true);
-    amlService.addSanctionAndPepCheckIfMissing(user, country);
+    sanctionAndPepScreener.addSanctionAndPepCheckIfMissing(user, country);
 
     AmlCheck occupationCheck =
         AmlCheck.builder()
@@ -250,7 +251,7 @@ public class AmlServiceIntegrationTest {
     when(checkService.match(any(), any())).thenReturn(sanctionMatchResponse);
 
     // when
-    List<AmlCheck> checks = amlService.addSanctionAndPepCheckIfMissing(user, country);
+    List<AmlCheck> checks = sanctionAndPepScreener.addSanctionAndPepCheckIfMissing(user, country);
 
     // then
     assertThat(checks).anyMatch(check -> check.getType() == SANCTION && !check.isSuccess());

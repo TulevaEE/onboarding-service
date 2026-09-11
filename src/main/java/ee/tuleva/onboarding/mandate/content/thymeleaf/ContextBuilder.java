@@ -1,13 +1,13 @@
 package ee.tuleva.onboarding.mandate.content.thymeleaf;
 
+import ee.tuleva.onboarding.applicationtype.ApplicationType;
 import ee.tuleva.onboarding.country.Country;
-import ee.tuleva.onboarding.epis.contact.ContactDetails;
-import ee.tuleva.onboarding.epis.mandate.details.FundPensionOpeningMandateDetails;
-import ee.tuleva.onboarding.epis.mandate.details.PartialWithdrawalMandateDetails;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
-import ee.tuleva.onboarding.mandate.application.ApplicationType;
+import ee.tuleva.onboarding.mandate.MandateContactDetails;
+import ee.tuleva.onboarding.mandate.details.FundPensionOpeningMandateDetails;
+import ee.tuleva.onboarding.mandate.details.PartialWithdrawalMandateDetails;
 import ee.tuleva.onboarding.user.User;
 import java.math.BigDecimal;
 import java.time.ZoneOffset;
@@ -104,10 +104,10 @@ public class ContextBuilder {
     return this;
   }
 
-  public ContextBuilder contactDetails(ContactDetails contactDetails) {
+  public ContextBuilder contactDetails(MandateContactDetails contactDetails) {
     ctx.setVariable("contactDetails", contactDetails);
     if (ctx.getVariable("email") == null) {
-      ctx.setVariable("email", contactDetails.getEmail());
+      ctx.setVariable("email", contactDetails.email());
     }
     return this;
   }

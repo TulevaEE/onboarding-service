@@ -3,8 +3,9 @@ package ee.tuleva.onboarding.comparisons.fundvalue.validation
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
 import ee.tuleva.onboarding.comparisons.fundvalue.PriorityPriceProvider
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.YahooFundValueRetriever
+import ee.tuleva.onboarding.instrument.InstrumentReference
+import ee.tuleva.onboarding.instrument.InstrumentReferenceService
 import ee.tuleva.onboarding.deadline.PublicHolidays
 import ee.tuleva.onboarding.notification.OperationsNotificationService
 import spock.lang.Specification
@@ -15,9 +16,57 @@ import java.time.LocalDate
 import java.time.ZoneId
 
 import static ee.tuleva.onboarding.comparisons.fundvalue.FundValueFixture.aFundValue
+import static ee.tuleva.onboarding.instrument.InstrumentReferenceFixture.instrument
 import static ee.tuleva.onboarding.comparisons.fundvalue.validation.IntegrityCheckResult.Severity
 
 class FundValueIntegrityCheckerSpec extends Specification {
+
+  static final InstrumentReference ISHARES_DEVELOPED_WORLD_ESG_SCREENED = instrument("IE00BFG1TM61")
+      .displayName("iShares Developed World Screened Index Fund")
+      .yahooTicker("0P000152G5.F")
+      .eodhdTicker("IE00BFG1TM61.EUFUND")
+      .blackrockProductId("270890")
+      .morningstarId("0P000152G5")
+      .build()
+
+  static final InstrumentReference ISHARES_USA_ESG_SCREENED = instrument("IE00BFNM3G45")
+      .displayName("iShares MSCI USA Screened UCITS ETF")
+      .yahooTicker("SGAS.DE")
+      .eodhdTicker("SGAS.XETRA")
+      .build()
+
+  static final InstrumentReference XTRACKERS_WORLD_SCREENED = instrument("IE000I9HGDZ3")
+      .displayName("Xtrackers MSCI World Screened UCITS ETF 1C")
+      .yahooTicker("XWSC.DE")
+      .eodhdTicker("XWSC.XETRA")
+      .build()
+
+  static final InstrumentReference AMUNDI_USA_SCREENED = instrument("IE000F60HVH9")
+      .displayName("ICAV Amundi MSCI USA Screened UCITS ETF")
+      .yahooTicker("USAS.PA")
+      .eodhdTicker("USAS.PA.EODHD")
+      .build()
+
+  static final InstrumentReference AMUNDI_GLOBAL_AGG_BOND_HEDGED = instrument("LU1708330318")
+      .displayName("Amundi Core Global Aggregate Bond UCITS ETF EUR Hedged")
+      .yahooTicker("GAGH.PA")
+      .eodhdTicker("GAGH.PA.EODHD")
+      .build()
+
+  static final InstrumentReference NO_LONGER_LISTED_ON_EODHD = instrument("IE000I9HGDZ4")
+      .displayName("Xtrackers MSCI World Screened UCITS ETF 2C")
+      .yahooTicker("XWSD.DE")
+      .eodhdTicker("XWSD.XETRA")
+      .eodhdListed(false)
+      .build()
+
+  static final List<InstrumentReference> INSTRUMENTS = [
+      ISHARES_DEVELOPED_WORLD_ESG_SCREENED,
+      ISHARES_USA_ESG_SCREENED,
+      XTRACKERS_WORLD_SCREENED,
+      AMUNDI_USA_SCREENED,
+      AMUNDI_GLOBAL_AGG_BOND_HEDGED,
+  ]
 
   YahooFundValueRetriever yahooFundValueRetriever = Stub()
   FundValueRepository fundValueRepository = Stub()
@@ -25,12 +74,16 @@ class FundValueIntegrityCheckerSpec extends Specification {
   PublicHolidays publicHolidays = new PublicHolidays()
   Clock clock = Clock.fixed(Instant.parse("2026-02-12T12:00:00Z"), ZoneId.of("Europe/Tallinn"))
   OperationsNotificationService notificationService = Mock()
+  InstrumentReferenceService instrumentReferenceService = Stub {
+    activeInstruments() >> INSTRUMENTS
+  }
 
   FundValueIntegrityChecker checker = new FundValueIntegrityChecker(
       yahooFundValueRetriever,
       fundValueRepository,
       priorityPriceProvider,
       publicHolidays,
+      instrumentReferenceService,
       clock,
       notificationService
   )
@@ -195,7 +248,7 @@ class FundValueIntegrityCheckerSpec extends Specification {
 
   def "reports stale sources when a provider's latest value stops advancing"() {
     given:
-    def ticker = FundTicker.ISHARES_DEVELOPED_WORLD_ESG_SCREENED
+    def ticker = ISHARES_DEVELOPED_WORLD_ESG_SCREENED
     LocalDate endDate = LocalDate.of(2026, 6, 9)
     LocalDate frozenDate = LocalDate.of(2026, 5, 26)
     def blackrockKey = ticker.isin + ".BLACKROCK"
@@ -218,7 +271,7 @@ class FundValueIntegrityCheckerSpec extends Specification {
 
   def "does not report stale sources at exactly the allowed publication lag of 3 working days"() {
     given:
-    def ticker = FundTicker.ISHARES_DEVELOPED_WORLD_ESG_SCREENED
+    def ticker = ISHARES_DEVELOPED_WORLD_ESG_SCREENED
     LocalDate endDate = LocalDate.of(2026, 6, 9)
     fundValueRepository.findLastValueForFund(_) >> { String key -> Optional.of(aFundValue(key, LocalDate.of(2026, 6, 4), 100.0)) }
 
@@ -231,7 +284,7 @@ class FundValueIntegrityCheckerSpec extends Specification {
 
   def "reports stale sources one working day past the allowed publication lag"() {
     given:
-    def ticker = FundTicker.ISHARES_DEVELOPED_WORLD_ESG_SCREENED
+    def ticker = ISHARES_DEVELOPED_WORLD_ESG_SCREENED
     LocalDate endDate = LocalDate.of(2026, 6, 9)
     fundValueRepository.findLastValueForFund(_) >> { String key -> Optional.of(aFundValue(key, LocalDate.of(2026, 6, 3), 100.0)) }
 
@@ -245,7 +298,7 @@ class FundValueIntegrityCheckerSpec extends Specification {
 
   def "does not report sources that have never had any data"() {
     given:
-    def ticker = FundTicker.AMUNDI_GLOBAL_AGG_BOND_HEDGED
+    def ticker = AMUNDI_GLOBAL_AGG_BOND_HEDGED
     LocalDate endDate = LocalDate.of(2026, 6, 9)
     fundValueRepository.findLastValueForFund(_) >> Optional.empty()
 
@@ -254,6 +307,24 @@ class FundValueIntegrityCheckerSpec extends Specification {
 
     then:
     staleSources.isEmpty()
+  }
+
+  def "does not expect an EODHD series for an instrument no longer listed on EODHD"() {
+    given:
+    def ticker = NO_LONGER_LISTED_ON_EODHD
+    LocalDate endDate = LocalDate.of(2026, 6, 9)
+    LocalDate frozenDate = LocalDate.of(2026, 5, 26)
+    def xetraKey = ticker.isin + ".XETR"
+    fundValueRepository.findLastValueForFund(_) >> { String key -> Optional.of(aFundValue(key, frozenDate, 100.0)) }
+
+    when:
+    def staleSources = checker.checkSourceFreshness(ticker, endDate)
+
+    then:
+    staleSources == [
+        new IntegrityCheckResult.StaleSource(ticker.displayName, "Exchange", xetraKey, frozenDate, 10),
+        new IntegrityCheckResult.StaleSource(ticker.displayName, "Yahoo", ticker.yahooTicker, frozenDate, 10),
+    ]
   }
 
   def "includes stale sources in the integrity summary"() {
@@ -276,7 +347,7 @@ class FundValueIntegrityCheckerSpec extends Specification {
 
   def "should report CRITICAL when EODHD and Exchange values differ by more than 0.001%"() {
     given:
-    def ticker = FundTicker.ISHARES_USA_ESG_SCREENED
+    def ticker = ISHARES_USA_ESG_SCREENED
     LocalDate date = LocalDate.of(2024, 1, 15)
     def xetraKey = ticker.isin + ".XETR"
 
@@ -301,7 +372,7 @@ class FundValueIntegrityCheckerSpec extends Specification {
 
   def "should report INFO when EODHD and Yahoo values differ by more than 0.001%"() {
     given:
-    def ticker = FundTicker.ISHARES_USA_ESG_SCREENED
+    def ticker = ISHARES_USA_ESG_SCREENED
     LocalDate date = LocalDate.of(2024, 1, 15)
     def xetraKey = ticker.isin + ".XETR"
 
@@ -326,7 +397,7 @@ class FundValueIntegrityCheckerSpec extends Specification {
 
   def "should not report discrepancy when Exchange and EODHD values differ by less than 0.001%"() {
     given:
-    def ticker = FundTicker.ISHARES_USA_ESG_SCREENED
+    def ticker = ISHARES_USA_ESG_SCREENED
     LocalDate date = LocalDate.of(2024, 1, 15)
     def xetraKey = ticker.isin + ".XETR"
 
@@ -348,7 +419,7 @@ class FundValueIntegrityCheckerSpec extends Specification {
 
   def "should skip cross-provider comparison when only one provider has data"() {
     given:
-    def ticker = FundTicker.ISHARES_USA_ESG_SCREENED
+    def ticker = ISHARES_USA_ESG_SCREENED
     LocalDate date = LocalDate.of(2024, 1, 15)
     def xetraKey = ticker.isin + ".XETR"
 
@@ -367,7 +438,7 @@ class FundValueIntegrityCheckerSpec extends Specification {
 
   def "discrepancy carries all source values for the date"() {
     given:
-    def ticker = FundTicker.XTRACKERS_WORLD_SCREENED
+    def ticker = XTRACKERS_WORLD_SCREENED
     LocalDate date = LocalDate.of(2026, 7, 20)
     def xetraKey = ticker.isin + ".XETR"
 
@@ -389,7 +460,7 @@ class FundValueIntegrityCheckerSpec extends Specification {
 
   def "should label Deutsche Börse in discrepancies for Xetra-traded ETFs"() {
     given:
-    def ticker = FundTicker.ISHARES_USA_ESG_SCREENED
+    def ticker = ISHARES_USA_ESG_SCREENED
     LocalDate date = LocalDate.of(2024, 1, 15)
     def xetraKey = ticker.isin + ".XETR"
 
@@ -413,7 +484,7 @@ class FundValueIntegrityCheckerSpec extends Specification {
 
   def "should label Euronext in discrepancies for Paris-traded ETFs"() {
     given:
-    def ticker = FundTicker.AMUNDI_USA_SCREENED
+    def ticker = AMUNDI_USA_SCREENED
     LocalDate date = LocalDate.of(2024, 1, 15)
     def euronextKey = ticker.isin + ".XPAR"
 
@@ -437,7 +508,7 @@ class FundValueIntegrityCheckerSpec extends Specification {
 
   def "should report CRITICAL when BlackRock and Morningstar differ after rounding to 2 decimals"() {
     given:
-    def ticker = FundTicker.ISHARES_DEVELOPED_WORLD_ESG_SCREENED
+    def ticker = ISHARES_DEVELOPED_WORLD_ESG_SCREENED
     LocalDate date = LocalDate.of(2024, 1, 15)
     def blackrockKey = ticker.isin + ".BLACKROCK"
     def morningstarKey = ticker.isin + ".MORNINGSTAR"
@@ -461,7 +532,7 @@ class FundValueIntegrityCheckerSpec extends Specification {
 
   def "should not report discrepancy when BlackRock and Morningstar match at 2 decimal places"() {
     given:
-    def ticker = FundTicker.ISHARES_DEVELOPED_WORLD_ESG_SCREENED
+    def ticker = ISHARES_DEVELOPED_WORLD_ESG_SCREENED
     LocalDate date = LocalDate.of(2024, 1, 15)
     def blackrockKey = ticker.isin + ".BLACKROCK"
     def morningstarKey = ticker.isin + ".MORNINGSTAR"
@@ -484,7 +555,7 @@ class FundValueIntegrityCheckerSpec extends Specification {
 
   def "should report CRITICAL when BlackRock and EODHD fund NAVs differ beyond rounding"() {
     given:
-    def ticker = FundTicker.ISHARES_DEVELOPED_WORLD_ESG_SCREENED
+    def ticker = ISHARES_DEVELOPED_WORLD_ESG_SCREENED
     LocalDate date = LocalDate.of(2026, 6, 10)
     def blackrockKey = ticker.isin + ".BLACKROCK"
     def morningstarKey = ticker.isin + ".MORNINGSTAR"
@@ -505,7 +576,7 @@ class FundValueIntegrityCheckerSpec extends Specification {
 
   def "should not report discrepancy when EODHD fund NAV matches BlackRock rounded to 3 decimals"() {
     given:
-    def ticker = FundTicker.ISHARES_DEVELOPED_WORLD_ESG_SCREENED
+    def ticker = ISHARES_DEVELOPED_WORLD_ESG_SCREENED
     LocalDate date = LocalDate.of(2026, 6, 10)
     def blackrockKey = ticker.isin + ".BLACKROCK"
     def morningstarKey = ticker.isin + ".MORNINGSTAR"
@@ -524,7 +595,7 @@ class FundValueIntegrityCheckerSpec extends Specification {
 
   def "should fall back to Morningstar as anchor when BlackRock has no data"() {
     given:
-    def ticker = FundTicker.ISHARES_DEVELOPED_WORLD_ESG_SCREENED
+    def ticker = ISHARES_DEVELOPED_WORLD_ESG_SCREENED
     LocalDate date = LocalDate.of(2026, 6, 10)
     def blackrockKey = ticker.isin + ".BLACKROCK"
     def morningstarKey = ticker.isin + ".MORNINGSTAR"
@@ -545,7 +616,7 @@ class FundValueIntegrityCheckerSpec extends Specification {
 
   def "should detect a discrepancy on a date where the highest-priority source has no value"() {
     given:
-    def ticker = FundTicker.ISHARES_DEVELOPED_WORLD_ESG_SCREENED
+    def ticker = ISHARES_DEVELOPED_WORLD_ESG_SCREENED
     LocalDate earlier = LocalDate.of(2026, 6, 9)
     LocalDate latest = LocalDate.of(2026, 6, 10)
     def blackrockKey = ticker.isin + ".BLACKROCK"
@@ -568,7 +639,7 @@ class FundValueIntegrityCheckerSpec extends Specification {
 
   def "should not check Xetra for non-Xetra ETFs"() {
     given:
-    def ticker = FundTicker.AMUNDI_USA_SCREENED
+    def ticker = AMUNDI_USA_SCREENED
     LocalDate date = LocalDate.of(2024, 1, 15)
     def euronextKey = ticker.isin + ".XPAR"
 
@@ -587,17 +658,22 @@ class FundValueIntegrityCheckerSpec extends Specification {
     criticalDiscrepancies.isEmpty()
   }
 
-  def "should log summary table with all tickers"() {
+  def "the hourly check covers every active instrument for the previous day"() {
     given:
     LocalDate date = LocalDate.of(2024, 1, 15)
+    LocalDate yesterday = LocalDate.of(2026, 2, 11)
+    Set<String> resolvedForDate = [] as Set
 
-    priorityPriceProvider.resolve(_, _) >> Optional.empty()
+    priorityPriceProvider.resolve(_, _) >> { String isin, LocalDate resolveDate ->
+      resolvedForDate.add(isin + "@" + resolveDate)
+      Optional.empty()
+    }
 
-    yahooFundValueRetriever.retrieveValuesForRange(_, _) >> FundTicker.values().collect {
+    yahooFundValueRetriever.retrieveValuesForRange(_, _) >> INSTRUMENTS.collect {
       aFundValue(it.yahooTicker, date, 100.00)
     }
 
-    for (ticker in FundTicker.values()) {
+    for (ticker in INSTRUMENTS) {
       def eodhdValue = aFundValue(ticker.eodhdTicker, date, 100.00)
       def yahooValue = aFundValue(ticker.yahooTicker, date, 100.00)
 
@@ -622,20 +698,21 @@ class FundValueIntegrityCheckerSpec extends Specification {
     checker.performIntegrityCheck()
 
     then:
-    noExceptionThrown()
+    resolvedForDate == INSTRUMENTS.collect { it.isin + "@" + yesterday }.toSet()
+    0 * notificationService.sendMessage(_, _)
   }
 
-  def "runIntegrityCheck returns summary string"() {
+  def "runIntegrityCheck renders a summary row for every active instrument"() {
     given:
     LocalDate endDate = LocalDate.of(2024, 1, 15)
 
     priorityPriceProvider.resolve(_, _) >> Optional.empty()
 
-    yahooFundValueRetriever.retrieveValuesForRange(_, _) >> FundTicker.values().collect {
+    yahooFundValueRetriever.retrieveValuesForRange(_, _) >> INSTRUMENTS.collect {
       aFundValue(it.yahooTicker, endDate, 100.00)
     }
 
-    for (ticker in FundTicker.values()) {
+    for (ticker in INSTRUMENTS) {
       def eodhdValue = aFundValue(ticker.eodhdTicker, endDate, 100.00)
       def yahooValue = aFundValue(ticker.yahooTicker, endDate, 100.00)
 
@@ -660,15 +737,22 @@ class FundValueIntegrityCheckerSpec extends Specification {
     String summary = checker.runIntegrityCheck(endDate)
 
     then:
-    summary.contains("Fund Value Integrity Check Summary")
+    summary.contains("Fund Value Integrity Check Summary (2026-02-11 to 2024-01-15)")
+    summary.contains("✅ All funds have consistent prices across providers")
+    summary.contains("│ iShares Developed World Screened Index Fund")
+    summary.contains("│ iShares MSCI USA Screened UCITS ETF")
+    summary.contains("│ Xtrackers MSCI World Screened UCITS ETF 1C")
+    summary.contains("│ ICAV Amundi MSCI USA Screened UCITS ETF")
+    summary.contains("│ Amundi Core Global Aggregate Bond UCITS ETF EU...")
+    !summary.contains("Stale price sources")
   }
 
   def "should include Last Price column in cross-provider summary table"() {
     given:
     LocalDate endDate = LocalDate.of(2026, 3, 4)
 
-    def ticker1 = FundTicker.ISHARES_USA_ESG_SCREENED
-    def ticker2 = FundTicker.ISHARES_DEVELOPED_WORLD_ESG_SCREENED
+    def ticker1 = ISHARES_USA_ESG_SCREENED
+    def ticker2 = ISHARES_DEVELOPED_WORLD_ESG_SCREENED
 
     priorityPriceProvider.resolve(ticker1.isin, endDate) >> Optional.of(
         new FundValue(ticker1.eodhdTicker, endDate, 100.00, "EODHD", null)
@@ -677,17 +761,17 @@ class FundValueIntegrityCheckerSpec extends Specification {
         new FundValue(ticker2.eodhdTicker, LocalDate.of(2026, 3, 2), 50.00, "BLACKROCK", null)
     )
 
-    for (ticker in FundTicker.values()) {
+    for (ticker in INSTRUMENTS) {
       if (ticker != ticker1 && ticker != ticker2) {
         priorityPriceProvider.resolve(ticker.isin, endDate) >> Optional.empty()
       }
     }
 
-    yahooFundValueRetriever.retrieveValuesForRange(_, _) >> FundTicker.values().collect {
+    yahooFundValueRetriever.retrieveValuesForRange(_, _) >> INSTRUMENTS.collect {
       aFundValue(it.yahooTicker, endDate, 100.00)
     }
 
-    for (ticker in FundTicker.values()) {
+    for (ticker in INSTRUMENTS) {
       fundValueRepository.findValuesBetweenDates(ticker.yahooTicker, _, _) >> [aFundValue(ticker.yahooTicker, endDate, 100.00)]
       fundValueRepository.findValuesBetweenDates(ticker.eodhdTicker, _, _) >> [aFundValue(ticker.eodhdTicker, endDate, 100.00)]
 
@@ -719,12 +803,12 @@ class FundValueIntegrityCheckerSpec extends Specification {
   def "summary shows all source values for a discrepancy so the odd one out is visible"() {
     given:
     LocalDate endDate = LocalDate.of(2026, 7, 20)
-    def xwsc = FundTicker.XTRACKERS_WORLD_SCREENED
+    def xwsc = XTRACKERS_WORLD_SCREENED
     def xwscXetraKey = xwsc.isin + ".XETR"
 
     priorityPriceProvider.resolve(_, _) >> Optional.empty()
 
-    yahooFundValueRetriever.retrieveValuesForRange(_, _) >> FundTicker.values().collect {
+    yahooFundValueRetriever.retrieveValuesForRange(_, _) >> INSTRUMENTS.collect {
       aFundValue(it.yahooTicker, endDate, it == xwsc ? 9.947 : 100.00)
     }
 
@@ -732,7 +816,7 @@ class FundValueIntegrityCheckerSpec extends Specification {
     fundValueRepository.findValuesBetweenDates(xwscXetraKey, _, _) >> [aFundValue(xwscXetraKey, endDate, 9.969)]
     fundValueRepository.findValuesBetweenDates(xwsc.yahooTicker, _, _) >> [aFundValue(xwsc.yahooTicker, endDate, 9.947)]
 
-    for (ticker in FundTicker.values()) {
+    for (ticker in INSTRUMENTS) {
       if (ticker == xwsc) {
         continue
       }
@@ -764,8 +848,8 @@ class FundValueIntegrityCheckerSpec extends Specification {
     given:
     def staleSource = new IntegrityCheckResult.StaleSource(
         "World ETF", "EODHD", "IWDA.XETRA", LocalDate.of(2026, 2, 9), 3L)
-    def result = new FundValueIntegrityChecker.TickerCheckResult(
-        FundTicker.values()[0], IntegrityCheckResult.empty(), [] as Set, [] as Set, [staleSource], [])
+    def result = new FundValueIntegrityChecker.InstrumentCheckResult(
+        INSTRUMENTS[0], [] as Set, [] as Set, [staleSource], [])
 
     when:
     checker.notifyIfCritical([result])
@@ -787,8 +871,8 @@ class FundValueIntegrityCheckerSpec extends Specification {
             new IntegrityCheckResult.SourceValue("BlackRock", 80.00),
             new IntegrityCheckResult.SourceValue("Yahoo", 99.50),
         ])
-    def result = new FundValueIntegrityChecker.TickerCheckResult(
-        FundTicker.values()[0], IntegrityCheckResult.empty(), [] as Set, [] as Set, [], [discrepancy])
+    def result = new FundValueIntegrityChecker.InstrumentCheckResult(
+        INSTRUMENTS[0], [] as Set, [] as Set, [], [discrepancy])
 
     when:
     checker.notifyIfCritical([result])
@@ -806,8 +890,8 @@ class FundValueIntegrityCheckerSpec extends Specification {
 
   def "does not send a Slack alert when there are no critical issues"() {
     given:
-    def clean = new FundValueIntegrityChecker.TickerCheckResult(
-        FundTicker.values()[0], IntegrityCheckResult.empty(), [] as Set, [] as Set, [], [])
+    def clean = new FundValueIntegrityChecker.InstrumentCheckResult(
+        INSTRUMENTS[0], [] as Set, [] as Set, [], [])
 
     when:
     checker.notifyIfCritical([clean])
@@ -815,4 +899,101 @@ class FundValueIntegrityCheckerSpec extends Specification {
     then:
     0 * notificationService.sendMessage(_, _)
   }
+
+  def "buildSummary lists expected Yahoo discrepancies when there are info issues but no critical issues"() {
+    given:
+    LocalDate date = LocalDate.of(2026, 6, 10)
+    def infoIssue = new IntegrityCheckResult.Discrepancy(
+        "IWDA", date, 100.00000, 90.00000, 10.00000, 10.0000, Severity.INFO, "EODHD vs Yahoo", [])
+    def result = new FundValueIntegrityChecker.InstrumentCheckResult(
+        INSTRUMENTS[0], [] as Set, [] as Set, [], [infoIssue])
+
+    when:
+    String summary = checker.buildSummary(date, date, [result])
+
+    then:
+    summary.contains("Expected Yahoo discrepancies (1):")
+    !summary.contains("CRITICAL Issues requiring investigation")
+  }
+
+  def "buildSummary omits the expected Yahoo discrepancies section when there are neither critical nor info issues"() {
+    given:
+    LocalDate date = LocalDate.of(2026, 6, 10)
+    def result = new FundValueIntegrityChecker.InstrumentCheckResult(
+        INSTRUMENTS[0], [] as Set, [] as Set, [], [])
+
+    when:
+    String summary = checker.buildSummary(date, date, [result])
+
+    then:
+    !summary.contains("Expected Yahoo discrepancies")
+    !summary.contains("CRITICAL Issues requiring investigation")
+  }
+
+  def "buildSummary lists critical issue details plus an INFO-only section when both kinds of issues exist"() {
+    given:
+    LocalDate date = LocalDate.of(2026, 6, 10)
+    def criticalIssue = new IntegrityCheckResult.Discrepancy(
+        "IWDA", date, 100.00000, 90.00000, 10.00000, 10.0000, Severity.CRITICAL, "EODHD vs BlackRock", [])
+    def infoIssue = new IntegrityCheckResult.Discrepancy(
+        "IWDA", date, 100.00000, 90.00000, 10.00000, 10.0000, Severity.INFO, "EODHD vs Yahoo", [])
+    def result = new FundValueIntegrityChecker.InstrumentCheckResult(
+        INSTRUMENTS[0], [] as Set, [] as Set, [], [criticalIssue, infoIssue])
+
+    when:
+    String summary = checker.buildSummary(date, date, [result])
+
+    then:
+    summary.contains("CRITICAL Issues requiring investigation (1):")
+    summary.contains("IWDA [" + date + "]: EODHD vs BlackRock 100.00000 vs 90.00000, diff=10.00000 (10.0000%)")
+    summary.contains("Expected Yahoo discrepancies (1 - INFO only):")
+  }
+
+  def "buildSummary omits the INFO-only section when a critical issue has no accompanying info issues"() {
+    given:
+    LocalDate date = LocalDate.of(2026, 6, 10)
+    def criticalIssue = new IntegrityCheckResult.Discrepancy(
+        "IWDA", date, 100.00000, 90.00000, 10.00000, 10.0000, Severity.CRITICAL, "EODHD vs BlackRock", [])
+    def result = new FundValueIntegrityChecker.InstrumentCheckResult(
+        INSTRUMENTS[0], [] as Set, [] as Set, [], [criticalIssue])
+
+    when:
+    String summary = checker.buildSummary(date, date, [result])
+
+    then:
+    summary.contains("CRITICAL Issues requiring investigation (1):")
+    !summary.contains("INFO only")
+  }
+
+  def "does not send a Slack alert when the only discrepancy is INFO severity"() {
+    given:
+    def date = LocalDate.of(2026, 6, 10)
+    def infoIssue = new IntegrityCheckResult.Discrepancy(
+        "IWDA", date, 100.00000, 90.00000, 10.00000, 10.0000, Severity.INFO, "EODHD vs Yahoo", [])
+    def result = new FundValueIntegrityChecker.InstrumentCheckResult(
+        INSTRUMENTS[0], [] as Set, [] as Set, [], [infoIssue])
+
+    when:
+    checker.notifyIfCritical([result])
+
+    then:
+    0 * notificationService.sendMessage(_, _)
+  }
+
+  def "runIntegrityCheck sends a Slack alert when a critical cross-provider discrepancy is found for the day"() {
+    given:
+    def ticker = XTRACKERS_WORLD_SCREENED
+    LocalDate endDate = LocalDate.of(2026, 7, 20)
+    def xetraKey = ticker.isin + ".XETR"
+
+    fundValueRepository.findValuesBetweenDates(ticker.eodhdTicker, _, _) >> [aFundValue(ticker.eodhdTicker, endDate, 9.947)]
+    fundValueRepository.findValuesBetweenDates(xetraKey, _, _) >> [aFundValue(xetraKey, endDate, 9.969)]
+
+    when:
+    checker.runIntegrityCheck(endDate)
+
+    then:
+    1 * notificationService.sendMessage(_, OperationsNotificationService.Channel.INVESTMENT)
+  }
+
 }

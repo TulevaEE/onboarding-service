@@ -1,24 +1,25 @@
 package ee.tuleva.onboarding.mandate
 
-import ee.tuleva.onboarding.account.AccountStatementService
-import ee.tuleva.onboarding.account.FundBalance
 import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.fund.FundRepository
+import ee.tuleva.onboarding.mandate.PensionAccountStatement.PensionFundBalance
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
+import ee.tuleva.onboarding.mandate.command.MandateFundTransferExchangeCommand
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException
 import spock.lang.Specification
 
-import static ee.tuleva.onboarding.account.AccountStatementFixture.*
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
+import static ee.tuleva.onboarding.fund.FundFixture.tuleva2ndPillarBondFund
 import static ee.tuleva.onboarding.fund.FundFixture.tuleva2ndPillarStockFund
 import static ee.tuleva.onboarding.fund.FundFixture.tuleva3rdPillarFund
+import static ee.tuleva.onboarding.fund.FundFixture.lhv3rdPillarFund
 import static ee.tuleva.onboarding.mandate.MandateFixture.*
 
 class MandateValidatorSpec extends Specification {
 
-  AccountStatementService accountStatementService = Mock()
+  PensionAccountStatement pensionAccountStatement = Mock()
   FundRepository fundRepository = Mock()
-  MandateValidator mandateValidator = new MandateValidator(accountStatementService, fundRepository)
+  MandateValidator mandateValidator = new MandateValidator(pensionAccountStatement, fundRepository)
 
   def "invalid CreateMandateCommand fails"() {
     given:
@@ -28,6 +29,32 @@ class MandateValidatorSpec extends Specification {
     then:
     InvalidMandateException exception = thrown()
     exception.errorsResponse.errors.first().code == "invalid.mandate.source.amount.exceeded"
+  }
+
+  def "sum of source transfer amounts of exactly one does not fail"() {
+    given:
+    Person person = samplePerson()
+    CreateMandateCommand createMandateCmd = new CreateMandateCommand(
+        "fundTransferExchanges": [
+            new MandateFundTransferExchangeCommand(
+                "amount": 0.5,
+                "sourceFundIsin": "SOMEISIN",
+                "targetFundIsin": futureContibutionFundIsin
+            ),
+            new MandateFundTransferExchangeCommand(
+                "amount": 0.5,
+                "sourceFundIsin": "SOMEISIN",
+                "targetFundIsin": futureContibutionFundIsin
+            )
+        ],
+        "futureContributionFundIsin": futureContibutionFundIsin
+    )
+
+    when:
+    mandateValidator.validate(createMandateCmd, person)
+
+    then:
+    noExceptionThrown()
   }
 
   def "same source and target fund fails"() {
@@ -47,7 +74,10 @@ class MandateValidatorSpec extends Specification {
       futureContributionFundIsin = tuleva2ndPillarStockFund().isin
     }
     fundRepository.findByIsin(createMandateCmd.futureContributionFundIsin) >> tuleva2ndPillarStockFund()
-    accountStatementService.getAccountStatement(person) >> activeTuleva2ndPillarFundBalance
+    pensionAccountStatement.forPerson(person) >> [
+        new PensionFundBalance(tuleva2ndPillarStockFund().isin, BigDecimal.valueOf(123.4567), true),
+        new PensionFundBalance(tuleva2ndPillarBondFund().isin, BigDecimal.valueOf(234.5678), false)
+    ]
 
     when:
     mandateValidator.validate(createMandateCmd, person)
@@ -64,7 +94,10 @@ class MandateValidatorSpec extends Specification {
       futureContributionFundIsin = tuleva3rdPillarFund().isin
     }
     fundRepository.findByIsin(createMandateCmd.futureContributionFundIsin) >> tuleva3rdPillarFund()
-    accountStatementService.getAccountStatement(person) >> activeTuleva3rdPillarFund + activeExternal3rdPillarFundBalance
+    pensionAccountStatement.forPerson(person) >> [
+        new PensionFundBalance(tuleva3rdPillarFund().isin, BigDecimal.valueOf(234.56), true),
+        new PensionFundBalance(lhv3rdPillarFund().isin, BigDecimal.valueOf(2343.8579), true)
+    ]
 
     when:
     mandateValidator.validate(createMandateCmd, person)
@@ -81,8 +114,11 @@ class MandateValidatorSpec extends Specification {
     }
     fundRepository.findByIsin(createMandateCmd.futureContributionFundIsin) >> tuleva2ndPillarStockFund()
 
-    accountStatementService.getAccountStatement(person) >> activeTuleva2ndPillarFundBalance +
-        [FundBalance.builder().fund(tuleva3rdPillarFund()).build()]
+    pensionAccountStatement.forPerson(person) >> [
+        new PensionFundBalance(tuleva2ndPillarStockFund().isin, BigDecimal.valueOf(123.4567), true),
+        new PensionFundBalance(tuleva2ndPillarBondFund().isin, BigDecimal.valueOf(234.5678), false),
+        new PensionFundBalance(tuleva3rdPillarFund().isin, BigDecimal.ZERO, false)
+    ]
 
     when:
     mandateValidator.validate(createMandateCmd, person)
@@ -98,8 +134,10 @@ class MandateValidatorSpec extends Specification {
       futureContributionFundIsin = tuleva3rdPillarFund().isin
     }
     fundRepository.findByIsin(createMandateCmd.futureContributionFundIsin) >> tuleva3rdPillarFund()
-    accountStatementService.getAccountStatement(person) >> activeTuleva3rdPillarFund +
-        [FundBalance.builder().fund(tuleva2ndPillarStockFund()).build()]
+    pensionAccountStatement.forPerson(person) >> [
+        new PensionFundBalance(tuleva3rdPillarFund().isin, BigDecimal.valueOf(234.56), true),
+        new PensionFundBalance(tuleva2ndPillarStockFund().isin, BigDecimal.valueOf(234.5678), false)
+    ]
 
     when:
     mandateValidator.validate(createMandateCmd, person)
@@ -141,7 +179,7 @@ class MandateValidatorSpec extends Specification {
     given:
     Person person = samplePerson()
     CreateMandateCommand createMandateCmd = sampleCreateMandateCommand()
-    accountStatementService.getAccountStatement(person) >> []
+    pensionAccountStatement.forPerson(person) >> []
     fundRepository.findByIsin(createMandateCmd.futureContributionFundIsin) >> tuleva2ndPillarStockFund()
 
     when:

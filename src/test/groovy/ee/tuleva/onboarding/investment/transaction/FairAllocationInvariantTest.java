@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.investment.transaction;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
 import static ee.tuleva.onboarding.investment.transaction.TransactionMode.BUY;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -77,7 +77,7 @@ class FairAllocationInvariantTest {
   }
 
   private static FundTransactionInput singleFundInput(
-      ee.tuleva.onboarding.fund.TulevaFund fund, String isin) {
+      ee.tuleva.onboarding.tulevafund.TulevaFund fund, String isin) {
     return FundTransactionInput.builder()
         .fund(fund)
         .positions(List.of(new PositionSnapshot(isin, new BigDecimal("500000"))))

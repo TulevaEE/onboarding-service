@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.comparisons.returns
 
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.Person
+import ee.tuleva.onboarding.time.TestClockHolder
 import org.springframework.http.MediaType
 
 import java.time.LocalDate
@@ -18,7 +19,7 @@ class ReturnsControllerSpec extends BaseControllerSpec {
 
     def returnsService = Mock(ReturnsService)
 
-    def controller = new ReturnsController(returnsService)
+    def controller = new ReturnsController(returnsService, TestClockHolder.clock)
 
     def mockMvc
 
@@ -29,7 +30,7 @@ class ReturnsControllerSpec extends BaseControllerSpec {
     def "can GET /returns from a date"() {
         given:
         def fromDate = LocalDate.parse("2017-01-01")
-        def toDate = LocalDate.now()
+        def toDate = LocalDate.now(TestClockHolder.clock)
         def type = FUND
         def key = "EE123"
         def rate = 1.0
@@ -73,7 +74,7 @@ class ReturnsControllerSpec extends BaseControllerSpec {
         def rate = 1.0
         def amount = 30.03
         def paymentsSum = 123.45
-        def toDate = LocalDate.now()
+        def toDate = LocalDate.now(TestClockHolder.clock)
         def aReturn = Return.builder().key(key).type(type).rate(rate).amount(amount).paymentsSum(paymentsSum).currency(EUR).from(BEGINNING_OF_TIMES).to(toDate).build()
         def returns = Returns.builder()
             .returns([aReturn])
@@ -97,7 +98,7 @@ class ReturnsControllerSpec extends BaseControllerSpec {
     def "can GET /returns by specifying keys"() {
         given:
         def fromDate = LocalDate.parse("2017-01-01")
-        def toDate = LocalDate.now()
+        def toDate = LocalDate.now(TestClockHolder.clock)
         def key1 = "SECOND_PILLAR"
         def key2 = "EE123"
         def key3 = "EPI"

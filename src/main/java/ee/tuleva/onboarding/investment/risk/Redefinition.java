@@ -3,7 +3,14 @@ package ee.tuleva.onboarding.investment.risk;
 import java.time.LocalDate;
 import org.jspecify.annotations.Nullable;
 
-record Redefinition(
-    LocalDate date,
-    @Nullable String previousHoldingPeriodTradingDays,
-    String holdingPeriodTradingDays) {}
+sealed interface Redefinition {
+
+  LocalDate date();
+
+  record HoldingPeriod(LocalDate date, @Nullable String previousTradingDays, String tradingDays)
+      implements Redefinition {}
+
+  record PublicationRule(
+      LocalDate date, @Nullable Integer previousRiskClass, @Nullable Integer riskClass)
+      implements Redefinition {}
+}

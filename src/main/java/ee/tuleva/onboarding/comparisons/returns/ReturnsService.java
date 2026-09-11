@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.comparisons.returns;
 
+import static ee.tuleva.onboarding.comparisons.returns.provider.PersonalReturnProvider.SECOND_PILLAR;
 import static ee.tuleva.onboarding.comparisons.returns.provider.PersonalReturnProvider.THIRD_PILLAR;
 import static java.time.ZoneOffset.UTC;
 
@@ -16,6 +17,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
@@ -23,6 +25,8 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class ReturnsService {
+
+  private static final Set<String> PERSONAL_KEYS = Set.of(SECOND_PILLAR, THIRD_PILLAR);
 
   private final List<ReturnProvider> returnProviders;
   private final FundValueRepository fundValueRepository;
@@ -70,6 +74,11 @@ public class ReturnsService {
 
   Instant getRevisedFromTime(LocalDate fromDate, List<String> keys, int pillar) {
     boolean hasKeys = keys != null && !keys.isEmpty();
+
+    if (hasKeys && PERSONAL_KEYS.containsAll(keys)) {
+      return toInstant(fromDate);
+    }
+
     LocalDate latestCommonStartDate = latestCommonStartDate(keys, fromDate);
 
     if (pillar == 3) {

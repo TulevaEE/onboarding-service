@@ -73,6 +73,7 @@ class BalancedTransactionValidatorTest {
     boolean isValid = customValidator.isValid(transaction, context);
 
     assertThat(isValid).isFalse();
+    verify(context).disableDefaultConstraintViolation();
     verify(context)
         .buildConstraintViolationWithTemplate(
             contains("Transaction entries must balance to zero. Current sum: 50"));

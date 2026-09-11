@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.kyb.KybCompanyData;
 import ee.tuleva.onboarding.kyb.SelfCertification;
 import java.util.List;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -24,7 +25,7 @@ public class SelfCertificationScreener implements KybScreener {
     return List.of(new KybCheck(SELF_CERTIFICATION, success, buildMetadata(cert)));
   }
 
-  private Map<String, Object> buildMetadata(SelfCertification cert) {
+  private Map<String, Object> buildMetadata(@Nullable SelfCertification cert) {
     if (cert == null) {
       return Map.of();
     }

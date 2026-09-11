@@ -87,6 +87,7 @@ class AssetTypeConsistencyValidatorTest {
     boolean isValid = customValidator.isValid(transaction, context);
 
     assertThat(isValid).isFalse();
+    verify(context).disableDefaultConstraintViolation();
     verify(context, times(2)).buildConstraintViolationWithTemplate(anyString());
   }
 

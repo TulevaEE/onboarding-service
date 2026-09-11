@@ -17,13 +17,13 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
       "aml.jobs.third-pillar.zone=Europe/Tallinn"
     })
 class ScheduledAmlCheckJobIntegrationTest {
-  @MockitoBean AmlService amlService;
+  @MockitoBean AmlBatchScreener amlBatchScreener;
 
   @Test
   void scheduleRuns() {
     await()
         .atMost(Duration.ofSeconds(2))
         .untilAsserted(
-            () -> verify(amlService, atLeastOnce()).runAmlChecksOnThirdPillarCustomers());
+            () -> verify(amlBatchScreener, atLeastOnce()).runAmlChecksOnThirdPillarCustomers());
   }
 }

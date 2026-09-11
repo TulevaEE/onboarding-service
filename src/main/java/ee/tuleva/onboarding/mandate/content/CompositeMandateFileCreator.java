@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.mandate.content;
 
-import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.mandate.MandateContactDetails;
 import ee.tuleva.onboarding.mandate.MandateType;
 import ee.tuleva.onboarding.user.User;
 import java.util.List;
@@ -15,7 +15,7 @@ public class CompositeMandateFileCreator {
   private final List<MandateFileCreator> mandateFileCreators;
 
   public List<MandateContentFile> getContentFiles(
-      User user, Mandate mandate, ContactDetails contactDetails) {
+      User user, Mandate mandate, MandateContactDetails contactDetails) {
     MandateType mandateType = mandate.getMandateType();
 
     return mandateFileCreators.stream()

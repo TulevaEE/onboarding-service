@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.aml.alert;
 
 import static ee.tuleva.onboarding.aml.alert.AmlAlertType.III_PILLAR_DEPOSIT_PERSON;
-import static ee.tuleva.onboarding.analytics.transaction.thirdpillar.AnalyticsThirdPillarTransactionFixture.exampleTransaction;
+import static ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransactionFixture.exampleTransaction;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
@@ -10,8 +10,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import ee.tuleva.onboarding.analytics.transaction.thirdpillar.AnalyticsThirdPillarTransaction;
-import ee.tuleva.onboarding.analytics.transaction.thirdpillar.AnalyticsThirdPillarTransactionRepository;
+import ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransaction;
+import ee.tuleva.onboarding.analytics.ThirdPillarAnalytics;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -30,7 +30,7 @@ import org.springframework.context.ApplicationEventPublisher;
 @ExtendWith(MockitoExtension.class)
 class ThirdPillarAlertServiceTest {
 
-  @Mock private AnalyticsThirdPillarTransactionRepository transactionRepository;
+  @Mock private ThirdPillarAnalytics transactionRepository;
   @Mock private AmlThirdPillarAlertRepository alertRepository;
   @Mock private ThirdPillarAlertEvaluator evaluator;
   @Mock private ApplicationEventPublisher eventPublisher;
@@ -57,12 +57,12 @@ class ThirdPillarAlertServiceTest {
   @Test
   @DisplayName("reads transactions within the lookback window from the injected clock")
   void checkAndAlert_usesLookbackCutoff() {
-    when(transactionRepository.findByReportingDateGreaterThanEqual(any())).thenReturn(List.of());
+    when(transactionRepository.findTransactionsReportedOnOrAfter(any())).thenReturn(List.of());
 
     service.checkAndAlert();
 
     verify(transactionRepository)
-        .findByReportingDateGreaterThanEqual(LocalDate.of(2026, 6, 2).minusDays(40));
+        .findTransactionsReportedOnOrAfter(LocalDate.of(2026, 6, 2).minusDays(40));
   }
 
   @Test
@@ -70,7 +70,7 @@ class ThirdPillarAlertServiceTest {
   void checkAndAlert_qualifying_publishesEventAndTracks() {
     var transaction = qualifyingTransaction();
     var fingerprint = ThirdPillarTransactionFingerprint.of(transaction);
-    when(transactionRepository.findByReportingDateGreaterThanEqual(any()))
+    when(transactionRepository.findTransactionsReportedOnOrAfter(any()))
         .thenReturn(List.of(transaction));
     when(evaluator.evaluate(transaction)).thenReturn(List.of(III_PILLAR_DEPOSIT_PERSON));
     when(alertRepository.existsByTransactionFingerprintAndAlertType(
@@ -102,7 +102,7 @@ class ThirdPillarAlertServiceTest {
   void checkAndAlert_alreadyAlerted_skips() {
     var transaction = qualifyingTransaction();
     var fingerprint = ThirdPillarTransactionFingerprint.of(transaction);
-    when(transactionRepository.findByReportingDateGreaterThanEqual(any()))
+    when(transactionRepository.findTransactionsReportedOnOrAfter(any()))
         .thenReturn(List.of(transaction));
     when(evaluator.evaluate(transaction)).thenReturn(List.of(III_PILLAR_DEPOSIT_PERSON));
     when(alertRepository.existsByTransactionFingerprintAndAlertType(
@@ -119,7 +119,7 @@ class ThirdPillarAlertServiceTest {
   @DisplayName("does not persist a tracking row and does not throw when the alert send fails")
   void checkAndAlert_sendFails_doesNotTrackAndDoesNotThrow() {
     var transaction = qualifyingTransaction();
-    when(transactionRepository.findByReportingDateGreaterThanEqual(any()))
+    when(transactionRepository.findTransactionsReportedOnOrAfter(any()))
         .thenReturn(List.of(transaction));
     when(evaluator.evaluate(transaction)).thenReturn(List.of(III_PILLAR_DEPOSIT_PERSON));
     when(alertRepository.existsByTransactionFingerprintAndAlertType(any(), any()))
@@ -138,7 +138,7 @@ class ThirdPillarAlertServiceTest {
   void checkAndAlert_nonQualifying_doesNothing() {
     var transaction = exampleTransaction();
     transaction.setId(9L);
-    when(transactionRepository.findByReportingDateGreaterThanEqual(any()))
+    when(transactionRepository.findTransactionsReportedOnOrAfter(any()))
         .thenReturn(List.of(transaction));
     when(evaluator.evaluate(transaction)).thenReturn(List.of());
 

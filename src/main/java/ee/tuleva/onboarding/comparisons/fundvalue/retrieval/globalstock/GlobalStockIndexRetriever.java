@@ -4,13 +4,14 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.ComparisonIndexRetriever;
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.ftp.FtpClient;
+import ee.tuleva.onboarding.ftp.FtpClient;
+import ee.tuleva.onboarding.ftp.FtpClientFactory;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
-import java.time.Instant;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
@@ -34,7 +35,8 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
   private static final String PATH = "/Daily/DMRI/XI_MSTAR/";
   private static final String SECURITY_ID = "F00000VN9N";
 
-  private final FtpClient morningstarFtpClient;
+  private final FtpClientFactory morningstarFtpClientFactory;
+  private final Clock clock;
 
   @Override
   public String getKey() {
@@ -44,16 +46,17 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
   @Override
   public List<FundValue> retrieveValuesForRange(LocalDate startDate, LocalDate endDate) {
     Map<String, MonthRecord> monthRecordMap = new HashMap<>();
+    FtpClient ftpClient = morningstarFtpClientFactory.create();
 
     try {
       log.debug("Opening connection to ftp server");
 
-      morningstarFtpClient.open();
+      ftpClient.open();
 
       log.debug("Opened connection");
       log.debug("Retrieving list of files in FTP path");
 
-      List<String> fileNames = morningstarFtpClient.listFiles(PATH);
+      List<String> fileNames = ftpClient.listFiles(PATH);
 
       log.debug("Retrieved list of files: {}", fileNames);
 
@@ -73,14 +76,14 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
 
         try {
           log.debug("Downloading " + PATH + fileName);
-          InputStream fileStream = morningstarFtpClient.downloadFileStream(PATH + fileName);
+          InputStream fileStream = ftpClient.downloadFileStream(PATH + fileName);
           Optional<MonthRecord> optionalRecord = findInZip(fileStream, SECURITY_ID);
           optionalRecord.ifPresent(monthRecord -> updateMonthRecord(monthRecordMap, monthRecord));
           fileStream.close();
           log.debug("Downloaded " + PATH + fileName);
 
           log.debug("Waiting for pending commands");
-          morningstarFtpClient.completePendingCommand();
+          ftpClient.completePendingCommand();
           log.debug("Finished all pending commands");
         } catch (RuntimeException e) {
           log.error("Unable to parse file: " + fileName, e);
@@ -90,7 +93,7 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
       log.error("Unable to retrieve values for range " + startDate + ", " + endDate, e);
     } finally {
       try {
-        morningstarFtpClient.close();
+        ftpClient.close();
       } catch (IOException e) {
         log.error("Unable to close FTP connection", e);
       }
@@ -101,7 +104,7 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
   private List<FundValue> extractValuesFromRecords(Map<String, MonthRecord> monthRecords) {
     log.debug("Extracting values from record dictionary");
     List<FundValue> fundValues = new ArrayList<>();
-    var now = Instant.now();
+    var now = clock.instant();
 
     for (MonthRecord record : monthRecords.values()) {
       List<String> recordValues = record.getValues();

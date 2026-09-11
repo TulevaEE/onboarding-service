@@ -28,7 +28,7 @@ class FundFeeUpdater {
     this.fundRepository = fundRepository;
   }
 
-  void update(int pillar, List<PensionikeskusFeeRow> rows, FeeField field) {
+  List<String> update(int pillar, List<PensionikeskusFeeRow> rows, FeeField field) {
     Map<String, List<Fund>> fundsByName =
         fundRepository.findAllByPillarAndStatus(pillar, ACTIVE).stream()
             .collect(groupingBy(fund -> normalize(fund.getNameEstonian())));
@@ -44,10 +44,15 @@ class FundFeeUpdater {
           }
         });
 
-    rowsByName.keySet().stream()
-        .filter(name -> !fundsByName.containsKey(name))
-        .forEach(
-            name -> log.error("Fee row matches no active fund: pillar={}, name={}", pillar, name));
+    List<String> unmatchedRowNames =
+        rowsByName.keySet().stream()
+            .filter(name -> !fundsByName.containsKey(name))
+            .sorted()
+            .toList();
+    for (String name : unmatchedRowNames) {
+      log.error("Fee row matches no active fund: pillar={}, name={}", pillar, name);
+    }
+    return unmatchedRowNames;
   }
 
   private void updateFund(

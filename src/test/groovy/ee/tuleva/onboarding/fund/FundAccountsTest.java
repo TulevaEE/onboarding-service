@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.fund;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.util.EnumMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;

@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.investment.transaction.ingest;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -196,6 +196,28 @@ class FtConfirmationPdfParserTest {
   }
 
   @Test
+  void extractField_labelIsTheVeryLastLineWithNoValueAfter_returnsEmpty() {
+    String text = "Some Preamble\nAllocation ID:";
+
+    Optional<String> result = FtConfirmationPdfParser.extractField(text, "Allocation ID");
+
+    assertThat(result).isEmpty();
+  }
+
+  @Test
+  void parse_missingAllocationIdThrows() {
+    byte[] pdf =
+        confirmationPdfMissingAllocationId(
+            "Tuleva Additional Investment Fund",
+            "20260115",
+            "IE00BFG1TM61",
+            "2,500",
+            "12.345600 EUR");
+
+    assertThatThrownBy(() -> parser.parse(pdf)).isInstanceOf(FtConfirmationPdfParseException.class);
+  }
+
+  @Test
   void parse_missingRequiredFieldThrows() {
     byte[] pdf =
         confirmationPdfMissingIsin(
@@ -206,6 +228,23 @@ class FtConfirmationPdfParserTest {
             "12.345600 EUR");
 
     assertThatThrownBy(() -> parser.parse(pdf)).isInstanceOf(FtConfirmationPdfParseException.class);
+  }
+
+  private static byte[] confirmationPdfMissingAllocationId(
+      String account, String tradeDate, String isin, String quantity, String grossPrice) {
+    List<String> lines =
+        List.of(
+            "Trade Confirmation",
+            "Dear Sir/Madam,",
+            "We confirm the following trade .",
+            "Counterparty: TULEVA FONDID AS",
+            "Account: " + account,
+            "Trade Date: " + tradeDate,
+            "ISIN: " + isin,
+            "Quantity: " + quantity,
+            "Gross Price: " + grossPrice,
+            "Settlement Currency: EUR");
+    return renderPdf(lines);
   }
 
   private static byte[] confirmationPdfMissingIsin(

@@ -1,20 +1,21 @@
 package ee.tuleva.onboarding.party;
 
 import static ee.tuleva.onboarding.event.TrackableEventType.MINOR_CUSTODY_VERIFICATION;
-import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static java.util.Collections.unmodifiableMap;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.aml.AmlService;
+import ee.tuleva.onboarding.aml.SanctionAndPepScreener;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.event.TrackableEvent;
+import ee.tuleva.onboarding.personalcode.PersonalCode;
 import ee.tuleva.onboarding.populationregister.PopulationRegisterPerson;
-import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
-import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,8 +35,9 @@ public class ChildOnboardingService {
 
   private final CustodyVerificationService custodyVerificationService;
   private final ParentChildLinkRegistrationService parentChildLinkRegistrationService;
-  private final SavingsFundOnboardingService savingsFundOnboardingService;
+  private final ChildSavingsOnboarding childSavingsOnboarding;
   private final AmlService amlService;
+  private final SanctionAndPepScreener sanctionAndPepScreener;
   private final ApplicationEventPublisher applicationEventPublisher;
   private final Clock clock;
 
@@ -70,20 +72,19 @@ public class ChildOnboardingService {
   }
 
   private void screenForSanctionsAndPep(PopulationRegisterPerson child) {
-    amlService.addSanctionAndPepCheckIfMissing(
+    sanctionAndPepScreener.addSanctionAndPepCheckIfMissing(
         new PersonImpl(child.personalCode(), child.firstName(), child.lastName()),
         Countries.of(child.citizenships()));
   }
 
   private void screenGuardian(AuthenticatedPerson parent, @Nullable String citizenship) {
-    amlService.addSanctionAndPepCheckIfMissing(
+    sanctionAndPepScreener.addSanctionAndPepCheckIfMissing(
         new PersonImpl(parent.getPersonalCode(), parent.getFirstName(), parent.getLastName()),
         Countries.of(citizenship));
   }
 
   private boolean hasBeenOnboarded(String childPersonalCode) {
-    return savingsFundOnboardingService.isOnboardingCompleted(
-        new PartyId(PERSON, childPersonalCode));
+    return childSavingsOnboarding.isCompleted(childPersonalCode);
   }
 
   @Transactional
@@ -93,7 +94,8 @@ public class ChildOnboardingService {
         custodyVerificationService.verify(parentPersonalCode, childPersonalCode, CUSTODY_MAX_AGE);
 
     applicationEventPublisher.publishEvent(
-        new TrackableEvent(parent, MINOR_CUSTODY_VERIFICATION, verification.evidence()));
+        new TrackableEvent(
+            parent, MINOR_CUSTODY_VERIFICATION, new HashMap<>(verification.evidence())));
     String guardianCitizenship =
         verification.isVerified()
             ? custodyVerificationService.fetchGuardianCitizenship(
@@ -113,10 +115,11 @@ public class ChildOnboardingService {
       return ChildOnboardingResult.underReview();
     }
 
-    PopulationRegisterPerson child = verification.child();
+    PopulationRegisterPerson child =
+        requireNonNull(verification.child(), "Verified custody without child data");
     parentChildLinkRegistrationService.register(
         parentPersonalCode, childPersonalCode, child.firstName(), child.lastName());
-    savingsFundOnboardingService.seedPersonOnboardingIfAbsent(childPersonalCode);
+    childSavingsOnboarding.seedIfAbsent(childPersonalCode);
     screenForSanctionsAndPep(child);
     screenGuardian(parent, guardianCitizenship);
 

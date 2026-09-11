@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.investment.transaction.export;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Instant;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;

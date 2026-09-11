@@ -2,8 +2,8 @@ package ee.tuleva.onboarding.aml.alert;
 
 import static ee.tuleva.onboarding.aml.alert.AlertPartyType.PERSON;
 
-import ee.tuleva.onboarding.analytics.transaction.thirdpillar.AnalyticsThirdPillarTransaction;
-import ee.tuleva.onboarding.analytics.transaction.thirdpillar.AnalyticsThirdPillarTransactionRepository;
+import ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransaction;
+import ee.tuleva.onboarding.analytics.ThirdPillarAnalytics;
 import java.time.Clock;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +18,7 @@ public class ThirdPillarAlertService {
 
   private static final int LOOKBACK_DAYS = 40;
 
-  private final AnalyticsThirdPillarTransactionRepository transactionRepository;
+  private final ThirdPillarAnalytics thirdPillarAnalytics;
   private final AmlThirdPillarAlertRepository alertRepository;
   private final ThirdPillarAlertEvaluator evaluator;
   private final ApplicationEventPublisher eventPublisher;
@@ -26,7 +26,7 @@ public class ThirdPillarAlertService {
 
   public void checkAndAlert() {
     LocalDate cutoff = LocalDate.now(clock).minusDays(LOOKBACK_DAYS);
-    var transactions = transactionRepository.findByReportingDateGreaterThanEqual(cutoff);
+    var transactions = thirdPillarAnalytics.findTransactionsReportedOnOrAfter(cutoff);
     for (AnalyticsThirdPillarTransaction transaction : transactions) {
       for (AmlAlertType alertType : evaluator.evaluate(transaction)) {
         alertOnce(transaction, alertType);

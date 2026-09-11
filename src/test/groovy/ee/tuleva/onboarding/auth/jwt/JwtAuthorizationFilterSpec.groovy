@@ -87,8 +87,22 @@ class JwtAuthorizationFilterSpec extends Specification {
       with(authentication.authorities) { authorities ->
         authorities == [new SimpleGrantedAuthority("USER")]
       }
+      authentication.details == new WebAuthenticationDetailsSource().buildDetails(request)
     }
 
+    1 * filterChain.doFilter(request, response)
+  }
+
+  def "passes the request through unauthenticated when the frontend sends the literal string null as the token"() {
+    given:
+    def request = new MockHttpServletRequest()
+    request.addHeader("Authorization", "Bearer null")
+    def response = new MockHttpServletResponse()
+    def filterChain = Mock(FilterChain)
+    when:
+    filter.doFilterInternal(request, response, filterChain)
+    then:
+    SecurityContextHolder.context.getAuthentication() == null
     1 * filterChain.doFilter(request, response)
   }
 

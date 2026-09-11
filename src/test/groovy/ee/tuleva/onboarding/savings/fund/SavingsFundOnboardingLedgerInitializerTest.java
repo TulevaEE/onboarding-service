@@ -3,8 +3,9 @@ package ee.tuleva.onboarding.savings.fund;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static org.mockito.Mockito.verify;
 
+import ee.tuleva.onboarding.ledger.LedgerParty.PartyType;
 import ee.tuleva.onboarding.ledger.LedgerService;
-import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.ledger.PartyRef;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -24,7 +25,7 @@ class SavingsFundOnboardingLedgerInitializerTest {
 
     initializer.onOnboardingCompleted(event);
 
-    var expectedParty = new PartyId(PartyId.Type.PERSON, user.getPersonalCode());
+    var expectedParty = new PartyRef(PartyType.PERSON, user.getPersonalCode());
     verify(ledgerService).initializeAccounts(expectedParty);
   }
 }

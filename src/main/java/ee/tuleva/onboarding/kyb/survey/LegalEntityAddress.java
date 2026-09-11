@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.kyb.survey;
 
 import ee.tuleva.onboarding.ariregister.CompanyAddress;
-import jakarta.annotation.Nullable;
+import org.jspecify.annotations.Nullable;
 
 record LegalEntityAddress(
     @Nullable String fullAddress,

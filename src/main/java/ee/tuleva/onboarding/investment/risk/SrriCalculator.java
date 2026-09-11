@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
@@ -24,6 +25,7 @@ class SrriCalculator {
   private static final MathContext MC = MathContext.DECIMAL64;
   private static final BigDecimal SQRT_52 = BigDecimal.valueOf(52).sqrt(MC);
   private static final int SAMPLE_PERIOD_YEARS = 5;
+  private static final int WINDOW_START_TOLERANCE_WEEKS = 2;
   private static final int MINIMUM_OBSERVATIONS = 200;
   private static final int MINIMUM_RETURNS = 2;
   private static final int VOLATILITY_SCALE = 12;
@@ -38,7 +40,7 @@ class SrriCalculator {
         .map(WeeklyNav::weekEnd)
         .filter(date -> !date.isBefore(from) && !date.isAfter(to))
         .map(date -> referencePoint(returns, date))
-        .filter(java.util.Objects::nonNull)
+        .filter(Objects::nonNull)
         .toList();
   }
 
@@ -88,20 +90,30 @@ class SrriCalculator {
     var window =
         returns.stream()
             .filter(r -> r.weekEnd().isAfter(windowStart) && !r.weekEnd().isAfter(evalDate))
-            .map(WeeklyReturn::value)
             .toList();
     if (window.size() < MINIMUM_RETURNS) {
       return null;
     }
-    var annualisedVolatility = annualise(window);
+    var annualisedVolatility = annualise(window.stream().map(WeeklyReturn::value).toList());
     return new ReferencePoint(
         evalDate,
-        window.size() >= MINIMUM_OBSERVATIONS
-            ? RiskClassBucket.srriClass(annualisedVolatility)
-            : null,
+        isPublishable(window, windowStart) ? RiskClassBucket.srriClass(annualisedVolatility) : null,
         window.size(),
         annualisedVolatility,
         Map.of("weeklyReturns", window.size(), "windowStart", windowStart));
+  }
+
+  private boolean isPublishable(List<WeeklyReturn> window, LocalDate windowStart) {
+    return hasEnoughObservations(window) && reachesBackToWindowStart(window, windowStart);
+  }
+
+  private boolean hasEnoughObservations(List<WeeklyReturn> window) {
+    return window.size() >= MINIMUM_OBSERVATIONS;
+  }
+
+  private boolean reachesBackToWindowStart(List<WeeklyReturn> window, LocalDate windowStart) {
+    var earliestReturn = window.getFirst().weekEnd();
+    return !earliestReturn.isAfter(windowStart.plusWeeks(WINDOW_START_TOLERANCE_WEEKS));
   }
 
   private BigDecimal annualise(List<BigDecimal> weeklyReturns) {

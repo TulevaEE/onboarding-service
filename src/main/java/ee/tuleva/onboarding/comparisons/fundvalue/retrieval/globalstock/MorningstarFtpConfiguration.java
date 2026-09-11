@@ -1,8 +1,7 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock;
 
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.ftp.FtpClient;
+import ee.tuleva.onboarding.ftp.FtpClientFactory;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.net.ftp.FTPClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -10,7 +9,6 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @Slf4j
 public class MorningstarFtpConfiguration {
-  private static final int TIMEOUT_MILLISECONDS = 60_000;
 
   @Value("${morningstar.username}")
   private String ftpUsername;
@@ -25,15 +23,7 @@ public class MorningstarFtpConfiguration {
   private int ftpPort;
 
   @Bean
-  public FtpClient morningstarFtpClient() {
-    return new FtpClient(ftpClient(), ftpHost, ftpUsername, ftpPassword, ftpPort);
-  }
-
-  private FTPClient ftpClient() {
-    FTPClient ftpClient = new FTPClient();
-    ftpClient.setDefaultTimeout(TIMEOUT_MILLISECONDS);
-    ftpClient.setDataTimeout(TIMEOUT_MILLISECONDS);
-    ftpClient.setConnectTimeout(TIMEOUT_MILLISECONDS);
-    return ftpClient;
+  public FtpClientFactory morningstarFtpClientFactory() {
+    return new FtpClientFactory(ftpHost, ftpUsername, ftpPassword, ftpPort);
   }
 }

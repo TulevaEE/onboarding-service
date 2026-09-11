@@ -8,8 +8,10 @@ import java.time.LocalDate;
 import java.util.Locale;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.jspecify.annotations.NullUnmarked;
 
 @Data
+@NullUnmarked
 @NoArgsConstructor
 public class ApiFundResponse {
   private FundManager fundManager;

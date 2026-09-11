@@ -1,7 +1,8 @@
 package ee.tuleva.onboarding.investment.position;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -24,6 +25,8 @@ public interface FundPositionRepository extends JpaRepository<FundPosition, Long
 
   List<FundPosition> findByNavDateAndFundAndAccountType(
       LocalDate navDate, TulevaFund fund, AccountType accountType);
+
+  List<FundPosition> findByNavDateAndFund(LocalDate navDate, TulevaFund fund);
 
   @Query("SELECT MAX(fp.navDate) FROM FundPosition fp WHERE fp.fund = :fund")
   Optional<LocalDate> findLatestNavDateByFund(TulevaFund fund);
@@ -73,14 +76,20 @@ public interface FundPositionRepository extends JpaRepository<FundPosition, Long
   // Excluding them leaves exactly what the custodian is the source of truth for.
   @Query(
       """
-      SELECT COALESCE(SUM(fp.marketValue), 0) FROM FundPosition fp
+      SELECT fp FROM FundPosition fp
       WHERE fp.fund = :fund
       AND fp.navDate = :navDate
-      AND fp.accountType IN :accountTypes
       AND (fp.accountId IS NULL OR fp.accountId <> :unitFlowAccountId)
       """)
-  BigDecimal sumCustodianMarketValue(
-      TulevaFund fund, LocalDate navDate, List<AccountType> accountTypes, String unitFlowAccountId);
+  List<FundPosition> findCustodianSourced(
+      TulevaFund fund, LocalDate navDate, String unitFlowAccountId);
+
+  @Query(
+      """
+      SELECT MAX(COALESCE(fp.updatedAt, fp.createdAt)) FROM FundPosition fp
+      WHERE fp.fund = :fund AND fp.navDate = :navDate
+      """)
+  Optional<Instant> findLastWrittenAt(TulevaFund fund, LocalDate navDate);
 
   @Query(
       "SELECT DISTINCT fp.navDate FROM FundPosition fp WHERE fp.fund = :fund ORDER BY fp.navDate")

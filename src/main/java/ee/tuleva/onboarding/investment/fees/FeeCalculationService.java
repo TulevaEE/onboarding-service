@@ -3,14 +3,15 @@ package ee.tuleva.onboarding.investment.fees;
 import static ee.tuleva.onboarding.investment.fees.FeeType.*;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static java.math.RoundingMode.HALF_UP;
+import static java.util.Objects.requireNonNull;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import ee.tuleva.onboarding.ledger.SystemAccount;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -55,7 +56,7 @@ public class FeeCalculationService {
   }
 
   private BigDecimal roundForLedger(BigDecimal amount) {
-    return amount != null ? amount.setScale(2, HALF_UP) : null;
+    return amount.setScale(2, HALF_UP);
   }
 
   private Map<String, Object> buildAccrualMetadata(
@@ -90,12 +91,8 @@ public class FeeCalculationService {
 
     FeeBases previousBases =
         new FeeBases(
-            feeAccrualRepository
-                .findLatestBaseValue(fund, FeeType.MANAGEMENT)
-                .orElse(bases.navFeeBase()),
-            feeAccrualRepository
-                .findLatestBaseValue(fund, FeeType.DEPOT)
-                .orElse(bases.assetValue()));
+            feeAccrualRepository.findLatestBaseValue(fund, MANAGEMENT).orElse(bases.navFeeBase()),
+            feeAccrualRepository.findLatestBaseValue(fund, DEPOT).orElse(bases.assetValue()));
 
     log.info(
         "calculateFeesForNav: fund={}, positionReportDate={}, startDate={}, willProcess={}",
@@ -120,11 +117,25 @@ public class FeeCalculationService {
       previousFeeMonth = feeMonth;
     }
 
-    BigDecimal mgmtFee =
-        feeAccrualRepository.getUnsettledAccrual(fund, FeeType.MANAGEMENT, positionReportDate);
-    BigDecimal depotFee =
-        feeAccrualRepository.getUnsettledAccrual(fund, FeeType.DEPOT, positionReportDate);
+    BigDecimal mgmtFee = chargedAccrual(chargedPolicies, fund, MANAGEMENT, positionReportDate);
+    BigDecimal depotFee = chargedAccrual(chargedPolicies, fund, DEPOT, positionReportDate);
     return new FeeResult(mgmtFee, depotFee);
+  }
+
+  private BigDecimal chargedAccrual(
+      Map<FeeType, FeeChargedToFundPolicy.Resolver> policies,
+      TulevaFund fund,
+      FeeType feeType,
+      LocalDate positionReportDate) {
+    Map<LocalDate, BigDecimal> byDate =
+        feeAccrualRepository.getUnsettledAccrualByDate(fund, feeType, positionReportDate);
+    FeeChargedToFundPolicy.Resolver resolver =
+        requireNonNull(policies.get(feeType), "No fee policy resolver: feeType=" + feeType);
+    return roundedToCents(resolver.sumChargedDays(byDate));
+  }
+
+  private static BigDecimal roundedToCents(BigDecimal amount) {
+    return amount.signum() == 0 ? BigDecimal.ZERO : amount.setScale(2, HALF_UP);
   }
 
   private void recordDailyFees(
@@ -136,7 +147,11 @@ public class FeeCalculationService {
     for (FeeCalculator calculator : feeCalculators) {
       FeeAccrual accrual = calculator.calculate(fund, date, bases);
       feeAccrualRepository.save(accrual);
-      if (!chargedPolicies.get(accrual.feeType()).chargedOn(date)) {
+      FeeChargedToFundPolicy.Resolver resolver =
+          requireNonNull(
+              chargedPolicies.get(accrual.feeType()),
+              "No fee policy resolver: feeType=" + accrual.feeType());
+      if (!resolver.chargedOn(date)) {
         log.info(
             "recordDailyFees: fund={}, date={}, feeType={}, tracked but not charged to the fund",
             fund,

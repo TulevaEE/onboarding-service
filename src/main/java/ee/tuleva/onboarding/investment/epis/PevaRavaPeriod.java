@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.epis;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 
 public record PevaRavaPeriod(
     PevaRavaPhase phase, PevaRavaCycle cycle, FundCycleTimeline tuk75, FundCycleTimeline tuk00) {

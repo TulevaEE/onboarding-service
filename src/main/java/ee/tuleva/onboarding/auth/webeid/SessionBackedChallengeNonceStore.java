@@ -5,6 +5,7 @@ import eu.webeid.security.challenge.ChallengeNonceStore;
 import jakarta.servlet.http.HttpSession;
 import java.io.Serializable;
 import java.time.ZonedDateTime;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.ObjectFactory;
 
 public class SessionBackedChallengeNonceStore implements ChallengeNonceStore {
@@ -26,7 +27,7 @@ public class SessionBackedChallengeNonceStore implements ChallengeNonceStore {
   }
 
   @Override
-  public ChallengeNonce getAndRemoveImpl() {
+  public @Nullable ChallengeNonce getAndRemoveImpl() {
     var wrapper = (SerializableChallengeNonce) currentSession().getAttribute(CHALLENGE_NONCE_KEY);
     currentSession().removeAttribute(CHALLENGE_NONCE_KEY);
     if (wrapper == null) {

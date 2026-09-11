@@ -6,28 +6,29 @@ import ee.tuleva.onboarding.payment.provider.PaymentReference;
 import ee.tuleva.onboarding.payment.provider.PaymentReferenceDeserializer;
 import java.math.BigDecimal;
 import lombok.Data;
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 import tools.jackson.databind.annotation.JsonDeserialize;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class MontonioOrderToken {
-  private String uuid;
-  private String accessKey;
+  @Nullable private String uuid;
+  @Nullable private String accessKey;
 
   @JsonDeserialize(using = PaymentReferenceDeserializer.class)
+  @Nullable
   private PaymentReference merchantReference;
 
-  private String merchantReferenceDisplay;
-  private MontonioOrderStatus paymentStatus;
-  private String paymentMethod;
-  private BigDecimal grandTotal;
-  private Currency currency;
+  @Nullable private String merchantReferenceDisplay;
+  @Nullable private MontonioOrderStatus paymentStatus;
+  @Nullable private String paymentMethod;
+  @Nullable private BigDecimal grandTotal;
+  @Nullable private Currency currency;
   @Nullable private String senderIban;
   @Nullable private String senderName;
   @Nullable private String paymentProviderName;
-  private Long iat;
-  private Long exp;
+  @Nullable private Long iat;
+  @Nullable private Long exp;
 
   public enum MontonioOrderStatus {
     PENDING,

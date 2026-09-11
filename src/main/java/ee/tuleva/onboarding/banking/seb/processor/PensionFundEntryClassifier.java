@@ -3,8 +3,8 @@ package ee.tuleva.onboarding.banking.seb.processor;
 import ee.tuleva.onboarding.banking.processor.TradeSettlementParser;
 import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker;
 import java.math.BigDecimal;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
@@ -44,59 +44,80 @@ public class PensionFundEntryClassifier {
 
   public record OwnAccountTransfer() implements Classification {}
 
-  public record TradeSettlement(FundTicker ticker, BigDecimal units) implements Classification {}
+  public record TradeSettlement(String isin, String ticker, String displayName, BigDecimal units)
+      implements Classification {}
 
   public record Unclassified(String reason) implements Classification {}
 
   public Classification classify(BankStatementEntry entry) {
     var code = entry.subFamilyCode();
     if (code != null) {
-      switch (code) {
-        case "INTR" -> {
-          return new InterestReceived();
-        }
-        case "FEES", "COMM" -> {
-          return new BankFee();
-        }
-        case "TRAD", "SUBS", "REDM" -> {
-          return classifyTradeSettlement(entry);
-        }
-        default -> {}
-      }
-      if (("ADJT".equals(code) || "OTHR".equals(code)) && entry.details() == null) {
-        return new BankAdjustment();
-      }
-      if ("BOOK".equals(code) && isKickback(entry.remittanceInformation())) {
-        return new ManagementFeeRebate();
+      var byCode = classifyByCode(entry, code);
+      if (byCode.isPresent()) {
+        return byCode.get();
       }
     }
+    return classifyByCounterparty(entry, code);
+  }
 
+  private Optional<Classification> classifyByCode(BankStatementEntry entry, String code) {
+    switch (code) {
+      case "INTR" -> {
+        return Optional.of(new InterestReceived());
+      }
+      case "FEES", "COMM" -> {
+        return Optional.of(new BankFee());
+      }
+      case "TRAD", "SUBS", "REDM" -> {
+        return Optional.of(classifyTradeSettlement(entry));
+      }
+      default -> {}
+    }
+    if (isAdjustmentWithoutDetails(code, entry)) {
+      return Optional.of(new BankAdjustment());
+    }
+    if (isKickbackBooking(code, entry)) {
+      return Optional.of(new ManagementFeeRebate());
+    }
+    return Optional.empty();
+  }
+
+  private Classification classifyByCounterparty(BankStatementEntry entry, @Nullable String code) {
     var details = entry.details();
-    if (details != null) {
-      var name = details.getName();
-      if (name != null && sebAccountConfiguration.isManagementCompany(name)) {
-        return entry.amount().signum() < 0 ? new ManagementFeePayment() : new ManagementFeeRebate();
-      }
-      if (sebAccountConfiguration.getRegistrarIbans().contains(details.getIban())) {
-        return entry.amount().signum() > 0 ? new RegistrarContribution() : new RegistrarPayout();
-      }
-      if (sebAccountConfiguration.getOwnAccountIbans().contains(details.getIban())) {
-        return new OwnAccountTransfer();
-      }
-      if (sebAccountConfiguration.getBankFeeIbans().contains(details.getIban())) {
-        return new BankFee();
-      }
-      return new Unclassified("unknown counterparty");
+    if (details == null) {
+      return new Unclassified("subFamilyCode=" + code);
     }
-
-    return new Unclassified("subFamilyCode=" + code);
+    var name = details.getName();
+    if (name != null && sebAccountConfiguration.isManagementCompany(name)) {
+      return entry.amount().signum() < 0 ? new ManagementFeePayment() : new ManagementFeeRebate();
+    }
+    if (sebAccountConfiguration.getRegistrarIbans().contains(details.getIban())) {
+      return entry.amount().signum() > 0 ? new RegistrarContribution() : new RegistrarPayout();
+    }
+    if (sebAccountConfiguration.getOwnAccountIbans().contains(details.getIban())) {
+      return new OwnAccountTransfer();
+    }
+    if (sebAccountConfiguration.getBankFeeIbans().contains(details.getIban())) {
+      return new BankFee();
+    }
+    return new Unclassified("unknown counterparty");
   }
 
   private Classification classifyTradeSettlement(BankStatementEntry entry) {
     return tradeSettlementParser
         .parse(entry.remittanceInformation())
-        .<Classification>map(info -> new TradeSettlement(info.ticker(), info.units()))
+        .<Classification>map(
+            info ->
+                new TradeSettlement(info.isin(), info.ticker(), info.displayName(), info.units()))
         .orElseGet(() -> new Unclassified("unknown ticker"));
+  }
+
+  private static boolean isAdjustmentWithoutDetails(String code, BankStatementEntry entry) {
+    return ("ADJT".equals(code) || "OTHR".equals(code)) && entry.details() == null;
+  }
+
+  private static boolean isKickbackBooking(String code, BankStatementEntry entry) {
+    return "BOOK".equals(code) && isKickback(entry.remittanceInformation());
   }
 
   private static boolean isKickback(@Nullable String remittanceInformation) {

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.kyb;
 
 import static ee.tuleva.onboarding.kyb.KybCheckType.*;
+import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.SUBMISSION;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.JAAN;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.boardMemberOwner;
 import static ee.tuleva.onboarding.kyb.KybTestFixtures.companyWith;
@@ -77,7 +78,7 @@ class KybScreeningServiceTest {
     var person = boardMemberOwner("38501010001", 100.0).build();
     var data = companyWith(person);
 
-    var results = kybScreeningService.screen(data);
+    var results = kybScreeningService.screen(data, SUBMISSION);
 
     var types = results.stream().map(KybCheck::type).toList();
     assertThat(types)
@@ -100,7 +101,7 @@ class KybScreeningServiceTest {
     var person2 = boardMemberOwner("38501010002", 50.0).build();
     var data = companyWith(person1, person2);
 
-    var results = kybScreeningService.screen(data);
+    var results = kybScreeningService.screen(data, SUBMISSION);
 
     var types = results.stream().map(KybCheck::type).toList();
     assertThat(types)
@@ -123,7 +124,7 @@ class KybScreeningServiceTest {
     var person2 = shareholderOwner("38501010002", 50.0).build();
     var data = companyWith(person1, person2);
 
-    var results = kybScreeningService.screen(data);
+    var results = kybScreeningService.screen(data, SUBMISSION);
 
     var types = results.stream().map(KybCheck::type).toList();
     assertThat(types)
@@ -147,7 +148,7 @@ class KybScreeningServiceTest {
     var person3 = boardMemberOwner("38501010003", 30.0).build();
     var data = companyWith(person1, person2, person3);
 
-    var results = kybScreeningService.screen(data);
+    var results = kybScreeningService.screen(data, SUBMISSION);
 
     assertThat(results).anyMatch(check -> !check.success());
   }
@@ -157,7 +158,7 @@ class KybScreeningServiceTest {
     var person = boardMemberOwner(JAAN, 100.0).build();
     var data = companyWith(person);
 
-    var results = kybScreeningService.screen(data);
+    var results = kybScreeningService.screen(data, SUBMISSION);
 
     var captor = ArgumentCaptor.forClass(KybCheckPerformedEvent.class);
     verify(eventPublisher).publishEvent(captor.capture());
@@ -208,7 +209,7 @@ class KybScreeningServiceTest {
                     .createdBy("admin")
                     .build()));
 
-    var results = kybScreeningService.screen(data);
+    var results = kybScreeningService.screen(data, SUBMISSION);
 
     var ownershipCheck =
         results.stream()
@@ -238,7 +239,7 @@ class KybScreeningServiceTest {
                     .createdBy("admin")
                     .build()));
 
-    var results = kybScreeningService.screen(data);
+    var results = kybScreeningService.screen(data, SUBMISSION);
 
     var ownershipCheck =
         results.stream()

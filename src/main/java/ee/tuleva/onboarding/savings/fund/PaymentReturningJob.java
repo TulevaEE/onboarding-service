@@ -1,8 +1,9 @@
 package ee.tuleva.onboarding.savings.fund;
 
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.TO_BE_RETURNED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.TO_BE_RETURNED;
 import static java.math.BigDecimal.ZERO;
 
+import ee.tuleva.onboarding.savings.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.notification.PaymentsReturnedEvent;
 import java.util.List;
 import lombok.RequiredArgsConstructor;

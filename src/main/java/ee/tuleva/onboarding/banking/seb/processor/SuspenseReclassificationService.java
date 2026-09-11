@@ -6,14 +6,15 @@ import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.MANA
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.OWN_ACCOUNT_TRANSFER;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.REGISTRAR_CONTRIBUTION;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.REGISTRAR_PAYOUT;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry.CounterPartyDetails;
 import ee.tuleva.onboarding.banking.statement.TransactionType;
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.LedgerTransaction;
 import ee.tuleva.onboarding.ledger.SystemAccount;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.ZoneId;
 import java.util.Map;
@@ -64,7 +65,8 @@ public class SuspenseReclassificationService {
       fundBankLedger.reclassifySuspenseEntry(
           fund,
           cashAmount,
-          suspense.getExternalReference(),
+          requireNonNull(
+              suspense.getExternalReference(), "Suspense transaction missing external reference"),
           target,
           suspense.getTransactionDate().atZone(ESTONIAN_ZONE).toLocalDate());
       reclassified++;
@@ -98,7 +100,8 @@ public class SuspenseReclassificationService {
         cashAmount,
         "EUR",
         cashAmount.signum() >= 0 ? TransactionType.CREDIT : TransactionType.DEBIT,
-        (String) metadata.get("description"),
+        (String)
+            requireNonNull(metadata.get("description"), "Suspense metadata missing description"),
         "suspense-reclassification",
         null,
         (String) metadata.get("subFamilyCode"),

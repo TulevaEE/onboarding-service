@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.savings.fund.report;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.RoundingMode.HALF_UP;
 import static java.math.RoundingMode.UNNECESSARY;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -37,7 +37,7 @@ class TrusteeReportCsvGenerator {
 
       outputStream.write(UTF8_BOM);
 
-      var format = CSVFormat.DEFAULT.builder().setHeader(HEADERS).build();
+      var format = CSVFormat.DEFAULT.builder().setHeader(HEADERS).get();
 
       try (var printer = new CSVPrinter(writer, format)) {
         for (var row : rows) {

@@ -215,6 +215,19 @@ class MailchimpServiceSpec extends Specification {
     thrown(RuntimeException)
   }
 
+  def "getCampaignReport_returnsTheReportFromTheApi"() {
+    given:
+    def campaignId = "campaign_123"
+    def report = new CampaignReport().emailsSent(42)
+    reportsApi.getReportsId(campaignId, null, null) >> report
+
+    when:
+    def result = service.getCampaignReport(campaignId)
+
+    then:
+    result == report
+  }
+
   def "getCampaignRecipients_handlesEmptyAbsplitGroupInJsonResponse"() {
     given:
     def campaignId = "campaign_123"

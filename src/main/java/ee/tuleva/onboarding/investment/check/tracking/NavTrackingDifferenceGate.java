@@ -1,12 +1,13 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
-import static ee.tuleva.onboarding.investment.check.tracking.TrackingCheckType.MODEL_PORTFOLIO;
-import static ee.tuleva.onboarding.investment.event.PipelineStep.TRACKING_DIFFERENCE;
+import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
+import static ee.tuleva.onboarding.pipeline.PipelineStep.TRACKING_DIFFERENCE;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.joining;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
-import ee.tuleva.onboarding.investment.event.PipelineTracker;
+import ee.tuleva.onboarding.pipeline.PipelineTracker;
+import ee.tuleva.onboarding.savings.fund.nav.NavPublicationGate;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.LocalDate;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -16,12 +17,13 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class NavTrackingDifferenceGate {
+public class NavTrackingDifferenceGate implements NavPublicationGate {
 
   private final TrackingDifferenceService trackingDifferenceService;
   private final TrackingDifferenceNotifier trackingDifferenceNotifier;
   private final PipelineTracker pipelineTracker;
 
+  @Override
   public Optional<String> check(TulevaFund fund, LocalDate navDate) {
     pipelineTracker.stepStarted(TRACKING_DIFFERENCE);
     try {

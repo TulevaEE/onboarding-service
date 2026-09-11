@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 @Profile("!dev")
 public class ScheduledAmlCheckJob {
 
-  private final AmlService amlService;
+  private final AmlBatchScreener amlBatchScreener;
 
   // once per week on Sunday at 19:10
   @Scheduled(
@@ -19,7 +19,7 @@ public class ScheduledAmlCheckJob {
       zone = "${aml.jobs.third-pillar.zone:Europe/Tallinn}")
   @SchedulerLock(name = "ScheduledAmlCheckJob_run", lockAtMostFor = "6h", lockAtLeastFor = "30m")
   public void run() {
-    amlService.runAmlChecksOnThirdPillarCustomers();
-    amlService.runAmlChecksOnSavingsFundCustomers();
+    amlBatchScreener.runAmlChecksOnThirdPillarCustomers();
+    amlBatchScreener.runAmlChecksOnSavingsFundCustomers();
   }
 }

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.auth.idcard
 
 
+import ee.tuleva.onboarding.auth.idcard.exception.UnknownDocumentTypeException
 import spock.lang.Specification
 import spock.lang.Unroll
 
@@ -52,5 +53,13 @@ class IdDocumentTypeSpec extends Specification {
         "1.3.6.1.4.1.10015.1.2"       | OLD_DIGITAL_ID_CARD
         "1.3.6.1.4.1.51455.1.1.1"     | DIPLOMATIC_ID_CARD
         "1.3.6.1.4.1.51455.2.1.1"     | DIPLOMATIC_ID_CARD
+    }
+
+    def "findByIdentifier throws UnknownDocumentTypeException for an unrecognised OID"() {
+        when:
+        IdDocumentType.findByIdentifier("9.9.9.9.9.9")
+
+        then:
+        thrown(UnknownDocumentTypeException)
     }
 }

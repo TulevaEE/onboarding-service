@@ -38,21 +38,20 @@ class KybSurveyController {
       @AuthenticationPrincipal AuthenticatedPerson person,
       @Valid @RequestBody KybSurveyResponse surveyResponse) {
     kybSurveyService.submit(
-        person.getUserId(), person.getPersonalCode(), registryCode, surveyResponse);
+        person.getUserIdOrThrow(), person.getPersonalCode(), registryCode, surveyResponse);
   }
 
   @ExceptionHandler(NotBoardMemberException.class)
   ResponseEntity<Map<String, String>> handleNotBoardMember(NotBoardMemberException exception) {
     return new ResponseEntity<>(
-        Map.of("error", "NOT_BOARD_MEMBER", "error_description", exception.getMessage()),
-        FORBIDDEN);
+        Map.of("error", "NOT_BOARD_MEMBER", "error_description", describe(exception)), FORBIDDEN);
   }
 
   @ExceptionHandler(OnboardingNotAllowedException.class)
   ResponseEntity<Map<String, String>> handleOnboardingNotAllowed(
       OnboardingNotAllowedException exception) {
     return new ResponseEntity<>(
-        Map.of("error", "ONBOARDING_NOT_ALLOWED", "error_description", exception.getMessage()),
+        Map.of("error", "ONBOARDING_NOT_ALLOWED", "error_description", describe(exception)),
         FORBIDDEN);
   }
 
@@ -61,7 +60,7 @@ class KybSurveyController {
       MethodArgumentNotValidException exception) {
     log.info("Invalid KYB survey submission: message={}", exception.getMessage());
     return new ResponseEntity<>(
-        Map.of("error", "VALIDATION_FAILED", "error_description", exception.getMessage()),
+        Map.of("error", "VALIDATION_FAILED", "error_description", describe(exception)),
         BAD_REQUEST);
   }
 
@@ -69,7 +68,12 @@ class KybSurveyController {
   ResponseEntity<Map<String, String>> handleUnexpectedError(Exception exception) {
     log.error("Unexpected error in KYB survey: message={}", exception.getMessage(), exception);
     return new ResponseEntity<>(
-        Map.of("error", "UNEXPECTED_ERROR", "error_description", exception.getMessage()),
+        Map.of("error", "UNEXPECTED_ERROR", "error_description", describe(exception)),
         NOT_IMPLEMENTED);
+  }
+
+  private static String describe(Exception exception) {
+    String message = exception.getMessage();
+    return message != null ? message : exception.getClass().getSimpleName();
   }
 }

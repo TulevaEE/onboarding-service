@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.nav;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -11,10 +12,41 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
-interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
+public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
 
-  Optional<NavReportRow> findFirstByFundCodeAndNavDateAndAccountType(
-      String fundCode, LocalDate navDate, String accountType);
+  // The NAV that actually went out. nav_report keeps every calculation for a date, so a
+  // recalculation that is still unpublished must never be served as the official price.
+  // Order by published_at first: a backdated recalculation has a lower id but a later publication.
+  @Query(
+      value =
+          """
+          SELECT market_price FROM nav_report
+          WHERE nav_date = :navDate AND fund_code = :fundCode
+            AND account_type = :accountType
+            AND published_at IS NOT NULL
+          ORDER BY published_at DESC, id DESC LIMIT 1
+          """,
+      nativeQuery = true)
+  Optional<BigDecimal> findPublishedNavPerUnit(
+      @Param("navDate") LocalDate navDate,
+      @Param("fundCode") String fundCode,
+      @Param("accountType") String accountType);
+
+  // The newest calculation whether or not it is published, for the gates that run between
+  // persisting a NAV calculation and publishing it.
+  @Query(
+      value =
+          """
+          SELECT market_price FROM nav_report
+          WHERE nav_date = :navDate AND fund_code = :fundCode
+            AND account_type = :accountType
+          ORDER BY id DESC LIMIT 1
+          """,
+      nativeQuery = true)
+  Optional<BigDecimal> findLatestNavPerUnit(
+      @Param("navDate") LocalDate navDate,
+      @Param("fundCode") String fundCode,
+      @Param("accountType") String accountType);
 
   @Query(
       value =
@@ -125,26 +157,32 @@ interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
       @Param("navDate") LocalDate navDate,
       @Param("accountTypes") List<String> accountTypes);
 
+  Optional<NavReportRow> findFirstByFundCodeAndNavDateOrderByIdDesc(
+      String fundCode, LocalDate navDate);
+
   @Query(
-      value =
-          """
-          SELECT COALESCE(SUM(nr.market_value), 0)
-          FROM nav_report nr
-          WHERE nr.fund_code = :fundCode AND nr.nav_date = :navDate
-            AND nr.account_type IN (:accountTypes)
-            AND (nr.account_name IS NULL OR nr.account_name NOT IN (:excludedAccountNames))
-            AND nr.calculation_id = (
-              SELECT calculation_id FROM nav_report
-              WHERE nav_date = :navDate AND fund_code = :fundCode
-              ORDER BY id DESC LIMIT 1
-            )
-          """,
-      nativeQuery = true)
-  BigDecimal sumLatestCalculationMarketValueExcludingAccountNames(
+      """
+      SELECT new ee.tuleva.onboarding.savings.fund.nav.NavAccountLine(
+        row.accountType, row.accountName, row.accountId, row.quantity, row.marketPrice, row.marketValue)
+      FROM NavReportRow row
+      WHERE row.fundCode = :fundCode AND row.navDate = :navDate
+        AND row.calculationId = :calculationId
+      """)
+  List<NavAccountLine> findLinesByCalculationId(
       @Param("fundCode") String fundCode,
       @Param("navDate") LocalDate navDate,
-      @Param("accountTypes") List<String> accountTypes,
-      @Param("excludedAccountNames") List<String> excludedAccountNames);
+      @Param("calculationId") UUID calculationId);
+
+  @Query(
+      """
+      SELECT MAX(row.createdAt) FROM NavReportRow row
+      WHERE row.fundCode = :fundCode AND row.navDate = :navDate
+        AND row.calculationId = :calculationId
+      """)
+  Optional<Instant> findLastWrittenAtByCalculationId(
+      @Param("fundCode") String fundCode,
+      @Param("navDate") LocalDate navDate,
+      @Param("calculationId") UUID calculationId);
 
   boolean existsByFundCodeAndNavDate(String fundCode, LocalDate navDate);
 }

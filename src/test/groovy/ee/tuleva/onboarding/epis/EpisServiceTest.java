@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.epis;
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson;
+import static ee.tuleva.onboarding.epis.CashFlowFixture.cashFlowFixture;
+import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture;
 import static ee.tuleva.onboarding.epis.MandateCommandResponseFixture.sampleMandateCommandResponse;
 import static ee.tuleva.onboarding.epis.cancellation.CancellationFixture.sampleWithdrawalCancellation;
-import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowFixture;
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture;
 import static ee.tuleva.onboarding.epis.fund.FundDto.FundStatus.ACTIVE;
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate;
 import static ee.tuleva.onboarding.secondpillarassets.SecondPillarAssetsFixture.secondPillarAssetsFixture;
@@ -18,15 +18,12 @@ import static org.springframework.http.HttpStatus.OK;
 
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.contribution.Contribution;
-import ee.tuleva.onboarding.contribution.ThirdPillarContribution;
 import ee.tuleva.onboarding.epis.account.FundBalanceDto;
-import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
-import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.epis.fund.FundDto;
 import ee.tuleva.onboarding.epis.fund.NavDto;
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
 import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO;
+import ee.tuleva.onboarding.epis.mandate.ApplicationStatus;
 import ee.tuleva.onboarding.epis.mandate.MandateDto;
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommand;
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse;
@@ -34,7 +31,9 @@ import ee.tuleva.onboarding.epis.transaction.*;
 import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto;
-import ee.tuleva.onboarding.secondpillarassets.SecondPillarAssets;
+import ee.tuleva.onboarding.mandate.LegacyMandateSubmission;
+import ee.tuleva.onboarding.mandate.MandateSubmissionCommand;
+import ee.tuleva.onboarding.mandate.application.ApplicationSnapshot;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -50,7 +49,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -69,9 +67,13 @@ class EpisServiceTest {
 
   @BeforeEach
   void setUp() {
-    service = new EpisService(episRestTemplate, episLongRequestRestTemplate, jwtTokenUtil);
-    ReflectionTestUtils.setField(service, "episServiceUrl", "http://epis");
-    ReflectionTestUtils.setField(service, "episServiceLongRequestUrl", "http://epis");
+    service =
+        new EpisService(
+            episRestTemplate,
+            episLongRequestRestTemplate,
+            new EpisRequestHeaders(jwtTokenUtil),
+            "http://epis",
+            "http://epis");
   }
 
   @AfterEach
@@ -94,7 +96,15 @@ class EpisServiceTest {
     // given
     setupUserAuthentication();
     var mandate = sampleMandate();
-    MandateDto mandateDto = MandateDto.builder().id(mandate.getId()).build();
+    LegacyMandateSubmission submission =
+        LegacyMandateSubmission.builder()
+            .id(mandate.getId())
+            .createdDate(mandate.getCreatedDate())
+            .fundTransferExchanges(List.of())
+            .pillar(mandate.getPillar())
+            .email("test@tuleva.ee")
+            .phoneNumber("+37288888888")
+            .build();
 
     doAnswer(
             invocation -> {
@@ -104,13 +114,17 @@ class EpisServiceTest {
               assertTrue(doesHttpEntityContainToken(entity, sampleUserToken));
               MandateDto body = (MandateDto) entity.getBody();
               assertEquals(mandate.getId(), body.getId());
-              return mock(ApplicationResponseDTO.class);
+              return new ApplicationResponseDTO(
+                  ee.tuleva.onboarding.epis.application.ApplicationResponse.builder()
+                      .processId("processId1")
+                      .successful(true)
+                      .build());
             })
         .when(episRestTemplate)
         .postForObject(anyString(), any(HttpEntity.class), eq(ApplicationResponseDTO.class));
 
     // when
-    service.sendMandate(mandateDto);
+    service.sendMandate(submission);
 
     // then
     verify(episRestTemplate)
@@ -122,7 +136,9 @@ class EpisServiceTest {
   void getApplications() {
     // given
     setupUserAuthentication();
-    ApplicationDTO[] responseBody = {ApplicationDTO.builder().build()};
+    ApplicationDTO[] responseBody = {
+      ApplicationDTO.builder().status(ApplicationStatus.PENDING).build()
+    };
     var resultEntity = new ResponseEntity<>(responseBody, OK);
 
     when(episRestTemplate.exchange(
@@ -133,7 +149,7 @@ class EpisServiceTest {
         .thenReturn(resultEntity);
 
     // when
-    List<ApplicationDTO> transferApplicationDTOList = service.getApplications(samplePerson);
+    List<ApplicationSnapshot> transferApplicationDTOList = service.getApplications(samplePerson);
 
     // then
     assertEquals(1, transferApplicationDTOList.size());
@@ -303,6 +319,7 @@ class EpisServiceTest {
     // given
     setupUserAuthentication();
     var contactDetails = contactDetailsFixture();
+    var updatedContactDetails = mock(ContactDetails.class);
 
     doAnswer(
             invocation -> {
@@ -312,15 +329,16 @@ class EpisServiceTest {
               assertTrue(doesHttpEntityContainToken(entity, sampleUserToken));
               ContactDetails body = (ContactDetails) entity.getBody();
               assertEquals(contactDetails.getPersonalCode(), body.getPersonalCode());
-              return mock(ContactDetails.class);
+              return updatedContactDetails;
             })
         .when(episRestTemplate)
         .postForObject(anyString(), any(HttpEntity.class), eq(ContactDetails.class));
 
     // when
-    service.updateContactDetails(samplePerson, contactDetails);
+    var result = service.updateContactDetails(samplePerson, contactDetails);
 
     // then
+    assertThat(result).isSameAs(updatedContactDetails);
     verify(episRestTemplate)
         .postForObject(
             eq("http://epis/contact-details"), any(HttpEntity.class), eq(ContactDetails.class));
@@ -361,7 +379,7 @@ class EpisServiceTest {
               HttpEntity<?> entity = invocation.getArgument(1, HttpEntity.class);
               assertTrue(doesHttpEntityContainToken(entity, sampleUserToken));
               MandateCommand<?> cmd = (MandateCommand<?>) entity.getBody();
-              assertEquals(sampleCancellation.getId(), cmd.getMandateDto().getId());
+              assertEquals(sampleCancellation.id(), cmd.getMandateDto().getId());
               return mandateCommandResponse;
             })
         .when(episRestTemplate)
@@ -369,11 +387,12 @@ class EpisServiceTest {
             eq("http://epis/mandates-v2"), any(HttpEntity.class), eq(MandateCommandResponse.class));
 
     // when
-    var response = service.sendMandateV2(new MandateCommand<>("1", sampleCancellation));
+    var response = service.sendMandateV2(new MandateSubmissionCommand<>("1", sampleCancellation));
 
     // then
-    assertEquals("1", response.getProcessId());
-    assertTrue(response.isSuccessful());
+    var outcome = response.outcomes().getFirst();
+    assertEquals("1", outcome.processId());
+    assertTrue(outcome.successful());
   }
 
   @Test

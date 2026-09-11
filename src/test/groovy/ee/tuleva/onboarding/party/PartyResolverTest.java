@@ -3,62 +3,49 @@ package ee.tuleva.onboarding.party;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.mock;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import ee.tuleva.onboarding.company.Company;
-import ee.tuleva.onboarding.company.CompanyRepository;
-import ee.tuleva.onboarding.user.User;
-import ee.tuleva.onboarding.user.UserRepository;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class PartyResolverTest {
 
-  UserRepository userRepository = mock(UserRepository.class);
-  CompanyRepository companyRepository = mock(CompanyRepository.class);
-  PartyResolver partyResolver = new PartyResolver(userRepository, companyRepository);
+  record FakeParty(String code, String name) implements Party {}
 
-  @Test
-  void resolvePerson() {
-    var user =
-        User.builder().personalCode("37508295796").firstName("PÄRT").lastName("ÕLEKÕRS").build();
-    given(userRepository.findByPersonalCode("37508295796")).willReturn(Optional.of(user));
+  Party person = new FakeParty("38888888888", "Person");
+  Party company = new FakeParty("12345678", "Company");
+  PartyResolver resolver =
+      new PartyResolver(
+          List.of(
+              new PartyLookup(PERSON, code -> filter(person, code)),
+              new PartyLookup(LEGAL_ENTITY, code -> filter(company, code))));
 
-    var result = partyResolver.resolve(new PartyId(PERSON, "37508295796"));
-
-    assertThat(result).contains(user);
-    assertThat(result.get().code()).isEqualTo("37508295796");
-    assertThat(result.get().name()).isEqualTo("PÄRT ÕLEKÕRS");
+  private static Optional<Party> filter(Party party, String code) {
+    return Optional.of(party).filter(match -> match.code().equals(code));
   }
 
   @Test
-  void resolvePersonNotFound() {
-    given(userRepository.findByPersonalCode("37508295796")).willReturn(Optional.empty());
-
-    var result = partyResolver.resolve(new PartyId(PERSON, "37508295796"));
-
-    assertThat(result).isEmpty();
+  void resolvesPersonThroughThePersonLookup() {
+    assertThat(resolver.resolve(new PartyId(PERSON, "38888888888"))).contains(person);
   }
 
   @Test
-  void resolveLegalEntity() {
-    var company = Company.builder().registryCode("12345678").name("Tuleva AS").build();
-    given(companyRepository.findByRegistryCode("12345678")).willReturn(Optional.of(company));
-
-    var result = partyResolver.resolve(new PartyId(LEGAL_ENTITY, "12345678"));
-
-    assertThat(result).contains(company);
-    assertThat(result.get().code()).isEqualTo("12345678");
-    assertThat(result.get().name()).isEqualTo("Tuleva AS");
+  void resolvesLegalEntityThroughTheLegalEntityLookup() {
+    assertThat(resolver.resolve(new PartyId(LEGAL_ENTITY, "12345678"))).contains(company);
   }
 
   @Test
-  void resolveLegalEntityNotFound() {
-    given(companyRepository.findByRegistryCode("12345678")).willReturn(Optional.empty());
+  void returnsEmptyWhenTheLookupFindsNothing() {
+    assertThat(resolver.resolve(new PartyId(PERSON, "unknown"))).isEmpty();
+  }
 
-    var result = partyResolver.resolve(new PartyId(LEGAL_ENTITY, "12345678"));
+  @Test
+  void throwsWhenNoLookupSupportsTheType() {
+    PartyResolver miswired =
+        new PartyResolver(List.of(new PartyLookup(PERSON, code -> Optional.of(person))));
 
-    assertThat(result).isEmpty();
+    assertThatThrownBy(() -> miswired.resolve(new PartyId(LEGAL_ENTITY, "12345678")))
+        .isInstanceOf(IllegalStateException.class);
   }
 }

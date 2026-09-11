@@ -4,8 +4,8 @@ import tools.jackson.databind.json.JsonMapper
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.currency.Currency
 import ee.tuleva.onboarding.epis.account.FundBalanceDto
-import ee.tuleva.onboarding.epis.mandate.ApplicationStatus
 import ee.tuleva.onboarding.event.EventLogRepository
+import ee.tuleva.onboarding.mandate.application.ApplicationStatus
 import ee.tuleva.onboarding.payment.application.PaymentLinkingService
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioApiClient
 import ee.tuleva.onboarding.user.User
@@ -25,9 +25,9 @@ import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.authenticatedPersonFromUser
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
-import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowFixture
-import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowStatementFor3rdPillarPayment
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
+import static ee.tuleva.onboarding.epis.CashFlowFixture.cashFlowFixture
+import static ee.tuleva.onboarding.epis.CashFlowFixture.cashFlowStatementFor3rdPillarPayment
+import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentAmount
 import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentData
 import static ee.tuleva.onboarding.payment.application.PaymentLinkingService.TULEVA_3RD_PILLAR_FUND_ISIN
@@ -113,6 +113,7 @@ class PaymentIntegrationSpec extends Specification {
     AuthenticatedPerson anAuthenticatedPerson = authenticatedPersonFromUser(aUser).build()
 
     mockEpisContactDetails()
+    mockEpisContributions()
     mockEpisTransactions()
     mockEpisApplications()
     mockEpisAccountStatement()
@@ -194,6 +195,15 @@ class PaymentIntegrationSpec extends Specification {
   private void mockEpisApplications() {
     mockServerClient
         .when(request("/applications"))
+        .respond(response()
+            .withContentType(APPLICATION_JSON)
+            .withBody((mapper.writeValueAsString(List.of())))
+        )
+  }
+
+  private void mockEpisContributions() {
+    mockServerClient
+        .when(request("/contributions"))
         .respond(response()
             .withContentType(APPLICATION_JSON)
             .withBody((mapper.writeValueAsString(List.of())))

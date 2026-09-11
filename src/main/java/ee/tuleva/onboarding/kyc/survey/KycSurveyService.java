@@ -19,7 +19,8 @@ public class KycSurveyService {
   @Transactional
   public KycSurvey submit(AuthenticatedPerson person, KycSurveyResponse surveyResponse) {
     User subject = resolveSubject(person);
-    KycSurvey survey = KycSurvey.builder().userId(subject.getId()).survey(surveyResponse).build();
+    KycSurvey survey =
+        KycSurvey.builder().userId(subject.getIdOrThrow()).survey(surveyResponse).build();
     // The risk assessment reads kyc_survey with plain JDBC inside this same
     // transaction, which does not trigger Hibernate's auto-flush — without an
     // explicit flush a first-time submitter's survey is invisible to it.
@@ -33,7 +34,7 @@ public class KycSurveyService {
   public KycIdentityResponse getIdentity(AuthenticatedPerson person) {
     User subject = resolveSubject(person);
     return kycSurveyRepository
-        .findFirstByUserIdOrderByCreatedTimeDesc(subject.getId())
+        .findFirstByUserIdOrderByCreatedTimeDesc(subject.getIdOrThrow())
         .map(
             survey ->
                 KycIdentityResponse.from(survey.getSurvey(), survey.getCreatedTime(), subject))

@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.investment.position;
 
 import static jakarta.persistence.EnumType.STRING;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Enumerated;
@@ -14,10 +14,12 @@ import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.jspecify.annotations.Nullable;
 
 @Data
 @Builder
@@ -27,13 +29,18 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class FundPosition {
 
+  private static final List<String> TRADE_PAYABLE_ACCOUNT_NAMES =
+      List.of("payables of unsettled transactions", "Trade Settlement Payable");
+
+  private static final String REDEMPTION_PAYABLE_ACCOUNT_NAME = "Payables of redeemed units";
+
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
   @NotNull private LocalDate navDate;
 
-  private LocalDate reportDate;
+  private @Nullable LocalDate reportDate;
 
   @NotNull
   @Enumerated(STRING)
@@ -46,17 +53,26 @@ public class FundPosition {
 
   @NotNull private String accountName;
 
-  private String accountId;
+  private @Nullable String accountId;
 
-  private BigDecimal quantity;
+  private @Nullable BigDecimal quantity;
 
-  private BigDecimal marketPrice;
+  private @Nullable BigDecimal marketPrice;
 
-  private String currency;
+  private @Nullable String currency;
 
-  private BigDecimal marketValue;
+  private @Nullable BigDecimal marketValue;
 
   private Instant createdAt;
 
   private Instant updatedAt;
+
+  public boolean isTradePayable() {
+    return TRADE_PAYABLE_ACCOUNT_NAMES.stream().anyMatch(accountName::contains);
+  }
+
+  public boolean isRedemptionPayableOf(TulevaFund redeemedFund) {
+    return accountName.contains(REDEMPTION_PAYABLE_ACCOUNT_NAME)
+        && redeemedFund.getIsin().equals(accountId);
+  }
 }

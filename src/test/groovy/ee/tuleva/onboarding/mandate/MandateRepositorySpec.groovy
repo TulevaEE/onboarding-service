@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.mandate
 
-import ee.tuleva.onboarding.epis.mandate.details.*
+import ee.tuleva.onboarding.mandate.details.*
 import ee.tuleva.onboarding.user.User
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
@@ -10,8 +10,8 @@ import spock.lang.Specification
 import java.time.Instant
 
 import static ee.tuleva.onboarding.country.CountryFixture.countryFixture
-import static ee.tuleva.onboarding.epis.mandate.details.BankAccountDetails.BankAccountType.ESTONIAN
-import static ee.tuleva.onboarding.epis.mandate.details.PaymentRateChangeMandateDetails.PaymentRate.SIX
+import static ee.tuleva.onboarding.mandate.details.BankAccountDetails.BankAccountType.ESTONIAN
+import static ee.tuleva.onboarding.mandate.details.PaymentRateChangeMandateDetails.PaymentRate.SIX
 import static ee.tuleva.onboarding.mandate.MandateFixture.*
 import static ee.tuleva.onboarding.mandate.MandateType.*
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND

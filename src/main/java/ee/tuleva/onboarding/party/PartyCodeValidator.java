@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.party;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
-import ee.tuleva.onboarding.user.personalcode.PersonalCodeValidator;
+import ee.tuleva.onboarding.personalcode.PersonalCodeValidator;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 import java.util.regex.Pattern;

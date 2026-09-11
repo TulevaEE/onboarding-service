@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.analytics.transaction.unitowner;
 
 import ee.tuleva.onboarding.analytics.transaction.generic.AbstractTransactionSynchronizer;
 import ee.tuleva.onboarding.analytics.transaction.generic.SyncContext;
+import ee.tuleva.onboarding.analytics.transaction.generic.SyncResult;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.transaction.Pillar2DetailsDto;
 import ee.tuleva.onboarding.epis.transaction.Pillar3DetailsDto;
@@ -39,12 +40,12 @@ public class UnitOwnerSynchronizer
     private final LocalDate snapshotDate;
   }
 
-  public void sync(LocalDate snapshotDate) {
+  public SyncResult sync(LocalDate snapshotDate) {
     log.info("Starting unit owner snapshot synchronization for date {}", snapshotDate);
 
     UnitOwnerSyncContext context =
         UnitOwnerSyncContext.builder().snapshotDate(snapshotDate).build();
-    super.syncInternal(context);
+    return super.syncInternal(context);
   }
 
   @Override

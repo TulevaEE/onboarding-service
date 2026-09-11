@@ -94,6 +94,7 @@ class AccountEntryConsistencyValidatorTest {
 
     // Then
     assertThat(isValid).isFalse();
+    verify(context).disableDefaultConstraintViolation();
     verify(context)
         .buildConstraintViolationWithTemplate(
             contains("has asset type FUND_UNIT which doesn't match account asset type EUR"));
@@ -141,6 +142,7 @@ class AccountEntryConsistencyValidatorTest {
 
     // Then
     assertThat(isValid).isFalse();
+    verify(context).disableDefaultConstraintViolation();
     verify(context)
         .buildConstraintViolationWithTemplate(
             "Entry asset type FUND_UNIT does not match account asset type EUR");

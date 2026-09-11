@@ -86,9 +86,9 @@ class ParentChildLinkRepositoryTest {
         .isEmpty();
     assertThat(
             repository
-                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                .findByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
                     PARENT, CHILD, Set.of(ACTIVE), EIGHTEENTH_BIRTHDAY.minusDays(1)))
-        .isFalse();
+        .isEmpty();
   }
 
   @Test
@@ -159,9 +159,9 @@ class ParentChildLinkRepositoryTest {
 
     assertThat(
             repository
-                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                .findByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
                     PARENT, CHILD, Set.of(ACTIVE), EIGHTEENTH_BIRTHDAY.minusDays(1)))
-        .isTrue();
+        .isNotEmpty();
   }
 
   @Test
@@ -170,9 +170,9 @@ class ParentChildLinkRepositoryTest {
 
     assertThat(
             repository
-                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                .findByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
                     PARENT, CHILD, Set.of(ACTIVE, PENDING_KYC), EIGHTEENTH_BIRTHDAY.minusDays(1)))
-        .isTrue();
+        .isNotEmpty();
   }
 
   @Test
@@ -183,14 +183,14 @@ class ParentChildLinkRepositoryTest {
 
     assertThat(
             repository
-                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                .findByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
                     PARENT, CHILD, Set.of(ACTIVE, PENDING_KYC), EIGHTEENTH_BIRTHDAY.minusDays(1)))
-        .isTrue();
+        .isNotEmpty();
     assertThat(
             repository
-                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                .findByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
                     PARENT, CHILD, Set.of(ACTIVE), EIGHTEENTH_BIRTHDAY.minusDays(1)))
-        .isFalse();
+        .isEmpty();
   }
 
   // guardians are deliberately not filtered out by relationship type: a court-appointed guardian
@@ -202,27 +202,27 @@ class ParentChildLinkRepositoryTest {
 
     assertThat(
             repository
-                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                .findByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
                     PARENT, CHILD, Set.of(ACTIVE), EIGHTEENTH_BIRTHDAY.minusDays(1)))
-        .isTrue();
+        .isNotEmpty();
     assertThat(
             repository
-                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                .findByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
                     PARENT, CHILD, Set.of(ACTIVE, PENDING_KYC), EIGHTEENTH_BIRTHDAY.minusDays(1)))
-        .isTrue();
+        .isNotEmpty();
     assertThat(
             repository
-                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                .findByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
                     OTHER_PARENT,
                     CHILD,
                     Set.of(ACTIVE, PENDING_KYC),
                     EIGHTEENTH_BIRTHDAY.minusDays(1)))
-        .isTrue();
+        .isNotEmpty();
     assertThat(
             repository
-                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                .findByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
                     OTHER_PARENT, CHILD, Set.of(ACTIVE), EIGHTEENTH_BIRTHDAY.minusDays(1)))
-        .isFalse();
+        .isEmpty();
     // the role listing reads through this query, which also ignores relationship type
     assertThat(
             repository.findByParentPersonalCodeAndStatusAndSuspendedAtIsNullAndValidUntilAfter(
@@ -240,14 +240,14 @@ class ParentChildLinkRepositoryTest {
 
     assertThat(
             repository
-                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                .findByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
                     PARENT, CHILD, Set.of(ACTIVE), EIGHTEENTH_BIRTHDAY.minusDays(1)))
-        .isFalse();
+        .isEmpty();
     assertThat(
             repository
-                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                .findByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
                     PARENT, CHILD, Set.of(ACTIVE, PENDING_KYC), EIGHTEENTH_BIRTHDAY.minusDays(1)))
-        .isFalse();
+        .isEmpty();
   }
 
   @Test
@@ -256,14 +256,14 @@ class ParentChildLinkRepositoryTest {
 
     assertThat(
             repository
-                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                .findByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
                     PARENT, CHILD, Set.of(ACTIVE), EIGHTEENTH_BIRTHDAY.minusDays(1)))
-        .isFalse();
+        .isEmpty();
     assertThat(
             repository
-                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                .findByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
                     PARENT, CHILD, Set.of(ACTIVE, PENDING_KYC), EIGHTEENTH_BIRTHDAY.minusDays(1)))
-        .isFalse();
+        .isEmpty();
   }
 
   @Test
@@ -272,14 +272,14 @@ class ParentChildLinkRepositoryTest {
 
     assertThat(
             repository
-                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                .findByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
                     PARENT, CHILD, Set.of(ACTIVE), EIGHTEENTH_BIRTHDAY))
-        .isFalse();
+        .isEmpty();
     assertThat(
             repository
-                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                .findByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
                     PARENT, CHILD, Set.of(ACTIVE, PENDING_KYC), EIGHTEENTH_BIRTHDAY))
-        .isFalse();
+        .isEmpty();
   }
 
   @Test
@@ -288,14 +288,14 @@ class ParentChildLinkRepositoryTest {
 
     assertThat(
             repository
-                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                .findByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
                     PARENT, CHILD, Set.of(ACTIVE), EIGHTEENTH_BIRTHDAY))
-        .isFalse();
+        .isEmpty();
     assertThat(
             repository
-                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                .findByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
                     PARENT, CHILD, Set.of(ACTIVE, PENDING_KYC), EIGHTEENTH_BIRTHDAY))
-        .isFalse();
+        .isEmpty();
   }
 
   @Test
@@ -304,17 +304,17 @@ class ParentChildLinkRepositoryTest {
 
     assertThat(
             repository
-                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                .findByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
                     PARENT, "99999999999", Set.of(ACTIVE), EIGHTEENTH_BIRTHDAY.minusDays(1)))
-        .isFalse();
+        .isEmpty();
     assertThat(
             repository
-                .existsByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                .findByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
                     PARENT,
                     "99999999999",
                     Set.of(ACTIVE, PENDING_KYC),
                     EIGHTEENTH_BIRTHDAY.minusDays(1)))
-        .isFalse();
+        .isEmpty();
   }
 
   @Test

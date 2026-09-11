@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.investment.TrackingCheckType;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -21,7 +22,7 @@ record TrackingDifferenceResult(
     BigDecimal consecutiveNetTd,
     BigDecimal compoundedFundReturn,
     BigDecimal compoundedBenchmarkReturn,
-    Map<String, BigDecimal> escalationAttributions,
+    @Nullable Map<String, BigDecimal> escalationAttributions,
     BigDecimal escalationCashDrag,
     BigDecimal escalationFeeDrag,
     BigDecimal escalationResidual,
@@ -31,8 +32,13 @@ record TrackingDifferenceResult(
     BigDecimal residual,
     @Nullable BigDecimal bodImpliedFundReturn,
     @Nullable BigDecimal navResidual,
+    @Nullable NavFlowReconciliation navFlow,
     boolean navResidualBreach,
-    boolean escalationNavResidualBreach) {
+    boolean escalationNavResidualBreach,
+    boolean escalationCountTruncated,
+    boolean escalationCountUnavailable,
+    List<String> benchmarkGapIsins,
+    @Nullable BigDecimal benchmarkGapWeight) {
 
   boolean hasAnyBreach() {
     return breach() || navResidualBreach();

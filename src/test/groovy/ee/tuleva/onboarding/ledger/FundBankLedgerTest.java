@@ -1,16 +1,17 @@
 package ee.tuleva.onboarding.ledger;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.BANK_FEE;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
 import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.time.ClockConfig;
 import ee.tuleva.onboarding.time.ClockHolder;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -20,11 +21,18 @@ import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.context.annotation.Import;
 
-@SpringBootTest
-@Transactional
+@DataJpaTest
+@Import({
+  LedgerService.class,
+  LedgerAccountService.class,
+  LedgerPartyService.class,
+  LedgerTransactionService.class,
+  FundBankLedger.class,
+  ClockConfig.class
+})
 class FundBankLedgerTest {
 
   private static final LocalDate BOOKING_DATE = LocalDate.of(2026, 5, 28);
@@ -43,6 +51,8 @@ class FundBankLedgerTest {
     var feeAmount = new BigDecimal("742.34");
     var externalReference = randomUUID();
     var description = "Valitsemistasu 02.-28.02.26";
+    var managementFeeBefore = getSystemAccount(MANAGEMENT_FEE, TKF100).getBalance();
+    var cashClearingBefore = getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TKF100).getBalance();
 
     var transaction =
         fundBankLedger.recordManagementFeePayment(
@@ -51,9 +61,10 @@ class FundBankLedgerTest {
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("MANAGEMENT_FEE_PAYMENT");
     assertThat(transaction.getMetadata().get("description")).isEqualTo(description);
     assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
-    assertThat(getSystemAccount(MANAGEMENT_FEE, TKF100).getBalance())
+    assertThat(deltaSince(managementFeeBefore, getSystemAccount(MANAGEMENT_FEE, TKF100)))
         .isEqualByComparingTo(feeAmount);
-    assertThat(getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TKF100).getBalance())
+    assertThat(
+            deltaSince(cashClearingBefore, getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TKF100)))
         .isEqualByComparingTo(feeAmount.negate());
     verifyDoubleEntry(transaction);
   }
@@ -62,6 +73,8 @@ class FundBankLedgerTest {
   void recordBankFee_createsCorrectLedgerEntries() {
     var amount = new BigDecimal("-1.50");
     var externalReference = randomUUID();
+    var bankFeeBefore = getSystemAccount(SystemAccount.BANK_FEE, TKF100).getBalance();
+    var clearingBefore = getSystemAccount(INCOMING_PAYMENTS_CLEARING, TKF100).getBalance();
 
     var transaction =
         fundBankLedger.recordBankFee(
@@ -69,9 +82,9 @@ class FundBankLedgerTest {
 
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("BANK_FEE");
     assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
-    assertThat(getSystemAccount(SystemAccount.BANK_FEE, TKF100).getBalance())
+    assertThat(deltaSince(bankFeeBefore, getSystemAccount(SystemAccount.BANK_FEE, TKF100)))
         .isEqualByComparingTo(amount.negate());
-    assertThat(getSystemAccount(INCOMING_PAYMENTS_CLEARING, TKF100).getBalance())
+    assertThat(deltaSince(clearingBefore, getSystemAccount(INCOMING_PAYMENTS_CLEARING, TKF100)))
         .isEqualByComparingTo(amount);
     verifyDoubleEntry(transaction);
   }
@@ -80,6 +93,8 @@ class FundBankLedgerTest {
   void recordInterestReceived_createsCorrectLedgerEntries() {
     var amount = new BigDecimal("5.00");
     var externalReference = randomUUID();
+    var clearingBefore = getSystemAccount(INCOMING_PAYMENTS_CLEARING, TKF100).getBalance();
+    var interestIncomeBefore = getSystemAccount(INTEREST_INCOME, TKF100).getBalance();
 
     var transaction =
         fundBankLedger.recordInterestReceived(
@@ -87,9 +102,9 @@ class FundBankLedgerTest {
 
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("INTEREST_RECEIVED");
     assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
-    assertThat(getSystemAccount(INCOMING_PAYMENTS_CLEARING, TKF100).getBalance())
+    assertThat(deltaSince(clearingBefore, getSystemAccount(INCOMING_PAYMENTS_CLEARING, TKF100)))
         .isEqualByComparingTo(amount);
-    assertThat(getSystemAccount(INTEREST_INCOME, TKF100).getBalance())
+    assertThat(deltaSince(interestIncomeBefore, getSystemAccount(INTEREST_INCOME, TKF100)))
         .isEqualByComparingTo(amount.negate());
     verifyDoubleEntry(transaction);
   }
@@ -99,6 +114,8 @@ class FundBankLedgerTest {
     var amount = new BigDecimal("4370.58");
     var externalReference = randomUUID();
     var description = "Management fee kickback VP68168 02/2026";
+    var cashClearingBefore = getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TKF100).getBalance();
+    var managementFeeRebateBefore = getSystemAccount(MANAGEMENT_FEE_REBATE, TKF100).getBalance();
 
     var transaction =
         fundBankLedger.recordManagementFeeRebate(
@@ -112,9 +129,11 @@ class FundBankLedgerTest {
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("MANAGEMENT_FEE_REBATE");
     assertThat(transaction.getMetadata().get("description")).isEqualTo(description);
     assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
-    assertThat(getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TKF100).getBalance())
+    assertThat(
+            deltaSince(cashClearingBefore, getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TKF100)))
         .isEqualByComparingTo(amount);
-    assertThat(getSystemAccount(MANAGEMENT_FEE_REBATE, TKF100).getBalance())
+    assertThat(
+            deltaSince(managementFeeRebateBefore, getSystemAccount(MANAGEMENT_FEE_REBATE, TKF100)))
         .isEqualByComparingTo(amount.negate());
     verifyDoubleEntry(transaction);
   }
@@ -123,6 +142,8 @@ class FundBankLedgerTest {
   void recordBankAdjustment_createsCorrectLedgerEntries() {
     var amount = new BigDecimal("0.500");
     var externalReference = randomUUID();
+    var bankAdjustmentBefore = getSystemAccount(BANK_ADJUSTMENT, TKF100).getBalance();
+    var clearingBefore = getSystemAccount(INCOMING_PAYMENTS_CLEARING, TKF100).getBalance();
 
     var transaction =
         fundBankLedger.recordBankAdjustment(
@@ -130,9 +151,9 @@ class FundBankLedgerTest {
 
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("BANK_ADJUSTMENT");
     assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
-    assertThat(getSystemAccount(BANK_ADJUSTMENT, TKF100).getBalance())
+    assertThat(deltaSince(bankAdjustmentBefore, getSystemAccount(BANK_ADJUSTMENT, TKF100)))
         .isEqualByComparingTo(amount.negate());
-    assertThat(getSystemAccount(INCOMING_PAYMENTS_CLEARING, TKF100).getBalance())
+    assertThat(deltaSince(clearingBefore, getSystemAccount(INCOMING_PAYMENTS_CLEARING, TKF100)))
         .isEqualByComparingTo(amount);
     verifyDoubleEntry(transaction);
   }
@@ -143,6 +164,7 @@ class FundBankLedgerTest {
     var units = new BigDecimal("11704.00000");
     var externalReference = randomUUID();
     var isin = "LU1291102447";
+    var cashClearingBefore = getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TKF100).getBalance();
 
     var transaction =
         fundBankLedger.recordTradeSettlement(
@@ -163,7 +185,8 @@ class FundBankLedgerTest {
         .isEqualTo("BNP Paribas Easy MSCI Japan Min TE UCITS ETF");
     assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
     assertThat(transaction.getEntries()).hasSize(4);
-    assertThat(getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TKF100).getBalance())
+    assertThat(
+            deltaSince(cashClearingBefore, getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TKF100)))
         .isEqualByComparingTo(amount);
     assertThat(getInstrumentAccount(TRADE_CASH_SETTLEMENT, TKF100, isin).getBalance())
         .isEqualByComparingTo(amount.negate());
@@ -217,6 +240,8 @@ class FundBankLedgerTest {
   @Test
   void bankOperations_areQualifiedByFund() {
     var isin = "IE00BFG1TM61";
+    var cashClearingBefore = getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance();
+    var bankFeeTkf100Before = getSystemAccount(SystemAccount.BANK_FEE, TKF100).getBalance();
 
     fundBankLedger.recordBankFee(
         TUK75, new BigDecimal("-2.50"), randomUUID(), FUND_INVESTMENT_CASH_CLEARING, BOOKING_DATE);
@@ -236,11 +261,12 @@ class FundBankLedgerTest {
         .isEqualTo("BANK_FEE:TUK75");
     assertThat(getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getName())
         .isEqualTo("FUND_INVESTMENT_CASH_CLEARING:TUK75");
-    assertThat(getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance())
+    assertThat(
+            deltaSince(cashClearingBefore, getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75)))
         .isEqualByComparingTo(new BigDecimal("-999002.50"));
     assertThat(getInstrumentAccount(SECURITIES_CUSTODY, TUK75, isin).getName())
         .isEqualTo("SECURITIES_CUSTODY:TUK75:" + isin);
-    assertThat(getSystemAccount(SystemAccount.BANK_FEE, TKF100).getBalance())
+    assertThat(deltaSince(bankFeeTkf100Before, getSystemAccount(SystemAccount.BANK_FEE, TKF100)))
         .isEqualByComparingTo(ZERO);
     verifyDoubleEntry(tradeSettlement);
   }
@@ -298,6 +324,8 @@ class FundBankLedgerTest {
   void recordRegistrarContribution_movesCashAgainstRegistrarSettlement() {
     var amount = new BigDecimal("1000000.00");
     var externalReference = randomUUID();
+    var cashClearingBefore = getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance();
+    var registrarSettlementBefore = getSystemAccount(REGISTRAR_CASH_SETTLEMENT, TUK75).getBalance();
 
     var transaction =
         fundBankLedger.recordRegistrarContribution(
@@ -308,9 +336,12 @@ class FundBankLedgerTest {
     assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("REGISTRAR_CONTRIBUTION");
     assertThat(transaction.getMetadata().get("description")).isEqualTo("EPIS osakute laekumine");
-    assertThat(getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance())
+    assertThat(
+            deltaSince(cashClearingBefore, getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75)))
         .isEqualByComparingTo(amount);
-    assertThat(getSystemAccount(REGISTRAR_CASH_SETTLEMENT, TUK75).getBalance())
+    assertThat(
+            deltaSince(
+                registrarSettlementBefore, getSystemAccount(REGISTRAR_CASH_SETTLEMENT, TUK75)))
         .isEqualByComparingTo(amount.negate());
     assertThat(getSystemAccount(REGISTRAR_CASH_SETTLEMENT, TUK75).getName())
         .isEqualTo("REGISTRAR_CASH_SETTLEMENT:TUK75");
@@ -321,6 +352,8 @@ class FundBankLedgerTest {
   void recordRegistrarPayout_movesCashOutAgainstRegistrarSettlement() {
     var amount = new BigDecimal("-250000.00");
     var externalReference = randomUUID();
+    var cashClearingBefore = getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance();
+    var registrarSettlementBefore = getSystemAccount(REGISTRAR_CASH_SETTLEMENT, TUK75).getBalance();
 
     var transaction =
         fundBankLedger.recordRegistrarPayout(
@@ -328,9 +361,12 @@ class FundBankLedgerTest {
 
     assertThat(transaction.getTransactionType())
         .isEqualTo(LedgerTransaction.TransactionType.REGISTRAR_PAYOUT);
-    assertThat(getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance())
+    assertThat(
+            deltaSince(cashClearingBefore, getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75)))
         .isEqualByComparingTo(amount);
-    assertThat(getSystemAccount(REGISTRAR_CASH_SETTLEMENT, TUK75).getBalance())
+    assertThat(
+            deltaSince(
+                registrarSettlementBefore, getSystemAccount(REGISTRAR_CASH_SETTLEMENT, TUK75)))
         .isEqualByComparingTo(amount.negate());
     verifyDoubleEntry(transaction);
   }
@@ -342,6 +378,8 @@ class FundBankLedgerTest {
     var details =
         new FundBankLedger.UnclassifiedEntryDetails(
             "Mystery Counterparty OU", "EE001234567890123499", "Selgituseta laekumine", "OTHR");
+    var cashClearingBefore = getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance();
+    var unclassifiedBefore = getSystemAccount(UNCLASSIFIED_BANK_ENTRY, TUK75).getBalance();
 
     var transaction =
         fundBankLedger.recordUnclassifiedBankEntry(
@@ -354,9 +392,10 @@ class FundBankLedgerTest {
         .containsEntry("counterpartyIban", "EE001234567890123499")
         .containsEntry("description", "Selgituseta laekumine")
         .containsEntry("subFamilyCode", "OTHR");
-    assertThat(getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance())
+    assertThat(
+            deltaSince(cashClearingBefore, getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75)))
         .isEqualByComparingTo(amount);
-    assertThat(getSystemAccount(UNCLASSIFIED_BANK_ENTRY, TUK75).getBalance())
+    assertThat(deltaSince(unclassifiedBefore, getSystemAccount(UNCLASSIFIED_BANK_ENTRY, TUK75)))
         .isEqualByComparingTo(amount.negate());
     verifyDoubleEntry(transaction);
   }
@@ -366,6 +405,8 @@ class FundBankLedgerTest {
     ClockHolder.setClock(Clock.fixed(Instant.parse("2026-08-17T12:00:00Z"), ZoneId.of("UTC")));
     var amount = new BigDecimal("500000.00");
     var asOfDate = LocalDate.of(2026, 1, 31);
+    var cashClearingBefore = getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance();
+    var registrarSettlementBefore = getSystemAccount(REGISTRAR_CASH_SETTLEMENT, TUK75).getBalance();
 
     var transaction = fundBankLedger.recordOpeningBalance(TUK75, amount, asOfDate);
 
@@ -374,41 +415,62 @@ class FundBankLedgerTest {
     assertThat(transaction.getTransactionDate())
         .isBefore(Instant.parse("2026-02-01T00:00:00Z"))
         .isAfter(Instant.parse("2026-01-31T00:00:00Z"));
-    assertThat(getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance())
+    assertThat(
+            deltaSince(cashClearingBefore, getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75)))
         .isEqualByComparingTo(amount);
-    assertThat(getSystemAccount(REGISTRAR_CASH_SETTLEMENT, TUK75).getBalance())
+    assertThat(
+            deltaSince(
+                registrarSettlementBefore, getSystemAccount(REGISTRAR_CASH_SETTLEMENT, TUK75)))
         .isEqualByComparingTo(amount.negate());
 
     var replay = fundBankLedger.recordOpeningBalance(TUK75, amount, asOfDate);
 
     assertThat(replay).isEqualTo(transaction);
-    assertThat(getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance())
+    assertThat(
+            deltaSince(cashClearingBefore, getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75)))
         .isEqualByComparingTo(amount);
   }
 
   @Test
   void recordOwnAccountTransfer_booksCashAgainstTheOwnTransferAccount() {
-    fundBankLedger.recordOwnAccountTransfer(
-        TUK75,
-        new BigDecimal("1633975.32"),
-        randomUUID(),
-        BOOKING_DATE,
-        "Ülekanne fondi teisele kontole");
+    var cashClearingBefore = getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance();
+    var ownAccountTransferBefore = getSystemAccount(OWN_ACCOUNT_TRANSFER, TUK75).getBalance();
+    var externalReference = randomUUID();
 
-    assertThat(getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance())
+    var transaction =
+        fundBankLedger.recordOwnAccountTransfer(
+            TUK75,
+            new BigDecimal("1633975.32"),
+            externalReference,
+            BOOKING_DATE,
+            "Ülekanne fondi teisele kontole");
+
+    assertThat(transaction).isNotNull();
+    assertThat(transaction.getTransactionType())
+        .isEqualTo(LedgerTransaction.TransactionType.OWN_ACCOUNT_TRANSFER);
+    assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
+    assertThat(transaction.getMetadata().get("description"))
+        .isEqualTo("Ülekanne fondi teisele kontole");
+    assertThat(
+            deltaSince(cashClearingBefore, getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75)))
         .isEqualByComparingTo(new BigDecimal("1633975.32"));
-    assertThat(getSystemAccount(OWN_ACCOUNT_TRANSFER, TUK75).getBalance())
+    assertThat(deltaSince(ownAccountTransferBefore, getSystemAccount(OWN_ACCOUNT_TRANSFER, TUK75)))
         .isEqualByComparingTo(new BigDecimal("-1633975.32"));
+    verifyDoubleEntry(transaction);
   }
 
   @Test
   void recordOwnAccountTransfer_booksOutgoingTransfersWithTheOppositeSign() {
+    var cashClearingBefore = getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance();
+    var ownAccountTransferBefore = getSystemAccount(OWN_ACCOUNT_TRANSFER, TUK75).getBalance();
+
     fundBankLedger.recordOwnAccountTransfer(
         TUK75, new BigDecimal("-50000.00"), randomUUID(), BOOKING_DATE, "Ülekanne");
 
-    assertThat(getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance())
+    assertThat(
+            deltaSince(cashClearingBefore, getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75)))
         .isEqualByComparingTo(new BigDecimal("-50000.00"));
-    assertThat(getSystemAccount(OWN_ACCOUNT_TRANSFER, TUK75).getBalance())
+    assertThat(deltaSince(ownAccountTransferBefore, getSystemAccount(OWN_ACCOUNT_TRANSFER, TUK75)))
         .isEqualByComparingTo(new BigDecimal("50000.00"));
   }
 
@@ -416,37 +478,49 @@ class FundBankLedgerTest {
   void seedOpeningBalanceIfFirstStatement_booksOnceAndOnlyOnAnUntouchedAccount() {
     var openingBalance = new BigDecimal("123456.78");
     var asOfDate = LocalDate.of(2026, 1, 31);
+    var cashClearingBefore = getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance();
+    var registrarSettlementBefore = getSystemAccount(REGISTRAR_CASH_SETTLEMENT, TUK75).getBalance();
 
     fundBankLedger.seedOpeningBalanceIfFirstStatement(TUK75, openingBalance, asOfDate);
 
-    assertThat(getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance())
+    assertThat(
+            deltaSince(cashClearingBefore, getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75)))
         .isEqualByComparingTo(openingBalance);
-    assertThat(getSystemAccount(REGISTRAR_CASH_SETTLEMENT, TUK75).getBalance())
+    assertThat(
+            deltaSince(
+                registrarSettlementBefore, getSystemAccount(REGISTRAR_CASH_SETTLEMENT, TUK75)))
         .isEqualByComparingTo(openingBalance.negate());
 
     fundBankLedger.seedOpeningBalanceIfFirstStatement(TUK75, new BigDecimal("999.99"), asOfDate);
 
-    assertThat(getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance())
+    assertThat(
+            deltaSince(cashClearingBefore, getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75)))
         .isEqualByComparingTo(openingBalance);
   }
 
   @Test
   void seedOpeningBalanceIfFirstStatement_skipsWhenTheCashAccountAlreadyHasEntries() {
+    var cashClearingBefore = getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance();
+
     fundBankLedger.recordBankFee(
         TUK75, new BigDecimal("-1.00"), randomUUID(), FUND_INVESTMENT_CASH_CLEARING, BOOKING_DATE);
 
     fundBankLedger.seedOpeningBalanceIfFirstStatement(
         TUK75, new BigDecimal("123456.78"), LocalDate.of(2026, 1, 31));
 
-    assertThat(getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance())
+    assertThat(
+            deltaSince(cashClearingBefore, getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75)))
         .isEqualByComparingTo(new BigDecimal("-1.00"));
   }
 
   @Test
   void seedOpeningBalanceIfFirstStatement_skipsAZeroOpeningBalance() {
+    var cashClearingBefore = getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance();
+
     fundBankLedger.seedOpeningBalanceIfFirstStatement(TUK75, ZERO, LocalDate.of(2026, 1, 31));
 
-    assertThat(getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance())
+    assertThat(
+            deltaSince(cashClearingBefore, getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75)))
         .isEqualByComparingTo(ZERO);
     assertThat(fundBankLedger.existsForExternalReference(randomUUID())).isFalse();
   }
@@ -482,6 +556,8 @@ class FundBankLedgerTest {
 
   @Test
   void countUnresolvedUnclassifiedEntries_countsEntriesNotNetBalance() {
+    var unclassifiedBefore = getSystemAccount(UNCLASSIFIED_BANK_ENTRY, TUK75).getBalance();
+
     fundBankLedger.recordUnclassifiedBankEntry(
         TUK75,
         new BigDecimal("100.00"),
@@ -497,10 +573,33 @@ class FundBankLedgerTest {
         BOOKING_DATE,
         new FundBankLedger.UnclassifiedEntryDetails(null, null, "offsetting debit", "OTHR"));
 
-    assertThat(getSystemAccount(UNCLASSIFIED_BANK_ENTRY, TUK75).getBalance())
+    assertThat(deltaSince(unclassifiedBefore, getSystemAccount(UNCLASSIFIED_BANK_ENTRY, TUK75)))
         .isEqualByComparingTo(ZERO);
     assertThat(fundBankLedger.countUnresolvedUnclassifiedEntries(TUK75)).isEqualTo(2);
     assertThat(fundBankLedger.countUnresolvedUnclassifiedEntries(TKF100)).isZero();
+  }
+
+  @Test
+  void findUnresolvedUnclassifiedEntries_returnsOnlyUnresolvedTransactions() {
+    var externalReference = randomUUID();
+    fundBankLedger.recordUnclassifiedBankEntry(
+        TUK75,
+        new BigDecimal("100.00"),
+        externalReference,
+        FUND_INVESTMENT_CASH_CLEARING,
+        BOOKING_DATE,
+        new FundBankLedger.UnclassifiedEntryDetails(null, null, "credit", "OTHR"));
+
+    var unresolved = fundBankLedger.findUnresolvedUnclassifiedEntries(TUK75);
+
+    assertThat(unresolved).hasSize(1);
+    assertThat(unresolved.get(0).getExternalReference()).isEqualTo(externalReference);
+    assertThat(fundBankLedger.findUnresolvedUnclassifiedEntries(TKF100)).isEmpty();
+
+    fundBankLedger.recordRegistrarContribution(
+        TUK75, ZERO, externalReference, BOOKING_DATE, "reclassified from suspense");
+
+    assertThat(fundBankLedger.findUnresolvedUnclassifiedEntries(TUK75)).isEmpty();
   }
 
   @Test
@@ -527,6 +626,9 @@ class FundBankLedgerTest {
   void reclassifySuspenseEntry_movesCounterLegToRegistrarWithoutTouchingCash() {
     var amount = new BigDecimal("1000000.00");
     var externalReference = randomUUID();
+    var cashClearingBefore = getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance();
+    var unclassifiedBefore = getSystemAccount(UNCLASSIFIED_BANK_ENTRY, TUK75).getBalance();
+    var registrarSettlementBefore = getSystemAccount(REGISTRAR_CASH_SETTLEMENT, TUK75).getBalance();
     fundBankLedger.recordUnclassifiedBankEntry(
         TUK75,
         amount,
@@ -547,11 +649,14 @@ class FundBankLedgerTest {
     assertThat(correction.getTransactionType())
         .isEqualTo(LedgerTransaction.TransactionType.REGISTRAR_CONTRIBUTION);
     assertThat(correction.getExternalReference()).isEqualTo(externalReference);
-    assertThat(getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance())
+    assertThat(
+            deltaSince(cashClearingBefore, getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75)))
         .isEqualByComparingTo(amount);
-    assertThat(getSystemAccount(UNCLASSIFIED_BANK_ENTRY, TUK75).getBalance())
+    assertThat(deltaSince(unclassifiedBefore, getSystemAccount(UNCLASSIFIED_BANK_ENTRY, TUK75)))
         .isEqualByComparingTo(ZERO);
-    assertThat(getSystemAccount(REGISTRAR_CASH_SETTLEMENT, TUK75).getBalance())
+    assertThat(
+            deltaSince(
+                registrarSettlementBefore, getSystemAccount(REGISTRAR_CASH_SETTLEMENT, TUK75)))
         .isEqualByComparingTo(amount.negate());
     assertThat(fundBankLedger.countUnresolvedUnclassifiedEntries(TUK75)).isZero();
 
@@ -564,7 +669,9 @@ class FundBankLedgerTest {
             BOOKING_DATE);
 
     assertThat(replay).isEqualTo(correction);
-    assertThat(getSystemAccount(REGISTRAR_CASH_SETTLEMENT, TUK75).getBalance())
+    assertThat(
+            deltaSince(
+                registrarSettlementBefore, getSystemAccount(REGISTRAR_CASH_SETTLEMENT, TUK75)))
         .isEqualByComparingTo(amount.negate());
   }
 
@@ -572,6 +679,9 @@ class FundBankLedgerTest {
   void reclassifySuspenseEntry_toManagementFeeMovesCounterLegToExpense() {
     var amount = new BigDecimal("-742.34");
     var externalReference = randomUUID();
+    var cashClearingBefore = getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance();
+    var unclassifiedBefore = getSystemAccount(UNCLASSIFIED_BANK_ENTRY, TUK75).getBalance();
+    var managementFeeBefore = getSystemAccount(MANAGEMENT_FEE, TUK75).getBalance();
     fundBankLedger.recordUnclassifiedBankEntry(
         TUK75,
         amount,
@@ -588,11 +698,12 @@ class FundBankLedgerTest {
         LedgerTransaction.TransactionType.MANAGEMENT_FEE_PAYMENT,
         BOOKING_DATE);
 
-    assertThat(getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75).getBalance())
+    assertThat(
+            deltaSince(cashClearingBefore, getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, TUK75)))
         .isEqualByComparingTo(amount);
-    assertThat(getSystemAccount(UNCLASSIFIED_BANK_ENTRY, TUK75).getBalance())
+    assertThat(deltaSince(unclassifiedBefore, getSystemAccount(UNCLASSIFIED_BANK_ENTRY, TUK75)))
         .isEqualByComparingTo(ZERO);
-    assertThat(getSystemAccount(MANAGEMENT_FEE, TUK75).getBalance())
+    assertThat(deltaSince(managementFeeBefore, getSystemAccount(MANAGEMENT_FEE, TUK75)))
         .isEqualByComparingTo(amount.negate());
   }
 
@@ -608,6 +719,10 @@ class FundBankLedgerTest {
             systemAccount.getAccountType(),
             systemAccount.getAssetType())
         .orElseThrow();
+  }
+
+  private BigDecimal deltaSince(BigDecimal before, LedgerAccount account) {
+    return account.getBalance().subtract(before);
   }
 
   private static void verifyDoubleEntry(LedgerTransaction transaction) {

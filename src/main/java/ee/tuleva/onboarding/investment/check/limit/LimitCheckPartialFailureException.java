@@ -1,15 +1,14 @@
 package ee.tuleva.onboarding.investment.check.limit;
 
-import java.util.List;
 import lombok.Getter;
 
 @Getter
 class LimitCheckPartialFailureException extends RuntimeException {
 
-  private final List<LimitCheckResult> partialResults;
+  private final LimitCheckRun partialRun;
 
-  LimitCheckPartialFailureException(String message, List<LimitCheckResult> partialResults) {
+  LimitCheckPartialFailureException(String message, LimitCheckRun partialRun) {
     super(message);
-    this.partialResults = partialResults;
+    this.partialRun = partialRun;
   }
 }

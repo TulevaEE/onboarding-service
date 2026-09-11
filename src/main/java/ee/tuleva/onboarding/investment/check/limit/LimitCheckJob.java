@@ -2,15 +2,15 @@ package ee.tuleva.onboarding.investment.check.limit;
 
 import static ee.tuleva.onboarding.investment.JobRunSchedule.LIMIT_CHECK_BACKFILL;
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
-import static ee.tuleva.onboarding.investment.event.PipelineStep.LIMIT_CHECK;
+import static ee.tuleva.onboarding.pipeline.PipelineStep.LIMIT_CHECK;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.event.NavEventListenerOrder;
-import ee.tuleva.onboarding.investment.event.PipelineTracker;
 import ee.tuleva.onboarding.investment.event.RunLimitCheckBackfillRequested;
 import ee.tuleva.onboarding.investment.event.RunLimitCheckRequested;
 import ee.tuleva.onboarding.investment.position.FeeAccrualPositionSyncJob;
-import ee.tuleva.onboarding.savings.fund.nav.NavCalculationCompleted;
+import ee.tuleva.onboarding.pipeline.PipelineTracker;
+import ee.tuleva.onboarding.savings.NavCalculationCompleted;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -50,16 +50,13 @@ public class LimitCheckJob {
     log.info("Starting limit check: funds={}", funds);
 
     try {
-      var results = limitCheckService.runChecksForFunds(funds);
-      limitCheckNotifier.notify(results);
+      var run = limitCheckService.runChecksForFunds(funds);
+      limitCheckNotifier.notify(run);
       pipelineTracker.stepCompleted(LIMIT_CHECK);
 
-      log.info("Limit check completed: funds={}, resultCount={}", funds, results.size());
+      log.info("Limit check completed: funds={}, resultCount={}", funds, run.results().size());
     } catch (LimitCheckPartialFailureException e) {
-      var partial = e.getPartialResults();
-      if (partial.stream().anyMatch(LimitCheckResult::hasBreaches)) {
-        limitCheckNotifier.notify(partial);
-      }
+      limitCheckNotifier.notify(e.getPartialRun());
       pipelineTracker.stepFailed(LIMIT_CHECK, e.getMessage());
       log.error("Limit check failed", e);
     } catch (Exception e) {
@@ -86,6 +83,7 @@ public class LimitCheckJob {
       log.info("Limit check backfill completed: resultCount={}", results.size());
     } catch (Exception e) {
       log.error("Limit check backfill failed", e);
+      limitCheckNotifier.notifyBackfillFailed(e);
     }
   }
 }

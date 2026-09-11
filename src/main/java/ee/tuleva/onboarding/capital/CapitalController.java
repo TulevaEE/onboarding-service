@@ -24,7 +24,7 @@ public class CapitalController {
   @GetMapping("/me/capital")
   public List<CapitalRow> capitalStatement(
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-    Long userId = authenticatedPerson.getUserId();
+    Long userId = authenticatedPerson.getUserIdOrThrow();
     User user = userService.getById(userId).orElseThrow();
     return user.getMember()
         .map(member -> capitalService.getCapitalRows(member.getId()))
@@ -34,7 +34,7 @@ public class CapitalController {
   @GetMapping("/me/capital/events")
   public List<ApiCapitalEvent> capitalEvents(
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-    Long userId = authenticatedPerson.getUserId();
+    Long userId = authenticatedPerson.getUserIdOrThrow();
     User user = userService.getById(userId).orElseThrow();
     return user.getMember()
         .map(member -> capitalService.getCapitalEvents(member.getId()))

@@ -2,11 +2,11 @@ package ee.tuleva.onboarding.banking.processor;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.INTEREST_RECEIVED;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.MANAGEMENT_FEE_REBATE;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
 import static ee.tuleva.onboarding.ledger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -244,10 +244,12 @@ class BankOperationProcessorTest {
     var amount = new BigDecimal("-209080.26");
     var remittanceInfo = "DLA0553690/EJAP GY/11704/17.864/Buy/ Euroclear, ABNCNL2AXXX, 14448";
     var entry = createBankOperationEntry("TRAD", amount, remittanceInfo);
-    var fundTicker =
-        ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker.BNP_JAPAN_ESG_FILTERED;
     var tradeInfo =
-        new TradeSettlementParser.TradeSettlementInfo(fundTicker, new BigDecimal("11704"));
+        new TradeSettlementParser.TradeSettlementInfo(
+            "LU1291102447",
+            "EJAP",
+            "BNP Paribas Easy MSCI Japan Min TE UCITS ETF",
+            new BigDecimal("11704"));
 
     when(tradeSettlementParser.parse(remittanceInfo)).thenReturn(java.util.Optional.of(tradeInfo));
 
@@ -294,11 +296,12 @@ class BankOperationProcessorTest {
     var remittanceInfo =
         "DLA0544429/BDWTEIA/31426.66/34.085995776/Buy/ BlackRock Asset Management Ireland Ltd";
     var entry = createBankOperationEntry("SUBS", amount, remittanceInfo);
-    var fundTicker =
-        ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker
-            .ISHARES_DEVELOPED_WORLD_ESG_SCREENED;
     var tradeInfo =
-        new TradeSettlementParser.TradeSettlementInfo(fundTicker, new BigDecimal("31426.66"));
+        new TradeSettlementParser.TradeSettlementInfo(
+            "IE00BFG1TM61",
+            "0P000152G5",
+            "iShares Developed World Screened Index Fund",
+            new BigDecimal("31426.66"));
 
     when(tradeSettlementParser.parse(remittanceInfo)).thenReturn(java.util.Optional.of(tradeInfo));
 
@@ -318,16 +321,46 @@ class BankOperationProcessorTest {
   }
 
   @Test
+  void processBankOperation_recordsZeroAmountSettlementWithoutNegatingUnits() {
+    var amount = BigDecimal.ZERO;
+    var remittanceInfo = "DLA0553690/EJAP GY/11704/17.864/Buy/ Euroclear, ABNCNL2AXXX, 14448";
+    var entry = createBankOperationEntry("TRAD", amount, remittanceInfo);
+    var tradeInfo =
+        new TradeSettlementParser.TradeSettlementInfo(
+            "LU1291102447",
+            "EJAP",
+            "BNP Paribas Easy MSCI Japan Min TE UCITS ETF",
+            new BigDecimal("11704"));
+
+    when(tradeSettlementParser.parse(remittanceInfo)).thenReturn(java.util.Optional.of(tradeInfo));
+
+    processor.processBankOperation(entry, FUND_INVESTMENT_ACCOUNT);
+
+    verify(fundBankLedger)
+        .recordTradeSettlement(
+            eq(TKF100),
+            eq(amount.setScale(2, java.math.RoundingMode.HALF_UP)),
+            eq(new BigDecimal("11704.00000")),
+            any(UUID.class),
+            eq(FUND_INVESTMENT_CASH_CLEARING),
+            eq("LU1291102447"),
+            eq("EJAP"),
+            eq("BNP Paribas Easy MSCI Japan Min TE UCITS ETF"),
+            eq(LocalDate.of(2025, 10, 1)));
+  }
+
+  @Test
   void processBankOperation_recordsSellSettlementWithNegativeUnits() {
     var amount = new BigDecimal("50000.00");
     var remittanceInfo =
         "DLA0553691/BDWTEIA/1450.25/34.477/Sell/ BlackRock Asset Management Ireland Ltd";
     var entry = createBankOperationEntry("SUBS", amount, remittanceInfo);
-    var fundTicker =
-        ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundTicker
-            .ISHARES_DEVELOPED_WORLD_ESG_SCREENED;
     var tradeInfo =
-        new TradeSettlementParser.TradeSettlementInfo(fundTicker, new BigDecimal("1450.25"));
+        new TradeSettlementParser.TradeSettlementInfo(
+            "IE00BFG1TM61",
+            "0P000152G5",
+            "iShares Developed World Screened Index Fund",
+            new BigDecimal("1450.25"));
 
     when(tradeSettlementParser.parse(remittanceInfo)).thenReturn(java.util.Optional.of(tradeInfo));
 

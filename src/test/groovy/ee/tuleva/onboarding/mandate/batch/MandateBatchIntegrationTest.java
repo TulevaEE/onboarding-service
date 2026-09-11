@@ -1,7 +1,8 @@
 package ee.tuleva.onboarding.mandate.batch;
 
 import static ee.tuleva.onboarding.auth.JwtTokenGenerator.getHeaders;
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture;
+import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson;
+import static ee.tuleva.onboarding.epis.ContactDetailsFixture.contactDetailsFixture;
 import static ee.tuleva.onboarding.mandate.MandateType.FUND_PENSION_OPENING;
 import static ee.tuleva.onboarding.mandate.MandateType.PARTIAL_WITHDRAWAL;
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.INITIALIZED;
@@ -16,12 +17,13 @@ import static org.mockito.Mockito.when;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
 import ee.tuleva.onboarding.aml.AmlAutoChecker;
+import ee.tuleva.onboarding.epis.CashFlowStatement;
 import ee.tuleva.onboarding.epis.EpisService;
-import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
 import ee.tuleva.onboarding.mandate.MandateFixture;
 import ee.tuleva.onboarding.mandate.MandateRepository;
 import ee.tuleva.onboarding.mandate.generic.MandateDto;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.user.UserRepository;
 import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityDto;
 import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityService;
 import java.util.List;
@@ -45,16 +47,23 @@ class MandateBatchIntegrationTest {
 
   @Autowired private MandateBatchRepository mandateBatchRepository;
   @Autowired private MandateRepository mandateRepository;
+  @Autowired private UserRepository userRepository;
 
   @MockitoBean private EpisService episService;
   @MockitoBean private AmlAutoChecker amlAutoChecker;
   @MockitoBean private WithdrawalEligibilityService withdrawalEligibilityService;
   @MockitoBean private OperationsNotificationService notificationService;
 
+  // The JWT authenticates samplePerson, and the auth filter creates that user on the server
+  // thread, which no test-side transaction can roll back. It outlives the test in the shared
+  // database and collides with every later test that inserts the same personal code.
   @AfterEach
   void cleanup() {
     mandateRepository.deleteAll();
     mandateBatchRepository.deleteAll();
+    userRepository
+        .findByPersonalCode(samplePerson().getPersonalCode())
+        .ifPresent(userRepository::delete);
   }
 
   void assertCorrectResponse(byte[] responseBody) throws Exception {

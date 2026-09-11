@@ -502,4 +502,61 @@ class R17ReportParserTest {
 
     assertThat(result.get("TUK75").switchingNetUnits()).isEqualByComparingTo("100.000");
   }
+
+  // "Summa (PF valitseja)" also contains "pf valitseja", so the old contains-match landed on
+  // whichever of the two columns the export put first. Moving the amount column left makes the
+  // operator type read "0.00" — no "pik" in it, so the PIK redemption would be booked as a
+  // switching outflow, and the row's units are the same either way so no cross-check can see it.
+  @Test
+  void classifiesPikByTheOperatorColumnEvenWhenTheAmountColumnComesFirst() {
+    String reorderedHeader =
+        "Väärtpaber;NAV;Toiming;Summa (PF valitseja);Hind;Osakud (teenustasuta);Osakud (teenustasuga);Summa;PF valitseja/PIK";
+    String csv =
+        """
+        Staatus;;;;Seisuga;;Valuuta;;
+        Netitud;;;;15.04.2026;;EUR;;
+        %s
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Tagasivõtt;0.00;0.80;40.000;60.000;80.00;PIK
+        """
+            .formatted(reorderedHeader);
+
+    Map<String, R17Result> result = parser.parse(csv, LOCK_DATE, EXEC_DATE);
+
+    assertThat(result.get("TUK75").pikUnits()).isEqualByComparingTo("100.000");
+    assertThat(result.get("TUK75").switchingNetUnits()).isEqualByComparingTo("0");
+  }
+
+  // An unreadable operator type would read as "not PIK", so the units would land in the switching
+  // total and the number would look finished while meaning something else.
+  @Test
+  void refusesARowWithNoOperatorColumnRatherThanCallingItSwitching() {
+    String headerWithoutOperator =
+        "Väärtpaber;NAV;Toiming;Hind;Osakud (teenustasuta);Osakud (teenustasuga);Summa";
+    String csv =
+        """
+        Staatus;;;;Seisuga;;Valuuta
+        Netitud;;;;15.04.2026;;EUR
+        %s
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Tagasivõtt;0.80;40.000;60.000;80.00
+        """
+            .formatted(headerWithoutOperator);
+
+    assertThatThrownBy(() -> parser.parse(csv, LOCK_DATE, EXEC_DATE))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void refusesARowWhoseOperatorCellIsBlankRatherThanCallingItSwitching() {
+    String csv =
+        """
+        Staatus;;;;Seisuga;;Valuuta;;
+        Netitud;;;;15.04.2026;;EUR;;
+        %s
+        Tuleva Maailma Aktsiate Pensionifond;0.80;Tagasivõtt;;0.80;40.000;60.000;80.00;0.00
+        """
+            .formatted(HEADER_ROW);
+
+    assertThatThrownBy(() -> parser.parse(csv, LOCK_DATE, EXEC_DATE))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
 }

@@ -1,12 +1,12 @@
 package ee.tuleva.onboarding.investment.check.limit;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.check.limit.BreachSeverity.OK;
 import static ee.tuleva.onboarding.investment.check.limit.CheckType.*;
 import static ee.tuleva.onboarding.investment.portfolio.Provider.INVESCO;
 import static ee.tuleva.onboarding.investment.portfolio.Provider.ISHARES;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
@@ -15,13 +15,13 @@ import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.portfolio.*;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionOrderRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionType;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -44,7 +45,7 @@ class LimitCheckServiceTest {
   @Mock ProviderLimitRepository providerLimitRepository;
   @Mock FundLimitRepository fundLimitRepository;
   @Mock ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
-  @Mock LimitCheckEventRepository limitCheckEventRepository;
+  @Mock LimitCheckEventWriter limitCheckEventWriter;
   @Mock PositionLimitChecker positionLimitChecker;
   @Mock ProviderLimitChecker providerLimitChecker;
   @Mock ReserveLimitChecker reserveLimitChecker;
@@ -151,14 +152,34 @@ class LimitCheckServiceTest {
     when(reserveLimitChecker.check(eq(fund), eq(new BigDecimal("80000")), eq(fundLimit)))
         .thenReturn(reserveBreach);
 
-    var results = service.runChecks();
+    var results = service.runChecks().results();
 
     var tuk75Result = results.stream().filter(r -> r.fund() == TUK75).findFirst().orElseThrow();
     assertThat(tuk75Result.positionBreaches()).containsExactly(positionBreach);
     assertThat(tuk75Result.providerBreaches()).containsExactly(providerBreach);
     assertThat(tuk75Result.reserveBreach()).isEqualTo(reserveBreach);
 
-    verify(limitCheckEventRepository, atLeast(4)).save(any(LimitCheckEvent.class));
+    verify(limitCheckEventWriter, atLeastOnce()).replaceEvents(any(), any(), anyList());
+  }
+
+  @Test
+  void deletesOnlyTheCheckTypesItRewrites() {
+    service = createService();
+    var today = LocalDate.of(2026, 3, 4);
+    var fund = TUK75;
+
+    when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, today))
+        .thenReturn(Optional.of(today));
+    when(navReportPositionProvider.getCalculatedAum(fund, today))
+        .thenReturn(Optional.of(new BigDecimal("1000000")));
+
+    service.runChecks();
+
+    var events = ArgumentCaptor.forClass(List.class);
+    verify(limitCheckEventWriter).replaceEvents(eq(fund), eq(today), events.capture());
+    assertThat(events.getValue())
+        .extracting(event -> ((LimitCheckEvent) event).getCheckType())
+        .containsExactly(POSITION, PROVIDER, RESERVE, FREE_CASH);
   }
 
   @Test
@@ -171,10 +192,10 @@ class LimitCheckServiceTest {
           .thenReturn(Optional.empty());
     }
 
-    var results = service.runChecks();
+    var results = service.runChecks().results();
 
     assertThat(results).isEmpty();
-    verify(limitCheckEventRepository, never()).save(any());
+    verify(limitCheckEventWriter, never()).replaceEvents(any(), any(), anyList());
   }
 
   @Test
@@ -235,9 +256,10 @@ class LimitCheckServiceTest {
           .thenReturn(Optional.empty());
     }
 
-    var results = service.runChecksAsOf(asOfDate);
+    var run = service.runChecksAsOf(asOfDate);
 
-    assertThat(results).isEmpty();
+    assertThat(run.results()).isEmpty();
+    assertThat(run.fundsNotChecked()).containsExactly(TulevaFund.values());
     for (var fund : TulevaFund.values()) {
       verify(fundPositionRepository).findLatestNavDateByFundAndAsOfDate(fund, asOfDate);
     }
@@ -252,9 +274,10 @@ class LimitCheckServiceTest {
     when(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, today))
         .thenReturn(Optional.empty());
 
-    var results = service.runChecksForFunds(funds);
+    var run = service.runChecksForFunds(funds);
 
-    assertThat(results).isEmpty();
+    assertThat(run.results()).isEmpty();
+    assertThat(run.fundsNotChecked()).containsExactly(TUK75);
     verify(fundPositionRepository).findLatestNavDateByFundAndAsOfDate(TUK75, today);
     // Should NOT check any other funds
     verify(fundPositionRepository, times(1)).findLatestNavDateByFundAndAsOfDate(any(), any());
@@ -525,7 +548,7 @@ class LimitCheckServiceTest {
         .isInstanceOf(LimitCheckPartialFailureException.class)
         .satisfies(
             e -> {
-              var partial = ((LimitCheckPartialFailureException) e).getPartialResults();
+              var partial = ((LimitCheckPartialFailureException) e).getPartialRun().results();
               assertThat(partial.stream().anyMatch(r -> r.fund() == TUK75)).isTrue();
               assertThat(partial.stream().noneMatch(r -> r.fund() == TUK00)).isTrue();
               assertThat(e.getSuppressed()).hasSize(1);
@@ -710,7 +733,7 @@ class LimitCheckServiceTest {
         providerLimitRepository,
         fundLimitRepository,
         modelPortfolioAllocationRepository,
-        limitCheckEventRepository,
+        limitCheckEventWriter,
         positionLimitChecker,
         providerLimitChecker,
         reserveLimitChecker,

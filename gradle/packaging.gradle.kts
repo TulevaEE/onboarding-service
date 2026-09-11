@@ -1,5 +1,5 @@
 tasks {
-    val unpack by registering(Copy::class) {
+    val unpack = register<Copy>("unpack") {
         dependsOn(named("bootJar"))
 
         from(zipTree(named("bootJar").get().outputs.files.singleFile)) { into("dependency") }

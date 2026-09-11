@@ -14,7 +14,7 @@ import static lombok.AccessLevel.PRIVATE;
 import static org.hibernate.type.SqlTypes.JSON;
 
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType;
-import ee.tuleva.onboarding.capital.transfer.iban.ValidIban;
+import ee.tuleva.onboarding.iban.ValidIban;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.member.Member;
@@ -126,8 +126,8 @@ public class CapitalTransferContract {
   }
 
   public CapitalTransferContract approvedAndNotified() {
-    requireState(CapitalTransferContractState.EXECUTED);
-    this.setState(CapitalTransferContractState.APPROVED_AND_NOTIFIED);
+    requireState(EXECUTED);
+    this.setState(APPROVED_AND_NOTIFIED);
     return this;
   }
 
@@ -136,7 +136,7 @@ public class CapitalTransferContract {
       throw new IllegalStateException(
           "Cannot cancel a contract that is already approved or executed.");
     }
-    setState(CapitalTransferContractState.CANCELLED);
+    setState(CANCELLED);
     return this;
   }
 

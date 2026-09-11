@@ -4,7 +4,15 @@ import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
+import ee.tuleva.onboarding.ledger.validation.AmountPrecisionValidator;
+import jakarta.validation.ConstraintValidatorContext;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import java.math.BigDecimal;
@@ -13,6 +21,7 @@ import org.junit.jupiter.api.Test;
 class AmountPrecisionValidatorTest {
 
   Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
+  AmountPrecisionValidator customValidator = new AmountPrecisionValidator();
 
   @Test
   void eurAmount_withTwoDecimalPlaces_isValid() {
@@ -103,6 +112,31 @@ class AmountPrecisionValidatorTest {
         LedgerEntry.builder().amount(new BigDecimal("10.1230")).assetType(FUND_UNIT).build();
 
     assertThat(validator.validate(entry)).isNotEmpty();
+  }
+
+  @Test
+  void nullEntry_isValid_returnsTrueWithoutBuildingViolation() {
+    var context = mock(ConstraintValidatorContext.class);
+
+    boolean isValid = customValidator.isValid(null, context);
+
+    assertThat(isValid).isTrue();
+    verifyNoInteractions(context);
+  }
+
+  @Test
+  void eurAmount_invalidPrecision_buildsRangeViolationMessage() {
+    var context = mock(ConstraintValidatorContext.class);
+    var violationBuilder = mock(ConstraintValidatorContext.ConstraintViolationBuilder.class);
+    when(context.buildConstraintViolationWithTemplate(anyString())).thenReturn(violationBuilder);
+    var entry = LedgerEntry.builder().amount(new BigDecimal("100.555")).assetType(EUR).build();
+
+    boolean isValid = customValidator.isValid(entry, context);
+
+    assertThat(isValid).isFalse();
+    verify(context).disableDefaultConstraintViolation();
+    verify(context)
+        .buildConstraintViolationWithTemplate(contains("requires between 0 and 2 decimal places"));
   }
 
   @Test

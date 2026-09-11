@@ -12,6 +12,8 @@ public final class BankMessageEvents {
 
   public record BankStatementReceived(UUID messageId, BankType bankType, BankStatement statement) {}
 
+  public record SavingsFundStatementReceived(BankStatement statement, BankAccount account) {}
+
   public record FetchSebCurrentDayTransactionsRequested(BankAccount account) {}
 
   public record FetchSebEodTransactionsRequested(BankAccount account) {}

@@ -1,12 +1,15 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.RETURN;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RETURNED;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_RECEIVED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RETURNED;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.payment.PaymentRequest;
 import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.savings.SavingFundPayment;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -26,7 +29,7 @@ public class PaymentReturningService {
     sendReturnPaymentOrder(payment);
     savingFundPaymentRepository.changeStatus(payment.getId(), RETURNED);
 
-    if (isUserCancelledPayment(payment)) {
+    if (wasCreditedToHolder(payment)) {
       reserveUserBalanceForReturn(payment);
     }
   }
@@ -47,12 +50,15 @@ public class PaymentReturningService {
     eventPublisher.publishEvent(new RequestPaymentEvent(paymentRequest, payment.getId(), RETURN));
   }
 
-  private boolean isUserCancelledPayment(SavingFundPayment payment) {
-    return payment.getPartyId() != null;
+  private boolean wasCreditedToHolder(SavingFundPayment payment) {
+    return payment.getPartyId() != null
+        && savingsFundLedger.hasLedgerEntry(payment.getId(), PAYMENT_RECEIVED);
   }
 
   private void reserveUserBalanceForReturn(SavingFundPayment payment) {
+    var partyId =
+        requireNonNull(payment.getPartyId(), "Missing partyId: paymentId=" + payment.getId());
     savingsFundLedger.reservePaymentForCancellation(
-        payment.getPartyId(), payment.getAmount(), payment.getId());
+        LedgerRefs.from(partyId), payment.getAmount(), payment.getId());
   }
 }

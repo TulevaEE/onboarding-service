@@ -107,6 +107,13 @@ class SecurityConfigurationSpec extends Specification {
     "/v1/listings" | userToken   | status().isForbidden()
   }
 
+  def "logging out returns 200"() {
+    expect:
+    mvc.perform(get("/v1/logout")
+        .header("Authorization", "Bearer " + userToken))
+        .andExpect(status().isOk())
+  }
+
   def "only members can reach hackathon registration"() {
     expect:
     mvc.perform(get(url)

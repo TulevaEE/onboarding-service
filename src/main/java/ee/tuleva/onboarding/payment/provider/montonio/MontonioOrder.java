@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.currency.Currency;
 import java.math.BigDecimal;
 import lombok.Builder;
 import lombok.Data;
+import org.jspecify.annotations.Nullable;
 
 @Builder
 public record MontonioOrder(
@@ -30,7 +31,7 @@ public record MontonioOrder(
     @Builder
     public static class MontonioPaymentMethodOptions {
       private final String preferredCountry = "EE";
-      private String preferredProvider;
+      private @Nullable String preferredProvider;
       private String preferredLocale;
       private String paymentDescription;
     }

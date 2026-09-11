@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "buyer message": {
+      "FNAME": "Mari",
+      "message": "Hi! I would like to buy 500 units of your membership capital, are you still interested in selling?"
+    }
+  }
+}

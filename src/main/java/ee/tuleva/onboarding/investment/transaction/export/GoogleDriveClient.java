@@ -1,9 +1,12 @@
 package ee.tuleva.onboarding.investment.transaction.export;
 
+import static java.util.Objects.requireNonNull;
+
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
@@ -22,19 +25,21 @@ class GoogleDriveClient {
 
   private final RestClient restClient;
 
-  String findFolder(String parentId, String name) {
+  @Nullable String findFolder(String parentId, String name) {
     var query =
         "mimeType='%s' and name='%s' and '%s' in parents and trashed=false"
             .formatted(FOLDER_MIME_TYPE, name, parentId);
 
     Map<String, Object> response =
-        restClient
-            .get()
-            .uri(
-                "/files?q={query}&fields=files(id,name)&supportsAllDrives=true&includeItemsFromAllDrives=true",
-                query)
-            .retrieve()
-            .body(MAP_TYPE);
+        requireNonNull(
+            restClient
+                .get()
+                .uri(
+                    "/files?q={query}&fields=files(id,name)&supportsAllDrives=true&includeItemsFromAllDrives=true",
+                    query)
+                .retrieve()
+                .body(MAP_TYPE),
+            "Empty Google Drive response: parentId=" + parentId + ", name=" + name);
 
     @SuppressWarnings("unchecked")
     var files = (List<Map<String, Object>>) response.get("files");
@@ -48,15 +53,20 @@ class GoogleDriveClient {
     var metadata = Map.of("name", name, "mimeType", FOLDER_MIME_TYPE, "parents", List.of(parentId));
 
     Map<String, Object> response =
-        restClient
-            .post()
-            .uri("/files?fields={fields}&supportsAllDrives=true", "id")
-            .contentType(MediaType.APPLICATION_JSON)
-            .body(metadata)
-            .retrieve()
-            .body(MAP_TYPE);
+        requireNonNull(
+            restClient
+                .post()
+                .uri("/files?fields={fields}&supportsAllDrives=true", "id")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(metadata)
+                .retrieve()
+                .body(MAP_TYPE),
+            "Empty Google Drive response: parentId=" + parentId + ", name=" + name);
 
-    return (String) response.get("id");
+    return (String)
+        requireNonNull(
+            response.get("id"),
+            "Missing folder id in response: parentId=" + parentId + ", name=" + name);
   }
 
   String getOrCreateFolder(String parentId, String name) {
@@ -76,17 +86,21 @@ class GoogleDriveClient {
         buildMultipartBody(boundary, metadataJson, content, contentTypeFor(fileName));
 
     Map<String, Object> response =
-        restClient
-            .post()
-            .uri(
-                "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields={fields}&supportsAllDrives=true",
-                "id,webViewLink")
-            .contentType(MediaType.parseMediaType("multipart/related; boundary=" + boundary))
-            .body(multipartBody)
-            .retrieve()
-            .body(MAP_TYPE);
+        requireNonNull(
+            restClient
+                .post()
+                .uri(
+                    "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields={fields}&supportsAllDrives=true",
+                    "id,webViewLink")
+                .contentType(MediaType.parseMediaType("multipart/related; boundary=" + boundary))
+                .body(multipartBody)
+                .retrieve()
+                .body(MAP_TYPE),
+            "Empty Google Drive response: fileName=" + fileName);
 
-    return (String) response.get("webViewLink");
+    return (String)
+        requireNonNull(
+            response.get("webViewLink"), "Missing webViewLink in response: fileName=" + fileName);
   }
 
   static String contentTypeFor(String fileName) {

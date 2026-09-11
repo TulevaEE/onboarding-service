@@ -3,22 +3,31 @@ package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 import static ee.tuleva.onboarding.comparisons.fundvalue.FundValueFixture.aFundValue;
 import static ee.tuleva.onboarding.comparisons.fundvalue.retrieval.MsciIndexRetriever.PROVIDER;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
+import tools.jackson.databind.json.JsonMapper;
 
 class MsciIndexRetrieverTest {
+
+  private final JsonMapper jsonMapper = JsonMapper.builder().build();
 
   @Test
   void fetchesMsciWorldIndexWithCorrectIndexCodeAndKey() {
     var restClientBuilder = RestClient.builder();
     var server = MockRestServiceServer.bindTo(restClientBuilder).build();
-    var retriever = new MsciIndexRetriever("MSCI_WORLD", "990100", restClientBuilder);
+    var retriever =
+        new MsciIndexRetriever(
+            "MSCI_WORLD", "990100", restClientBuilder, jsonMapper, Clock.systemUTC());
 
     var mockResponse =
         """
@@ -57,7 +66,9 @@ class MsciIndexRetrieverTest {
   void fetchesMsciAcwiIndexWithCorrectIndexCodeAndKey() {
     var restClientBuilder = RestClient.builder();
     var server = MockRestServiceServer.bindTo(restClientBuilder).build();
-    var retriever = new MsciIndexRetriever("MSCI_ACWI", "892400", restClientBuilder);
+    var retriever =
+        new MsciIndexRetriever(
+            "MSCI_ACWI", "892400", restClientBuilder, jsonMapper, Clock.systemUTC());
 
     var mockResponse =
         """
@@ -98,7 +109,9 @@ class MsciIndexRetrieverTest {
   void fetchesMsciEmIndexWithCorrectIndexCodeAndKey() {
     var restClientBuilder = RestClient.builder();
     var server = MockRestServiceServer.bindTo(restClientBuilder).build();
-    var retriever = new MsciIndexRetriever("MSCI_EM", "891800", restClientBuilder);
+    var retriever =
+        new MsciIndexRetriever(
+            "MSCI_EM", "891800", restClientBuilder, jsonMapper, Clock.systemUTC());
 
     var mockResponse =
         """
@@ -128,5 +141,45 @@ class MsciIndexRetrieverTest {
         java.util.List.of(aFundValue("MSCI_EM", LocalDate.of(2024, 1, 2), 50.0, PROVIDER));
     assertThat(result).usingRecursiveComparison().ignoringFields("updatedAt").isEqualTo(expected);
     server.verify();
+  }
+
+  @Test
+  void reportsIndexUnavailableWhenMsciAnswersWithAnHtmlErrorPage() {
+    var restClientBuilder = RestClient.builder();
+    var server = MockRestServiceServer.bindTo(restClientBuilder).build();
+    var retriever =
+        new MsciIndexRetriever(
+            "MSCI_ACWI", "892400", restClientBuilder, jsonMapper, Clock.systemUTC());
+
+    var nginxErrorPage =
+        """
+        <html>
+        <head><title>503 Service Temporarily Unavailable</title></head>
+        <body>
+        <center><h1>503 Service Temporarily Unavailable</h1></center>
+        <hr><center>nginx</center>
+        </body>
+        </html>
+        """;
+
+    server
+        .expect(requestTo(startsWith("https://app2.msci.com/")))
+        .andRespond(withSuccess(nginxErrorPage, MediaType.APPLICATION_JSON));
+
+    assertThatThrownBy(
+            () ->
+                retriever.retrieveValuesForRange(
+                    LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 10)))
+        .isInstanceOf(ComparisonIndexUnavailableException.class);
+    server.verify();
+  }
+
+  @Test
+  void treatsLevelsOlderThanFiveDaysAsStale() {
+    var retriever =
+        new MsciIndexRetriever(
+            "MSCI_ACWI", "892400", RestClient.builder(), jsonMapper, Clock.systemUTC());
+
+    assertThat(retriever.stalenessThreshold()).isEqualTo(Duration.ofDays(5));
   }
 }

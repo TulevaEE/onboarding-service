@@ -11,7 +11,7 @@ import org.hibernate.type.format.FormatMapperCreationContext;
 /**
  * Fixes Hibernate's {@link org.hibernate.type.format.jackson.JacksonJsonFormatMapper} which
  * serializes using the declared field type, losing subclass fields for polymorphic types like
- * {@link ee.tuleva.onboarding.epis.mandate.details.MandateDetails}.
+ * {@link ee.tuleva.onboarding.mandate.details.MandateDetails}.
  *
  * <p>This mapper uses {@code objectMapper.writeValueAsString(value)} (runtime type) instead of
  * {@code objectMapper.writerFor(declaredType).writeValueAsString(value)}.

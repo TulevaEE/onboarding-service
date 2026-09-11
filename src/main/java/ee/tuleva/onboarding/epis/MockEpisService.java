@@ -1,35 +1,34 @@
 package ee.tuleva.onboarding.epis;
 
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CASH;
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH;
+import static ee.tuleva.onboarding.applicationtype.ApplicationType.SELECTION;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.CASH;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.CONTRIBUTION_CASH;
 import static ee.tuleva.onboarding.epis.fund.FundDto.FundStatus.ACTIVE;
-import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.COMPLETE;
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.SELECTION;
+import static ee.tuleva.onboarding.mandate.application.ApplicationStatus.COMPLETE;
 import static java.time.LocalDate.parse;
 import static java.time.temporal.ChronoUnit.DAYS;
 
+import ee.tuleva.onboarding.auth.ServiceTokenProvider;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.epis.account.FundBalanceDto;
 import ee.tuleva.onboarding.epis.application.ApplicationResponse;
-import ee.tuleva.onboarding.epis.cashflows.CashFlow;
-import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
-import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.epis.fund.FundDto;
 import ee.tuleva.onboarding.epis.fund.NavDto;
-import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
-import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO;
-import ee.tuleva.onboarding.epis.mandate.MandateDto;
 import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto;
-import ee.tuleva.onboarding.secondpillarassets.SecondPillarAssets;
+import ee.tuleva.onboarding.mandate.LegacyMandateSubmission;
+import ee.tuleva.onboarding.mandate.MandateProcessResult;
+import ee.tuleva.onboarding.mandate.application.ApplicationSnapshot;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -39,19 +38,27 @@ import org.springframework.web.client.RestTemplate;
 @Profile("mock")
 public class MockEpisService extends EpisService {
 
-  public MockEpisService(RestTemplate restTemplate) {
-    super(restTemplate, restTemplate, null);
+  private final Clock clock;
+
+  public MockEpisService(
+      RestTemplate restTemplate, ServiceTokenProvider serviceTokenProvider, Clock clock) {
+    super(
+        restTemplate,
+        restTemplate,
+        new EpisRequestHeaders(serviceTokenProvider),
+        "http://mock-epis",
+        "http://mock-epis");
+    this.clock = clock;
   }
 
   @Override
-  public List<ApplicationDTO> getApplications(Person person) {
+  public List<ApplicationSnapshot> getApplications(Person person) {
     return List.of(
-        ApplicationDTO.builder()
+        ApplicationSnapshot.builder()
             .date(Instant.parse("2001-01-02T01:23:45Z"))
             .type(SELECTION)
             .status(COMPLETE)
             .id(123L)
-            .currency("EUR")
             .sourceFundIsin("source")
             .build());
   }
@@ -143,13 +150,13 @@ public class MockEpisService extends EpisService {
         .thirdPillarDistribution(List.of(new ContactDetails.Distribution("EE123", BigDecimal.ONE)))
         .isSecondPillarActive(true)
         .isThirdPillarActive(true)
-        .lastUpdateDate(Instant.now().minus(2, DAYS))
+        .lastUpdateDate(clock.instant().minus(2, DAYS))
         .build();
   }
 
   @Override
   public List<FundBalanceDto> getAccountStatement(
-      Person person, LocalDate fromDate, LocalDate toDate) {
+      Person person, @Nullable LocalDate fromDate, @Nullable LocalDate toDate) {
     return List.of(
         FundBalanceDto.builder()
             .isin("EE3600109435")
@@ -221,8 +228,8 @@ public class MockEpisService extends EpisService {
   }
 
   @Override
-  public ApplicationResponseDTO sendMandate(MandateDto mandate) {
-    return new ApplicationResponseDTO();
+  public MandateProcessResult sendMandate(LegacyMandateSubmission mandate) {
+    return MandateProcessResult.builder().outcomes(List.of()).build();
   }
 
   public ApplicationResponse sendCancellation(ApplicationResponse cancellation) {

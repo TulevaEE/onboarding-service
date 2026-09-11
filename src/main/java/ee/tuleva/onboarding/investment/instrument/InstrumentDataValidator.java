@@ -1,20 +1,28 @@
 package ee.tuleva.onboarding.investment.instrument;
 
+import static ee.tuleva.onboarding.investment.transaction.InstrumentType.FUND;
 import static java.math.BigDecimal.ONE;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.instrument.InstrumentReference;
+import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
+import ee.tuleva.onboarding.instrument.InstrumentReferenceService.UnresolvableBenchmarkProxyException;
+import ee.tuleva.onboarding.investment.calendar.Domicile;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
+import ee.tuleva.onboarding.investment.portfolio.PositionLimit;
 import ee.tuleva.onboarding.investment.portfolio.PositionLimitRepository;
+import ee.tuleva.onboarding.investment.portfolio.ProviderLimit;
 import ee.tuleva.onboarding.investment.portfolio.ProviderLimitRepository;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -57,6 +65,7 @@ public class InstrumentDataValidator {
     checkProviderLimits(fund, allocations, effectiveDate, findings);
     checkBenchmarkProxies(isins, findings);
     checkActive(isins, findings);
+    checkFundDomicile(allocations, findings);
     checkTickerConsistency(allocations, findings);
 
     if (effectiveDate.isAfter(LocalDate.now(clock))) {
@@ -110,7 +119,7 @@ public class InstrumentDataValidator {
       LocalDate effectiveDate,
       List<ValidationFinding> findings) {
     var limits = positionLimitRepository.findLatestByFundAsOf(fund, effectiveDate);
-    var limitIsins = limits.stream().map(l -> l.getIsin()).collect(Collectors.toSet());
+    var limitIsins = limits.stream().map(PositionLimit::getIsin).collect(Collectors.toSet());
 
     for (var isin : isins) {
       if (!limitIsins.contains(isin)) {
@@ -139,7 +148,7 @@ public class InstrumentDataValidator {
 
     var providerLimits = providerLimitRepository.findLatestByFundAsOf(fund, effectiveDate);
     var limitProviders =
-        providerLimits.stream().map(l -> l.getProvider().name()).collect(Collectors.toSet());
+        providerLimits.stream().map(ProviderLimit::providerName).collect(Collectors.toSet());
 
     for (var provider : providers) {
       if (!limitProviders.contains(provider)) {
@@ -152,19 +161,19 @@ public class InstrumentDataValidator {
 
   private void checkBenchmarkProxies(Set<String> isins, List<ValidationFinding> findings) {
     for (var isin : isins) {
-      var instrument = instrumentReferenceService.findByIsin(isin).orElse(null);
+      var instrument = activeInstrument(isin).orElse(null);
       if (instrument == null || instrument.getBenchmarkCategory() == null) {
         continue;
       }
-      var proxy =
-          instrumentReferenceService.resolveBenchmarkProxy(
-              instrument.getBenchmarkCategory(), instrument.isExchangeTraded());
-      if (proxy.isEmpty()) {
+      try {
+        instrumentReferenceService.resolveBenchmarkProxy(
+            instrument.getBenchmarkCategory(), instrument.isExchangeTraded());
+      } catch (UnresolvableBenchmarkProxyException e) {
         findings.add(
             new ValidationFinding(
-                Severity.WARNING,
-                "No benchmark proxy for category %s (ISIN %s) — TD BENCHMARK_MODEL will skip"
-                    .formatted(instrument.getBenchmarkCategory(), isin)));
+                Severity.FAIL,
+                "No benchmark proxy for category %s (ISIN %s) — TD BENCHMARK_MODEL will fail: %s"
+                    .formatted(instrument.getBenchmarkCategory(), isin, e.getMessage())));
       }
     }
   }
@@ -182,13 +191,35 @@ public class InstrumentDataValidator {
     }
   }
 
+  private void checkFundDomicile(
+      List<ModelPortfolioAllocation> allocations, List<ValidationFinding> findings) {
+    for (var allocation : allocations) {
+      if (allocation.getInstrumentType() != FUND || allocation.getIsin() == null) {
+        continue;
+      }
+      var instrument = activeInstrument(allocation.getIsin()).orElse(null);
+      if (instrument == null || Domicile.forCountryCode(instrument.getCountry()).isPresent()) {
+        continue;
+      }
+      findings.add(
+          new ValidationFinding(
+              Severity.FAIL,
+              "ISIN %s has no fund domicile in instrument_reference (country=%s) — its settlement date falls back to the provider's domicile, which is a guess"
+                  .formatted(allocation.getIsin(), instrument.getCountry())));
+    }
+  }
+
+  private Optional<InstrumentReference> activeInstrument(String isin) {
+    return instrumentReferenceService.findByIsin(isin).filter(InstrumentReference::isActive);
+  }
+
   private void checkTickerConsistency(
       List<ModelPortfolioAllocation> allocations, List<ValidationFinding> findings) {
     for (var allocation : allocations) {
       if (allocation.getIsin() == null || allocation.getTicker() == null) {
         continue;
       }
-      var instrument = instrumentReferenceService.findByIsin(allocation.getIsin()).orElse(null);
+      var instrument = activeInstrument(allocation.getIsin()).orElse(null);
       if (instrument != null
           && instrument.getYahooTicker() != null
           && !allocation.getTicker().equals(instrument.getYahooTicker())) {
@@ -207,7 +238,7 @@ public class InstrumentDataValidator {
   private void checkPriceHistory(Set<String> isins, List<ValidationFinding> findings) {
     var today = LocalDate.now(clock);
     for (var isin : isins) {
-      var instrument = instrumentReferenceService.findByIsin(isin).orElse(null);
+      var instrument = activeInstrument(isin).orElse(null);
       if (instrument == null) {
         continue;
       }
@@ -236,18 +267,14 @@ public class InstrumentDataValidator {
   }
 
   private boolean hasAnyPrice(InstrumentReference instrument, LocalDate date) {
-    return instrument
-            .getXetraStorageKey()
-            .flatMap(k -> fundValueProvider.getValueForDate(k, date))
-            .isPresent()
-        || instrument
-            .getEuronextParisStorageKey()
-            .flatMap(k -> fundValueProvider.getValueForDate(k, date))
-            .isPresent()
-        || (instrument.getEodhdTicker() != null
-            && fundValueProvider.getValueForDate(instrument.getEodhdTicker(), date).isPresent())
-        || (instrument.getYahooTicker() != null
-            && fundValueProvider.getValueForDate(instrument.getYahooTicker(), date).isPresent());
+    return hasPrice(instrument.getXetraStorageKey(), date)
+        || hasPrice(instrument.getEuronextParisStorageKey(), date)
+        || hasPrice(instrument.getEodhdStorageKey(), date)
+        || hasPrice(Optional.ofNullable(instrument.getYahooTicker()), date);
+  }
+
+  private boolean hasPrice(Optional<String> storageKey, LocalDate date) {
+    return storageKey.flatMap(key -> fundValueProvider.getValueForDate(key, date)).isPresent();
   }
 
   public record ValidationFinding(Severity severity, String message) {}

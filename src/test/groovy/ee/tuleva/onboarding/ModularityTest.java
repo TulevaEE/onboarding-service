@@ -1,9 +1,10 @@
 package ee.tuleva.onboarding;
 
+import static java.util.stream.Collectors.toSet;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Optional;
 import java.util.Set;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.springframework.modulith.core.ApplicationModule;
@@ -16,35 +17,49 @@ class ModularityTest {
       ApplicationModules.of(OnboardingServiceApplication.class);
 
   @Test
-  @Disabled
-  void detectModules() {
-    modules.forEach(System.out::println);
-  }
-
-  @Test
-  @Disabled("Enable after fixing module boundary violations")
   void verifyModuleStructure() {
     modules.verify();
   }
 
   @Test
-  void ledgerDoesNotDependOnDomainModules() {
-    // Ledger is core infrastructure - it should not depend on domain modules
-    var forbiddenDependencies = Set.of("investment", "savings");
+  void ledgerDependsOnNothingButTheTulevaFundVocabulary() {
+    // Ledger is core bookkeeping: it may only depend on dependency-free vocabulary.
+    var allowedDependencies = Set.of("tulevafund");
 
-    var ledgerModule =
-        modules.stream().filter(module -> moduleName(module).equals("ledger")).findFirst();
-
+    var ledgerModule = module("ledger");
     assertThat(ledgerModule).isPresent();
 
     var ledgerDependencies =
         ledgerModule.get().getDirectDependencies(modules).stream()
             .map(dep -> moduleName(dep.getTargetModule()))
-            .filter(forbiddenDependencies::contains)
+            .filter(name -> !allowedDependencies.contains(name))
+            .distinct()
             .toList();
 
     assertThat(ledgerDependencies)
-        .as("Ledger module should not depend on domain modules")
+        .as("Ledger must not gain outbound module dependencies")
+        .isEmpty();
+  }
+
+  @Test
+  void tulevaFundVocabularyDoesNotDependOnAnyOtherModule() {
+    var tulevaFundModule = module("tulevafund");
+    assertThat(tulevaFundModule).isPresent();
+
+    var everyOtherModule =
+        modules.stream()
+            .map(ModularityTest::moduleName)
+            .filter(name -> !name.equals("tulevafund"))
+            .collect(toSet());
+
+    var tulevaFundDependencies =
+        tulevaFundModule.get().getDirectDependencies(modules).stream()
+            .map(dep -> moduleName(dep.getTargetModule()))
+            .filter(everyOtherModule::contains)
+            .toList();
+
+    assertThat(tulevaFundDependencies)
+        .as("The TulevaFund vocabulary must stay dependency-free so every module can depend on it")
         .isEmpty();
   }
 
@@ -67,6 +82,51 @@ class ModularityTest {
     assertThat(modulesWithInvestmentDependency)
         .as("No module should depend on investment module")
         .isEmpty();
+  }
+
+  @Test
+  void instrumentIsSharedAndMayBeDependedOnByAnyModule() {
+    assertThat(module("instrument")).isPresent();
+
+    var dependentsOnInstrument =
+        modules.stream()
+            .filter(module -> !moduleName(module).equals("instrument"))
+            .filter(
+                module ->
+                    module.getDirectDependencies(modules).stream()
+                        .anyMatch(dep -> moduleName(dep.getTargetModule()).equals("instrument")))
+            .map(ModularityTest::moduleName)
+            .toList();
+
+    assertThat(dependentsOnInstrument)
+        .as("Instrument is a shared module with no allowed-dependent restriction")
+        .isNotEmpty();
+  }
+
+  @Test
+  void instrumentDoesNotDependOnAnyOtherModule() {
+    var instrumentModule = module("instrument");
+    assertThat(instrumentModule).isPresent();
+
+    var everyOtherModule =
+        modules.stream()
+            .map(ModularityTest::moduleName)
+            .filter(name -> !name.equals("instrument"))
+            .collect(toSet());
+
+    var instrumentDependencies =
+        instrumentModule.get().getDirectDependencies(modules).stream()
+            .map(dep -> moduleName(dep.getTargetModule()))
+            .filter(everyOtherModule::contains)
+            .toList();
+
+    assertThat(instrumentDependencies)
+        .as("Instrument must stay dependency-free so every module can depend on it")
+        .isEmpty();
+  }
+
+  private Optional<ApplicationModule> module(String name) {
+    return modules.stream().filter(module -> moduleName(module).equals(name)).findFirst();
   }
 
   private static String moduleName(ApplicationModule module) {

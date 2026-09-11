@@ -127,6 +127,8 @@ class OCSPUtilsSpec extends Specification {
         then:
         response.getCertificate() == selfCert
         response.getOcspServer() == "http://issuer.ee/ocsp"
+        response.getOcspRequest() != null
+        response.getOcspRequest().getRequestList().length == 1
     }
 
     def "Test if certificate malformed upon OCSPRequest and generates exception"() {

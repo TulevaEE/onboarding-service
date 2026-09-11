@@ -1,13 +1,13 @@
 package ee.tuleva.onboarding.investment.epis.parser;
 
-import static ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser.findDate;
 import static ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser.findValue;
-import static ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser.parseNumber;
+import static ee.tuleva.onboarding.investment.epis.parser.EpisDates.findDate;
+import static ee.tuleva.onboarding.investment.epis.parser.EpisNumbers.parseNumber;
 import static java.math.BigDecimal.ZERO;
 import static java.util.Objects.requireNonNullElse;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.epis.R17Result;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
@@ -37,37 +37,7 @@ public class R17ReportParser {
 
     Map<String, UnitAccumulator> accumulators = new LinkedHashMap<>();
     for (Map<String, String> row : parsed.rows()) {
-      String fundRaw = trimmed(findValue(row, "väärtpaber", "vaartpaber"));
-      String toiming = lowerCase(findValue(row, "toiming"));
-      if (fundRaw.isEmpty() || toiming.isEmpty()) {
-        continue;
-      }
-
-      String pfType = lowerCase(findValue(row, "pf valitseja", "pfvalitseja"));
-      BigDecimal units = requiredUnits(row, fundRaw, toiming).abs();
-      if (units.signum() == 0) {
-        continue;
-      }
-      Optional<TulevaFund> fund = FundResolver.resolve(fundRaw);
-      if (fund.isEmpty()) {
-        continue;
-      }
-      validateOurRow(row, fundRaw, toiming, units);
-
-      UnitAccumulator accumulator =
-          accumulators.computeIfAbsent(fund.get().getCode(), code -> new UnitAccumulator());
-
-      boolean isTagasivott = toiming.contains("tagasivõtt") || toiming.contains("tagasivott");
-      boolean isValjalase = toiming.contains("väljalase") || toiming.contains("valjalase");
-      boolean isPik = pfType.contains("pik");
-
-      if (isTagasivott && isPik) {
-        accumulator.pikUnits = accumulator.pikUnits.add(units);
-      } else if (isValjalase) {
-        accumulator.netUnits = accumulator.netUnits.add(units);
-      } else if (isTagasivott) {
-        accumulator.netUnits = accumulator.netUnits.subtract(units);
-      }
+      RowProcessor.processRow(row, accumulators);
     }
 
     Map<String, R17Result> results = new LinkedHashMap<>();
@@ -187,6 +157,15 @@ public class R17ReportParser {
     return requireNonNullElse(feeBearingUnits, ZERO).add(requireNonNullElse(feeFreeUnits, ZERO));
   }
 
+  private static String requiredOperatorType(Map<String, String> row, String fund, String toiming) {
+    String operatorType = lowerCase(findValue(row, "pf valitseja/pik"));
+    if (operatorType.isEmpty()) {
+      throw new IllegalArgumentException(
+          "R17 operator column missing or blank: fund=" + fund + ", toiming=" + toiming);
+    }
+    return operatorType;
+  }
+
   private static String trimmed(@Nullable String value) {
     return value == null ? "" : value.trim();
   }
@@ -198,5 +177,47 @@ public class R17ReportParser {
   private static final class UnitAccumulator {
     private BigDecimal pikUnits = ZERO;
     private BigDecimal netUnits = ZERO;
+  }
+
+  private static final class RowProcessor {
+
+    private static void processRow(
+        Map<String, String> row, Map<String, UnitAccumulator> accumulators) {
+      String fundRaw = trimmed(findValue(row, "väärtpaber", "vaartpaber"));
+      String toiming = lowerCase(findValue(row, "toiming"));
+      if (fundRaw.isEmpty() || toiming.isEmpty()) {
+        return;
+      }
+
+      String operatorType = requiredOperatorType(row, fundRaw, toiming);
+      BigDecimal units = requiredUnits(row, fundRaw, toiming).abs();
+      if (units.signum() == 0) {
+        return;
+      }
+      Optional<TulevaFund> fund = FundResolver.resolve(fundRaw);
+      if (fund.isEmpty()) {
+        return;
+      }
+      validateOurRow(row, fundRaw, toiming, units);
+
+      UnitAccumulator accumulator =
+          accumulators.computeIfAbsent(fund.get().getCode(), code -> new UnitAccumulator());
+      applyToiming(accumulator, toiming, operatorType, units);
+    }
+
+    private static void applyToiming(
+        UnitAccumulator accumulator, String toiming, String operatorType, BigDecimal units) {
+      boolean isTagasivott = toiming.contains("tagasivõtt") || toiming.contains("tagasivott");
+      boolean isValjalase = toiming.contains("väljalase") || toiming.contains("valjalase");
+      boolean isPik = operatorType.contains("pik");
+
+      if (isTagasivott && isPik) {
+        accumulator.pikUnits = accumulator.pikUnits.add(units);
+      } else if (isValjalase) {
+        accumulator.netUnits = accumulator.netUnits.add(units);
+      } else if (isTagasivott) {
+        accumulator.netUnits = accumulator.netUnits.subtract(units);
+      }
+    }
   }
 }

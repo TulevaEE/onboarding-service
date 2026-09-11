@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.epis.parser;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Optional;

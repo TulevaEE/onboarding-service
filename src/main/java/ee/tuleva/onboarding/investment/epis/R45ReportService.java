@@ -2,12 +2,11 @@ package ee.tuleva.onboarding.investment.epis;
 
 import static ee.tuleva.onboarding.investment.epis.SummaryData.dates;
 import static ee.tuleva.onboarding.investment.epis.SummaryData.number;
-import static ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser.findDate;
 import static ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser.findValue;
+import static ee.tuleva.onboarding.investment.epis.parser.EpisDates.findDate;
 import static ee.tuleva.onboarding.investment.report.ReportType.R45;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.epis.parser.EpisCsvParser;
 import ee.tuleva.onboarding.investment.epis.parser.R45ParseResult;
 import ee.tuleva.onboarding.investment.epis.parser.R45ReportParser;
@@ -16,6 +15,7 @@ import ee.tuleva.onboarding.investment.epis.parser.R45UnvaluedRow;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportRepository;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;

@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.auth.role.RoleType.*;
 import static java.time.temporal.ChronoUnit.HOURS;
 import static java.time.temporal.ChronoUnit.MINUTES;
 
+import ee.tuleva.onboarding.auth.ServiceTokenProvider;
 import ee.tuleva.onboarding.auth.partner.CompositeJwtParser;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.Person;
@@ -29,10 +30,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Component;
+import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
 
 @Component
-public class JwtTokenUtil {
+public class JwtTokenUtil implements ServiceTokenProvider {
 
   private static final JsonMapper JSON_MAPPER = JsonMapper.builder().build();
 
@@ -79,8 +81,8 @@ public class JwtTokenUtil {
   public Person getPersonFromToken(String token) {
     final var claims = getAllClaimsFromToken(token);
     final var personalCode = claims.getSubject();
-    final String firstName = FIRST_NAME.fromClaims(claims);
-    final String lastName = LAST_NAME.fromClaims(claims);
+    final String firstName = FIRST_NAME.stringFrom(claims);
+    final String lastName = LAST_NAME.stringFrom(claims);
     return PersonImpl.builder()
         .personalCode(personalCode)
         .firstName(firstName)
@@ -129,6 +131,7 @@ public class JwtTokenUtil {
         ROLE.value, JSON_MAPPER.convertValue(person.getRole(), Map.class));
   }
 
+  @Override
   public String generateServiceToken() {
     return Jwts.builder()
         .claim(TOKEN_TYPE.value, ACCESS)
@@ -142,24 +145,26 @@ public class JwtTokenUtil {
 
   public Role getRoleFromToken(String jwtToken) {
     Claims claims = getAllClaimsFromToken(jwtToken);
-    Map<String, Object> roleMap = ROLE.fromClaims(claims);
-    return JSON_MAPPER.convertValue(roleMap, Role.class);
+    return JSON_MAPPER.convertValue(ROLE.rawFrom(claims), Role.class);
   }
 
   public Map<String, String> getAttributesFromToken(String jwtToken) {
-    return ATTRIBUTES.fromClaims(getAllClaimsFromToken(jwtToken));
+    return JSON_MAPPER.convertValue(
+        ATTRIBUTES.rawFrom(getAllClaimsFromToken(jwtToken)), new TypeReference<>() {});
   }
 
   public List<String> getAuthorities(String jwtToken) {
     if (HANDOVER.equals(getTypeFromToken(jwtToken))) {
       return List.of(PARTNER);
     }
-    List<String> authorities = AUTHORITIES.fromClaims(getAllClaimsFromToken(jwtToken));
+    List<String> authorities =
+        JSON_MAPPER.convertValue(
+            AUTHORITIES.rawFrom(getAllClaimsFromToken(jwtToken)), new TypeReference<>() {});
     return authorities != null ? authorities : List.of();
   }
 
   public TokenType getTypeFromToken(String jwtToken) {
-    return TokenType.valueOf(TOKEN_TYPE.fromClaims(getAllClaimsFromToken(jwtToken)));
+    return TokenType.valueOf(TOKEN_TYPE.stringFrom(getAllClaimsFromToken(jwtToken)));
   }
 
   public static Map<String, String> getExpiredTokenErrorResponse() {

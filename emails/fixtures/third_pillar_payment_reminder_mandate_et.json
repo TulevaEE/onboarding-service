@@ -1,0 +1,11 @@
+{
+  "variants": {
+    "meeldetuletus": {
+      "FNAME": "Mari"
+    },
+    "koos osakute vahetusega": {
+      "FNAME": "Mari",
+      "hasFundTransfer": true
+    }
+  }
+}

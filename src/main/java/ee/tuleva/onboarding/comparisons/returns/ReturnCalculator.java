@@ -142,7 +142,7 @@ public class ReturnCalculator {
    *
    * @return adjusted lookup date, or null to use the default (transaction date)
    */
-  private LocalDate beginningBalanceIndexDate(
+  private @Nullable LocalDate beginningBalanceIndexDate(
       AccountOverview accountOverview, String comparisonFund) {
     if (!UnionStockIndexRetriever.KEY.equals(comparisonFund)) {
       return null;

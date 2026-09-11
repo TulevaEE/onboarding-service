@@ -1,0 +1,19 @@
+ee.tuleva.onboarding.savings.fund.nav.NavReportCsvGeneratorSnapshotTest.generatesCsvForEmptyRowList=[
+﻿nav_date,fund_code,account_type,account_name,account_id,quantity,market_price,currency,market_value
+
+]
+
+
+ee.tuleva.onboarding.savings.fund.nav.NavReportCsvGeneratorSnapshotTest.generatesCsvForRichNavReportWithZeroNegativeAndNullValues=[
+﻿nav_date,fund_code,account_type,account_name,account_id,quantity,market_price,currency,market_value
+2026-03-13,TKF100,SECURITY,iShares Developed World Screened Index Fund,IE00BFG1TM61,38755.690,33.6226,EUR,1303067.06
+2026-03-13,TKF100,SECURITY,Amundi Prime Global UCITS ETF,LU1931975079,0.000,28.4100,EUR,0.00
+2026-03-13,TKF100,CASH,Cash account in SEB Pank,EE0000003283,370794.18,1.00,EUR,370794.18
+2026-03-13,TKF100,RECEIVABLES,Receivables of outstanding units,IE00BFG1TM61,0.00,1.00,EUR,0.00
+2026-03-13,TKF100,LIABILITY,Total payables of unsettled transactions,IE00BFG1TM61,-1899.34,1.00,EUR,-1899.34
+2026-03-13,TKF100,LIABILITY_FEE,Management fee,IE00BFG1TM61,-850.00,1.00,EUR,-850.00
+2026-03-13,TKF100,UNITS,Total outstanding units:,,7050814.517,0.9792,EUR,6903990.38
+2026-03-13,TKF100,NAV,Net Asset Value,,1.00,0.9792,EUR,0.9792
+2026-03-13,TKF100,ADJUSTMENT,Manual NAV adjustment pending review,,,,EUR,
+
+]

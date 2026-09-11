@@ -1,13 +1,14 @@
 package ee.tuleva.onboarding.notification.email.mailchimp;
 
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailStatus.SENT;
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.MAILCHIMP_CAMPAIGN;
+import static ee.tuleva.onboarding.notification.email.EmailStatus.SENT;
+import static ee.tuleva.onboarding.notification.email.EmailType.MAILCHIMP_CAMPAIGN;
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.event.EventLog;
 import ee.tuleva.onboarding.event.EventLogRepository;
-import ee.tuleva.onboarding.mandate.email.persistence.Email;
-import ee.tuleva.onboarding.mandate.email.persistence.EmailRepository;
+import ee.tuleva.onboarding.notification.email.Email;
+import ee.tuleva.onboarding.notification.email.persistence.EmailRepository;
 import ee.tuleva.onboarding.notification.email.provider.MailchimpService;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
@@ -15,6 +16,7 @@ import io.github.erkoristhein.mailchimp.marketing.model.Campaign;
 import io.github.erkoristhein.mailchimp.marketing.model.CampaignReport;
 import io.github.erkoristhein.mailchimp.marketing.model.MemberActivity2;
 import io.github.erkoristhein.mailchimp.marketing.model.SentToRecipient;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.HashMap;
@@ -25,6 +27,7 @@ import java.util.Optional;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,6 +42,7 @@ public class MailchimpCampaignSyncService {
   private final UserRepository userRepository;
   private final CrmMailchimpRepository crmMailchimpRepository;
   private final MailchimpCampaignMetricsService metricsService;
+  private final Clock clock;
 
   @Transactional
   public void syncLatestCampaign() {
@@ -50,8 +54,13 @@ public class MailchimpCampaignSyncService {
       return;
     }
 
-    String campaignId = campaign.getId();
-    String campaignName = campaign.getSettings().getTitle();
+    String campaignId =
+        requireNonNull(campaign.getId(), "Missing campaign id in Mailchimp response");
+    var settings =
+        requireNonNull(
+            campaign.getSettings(), "Missing campaign settings: campaignId=" + campaignId);
+    String campaignName =
+        requireNonNull(settings.getTitle(), "Missing campaign title: campaignId=" + campaignId);
     String mailchimpCampaign = campaignName + " " + campaignId;
 
     log.info(
@@ -65,35 +74,25 @@ public class MailchimpCampaignSyncService {
       return;
     }
 
-    syncRecipients(campaign, mailchimpCampaign);
+    syncRecipients(campaign, campaignId, mailchimpCampaign);
     syncActivity(campaignId, mailchimpCampaign);
     verifyMetrics(campaignId, mailchimpCampaign);
 
     log.info("Successfully synced campaign: mailchimpCampaign={}", mailchimpCampaign);
   }
 
-  private void syncRecipients(Campaign campaign, String mailchimpCampaign) {
+  private void syncRecipients(Campaign campaign, String campaignId, String mailchimpCampaign) {
     log.info("Syncing recipients for campaign: mailchimpCampaign={}", mailchimpCampaign);
 
     Instant sendTime = toInstant(campaign.getSendTime());
 
     mailchimpService.processCampaignRecipients(
-        campaign.getId(),
+        campaignId,
         recipientsPage -> {
           List<Email> emails =
               recipientsPage.stream()
                   .map(recipient -> buildEmailFromRecipient(recipient, mailchimpCampaign, sendTime))
-                  .filter(
-                      email -> {
-                        if (email.getPersonalCode() == null) {
-                          log.error(
-                              "Skipping email without personal code: mandrillMessageId={}, mailchimpCampaign={}",
-                              email.getMandrillMessageId(),
-                              mailchimpCampaign);
-                          return false;
-                        }
-                        return true;
-                      })
+                  .flatMap(Optional::stream)
                   .collect(toList());
 
           if (!emails.isEmpty()) {
@@ -106,23 +105,34 @@ public class MailchimpCampaignSyncService {
         });
   }
 
-  private Email buildEmailFromRecipient(
+  private Optional<Email> buildEmailFromRecipient(
       SentToRecipient recipient, String mailchimpCampaign, Instant sendTime) {
     String emailAddress = recipient.getEmailAddress();
     String personalCode = findPersonalCodeByEmail(emailAddress);
+    if (personalCode == null) {
+      log.error(
+          "Skipping email without personal code: mandrillMessageId={}, mailchimpCampaign={}",
+          recipient.getEmailId(),
+          mailchimpCampaign);
+      return Optional.empty();
+    }
 
-    return Email.builder()
-        .personalCode(personalCode)
-        .type(MAILCHIMP_CAMPAIGN)
-        .status(SENT)
-        .mailchimpCampaign(mailchimpCampaign)
-        .mandrillMessageId(recipient.getEmailId())
-        .createdDate(sendTime)
-        .updatedDate(sendTime)
-        .build();
+    return Optional.of(
+        Email.builder()
+            .personalCode(personalCode)
+            .type(MAILCHIMP_CAMPAIGN)
+            .status(SENT)
+            .mailchimpCampaign(mailchimpCampaign)
+            .mandrillMessageId(recipient.getEmailId())
+            .createdDate(sendTime)
+            .updatedDate(sendTime)
+            .build());
   }
 
-  private String findPersonalCodeByEmail(String emailAddress) {
+  private @Nullable String findPersonalCodeByEmail(@Nullable String emailAddress) {
+    if (emailAddress == null) {
+      return null;
+    }
     return userRepository
         .findByEmail(emailAddress)
         .map(User::getPersonalCode)
@@ -182,7 +192,8 @@ public class MailchimpCampaignSyncService {
         });
   }
 
-  private EventLog buildEventLog(MemberActivity2 activity, Email email, String mailchimpCampaign) {
+  private @Nullable EventLog buildEventLog(
+      MemberActivity2 activity, Email email, String mailchimpCampaign) {
     String action = activity.getAction();
     if (action == null) {
       return null;
@@ -194,7 +205,7 @@ public class MailchimpCampaignSyncService {
       return null;
     }
 
-    Map<String, Object> eventData = new HashMap<>();
+    Map<String, @Nullable Object> eventData = new HashMap<>();
     eventData.put("mandrillMessageId", email.getMandrillMessageId());
     eventData.put("emailType", MAILCHIMP_CAMPAIGN.name());
     eventData.put("mailchimpCampaign", mailchimpCampaign);
@@ -211,7 +222,7 @@ public class MailchimpCampaignSyncService {
         .build();
   }
 
-  private String mapActivityToEventType(String action) {
+  private @Nullable String mapActivityToEventType(String action) {
     return switch (action.toUpperCase()) {
       case "OPEN", "CLICK" -> action.toUpperCase();
       case "UNSUB", "UNSUBSCRIBE" -> "UNSUBSCRIBE";
@@ -219,8 +230,8 @@ public class MailchimpCampaignSyncService {
     };
   }
 
-  private Instant toInstant(OffsetDateTime offsetDateTime) {
-    return offsetDateTime != null ? offsetDateTime.toInstant() : Instant.now();
+  private Instant toInstant(@Nullable OffsetDateTime offsetDateTime) {
+    return offsetDateTime != null ? offsetDateTime.toInstant() : clock.instant();
   }
 
   private void verifyMetrics(String campaignId, String mailchimpCampaign) {
@@ -278,7 +289,7 @@ public class MailchimpCampaignSyncService {
     }
   }
 
-  private boolean equals(Integer mailchimpValue, int dbValue) {
+  private boolean equals(@Nullable Integer mailchimpValue, int dbValue) {
     return mailchimpValue != null && mailchimpValue == dbValue;
   }
 }

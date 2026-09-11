@@ -1,8 +1,9 @@
 package ee.tuleva.onboarding.investment.portfolio;
 
+import static ee.tuleva.onboarding.time.ClockHolder.clock;
 import static jakarta.persistence.EnumType.STRING;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Enumerated;
@@ -60,6 +61,6 @@ public class PositionLimit {
 
   @PrePersist
   protected void onCreate() {
-    createdAt = Instant.now();
+    createdAt = clock().instant();
   }
 }

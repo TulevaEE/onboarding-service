@@ -2,11 +2,14 @@ package ee.tuleva.onboarding.kyb.survey;
 
 import static ee.tuleva.onboarding.event.TrackableEventType.SAVINGS_FUND_ONBOARDING_STATUS_CHANGE;
 import static ee.tuleva.onboarding.kyb.KybCheckType.*;
+import static ee.tuleva.onboarding.kyb.KybScreeningTrigger.SUBMISSION;
+import static ee.tuleva.onboarding.kyb.survey.BlockedReason.NOT_BOARD_MEMBER;
+import static ee.tuleva.onboarding.kyb.survey.BlockedReason.ONBOARDING_PENDING;
 import static ee.tuleva.onboarding.kyb.survey.KybSurveyResponseItem.CompanyIncomeSource.*;
-import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -17,19 +20,15 @@ import ee.tuleva.onboarding.ariregister.CompanyDetail;
 import ee.tuleva.onboarding.ariregister.CompanyRelationship;
 import ee.tuleva.onboarding.event.TrackableSystemEvent;
 import ee.tuleva.onboarding.kyb.KybCheck;
-import ee.tuleva.onboarding.kyb.KybCheckType;
 import ee.tuleva.onboarding.kyb.LegalEntityScreener;
 import ee.tuleva.onboarding.kyb.LegalEntityScreener.ValidationResult;
 import ee.tuleva.onboarding.kyb.PersonalCode;
 import ee.tuleva.onboarding.kyb.SelfCertification;
 import ee.tuleva.onboarding.kyb.survey.KybSurveyResponseItem.CompanyIncomeSourceItem;
 import ee.tuleva.onboarding.kyb.survey.KybSurveyResponseItem.CompanySourceOfIncome;
-import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
-import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -46,7 +45,7 @@ class KybSurveyServiceTest {
   @Mock private LegalEntityScreener legalEntityScreener;
   @Mock private KybSurveyResponseMapper kybSurveyResponseMapper;
   @Mock private KybSurveyRepository kybSurveyRepository;
-  @Mock private SavingsFundOnboardingRepository savingsFundOnboardingRepository;
+  @Mock private OnboardingGate onboardingGate;
   @Mock private ApplicationEventPublisher eventPublisher;
 
   private KybSurveyService service;
@@ -58,7 +57,7 @@ class KybSurveyServiceTest {
             legalEntityScreener,
             kybSurveyResponseMapper,
             kybSurveyRepository,
-            savingsFundOnboardingRepository,
+            onboardingGate,
             eventPublisher);
   }
 
@@ -125,236 +124,6 @@ class KybSurveyServiceTest {
     assertThat(result.relatedPersons().errors())
         .containsExactly(
             new ValidationError("COMPANY_STRUCTURE", "Ettevõtte omandistruktuur ei ole toetatud"));
-  }
-
-  @Test
-  void initialValidation_codesOtherRelatedPersonsKycWithPersons() {
-    stubInitialValidation(
-        boardMemberWithTwoOwners(),
-        sampleDetail(),
-        List.of(
-            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
-            new KybCheck(
-                RELATED_PERSONS_KYC,
-                false,
-                Map.of(
-                    "incompletePersons",
-                    List.of(
-                        Map.of("personalCode", "38501010003", "kycStatus", "PENDING"),
-                        Map.of("personalCode", "38501010004", "kycStatus", "UNKNOWN"))))));
-
-    var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
-
-    assertThat(result.relatedPersons().errors())
-        .containsExactly(
-            new ValidationError(
-                "OTHER_RELATED_PERSONS_KYC",
-                "Isikusamasuse tuvastamine on lõpetamata",
-                List.of(
-                    new RelatedPersonData("38501010003", "Mari Maasikas"),
-                    new RelatedPersonData("38501010004", "Peeter Kask"))));
-  }
-
-  @Test
-  void initialValidation_codesOtherRelatedPersonsKycWithoutNameWhenPersonNotInRelatedPersons() {
-    stubInitialValidation(
-        sampleRelationships(),
-        sampleDetail(),
-        List.of(
-            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
-            new KybCheck(
-                RELATED_PERSONS_KYC,
-                false,
-                Map.of(
-                    "incompletePersons",
-                    List.of(Map.of("personalCode", "38501010005", "kycStatus", "PENDING"))))));
-
-    var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
-
-    assertThat(result.relatedPersons().errors())
-        .containsExactly(
-            new ValidationError(
-                "OTHER_RELATED_PERSONS_KYC",
-                "Isikusamasuse tuvastamine on lõpetamata",
-                List.of(new RelatedPersonData("38501010005", null))));
-  }
-
-  @Test
-  void initialValidation_codesUserKycWithoutNameWhenOwnKycIncomplete() {
-    stubInitialValidation(
-        sampleRelationships(),
-        sampleDetail(),
-        List.of(
-            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
-            new KybCheck(
-                RELATED_PERSONS_KYC,
-                false,
-                Map.of(
-                    "incompletePersons",
-                    List.of(Map.of("personalCode", PERSONAL_CODE, "kycStatus", "PENDING"))))));
-
-    var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
-
-    assertThat(result.relatedPersons().errors())
-        .containsExactly(
-            new ValidationError("USER_KYC", "Sinu isikusamasuse tuvastamine on lõpetamata"));
-  }
-
-  @Test
-  void initialValidation_splitsUserAndOtherKycIntoSeparateErrors() {
-    stubInitialValidation(
-        boardMemberWithTwoOwners(),
-        sampleDetail(),
-        List.of(
-            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
-            new KybCheck(
-                RELATED_PERSONS_KYC,
-                false,
-                Map.of(
-                    "incompletePersons",
-                    List.of(
-                        Map.of("personalCode", PERSONAL_CODE, "kycStatus", "PENDING"),
-                        Map.of("personalCode", "38501010003", "kycStatus", "PENDING"),
-                        Map.of("personalCode", "38501010004", "kycStatus", "UNKNOWN"))))));
-
-    var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
-
-    assertThat(result.relatedPersons().errors())
-        .containsExactly(
-            new ValidationError("USER_KYC", "Sinu isikusamasuse tuvastamine on lõpetamata"),
-            new ValidationError(
-                "OTHER_RELATED_PERSONS_KYC",
-                "Isikusamasuse tuvastamine on lõpetamata",
-                List.of(
-                    new RelatedPersonData("38501010003", "Mari Maasikas"),
-                    new RelatedPersonData("38501010004", "Peeter Kask"))));
-  }
-
-  private List<CompanyRelationship> boardMemberWithTwoOwners() {
-    return List.of(
-        new CompanyRelationship(
-            "F",
-            "JUHL",
-            "Juhatuse liige",
-            "Jaan",
-            "Tamm",
-            PERSONAL_CODE,
-            null,
-            null,
-            null,
-            new BigDecimal("34.00"),
-            null,
-            "EST"),
-        new CompanyRelationship(
-            "F",
-            "OSANIK",
-            "Osanik",
-            "Mari",
-            "Maasikas",
-            "38501010003",
-            null,
-            null,
-            null,
-            new BigDecimal("33.00"),
-            null,
-            "EST"),
-        new CompanyRelationship(
-            "F",
-            "OSANIK",
-            "Osanik",
-            "Peeter",
-            "Kask",
-            "38501010004",
-            null,
-            null,
-            null,
-            new BigDecimal("33.00"),
-            null,
-            "EST"));
-  }
-
-  @Test
-  void initialValidation_collapsesSanctionAndPepToIndistinguishableNameError() {
-    var sanctionErrors = nameErrorsFor(COMPANY_SANCTION);
-    var pepErrors = nameErrorsFor(COMPANY_PEP);
-
-    assertThat(sanctionErrors).isEqualTo(pepErrors);
-    assertThat(sanctionErrors)
-        .containsExactly(
-            new ValidationError("UNSERVICEABLE", "Ettevõtet ei ole võimalik teenindada"));
-  }
-
-  private List<ValidationError> nameErrorsFor(KybCheckType type) {
-    stubInitialValidation(
-        sampleRelationships(),
-        sampleDetail(),
-        List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of()), new KybCheck(type, false, Map.of())));
-    return service.initialValidation(REGISTRY_CODE, PERSONAL_CODE).name().errors();
-  }
-
-  @Test
-  void initialValidation_carriesClientCodesForStatusAndLegalFormChecks() {
-    stubInitialValidation(
-        sampleRelationships(),
-        sampleDetail(),
-        List.of(
-            new KybCheck(COMPANY_ACTIVE, false, Map.of()),
-            new KybCheck(COMPANY_LEGAL_FORM, false, Map.of())));
-
-    var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
-
-    assertThat(result.status().errors())
-        .containsExactly(new ValidationError("COMPANY_ACTIVE", "Ettevõte ei ole aktiivne"));
-    assertThat(result.legalForm().errors())
-        .containsExactly(new ValidationError("COMPANY_LEGAL_FORM", "Ainult OÜ on toetatud"));
-  }
-
-  @Test
-  void initialValidation_returnsAddressErrorWhenNotRegisteredInEstonia() {
-    stubInitialValidation(
-        sampleRelationships(),
-        sampleDetail(),
-        List.of(
-            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
-            new KybCheck(COMPANY_REGISTERED_IN_ESTONIA, false, Map.of("countryCode", "DE"))));
-
-    var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
-
-    assertThat(result.address().errors())
-        .containsExactly(
-            new ValidationError(
-                "COMPANY_REGISTERED_IN_ESTONIA", "Ettevõte ei ole registreeritud Eestis"));
-  }
-
-  @Test
-  void initialValidation_returnsNoAddressErrorWhenRegisteredInEstonia() {
-    stubInitialValidation(
-        sampleRelationships(),
-        sampleDetail(),
-        List.of(
-            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
-            new KybCheck(COMPANY_REGISTERED_IN_ESTONIA, true, Map.of("countryCode", "EE"))));
-
-    var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
-
-    assertThat(result.address().errors()).isEmpty();
-  }
-
-  @Test
-  void initialValidation_returnsNoErrorsWhenAllChecksPassed() {
-    stubInitialValidation(
-        sampleRelationships(),
-        sampleDetail(),
-        List.of(
-            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
-            new KybCheck(SOLE_MEMBER_OWNERSHIP, true, Map.of())));
-
-    var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
-
-    assertThat(result.status().errors()).isEmpty();
-    assertThat(result.naceCode().errors()).isEmpty();
-    assertThat(result.relatedPersons().errors()).isEmpty();
-    assertThat(result.name().errors()).isEmpty();
   }
 
   @Test
@@ -426,7 +195,7 @@ class KybSurveyServiceTest {
   }
 
   @Test
-  void initialValidation_publishesAuditEventWhenNotBoardMember() {
+  void initialValidation_auditsBlockedThroughGateWhenNotBoardMember() {
     var relationships =
         List.of(
             new CompanyRelationship(
@@ -447,54 +216,7 @@ class KybSurveyServiceTest {
     assertThatThrownBy(() -> service.initialValidation(REGISTRY_CODE, PERSONAL_CODE))
         .isInstanceOf(NotBoardMemberException.class);
 
-    verify(eventPublisher)
-        .publishEvent(
-            new TrackableSystemEvent(
-                SAVINGS_FUND_ONBOARDING_STATUS_CHANGE, blockedAuditData("NOT_BOARD_MEMBER")));
-  }
-
-  @Test
-  void initialValidation_deduplicatesRelatedPersons() {
-    var relationships =
-        List.of(
-            new CompanyRelationship(
-                "F",
-                "JUHL",
-                "Juhatuse liige",
-                "Jaan",
-                "Tamm",
-                PERSONAL_CODE,
-                null,
-                null,
-                null,
-                null,
-                null,
-                "EST"),
-            new CompanyRelationship(
-                "F",
-                "OSAN",
-                "Osanik",
-                "JAAN",
-                "TAMM",
-                PERSONAL_CODE,
-                null,
-                null,
-                null,
-                new BigDecimal("100.00"),
-                "Osaluse kaudu",
-                "EST"));
-    stubInitialValidation(
-        relationships,
-        sampleDetail(),
-        List.of(
-            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
-            new KybCheck(SOLE_MEMBER_OWNERSHIP, true, Map.of())));
-
-    var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
-
-    assertThat(result.relatedPersons().value()).hasSize(1);
-    assertThat(result.relatedPersons().value().getFirst())
-        .isEqualTo(new RelatedPersonData(PERSONAL_CODE, "Jaan Tamm"));
+    verify(onboardingGate).auditBlocked(REGISTRY_CODE, PERSONAL_CODE, NOT_BOARD_MEMBER);
   }
 
   @Test
@@ -511,7 +233,8 @@ class KybSurveyServiceTest {
 
     verify(kybSurveyRepository).save(any(KybSurvey.class));
     verify(legalEntityScreener)
-        .screen(REGISTRY_CODE, new PersonalCode(PERSONAL_CODE), selfCert, relationships);
+        .screen(
+            REGISTRY_CODE, new PersonalCode(PERSONAL_CODE), selfCert, relationships, SUBMISSION);
   }
 
   @Test
@@ -536,67 +259,28 @@ class KybSurveyServiceTest {
 
     assertThatThrownBy(() -> service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, surveyResponse))
         .isInstanceOf(NotBoardMemberException.class);
+
+    verify(kybSurveyRepository, never()).save(any(KybSurvey.class));
   }
 
   @Test
-  void initialValidation_toleratesDataChangedCheck() {
-    stubInitialValidation(
-        sampleRelationships(),
-        sampleDetail(),
-        List.of(
-            new KybCheck(COMPANY_ACTIVE, true, Map.of()),
-            new KybCheck(DATA_CHANGED, false, Map.of("changes", List.of("status changed")))));
-
-    var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
-
-    assertThat(result.name().errors()).isEmpty();
-  }
-
-  @Test
-  void initialValidation_allowsRejectedCompanyToRetry() {
-    stubInitialValidation(
-        sampleRelationships(),
-        sampleDetail(),
-        List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())));
-    when(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
-        .thenReturn(Optional.of(SavingsFundOnboardingStatus.REJECTED));
-
-    var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
-
-    assertThat(result.name().errors()).isEmpty();
-  }
-
-  @Test
-  void initialValidation_returnsNameErrorWhenAlreadyOnboarded() {
-    stubInitialValidation(
-        sampleRelationships(),
-        sampleDetail(),
-        List.of(new KybCheck(COMPANY_ACTIVE, true, Map.of())));
-    when(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
-        .thenReturn(Optional.of(SavingsFundOnboardingStatus.COMPLETED));
-
-    var result = service.initialValidation(REGISTRY_CODE, PERSONAL_CODE);
-
-    assertThat(result.name().errors())
-        .containsExactly(new ValidationError("ALREADY_ONBOARDED", "Ettevõte on juba liitunud"));
-  }
-
-  @Test
-  void submit_throwsWhenAlreadyOnboarded() {
+  void submit_doesNotSaveOrScreenWhenOnboardingIsBlocked() {
     when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE))
         .thenReturn(sampleRelationships());
-    when(kybSurveyRepository.save(any(KybSurvey.class)))
-        .thenAnswer(invocation -> invocation.getArgument(0));
-    when(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
-        .thenReturn(Optional.of(SavingsFundOnboardingStatus.COMPLETED));
+    willThrow(new OnboardingNotAllowedException(REGISTRY_CODE, ONBOARDING_PENDING))
+        .given(onboardingGate)
+        .verifyOnboardingAllowed(REGISTRY_CODE, PERSONAL_CODE);
 
     assertThatThrownBy(
             () -> service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, sampleSurveyResponse()))
         .isInstanceOf(OnboardingNotAllowedException.class);
+
+    verify(kybSurveyRepository, never()).save(any(KybSurvey.class));
+    verify(legalEntityScreener, never()).screen(any(), any(), any(), any(), any());
   }
 
   @Test
-  void submit_publishesAuditEventWhenNotBoardMember() {
+  void submit_auditsBlockedThroughGateWhenNotBoardMember() {
     var surveyResponse = sampleSurveyResponse();
     var relationships =
         List.of(
@@ -618,29 +302,7 @@ class KybSurveyServiceTest {
     assertThatThrownBy(() -> service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, surveyResponse))
         .isInstanceOf(NotBoardMemberException.class);
 
-    verify(eventPublisher)
-        .publishEvent(
-            new TrackableSystemEvent(
-                SAVINGS_FUND_ONBOARDING_STATUS_CHANGE, blockedAuditData("NOT_BOARD_MEMBER")));
-  }
-
-  @Test
-  void submit_publishesAuditEventWhenAlreadyOnboarded() {
-    when(legalEntityScreener.fetchActiveRelationships(REGISTRY_CODE))
-        .thenReturn(sampleRelationships());
-    when(kybSurveyRepository.save(any(KybSurvey.class)))
-        .thenAnswer(invocation -> invocation.getArgument(0));
-    when(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
-        .thenReturn(Optional.of(SavingsFundOnboardingStatus.COMPLETED));
-
-    assertThatThrownBy(
-            () -> service.submit(1L, PERSONAL_CODE, REGISTRY_CODE, sampleSurveyResponse()))
-        .isInstanceOf(OnboardingNotAllowedException.class);
-
-    verify(eventPublisher)
-        .publishEvent(
-            new TrackableSystemEvent(
-                SAVINGS_FUND_ONBOARDING_STATUS_CHANGE, blockedAuditData("ALREADY_ONBOARDED")));
+    verify(onboardingGate).auditBlocked(REGISTRY_CODE, PERSONAL_CODE, NOT_BOARD_MEMBER);
   }
 
   @Test
@@ -674,16 +336,6 @@ class KybSurveyServiceTest {
                         "success", c.success(),
                         "metadata", c.metadata()))
             .toList());
-    return data;
-  }
-
-  private static Map<String, Object> blockedAuditData(String reason) {
-    var data = new java.util.LinkedHashMap<String, Object>();
-    data.put("partyType", "LEGAL_ENTITY");
-    data.put("registryCode", REGISTRY_CODE);
-    data.put("personalCode", PERSONAL_CODE);
-    data.put("outcome", "BLOCKED");
-    data.put("blockedReason", reason);
     return data;
   }
 

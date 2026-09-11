@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.fund.fees;
 
 import static ee.tuleva.onboarding.fund.Fund.FundStatus.ACTIVE;
+import static ee.tuleva.onboarding.fund.Fund.RiskLevel.HIGH_RISK;
 import static ee.tuleva.onboarding.fund.fees.FundFeeUpdater.FeeField.MANAGEMENT_FEE;
 import static ee.tuleva.onboarding.fund.fees.FundFeeUpdater.FeeField.ONGOING_CHARGES;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -207,12 +208,42 @@ class FundFeeUpdaterTest {
         .nameEnglish(nameEstonian)
         .shortName(isin)
         .pillar(pillar)
-        .equityShare(BigDecimal.ZERO)
+        .riskLevel(HIGH_RISK)
         .managementFeeRate(new BigDecimal(managementFeeRate))
         .ongoingChargesFigure(new BigDecimal(ongoingChargesFigure))
         .status(ACTIVE)
         .fundManager(FundManager.builder().id(1L).name("Tuleva").build())
         .inceptionDate(LocalDate.parse("2019-01-01"))
         .build();
+  }
+
+  @Test
+  void reportsFeeRowsThatMatchNoActiveFund() {
+    var fund = fund("EE1", "Tuleva Fund", 2, "0.0091", "0.0050");
+    given(fundRepository.findAllByPillarAndStatus(2, ACTIVE)).willReturn(List.of(fund));
+
+    var unmatched =
+        updater.update(
+            2,
+            List.of(
+                new PensionikeskusFeeRow("Tuleva Fund", new BigDecimal("0.005")),
+                new PensionikeskusFeeRow("Unknown Fund", new BigDecimal("0.004"))),
+            FundFeeUpdater.FeeField.MANAGEMENT_FEE);
+
+    assertThat(unmatched).containsExactly("unknown fund");
+  }
+
+  @Test
+  void reportsNoUnmatchedRowsWhenEveryRowMatches() {
+    var fund = fund("EE1", "Tuleva Fund", 2, "0.0091", "0.0050");
+    given(fundRepository.findAllByPillarAndStatus(2, ACTIVE)).willReturn(List.of(fund));
+
+    var unmatched =
+        updater.update(
+            2,
+            List.of(new PensionikeskusFeeRow("Tuleva Fund", new BigDecimal("0.005"))),
+            FundFeeUpdater.FeeField.MANAGEMENT_FEE);
+
+    assertThat(unmatched).isEmpty();
   }
 }

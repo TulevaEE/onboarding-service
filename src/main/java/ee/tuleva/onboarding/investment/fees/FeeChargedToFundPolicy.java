@@ -1,9 +1,12 @@
 package ee.tuleva.onboarding.investment.fees;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 
@@ -63,7 +66,7 @@ public class FeeChargedToFundPolicy {
       if (applicable.size() == 1) {
         return applicable.getFirst().chargedToFund();
       }
-      if (predatesTheFoundingPolicy(date)) {
+      if (predatesTheFund(date)) {
         return foundingPolicy().chargedToFund();
       }
       throw new IllegalStateException(
@@ -75,8 +78,15 @@ public class FeeChargedToFundPolicy {
               + date);
     }
 
-    private boolean predatesTheFoundingPolicy(LocalDate date) {
-      return date.isBefore(foundingPolicy().validFrom());
+    public BigDecimal sumChargedDays(Map<LocalDate, BigDecimal> amountsByDate) {
+      return amountsByDate.entrySet().stream()
+          .filter(entry -> chargedOn(entry.getKey()))
+          .map(Map.Entry::getValue)
+          .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private boolean predatesTheFund(LocalDate date) {
+      return date.isBefore(fund.getInceptionDate());
     }
 
     private Policy foundingPolicy() {
@@ -84,7 +94,7 @@ public class FeeChargedToFundPolicy {
     }
   }
 
-  public record Policy(boolean chargedToFund, LocalDate validFrom, LocalDate validTo) {
+  public record Policy(boolean chargedToFund, LocalDate validFrom, @Nullable LocalDate validTo) {
     boolean covers(LocalDate date) {
       return !date.isBefore(validFrom) && (validTo == null || !date.isAfter(validTo));
     }

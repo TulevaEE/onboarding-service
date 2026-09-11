@@ -1,8 +1,9 @@
 package ee.tuleva.onboarding.analytics.transaction.thirdpillar;
 
-import static ee.tuleva.onboarding.analytics.transaction.thirdpillar.AnalyticsThirdPillarTransactionFixture.*;
+import static ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransactionFixture.*;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransaction;
 import java.sql.Connection;
 import java.sql.Statement;
 import java.time.LocalDate;
@@ -174,5 +175,42 @@ class AnalyticsThirdPillarTransactionRepositoryTest {
     // then
     assertThat(deletedCount).isEqualTo(0);
     assertThat(repository.count()).isEqualTo(0);
+  }
+
+  @Test
+  void countOwnContributionMonthsSince_countsDistinctMonthsOfOwnPaymentsOnly() {
+    var ownSource = "Osakute väljalase isikult laekumiste alusel";
+    repository.saveAll(
+        List.of(
+            exampleTransactionBuilder()
+                .personalId("38888888888")
+                .transactionSource(ownSource)
+                .reportingDate(LocalDate.of(2026, 6, 5))
+                .build(),
+            exampleTransactionBuilder()
+                .personalId("38888888888")
+                .transactionSource(ownSource)
+                .reportingDate(LocalDate.of(2026, 6, 20))
+                .build(),
+            exampleTransactionBuilder()
+                .personalId("38888888888")
+                .transactionSource(ownSource)
+                .reportingDate(LocalDate.of(2026, 7, 5))
+                .build(),
+            exampleTransactionBuilder()
+                .personalId("38888888888")
+                .transactionSource("Osakute väljalase tööandjalt laekumiste alusel")
+                .reportingDate(LocalDate.of(2026, 8, 5))
+                .build(),
+            exampleTransactionBuilder()
+                .personalId("38888888888")
+                .transactionSource(ownSource)
+                .reportingDate(LocalDate.of(2026, 4, 5))
+                .build()));
+
+    int months =
+        repository.countOwnContributionMonthsSince("38888888888", LocalDate.of(2026, 5, 1));
+
+    assertThat(months).isEqualTo(2);
   }
 }

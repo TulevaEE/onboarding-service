@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -152,7 +153,7 @@ class PortfolioReconciliationAlertListener {
     return table.toString();
   }
 
-  private static String formatQuantity(BigDecimal value) {
+  private static String formatQuantity(@Nullable BigDecimal value) {
     return value == null ? "(puudub)" : value.toPlainString();
   }
 

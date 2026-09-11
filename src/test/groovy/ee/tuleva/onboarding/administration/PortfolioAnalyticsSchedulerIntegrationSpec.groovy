@@ -1,14 +1,17 @@
 package ee.tuleva.onboarding.administration
 
+import ee.tuleva.onboarding.time.ClockConfig
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest
+import org.springframework.context.annotation.Import
 import org.springframework.test.context.bean.override.mockito.MockitoBean
 import spock.lang.Specification
 
 import static org.mockito.ArgumentMatchers.any
 import static org.mockito.Mockito.*
 
-@SpringBootTest
+@DataJpaTest
+@Import([PortfolioCsvProcessor, PortfolioAnalyticsScheduler, ClockConfig])
 class PortfolioAnalyticsSchedulerIntegrationSpec extends Specification{
 
   @MockitoBean

@@ -3,13 +3,13 @@ package ee.tuleva.onboarding.auth;
 import static ee.tuleva.onboarding.auth.jwt.TokenType.REFRESH;
 
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
-import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import io.jsonwebtoken.ExpiredJwtException;
 import java.util.List;
 import java.util.Objects;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
@@ -22,7 +22,8 @@ public class AuthService {
   private final TokenService tokenService;
   private final PrincipalService principalService;
 
-  public AuthenticationTokens authenticate(GrantType grantType, String authenticationHash) {
+  public @Nullable AuthenticationTokens authenticate(
+      GrantType grantType, @Nullable String authenticationHash) {
 
     final var authenticatedPerson =
         providers.stream()
@@ -35,8 +36,6 @@ public class AuthService {
     if (authenticatedPerson == null) {
       return null;
     }
-
-    eventPublisher.publishEvent(new BeforeTokenGrantedEvent(this, authenticatedPerson, grantType));
 
     final var tokens = tokenService.generateTokens(authenticatedPerson);
 

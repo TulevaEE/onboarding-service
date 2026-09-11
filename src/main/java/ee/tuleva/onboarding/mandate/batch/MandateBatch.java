@@ -8,7 +8,6 @@ import com.fasterxml.jackson.annotation.JsonView;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateView;
 import ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreator;
-import jakarta.annotation.Nullable;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -16,6 +15,7 @@ import java.util.List;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.jspecify.annotations.Nullable;
 
 @Data
 @Entity
@@ -39,12 +39,13 @@ public class MandateBatch {
   @JsonView(MandateView.Default.class)
   private Instant createdDate;
 
-  @Nullable private byte[] file;
+  private byte @Nullable [] file;
 
   @Builder
   MandateBatch(MandateBatchStatus status, List<Mandate> mandates) {
     this.status = status;
     this.mandates = mandates;
+    this.createdDate = clock().instant();
   }
 
   @PrePersist

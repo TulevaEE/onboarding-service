@@ -50,6 +50,13 @@ public class SebPriceVsNavCheckService {
           order.getInstrumentIsin());
       return;
     }
+    if (execution.getUnitPrice() == null) {
+      log.warn(
+          "Skipping price check, execution has no unit price: executionId={}, isin={}",
+          execution.getId(),
+          order.getInstrumentIsin());
+      return;
+    }
 
     String isin = order.getInstrumentIsin();
     LocalDate tradeDate = execution.getExecutionTimestamp().atZone(TALLINN).toLocalDate();

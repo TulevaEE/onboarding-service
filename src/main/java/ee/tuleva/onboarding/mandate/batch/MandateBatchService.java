@@ -1,16 +1,17 @@
 package ee.tuleva.onboarding.mandate.batch;
 
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND;
-import static ee.tuleva.onboarding.signature.response.SignatureStatus.OUTSTANDING_TRANSACTION;
-import static ee.tuleva.onboarding.signature.response.SignatureStatus.SIGNATURE;
+import static ee.tuleva.onboarding.signature.SignatureStatus.OUTSTANDING_TRANSACTION;
+import static ee.tuleva.onboarding.signature.SignatureStatus.SIGNATURE;
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
 
-import ee.tuleva.onboarding.aml.WithdrawalNotifier;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.error.response.ErrorResponse;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
+import ee.tuleva.onboarding.mandate.MandateContacts;
 import ee.tuleva.onboarding.mandate.MandateFileService;
+import ee.tuleva.onboarding.mandate.WithdrawalReadiness;
 import ee.tuleva.onboarding.mandate.batch.poller.MandateBatchProcessingPoller;
 import ee.tuleva.onboarding.mandate.event.AfterMandateBatchSignedEvent;
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
@@ -18,16 +19,15 @@ import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
 import ee.tuleva.onboarding.mandate.generic.GenericMandateService;
 import ee.tuleva.onboarding.mandate.generic.MandateDto;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
+import ee.tuleva.onboarding.personalcode.PersonalCode;
+import ee.tuleva.onboarding.signature.IdCardSignatureSession;
+import ee.tuleva.onboarding.signature.MobileIdSignatureSession;
 import ee.tuleva.onboarding.signature.SignatureFile;
 import ee.tuleva.onboarding.signature.SignatureService;
-import ee.tuleva.onboarding.signature.idcard.IdCardSignatureSession;
-import ee.tuleva.onboarding.signature.mobileid.MobileIdSignatureSession;
-import ee.tuleva.onboarding.signature.response.SignatureStatus;
-import ee.tuleva.onboarding.signature.smartid.SmartIdSignatureSession;
+import ee.tuleva.onboarding.signature.SignatureStatus;
+import ee.tuleva.onboarding.signature.SmartIdSignatureSession;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
-import ee.tuleva.onboarding.user.personalcode.PersonalCode;
-import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityService;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -42,15 +42,14 @@ public class MandateBatchService {
   private final MandateBatchRepository mandateBatchRepository;
 
   private final MandateFileService mandateFileService;
-  private final WithdrawalEligibilityService withdrawalEligibilityService;
+  private final WithdrawalReadiness withdrawalReadiness;
   private final GenericMandateService genericMandateService;
   private final ApplicationEventPublisher applicationEventPublisher;
   private final UserService userService;
   private final SignatureService signService;
   private final MandateProcessorService mandateProcessor;
-  private final EpisService episService;
+  private final MandateContacts mandateContacts;
   private final MandateBatchProcessingPoller mandateBatchProcessingPoller;
-  private final WithdrawalNotifier withdrawalNotifier;
 
   public Optional<MandateBatch> getByIdAndUser(Long id, User user) {
     var batch =
@@ -76,7 +75,7 @@ public class MandateBatchService {
     }
 
     if (mandateBatchDto.isWithdrawalBatch()) {
-      var eligibility = withdrawalEligibilityService.getWithdrawalEligibility(authenticatedPerson);
+      var eligibility = withdrawalReadiness.forPerson(authenticatedPerson);
 
       if (eligibility.canWithdrawThirdPillarWithReducedTax()
           && !eligibility.hasReachedEarlyRetirementAge()) {
@@ -113,8 +112,15 @@ public class MandateBatchService {
               .map(MandateDto::getMandateType)
               .collect(Collectors.toSet());
 
-      withdrawalNotifier.notifyWithdrawalBatchCreated(
-          age, pillars, withdrawalTypes, mandateBatch.getId());
+      applicationEventPublisher.publishEvent(
+          new WithdrawalBatchCreated(
+              age,
+              pillars,
+              withdrawalTypes,
+              requireNonNull(
+                  mandateBatch.getId(),
+                  "Mandate batch was not assigned an id after save: mandateBatch="
+                      + mandateBatch)));
     } catch (Exception e) {
       log.error("Failed to send mandate batch slack message with exception", e);
     }
@@ -207,7 +213,7 @@ public class MandateBatchService {
   }
 
   private void onMandateProcessingFinished(User user, MandateBatch mandateBatch, Locale locale) {
-    episService.clearCache(user);
+    mandateContacts.clearCache(user);
     handleMandateProcessingErrors(mandateBatch);
     notifyAboutSignedMandate(user, mandateBatch, locale);
   }

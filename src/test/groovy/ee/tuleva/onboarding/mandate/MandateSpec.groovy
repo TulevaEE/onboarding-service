@@ -1,15 +1,15 @@
 package ee.tuleva.onboarding.mandate
 
-import ee.tuleva.onboarding.epis.mandate.GenericMandateDto
-import ee.tuleva.onboarding.epis.mandate.details.EarlyWithdrawalCancellationMandateDetails
-import ee.tuleva.onboarding.epis.mandate.details.TransferCancellationMandateDetails
-import ee.tuleva.onboarding.epis.mandate.details.WithdrawalCancellationMandateDetails
+import ee.tuleva.onboarding.mandate.details.EarlyWithdrawalCancellationMandateDetails
+import ee.tuleva.onboarding.mandate.details.TransferCancellationMandateDetails
+import ee.tuleva.onboarding.mandate.details.WithdrawalCancellationMandateDetails
 import jakarta.validation.ConstraintViolation
 import jakarta.validation.Validation
 import jakarta.validation.Validator
 import spock.lang.Specification
 import spock.lang.Unroll
 
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.country.CountryFixture.countryFixture
 import static ee.tuleva.onboarding.mandate.MandateFixture.*
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND
@@ -22,17 +22,61 @@ class MandateSpec extends Specification {
     validator = Validation.buildDefaultValidatorFactory().validator
   }
 
-  def "can group exchanges by source isin"() {
+  def "can group exchanges by source isin, excluding non-positive amounts"() {
     given:
     FundTransferExchange withAmount = FundTransferExchange.builder().sourceFundIsin("isin")
       .amount(BigDecimal.ONE).build()
     FundTransferExchange withoutAmount = FundTransferExchange.builder().sourceFundIsin("isin").build()
+    FundTransferExchange withZeroAmount = FundTransferExchange.builder().sourceFundIsin("isin")
+      .amount(BigDecimal.ZERO).build()
     when:
     Mandate mandate = Mandate.builder()
-      .fundTransferExchanges([withAmount, withoutAmount])
+      .fundTransferExchanges([withAmount, withoutAmount, withZeroAmount])
       .build()
     then:
     mandate.getFundTransferExchangesBySourceIsin() == ['isin': [withAmount, withoutAmount]]
+  }
+
+  def "onUpdate syncs the legacy pillar and payment rate columns from details"() {
+    given:
+    Mandate mandate = Mandate.builder()
+        .pillar(99)
+        .paymentRate(null)
+        .details(aPaymentRateChangeMandateDetails)
+        .metadata([:])
+        .build()
+
+    when:
+    mandate.onUpdate()
+
+    then:
+    // read the raw fields directly: getPillar()/getPaymentRate() recompute from
+    // details regardless of whether syncLegacyColumns() ran, so only the stored
+    // field values reveal whether onUpdate() actually synced them
+    mandate.@pillar == SECOND.toInt()
+    mandate.@paymentRate == aPaymentRateChangeMandateDetails.paymentRate.numericValue
+  }
+
+  def "getSignedFile throws when the mandate is not signed"() {
+    given:
+    Mandate mandate = Mandate.builder().metadata([:]).build()
+
+    when:
+    mandate.getSignedFile()
+
+    then:
+    thrown(IllegalStateException)
+  }
+
+  def "getEmail and getPhoneNumber delegate to the user"() {
+    given:
+    def user = sampleUser().build()
+    Mandate mandate = sampleMandate()
+    mandate.user = user
+
+    expect:
+    mandate.getEmail() == user.email
+    mandate.getPhoneNumber() == user.phoneNumber
   }
 
   @Unroll
@@ -68,14 +112,14 @@ class MandateSpec extends Specification {
     when:
     Mandate mandate = sampleWithdrawalCancellationMandate()
 
-    GenericMandateDto dto = mandate.getGenericMandateDto()
+    def submission = mandate.toSubmission()
     then:
-    dto.id == mandate.id
-    dto.createdDate == mandate.createdDate
-    dto.address == mandate.address
-    dto.email == mandate.email
-    dto.phoneNumber == mandate.phoneNumber
-    dto.details instanceof WithdrawalCancellationMandateDetails
+    submission.id() == mandate.id
+    submission.createdDate() == mandate.createdDate
+    submission.address() == mandate.address
+    submission.email() == mandate.email
+    submission.phoneNumber() == mandate.phoneNumber
+    submission.details() instanceof WithdrawalCancellationMandateDetails
   }
 
 
@@ -83,30 +127,30 @@ class MandateSpec extends Specification {
     when:
     Mandate mandate = sampleEarlyWithdrawalCancellationMandate()
 
-    GenericMandateDto dto = mandate.getGenericMandateDto()
+    def submission = mandate.toSubmission()
     then:
-    dto.id == mandate.id
-    dto.createdDate == mandate.createdDate
-    dto.address == mandate.address
-    dto.email == mandate.email
-    dto.phoneNumber == mandate.phoneNumber
-    dto.details instanceof EarlyWithdrawalCancellationMandateDetails
+    submission.id() == mandate.id
+    submission.createdDate() == mandate.createdDate
+    submission.address() == mandate.address
+    submission.email() == mandate.email
+    submission.phoneNumber() == mandate.phoneNumber
+    submission.details() instanceof EarlyWithdrawalCancellationMandateDetails
   }
 
   def "can build generic mandate dto for transfer cancellation"() {
     when:
     Mandate mandate = sampleTransferCancellationMandate()
 
-    GenericMandateDto dto = mandate.getGenericMandateDto()
+    def submission = mandate.toSubmission()
     then:
-    dto.id == mandate.id
-    dto.createdDate == mandate.createdDate
-    dto.address == mandate.address
-    dto.email == mandate.email
-    dto.phoneNumber == mandate.phoneNumber
-    dto.details instanceof TransferCancellationMandateDetails
-    ((TransferCancellationMandateDetails) dto.details).getSourceFundIsinOfTransferToCancel() == mandate.fundTransferExchanges.first.sourceFundIsin
-    ((TransferCancellationMandateDetails) dto.details).getPillar() == SECOND
+    submission.id() == mandate.id
+    submission.createdDate() == mandate.createdDate
+    submission.address() == mandate.address
+    submission.email() == mandate.email
+    submission.phoneNumber() == mandate.phoneNumber
+    submission.details() instanceof TransferCancellationMandateDetails
+    ((TransferCancellationMandateDetails) submission.details()).getSourceFundIsinOfTransferToCancel() == mandate.fundTransferExchanges.first.sourceFundIsin
+    ((TransferCancellationMandateDetails) submission.details()).getPillar() == SECOND
   }
 
   def "getCountry returns address field"() {

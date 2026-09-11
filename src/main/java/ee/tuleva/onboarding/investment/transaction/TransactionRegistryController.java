@@ -6,7 +6,6 @@ import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE;
 import static org.springframework.http.MediaType.TEXT_PLAIN_VALUE;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.epis.EpisReportIngestionResult;
 import ee.tuleva.onboarding.investment.epis.EpisReportIngestionService;
 import ee.tuleva.onboarding.investment.epis.PevaRavaFlows;
@@ -22,6 +21,7 @@ import ee.tuleva.onboarding.investment.event.RunSebPendingTransactionReconciliat
 import ee.tuleva.onboarding.investment.report.ReportType;
 import ee.tuleva.onboarding.investment.transaction.ingest.FtConfirmationVerificationService;
 import ee.tuleva.onboarding.investment.transaction.ingest.HistoricalRegistryImportService;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import jakarta.validation.Valid;
 import java.io.IOException;
 import java.util.List;

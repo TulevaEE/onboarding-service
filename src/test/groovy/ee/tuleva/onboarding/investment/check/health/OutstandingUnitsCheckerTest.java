@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.investment.check.health;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.OUTSTANDING_UNITS;
 import static ee.tuleva.onboarding.investment.position.AccountType.UNITS;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.investment.position.FundPosition;
@@ -60,6 +60,22 @@ class OutstandingUnitsCheckerTest {
     assertThat(findings)
         .singleElement()
         .satisfies(f -> assertThat(f.severity()).isEqualTo(WARNING));
+  }
+
+  @Test
+  void warnsWhenQuantityIsNegative() {
+    var positions = List.of(unitsPosition(new BigDecimal("-1500.00")));
+
+    var findings = checker.check(TUK75, NAV_DATE, positions);
+
+    assertThat(findings)
+        .singleElement()
+        .satisfies(
+            f -> {
+              assertThat(f.fund()).isEqualTo(TUK75);
+              assertThat(f.checkType()).isEqualTo(OUTSTANDING_UNITS);
+              assertThat(f.severity()).isEqualTo(WARNING);
+            });
   }
 
   private FundPosition unitsPosition(BigDecimal quantity) {

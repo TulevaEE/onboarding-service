@@ -15,15 +15,14 @@ import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import ee.tuleva.onboarding.aml.AmlService;
-import ee.tuleva.onboarding.aml.risklevel.RiskLevelService;
+import ee.tuleva.onboarding.aml.RiskLevels;
+import ee.tuleva.onboarding.aml.SanctionAndPepScreener;
 import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.kyb.LegalEntityScreener;
 import ee.tuleva.onboarding.kyc.KycCountryService;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
-import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
-import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingStatus;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.Optional;
 import java.util.UUID;
@@ -39,8 +38,8 @@ class RedemptionVerificationServiceTest {
   @Mock private RedemptionStatusService redemptionStatusService;
   @Mock private UserService userService;
   @Mock private KycCountryService kycCountryService;
-  @Mock private AmlService amlService;
-  @Mock private RiskLevelService riskLevelService;
+  @Mock private SanctionAndPepScreener sanctionAndPepScreener;
+  @Mock private RiskLevels riskLevels;
   @Mock private SavingsFundOnboardingRepository savingsFundOnboardingRepository;
   @Mock private LegalEntityScreener legalEntityScreener;
   @Mock private OperationsNotificationService notificationService;
@@ -55,15 +54,16 @@ class RedemptionVerificationServiceTest {
         redemptionRequestFixture()
             .id(requestId)
             .userId(userId)
-            .partyId(new PartyId(PERSON, "38812121215"))
+            .partyType(PERSON)
+            .partyCode("38812121215")
             .build();
     var user = sampleUser().id(userId).build();
     var countries = Countries.of("EE");
 
     given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
     given(kycCountryService.getCountries(userId)).willReturn(Optional.of(countries));
-    given(amlService.isSanctionAndPepClear(user, countries)).willReturn(true);
-    given(riskLevelService.isHighRisk(user.getPersonalCode())).willReturn(false);
+    given(sanctionAndPepScreener.isSanctionAndPepClear(user, countries)).willReturn(true);
+    given(riskLevels.isHighRisk(user.getPersonalCode())).willReturn(false);
 
     service.process(request);
 
@@ -79,14 +79,15 @@ class RedemptionVerificationServiceTest {
         redemptionRequestFixture()
             .id(requestId)
             .userId(userId)
-            .partyId(new PartyId(PERSON, "38812121215"))
+            .partyType(PERSON)
+            .partyCode("38812121215")
             .build();
     var user = sampleUser().id(userId).build();
     var countries = Countries.of("EE");
 
     given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
     given(kycCountryService.getCountries(userId)).willReturn(Optional.of(countries));
-    given(amlService.isSanctionAndPepClear(user, countries)).willReturn(false);
+    given(sanctionAndPepScreener.isSanctionAndPepClear(user, countries)).willReturn(false);
 
     service.process(request);
 
@@ -105,14 +106,15 @@ class RedemptionVerificationServiceTest {
         redemptionRequestFixture()
             .id(requestId)
             .userId(userId)
-            .partyId(new PartyId(PERSON, "38812121215"))
+            .partyType(PERSON)
+            .partyCode("38812121215")
             .build();
     var user = sampleUser().id(userId).build();
     var countries = Countries.of("EE");
 
     given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
     given(kycCountryService.getCountries(userId)).willReturn(Optional.of(countries));
-    given(amlService.isSanctionAndPepClear(user, countries)).willReturn(false);
+    given(sanctionAndPepScreener.isSanctionAndPepClear(user, countries)).willReturn(false);
     willThrow(new IllegalStateException("Slack unavailable"))
         .given(notificationService)
         .sendMessage(anyString(), any());
@@ -131,15 +133,16 @@ class RedemptionVerificationServiceTest {
         redemptionRequestFixture()
             .id(requestId)
             .userId(userId)
-            .partyId(new PartyId(PERSON, "38812121215"))
+            .partyType(PERSON)
+            .partyCode("38812121215")
             .build();
     var user = sampleUser().id(userId).build();
     var countries = Countries.of("EE");
 
     given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
     given(kycCountryService.getCountries(userId)).willReturn(Optional.of(countries));
-    given(amlService.isSanctionAndPepClear(user, countries)).willReturn(true);
-    given(riskLevelService.isHighRisk(user.getPersonalCode())).willReturn(true);
+    given(sanctionAndPepScreener.isSanctionAndPepClear(user, countries)).willReturn(true);
+    given(riskLevels.isHighRisk(user.getPersonalCode())).willReturn(true);
 
     service.process(request);
 
@@ -156,15 +159,16 @@ class RedemptionVerificationServiceTest {
         redemptionRequestFixture()
             .id(requestId)
             .userId(actorUserId)
-            .partyId(new PartyId(PERSON, childCode))
+            .partyType(PERSON)
+            .partyCode(childCode)
             .build();
     var child = sampleUser().id(2L).personalCode(childCode).build();
     var countries = Countries.of("EE");
 
     given(userService.findByPersonalCode(childCode)).willReturn(Optional.of(child));
     given(kycCountryService.getCountries(child.getId())).willReturn(Optional.of(countries));
-    given(amlService.isSanctionAndPepClear(child, countries)).willReturn(true);
-    given(riskLevelService.isHighRisk(childCode)).willReturn(false);
+    given(sanctionAndPepScreener.isSanctionAndPepClear(child, countries)).willReturn(true);
+    given(riskLevels.isHighRisk(childCode)).willReturn(false);
 
     service.process(request);
 
@@ -177,7 +181,8 @@ class RedemptionVerificationServiceTest {
     var request =
         redemptionRequestFixture()
             .userId(userId)
-            .partyId(new PartyId(PERSON, "38812121215"))
+            .partyType(PERSON)
+            .partyCode("38812121215")
             .build();
     var user = sampleUser().id(userId).build();
 
@@ -190,7 +195,7 @@ class RedemptionVerificationServiceTest {
   @Test
   void process_personRequest_throwsWhenPartyUserNotFound() {
     var request =
-        redemptionRequestFixture().userId(1L).partyId(new PartyId(PERSON, "61506150006")).build();
+        redemptionRequestFixture().userId(1L).partyType(PERSON).partyCode("61506150006").build();
 
     given(userService.findByPersonalCode("61506150006")).willReturn(Optional.empty());
 
@@ -305,7 +310,8 @@ class RedemptionVerificationServiceTest {
   private static RedemptionRequest legalEntityRequest(UUID requestId, String registryCode) {
     return redemptionRequestFixture()
         .id(requestId)
-        .partyId(new PartyId(LEGAL_ENTITY, registryCode))
+        .partyType(LEGAL_ENTITY)
+        .partyCode(registryCode)
         .build();
   }
 
@@ -317,19 +323,21 @@ class RedemptionVerificationServiceTest {
         redemptionRequestFixture()
             .id(requestId)
             .userId(userId)
-            .partyId(new PartyId(PERSON, "38812121215"))
+            .partyType(PERSON)
+            .partyCode("38812121215")
             .build();
     var user = sampleUser().id(userId).build();
 
     given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
     given(kycCountryService.getCountries(userId)).willReturn(Optional.of(Countries.of("EE")));
-    given(amlService.recordedCitizenships(user)).willReturn(Countries.of("RU"));
-    given(amlService.isSanctionAndPepClear(user, Countries.of("EE", "RU"))).willReturn(true);
-    given(riskLevelService.isHighRisk(user.getPersonalCode())).willReturn(false);
+    given(sanctionAndPepScreener.recordedCitizenships(user)).willReturn(Countries.of("RU"));
+    given(sanctionAndPepScreener.isSanctionAndPepClear(user, Countries.of("EE", "RU")))
+        .willReturn(true);
+    given(riskLevels.isHighRisk(user.getPersonalCode())).willReturn(false);
 
     service.process(request);
 
-    verify(amlService).isSanctionAndPepClear(user, Countries.of("EE", "RU"));
+    verify(sanctionAndPepScreener).isSanctionAndPepClear(user, Countries.of("EE", "RU"));
     verify(redemptionStatusService).changeStatus(requestId, VERIFIED);
   }
 }

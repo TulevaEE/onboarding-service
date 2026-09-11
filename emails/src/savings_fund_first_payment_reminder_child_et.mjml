@@ -1,0 +1,60 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
+        <mj-text>
+          Avasid lapse *|IF:RECIPIENTNAME|*(*|RECIPIENTNAME|*) *|END:IF|*nimel Tuleva Täiendava
+          Kogumisfondi konto, aga esimest sissemakset ei ole veel tehtud.
+        </mj-text>
+        <mj-text>
+          Tuleva Täiendav Kogumisfond on laiapõhjaline indeksfond, mis investeerib maailmaturu
+          aktsiatesse. Fondi jooksvad tasud on *|savingsFundFee|*%&nbsp;aastas ja muid lisatasusid ei ole.
+        </mj-text>
+        <mj-text>
+          Alustamiseks ei ole vaja suurt summat. Vali sobiv summa ja anna lapsele kogutavale
+          varale võimalikult palju aega kasvada. Saad kohe ka teha püsimakse, näiteks
+          lapsetoetuse suuruses.
+        </mj-text>
+        <mj-button href="https://pension.tuleva.ee/savings-fund/payment">
+          Teen esimese sissemakse
+        </mj-button>
+        <mj-text>Soovi korral saad lapsele kogumise kohta uurida veel neist materjalidest:</mj-text>
+        <mj-text>
+          <a href="https://tuleva.ee/lapsele-kogumine/kas-koguda-lapse-voi-vanema-nimel/">
+            Kas koguda lapse või vanema nimel?
+          </a>
+        </mj-text>
+        <mj-text>
+          <a href="https://tuleva.ee/taiendav-kogumisfond/kas-lapsele-kogudes-on-vaja-investeerimiskontot-kaks-lahenemist-mille-vahel-valida/">
+            Kas lapsele kogudes on vaja investeerimiskontot? Kaks lähenemist, mille vahel valida
+          </a>
+        </mj-text>
+        <mj-text>
+          <a href="https://tuleva.ee/analuusid/kuhu-tuleva-taiendav-kogumisfond-investeerib/">
+            Kuhu investeerib Tuleva Täiendav Kogumisfond?
+          </a>
+        </mj-text>
+        <mj-text>
+          Kui sul tekib küsimusi, kirjuta
+          <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> või helista
+          <a href="tel:+3726445100">644&nbsp;5100</a>.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">
+          Tõnu Pekk<br />
+          Tuleva asutaja ja fondijuht
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_savings_et.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

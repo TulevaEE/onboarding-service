@@ -17,6 +17,7 @@ import java.time.ZoneId;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -56,10 +57,13 @@ public class BankOperationProcessor {
     var clearingAccount = account.ledgerAccount();
     var subFamilyCode = entry.subFamilyCode();
 
+    if (subFamilyCode == null) {
+      parkInSuspense(entry, account, externalReference, amount, "unknown subFamilyCode");
+      return;
+    }
+
     TransactionType transactionType =
-        subFamilyCode == null
-            ? null
-            : mapSubFamilyCode(subFamilyCode, entry.remittanceInformation());
+        mapSubFamilyCode(subFamilyCode, entry.remittanceInformation());
     if (transactionType == null) {
       parkInSuspense(entry, account, externalReference, amount, "unknown subFamilyCode");
       return;
@@ -112,26 +116,25 @@ public class BankOperationProcessor {
           parkInSuspense(entry, account, externalReference, amount, "unknown ticker");
           return;
         }
-        var info = tradeInfo.get();
-        var ticker = info.ticker();
-        var units = signedUnits(info.units(), amount);
+        var settlement = tradeInfo.get();
+        var units = signedUnits(settlement.units(), amount);
         log.info(
             "Trade settlement: amount={}, units={}, externalRef={}, account={}, ticker={}, isin={}",
             amount,
             units,
             externalReference,
             account,
-            ticker.getYahooTicker(),
-            ticker.getIsin());
+            settlement.ticker(),
+            settlement.isin());
         fundBankLedger.recordTradeSettlement(
             account.fund(),
             amount,
             units,
             externalReference,
             clearingAccount,
-            ticker.getIsin(),
-            ticker.getYahooTicker().split("\\.")[0],
-            ticker.getDisplayName(),
+            settlement.isin(),
+            settlement.ticker(),
+            settlement.displayName(),
             bookingDate);
       }
       case BOOK -> {
@@ -153,7 +156,8 @@ public class BankOperationProcessor {
     }
   }
 
-  private TransactionType mapSubFamilyCode(String subFamilyCode, String remittanceInformation) {
+  private @Nullable TransactionType mapSubFamilyCode(
+      String subFamilyCode, String remittanceInformation) {
     return switch (subFamilyCode) {
       case INTR -> INTEREST_RECEIVED;
       case FEES, COMM -> BANK_FEE;

@@ -1,0 +1,43 @@
+<mjml>
+  <mj-include path="./partials/head.mjml" />
+  <mj-body background-color="#FFFFFF" width="660px">
+    <mj-include path="./partials/header.mjml" />
+
+    <mj-section padding-top="12px">
+      <mj-column>
+        <mj-text>Tere,&nbsp;*|FNAME|*</mj-text>
+        <mj-text>
+          Sinu sissemakse jõudis pärale *|paymentDate|*. Sellega oled 30%
+          tublimate Eesti inimeste seas, kes III&nbsp;sambas koguvad. Fondiosakud on sinu
+          pensionikontol olemas.
+        </mj-text>
+
+        <mj-raw>*|IF:hasTulevaUser|*</mj-raw>
+
+        <mj-include path="./partials/suggest_chain_open_et.mjml" />
+
+        <mj-raw>*|END:IF|*</mj-raw>
+
+        <mj-raw>*|ELSE:|*</mj-raw>
+        <mj-text>
+          Oma III&nbsp;samba ja muu pensionivara käekäiku saad igal ajal ise vaadata Tulevast.
+          Sa ei pea Tulevas eraldi kontot looma, see on sul juba olemas. Logi lihtsalt sisse:
+        </mj-text>
+        <mj-button href="https://pension.tuleva.ee/login">Login kontole</mj-button>
+        <mj-raw>*|END:IF|*</mj-raw>
+      </mj-column>
+    </mj-section>
+
+    <mj-include path="./partials/contact_et.mjml" />
+    <mj-section padding="0 24px">
+      <mj-column>
+        <mj-text padding-top="12px">
+          Tõnu Pekk<br />
+          Tuleva asutaja ja fondijuht
+        </mj-text>
+      </mj-column>
+    </mj-section>
+    <mj-include path="./partials/disclaimer_pension_et.mjml" />
+    <mj-include path="./partials/footer_bottom_fund.mjml" />
+  </mj-body>
+</mjml>

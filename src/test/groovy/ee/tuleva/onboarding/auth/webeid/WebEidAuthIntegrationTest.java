@@ -1,11 +1,14 @@
 package ee.tuleva.onboarding.auth.webeid;
 
 import static ee.tuleva.onboarding.auth.command.AuthenticationType.ID_CARD;
+import static ee.tuleva.onboarding.auth.webeid.WebEidCertificateFixture.certificateWithoutPolicies;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import eu.webeid.security.authtoken.WebEidAuthToken;
+import java.util.Base64;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -66,5 +69,33 @@ class WebEidAuthIntegrationTest {
                 .param("grant_type", "ID_CARD")
                 .param("authenticationHash", invalidAuthToken))
         .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void tokenWithCertificateWithoutPoliciesReturnsBadRequest() throws Exception {
+    var challenge =
+        mockMvc
+            .perform(
+                post("/authenticate")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(objectMapper.writeValueAsString(Map.of("type", ID_CARD.toString()))))
+            .andExpect(status().isOk())
+            .andReturn();
+    var certificate = certificateWithoutPolicies("MARI-LIIS", "MÄNNIK", "38888888888");
+    var authToken = new WebEidAuthToken();
+    authToken.setFormat("web-eid:1.0");
+    authToken.setUnverifiedCertificate(
+        Base64.getEncoder().encodeToString(certificate.getEncoded()));
+    authToken.setAlgorithm("ES384");
+    authToken.setSignature("signature");
+
+    mockMvc
+        .perform(
+            post("/oauth/token")
+                .cookie(challenge.getResponse().getCookie("SESSION"))
+                .param("grant_type", "ID_CARD")
+                .param("authenticationHash", objectMapper.writeValueAsString(authToken)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.error").value("ID_CARD_AUTH_FAILED"));
   }
 }

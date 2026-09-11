@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.investment.epis;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
-import ee.tuleva.onboarding.savings.fund.nav.FundNavQueryService;
+import ee.tuleva.onboarding.savings.FundNavQueryService;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Optional;
@@ -43,7 +43,7 @@ class OwnFundNavProvider {
   private Optional<BigDecimal> queryNav(TulevaFund fund, LocalDate asOfDate) {
     return fundNavQueryService
         .findLatestNavDateOnOrBefore(fund.getCode(), asOfDate)
-        .flatMap(navDate -> fundNavQueryService.findNavPerUnit(fund.getCode(), navDate));
+        .flatMap(navDate -> fundNavQueryService.findPublishedNavPerUnit(fund.getCode(), navDate));
   }
 
   private boolean isReasonable(TulevaFund fund, LocalDate asOfDate, BigDecimal nav) {

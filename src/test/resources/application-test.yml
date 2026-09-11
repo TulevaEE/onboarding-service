@@ -99,7 +99,7 @@ payment-provider:
       secret-key: exampleSecretKeyexampleSecretKeyexampleSecretKey
 
 opensanctions:
-  url: https://dummyUrl
+  url: http://localhost:9
 
 async:
   enabled: false
@@ -113,6 +113,10 @@ seb-gateway:
     path: "src/test/resources/banking/seb/test-seb-gateway.p12"
     password: testpass
   reconciliation-delay: 0s
+  retry:
+    delay: 1ms
+    multiplier: 1
+    max-delay: 1ms
   accounts:
     DEPOSIT_EUR: EE442200221092874625
     WITHDRAWAL_EUR: EE987700771001802057

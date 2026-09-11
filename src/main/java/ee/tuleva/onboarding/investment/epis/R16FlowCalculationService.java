@@ -3,8 +3,8 @@ package ee.tuleva.onboarding.investment.epis;
 import static ee.tuleva.onboarding.investment.epis.SummaryData.number;
 import static ee.tuleva.onboarding.investment.report.ReportType.R16_FORECASTED_PAYMENTS;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.calendar.EstonianCalendar;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;

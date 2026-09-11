@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.savings.fund.notification;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
 import static org.mockito.Mockito.verify;
 
+import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.party.PartyId;
 import java.math.BigDecimal;
@@ -135,12 +136,32 @@ class SavingsFundNotifierTest {
   }
 
   @Test
+  void onOwnAccountTransferRecorded_sendsNotification() {
+    var paymentId = UUID.fromString("33333333-3333-3333-3333-333333333333");
+    var event =
+        new OwnAccountTransferRecordedEvent(
+            BankAccountType.FUND_INVESTMENT_EUR,
+            BankAccountType.DEPOSIT_EUR,
+            new BigDecimal("4272.98"),
+            paymentId);
+
+    notifier.onOwnAccountTransferRecorded(event);
+
+    verify(notificationService)
+        .sendMessage(
+            "Own account transfer between fund bank accounts: from=FUND_INVESTMENT_EUR, to=DEPOSIT_EUR, amount=4272.98 EUR, paymentId=33333333-3333-3333-3333-333333333333",
+            SAVINGS);
+  }
+
+  @Test
   void onDeferredReturnMatchingCompleted_sendsNotification() {
     var event = new DeferredReturnMatchingCompletedEvent(2, 1, new BigDecimal("125.00"));
 
     notifier.onDeferredReturnMatchingCompleted(event);
 
     verify(notificationService)
-        .sendMessage("Deferred return matching: matchedCount=2, totalAmount=125.00 EUR", SAVINGS);
+        .sendMessage(
+            "Deferred return matching: matchedCount=2, unmatchedCount=1, totalAmount=125.00 EUR",
+            SAVINGS);
   }
 }

@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
+import org.jspecify.annotations.Nullable;
 
 @Getter
 @Setter
@@ -25,7 +26,7 @@ public class FundBalance {
   private BigDecimal contributions;
   private BigDecimal subtractions;
 
-  public BigDecimal getProfit() {
+  public @Nullable BigDecimal getProfit() {
     BigDecimal unavailableValue = this.unavailableValue != null ? this.unavailableValue : ZERO;
     return value != null && getContributionSum() != null
         ? value.add(unavailableValue).subtract(getContributionSum())
@@ -62,7 +63,7 @@ public class FundBalance {
     return getTotalValue().compareTo(ZERO) > 0;
   }
 
-  BigDecimal getContributionSum() {
+  @Nullable BigDecimal getContributionSum() {
     BigDecimal sum =
         ZERO.add(contributions == null ? ZERO : contributions)
             .add(subtractions == null ? ZERO : subtractions);

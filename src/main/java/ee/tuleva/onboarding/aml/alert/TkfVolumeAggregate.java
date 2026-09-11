@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.aml.alert;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import org.jspecify.annotations.Nullable;
 
 /**
  * One TKF volume window for one party (person or legal entity). A monthly window carries month sums
@@ -13,15 +14,15 @@ import java.time.Instant;
  */
 public record TkfVolumeAggregate(
     String personalId,
-    BigDecimal depositsThisMonth,
-    BigDecimal redemptionsThisMonth,
-    Instant lastDepositThisMonth,
-    Instant lastRedemptionThisMonth,
-    String monthKey,
-    BigDecimal depositsThisYear,
-    Instant lastDepositThisYear,
-    String yearKey,
+    @Nullable BigDecimal depositsThisMonth,
+    @Nullable BigDecimal redemptionsThisMonth,
+    @Nullable Instant lastDepositThisMonth,
+    @Nullable Instant lastRedemptionThisMonth,
+    @Nullable String monthKey,
+    @Nullable BigDecimal depositsThisYear,
+    @Nullable Instant lastDepositThisYear,
+    @Nullable String yearKey,
     boolean presentInCrm,
     boolean existingClient,
-    Instant lastManualReview,
+    @Nullable Instant lastManualReview,
     AlertPartyType partyType) {}

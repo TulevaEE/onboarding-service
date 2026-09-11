@@ -21,3 +21,19 @@
 # for a minor, and the sample user is baked into snapshots repo-wide):
 38812121215
 61506150006
+
+# Repo-invented admin test fixtures, long public on master (moved between
+# test files by the admin controller split)
+39107050268
+48709090311
+48806046007
+39001109103
+37508295796
+39001010000
+
+# Synthetic checksum test vectors for PersonalCodeValidatorTest: the only
+# codes in this file whose first-round mod-11 sum hits 10, forcing the
+# second weighting round. Invented for mutation coverage of that round;
+# birth dates 2060/2061 lie in the future, so they can identify no one.
+66003229972
+66112229833

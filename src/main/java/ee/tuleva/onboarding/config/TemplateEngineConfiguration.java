@@ -1,8 +1,10 @@
 package ee.tuleva.onboarding.config;
 
+import static java.util.Objects.requireNonNull;
 import static org.thymeleaf.templatemode.TemplateMode.HTML;
 
 import lombok.Setter;
+import org.jspecify.annotations.Nullable;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.thymeleaf.autoconfigure.ThymeleafAutoConfiguration;
 import org.springframework.context.ApplicationContext;
@@ -18,12 +20,14 @@ import org.thymeleaf.templateresolver.ITemplateResolver;
 @AutoConfigureBefore({ThymeleafAutoConfiguration.class})
 public class TemplateEngineConfiguration implements ApplicationContextAware {
 
-  private ApplicationContext applicationContext;
+  private @Nullable ApplicationContext applicationContext;
 
   @Bean
   public ITemplateResolver templateResolver() {
     SpringResourceTemplateResolver resolver = new SpringResourceTemplateResolver();
-    resolver.setApplicationContext(applicationContext);
+    resolver.setApplicationContext(
+        requireNonNull(
+            applicationContext, "ApplicationContext not set: TemplateEngineConfiguration"));
     resolver.setPrefix("classpath:/templates/");
     resolver.setSuffix(".html");
     resolver.setTemplateMode(HTML);

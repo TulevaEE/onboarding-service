@@ -1,8 +1,10 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
+import static ee.tuleva.onboarding.instrument.InstrumentReferenceFixture.instrument;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
@@ -12,18 +14,25 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
+import ee.tuleva.onboarding.instrument.InstrumentReference;
+import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
+import ee.tuleva.onboarding.time.ClockConfig;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.restclient.test.autoconfigure.RestClientTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.client.MockRestServiceServer;
 
 @RestClientTest(MorningstarNavRetriever.class)
+@Import(ClockConfig.class)
 class MorningstarNavRetrieverTest {
 
   @Autowired MorningstarNavRetriever retriever;
@@ -31,6 +40,18 @@ class MorningstarNavRetrieverTest {
   @Autowired MockRestServiceServer server;
 
   @MockitoBean FundValueRepository fundValueRepository;
+
+  @MockitoBean InstrumentReferenceService instrumentReferenceService;
+
+  private static final List<InstrumentReference> MORNINGSTAR_FUNDS =
+      List.of(
+          instrument("IE00BKM4GZ66").morningstarId("F00000Q7RC").build(),
+          instrument("LU0290358497").morningstarId("F00000PLTL").build());
+
+  @BeforeEach
+  void setUpInstruments() {
+    given(instrumentReferenceService.getMorningstarFunds()).willReturn(MORNINGSTAR_FUNDS);
+  }
 
   @AfterEach
   void cleanup() {
@@ -46,7 +67,7 @@ class MorningstarNavRetrieverTest {
   void exposesMorningstarStorageKeysAsExpectedStorageKeys() {
     assertThat(retriever.expectedStorageKeys())
         .containsExactlyInAnyOrderElementsOf(
-            FundTicker.getMorningstarFunds().stream()
+            MORNINGSTAR_FUNDS.stream()
                 .map(fund -> fund.getMorningstarStorageKey().orElseThrow())
                 .toList());
   }
@@ -58,7 +79,7 @@ class MorningstarNavRetrieverTest {
     var result =
         retriever.retrieveValuesForRange(LocalDate.of(2026, 2, 1), LocalDate.of(2026, 2, 28));
 
-    var fund = FundTicker.getMorningstarFunds().getFirst();
+    var fund = MORNINGSTAR_FUNDS.getFirst();
     var storageKey = fund.getMorningstarStorageKey().orElseThrow();
     var fundValue =
         result.stream().filter(v -> v.key().equals(storageKey)).findFirst().orElseThrow();
@@ -69,16 +90,15 @@ class MorningstarNavRetrieverTest {
 
   @Test
   void returnsEmptyListOnApiError() {
-    FundTicker.getMorningstarFunds()
-        .forEach(
-            fund ->
-                server
-                    .expect(
-                        requestTo(
-                            "https://lt.morningstar.com/api/rest.svc/klr5zyak8x/security_details/"
-                                + fund.getMorningstarId()
-                                + "?viewId=MFsnapshot&currencyId=EUR&itype=msid&languageId=en&responseViewFormat=json"))
-                    .andRespond(withServerError()));
+    MORNINGSTAR_FUNDS.forEach(
+        fund ->
+            server
+                .expect(
+                    requestTo(
+                        "https://lt.morningstar.com/api/rest.svc/klr5zyak8x/security_details/"
+                            + fund.getMorningstarId()
+                            + "?viewId=MFsnapshot&currencyId=EUR&itype=msid&languageId=en&responseViewFormat=json"))
+                .andRespond(withServerError()));
 
     var result =
         retriever.retrieveValuesForRange(LocalDate.of(2026, 2, 1), LocalDate.of(2026, 2, 28));
@@ -108,7 +128,7 @@ class MorningstarNavRetrieverTest {
 
   @Test
   void logsWarningWhenPriceDiffersFromExistingValue() {
-    var fund = FundTicker.getMorningstarFunds().getFirst();
+    var fund = MORNINGSTAR_FUNDS.getFirst();
     var storageKey = fund.getMorningstarStorageKey().orElseThrow();
     var existingValue =
         new FundValue(
@@ -133,16 +153,15 @@ class MorningstarNavRetrieverTest {
   }
 
   private void mockAllFunds(String responseBody) {
-    FundTicker.getMorningstarFunds()
-        .forEach(
-            fund ->
-                server
-                    .expect(
-                        requestTo(
-                            "https://lt.morningstar.com/api/rest.svc/klr5zyak8x/security_details/"
-                                + fund.getMorningstarId()
-                                + "?viewId=MFsnapshot&currencyId=EUR&itype=msid&languageId=en&responseViewFormat=json"))
-                    .andRespond(withSuccess(responseBody, APPLICATION_JSON)));
+    MORNINGSTAR_FUNDS.forEach(
+        fund ->
+            server
+                .expect(
+                    requestTo(
+                        "https://lt.morningstar.com/api/rest.svc/klr5zyak8x/security_details/"
+                            + fund.getMorningstarId()
+                            + "?viewId=MFsnapshot&currencyId=EUR&itype=msid&languageId=en&responseViewFormat=json"))
+                .andRespond(withSuccess(responseBody, APPLICATION_JSON)));
   }
 
   private String morningstarResponse(String value, String marketDate) {

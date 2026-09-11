@@ -6,7 +6,10 @@ import static java.util.stream.Collectors.toSet;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
+import ee.tuleva.onboarding.instrument.InstrumentReference;
+import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -29,11 +32,18 @@ public class MorningstarNavRetriever implements ComparisonIndexRetriever {
 
   private final RestClient restClient;
   private final FundValueRepository fundValueRepository;
+  private final InstrumentReferenceService instrumentReferenceService;
+  private final Clock clock;
 
   public MorningstarNavRetriever(
-      RestClient.Builder restClientBuilder, FundValueRepository fundValueRepository) {
+      RestClient.Builder restClientBuilder,
+      FundValueRepository fundValueRepository,
+      InstrumentReferenceService instrumentReferenceService,
+      Clock clock) {
     this.restClient = restClientBuilder.build();
     this.fundValueRepository = fundValueRepository;
+    this.instrumentReferenceService = instrumentReferenceService;
+    this.clock = clock;
   }
 
   @Override
@@ -43,7 +53,7 @@ public class MorningstarNavRetriever implements ComparisonIndexRetriever {
 
   @Override
   public Set<String> expectedStorageKeys() {
-    return FundTicker.getMorningstarFunds().stream()
+    return instrumentReferenceService.getMorningstarFunds().stream()
         .map(fund -> fund.getMorningstarStorageKey().orElseThrow())
         .collect(toSet());
   }
@@ -55,15 +65,15 @@ public class MorningstarNavRetriever implements ComparisonIndexRetriever {
 
   @Override
   public List<FundValue> retrieveValuesForRange(LocalDate startDate, LocalDate endDate) {
-    var now = Instant.now();
+    var now = clock.instant();
     List<FundValue> results = new ArrayList<>();
-    for (var fund : FundTicker.getMorningstarFunds()) {
+    for (var fund : instrumentReferenceService.getMorningstarFunds()) {
       results.addAll(retrieveValueForFund(fund, now));
     }
     return results;
   }
 
-  private List<FundValue> retrieveValueForFund(FundTicker fund, Instant now) {
+  private List<FundValue> retrieveValueForFund(InstrumentReference fund, Instant now) {
     var url =
         BASE_URL
             + fund.getMorningstarId()
@@ -74,7 +84,7 @@ public class MorningstarNavRetriever implements ComparisonIndexRetriever {
     try {
       response = restClient.get().uri(url).retrieve().body(new ParameterizedTypeReference<>() {});
     } catch (Exception e) {
-      log.error("Failed to retrieve Morningstar NAV: fund={}", fund.name(), e);
+      log.error("Failed to retrieve Morningstar NAV: isin={}", fund.getIsin(), e);
       return List.of();
     }
 

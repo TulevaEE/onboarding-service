@@ -1,14 +1,15 @@
 package ee.tuleva.onboarding.investment.position.parser;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK00;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
-import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static java.math.BigDecimal.ONE;
 import static java.math.BigDecimal.ZERO;
+import static java.util.Objects.requireNonNull;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
 import ee.tuleva.onboarding.investment.position.AccountType;
 import ee.tuleva.onboarding.investment.position.FundPosition;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -20,6 +21,7 @@ import java.util.Optional;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -83,10 +85,11 @@ public class SwedbankFundPositionParser implements FundPositionParser {
       }
 
       BigDecimal marketPrice = parseMarketPrice(row, accountType);
+      LocalDate navDate = requireNonNull(getDate(row, "NAVDate"), "Missing NAVDate: row=" + row);
 
       FundPosition position =
           FundPosition.builder()
-              .navDate(getDate(row, "NAVDate"))
+              .navDate(navDate)
               .reportDate(getDate(row, "ReportDate"))
               .fund(fund)
               .accountType(accountType)
@@ -106,7 +109,7 @@ public class SwedbankFundPositionParser implements FundPositionParser {
     }
   }
 
-  private String getString(Map<String, Object> row, String key) {
+  private @Nullable String getString(Map<String, Object> row, String key) {
     Object value = row.get(key);
     if (value == null) {
       return null;
@@ -115,12 +118,12 @@ public class SwedbankFundPositionParser implements FundPositionParser {
     return str.isEmpty() ? null : str;
   }
 
-  private LocalDate getDate(Map<String, Object> row, String key) {
+  private @Nullable LocalDate getDate(Map<String, Object> row, String key) {
     String value = getString(row, key);
     return value != null ? LocalDate.parse(value, DATE_FORMAT) : null;
   }
 
-  private BigDecimal getBigDecimal(Map<String, Object> row, String key) {
+  private @Nullable BigDecimal getBigDecimal(Map<String, Object> row, String key) {
     Object value = row.get(key);
     if (value == null) {
       return null;
@@ -139,7 +142,7 @@ public class SwedbankFundPositionParser implements FundPositionParser {
     return new BigDecimal(normalized);
   }
 
-  private BigDecimal parseMarketPrice(Map<String, Object> row, AccountType accountType) {
+  private @Nullable BigDecimal parseMarketPrice(Map<String, Object> row, AccountType accountType) {
     BigDecimal price = getBigDecimal(row, "PricePC");
     boolean priceIsNullOrZero = price == null || price.compareTo(ZERO) == 0;
     if (priceIsNullOrZero && UNIT_PRICE_ACCOUNT_TYPES.contains(accountType)) {

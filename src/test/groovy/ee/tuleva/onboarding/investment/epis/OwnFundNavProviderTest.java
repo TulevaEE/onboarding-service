@@ -1,11 +1,14 @@
 package ee.tuleva.onboarding.investment.epis;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUV100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
-import ee.tuleva.onboarding.savings.fund.nav.FundNavQueryService;
+import ee.tuleva.onboarding.savings.FundNavQueryService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Optional;
@@ -87,10 +90,23 @@ class OwnFundNavProviderTest {
         .isInstanceOf(IllegalStateException.class);
   }
 
+  // What reaches the registrar has to be the NAV that was published, never a recalculation that
+  // is still sitting unpublished in nav_report.
+  @Test
+  void latestNav_neverServesAnUnpublishedCalculation() {
+    given(fundNavQueryService.findLatestNavDateOnOrBefore(TUV100.getCode(), AS_OF_DATE))
+        .willReturn(Optional.of(NAV_DATE));
+    given(fundNavQueryService.findPublishedNavPerUnit(TUV100.getCode(), NAV_DATE))
+        .willReturn(Optional.empty());
+
+    assertThat(provider.findLatestNav(TUV100, AS_OF_DATE)).isEmpty();
+    verify(fundNavQueryService, never()).findLatestNavPerUnit(any(), any());
+  }
+
   private void givenNav(BigDecimal nav) {
     given(fundNavQueryService.findLatestNavDateOnOrBefore(TUV100.getCode(), AS_OF_DATE))
         .willReturn(Optional.of(NAV_DATE));
-    given(fundNavQueryService.findNavPerUnit(TUV100.getCode(), NAV_DATE))
+    given(fundNavQueryService.findPublishedNavPerUnit(TUV100.getCode(), NAV_DATE))
         .willReturn(Optional.of(nav));
   }
 }

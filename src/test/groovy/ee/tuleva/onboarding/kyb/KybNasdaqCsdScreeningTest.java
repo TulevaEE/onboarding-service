@@ -8,7 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
-import ee.tuleva.onboarding.aml.AmlCheckRepository;
+import ee.tuleva.onboarding.aml.KycChecks;
 import ee.tuleva.onboarding.ariregister.AriregisterClient;
 import ee.tuleva.onboarding.ariregister.BeneficialOwner;
 import ee.tuleva.onboarding.ariregister.BeneficialOwners;
@@ -34,11 +34,11 @@ class KybNasdaqCsdScreeningTest {
   private static final Clock FIXED_CLOCK =
       Clock.fixed(Instant.parse("2026-03-27T10:00:00Z"), ZoneId.of("Europe/Tallinn"));
 
-  private final AmlCheckRepository amlCheckRepository = mock(AmlCheckRepository.class);
+  private final KycChecks kycChecks = mock(KycChecks.class);
   private final AriregisterClient ariregisterClient = mock(AriregisterClient.class);
   private final LatestKybSurveyInputs latestKybSurveyInputs = mock(LatestKybSurveyInputs.class);
 
-  private final KybCompanyDataMapper mapper = new KybCompanyDataMapper(amlCheckRepository);
+  private final KybCompanyDataMapper mapper = new KybCompanyDataMapper(kycChecks);
   private final KybScreeningService screeningService =
       new KybScreeningService(
           List.of(

@@ -1,11 +1,12 @@
 package ee.tuleva.onboarding.mandate.content;
 
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.toList;
 
-import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.mandate.MandateContactDetails;
 import ee.tuleva.onboarding.user.User;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,7 +21,7 @@ class MandateContentCreator {
   private final MandateContentService mandateContentService;
 
   public List<MandateContentFile> getContentFiles(
-      User user, Mandate mandate, List<Fund> funds, ContactDetails contactDetails) {
+      User user, Mandate mandate, List<Fund> funds, MandateContactDetails contactDetails) {
     List<MandateContentFile> files =
         new ArrayList<>(getFundTransferMandateContentFiles(user, mandate, funds, contactDetails));
 
@@ -36,11 +37,15 @@ class MandateContentCreator {
   }
 
   private MandateContentFile getContentFileForPaymentRateChange(
-      User user, Mandate mandate, ContactDetails contactDetails) {
+      User user, Mandate mandate, MandateContactDetails contactDetails) {
     String htmlContent =
         mandateContentService.getRateChangeHtml(
-            user, mandate, contactDetails, mandate.getPaymentRate());
-    String documentNumber = mandate.getId().toString();
+            user,
+            mandate,
+            contactDetails,
+            requireNonNull(
+                mandate.getPaymentRate(), "Payment rate missing: mandateId=" + mandate.getId()));
+    String documentNumber = mandate.getIdOrThrow().toString();
 
     return MandateContentFile.builder()
         .name("makse_maara_muutmise_avaldus_" + documentNumber + ".html")
@@ -49,8 +54,8 @@ class MandateContentCreator {
   }
 
   private MandateContentFile getFutureContributionsFundMandateContentFile(
-      User user, Mandate mandate, List<Fund> funds, ContactDetails contactDetails) {
-    String documentNumber = mandate.getId().toString();
+      User user, Mandate mandate, List<Fund> funds, MandateContactDetails contactDetails) {
+    String documentNumber = mandate.getIdOrThrow().toString();
 
     String html =
         mandateContentService.getFutureContributionsFundHtml(user, mandate, funds, contactDetails);
@@ -62,7 +67,7 @@ class MandateContentCreator {
   }
 
   private List<MandateContentFile> getFundTransferMandateContentFiles(
-      User user, Mandate mandate, List<Fund> funds, ContactDetails contactDetails) {
+      User user, Mandate mandate, List<Fund> funds, MandateContactDetails contactDetails) {
     return allocateAndGetFundTransferFiles(
         mandate.getFundTransferExchangesBySourceIsin(), user, mandate, funds, contactDetails);
   }
@@ -72,7 +77,7 @@ class MandateContentCreator {
       User user,
       Mandate mandate,
       List<Fund> funds,
-      ContactDetails contactDetails) {
+      MandateContactDetails contactDetails) {
     return exchangeMap.keySet().stream()
         .map(
             sourceIsin ->
@@ -90,7 +95,7 @@ class MandateContentCreator {
       User user,
       Mandate mandate,
       List<Fund> funds,
-      ContactDetails contactDetails) {
+      MandateContactDetails contactDetails) {
     String documentNumber = fundTransferExchanges.getFirst().getId().toString();
 
     String html =

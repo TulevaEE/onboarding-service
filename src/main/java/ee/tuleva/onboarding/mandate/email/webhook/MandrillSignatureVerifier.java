@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.mandate.email.webhook;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Map.Entry.comparingByKey;
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.joining;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -15,6 +16,7 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -29,7 +31,7 @@ import org.springframework.stereotype.Component;
 public class MandrillSignatureVerifier {
 
   @Value("${mandrill.webhook.key:#{null}}")
-  private String webhookKey;
+  private @Nullable String webhookKey;
 
   public boolean verify(HttpServletRequest request, String receivedSignature) {
     if (receivedSignature == null || receivedSignature.isEmpty()) {
@@ -91,7 +93,8 @@ public class MandrillSignatureVerifier {
   private String generateSignature(String data)
       throws NoSuchAlgorithmException, InvalidKeyException {
     Mac mac = Mac.getInstance("HmacSHA1");
-    Key secretKey = new SecretKeySpec(webhookKey.getBytes(UTF_8), "HmacSHA1");
+    String key = requireNonNull(webhookKey, "Mandrill webhook key must be configured");
+    Key secretKey = new SecretKeySpec(key.getBytes(UTF_8), "HmacSHA1");
     mac.init(secretKey);
 
     byte[] hmac = mac.doFinal(data.getBytes(UTF_8));

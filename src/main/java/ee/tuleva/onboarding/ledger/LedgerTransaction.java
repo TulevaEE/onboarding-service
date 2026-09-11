@@ -25,6 +25,7 @@ import org.hibernate.annotations.Generated;
 import org.hibernate.annotations.JdbcType;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
+import org.jspecify.annotations.Nullable;
 
 @Entity
 @Table(name = "transaction", schema = "ledger")
@@ -85,6 +86,7 @@ public class LedgerTransaction {
   @NotNull private Instant transactionDate;
 
   @Column(name = "external_reference")
+  @Nullable
   private UUID externalReference;
 
   @JdbcTypeCode(JSON)

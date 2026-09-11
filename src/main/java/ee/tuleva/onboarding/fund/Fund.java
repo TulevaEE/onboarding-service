@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.fund;
 
+import static ee.tuleva.onboarding.fund.Fund.RiskLevel.LOW_RISK;
 import static jakarta.persistence.EnumType.STRING;
 
 import ee.tuleva.onboarding.fund.manager.FundManager;
@@ -23,7 +24,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.Strings;
 
 @Data
 @Builder
@@ -56,7 +57,9 @@ public class Fund implements Comparable<Fund> {
 
   @NotNull private BigDecimal managementFeeRate;
 
-  @NotNull private BigDecimal equityShare;
+  @NotNull
+  @Enumerated(STRING)
+  private RiskLevel riskLevel;
 
   @NotNull private BigDecimal ongoingChargesFigure;
 
@@ -74,8 +77,17 @@ public class Fund implements Comparable<Fund> {
     PAYOUTS_FORBIDDEN // Väljamaksed keelatud
   }
 
+  public enum RiskLevel {
+    LOW_RISK,
+    HIGH_RISK
+  }
+
   public String getName(Locale locale) {
     return Locale.ENGLISH.getLanguage().equals(locale.getLanguage()) ? nameEnglish : nameEstonian;
+  }
+
+  public boolean isLowRisk() {
+    return riskLevel == LOW_RISK;
   }
 
   public boolean isOwnFund() {
@@ -84,7 +96,7 @@ public class Fund implements Comparable<Fund> {
 
   public boolean isExitRestricted() {
     return EXIT_RESTRICTED_FUND_ISINS.contains(isin)
-        || StringUtils.containsIgnoreCase(nameEstonian, "väljumine piiratud");
+        || Strings.CI.contains(nameEstonian, "väljumine piiratud");
   }
 
   @Override

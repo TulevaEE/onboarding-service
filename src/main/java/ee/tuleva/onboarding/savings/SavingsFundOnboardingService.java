@@ -1,0 +1,94 @@
+package ee.tuleva.onboarding.savings;
+
+import static ee.tuleva.onboarding.event.TrackableEventType.SAVINGS_FUND_ONBOARDING_STATUS_CHANGE;
+import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
+import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.*;
+
+import ee.tuleva.onboarding.account.SavingsOnboardingCompletion;
+import ee.tuleva.onboarding.event.TrackableEvent;
+import ee.tuleva.onboarding.kyc.KycCheck;
+import ee.tuleva.onboarding.kyc.KycCheck.RiskLevel;
+import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingCompletedEvent;
+import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
+import ee.tuleva.onboarding.user.User;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.stereotype.Service;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class SavingsFundOnboardingService implements SavingsOnboardingCompletion {
+
+  private final SavingsFundOnboardingRepository savingsFundOnboardingRepository;
+  private final ApplicationEventPublisher eventPublisher;
+
+  @Override
+  public boolean isOnboardingCompleted(PartyId partyId) {
+    return isOnboardingCompleted(partyId.code(), partyId.type());
+  }
+
+  public boolean isOnboardingCompleted(String code, PartyId.Type type) {
+    return savingsFundOnboardingRepository.isOnboardingCompleted(code, type);
+  }
+
+  public Optional<SavingsFundOnboardingStatus> findStatus(String code, PartyId.Type type) {
+    return savingsFundOnboardingRepository.findStatus(code, type);
+  }
+
+  public @Nullable SavingsFundOnboardingStatus getOnboardingStatus(PartyId partyId) {
+    return savingsFundOnboardingRepository.findStatus(partyId.code(), partyId.type()).orElse(null);
+  }
+
+  public void seedPersonOnboardingIfAbsent(String personalCode) {
+    boolean inserted =
+        savingsFundOnboardingRepository.insertOnboardingStatusIfAbsent(
+            personalCode, PERSON, PENDING);
+    if (inserted) {
+      log.info("Seeded savings fund onboarding: personalCode={}, status={}", personalCode, PENDING);
+    }
+  }
+
+  public void updateOnboardingStatusIfNeeded(User user, KycCheck kycCheck) {
+    SavingsFundOnboardingStatus oldStatus =
+        savingsFundOnboardingRepository.findStatus(user.getPersonalCode(), PERSON).orElse(null);
+    if (oldStatus == COMPLETED) {
+      return;
+    }
+    SavingsFundOnboardingStatus newStatus = mapRiskLevelToStatus(kycCheck.riskLevel());
+    if (newStatus == oldStatus) {
+      return;
+    }
+    SavingsFundOnboardingStatus previousStatus =
+        savingsFundOnboardingRepository
+            .saveOnboardingStatus(user.getPersonalCode(), PERSON, newStatus)
+            .orElse(null);
+    if (newStatus == COMPLETED && previousStatus != COMPLETED) {
+      eventPublisher.publishEvent(new SavingsFundOnboardingCompletedEvent(user));
+    }
+    if (previousStatus == newStatus) {
+      return;
+    }
+    Map<String, @Nullable Object> eventData = new HashMap<>();
+    if (previousStatus != null) {
+      eventData.put("oldStatus", previousStatus);
+    }
+    eventData.put("newStatus", newStatus);
+    eventPublisher.publishEvent(
+        new TrackableEvent(user, SAVINGS_FUND_ONBOARDING_STATUS_CHANGE, eventData));
+  }
+
+  private SavingsFundOnboardingStatus mapRiskLevelToStatus(RiskLevel riskLevel) {
+    return switch (riskLevel) {
+      case LOW, NONE -> COMPLETED;
+      case MEDIUM -> PENDING;
+      case HIGH -> REJECTED;
+    };
+  }
+}

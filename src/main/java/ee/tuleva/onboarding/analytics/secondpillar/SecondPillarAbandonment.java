@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.analytics.secondpillar;
 
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.notification.email.Emailable;
+import ee.tuleva.onboarding.user.Emailable;
 import java.time.Instant;
 import java.time.LocalDate;
 import lombok.Builder;

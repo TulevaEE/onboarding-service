@@ -3,8 +3,8 @@ package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.fund.NavDto;
-import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
-import java.time.Instant;
+import ee.tuleva.onboarding.error.ErrorsResponseException;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,6 +20,7 @@ public class FundNavRetriever implements ComparisonIndexRetriever {
 
   private final EpisService episService;
   @ToString.Include private final String isin;
+  private final Clock clock;
 
   @Override
   public String getKey() {
@@ -43,6 +44,6 @@ public class FundNavRetriever implements ComparisonIndexRetriever {
   }
 
   private FundValue toFundValue(NavDto nav) {
-    return new FundValue(nav.getIsin(), nav.getDate(), nav.getValue(), PROVIDER, Instant.now());
+    return new FundValue(nav.isin(), nav.date(), nav.value(), PROVIDER, clock.instant());
   }
 }

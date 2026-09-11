@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.investment.risk;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.investment.risk.RiskIndicatorStatus.CHANGE_CONFIRMED;
 import static ee.tuleva.onboarding.investment.risk.RiskIndicatorStatus.CHANGE_PENDING;
 import static ee.tuleva.onboarding.investment.risk.RiskIndicatorStatus.STABLE;
 import static ee.tuleva.onboarding.investment.risk.RiskIndicatorType.SRRI;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ONE;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -90,6 +90,19 @@ class PublishedSeriesTest {
 
     assertThat(indicator.windowReferencePoints()).isEqualTo(18);
     assertThat(indicator.matchingReferencePoints()).isEqualTo(5);
+  }
+
+  @Test
+  void unclassifiedPointsWithinTheTelemetryWindowAreNotCounted() {
+    var published = sameClass(160, 4);
+    var raw = new ArrayList<>(sameClass(155, 4));
+    raw.add(null);
+    raw.addAll(sameClass(4, 4));
+
+    var indicator = analyse(raw, published);
+
+    assertThat(indicator.windowReferencePoints()).isEqualTo(17);
+    assertThat(indicator.matchingReferencePoints()).isEqualTo(17);
   }
 
   @Test

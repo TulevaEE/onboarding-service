@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.payment.savings.recurring;
 import static ee.tuleva.onboarding.payment.PaymentDateProvider.format;
 
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
+import ee.tuleva.onboarding.error.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.payment.CoopLanguage;
@@ -14,7 +14,7 @@ import ee.tuleva.onboarding.payment.PaymentLinkGenerator;
 import ee.tuleva.onboarding.payment.PaymentUrlEncoder;
 import ee.tuleva.onboarding.payment.PrefilledLink;
 import ee.tuleva.onboarding.payment.savings.SavingsFundRecipientConfiguration;
-import ee.tuleva.onboarding.user.personalcode.PersonalCodeValidator;
+import ee.tuleva.onboarding.personalcode.PersonalCodeValidator;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import lombok.RequiredArgsConstructor;

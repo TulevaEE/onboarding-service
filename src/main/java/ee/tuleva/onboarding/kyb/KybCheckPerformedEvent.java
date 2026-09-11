@@ -21,6 +21,7 @@ public class KybCheckPerformedEvent extends ApplicationEvent {
   private final List<KybRelatedPerson> relatedPersons;
   private final List<KybCheck> checks;
   private final List<RepresentationRight> representationRights;
+  private final KybScreeningTrigger trigger;
 
   public KybCheckPerformedEvent(
       Object source,
@@ -28,13 +29,15 @@ public class KybCheckPerformedEvent extends ApplicationEvent {
       PersonalCode personalCode,
       List<KybRelatedPerson> relatedPersons,
       List<KybCheck> checks,
-      List<RepresentationRight> representationRights) {
+      List<RepresentationRight> representationRights,
+      KybScreeningTrigger trigger) {
     super(source);
     this.company = Objects.requireNonNull(company);
     this.personalCode = Objects.requireNonNull(personalCode);
     this.relatedPersons = Objects.requireNonNull(relatedPersons);
     this.checks = Objects.requireNonNull(checks);
     this.representationRights = Objects.requireNonNull(representationRights);
+    this.trigger = Objects.requireNonNull(trigger);
   }
 
   public boolean hasMetadataChangeFor(Collection<KybCheckType> checkTypes) {

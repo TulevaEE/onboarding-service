@@ -1,13 +1,14 @@
 package ee.tuleva.onboarding.aml;
 
+import static java.util.Objects.requireNonNull;
+
 import ee.tuleva.onboarding.aml.exception.AmlChecksMissingException;
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
-import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.country.Countries;
 import ee.tuleva.onboarding.country.Country;
-import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
-import ee.tuleva.onboarding.epis.contact.event.ContactDetailsUpdatedEvent;
+import ee.tuleva.onboarding.epis.ContactDetailsService;
+import ee.tuleva.onboarding.epis.ContactDetailsUpdatedEvent;
 import ee.tuleva.onboarding.kyc.BeforeKycCheckedEvent;
 import ee.tuleva.onboarding.mandate.event.BeforeMandateCreatedEvent;
 import ee.tuleva.onboarding.user.User;
@@ -29,12 +30,13 @@ public class AmlAutoChecker {
   private static final int BEFORE_USER_DETAILS_UPDATER = 1;
 
   private final AmlService amlService;
+  private final SanctionAndPepScreener sanctionAndPepScreener;
   private final UserService userService;
   private final ContactDetailsService contactDetailsService;
 
   @EventListener
   @Order(BEFORE_USER_DETAILS_UPDATER)
-  public void beforeLogin(BeforeTokenGrantedEvent event) {
+  public void onLogin(AfterTokenGrantedEvent event) {
     Person person = event.getPerson();
     Boolean isResident = isResident(event);
     User user = getUser(person);
@@ -58,7 +60,7 @@ public class AmlAutoChecker {
 
   @EventListener
   public void contactDetailsUpdated(ContactDetailsUpdatedEvent event) {
-    amlService.addContactDetailsCheckIfMissing(event.getUser());
+    amlService.addContactDetailsCheckIfMissing(event.getPerson());
   }
 
   private User getUser(Person person) {
@@ -72,10 +74,13 @@ public class AmlAutoChecker {
   @EventListener
   public void beforeMandateCreated(BeforeMandateCreatedEvent event) {
     User user = event.getUser();
-    Country country = event.getCountry();
 
     if (amlService.isMandateAmlCheckRequired(user, event.getMandate())) {
-      amlService.addSanctionAndPepCheckIfMissing(user, Countries.of(country));
+      Country country =
+          requireNonNull(
+              event.getCountry(),
+              "Country missing for mandate: mandateId=" + event.getMandate().getId());
+      sanctionAndPepScreener.addSanctionAndPepCheckIfMissing(user, Countries.of(country));
     }
 
     if (!amlService.allChecksPassed(user, event.getMandate())) {
@@ -85,14 +90,10 @@ public class AmlAutoChecker {
 
   @EventListener
   public void beforeKycChecked(BeforeKycCheckedEvent event) {
-    amlService.addSanctionAndPepCheckIfMissing(event.person(), event.countries());
+    sanctionAndPepScreener.addSanctionAndPepCheckIfMissing(event.person(), event.countries());
   }
 
-  private @Nullable Boolean isResident(BeforeTokenGrantedEvent event) {
-    final var documentType = event.getIdDocumentType();
-    if (documentType == null) {
-      return null;
-    }
-    return documentType.isResident();
+  private @Nullable Boolean isResident(AfterTokenGrantedEvent event) {
+    return event.isResident();
   }
 }

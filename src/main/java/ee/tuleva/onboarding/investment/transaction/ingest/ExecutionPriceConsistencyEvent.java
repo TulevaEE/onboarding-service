@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.transaction.ingest;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import org.jspecify.annotations.Nullable;
 
 record ExecutionPriceConsistencyEvent(
     Long orderId,
@@ -10,7 +11,7 @@ record ExecutionPriceConsistencyEvent(
     BigDecimal maxUnitPrice,
     BigDecimal relativeSpread,
     BigDecimal tolerance,
-    LocalDate reportDate) {
+    @Nullable LocalDate reportDate) {
 
   ExecutionPriceConsistencyEvent withReportDate(LocalDate newReportDate) {
     return new ExecutionPriceConsistencyEvent(

@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.user.exception;
 
-import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
+import ee.tuleva.onboarding.error.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 
 public class DuplicateEmailException extends ErrorsResponseException {

@@ -10,12 +10,12 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
-public class RoleController {
+class RoleController {
 
   private final RoleSwitchService roleSwitchService;
 
   @GetMapping("/v1/me/roles")
-  public List<Role> getRoles(@AuthenticationPrincipal AuthenticatedPerson person) {
+  public List<RoleResponse> getRoles(@AuthenticationPrincipal AuthenticatedPerson person) {
     return roleSwitchService.getRoles(person);
   }
 

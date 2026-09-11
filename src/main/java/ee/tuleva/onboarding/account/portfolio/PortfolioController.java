@@ -31,10 +31,18 @@ public class PortfolioController {
       @AuthenticationPrincipal AuthenticatedPerson person,
       @RequestParam(required = false) @DateTimeFormat(iso = DATE) @Nullable LocalDate from,
       @RequestParam(required = false) @DateTimeFormat(iso = DATE) @Nullable LocalDate to) {
-    var endDate = to == null ? LocalDate.now(clock) : to;
-    if (from != null && from.isAfter(endDate)) {
-      throw new ResponseStatusException(
-          BAD_REQUEST, "Invalid portfolio period: from=" + from + ", to=" + endDate);
+    var today = LocalDate.now(clock);
+    var endDate = to == null ? today : to;
+    if (from != null) {
+      if (from.isAfter(endDate)) {
+        throw new ResponseStatusException(
+            BAD_REQUEST, "Invalid portfolio period: from=" + from + ", to=" + endDate);
+      }
+      if (from.isAfter(today)) {
+        throw new ResponseStatusException(
+            BAD_REQUEST,
+            "Portfolio period starts in the future: from=" + from + ", today=" + today);
+      }
     }
     return portfolioService.getPortfolio(person, from, endDate);
   }

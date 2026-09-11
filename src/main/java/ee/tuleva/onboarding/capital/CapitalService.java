@@ -12,8 +12,11 @@ import ee.tuleva.onboarding.capital.event.AggregatedCapitalEventRepository;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEvent;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventRepository;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType;
+import ee.tuleva.onboarding.capital.transfer.ActiveTransferCapital;
+import ee.tuleva.onboarding.user.member.Member;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -26,10 +29,17 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class CapitalService {
   private final MemberCapitalEventRepository memberCapitalEventRepository;
+  private final ActiveTransferCapital activeTransferCapital;
 
   private final AggregatedCapitalEventRepository aggregatedCapitalEventRepository;
+  private final Clock clock;
 
   private static final BigDecimal CONCENTRATION_LIMIT_COEFFICIENT = new BigDecimal("0.1");
+
+  public Map<MemberCapitalEventType, BigDecimal> getCapitalBeingSoldInOtherTransfers(
+      Member seller) {
+    return activeTransferCapital.beingSoldBy(seller);
+  }
 
   public List<ApiCapitalEvent> getCapitalEvents(Long memberId) {
     return memberCapitalEventRepository.findAllByMemberId(memberId).stream()
@@ -148,7 +158,7 @@ public class CapitalService {
   private Predicate<MemberCapitalEvent> pastEvents() {
     return event -> {
       LocalDate date = event.getAccountingDate();
-      LocalDate now = LocalDate.now();
+      LocalDate now = LocalDate.now(clock);
       return date.isBefore(now) || date.isEqual(now);
     };
   }

@@ -1,0 +1,19 @@
+<mj-raw>*|IF:thirdPillarActive|*</mj-raw>
+<mj-text>
+  If you are not yet saving your third pillar with us at Tuleva, make sure your third
+  pillar fund fees are below 0.3% per year, as low fees provide the best foundation for
+  optimal long-term returns.
+</mj-text>
+<mj-text><strong>See how much you pay in third pillar fees per year:</strong></mj-text>
+<mj-button href="https://pension.tuleva.ee/login?language=en&utm_content=nudge_third_pillar">
+  Review your fees
+</mj-button>
+<mj-raw>*|ELSE:|*</mj-raw>
+<mj-text>
+  Next, it's smart to set up the third pillar. For example, if you make a monthly
+  contribution of 100 euros, the state will refund you 264 euros in income tax next
+  spring.
+</mj-text>
+<mj-text><strong>Check how much you could save on taxes:</strong></mj-text>
+<mj-button href="https://tuleva.ee/en/third-pillar/?utm_content=nudge_third_pillar">Calculate&nbsp;your&nbsp;tax&nbsp;benefit</mj-button>
+<mj-raw>*|END:IF|*</mj-raw>

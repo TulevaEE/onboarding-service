@@ -1,14 +1,16 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100;
-import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.WITHDRAWALS;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionCutoff.TALLINN;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
-import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValueQueries;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.savings.RedemptionAlertThresholds;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
@@ -29,14 +31,14 @@ import org.springframework.stereotype.Component;
 @Profile({"production", "staging"})
 public class RedemptionAlertJob {
 
-  private static final BigDecimal PAYOUT_WARNING_THRESHOLD = new BigDecimal("40000");
-  private static final BigDecimal LIQUIDITY_THRESHOLD_PERCENT = new BigDecimal("0.01");
+  private static final BigDecimal ONE_HUNDRED = new BigDecimal("100");
 
   private final Clock clock;
   private final PublicHolidays publicHolidays;
   private final RedemptionRequestRepository redemptionRequestRepository;
-  private final FundValueRepository fundValueRepository;
+  private final FundValueQueries fundValueQueries;
   private final OperationsNotificationService notificationService;
+  private final RedemptionAlertThresholds redemptionAlertThresholds;
 
   @Scheduled(cron = "0 5 16 * * MON-FRI", zone = "Europe/Tallinn")
   @SchedulerLock(name = "RedemptionAlertJob", lockAtMostFor = "5m", lockAtLeastFor = "1m")
@@ -59,22 +61,42 @@ public class RedemptionAlertJob {
             .map(RedemptionRequest::getRequestedAmount)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-    checkPayoutThreshold(totalAmount, requests.size());
-    checkLiquidityRisk(totalAmount, requests.size());
+    checkPayoutThreshold(today, totalAmount, requests.size());
+    checkLiquidityRisk(today, totalAmount, requests.size());
   }
 
-  private void checkPayoutThreshold(BigDecimal totalAmount, int requestCount) {
-    if (totalAmount.compareTo(PAYOUT_WARNING_THRESHOLD) > 0) {
+  private void checkPayoutThreshold(LocalDate today, BigDecimal totalAmount, int requestCount) {
+    Optional<BigDecimal> payoutThreshold =
+        redemptionAlertThresholds.redemptionPayoutWarningThreshold(TKF100, today);
+    if (payoutThreshold.isEmpty()) {
+      log.warn(
+          "Redemption payout warning threshold not configured, skipping payout check: fund={}, asOf={}",
+          TKF100,
+          today);
+      return;
+    }
+
+    if (totalAmount.compareTo(payoutThreshold.get()) > 0) {
       String message =
           "PAYOUT WARNING: TKF100 pending redemption payouts: totalAmount=%s EUR, requests=%d. WITHDRAWAL_EUR credit limit increase may be needed."
               .formatted(totalAmount, requestCount);
-      log.info("{}", message);
-      notificationService.sendMessage(message, WITHDRAWALS);
+      log.warn(message);
+      notificationService.sendMessage(message, INVESTMENT, ERROR);
     }
   }
 
-  private void checkLiquidityRisk(BigDecimal totalAmount, int requestCount) {
-    Optional<FundValue> aum = fundValueRepository.findLastValueForFund(TKF100.getAumKey());
+  private void checkLiquidityRisk(LocalDate today, BigDecimal totalAmount, int requestCount) {
+    Optional<BigDecimal> shareOfAum =
+        redemptionAlertThresholds.redemptionLiquidityWarningShareOfAum(TKF100, today);
+    if (shareOfAum.isEmpty()) {
+      log.warn(
+          "Redemption liquidity warning share of AUM not configured, skipping liquidity risk check: fund={}, asOf={}",
+          TKF100,
+          today);
+      return;
+    }
+
+    Optional<FundValue> aum = fundValueQueries.findLastValueForFund(TKF100.getAumKey());
     if (aum.isEmpty()) {
       log.warn("AUM not available for TKF100, skipping liquidity risk check");
       return;
@@ -86,15 +108,20 @@ public class RedemptionAlertJob {
       return;
     }
 
-    BigDecimal threshold = aumValue.multiply(LIQUIDITY_THRESHOLD_PERCENT);
+    BigDecimal share = shareOfAum.get();
+    BigDecimal threshold = aumValue.multiply(share);
     if (totalAmount.compareTo(threshold) > 0) {
       BigDecimal percentage =
-          totalAmount.multiply(new BigDecimal("100")).divide(aumValue, 2, RoundingMode.HALF_UP);
+          totalAmount.multiply(ONE_HUNDRED).divide(aumValue, 2, RoundingMode.HALF_UP);
       String message =
-          "LIQUIDITY WARNING: TKF100 pending withdrawals totalAmount=%s EUR (%s%% of AUM), requests=%d, AUM=%s EUR. Exceeds 1%% threshold."
-              .formatted(totalAmount, percentage, requestCount, aumValue);
-      log.info("{}", message);
-      notificationService.sendMessage(message, WITHDRAWALS);
+          "LIQUIDITY WARNING: TKF100 pending withdrawals totalAmount=%s EUR (%s%% of AUM), requests=%d, AUM=%s EUR. Exceeds %s%% of AUM."
+              .formatted(totalAmount, percentage, requestCount, aumValue, asPercent(share));
+      log.warn(message);
+      notificationService.sendMessage(message, INVESTMENT, ERROR);
     }
+  }
+
+  private static String asPercent(BigDecimal share) {
+    return share.multiply(ONE_HUNDRED).stripTrailingZeros().toPlainString();
   }
 }

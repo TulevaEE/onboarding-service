@@ -3,6 +3,10 @@ package ee.tuleva.onboarding.investment.instrument
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider
 import ee.tuleva.onboarding.deadline.PublicHolidays
+import ee.tuleva.onboarding.instrument.BenchmarkProxy
+import ee.tuleva.onboarding.instrument.InstrumentReference
+import ee.tuleva.onboarding.instrument.InstrumentReferenceService
+import ee.tuleva.onboarding.instrument.InstrumentReferenceService.UnresolvableBenchmarkProxyException
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository
 import ee.tuleva.onboarding.investment.portfolio.PositionLimit
@@ -17,9 +21,12 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
-import static ee.tuleva.onboarding.fund.TulevaFund.TKF100
-import static ee.tuleva.onboarding.fund.TulevaFund.TUK75
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75
+import static ee.tuleva.onboarding.instrument.InstrumentReferenceFixture.anInstrument
 import static ee.tuleva.onboarding.investment.instrument.InstrumentDataValidator.Severity.FAIL
+import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF
+import static ee.tuleva.onboarding.investment.transaction.InstrumentType.FUND
 import static ee.tuleva.onboarding.investment.instrument.InstrumentDataValidator.Severity.WARNING
 
 class InstrumentDataValidatorSpec extends Specification {
@@ -56,7 +63,7 @@ class InstrumentDataValidatorSpec extends Specification {
     allocationRepository.findByFundAndEffectiveDate(TUK75, effectiveDate) >> [allocation(isin1, 1.0)]
     instrumentReferenceService.findByIsin(isin1) >> Optional.empty()
     positionLimitRepository.findLatestByFundAsOf(TUK75, effectiveDate) >> [positionLimit(isin1)]
-    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of("proxy")
+    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of(new BenchmarkProxy(null, "MSCI_WORLD"))
 
     when:
     def findings = validator.validate(TUK75, effectiveDate)
@@ -72,7 +79,7 @@ class InstrumentDataValidatorSpec extends Specification {
     ]
     instrumentReferenceService.findByIsin(_) >> Optional.of(instrument(active: true))
     positionLimitRepository.findLatestByFundAsOf(TUK75, effectiveDate) >> [positionLimit(isin1), positionLimit(isin2)]
-    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of("proxy")
+    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of(new BenchmarkProxy(null, "MSCI_WORLD"))
 
     when:
     def findings = validator.validate(TUK75, effectiveDate)
@@ -88,7 +95,7 @@ class InstrumentDataValidatorSpec extends Specification {
     ]
     instrumentReferenceService.findByIsin(_) >> Optional.of(instrument(active: true))
     positionLimitRepository.findLatestByFundAsOf(TUK75, effectiveDate) >> [positionLimit(isin1), positionLimit(isin2)]
-    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of("proxy")
+    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of(new BenchmarkProxy(null, "MSCI_WORLD"))
 
     when:
     def findings = validator.validate(TUK75, effectiveDate)
@@ -102,7 +109,7 @@ class InstrumentDataValidatorSpec extends Specification {
     allocationRepository.findByFundAndEffectiveDate(TUK75, effectiveDate) >> [allocation(isin1, 1.0)]
     instrumentReferenceService.findByIsin(isin1) >> Optional.of(instrument(active: true))
     positionLimitRepository.findLatestByFundAsOf(TUK75, effectiveDate) >> []
-    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of("proxy")
+    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of(new BenchmarkProxy(null, "MSCI_WORLD"))
 
     when:
     def findings = validator.validate(TUK75, effectiveDate)
@@ -118,7 +125,7 @@ class InstrumentDataValidatorSpec extends Specification {
     instrumentReferenceService.findByIsin(isin1) >> Optional.of(instrument(active: true))
     positionLimitRepository.findLatestByFundAsOf(TKF100, effectiveDate) >> [positionLimit(isin1)]
     providerLimitRepository.findLatestByFundAsOf(TKF100, effectiveDate) >> []
-    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of("proxy")
+    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of(new BenchmarkProxy(null, "MSCI_WORLD"))
 
     when:
     def findings = validator.validate(TKF100, effectiveDate)
@@ -133,7 +140,7 @@ class InstrumentDataValidatorSpec extends Specification {
     allocationRepository.findByFundAndEffectiveDate(TUK75, effectiveDate) >> [alloc]
     instrumentReferenceService.findByIsin(isin1) >> Optional.of(instrument(active: true))
     positionLimitRepository.findLatestByFundAsOf(TUK75, effectiveDate) >> [positionLimit(isin1)]
-    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of("proxy")
+    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of(new BenchmarkProxy(null, "MSCI_WORLD"))
 
     when:
     def findings = validator.validate(TUK75, effectiveDate)
@@ -143,18 +150,21 @@ class InstrumentDataValidatorSpec extends Specification {
     findings.every { !it.message().contains("No provider limit") }
   }
 
-  def "WARNING when benchmark proxy missing for category"() {
+  def "FAIL when the benchmark proxy configured for a category cannot be resolved"() {
     given:
     allocationRepository.findByFundAndEffectiveDate(TUK75, effectiveDate) >> [allocation(isin1, 1.0)]
     instrumentReferenceService.findByIsin(isin1) >> Optional.of(instrument(active: true, benchmarkCategory: "EQUITY_DM", eodhdTicker: "EUNL.XETRA"))
     positionLimitRepository.findLatestByFundAsOf(TUK75, effectiveDate) >> [positionLimit(isin1)]
-    instrumentReferenceService.resolveBenchmarkProxy("EQUITY_DM", true) >> Optional.empty()
+    instrumentReferenceService.resolveBenchmarkProxy("EQUITY_DM", true) >> {
+      throw new UnresolvableBenchmarkProxyException(
+          "Benchmark proxy instrument is missing from the instrument reference cache: benchmarkCategory=EQUITY_DM, role=etfProxyIsin, proxyIsin=IE00B4L5Y983")
+    }
 
     when:
     def findings = validator.validate(TUK75, effectiveDate)
 
     then:
-    findings.any { it.severity() == WARNING && it.message().contains("No benchmark proxy") }
+    findings.any { it.severity() == FAIL && it.message().contains("No benchmark proxy") }
   }
 
   def "skips benchmark proxy check when category is null"() {
@@ -175,13 +185,48 @@ class InstrumentDataValidatorSpec extends Specification {
     allocationRepository.findByFundAndEffectiveDate(TUK75, effectiveDate) >> [allocation(isin1, 1.0)]
     instrumentReferenceService.findByIsin(isin1) >> Optional.of(instrument(active: false))
     positionLimitRepository.findLatestByFundAsOf(TUK75, effectiveDate) >> [positionLimit(isin1)]
-    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of("proxy")
+    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of(new BenchmarkProxy(null, "MSCI_WORLD"))
 
     when:
     def findings = validator.validate(TUK75, effectiveDate)
 
     then:
     findings.any { it.severity() == FAIL && it.message().contains("active=false") }
+  }
+
+  def "a deactivated instrument reports only active=false, not the consequences of not fetching"() {
+    given:
+    def futureDate = LocalDate.of(2026, 6, 1)
+    def alloc = ModelPortfolioAllocation.builder()
+        .effectiveDate(futureDate).fund(TUK75).isin(isin1).weight(1.0).ticker("WRONG.DE").build()
+    allocationRepository.findByFundAndEffectiveDate(TUK75, futureDate) >> [alloc]
+    instrumentReferenceService.findByIsin(isin1) >> Optional.of(
+        instrument(active: false, benchmarkCategory: "EQUITY_DM", eodhdTicker: "EUNL.XETRA", yahooTicker: "EUNL.DE"))
+    positionLimitRepository.findLatestByFundAsOf(TUK75, futureDate) >> [positionLimit(isin1)]
+    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.empty()
+    publicHolidays.previousWorkingDay(_) >> { LocalDate d -> d.minusDays(1) }
+    fundValueProvider.getValueForDate(_, _) >> Optional.empty()
+
+    when:
+    def findings = validator.validate(TUK75, futureDate)
+
+    then:
+    findings.collect { it.message() } == [
+        "ISIN %s is active=false in instrument_reference — prices not being fetched".formatted(isin1)
+    ]
+  }
+
+  def "a deactivated instrument is still found, never reported as missing from instrument_reference"() {
+    given:
+    allocationRepository.findByFundAndEffectiveDate(TUK75, effectiveDate) >> [allocation(isin1, 1.0)]
+    instrumentReferenceService.findByIsin(isin1) >> Optional.of(instrument(active: false))
+    positionLimitRepository.findLatestByFundAsOf(TUK75, effectiveDate) >> [positionLimit(isin1)]
+
+    when:
+    def findings = validator.validate(TUK75, effectiveDate)
+
+    then:
+    findings.every { !it.message().contains("not in instrument_reference") }
   }
 
   def "WARNING when ticker mismatch between allocation and instrument_reference"() {
@@ -191,7 +236,7 @@ class InstrumentDataValidatorSpec extends Specification {
     allocationRepository.findByFundAndEffectiveDate(TUK75, effectiveDate) >> [alloc]
     instrumentReferenceService.findByIsin(isin1) >> Optional.of(instrument(active: true, yahooTicker: "EUNL.DE"))
     positionLimitRepository.findLatestByFundAsOf(TUK75, effectiveDate) >> [positionLimit(isin1)]
-    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of("proxy")
+    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of(new BenchmarkProxy(null, "MSCI_WORLD"))
 
     when:
     def findings = validator.validate(TUK75, effectiveDate)
@@ -207,7 +252,7 @@ class InstrumentDataValidatorSpec extends Specification {
     allocationRepository.findByFundAndEffectiveDate(TUK75, effectiveDate) >> [alloc]
     instrumentReferenceService.findByIsin(isin1) >> Optional.of(instrument(active: true, yahooTicker: "EUNL.DE"))
     positionLimitRepository.findLatestByFundAsOf(TUK75, effectiveDate) >> [positionLimit(isin1)]
-    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of("proxy")
+    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of(new BenchmarkProxy(null, "MSCI_WORLD"))
 
     when:
     def findings = validator.validate(TUK75, effectiveDate)
@@ -223,7 +268,7 @@ class InstrumentDataValidatorSpec extends Specification {
     allocationRepository.findByFundAndEffectiveDate(TUK75, effectiveDate) >> [alloc]
     instrumentReferenceService.findByIsin(isin1) >> Optional.of(instrument(active: true))
     positionLimitRepository.findLatestByFundAsOf(TUK75, effectiveDate) >> [positionLimit(isin1)]
-    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of("proxy")
+    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of(new BenchmarkProxy(null, "MSCI_WORLD"))
 
     when:
     def findings = validator.validate(TUK75, effectiveDate)
@@ -238,7 +283,7 @@ class InstrumentDataValidatorSpec extends Specification {
     allocationRepository.findByFundAndEffectiveDate(TUK75, futureDate) >> [allocation(isin1, 1.0)]
     instrumentReferenceService.findByIsin(isin1) >> Optional.of(instrument(active: true, eodhdTicker: "EUNL.XETRA"))
     positionLimitRepository.findLatestByFundAsOf(TUK75, futureDate) >> [positionLimit(isin1)]
-    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of("proxy")
+    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of(new BenchmarkProxy(null, "MSCI_WORLD"))
     publicHolidays.previousWorkingDay(_) >> { LocalDate d -> d.minusDays(1) }
     fundValueProvider.getValueForDate(_, _) >> Optional.empty()
 
@@ -255,7 +300,7 @@ class InstrumentDataValidatorSpec extends Specification {
     allocationRepository.findByFundAndEffectiveDate(TUK75, futureDate) >> [allocation(isin1, 1.0)]
     instrumentReferenceService.findByIsin(isin1) >> Optional.of(instrument(active: true, eodhdTicker: "EUNL.XETRA"))
     positionLimitRepository.findLatestByFundAsOf(TUK75, futureDate) >> [positionLimit(isin1)]
-    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of("proxy")
+    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of(new BenchmarkProxy(null, "MSCI_WORLD"))
     publicHolidays.previousWorkingDay(_) >> { LocalDate d -> d.minusDays(1) }
     // a price exists on exactly one business day; every other day has none
     fundValueProvider.getValueForDate("EUNL.XETRA", LocalDate.of(2026, 5, 31)) >> Optional.of(Mock(FundValue))
@@ -270,12 +315,30 @@ class InstrumentDataValidatorSpec extends Specification {
     findings.any { it.severity() == FAIL && it.message().contains("business days of prices") }
   }
 
+  def "does not count EODHD prices for an instrument that is not listed on EODHD"() {
+    given:
+    def futureDate = LocalDate.of(2026, 6, 1)
+    allocationRepository.findByFundAndEffectiveDate(TUK75, futureDate) >> [allocation(isin1, 1.0)]
+    instrumentReferenceService.findByIsin(isin1) >> Optional.of(
+        instrument(active: true, isin: isin1, eodhdTicker: "EUNL.LSE", eodhdListed: false))
+    positionLimitRepository.findLatestByFundAsOf(TUK75, futureDate) >> [positionLimit(isin1)]
+    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of(new BenchmarkProxy(null, "MSCI_WORLD"))
+    publicHolidays.previousWorkingDay(_) >> { LocalDate d -> d.minusDays(1) }
+
+    when:
+    def findings = validator.validate(TUK75, futureDate)
+
+    then:
+    0 * fundValueProvider.getValueForDate(_, _)
+    findings.any { it.severity() == FAIL && it.message().contains("business days of prices") }
+  }
+
   def "no price history check when effective date is today or past"() {
     given:
     allocationRepository.findByFundAndEffectiveDate(TUK75, effectiveDate) >> [allocation(isin1, 1.0)]
     instrumentReferenceService.findByIsin(isin1) >> Optional.of(instrument(active: true))
     positionLimitRepository.findLatestByFundAsOf(TUK75, effectiveDate) >> [positionLimit(isin1)]
-    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of("proxy")
+    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of(new BenchmarkProxy(null, "MSCI_WORLD"))
 
     when:
     def findings = validator.validate(TUK75, effectiveDate)
@@ -291,7 +354,7 @@ class InstrumentDataValidatorSpec extends Specification {
     allocationRepository.findByFundAndEffectiveDate(TUK75, futureDate) >> [allocation(isin1, 1.0)]
     instrumentReferenceService.findByIsin(isin1) >> Optional.of(instrument(active: true, eodhdTicker: "EUNL.XETRA"))
     positionLimitRepository.findLatestByFundAsOf(TUK75, futureDate) >> [positionLimit(isin1)]
-    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of("proxy")
+    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of(new BenchmarkProxy(null, "MSCI_WORLD"))
     publicHolidays.previousWorkingDay(_) >> { LocalDate d -> d.minusDays(1) }
     fundValueProvider.getValueForDate(_ as String, _ as LocalDate) >> Optional.of(Mock(FundValue))
 
@@ -309,7 +372,7 @@ class InstrumentDataValidatorSpec extends Specification {
     ]
     instrumentReferenceService.findByIsin(_) >> Optional.of(instrument(active: true))
     positionLimitRepository.findLatestByFundAsOf(TUK75, effectiveDate) >> [positionLimit(isin1), positionLimit(isin2)]
-    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of("proxy")
+    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of(new BenchmarkProxy(null, "MSCI_WORLD"))
 
     when:
     def findings = validator.validate(TUK75, effectiveDate)
@@ -318,9 +381,62 @@ class InstrumentDataValidatorSpec extends Specification {
     findings.isEmpty()
   }
 
+  def "FAIL when a fund allocation has no domicile, before a wrong settlement date is ever calculated"() {
+    given:
+    allocationRepository.findByFundAndEffectiveDate(TUK75, effectiveDate) >> [fundAllocation(isin1)]
+    instrumentReferenceService.findByIsin(isin1) >> Optional.of(instrument(isin: isin1, country: country))
+    positionLimitRepository.findLatestByFundAsOf(TUK75, effectiveDate) >> [positionLimit(isin1)]
+    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of(new BenchmarkProxy(null, "MSCI_WORLD"))
+
+    when:
+    def findings = validator.validate(TUK75, effectiveDate)
+
+    then:
+    findings.any { it.severity() == FAIL && it.message().contains(isin1) && it.message().contains("domicile") }
+
+    where:
+    country << [null, "", "GB"]
+  }
+
+  def "no domicile finding for a fund allocation whose country is a supported domicile"() {
+    given:
+    allocationRepository.findByFundAndEffectiveDate(TUK75, effectiveDate) >> [fundAllocation(isin1)]
+    instrumentReferenceService.findByIsin(isin1) >> Optional.of(instrument(isin: isin1, country: "lu"))
+    positionLimitRepository.findLatestByFundAsOf(TUK75, effectiveDate) >> [positionLimit(isin1)]
+    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of(new BenchmarkProxy(null, "MSCI_WORLD"))
+
+    when:
+    def findings = validator.validate(TUK75, effectiveDate)
+
+    then:
+    findings.every { !it.message().contains("domicile") }
+  }
+
+  def "no domicile finding for an ETF allocation, which settles on TARGET2 wherever it is domiciled"() {
+    given:
+    allocationRepository.findByFundAndEffectiveDate(TUK75, effectiveDate) >> [etfAllocation(isin1)]
+    instrumentReferenceService.findByIsin(isin1) >> Optional.of(instrument(isin: isin1, country: null))
+    positionLimitRepository.findLatestByFundAsOf(TUK75, effectiveDate) >> [positionLimit(isin1)]
+    instrumentReferenceService.resolveBenchmarkProxy(_, _) >> Optional.of(new BenchmarkProxy(null, "MSCI_WORLD"))
+
+    when:
+    def findings = validator.validate(TUK75, effectiveDate)
+
+    then:
+    findings.every { !it.message().contains("domicile") }
+  }
+
   private ModelPortfolioAllocation allocation(String isin, BigDecimal weight, Provider provider = null) {
     ModelPortfolioAllocation.builder()
         .effectiveDate(effectiveDate).fund(TUK75).isin(isin).weight(weight).provider(provider).build()
+  }
+
+  private ModelPortfolioAllocation fundAllocation(String isin) {
+    allocation(isin, 1.0).tap { instrumentType = FUND }
+  }
+
+  private ModelPortfolioAllocation etfAllocation(String isin) {
+    allocation(isin, 1.0).tap { instrumentType = ETF }
   }
 
   private PositionLimit positionLimit(String isin) {
@@ -330,19 +446,14 @@ class InstrumentDataValidatorSpec extends Specification {
   }
 
   private InstrumentReference instrument(Map props = [:]) {
-    def inst = new InstrumentReference()
-    def fields = InstrumentReference.getDeclaredFields()
-    setField(inst, "active", props.containsKey("active") ? props.active : true)
-    if (props.benchmarkCategory) setField(inst, "benchmarkCategory", props.benchmarkCategory)
-    if (props.eodhdTicker) setField(inst, "eodhdTicker", props.eodhdTicker)
-    if (props.yahooTicker) setField(inst, "yahooTicker", props.yahooTicker)
-    if (props.isin) setField(inst, "isin", props.isin)
-    return inst
-  }
-
-  private static void setField(Object obj, String fieldName, Object value) {
-    def field = InstrumentReference.getDeclaredField(fieldName)
-    field.setAccessible(true)
-    field.set(obj, value)
+    def fixture = anInstrument()
+        .active(props.containsKey("active") ? props.active : true)
+        .eodhdListed(props.containsKey("eodhdListed") ? props.eodhdListed : true)
+    if (props.containsKey("country")) fixture.country(props.country)
+    if (props.benchmarkCategory) fixture.benchmarkCategory(props.benchmarkCategory)
+    if (props.eodhdTicker) fixture.eodhdTicker(props.eodhdTicker)
+    if (props.yahooTicker) fixture.yahooTicker(props.yahooTicker)
+    if (props.isin) fixture.isin(props.isin)
+    return fixture.build()
   }
 }

@@ -38,9 +38,9 @@ public class HackathonRegistrationService {
   }
 
   public HackathonRegistrationDto getRegistration(AuthenticatedPerson authenticatedPerson) {
-    User user = userService.getByIdOrThrow(authenticatedPerson.getUserId());
+    User user = userService.getByIdOrThrow(authenticatedPerson.getUserIdOrThrow());
     return repository
-        .findByUserId(user.getId())
+        .findByUserId(user.getIdOrThrow())
         .map(registration -> HackathonRegistrationDto.from(registration, isOpen(), deadline))
         .orElseGet(() -> HackathonRegistrationDto.prefilledFrom(user, isOpen(), deadline));
   }
@@ -51,10 +51,10 @@ public class HackathonRegistrationService {
       throw new HackathonRegistrationClosedException(deadline, clock.instant());
     }
 
-    User user = userService.getByIdOrThrow(authenticatedPerson.getUserId());
+    User user = userService.getByIdOrThrow(authenticatedPerson.getUserIdOrThrow());
 
     return repository
-        .findByUserId(user.getId())
+        .findByUserId(user.getIdOrThrow())
         .map(existing -> update(existing, request))
         .orElseGet(() -> createOrUpdateConcurrently(user, request));
   }
@@ -65,7 +65,9 @@ public class HackathonRegistrationService {
       return create(user, request);
     } catch (DataIntegrityViolationException alreadyRegisteredConcurrently) {
       return update(
-          repository.findByUserId(user.getId()).orElseThrow(() -> alreadyRegisteredConcurrently),
+          repository
+              .findByUserId(user.getIdOrThrow())
+              .orElseThrow(() -> alreadyRegisteredConcurrently),
           request);
     }
   }
@@ -80,7 +82,7 @@ public class HackathonRegistrationService {
 
   private HackathonRegistrationDto create(User user, HackathonRegistrationRequest request) {
     HackathonRegistration saved =
-        repository.save(request.toRegistration(user.getId(), clock.instant()));
+        repository.save(request.toRegistration(user.getIdOrThrow(), clock.instant()));
     log.info(
         "Created hackathon registration: userId={}, role={}", saved.getUserId(), saved.getRole());
     hackathonEmailService.sendRegistrationConfirmation(

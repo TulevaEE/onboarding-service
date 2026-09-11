@@ -20,6 +20,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.jspecify.annotations.Nullable;
 
 @Data
 @Builder
@@ -37,41 +38,41 @@ public class TransactionExecution {
   @Column(name = "order_id")
   private Long orderId;
 
-  private String brokerTransactionId;
+  @Nullable private String brokerTransactionId;
 
-  private UUID aggregatedOrderId;
+  @Nullable private UUID aggregatedOrderId;
 
-  private Instant executionTimestamp;
+  @Nullable private Instant executionTimestamp;
 
-  private BigDecimal executedQuantity;
+  @Nullable private BigDecimal executedQuantity;
 
-  private BigDecimal unitPrice;
+  @Nullable private BigDecimal unitPrice;
 
-  private BigDecimal totalConsideration;
+  @Nullable private BigDecimal totalConsideration;
 
-  private BigDecimal settlementAmount;
+  @Nullable private BigDecimal settlementAmount;
 
-  private BigDecimal commissionAmount;
+  @Nullable private BigDecimal commissionAmount;
 
-  private BigDecimal settlementFeeAmount;
+  @Nullable private BigDecimal settlementFeeAmount;
 
-  private BigDecimal settlementPenalty;
+  @Nullable private BigDecimal settlementPenalty;
 
-  private BigDecimal netSettlementAmount;
+  @Nullable private BigDecimal netSettlementAmount;
 
-  private LocalDate scheduledSettlementDate;
+  @Nullable private LocalDate scheduledSettlementDate;
 
-  private LocalDate reportedDate;
+  @Nullable private LocalDate reportedDate;
 
-  private LocalDate navDate;
+  private @Nullable LocalDate navDate;
 
-  private String comment;
+  private @Nullable String comment;
 
   @NotNull private String source;
 
-  private String sourceFileKey;
+  private @Nullable String sourceFileKey;
 
-  private String modifiedBy;
+  private @Nullable String modifiedBy;
 
   private Instant createdAt;
 

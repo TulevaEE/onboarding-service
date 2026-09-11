@@ -88,6 +88,7 @@ class AuthControllerSpec extends BaseControllerSpec {
         .header("ssl-client-cert", "test_cert"))
     then:
     result.andExpect(status().isOk())
+        .andExpect(jsonPath('$.success', is(true)))
     1 * idCardAuthService.checkCertificate("test_cert")
   }
 
@@ -101,6 +102,34 @@ class AuthControllerSpec extends BaseControllerSpec {
     def result = mockMvc.perform(post("/idLogin")
         .header("ssl-client-verify", "SUCCESS")
         .header("ssl-client-cert", nginxEncodedCert))
+    then:
+    result.andExpect(status().isOk())
+    1 * idCardAuthService.checkCertificate(expectedDecodedCert)
+  }
+
+  def "Authenticate: check id card certificate containing only %0A is still decoded (NGINX path)"() {
+    given:
+    def cert = "line-one%0Aline-two"
+    def expectedDecodedCert = "line-one\nline-two"
+
+    when:
+    def result = mockMvc.perform(post("/idLogin")
+        .header("ssl-client-verify", "SUCCESS")
+        .header("ssl-client-cert", cert))
+    then:
+    result.andExpect(status().isOk())
+    1 * idCardAuthService.checkCertificate(expectedDecodedCert)
+  }
+
+  def "Authenticate: check id card certificate containing only %20 is still decoded (NGINX path)"() {
+    given:
+    def cert = "word-one%20word-two"
+    def expectedDecodedCert = "word-one word-two"
+
+    when:
+    def result = mockMvc.perform(post("/idLogin")
+        .header("ssl-client-verify", "SUCCESS")
+        .header("ssl-client-cert", cert))
     then:
     result.andExpect(status().isOk())
     1 * idCardAuthService.checkCertificate(expectedDecodedCert)

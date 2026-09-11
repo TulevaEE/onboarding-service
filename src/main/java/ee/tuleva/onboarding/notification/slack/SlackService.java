@@ -1,15 +1,18 @@
 package ee.tuleva.onboarding.notification.slack;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import java.util.List;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NullMarked;
 import org.springframework.boot.restclient.RestTemplateBuilder;
 import org.springframework.core.env.Environment;
 import org.springframework.http.HttpEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+@NullMarked
 @Service
 @Slf4j
 public class SlackService implements OperationsNotificationService {
@@ -41,7 +44,19 @@ public class SlackService implements OperationsNotificationService {
 
   @Override
   public void sendMessage(String message, Channel channel) {
-    SlackChannel slackChannel = SlackChannel.valueOf(channel.name());
+    sendMessage(message, channel, Severity.INFO);
+  }
+
+  @Override
+  public void sendMessage(String message, Channel channel, Severity severity) {
+    SlackChannel slackChannel =
+        switch (channel) {
+          case AML -> SlackChannel.AML;
+          case WITHDRAWALS -> SlackChannel.WITHDRAWALS;
+          case CAPITAL_TRANSFER -> SlackChannel.CAPITAL_TRANSFER;
+          case INVESTMENT -> SlackChannel.INVESTMENT;
+          case SAVINGS -> SlackChannel.SAVINGS;
+        };
     String webhookUrl = configuration.getWebhookUrl(slackChannel);
 
     if (webhookUrl == null) {
@@ -52,10 +67,20 @@ public class SlackService implements OperationsNotificationService {
       return;
     }
 
-    SlackMessage slackMessage = new SlackMessage(message);
+    restTemplate.postForEntity(
+        webhookUrl, new HttpEntity<>(payload(message, severity)), String.class);
+  }
 
-    restTemplate.postForEntity(webhookUrl, new HttpEntity<>(slackMessage), String.class);
+  private static Object payload(String message, Severity severity) {
+    return switch (severity) {
+      case INFO -> new SlackMessage(message);
+      case ERROR -> new SlackAlert(List.of(new Attachment("danger", message, message)));
+    };
   }
 
   private record SlackMessage(String text) {}
+
+  private record SlackAlert(List<Attachment> attachments) {}
+
+  private record Attachment(String color, String text, String fallback) {}
 }

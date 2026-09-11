@@ -2,10 +2,11 @@ package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
+import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.PositionPriceResolver;
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.HashMap;
@@ -107,10 +108,27 @@ class PendingOrderImpactService {
       return;
     }
     unreportedValues.merge(isin, signed(order, unfilledValue), BigDecimal::add);
+    if (order.getTransactionType() == SELL) {
+      addUnfilledQuantity(order, executed, isin, unreportedQuantities);
+    }
+  }
+
+  private static void addUnfilledQuantity(
+      TransactionOrder order,
+      ExecutedTotals executed,
+      String isin,
+      Map<String, BigDecimal> unreportedQuantities) {
     BigDecimal unfilledQuantity = unfilledQuantity(order, executed);
     if (order.getInstrumentType() == ETF && unfilledQuantity.signum() != 0) {
       unreportedQuantities.merge(isin, signed(order, unfilledQuantity), BigDecimal::add);
     }
+  }
+
+  private static BigDecimal unfilledQuantity(TransactionOrder order, ExecutedTotals executed) {
+    BigDecimal orderQuantity = order.getOrderQuantity();
+    return orderQuantity == null
+        ? ZERO
+        : orderQuantity.abs().subtract(executed.quantity()).max(ZERO);
   }
 
   private static boolean isMissingFromPositionReport(
@@ -129,13 +147,6 @@ class PendingOrderImpactService {
       return false;
     }
     return reportedDate.isAfter(positionDate);
-  }
-
-  private static BigDecimal unfilledQuantity(TransactionOrder order, ExecutedTotals executed) {
-    BigDecimal orderQuantity = order.getOrderQuantity();
-    return orderQuantity == null
-        ? ZERO
-        : orderQuantity.abs().subtract(executed.quantity()).max(ZERO);
   }
 
   private record ExecutedTotals(BigDecimal consideration, BigDecimal quantity) {

@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.epis;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.LocalDate;
 
 public record SettlementTimingWarning(

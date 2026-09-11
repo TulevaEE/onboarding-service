@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.contribution;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.epis.Contribution;
 import ee.tuleva.onboarding.epis.EpisService;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;

@@ -3,12 +3,13 @@ package ee.tuleva.onboarding.paymentrate;
 import java.util.Optional;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import org.jspecify.annotations.Nullable;
 
 @AllArgsConstructor
 @Data
 public class PaymentRates {
-  Integer current;
-  Integer pending;
+  @Nullable Integer current;
+  @Nullable Integer pending;
 
   public Optional<Integer> getPending() {
     return Optional.ofNullable(pending);

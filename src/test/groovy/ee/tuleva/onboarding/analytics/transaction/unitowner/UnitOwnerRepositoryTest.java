@@ -209,4 +209,39 @@ class UnitOwnerRepositoryTest {
     assertThat(idsDate1).containsExactlyInAnyOrder(PERSON_ID_1, PERSON_ID_2);
     assertThat(idsDate2).containsExactly(PERSON_ID_1);
   }
+
+  @Test
+  void findDistinctSnapshotDates_returnsEachDateOnce() {
+    repository.save(entityBuilder(PERSON_ID_1, SNAPSHOT_DATE_1, creationTime).build());
+    repository.save(entityBuilder(PERSON_ID_2, SNAPSHOT_DATE_1, creationTime).build());
+    repository.save(entityBuilder(PERSON_ID_1, SNAPSHOT_DATE_2, creationTime).build());
+
+    List<LocalDate> dates = repository.findDistinctSnapshotDates();
+
+    assertThat(dates).containsExactlyInAnyOrder(SNAPSHOT_DATE_1, SNAPSHOT_DATE_2);
+  }
+
+  @Test
+  void deleteBySnapshotDateIn_removesOnlyGivenSnapshots() {
+    repository.save(entityBuilder(PERSON_ID_1, SNAPSHOT_DATE_1, creationTime).build());
+    repository.save(entityBuilder(PERSON_ID_2, SNAPSHOT_DATE_1, creationTime).build());
+    repository.save(entityBuilder(PERSON_ID_1, SNAPSHOT_DATE_2, creationTime).build());
+
+    int deleted = repository.deleteBySnapshotDateIn(List.of(SNAPSHOT_DATE_1));
+
+    assertThat(deleted).isEqualTo(2);
+    assertThat(repository.findDistinctSnapshotDates()).containsExactly(SNAPSHOT_DATE_2);
+  }
+
+  @Test
+  void hasLeftSecondPillar_checksOnlyTheLatestSnapshot() {
+    repository.save(
+        entityBuilder(PERSON_ID_1, SNAPSHOT_DATE_1, creationTime).p2ravaStatus("R").build());
+    repository.save(entityBuilder(PERSON_ID_1, SNAPSHOT_DATE_2, creationTime).build());
+    repository.save(
+        entityBuilder(PERSON_ID_2, SNAPSHOT_DATE_2, creationTime).p2ravaStatus("R").build());
+
+    assertThat(repository.hasLeftSecondPillar(PERSON_ID_1)).isFalse();
+    assertThat(repository.hasLeftSecondPillar(PERSON_ID_2)).isTrue();
+  }
 }

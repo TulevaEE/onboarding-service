@@ -305,4 +305,80 @@ class PensionikeskusFeeComparisonClientTest {
             .build();
     return new RetryTemplate(policy);
   }
+
+  @Test
+  void parsesWhenValitsemistasuIsTheFirstColumn() {
+    setUp();
+    var html =
+        """
+        <html><body>
+        <table>
+          <thead><tr><th>Valitsemistasu</th><th>Fond</th></tr></thead>
+          <tbody>
+            <tr><td>0,163%</td><td>Tuleva Maailma V\u00f5lakirjade Pensionifond</td></tr>
+          </tbody>
+        </table>
+        </body></html>
+        """;
+    respondWithHtml(II_FEES_URL, html);
+
+    var result = client.fetchManagementFees(2);
+
+    assertThat(result)
+        .usingRecursiveComparison()
+        .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+        .isEqualTo(
+            List.of(
+                new PensionikeskusFeeRow(
+                    "Tuleva Maailma V\u00f5lakirjade Pensionifond", new BigDecimal("0.00163"))));
+    server.verify();
+  }
+
+  @Test
+  void skipsRowWithExactlyTooFewCellsWithoutFailing() {
+    setUp();
+    var html =
+        """
+        <html><body>
+        <table>
+          <thead><tr><th>Fond</th><th>Muu</th><th>Valitsemistasu</th></tr></thead>
+          <tbody>
+            <tr><td>Short Fund</td><td>x</td></tr>
+            <tr><td>Tuleva Maailma V\u00f5lakirjade Pensionifond</td><td>x</td><td>0,163%</td></tr>
+          </tbody>
+        </table>
+        </body></html>
+        """;
+    respondWithHtml(II_FEES_URL, html);
+
+    var result = client.fetchManagementFees(2);
+
+    assertThat(result)
+        .usingRecursiveComparison()
+        .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+        .isEqualTo(
+            List.of(
+                new PensionikeskusFeeRow(
+                    "Tuleva Maailma V\u00f5lakirjade Pensionifond", new BigDecimal("0.00163"))));
+    server.verify();
+  }
+
+  @Test
+  void throwsWhenColumnsAreMissingEvenIfTheFirstColumnLooksLikeAFee() {
+    setUp();
+    var html =
+        """
+        <html><body>
+        <table>
+          <thead><tr><th>Tasu</th></tr></thead>
+          <tbody><tr><td>1,50%</td></tr></tbody>
+        </table>
+        </body></html>
+        """;
+    respondWithHtml(II_FEES_URL, html);
+
+    assertThatThrownBy(() -> client.fetchManagementFees(2))
+        .isInstanceOf(IllegalStateException.class);
+    server.verify();
+  }
 }

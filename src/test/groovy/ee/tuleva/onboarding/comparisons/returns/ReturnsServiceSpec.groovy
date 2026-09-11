@@ -16,6 +16,7 @@ import java.time.LocalDate
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.comparisons.returns.Returns.Return
 import static ee.tuleva.onboarding.comparisons.returns.Returns.Return.Type.*
+import static ee.tuleva.onboarding.comparisons.returns.provider.PersonalReturnProvider.SECOND_PILLAR
 import static ee.tuleva.onboarding.comparisons.returns.provider.PersonalReturnProvider.THIRD_PILLAR
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static java.time.ZoneOffset.UTC
@@ -248,6 +249,70 @@ class ReturnsServiceSpec extends Specification {
     from          | pillar || expectedRevision
     "2020-01-01"  | 2      || "2020-05-01" // transferMandateFulfillmentDate
     "2020-01-01"  | 3      || "2020-01-01" // fromDate
+  }
+
+  def "does not revise the from time for a personal return"() {
+    expect:
+    returnsService.getRevisedFromTime(LocalDate.parse(from), [key], pillar) == Instant.parse(from + "T00:00:00Z")
+
+    where:
+    from         | key           | pillar
+    "2026-01-01" | SECOND_PILLAR | 2
+    "2026-04-01" | SECOND_PILLAR | 2
+    "2026-05-01" | SECOND_PILLAR | 2
+    "2026-08-01" | SECOND_PILLAR | 2
+    "2026-05-01" | THIRD_PILLAR  | 3
+  }
+
+  def "asks the provider for exactly the period requested for a personal return"() {
+    given:
+    def person = samplePerson()
+    def fromDate = LocalDate.parse("2026-05-01")
+    def endDate = LocalDate.parse("2026-08-22")
+    def expectedParameters = new ReturnCalculationParameters(
+        person, Instant.parse("2026-05-01T00:00:00Z"), Instant.parse("2026-08-22T00:00:00Z"), 2, [SECOND_PILLAR])
+
+    def secondPillarReturn = Return.builder()
+        .key(SECOND_PILLAR)
+        .type(PERSONAL)
+        .rate(0.0712)
+        .amount(345.67)
+        .paymentsSum(567.89)
+        .currency(EUR)
+        .from(fromDate)
+        .to(endDate)
+        .build()
+
+    returnProvider1.getKeys() >> [SECOND_PILLAR, THIRD_PILLAR]
+    returnProvider2.getKeys() >> []
+    returnProvider3.getKeys() >> []
+
+    when:
+    Returns theReturns = returnsService.get(person, fromDate, endDate, [SECOND_PILLAR])
+
+    then:
+    1 * returnProvider1.getReturns(expectedParameters) >> Returns.builder().returns([secondPillarReturn]).build()
+    theReturns.returns == [secondPillarReturn]
+  }
+
+  def "still revises the from time when a personal key is mixed with a comparison key"() {
+    given:
+    def fromDate = LocalDate.parse("2020-01-01")
+    def keys = [SECOND_PILLAR, UnionStockIndexRetriever.KEY]
+
+    fundValueRepository.findEarliestDateForKey(SECOND_PILLAR) >> Optional.empty()
+    fundValueRepository.findEarliestDateForKey(UnionStockIndexRetriever.KEY) >> earliestComparisonNav
+
+    when:
+    Instant revisedFromTime = returnsService.getRevisedFromTime(fromDate, keys, 2)
+
+    then:
+    revisedFromTime == Instant.parse("2020-05-01T00:00:00Z")
+
+    where:
+    earliestComparisonNav                      | _
+    Optional.of(LocalDate.parse("2020-02-01")) | _ // the comparison fund already has NAV history
+    Optional.empty()                           | _ // the comparison fund's NAV history is not backfilled yet
   }
 
   private def sampleReturns1(LocalDate fromDate) {

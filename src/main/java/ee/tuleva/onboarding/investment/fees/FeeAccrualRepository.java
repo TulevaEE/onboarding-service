@@ -1,9 +1,12 @@
 package ee.tuleva.onboarding.investment.fees;
 
-import ee.tuleva.onboarding.fund.TulevaFund;
+import static java.util.stream.Collectors.toMap;
+
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -15,24 +18,50 @@ public class FeeAccrualRepository {
 
   private final JdbcClient jdbcClient;
 
-  public BigDecimal getAccruedFeesForMonth(
+  public Map<LocalDate, BigDecimal> getAccruedFeesByDateForMonth(
       TulevaFund fund, LocalDate feeMonth, List<FeeType> feeTypes, LocalDate beforeDate) {
     return jdbcClient
         .sql(
             """
-            SELECT COALESCE(SUM(daily_amount_gross), 0)
+            SELECT accrual_date, COALESCE(SUM(daily_amount_gross), 0) AS amount
             FROM investment_fee_accrual
             WHERE fund_code = :fundCode
               AND fee_month = :feeMonth
               AND fee_type IN (:feeTypes)
               AND accrual_date < :beforeDate
+            GROUP BY accrual_date
             """)
         .param("fundCode", fund.name())
         .param("feeMonth", feeMonth)
         .param("feeTypes", feeTypes.stream().map(FeeType::name).toList())
         .param("beforeDate", beforeDate)
-        .query(BigDecimal.class)
-        .single();
+        .query((rs, rowNum) -> Map.entry(rs.getDate(1).toLocalDate(), rs.getBigDecimal(2)))
+        .list()
+        .stream()
+        .collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
+  }
+
+  public Map<LocalDate, BigDecimal> getUnsettledAccrualByDate(
+      TulevaFund fund, FeeType feeType, LocalDate asOfDate) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT accrual_date, COALESCE(SUM(daily_amount_gross), 0) AS amount
+            FROM investment_fee_accrual
+            WHERE fund_code = :fundCode
+              AND fee_type = :feeType
+              AND fee_month = :feeMonth
+              AND accrual_date <= :asOfDate
+            GROUP BY accrual_date
+            """)
+        .param("fundCode", fund.name())
+        .param("feeType", feeType.name())
+        .param("feeMonth", asOfDate.withDayOfMonth(1))
+        .param("asOfDate", asOfDate)
+        .query((rs, rowNum) -> Map.entry(rs.getDate(1).toLocalDate(), rs.getBigDecimal(2)))
+        .list()
+        .stream()
+        .collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
   }
 
   public boolean existsByFundAndFeeMonth(TulevaFund fund, LocalDate feeMonth) {
@@ -90,25 +119,6 @@ public class FeeAccrualRepository {
                     FeeType.valueOf(rs.getString("fee_type")),
                     rs.getBigDecimal("base_value")))
         .list();
-  }
-
-  public BigDecimal getUnsettledAccrual(TulevaFund fund, FeeType feeType, LocalDate asOfDate) {
-    return jdbcClient
-        .sql(
-            """
-            SELECT COALESCE(ROUND(SUM(daily_amount_gross), 2), 0)
-            FROM investment_fee_accrual
-            WHERE fund_code = :fundCode
-              AND fee_type = :feeType
-              AND fee_month = :feeMonth
-              AND accrual_date <= :asOfDate
-            """)
-        .param("fundCode", fund.name())
-        .param("feeType", feeType.name())
-        .param("feeMonth", asOfDate.withDayOfMonth(1))
-        .param("asOfDate", asOfDate)
-        .query(BigDecimal.class)
-        .single();
   }
 
   public Optional<FeeAccrual> findByFundAndAccrualDateAndFeeType(

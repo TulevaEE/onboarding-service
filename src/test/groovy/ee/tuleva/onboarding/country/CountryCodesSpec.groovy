@@ -35,6 +35,7 @@ class CountryCodesSpec extends Specification {
         "826"   | "GB"
         "004"   | "AF"
         "4"     | "AF"
+        "076"   | "BR"
         " 233 " | "EE"
         null    | null
         ""      | null

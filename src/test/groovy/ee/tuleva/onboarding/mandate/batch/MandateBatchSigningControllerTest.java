@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.mandate.batch;
 
 import static ee.tuleva.onboarding.auth.JwtTokenGenerator.getHeaders;
-import static ee.tuleva.onboarding.signature.response.SignatureStatus.SIGNATURE;
+import static ee.tuleva.onboarding.signature.SignatureStatus.SIGNATURE;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.when;
@@ -10,13 +10,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import ee.tuleva.onboarding.mandate.MandateFixture;
-import ee.tuleva.onboarding.signature.idcard.IdCardSignatureSession;
-import ee.tuleva.onboarding.signature.mobileid.MobileIdSignatureSession;
-import ee.tuleva.onboarding.signature.response.IdCardSignatureResponse;
-import ee.tuleva.onboarding.signature.response.IdCardSignatureStatusResponse;
-import ee.tuleva.onboarding.signature.response.MobileSignatureResponse;
-import ee.tuleva.onboarding.signature.response.MobileSignatureStatusResponse;
-import ee.tuleva.onboarding.signature.smartid.SmartIdSignatureSession;
+import ee.tuleva.onboarding.signature.IdCardSignatureResponse;
+import ee.tuleva.onboarding.signature.IdCardSignatureSession;
+import ee.tuleva.onboarding.signature.IdCardSignatureStatusResponse;
+import ee.tuleva.onboarding.signature.MobileIdSignatureSession;
+import ee.tuleva.onboarding.signature.MobileSignatureResponse;
+import ee.tuleva.onboarding.signature.MobileSignatureStatusResponse;
+import ee.tuleva.onboarding.signature.SmartIdSignatureSession;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;

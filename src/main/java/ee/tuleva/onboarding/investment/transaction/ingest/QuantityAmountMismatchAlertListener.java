@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -124,7 +125,7 @@ class QuantityAmountMismatchAlertListener {
             nullSafe(row.instrumentName()));
   }
 
-  private static String nullSafe(Object value) {
+  private static String nullSafe(@Nullable Object value) {
     return value == null ? "(missing)" : value.toString();
   }
 }

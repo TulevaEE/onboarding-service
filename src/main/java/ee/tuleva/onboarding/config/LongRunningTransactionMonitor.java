@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.config;
 
 import static ee.tuleva.onboarding.error.SentryErrorCodeFingerprint.ERROR_CODE;
+import static java.util.Objects.requireNonNull;
 
 import java.sql.SQLException;
 import java.time.Clock;
@@ -141,7 +142,8 @@ public class LongRunningTransactionMonitor {
         .toList();
   }
 
-  private static LongRunningTransaction sanitized(LongRunningTransaction transaction) {
+  private static LongRunningTransaction sanitized(@Nullable LongRunningTransaction transaction) {
+    requireNonNull(transaction, "Long-running transaction row is missing");
     return new LongRunningTransaction(
         transaction.pid(),
         transaction.xactStart(),

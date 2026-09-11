@@ -1,13 +1,11 @@
 package ee.tuleva.onboarding.signature;
 
-import ee.tuleva.onboarding.signature.idcard.IdCardSignatureSession;
 import ee.tuleva.onboarding.signature.idcard.IdCardSigner;
-import ee.tuleva.onboarding.signature.mobileid.MobileIdSignatureSession;
 import ee.tuleva.onboarding.signature.mobileid.MobileIdSigner;
-import ee.tuleva.onboarding.signature.smartid.SmartIdSignatureSession;
 import ee.tuleva.onboarding.signature.smartid.SmartIdSigner;
 import java.util.List;
 import lombok.AllArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -22,7 +20,7 @@ public class SignatureService {
     return smartIdSigner.startSign(files, personalCode);
   }
 
-  public byte[] getSignedFile(SmartIdSignatureSession session) {
+  public byte @Nullable [] getSignedFile(SmartIdSignatureSession session) {
     return smartIdSigner.getSignedFile(session);
   }
 
@@ -31,7 +29,7 @@ public class SignatureService {
     return mobileIdSigner.startSign(files, personalCode, phoneNumber);
   }
 
-  public byte[] getSignedFile(MobileIdSignatureSession session) {
+  public byte @Nullable [] getSignedFile(MobileIdSignatureSession session) {
     return mobileIdSigner.getSignedFile(session);
   }
 

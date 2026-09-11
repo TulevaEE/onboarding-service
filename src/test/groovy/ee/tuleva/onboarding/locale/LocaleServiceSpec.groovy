@@ -18,4 +18,15 @@ class LocaleServiceSpec extends Specification {
     then:
     locale == fromService
   }
+
+  def "returns language from the current locale"() {
+    given:
+    LocaleContextHolder.setLocale(Locale.GERMANY)
+
+    when:
+    String language = localeService.currentLanguage
+
+    then:
+    language == "de"
+  }
 }

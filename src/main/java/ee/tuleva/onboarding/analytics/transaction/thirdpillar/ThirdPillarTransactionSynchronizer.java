@@ -1,7 +1,9 @@
 package ee.tuleva.onboarding.analytics.transaction.thirdpillar;
 
+import ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransaction;
 import ee.tuleva.onboarding.analytics.transaction.generic.AbstractTransactionSynchronizer;
 import ee.tuleva.onboarding.analytics.transaction.generic.SyncContext;
+import ee.tuleva.onboarding.analytics.transaction.generic.SyncResult;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.transaction.ThirdPillarTransactionDto;
 import java.time.LocalDate;
@@ -35,10 +37,10 @@ public class ThirdPillarTransactionSynchronizer
     private final LocalDate endDate;
   }
 
-  public void sync(LocalDate startDate, LocalDate endDate) {
+  public SyncResult sync(LocalDate startDate, LocalDate endDate) {
     ThirdPillarSyncContext context =
         ThirdPillarSyncContext.builder().startDate(startDate).endDate(endDate).build();
-    super.syncInternal(context);
+    return super.syncInternal(context);
   }
 
   @Override

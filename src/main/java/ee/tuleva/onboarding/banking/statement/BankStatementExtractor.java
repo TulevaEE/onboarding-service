@@ -22,7 +22,7 @@ public class BankStatementExtractor {
       JAXBElement<ee.tuleva.onboarding.banking.iso20022.camt052.Document> response =
           marshaller.unMarshal(
               rawXml,
-              JAXBElement.class,
+              ee.tuleva.onboarding.banking.iso20022.camt052.Document.class,
               ee.tuleva.onboarding.banking.iso20022.camt052.ObjectFactory.class);
 
       if (response == null || response.getValue() == null) {
@@ -56,7 +56,7 @@ public class BankStatementExtractor {
       JAXBElement<ee.tuleva.onboarding.banking.iso20022.camt053.Document> response =
           marshaller.unMarshal(
               rawXml,
-              JAXBElement.class,
+              ee.tuleva.onboarding.banking.iso20022.camt053.Document.class,
               ee.tuleva.onboarding.banking.iso20022.camt053.ObjectFactory.class);
 
       if (response == null || response.getValue() == null) {

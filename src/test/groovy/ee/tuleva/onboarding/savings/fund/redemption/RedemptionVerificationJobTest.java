@@ -2,8 +2,11 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestFixture.redemptionRequestFixture;
+import static java.time.temporal.ChronoUnit.HOURS;
 import static org.mockito.Mockito.*;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -16,8 +19,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class RedemptionVerificationJobTest {
 
+  @Mock private Clock clock;
   @Mock private RedemptionRequestRepository redemptionRequestRepository;
   @Mock private RedemptionVerificationService redemptionVerificationService;
+  @Mock private RedemptionHoldService redemptionHoldService;
+  @Mock private RedemptionHoldNotifier holdNotifier;
 
   @InjectMocks private RedemptionVerificationJob redemptionVerificationJob;
 
@@ -62,5 +68,36 @@ class RedemptionVerificationJobTest {
     redemptionVerificationJob.runJob();
 
     verifyNoInteractions(redemptionVerificationService);
+  }
+
+  @Test
+  void runHourlyChecks_warnsAboutRequestsUnscreenedForOverAnHour() {
+    var now = Instant.parse("2025-01-15T12:00:00Z");
+    when(clock.instant()).thenReturn(now);
+    when(redemptionRequestRepository.findByStatusAndRequestedAtBeforeAndCancelledAtIsNull(
+            RESERVED, now.minus(1, HOURS)))
+        .thenReturn(
+            List.of(
+                redemptionRequestFixture().id(UUID.randomUUID()).build(),
+                redemptionRequestFixture().id(UUID.randomUUID()).build()));
+
+    redemptionVerificationJob.runHourlyChecks();
+
+    verify(holdNotifier).notifyUnscreened(2);
+    verify(redemptionHoldService).resendUnsentHoldNotifications();
+  }
+
+  @Test
+  void runHourlyChecks_staysQuietWhenEverythingIsScreened() {
+    var now = Instant.parse("2025-01-15T12:00:00Z");
+    when(clock.instant()).thenReturn(now);
+    when(redemptionRequestRepository.findByStatusAndRequestedAtBeforeAndCancelledAtIsNull(
+            RESERVED, now.minus(1, HOURS)))
+        .thenReturn(List.of());
+
+    redemptionVerificationJob.runHourlyChecks();
+
+    verify(holdNotifier, never()).notifyUnscreened(anyInt());
+    verify(redemptionHoldService).resendUnsentHoldNotifications();
   }
 }

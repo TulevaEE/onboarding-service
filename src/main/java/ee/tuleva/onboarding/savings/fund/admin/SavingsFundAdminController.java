@@ -13,7 +13,7 @@ import ee.tuleva.onboarding.savings.fund.nav.NavCalculationResult;
 import ee.tuleva.onboarding.savings.fund.nav.NavCalculationService;
 import ee.tuleva.onboarding.savings.fund.nav.NavPublisher;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionBatchJob;
-import ee.tuleva.onboarding.savings.fund.redemption.RedemptionReviewService;
+import ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldService;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
@@ -45,7 +45,7 @@ public class SavingsFundAdminController {
   private final NavCalculationService navCalculationService;
   private final NavPublisher navPublisher;
   private final RedemptionBatchJob redemptionBatchJob;
-  private final RedemptionReviewService redemptionReviewService;
+  private final RedemptionHoldService redemptionHoldService;
   private final IbanWhitelistService ibanWhitelistService;
   private final UnattributedPaymentAttributionService unattributedPaymentAttributionService;
   private final Clock clock;
@@ -81,7 +81,7 @@ public class SavingsFundAdminController {
   public String retryRedemptionPayout(
       @RequestHeader("X-Admin-Token") String token, @PathVariable UUID id) {
 
-    tokenValidator.validate(token);
+    tokenValidator.validateWithOpsAccess(token);
 
     log.info("Admin triggered redemption payout retry: id={}", id);
     redemptionBatchJob.retryFailedPayout(id);
@@ -89,25 +89,44 @@ public class SavingsFundAdminController {
     return "Retried redemption payout for " + id;
   }
 
-  @PostMapping("/redemptions/{id}/approve-review")
-  public String approveRedemptionReview(
+  @PostMapping("/redemptions/{id}/release")
+  public String releaseRedemption(
       @RequestHeader("X-Admin-Token") String token,
       @PathVariable UUID id,
-      @RequestParam String approvedBy,
+      @RequestParam String by,
       @RequestParam String reason) {
 
     tokenValidator.validateWithOpsAccess(token);
-    if (approvedBy.isBlank()) {
-      throw new ResponseStatusException(BAD_REQUEST, "approvedBy is required");
-    }
-    if (reason.isBlank()) {
-      throw new ResponseStatusException(BAD_REQUEST, "A reason is required");
-    }
+    requireText(by, "by");
+    requireText(reason, "reason");
 
-    log.info("Admin approving redemption review: id={}, approvedBy={}", id, approvedBy);
-    redemptionReviewService.approve(id, approvedBy, reason);
+    log.info("Admin releasing redemption: id={}, by={}", id, by);
+    redemptionHoldService.release(id, by, reason);
 
-    return "Approved redemption review: id=" + id;
+    return "Released redemption: id=" + id;
+  }
+
+  @PostMapping("/redemptions/{id}/hold")
+  public String holdRedemptionPayout(
+      @RequestHeader("X-Admin-Token") String token,
+      @PathVariable UUID id,
+      @RequestParam String by,
+      @RequestParam String reason) {
+
+    tokenValidator.validateWithOpsAccess(token);
+    requireText(by, "by");
+    requireText(reason, "reason");
+
+    log.info("Admin holding redemption payout: id={}, by={}", id, by);
+    redemptionHoldService.holdPayoutManually(id, by, reason);
+
+    return "Held redemption payout: id=" + id;
+  }
+
+  private static void requireText(String value, String name) {
+    if (value.isBlank()) {
+      throw new ResponseStatusException(BAD_REQUEST, name + " is required");
+    }
   }
 
   @PostMapping("/whitelist-iban")

@@ -1,11 +1,13 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
 import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK;
+import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK_MODEL;
 import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -190,6 +192,80 @@ class BreachMessageFormatterTest {
         .doesNotContain("that is the unexplained amount");
   }
 
+  // A price stale on both legs returns 0.00% on the instrument and 0.00% on its index, so the row
+  // cancels out of the tracking difference exactly. Listing it as a plain attribution row is what
+  // sent the 01.09 diagnosis chasing two BlackRock lines the NAV report had flagged with a stale
+  // price date, when neither could be the cause.
+  @Test
+  void aHoldingStaleOnBothLegsIsNamedAsCancellingOutRatherThanListedPlainly() {
+    var benchmarkModel =
+        tuk75On20260901().toBuilder()
+            .checkType(BENCHMARK_MODEL)
+            .securityAttributions(
+                List.of(
+                    benchmarkAttribution("IE00BFG1TM61", "0", "0"),
+                    benchmarkAttribution("IE000I9HGDZ3", "0.0009", "-0.0022")))
+            .build();
+
+    var message =
+        new BreachMessageFormatter(benchmarkModel, false, RedemptionCycleHint.ordinaryDay())
+            .format();
+
+    assertThat(message)
+        .contains("IE00BFG1TM61: instrument 0.00%, index 0.00%")
+        .contains("stale on both legs, cancels out — not the cause");
+  }
+
+  // An instrument that did not move while its index did is a real divergence, not a stale price,
+  // so it must keep its plain row.
+  @Test
+  void aHoldingFlatAgainstAMovingIndexIsNotDismissedAsStale() {
+    var benchmarkModel =
+        tuk75On20260901().toBuilder()
+            .checkType(BENCHMARK_MODEL)
+            .securityAttributions(List.of(benchmarkAttribution("IE00BFG1TM61", "0", "-0.0022")))
+            .build();
+
+    var message =
+        new BreachMessageFormatter(benchmarkModel, false, RedemptionCycleHint.ordinaryDay())
+            .format();
+
+    assertThat(message).doesNotContain("cancels out");
+  }
+
+  private SecurityAttribution benchmarkAttribution(
+      String isin, String securityReturn, String benchmarkReturn) {
+    return new SecurityAttribution(
+        isin,
+        BigDecimal.ZERO,
+        BigDecimal.ZERO,
+        null,
+        new BigDecimal(securityReturn),
+        new BigDecimal(benchmarkReturn),
+        BigDecimal.ZERO);
+  }
+
+  // On 01.09 no security quantity changed at all, and that was one of the three facts that made
+  // the diagnosis. The boolean says whether quantities moved; the EUR figure says what they were
+  // worth, which is what separates a switch day from a settlement miss.
+  @Test
+  void theBridgeNamesWhatTheTradesWereWorthWhenQuantitiesMoved() {
+    var traded =
+        tuk75On20260901().toBuilder()
+            .navFlow(
+                navFlow(
+                    new BigDecimal("5888679.04"),
+                    true,
+                    new BigDecimal("-1735979.79"),
+                    new BigDecimal("-4045261.18")))
+            .build();
+
+    var message =
+        new BreachMessageFormatter(traded, false, RedemptionCycleHint.ordinaryDay()).format();
+
+    assertThat(message).contains("Trades moved").contains("-4,045,261.18");
+  }
+
   private TrackingDifferenceResult tuk75On20260901() {
     return TrackingDifferenceResult.builder()
         .fund(TUK75)
@@ -221,14 +297,24 @@ class BreachMessageFormatterTest {
 
   private NavFlowReconciliation navFlow(
       BigDecimal unexplained, boolean securityQuantitiesChanged, BigDecimal marketPnl) {
+    return navFlow(unexplained, securityQuantitiesChanged, marketPnl, BigDecimal.ZERO);
+  }
+
+  private NavFlowReconciliation navFlow(
+      BigDecimal unexplained,
+      boolean securityQuantitiesChanged,
+      BigDecimal marketPnl,
+      BigDecimal tradeFlow) {
     return new NavFlowReconciliation(
         new BigDecimal("1126972502.00"),
         new BigDecimal("1142837314.33"),
         marketPnl,
+        tradeFlow,
         new BigDecimal("7306865.600"),
         new BigDecimal("11718531.79"),
         new BigDecimal("6418.71"),
         unexplained,
+        unexplained.divide(new BigDecimal("1126972502.00"), 6, RoundingMode.HALF_UP),
         securityQuantitiesChanged);
   }
 

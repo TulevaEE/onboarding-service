@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.time.ClockHolder;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
@@ -106,5 +107,26 @@ public class RedemptionRequest {
 
   public PartyId getPartyId() {
     return new PartyId(partyType, partyCode);
+  }
+
+  /**
+   * The priced amount must be reproducible from the units and the NAV stored on this row.
+   *
+   * <p>Deliberately exact rather than tolerant: both factors round-trip at their stored scale, so
+   * rounding the product the way the pricing code does reproduces the amount exactly. A tolerance
+   * would only be somewhere for a real discrepancy to hide.
+   *
+   * <p>Not a comparison against {@code requestedAmount}. Those legitimately differ — the NAV moves
+   * between request and pricing, and a "take everything" request becomes the party's whole balance.
+   */
+  public boolean amountReconciles() {
+    if (fundUnits == null || navPerUnit == null || cashAmount == null) {
+      return false;
+    }
+    return expectedAmount().compareTo(cashAmount) == 0;
+  }
+
+  public BigDecimal expectedAmount() {
+    return fundUnits.multiply(navPerUnit).setScale(2, RoundingMode.HALF_UP);
   }
 }

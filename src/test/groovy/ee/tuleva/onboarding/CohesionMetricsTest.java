@@ -9,6 +9,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -17,11 +18,13 @@ import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.objectweb.asm.ClassReader;
+import org.objectweb.asm.Handle;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.FieldNode;
+import org.objectweb.asm.tree.InvokeDynamicInsnNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -141,22 +144,57 @@ class CohesionMetricsTest {
       }
     }
 
+    Map<String, MethodNode> syntheticOwnMethods = new HashMap<>();
+    for (MethodNode method : classNode.methods) {
+      if ((method.access & Opcodes.ACC_SYNTHETIC) != 0) {
+        syntheticOwnMethods.put(methodId(method), method);
+      }
+    }
+
     for (MethodNode method : eligibleMethods) {
       String from = methodId(method);
-      for (AbstractInsnNode insn : method.instructions) {
-        if (insn instanceof FieldInsnNode fieldInsn
-            && touchesOwnField(classNode, insn, fieldInsn)) {
-          union(parent, from, fieldId(fieldInsn));
-        } else if (insn instanceof MethodInsnNode methodInsn
-            && callsOwnMethod(classNode, insn, methodInsn)) {
-          union(parent, from, methodId(methodInsn));
-        }
-      }
+      unionReachable(parent, classNode, method, from, syntheticOwnMethods, new HashSet<>());
     }
 
     Set<String> componentRoots =
         eligibleMethods.stream().map(method -> find(parent, methodId(method))).collect(toSet());
     return componentRoots.size();
+  }
+
+  /**
+   * Walks one method's instructions, and transparently through any synthetic lambda body it
+   * captures, so that a call made through a method reference or a lambda counts as a call.
+   */
+  private static void unionReachable(
+      Map<String, String> parent,
+      ClassNode classNode,
+      MethodNode method,
+      String from,
+      Map<String, MethodNode> syntheticOwnMethods,
+      Set<String> visited) {
+    if (!visited.add(methodId(method))) {
+      return;
+    }
+    for (AbstractInsnNode insn : method.instructions) {
+      if (insn instanceof FieldInsnNode fieldInsn && touchesOwnField(classNode, insn, fieldInsn)) {
+        union(parent, from, fieldId(fieldInsn));
+      } else if (insn instanceof MethodInsnNode methodInsn
+          && callsOwnMethod(classNode, insn, methodInsn)) {
+        union(parent, from, methodId(methodInsn));
+      } else if (insn instanceof InvokeDynamicInsnNode indy) {
+        for (Object arg : indy.bsmArgs) {
+          if (arg instanceof Handle handle && handle.getOwner().equals(classNode.name)) {
+            String target = "M#" + handle.getName() + handle.getDesc();
+            MethodNode lambdaBody = syntheticOwnMethods.get(target);
+            if (lambdaBody == null) {
+              union(parent, from, target);
+            } else {
+              unionReachable(parent, classNode, lambdaBody, from, syntheticOwnMethods, visited);
+            }
+          }
+        }
+      }
+    }
   }
 
   private static boolean touchesOwnField(
@@ -323,6 +361,30 @@ class CohesionMetricsTest {
     private int b;
   }
 
+  static class MethodReferenceFixture {
+    private int total;
+
+    void addAll(List<Integer> values) {
+      values.forEach(this::add);
+    }
+
+    void add(Integer value) {
+      total += value;
+    }
+  }
+
+  static class LambdaFixture {
+    private int total;
+
+    void addAll(List<Integer> values) {
+      values.forEach(value -> total += value);
+    }
+
+    int total() {
+      return total;
+    }
+  }
+
   record IsolatedAccessorFixture(int x, int y) {
     int doubledX() {
       return x * 2;
@@ -366,5 +428,15 @@ class CohesionMetricsTest {
   @Test
   void excludesRecordAccessorsFromConnectingFields() {
     assertThat(lcom4(readClassOf(IsolatedAccessorFixture.class))).isEqualTo(2);
+  }
+
+  @Test
+  void countsMethodReferenceAsCall() {
+    assertThat(lcom4(readClassOf(MethodReferenceFixture.class))).isEqualTo(1);
+  }
+
+  @Test
+  void countsFieldAccessInsideLambdaBody() {
+    assertThat(lcom4(readClassOf(LambdaFixture.class))).isEqualTo(1);
   }
 }

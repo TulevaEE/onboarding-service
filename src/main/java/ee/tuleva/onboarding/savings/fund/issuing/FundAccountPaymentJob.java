@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings.fund.issuing;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
+import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.SUBSCRIPTION_TRANSFER;
 import static ee.tuleva.onboarding.event.TrackableEventType.SUBSCRIPTION_BATCH_CREATED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.ISSUED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.PROCESSED;
@@ -9,6 +10,7 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.banking.BankAccounts;
+import ee.tuleva.onboarding.banking.payment.BatchId;
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.payment.PaymentRequest;
 import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
@@ -18,7 +20,6 @@ import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.savings.fund.notification.SubscriptionBatchSentEvent;
 import java.math.BigDecimal;
 import java.util.Map;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
@@ -61,9 +62,11 @@ public class FundAccountPaymentJob {
     var total = payments.stream().map(SavingFundPayment::getAmount).reduce(ZERO, BigDecimal::add);
     payments.forEach(
         payment -> savingFundPaymentRepository.changeStatus(payment.getId(), PROCESSED));
-    var id = UUID.randomUUID();
 
     var paymentIds = payments.stream().map(SavingFundPayment::getId).toList();
+    // Derived from the batch's own contents: a retry of the same batch reaches the bank under the
+    // same Idempotency-Key instead of as a second, unrecognisable payment.
+    var id = BatchId.of("subscription", paymentIds);
     eventPublisher.publishEvent(
         new TrackableSystemEvent(
             SUBSCRIPTION_BATCH_CREATED,
@@ -87,7 +90,8 @@ public class FundAccountPaymentJob {
             .build();
     log.info(
         "Preparing subscriptions payment to investment account with the amount of {} EUR", total);
-    eventPublisher.publishEvent(new RequestPaymentEvent(paymentRequest, id));
+    eventPublisher.publishEvent(
+        new RequestPaymentEvent(paymentRequest, id, SUBSCRIPTION_TRANSFER, id));
     eventPublisher.publishEvent(new SubscriptionBatchSentEvent(payments.size(), total));
   }
 }

@@ -30,6 +30,7 @@ import org.springframework.context.annotation.Import;
   LedgerAccountService.class,
   LedgerPartyService.class,
   LedgerTransactionService.class,
+  UserUnitBalanceGuard.class,
   FundBankLedger.class,
   ClockConfig.class
 })

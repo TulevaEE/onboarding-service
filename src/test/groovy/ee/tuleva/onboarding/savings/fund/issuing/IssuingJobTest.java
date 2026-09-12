@@ -16,6 +16,7 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.savings.FundNavProvider;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
@@ -54,7 +55,13 @@ class IssuingJobTest {
 
   private IssuingJob createIssuingJob(Instant now) {
     var clock = Clock.fixed(now, UTC);
-    return new IssuingJob(clock, issuerService, paymentRepository, navProvider, eventPublisher);
+    return new IssuingJob(
+        clock,
+        issuerService,
+        paymentRepository,
+        navProvider,
+        mock(PaymentCheckService.class),
+        eventPublisher);
   }
 
   private boolean isReservedDateWorkingDay(SavingFundPayment payment) {

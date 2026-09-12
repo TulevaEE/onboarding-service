@@ -40,6 +40,31 @@ class JobRunScheduleTest {
     }
   }
 
+  // The TD check had no schedule of any kind: RunTrackingDifferenceCheckRequested is published
+  // only by JobTriggerPoller, off a hand-inserted job_trigger row. This is the first automatic run.
+  @Test
+  void trackingDifferenceDaily_firesOncePerBusinessDayAfterTheDaysImports() {
+    CronExpression cron = CronExpression.parse(JobRunSchedule.TRACKING_DIFFERENCE_DAILY);
+
+    ZonedDateTime cursor = LocalDateTime.parse("2026-04-13T00:00:00").atZone(TALLINN);
+    ZonedDateTime endOfWeek = cursor.plusDays(7);
+    List<ZonedDateTime> fires = new ArrayList<>();
+    while (true) {
+      ZonedDateTime next = cron.next(cursor);
+      if (next == null || !next.isBefore(endOfWeek)) break;
+      fires.add(next);
+      cursor = next;
+    }
+
+    assertThat(fires).hasSize(5);
+    assertThat(fires).allSatisfy(fire -> assertThat(fire.getHour()).isEqualTo(18));
+    assertThat(fires)
+        .allSatisfy(fire -> assertThat(fire.getDayOfWeek().getValue()).isLessThanOrEqualTo(5));
+    // IMPORT_BUSINESS_HOURS makes its last fire at 17:55, so 18:00 is after the day's positions
+    // have landed. A date that still is not ready is simply still a gap tomorrow.
+    assertThat(fires.get(0).getHour()).isGreaterThan(17);
+  }
+
   @Test
   void importBusinessHours_coversWhatTheOldScheduleMissed() {
     // The 2026-04-10 _uuendatud incident: SEB sent the corrected file at 13:29 Tallinn. Under

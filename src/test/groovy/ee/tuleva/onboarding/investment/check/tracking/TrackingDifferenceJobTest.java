@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
+import static ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceJob.GAP_LOOKBACK_DAYS;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
@@ -74,6 +75,48 @@ class TrackingDifferenceJobTest {
 
     job.onTrackingDifferenceCheckRequested(new RunTrackingDifferenceCheckRequested());
 
+    then(notifier).should().notify(partialResults);
+  }
+
+  // Nothing published RunTrackingDifferenceCheckRequested on a schedule: the only routes in were a
+  // hand-inserted job_trigger row and the backfill. So a day nobody asked about was never computed,
+  // and nothing said so.
+  @Test
+  void theDailyRunFillsEveryNavDateThatHasNoCheckYet() {
+    var results = List.<TrackingDifferenceResult>of();
+    given(service.fillGaps(GAP_LOOKBACK_DAYS)).willReturn(results);
+
+    job.fillTrackingDifferenceGaps();
+
+    then(service).should().fillGaps(GAP_LOOKBACK_DAYS);
+    then(notifier).should().notify(results);
+  }
+
+  @Test
+  void aFailedDailyRunIsReportedRatherThanOnlyLogged() {
+    doThrow(new RuntimeException("boom")).when(service).fillGaps(GAP_LOOKBACK_DAYS);
+
+    job.fillTrackingDifferenceGaps();
+
+    then(notifier).should().notifyRunFailed("TD daily gap fill", "boom");
+    then(notifier).should(never()).notify(anyList());
+  }
+
+  @Test
+  void anIncompleteDailyRunNamesTheFundsItCouldNotCheck() {
+    var partialResults = List.<TrackingDifferenceResult>of();
+    doThrow(
+            new TrackingDifferenceService.IncompletePriceDataException(
+                "Incomplete security price data:\nTUK75: IE00MISSING1", partialResults))
+        .when(service)
+        .fillGaps(GAP_LOOKBACK_DAYS);
+
+    job.fillTrackingDifferenceGaps();
+
+    then(notifier)
+        .should()
+        .notifyRunIncomplete(
+            "TD daily gap fill", "Incomplete security price data:\nTUK75: IE00MISSING1");
     then(notifier).should().notify(partialResults);
   }
 

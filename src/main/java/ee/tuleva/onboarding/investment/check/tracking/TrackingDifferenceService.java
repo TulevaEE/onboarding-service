@@ -99,6 +99,40 @@ class TrackingDifferenceService {
     return results;
   }
 
+  List<TrackingDifferenceResult> fillGaps(int lookbackDays) {
+    var today = LocalDate.now(clock);
+    var from = today.minusDays(lookbackDays);
+    var results = new ArrayList<TrackingDifferenceResult>();
+    var incompleteChecks = new ArrayList<String>();
+
+    for (var fund : TulevaFund.values()) {
+      for (var checkDate : uncheckedDates(fund, from, today)) {
+        try {
+          checkFund(fund, checkDate).forEach(results::add);
+        } catch (IncompletePriceDataException e) {
+          log.warn("Skipping fund due to incomplete price data: {}", e.getMessage());
+          incompleteChecks.add(e.getMessage());
+        }
+      }
+    }
+
+    if (!incompleteChecks.isEmpty()) {
+      throw new IncompletePriceDataException(
+          "Incomplete security price data:\n" + String.join("\n", incompleteChecks), results);
+    }
+
+    return results;
+  }
+
+  private List<LocalDate> uncheckedDates(TulevaFund fund, LocalDate from, LocalDate to) {
+    var alreadyChecked =
+        Set.copyOf(eventRepository.findDistinctCheckDates(fund, MODEL_PORTFOLIO, from, to));
+    return fundPositionRepository.findDistinctNavDatesByFundBetween(fund, from, to).stream()
+        .filter(navDate -> !alreadyChecked.contains(navDate))
+        .sorted()
+        .toList();
+  }
+
   List<TrackingDifferenceResult> backfillChecks(int daysBack) {
     var today = LocalDate.now(clock);
     var allResults = new ArrayList<TrackingDifferenceResult>();

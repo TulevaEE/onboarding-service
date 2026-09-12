@@ -149,6 +149,43 @@ class TrackingDifferenceServiceTest {
     serviceLogger().addAppender(serviceLogs);
   }
 
+  // The whole point of the daily run: a date that already has a check is not recomputed, and a
+  // date that has positions but no check is. Before this there was no scheduled run at all, so a
+  // day nobody asked about stayed uncomputed indefinitely.
+  @Test
+  void fillGapsChecksOnlyTheNavDatesThatHaveNoCheckYet() {
+    var from = CHECK_DATE.minusDays(30);
+    var alreadyChecked = LocalDate.of(2026, 4, 8);
+    var gap = PREVIOUS_DATE;
+    given(fundPositionRepository.findDistinctNavDatesByFundBetween(TUK75, from, CHECK_DATE))
+        .willReturn(asList(alreadyChecked, gap, CHECK_DATE));
+    given(eventRepository.findDistinctCheckDates(TUK75, MODEL_PORTFOLIO, from, CHECK_DATE))
+        .willReturn(asList(alreadyChecked, CHECK_DATE));
+
+    service.fillGaps(30);
+
+    verify(fundNavQueryService).findLatestNavPerUnit(TUK75.getCode(), gap);
+    // Two lookups and no more: the gap's own NAV and its previous working day, which happens to be
+    // the already-checked date. A second checked date would add two more.
+    verify(fundNavQueryService, times(2))
+        .findLatestNavPerUnit(eq(TUK75.getCode()), any(LocalDate.class));
+    verify(fundNavQueryService).findLatestNavPerUnit(TUK75.getCode(), alreadyChecked);
+  }
+
+  @Test
+  void fillGapsChecksNothingWhenEveryNavDateAlreadyHasACheck() {
+    var from = CHECK_DATE.minusDays(30);
+    given(fundPositionRepository.findDistinctNavDatesByFundBetween(TUK75, from, CHECK_DATE))
+        .willReturn(asList(PREVIOUS_DATE, CHECK_DATE));
+    given(eventRepository.findDistinctCheckDates(TUK75, MODEL_PORTFOLIO, from, CHECK_DATE))
+        .willReturn(asList(PREVIOUS_DATE, CHECK_DATE));
+
+    var results = service.fillGaps(30);
+
+    assertThat(results).isEmpty();
+    verify(fundNavQueryService, never()).findLatestNavPerUnit(anyString(), any(LocalDate.class));
+  }
+
   @AfterEach
   void detachServiceLogs() {
     serviceLogger().detachAppender(serviceLogs);

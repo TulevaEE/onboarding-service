@@ -14,6 +14,12 @@ public final class JobRunSchedule {
   // Transaction command processing
   public static final String TRANSACTION_COMMAND = "0 * * * * *";
 
+  // TD check — the only daily run there is. Nothing publishes the check event on a schedule, so
+  // before this the check ran only when somebody inserted a job_trigger row by hand. Late enough
+  // that the day's imports and flow recalcs have landed; a date that is not ready yet is simply
+  // still a gap tomorrow.
+  public static final String TRACKING_DIFFERENCE_DAILY = "0 0 18 * * MON-FRI";
+
   // Backfill schedules (kept on cron, not event-driven)
   public static final String FEE_ACCRUAL_POSITION_BACKFILL = "0 25 12 12 3 *";
   public static final String LIMIT_CHECK_BACKFILL = "0 30 8 16 3 *";

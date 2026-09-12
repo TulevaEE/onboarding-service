@@ -48,7 +48,7 @@ class PaymentStatusReportExtractorTest {
         """));
 
     assertThat(report.transactionStatuses()).hasSize(2);
-    assertThat(extractor.rejections(report))
+    assertThat(report.rejections())
         .singleElement()
         .satisfies(transaction -> assertThat(transaction.endToEndId()).isEqualTo("two"));
   }
@@ -77,7 +77,7 @@ class PaymentStatusReportExtractorTest {
         """));
 
     assertThat(report.transactionStatuses().getFirst().status()).isEqualTo(PaymentStatus.UNKNOWN);
-    assertThat(extractor.rejections(report)).isEmpty();
+    assertThat(report.rejections()).isEmpty();
   }
 
   @Test

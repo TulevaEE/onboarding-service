@@ -197,10 +197,10 @@ public class RedemptionBatchJob {
           toUpdate.setNavPerUnit(nav);
           redemptionRequestRepository.save(toUpdate);
 
-          if (!payoutValidator.amountReconciles(toUpdate)) {
+          if (!toUpdate.amountReconciles()) {
             throw new IllegalStateException(
                 "Priced amount does not reconcile against units times NAV: id=%s, expected=%s, actual=%s"
-                    .formatted(request.getId(), payoutValidator.expectedAmount(toUpdate), amount));
+                    .formatted(request.getId(), toUpdate.expectedAmount(), amount));
           }
 
           savingsFundLedger.redeemFundUnitsFromReserved(

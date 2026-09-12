@@ -5,11 +5,11 @@ import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.IN
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.DEBIT_MISMATCH;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.PHANTOM_DEBIT;
 
+import ee.tuleva.onboarding.banking.StatementDebit;
 import ee.tuleva.onboarding.banking.payment.OutgoingPayment;
 import ee.tuleva.onboarding.banking.payment.OutgoingPaymentRepository;
 import ee.tuleva.onboarding.banking.payment.OutgoingPaymentService;
 import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration;
-import ee.tuleva.onboarding.savings.SavingFundPayment;
 import java.math.BigDecimal;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -42,21 +42,21 @@ public class OutgoingPaymentMatcher {
   private final PaymentCheckService paymentCheckService;
   private final SebAccountConfiguration sebAccountConfiguration;
 
-  public void match(SavingFundPayment payment) {
-    if (payment.getAmount() == null || payment.getAmount().compareTo(BigDecimal.ZERO) >= 0) {
+  public void match(StatementDebit debit) {
+    if (debit.amount().compareTo(BigDecimal.ZERO) >= 0) {
       return;
     }
-    var debited = payment.getAmount().negate();
-    var endToEndId = payment.getEndToEndId();
+    var debited = debit.amount().negate();
+    var endToEndId = debit.endToEndId();
 
     if (endToEndId == null || endToEndId.isBlank()) {
-      reportUnbacked(payment, "the debit carries no end-to-end id to match on");
+      reportUnbacked(debit, "the debit carries no end-to-end id to match on");
       return;
     }
 
     var logged = outgoingPaymentRepository.findByEndToEndId(endToEndId).orElse(null);
     if (logged == null) {
-      reportUnbacked(payment, "no outgoing payment was ever recorded for this debit");
+      reportUnbacked(debit, "no outgoing payment was ever recorded for this debit");
       return;
     }
 
@@ -81,18 +81,17 @@ public class OutgoingPaymentMatcher {
    * between our own accounts are legitimate and were never submitted through this path. Those are
    * recorded without paging anyone; everything else is a phantom.
    */
-  private void reportUnbacked(SavingFundPayment payment, String detail) {
-    var beneficiary = payment.getBeneficiaryIban();
+  private void reportUnbacked(StatementDebit debit, String detail) {
+    var beneficiary = debit.beneficiaryIban();
     var legitimate =
-        beneficiary != null
-            && (contains(sebAccountConfiguration.getBankFeeIbans(), beneficiary)
-                || contains(sebAccountConfiguration.getOwnAccountIbans(), beneficiary)
-                || contains(sebAccountConfiguration.getRegistrarIbans(), beneficiary));
+        contains(sebAccountConfiguration.getBankFeeIbans(), beneficiary)
+            || contains(sebAccountConfiguration.getOwnAccountIbans(), beneficiary)
+            || contains(sebAccountConfiguration.getRegistrarIbans(), beneficiary);
 
     paymentCheckService.record(
         PHANTOM_DEBIT,
         legitimate ? INFO : HOLD,
-        String.valueOf(payment.getId()),
+        String.valueOf(debit.paymentId()),
         legitimate ? "a known non-pipeline debit: " + detail : detail);
   }
 

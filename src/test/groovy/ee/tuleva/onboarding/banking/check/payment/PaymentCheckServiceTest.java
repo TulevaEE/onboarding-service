@@ -26,6 +26,7 @@ import org.springframework.context.ApplicationEventPublisher;
 class PaymentCheckServiceTest {
 
   private static final String ENTRY_KEY = "entry-123";
+  private static final long SAVED_ID = 1L;
 
   @Mock private PaymentCheckEventRepository paymentCheckEventRepository;
   @Mock private OperationsNotificationService notificationService;
@@ -43,7 +44,7 @@ class PaymentCheckServiceTest {
     when(paymentCheckEventRepository.findByCheckTypeAndExternalKey(
             PAYOUT_WITHOUT_REQUEST, ENTRY_KEY))
         .thenReturn(Optional.empty());
-    when(paymentCheckEventRepository.save(any())).thenAnswer(call -> call.getArgument(0));
+    savingAssignsAnId();
 
     service().record(PAYOUT_WITHOUT_REQUEST, HOLD, ENTRY_KEY, "no matching redemption request");
 
@@ -60,7 +61,7 @@ class PaymentCheckServiceTest {
     when(paymentCheckEventRepository.findByCheckTypeAndExternalKey(
             PAYOUT_WITHOUT_REQUEST, ENTRY_KEY))
         .thenReturn(Optional.empty());
-    when(paymentCheckEventRepository.save(any())).thenAnswer(call -> call.getArgument(0));
+    savingAssignsAnId();
 
     service().record(PAYOUT_WITHOUT_REQUEST, HOLD, ENTRY_KEY, "no matching redemption request");
 
@@ -87,7 +88,7 @@ class PaymentCheckServiceTest {
     when(paymentCheckEventRepository.findByCheckTypeAndExternalKey(
             PAYOUT_WITHOUT_REQUEST, ENTRY_KEY))
         .thenReturn(Optional.of(existing(true)));
-    when(paymentCheckEventRepository.save(any())).thenAnswer(call -> call.getArgument(0));
+    savingAssignsAnId();
 
     service().record(PAYOUT_WITHOUT_REQUEST, HOLD, ENTRY_KEY, "no matching redemption request");
 
@@ -124,6 +125,20 @@ class PaymentCheckServiceTest {
     var saved = ArgumentCaptor.forClass(PaymentCheckEvent.class);
     verify(paymentCheckEventRepository).save(saved.capture());
     assertThat(saved.getValue().isAlertFailed()).isTrue();
+  }
+
+  /**
+   * Saving assigns the id, and the alert carries it — so a stub returning the argument unchanged
+   * would be a row that was never persisted.
+   */
+  private void savingAssignsAnId() {
+    when(paymentCheckEventRepository.save(any()))
+        .thenAnswer(
+            call -> {
+              PaymentCheckEvent event = call.getArgument(0);
+              event.setId(SAVED_ID);
+              return event;
+            });
   }
 
   private static PaymentCheckEvent existing(boolean alertFailed) {

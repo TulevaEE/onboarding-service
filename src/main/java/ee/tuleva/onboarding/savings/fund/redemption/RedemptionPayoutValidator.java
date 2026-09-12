@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.IbanWhitelistService;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
-import java.math.BigDecimal;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -49,34 +48,5 @@ public class RedemptionPayoutValidator {
     var party = request.getPartyId();
     return savingFundPaymentRepository.findWithdrawableIbans(party).contains(iban)
         || ibanWhitelistService.isWhitelisted(party, iban);
-  }
-
-  /**
-   * The priced amount must be reproducible from the units and the NAV stored on the row itself.
-   *
-   * <p>Deliberately exact rather than tolerant: both factors round-trip at their stored scale, so
-   * rounding the product the way the pricing code does reproduces the amount exactly. A tolerance
-   * parameter here would only be somewhere for a real discrepancy to hide.
-   *
-   * <p>Note this is not a comparison against {@code requestedAmount}. Those legitimately differ —
-   * the NAV moves between request and pricing, and a "take everything" request is converted to the
-   * party's whole unit balance.
-   */
-  public boolean amountReconciles(RedemptionRequest request) {
-    var units = request.getFundUnits();
-    var nav = request.getNavPerUnit();
-    var cashAmount = request.getCashAmount();
-    if (units == null || nav == null || cashAmount == null) {
-      return false;
-    }
-    var expected = units.multiply(nav).setScale(2, java.math.RoundingMode.HALF_UP);
-    return expected.compareTo(cashAmount) == 0;
-  }
-
-  public BigDecimal expectedAmount(RedemptionRequest request) {
-    return request
-        .getFundUnits()
-        .multiply(request.getNavPerUnit())
-        .setScale(2, java.math.RoundingMode.HALF_UP);
   }
 }

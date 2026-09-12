@@ -67,7 +67,6 @@ class RedemptionBatchJobTest {
         .when(navProvider.getVerifiedNavForIssuingAndRedeeming(any(), any()))
         .thenReturn(BigDecimal.ONE);
     lenient().when(payoutValidator.findBlockingReason(any())).thenReturn(Optional.empty());
-    lenient().when(payoutValidator.amountReconciles(any())).thenReturn(true);
   }
 
   private RedemptionBatchJob createBatchJob(Instant now) {

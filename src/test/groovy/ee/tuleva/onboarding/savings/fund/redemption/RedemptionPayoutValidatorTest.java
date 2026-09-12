@@ -83,7 +83,7 @@ class RedemptionPayoutValidatorTest {
     request.setNavPerUnit(new BigDecimal("1.2345"));
     request.setCashAmount(new BigDecimal("123.45"));
 
-    assertThat(validator.amountReconciles(request)).isTrue();
+    assertThat(request.amountReconciles()).isTrue();
   }
 
   @Test
@@ -93,7 +93,7 @@ class RedemptionPayoutValidatorTest {
     request.setNavPerUnit(new BigDecimal("1.2345"));
     request.setCashAmount(new BigDecimal("123.46"));
 
-    assertThat(validator.amountReconciles(request)).isFalse();
+    assertThat(request.amountReconciles()).isFalse();
   }
 
   @Test
@@ -104,7 +104,7 @@ class RedemptionPayoutValidatorTest {
     request.setCashAmount(new BigDecimal("3.33"));
 
     // 3 * 1.1115 = 3.3345 -> 3.33
-    assertThat(validator.amountReconciles(request)).isTrue();
+    assertThat(request.amountReconciles()).isTrue();
   }
 
   @Test
@@ -113,7 +113,7 @@ class RedemptionPayoutValidatorTest {
     request.setCashAmount(null);
     request.setNavPerUnit(null);
 
-    assertThat(validator.amountReconciles(request)).isFalse();
+    assertThat(request.amountReconciles()).isFalse();
   }
 
   private RedemptionRequest request() {

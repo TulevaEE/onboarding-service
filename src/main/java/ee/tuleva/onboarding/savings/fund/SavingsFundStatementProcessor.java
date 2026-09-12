@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.ManagementCompanies;
+import ee.tuleva.onboarding.banking.StatementDebit;
 import ee.tuleva.onboarding.banking.check.payment.OutgoingPaymentMatcher;
 import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.SavingsFundStatementReceived;
@@ -96,7 +97,7 @@ public class SavingsFundStatementProcessor {
     // Every debit on any of our accounts, not only the payouts: a transfer or a return that the
     // bank executed differently, or a debit with nothing behind it at all, would otherwise only
     // ever surface as an aggregate discrepancy the next morning.
-    outgoingPaymentMatcher.match(payment);
+    outgoingPaymentMatcher.match(debitOf(payment));
 
     switch (accountType) {
       case DEPOSIT_EUR ->
@@ -228,5 +229,13 @@ public class SavingsFundStatementProcessor {
 
   private boolean isSavingsFundAccount(String iban, BankAccountType type) {
     return bankAccounts.find(iban).filter(account -> account.matches(TKF100, type)).isPresent();
+  }
+
+  private static StatementDebit debitOf(SavingFundPayment payment) {
+    return new StatementDebit(
+        payment.getId(),
+        payment.getAmount(),
+        payment.getBeneficiaryIban(),
+        payment.getEndToEndId());
   }
 }

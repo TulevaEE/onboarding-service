@@ -12,12 +12,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import ee.tuleva.onboarding.banking.StatementDebit;
 import ee.tuleva.onboarding.banking.payment.OutgoingPayment;
 import ee.tuleva.onboarding.banking.payment.OutgoingPaymentRepository;
 import ee.tuleva.onboarding.banking.payment.OutgoingPaymentService;
 import ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus;
 import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration;
-import ee.tuleva.onboarding.savings.SavingFundPayment;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
@@ -114,12 +114,7 @@ class OutgoingPaymentMatcherTest {
   }
 
   /** Statement debits arrive negative, which is why the amount is negated here. */
-  private static SavingFundPayment debit(BigDecimal amount, String endToEndId, String beneficiary) {
-    return SavingFundPayment.builder()
-        .id(UUID.randomUUID())
-        .amount(amount.negate())
-        .endToEndId(endToEndId)
-        .beneficiaryIban(beneficiary)
-        .build();
+  private static StatementDebit debit(BigDecimal amount, String endToEndId, String beneficiary) {
+    return new StatementDebit(UUID.randomUUID(), amount.negate(), beneficiary, endToEndId);
   }
 }

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.banking.check.payment;
 
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static java.util.Objects.requireNonNull;
 import static org.springframework.transaction.annotation.Propagation.REQUIRES_NEW;
 import static org.springframework.transaction.event.TransactionPhase.AFTER_COMMIT;
 
@@ -64,7 +65,7 @@ public class PaymentCheckService {
     // that did not happen -- and the row recording it would be gone, so the dedupe would be lost
     // too and it would announce it again next time.
     eventPublisher.publishEvent(
-        new PaymentCheckRecorded(saved.getId(), checkType, severity, detail));
+        new PaymentCheckRecorded(requireNonNull(saved.getId()), checkType, severity, detail));
   }
 
   public List<PaymentCheckEvent> holdsOn(LocalDate date) {

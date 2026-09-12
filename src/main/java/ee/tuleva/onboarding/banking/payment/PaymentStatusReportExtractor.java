@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.banking.payment;
 
 import java.io.StringReader;
 import java.util.ArrayList;
-import java.util.List;
 import javax.xml.parsers.DocumentBuilderFactory;
 import lombok.SneakyThrows;
 import org.jspecify.annotations.NullMarked;
@@ -83,9 +82,5 @@ public class PaymentStatusReportExtractor {
     }
     var trimmed = value.trim();
     return trimmed.isEmpty() ? null : trimmed;
-  }
-
-  public List<PaymentStatusReport.TransactionStatus> rejections(PaymentStatusReport report) {
-    return report.transactionStatuses().stream().filter(t -> t.status().isRejection()).toList();
   }
 }

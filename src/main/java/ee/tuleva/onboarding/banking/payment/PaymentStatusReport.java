@@ -19,4 +19,8 @@ public record PaymentStatusReport(
   public boolean isFileLevelOnly() {
     return transactionStatuses.isEmpty();
   }
+
+  public List<TransactionStatus> rejections() {
+    return transactionStatuses.stream().filter(t -> t.status().isRejection()).toList();
+  }
 }

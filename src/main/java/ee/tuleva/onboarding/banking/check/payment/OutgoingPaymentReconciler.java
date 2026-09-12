@@ -11,7 +11,6 @@ import ee.tuleva.onboarding.banking.payment.OutgoingPaymentRepository;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,19 +28,27 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 @Profile({"production", "staging"})
 public class OutgoingPaymentReconciler {
 
   private final OutgoingPaymentRepository outgoingPaymentRepository;
   private final PaymentCheckService paymentCheckService;
   private final Clock clock;
+  private final Duration executionDeadline;
+  private final Duration inFlightGrace;
 
-  @Value("${banking.payment.execution-deadline:PT24H}")
-  private Duration executionDeadline;
-
-  @Value("${banking.payment.in-flight-grace:PT15M}")
-  private Duration inFlightGrace;
+  public OutgoingPaymentReconciler(
+      OutgoingPaymentRepository outgoingPaymentRepository,
+      PaymentCheckService paymentCheckService,
+      Clock clock,
+      @Value("${banking.payment.execution-deadline:PT24H}") Duration executionDeadline,
+      @Value("${banking.payment.in-flight-grace:PT15M}") Duration inFlightGrace) {
+    this.outgoingPaymentRepository = outgoingPaymentRepository;
+    this.paymentCheckService = paymentCheckService;
+    this.clock = clock;
+    this.executionDeadline = executionDeadline;
+    this.inFlightGrace = inFlightGrace;
+  }
 
   @Scheduled(cron = "0 0/30 9-18 * * MON-FRI", zone = "Europe/Tallinn")
   @SchedulerLock(name = "OutgoingPaymentReconciler", lockAtMostFor = "10m", lockAtLeastFor = "1m")

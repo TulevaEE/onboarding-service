@@ -990,6 +990,59 @@ class TransactionPreparationServiceTest {
   }
 
   @Test
+  @SuppressWarnings("unchecked")
+  void processCommand_onFailure_carriesInputWarningsIntoTheFailedPayload() {
+    var command =
+        TransactionCommand.builder()
+            .id(16L)
+            .fund(TUV100)
+            .mode(BUY)
+            .asOfDate(LocalDate.of(2026, 1, 15))
+            .manualAdjustments(Map.of())
+            .status(PROCESSING)
+            .build();
+    var feePolicyWarning =
+        new CalculationWarning(
+            CalculationWarningType.FEE_POLICY_UNRESOLVED, "Fee policy does not resolve");
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(List.of(new PositionSnapshot("IE00A", new BigDecimal("500000"))))
+            .modelWeights(List.of(new ModelWeight("IE00A", new BigDecimal("1.00"))))
+            .grossPortfolioValue(new BigDecimal("1000000"))
+            .cashBuffer(new BigDecimal("50000"))
+            .liabilities(ZERO)
+            .receivables(ZERO)
+            .freeCash(new BigDecimal("100000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .inputWarnings(List.of(feePolicyWarning))
+            .build();
+
+    given(clock.instant()).willReturn(Instant.parse("2026-01-15T10:00:00Z"));
+    given(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of())).willReturn(input);
+    given(calculationEngine.calculate(input, BUY))
+        .willThrow(new IllegalStateException("engine blew up"));
+
+    service.processCommand(command);
+
+    verify(auditEventRepository)
+        .save(
+            argThat(
+                event -> {
+                  if (!"CALCULATION_FAILED".equals(event.getEventType())) {
+                    return false;
+                  }
+                  var inputPayload = (Map<String, Object>) event.getPayload().get("input");
+                  var warnings = (List<Map<String, Object>>) inputPayload.get("inputWarnings");
+                  return warnings != null
+                      && warnings.size() == 1
+                      && "FEE_POLICY_UNRESOLVED".equals(warnings.getFirst().get("type"));
+                }));
+  }
+
+  @Test
   void processCommand_usesInstrumentTypeAndVenueFromInput() {
     var command =
         TransactionCommand.builder()

@@ -24,7 +24,7 @@ class MarketPnlCalculator {
       Map<String, ExitMark> exitMarks) {
     var todayPrices = pricesByIsin(todayPositions);
     var previousPrices = pricesByIsin(previousPositions);
-    var todayIsins = SecurityQuantities.byIsin(todayPositions).keySet();
+    var todayQuantities = SecurityQuantities.byIsin(todayPositions);
 
     var amount = ZERO;
     var unpricedHoldings = new TreeSet<String>();
@@ -35,20 +35,33 @@ class MarketPnlCalculator {
       var quantity = holding.getValue();
       var previousPrice = previousPrices.get(isin);
       var todayPrice = todayPrices.get(isin);
-      var exitMark = todayPrice == null ? exitMarks.get(isin) : null;
+      var exitMark = exitMarks.get(isin);
 
       if (previousPrice == null || (todayPrice == null && exitMark == null)) {
-        if (isUnexplainedExit(isin, exitMark, todayIsins)) {
+        if (isUnexplainedExit(isin, exitMark, todayQuantities.keySet())) {
           unexplainedExits.add(isin);
         } else {
           unpricedHoldings.add(isin);
         }
-      } else if (todayPrice != null) {
-        amount = amount.add(quantity.multiply(todayPrice.subtract(previousPrice)));
-      } else if (exitMark != null) {
-        var exitLeg = new ExitLeg(isin, quantity, previousPrice, exitMark);
+        continue;
+      }
+
+      var stillHeld =
+          todayPrice == null ? ZERO : quantity.min(todayQuantities.getOrDefault(isin, ZERO));
+      var left = quantity.subtract(stillHeld);
+
+      if (todayPrice != null) {
+        amount = amount.add(stillHeld.multiply(todayPrice.subtract(previousPrice)));
+      }
+      if (left.signum() == 0) {
+        continue;
+      }
+      if (exitMark != null) {
+        var exitLeg = new ExitLeg(isin, left, previousPrice, exitMark);
         exitLegs.add(exitLeg);
         amount = amount.add(exitLeg.marketEffect());
+      } else if (todayPrice != null) {
+        amount = amount.add(left.multiply(todayPrice.subtract(previousPrice)));
       }
     }
     return new MarketPnl(

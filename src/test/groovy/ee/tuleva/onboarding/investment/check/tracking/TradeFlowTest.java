@@ -19,45 +19,74 @@ class TradeFlowTest {
   @Test
   void aPurchaseIsValuedAtTodaysMark() {
     var flow =
-        TradeFlow.atMark(
+        TradeFlow.between(
             List.of(mark("IE000QWCYQT0", "5.02")),
             List.of(security("IE000QWCYQT0", "64247801")),
             List.of(security("IE000QWCYQT0", "65053309")));
 
-    assertThat(flow).isEqualByComparingTo(new BigDecimal("4043650.16"));
+    assertThat(flow.atMark()).isEqualByComparingTo(new BigDecimal("4043650.16"));
+    assertThat(flow.isComplete()).isTrue();
   }
 
   @Test
   void aDisposalIsNegative() {
     var flow =
-        TradeFlow.atMark(
+        TradeFlow.between(
             List.of(mark("IE0009FT4LX4", "17.32")),
             List.of(security("IE0009FT4LX4", "18811874.1")),
             List.of(security("IE0009FT4LX4", "0")));
 
-    assertThat(flow).isEqualByComparingTo(new BigDecimal("-325821659.41"));
+    assertThat(flow.atMark()).isEqualByComparingTo(new BigDecimal("-325821659.41"));
+    assertThat(flow.isComplete()).isTrue();
   }
 
   @Test
   void aDayWithoutTradesIsZero() {
     var flow =
-        TradeFlow.atMark(
+        TradeFlow.between(
             List.of(mark("IE000QWCYQT0", "5.02")),
             List.of(security("IE000QWCYQT0", "64247801")),
             List.of(security("IE000QWCYQT0", "64247801")));
 
-    assertThat(flow).isEqualByComparingTo(BigDecimal.ZERO);
+    assertThat(flow.atMark()).isEqualByComparingTo(BigDecimal.ZERO);
+    assertThat(flow.isComplete()).isTrue();
   }
 
   @Test
-  void aHoldingWithNoMarkIsLeftOut() {
+  void aHoldingThatLeftTheReportIsMarkedAtThePriceThatReportCarried() {
     var flow =
-        TradeFlow.atMark(
+        TradeFlow.between(
+            List.of(mark("IE000QWCYQT0", "5.02")),
+            List.of(priced("IE0009FT4LX4", "1000", "17.32"), security("IE000QWCYQT0", "1000")),
+            List.of(security("IE000QWCYQT0", "1000")));
+
+    assertThat(flow.atMark()).isEqualByComparingTo(new BigDecimal("-17320.00"));
+    assertThat(flow.isComplete()).isTrue();
+  }
+
+  @Test
+  void aHoldingWithNoMarkAnywhereIsNamedRatherThanSilentlyDropped() {
+    var flow =
+        TradeFlow.between(
             List.of(unmarked("IE0009FT4LX4"), mark("IE000QWCYQT0", "5.02")),
             List.of(security("IE0009FT4LX4", "1000"), security("IE000QWCYQT0", "1000")),
             List.of(security("IE0009FT4LX4", "2000"), security("IE000QWCYQT0", "2000")));
 
-    assertThat(flow).isEqualByComparingTo(new BigDecimal("5020.00"));
+    assertThat(flow.atMark()).isEqualByComparingTo(new BigDecimal("5020.00"));
+    assertThat(flow.unpricedIsins()).containsExactly("IE0009FT4LX4");
+    assertThat(flow.isComplete()).isFalse();
+  }
+
+  @Test
+  void anUnpricedHoldingNobodyTradedIsNotReportedAsMissing() {
+    var flow =
+        TradeFlow.between(
+            List.of(unmarked("IE0009FT4LX4"), mark("IE000QWCYQT0", "5.02")),
+            List.of(security("IE0009FT4LX4", "1000"), security("IE000QWCYQT0", "1000")),
+            List.of(security("IE0009FT4LX4", "1000"), security("IE000QWCYQT0", "2000")));
+
+    assertThat(flow.atMark()).isEqualByComparingTo(new BigDecimal("5020.00"));
+    assertThat(flow.isComplete()).isTrue();
   }
 
   private SecurityData mark(String isin, String price) {
@@ -87,5 +116,11 @@ class TradeFlowTest {
         .accountId(isin)
         .quantity(new BigDecimal(quantity))
         .build();
+  }
+
+  private FundPosition priced(String isin, String quantity, String marketPrice) {
+    var position = security(isin, quantity);
+    position.setMarketPrice(new BigDecimal(marketPrice));
+    return position;
   }
 }

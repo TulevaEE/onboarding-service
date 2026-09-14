@@ -352,6 +352,36 @@ class TrackingDifferenceNotifierTest {
     assertThat(message).doesNotContain("within limits");
   }
 
+  // An errored check is not the same as one that had nothing to work with: the "did not run" line
+  // names missing data as the cause, which would be a lie for a timeout or an NPE.
+  @Test
+  void notifyCheckFailedNamesTheErrorRatherThanMissingData() {
+    notifier.notifyCheckFailed(TUK75, LocalDate.of(2026, 6, 25), "connection reset");
+
+    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
+    then(notificationService).should().sendMessage(captor.capture(), eq(INVESTMENT));
+    var message = captor.getValue();
+    assertThat(message).contains("TD CHECK FAILED").contains("TUK75").contains("2026-06-25");
+    assertThat(message).contains("connection reset");
+    assertThat(message).doesNotContain("missing NAV, prices, or model data");
+  }
+
+  @Test
+  void notifyCheckFailedToleratesAnExceptionWithNoMessage() {
+    notifier.notifyCheckFailed(TUK75, LocalDate.of(2026, 6, 25), null);
+
+    then(notificationService).should().sendMessage(contains("no detail"), eq(INVESTMENT));
+  }
+
+  @Test
+  void swallowsExceptionWhenCheckFailedNotificationFails() {
+    org.mockito.BDDMockito.willThrow(new RuntimeException("Slack down"))
+        .given(notificationService)
+        .sendMessage(any(String.class), eq(INVESTMENT));
+
+    notifier.notifyCheckFailed(TUK75, LocalDate.of(2026, 6, 25), "boom");
+  }
+
   @Test
   void swallowsExceptionWhenCheckCouldNotRunNotificationFails() {
     org.mockito.BDDMockito.willThrow(new RuntimeException("Slack down"))

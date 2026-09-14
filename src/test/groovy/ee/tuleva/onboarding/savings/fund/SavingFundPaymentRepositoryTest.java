@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.PROCESSED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RECEIVED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RESERVED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RETURNED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.TO_BE_RETURNED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.VERIFIED;
 import static java.time.temporal.ChronoUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -22,6 +23,7 @@ import ee.tuleva.onboarding.time.ClockConfig;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
@@ -161,6 +163,40 @@ class SavingFundPaymentRepositoryTest {
 
     assertThat(payments.getFirst().getStatusChangedAt())
         .isCloseTo(Instant.now(), within(10, SECONDS));
+  }
+
+  @Test
+  void findStuckPayments_includesCancelledPaymentsStillWaitingForTheirReturn() {
+    var stuck = repository.savePaymentData(createPayment().externalId("1").build());
+    var fresh = repository.savePaymentData(createPayment().externalId("2").build());
+    jdbcTemplate.update(
+        "update saving_fund_payment set status_changed_at='2020-01-01'::date where id=:id",
+        Map.of("id", stuck));
+    repository.cancel(stuck);
+    updatePaymentStatus(stuck, TO_BE_RETURNED);
+    updatePaymentStatus(fresh, TO_BE_RETURNED);
+
+    var payments =
+        repository.findStuckPayments(Instant.now().minus(Duration.ofMinutes(30)), TO_BE_RETURNED);
+
+    assertThat(payments).extracting(SavingFundPayment::getId).containsExactly(stuck);
+  }
+
+  @Test
+  void findUnconfirmedPayments_returnsUncancelledCreatedPaymentsOlderThanTheThreshold() {
+    var unconfirmed = repository.savePaymentData(createPayment().externalId("1").build());
+    var fresh = repository.savePaymentData(createPayment().externalId("2").build());
+    var cancelled = repository.savePaymentData(createPayment().externalId("3").build());
+    var received = repository.savePaymentData(createPayment().externalId("4").build());
+    jdbcTemplate.update(
+        "update saving_fund_payment set status_changed_at='2020-01-01'::date where id in (:ids)",
+        Map.of("ids", List.of(unconfirmed, cancelled, received)));
+    repository.cancel(cancelled);
+    updatePaymentStatus(received, RECEIVED);
+
+    var payments = repository.findUnconfirmedPayments(Instant.now().minus(Duration.ofHours(36)));
+
+    assertThat(payments).extracting(SavingFundPayment::getId).containsExactly(unconfirmed);
   }
 
   @Test

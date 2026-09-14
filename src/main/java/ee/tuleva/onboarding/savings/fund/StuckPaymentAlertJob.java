@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 public class StuckPaymentAlertJob {
 
   private static final Duration STUCK_THRESHOLD = Duration.ofMinutes(30);
+  private static final Duration UNCONFIRMED_THRESHOLD = Duration.ofHours(36);
 
   private final SavingFundPaymentRepository paymentRepository;
   private final Clock clock;
@@ -31,6 +32,25 @@ public class StuckPaymentAlertJob {
     paymentRepository
         .findStuckPayments(Instant.now(clock).minus(STUCK_THRESHOLD), RECEIVED, TO_BE_RETURNED)
         .forEach(this::alert);
+  }
+
+  @Scheduled(cron = "0 5 9 * * *", zone = "Europe/Tallinn")
+  @SchedulerLock(
+      name = "StuckPaymentAlertJob_reportUnconfirmedPayments",
+      lockAtMostFor = "10m",
+      lockAtLeastFor = "1m")
+  public void reportUnconfirmedPayments() {
+    paymentRepository
+        .findUnconfirmedPayments(Instant.now(clock).minus(UNCONFIRMED_THRESHOLD))
+        .forEach(this::alertUnconfirmed);
+  }
+
+  private void alertUnconfirmed(SavingFundPayment payment) {
+    log.error(
+        "Savings fund payment not confirmed by the bank: paymentId={}, amount={} EUR, createdAt={}",
+        payment.getId(),
+        payment.getAmount(),
+        payment.getStatusChangedAt());
   }
 
   private void alert(SavingFundPayment payment) {

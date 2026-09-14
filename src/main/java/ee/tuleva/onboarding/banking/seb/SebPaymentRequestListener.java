@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
+import org.springframework.web.client.HttpClientErrorException;
 
 @RequiredArgsConstructor
 @Slf4j
@@ -57,8 +58,6 @@ public class SebPaymentRequestListener {
       sebGatewayClient.submitPaymentFile(
           paymentXml, paymentRequest.endToEndId(), remitterAccount.gatewayClientId());
     } catch (RuntimeException e) {
-      // The row stays ATTEMPTED for anything that might still have reached the bank; only a
-      // definitive rejection is recorded as failed.
       if (isDefinitiveRejection(e)) {
         var reason = e.getMessage();
         outgoingPaymentService.recordFailed(
@@ -69,7 +68,11 @@ public class SebPaymentRequestListener {
     outgoingPaymentService.recordSubmitted(paymentRequest.endToEndId());
   }
 
+  /**
+   * The bank refused the request outright, so nothing can still be in flight. Anything else leaves
+   * the row ATTEMPTED, because a payment that may have reached the bank must never read as failed.
+   */
   private static boolean isDefinitiveRejection(RuntimeException e) {
-    return e instanceof org.springframework.web.client.HttpClientErrorException;
+    return e instanceof HttpClientErrorException;
   }
 }

@@ -59,7 +59,6 @@ public class PaymentFileIntegrityValidator {
     }
 
     if (document.getElementsByTagNameNS("*", "AdrLine").getLength() > 0) {
-      // SEB rejects unstructured addresses from 15.11.2026; a future address must use PstlAdr.
       violations.add(new PaymentIntegrityViolation(UNSTRUCTURED_ADDRESS, "address"));
     }
 
@@ -174,8 +173,10 @@ public class PaymentFileIntegrityValidator {
     }
   }
 
-  // A back-dated execution date is silently accepted by the schema but changes when the bank moves
-  // the money, so it is checked as a field even though it has no counterpart on the request.
+  /**
+   * A back-dated execution date is silently accepted by the schema but changes when the bank moves
+   * the money, so it is checked as a field even though it has no counterpart on the request.
+   */
   private void checkExecutionDate(
       List<PaymentIntegrityViolation> violations, Optional<String> actual) {
     var today = LocalDate.now(clock);

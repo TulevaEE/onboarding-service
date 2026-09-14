@@ -56,7 +56,6 @@ public class IssuingJob {
                 payment.getId(),
                 payment.getReceivedBefore(),
                 previousCutoff);
-            // It is about to be given units at today's NAV, when it was due an earlier one.
             paymentCheckService.record(
                 WRONG_NAV_ISSUANCE,
                 HOLD,

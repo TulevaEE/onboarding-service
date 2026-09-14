@@ -44,7 +44,6 @@ public class StuckPaymentAlertJob {
         payment.getStatus(),
         payment.getAmount(),
         payment.getStatusChangedAt());
-    // The class has been called an AlertJob since it was written; until now it only logged.
     paymentCheckService.record(
         PAYMENT_STUCK,
         WARNING,

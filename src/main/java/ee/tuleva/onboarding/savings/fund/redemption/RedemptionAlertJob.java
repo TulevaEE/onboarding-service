@@ -49,8 +49,6 @@ public class RedemptionAlertJob {
       return;
     }
 
-    // Ahead of the volume checks, and ahead of their early return: a day with nothing pending is
-    // exactly the day a request stuck somewhere else would go unnoticed.
     payoutAgeChecker.checkOverduePayouts(today);
 
     Instant cutoff = RedemptionCutoff.cutoffInstant(today);

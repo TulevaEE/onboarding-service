@@ -190,8 +190,6 @@ public class BankOperationProcessor {
         entry.amount(),
         entry.subFamilyCode(),
         reason);
-    // Parked in suspense rather than lost, but suspense is not a resting place: cash sitting there
-    // is cash the NAV does not account for.
     paymentCheckService.record(
         UNCLASSIFIED_BANK_OPERATION,
         WARNING,

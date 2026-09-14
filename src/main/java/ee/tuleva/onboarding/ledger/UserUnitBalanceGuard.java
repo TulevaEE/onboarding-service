@@ -74,8 +74,8 @@ public class UserUnitBalanceGuard {
     for (var entry : deltaByAccount.entrySet()) {
       var account = entry.getKey();
       var delta = entry.getValue();
-      if (delta.signum() <= 0) {
-        continue; // adding units to an account can never take units it does not have
+      if (isNotATake(delta)) {
+        continue;
       }
 
       var balance = ledgerAccountRepository.balanceOf(account);
@@ -83,22 +83,24 @@ public class UserUnitBalanceGuard {
 
       if (resulting.compareTo(ZERO) > 0) {
         var held = balance.negate();
-        // Admin adjustments are the tool we would reach for to remediate an account that already
-        // sits above zero, and a correction can legitimately move units into an account still in
-        // breach. Blocking those would leave a broken account with no way to fix it, so
-        // POST /admin/adjustments logs and proceeds; it is admin-authenticated and audited.
         if (enforce && transactionType != ADJUSTMENT) {
           throw new UnitBalanceViolationException(account.getName(), held, delta);
         }
         log.error(
             "Unit balance invariant violated ({}): account={}, transactionType={}, held={}, requested={}",
-            enforce ? "admin adjustment, allowed through" : "not enforced yet",
+            transactionType == ADJUSTMENT
+                ? "admin adjustment, allowed through"
+                : "not enforced yet",
             account.getName(),
             transactionType,
             held,
             delta);
       }
     }
+  }
+
+  private static boolean isNotATake(BigDecimal delta) {
+    return delta.signum() <= 0;
   }
 
   private void lockInDeterministicOrder(Collection<LedgerAccount> accounts) {

@@ -50,8 +50,6 @@ public class PaymentApprovalBriefJob {
         paymentCheckService.holdsOn(today).stream().map(PaymentApprovalBriefJob::toHold).toList();
     var brief = briefService.build(today, holds);
 
-    // Sent even when there is nothing pending. "No brief, no approval" is only a usable rule if a
-    // brief always arrives; otherwise silence means either "nothing to approve" or "the job died".
     notificationService.sendMessage(formatter.format(brief), INVESTMENT);
   }
 

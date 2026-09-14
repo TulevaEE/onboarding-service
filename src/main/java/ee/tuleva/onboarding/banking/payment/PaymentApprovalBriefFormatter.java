@@ -16,8 +16,6 @@ public class PaymentApprovalBriefFormatter {
 
   public String format(PaymentApprovalBrief brief) {
     if (brief.isEmpty()) {
-      // Sent anyway. "No brief, no approval" only works if a brief always arrives, otherwise
-      // silence cannot be told apart from a job that died.
       return "%s TKF100 — no payments pending approval (%s)"
           .formatted(brief.attention() ? "🟠" : "✅", brief.date());
     }

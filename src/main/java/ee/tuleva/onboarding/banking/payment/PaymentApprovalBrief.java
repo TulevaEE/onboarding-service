@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.banking.payment;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Locale;
+import org.jspecify.annotations.Nullable;
 
 /**
  * What the signatories compare against the bank's pending list.
@@ -28,8 +30,7 @@ public record PaymentApprovalBrief(
    *
    * @param detail null when there is nothing to add to a green verdict.
    */
-  public record Verdict(
-      String label, boolean passed, @org.jspecify.annotations.Nullable String detail) {}
+  public record Verdict(String label, boolean passed, @Nullable String detail) {}
 
   /**
    * @param projectedBalance what the account is left with once these payments execute, or null when
@@ -41,7 +42,7 @@ public record PaymentApprovalBrief(
       List<FlowSummary> flows,
       int paymentCount,
       BigDecimal total,
-      @org.jspecify.annotations.Nullable BigDecimal projectedBalance) {
+      @Nullable BigDecimal projectedBalance) {
 
     public boolean goesNegative() {
       return projectedBalance != null && projectedBalance.signum() < 0;
@@ -64,6 +65,6 @@ public record PaymentApprovalBrief(
 
   /** One home for the money format, so the tie reads the same way as the totals above it. */
   public static String amount(BigDecimal value) {
-    return String.format(java.util.Locale.ROOT, "%,.2f", value);
+    return String.format(Locale.ROOT, "%,.2f", value);
   }
 }

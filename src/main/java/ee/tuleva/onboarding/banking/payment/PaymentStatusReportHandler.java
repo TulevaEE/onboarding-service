@@ -23,8 +23,6 @@ public class PaymentStatusReportHandler {
     var report = extractor.extract(xml);
 
     if (report.isFileLevelOnly()) {
-      // Whether SEB reports per payment or only per file has never been confirmed. Say which one
-      // this was, so the answer comes from production rather than from an assumption.
       log.warn(
           "Payment status report carries no per-transaction statuses, only a file-level one: groupStatus={}",
           report.groupStatus());

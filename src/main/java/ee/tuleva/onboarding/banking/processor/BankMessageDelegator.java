@@ -73,9 +73,6 @@ public class BankMessageDelegator {
       bankingMessageRepository.save(message);
     } catch (Exception e) {
       log.error("Failed to process message: messageId={}", message.getId(), e);
-      // Includes the statement integrity failure: BankStatement refuses to build when SEB's own
-      // declared entry count or credit/debit sums disagree with what we parsed, and a truncated
-      // statement is exactly how a payment goes missing from every downstream check.
       paymentCheckService.record(
           STATEMENT_UNPROCESSABLE,
           HOLD,

@@ -60,12 +60,7 @@ public class PaymentApprovalBriefService {
             .filter(payment -> payment.getStatus() != FAILED)
             .toList();
     var submittedToday =
-        attemptedToday.stream()
-            // Pending approval means sent and not yet known to have moved. A payment already
-            // executed was approved earlier and is no longer on the bank's pending screen, so
-            // counting it would make the brief disagree with what the signatory is looking at.
-            .filter(payment -> payment.getStatus() == SUBMITTED || payment.isPending())
-            .toList();
+        attemptedToday.stream().filter(PaymentApprovalBriefService::awaitsApproval).toList();
 
     Map<String, List<OutgoingPayment>> byAccount =
         submittedToday.stream()
@@ -81,8 +76,6 @@ public class PaymentApprovalBriefService {
             .sorted(comparing(PaymentApprovalBrief.AccountSummary::accountName))
             .toList();
 
-    // In flight means the call never returned a verdict: the payment may or may not have reached
-    // the bank, which is exactly the kind of day that deserves a proper look.
     var inFlight = submittedToday.stream().filter(OutgoingPayment::isPending).count();
     var verdicts = verdicts(attemptedToday, holds);
 
@@ -96,6 +89,15 @@ public class PaymentApprovalBriefService {
             || inFlight > 0
             || verdicts.stream().anyMatch(verdict -> !verdict.passed())
             || accounts.stream().anyMatch(PaymentApprovalBrief.AccountSummary::goesNegative));
+  }
+
+  /**
+   * Sent and not yet known to have moved. A payment already executed was approved earlier and has
+   * left the bank's pending screen, so counting it would make the brief disagree with what the
+   * signatory is looking at.
+   */
+  private static boolean awaitsApproval(OutgoingPayment payment) {
+    return payment.getStatus() == SUBMITTED || payment.isPending();
   }
 
   private static List<PaymentApprovalBrief.Verdict> verdicts(

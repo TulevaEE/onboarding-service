@@ -64,8 +64,6 @@ public class FundAccountPaymentJob {
         payment -> savingFundPaymentRepository.changeStatus(payment.getId(), PROCESSED));
 
     var paymentIds = payments.stream().map(SavingFundPayment::getId).toList();
-    // Derived from the batch's own contents: a retry of the same batch reaches the bank under the
-    // same Idempotency-Key instead of as a second, unrecognisable payment.
     var id = BatchId.of("subscription", paymentIds);
     eventPublisher.publishEvent(
         new TrackableSystemEvent(

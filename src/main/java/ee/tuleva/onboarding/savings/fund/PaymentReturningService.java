@@ -45,8 +45,6 @@ public class PaymentReturningService {
             .amount(payment.getAmount())
             .description(description)
             .build();
-    // The endToEndId is already the payment's own id, so a retry after a failed commit reaches
-    // the bank under the same Idempotency-Key and is recognised as the same money.
     eventPublisher.publishEvent(new RequestPaymentEvent(paymentRequest, payment.getId(), RETURN));
   }
 

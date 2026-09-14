@@ -51,14 +51,13 @@ public class PaymentIntegrityNotifier {
             .formatted(event.paymentRequest().endToEndId()));
   }
 
-  // The subscription batch job retries every minute, so an unfixed generator bug would otherwise
-  // repost the same alert 60 times an hour until someone deploys a fix. The key is the payment's
-  // own
-  // shape rather than the violated checks alone, so a retry of the same batch is suppressed while a
-  // DIFFERENT payment failing the same check still alerts. endToEndId would not work as the key:
-  // the
-  // retrying batch mints a fresh UUID every minute.
-  // Held in memory and never published, so the key may use the values the message must not carry.
+  /**
+   * The producers retry every minute, so an unfixed generator bug would otherwise repost the same
+   * alert sixty times an hour until someone deploys a fix. Keyed on the payment's own shape rather
+   * than on the violated checks alone, so a retry of the same payment is suppressed while a
+   * different payment failing the same check still alerts. Held in memory and never published, so
+   * the key may use the values the message itself must not carry.
+   */
   private static String cooldownKey(
       String kind, PaymentRequest paymentRequest, List<String> checks) {
     return String.join(

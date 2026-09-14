@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.report;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
 
@@ -28,6 +29,23 @@ public final class SebReportHeaders {
   public static @Nullable LocalDate sentDate(
       Map<String, Object> metadata, List<Map<String, Object>> rawData) {
     return headerDate(metadata, "sentDate", rawData, SENT_LABEL);
+  }
+
+  public static @Nullable String unreadableAsOfValue(
+      Map<String, Object> metadata, List<Map<String, Object>> rawData) {
+    if (asOfDate(metadata, rawData) != null) {
+      return null;
+    }
+    String fromMetadata = string(metadata.get("asOfDate"));
+    if (fromMetadata != null) {
+      return fromMetadata;
+    }
+    return rawData.stream()
+        .filter(row -> AS_OF_LABEL.equals(string(row.get(LABEL_COLUMN))))
+        .map(row -> string(row.get(VALUE_COLUMN)))
+        .filter(Objects::nonNull)
+        .findFirst()
+        .orElse(null);
   }
 
   private static @Nullable LocalDate headerDate(

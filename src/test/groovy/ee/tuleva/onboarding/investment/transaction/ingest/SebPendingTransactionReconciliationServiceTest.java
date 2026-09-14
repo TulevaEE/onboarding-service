@@ -70,9 +70,12 @@ class SebPendingTransactionReconciliationServiceTest {
   private SebPendingTransactionReconciliationService service;
 
   private SebPendingTransactionReconciliationService newService() {
-    lenient()
-        .when(matchingPolicy.current())
-        .thenReturn(new TransactionMatchingProperties(null, null, null, null, null));
+    given(matchingPolicy.current())
+        .willReturn(new TransactionMatchingProperties(null, null, null, null, null));
+    return newServiceWithoutMatching();
+  }
+
+  private SebPendingTransactionReconciliationService newServiceWithoutMatching() {
     SebClientNameToFundResolver resolver = new SebClientNameToFundResolver();
     QuantityAmountValidator validator = new QuantityAmountValidator();
     ReconciliationAuditRecorder auditRecorder =
@@ -1602,7 +1605,7 @@ class SebPendingTransactionReconciliationServiceTest {
 
   @Test
   void reconcile_refusesAndAlertsWhenTheReportCarriesNoAsOfDate() {
-    service = newService();
+    service = newServiceWithoutMatching();
     UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
 
     service.reconcile(reportOf(validRawRow(clientRef), Map.of()));

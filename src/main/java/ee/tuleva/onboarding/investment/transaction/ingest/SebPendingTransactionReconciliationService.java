@@ -63,7 +63,11 @@ public class SebPendingTransactionReconciliationService {
               + " reportDate={}",
           reportDate);
       eventPublisher.publishEvent(
-          new MissingReportAsOfDateEvent(SEB, PENDING_TRANSACTIONS, reportDate));
+          new MissingReportAsOfDateEvent(
+              SEB,
+              PENDING_TRANSACTIONS,
+              reportDate,
+              SebReportHeaders.unreadableAsOfValue(report.getMetadata(), report.getRawData())));
       return;
     }
 

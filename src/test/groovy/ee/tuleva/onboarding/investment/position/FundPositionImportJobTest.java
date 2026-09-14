@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SWEDBANK;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
+import static ee.tuleva.onboarding.pipeline.PipelineStep.HEALTH_CHECK;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static java.util.Map.entry;
@@ -16,6 +17,7 @@ import static org.mockito.Mockito.*;
 import ee.tuleva.onboarding.investment.check.health.HealthCheckNotifier;
 import ee.tuleva.onboarding.investment.check.health.HealthCheckResult;
 import ee.tuleva.onboarding.investment.check.health.HealthCheckService;
+import ee.tuleva.onboarding.investment.event.ReportImportCompleted;
 import ee.tuleva.onboarding.investment.position.parser.SebFundPositionParser;
 import ee.tuleva.onboarding.investment.position.parser.SwedbankFundPositionParser;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
@@ -259,7 +261,30 @@ class FundPositionImportJobTest {
 
     assertThat(result.imported()).isEqualTo(0);
     verify(repository, never()).save(any(FundPosition.class));
-    verify(eventPublisher).publishEvent(new MissingReportAsOfDateEvent(SEB, POSITIONS, date));
+    verify(eventPublisher).publishEvent(new MissingReportAsOfDateEvent(SEB, POSITIONS, date, null));
+  }
+
+  // A dropped day must not read as a clean run: without the failure flag the pipeline marks both
+  // steps completed and can post a ✅ summary for an import that discarded a whole day of positions.
+  @Test
+  void runImport_marksTheHealthCheckStepFailed_whenAReportIsRefused() {
+    LocalDate date = LocalDate.now(Clock.systemUTC()).minusDays(1);
+    var report =
+        InvestmentReport.builder()
+            .provider(SEB)
+            .reportType(POSITIONS)
+            .reportDate(date)
+            .rawData(List.of(Map.of("Client name", "TKF100", "Market Value (EUR)", "1000")))
+            .metadata(Map.of())
+            .createdAt(Instant.now())
+            .build();
+    given(reportService.getReport(eq(SEB), eq(POSITIONS), any())).willReturn(Optional.empty());
+    given(reportService.getReport(SEB, POSITIONS, date)).willReturn(Optional.of(report));
+
+    job.onReportImportCompleted(new ReportImportCompleted(SEB, POSITIONS, date, 1));
+
+    verify(pipelineTracker).stepFailed(eq(HEALTH_CHECK), contains("Report refused"));
+    verify(pipelineTracker, never()).stepCompleted(HEALTH_CHECK);
   }
 
   @Test

@@ -54,7 +54,8 @@ public class SebFundPositionParser implements FundPositionParser {
     LocalDate sentDate = SebReportHeaders.sentDate(metadata, rawData);
 
     if (navDate == null) {
-      throw new MissingReportAsOfDateException(SEB, POSITIONS);
+      throw new MissingReportAsOfDateException(
+          SEB, POSITIONS, SebReportHeaders.unreadableAsOfValue(metadata, rawData));
     }
     if (sentDate == null) {
       log.warn("No 'Sent' date found in SEB data, falling back to report date");

@@ -170,8 +170,12 @@ public class FundPositionImportJob {
               investmentReport.getReportDate(),
               investmentReport.getMetadata());
     } catch (MissingReportAsOfDateException e) {
+      healthCheckFailed = true;
+      healthCheckFailureDetail =
+          "Report refused, no As of date: provider=%s, date=%s".formatted(provider, date);
       log.error("Positions report refused: provider={}, date={}", provider, date, e);
-      eventPublisher.publishEvent(new MissingReportAsOfDateEvent(provider, POSITIONS, date));
+      eventPublisher.publishEvent(
+          new MissingReportAsOfDateEvent(provider, POSITIONS, date, e.getUnreadableValue()));
       return ImportResult.none();
     }
     log.info(

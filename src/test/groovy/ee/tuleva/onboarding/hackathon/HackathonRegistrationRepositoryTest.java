@@ -41,6 +41,7 @@ class HackathonRegistrationRepositoryTest {
         .phoneNumber("+37255555555")
         .role(PARTICIPANT)
         .skills(List.of(SOFTWARE_DEVELOPMENT, DATA_AND_AI))
+        .otherSkills("Projektijuhtimine")
         .challenges(List.of(FAIR_LENDING, COLLECTIVE_BUYING_POWER))
         .participation(LOOKING_FOR_TEAM)
         .idea("Fondiosaku tagatisel krediidiliin")
@@ -61,6 +62,7 @@ class HackathonRegistrationRepositoryTest {
 
     var found = repository.findByUserId(user.getId()).orElseThrow();
     assertThat(found.getSkills()).containsExactly(SOFTWARE_DEVELOPMENT, DATA_AND_AI);
+    assertThat(found.getOtherSkills()).isEqualTo("Projektijuhtimine");
     assertThat(found.getChallenges()).containsExactly(FAIR_LENDING, COLLECTIVE_BUYING_POWER);
     assertThat(found.getRole()).isEqualTo(PARTICIPANT);
     assertThat(found.getParticipation()).isEqualTo(LOOKING_FOR_TEAM);
@@ -101,6 +103,7 @@ class HackathonRegistrationRepositoryTest {
     repository.saveAndFlush(
         registration(user.getId())
             .phoneNumber(null)
+            .otherSkills(null)
             .idea(null)
             .linkedinUrl(null)
             .tshirtColor(null)
@@ -111,6 +114,7 @@ class HackathonRegistrationRepositoryTest {
 
     var found = repository.findByUserId(user.getId()).orElseThrow();
     assertThat(found.getPhoneNumber()).isNull();
+    assertThat(found.getOtherSkills()).isNull();
     assertThat(found.getIdea()).isNull();
     assertThat(found.getLinkedinUrl()).isNull();
     assertThat(found.getTshirtColor()).isNull();

@@ -66,6 +66,7 @@ class HackathonRegistrationControllerTest {
                 "+37255555555",
                 null,
                 List.of(),
+                null,
                 List.of(),
                 null,
                 null,
@@ -92,6 +93,7 @@ class HackathonRegistrationControllerTest {
             "+37255555555",
             PARTICIPANT,
             List.of(SOFTWARE_DEVELOPMENT, DATA_AND_AI),
+            "Projektijuhtimine",
             List.of(FAIR_LENDING, WEALTH_AND_INHERITANCE),
             LOOKING_FOR_TEAM,
             "Fondiosaku tagatisel krediidiliin",
@@ -110,6 +112,7 @@ class HackathonRegistrationControllerTest {
                 request.phoneNumber(),
                 request.role(),
                 request.skills(),
+                request.otherSkills(),
                 request.challenges(),
                 request.participation(),
                 request.idea(),
@@ -128,6 +131,7 @@ class HackathonRegistrationControllerTest {
                       "phoneNumber": "+37255555555",
                       "role": "PARTICIPANT",
                       "skills": ["SOFTWARE_DEVELOPMENT", "DATA_AND_AI"],
+                      "otherSkills": "Projektijuhtimine",
                       "challenges": ["FAIR_LENDING", "WEALTH_AND_INHERITANCE"],
                       "participation": "LOOKING_FOR_TEAM",
                       "idea": "Fondiosaku tagatisel krediidiliin",
@@ -143,6 +147,7 @@ class HackathonRegistrationControllerTest {
         .andExpect(jsonPath("$.registered", is(true)))
         .andExpect(jsonPath("$.role", is("PARTICIPANT")))
         .andExpect(jsonPath("$.skills", contains("SOFTWARE_DEVELOPMENT", "DATA_AND_AI")))
+        .andExpect(jsonPath("$.otherSkills", is("Projektijuhtimine")))
         .andExpect(jsonPath("$.participation", is("LOOKING_FOR_TEAM")))
         .andExpect(jsonPath("$.tshirtColor", is("WHITE")))
         .andExpect(jsonPath("$.tshirtSize", is("M")))
@@ -159,6 +164,7 @@ class HackathonRegistrationControllerTest {
             null,
             PARTICIPANT,
             List.of(),
+            null,
             List.of(),
             LOOKING_FOR_TEAM,
             null,
@@ -177,6 +183,7 @@ class HackathonRegistrationControllerTest {
                 null,
                 request.role(),
                 List.of(),
+                null,
                 List.of(),
                 request.participation(),
                 null,

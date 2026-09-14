@@ -50,6 +50,8 @@ public class HackathonRegistration {
   @NotNull
   private List<HackathonSkill> skills;
 
+  @Nullable private String otherSkills;
+
   @JdbcTypeCode(JSON)
   @NotNull
   private List<HackathonChallenge> challenges;
@@ -82,6 +84,7 @@ public class HackathonRegistration {
     phoneNumber = request.phoneNumber();
     role = request.role();
     skills = request.skills();
+    otherSkills = request.otherSkills();
     challenges = request.challenges();
     participation = request.participation();
     idea = request.idea();

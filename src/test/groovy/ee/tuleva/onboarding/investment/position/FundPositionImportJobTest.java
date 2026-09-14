@@ -20,6 +20,7 @@ import ee.tuleva.onboarding.investment.position.parser.SebFundPositionParser;
 import ee.tuleva.onboarding.investment.position.parser.SwedbankFundPositionParser;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
+import ee.tuleva.onboarding.investment.report.MissingReportAsOfDateEvent;
 import ee.tuleva.onboarding.pipeline.PipelineTracker;
 import ee.tuleva.onboarding.savings.fund.nav.NavPositionsUpdated;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -238,6 +239,27 @@ class FundPositionImportJobTest {
         .marketPrice(accountType == CASH ? java.math.BigDecimal.ONE : null)
         .marketValue(new java.math.BigDecimal(marketValue))
         .build();
+  }
+
+  @Test
+  void importForProviderAndDate_alertsAndImportsNothing_whenTheReportCarriesNoAsOfDate() {
+    LocalDate date = LocalDate.of(2026, 1, 5);
+    var report =
+        InvestmentReport.builder()
+            .provider(SEB)
+            .reportType(POSITIONS)
+            .reportDate(date)
+            .rawData(List.of(Map.of("Client name", "TKF100", "Market Value (EUR)", "1000")))
+            .metadata(Map.of())
+            .createdAt(Instant.now())
+            .build();
+    when(reportService.getReport(SEB, POSITIONS, date)).thenReturn(Optional.of(report));
+
+    var result = job.importForProviderAndDate(SEB, date);
+
+    assertThat(result.imported()).isEqualTo(0);
+    verify(repository, never()).save(any(FundPosition.class));
+    verify(eventPublisher).publishEvent(new MissingReportAsOfDateEvent(SEB, POSITIONS, date));
   }
 
   @Test

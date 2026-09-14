@@ -75,7 +75,7 @@ class SebPendingTransactionReconciliationIdempotencyIT {
                 .reportType(PENDING_TRANSACTIONS)
                 .reportDate(LocalDate.of(2026, 5, 13))
                 .rawData(List.of(rawRow()))
-                .metadata(Map.of("source", "fixture"))
+                .metadata(Map.of("source", "fixture", "asOfDate", "2026-05-12"))
                 .createdAt(Instant.now())
                 .build());
   }

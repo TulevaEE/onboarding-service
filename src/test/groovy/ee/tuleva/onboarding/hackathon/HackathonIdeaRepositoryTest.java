@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.hackathon;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.hackathon.HackathonChallenge.FAIR_LENDING;
-import static ee.tuleva.onboarding.hackathon.HackathonChallenge.OTHER;
+import static ee.tuleva.onboarding.hackathon.HackathonChallenge.INSURANCE;
 import static ee.tuleva.onboarding.hackathon.HackathonSkill.DATA_AND_AI;
 import static ee.tuleva.onboarding.hackathon.HackathonSkill.DESIGN;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -71,7 +71,7 @@ class HackathonIdeaRepositoryTest {
     var user = persistedUser();
     var later =
         repository.saveAndFlush(
-            idea(user.getId()).challenge(OTHER).createdTime(NOW.plusSeconds(60)).build());
+            idea(user.getId()).challenge(INSURANCE).createdTime(NOW.plusSeconds(60)).build());
     var earlier = repository.saveAndFlush(idea(user.getId()).build());
     entityManager.clear();
 

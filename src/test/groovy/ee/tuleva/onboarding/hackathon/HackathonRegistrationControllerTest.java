@@ -8,12 +8,16 @@ import static ee.tuleva.onboarding.hackathon.HackathonParticipation.LOOKING_FOR_
 import static ee.tuleva.onboarding.hackathon.HackathonRole.PARTICIPANT;
 import static ee.tuleva.onboarding.hackathon.HackathonSkill.DATA_AND_AI;
 import static ee.tuleva.onboarding.hackathon.HackathonSkill.SOFTWARE_DEVELOPMENT;
+import static ee.tuleva.onboarding.hackathon.HackathonTshirtColor.NONE;
+import static ee.tuleva.onboarding.hackathon.HackathonTshirtColor.WHITE;
+import static ee.tuleva.onboarding.hackathon.HackathonTshirtSize.M;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -37,7 +41,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @WebMvcTest(HackathonRegistrationController.class)
 class HackathonRegistrationControllerTest {
 
-  private static final Instant DEADLINE = Instant.parse("2026-09-20T20:59:59Z");
+  private static final Instant DEADLINE = Instant.parse("2026-10-05T20:59:59Z");
 
   @Autowired private MockMvc mvc;
 
@@ -65,7 +69,10 @@ class HackathonRegistrationControllerTest {
                 List.of(),
                 null,
                 null,
-                null));
+                null,
+                null,
+                null,
+                false));
 
     mvc.perform(get("/v1/hackathon-registration").with(authentication(authentication)).with(csrf()))
         .andExpect(status().isOk())
@@ -73,7 +80,8 @@ class HackathonRegistrationControllerTest {
         .andExpect(jsonPath("$.open", is(true)))
         .andExpect(jsonPath("$.email", is("participant@example.com")))
         .andExpect(jsonPath("$.phoneNumber", is("+37255555555")))
-        .andExpect(jsonPath("$.role").doesNotExist());
+        .andExpect(jsonPath("$.role").doesNotExist())
+        .andExpect(jsonPath("$.termsAccepted", is(false)));
   }
 
   @Test
@@ -87,7 +95,10 @@ class HackathonRegistrationControllerTest {
             List.of(FAIR_LENDING, WEALTH_AND_INHERITANCE),
             LOOKING_FOR_TEAM,
             "Fondiosaku tagatisel krediidiliin",
-            "https://linkedin.com/in/example");
+            "https://linkedin.com/in/example",
+            WHITE,
+            M,
+            true);
 
     given(hackathonRegistrationService.register(eq(authenticatedPerson), eq(request)))
         .willReturn(
@@ -102,7 +113,10 @@ class HackathonRegistrationControllerTest {
                 request.challenges(),
                 request.participation(),
                 request.idea(),
-                request.linkedinUrl()));
+                request.linkedinUrl(),
+                WHITE,
+                M,
+                true));
 
     mvc.perform(
             post("/v1/hackathon-registration")
@@ -117,7 +131,10 @@ class HackathonRegistrationControllerTest {
                       "challenges": ["FAIR_LENDING", "WEALTH_AND_INHERITANCE"],
                       "participation": "LOOKING_FOR_TEAM",
                       "idea": "Fondiosaku tagatisel krediidiliin",
-                      "linkedinUrl": "https://linkedin.com/in/example"
+                      "linkedinUrl": "https://linkedin.com/in/example",
+                      "tshirtColor": "WHITE",
+                      "tshirtSize": "M",
+                      "termsAccepted": true
                     }
                     """)
                 .with(authentication(authentication))
@@ -126,13 +143,16 @@ class HackathonRegistrationControllerTest {
         .andExpect(jsonPath("$.registered", is(true)))
         .andExpect(jsonPath("$.role", is("PARTICIPANT")))
         .andExpect(jsonPath("$.skills", contains("SOFTWARE_DEVELOPMENT", "DATA_AND_AI")))
-        .andExpect(jsonPath("$.participation", is("LOOKING_FOR_TEAM")));
+        .andExpect(jsonPath("$.participation", is("LOOKING_FOR_TEAM")))
+        .andExpect(jsonPath("$.tshirtColor", is("WHITE")))
+        .andExpect(jsonPath("$.tshirtSize", is("M")))
+        .andExpect(jsonPath("$.termsAccepted", is(true)));
 
     verify(hackathonRegistrationService).register(authenticatedPerson, request);
   }
 
   @Test
-  void register_withoutOptionalFields_savesTheRegistration() throws Exception {
+  void register_withoutOptionalFieldsAndWithoutAShirt_savesTheRegistration() throws Exception {
     var request =
         new HackathonRegistrationRequest(
             "participant@example.com",
@@ -142,7 +162,10 @@ class HackathonRegistrationControllerTest {
             List.of(),
             LOOKING_FOR_TEAM,
             null,
-            null);
+            null,
+            NONE,
+            null,
+            true);
 
     given(hackathonRegistrationService.register(eq(authenticatedPerson), eq(request)))
         .willReturn(
@@ -157,7 +180,10 @@ class HackathonRegistrationControllerTest {
                 List.of(),
                 request.participation(),
                 null,
-                null));
+                null,
+                NONE,
+                null,
+                true));
 
     mvc.perform(
             post("/v1/hackathon-registration")
@@ -169,7 +195,9 @@ class HackathonRegistrationControllerTest {
                       "role": "PARTICIPANT",
                       "skills": [],
                       "challenges": [],
-                      "participation": "LOOKING_FOR_TEAM"
+                      "participation": "LOOKING_FOR_TEAM",
+                      "tshirtColor": "NONE",
+                      "termsAccepted": true
                     }
                     """)
                 .with(authentication(authentication))
@@ -195,7 +223,9 @@ class HackathonRegistrationControllerTest {
                       "role": "PARTICIPANT",
                       "skills": [],
                       "challenges": [],
-                      "participation": "LOOKING_FOR_TEAM"
+                      "participation": "LOOKING_FOR_TEAM",
+                      "tshirtColor": "NONE",
+                      "termsAccepted": true
                     }
                     """)
                 .with(authentication(authentication))
@@ -206,99 +236,138 @@ class HackathonRegistrationControllerTest {
 
   @Test
   void register_withInvalidEmail_returnsBadRequest() throws Exception {
-    mvc.perform(
-            post("/v1/hackathon-registration")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                    """
-                    {
-                      "email": "not-an-email",
-                      "role": "PARTICIPANT",
-                      "skills": [],
-                      "challenges": [],
-                      "participation": "LOOKING_FOR_TEAM"
-                    }
-                    """)
-                .with(authentication(authentication))
-                .with(csrf()))
-        .andExpect(status().isBadRequest());
+    postExpectingBadRequest(
+        """
+        {
+          "email": "not-an-email",
+          "role": "PARTICIPANT",
+          "skills": [],
+          "challenges": [],
+          "participation": "LOOKING_FOR_TEAM",
+          "tshirtColor": "NONE",
+          "termsAccepted": true
+        }
+        """);
   }
 
   @Test
   void register_withoutEmail_returnsBadRequest() throws Exception {
-    mvc.perform(
-            post("/v1/hackathon-registration")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                    """
-                    {
-                      "role": "PARTICIPANT",
-                      "skills": [],
-                      "challenges": [],
-                      "participation": "LOOKING_FOR_TEAM"
-                    }
-                    """)
-                .with(authentication(authentication))
-                .with(csrf()))
-        .andExpect(status().isBadRequest());
+    postExpectingBadRequest(
+        """
+        {
+          "role": "PARTICIPANT",
+          "skills": [],
+          "challenges": [],
+          "participation": "LOOKING_FOR_TEAM",
+          "tshirtColor": "NONE",
+          "termsAccepted": true
+        }
+        """);
   }
 
   @Test
   void register_withoutRole_returnsBadRequest() throws Exception {
-    mvc.perform(
-            post("/v1/hackathon-registration")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                    """
-                    {
-                      "email": "participant@example.com",
-                      "skills": [],
-                      "challenges": [],
-                      "participation": "LOOKING_FOR_TEAM"
-                    }
-                    """)
-                .with(authentication(authentication))
-                .with(csrf()))
-        .andExpect(status().isBadRequest());
+    postExpectingBadRequest(
+        """
+        {
+          "email": "participant@example.com",
+          "skills": [],
+          "challenges": [],
+          "participation": "LOOKING_FOR_TEAM",
+          "tshirtColor": "NONE",
+          "termsAccepted": true
+        }
+        """);
   }
 
   @Test
   void register_withANullSkillInTheList_returnsBadRequest() throws Exception {
-    mvc.perform(
-            post("/v1/hackathon-registration")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                    """
-                    {
-                      "email": "participant@example.com",
-                      "role": "PARTICIPANT",
-                      "skills": [null],
-                      "challenges": [],
-                      "participation": "LOOKING_FOR_TEAM"
-                    }
-                    """)
-                .with(authentication(authentication))
-                .with(csrf()))
-        .andExpect(status().isBadRequest());
+    postExpectingBadRequest(
+        """
+        {
+          "email": "participant@example.com",
+          "role": "PARTICIPANT",
+          "skills": [null],
+          "challenges": [],
+          "participation": "LOOKING_FOR_TEAM",
+          "tshirtColor": "NONE",
+          "termsAccepted": true
+        }
+        """);
   }
 
   @Test
   void register_withUnknownSkill_returnsBadRequest() throws Exception {
+    postExpectingBadRequest(
+        """
+        {
+          "email": "participant@example.com",
+          "role": "PARTICIPANT",
+          "skills": ["UNDERWATER_BASKET_WEAVING"],
+          "challenges": [],
+          "participation": "LOOKING_FOR_TEAM",
+          "tshirtColor": "NONE",
+          "termsAccepted": true
+        }
+        """);
+  }
+
+  @Test
+  void register_withoutAcceptingTheTerms_returnsBadRequest() throws Exception {
+    postExpectingBadRequest(
+        """
+        {
+          "email": "participant@example.com",
+          "role": "PARTICIPANT",
+          "skills": [],
+          "challenges": [],
+          "participation": "LOOKING_FOR_TEAM",
+          "tshirtColor": "NONE",
+          "termsAccepted": false
+        }
+        """);
+  }
+
+  @Test
+  void register_withoutATshirtChoice_returnsBadRequest() throws Exception {
+    postExpectingBadRequest(
+        """
+        {
+          "email": "participant@example.com",
+          "role": "PARTICIPANT",
+          "skills": [],
+          "challenges": [],
+          "participation": "LOOKING_FOR_TEAM",
+          "termsAccepted": true
+        }
+        """);
+  }
+
+  @Test
+  void register_withAShirtButNoSize_returnsBadRequest() throws Exception {
+    postExpectingBadRequest(
+        """
+        {
+          "email": "participant@example.com",
+          "role": "PARTICIPANT",
+          "skills": [],
+          "challenges": [],
+          "participation": "LOOKING_FOR_TEAM",
+          "tshirtColor": "WHITE",
+          "termsAccepted": true
+        }
+        """);
+  }
+
+  private void postExpectingBadRequest(String body) throws Exception {
     mvc.perform(
             post("/v1/hackathon-registration")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                    """
-                    {
-                      "email": "participant@example.com",
-                      "role": "PARTICIPANT",
-                      "skills": ["UNDERWATER_BASKET_WEAVING"],
-                      "challenges": [],
-                      "participation": "LOOKING_FOR_TEAM"
-                    }
-                    """)
+                .content(body)
                 .with(authentication(authentication))
                 .with(csrf()))
         .andExpect(status().isBadRequest());
+
+    verifyNoInteractions(hackathonRegistrationService);
   }
 }

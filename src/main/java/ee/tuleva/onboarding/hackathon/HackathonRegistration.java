@@ -62,6 +62,16 @@ public class HackathonRegistration {
 
   @Nullable private String linkedinUrl;
 
+  @Enumerated(STRING)
+  @Nullable
+  private HackathonTshirtColor tshirtColor;
+
+  @Enumerated(STRING)
+  @Nullable
+  private HackathonTshirtSize tshirtSize;
+
+  @Nullable private Instant termsAcceptedTime;
+
   @Column(updatable = false)
   private Instant createdTime;
 
@@ -76,6 +86,11 @@ public class HackathonRegistration {
     participation = request.participation();
     idea = request.idea();
     linkedinUrl = request.linkedinUrl();
+    tshirtColor = request.tshirtColor();
+    tshirtSize = request.tshirtSize();
+    if (termsAcceptedTime == null) {
+      termsAcceptedTime = now;
+    }
     updatedTime = now;
   }
 }

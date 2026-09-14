@@ -199,8 +199,8 @@ dependencies {
     // runtimeClasspath (verified via `./gradlew dependencies`) — do not let this drift below it.
     implementation("org.apache.pdfbox:pdfbox:3.0.8")
 
-    implementation("net.javacrumbs.shedlock:shedlock-spring:7.9.0")
-    implementation("net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.9.0")
+    implementation("net.javacrumbs.shedlock:shedlock-spring:7.10.1")
+    implementation("net.javacrumbs.shedlock:shedlock-provider-jdbc-template:7.10.1")
 
     implementation("org.springframework.modulith:spring-modulith-starter-core")
     testImplementation("org.springframework.modulith:spring-modulith-starter-test")

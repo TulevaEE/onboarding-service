@@ -304,21 +304,26 @@ class FundPositionImportJobTest {
   }
 
   @Test
-  void importForProviderAndDate_blocksImportOnHealthCheckFail() {
+  void importForProviderAndDate_blocksOnlyTheFailingFund() {
     LocalDate date = LocalDate.of(2026, 1, 5);
     when(reportService.getReport(SWEDBANK, POSITIONS, date))
         .thenReturn(Optional.of(createSwedbankReport(date)));
-    var failResult =
-        new HealthCheckResult(
-            TUK75,
-            date,
-            List.of(
-                new ee.tuleva.onboarding.investment.check.health.HealthCheckFinding(
-                    TUK75,
-                    ee.tuleva.onboarding.investment.check.health.HealthCheckType.ISIN_MATCH,
-                    ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.FAIL,
-                    "unknown ISIN")));
-    when(healthCheckService.check(anyList())).thenReturn(List.of(failResult));
+    when(healthCheckService.check(anyList())).thenReturn(List.of(isinMatchFail(TUK75, date)));
+
+    var result = job.importForProviderAndDate(SWEDBANK, date);
+
+    assertThat(result.changedRowsByFund()).containsOnlyKeys(TUV100);
+    verify(repository, times(1)).save(any(FundPosition.class));
+    verify(healthCheckNotifier).notify(eq(SWEDBANK), eq(date), anyList());
+  }
+
+  @Test
+  void importForProviderAndDate_importsNothing_whenEveryFundFails() {
+    LocalDate date = LocalDate.of(2026, 1, 5);
+    when(reportService.getReport(SWEDBANK, POSITIONS, date))
+        .thenReturn(Optional.of(createSwedbankReport(date)));
+    when(healthCheckService.check(anyList()))
+        .thenReturn(List.of(isinMatchFail(TUK75, date), isinMatchFail(TUV100, date)));
 
     var result = job.importForProviderAndDate(SWEDBANK, date);
 
@@ -326,6 +331,18 @@ class FundPositionImportJobTest {
     assertThat(result.updated()).isEqualTo(0);
     verify(repository, never()).save(any(FundPosition.class));
     verify(healthCheckNotifier).notify(eq(SWEDBANK), eq(date), anyList());
+  }
+
+  private static HealthCheckResult isinMatchFail(TulevaFund fund, LocalDate date) {
+    return new HealthCheckResult(
+        fund,
+        date,
+        List.of(
+            new ee.tuleva.onboarding.investment.check.health.HealthCheckFinding(
+                fund,
+                ee.tuleva.onboarding.investment.check.health.HealthCheckType.ISIN_MATCH,
+                ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.FAIL,
+                "unknown ISIN")));
   }
 
   // A check that could not run is not a check that failed. The nav flow check reports NOT_RUN for a

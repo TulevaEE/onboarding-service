@@ -5,6 +5,9 @@ import static ee.tuleva.onboarding.hackathon.HackathonParticipation.LOOKING_FOR_
 import static ee.tuleva.onboarding.hackathon.HackathonRole.PARTICIPANT;
 import static ee.tuleva.onboarding.hackathon.HackathonSkill.DESIGN;
 import static ee.tuleva.onboarding.hackathon.HackathonSkill.SOFTWARE_DEVELOPMENT;
+import static ee.tuleva.onboarding.hackathon.HackathonTshirtColor.NONE;
+import static ee.tuleva.onboarding.hackathon.HackathonTshirtColor.WHITE;
+import static ee.tuleva.onboarding.hackathon.HackathonTshirtSize.M;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
@@ -15,7 +18,33 @@ class HackathonRegistrationRequestTest {
   private HackathonRegistrationRequest request(
       String email, String phoneNumber, String idea, String linkedinUrl) {
     return new HackathonRegistrationRequest(
-        email, phoneNumber, PARTICIPANT, List.of(), List.of(), LOOKING_FOR_TEAM, idea, linkedinUrl);
+        email,
+        phoneNumber,
+        PARTICIPANT,
+        List.of(),
+        List.of(),
+        LOOKING_FOR_TEAM,
+        idea,
+        linkedinUrl,
+        WHITE,
+        M,
+        true);
+  }
+
+  private HackathonRegistrationRequest shirtRequest(
+      HackathonTshirtColor color, HackathonTshirtSize size) {
+    return new HackathonRegistrationRequest(
+        "participant@example.com",
+        null,
+        PARTICIPANT,
+        List.of(),
+        List.of(),
+        LOOKING_FOR_TEAM,
+        null,
+        null,
+        color,
+        size,
+        true);
   }
 
   @Test
@@ -53,7 +82,10 @@ class HackathonRegistrationRequestTest {
             List.of(INSURANCE, INSURANCE),
             LOOKING_FOR_TEAM,
             null,
-            null);
+            null,
+            WHITE,
+            M,
+            true);
 
     assertThat(request.skills()).containsExactly(DESIGN, SOFTWARE_DEVELOPMENT);
     assertThat(request.challenges()).containsExactly(INSURANCE);
@@ -66,5 +98,17 @@ class HackathonRegistrationRequestTest {
     assertThat(request.phoneNumber()).isNull();
     assertThat(request.idea()).isNull();
     assertThat(request.linkedinUrl()).isNull();
+  }
+
+  @Test
+  void noShirtDropsTheSize() {
+    assertThat(shirtRequest(NONE, M).tshirtSize()).isNull();
+  }
+
+  @Test
+  void aShirtNeedsASize() {
+    assertThat(shirtRequest(WHITE, null).isTshirtSizeChosenForAShirt()).isFalse();
+    assertThat(shirtRequest(WHITE, M).isTshirtSizeChosenForAShirt()).isTrue();
+    assertThat(shirtRequest(NONE, null).isTshirtSizeChosenForAShirt()).isTrue();
   }
 }

@@ -5,6 +5,8 @@ import static ee.tuleva.onboarding.hackathon.HackathonChallenge.FAIR_LENDING;
 import static ee.tuleva.onboarding.hackathon.HackathonParticipation.LOOKING_FOR_TEAM;
 import static ee.tuleva.onboarding.hackathon.HackathonRole.PARTICIPANT;
 import static ee.tuleva.onboarding.hackathon.HackathonSkill.SOFTWARE_DEVELOPMENT;
+import static ee.tuleva.onboarding.hackathon.HackathonTshirtColor.WHITE;
+import static ee.tuleva.onboarding.hackathon.HackathonTshirtSize.M;
 import static java.util.Optional.empty;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
@@ -40,7 +42,10 @@ class HackathonEmailServiceTest {
               List.of(FAIR_LENDING),
               LOOKING_FOR_TEAM,
               null,
-              null)
+              null,
+              WHITE,
+              M,
+              true)
           .toRegistration(999L, Instant.parse("2026-08-12T10:00:00Z"));
 
   @Test

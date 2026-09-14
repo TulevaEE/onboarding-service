@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.hackathon;
 
+import static ee.tuleva.onboarding.hackathon.HackathonTshirtColor.NONE;
+
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -16,7 +19,10 @@ public record HackathonRegistrationRequest(
     @NotNull List<@NotNull HackathonChallenge> challenges,
     @NotNull HackathonParticipation participation,
     @Nullable @Size(max = 500) String idea,
-    @Nullable @Size(max = 500) String linkedinUrl) {
+    @Nullable @Size(max = 500) String linkedinUrl,
+    @NotNull HackathonTshirtColor tshirtColor,
+    @Nullable HackathonTshirtSize tshirtSize,
+    @AssertTrue boolean termsAccepted) {
 
   public HackathonRegistrationRequest {
     if (email != null) {
@@ -31,6 +37,14 @@ public record HackathonRegistrationRequest(
     if (challenges != null) {
       challenges = challenges.stream().distinct().toList();
     }
+    if (tshirtColor == NONE) {
+      tshirtSize = null;
+    }
+  }
+
+  @AssertTrue
+  public boolean isTshirtSizeChosenForAShirt() {
+    return tshirtColor == null || tshirtColor == NONE || tshirtSize != null;
   }
 
   public HackathonRegistration toRegistration(Long userId, Instant now) {
@@ -44,6 +58,9 @@ public record HackathonRegistrationRequest(
         .participation(participation)
         .idea(idea)
         .linkedinUrl(linkedinUrl)
+        .tshirtColor(tshirtColor)
+        .tshirtSize(tshirtSize)
+        .termsAcceptedTime(now)
         .createdTime(now)
         .updatedTime(now)
         .build();

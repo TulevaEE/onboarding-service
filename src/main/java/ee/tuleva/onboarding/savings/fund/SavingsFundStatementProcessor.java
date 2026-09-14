@@ -16,7 +16,6 @@ import ee.tuleva.onboarding.banking.StatementDebit;
 import ee.tuleva.onboarding.banking.check.payment.OutgoingPaymentMatcher;
 import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.SavingsFundStatementReceived;
-import ee.tuleva.onboarding.banking.processor.BankOperationProcessor;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
@@ -41,7 +40,6 @@ public class SavingsFundStatementProcessor {
   private final SavingsFundLedger savingsFundLedger;
   private final OwnAccountTransferRecorder ownAccountTransferRecorder;
   private final FundBankLedger fundBankLedger;
-  private final BankOperationProcessor bankOperationProcessor;
   private final PaymentCheckService paymentCheckService;
   private final OutgoingPaymentMatcher outgoingPaymentMatcher;
   private final RedemptionPayoutRecorder redemptionPayoutRecorder;
@@ -94,9 +92,6 @@ public class SavingsFundStatementProcessor {
       return;
     }
 
-    // Every debit on any of our accounts, not only the payouts: a transfer or a return that the
-    // bank executed differently, or a debit with nothing behind it at all, would otherwise only
-    // ever surface as an aggregate discrepancy the next morning.
     outgoingPaymentMatcher.match(debitOf(payment));
 
     switch (accountType) {
@@ -233,7 +228,7 @@ public class SavingsFundStatementProcessor {
 
   private static StatementDebit debitOf(SavingFundPayment payment) {
     return new StatementDebit(
-        payment.getId(),
+        payment.getExternalId(),
         payment.getAmount(),
         payment.getBeneficiaryIban(),
         payment.getEndToEndId());

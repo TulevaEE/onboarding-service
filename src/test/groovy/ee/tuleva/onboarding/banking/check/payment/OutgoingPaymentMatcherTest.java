@@ -4,8 +4,10 @@ import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.HO
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.INFO;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.DEBIT_MISMATCH;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.PHANTOM_DEBIT;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -19,9 +21,9 @@ import ee.tuleva.onboarding.banking.payment.OutgoingPaymentService;
 import ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus;
 import ee.tuleva.onboarding.banking.seb.SebAccountConfiguration;
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -119,6 +121,35 @@ class OutgoingPaymentMatcherTest {
     verifyNoInteractions(outgoingPaymentRepository, paymentCheckService, outgoingPaymentService);
   }
 
+  @Test
+  void anUnbackedDebitIsKeyedByItsStatementEntry() {
+    matcher.match(debit(new BigDecimal("10.00"), null, AUTHORISED_IBAN));
+
+    verify(paymentCheckService).record(eq(PHANTOM_DEBIT), eq(HOLD), eq("seb-entry"), any());
+  }
+
+  @Test
+  void twoUnidentifiedDebitsDoNotShareAKeyAndSilenceEachOther() {
+    var keys = recordedKeys();
+
+    matcher.match(new StatementDebit(null, new BigDecimal("-10.00"), AUTHORISED_IBAN, null));
+    matcher.match(new StatementDebit(null, new BigDecimal("-20.00"), AUTHORISED_IBAN, null));
+
+    assertThat(keys).hasSize(2).doesNotHaveDuplicates();
+  }
+
+  private List<String> recordedKeys() {
+    var keys = new ArrayList<String>();
+    doAnswer(
+            call -> {
+              keys.add(call.getArgument(2));
+              return null;
+            })
+        .when(paymentCheckService)
+        .record(any(), any(), any(), any());
+    return keys;
+  }
+
   private static OutgoingPayment logged(BigDecimal amount, OutgoingPaymentStatus status) {
     var row = new OutgoingPayment();
     row.setEndToEndId(END_TO_END_ID);
@@ -130,6 +161,6 @@ class OutgoingPaymentMatcherTest {
 
   /** Statement debits arrive negative, which is why the amount is negated here. */
   private static StatementDebit debit(BigDecimal amount, String endToEndId, String beneficiary) {
-    return new StatementDebit(UUID.randomUUID(), amount.negate(), beneficiary, endToEndId);
+    return new StatementDebit("seb-entry", amount.negate(), beneficiary, endToEndId);
   }
 }

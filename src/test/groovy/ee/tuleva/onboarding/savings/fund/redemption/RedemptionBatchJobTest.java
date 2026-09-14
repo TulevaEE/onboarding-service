@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
-import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.HOLD;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.PAYOUT_BLOCKED;
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.PAYOUT;
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.REDEMPTION_TRANSFER;
@@ -236,9 +235,8 @@ class RedemptionBatchJobTest {
     createBatchJob(now).runJob();
 
     verify(paymentCheckService)
-        .record(
+        .recordStoppedPayment(
             PAYOUT_BLOCKED,
-            HOLD,
             requestId.toString(),
             "Beneficiary IBAN no longer belongs to the party");
   }
@@ -260,7 +258,8 @@ class RedemptionBatchJobTest {
     createBatchJob(now).runJob();
 
     verify(paymentCheckService)
-        .record(PAYOUT_BLOCKED, HOLD, requestId.toString(), "Pricing failed, so nothing was paid");
+        .recordStoppedPayment(
+            PAYOUT_BLOCKED, requestId.toString(), "Pricing failed, so nothing was paid");
     verify(eventPublisher, never()).publishEvent(any(RequestPaymentEvent.class));
   }
 

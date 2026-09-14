@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
-import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.HOLD;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.PAYOUT_BLOCKED;
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.PAYOUT;
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.REDEMPTION_TRANSFER;
@@ -128,8 +127,6 @@ public class RedemptionBatchJob {
   private void processVerifiedRequests(List<RedemptionRequest> toProcess, LocalDate dealingDate) {
     BigDecimal nav = getNAV(dealingDate);
 
-    // Validate before pricing. Anything that cannot be paid is failed here, while it still owns its
-    // units and no cash has moved.
     List<RedemptionRequest> payable = new ArrayList<>();
     for (RedemptionRequest request : toProcess) {
       var blockingReason = payoutValidator.findBlockingReason(request);
@@ -160,7 +157,6 @@ public class RedemptionBatchJob {
         }
       } catch (Exception e) {
         log.error("Failed to price redemption request: id={}", request.getId(), e);
-        // The thrown message carries the request's own figures, which the brief may not publish.
         hold(request.getId(), "Pricing failed, so nothing was paid");
         handleError(request.getId(), e);
       }
@@ -170,7 +166,6 @@ public class RedemptionBatchJob {
       return;
     }
 
-    // Transfer exactly what the priced payouts need, not the gross of everything selected.
     UUID batchId = BatchId.of("redemption", priced.stream().map(RedemptionRequest::getId).toList());
     transferFromFundAccount(totalCashAmount, batchId);
     int payoutCount = processIndividualPayouts(priced, batchId);
@@ -358,7 +353,7 @@ public class RedemptionBatchJob {
    * name it instead of quietly showing one payout fewer than expected.
    */
   private void hold(UUID requestId, String reason) {
-    paymentCheckService.record(PAYOUT_BLOCKED, HOLD, requestId.toString(), reason);
+    paymentCheckService.recordStoppedPayment(PAYOUT_BLOCKED, requestId.toString(), reason);
   }
 
   private void handleError(UUID requestId, Exception e) {

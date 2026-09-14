@@ -43,6 +43,25 @@ public class PaymentCheckService {
       PaymentCheckSeverity severity,
       String externalKey,
       String detail) {
+    doRecord(checkType, severity, externalKey, detail);
+  }
+
+  /**
+   * For a payment that was stopped, whose own transaction is expected to roll back: blocking works
+   * by throwing, so a finding written on the caller's transaction would be undone by the very throw
+   * that produced it. The approval brief would then report a gate that held nothing on a day it
+   * held a payment back, which is the one thing the brief must never do.
+   */
+  @Transactional(propagation = REQUIRES_NEW)
+  public void recordStoppedPayment(PaymentCheckType checkType, String externalKey, String detail) {
+    doRecord(checkType, PaymentCheckSeverity.HOLD, externalKey, detail);
+  }
+
+  private void doRecord(
+      PaymentCheckType checkType,
+      PaymentCheckSeverity severity,
+      String externalKey,
+      String detail) {
     var existing =
         paymentCheckEventRepository.findByCheckTypeAndExternalKey(checkType, externalKey);
     if (existing.isPresent() && !existing.get().isAlertFailed()) {
@@ -61,22 +80,18 @@ public class PaymentCheckService {
     event.setSeverity(severity);
     event.setDetail(detail);
     event.setLastSeenAt(now);
-    // Assume the alert will go out; the listener corrects this if it cannot.
     event.setAlertFailed(false);
     var saved = paymentCheckEventRepository.save(event);
 
-    // The alert is published rather than sent, so it goes out only once this write commits. A
-    // detector firing inside a transaction that later rolls back would otherwise announce something
-    // that did not happen -- and the row recording it would be gone, so the dedupe would be lost
-    // too and it would announce it again next time.
     eventPublisher.publishEvent(
         new PaymentCheckRecorded(requireNonNull(saved.getId()), checkType, severity, detail));
   }
 
   public List<PaymentCheckEvent> holdsOn(LocalDate date) {
-    var dayStart = date.atStartOfDay(TALLINN).toInstant();
-    return paymentCheckEventRepository.findBySeverityAndLastSeenAtBetween(
-        PaymentCheckSeverity.HOLD, dayStart, dayStart.plus(java.time.Duration.ofDays(1)));
+    var dayStart = date.atStartOfDay(TALLINN);
+    return paymentCheckEventRepository
+        .findBySeverityAndLastSeenAtGreaterThanEqualAndLastSeenAtLessThan(
+            PaymentCheckSeverity.HOLD, dayStart.toInstant(), dayStart.plusDays(1).toInstant());
   }
 
   /**

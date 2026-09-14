@@ -13,10 +13,10 @@ import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.ManagementCompanies;
+import ee.tuleva.onboarding.banking.StatementDebit;
 import ee.tuleva.onboarding.banking.check.payment.OutgoingPaymentMatcher;
 import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
-import ee.tuleva.onboarding.banking.processor.BankOperationProcessor;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType;
 import ee.tuleva.onboarding.banking.statement.BankStatementAccount;
@@ -66,7 +66,6 @@ class SavingsFundStatementProcessorTest {
   RedemptionRequestRepository redemptionRequestRepository = mock(RedemptionRequestRepository.class);
   RedemptionStatusService redemptionStatusService = mock(RedemptionStatusService.class);
   EndToEndIdConverter endToEndIdConverter = new EndToEndIdConverter();
-  BankOperationProcessor bankOperationProcessor = mock(BankOperationProcessor.class);
   PaymentCheckService paymentCheckService = mock(PaymentCheckService.class);
   OutgoingPaymentMatcher outgoingPaymentMatcher = mock(OutgoingPaymentMatcher.class);
   RedemptionPayoutRecorder redemptionPayoutRecorder =
@@ -86,7 +85,6 @@ class SavingsFundStatementProcessorTest {
           savingsFundLedger,
           ownAccountTransferRecorder,
           fundBankLedger,
-          bankOperationProcessor,
           paymentCheckService,
           outgoingPaymentMatcher,
           redemptionPayoutRecorder);
@@ -647,5 +645,26 @@ class SavingsFundStatementProcessorTest {
     verify(savingsFundLedger)
         .transferToFundAccount(
             new BigDecimal("100.00"), outgoingPayment.getId(), LocalDate.of(2025, 10, 1));
+  }
+
+  @Test
+  void aDebitIsHandedToTheMatcherKeyedByItsStatementEntry() {
+    var outgoingPayment =
+        aPayment()
+            .id(null)
+            .externalId("seb-entry-1")
+            .endToEndId("e2e-1")
+            .amount(new BigDecimal("-100.00"))
+            .beneficiaryIban(EXTERNAL_ACCOUNT_IBAN)
+            .build();
+    var bankStatement = setupMocksForPayment(outgoingPayment);
+    when(bankAccounts.find(EXTERNAL_ACCOUNT_IBAN)).thenReturn(Optional.empty());
+
+    processor.process(bankStatement, statementAccount);
+
+    verify(outgoingPaymentMatcher)
+        .match(
+            new StatementDebit(
+                "seb-entry-1", new BigDecimal("-100.00"), EXTERNAL_ACCOUNT_IBAN, "e2e-1"));
   }
 }

@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.banking.check.payment;
 
-import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.HOLD;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.PAYMENT_BLOCKED;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.PAYMENT_MISROUTED;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.PAYMENT_REJECTED;
@@ -28,9 +27,8 @@ public class PaymentCheckEventRecorder {
 
   @EventListener
   public void onPaymentBlocked(PaymentBlockedEvent event) {
-    paymentCheckService.record(
+    paymentCheckService.recordStoppedPayment(
         PAYMENT_BLOCKED,
-        HOLD,
         event.paymentRequest().endToEndId(),
         "file does not match the request: "
             + event.violations().stream().map(PaymentIntegrityViolation::summary).toList());
@@ -38,18 +36,16 @@ public class PaymentCheckEventRecorder {
 
   @EventListener
   public void onPaymentMisrouted(PaymentMisroutedEvent event) {
-    paymentCheckService.record(
+    paymentCheckService.recordStoppedPayment(
         PAYMENT_MISROUTED,
-        HOLD,
         event.paymentRequest().endToEndId(),
         "remitter is not one of our bank accounts, so no bank received it");
   }
 
   @EventListener
   public void onPaymentRejected(PaymentRejectedEvent event) {
-    paymentCheckService.record(
+    paymentCheckService.recordStoppedPayment(
         PAYMENT_REJECTED,
-        HOLD,
         event.endToEndId(),
         "the bank rejected it, reasonCode=" + event.reasonCode());
   }

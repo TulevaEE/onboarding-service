@@ -10,6 +10,6 @@ public interface PaymentCheckEventRepository extends CrudRepository<PaymentCheck
   Optional<PaymentCheckEvent> findByCheckTypeAndExternalKey(
       PaymentCheckType checkType, String externalKey);
 
-  List<PaymentCheckEvent> findBySeverityAndLastSeenAtBetween(
-      PaymentCheckSeverity severity, Instant from, Instant to);
+  List<PaymentCheckEvent> findBySeverityAndLastSeenAtGreaterThanEqualAndLastSeenAtLessThan(
+      PaymentCheckSeverity severity, Instant from, Instant until);
 }

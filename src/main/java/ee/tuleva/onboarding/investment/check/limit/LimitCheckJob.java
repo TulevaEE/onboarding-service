@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.check.limit;
 
-import static ee.tuleva.onboarding.investment.JobRunSchedule.LIMIT_CHECK_BACKFILL;
+import static ee.tuleva.onboarding.investment.JobRunSchedule.LIMIT_CHECK_DAILY_GAP_FILL;
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 import static ee.tuleva.onboarding.pipeline.PipelineStep.LIMIT_CHECK;
 
@@ -28,6 +28,7 @@ import org.springframework.stereotype.Component;
 public class LimitCheckJob {
 
   private static final int BACKFILL_DAYS = 25;
+  static final int GAP_LOOKBACK_DAYS = 30;
 
   private final LimitCheckService limitCheckService;
   private final LimitCheckNotifier limitCheckNotifier;
@@ -70,8 +71,32 @@ public class LimitCheckJob {
     backfillLimitChecks();
   }
 
-  @Scheduled(cron = LIMIT_CHECK_BACKFILL, zone = TIMEZONE)
-  @SchedulerLock(name = "LimitCheckBackfillJob", lockAtMostFor = "30m", lockAtLeastFor = "5m")
+  /**
+   * The backstop for the NavCalculationCompleted run. Gap-based rather than a fixed window, so a
+   * day whose positions arrived late is filled the next evening instead of waiting for a yearly
+   * backfill — and a day with nothing missing costs nothing and says nothing.
+   */
+  @Scheduled(cron = LIMIT_CHECK_DAILY_GAP_FILL, zone = TIMEZONE)
+  @SchedulerLock(name = "LimitCheckDailyGapFill", lockAtMostFor = "30m", lockAtLeastFor = "1m")
+  void fillLimitCheckGaps() {
+    try {
+      var gaps = limitCheckService.gapDates(GAP_LOOKBACK_DAYS);
+      if (gaps.isEmpty()) {
+        log.info("No limit check gaps to fill");
+        return;
+      }
+
+      log.info("Filling limit check gaps: gaps={}", gaps);
+      int synced = feeAccrualPositionSyncJob.sync(GAP_LOOKBACK_DAYS);
+      log.info("Fee accrual positions synced before gap fill: positionsWritten={}", synced);
+
+      limitCheckNotifier.notify(limitCheckService.fillGaps(gaps));
+    } catch (Exception e) {
+      log.error("Limit check gap fill failed", e);
+      limitCheckNotifier.notifyBackfillFailed(e);
+    }
+  }
+
   void backfillLimitChecks() {
     log.info("Starting limit check backfill");
 

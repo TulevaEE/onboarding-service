@@ -40,6 +40,32 @@ class JobRunScheduleTest {
     }
   }
 
+  // Replaces a yearly backfill ("0 30 8 16 3 *"), which could leave a missed day unnoticed for up
+  // to a year.
+  @Test
+  void limitCheckDailyGapFill_firesEveryBusinessDayRatherThanOnceAYear() {
+    CronExpression cron = CronExpression.parse(JobRunSchedule.LIMIT_CHECK_DAILY_GAP_FILL);
+
+    ZonedDateTime cursor = LocalDateTime.parse("2026-04-13T00:00:00").atZone(TALLINN);
+    ZonedDateTime endOfWeek = cursor.plusDays(7);
+    List<ZonedDateTime> fires = new ArrayList<>();
+    while (true) {
+      ZonedDateTime next = cron.next(cursor);
+      if (next == null || !next.isBefore(endOfWeek)) break;
+      fires.add(next);
+      cursor = next;
+    }
+
+    assertThat(fires).hasSize(5);
+    assertThat(fires)
+        .allSatisfy(
+            fire -> {
+              assertThat(fire.getHour()).isEqualTo(18);
+              assertThat(fire.getMinute()).isEqualTo(30);
+              assertThat(fire.getDayOfWeek().getValue()).isLessThanOrEqualTo(5);
+            });
+  }
+
   @Test
   void importBusinessHours_coversWhatTheOldScheduleMissed() {
     // The 2026-04-10 _uuendatud incident: SEB sent the corrected file at 13:29 Tallinn. Under

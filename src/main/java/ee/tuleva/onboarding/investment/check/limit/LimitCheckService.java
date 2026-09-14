@@ -19,9 +19,12 @@ import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -46,6 +49,48 @@ class LimitCheckService {
   private final ReserveLimitChecker reserveLimitChecker;
   private final FreeCashLimitChecker freeCashLimitChecker;
   private final TransactionOrderRepository transactionOrderRepository;
+  private final LimitCheckEventRepository limitCheckEventRepository;
+
+  Map<TulevaFund, List<LocalDate>> gapDates(int lookbackDays) {
+    var today = LocalDate.now(clock);
+    var from = today.minusDays(lookbackDays);
+    var gaps = new LinkedHashMap<TulevaFund, List<LocalDate>>();
+
+    for (var fund : TulevaFund.values()) {
+      var alreadyChecked =
+          Set.copyOf(limitCheckEventRepository.findDistinctCheckDates(fund, from, today));
+      var missing =
+          fundPositionRepository.findDistinctNavDatesByFundBetween(fund, from, today).stream()
+              .filter(navDate -> !alreadyChecked.contains(navDate))
+              .sorted()
+              .toList();
+      if (!missing.isEmpty()) {
+        gaps.put(fund, missing);
+      }
+    }
+
+    return gaps;
+  }
+
+  LimitCheckRun fillGaps(Map<TulevaFund, List<LocalDate>> gaps) {
+    var results = new ArrayList<LimitCheckResult>();
+    var fundsNotChecked = new LinkedHashSet<TulevaFund>();
+
+    gaps.forEach(
+        (fund, dates) ->
+            dates.forEach(
+                checkDate -> {
+                  try {
+                    results.add(checkFund(fund, checkDate));
+                  } catch (Exception e) {
+                    log.error(
+                        "Limit check gap fill failed: fund={}, checkDate={}", fund, checkDate, e);
+                    fundsNotChecked.add(fund);
+                  }
+                }));
+
+    return new LimitCheckRun(results, List.copyOf(fundsNotChecked));
+  }
 
   LimitCheckRun runChecks() {
     return runChecksForFunds(List.of(TulevaFund.values()));

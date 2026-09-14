@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.check.limit;
 
+import static ee.tuleva.onboarding.investment.check.limit.LimitCheckJob.GAP_LOOKBACK_DAYS;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.mockito.ArgumentMatchers.any;
@@ -11,7 +12,9 @@ import ee.tuleva.onboarding.investment.position.FeeAccrualPositionSyncJob;
 import ee.tuleva.onboarding.pipeline.PipelineTracker;
 import ee.tuleva.onboarding.savings.NavCalculationCompleted;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -49,6 +52,45 @@ class LimitCheckJobTest {
 
     verify(limitCheckService).runChecksForFunds(allFunds);
     verify(limitCheckNotifier).notify(LimitCheckRun.of(results));
+  }
+
+  // The limit check already runs on NavCalculationCompleted, so a normal day has no gaps at all.
+  // This is a backstop, and a backstop that posts every day trains people to ignore it.
+  @Test
+  void aDayWithNoGapsSaysNothingAndDoesNotSyncPositions() {
+    when(limitCheckService.gapDates(GAP_LOOKBACK_DAYS)).thenReturn(Map.of());
+
+    job.fillLimitCheckGaps();
+
+    verify(feeAccrualPositionSyncJob, never()).sync(anyInt());
+    verify(limitCheckService, never()).fillGaps(any());
+    verifyNoInteractions(limitCheckNotifier);
+  }
+
+  // The retired yearly backfill synced fee accrual positions before checking, because the checks
+  // read them. Losing that ordering would make the filled days quietly wrong rather than missing.
+  @Test
+  void positionsAreSyncedBeforeAnyGapIsChecked() {
+    var gaps = Map.of(TUK75, List.of(LocalDate.of(2026, 4, 9)));
+    var run = LimitCheckRun.of(List.of(mock(LimitCheckResult.class)));
+    when(limitCheckService.gapDates(GAP_LOOKBACK_DAYS)).thenReturn(gaps);
+    when(limitCheckService.fillGaps(gaps)).thenReturn(run);
+
+    job.fillLimitCheckGaps();
+
+    var ordered = inOrder(feeAccrualPositionSyncJob, limitCheckService);
+    ordered.verify(feeAccrualPositionSyncJob).sync(GAP_LOOKBACK_DAYS);
+    ordered.verify(limitCheckService).fillGaps(gaps);
+    verify(limitCheckNotifier).notify(run);
+  }
+
+  @Test
+  void aFailedGapFillIsReportedRatherThanOnlyLogged() {
+    when(limitCheckService.gapDates(GAP_LOOKBACK_DAYS)).thenThrow(new RuntimeException("DB down"));
+
+    job.fillLimitCheckGaps();
+
+    verify(limitCheckNotifier).notifyBackfillFailed(any(Exception.class));
   }
 
   @Test

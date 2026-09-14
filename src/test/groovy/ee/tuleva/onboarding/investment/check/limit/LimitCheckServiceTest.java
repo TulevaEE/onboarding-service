@@ -53,10 +53,65 @@ class LimitCheckServiceTest {
   @Mock FundValueProvider fundValueProvider;
   @Mock NavReportPositionProvider navReportPositionProvider;
   @Mock TransactionOrderRepository transactionOrderRepository;
+  @Mock LimitCheckEventRepository limitCheckEventRepository;
 
   Clock clock = Clock.fixed(Instant.parse("2026-03-04T16:00:00Z"), ZoneId.of("Europe/Tallinn"));
 
   @InjectMocks LimitCheckService service;
+
+  // A position date with no event is a day the check never ran. The retired yearly backfill
+  // re-ran a fixed window instead, so it both recomputed days that were fine and could leave a
+  // genuinely missed day outside its window.
+  @Test
+  void gapDatesAreThePositionDatesThatHaveNoCheckEvent() {
+    service = createService();
+    var today = LocalDate.of(2026, 3, 4);
+    var from = today.minusDays(30);
+    var alreadyChecked = LocalDate.of(2026, 3, 2);
+    var gap = LocalDate.of(2026, 3, 3);
+    lenient()
+        .when(fundPositionRepository.findDistinctNavDatesByFundBetween(TUK75, from, today))
+        .thenReturn(List.of(alreadyChecked, gap));
+    lenient()
+        .when(limitCheckEventRepository.findDistinctCheckDates(TUK75, from, today))
+        .thenReturn(List.of(alreadyChecked));
+
+    var gaps = service.gapDates(30);
+
+    assertThat(gaps).containsOnlyKeys(TUK75);
+    assertThat(gaps.get(TUK75)).containsExactly(gap);
+  }
+
+  @Test
+  void aFundWithNoMissingDatesIsNotInTheGapMapAtAll() {
+    service = createService();
+    var today = LocalDate.of(2026, 3, 4);
+    var from = today.minusDays(30);
+    var checked = LocalDate.of(2026, 3, 3);
+    lenient()
+        .when(fundPositionRepository.findDistinctNavDatesByFundBetween(TUK75, from, today))
+        .thenReturn(List.of(checked));
+    lenient()
+        .when(limitCheckEventRepository.findDistinctCheckDates(TUK75, from, today))
+        .thenReturn(List.of(checked));
+
+    assertThat(service.gapDates(30)).isEmpty();
+  }
+
+  // This is the signal the daily job alerts on: the gap was attempted and is still a gap.
+  @Test
+  void aGapThatCannotBeCheckedComesBackAsAFundNotChecked() {
+    service = createService();
+    var gap = LocalDate.of(2026, 3, 3);
+    lenient()
+        .when(fundPositionRepository.findByNavDateAndFundAndAccountType(gap, TUK75, SECURITY))
+        .thenThrow(new RuntimeException("DB down"));
+
+    var run = service.fillGaps(Map.of(TUK75, List.of(gap)));
+
+    assertThat(run.results()).isEmpty();
+    assertThat(run.fundsNotChecked()).containsExactly(TUK75);
+  }
 
   @Test
   void delegatesToAllThreeCheckers() {
@@ -738,6 +793,7 @@ class LimitCheckServiceTest {
         providerLimitChecker,
         reserveLimitChecker,
         freeCashLimitChecker,
-        transactionOrderRepository);
+        transactionOrderRepository,
+        limitCheckEventRepository);
   }
 }

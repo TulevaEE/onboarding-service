@@ -14,9 +14,13 @@ public final class JobRunSchedule {
   // Transaction command processing
   public static final String TRANSACTION_COMMAND = "0 * * * * *";
 
+  // Limit check backstop. The check itself runs on NavCalculationCompleted; this fills any day
+  // that produced no event, which the retired yearly backfill ("0 30 8 16 3 *") could leave
+  // unnoticed for up to a year. Half an hour after the TD run so the two do not contend.
+  public static final String LIMIT_CHECK_DAILY_GAP_FILL = "0 30 18 * * MON-FRI";
+
   // Backfill schedules (kept on cron, not event-driven)
   public static final String FEE_ACCRUAL_POSITION_BACKFILL = "0 25 12 12 3 *";
-  public static final String LIMIT_CHECK_BACKFILL = "0 30 8 16 3 *";
 
   // EPIS PEVA/RAVA + R16 jobs; flow recalcs run after the daily NAV is available
   public static final String PEVA_RAVA_PHASE_UPDATE = "0 0 7 * * MON-FRI";

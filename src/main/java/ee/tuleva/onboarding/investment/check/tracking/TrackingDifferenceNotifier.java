@@ -45,6 +45,17 @@ class TrackingDifferenceNotifier {
     }
   }
 
+  void notifyCheckFailed(TulevaFund fund, LocalDate navDate, @Nullable String reason) {
+    try {
+      notificationService.sendMessage(
+          "⚠️ TD CHECK FAILED: fund=%s, date=%s — the check errored (%s); NAV report published WITHOUT tracking-difference validation"
+              .formatted(fund.getCode(), navDate, reason == null ? "no detail" : reason),
+          INVESTMENT);
+    } catch (Exception e) {
+      log.error("Failed to send tracking difference 'check failed' notification", e);
+    }
+  }
+
   void notifyRunIncomplete(String run, String reason) {
     try {
       notificationService.sendMessage(

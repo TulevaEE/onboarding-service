@@ -209,12 +209,13 @@ class NavTrackingDifferenceGateTest {
   }
 
   @Test
-  void passes_andAlertsCheckCouldNotRun_whenUnexpectedException() {
+  void passes_andAlertsCheckFailed_whenUnexpectedException() {
     given(trackingDifferenceService.checkFund(TUK75, NAV_DATE))
         .willThrow(new RuntimeException("unexpected"));
 
     assertThat(gate.check(TUK75, NAV_DATE)).isEmpty();
 
-    then(trackingDifferenceNotifier).should().notifyCheckCouldNotRun(TUK75, NAV_DATE);
+    then(trackingDifferenceNotifier).should().notifyCheckFailed(TUK75, NAV_DATE, "unexpected");
+    then(trackingDifferenceNotifier).should(never()).notifyCheckCouldNotRun(TUK75, NAV_DATE);
   }
 }

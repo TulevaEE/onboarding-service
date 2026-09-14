@@ -70,7 +70,7 @@ public class NavTrackingDifferenceGate implements NavPublicationGate {
       log.warn("TD gate incomplete price data, proceeding: fund={}, date={}", fund, navDate);
       return Optional.empty();
     } catch (Exception e) {
-      trackingDifferenceNotifier.notifyCheckCouldNotRun(fund, navDate);
+      trackingDifferenceNotifier.notifyCheckFailed(fund, navDate, e.getMessage());
       pipelineTracker.stepFailed(TRACKING_DIFFERENCE, e.getMessage());
       log.warn("TD gate error, proceeding: fund={}, date={}", fund, navDate, e);
       return Optional.empty();

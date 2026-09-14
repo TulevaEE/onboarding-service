@@ -16,8 +16,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class LimitCheckNotifier {
 
-  private static final int STANDING_GAP_DAYS = 5;
-
   private final OperationsNotificationService notificationService;
 
   void notify(LimitCheckRun run) {
@@ -123,20 +121,7 @@ class LimitCheckNotifier {
     message
         .append(message.isEmpty() ? "" : "\n\n")
         .append("⏸ Not checked — no limits were verified for these days:");
-    run.unfilledGaps()
-        .forEach(
-            gap ->
-                message.append(
-                    "\n  %s %s%s"
-                        .formatted(gap.fund().getCode(), gap.checkDate(), describeAge(gap))));
-  }
-
-  private String describeAge(LimitCheckRun.UnfilledGap gap) {
-    if (gap.daysUnfilled() <= STANDING_GAP_DAYS) {
-      return "";
-    }
-    return " — standing gap: open for %d days, last attempt %s"
-        .formatted(gap.daysUnfilled(), gap.lastAttempt());
+    run.unfilledGaps().forEach(gap -> message.append("\n  ").append(gap.describe()));
   }
 
   private BreachSeverity appendResultBreaches(StringBuilder body, LimitCheckResult result) {

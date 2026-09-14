@@ -10,7 +10,18 @@ record LimitCheckRun(
     List<UnfilledGap> unfilledGaps) {
 
   record UnfilledGap(
-      TulevaFund fund, LocalDate checkDate, long daysUnfilled, LocalDate lastAttempt) {}
+      TulevaFund fund, LocalDate checkDate, long daysUnfilled, LocalDate lastAttempt) {
+
+    private static final int STANDING_GAP_DAYS = 5;
+
+    String describe() {
+      if (daysUnfilled <= STANDING_GAP_DAYS) {
+        return "%s %s".formatted(fund.getCode(), checkDate);
+      }
+      return "%s %s — standing gap: open for %d days, last attempt %s"
+          .formatted(fund.getCode(), checkDate, daysUnfilled, lastAttempt);
+    }
+  }
 
   LimitCheckRun(List<LimitCheckResult> results, List<TulevaFund> fundsNotChecked) {
     this(results, fundsNotChecked, List.of());

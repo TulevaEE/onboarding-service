@@ -80,7 +80,26 @@ class PaymentCheckServiceTest {
     service().record(PAYOUT_WITHOUT_REQUEST, HOLD, ENTRY_KEY, "no matching redemption request");
 
     verifyNoInteractions(eventPublisher);
-    verify(paymentCheckEventRepository, never()).save(any());
+    verify(notificationService, never()).sendMessage(any(), any());
+  }
+
+  @Test
+  void theSameFindingSeenAgainIsStillSeenToday() {
+    // The approval brief asks which holds are in force today, so a finding that is still being
+    // re-read has to carry today's date or it silently drops off the brief while still holding.
+    var event = existing(false);
+    event.setCreatedAt(clock.instant());
+    event.setLastSeenAt(clock.instant());
+    when(paymentCheckEventRepository.findByCheckTypeAndExternalKey(
+            PAYOUT_WITHOUT_REQUEST, ENTRY_KEY))
+        .thenReturn(Optional.of(event));
+    clock.tick(3600);
+
+    service().record(PAYOUT_WITHOUT_REQUEST, HOLD, ENTRY_KEY, "no matching redemption request");
+
+    verify(paymentCheckEventRepository).save(event);
+    assertThat(event.getLastSeenAt()).isEqualTo(clock.instant());
+    assertThat(event.getCreatedAt()).isEqualTo(clock.instant().minusSeconds(3600));
   }
 
   @Test

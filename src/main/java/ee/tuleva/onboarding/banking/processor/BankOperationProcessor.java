@@ -192,7 +192,7 @@ public class BankOperationProcessor {
     paymentCheckService.record(
         UNCLASSIFIED_BANK_OPERATION,
         WARNING,
-        String.valueOf(entry.externalId()),
+        externalReference.toString(),
         "cash parked in suspense, subFamilyCode=%s, reason=%s"
             .formatted(entry.subFamilyCode(), reason));
     fundBankLedger.recordUnclassifiedBankEntry(

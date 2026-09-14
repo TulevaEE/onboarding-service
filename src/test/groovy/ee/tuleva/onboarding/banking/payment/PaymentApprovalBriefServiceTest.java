@@ -266,4 +266,25 @@ class PaymentApprovalBriefServiceTest {
         .attemptedAt(Instant.parse("2026-04-10T09:00:00Z"))
         .build();
   }
+
+  @Test
+  void aFindingAboutMoneyThatAlreadyLeftIsNotCountedAsHeldBackFromTheBank() {
+    givenAccountResolves();
+    givenPaymentsToday(
+        payment(SUBMITTED, REDEMPTION_TRANSFER, "100.00"), payment(SUBMITTED, PAYOUT, "100.00"));
+
+    var brief =
+        service()
+            .build(
+                DATE,
+                List.of(
+                    new PaymentApprovalBriefService.PaymentHold(
+                        "PHANTOM_DEBIT", "no outgoing payment was ever recorded for this debit"),
+                    new PaymentApprovalBriefService.PaymentHold(
+                        "DEBIT_MISMATCH", "the bank debited an amount other than we authorised")));
+
+    assertThat(brief.heldCount()).isZero();
+    assertThat(brief.heldReasons()).isEmpty();
+    assertThat(brief.attention()).isFalse();
+  }
 }

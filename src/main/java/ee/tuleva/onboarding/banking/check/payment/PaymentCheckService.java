@@ -48,13 +48,14 @@ public class PaymentCheckService {
       PaymentCheckSeverity severity,
       String externalKey,
       String detail) {
+    var now = Instant.now(clock);
     var existing =
         paymentCheckEventRepository.findByCheckTypeAndExternalKey(checkType, externalKey);
     if (existing.isPresent() && !existing.get().isAlertFailed()) {
+      seeAgain(existing.get(), now);
       return;
     }
 
-    var now = Instant.now(clock);
     var event =
         existing.orElseGet(
             () ->
@@ -71,6 +72,11 @@ public class PaymentCheckService {
 
     eventPublisher.publishEvent(
         new PaymentCheckRecorded(requireNonNull(saved.getId()), checkType, severity, detail));
+  }
+
+  private void seeAgain(PaymentCheckEvent event, Instant now) {
+    event.setLastSeenAt(now);
+    paymentCheckEventRepository.save(event);
   }
 
   public List<PaymentCheckEvent> holdsOn(LocalDate date) {

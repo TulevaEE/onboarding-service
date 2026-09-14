@@ -67,15 +67,16 @@ public class PaymentApprovalBriefService {
             .toList();
 
     var inFlight = submittedToday.stream().filter(OutgoingPayment::isPending).count();
-    var verdicts = verdicts(attemptedToday, holds);
+    var held = holds.stream().filter(PaymentApprovalBriefService::heldByAGate).toList();
+    var verdicts = verdicts(attemptedToday, held);
 
     return new PaymentApprovalBrief(
         date,
         accounts,
         verdicts,
-        holds.size(),
-        holds.stream().map(PaymentHold::reason).distinct().toList(),
-        !holds.isEmpty()
+        held.size(),
+        held.stream().map(PaymentHold::reason).distinct().toList(),
+        !held.isEmpty()
             || inFlight > 0
             || verdicts.stream().anyMatch(verdict -> !verdict.passed())
             || accounts.stream().anyMatch(PaymentApprovalBrief.AccountSummary::goesNegative));
@@ -108,6 +109,10 @@ public class PaymentApprovalBriefService {
                 .formatted(
                     PaymentApprovalBrief.amount(paidOut),
                     PaymentApprovalBrief.amount(transferred))));
+  }
+
+  private static boolean heldByAGate(PaymentHold hold) {
+    return GATES.stream().anyMatch(gate -> gate.checkType().equals(hold.checkType()));
   }
 
   private static PaymentApprovalBrief.Verdict verdictFor(Gate gate, List<PaymentHold> holds) {

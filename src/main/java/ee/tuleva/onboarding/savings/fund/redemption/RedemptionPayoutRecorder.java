@@ -37,7 +37,7 @@ public class RedemptionPayoutRecorder {
       paymentCheckService.record(
           PAYOUT_WITHOUT_REQUEST,
           HOLD,
-          String.valueOf(payment.getEndToEndId()),
+          payment.getId().toString(),
           "a debit from the payout account matches no redemption request");
       return;
     }

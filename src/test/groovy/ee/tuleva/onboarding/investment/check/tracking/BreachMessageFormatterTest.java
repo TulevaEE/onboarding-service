@@ -192,10 +192,6 @@ class BreachMessageFormatterTest {
         .doesNotContain("that is the unexplained amount");
   }
 
-  // A price stale on both legs returns 0.00% on the instrument and 0.00% on its index, so the row
-  // cancels out of the tracking difference exactly. Listing it as a plain attribution row is what
-  // sent the 01.09 diagnosis chasing two BlackRock lines the NAV report had flagged with a stale
-  // price date, when neither could be the cause.
   @Test
   void aHoldingStaleOnBothLegsIsNamedAsCancellingOutRatherThanListedPlainly() {
     var benchmarkModel =
@@ -216,8 +212,6 @@ class BreachMessageFormatterTest {
         .contains("stale on both legs, cancels out — not the cause");
   }
 
-  // An instrument that did not move while its index did is a real divergence, not a stale price,
-  // so it must keep its plain row.
   @Test
   void aHoldingFlatAgainstAMovingIndexIsNotDismissedAsStale() {
     var benchmarkModel =
@@ -245,9 +239,6 @@ class BreachMessageFormatterTest {
         BigDecimal.ZERO);
   }
 
-  // On 01.09 no security quantity changed at all, and that was one of the three facts that made
-  // the diagnosis. The boolean says whether quantities moved; the EUR figure says what they were
-  // worth, which is what separates a switch day from a settlement miss.
   @Test
   void theBridgeNamesWhatTheTradesWereWorthWhenQuantitiesMoved() {
     var traded =

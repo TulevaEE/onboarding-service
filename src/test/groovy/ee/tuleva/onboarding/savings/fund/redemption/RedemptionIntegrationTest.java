@@ -549,7 +549,7 @@ class RedemptionIntegrationTest {
 
     var payoutEvent =
         applicationEvents.stream(RequestPaymentEvent.class)
-            .filter(e -> requestId.equals(e.requestId()))
+            .filter(e -> requestId.equals(e.sourceId()))
             .findFirst()
             .orElseThrow(() -> new AssertionError("No RequestPaymentEvent for redemption request"));
     assertThat(payoutEvent.paymentRequest().beneficiaryName()).isEqualTo(companyName);

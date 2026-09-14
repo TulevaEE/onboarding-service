@@ -50,6 +50,7 @@ class RedemptionAlertJobTest {
   @Mock private OperationsNotificationService notificationService;
   @Mock private PublicHolidays publicHolidays;
   @Mock private RedemptionAlertThresholds redemptionAlertThresholds;
+  @Mock private RedemptionPayoutAgeChecker payoutAgeChecker;
 
   @Test
   void sendsPayoutWarning_whenTotalExceedsThreshold() {
@@ -364,7 +365,8 @@ class RedemptionAlertJobTest {
         redemptionRequestRepository,
         fundValueQueries,
         notificationService,
-        redemptionAlertThresholds);
+        redemptionAlertThresholds,
+        payoutAgeChecker);
   }
 
   private RedemptionRequest requestWithAmount(BigDecimal amount) {

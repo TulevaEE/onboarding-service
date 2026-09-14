@@ -30,7 +30,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 @Profile({"production", "staging"})
 public class RedemptionAlertJob {
-
   private static final BigDecimal ONE_HUNDRED = new BigDecimal("100");
 
   private final Clock clock;
@@ -39,6 +38,7 @@ public class RedemptionAlertJob {
   private final FundValueQueries fundValueQueries;
   private final OperationsNotificationService notificationService;
   private final RedemptionAlertThresholds redemptionAlertThresholds;
+  private final RedemptionPayoutAgeChecker payoutAgeChecker;
 
   @Scheduled(cron = "0 5 16 * * MON-FRI", zone = "Europe/Tallinn")
   @SchedulerLock(name = "RedemptionAlertJob", lockAtMostFor = "5m", lockAtLeastFor = "1m")
@@ -47,6 +47,8 @@ public class RedemptionAlertJob {
     if (!publicHolidays.isWorkingDay(today)) {
       return;
     }
+
+    payoutAgeChecker.checkOverduePayouts(today);
 
     Instant cutoff = RedemptionCutoff.cutoffInstant(today);
     List<RedemptionRequest> requests =

@@ -2,12 +2,17 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.PAYOUT_BLOCKED;
+import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.PAYOUT;
+import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.REDEMPTION_TRANSFER;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.banking.BankAccounts;
+import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
+import ee.tuleva.onboarding.banking.payment.BatchId;
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.payment.PaymentRequest;
 import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
@@ -27,6 +32,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -46,7 +52,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 @RequiredArgsConstructor
 @Profile("!staging")
 public class RedemptionBatchJob {
-
   private static final ZoneId CUTOFF_TIMEZONE = RedemptionCutoff.TALLINN;
 
   private final Clock clock;
@@ -62,6 +67,8 @@ public class RedemptionBatchJob {
   private final EndToEndIdConverter endToEndIdConverter;
   private final CompanyRepository companyRepository;
   private final UserRepository userRepository;
+  private final RedemptionPayoutValidator payoutValidator;
+  private final PaymentCheckService paymentCheckService;
 
   @Scheduled(fixedRateString = "1m")
   @SchedulerLock(name = "RedemptionBatchJob", lockAtMostFor = "30m", lockAtLeastFor = "10s")
@@ -118,68 +125,101 @@ public class RedemptionBatchJob {
 
   private void processVerifiedRequests(List<RedemptionRequest> toProcess, LocalDate dealingDate) {
     BigDecimal nav = getNAV(dealingDate);
-    BigDecimal totalCashAmount = ZERO;
 
+    List<RedemptionRequest> payable = new ArrayList<>();
     for (RedemptionRequest request : toProcess) {
+      var blockingReason = payoutValidator.findBlockingReason(request);
+      if (blockingReason.isPresent()) {
+        log.error(
+            "Redemption cannot be paid, failing it before pricing: id={}, reason={}",
+            request.getId(),
+            blockingReason.get());
+        hold(request.getId(), blockingReason.get());
+        handleError(request.getId(), new IllegalStateException(blockingReason.get()));
+        continue;
+      }
+      payable.add(request);
+    }
+
+    if (payable.isEmpty()) {
+      return;
+    }
+
+    BigDecimal totalCashAmount = ZERO;
+    List<RedemptionRequest> priced = new ArrayList<>();
+    for (RedemptionRequest request : payable) {
       try {
-        BigDecimal cashAmount =
-            transactionTemplate.execute(
-                ignored -> {
-                  RedemptionRequest toUpdate =
-                      redemptionRequestRepository.findById(request.getId()).orElseThrow();
-
-                  if (toUpdate.getCashAmount() != null) {
-                    log.info(
-                        "Skipping pricing for already priced redemption: id={}, cashAmount={}",
-                        request.getId(),
-                        toUpdate.getCashAmount());
-                    return toUpdate.getCashAmount();
-                  }
-
-                  if (savingsFundLedger.hasPricingEntry(request.getId())) {
-                    log.warn(
-                        "Ledger entry already exists for redemption pricing: id={}",
-                        request.getId());
-                    return ZERO;
-                  }
-
-                  PartyId party = toUpdate.getPartyId();
-                  BigDecimal amount = request.getFundUnits().multiply(nav).setScale(2, HALF_UP);
-
-                  toUpdate.setCashAmount(amount);
-                  toUpdate.setNavPerUnit(nav);
-                  redemptionRequestRepository.save(toUpdate);
-
-                  savingsFundLedger.redeemFundUnitsFromReserved(
-                      LedgerRefs.from(party), request.getFundUnits(), amount, nav, request.getId());
-
-                  log.info(
-                      "Priced redemption request: id={}, fundUnits={}, cashAmount={}, nav={}",
-                      request.getId(),
-                      request.getFundUnits(),
-                      amount,
-                      nav);
-                  return amount;
-                });
-        totalCashAmount = totalCashAmount.add(cashAmount);
+        BigDecimal cashAmount = priceRedemption(request, nav);
+        if (cashAmount.compareTo(ZERO) > 0) {
+          totalCashAmount = totalCashAmount.add(cashAmount);
+          priced.add(request);
+        }
       } catch (Exception e) {
         log.error("Failed to price redemption request: id={}", request.getId(), e);
+        hold(request.getId(), "Pricing failed, so nothing was paid");
         handleError(request.getId(), e);
       }
     }
 
-    if (totalCashAmount.compareTo(ZERO) > 0) {
-      transferFromFundAccount(totalCashAmount);
-      int payoutCount = processIndividualPayouts(toProcess);
-      eventPublisher.publishEvent(
-          new RedemptionBatchCompletedEvent(toProcess.size(), payoutCount, totalCashAmount, nav));
+    if (totalCashAmount.compareTo(ZERO) <= 0) {
+      return;
     }
+
+    UUID batchId = BatchId.of("redemption", priced.stream().map(RedemptionRequest::getId).toList());
+    transferFromFundAccount(totalCashAmount, batchId);
+    int payoutCount = processIndividualPayouts(priced, batchId);
+    eventPublisher.publishEvent(
+        new RedemptionBatchCompletedEvent(priced.size(), payoutCount, totalCashAmount, nav));
   }
 
-  private void transferFromFundAccount(BigDecimal totalAmount) {
+  private BigDecimal priceRedemption(RedemptionRequest request, BigDecimal nav) {
+    return transactionTemplate.execute(
+        ignored -> {
+          RedemptionRequest toUpdate =
+              redemptionRequestRepository.findById(request.getId()).orElseThrow();
+
+          if (toUpdate.getCashAmount() != null) {
+            log.info(
+                "Skipping pricing for already priced redemption: id={}, cashAmount={}",
+                request.getId(),
+                toUpdate.getCashAmount());
+            return toUpdate.getCashAmount();
+          }
+
+          if (savingsFundLedger.hasPricingEntry(request.getId())) {
+            log.warn("Ledger entry already exists for redemption pricing: id={}", request.getId());
+            return ZERO;
+          }
+
+          PartyId party = toUpdate.getPartyId();
+          BigDecimal amount = request.getFundUnits().multiply(nav).setScale(2, HALF_UP);
+
+          toUpdate.setCashAmount(amount);
+          toUpdate.setNavPerUnit(nav);
+          redemptionRequestRepository.save(toUpdate);
+
+          if (!toUpdate.amountReconciles()) {
+            throw new IllegalStateException(
+                "Priced amount does not reconcile against units times NAV: id=%s, expected=%s, actual=%s"
+                    .formatted(request.getId(), toUpdate.expectedAmount(), amount));
+          }
+
+          savingsFundLedger.redeemFundUnitsFromReserved(
+              LedgerRefs.from(party), request.getFundUnits(), amount, nav, request.getId());
+
+          log.info(
+              "Priced redemption request: id={}, fundUnits={}, cashAmount={}, nav={}",
+              request.getId(),
+              request.getFundUnits(),
+              amount,
+              nav);
+          return amount;
+        });
+  }
+
+  private void transferFromFundAccount(BigDecimal totalAmount, UUID batchId) {
     log.info("Transferring {} EUR from fund account to payout account", totalAmount);
 
-    UUID batchId = UUID.randomUUID();
     PaymentRequest paymentRequest =
         PaymentRequest.tulevaPaymentBuilder(endToEndIdConverter.toEndToEndId(batchId))
             .remitterIban(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR))
@@ -189,11 +229,12 @@ public class RedemptionBatchJob {
             .description("Redemptions batch")
             .build();
 
-    eventPublisher.publishEvent(new RequestPaymentEvent(paymentRequest, batchId));
+    eventPublisher.publishEvent(
+        new RequestPaymentEvent(paymentRequest, batchId, REDEMPTION_TRANSFER, batchId));
     log.info("Sent batch transfer request: batchId={}, amount={}", batchId, totalAmount);
   }
 
-  private int processIndividualPayouts(List<RedemptionRequest> requests) {
+  private int processIndividualPayouts(List<RedemptionRequest> requests, UUID batchId) {
     int payoutCount = 0;
     for (RedemptionRequest request : requests) {
       RedemptionRequest updated =
@@ -215,7 +256,8 @@ public class RedemptionBatchJob {
                 .description("Fondi tagasivõtmine")
                 .build();
 
-        eventPublisher.publishEvent(new RequestPaymentEvent(paymentRequest, updated.getId()));
+        eventPublisher.publishEvent(
+            new RequestPaymentEvent(paymentRequest, updated.getId(), PAYOUT, batchId));
 
         markAsRedeemed(updated.getId());
         payoutCount++;
@@ -262,7 +304,7 @@ public class RedemptionBatchJob {
             .description("Fondi tagasivõtmine")
             .build();
 
-    eventPublisher.publishEvent(new RequestPaymentEvent(paymentRequest, request.getId()));
+    eventPublisher.publishEvent(new RequestPaymentEvent(paymentRequest, request.getId(), PAYOUT));
 
     request.setErrorReason(null);
     redemptionRequestRepository.save(request);
@@ -293,15 +335,16 @@ public class RedemptionBatchJob {
                     "Beneficiary name not resolvable: party=" + partyId + ", iban=" + iban));
   }
 
-  // Defensive: a deposit normally yields a remitter name, but a whitelisted IBAN may have no
-  // deposit row at all, and a deposit's bank statement may carry a null remitter_name. Fall back
-  // to the party's registered name rather than failing the payout.
   private Optional<String> registeredPartyName(PartyId partyId) {
     return switch (partyId.type()) {
       case LEGAL_ENTITY ->
           companyRepository.findByRegistryCode(partyId.code()).map(Company::getName);
       case PERSON -> userRepository.findByPersonalCode(partyId.code()).map(User::getFullName);
     };
+  }
+
+  private void hold(UUID requestId, String reason) {
+    paymentCheckService.recordStoppedPayment(PAYOUT_BLOCKED, requestId.toString(), reason);
   }
 
   private void handleError(UUID requestId, Exception e) {

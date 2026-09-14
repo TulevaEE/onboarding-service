@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.RETURN;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_RECEIVED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RETURNED;
 import static java.util.Objects.requireNonNull;
@@ -9,7 +10,6 @@ import ee.tuleva.onboarding.banking.payment.PaymentRequest;
 import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -18,7 +18,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class PaymentReturningService {
-
   private final ApplicationEventPublisher eventPublisher;
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final SavingsFundLedger savingsFundLedger;
@@ -45,7 +44,7 @@ public class PaymentReturningService {
             .amount(payment.getAmount())
             .description(description)
             .build();
-    eventPublisher.publishEvent(new RequestPaymentEvent(paymentRequest, UUID.randomUUID()));
+    eventPublisher.publishEvent(new RequestPaymentEvent(paymentRequest, payment.getId(), RETURN));
   }
 
   private boolean wasCreditedToHolder(SavingFundPayment payment) {

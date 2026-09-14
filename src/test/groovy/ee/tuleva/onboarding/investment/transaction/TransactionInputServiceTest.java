@@ -1191,6 +1191,42 @@ class TransactionInputServiceTest {
     assertThat(netInvestable.subtract(securityValue)).isEqualByComparingTo(result.freeCash());
   }
 
+  @Test
+  void gatherInput_reservesTheAccrualAndWarns_whenTheFeePolicyDoesNotResolve() {
+    var positionDate = AS_OF_DATE;
+    given(feeChargedToFundPolicy.resolverFor(TUV100, FeeType.DEPOT))
+        .willThrow(new IllegalStateException("No fee policy configured"));
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(positionDate));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
+        .willReturn(List.of());
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
+        .willReturn(List.of());
+    given(
+            feeAccrualRepository.getAccruedFeesByDateForMonth(
+                eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT)), any()))
+        .willReturn(Map.of(AS_OF_DATE, new BigDecimal("3000")));
+    given(
+            feeAccrualRepository.getAccruedFeesByDateForMonth(
+                eq(TUV100), any(), eq(List.of(FeeType.DEPOT)), any()))
+        .willReturn(
+            Map.of(AS_OF_DATE, new BigDecimal("450"), AS_OF_DATE.minusDays(1), BigDecimal.TEN));
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(List.of());
+    given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(zeroFundLimit(TUV100)));
+    given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
+    given(r45ReportService.getLatestFlows()).willReturn(Map.of());
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+
+    assertThat(result.liabilityBreakdown().depotFee()).isEqualByComparingTo("460");
+    assertThat(result.liabilityBreakdown().managementFee()).isEqualByComparingTo("3000");
+    assertThat(result.inputWarnings())
+        .extracting(CalculationWarning::type)
+        .containsExactly(CalculationWarningType.FEE_POLICY_UNRESOLVED);
+  }
+
   private static FeeChargedToFundPolicy.Resolver alwaysCharged(TulevaFund fund, FeeType feeType) {
     return resolver(fund, feeType, true);
   }

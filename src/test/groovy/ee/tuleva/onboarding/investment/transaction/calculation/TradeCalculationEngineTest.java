@@ -62,6 +62,31 @@ class TradeCalculationEngineTest {
   }
 
   @Test
+  void calculate_carriesInputWarnings_inANonRebalanceMode() {
+    var feePolicyWarning =
+        new CalculationWarning(
+            CalculationWarningType.FEE_POLICY_UNRESOLVED, "Fee policy does not resolve");
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(List.of(new PositionSnapshot("IE00A", new BigDecimal("500000"))))
+            .modelWeights(List.of(new ModelWeight("IE00A", new BigDecimal("1.00"))))
+            .grossPortfolioValue(new BigDecimal("1000000"))
+            .cashBuffer(ZERO)
+            .liabilities(ZERO)
+            .freeCash(new BigDecimal("100000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .inputWarnings(List.of(feePolicyWarning))
+            .build();
+
+    var result = engine.calculate(input, BUY);
+
+    assertThat(result.warnings()).containsExactly(feePolicyWarning);
+  }
+
+  @Test
   void buy_withANegativePositionMarketValue_failsLoudly() {
     var input =
         FundTransactionInput.builder()

@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.investment.config.InvestmentParameter.R16_BUF
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.R16_ROUNDING_STEP;
 import static ee.tuleva.onboarding.investment.epis.PevaRavaPhase.DONE;
 import static ee.tuleva.onboarding.investment.position.AccountType.CASH;
+import static ee.tuleva.onboarding.investment.transaction.CalculationWarningType.FEE_POLICY_UNRESOLVED;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
@@ -35,6 +36,7 @@ import ee.tuleva.onboarding.ledger.SystemAccount;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -100,8 +102,9 @@ public class TransactionInputService {
         positionAssembler.assemble(fund, positionDate, pendingOrders);
     BigDecimal reportCash = getCashBalance(fund, positionDate);
     BigDecimal appliedCash = cashOverride == null ? reportCash : cashOverride;
-    BigDecimal managementFee = getAccruedFees(fund, asOfDate, FeeType.MANAGEMENT);
-    BigDecimal depotFee = getAccruedFees(fund, asOfDate, FeeType.DEPOT);
+    List<CalculationWarning> inputWarnings = new ArrayList<>();
+    BigDecimal managementFee = getAccruedFees(fund, asOfDate, FeeType.MANAGEMENT, inputWarnings);
+    BigDecimal depotFee = getAccruedFees(fund, asOfDate, FeeType.DEPOT, inputWarnings);
     TransactionParameters parameters = transactionParameterLoader.load(fund, asOfDate);
 
     BigDecimal securityValue =
@@ -183,6 +186,7 @@ public class TransactionInputService {
         .ledgerCash(ledgerCash)
         .positionDate(positionDate)
         .modelEffectiveDate(parameters.modelEffectiveDate())
+        .inputWarnings(List.copyOf(inputWarnings))
         .build();
   }
 
@@ -195,13 +199,35 @@ public class TransactionInputService {
         .reduce(ZERO, BigDecimal::add);
   }
 
-  private BigDecimal getAccruedFees(TulevaFund fund, LocalDate asOfDate, FeeType feeType) {
+  private BigDecimal getAccruedFees(
+      TulevaFund fund,
+      LocalDate asOfDate,
+      FeeType feeType,
+      List<CalculationWarning> inputWarnings) {
     LocalDate feeMonth = asOfDate.withDayOfMonth(1);
-    return feeChargedToFundPolicy
-        .resolverFor(fund, feeType)
-        .sumChargedDays(
-            feeAccrualRepository.getAccruedFeesByDateForMonth(
-                fund, feeMonth, List.of(feeType), asOfDate));
+    Map<LocalDate, BigDecimal> accrualsByDate =
+        feeAccrualRepository.getAccruedFeesByDateForMonth(
+            fund, feeMonth, List.of(feeType), asOfDate);
+    try {
+      return feeChargedToFundPolicy.resolverFor(fund, feeType).sumChargedDays(accrualsByDate);
+    } catch (IllegalStateException e) {
+      inputWarnings.add(unresolvedFeePolicyWarning(fund, asOfDate, feeType, e));
+      return reserveEveryDay(accrualsByDate);
+    }
+  }
+
+  private CalculationWarning unresolvedFeePolicyWarning(
+      TulevaFund fund, LocalDate asOfDate, FeeType feeType, IllegalStateException cause) {
+    String message =
+        ("Fee policy does not resolve, reserving the accrual as if it were charged to the fund:"
+                + " fund=%s, feeType=%s, asOfDate=%s, reason=%s")
+            .formatted(fund.name(), feeType, asOfDate, cause.getMessage());
+    log.warn(message);
+    return new CalculationWarning(FEE_POLICY_UNRESOLVED, message);
+  }
+
+  private BigDecimal reserveEveryDay(Map<LocalDate, BigDecimal> accrualsByDate) {
+    return accrualsByDate.values().stream().reduce(ZERO, BigDecimal::add);
   }
 
   private BigDecimal getFundUnitsReservedValue() {

@@ -98,19 +98,8 @@ public class PaymentCheckService {
           INVESTMENT);
     } catch (Exception e) {
       log.error("Failed to send payment check notification: checkType={}", recorded.checkType(), e);
-      markAlertFailed(recorded.eventId());
+      paymentCheckEventRepository.markAlertFailed(recorded.eventId());
     }
-  }
-
-  @Transactional(propagation = REQUIRES_NEW)
-  public void markAlertFailed(Long eventId) {
-    paymentCheckEventRepository
-        .findById(eventId)
-        .ifPresent(
-            event -> {
-              event.setAlertFailed(true);
-              paymentCheckEventRepository.save(event);
-            });
   }
 
   private static String icon(PaymentCheckSeverity severity) {

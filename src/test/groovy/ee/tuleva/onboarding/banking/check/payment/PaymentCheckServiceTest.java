@@ -132,18 +132,13 @@ class PaymentCheckServiceTest {
 
   @Test
   void anUndeliverableAlertIsRememberedAsUndelivered() {
-    var event = existing(false);
-    event.setId(1L);
-    when(paymentCheckEventRepository.findById(1L)).thenReturn(Optional.of(event));
     doThrow(new RuntimeException("chat is down"))
         .when(notificationService)
         .sendMessage(any(), any());
 
     service().alert(new PaymentCheckRecorded(1L, PAYOUT_WITHOUT_REQUEST, HOLD, "detail"));
 
-    var saved = ArgumentCaptor.forClass(PaymentCheckEvent.class);
-    verify(paymentCheckEventRepository).save(saved.capture());
-    assertThat(saved.getValue().isAlertFailed()).isTrue();
+    verify(paymentCheckEventRepository).markAlertFailed(1L);
   }
 
   /**

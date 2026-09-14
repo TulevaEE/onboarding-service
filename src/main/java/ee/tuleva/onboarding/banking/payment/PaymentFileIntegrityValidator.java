@@ -21,13 +21,16 @@ import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
 import org.springframework.stereotype.Component;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.xml.sax.InputSource;
+import org.xml.sax.SAXParseException;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 @NullMarked
@@ -232,8 +235,23 @@ public class PaymentFileIntegrityValidator {
       validator.validate(new StreamSource(new StringReader(paymentXml)));
       return Optional.empty();
     } catch (Exception e) {
+      logWhereTheSchemaFailed(e);
       return Optional.of(new PaymentIntegrityViolation(XSD_SCHEMA, "document"));
     }
+  }
+
+  private static void logWhereTheSchemaFailed(Exception e) {
+    if (e instanceof SAXParseException parseError) {
+      log.error(
+          "Payment file failed XSD validation: line={}, column={}, error={}",
+          parseError.getLineNumber(),
+          parseError.getColumnNumber(),
+          e.getClass().getSimpleName());
+      return;
+    }
+    log.error(
+        "Payment file could not be validated against the XSD: error={}",
+        e.getClass().getSimpleName());
   }
 
   @SneakyThrows

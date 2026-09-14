@@ -16,8 +16,6 @@ class TradeFlowTest {
 
   private static final LocalDate NAV_DATE = LocalDate.of(2026, 8, 27);
 
-  // A purchase leaves the fund holding more of an instrument, valued at the same mark the residual
-  // uses — so the figure ties to the bridge rather than to the price the cash actually left at.
   @Test
   void aPurchaseIsValuedAtTodaysMark() {
     var flow =
@@ -29,8 +27,6 @@ class TradeFlowTest {
     assertThat(flow).isEqualByComparingTo(new BigDecimal("4043650.16"));
   }
 
-  // A disposal is the same arithmetic with the sign reversed, which is what makes the figure
-  // readable as "what the trades were worth" rather than as an absolute turnover.
   @Test
   void aDisposalIsNegative() {
     var flow =
@@ -42,7 +38,6 @@ class TradeFlowTest {
     assertThat(flow).isEqualByComparingTo(new BigDecimal("-325821659.41"));
   }
 
-  // The 01.09 case: every quantity stood still, so trading cannot explain any of the residual.
   @Test
   void aDayWithoutTradesIsZero() {
     var flow =
@@ -54,8 +49,6 @@ class TradeFlowTest {
     assertThat(flow).isEqualByComparingTo(BigDecimal.ZERO);
   }
 
-  // An instrument the price pipeline cannot mark has no value to attribute, and guessing one would
-  // put a fabricated number in the bridge.
   @Test
   void aHoldingWithNoMarkIsLeftOut() {
     var flow =

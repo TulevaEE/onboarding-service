@@ -716,6 +716,7 @@ class TrackingDifferenceCalculatorTest {
             .accruedFeeFraction(BigDecimal.ZERO)
             .bodHoldings(List.of(bodHolding("IE00A", new BigDecimal("1.00"), "102", "100")))
             .bodSecuritiesFraction(new BigDecimal("1.00"))
+            .tradeFlow(BigDecimal.ZERO)
             .build();
 
     var result = calculator.calculate(input);
@@ -819,10 +820,6 @@ class TrackingDifferenceCalculatorTest {
     assertThat(flow.unexplained()).isEqualByComparingTo(BigDecimal.ZERO);
   }
 
-  // Mid-transition the securities can be worth more than the fund: on 25.08.2026 the CCF proceeds
-  // were still a receivable while the Amundi was already held, so the sleeve stood above 100% of
-  // net assets. Clamping that to 1 would under-state the market leg and push the difference into
-  // unexplained, turning a legitimate book into a breach.
   @Test
   void navFlowReconcilesWhenSecuritiesAreWorthMoreThanTheFund() {
     var input =

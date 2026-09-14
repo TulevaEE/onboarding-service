@@ -39,6 +39,7 @@ class HackathonEmailServiceTest {
               null,
               PARTICIPANT,
               List.of(SOFTWARE_DEVELOPMENT),
+              null,
               List.of(FAIR_LENDING),
               LOOKING_FOR_TEAM,
               null,

@@ -22,6 +22,7 @@ class HackathonRegistrationRequestTest {
         phoneNumber,
         PARTICIPANT,
         List.of(),
+        null,
         List.of(),
         LOOKING_FOR_TEAM,
         idea,
@@ -38,6 +39,7 @@ class HackathonRegistrationRequestTest {
         null,
         PARTICIPANT,
         List.of(),
+        null,
         List.of(),
         LOOKING_FOR_TEAM,
         null,
@@ -79,6 +81,7 @@ class HackathonRegistrationRequestTest {
             null,
             PARTICIPANT,
             List.of(DESIGN, SOFTWARE_DEVELOPMENT, DESIGN, DESIGN),
+            null,
             List.of(INSURANCE, INSURANCE),
             LOOKING_FOR_TEAM,
             null,
@@ -98,6 +101,29 @@ class HackathonRegistrationRequestTest {
     assertThat(request.phoneNumber()).isNull();
     assertThat(request.idea()).isNull();
     assertThat(request.linkedinUrl()).isNull();
+  }
+
+  @Test
+  void otherSkillsAreStrippedAndBlankOtherSkillsBecomeNull() {
+    assertThat(otherSkillsRequest("  Projektijuhtimine  ").otherSkills())
+        .isEqualTo("Projektijuhtimine");
+    assertThat(otherSkillsRequest("   ").otherSkills()).isNull();
+  }
+
+  private HackathonRegistrationRequest otherSkillsRequest(String otherSkills) {
+    return new HackathonRegistrationRequest(
+        "participant@example.com",
+        null,
+        PARTICIPANT,
+        List.of(),
+        otherSkills,
+        List.of(),
+        LOOKING_FOR_TEAM,
+        null,
+        null,
+        WHITE,
+        M,
+        true);
   }
 
   @Test

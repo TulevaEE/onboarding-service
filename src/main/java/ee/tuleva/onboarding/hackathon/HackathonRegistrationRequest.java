@@ -16,6 +16,7 @@ public record HackathonRegistrationRequest(
     @Nullable @Size(max = 255) String phoneNumber,
     @NotNull HackathonRole role,
     @NotNull List<@NotNull HackathonSkill> skills,
+    @Nullable @Size(max = 500) String otherSkills,
     @NotNull List<@NotNull HackathonChallenge> challenges,
     @NotNull HackathonParticipation participation,
     @Nullable @Size(max = 500) String idea,
@@ -31,6 +32,7 @@ public record HackathonRegistrationRequest(
     phoneNumber = strippedOrNull(phoneNumber);
     idea = strippedOrNull(idea);
     linkedinUrl = strippedOrNull(linkedinUrl);
+    otherSkills = strippedOrNull(otherSkills);
     if (skills != null) {
       skills = skills.stream().distinct().toList();
     }
@@ -54,6 +56,7 @@ public record HackathonRegistrationRequest(
         .phoneNumber(phoneNumber)
         .role(role)
         .skills(skills)
+        .otherSkills(otherSkills)
         .challenges(challenges)
         .participation(participation)
         .idea(idea)

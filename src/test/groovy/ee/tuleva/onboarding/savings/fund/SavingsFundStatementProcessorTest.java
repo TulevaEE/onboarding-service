@@ -17,6 +17,7 @@ import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType;
 import ee.tuleva.onboarding.banking.statement.BankStatementAccount;
+import ee.tuleva.onboarding.banking.statement.StatementPeriod;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.InternalTransferLedger;
 import ee.tuleva.onboarding.ledger.LedgerParty.PartyType;
@@ -42,6 +43,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
 
 class SavingsFundStatementProcessorTest {
+
+  private static final StatementPeriod STATEMENT_PERIOD =
+      new StatementPeriod(LocalDate.of(2026, 1, 12), LocalDate.of(2026, 1, 12));
 
   private BankAccount statementAccount;
 
@@ -263,7 +267,8 @@ class SavingsFundStatementProcessorTest {
             BankStatementType.INTRA_DAY_REPORT,
             new BankStatementAccount(accountIban, "Tuleva Fondid AS", "14118923"),
             List.of(),
-            List.of());
+            List.of(),
+            STATEMENT_PERIOD);
     statementAccount = new BankAccount(accountIban, accountType, TKF100, "gw-test");
     when(paymentExtractor.extractPayments(bankStatement)).thenReturn(List.of(payment));
 

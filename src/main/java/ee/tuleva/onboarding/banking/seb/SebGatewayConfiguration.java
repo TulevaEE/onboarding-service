@@ -5,6 +5,7 @@ import static org.springframework.http.MediaType.APPLICATION_XML_VALUE;
 import ee.tuleva.onboarding.banking.ManagementCompanies;
 import ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetcher;
 import ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler;
+import ee.tuleva.onboarding.banking.seb.fetcher.StatementCoverage;
 import ee.tuleva.onboarding.banking.seb.listener.SebBankStatementListener;
 import ee.tuleva.onboarding.banking.seb.listener.SebReconciliationListener;
 import ee.tuleva.onboarding.banking.seb.processor.PensionFundEntryClassifier;
@@ -64,7 +65,8 @@ import org.springframework.web.client.RestClient;
   SuspenseReclassificationService.class,
   SebStatementRouter.class,
   SebReconciliator.class,
-  SebStatementFetcher.class
+  SebStatementFetcher.class,
+  StatementCoverage.class
 })
 public class SebGatewayConfiguration {
 
@@ -188,8 +190,12 @@ public class SebGatewayConfiguration {
   @Bean
   @Profile("!staging")
   SebStatementFetchingScheduler sebStatementFetchingScheduler(
-      ApplicationEventPublisher eventPublisher, SebBankAccounts sebBankAccounts) {
-    return new SebStatementFetchingScheduler(eventPublisher, sebBankAccounts);
+      ApplicationEventPublisher eventPublisher,
+      SebBankAccounts sebBankAccounts,
+      StatementCoverage statementCoverage,
+      Clock clock) {
+    return new SebStatementFetchingScheduler(
+        eventPublisher, sebBankAccounts, statementCoverage, clock);
   }
 
   @Bean

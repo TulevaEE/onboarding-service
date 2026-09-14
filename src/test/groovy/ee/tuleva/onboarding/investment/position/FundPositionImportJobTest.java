@@ -315,6 +315,11 @@ class FundPositionImportJobTest {
     assertThat(result.changedRowsByFund()).containsOnlyKeys(TUV100);
     verify(repository, times(1)).save(any(FundPosition.class));
     verify(healthCheckNotifier).notify(eq(SWEDBANK), eq(date), anyList());
+
+    verify(fundPositionLedgerService).recordPositionsToLedger(TUV100, date);
+    verify(eventPublisher).publishEvent(new NavPositionsUpdated(TUV100, date, 1));
+    verify(fundPositionLedgerService, never()).recordPositionsToLedger(TUK75, date);
+    verify(fundPositionLedgerService, never()).rerecordPositionsFromDate(TUK75, date);
   }
 
   @Test

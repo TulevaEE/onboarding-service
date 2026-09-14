@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.N
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.PASS;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static java.util.stream.Collectors.joining;
 
 import ee.tuleva.onboarding.investment.report.ReportProvider;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
@@ -148,8 +149,16 @@ public class HealthCheckNotifier {
   }
 
   private String header(ReportProvider provider, LocalDate date, List<Transition> active) {
-    if (active.stream().anyMatch(t -> t.current == FAIL)) {
-      return "IMPORT BLOCKED: %s %s — source files need to be fixed\n".formatted(provider, date);
+    var blockedFunds =
+        active.stream()
+            .filter(t -> t.current == FAIL)
+            .map(t -> t.result.fund())
+            .distinct()
+            .map(TulevaFund::getCode)
+            .collect(joining(", "));
+    if (!blockedFunds.isEmpty()) {
+      return "IMPORT BLOCKED: %s %s — %s not imported, source files need to be fixed\n"
+          .formatted(provider, date, blockedFunds);
     }
     if (active.stream().anyMatch(t -> t.current == WARNING)) {
       return "Import warning: %s %s\n".formatted(provider, date);

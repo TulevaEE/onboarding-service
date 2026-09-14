@@ -474,10 +474,9 @@ class SavingsFundPaymentIntegrationTest {
                 .phoneNumber("+372 5555 6666")
                 .build());
 
-    savingsFundOnboardingRepository.saveOnboardingStatus(
-        differentUser.getPersonalCode(), PERSON, COMPLETED);
+    // Deliberately NOT onboarded — see unverifiedPaymentWithBounceBack.
 
-    // Step 1: Process incoming payment with mismatched personal code
+    // Step 1: Process incoming payment for a recipient who has not completed onboarding
     var xml = createUnverifiablePaymentXml();
     persistXmlMessage(xml, NOW);
     eventPublisher.publishEvent(new ProcessBankMessagesRequested());
@@ -558,7 +557,7 @@ class SavingsFundPaymentIntegrationTest {
   @DisplayName(
       "Unverified payment flow: XML → RECEIVED → TO_BE_RETURNED with bounce back ledger entries")
   void unverifiedPaymentWithBounceBack() {
-    // Create a user with different personal code (for mismatch scenario)
+    // Create the user the payment names as recipient
     var differentUser =
         userRepository.save(
             User.builder()
@@ -569,11 +568,10 @@ class SavingsFundPaymentIntegrationTest {
                 .phoneNumber("+372 5555 6666")
                 .build());
 
-    // Mark this user as onboarded to savings fund
-    savingsFundOnboardingRepository.saveOnboardingStatus(
-        differentUser.getPersonalCode(), PERSON, COMPLETED);
+    // Deliberately NOT onboarded: since the 18.09.2026 rules a deposit from another person for
+    // a client's benefit is accepted, so an unfinished onboarding is what makes this unverifiable.
 
-    // Given - XML message with payment that cannot be verified (wrong personal code)
+    // Given - XML message with payment that cannot be verified (recipient not onboarded)
     var xml = createUnverifiablePaymentXml();
     persistXmlMessage(xml, NOW);
 
@@ -621,7 +619,7 @@ class SavingsFundPaymentIntegrationTest {
     assertThat(payment.getStatus()).isEqualTo(TO_BE_RETURNED);
     assertThat(payment.getPartyId()).isNull(); // Not attached to any party
     assertThat(payment.getReturnReason())
-        .isEqualTo("selgituses olev isikukood ei klapi maksja isikukoodiga");
+        .isEqualTo("see isik ei ole täiendava kogumisfondiga liitunud");
 
     // Assert ledger: payment recorded as unattributed
     var paymentAmount = new BigDecimal("50.00");
@@ -814,7 +812,7 @@ class SavingsFundPaymentIntegrationTest {
         + "<Cdtr> <Nm>Jüri Tamm</Nm> </Cdtr> "
         + "<CdtrAcct> <Id> <IBAN>EE982200221234567890</IBAN> </Id> </CdtrAcct> "
         + "</RltdPties> "
-        + "<RmtInf> <Ustrd>Tagastus: selgituses olev isikukood ei klapi maksja isikukoodiga</Ustrd> </RmtInf> "
+        + "<RmtInf> <Ustrd>Tagastus: see isik ei ole täiendava kogumisfondiga liitunud</Ustrd> </RmtInf> "
         + "</TxDtls> </NtryDtls> "
         + "</Ntry> "
         + "</Rpt> "

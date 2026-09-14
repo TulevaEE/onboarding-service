@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -28,26 +29,35 @@ class ReconciliationNotifierTest {
   void onReconciliationCompleted_sendsOkNotification_whenMatched() {
     var event =
         new ReconciliationCompletedEvent(
-            DEPOSIT_ACCOUNT, new BigDecimal("1000.00"), new BigDecimal("1000.00"), true);
+            DEPOSIT_ACCOUNT,
+            LocalDate.of(2026, 9, 13),
+            new BigDecimal("1000.00"),
+            new BigDecimal("1000.00"),
+            true);
 
     notifier.onReconciliationCompleted(event);
 
     verify(notificationService)
         .sendMessage(
-            "✅ Bank reconciliation OK: bankAccount=TKF100:DEPOSIT_EUR, balance=1000.00", SAVINGS);
+            "✅ Bank reconciliation OK: bankAccount=TKF100:DEPOSIT_EUR, statementDate=2026-09-13, balance=1000.00",
+            SAVINGS);
   }
 
   @Test
   void onReconciliationCompleted_sendsFailedNotification_whenNotMatched() {
     var event =
         new ReconciliationCompletedEvent(
-            DEPOSIT_ACCOUNT, new BigDecimal("1000.00"), new BigDecimal("999.99"), false);
+            DEPOSIT_ACCOUNT,
+            LocalDate.of(2026, 9, 13),
+            new BigDecimal("1000.00"),
+            new BigDecimal("999.99"),
+            false);
 
     notifier.onReconciliationCompleted(event);
 
     verify(notificationService)
         .sendMessage(
-            "🔴 Bank reconciliation FAILED: bankAccount=TKF100:DEPOSIT_EUR, bankBalance=1000.00, ledgerBalance=999.99, diff=0.01 <!channel>",
+            "🔴 Bank reconciliation FAILED: bankAccount=TKF100:DEPOSIT_EUR, statementDate=2026-09-13, bankBalance=1000.00, ledgerBalance=999.99, diff=0.01 <!channel>",
             SAVINGS);
   }
 }

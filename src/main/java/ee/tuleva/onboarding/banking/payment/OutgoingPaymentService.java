@@ -19,26 +19,13 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/**
- * Records what we send to the bank.
- *
- * <p>Every write runs in its own transaction. The callers publish their payment events from inside
- * an open transaction and the listener handles them synchronously, so a row written on the caller's
- * transaction would roll back together with it — losing exactly the case this log exists for: the
- * bank accepted the file and our commit then failed.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class OutgoingPaymentService {
-
   private final OutgoingPaymentRepository outgoingPaymentRepository;
   private final Clock clock;
 
-  /**
-   * Claims the endToEndId before the payment is sent. Refuses a second attempt on an id that is
-   * already submitted, or one still in flight — resending either could pay the same money twice.
-   */
   @Transactional(propagation = REQUIRES_NEW)
   public void recordAttempt(
       PaymentRequest paymentRequest,
@@ -80,10 +67,6 @@ public class OutgoingPaymentService {
     resolve(endToEndId, FAILED, reason);
   }
 
-  /**
-   * The money actually left the account. Without this the reconciler could only ever see
-   * "submitted", and would report every payment as unexecuted once its deadline passed.
-   */
   @Transactional(propagation = REQUIRES_NEW)
   public void recordExecuted(String endToEndId) {
     resolve(endToEndId, EXECUTED, null);

@@ -6,7 +6,6 @@ import java.util.Optional;
 import org.springframework.data.repository.CrudRepository;
 
 public interface OutgoingPaymentRepository extends CrudRepository<OutgoingPayment, Long> {
-
   Optional<OutgoingPayment> findByEndToEndId(String endToEndId);
 
   List<OutgoingPayment> findByStatus(OutgoingPaymentStatus status);

@@ -19,7 +19,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
-/** One payment we sent to the bank, recorded before the call rather than after it. */
 @Data
 @Builder
 @Entity
@@ -27,22 +26,18 @@ import org.jspecify.annotations.Nullable;
 @AllArgsConstructor
 @NoArgsConstructor
 public class OutgoingPayment {
-
   @Id
   @GeneratedValue(strategy = IDENTITY)
   private @Nullable Long id;
 
-  /** Also the bank's Idempotency-Key, which is why this column is unique. */
   @NotNull private String endToEndId;
 
   @NotNull
   @Enumerated(STRING)
   private OutgoingPaymentType paymentType;
 
-  /** The redemption request, saving fund payment or batch this payment came from. */
   private @Nullable UUID sourceId;
 
-  /** Shared by a redemption transfer and the payouts it funds. */
   private @Nullable UUID batchId;
 
   @NotNull private String remitterIban;
@@ -55,7 +50,6 @@ public class OutgoingPayment {
 
   @NotNull private String currency;
 
-  /** SHA-256 of the exact bytes submitted, so the file can be tied back to this row. */
   @NotNull private String bodyHash;
 
   @NotNull

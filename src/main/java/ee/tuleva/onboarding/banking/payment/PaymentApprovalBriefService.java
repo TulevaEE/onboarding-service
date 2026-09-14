@@ -23,21 +23,11 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-/**
- * Builds the brief from the outgoing payment log — from what was sent, not from a re-derivation of
- * what we meant to send, so a generator bug cannot write itself into both the payment and the
- * brief.
- */
 @Service
 @RequiredArgsConstructor
 public class PaymentApprovalBriefService {
-
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
 
-  /**
-   * The gates a payment had to pass to be on this list, keyed by the check that holds one back.
-   * Named so the reader knows which identity work they no longer have to do by hand.
-   */
   private static final List<Gate> GATES =
       List.of(
           new Gate("PAYMENT_BLOCKED", "file integrity (XSD + parse-back)"),
@@ -91,11 +81,6 @@ public class PaymentApprovalBriefService {
             || accounts.stream().anyMatch(PaymentApprovalBrief.AccountSummary::goesNegative));
   }
 
-  /**
-   * Sent and not yet known to have moved. A payment already executed was approved earlier and has
-   * left the bank's pending screen, so counting it would make the brief disagree with what the
-   * signatory is looking at.
-   */
   private static boolean awaitsApproval(OutgoingPayment payment) {
     return payment.getStatus() == SUBMITTED || payment.isPending();
   }
@@ -108,14 +93,6 @@ public class PaymentApprovalBriefService {
     return List.copyOf(verdicts);
   }
 
-  /**
-   * The transfer exists only to fund the day's payouts, so the two must be equal — the one figure a
-   * signatory can verify without leaving the message.
-   *
-   * <p>Computed over the whole day rather than over what is still pending: an approved transfer
-   * leaves the bank's pending screen while its payouts are still on it, and reporting an imbalance
-   * every time one account is approved before the other would train the reader to ignore it.
-   */
   private static Optional<PaymentApprovalBrief.Verdict> crossAccountTie(
       List<OutgoingPayment> attemptedToday) {
     var transferred = totalOf(attemptedToday, REDEMPTION_TRANSFER);
@@ -182,11 +159,9 @@ public class PaymentApprovalBriefService {
     };
   }
 
-  /** Our own account, so naming it discloses nothing about a client. */
   private String accountName(String iban) {
     return bankAccounts.find(iban).map(account -> account.type().name()).orElse("UNKNOWN");
   }
 
-  /** A payment Layer 1 or Layer 2 stopped. It has no outgoing payment row, by design. */
   public record PaymentHold(String checkType, String reason) {}
 }

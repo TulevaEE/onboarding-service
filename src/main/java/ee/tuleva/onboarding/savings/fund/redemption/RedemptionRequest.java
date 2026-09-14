@@ -24,7 +24,6 @@ import org.jspecify.annotations.Nullable;
 @NoArgsConstructor
 @AllArgsConstructor
 public class RedemptionRequest {
-
   @Id
   @GeneratedValue(strategy = GenerationType.UUID)
   private UUID id;
@@ -109,16 +108,6 @@ public class RedemptionRequest {
     return new PartyId(partyType, partyCode);
   }
 
-  /**
-   * The priced amount must be reproducible from the units and the NAV stored on this row.
-   *
-   * <p>Deliberately exact rather than tolerant: both factors round-trip at their stored scale, so
-   * rounding the product the way the pricing code does reproduces the amount exactly. A tolerance
-   * would only be somewhere for a real discrepancy to hide.
-   *
-   * <p>Not a comparison against {@code requestedAmount}. Those legitimately differ — the NAV moves
-   * between request and pricing, and a "take everything" request becomes the party's whole balance.
-   */
   public boolean amountReconciles() {
     if (fundUnits == null || navPerUnit == null || cashAmount == null) {
       return false;

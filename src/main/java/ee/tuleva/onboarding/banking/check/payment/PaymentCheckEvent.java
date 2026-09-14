@@ -23,7 +23,6 @@ import org.jspecify.annotations.Nullable;
 @AllArgsConstructor
 @NoArgsConstructor
 public class PaymentCheckEvent {
-
   @Id
   @GeneratedValue(strategy = IDENTITY)
   private @Nullable Long id;
@@ -38,14 +37,11 @@ public class PaymentCheckEvent {
 
   @NotNull private String externalKey;
 
-  /** Check and field names only — never a client's name, IBAN or amount. */
   @NotNull private String detail;
 
   private boolean alertFailed;
 
-  /** When this finding was first seen. Never moved, so "how long has this been broken" survives. */
   @NotNull private Instant createdAt;
 
-  /** When it was last seen. The same finding is re-read from every statement fetch. */
   @NotNull private Instant lastSeenAt;
 }

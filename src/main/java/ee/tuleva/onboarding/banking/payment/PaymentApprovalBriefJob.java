@@ -15,20 +15,11 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-/**
- * Posts the approval brief shortly before the approval window.
- *
- * <p>Once a day rather than once per batch: the three payment producers all run every minute, so
- * payments reach the bank's pending list all afternoon from three independent jobs. A per-batch
- * brief would describe a subset, which would make "the bank shows something the brief doesn't" fire
- * on ordinary days and train the reader to ignore it.
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 @Profile({"production", "staging"})
 public class PaymentApprovalBriefJob {
-
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
 
   private final PaymentApprovalBriefService briefService;

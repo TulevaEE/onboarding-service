@@ -13,22 +13,11 @@ import org.springframework.stereotype.Component;
 import org.w3c.dom.Element;
 import org.xml.sax.InputSource;
 
-/**
- * Reads an account's balance straight from the bank.
- *
- * <p>{@code SebGatewayClient.getBalances} has been implemented and tested since it was written and
- * has never had a production caller, so what the bank actually returns here is unproven. That is
- * why this returns an {@link Optional} and every failure is a shrug rather than an exception: the
- * balance feeds an informational line, and an informational line is not worth failing a job over.
- * Promote it to something that can block only after it has been watched against reality.
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class SebAccountBalanceReader {
-
-  /** Interim available first — that is the one that reflects what is actually spendable. */
-  private static final List<String> PREFERRED_TYPES =
+  private static final List<String> BALANCE_TYPES_MOST_SPENDABLE_FIRST =
       List.of("ITAV", "AVL", "CLAV", "ITBD", "CLBD");
 
   private final SebGatewayClient sebGatewayClient;
@@ -50,7 +39,7 @@ public class SebAccountBalanceReader {
     var document = factory.newDocumentBuilder().parse(new InputSource(new StringReader(xml)));
 
     var balances = document.getElementsByTagNameNS("*", "Bal");
-    for (var preferred : PREFERRED_TYPES) {
+    for (var preferred : BALANCE_TYPES_MOST_SPENDABLE_FIRST) {
       for (int i = 0; i < balances.getLength(); i++) {
         var balance = (Element) balances.item(i);
         if (preferred.equals(text(balance, "Cd"))) {

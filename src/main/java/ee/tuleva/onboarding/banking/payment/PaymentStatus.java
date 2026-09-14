@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.banking.payment;
 
-/** ISO 20022 external payment transaction status codes, as they appear in a pain.002. */
 public enum PaymentStatus {
   ACCP,
   ACTC,

@@ -30,7 +30,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 @Profile({"production", "staging"})
 public class RedemptionAlertJob {
-
   private static final BigDecimal ONE_HUNDRED = new BigDecimal("100");
 
   private final Clock clock;

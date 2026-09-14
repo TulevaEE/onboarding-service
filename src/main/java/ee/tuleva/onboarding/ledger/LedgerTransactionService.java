@@ -21,7 +21,6 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 class LedgerTransactionService {
-
   private final LedgerTransactionRepository ledgerTransactionRepository;
   private final UserUnitBalanceGuard userUnitBalanceGuard;
 

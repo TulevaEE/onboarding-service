@@ -18,19 +18,10 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-/**
- * Watches payments whose fate we never learned.
- *
- * <p>Two cases, and they are different problems. A payment we submitted that the bank never
- * executed is usually nobody having approved it — which is the check that catches a forgotten
- * approval. A payment still in flight is worse: the call never returned a verdict, so it may or may
- * not have reached the bank, and nobody may resend it without checking.
- */
 @Slf4j
 @Component
 @Profile({"production", "staging"})
 public class OutgoingPaymentReconciler {
-
   private final OutgoingPaymentRepository outgoingPaymentRepository;
   private final PaymentCheckService paymentCheckService;
   private final Clock clock;

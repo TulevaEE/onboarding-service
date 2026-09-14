@@ -13,22 +13,9 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-/**
- * Finds redemptions whose payout is running out of time, before the deadline rather than after it.
- *
- * <p>Nothing else watches a request's age: the volume and liquidity alerts look at how much is
- * being paid out, never at how long someone has been waiting. In practice the batch job initiates
- * on the T+1 value date and the bound is met comfortably, so anything this reports is a request
- * stuck somewhere — which is precisely what would otherwise be found by a person, late.
- */
 @Component
 @RequiredArgsConstructor
 class RedemptionPayoutAgeChecker {
-
-  /**
-   * Whether the bank then executed an initiated payout is the reconciler's question. Cancelled and
-   * paid requests are nobody's; a failed one is still owed and needs a retry, so it stays in.
-   */
   static final List<RedemptionRequest.Status> NOT_YET_INITIATED =
       List.of(RESERVED, IN_REVIEW, VERIFIED, FAILED);
 
@@ -42,11 +29,6 @@ class RedemptionPayoutAgeChecker {
         .forEach(request -> report(request, today));
   }
 
-  /**
-   * Keyed by day, so an overdue payout is reported again every working day until it is paid, failed
-   * off or cancelled. Money owed to a client is not something that should go quiet on its own; the
-   * usual one-alert-per-finding dedupe would do exactly that.
-   */
   private void report(RedemptionRequest request, LocalDate today) {
     paymentCheckService.record(
         PAYOUT_OVERDUE,

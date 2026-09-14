@@ -18,18 +18,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionalEventListener;
 
-/**
- * Records a payment finding once and alerts on it once.
- *
- * <p>The dedupe is persisted rather than held in memory on purpose: the current day's statement is
- * re-fetched every five minutes, so a detector that simply fires on each read would re-alert on the
- * same entry all afternoon and teach the reader to ignore the channel.
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class PaymentCheckService {
-
   private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
 
   private final PaymentCheckEventRepository paymentCheckEventRepository;
@@ -46,12 +38,6 @@ public class PaymentCheckService {
     doRecord(checkType, severity, externalKey, detail);
   }
 
-  /**
-   * For a payment that was stopped, whose own transaction is expected to roll back: blocking works
-   * by throwing, so a finding written on the caller's transaction would be undone by the very throw
-   * that produced it. The approval brief would then report a gate that held nothing on a day it
-   * held a payment back, which is the one thing the brief must never do.
-   */
   @Transactional(propagation = REQUIRES_NEW)
   public void recordStoppedPayment(PaymentCheckType checkType, String externalKey, String detail) {
     doRecord(checkType, PaymentCheckSeverity.HOLD, externalKey, detail);
@@ -94,11 +80,6 @@ public class PaymentCheckService {
             PaymentCheckSeverity.HOLD, dayStart.toInstant(), dayStart.plusDays(1).toInstant());
   }
 
-  /**
-   * Sent only once the finding itself has committed. A detector firing inside a transaction that
-   * later rolls back would otherwise announce something that did not happen — and the row recording
-   * it would be gone, so the dedupe would be lost too and it would announce it again next time.
-   */
   @TransactionalEventListener(phase = AFTER_COMMIT, fallbackExecution = true)
   public void alert(PaymentCheckRecorded recorded) {
     if (recorded.severity() == PaymentCheckSeverity.INFO) {
@@ -115,9 +96,6 @@ public class PaymentCheckService {
     }
   }
 
-  /**
-   * So a finding first seen during a chat outage alerts again rather than becoming the baseline.
-   */
   @Transactional(propagation = REQUIRES_NEW)
   public void markAlertFailed(Long eventId) {
     paymentCheckEventRepository

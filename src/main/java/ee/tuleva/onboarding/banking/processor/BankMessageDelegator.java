@@ -32,7 +32,6 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class BankMessageDelegator {
-
   private final Clock clock;
   private final BankingMessageRepository bankingMessageRepository;
   private final PaymentStatusReportHandler paymentStatusReportHandler;

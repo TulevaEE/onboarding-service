@@ -12,17 +12,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
-/**
- * Turns a stopped payment into a durable record, which is what lets the approval brief name a hold.
- *
- * <p>A payment blocked by Layer 1 or Layer 2 never gets an outgoing payment row — that write
- * happens after validation — so without this the brief would simply show one fewer payment than
- * expected, which is indistinguishable from a cancellation.
- */
 @Component
 @RequiredArgsConstructor
 public class PaymentCheckEventRecorder {
-
   private final PaymentCheckService paymentCheckService;
 
   @EventListener

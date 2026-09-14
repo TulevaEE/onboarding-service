@@ -19,7 +19,6 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class RedemptionPayoutRecorder {
-
   private final SavingsFundLedger savingsFundLedger;
   private final RedemptionRequestRepository redemptionRequestRepository;
   private final RedemptionStatusService redemptionStatusService;
@@ -35,8 +34,6 @@ public class RedemptionPayoutRecorder {
           payment.getEndToEndId(),
           payment.getBeneficiaryIban(),
           payment.getAmount());
-      // Money left the payout account and we cannot say who authorised it. Until now this
-      // reached Sentry only, where it looks like any other stack trace.
       paymentCheckService.record(
           PAYOUT_WITHOUT_REQUEST,
           HOLD,

@@ -5,7 +5,6 @@ import org.jspecify.annotations.NullMarked;
 
 @NullMarked
 public class PaymentIntegrityException extends RuntimeException {
-
   public PaymentIntegrityException(String endToEndId, List<PaymentIntegrityViolation> violations) {
     super(
         "Payment file does not match the payment request: endToEndId=%s, violations=%s"

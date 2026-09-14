@@ -26,7 +26,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @RequiredArgsConstructor
 public class IssuingJob {
-
   private static final LocalTime CUTOFF_TIME = LocalTime.of(16, 0, 0);
   private static final ZoneId CUTOFF_TIMEZONE = ZoneId.of("Europe/Tallinn");
   private final Clock clock;

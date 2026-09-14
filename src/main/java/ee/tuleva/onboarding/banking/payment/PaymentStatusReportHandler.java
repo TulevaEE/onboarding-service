@@ -5,16 +5,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
-/**
- * Acts on the bank's own verdict, which until now was logged and discarded.
- *
- * <p>A rejection is otherwise invisible to us until statement reconciliation or a client complaint.
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class PaymentStatusReportHandler {
-
   private final PaymentStatusReportExtractor extractor;
   private final OutgoingPaymentService outgoingPaymentService;
   private final ApplicationEventPublisher eventPublisher;

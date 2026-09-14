@@ -12,17 +12,9 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 
-/**
- * Reads the bank's own verdict on payments we submitted, out of a pain.002 status report.
- *
- * <p>Matched on local element names rather than a generated binding: the interesting part of the
- * message is three fields deep and stable across the 001.03 and 001.10 generations, and we do not
- * need the rest of the schema to act on a rejection.
- */
 @Component
 @NullMarked
 public class PaymentStatusReportExtractor {
-
   @SneakyThrows
   public PaymentStatusReport extract(String xml) {
     var factory = DocumentBuilderFactory.newInstance();
@@ -46,7 +38,8 @@ public class PaymentStatusReportExtractor {
               reasonCode(transaction)));
     }
 
-    return new PaymentStatusReport(firstText(document.getDocumentElement(), "GrpSts"), statuses);
+    return new PaymentStatusReport(
+        descendantText(document.getDocumentElement(), "GrpSts"), statuses);
   }
 
   private static @Nullable String reasonCode(Element transaction) {
@@ -54,15 +47,9 @@ public class PaymentStatusReportExtractor {
     if (reasons.getLength() == 0) {
       return null;
     }
-    return firstText((Element) reasons.item(0), "Cd");
+    return descendantText((Element) reasons.item(0), "Cd");
   }
 
-  /**
-   * Direct-descendant lookup only, so a value nested in an original-transaction block cannot be
-   * read as this transaction's own. Falling back to a descendant-wide search would reinstate
-   * exactly the shadowing this avoids, and a wrongly attributed status is worse than a missing one:
-   * it would mark the wrong payment rejected.
-   */
   private static @Nullable String childText(Element parent, String localName) {
     NodeList children = parent.getChildNodes();
     for (int i = 0; i < children.getLength(); i++) {
@@ -74,7 +61,7 @@ public class PaymentStatusReportExtractor {
     return null;
   }
 
-  private static @Nullable String firstText(Element parent, String localName) {
+  private static @Nullable String descendantText(Element parent, String localName) {
     var found = parent.getElementsByTagNameNS("*", localName);
     return found.getLength() == 0 ? null : trimmed(found.item(0).getTextContent());
   }

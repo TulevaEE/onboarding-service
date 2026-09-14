@@ -18,7 +18,6 @@ import org.springframework.web.client.HttpClientErrorException;
 @RequiredArgsConstructor
 @Slf4j
 public class SebPaymentRequestListener {
-
   private final SebGatewayClient sebGatewayClient;
   private final BankAccounts bankAccounts;
   private final PaymentMessageGenerator paymentMessageGenerator;
@@ -68,10 +67,6 @@ public class SebPaymentRequestListener {
     outgoingPaymentService.recordSubmitted(paymentRequest.endToEndId());
   }
 
-  /**
-   * The bank refused the request outright, so nothing can still be in flight. Anything else leaves
-   * the row ATTEMPTED, because a payment that may have reached the bank must never read as failed.
-   */
   private static boolean isDefinitiveRejection(RuntimeException e) {
     return e instanceof HttpClientErrorException;
   }

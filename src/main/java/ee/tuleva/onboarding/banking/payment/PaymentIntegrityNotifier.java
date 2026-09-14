@@ -19,7 +19,6 @@ import org.springframework.stereotype.Component;
 @Component
 @NullMarked
 public class PaymentIntegrityNotifier {
-
   private final OperationsNotificationService notificationService;
   private final Clock clock;
   private final Duration cooldown;
@@ -51,13 +50,6 @@ public class PaymentIntegrityNotifier {
             .formatted(event.paymentRequest().endToEndId()));
   }
 
-  /**
-   * The producers retry every minute, so an unfixed generator bug would otherwise repost the same
-   * alert sixty times an hour until someone deploys a fix. Keyed on the payment's own shape rather
-   * than on the violated checks alone, so a retry of the same payment is suppressed while a
-   * different payment failing the same check still alerts. Held in memory and never published, so
-   * the key may use the values the message itself must not carry.
-   */
   private static String cooldownKey(
       String kind, PaymentRequest paymentRequest, List<String> checks) {
     return String.join(

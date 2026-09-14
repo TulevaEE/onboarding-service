@@ -28,16 +28,10 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.xml.sax.InputSource;
 
-/**
- * Re-reads a generated pain.001 payment file and asserts it encodes exactly the PaymentRequest it
- * was built from. The generator writes XML by hand, so nothing else proves that the bytes we are
- * about to hand the bank say what we authorised.
- */
 @Component
 @RequiredArgsConstructor
 @NullMarked
 public class PaymentFileIntegrityValidator {
-
   private static final String XSD = "/banking/iso20022/pain.001.001.09.xsd";
   private static final int NAME_MAX_LENGTH = 70;
   private static final int ID_MAX_LENGTH = 35;
@@ -173,10 +167,6 @@ public class PaymentFileIntegrityValidator {
     }
   }
 
-  /**
-   * A back-dated execution date is silently accepted by the schema but changes when the bank moves
-   * the money, so it is checked as a field even though it has no counterpart on the request.
-   */
   private void checkExecutionDate(
       List<PaymentIntegrityViolation> violations, Optional<String> actual) {
     var today = LocalDate.now(clock);
@@ -222,11 +212,6 @@ public class PaymentFileIntegrityValidator {
     return Optional.of(current);
   }
 
-  /**
-   * Matched on local names, so the file is read the same way whether the generator declares the ISO
-   * namespace as the default or behind a prefix. Matching raw tag names would make every payment
-   * fail the moment anyone added one — fail-closed, but for the wrong reason.
-   */
   private static List<Element> children(Element parent, String name) {
     var matches = new ArrayList<Element>();
     var childNodes = parent.getChildNodes();

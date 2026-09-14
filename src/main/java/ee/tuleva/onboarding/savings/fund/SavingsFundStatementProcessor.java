@@ -32,7 +32,6 @@ import org.springframework.stereotype.Component;
 @ConditionalOnProperty(prefix = "seb-gateway", name = "enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class SavingsFundStatementProcessor {
-
   private final SavingFundPaymentExtractor paymentExtractor;
   private final SavingFundPaymentUpsertionService paymentService;
   private final ManagementCompanies managementCompanies;

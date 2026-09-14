@@ -20,27 +20,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-/**
- * Ties every debit we see on the statement back to a payment we recorded sending.
- *
- * <p>Three outcomes, and each answers a question nothing else does:
- *
- * <ul>
- *   <li><b>Matched</b> — the payment is marked executed. Until something does this, the log only
- *       ever says "the bank accepted the file", and the reconciler would report every payment as
- *       unexecuted once its deadline passed.
- *   <li><b>Amount differs</b> — the bank moved an amount other than the one we authorised. Neither
- *       the aggregate reconciliation nor the payout path catches this on its own: the ledger books
- *       the bank's own figure, so both sides move together and agree.
- *   <li><b>No row at all</b> — money left an account of ours with nothing behind it. This is the
- *       phantom case, and it is the reason to look at every debit rather than only the payouts.
- * </ul>
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class OutgoingPaymentMatcher {
-
   private final OutgoingPaymentRepository outgoingPaymentRepository;
   private final OutgoingPaymentService outgoingPaymentService;
   private final PaymentCheckService paymentCheckService;
@@ -88,11 +71,6 @@ public class OutgoingPaymentMatcher {
     }
   }
 
-  /**
-   * A debit our pipeline did not create is not automatically wrong — bank fees and movements
-   * between our own accounts are legitimate and were never submitted through this path. Those are
-   * recorded without paging anyone; everything else is a phantom.
-   */
   private void reportUnbacked(StatementDebit debit, String key, String detail) {
     var beneficiary = debit.beneficiaryIban();
     var legitimate =
@@ -107,14 +85,6 @@ public class OutgoingPaymentMatcher {
         legitimate ? "a known non-pipeline debit: " + detail : detail);
   }
 
-  /**
-   * Every debit needs a key of its own: findings are deduped on it, so two debits sharing one would
-   * mean the first silences the second for good. The bank's entry reference is that key; a debit
-   * carrying neither it nor an end-to-end id falls back to a digest of its own figures, which is
-   * still stable across re-reads of the same statement and still distinct between debits. The
-   * digest, rather than the figures themselves, because a key is stored and an IBAN is not ours to
-   * store here.
-   */
   private static String keyOf(StatementDebit debit) {
     var entryId = debit.entryId();
     return entryId != null && !entryId.isBlank() ? entryId : digestOf(debit);

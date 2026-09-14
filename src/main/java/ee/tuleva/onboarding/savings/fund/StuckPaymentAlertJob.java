@@ -22,7 +22,6 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 @NullMarked
 public class StuckPaymentAlertJob {
-
   private static final Duration STUCK_THRESHOLD = Duration.ofMinutes(30);
 
   private final SavingFundPaymentRepository paymentRepository;

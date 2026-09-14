@@ -52,7 +52,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 @RequiredArgsConstructor
 @Profile("!staging")
 public class RedemptionBatchJob {
-
   private static final ZoneId CUTOFF_TIMEZONE = RedemptionCutoff.TALLINN;
 
   private final Clock clock;
@@ -336,9 +335,6 @@ public class RedemptionBatchJob {
                     "Beneficiary name not resolvable: party=" + partyId + ", iban=" + iban));
   }
 
-  // Defensive: a deposit normally yields a remitter name, but a whitelisted IBAN may have no
-  // deposit row at all, and a deposit's bank statement may carry a null remitter_name. Fall back
-  // to the party's registered name rather than failing the payout.
   private Optional<String> registeredPartyName(PartyId partyId) {
     return switch (partyId.type()) {
       case LEGAL_ENTITY ->
@@ -347,11 +343,6 @@ public class RedemptionBatchJob {
     };
   }
 
-  /**
-   * A payout stopped here never reaches the bank, so it gets no outgoing payment row either. The
-   * check event is the only record that it was attempted, and the only way the approval brief can
-   * name it instead of quietly showing one payout fewer than expected.
-   */
   private void hold(UUID requestId, String reason) {
     paymentCheckService.recordStoppedPayment(PAYOUT_BLOCKED, requestId.toString(), reason);
   }

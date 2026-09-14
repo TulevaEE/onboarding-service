@@ -4,16 +4,8 @@ import static ee.tuleva.onboarding.banking.payment.PaymentApprovalBrief.amount;
 
 import org.springframework.stereotype.Component;
 
-/**
- * Renders the brief for the ops channel.
- *
- * <p>Ordered for the eye: the two numbers compared against the bank's screen first, then the check
- * verdicts, then anything held. A green brief has to be legible in one glance on a phone, since
- * approvals frequently happen away from a desk.
- */
 @Component
 public class PaymentApprovalBriefFormatter {
-
   public String format(PaymentApprovalBrief brief) {
     if (brief.isEmpty()) {
       return "%s TKF100 — no payments pending approval (%s)"

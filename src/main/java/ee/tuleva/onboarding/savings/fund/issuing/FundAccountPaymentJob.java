@@ -34,7 +34,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 @RequiredArgsConstructor
 @Profile("!staging")
 public class FundAccountPaymentJob {
-
   private final BankAccounts bankAccounts;
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final TransactionTemplate transactionTemplate;

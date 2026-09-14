@@ -6,7 +6,6 @@ import java.util.Optional;
 import org.springframework.data.repository.CrudRepository;
 
 public interface PaymentCheckEventRepository extends CrudRepository<PaymentCheckEvent, Long> {
-
   Optional<PaymentCheckEvent> findByCheckTypeAndExternalKey(
       PaymentCheckType checkType, String externalKey);
 

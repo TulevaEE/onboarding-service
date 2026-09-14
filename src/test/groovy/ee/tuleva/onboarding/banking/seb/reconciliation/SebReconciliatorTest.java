@@ -100,6 +100,7 @@ class SebReconciliatorTest {
         .publishEvent(
             new ReconciliationCompletedEvent(
                 new BankAccount("EE123456789012345678", DEPOSIT_EUR, TKF100, "gw-test"),
+                LocalDate.of(2024, 1, 15),
                 matchingBalance,
                 matchingBalance,
                 true));
@@ -158,6 +159,7 @@ class SebReconciliatorTest {
         .publishEvent(
             new ReconciliationCompletedEvent(
                 new BankAccount("EE987700771001802057", DEPOSIT_EUR, TKF100, "gw-test"),
+                LocalDate.of(2024, 1, 15),
                 bankBalance,
                 ledgerBalance,
                 false));

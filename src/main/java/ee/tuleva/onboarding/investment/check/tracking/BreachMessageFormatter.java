@@ -2,23 +2,17 @@ package ee.tuleva.onboarding.investment.check.tracking;
 
 import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK_MODEL;
 import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
+import static ee.tuleva.onboarding.investment.check.tracking.BreachAmounts.formatAmount;
+import static ee.tuleva.onboarding.investment.check.tracking.BreachAmounts.formatEur;
+import static ee.tuleva.onboarding.investment.check.tracking.BreachAmounts.formatPercent;
+import static ee.tuleva.onboarding.investment.check.tracking.BreachAmounts.formatUnits;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
-import java.text.DecimalFormat;
-import java.text.DecimalFormatSymbols;
 import java.util.Comparator;
-import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
 class BreachMessageFormatter {
-
-  private static final BigDecimal HUNDRED = new BigDecimal("100");
-
-  private static final BigDecimal CYCLE_MATCH_TOLERANCE = new BigDecimal("0.05");
 
   private final TrackingDifferenceResult result;
   private final boolean escalation;
@@ -136,11 +130,13 @@ class BreachMessageFormatter {
     sb.append("\n    actual closing       %s".formatted(formatEur(flow.closingNetAssets())));
     sb.append(
         "\n    UNEXPLAINED          %s  (%s%% of opening)"
-            .formatted(
-                formatEur(flow.unexplained()),
-                formatPercent(
-                    flow.unexplained().divide(flow.openingNetAssets(), 6, RoundingMode.HALF_UP))));
-    if (!flow.securityQuantitiesChanged()) {
+            .formatted(formatEur(flow.unexplained()), formatPercent(flow.unexplainedFraction())));
+    if (flow.securityQuantitiesChanged()) {
+      sb.append(
+          "\n    Trades moved %s EUR at the mark — cash and securities move together, so this nets"
+                  .formatted(formatAmount(flow.tradeFlow()))
+              + " out of net assets and only the execution difference reaches UNEXPLAINED.");
+    } else {
       sb.append("\n    No security quantity changed, so trading cannot explain this.");
     }
     if (flow.marketPnl().signum() == 0) {
@@ -149,128 +145,11 @@ class BreachMessageFormatter {
   }
 
   private void appendRedemptionCycleSection() {
-    if (result.checkType() != MODEL_PORTFOLIO
-        || redemptionCycle == null
-        || !redemptionCycle.executionDate()) {
-      return;
-    }
-    sb.append(
-        "\n  ⚠️ %s is a PEVA/RAVA execution date — every II pillar switch and exit settles at this NAV."
-            .formatted(result.checkDate()));
-    var flow = result.navFlow();
-    var ravaEur = redemptionCycle.ravaEur();
-    if (!redemptionCycle.hasFigures() || ravaEur == null) {
-      sb.append(
-          "\n     No R17/R21 figures are ingested for this cycle, so the payout cannot be matched"
-              + " automatically. Compare the unexplained amount against the RAVA payout by hand.");
-      return;
-    }
-    sb.append("\n     R21 RAVA payout %s".formatted(formatEur(ravaEur)));
-    var pikEur = redemptionCycle.pikEur();
-    if (pikEur != null && pikEur.signum() != 0) {
-      sb.append(", R17 PIK %s".formatted(formatEur(pikEur)));
-    }
-    if (flow == null) {
-      return;
-    }
-    if (matchesUnexplained(flow.unexplained(), ravaEur)) {
-      sb.append(
-          "\n     → that is the unexplained amount. Check the redemption payout was booked as a"
-              + " liability (payables / pending redemptions).");
-    } else {
-      sb.append(
-          "\n     → does not account for the unexplained amount, so look wider than the"
-              + " redemption leg.");
-    }
-  }
-
-  private static boolean matchesUnexplained(BigDecimal unexplained, BigDecimal ravaEur) {
-    if (ravaEur.signum() == 0) {
-      return false;
-    }
-    return unexplained
-            .abs()
-            .subtract(ravaEur.abs())
-            .abs()
-            .divide(ravaEur.abs(), 6, RoundingMode.HALF_UP)
-            .compareTo(CYCLE_MATCH_TOLERANCE)
-        <= 0;
-  }
-
-  private static String formatEur(BigDecimal value) {
-    return String.format("%18s", formatAmount(value));
-  }
-
-  private static String formatAmount(BigDecimal value) {
-    return new DecimalFormat("#,##0.00", DecimalFormatSymbols.getInstance(Locale.UK)).format(value);
-  }
-
-  private static String formatUnits(BigDecimal value) {
-    var formatter =
-        new DecimalFormat("+#,##0.###;-#,##0.###", DecimalFormatSymbols.getInstance(Locale.UK));
-    return formatter.format(value);
+    sb.append(new RedemptionCycleSection(result, redemptionCycle).describe());
   }
 
   private void appendSecurityAttributionSection() {
-    if (result.securityAttributions().isEmpty()) {
-      return;
-    }
-    var sorted =
-        result.securityAttributions().stream()
-            .sorted(
-                Comparator.comparing(
-                    (SecurityAttribution a) -> a.contribution().abs(), Comparator.reverseOrder()))
-            .toList();
-
-    if (result.checkType() == BENCHMARK_MODEL) {
-      appendBenchmarkModelAttributions(sorted);
-    } else {
-      appendFundVsModelAttributions(sorted);
-    }
-  }
-
-  private void appendBenchmarkModelAttributions(List<SecurityAttribution> sorted) {
-    for (var attr : sorted) {
-      sb.append(
-          "\n  %s: instrument %s%%, index %s%%, contributes %s%% to TD"
-              .formatted(
-                  attr.isin(),
-                  formatPercent(attr.securityReturn()),
-                  formatPercent(
-                      Objects.requireNonNull(
-                          attr.benchmarkReturn(),
-                          "Missing benchmark return for BENCHMARK_MODEL attribution: isin="
-                              + attr.isin())),
-                  formatPercent(attr.contribution())));
-    }
-  }
-
-  private void appendFundVsModelAttributions(List<SecurityAttribution> sorted) {
-    for (var attr : sorted) {
-      sb.append(
-          "\n  %s: weight %s%%, return %s%%, impact %s%%"
-              .formatted(
-                  attr.isin(),
-                  formatPercent(
-                      Objects.requireNonNull(
-                          attr.weightDifference(),
-                          "Missing weight difference for attribution: isin=" + attr.isin())),
-                  formatPercent(attr.securityReturn()),
-                  formatPercent(attr.contribution())));
-      if (attr.securityReturn().signum() == 0) {
-        sb.append(" — same price both days, contributes nothing to the residual");
-      }
-    }
-
-    if (result.cashDrag().signum() != 0) {
-      sb.append("\n  Cash drag: %s%%".formatted(formatPercent(result.cashDrag())));
-    }
-    if (result.feeDrag().signum() != 0) {
-      sb.append("\n  Fee drag: %s%%".formatted(formatPercent(result.feeDrag())));
-    }
-    if (result.residual().signum() != 0) {
-      sb.append("\n  Residual: %s%%".formatted(formatPercent(result.residual())));
-    }
+    sb.append(new SecurityAttributionSection(result).describe());
   }
 
   private void appendEscalationSection() {
@@ -318,10 +197,5 @@ class BreachMessageFormatter {
 
   private String returnLabel() {
     return result.checkType() == BENCHMARK_MODEL ? "holdings" : "fund";
-  }
-
-  private String formatPercent(BigDecimal value) {
-    var percent = value.multiply(HUNDRED).setScale(2, RoundingMode.HALF_UP);
-    return (percent.signum() > 0 ? "+" : "") + percent.toPlainString();
   }
 }

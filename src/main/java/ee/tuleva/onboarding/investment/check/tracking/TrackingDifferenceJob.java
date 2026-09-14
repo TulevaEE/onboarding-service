@@ -54,11 +54,11 @@ class TrackingDifferenceJob {
 
     try {
       var results = trackingDifferenceService.fillGaps(GAP_LOOKBACK_DAYS);
-      trackingDifferenceNotifier.notify(results);
+      reportGapFill(results);
       log.info("Tracking difference gap fill completed: resultCount={}", results.size());
     } catch (TrackingDifferenceService.IncompletePriceDataException e) {
       trackingDifferenceNotifier.notifyRunIncomplete("TD daily gap fill", reasonOf(e));
-      trackingDifferenceNotifier.notify(e.completedResults());
+      reportGapFill(e.completedResults());
       log.error("Tracking difference gap fill incomplete", e);
     } catch (Exception e) {
       log.error("Tracking difference gap fill failed", e);
@@ -82,6 +82,22 @@ class TrackingDifferenceJob {
       log.error("Tracking difference backfill failed", e);
       trackingDifferenceNotifier.notifyRunFailed("TD backfill", reasonOf(e));
     }
+  }
+
+  // An evening with no gap to fill is the normal outcome, not a run that checked nothing - the
+  // per-day notifier reports an empty list as "nothing actionable was checked", which on any day
+  // the NAV publication already wrote the events is a false alarm. A fill covering more than one
+  // date is a stretch of past days, and the per-day breach message would post each of them as if
+  // it were today's.
+  private void reportGapFill(List<TrackingDifferenceResult> results) {
+    if (results.isEmpty()) {
+      return;
+    }
+    if (results.stream().map(TrackingDifferenceResult::checkDate).distinct().count() > 1) {
+      trackingDifferenceNotifier.notifyGapFillSummary(results);
+      return;
+    }
+    trackingDifferenceNotifier.notify(results);
   }
 
   private static String reasonOf(Exception e) {

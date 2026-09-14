@@ -42,9 +42,7 @@ interface TrackingDifferenceEventRepository extends JpaRepository<TrackingDiffer
   @Query(
       """
       SELECT DISTINCT e.checkDate FROM TrackingDifferenceEvent e
-      WHERE e.fund = :fund AND e.checkType = :checkType
-        AND e.checkDate BETWEEN :start AND :end
+      WHERE e.fund = :fund AND e.checkDate BETWEEN :start AND :end
       """)
-  List<LocalDate> findDistinctCheckDates(
-      TulevaFund fund, TrackingCheckType checkType, LocalDate start, LocalDate end);
+  List<LocalDate> findDistinctCheckDates(TulevaFund fund, LocalDate start, LocalDate end);
 }

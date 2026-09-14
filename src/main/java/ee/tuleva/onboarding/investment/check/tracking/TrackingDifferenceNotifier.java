@@ -153,6 +153,55 @@ class TrackingDifferenceNotifier {
             formatPercent(worst));
   }
 
+  // The gap fill writes past days, and a breach on one of them is history rather than something
+  // happening now. Sending each through the per-day breach message posts a three-week-old breach
+  // in today's words, so the summary leads with the dates it covers and names the days that
+  // breached instead of reproducing the daily alert for each.
+  void notifyGapFillSummary(List<TrackingDifferenceResult> results) {
+    try {
+      var alertableResults = results.stream().filter(r -> r.checkType() != BENCHMARK).toList();
+      if (alertableResults.isEmpty()) {
+        return;
+      }
+      var dates =
+          alertableResults.stream()
+              .map(TrackingDifferenceResult::checkDate)
+              .distinct()
+              .sorted()
+              .toList();
+      var breaches =
+          alertableResults.stream()
+              .filter(TrackingDifferenceResult::hasAnyBreach)
+              .sorted(
+                  Comparator.comparing(TrackingDifferenceResult::checkDate)
+                      .thenComparing(r -> r.fund().getCode())
+                      .thenComparing(r -> r.checkType().name()))
+              .toList();
+
+      var message =
+          new StringBuilder(
+              "🕗 TD GAP FILL: %d past check dates filled, %s to %s — these are earlier days, not today's check\n"
+                  .formatted(dates.size(), dates.getFirst(), dates.getLast()));
+      if (breaches.isEmpty()) {
+        message.append("  No breach on any of them.");
+      } else {
+        breaches.forEach(
+            result ->
+                message.append(
+                    "\n  🛑 %s %s %s: TD=%s%%, %d consecutive days"
+                        .formatted(
+                            result.checkDate(),
+                            result.fund().getCode(),
+                            result.checkType(),
+                            formatPercent(result.trackingDifference()),
+                            result.consecutiveBreachDays())));
+      }
+      notificationService.sendMessage(message.toString(), INVESTMENT);
+    } catch (Exception e) {
+      log.error("Failed to send tracking difference gap fill summary", e);
+    }
+  }
+
   void notify(List<TrackingDifferenceResult> results) {
     try {
       var alertableResults = results.stream().filter(r -> r.checkType() != BENCHMARK).toList();

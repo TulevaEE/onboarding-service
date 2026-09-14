@@ -156,20 +156,59 @@ class TrackingDifferenceServiceTest {
   void fillGapsChecksOnlyTheNavDatesThatHaveNoCheckYet() {
     var from = CHECK_DATE.minusDays(30);
     var alreadyChecked = LocalDate.of(2026, 4, 8);
-    var gap = PREVIOUS_DATE;
     given(fundPositionRepository.findDistinctNavDatesByFundBetween(TUK75, from, CHECK_DATE))
-        .willReturn(asList(alreadyChecked, gap, CHECK_DATE));
-    given(eventRepository.findDistinctCheckDates(TUK75, MODEL_PORTFOLIO, from, CHECK_DATE))
-        .willReturn(asList(alreadyChecked, CHECK_DATE));
+        .willReturn(asList(alreadyChecked, PREVIOUS_DATE, CHECK_DATE));
+    given(eventRepository.findDistinctCheckDates(TUK75, from, CHECK_DATE))
+        .willReturn(asList(alreadyChecked, PREVIOUS_DATE));
 
     service.fillGaps(30);
 
-    verify(fundNavQueryService).findLatestNavPerUnit(TUK75.getCode(), gap);
-    // Two lookups and no more: the gap's own NAV and its previous working day, which happens to be
-    // the already-checked date. A second checked date would add two more.
+    verify(fundNavQueryService).findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE);
+    // Two lookups and no more: the gap's own NAV and its previous working day. The two earlier
+    // dates already have checks and nothing after them moved, so neither is recomputed.
     verify(fundNavQueryService, times(2))
         .findLatestNavPerUnit(eq(TUK75.getCode()), any(LocalDate.class));
-    verify(fundNavQueryService).findLatestNavPerUnit(TUK75.getCode(), alreadyChecked);
+    verify(fundNavQueryService).findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE);
+  }
+
+  // The escalation streak stops at a hole in the series, so every day stored after one was counted
+  // as though the breach before it had not happened. Writing the missing day fixes the record only
+  // if the days after it are recounted against the completed series - otherwise a breach that ran
+  // through the hole never reaches the fourth consecutive day Sisekord 4 p 11.7 escalates on.
+  @Test
+  void fillGapsRecomputesTheDaysAlreadyStoredAfterAGapItFilled() {
+    var from = CHECK_DATE.minusDays(30);
+    var alreadyChecked = LocalDate.of(2026, 4, 8);
+    givenACheckableFundOn(PREVIOUS_DATE, alreadyChecked);
+    given(fundPositionRepository.findDistinctNavDatesByFundBetween(TUK75, from, CHECK_DATE))
+        .willReturn(asList(alreadyChecked, PREVIOUS_DATE, CHECK_DATE));
+    given(eventRepository.findDistinctCheckDates(TUK75, from, CHECK_DATE))
+        .willReturn(asList(alreadyChecked, CHECK_DATE));
+    given(eventRepository.findDistinctCheckDates(TUK75, PREVIOUS_DATE, CHECK_DATE))
+        .willReturn(List.of(CHECK_DATE));
+
+    var results = service.fillGaps(30);
+
+    assertThat(results).isNotEmpty();
+    assertThat(results).allMatch(r -> r.checkDate().equals(PREVIOUS_DATE));
+    verify(fundNavQueryService).findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE);
+  }
+
+  // A hole that stays a hole must not drag the whole window with it: re-running every stored day
+  // behind a gap nothing can fill would rewrite the series nightly and post a gap-fill summary
+  // every evening for as long as the date sits in the lookback.
+  @Test
+  void fillGapsLeavesTheDaysAfterAnUnfilledGapAlone() {
+    var from = CHECK_DATE.minusDays(30);
+    var alreadyChecked = LocalDate.of(2026, 4, 8);
+    given(fundPositionRepository.findDistinctNavDatesByFundBetween(TUK75, from, CHECK_DATE))
+        .willReturn(asList(alreadyChecked, PREVIOUS_DATE, CHECK_DATE));
+    given(eventRepository.findDistinctCheckDates(TUK75, from, CHECK_DATE))
+        .willReturn(asList(alreadyChecked, CHECK_DATE));
+
+    assertThat(service.fillGaps(30)).isEmpty();
+
+    verify(fundNavQueryService, never()).findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE);
   }
 
   @Test
@@ -177,13 +216,115 @@ class TrackingDifferenceServiceTest {
     var from = CHECK_DATE.minusDays(30);
     given(fundPositionRepository.findDistinctNavDatesByFundBetween(TUK75, from, CHECK_DATE))
         .willReturn(asList(PREVIOUS_DATE, CHECK_DATE));
-    given(eventRepository.findDistinctCheckDates(TUK75, MODEL_PORTFOLIO, from, CHECK_DATE))
+    given(eventRepository.findDistinctCheckDates(TUK75, from, CHECK_DATE))
         .willReturn(asList(PREVIOUS_DATE, CHECK_DATE));
 
     var results = service.fillGaps(30);
 
     assertThat(results).isEmpty();
     verify(fundNavQueryService, never()).findLatestNavPerUnit(anyString(), any(LocalDate.class));
+  }
+
+  // Nothing else will ever mention this date: the hourly price indexer fetches forward from the
+  // newest stored date, so a hole in the middle is never refetched, and the freshness alert only
+  // watches the head of each series. Going quiet after a working week would leave a hole that a
+  // person can still fix with no signal at all, and it would then age out of the window unchecked
+  // - so the report keeps it, and says how long it has stood and when it will stop being tried.
+  @Test
+  void fillGapsKeepsReportingAStandingGapAndSaysHowLongItHasStood() {
+    var staleDate = LocalDate.of(2026, 3, 30);
+    givenAnUnpriceableHoldingOn(staleDate, LocalDate.of(2026, 3, 27));
+    givenTheOnlyNavDateWithoutACheckIs(staleDate);
+
+    assertThatThrownBy(() -> service.fillGaps(30))
+        .isInstanceOf(TrackingDifferenceService.IncompletePriceDataException.class)
+        .hasMessageContaining("IE00MISSING1")
+        .hasMessageContaining("standing gap: unfilled for 11 days")
+        .hasMessageContaining("last attempt 2026-04-29");
+  }
+
+  // A date that only missed tonight is ordinary: it may well fill itself tomorrow, so it must not
+  // arrive dressed as something needing a hand-inserted price.
+  @Test
+  void fillGapsReportsAGapItCouldNotFillWhileTheDateIsStillRecent() {
+    givenAnUnpriceableHoldingOn(PREVIOUS_DATE, LocalDate.of(2026, 4, 8));
+    givenTheOnlyNavDateWithoutACheckIs(PREVIOUS_DATE);
+
+    assertThatThrownBy(() -> service.fillGaps(30))
+        .isInstanceOf(TrackingDifferenceService.IncompletePriceDataException.class)
+        .hasMessageContaining("IE00MISSING1")
+        .hasMessageNotContaining("standing gap");
+  }
+
+  private void givenACheckableFundOn(LocalDate navDate, LocalDate previousDate) {
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), navDate))
+        .willReturn(Optional.of(new BigDecimal("10.10")));
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), previousDate))
+        .willReturn(Optional.of(new BigDecimal("10.00")));
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, navDate))
+        .willReturn(List.of(allocation("IE00B4L5Y983", "1.00")));
+    given(positionPriceResolver.resolve(eq("IE00B4L5Y983"), eq(navDate), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("102.00")));
+    given(positionPriceResolver.resolve(eq("IE00B4L5Y983"), eq(previousDate), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("100.00")));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(navDate, TUK75, SECURITY))
+        .willReturn(
+            List.of(
+                FundPosition.builder()
+                    .fund(TUK75)
+                    .navDate(navDate)
+                    .accountType(SECURITY)
+                    .accountId("IE00B4L5Y983")
+                    .marketValue(new BigDecimal("950000"))
+                    .build()));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, navDate, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(new BigDecimal("1000000"));
+    given(fundPositionRepository.sumMarketValueByFundAndAccountTypes(TUK75, navDate, List.of(CASH)))
+        .willReturn(new BigDecimal("50000"));
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(navDate), eq(10)))
+        .willReturn(List.of());
+  }
+
+  private void givenTheOnlyNavDateWithoutACheckIs(LocalDate navDate) {
+    var from = CHECK_DATE.minusDays(30);
+    given(fundPositionRepository.findDistinctNavDatesByFundBetween(TUK75, from, CHECK_DATE))
+        .willReturn(List.of(navDate));
+    given(eventRepository.findDistinctCheckDates(TUK75, from, CHECK_DATE)).willReturn(List.of());
+  }
+
+  private void givenAnUnpriceableHoldingOn(LocalDate navDate, LocalDate previousDate) {
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), navDate))
+        .willReturn(Optional.of(new BigDecimal("10.10")));
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), previousDate))
+        .willReturn(Optional.of(new BigDecimal("10.00")));
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, navDate))
+        .willReturn(
+            List.of(allocation("IE00B4L5Y983", "0.70"), allocation("IE00MISSING1", "0.30")));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(navDate, TUK75, SECURITY))
+        .willReturn(List.of());
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, navDate, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(new BigDecimal("1000000"));
+    given(fundPositionRepository.sumMarketValueByFundAndAccountTypes(TUK75, navDate, List.of(CASH)))
+        .willReturn(new BigDecimal("50000"));
+    given(positionPriceResolver.resolve(eq("IE00B4L5Y983"), eq(navDate), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("102.00")));
+    given(positionPriceResolver.resolve(eq("IE00B4L5Y983"), eq(previousDate), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("100.00")));
+    given(positionPriceResolver.resolve(eq("IE00MISSING1"), any(LocalDate.class), any()))
+        .willReturn(Optional.empty());
+  }
+
+  private ModelPortfolioAllocation allocation(String isin, String weight) {
+    return ModelPortfolioAllocation.builder()
+        .fund(TUK75)
+        .isin(isin)
+        .weight(new BigDecimal(weight))
+        .effectiveDate(LocalDate.of(2026, 1, 1))
+        .build();
   }
 
   @AfterEach

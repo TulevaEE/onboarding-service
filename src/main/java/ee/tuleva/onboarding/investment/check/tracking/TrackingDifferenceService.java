@@ -3,9 +3,11 @@ package ee.tuleva.onboarding.investment.check.tracking;
 import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
 import static java.math.BigDecimal.ZERO;
+import static java.time.temporal.ChronoUnit.DAYS;
 import static java.util.Arrays.stream;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.mapping;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
@@ -45,6 +47,7 @@ import org.springframework.stereotype.Component;
 class TrackingDifferenceService {
 
   private static final int SCALE = 6;
+  private static final int FRESH_GAP_DAYS = 5;
 
   private final Clock clock;
   private final FundPositionRepository fundPositionRepository;
@@ -103,30 +106,85 @@ class TrackingDifferenceService {
     var today = LocalDate.now(clock);
     var from = today.minusDays(lookbackDays);
     var results = new ArrayList<TrackingDifferenceResult>();
-    var incompleteChecks = new ArrayList<String>();
+    var failures = new ArrayList<GapFailure>();
 
     for (var fund : TulevaFund.values()) {
+      var filled = new ArrayList<LocalDate>();
       for (var checkDate : uncheckedDates(fund, from, today)) {
-        try {
-          checkFund(fund, checkDate).forEach(results::add);
-        } catch (IncompletePriceDataException e) {
-          log.warn("Skipping fund due to incomplete price data: {}", e.getMessage());
-          incompleteChecks.add(e.getMessage());
+        var checked = checkOrRecordFailure(fund, checkDate, failures);
+        results.addAll(checked);
+        if (!checked.isEmpty()) {
+          filled.add(checkDate);
         }
+      }
+      if (filled.isEmpty()) {
+        continue;
+      }
+      for (var checkDate : storedDatesAfter(fund, filled.getFirst(), today)) {
+        results.addAll(checkOrRecordFailure(fund, checkDate, failures));
       }
     }
 
-    if (!incompleteChecks.isEmpty()) {
-      throw new IncompletePriceDataException(
-          "Incomplete security price data:\n" + String.join("\n", incompleteChecks), results);
+    if (!failures.isEmpty()) {
+      throw new IncompletePriceDataException(describe(failures, today, lookbackDays), results);
     }
 
     return results;
   }
 
+  private record GapFailure(LocalDate checkDate, String reason) {}
+
+  private List<TrackingDifferenceResult> checkOrRecordFailure(
+      TulevaFund fund, LocalDate checkDate, List<GapFailure> failures) {
+    try {
+      return checkFund(fund, checkDate);
+    } catch (IncompletePriceDataException e) {
+      log.warn("Skipping fund due to incomplete price data: {}", e.getMessage());
+      failures.add(
+          new GapFailure(
+              checkDate, Objects.requireNonNullElse(e.getMessage(), e.getClass().getSimpleName())));
+      return List.of();
+    }
+  }
+
+  // Nothing fills these on its own: the hourly price indexer fetches forward from the newest stored
+  // date, so a hole in the middle of a series is never refetched, and the freshness alert only
+  // compares the head of each series against the previous working day. This message is the only
+  // place the hole is ever named, so it keeps naming it - with how long it has stood and the last
+  // evening it will be attempted, because after that the date leaves the lookback window and is
+  // never tried again.
+  private String describe(List<GapFailure> failures, LocalDate today, int lookbackDays) {
+    return failures.stream()
+        .map(failure -> describe(failure, today, lookbackDays))
+        .collect(joining("\n", "Incomplete security price data:\n", ""));
+  }
+
+  private String describe(GapFailure failure, LocalDate today, int lookbackDays) {
+    var daysUnfilled = DAYS.between(failure.checkDate(), today);
+    if (daysUnfilled <= FRESH_GAP_DAYS) {
+      return failure.reason();
+    }
+    return "%s [standing gap: unfilled for %d days, last attempt %s — the missing price has to be inserted by hand, nothing backfills it]"
+        .formatted(failure.reason(), daysUnfilled, failure.checkDate().plusDays(lookbackDays));
+  }
+
+  // Filling a hole changes the answer for every day after it: the escalation streak stops at a gap,
+  // so the days that followed one were stored with a count that ignored everything before it. They
+  // have to be recomputed against the now-complete series, or a breach that ran through the hole
+  // never reaches the fourth day that Sisekord 4 p 11.7 escalates on. Only a hole actually filled
+  // counts - re-running the window behind one that never fills would rewrite every day, nightly.
+  private List<LocalDate> storedDatesAfter(TulevaFund fund, LocalDate filledDate, LocalDate to) {
+    return eventRepository.findDistinctCheckDates(fund, filledDate, to).stream()
+        .filter(filledDate::isBefore)
+        .sorted()
+        .toList();
+  }
+
   private List<LocalDate> uncheckedDates(TulevaFund fund, LocalDate from, LocalDate to) {
-    var alreadyChecked =
-        Set.copyOf(eventRepository.findDistinctCheckDates(fund, MODEL_PORTFOLIO, from, to));
+    // Any stored event means the check ran for that date. Counting only MODEL_PORTFOLIO would
+    // treat a date whose model check produced nothing as unchecked forever, appending a duplicate
+    // set of benchmark rows every evening.
+    var alreadyChecked = Set.copyOf(eventRepository.findDistinctCheckDates(fund, from, to));
     return fundPositionRepository.findDistinctNavDatesByFundBetween(fund, from, to).stream()
         .filter(navDate -> !alreadyChecked.contains(navDate))
         .sorted()

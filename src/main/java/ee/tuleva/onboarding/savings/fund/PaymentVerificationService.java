@@ -78,7 +78,15 @@ public class PaymentVerificationService {
   public void process(SavingFundPayment payment) {
     log.info("Processing payment {}", payment.getId());
 
-    var partyIdOpt = extractPartyId(payment);
+    var partyIdFromDescription = extractPartyIdFromDescription(payment.getDescription());
+    var remitterPartyId = parsePartyId(payment.getRemitterIdCode());
+    var partyIdOpt = partyIdFromDescription;
+    if (partyIdOpt.isEmpty()) {
+      log.info(
+          "Payment {} has no code in description, falling back to remitter id code",
+          payment.getId());
+      partyIdOpt = remitterPartyId;
+    }
     if (partyIdOpt.isEmpty()) {
       identityCheckFailure(payment, "makse ei sisalda tuvastatavat isikukoodi/registrikoodi");
       return;
@@ -87,15 +95,20 @@ public class PaymentVerificationService {
     PartyId partyId = partyIdOpt.get();
     var messages = VerificationMessages.forType(partyId.type());
 
-    var remitterPartyId = parsePartyId(payment.getRemitterIdCode());
-    boolean representingChild =
-        remitterPartyId
-            .filter(r -> !r.equals(partyId))
-            .map(r -> isAuthorizedRemitter(r, partyId))
-            .orElse(false);
-    if (remitterPartyId.isPresent()
-        && !remitterPartyId.get().equals(partyId)
-        && !representingChild) {
+    // Since 18.09.2026 the fund rules deem a purchase order given by a deposit made by the unit
+    // holder "or by a third party for the benefit of the unit holder", so a deposit whose
+    // description names a natural-person unit holder is attributed to them whoever sent it —
+    // that is what lets grandparents and friends gift into a child's account. Company accounts
+    // keep the stricter identity checks. Attribution, not authorization: accepting money grants
+    // the payer no access, acting on someone's behalf still goes through isActiveRepresentation.
+    boolean acceptedFromAnyRemitter =
+        partyIdFromDescription.isPresent() && partyId.type() == PERSON;
+
+    // Only company accounts reach this now: a natural person identified in the description is
+    // accepted from any remitter, and a party taken from the remitter id code always equals it.
+    if (!acceptedFromAnyRemitter
+        && remitterPartyId.isPresent()
+        && !remitterPartyId.get().equals(partyId)) {
       identityCheckFailure(payment, messages.codeMismatch());
       return;
     }
@@ -106,8 +119,10 @@ public class PaymentVerificationService {
       return;
     }
 
-    if (remitterPartyId.isEmpty()
-        && !nameMatcher.isSameName(party.get().name(), payment.getRemitterName())) {
+    boolean remitterNameIsUnitHolder =
+        nameMatcher.isSameName(party.get().name(), payment.getRemitterName());
+
+    if (!acceptedFromAnyRemitter && remitterPartyId.isEmpty() && !remitterNameIsUnitHolder) {
       identityCheckFailure(payment, messages.nameMismatch());
       return;
     }
@@ -117,7 +132,21 @@ public class PaymentVerificationService {
       return;
     }
 
+    // Whose money this is, for AML scoring. The remitter id code settles it when the bank sends
+    // one; otherwise the remitter name is all that is left to go on.
+    boolean thirdPartyDeposit =
+        remitterPartyId
+            .map(remitter -> !remitter.equals(partyId))
+            .orElse(!remitterNameIsUnitHolder);
+
+    boolean representingChild =
+        remitterPartyId
+            .filter(r -> !r.equals(partyId))
+            .map(r -> isAuthorizedRemitter(r, partyId))
+            .orElse(false);
+
     savingFundPaymentRepository.attachParty(payment.getId(), partyId);
+    savingFundPaymentRepository.markThirdPartyDeposit(payment.getId(), thirdPartyDeposit);
 
     log.info(
         "Verification completed for payment {}, attaching to party {}", payment.getId(), partyId);
@@ -172,20 +201,8 @@ public class PaymentVerificationService {
         .flatMap(userRepository::findByPersonalCode);
   }
 
-  private Optional<PartyId> extractPartyId(SavingFundPayment payment) {
-    var partyIdFromDescription = extractPartyIdFromDescription(payment.getDescription());
-    if (partyIdFromDescription.isPresent()) {
-      return partyIdFromDescription;
-    }
-    log.info(
-        "Payment {} has no code in description, falling back to remitter id code", payment.getId());
-    return parsePartyId(payment.getRemitterIdCode());
-  }
-
-  // Attribution, not authorization: deciding whether an incoming payment is plausibly for this
-  // child, so we attribute it instead of bouncing it. Accepting money grants the payer no access —
-  // acting on the child's behalf goes through isActiveRepresentation. Tuleva intends to accept
-  // third-party payments generally, at which point this widening goes away.
+  // Still needed for MINOR_DEPOSIT_VERIFIED, which tracks a guardian funding the child they
+  // represent — a narrower thing than the third-party deposits now accepted generally above.
   private boolean isAuthorizedRemitter(PartyId remitter, PartyId party) {
     return remitter.type() == PERSON
         && party.type() == PERSON

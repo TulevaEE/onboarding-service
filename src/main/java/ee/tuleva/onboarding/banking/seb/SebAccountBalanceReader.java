@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.banking.seb;
 import ee.tuleva.onboarding.banking.BankAccount;
 import java.io.StringReader;
 import java.math.BigDecimal;
-import java.util.List;
 import java.util.Optional;
 import javax.xml.parsers.DocumentBuilderFactory;
 import lombok.RequiredArgsConstructor;
@@ -17,8 +16,7 @@ import org.xml.sax.InputSource;
 @Component
 @RequiredArgsConstructor
 public class SebAccountBalanceReader {
-  private static final List<String> BALANCE_TYPES_MOST_SPENDABLE_FIRST =
-      List.of("ITAV", "AVL", "CLAV", "ITBD", "CLBD");
+  private static final String DEBIT = "DBIT";
 
   private final SebGatewayClient sebGatewayClient;
 
@@ -38,14 +36,15 @@ public class SebAccountBalanceReader {
     factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
     var document = factory.newDocumentBuilder().parse(new InputSource(new StringReader(xml)));
 
-    var balances = document.getElementsByTagNameNS("*", "Bal");
-    for (var preferred : BALANCE_TYPES_MOST_SPENDABLE_FIRST) {
-      for (int i = 0; i < balances.getLength(); i++) {
-        var balance = (Element) balances.item(i);
-        if (preferred.equals(text(balance, "Cd"))) {
-          var amount = text(balance, "Amt");
-          if (amount != null) {
-            return Optional.of(signed(new BigDecimal(amount), text(balance, "CdtDbtInd")));
+    var reportedBalances = document.getElementsByTagNameNS("*", "Bal");
+    for (var wantedType : BalanceType.mostSpendableFirst()) {
+      for (int i = 0; i < reportedBalances.getLength(); i++) {
+        var reportedBalance = (Element) reportedBalances.item(i);
+        if (wantedType.isoCode.equals(text(reportedBalance, "Cd"))) {
+          var reportedAmount = text(reportedBalance, "Amt");
+          if (reportedAmount != null) {
+            return Optional.of(
+                signed(new BigDecimal(reportedAmount), text(reportedBalance, "CdtDbtInd")));
           }
         }
       }
@@ -55,11 +54,29 @@ public class SebAccountBalanceReader {
   }
 
   private static BigDecimal signed(BigDecimal amount, @Nullable String creditDebitIndicator) {
-    return "DBIT".equals(creditDebitIndicator) ? amount.negate() : amount;
+    return DEBIT.equals(creditDebitIndicator) ? amount.negate() : amount;
   }
 
   private static @Nullable String text(Element parent, String localName) {
     var found = parent.getElementsByTagNameNS("*", localName);
     return found.getLength() == 0 ? null : found.item(0).getTextContent().trim();
+  }
+
+  private enum BalanceType {
+    INTERIM_AVAILABLE("ITAV"),
+    AVAILABLE("AVL"),
+    CLOSING_AVAILABLE("CLAV"),
+    INTERIM_BOOKED("ITBD"),
+    CLOSING_BOOKED("CLBD");
+
+    private final String isoCode;
+
+    BalanceType(String isoCode) {
+      this.isoCode = isoCode;
+    }
+
+    private static BalanceType[] mostSpendableFirst() {
+      return values();
+    }
   }
 }

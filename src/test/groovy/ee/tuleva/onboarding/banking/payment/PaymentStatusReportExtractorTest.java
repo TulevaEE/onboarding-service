@@ -26,7 +26,7 @@ class PaymentStatusReportExtractorTest {
     assertThat(report.transactionStatuses()).hasSize(1);
     var transaction = report.transactionStatuses().getFirst();
     assertThat(transaction.endToEndId()).isEqualTo("abc123");
-    assertThat(transaction.status()).isEqualTo(PaymentStatus.RJCT);
+    assertThat(transaction.status()).isEqualTo(PaymentStatus.REJECTED);
     assertThat(transaction.status().isRejection()).isTrue();
     assertThat(transaction.reasonCode()).isEqualTo("AC01");
   }

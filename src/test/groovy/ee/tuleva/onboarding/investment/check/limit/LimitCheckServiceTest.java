@@ -15,6 +15,7 @@ import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
+import ee.tuleva.onboarding.investment.check.limit.LimitCheckRun.UnfilledGap;
 import ee.tuleva.onboarding.investment.portfolio.*;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
@@ -107,10 +108,29 @@ class LimitCheckServiceTest {
         .when(fundPositionRepository.findByNavDateAndFundAndAccountType(gap, TUK75, SECURITY))
         .thenThrow(new RuntimeException("DB down"));
 
-    var run = service.fillGaps(Map.of(TUK75, List.of(gap)));
+    var run = service.fillGaps(Map.of(TUK75, List.of(gap)), 30);
 
     assertThat(run.results()).isEmpty();
-    assertThat(run.fundsNotChecked()).containsExactly(TUK75);
+    assertThat(run.unfilledGaps())
+        .containsExactly(new UnfilledGap(TUK75, gap, 1, LocalDate.of(2026, 4, 2)));
+  }
+
+  // Nothing fills these on its own and nothing else reports them, so a gap weeks old still comes
+  // back every evening - carrying how long it has stood and the last evening it will be attempted,
+  // because after that it leaves the lookback window and is never tried again.
+  @Test
+  void aGapThatHasBeenFailingForWeeksIsStillReportedAndCarriesItsAge() {
+    service = createService();
+    var staleGap = LocalDate.of(2026, 2, 10);
+    lenient()
+        .when(fundPositionRepository.findByNavDateAndFundAndAccountType(staleGap, TUK75, SECURITY))
+        .thenThrow(new RuntimeException("DB down"));
+
+    var run = service.fillGaps(Map.of(TUK75, List.of(staleGap)), 30);
+
+    assertThat(run.results()).isEmpty();
+    assertThat(run.unfilledGaps())
+        .containsExactly(new UnfilledGap(TUK75, staleGap, 22, LocalDate.of(2026, 3, 12)));
   }
 
   @Test

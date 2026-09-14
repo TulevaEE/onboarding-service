@@ -16,6 +16,8 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class LimitCheckNotifier {
 
+  private static final int STANDING_GAP_DAYS = 5;
+
   private final OperationsNotificationService notificationService;
 
   void notify(LimitCheckRun run) {
@@ -42,6 +44,18 @@ class LimitCheckNotifier {
     }
   }
 
+  void notifyPositionSyncFailed(Exception failure) {
+    try {
+      notificationService.sendMessage(
+          "⚠️ Fee accrual position sync failed before the limit check gap fill — the checks below"
+              + " ran against the positions already stored: error=%s"
+                  .formatted(failure.getMessage()),
+          INVESTMENT);
+    } catch (Exception e) {
+      log.error("Failed to send limit check position sync failure notification", e);
+    }
+  }
+
   private void sendAllClear(LimitCheckRun run) {
     if (run.isEmpty()) {
       notificationService.sendMessage(
@@ -50,9 +64,23 @@ class LimitCheckNotifier {
     }
     var message = new StringBuilder();
     if (!run.results().isEmpty()) {
+      // A gap fill returns many dates per fund, so the fund has to be named once and the dates
+      // said out loud - otherwise the same four codes repeat down the message with nothing to say
+      // which day any of them is about.
       var fundNames =
-          run.results().stream().map(r -> r.fund().getCode()).collect(Collectors.joining(", "));
-      message.append("✅ Limit check completed: %s within limits".formatted(fundNames));
+          run.results().stream()
+              .map(r -> r.fund().getCode())
+              .distinct()
+              .sorted()
+              .collect(Collectors.joining(", "));
+      var dates =
+          run.results().stream().map(LimitCheckResult::checkDate).distinct().sorted().toList();
+      message.append(
+          dates.size() == 1
+              ? "✅ Limit check completed: %s within limits on %s"
+                  .formatted(fundNames, dates.getFirst())
+              : "✅ Limit check completed: %s within limits on %d dates, %s to %s"
+                  .formatted(fundNames, dates.size(), dates.getFirst(), dates.getLast()));
     }
     appendNotChecked(message, run);
     notificationService.sendMessage(message.toString(), INVESTMENT);
@@ -73,6 +101,7 @@ class LimitCheckNotifier {
   }
 
   private void appendNotChecked(StringBuilder message, LimitCheckRun run) {
+    appendUnfilledGaps(message, run);
     if (run.fundsNotChecked().isEmpty()) {
       return;
     }
@@ -81,6 +110,33 @@ class LimitCheckNotifier {
     message
         .append(message.isEmpty() ? "" : "\n\n")
         .append("⏸ Not checked: %s — no limits were verified for these".formatted(fundNames));
+  }
+
+  // These days have no limit check and nothing else will ever mention them, so they are named in
+  // full every evening. Once a gap has stood longer than a working week it is not going to fill
+  // itself, so it says how long it has been open and the last evening it will be attempted before
+  // it drops out of the lookback window unchecked.
+  private void appendUnfilledGaps(StringBuilder message, LimitCheckRun run) {
+    if (run.unfilledGaps().isEmpty()) {
+      return;
+    }
+    message
+        .append(message.isEmpty() ? "" : "\n\n")
+        .append("⏸ Not checked — no limits were verified for these days:");
+    run.unfilledGaps()
+        .forEach(
+            gap ->
+                message.append(
+                    "\n  %s %s%s"
+                        .formatted(gap.fund().getCode(), gap.checkDate(), describeAge(gap))));
+  }
+
+  private String describeAge(LimitCheckRun.UnfilledGap gap) {
+    if (gap.daysUnfilled() <= STANDING_GAP_DAYS) {
+      return "";
+    }
+    return " — standing gap: open for %d days, last attempt %s"
+        .formatted(gap.daysUnfilled(), gap.lastAttempt());
   }
 
   private BreachSeverity appendResultBreaches(StringBuilder body, LimitCheckResult result) {
@@ -100,11 +156,12 @@ class LimitCheckNotifier {
       if (breach.severity() != OK) {
         worst = worse(worst, breach.severity());
         body.append(
-            "\n%s [%s] POSITION %s: %s=%s%%, soft=%s%%, hard=%s%%"
+            "\n%s [%s] POSITION %s %s: %s=%s%%, soft=%s%%, hard=%s%%"
                 .formatted(
                     severityIcon(breach.severity()),
                     breach.severity(),
                     result.fund(),
+                    result.checkDate(),
                     breach.label(),
                     breach.actualPercent(),
                     breach.softLimitPercent(),
@@ -120,11 +177,12 @@ class LimitCheckNotifier {
       if (breach.severity() != OK) {
         worst = worse(worst, breach.severity());
         body.append(
-            "\n%s [%s] PROVIDER %s: %s=%s%%, soft=%s%%, hard=%s%%"
+            "\n%s [%s] PROVIDER %s %s: %s=%s%%, soft=%s%%, hard=%s%%"
                 .formatted(
                     severityIcon(breach.severity()),
                     breach.severity(),
                     result.fund(),
+                    result.checkDate(),
                     breach.provider(),
                     breach.actualPercent(),
                     breach.softLimitPercent(),
@@ -140,11 +198,12 @@ class LimitCheckNotifier {
     }
     var breach = result.reserveBreach();
     body.append(
-        "\n%s [%s] RESERVE %s: cash=%s, soft=%s, hard=%s"
+        "\n%s [%s] RESERVE %s %s: cash=%s, soft=%s, hard=%s"
             .formatted(
                 severityIcon(breach.severity()),
                 breach.severity(),
                 result.fund(),
+                result.checkDate(),
                 breach.cashBalance(),
                 breach.reserveSoft(),
                 breach.reserveHard()));

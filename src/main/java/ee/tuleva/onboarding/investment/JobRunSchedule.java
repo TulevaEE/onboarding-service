@@ -16,7 +16,7 @@ public final class JobRunSchedule {
 
   // Limit check backstop. The check itself runs on NavCalculationCompleted; this fills any day
   // that produced no event, which the retired yearly backfill ("0 30 8 16 3 *") could leave
-  // unnoticed for up to a year. Half an hour after the TD run so the two do not contend.
+  // unnoticed for up to a year. Late enough that the day's imports and NAV run have landed.
   public static final String LIMIT_CHECK_DAILY_GAP_FILL = "0 30 18 * * MON-FRI";
 
   // Backfill schedules (kept on cron, not event-driven)

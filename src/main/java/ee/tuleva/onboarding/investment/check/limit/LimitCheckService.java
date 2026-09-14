@@ -3,8 +3,10 @@ package ee.tuleva.onboarding.investment.check.limit;
 import static ee.tuleva.onboarding.investment.check.limit.CheckType.*;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
 import static java.math.BigDecimal.ZERO;
+import static java.time.temporal.ChronoUnit.DAYS;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
+import ee.tuleva.onboarding.investment.check.limit.LimitCheckRun.UnfilledGap;
 import ee.tuleva.onboarding.investment.portfolio.*;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
@@ -20,7 +22,6 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -72,9 +73,14 @@ class LimitCheckService {
     return gaps;
   }
 
-  LimitCheckRun fillGaps(Map<TulevaFund, List<LocalDate>> gaps) {
+  // A gap that fails is not self-healing and nothing else reports it, so every one of them comes
+  // back every evening. What ages is the wording, not the alert: a date carries how long it has
+  // gone unfilled and the last evening it will be attempted, because after that it leaves the
+  // lookback window and is never tried again.
+  LimitCheckRun fillGaps(Map<TulevaFund, List<LocalDate>> gaps, int lookbackDays) {
+    var today = LocalDate.now(clock);
     var results = new ArrayList<LimitCheckResult>();
-    var fundsNotChecked = new LinkedHashSet<TulevaFund>();
+    var unfilledGaps = new ArrayList<UnfilledGap>();
 
     gaps.forEach(
         (fund, dates) ->
@@ -85,11 +91,16 @@ class LimitCheckService {
                   } catch (Exception e) {
                     log.error(
                         "Limit check gap fill failed: fund={}, checkDate={}", fund, checkDate, e);
-                    fundsNotChecked.add(fund);
+                    unfilledGaps.add(
+                        new UnfilledGap(
+                            fund,
+                            checkDate,
+                            DAYS.between(checkDate, today),
+                            checkDate.plusDays(lookbackDays)));
                   }
                 }));
 
-    return new LimitCheckRun(results, List.copyOf(fundsNotChecked));
+    return new LimitCheckRun(List.copyOf(results), List.of(), List.copyOf(unfilledGaps));
   }
 
   LimitCheckRun runChecks() {

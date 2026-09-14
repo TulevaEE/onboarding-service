@@ -87,13 +87,27 @@ public class LimitCheckJob {
       }
 
       log.info("Filling limit check gaps: gaps={}", gaps);
-      int synced = feeAccrualPositionSyncJob.sync(GAP_LOOKBACK_DAYS);
-      log.info("Fee accrual positions synced before gap fill: positionsWritten={}", synced);
+      syncFeeAccrualPositions();
 
-      limitCheckNotifier.notify(limitCheckService.fillGaps(gaps));
+      limitCheckNotifier.notify(limitCheckService.fillGaps(gaps, GAP_LOOKBACK_DAYS));
     } catch (Exception e) {
       log.error("Limit check gap fill failed", e);
       limitCheckNotifier.notifyBackfillFailed(e);
+    }
+  }
+
+  // The sync covers every fund over the whole lookback window, not just the dates being filled, so
+  // one fund's fee-policy gap 20 days back - outside the NAV chain's own 7-day sync, and otherwise
+  // invisible - would abort tonight's gap fill for all four funds and every night after it. The
+  // checks can still run against the positions already stored, so the failure is reported and the
+  // fill continues.
+  private void syncFeeAccrualPositions() {
+    try {
+      int synced = feeAccrualPositionSyncJob.sync(GAP_LOOKBACK_DAYS);
+      log.info("Fee accrual positions synced before gap fill: positionsWritten={}", synced);
+    } catch (Exception e) {
+      log.error("Fee accrual position sync failed before limit check gap fill", e);
+      limitCheckNotifier.notifyPositionSyncFailed(e);
     }
   }
 

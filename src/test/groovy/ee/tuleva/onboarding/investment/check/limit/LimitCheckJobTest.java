@@ -63,7 +63,7 @@ class LimitCheckJobTest {
     job.fillLimitCheckGaps();
 
     verify(feeAccrualPositionSyncJob, never()).sync(anyInt());
-    verify(limitCheckService, never()).fillGaps(any());
+    verify(limitCheckService, never()).fillGaps(any(), anyInt());
     verifyNoInteractions(limitCheckNotifier);
   }
 
@@ -74,13 +74,13 @@ class LimitCheckJobTest {
     var gaps = Map.of(TUK75, List.of(LocalDate.of(2026, 4, 9)));
     var run = LimitCheckRun.of(List.of(mock(LimitCheckResult.class)));
     when(limitCheckService.gapDates(GAP_LOOKBACK_DAYS)).thenReturn(gaps);
-    when(limitCheckService.fillGaps(gaps)).thenReturn(run);
+    when(limitCheckService.fillGaps(gaps, GAP_LOOKBACK_DAYS)).thenReturn(run);
 
     job.fillLimitCheckGaps();
 
     var ordered = inOrder(feeAccrualPositionSyncJob, limitCheckService);
     ordered.verify(feeAccrualPositionSyncJob).sync(GAP_LOOKBACK_DAYS);
-    ordered.verify(limitCheckService).fillGaps(gaps);
+    ordered.verify(limitCheckService).fillGaps(gaps, GAP_LOOKBACK_DAYS);
     verify(limitCheckNotifier).notify(run);
   }
 
@@ -91,6 +91,26 @@ class LimitCheckJobTest {
     job.fillLimitCheckGaps();
 
     verify(limitCheckNotifier).notifyBackfillFailed(any(Exception.class));
+  }
+
+  // The sync covers every fund over the whole window, so one fund's fee-policy gap weeks back
+  // fails it - and letting that abort the run means the limit checks never run again either, every
+  // evening, over a date nothing else would have looked at.
+  @Test
+  void aFailedPositionSyncIsReportedButStillLetsTheGapsBeChecked() {
+    var gaps = Map.of(TUK75, List.of(LocalDate.of(2026, 4, 9)));
+    var run = LimitCheckRun.of(List.of(mock(LimitCheckResult.class)));
+    when(limitCheckService.gapDates(GAP_LOOKBACK_DAYS)).thenReturn(gaps);
+    when(feeAccrualPositionSyncJob.sync(GAP_LOOKBACK_DAYS))
+        .thenThrow(new RuntimeException("no fee policy"));
+    when(limitCheckService.fillGaps(gaps, GAP_LOOKBACK_DAYS)).thenReturn(run);
+
+    job.fillLimitCheckGaps();
+
+    verify(limitCheckNotifier).notifyPositionSyncFailed(any(Exception.class));
+    verify(limitCheckService).fillGaps(gaps, GAP_LOOKBACK_DAYS);
+    verify(limitCheckNotifier).notify(run);
+    verify(limitCheckNotifier, never()).notifyBackfillFailed(any(Exception.class));
   }
 
   @Test

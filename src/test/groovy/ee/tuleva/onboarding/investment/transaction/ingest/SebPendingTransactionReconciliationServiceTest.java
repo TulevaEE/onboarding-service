@@ -72,10 +72,6 @@ class SebPendingTransactionReconciliationServiceTest {
   private SebPendingTransactionReconciliationService newService() {
     given(matchingPolicy.current())
         .willReturn(new TransactionMatchingProperties(null, null, null, null, null));
-    return newServiceWithoutMatching();
-  }
-
-  private SebPendingTransactionReconciliationService newServiceWithoutMatching() {
     SebClientNameToFundResolver resolver = new SebClientNameToFundResolver();
     QuantityAmountValidator validator = new QuantityAmountValidator();
     ReconciliationAuditRecorder auditRecorder =
@@ -1604,17 +1600,24 @@ class SebPendingTransactionReconciliationServiceTest {
   }
 
   @Test
-  void reconcile_refusesAndAlertsWhenTheReportCarriesNoAsOfDate() {
-    service = newServiceWithoutMatching();
+  void reconcile_alertsAndFallsBackToTheReportDateWhenThereIsNoAsOfDate() {
+    service = newService();
     UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder order = sampleOrder(clientRef);
+    given(orderRepository.findByOrderUuid(clientRef)).willReturn(Optional.of(order));
+    given(executionRepository.findAllByOrderId(123L)).willReturn(List.of());
+    List<TransactionExecution> saved = recordSavedExecutions();
 
     service.reconcile(reportOf(validRawRow(clientRef), Map.of()));
 
-    verify(executionRepository, never()).save(any());
-    verify(orderRepository, never()).findByOrderUuid(any());
+    assertThat(saved)
+        .singleElement()
+        .extracting(TransactionExecution::getReportedDate)
+        .isEqualTo(LocalDate.of(2026, 5, 13));
     verify(eventPublisher)
         .publishEvent(
-            new MissingReportAsOfDateEvent(SEB, PENDING_TRANSACTIONS, LocalDate.of(2026, 5, 13)));
+            new MissingReportAsOfDateEvent(
+                SEB, PENDING_TRANSACTIONS, LocalDate.of(2026, 5, 13), null));
   }
 
   @Test

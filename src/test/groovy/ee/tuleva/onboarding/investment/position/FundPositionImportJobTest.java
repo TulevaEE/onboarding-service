@@ -5,7 +5,6 @@ import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SWEDBANK;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
-import static ee.tuleva.onboarding.pipeline.PipelineStep.HEALTH_CHECK;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static java.util.Map.entry;
@@ -17,7 +16,6 @@ import static org.mockito.Mockito.*;
 import ee.tuleva.onboarding.investment.check.health.HealthCheckNotifier;
 import ee.tuleva.onboarding.investment.check.health.HealthCheckResult;
 import ee.tuleva.onboarding.investment.check.health.HealthCheckService;
-import ee.tuleva.onboarding.investment.event.ReportImportCompleted;
 import ee.tuleva.onboarding.investment.position.parser.SebFundPositionParser;
 import ee.tuleva.onboarding.investment.position.parser.SwedbankFundPositionParser;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
@@ -58,7 +56,7 @@ class FundPositionImportJobTest {
   @BeforeEach
   void setUp() {
     swedbankParser = new SwedbankFundPositionParser(Clock.systemUTC());
-    sebParser = new SebFundPositionParser(Clock.systemUTC());
+    sebParser = new SebFundPositionParser(Clock.systemUTC(), eventPublisher);
     importService = new FundPositionImportService(repository, Clock.systemUTC());
     lenient().when(healthCheckService.check(anyList())).thenReturn(List.of());
     job =
@@ -243,48 +241,36 @@ class FundPositionImportJobTest {
         .build();
   }
 
+  // Warning-only for now: the report is still imported, dated from the filename, and the event is
+  // the only signal. Enforcement waits until the alert has been watched on real files.
   @Test
-  void importForProviderAndDate_alertsAndImportsNothing_whenTheReportCarriesNoAsOfDate() {
+  void importForProviderAndDate_stillImports_whenTheReportCarriesNoAsOfDate() {
     LocalDate date = LocalDate.of(2026, 1, 5);
     var report =
         InvestmentReport.builder()
             .provider(SEB)
             .reportType(POSITIONS)
             .reportDate(date)
-            .rawData(List.of(Map.of("Client name", "TKF100", "Market Value (EUR)", "1000")))
+            .rawData(
+                List.of(
+                    Map.of(
+                        "Client name", "TKF100",
+                        "Account", "EE861010220306591229",
+                        "Name", "Cash account in SEB Pank",
+                        "Quantity", "1000",
+                        "Currency", "EUR",
+                        "Market Value (EUR)", "1000")))
             .metadata(Map.of())
             .createdAt(Instant.now())
             .build();
-    when(reportService.getReport(SEB, POSITIONS, date)).thenReturn(Optional.of(report));
+    given(reportService.getReport(SEB, POSITIONS, date)).willReturn(Optional.of(report));
+    given(repository.findByNavDateAndFundAndAccountTypeAndAccountName(any(), any(), any(), any()))
+        .willReturn(Optional.empty());
 
     var result = job.importForProviderAndDate(SEB, date);
 
-    assertThat(result.imported()).isEqualTo(0);
-    verify(repository, never()).save(any(FundPosition.class));
+    assertThat(result.imported()).isEqualTo(1);
     verify(eventPublisher).publishEvent(new MissingReportAsOfDateEvent(SEB, POSITIONS, date, null));
-  }
-
-  // A dropped day must not read as a clean run: without the failure flag the pipeline marks both
-  // steps completed and can post a ✅ summary for an import that discarded a whole day of positions.
-  @Test
-  void runImport_marksTheHealthCheckStepFailed_whenAReportIsRefused() {
-    LocalDate date = LocalDate.now(Clock.systemUTC()).minusDays(1);
-    var report =
-        InvestmentReport.builder()
-            .provider(SEB)
-            .reportType(POSITIONS)
-            .reportDate(date)
-            .rawData(List.of(Map.of("Client name", "TKF100", "Market Value (EUR)", "1000")))
-            .metadata(Map.of())
-            .createdAt(Instant.now())
-            .build();
-    given(reportService.getReport(eq(SEB), eq(POSITIONS), any())).willReturn(Optional.empty());
-    given(reportService.getReport(SEB, POSITIONS, date)).willReturn(Optional.of(report));
-
-    job.onReportImportCompleted(new ReportImportCompleted(SEB, POSITIONS, date, 1));
-
-    verify(pipelineTracker).stepFailed(eq(HEALTH_CHECK), contains("Report refused"));
-    verify(pipelineTracker, never()).stepCompleted(HEALTH_CHECK);
   }
 
   @Test

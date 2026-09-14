@@ -58,17 +58,16 @@ public class SebPendingTransactionReconciliationService {
     LocalDate reportDate = report.getReportDate();
     LocalDate asOfDate = SebReportHeaders.asOfDate(report);
     if (asOfDate == null) {
-      log.error(
-          "No 'As of' date in SEB pending transactions report, refusing to reconcile it:"
-              + " reportDate={}",
-          reportDate);
+      String unreadable =
+          SebReportHeaders.unreadableAsOfValue(report.getMetadata(), report.getRawData());
+      log.warn(
+          "No usable 'As of' date in SEB pending transactions report, falling back to report date:"
+              + " reportDate={}, unreadableValue={}",
+          reportDate,
+          unreadable);
       eventPublisher.publishEvent(
-          new MissingReportAsOfDateEvent(
-              SEB,
-              PENDING_TRANSACTIONS,
-              reportDate,
-              SebReportHeaders.unreadableAsOfValue(report.getMetadata(), report.getRawData())));
-      return;
+          new MissingReportAsOfDateEvent(SEB, PENDING_TRANSACTIONS, reportDate, unreadable));
+      asOfDate = reportDate;
     }
 
     SebPendingTransactionExtractor.ExtractionResult extraction =

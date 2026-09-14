@@ -19,8 +19,6 @@ import ee.tuleva.onboarding.investment.position.parser.SebFundPositionParser;
 import ee.tuleva.onboarding.investment.position.parser.SwedbankFundPositionParser;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
-import ee.tuleva.onboarding.investment.report.MissingReportAsOfDateEvent;
-import ee.tuleva.onboarding.investment.report.MissingReportAsOfDateException;
 import ee.tuleva.onboarding.investment.report.ReportProvider;
 import ee.tuleva.onboarding.pipeline.PipelineTracker;
 import ee.tuleva.onboarding.savings.fund.nav.NavPositionsUpdated;
@@ -162,22 +160,11 @@ public class FundPositionImportJob {
     }
 
     InvestmentReport investmentReport = report.get();
-    List<FundPosition> positions;
-    try {
-      positions =
-          parser.parse(
-              investmentReport.getRawData(),
-              investmentReport.getReportDate(),
-              investmentReport.getMetadata());
-    } catch (MissingReportAsOfDateException e) {
-      healthCheckFailed = true;
-      healthCheckFailureDetail =
-          "Report refused, no As of date: provider=%s, date=%s".formatted(provider, date);
-      log.error("Positions report refused: provider={}, date={}", provider, date, e);
-      eventPublisher.publishEvent(
-          new MissingReportAsOfDateEvent(provider, POSITIONS, date, e.getUnreadableValue()));
-      return ImportResult.none();
-    }
+    List<FundPosition> positions =
+        parser.parse(
+            investmentReport.getRawData(),
+            investmentReport.getReportDate(),
+            investmentReport.getMetadata());
     log.info(
         "Parsed fund positions: provider={}, date={}, count={}", provider, date, positions.size());
 

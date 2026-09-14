@@ -7,7 +7,7 @@ import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.investment.position.AccountType;
 import ee.tuleva.onboarding.investment.position.FundPosition;
-import ee.tuleva.onboarding.investment.report.MissingReportAsOfDateException;
+import ee.tuleva.onboarding.investment.report.MissingReportAsOfDateEvent;
 import ee.tuleva.onboarding.investment.report.SebReportHeaders;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -31,6 +32,7 @@ import org.springframework.stereotype.Component;
 public class SebFundPositionParser implements FundPositionParser {
 
   private final Clock clock;
+  private final ApplicationEventPublisher eventPublisher;
 
   private static final Set<String> FUND_CODES =
       Arrays.stream(TulevaFund.values()).map(TulevaFund::getCode).collect(Collectors.toSet());
@@ -54,8 +56,15 @@ public class SebFundPositionParser implements FundPositionParser {
     LocalDate sentDate = SebReportHeaders.sentDate(metadata, rawData);
 
     if (navDate == null) {
-      throw new MissingReportAsOfDateException(
-          SEB, POSITIONS, SebReportHeaders.unreadableAsOfValue(metadata, rawData));
+      String unreadable = SebReportHeaders.unreadableAsOfValue(metadata, rawData);
+      log.warn(
+          "No usable 'As of' date in SEB positions report, falling back to report date:"
+              + " reportDate={}, unreadableValue={}",
+          reportDate,
+          unreadable);
+      eventPublisher.publishEvent(
+          new MissingReportAsOfDateEvent(SEB, POSITIONS, reportDate, unreadable));
+      navDate = reportDate;
     }
     if (sentDate == null) {
       log.warn("No 'Sent' date found in SEB data, falling back to report date");

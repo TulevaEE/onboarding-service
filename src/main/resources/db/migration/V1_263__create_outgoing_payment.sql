@@ -7,7 +7,7 @@ CREATE TABLE outgoing_payment (
     remitter_iban     text           NOT NULL,
     beneficiary_iban  text           NOT NULL,
     amount            numeric(19, 2) NOT NULL,
-    currency          text           NOT NULL DEFAULT 'EUR',
+    currency          varchar(3)     NOT NULL DEFAULT 'EUR',
     body_hash         text           NOT NULL,
     status            text           NOT NULL,
     failure_reason    text,

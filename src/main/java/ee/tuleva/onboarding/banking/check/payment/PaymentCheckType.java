@@ -3,6 +3,10 @@ package ee.tuleva.onboarding.banking.check.payment;
 public enum PaymentCheckType {
   /** The generated file did not match the payment request, so nothing was sent. */
   PAYMENT_BLOCKED,
+  /** A payout that could not be made, failed before pricing so its units never left the party. */
+  PAYOUT_BLOCKED,
+  /** A redemption running out of time against the sisekord's T+3 bound, warned a day early. */
+  PAYOUT_OVERDUE,
   /** The remitter was not one of our bank accounts, so no bank received the payment. */
   PAYMENT_MISROUTED,
   /** The bank told us it will not execute a payment we submitted. */

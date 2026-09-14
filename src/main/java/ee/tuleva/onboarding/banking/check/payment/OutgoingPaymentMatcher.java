@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.HO
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.INFO;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.DEBIT_MISMATCH;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.PHANTOM_DEBIT;
+import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.EXECUTED;
 
 import ee.tuleva.onboarding.banking.StatementDebit;
 import ee.tuleva.onboarding.banking.payment.OutgoingPayment;
@@ -60,18 +61,28 @@ public class OutgoingPaymentMatcher {
       return;
     }
 
-    if (debited.compareTo(logged.getAmount()) != 0) {
+    // The end-to-end id is ours and the bank echoes it back, so it identifies the payment but says
+    // nothing about where the money went. Both halves of what we authorised are checked.
+    var wrongAmount = debited.compareTo(logged.getAmount()) != 0;
+    var wrongBeneficiary = !debit.beneficiaryIban().equalsIgnoreCase(logged.getBeneficiaryIban());
+    if (wrongAmount || wrongBeneficiary) {
       paymentCheckService.record(
-          DEBIT_MISMATCH,
-          HOLD,
-          endToEndId,
-          "the bank debited an amount other than the one we authorised");
+          DEBIT_MISMATCH, HOLD, endToEndId, mismatchDetail(wrongAmount, wrongBeneficiary));
     }
     markExecuted(logged);
   }
 
+  private static String mismatchDetail(boolean wrongAmount, boolean wrongBeneficiary) {
+    if (wrongAmount && wrongBeneficiary) {
+      return "the bank debited a different amount, to a different account, than we authorised";
+    }
+    return wrongAmount
+        ? "the bank debited an amount other than the one we authorised"
+        : "the bank paid an account other than the one we authorised";
+  }
+
   private void markExecuted(OutgoingPayment logged) {
-    if (logged.getStatus() != ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.EXECUTED) {
+    if (logged.getStatus() != EXECUTED) {
       outgoingPaymentService.recordExecuted(logged.getEndToEndId());
     }
   }

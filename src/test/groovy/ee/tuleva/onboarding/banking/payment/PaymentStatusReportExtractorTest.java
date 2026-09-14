@@ -94,6 +94,27 @@ class PaymentStatusReportExtractorTest {
     assertThat(report.transactionStatuses()).isEmpty();
   }
 
+  // A status buried in the original-transaction block describes the original instruction, not what
+  // the bank did with this one. Reading it as the transaction's own would mark the wrong payment
+  // rejected, which is worse than reporting no status at all.
+  @Test
+  void aStatusNestedInAnOriginalTransactionBlockIsNotReadAsThisTransactionsOwn() {
+    var report =
+        extractor.extract(
+            report(
+                """
+        <OrgnlPmtInfAndSts>
+          <TxInfAndSts>
+            <OrgnlEndToEndId>abc123</OrgnlEndToEndId>
+            <OrgnlTxRef><TxSts>RJCT</TxSts></OrgnlTxRef>
+          </TxInfAndSts>
+        </OrgnlPmtInfAndSts>
+        """));
+
+    assertThat(report.transactionStatuses().getFirst().status()).isEqualTo(PaymentStatus.UNKNOWN);
+    assertThat(report.rejections()).isEmpty();
+  }
+
   private static String report(String body) {
     return """
         <?xml version="1.0" encoding="UTF-8"?>

@@ -30,6 +30,22 @@ class PaymentFileIntegrityValidatorTest {
     assertThat(violations).isEmpty();
   }
 
+  // The same document, with the ISO namespace behind a prefix instead of as the default. Reading
+  // raw tag names would fail every field here, which looks like a tampered file rather than a
+  // reformatted one -- fail-closed, but for entirely the wrong reason.
+  @Test
+  void theSameFileIsReadTheSameWayWhenTheNamespaceIsPrefixed() {
+    var request = paymentRequest(new BigDecimal("111.03"), "John Doe");
+    var prefixed =
+        generate(request)
+            .replace("xmlns=\"urn:iso", "xmlns:p=\"urn:iso")
+            .replaceAll("<(/?)(?!\\?)([A-Za-z][A-Za-z0-9]*)", "<$1p:$2");
+
+    var violations = validator.validate(prefixed, request);
+
+    assertThat(violations).isEmpty();
+  }
+
   @Test
   void detectsTamperedBeneficiaryIban() {
     var request = paymentRequest(new BigDecimal("111.03"), "John Doe");

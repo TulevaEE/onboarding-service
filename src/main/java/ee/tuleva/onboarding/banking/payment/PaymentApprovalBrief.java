@@ -15,9 +15,21 @@ import java.util.List;
 public record PaymentApprovalBrief(
     LocalDate date,
     List<AccountSummary> accounts,
+    List<Verdict> verdicts,
     int heldCount,
     List<String> heldReasons,
     boolean attention) {
+
+  /**
+   * What stood between these payments and the bank, stated as something true of today rather than
+   * as decoration. A gate is green because it held nothing; one that held something says so. The
+   * cross-account tie carries both of its numbers, because that is the one figure a signatory can
+   * verify without leaving the message.
+   *
+   * @param detail null when there is nothing to add to a green verdict.
+   */
+  public record Verdict(
+      String label, boolean passed, @org.jspecify.annotations.Nullable String detail) {}
 
   /**
    * @param projectedBalance what the account is left with once these payments execute, or null when
@@ -48,5 +60,10 @@ public record PaymentApprovalBrief(
 
   public BigDecimal grandTotal() {
     return accounts.stream().map(AccountSummary::total).reduce(BigDecimal.ZERO, BigDecimal::add);
+  }
+
+  /** One home for the money format, so the tie reads the same way as the totals above it. */
+  public static String amount(BigDecimal value) {
+    return String.format(java.util.Locale.ROOT, "%,.2f", value);
   }
 }

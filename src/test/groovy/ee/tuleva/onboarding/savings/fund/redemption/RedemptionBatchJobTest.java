@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.HOLD;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.PAYOUT_BLOCKED;
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.PAYOUT;
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.REDEMPTION_TRANSFER;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
@@ -17,6 +19,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.banking.BankAccounts;
+import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.payment.PaymentRequest;
 import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
@@ -60,6 +63,7 @@ class RedemptionBatchJobTest {
   @Mock private CompanyRepository companyRepository;
   @Mock private UserRepository userRepository;
   @Mock private RedemptionPayoutValidator payoutValidator;
+  @Mock private PaymentCheckService paymentCheckService;
 
   @BeforeEach
   void setUp() {
@@ -85,7 +89,8 @@ class RedemptionBatchJobTest {
         new EndToEndIdConverter(),
         companyRepository,
         userRepository,
-        payoutValidator);
+        payoutValidator,
+        paymentCheckService);
   }
 
   @Test
@@ -211,6 +216,52 @@ class RedemptionBatchJobTest {
         .redeemFundUnitsFromReserved(any(), any(), any(), any(), any());
     verify(eventPublisher, never()).publishEvent(any(RequestPaymentEvent.class));
     verify(redemptionStatusService).changeStatus(requestId, FAILED);
+  }
+
+  // A payout stopped here never gets an outgoing_payment row either, so the check event is the only
+  // record that it was ever attempted. Without it the brief shows one fewer payout than expected,
+  // which is indistinguishable from someone having cancelled it.
+  @Test
+  void runJob_anUnpayableRequestIsHeldSoTheApprovalBriefCanNameIt() {
+    var now = Instant.parse("2025-01-15T15:00:00Z");
+    var requestId = UUID.randomUUID();
+    var request = redemptionRequestFixture().id(requestId).status(VERIFIED).build();
+
+    when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
+        .thenReturn(List.of(request));
+    when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(payoutValidator.findBlockingReason(request))
+        .thenReturn(Optional.of("Beneficiary IBAN no longer belongs to the party"));
+
+    createBatchJob(now).runJob();
+
+    verify(paymentCheckService)
+        .record(
+            PAYOUT_BLOCKED,
+            HOLD,
+            requestId.toString(),
+            "Beneficiary IBAN no longer belongs to the party");
+  }
+
+  // The hold reaches Slack, so it names the check and nothing else. The thrown message carries the
+  // request's own amounts, which is exactly what the brief is not allowed to publish.
+  @Test
+  void runJob_aRequestThatCannotBePricedIsHeldWithoutPublishingItsAmounts() {
+    var now = Instant.parse("2025-01-15T15:00:00Z");
+    var requestId = UUID.randomUUID();
+    var request = redemptionRequestFixture().id(requestId).status(VERIFIED).build();
+
+    when(redemptionRequestRepository.findAcceptedBefore(eq(VERIFIED), any()))
+        .thenReturn(List.of(request));
+    when(redemptionRequestRepository.findById(requestId)).thenReturn(Optional.of(request));
+    when(transactionTemplate.execute(any()))
+        .thenThrow(new IllegalStateException("Priced amount does not reconcile: expected=9.99"));
+
+    createBatchJob(now).runJob();
+
+    verify(paymentCheckService)
+        .record(PAYOUT_BLOCKED, HOLD, requestId.toString(), "Pricing failed, so nothing was paid");
+    verify(eventPublisher, never()).publishEvent(any(RequestPaymentEvent.class));
   }
 
   @Test

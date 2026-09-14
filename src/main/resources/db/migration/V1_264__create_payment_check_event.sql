@@ -6,6 +6,7 @@ CREATE TABLE payment_check_event (
     detail       text        NOT NULL,
     alert_failed boolean     NOT NULL DEFAULT false,
     created_at   timestamptz NOT NULL DEFAULT now(),
+    last_seen_at timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT payment_check_event_pkey PRIMARY KEY (id)
 );
 
@@ -16,10 +17,13 @@ COMMENT ON TABLE payment_check_event IS
 COMMENT ON COLUMN payment_check_event.external_key IS
     'Identifies the thing the finding is about - a bank entry id, an endToEndId - so the same '
     'finding is recognised across re-reads.';
+COMMENT ON COLUMN payment_check_event.last_seen_at IS
+    'When the finding was last recorded. created_at is never moved, so how long something has been '
+    'broken stays readable.';
 COMMENT ON COLUMN payment_check_event.alert_failed IS
     'Set when the notification could not be delivered, so a finding first seen during a chat outage '
     'alerts again instead of silently becoming the new baseline.';
 
 CREATE UNIQUE INDEX payment_check_event_dedupe_idx
     ON payment_check_event (check_type, external_key);
-CREATE INDEX payment_check_event_created_idx ON payment_check_event (created_at DESC);
+CREATE INDEX payment_check_event_last_seen_idx ON payment_check_event (last_seen_at DESC);

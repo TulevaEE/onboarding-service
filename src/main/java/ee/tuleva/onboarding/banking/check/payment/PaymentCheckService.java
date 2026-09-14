@@ -49,13 +49,18 @@ public class PaymentCheckService {
       return;
     }
 
+    var now = Instant.now(clock);
     var event =
         existing.orElseGet(
             () ->
-                PaymentCheckEvent.builder().checkType(checkType).externalKey(externalKey).build());
+                PaymentCheckEvent.builder()
+                    .checkType(checkType)
+                    .externalKey(externalKey)
+                    .createdAt(now)
+                    .build());
     event.setSeverity(severity);
     event.setDetail(detail);
-    event.setCreatedAt(Instant.now(clock));
+    event.setLastSeenAt(now);
     // Assume the alert will go out; the listener corrects this if it cannot.
     event.setAlertFailed(false);
     var saved = paymentCheckEventRepository.save(event);
@@ -70,7 +75,7 @@ public class PaymentCheckService {
 
   public List<PaymentCheckEvent> holdsOn(LocalDate date) {
     var dayStart = date.atStartOfDay(TALLINN).toInstant();
-    return paymentCheckEventRepository.findBySeverityAndCreatedAtBetween(
+    return paymentCheckEventRepository.findBySeverityAndLastSeenAtBetween(
         PaymentCheckSeverity.HOLD, dayStart, dayStart.plus(java.time.Duration.ofDays(1)));
   }
 

@@ -43,5 +43,9 @@ public class PaymentCheckEvent {
 
   private boolean alertFailed;
 
+  /** When this finding was first seen. Never moved, so "how long has this been broken" survives. */
   @NotNull private Instant createdAt;
+
+  /** When it was last seen. The same finding is re-read from every statement fetch. */
+  @NotNull private Instant lastSeenAt;
 }

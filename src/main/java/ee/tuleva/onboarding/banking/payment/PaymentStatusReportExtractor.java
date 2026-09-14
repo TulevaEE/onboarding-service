@@ -58,7 +58,10 @@ public class PaymentStatusReportExtractor {
   }
 
   /**
-   * Direct-descendant lookup, so a nested original-transaction block cannot shadow the real one.
+   * Direct-descendant lookup only, so a value nested in an original-transaction block cannot be
+   * read as this transaction's own. Falling back to a descendant-wide search would reinstate
+   * exactly the shadowing this avoids, and a wrongly attributed status is worse than a missing one:
+   * it would mark the wrong payment rejected.
    */
   private static @Nullable String childText(Element parent, String localName) {
     NodeList children = parent.getChildNodes();
@@ -68,7 +71,7 @@ public class PaymentStatusReportExtractor {
         return trimmed(child.getTextContent());
       }
     }
-    return firstText(parent, localName);
+    return null;
   }
 
   private static @Nullable String firstText(Element parent, String localName) {

@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.HOLD;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.PAYOUT_BLOCKED;
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.PAYOUT;
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.REDEMPTION_TRANSFER;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
@@ -10,6 +12,7 @@ import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.banking.BankAccounts;
+import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.payment.BatchId;
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.payment.PaymentRequest;
@@ -67,6 +70,7 @@ public class RedemptionBatchJob {
   private final CompanyRepository companyRepository;
   private final UserRepository userRepository;
   private final RedemptionPayoutValidator payoutValidator;
+  private final PaymentCheckService paymentCheckService;
 
   @Scheduled(fixedRateString = "1m")
   @SchedulerLock(name = "RedemptionBatchJob", lockAtMostFor = "30m", lockAtLeastFor = "10s")
@@ -134,6 +138,7 @@ public class RedemptionBatchJob {
             "Redemption cannot be paid, failing it before pricing: id={}, reason={}",
             request.getId(),
             blockingReason.get());
+        hold(request.getId(), blockingReason.get());
         handleError(request.getId(), new IllegalStateException(blockingReason.get()));
         continue;
       }
@@ -155,6 +160,8 @@ public class RedemptionBatchJob {
         }
       } catch (Exception e) {
         log.error("Failed to price redemption request: id={}", request.getId(), e);
+        // The thrown message carries the request's own figures, which the brief may not publish.
+        hold(request.getId(), "Pricing failed, so nothing was paid");
         handleError(request.getId(), e);
       }
     }
@@ -343,6 +350,15 @@ public class RedemptionBatchJob {
           companyRepository.findByRegistryCode(partyId.code()).map(Company::getName);
       case PERSON -> userRepository.findByPersonalCode(partyId.code()).map(User::getFullName);
     };
+  }
+
+  /**
+   * A payout stopped here never reaches the bank, so it gets no outgoing payment row either. The
+   * check event is the only record that it was attempted, and the only way the approval brief can
+   * name it instead of quietly showing one payout fewer than expected.
+   */
+  private void hold(UUID requestId, String reason) {
+    paymentCheckService.record(PAYOUT_BLOCKED, HOLD, requestId.toString(), reason);
   }
 
   private void handleError(UUID requestId, Exception e) {

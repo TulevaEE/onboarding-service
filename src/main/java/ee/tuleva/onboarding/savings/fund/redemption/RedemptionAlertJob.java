@@ -39,6 +39,7 @@ public class RedemptionAlertJob {
   private final FundValueQueries fundValueQueries;
   private final OperationsNotificationService notificationService;
   private final RedemptionAlertThresholds redemptionAlertThresholds;
+  private final RedemptionPayoutAgeChecker payoutAgeChecker;
 
   @Scheduled(cron = "0 5 16 * * MON-FRI", zone = "Europe/Tallinn")
   @SchedulerLock(name = "RedemptionAlertJob", lockAtMostFor = "5m", lockAtLeastFor = "1m")
@@ -47,6 +48,10 @@ public class RedemptionAlertJob {
     if (!publicHolidays.isWorkingDay(today)) {
       return;
     }
+
+    // Ahead of the volume checks, and ahead of their early return: a day with nothing pending is
+    // exactly the day a request stuck somewhere else would go unnoticed.
+    payoutAgeChecker.checkOverduePayouts(today);
 
     Instant cutoff = RedemptionCutoff.cutoffInstant(today);
     List<RedemptionRequest> requests =

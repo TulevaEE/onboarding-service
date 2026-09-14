@@ -1,0 +1,61 @@
+package ee.tuleva.onboarding.savings.fund.redemption;
+
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.WARNING;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.PAYOUT_OVERDUE;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.FAILED;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.IN_REVIEW;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
+
+import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
+import java.time.LocalDate;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
+
+/**
+ * Finds redemptions whose payout is running out of time, before the deadline rather than after it.
+ *
+ * <p>Nothing else watches a request's age: the volume and liquidity alerts look at how much is
+ * being paid out, never at how long someone has been waiting. In practice the batch job initiates
+ * on the T+1 value date and the bound is met comfortably, so anything this reports is a request
+ * stuck somewhere — which is precisely what would otherwise be found by a person, late.
+ */
+@Component
+@RequiredArgsConstructor
+class RedemptionPayoutAgeChecker {
+
+  /**
+   * Whether the bank then executed an initiated payout is the reconciler's question. Cancelled and
+   * paid requests are nobody's; a failed one is still owed and needs a retry, so it stays in.
+   */
+  static final List<RedemptionRequest.Status> NOT_YET_INITIATED =
+      List.of(RESERVED, IN_REVIEW, VERIFIED, FAILED);
+
+  private final RedemptionRequestRepository redemptionRequestRepository;
+  private final RedemptionPayoutDeadline deadline;
+  private final PaymentCheckService paymentCheckService;
+
+  void checkOverduePayouts(LocalDate today) {
+    redemptionRequestRepository.findByStatusIn(NOT_YET_INITIATED).stream()
+        .filter(request -> !today.isBefore(deadline.warnFrom(request.getRequestedAt())))
+        .forEach(request -> report(request, today));
+  }
+
+  /**
+   * Keyed by day, so an overdue payout is reported again every working day until it is paid, failed
+   * off or cancelled. Money owed to a client is not something that should go quiet on its own; the
+   * usual one-alert-per-finding dedupe would do exactly that.
+   */
+  private void report(RedemptionRequest request, LocalDate today) {
+    paymentCheckService.record(
+        PAYOUT_OVERDUE,
+        WARNING,
+        "%s:%s".formatted(request.getId(), today),
+        "ordered %s, still %s, and the payout must be initiated by %s"
+            .formatted(
+                deadline.orderDay(request.getRequestedAt()),
+                request.getStatus(),
+                deadline.bound(request.getRequestedAt())));
+  }
+}

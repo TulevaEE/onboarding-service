@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.EXECUTE
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.SUBMITTED;
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.PAYOUT;
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.REDEMPTION_TRANSFER;
+import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.RETURN;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -103,11 +104,97 @@ class PaymentApprovalBriefServiceTest {
   @Test
   void aCleanDayWithNothingHeldNeedsNoAttention() {
     givenAccountResolves();
-    givenPaymentsToday(payment(SUBMITTED, PAYOUT, "100.00"));
+    givenPaymentsToday(
+        payment(SUBMITTED, REDEMPTION_TRANSFER, "100.00"), payment(SUBMITTED, PAYOUT, "100.00"));
 
     var brief = service().build(DATE, List.of());
 
     assertThat(brief.attention()).isFalse();
+  }
+
+  // The one number a signatory can check in their head. The transfer exists only to fund the
+  // payouts, so what leaves the fund account must equal what leaves the withdrawal account.
+  @Test
+  void theTransferIsShownAgainstThePayoutsItFunds() {
+    givenAccountResolves();
+    givenPaymentsToday(
+        payment(SUBMITTED, REDEMPTION_TRANSFER, "400.00"),
+        payment(SUBMITTED, PAYOUT, "250.00"),
+        payment(SUBMITTED, PAYOUT, "150.00"));
+
+    var brief = service().build(DATE, List.of());
+
+    assertThat(brief.verdicts())
+        .contains(
+            new PaymentApprovalBrief.Verdict(
+                "payouts == transfer to withdrawal account", true, "400.00 = 400.00"));
+    assertThat(brief.attention()).isFalse();
+  }
+
+  @Test
+  void aTransferThatDoesNotFundItsPayoutsFailsTheVerdictAndNeedsAttention() {
+    givenAccountResolves();
+    givenPaymentsToday(
+        payment(SUBMITTED, REDEMPTION_TRANSFER, "400.00"), payment(SUBMITTED, PAYOUT, "100.00"));
+
+    var brief = service().build(DATE, List.of());
+
+    assertThat(brief.verdicts())
+        .contains(
+            new PaymentApprovalBrief.Verdict(
+                "payouts == transfer to withdrawal account", false, "100.00 = 400.00"));
+    assertThat(brief.attention()).isTrue();
+  }
+
+  // An already approved transfer drops off the pending screen while its payouts are still on it, so
+  // the tie is computed over the whole day rather than over what is still pending. Otherwise it
+  // would report an imbalance every time the signatory approved one account before the other.
+  @Test
+  void theTieHoldsEvenOnceOneSideHasAlreadyBeenApproved() {
+    givenAccountResolves();
+    givenPaymentsToday(
+        payment(EXECUTED, REDEMPTION_TRANSFER, "400.00"), payment(SUBMITTED, PAYOUT, "400.00"));
+
+    var brief = service().build(DATE, List.of());
+
+    assertThat(brief.verdicts())
+        .contains(
+            new PaymentApprovalBrief.Verdict(
+                "payouts == transfer to withdrawal account", true, "400.00 = 400.00"));
+  }
+
+  // A day with neither a transfer nor a payout has nothing to tie, and an equation reading
+  // "0.00 = 0.00" would be noise rather than a check.
+  @Test
+  void aDayWithNoRedemptionTrafficShowsNoTie() {
+    givenAccountResolves();
+    givenPaymentsToday(payment(SUBMITTED, RETURN, "100.00"));
+
+    var brief = service().build(DATE, List.of());
+
+    assertThat(brief.verdicts())
+        .noneSatisfy(verdict -> assertThat(verdict.label()).contains("transfer"));
+  }
+
+  // A tick has to be a statement about today rather than decoration: the gate is green because it
+  // held nothing, and a gate that held something says so instead.
+  @Test
+  void aGateThatHeldSomethingIsNotTicked() {
+    givenAccountResolves();
+    givenPaymentsToday(payment(SUBMITTED, PAYOUT, "100.00"));
+
+    var brief =
+        service()
+            .build(
+                DATE,
+                List.of(
+                    new PaymentApprovalBriefService.PaymentHold(
+                        "PAYOUT_BLOCKED", "iban not the party's")));
+
+    assertThat(brief.verdicts())
+        .contains(new PaymentApprovalBrief.Verdict("payout entitlement", false, "1 held"))
+        .contains(
+            new PaymentApprovalBrief.Verdict("file integrity (XSD + parse-back)", true, null));
   }
 
   @Test
@@ -120,10 +207,12 @@ class PaymentApprovalBriefServiceTest {
             .build(
                 DATE,
                 List.of(
-                    new PaymentApprovalBriefService.PaymentHold("PAYOUT", "iban not the party's"),
-                    new PaymentApprovalBriefService.PaymentHold("PAYOUT", "iban not the party's"),
                     new PaymentApprovalBriefService.PaymentHold(
-                        "RETURN", "name will not resolve")));
+                        "PAYOUT_BLOCKED", "iban not the party's"),
+                    new PaymentApprovalBriefService.PaymentHold(
+                        "PAYOUT_BLOCKED", "iban not the party's"),
+                    new PaymentApprovalBriefService.PaymentHold(
+                        "PAYMENT_BLOCKED", "name will not resolve")));
 
     assertThat(brief.heldCount()).isEqualTo(3);
     assertThat(brief.heldReasons())

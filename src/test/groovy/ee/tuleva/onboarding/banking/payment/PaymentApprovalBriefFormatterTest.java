@@ -48,9 +48,28 @@ class PaymentApprovalBriefFormatterTest {
   void anEmptyDayStillProducesABriefSoSilenceIsNeverAmbiguous() {
     var text =
         formatter.format(
-            new PaymentApprovalBrief(LocalDate.of(2026, 8, 10), List.of(), 0, List.of(), false));
+            new PaymentApprovalBrief(
+                LocalDate.of(2026, 8, 10), List.of(), List.of(), 0, List.of(), false));
 
     assertThat(text).contains("no payments pending approval");
+  }
+
+  // Shown as an equation rather than a tick: it is the one number a signatory can verify in their
+  // head, and a tick would hide the two figures being compared.
+  @Test
+  void theCrossAccountTieIsPrintedWithBothItsNumbers() {
+    var text = formatter.format(brief(false, 0));
+
+    assertThat(text)
+        .contains("Checks:", "payouts == transfer to withdrawal account", "12,345.67 = 12,345.67");
+  }
+
+  @Test
+  void aVerdictThatDidNotPassIsNotTicked() {
+    var text = formatter.format(brief(true, 0));
+
+    assertThat(text).contains("🟠 payout entitlement", "1 held");
+    assertThat(text).doesNotContain("✅ payout entitlement");
   }
 
   private static PaymentApprovalBrief brief(boolean attention, int held) {
@@ -73,6 +92,13 @@ class PaymentApprovalBriefFormatterTest {
                 7,
                 new BigDecimal("12345.67"),
                 new BigDecimal("-1.00"))),
+        List.of(
+            new PaymentApprovalBrief.Verdict(
+                "payouts == transfer to withdrawal account", true, "12,345.67 = 12,345.67"),
+            new PaymentApprovalBrief.Verdict(
+                "file integrity (XSD + parse-back)", !attention, attention ? "1 held" : null),
+            new PaymentApprovalBrief.Verdict(
+                "payout entitlement", !attention, attention ? "1 held" : null)),
         held,
         held > 0 ? List.of("PAYMENT_BLOCKED: file does not match the request") : List.of(),
         attention);

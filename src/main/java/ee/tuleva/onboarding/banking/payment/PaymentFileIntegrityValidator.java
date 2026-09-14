@@ -58,7 +58,7 @@ public class PaymentFileIntegrityValidator {
       return violations;
     }
 
-    if (document.getElementsByTagName("AdrLine").getLength() > 0) {
+    if (document.getElementsByTagNameNS("*", "AdrLine").getLength() > 0) {
       // SEB rejects unstructured addresses from 15.11.2026; a future address must use PstlAdr.
       violations.add(new PaymentIntegrityViolation(UNSTRUCTURED_ADDRESS, "address"));
     }
@@ -221,12 +221,17 @@ public class PaymentFileIntegrityValidator {
     return Optional.of(current);
   }
 
+  /**
+   * Matched on local names, so the file is read the same way whether the generator declares the ISO
+   * namespace as the default or behind a prefix. Matching raw tag names would make every payment
+   * fail the moment anyone added one — fail-closed, but for the wrong reason.
+   */
   private static List<Element> children(Element parent, String name) {
     var matches = new ArrayList<Element>();
     var childNodes = parent.getChildNodes();
     for (int i = 0; i < childNodes.getLength(); i++) {
       var child = childNodes.item(i);
-      if (child instanceof Element element && element.getTagName().equals(name)) {
+      if (child instanceof Element element && name.equals(element.getLocalName())) {
         matches.add(element);
       }
     }
@@ -248,6 +253,7 @@ public class PaymentFileIntegrityValidator {
   @SneakyThrows
   private static Document parse(String paymentXml) {
     var factory = DocumentBuilderFactory.newInstance();
+    factory.setNamespaceAware(true);
     factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
     factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
     factory.setXIncludeAware(false);

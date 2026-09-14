@@ -18,6 +18,8 @@ public interface RedemptionRequestRepository extends CrudRepository<RedemptionRe
 
   List<RedemptionRequest> findByStatus(Status status);
 
+  List<RedemptionRequest> findByStatusIn(List<Status> statuses);
+
   Optional<RedemptionRequest> findByIdAndStatus(UUID id, Status status);
 
   List<RedemptionRequest> findByPartyTypeAndPartyCodeAndStatusIn(

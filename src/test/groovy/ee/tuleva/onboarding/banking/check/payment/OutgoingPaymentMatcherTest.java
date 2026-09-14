@@ -33,6 +33,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class OutgoingPaymentMatcherTest {
 
   private static final String END_TO_END_ID = "abc123";
+  private static final String AUTHORISED_IBAN = "EE222222222222222222";
   private static final String BANK_FEE_IBAN = "EE333333333333333333";
 
   @Mock private OutgoingPaymentRepository outgoingPaymentRepository;
@@ -54,7 +55,7 @@ class OutgoingPaymentMatcherTest {
     when(outgoingPaymentRepository.findByEndToEndId(END_TO_END_ID))
         .thenReturn(Optional.of(logged(new BigDecimal("10.00"), OutgoingPaymentStatus.SUBMITTED)));
 
-    matcher.match(debit(new BigDecimal("10.00"), END_TO_END_ID, "EE222222222222222222"));
+    matcher.match(debit(new BigDecimal("10.00"), END_TO_END_ID, AUTHORISED_IBAN));
 
     verify(outgoingPaymentService).recordExecuted(END_TO_END_ID);
     verify(paymentCheckService, never()).record(any(), any(), any(), any());
@@ -65,10 +66,23 @@ class OutgoingPaymentMatcherTest {
     when(outgoingPaymentRepository.findByEndToEndId(END_TO_END_ID))
         .thenReturn(Optional.of(logged(new BigDecimal("10.00"), OutgoingPaymentStatus.SUBMITTED)));
 
-    matcher.match(debit(new BigDecimal("11.00"), END_TO_END_ID, "EE222222222222222222"));
+    matcher.match(debit(new BigDecimal("11.00"), END_TO_END_ID, AUTHORISED_IBAN));
 
     verify(paymentCheckService).record(eq(DEBIT_MISMATCH), eq(HOLD), eq(END_TO_END_ID), any());
     // The money did move, so the payment is still executed -- it is just wrong.
+    verify(outgoingPaymentService).recordExecuted(END_TO_END_ID);
+  }
+
+  // The end-to-end id is ours and the bank echoes it back, so it identifies the payment but proves
+  // nothing about where the money went. Matching on it alone would mark this executed in silence.
+  @Test
+  void aDebitToADifferentAccountThanWeAuthorisedIsReported() {
+    when(outgoingPaymentRepository.findByEndToEndId(END_TO_END_ID))
+        .thenReturn(Optional.of(logged(new BigDecimal("10.00"), OutgoingPaymentStatus.SUBMITTED)));
+
+    matcher.match(debit(new BigDecimal("10.00"), END_TO_END_ID, "EE444444444444444444"));
+
+    verify(paymentCheckService).record(eq(DEBIT_MISMATCH), eq(HOLD), eq(END_TO_END_ID), any());
     verify(outgoingPaymentService).recordExecuted(END_TO_END_ID);
   }
 
@@ -76,14 +90,14 @@ class OutgoingPaymentMatcherTest {
   void aDebitWithNothingBehindItIsAPhantom() {
     when(outgoingPaymentRepository.findByEndToEndId(END_TO_END_ID)).thenReturn(Optional.empty());
 
-    matcher.match(debit(new BigDecimal("10.00"), END_TO_END_ID, "EE222222222222222222"));
+    matcher.match(debit(new BigDecimal("10.00"), END_TO_END_ID, AUTHORISED_IBAN));
 
     verify(paymentCheckService).record(eq(PHANTOM_DEBIT), eq(HOLD), any(), any());
   }
 
   @Test
   void aDebitWithNoEndToEndIdIsAPhantomToo() {
-    matcher.match(debit(new BigDecimal("10.00"), null, "EE222222222222222222"));
+    matcher.match(debit(new BigDecimal("10.00"), null, AUTHORISED_IBAN));
 
     verify(paymentCheckService).record(eq(PHANTOM_DEBIT), eq(HOLD), any(), any());
     verifyNoInteractions(outgoingPaymentRepository);
@@ -100,7 +114,7 @@ class OutgoingPaymentMatcherTest {
 
   @Test
   void anIncomingPaymentIsNotADebitAndIsIgnored() {
-    matcher.match(debit(new BigDecimal("-10.00"), END_TO_END_ID, "EE222222222222222222"));
+    matcher.match(debit(new BigDecimal("-10.00"), END_TO_END_ID, AUTHORISED_IBAN));
 
     verifyNoInteractions(outgoingPaymentRepository, paymentCheckService, outgoingPaymentService);
   }
@@ -109,6 +123,7 @@ class OutgoingPaymentMatcherTest {
     var row = new OutgoingPayment();
     row.setEndToEndId(END_TO_END_ID);
     row.setAmount(amount);
+    row.setBeneficiaryIban(AUTHORISED_IBAN);
     row.setStatus(status);
     return row;
   }

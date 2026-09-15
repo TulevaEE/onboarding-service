@@ -9,11 +9,13 @@ import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 import ee.tuleva.onboarding.payment.IncomingSavingsPayment
 import ee.tuleva.onboarding.payment.SavingsPayments
+import ee.tuleva.onboarding.payment.event.SavingsPaymentCreatedEvent
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioTokenParser
 import ee.tuleva.onboarding.party.PartyId
 import ee.tuleva.onboarding.user.UserService
 import org.springframework.context.ApplicationEventPublisher
 import spock.lang.Specification
+import spock.lang.Unroll
 
 import static ee.tuleva.onboarding.auth.UserFixture.*
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.*
@@ -154,24 +156,40 @@ class SavingsCallbackServiceSpec extends Specification {
     !recorded
   }
 
-  def "paid token without sender details is accepted and recording defers to statement processing"() {
+  @Unroll
+  def "paid token without #missing records the payment without those details and sends the receipt"() {
     given:
-    def serializedToken = withoutSenderDetails(aSerializedSavingsPaymentToken)
+    def serializedToken = withoutSenderDetails(aSerializedSavingsPaymentToken, fields)
+    def mockUser = sampleUser().personalCode("38812121215").build()
+    def token = tokenParser.parse(JWSObject.parse(serializedToken))
+    def expectedPayment = new IncomingSavingsPayment(
+        token.senderName,
+        token.senderIban,
+        token.merchantReference.description,
+        token.grandTotal,
+        token.currency,
+        new PartyId(PartyId.Type.PERSON, anInternalReference.recipientPersonalCode))
+    1 * userService.findByPersonalCode(anInternalReference.personalCode) >> Optional.of(mockUser)
 
     when:
-    def accepted = savingsCallbackService.processToken(serializedToken)
+    def recorded = savingsCallbackService.processToken(serializedToken)
 
     then:
-    0 * savingsPayments.recordIncoming(_)
-    0 * eventPublisher.publishEvent(_)
-    accepted
+    1 * savingsPayments.recordIncoming(expectedPayment) >> true
+    1 * eventPublisher.publishEvent(_ as SavingsPaymentCreatedEvent)
+    recorded
+
+    where:
+    missing                | fields
+    "sender name and IBAN" | ["senderName", "senderIban"]
+    "sender name"          | ["senderName"]
+    "sender IBAN"          | ["senderIban"]
   }
 
-  private String withoutSenderDetails(String serializedToken) {
+  private String withoutSenderDetails(String serializedToken, List<String> fields) {
     def original = JWSObject.parse(serializedToken)
     def payload = new JsonSlurper().parseText(original.payload.toString()) as Map
-    payload.remove("senderName")
-    payload.remove("senderIban")
+    fields.each { payload.remove(it) }
     def jws = new JWSObject(original.header, new Payload(JsonOutput.toJson(payload)))
     jws.sign(new MACSigner(aSecretKey.getBytes()))
     return jws.serialize()

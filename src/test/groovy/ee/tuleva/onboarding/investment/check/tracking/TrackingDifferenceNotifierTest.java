@@ -353,6 +353,30 @@ class TrackingDifferenceNotifierTest {
   }
 
   @Test
+  void notifyCheckFailedNamesTheErrorRatherThanMissingData() {
+    notifier.notifyCheckFailed(TUK75, LocalDate.of(2026, 6, 25), "connection reset");
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            "⚠️ TD CHECK FAILED: fund=TUK75, date=2026-06-25 — the check errored (connection"
+                + " reset); NAV report published WITHOUT tracking-difference validation",
+            INVESTMENT);
+  }
+
+  @Test
+  void swallowsExceptionWhenCheckFailedNotificationFails() {
+    willThrow(new RuntimeException("Slack down"))
+        .given(notificationService)
+        .sendMessage(any(String.class), eq(INVESTMENT));
+
+    assertThatCode(() -> notifier.notifyCheckFailed(TUK75, LocalDate.of(2026, 6, 25), "boom"))
+        .doesNotThrowAnyException();
+
+    then(notificationService).should().sendMessage(any(String.class), eq(INVESTMENT));
+  }
+
+  @Test
   void swallowsExceptionWhenCheckCouldNotRunNotificationFails() {
     org.mockito.BDDMockito.willThrow(new RuntimeException("Slack down"))
         .given(notificationService)

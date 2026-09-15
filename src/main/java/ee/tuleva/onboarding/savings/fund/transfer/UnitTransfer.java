@@ -110,6 +110,18 @@ public class UnitTransfer {
     return new PartyRef(toPartyType, toPartyCode);
   }
 
+  UnitTransferCommand asCommand() {
+    return new UnitTransferCommand(
+        fromPartyCode,
+        fromPartyType,
+        toPartyCode,
+        toPartyType,
+        fundUnits,
+        notifiedAt,
+        evidence,
+        recipientAcquisitionCostEur);
+  }
+
   void executedBy(String approver, UUID ledgerTransaction, Instant when) {
     state = EXECUTED;
     approvedBy = approver;

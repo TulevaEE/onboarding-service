@@ -12,6 +12,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.ledger.LedgerTransaction;
@@ -253,7 +255,8 @@ class UnitTransferServiceTest {
 
   @Test
   void approvingBySomeoneElseMovesTheUnits() {
-    var awaiting = anAwaitingTransfer();
+    givenTheLedgerQuotes();
+    var awaiting = anAwaitingTransfer(theCurrentPlanHash());
     given(transfers.findByIdForUpdate(awaiting.getId())).willReturn(Optional.of(awaiting));
     givenTheRepositoryReturnsWhateverItIsGiven();
     UUID ledgerTransactionId = randomUUID();
@@ -277,6 +280,37 @@ class UnitTransferServiceTest {
   }
 
   @Test
+  void approvingIsRefusedWhenTheGiversBalanceChangedSinceItWasSubmitted() {
+    givenTheLedgerQuotes();
+    var awaiting = anAwaitingTransfer(theCurrentPlanHash());
+    given(transfers.findByIdForUpdate(awaiting.getId())).willReturn(Optional.of(awaiting));
+    given(savingsFundLedger.quoteUnitTransfer(any(), any(), any()))
+        .willReturn(
+            new UnitTransferQuote(
+                new BigDecimal("40.00000"),
+                new BigDecimal("10.00000"),
+                new BigDecimal("40.00000"),
+                new BigDecimal("1000.00"),
+                new BigDecimal("50.00000")));
+
+    assertThatThrownBy(() -> service.approve(awaiting.getId(), "approver@example.com"))
+        .isInstanceOf(IllegalStateException.class);
+    verifyTheLedgerMovedNothing();
+  }
+
+  @Test
+  void approvingIsRefusedWhenTheRecipientIsNoLongerOnboarded() {
+    givenTheLedgerQuotes();
+    var awaiting = anAwaitingTransfer(theCurrentPlanHash());
+    given(transfers.findByIdForUpdate(awaiting.getId())).willReturn(Optional.of(awaiting));
+    given(onboarding.isOnboardingCompleted("39999999999", PartyId.Type.PERSON)).willReturn(false);
+
+    assertThatThrownBy(() -> service.approve(awaiting.getId(), "approver@example.com"))
+        .isInstanceOf(IllegalStateException.class);
+    verifyTheLedgerMovedNothing();
+  }
+
+  @Test
   void approvingAsYourselfSpeltDifferentlyIsStillRefused() {
     var awaiting = anAwaitingTransfer();
     given(transfers.findByIdForUpdate(awaiting.getId())).willReturn(Optional.of(awaiting));
@@ -289,7 +323,8 @@ class UnitTransferServiceTest {
 
   @Test
   void anUnnamedApproverIsRefused() {
-    var awaiting = anAwaitingTransfer();
+    givenTheLedgerQuotes();
+    var awaiting = anAwaitingTransfer(theCurrentPlanHash());
     given(transfers.findByIdForUpdate(awaiting.getId())).willReturn(Optional.of(awaiting));
     givenTheLedgerRecords();
 
@@ -383,19 +418,33 @@ class UnitTransferServiceTest {
     given(transfers.save(any(UnitTransfer.class))).willAnswer(saved -> saved.getArgument(0));
   }
 
+  private String theCurrentPlanHash() {
+    return ((Planned) service.preview(command)).planHash();
+  }
+
+  private void verifyTheLedgerMovedNothing() {
+    verify(savingsFundLedger, never())
+        .recordUnitTransfer(any(PartyRef.class), any(PartyRef.class), any(), any());
+  }
+
   private UnitTransfer anAwaitingTransfer() {
+    return anAwaitingTransfer("whatever-was-previewed");
+  }
+
+  private UnitTransfer anAwaitingTransfer(String planHash) {
     return UnitTransfer.builder()
         .id(randomUUID())
-        .fromPartyCode("38888888888")
-        .fromPartyType(PERSON)
-        .toPartyCode("39999999999")
-        .toPartyType(PERSON)
-        .fundUnits(new BigDecimal("40.00000"))
-        .notifiedAt(LocalDate.parse("2026-09-14"))
-        .evidence("Notice by email from the owner, 2026-09-14")
+        .fromPartyCode(command.fromCode())
+        .fromPartyType(command.fromType())
+        .toPartyCode(command.toCode())
+        .toPartyType(command.toType())
+        .fundUnits(command.fundUnits())
+        .recipientAcquisitionCostEur(command.recipientAcquisitionCostEur())
+        .notifiedAt(command.notifiedAt())
+        .evidence(command.evidence())
         .giverPaidInEur(new BigDecimal("1000.00"))
         .giverUnitsOwned(new BigDecimal("100.00000"))
-        .planHash("whatever-was-previewed")
+        .planHash(planHash)
         .state(UnitTransferState.AWAITING_APPROVAL)
         .submittedBy("operator@example.com")
         .build();

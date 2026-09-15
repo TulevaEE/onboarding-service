@@ -108,6 +108,25 @@ public class UnitTransferService {
               + transfer.getSubmittedBy());
     }
 
+    UnitTransferVerdict stillStands = preview(transfer.asCommand());
+    if (stillStands instanceof Refused refused) {
+      throw new IllegalStateException(
+          "Refusing to approve a transfer the ledger would no longer make: id="
+              + id
+              + ", refused="
+              + refused.refused());
+    }
+    Planned asItStandsNow = (Planned) stillStands;
+    if (!asItStandsNow.planHash().equals(transfer.getPlanHash())) {
+      throw new IllegalStateException(
+          "Refusing to approve a transfer that is no longer what was shown: id="
+              + id
+              + ", submittedPlanHash="
+              + transfer.getPlanHash()
+              + ", currentPlanHash="
+              + asItStandsNow.planHash());
+    }
+
     var recorded =
         savingsFundLedger.recordUnitTransfer(
             transfer.from(), transfer.to(), transfer.getFundUnits(), id);

@@ -22,7 +22,7 @@ class FeeComparisonCalculator {
   private final FundRepository fundRepository;
 
   Optional<FeeComparison> forSecondPillar(Person person, @Nullable BigDecimal weightedFee) {
-    if (weightedFee == null || weightedFee.compareTo(NudgeInputs.HIGH_FEE_FROM) < 0) {
+    if (weightedFee == null || !FundFees.isHigh(weightedFee)) {
       return Optional.empty();
     }
     BigDecimal value =

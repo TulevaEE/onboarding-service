@@ -41,7 +41,7 @@ class PaymentRateRedirectEligibility {
     return inputs.adult()
         && !inputs.reachedRetirementAge()
         && inputs.secondPillarActive()
-        && inputs.secondPillarInLowFeeFund()
+        && FundFees.isLow(inputs.secondPillarFee())
         && inputs.leftSecondPillar().isNo()
         && !inputs.pendingSecondPillarWithdrawal()
         && paysTheStartingRate(paymentRateService.getPaymentRates(user));

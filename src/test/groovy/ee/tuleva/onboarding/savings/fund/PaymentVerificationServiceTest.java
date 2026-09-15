@@ -232,9 +232,10 @@ class PaymentVerificationServiceTest {
   }
 
   @Test
-  void process_thirdPartyDeposit_withoutRemitterIdCode_isAcceptedAndFlaggedFromTheName() {
+  void process_withoutRemitterIdCode_isAcceptedButWhoPaidStaysUnknown() {
     // Montonio often omits the remitter id code and foreign banks always do, so a gift from such
-    // a bank used to bounce on the name check. The name is then the only third-party signal left.
+    // a bank used to bounce on the name check. It is accepted now — but a name that does not match
+    // is not evidence of a third party (Wise sends its own name), so the verdict stays null.
     var payment = createPayment(null, "to user 37508295796");
     var unitHolder =
         User.builder()
@@ -251,7 +252,7 @@ class PaymentVerificationServiceTest {
     verify(userRepository).findByPersonalCode("37508295796");
     verify(savingFundPaymentRepository)
         .attachParty(payment.getId(), new PartyId(PERSON, "37508295796"));
-    verify(savingFundPaymentRepository).markThirdPartyDeposit(payment.getId(), true);
+    verify(savingFundPaymentRepository).markThirdPartyDeposit(payment.getId(), null);
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verifyNoMoreInteractions(savingFundPaymentRepository);
     verify(applicationEventPublisher, never()).publishEvent(any(UnattributedPaymentEvent.class));

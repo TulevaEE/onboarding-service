@@ -392,10 +392,15 @@ public class SavingFundPaymentRepository {
         Map.of("id", paymentId, "party_type", partyId.type().name(), "party_code", partyId.code()));
   }
 
-  public void markThirdPartyDeposit(UUID paymentId, boolean thirdPartyDeposit) {
+  // Null means we could not tell, which is different from knowing the unit holder paid.
+  public void markThirdPartyDeposit(UUID paymentId, @Nullable Boolean thirdPartyDeposit) {
+    var parameters =
+        new MapSqlParameterSource()
+            .addValue("id", paymentId)
+            .addValue("third_party_deposit", thirdPartyDeposit);
     jdbcTemplate.update(
         "UPDATE saving_fund_payment SET third_party_deposit=:third_party_deposit WHERE id=:id",
-        Map.of("id", paymentId, "third_party_deposit", thirdPartyDeposit));
+        parameters);
   }
 
   public void attributeManually(UUID paymentId, PartyId partyId, boolean returnCancelled) {

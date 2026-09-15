@@ -132,12 +132,21 @@ public class PaymentVerificationService {
       return;
     }
 
-    // Whose money this is, for AML scoring. The remitter id code settles it when the bank sends
-    // one; otherwise the remitter name is all that is left to go on.
-    boolean thirdPartyDeposit =
-        remitterPartyId
-            .map(remitter -> !remitter.equals(partyId))
-            .orElse(!remitterNameIsUnitHolder);
+    // Whose money this is, for AML scoring. Three-valued on purpose. The remitter id code settles
+    // it when the bank sends one, and a remitter name matching the unit holder is good evidence
+    // they paid themselves — but a name that does NOT match proves nothing: Wise puts its own name
+    // on the transfer and Montonio often sends no sender details at all, so reading "not the unit
+    // holder's name" as "somebody else" would file the unit holder's own payment, and a parent's
+    // payment for their child, as a stranger's. Unknown stays null, and the AML view leaves those
+    // out exactly as it already does for a missing remitter identity.
+    @Nullable Boolean thirdPartyDeposit;
+    if (remitterPartyId.isPresent()) {
+      thirdPartyDeposit = !remitterPartyId.get().equals(partyId);
+    } else if (remitterNameIsUnitHolder) {
+      thirdPartyDeposit = false;
+    } else {
+      thirdPartyDeposit = null;
+    }
 
     boolean representingChild =
         remitterPartyId

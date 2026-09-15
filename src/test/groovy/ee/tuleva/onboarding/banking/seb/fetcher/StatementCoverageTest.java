@@ -83,6 +83,15 @@ class StatementCoverageTest {
   }
 
   @Test
+  void missingPeriods_isEmptyWhenTheFirstStatementEverReceivedIsAfterTheWindow() {
+    givenEarliestStatementDate(date(20));
+
+    var missing = statementCoverage.missingPeriods(ACCOUNT, date(7), date(14));
+
+    assertThat(missing).isEmpty();
+  }
+
+  @Test
   void missingPeriods_isEmptyWhenNoStatementHasBeenReceivedYet() {
     given(
             bankingMessageRepository.findEarliestStatementDate(

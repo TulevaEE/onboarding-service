@@ -203,6 +203,27 @@ class SebStatementFetchingSchedulerTest {
   }
 
   @Test
+  void fetchEodTransactions_stopsTheRunWhenTheGatewayFailsDuringCatchUp() {
+    var first = ALL_ACCOUNTS.get(0);
+    given(bankAccounts.findAll()).willReturn(ALL_ACCOUNTS);
+    given(statementCoverage.isReceived(first, YESTERDAY)).willReturn(true);
+    var gap = new StatementPeriod(LocalDate.of(2026, 9, 11), LocalDate.of(2026, 9, 11));
+    given(statementCoverage.missingPeriods(first, CATCH_UP_FROM, DAY_BEFORE_YESTERDAY))
+        .willReturn(List.of(gap));
+    var scheduler = scheduler();
+    willThrow(new ResourceAccessException("Read timed out"))
+        .given(eventPublisher)
+        .publishEvent(new FetchSebHistoricTransactionsRequested(first, gap.from(), gap.to()));
+
+    scheduler.fetchEodTransactions();
+
+    then(eventPublisher)
+        .should()
+        .publishEvent(new FetchSebHistoricTransactionsRequested(first, gap.from(), gap.to()));
+    then(eventPublisher).shouldHaveNoMoreInteractions();
+  }
+
+  @Test
   void fetchCurrentDayTransactions_stopsTheRunWhenTheGatewayAnswersWithAServerError() {
     given(bankAccounts.findAll(TKF100)).willReturn(SAVINGS_FUND_ACCOUNTS);
     var scheduler = scheduler();

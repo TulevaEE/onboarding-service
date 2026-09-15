@@ -28,7 +28,11 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(controllers = UnitTransferController.class)
-@Import({UnitTransferControllerTest.NoSecurity.class, AdminTokenValidator.class})
+@Import({
+  UnitTransferControllerTest.NoSecurity.class,
+  AdminTokenValidator.class,
+  UnitTransferRefusalAdvice.class
+})
 @TestPropertySource(properties = {"admin.api-token=valid-token", "admin.ops-token=ops-token"})
 class UnitTransferControllerTest {
 

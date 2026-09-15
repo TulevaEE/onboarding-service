@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.savings.fund.transfer;
 
 import ee.tuleva.onboarding.ledger.LedgerParty.PartyType;
-import ee.tuleva.onboarding.ledger.PartyRef;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -15,13 +14,4 @@ public record UnitTransferCommand(
     @NotNull BigDecimal fundUnits,
     @NotNull LocalDate notifiedAt,
     @NotNull String evidence,
-    @Nullable BigDecimal recipientAcquisitionCostEur) {
-
-  public PartyRef from() {
-    return new PartyRef(fromType, fromCode);
-  }
-
-  public PartyRef to() {
-    return new PartyRef(toType, toCode);
-  }
-}
+    @Nullable BigDecimal recipientAcquisitionCostEur) {}

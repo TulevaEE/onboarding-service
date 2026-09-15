@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.seb.Seb.SEB_GATEWAY_TIME_ZONE;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
 import static ee.tuleva.onboarding.ledger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
+import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.util.stream.Collectors.toSet;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -15,6 +16,7 @@ import ee.tuleva.onboarding.banking.message.BankingMessage;
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.ledger.LedgerService;
+import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.math.BigDecimal;
@@ -482,6 +484,45 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
       assertThat(payment.get().getDescription()).isEqualTo("Initial payment");
       assertThat(payment.get().getStatus()).isEqualTo(SavingFundPayment.Status.RECEIVED);
       assertThat(payment.get().getReceivedBefore()).isEqualTo(existingReceivedBefore);
+    }
+
+    @Test
+    void enrichesCallbackCreatedPaymentWithoutIbanFromStatement() {
+      var party = new PartyId(PERSON, "38888888888");
+      var callbackCreated =
+          paymentMatchingXmlTemplate()
+              .externalId(null)
+              .remitterIban(null)
+              .remitterIdCode(null)
+              .remitterName(null)
+              .beneficiaryIban(null)
+              .beneficiaryIdCode(null)
+              .beneficiaryName(null)
+              .receivedBefore(null)
+              .build();
+      var paymentId = repository.savePaymentData(callbackCreated);
+      repository.attachParty(paymentId, party);
+      var paymentIdsBefore = paymentIdsBeforeProcessing();
+
+      processXmlMessage(
+          XML_TEMPLATE.replace(
+              "<Refs> <AcctSvcrRef>2025100112345-1</AcctSvcrRef> </Refs>",
+              "<Refs> <AcctSvcrRef>2025100112345-1</AcctSvcrRef> <EndToEndId>E2E-1</EndToEndId>"
+                  + " </Refs>"));
+
+      assertThat(paymentsCreatedFromXml(paymentIdsBefore, "EE157700771001802057", "Test payment"))
+          .isEmpty();
+      var enriched = repository.findById(paymentId).orElseThrow();
+      assertThat(enriched)
+          .usingRecursiveComparison()
+          .ignoringFields("createdAt", "statusChangedAt")
+          .isEqualTo(
+              paymentMatchingXmlTemplate()
+                  .id(paymentId)
+                  .partyId(party)
+                  .endToEndId("E2E-1")
+                  .status(SavingFundPayment.Status.RECEIVED)
+                  .build());
     }
 
     @Test

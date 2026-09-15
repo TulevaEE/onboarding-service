@@ -248,14 +248,6 @@ class TrackingDifferenceService {
         || security.previous().price().signum() == 0;
   }
 
-  private List<LocalDate> uncheckedDates(TulevaFund fund, LocalDate from, LocalDate to) {
-    var datesWithAnyCheckEvent = Set.copyOf(eventRepository.findDistinctCheckDates(fund, from, to));
-    return fundPositionRepository.findDistinctNavDatesByFundBetween(fund, from, to).stream()
-        .filter(navDate -> !datesWithAnyCheckEvent.contains(navDate))
-        .sorted()
-        .toList();
-  }
-
   List<TrackingDifferenceResult> checkFund(TulevaFund fund, LocalDate checkDate) {
     var results = new ArrayList<TrackingDifferenceResult>();
 

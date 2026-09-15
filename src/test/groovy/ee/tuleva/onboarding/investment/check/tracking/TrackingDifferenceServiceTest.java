@@ -256,6 +256,27 @@ class TrackingDifferenceServiceTest {
         .hasMessageNotContaining("standing gap");
   }
 
+  @Test
+  void fillGapsReportsTheLastWorkingDayItWillBeTried_whenTheWindowEndsOnAWeekend() {
+    var staleDate = LocalDate.of(2026, 3, 12);
+    givenAnUnpriceableHoldingOn(staleDate, LocalDate.of(2026, 3, 11));
+    givenTheOnlyNavDateWithoutACheckIs(staleDate);
+
+    assertThatThrownBy(() -> service.fillGaps(30))
+        .isInstanceOf(TrackingDifferenceService.IncompletePriceDataException.class)
+        .hasMessageContaining("last attempt 2026-04-10");
+  }
+
+  @Test
+  void fillGapsRecordsAnUnexpectedFailureInsteadOfAbandoningTheRun() {
+    givenTheOnlyNavDateWithoutACheckIs(PREVIOUS_DATE);
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+        .willThrow(new IllegalStateException("boom"));
+
+    assertThatThrownBy(() -> service.fillGaps(30))
+        .isInstanceOf(TrackingDifferenceService.IncompletePriceDataException.class);
+  }
+
   private void givenACheckableFundOn(LocalDate navDate, LocalDate previousDate) {
     given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), navDate))
         .willReturn(Optional.of(new BigDecimal("10.10")));

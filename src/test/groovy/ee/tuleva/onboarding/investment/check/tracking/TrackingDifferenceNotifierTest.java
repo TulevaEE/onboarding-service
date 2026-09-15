@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK_MODEL;
 import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -1127,6 +1128,26 @@ class TrackingDifferenceNotifierTest {
     then(notificationService)
         .should()
         .sendMessage(contains("No breach on any of them."), eq(INVESTMENT));
+  }
+
+  @Test
+  void theGapFillSummaryOrdersBreachesOnOneDateByFundThenCheckType() {
+    var sameDate = LocalDate.of(2026, 4, 3);
+    var tuk75 = result(true, 2, new BigDecimal("0.004")).toBuilder().checkDate(sameDate).build();
+    var tuv100 =
+        result(true, 2, new BigDecimal("0.004")).toBuilder()
+            .checkDate(sameDate)
+            .fund(TUV100)
+            .build();
+
+    notifier.notifyGapFillSummary(List.of(tuv100, tuk75));
+
+    then(notificationService)
+        .should()
+        .sendMessage(contains("🛑 2026-04-03 TUK75 MODEL_PORTFOLIO"), eq(INVESTMENT));
+    then(notificationService)
+        .should()
+        .sendMessage(contains("🛑 2026-04-03 TUV100 MODEL_PORTFOLIO"), eq(INVESTMENT));
   }
 
   private TrackingDifferenceResult result(

@@ -78,7 +78,15 @@ public class PaymentVerificationService {
   public void process(SavingFundPayment payment) {
     log.info("Processing payment {}", payment.getId());
 
-    var partyIdOpt = extractPartyId(payment);
+    var partyIdFromDescription = extractPartyIdFromDescription(payment.getDescription());
+    var remitterPartyId = parsePartyId(payment.getRemitterIdCode());
+    var partyIdOpt = partyIdFromDescription;
+    if (partyIdOpt.isEmpty()) {
+      log.info(
+          "Payment {} has no code in description, falling back to remitter id code",
+          payment.getId());
+      partyIdOpt = remitterPartyId;
+    }
     if (partyIdOpt.isEmpty()) {
       identityCheckFailure(payment, "makse ei sisalda tuvastatavat isikukoodi/registrikoodi");
       return;
@@ -87,13 +95,21 @@ public class PaymentVerificationService {
     PartyId partyId = partyIdOpt.get();
     var messages = VerificationMessages.forType(partyId.type());
 
-    var remitterPartyId = parsePartyId(payment.getRemitterIdCode());
+    // Attribution, not authorization: accepting money grants the payer no access to the account —
+    // acting on someone's behalf still goes through isActiveRepresentation.
+    boolean acceptedFromAnyRemitter =
+        partyIdFromDescription.isPresent()
+            && partyId.type() == PERSON
+            && isRepresentedWhenTheMoneyArrived(partyId, payment);
+
     boolean representingChild =
         remitterPartyId
             .filter(r -> !r.equals(partyId))
             .map(r -> isAuthorizedRemitter(r, partyId))
             .orElse(false);
-    if (remitterPartyId.isPresent()
+
+    if (!acceptedFromAnyRemitter
+        && remitterPartyId.isPresent()
         && !remitterPartyId.get().equals(partyId)
         && !representingChild) {
       identityCheckFailure(payment, messages.codeMismatch());
@@ -106,8 +122,10 @@ public class PaymentVerificationService {
       return;
     }
 
-    if (remitterPartyId.isEmpty()
-        && !nameMatcher.isSameName(party.get().name(), payment.getRemitterName())) {
+    boolean remitterNameIsUnitHolder =
+        nameMatcher.isSameName(party.get().name(), payment.getRemitterName());
+
+    if (!acceptedFromAnyRemitter && remitterPartyId.isEmpty() && !remitterNameIsUnitHolder) {
       identityCheckFailure(payment, messages.nameMismatch());
       return;
     }
@@ -117,7 +135,19 @@ public class PaymentVerificationService {
       return;
     }
 
+    // Null means undecided, and the AML view leaves those out: a name that does not match is no
+    // evidence of a third party, since Wise sends its own name and Montonio often sends none.
+    @Nullable Boolean thirdPartyDeposit;
+    if (remitterPartyId.isPresent()) {
+      thirdPartyDeposit = !remitterPartyId.get().equals(partyId);
+    } else if (remitterNameIsUnitHolder) {
+      thirdPartyDeposit = false;
+    } else {
+      thirdPartyDeposit = null;
+    }
+
     savingFundPaymentRepository.attachParty(payment.getId(), partyId);
+    savingFundPaymentRepository.markThirdPartyDeposit(payment.getId(), thirdPartyDeposit);
 
     log.info(
         "Verification completed for payment {}, attaching to party {}", payment.getId(), partyId);
@@ -172,20 +202,15 @@ public class PaymentVerificationService {
         .flatMap(userRepository::findByPersonalCode);
   }
 
-  private Optional<PartyId> extractPartyId(SavingFundPayment payment) {
-    var partyIdFromDescription = extractPartyIdFromDescription(payment.getDescription());
-    if (partyIdFromDescription.isPresent()) {
-      return partyIdFromDescription;
-    }
-    log.info(
-        "Payment {} has no code in description, falling back to remitter id code", payment.getId());
-    return parsePartyId(payment.getRemitterIdCode());
+  private boolean isRepresentedWhenTheMoneyArrived(PartyId partyId, SavingFundPayment payment) {
+    var bookingDate = payment.bookingDate();
+    return bookingDate == null
+        ? parentChildLinkService.hasRestrictedLegalCapacity(partyId.code())
+        : parentChildLinkService.hasRestrictedLegalCapacity(partyId.code(), bookingDate);
   }
 
-  // Attribution, not authorization: deciding whether an incoming payment is plausibly for this
-  // child, so we attribute it instead of bouncing it. Accepting money grants the payer no access —
-  // acting on the child's behalf goes through isActiveRepresentation. Tuleva intends to accept
-  // third-party payments generally, at which point this widening goes away.
+  // Still needed for MINOR_DEPOSIT_VERIFIED, which tracks a guardian funding the child they
+  // represent — a narrower thing than the third-party deposits now accepted generally above.
   private boolean isAuthorizedRemitter(PartyId remitter, PartyId party) {
     return remitter.type() == PERSON
         && party.type() == PERSON

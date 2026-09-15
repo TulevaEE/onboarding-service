@@ -45,6 +45,9 @@ public class SavingFundPayment {
 
   @Nullable String returnReason;
 
+  // True when the remitter is someone other than the unit holder, null until verified.
+  @Nullable Boolean thirdPartyDeposit;
+
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
 
   @Nullable

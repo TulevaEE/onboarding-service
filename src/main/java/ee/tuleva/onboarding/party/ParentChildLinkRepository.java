@@ -30,4 +30,7 @@ public interface ParentChildLinkRepository extends JpaRepository<ParentChildLink
 
   Optional<ParentChildLink> findByParentPersonalCodeAndChildPersonalCodeAndRelationshipType(
       String parentPersonalCode, String childPersonalCode, RepresentationType relationshipType);
+
+  boolean existsByChildPersonalCodeAndRelationshipTypeAndValidUntilAfter(
+      String childPersonalCode, RepresentationType relationshipType, LocalDate date);
 }

@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.investment.position;
 
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.FAIL;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.COMPLETENESS;
+import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.ISIN_MATCH;
 import static ee.tuleva.onboarding.investment.position.AccountType.CASH;
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
@@ -13,6 +16,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.investment.check.health.HealthCheckFinding;
 import ee.tuleva.onboarding.investment.check.health.HealthCheckNotifier;
 import ee.tuleva.onboarding.investment.check.health.HealthCheckResult;
 import ee.tuleva.onboarding.investment.check.health.HealthCheckService;
@@ -338,16 +342,45 @@ class FundPositionImportJobTest {
     verify(healthCheckNotifier).notify(eq(SWEDBANK), eq(date), anyList());
   }
 
+  @Test
+  void importForProviderAndDate_blocksTheFundWithANegativeSecurityQuantity() {
+    LocalDate date = LocalDate.of(2026, 1, 5);
+    when(reportService.getReport(SWEDBANK, POSITIONS, date))
+        .thenReturn(Optional.of(createSwedbankReport(date)));
+    when(healthCheckService.check(anyList()))
+        .thenReturn(
+            List.of(
+                new HealthCheckResult(
+                    TUK75,
+                    date,
+                    List.of(
+                        new HealthCheckFinding(
+                            TUK75,
+                            COMPLETENESS,
+                            FAIL,
+                            "TUK75: negative SECURITY quantity -50 for ISIN IE00BFG1TM61")))));
+
+    var result = job.importForProviderAndDate(SWEDBANK, date);
+
+    assertThat(result.changedRowsByFund()).containsOnlyKeys(TUV100);
+  }
+
+  @Test
+  void importForProviderAndDate_importsAFundThatHasNoHealthResultOfItsOwn() {
+    LocalDate date = LocalDate.of(2026, 1, 5);
+    when(reportService.getReport(SWEDBANK, POSITIONS, date))
+        .thenReturn(Optional.of(createSwedbankReport(date)));
+    when(healthCheckService.check(anyList())).thenReturn(List.of(isinMatchFail(TUK75, date)));
+
+    var result = job.importForProviderAndDate(SWEDBANK, date);
+
+    assertThat(result.changedRowsByFund()).containsOnlyKeys(TUV100);
+    verify(fundPositionLedgerService).recordPositionsToLedger(TUV100, date);
+  }
+
   private static HealthCheckResult isinMatchFail(TulevaFund fund, LocalDate date) {
     return new HealthCheckResult(
-        fund,
-        date,
-        List.of(
-            new ee.tuleva.onboarding.investment.check.health.HealthCheckFinding(
-                fund,
-                ee.tuleva.onboarding.investment.check.health.HealthCheckType.ISIN_MATCH,
-                ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.FAIL,
-                "unknown ISIN")));
+        fund, date, List.of(new HealthCheckFinding(fund, ISIN_MATCH, FAIL, "unknown ISIN")));
   }
 
   // A check that could not run is not a check that failed. The nav flow check reports NOT_RUN for a

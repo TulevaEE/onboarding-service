@@ -189,6 +189,25 @@ class HealthCheckNotifierTest {
     assertThat(notifier.notify(SEB, DATE, List.of(result))).isFalse();
   }
 
+  @Test
+  void importBlockedHeaderNamesAFundWhoseFailIsUnchangedSinceTheLastRun() {
+    givenPreviousSeverity(ISIN_MATCH, FAIL);
+    var unchangedFail = new HealthCheckFinding(TUK75, ISIN_MATCH, FAIL, "TUK75: unknown ISIN");
+    var newFail = new HealthCheckFinding(TUV100, COMPLETENESS, FAIL, "TUV100: negative SECURITY");
+
+    notifier.notify(
+        SEB,
+        DATE,
+        List.of(
+            new HealthCheckResult(TUK75, DATE, List.of(unchangedFail)),
+            new HealthCheckResult(TUV100, DATE, List.of(newFail))));
+
+    verify(notificationService)
+        .sendMessage(
+            contains("IMPORT BLOCKED: SEB 2026-04-15 — TUK75, TUV100 not imported"),
+            eq(INVESTMENT));
+  }
+
   private void givenPreviousNotRun(HealthCheckType checkType, String message) {
     var stored =
         HealthCheckEvent.builder()

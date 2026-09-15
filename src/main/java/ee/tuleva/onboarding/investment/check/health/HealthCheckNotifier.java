@@ -48,7 +48,7 @@ public class HealthCheckNotifier {
       var activeTransitions = transitions.stream().filter(t -> t.current != PASS).toList();
       var clearedTransitions = transitions.stream().filter(t -> t.current == PASS).toList();
 
-      var message = buildMessage(provider, date, activeTransitions, clearedTransitions);
+      var message = buildMessage(provider, date, results, activeTransitions, clearedTransitions);
       notificationService.sendMessage(message, INVESTMENT);
       return true;
 
@@ -116,9 +116,13 @@ public class HealthCheckNotifier {
   }
 
   private String buildMessage(
-      ReportProvider provider, LocalDate date, List<Transition> active, List<Transition> cleared) {
+      ReportProvider provider,
+      LocalDate date,
+      List<HealthCheckResult> results,
+      List<Transition> active,
+      List<Transition> cleared) {
     var message = new StringBuilder();
-    message.append(header(provider, date, active));
+    message.append(header(provider, date, results, active));
 
     for (var transition : active) {
       for (var finding : transition.result.findings()) {
@@ -148,12 +152,13 @@ public class HealthCheckNotifier {
     return message.toString();
   }
 
-  private String header(ReportProvider provider, LocalDate date, List<Transition> active) {
+  private String header(
+      ReportProvider provider,
+      LocalDate date,
+      List<HealthCheckResult> results,
+      List<Transition> active) {
     var blockedFunds =
-        active.stream()
-            .filter(t -> t.current == FAIL)
-            .map(t -> t.result.fund())
-            .distinct()
+        HealthCheckResult.blockedFunds(results).stream()
             .map(TulevaFund::getCode)
             .collect(joining(", "));
     if (!blockedFunds.isEmpty()) {

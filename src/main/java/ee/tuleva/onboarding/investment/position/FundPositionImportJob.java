@@ -6,7 +6,6 @@ import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
 import static ee.tuleva.onboarding.pipeline.PipelineStep.HEALTH_CHECK;
 import static ee.tuleva.onboarding.pipeline.PipelineStep.POSITION_IMPORT;
 import static java.util.Objects.requireNonNull;
-import static java.util.stream.Collectors.toCollection;
 
 import ee.tuleva.onboarding.investment.check.health.HealthCheckNotifier;
 import ee.tuleva.onboarding.investment.check.health.HealthCheckResult;
@@ -26,7 +25,6 @@ import ee.tuleva.onboarding.savings.fund.nav.NavPositionsUpdated;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
 import java.time.LocalDate;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -172,11 +170,7 @@ public class FundPositionImportJob {
         "Parsed fund positions: provider={}, date={}, count={}", provider, date, positions.size());
 
     var healthResults = healthCheckService.check(positions);
-    Set<TulevaFund> blockedFunds =
-        healthResults.stream()
-            .filter(HealthCheckResult::hasFails)
-            .map(HealthCheckResult::fund)
-            .collect(toCollection(() -> EnumSet.noneOf(TulevaFund.class)));
+    Set<TulevaFund> blockedFunds = HealthCheckResult.blockedFunds(healthResults);
 
     if (!blockedFunds.isEmpty()) {
       healthCheckFailed = true;

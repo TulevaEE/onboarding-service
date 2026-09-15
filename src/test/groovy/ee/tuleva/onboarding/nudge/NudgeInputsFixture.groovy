@@ -1,7 +1,10 @@
 package ee.tuleva.onboarding.nudge
 
+import java.time.LocalDate
+
 import static ee.tuleva.onboarding.nudge.Known.NO
 import static ee.tuleva.onboarding.nudge.Known.YES
+import static ee.tuleva.onboarding.nudge.PaymentRateSeason.Mode.OFF_SEASON
 
 class NudgeInputsFixture {
 
@@ -29,6 +32,11 @@ class NudgeInputsFixture {
         .taxHeadroom(NO)
         .feeComparison(null)
         .savingsFundFeePercent(0.28)
+        .paymentRateSeason(sampleSeason(OFF_SEASON))
+  }
+
+  static PaymentRateSeason sampleSeason(PaymentRateSeason.Mode mode) {
+    return new PaymentRateSeason(LocalDate.parse("2026-11-30"), LocalDate.parse("2027-01-01"), mode)
   }
 
   static FeeComparison sampleFeeComparison() {

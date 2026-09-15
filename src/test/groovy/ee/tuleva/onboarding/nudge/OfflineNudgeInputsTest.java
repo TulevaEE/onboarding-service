@@ -7,8 +7,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 
+import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.user.User;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,21 +33,29 @@ class OfflineNudgeInputsTest {
   @Mock private ActingParties actingParties;
   @Mock private SavingsFundFeeRate savingsFundFeeRate;
 
+  private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
+
   private final User user = sampleUser().build();
   private OfflineNudgeInputs offlineInputs;
 
+  private OfflineNudgeInputs offlineInputsOn(String date) {
+    Clock clock =
+        Clock.fixed(LocalDateTime.parse(date + "T09:00:00").atZone(TALLINN).toInstant(), TALLINN);
+    return new OfflineNudgeInputs(
+        pensionRegistry,
+        new KnownLookups(
+            leaverStatus,
+            recurringStatus,
+            saverStatus,
+            taxHeadroom,
+            actingParties,
+            savingsFundFeeRate),
+        new PaymentRateSeasons(clock, new MandateDeadlinesService(clock, new PublicHolidays())));
+  }
+
   @BeforeEach
   void setUp() {
-    offlineInputs =
-        new OfflineNudgeInputs(
-            pensionRegistry,
-            new KnownLookups(
-                leaverStatus,
-                recurringStatus,
-                saverStatus,
-                taxHeadroom,
-                actingParties,
-                savingsFundFeeRate));
+    offlineInputs = offlineInputsOn("2026-09-10");
     given(savingsFundFeeRate.ongoingChargesPercent()).willReturn(new BigDecimal("0.28"));
     given(recurringStatus.savingsFund(any())).willReturn(true);
     given(saverStatus.savesFor(any())).willReturn(true);
@@ -100,5 +114,24 @@ class OfflineNudgeInputsTest {
 
     assertThat(inputs.leftSecondPillar()).isEqualTo(Known.YES);
     assertThat(inputs.secondPillarActive()).isFalse();
+  }
+
+  @Test
+  void theOfflineInputsCarryTheSameSeasonSoDecemberSuppressionReachesScheduledEmails() {
+    given(pensionRegistry.snapshotFor(user.getPersonalCode()))
+        .willReturn(Optional.of(new PensionRegistrySnapshot(true, true, false, true, true)));
+
+    assertThat(offlineInputsOn("2026-11-10").assemble(user, MEMBERSHIP).paymentRateSeason())
+        .isEqualTo(
+            new PaymentRateSeason(
+                LocalDate.of(2026, 11, 30),
+                LocalDate.of(2027, 1, 1),
+                PaymentRateSeason.Mode.SEASON));
+    assertThat(offlineInputsOn("2026-12-10").assemble(user, MEMBERSHIP).paymentRateSeason())
+        .isEqualTo(
+            new PaymentRateSeason(
+                LocalDate.of(2027, 11, 30),
+                LocalDate.of(2028, 1, 1),
+                PaymentRateSeason.Mode.CLOSED));
   }
 }

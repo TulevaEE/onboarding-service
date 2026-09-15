@@ -18,10 +18,16 @@ import static org.mockito.Mockito.verify;
 import ee.tuleva.onboarding.auth.SecurityContextRunner;
 import ee.tuleva.onboarding.conversion.PendingMandateApplications;
 import ee.tuleva.onboarding.conversion.UserConversionService;
+import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.paymentrate.PaymentRates;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
 import ee.tuleva.onboarding.user.User;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,6 +53,8 @@ class NudgeDecisionServiceTest {
   @Mock private SecurityContextRunner securityContextRunner;
   @Mock private OfflineNudgeInputs offlineInputs;
 
+  private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
+
   private NudgeDecisionService service;
 
   private final User member = sampleUser().build();
@@ -54,25 +62,32 @@ class NudgeDecisionServiceTest {
   private final NudgeAccount child = NudgeAccount.person("51111111111");
   private final NudgeAccount company = NudgeAccount.company("12345678");
 
+  private NudgeDecisionService serviceOn(String date) {
+    Clock clock =
+        Clock.fixed(LocalDateTime.parse(date + "T09:00:00").atZone(TALLINN).toInstant(), TALLINN);
+    return new NudgeDecisionService(
+        new NudgeInputsAssembler(
+            pillarStatus,
+            conversionService,
+            pendingApplications,
+            paymentRateService,
+            feeComparisonCalculator,
+            new KnownLookups(
+                leaverStatus,
+                recurringStatus,
+                saverStatus,
+                taxHeadroom,
+                actingParties,
+                savingsFundFeeRate),
+            new PaymentRateSeasons(
+                clock, new MandateDeadlinesService(clock, new PublicHolidays()))),
+        offlineInputs,
+        securityContextRunner);
+  }
+
   @BeforeEach
   void setUp() {
-    service =
-        new NudgeDecisionService(
-            new NudgeInputsAssembler(
-                pillarStatus,
-                conversionService,
-                pendingApplications,
-                paymentRateService,
-                feeComparisonCalculator,
-                new KnownLookups(
-                    leaverStatus,
-                    recurringStatus,
-                    saverStatus,
-                    taxHeadroom,
-                    actingParties,
-                    savingsFundFeeRate)),
-            offlineInputs,
-            securityContextRunner);
+    service = serviceOn("2026-09-10");
     lenient()
         .when(securityContextRunner.callAs(any(), any()))
         .thenAnswer(invocation -> invocation.<java.util.function.Supplier<?>>getArgument(1).get());
@@ -232,5 +247,52 @@ class NudgeDecisionServiceTest {
 
     assertThat(service.decide(member, THIRD_PILLAR_PAYMENT))
         .isEqualTo(NudgeDecision.of(NudgeKey.SECOND_PILLAR_PAYMENT_RATE));
+  }
+
+  @Test
+  void aSaverWhoCanStillRaiseTheRateGetsTheRateNudgeWithTheSeasonOnTheAccountPage() {
+    given(paymentRateService.getPaymentRates(member)).willReturn(new PaymentRates(2, null));
+
+    assertThat(serviceOn("2026-11-10").decide(member, self, NudgeContext.ACCOUNT))
+        .isEqualTo(
+            NudgeDecision.of(NudgeKey.SECOND_PILLAR_PAYMENT_RATE)
+                .withPaymentRateSeason(
+                    new PaymentRateSeason(
+                        LocalDate.of(2026, 11, 30),
+                        LocalDate.of(2027, 1, 1),
+                        PaymentRateSeason.Mode.SEASON)));
+  }
+
+  @Test
+  void aSaverAlreadyAtTheMaximumRateStillGetsTheSeasonBesideTheNudgeThatDidWin() {
+    given(paymentRateService.getPaymentRates(member)).willReturn(new PaymentRates(6, null));
+    given(pillarStatus.of(member)).willReturn(new PillarActivity(true, false));
+
+    assertThat(serviceOn("2026-11-10").decide(member, self, NudgeContext.ACCOUNT))
+        .isEqualTo(
+            NudgeDecision.of(NudgeKey.THIRD_PILLAR_START)
+                .withPaymentRateSeason(
+                    new PaymentRateSeason(
+                        LocalDate.of(2026, 11, 30),
+                        LocalDate.of(2027, 1, 1),
+                        PaymentRateSeason.Mode.SEASON)));
+  }
+
+  @Test
+  void outsideTheSeasonTheAccountDecisionCarriesNoSeason() {
+    given(paymentRateService.getPaymentRates(member)).willReturn(new PaymentRates(2, null));
+
+    assertThat(serviceOn("2026-10-10").decide(member, self, NudgeContext.ACCOUNT))
+        .isEqualTo(NudgeDecision.of(NudgeKey.SECOND_PILLAR_PAYMENT_RATE));
+  }
+
+  @Test
+  void inDecemberTheRateNudgeYieldsNothingAndNoSeasonIsCarried() {
+    given(paymentRateService.getPaymentRates(member)).willReturn(new PaymentRates(2, null));
+
+    assertThat(serviceOn("2026-12-10").decide(member, self, NudgeContext.ACCOUNT))
+        .isEqualTo(NudgeDecision.of(NudgeKey.NONE));
+    assertThat(serviceOn("2026-12-10").decide(member, self, THIRD_PILLAR_PAYMENT))
+        .isEqualTo(NudgeDecision.of(NudgeKey.NONE));
   }
 }

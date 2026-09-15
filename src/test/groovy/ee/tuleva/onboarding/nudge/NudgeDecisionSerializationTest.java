@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -34,6 +35,20 @@ class NudgeDecisionSerializationTest {
     decisions.add(NudgeDecision.of(NudgeKey.SAVINGS_FUND_RECURRING));
     decisions.add(NudgeDecision.of(NudgeKey.MEMBERSHIP));
     decisions.add(NudgeDecision.of(NudgeKey.NONE));
+    decisions.add(
+        NudgeDecision.of(NudgeKey.SECOND_PILLAR_PAYMENT_RATE)
+            .withPaymentRateSeason(
+                new PaymentRateSeason(
+                    LocalDate.of(2026, 11, 30),
+                    LocalDate.of(2027, 1, 1),
+                    PaymentRateSeason.Mode.SEASON)));
+    decisions.add(
+        NudgeDecision.of(NudgeKey.THIRD_PILLAR_START)
+            .withPaymentRateSeason(
+                new PaymentRateSeason(
+                    LocalDate.of(2026, 11, 30),
+                    LocalDate.of(2027, 1, 1),
+                    PaymentRateSeason.Mode.LAST_DAYS)));
     return decisions;
   }
 

@@ -11,10 +11,20 @@ final class NudgeRules {
   private NudgeRules() {}
 
   static NudgeDecision decide(NudgeInputs in, NudgeContext context) {
-    return PensionNudges.decide(in, context)
-        .or(() -> SavingsNudges.decide(in, context))
-        .or(() -> membership(in, context))
-        .orElse(of(NONE));
+    NudgeDecision decision =
+        PensionNudges.decide(in, context)
+            .or(() -> SavingsNudges.decide(in, context))
+            .or(() -> membership(in, context))
+            .orElse(of(NONE));
+    return withSeason(decision, in, context);
+  }
+
+  private static NudgeDecision withSeason(
+      NudgeDecision decision, NudgeInputs in, NudgeContext context) {
+    if (context != NudgeContext.ACCOUNT || !in.paymentRateSeason().isShown()) {
+      return decision;
+    }
+    return decision.withPaymentRateSeason(in.paymentRateSeason());
   }
 
   private static Optional<NudgeDecision> membership(NudgeInputs in, NudgeContext context) {

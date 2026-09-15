@@ -7,6 +7,11 @@ import static ee.tuleva.onboarding.nudge.Known.UNKNOWN
 import static ee.tuleva.onboarding.nudge.Known.YES
 import static ee.tuleva.onboarding.nudge.NudgeInputsFixture.everythingSorted
 import static ee.tuleva.onboarding.nudge.NudgeInputsFixture.sampleFeeComparison
+import static ee.tuleva.onboarding.nudge.NudgeInputsFixture.sampleSeason
+import static ee.tuleva.onboarding.nudge.PaymentRateSeason.Mode.CLOSED
+import static ee.tuleva.onboarding.nudge.PaymentRateSeason.Mode.LAST_DAYS
+import static ee.tuleva.onboarding.nudge.PaymentRateSeason.Mode.OFF_SEASON
+import static ee.tuleva.onboarding.nudge.PaymentRateSeason.Mode.SEASON
 import static ee.tuleva.onboarding.nudge.NudgeKey.*
 
 class NudgeRulesSpec extends Specification {
@@ -208,5 +213,48 @@ class NudgeRulesSpec extends Specification {
     expect:
     NudgeRules.decide(inputs, NudgeContext.THIRD_PILLAR_PAYMENT) == NudgeDecision.of(MEMBERSHIP)
     NudgeRules.decide(inputs, NudgeContext.MEMBERSHIP) == NudgeDecision.of(NONE)
+  }
+
+  def "once the payment rate deadline has passed for the year the rate nudge yields nothing anywhere"() {
+    given:
+    def inputs = everythingSorted().canIncreasePaymentRate(true).paymentRateSeason(sampleSeason(CLOSED))
+
+    expect:
+    NudgeRules.decide(inputs.build(), NudgeContext.THIRD_PILLAR_PAYMENT) == NudgeDecision.of(NONE)
+    NudgeRules.decide(inputs.build(), NudgeContext.ACCOUNT) == NudgeDecision.of(NONE)
+    NudgeRules.decide(inputs.build(), NudgeContext.SECOND_PILLAR_MANDATE) == NudgeDecision.of(NONE)
+  }
+
+  def "the account context carries the running season whatever the chosen nudge is: #mode"() {
+    given:
+    def season = sampleSeason(mode)
+    def rateRaiser = everythingSorted().canIncreasePaymentRate(true).paymentRateSeason(season).build()
+    def sortedSaver = everythingSorted().paymentRateSeason(season).build()
+
+    expect:
+    NudgeRules.decide(rateRaiser, NudgeContext.ACCOUNT) == NudgeDecision.of(SECOND_PILLAR_PAYMENT_RATE).withPaymentRateSeason(season)
+    NudgeRules.decide(sortedSaver, NudgeContext.ACCOUNT) == NudgeDecision.of(NONE).withPaymentRateSeason(season)
+
+    where:
+    mode << [SEASON, LAST_DAYS]
+  }
+
+  def "only the account context carries the season object"() {
+    given:
+    def season = sampleSeason(SEASON)
+    def inputs = everythingSorted().canIncreasePaymentRate(true).paymentRateSeason(season).build()
+
+    expect:
+    NudgeRules.decide(inputs, NudgeContext.THIRD_PILLAR_PAYMENT) == NudgeDecision.of(SECOND_PILLAR_PAYMENT_RATE)
+    NudgeRules.decide(inputs, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED) == NudgeDecision.of(SECOND_PILLAR_PAYMENT_RATE)
+    NudgeRules.decide(inputs, NudgeContext.MEMBERSHIP) == NudgeDecision.of(SECOND_PILLAR_PAYMENT_RATE)
+  }
+
+  def "outside the season the account context carries no season object"() {
+    given:
+    def inputs = everythingSorted().canIncreasePaymentRate(true).paymentRateSeason(sampleSeason(OFF_SEASON)).build()
+
+    expect:
+    NudgeRules.decide(inputs, NudgeContext.ACCOUNT) == NudgeDecision.of(SECOND_PILLAR_PAYMENT_RATE)
   }
 }

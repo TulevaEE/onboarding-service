@@ -24,6 +24,7 @@ class NudgeInputsAssembler {
   private final SecondPillarPaymentRateService paymentRateService;
   private final FeeComparisonCalculator feeComparisonCalculator;
   private final KnownLookups lookups;
+  private final PaymentRateSeasons paymentRateSeasons;
 
   NudgeInputs assemble(User user, NudgeAccount actingParty, NudgeContext context) {
     PillarActivity pillars = pillarStatus.of(user);
@@ -61,6 +62,7 @@ class NudgeInputsAssembler {
         .taxHeadroom(pillars.thirdPillarActive() ? lookups.taxHeadroom(user) : Known.NO)
         .feeComparison(feeComparison(user, conversion))
         .savingsFundFeePercent(lookups.savingsFundFeePercent())
+        .paymentRateSeason(paymentRateSeasons.current())
         .build();
   }
 

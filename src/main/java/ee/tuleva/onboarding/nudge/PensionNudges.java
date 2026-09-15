@@ -63,6 +63,9 @@ final class PensionNudges {
     if (context.suppresses(SECOND_PILLAR_PAYMENT_RATE) || !secondPillarEligible(in)) {
       return Optional.empty();
     }
+    if (in.paymentRateSeason().isClosed()) {
+      return Optional.empty();
+    }
     if (in.secondPillarActive() && in.canIncreasePaymentRate()) {
       return Optional.of(of(SECOND_PILLAR_PAYMENT_RATE));
     }

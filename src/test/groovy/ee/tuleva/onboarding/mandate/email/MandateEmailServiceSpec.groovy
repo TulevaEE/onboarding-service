@@ -497,7 +497,7 @@ class MandateEmailServiceSpec extends Specification {
     personalCodeForAge(55)            | foreignFund(LOW_RISK, new BigDecimal("0.001"))  || false
   }
 
-  def "selectedFundMergeVars flags a fund as high-fee only strictly above the 0.3% ongoing charges threshold"() {
+  def "selectedFundMergeVars flags a fund as high-fee from 0.3% ongoing charges upwards"() {
     given:
     def mandate = emptyMandate().build()
     fundRepository.findByIsin("isin") >> foreignFund(HIGH_RISK, ongoingChargesFigure)
@@ -508,7 +508,8 @@ class MandateEmailServiceSpec extends Specification {
 
     where:
     ongoingChargesFigure     || expectedHighFee
-    new BigDecimal("0.003")  || false
+    new BigDecimal("0.0029") || false
+    new BigDecimal("0.003")  || true
     new BigDecimal("0.0031") || true
   }
 

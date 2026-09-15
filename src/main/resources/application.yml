@@ -78,7 +78,7 @@ admin:
 
 nudge:
   payment-rate-redirect:
-    seed: ${PAYMENT_RATE_REDIRECT_SEED:}
+    seed: ${PAYMENT_RATE_REDIRECT_SEED:local-development-seed}
     holdout-percent: ${PAYMENT_RATE_REDIRECT_HOLDOUT_PERCENT:20}
     salary-threshold: ${PAYMENT_RATE_REDIRECT_SALARY_THRESHOLD:3300}
     start-date: ${PAYMENT_RATE_REDIRECT_START_DATE:2026-09-01}

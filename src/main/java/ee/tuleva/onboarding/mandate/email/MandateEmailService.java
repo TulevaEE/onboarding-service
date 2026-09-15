@@ -20,6 +20,7 @@ import ee.tuleva.onboarding.mandate.batch.MandateBatch;
 import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.notification.email.EmailType;
+import ee.tuleva.onboarding.nudge.FundFees;
 import ee.tuleva.onboarding.nudge.NudgeDecision;
 import ee.tuleva.onboarding.nudge.NudgeKey;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
@@ -174,7 +175,6 @@ public class MandateEmailService {
     boolean youngInLowRiskFund =
         user.getAge() < 55 && selectedFunds.stream().anyMatch(Fund::isLowRisk);
     mergeVars.put("selectedConservativeFund", youngInLowRiskFund);
-    BigDecimal highFeeThreshold = new BigDecimal("0.003");
     BigDecimal highestFee =
         selectedFunds.stream()
             .filter(fund -> !fund.isOwnFund())
@@ -182,7 +182,7 @@ public class MandateEmailService {
             .filter(Objects::nonNull)
             .max(BigDecimal::compareTo)
             .orElse(BigDecimal.ZERO);
-    boolean selectedHighFeeFund = highestFee.compareTo(highFeeThreshold) > 0;
+    boolean selectedHighFeeFund = FundFees.isHigh(highestFee);
     mergeVars.put("selectedHighFeeFund", selectedHighFeeFund);
     if (selectedHighFeeFund) {
       String fee =

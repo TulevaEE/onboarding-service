@@ -20,6 +20,8 @@ import ee.tuleva.onboarding.investment.position.parser.SebFundPositionParser;
 import ee.tuleva.onboarding.investment.position.parser.SwedbankFundPositionParser;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
+import ee.tuleva.onboarding.investment.report.MissingReportAsOfDateEvent;
+import ee.tuleva.onboarding.investment.report.SebReportAsOfDate;
 import ee.tuleva.onboarding.pipeline.PipelineTracker;
 import ee.tuleva.onboarding.savings.fund.nav.NavPositionsUpdated;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -55,7 +57,7 @@ class FundPositionImportJobTest {
   @BeforeEach
   void setUp() {
     swedbankParser = new SwedbankFundPositionParser(Clock.systemUTC());
-    sebParser = new SebFundPositionParser(Clock.systemUTC());
+    sebParser = new SebFundPositionParser(Clock.systemUTC(), new SebReportAsOfDate(eventPublisher));
     importService = new FundPositionImportService(repository, Clock.systemUTC());
     lenient().when(healthCheckService.check(anyList())).thenReturn(List.of());
     job =
@@ -238,6 +240,36 @@ class FundPositionImportJobTest {
         .marketPrice(accountType == CASH ? java.math.BigDecimal.ONE : null)
         .marketValue(new java.math.BigDecimal(marketValue))
         .build();
+  }
+
+  @Test
+  void importForProviderAndDate_stillImports_whenTheReportCarriesNoAsOfDate() {
+    LocalDate date = LocalDate.of(2026, 1, 5);
+    var report =
+        InvestmentReport.builder()
+            .provider(SEB)
+            .reportType(POSITIONS)
+            .reportDate(date)
+            .rawData(
+                List.of(
+                    Map.of(
+                        "Client name", "TKF100",
+                        "Account", "EE861010220306591229",
+                        "Name", "Cash account in SEB Pank",
+                        "Quantity", "1000",
+                        "Currency", "EUR",
+                        "Market Value (EUR)", "1000")))
+            .metadata(Map.of())
+            .createdAt(Instant.now())
+            .build();
+    given(reportService.getReport(SEB, POSITIONS, date)).willReturn(Optional.of(report));
+    given(repository.findByNavDateAndFundAndAccountTypeAndAccountName(any(), any(), any(), any()))
+        .willReturn(Optional.empty());
+
+    var result = job.importForProviderAndDate(SEB, date);
+
+    assertThat(result.imported()).isEqualTo(1);
+    verify(eventPublisher).publishEvent(new MissingReportAsOfDateEvent(SEB, POSITIONS, date, null));
   }
 
   @Test

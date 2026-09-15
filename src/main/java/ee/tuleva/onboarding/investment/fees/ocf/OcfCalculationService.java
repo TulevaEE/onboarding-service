@@ -12,9 +12,10 @@ import ee.tuleva.onboarding.investment.fees.FeeRate;
 import ee.tuleva.onboarding.investment.fees.FeeRateRepository;
 import ee.tuleva.onboarding.investment.fees.InstrumentFeeRepository;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
-import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
+import ee.tuleva.onboarding.savings.FundNavQueryService;
+import ee.tuleva.onboarding.savings.fund.nav.NavAccountLine;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -44,6 +45,7 @@ public class OcfCalculationService {
   private final ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
   private final TransactionExecutionRepository transactionExecutionRepository;
   private final OcfSnapshotRepository ocfSnapshotRepository;
+  private final FundNavQueryService fundNavQueryService;
 
   public OcfSnapshot calculateOcf(TulevaFund fund, YearMonth month) {
     var monthEnd = month.atEndOfMonth();
@@ -134,7 +136,7 @@ public class OcfCalculationService {
     if (fund == TulevaFund.TKF100) {
       return computeFromModelPortfolio(fund, asOf, rateByIsin);
     }
-    return computeFromPositions(fund, asOf, rateByIsin);
+    return computeFromPublishedNav(fund, asOf, rateByIsin);
   }
 
   private BigDecimal computeFromModelPortfolio(
@@ -148,37 +150,29 @@ public class OcfCalculationService {
         .reduce(ZERO, BigDecimal::add);
   }
 
-  private BigDecimal computeFromPositions(
+  private BigDecimal computeFromPublishedNav(
       TulevaFund fund, LocalDate asOf, Map<String, BigDecimal> rateByIsin) {
-    var latestNavDate =
-        fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, asOf).orElse(null);
-    if (latestNavDate == null) {
+    var calculation =
+        fundNavQueryService
+            .findLatestNavDateOnOrBefore(fund.getCode(), asOf)
+            .flatMap(
+                navDate -> fundNavQueryService.findPublishedCalculation(fund.getCode(), navDate))
+            .orElse(null);
+    if (calculation == null) {
       return ZERO;
     }
-    var positions =
-        fundPositionRepository.findByNavDateAndFundAndAccountType(latestNavDate, fund, SECURITY);
-    if (positions.isEmpty()) {
+    var aum = calculation.assetsUnderManagement();
+    if (aum.signum() <= 0) {
       return ZERO;
     }
-    var totalValue =
-        positions.stream()
-            .map(OcfCalculationService::marketValueOrZero)
-            .reduce(ZERO, BigDecimal::add);
-    if (totalValue.signum() <= 0) {
-      return ZERO;
-    }
-    return positions.stream()
-        .map(
-            p -> {
-              var weight = marketValueOrZero(p).divide(totalValue, SCALE, HALF_UP);
-              return weight.multiply(rateByIsin.getOrDefault(p.getAccountId(), ZERO));
-            })
+    return calculation.securityLines().stream()
+        .map(line -> line.value().divide(aum, SCALE, HALF_UP).multiply(rateFor(line, rateByIsin)))
         .reduce(ZERO, BigDecimal::add);
   }
 
-  private static BigDecimal marketValueOrZero(FundPosition position) {
-    var marketValue = position.getMarketValue();
-    return marketValue != null ? marketValue : ZERO;
+  private static BigDecimal rateFor(NavAccountLine line, Map<String, BigDecimal> rateByIsin) {
+    var isin = line.accountId();
+    return isin == null ? ZERO : rateByIsin.getOrDefault(isin, ZERO);
   }
 
   BigDecimal getTransactionCostRate(TulevaFund fund, LocalDate monthEnd) {

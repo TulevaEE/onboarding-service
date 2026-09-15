@@ -160,6 +160,12 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
   Optional<NavReportRow> findFirstByFundCodeAndNavDateOrderByIdDesc(
       String fundCode, LocalDate navDate);
 
+  // Same precedence as sumPublishedMarketValueByAccountType: a backdated calculation with a lower
+  // id but a later published_at is the official one.
+  Optional<NavReportRow>
+      findFirstByFundCodeAndNavDateAndPublishedAtIsNotNullOrderByPublishedAtDescIdDesc(
+          String fundCode, LocalDate navDate);
+
   @Query(
       """
       SELECT new ee.tuleva.onboarding.savings.fund.nav.NavAccountLine(

@@ -64,5 +64,24 @@ public class RedemptionStatusService {
     repository.save(request);
   }
 
+  @Transactional
+  public void holdForReview(UUID id, RedemptionHoldReason reason) {
+    RedemptionRequest request =
+        repository
+            .findByIdForUpdate(id)
+            .orElseThrow(
+                () -> new IllegalArgumentException("Redemption request not found: id=" + id));
+    if (request.getStatus() != RESERVED) {
+      throw new IllegalStateException(
+          "Only reserved redemptions can be held for review: id="
+              + id
+              + ", status="
+              + request.getStatus());
+    }
+    request.setHoldReason(reason);
+    repository.save(request);
+    changeStatus(id, IN_REVIEW);
+  }
+
   private record StatusTransition(Status from, Status to) {}
 }

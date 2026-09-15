@@ -125,6 +125,18 @@ class SettlementCompletenessCheckerTest {
   }
 
   @Test
+  void aRefundSettlementOfAnOverSettledMonthCountsAsTheMonthsSettlement() {
+    var overSettled = new BigDecimal("33.30");
+    givenMonthCrossed();
+    givenBalances(overSettled, ZERO);
+    givenEntries(FEE_ACCRUAL);
+    givenEntries(FEE_SETTLEMENT, overSettled.negate());
+
+    assertThat(failures())
+        .noneMatch(finding -> finding.message().contains("settlement transaction(s)"));
+  }
+
+  @Test
   void aMonthNotYetCrossedIsNotRunRatherThanAFailure() {
     givenMonthNotCrossed();
 

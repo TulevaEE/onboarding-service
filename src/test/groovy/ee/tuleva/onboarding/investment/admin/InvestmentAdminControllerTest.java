@@ -18,7 +18,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import ee.tuleva.onboarding.admin.AdminTokenValidator;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceBackfillRequested;
-import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.position.FundPositionImportJob;
 import ee.tuleva.onboarding.investment.position.FundPositionLedgerService;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
@@ -28,7 +27,6 @@ import ee.tuleva.onboarding.investment.report.publishing.InvestmentReportPublish
 import ee.tuleva.onboarding.investment.report.publishing.data.InvestmentReportDataService;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportContext;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportPdfGenerator;
-import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.savings.NavFeeBackfill;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
@@ -63,8 +61,6 @@ class InvestmentAdminControllerTest {
   @MockitoBean private FundPositionLedgerService fundPositionLedgerService;
   @MockitoBean private FundPositionRepository fundPositionRepository;
   @MockitoBean private ReportImportJob reportImportJob;
-  @MockitoBean private FeeAccrualRepository feeAccrualRepository;
-  @MockitoBean private NavFeeAccrualLedger navFeeAccrualLedger;
   @MockitoBean private NavFeeBackfill navFeeBackfill;
   @MockitoBean private InvestmentReportPublisher investmentReportPublisher;
   @MockitoBean private InvestmentReportDataService investmentReportDataService;
@@ -197,6 +193,29 @@ class InvestmentAdminControllerTest {
                 .param("fundCode", "TUK75")
                 .param("fromDate", "2026-03-01"))
         .andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void rerecordPositionsFromDate_rerecordsPositionsAndReconcilesFeesInPlace() throws Exception {
+    when(fundPositionRepository.findLatestNavDateByFund(TulevaFund.TUK75))
+        .thenReturn(java.util.Optional.of(LocalDate.of(2026, 9, 8)));
+
+    mockMvc
+        .perform(
+            post("/admin/rerecord-positions-from-date")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("fundCode", "TUK75")
+                .param("fromDate", "2026-09-01"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("TUK75")))
+        .andExpect(content().string(containsString("2026-09-01")));
+
+    verify(fundPositionLedgerService)
+        .rerecordPositionsFromDate(TulevaFund.TUK75, LocalDate.of(2026, 9, 1));
+    verify(navFeeBackfill)
+        .backfillFees(TulevaFund.TUK75, LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 8));
+    verifyNoMoreInteractions(fundPositionLedgerService, navFeeBackfill);
   }
 
   @Test

@@ -202,6 +202,57 @@ class BankStatementTest {
         .isInstanceOf(BankStatementParseException.class);
   }
 
+  @Test
+  void from_accountStatement_exposesTheStatementPeriodAsLocalDates() {
+    var account = Camt053Fixtures.account("EE001234567890123456", "Acme OÜ", List.of("10060701"));
+    var statement =
+        Camt053Fixtures.accountStatement(
+            account,
+            List.of(),
+            List.of(),
+            null,
+            ZonedDateTime.parse("2025-12-12T00:00:00+02:00"),
+            ZonedDateTime.parse("2026-01-12T23:59:59.999+02:00"));
+
+    var result = BankStatement.from(statement, ZoneId.of("Europe/Tallinn"));
+
+    assertThat(result.getPeriod())
+        .isEqualTo(new StatementPeriod(LocalDate.of(2025, 12, 12), LocalDate.of(2026, 1, 12)));
+  }
+
+  @Test
+  void from_accountStatement_throwsWhenThePeriodStartIsMissing() {
+    var account = Camt053Fixtures.account("EE001234567890123456", "Acme OÜ", List.of("10060701"));
+    var statement =
+        Camt053Fixtures.accountStatement(
+            account,
+            List.of(),
+            List.of(),
+            null,
+            null,
+            ZonedDateTime.parse("2026-01-12T23:59:59.999+02:00"));
+
+    assertThatThrownBy(() -> BankStatement.from(statement, ZoneId.of("Europe/Tallinn")))
+        .isInstanceOf(BankStatementParseException.class);
+  }
+
+  @Test
+  void from_accountReport_usesTheReportDayAsItsPeriod() {
+    var account = Camt052Fixtures.account("EE001234567890123456", "Acme OÜ", List.of("10060701"));
+    var report =
+        Camt052Fixtures.accountReport(
+            account,
+            List.of(),
+            List.of(),
+            null,
+            ZonedDateTime.parse("2026-01-13T21:28:09.153+02:00"));
+
+    var result = BankStatement.from(report, ZoneId.of("Europe/Tallinn"));
+
+    assertThat(result.getPeriod())
+        .isEqualTo(new StatementPeriod(LocalDate.of(2026, 1, 13), LocalDate.of(2026, 1, 13)));
+  }
+
   @Nested
   class TransactionSummaryFromCamt052 {
 

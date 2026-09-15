@@ -11,14 +11,15 @@ import ee.tuleva.onboarding.banking.iso20022.camt052.BankToCustomerAccountReport
 import ee.tuleva.onboarding.banking.iso20022.camt052.DateTimePeriodDetails;
 import ee.tuleva.onboarding.banking.iso20022.camt053.AccountStatement2;
 import ee.tuleva.onboarding.banking.iso20022.camt053.BankToCustomerStatementV02;
-import jakarta.annotation.Nullable;
 import java.math.BigDecimal;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import javax.xml.datatype.XMLGregorianCalendar;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 
 @Getter
 @RequiredArgsConstructor
@@ -33,6 +34,7 @@ public class BankStatement {
   private final BankStatementAccount bankStatementAccount;
   private final List<BankStatementBalance> balances;
   private final List<BankStatementEntry> entries;
+  private final StatementPeriod period;
 
   record TransactionSummary(
       @Nullable String totalCount,
@@ -43,7 +45,7 @@ public class BankStatement {
       @Nullable BigDecimal debitSum) {
 
     static @Nullable TransactionSummary from(
-        @Nullable ee.tuleva.onboarding.banking.iso20022.camt053.TotalTransactions2 s) {
+        ee.tuleva.onboarding.banking.iso20022.camt053.@Nullable TotalTransactions2 s) {
       if (s == null) return null;
       return new TransactionSummary(
           s.getTtlNtries() != null ? s.getTtlNtries().getNbOfNtries() : null,
@@ -55,7 +57,7 @@ public class BankStatement {
     }
 
     static @Nullable TransactionSummary from(
-        @Nullable ee.tuleva.onboarding.banking.iso20022.camt052.TotalTransactions2 s) {
+        ee.tuleva.onboarding.banking.iso20022.camt052.@Nullable TotalTransactions2 s) {
       if (s == null) return null;
       return new TransactionSummary(
           s.getTtlNtries() != null ? s.getTtlNtries().getNbOfNtries() : null,
@@ -84,8 +86,9 @@ public class BankStatement {
     DateTimePeriodDetails fromAndToDateTime =
         Require.notNull(report.getFrToDt(), "fromAndToDateTime");
     XMLGregorianCalendar toDateTime = Require.notNull(fromAndToDateTime.getToDtTm(), "toDateTime");
-    var receivedBefore =
-        toDateTime.toGregorianCalendar().toZonedDateTime().withZoneSameLocal(timezone).toInstant();
+    var reportedUntil = atZone(toDateTime, timezone);
+    var receivedBefore = reportedUntil.toInstant();
+    var period = new StatementPeriod(reportedUntil.toLocalDate(), reportedUntil.toLocalDate());
 
     var entries =
         report.getNtry().stream()
@@ -95,12 +98,14 @@ public class BankStatement {
     var summary = TransactionSummary.from(report.getTxsSummry());
     requireIntegrity(entries, summary, balances, account);
 
-    return new BankStatement(INTRA_DAY_REPORT, account, balances, entries);
+    return new BankStatement(INTRA_DAY_REPORT, account, balances, entries, period);
   }
 
   static BankStatement from(AccountStatement2 statement, ZoneId timezone) {
     var account = BankStatementAccount.from(statement);
     var balances = statement.getBal().stream().map(BankStatementBalance::from).toList();
+    var fromAndToDateTime = Require.notNull(statement.getFrToDt(), "fromAndToDateTime");
+    var period = period(fromAndToDateTime.getFrDtTm(), fromAndToDateTime.getToDtTm(), timezone);
     var entries =
         statement.getNtry().stream()
             .map(entry -> BankStatementEntry.from(entry, timezone))
@@ -109,7 +114,20 @@ public class BankStatement {
     var summary = TransactionSummary.from(statement.getTxsSummry());
     requireIntegrity(entries, summary, balances, account);
 
-    return new BankStatement(HISTORIC_STATEMENT, account, balances, entries);
+    return new BankStatement(HISTORIC_STATEMENT, account, balances, entries, period);
+  }
+
+  private static StatementPeriod period(
+      @Nullable XMLGregorianCalendar fromDateTime,
+      @Nullable XMLGregorianCalendar toDateTime,
+      ZoneId timezone) {
+    return new StatementPeriod(
+        atZone(Require.notNull(fromDateTime, "fromDateTime"), timezone).toLocalDate(),
+        atZone(Require.notNull(toDateTime, "toDateTime"), timezone).toLocalDate());
+  }
+
+  private static ZonedDateTime atZone(XMLGregorianCalendar dateTime, ZoneId timezone) {
+    return dateTime.toGregorianCalendar().toZonedDateTime().withZoneSameLocal(timezone);
   }
 
   private static void requireIntegrity(

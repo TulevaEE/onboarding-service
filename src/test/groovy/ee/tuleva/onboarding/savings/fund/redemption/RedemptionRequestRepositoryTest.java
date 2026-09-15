@@ -1,6 +1,9 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.IN_REVIEW;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.PROCESSED;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestFixture.redemptionRequestFixture;
 import static java.time.temporal.ChronoUnit.DAYS;
@@ -8,6 +11,7 @@ import static java.time.temporal.ChronoUnit.HOURS;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -97,5 +101,17 @@ class RedemptionRequestRepositoryTest {
             .build());
 
     assertThat(repository.findAcceptedBefore(VERIFIED, CUTOFF)).isEmpty();
+  }
+
+  @Test
+  void findsRequestsInAnyOfTheGivenStatuses() {
+    var reserved =
+        repository.save(redemptionRequestFixture().userId(userId).status(RESERVED).build());
+    var inReview =
+        repository.save(redemptionRequestFixture().userId(userId).status(IN_REVIEW).build());
+    repository.save(redemptionRequestFixture().userId(userId).status(PROCESSED).build());
+
+    assertThat(repository.findByStatusIn(List.of(RESERVED, IN_REVIEW)))
+        .containsExactlyInAnyOrder(reserved, inReview);
   }
 }

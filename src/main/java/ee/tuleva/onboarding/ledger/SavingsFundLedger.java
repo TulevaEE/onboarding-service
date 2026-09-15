@@ -64,6 +64,12 @@ import org.springframework.stereotype.Service;
  * recordUnattributedPayment        INCOMING_PAYMENTS_CLEARING → UNRECONCILED_BANK_RECEIPTS
  * bounceBackUnattributedPayment    UNRECONCILED_BANK_RECEIPTS → INCOMING_PAYMENTS_CLEARING
  * </pre>
+ *
+ * <h2>Unit Transfer Flow (units change owner, nothing else moves)</h2>
+ *
+ * <pre>
+ * 1. recordUnitTransfer            Giver:FUND_UNITS → Receiver:FUND_UNITS
+ * </pre>
  */
 @Slf4j
 @Service
@@ -75,6 +81,7 @@ public class SavingsFundLedger {
   private final Clock clock;
   private final RedemptionLedgerRecorder redemptionRecorder;
   private final UnattributedPaymentLedgerRecorder unattributedRecorder;
+  private final UnitTransferLedgerRecorder unitTransferRecorder;
 
   @Getter
   @AllArgsConstructor
@@ -93,7 +100,9 @@ public class SavingsFundLedger {
     DISPLAY_NAME("displayName"),
     COUNTERPARTY_NAME("counterpartyName"),
     COUNTERPARTY_IBAN("counterpartyIban"),
-    SUB_FAMILY_CODE("subFamilyCode");
+    SUB_FAMILY_CODE("subFamilyCode"),
+    RECIPIENT_CODE("recipientCode"),
+    RECIPIENT_TYPE("recipientType");
 
     private final String key;
   }
@@ -337,6 +346,16 @@ public class SavingsFundLedger {
   public LedgerTransaction cancelRedemptionReservation(
       PartyRef party, BigDecimal fundUnits, UUID externalReference) {
     return redemptionRecorder.cancelRedemptionReservation(party, fundUnits, externalReference);
+  }
+
+  @Transactional
+  public LedgerTransaction recordUnitTransfer(
+      PartyRef from, PartyRef to, BigDecimal fundUnits, UUID externalReference) {
+    return unitTransferRecorder.recordUnitTransfer(from, to, fundUnits, externalReference);
+  }
+
+  public UnitTransferQuote quoteUnitTransfer(PartyRef from, PartyRef to, BigDecimal fundUnits) {
+    return unitTransferRecorder.quote(from, to, fundUnits);
   }
 
   @Transactional

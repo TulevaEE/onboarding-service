@@ -63,6 +63,21 @@ public class FundNavQueryService {
     return sumForLatestCalculationIncludingUnpublished(fundCode, navDate, ASSET_ACCOUNT_TYPES);
   }
 
+  public List<LocalDate> findPublishedNavDatesBetween(
+      String fundCode, LocalDate from, LocalDate to) {
+    return navReportRepository.findPublishedNavDatesBetween(fundCode, from, to);
+  }
+
+  // The published calculation: what an official figure such as the OCF must be built from, so that
+  // its instrument values and its NAV come from one and the same calculation.
+  public Optional<NavCalculation> findPublishedCalculation(String fundCode, LocalDate navDate) {
+    return navReportRepository
+        .findFirstByFundCodeAndNavDateAndPublishedAtIsNotNullOrderByPublishedAtDescIdDesc(
+            fundCode, navDate)
+        .map(NavReportRow::getCalculationId)
+        .flatMap(calculationId -> calculation(fundCode, navDate, calculationId));
+  }
+
   public Optional<NavCalculation> findLatestCalculation(String fundCode, LocalDate navDate) {
     return navReportRepository
         .findFirstByFundCodeAndNavDateOrderByIdDesc(fundCode, navDate)

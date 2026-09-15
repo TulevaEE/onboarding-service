@@ -76,6 +76,14 @@ admin:
   # Per-operator registry tokens bind from env vars: ADMIN_OPERATORTOKENS_<NAME>=<token>.
   # The name becomes the audited actor; api-token still works but audits as "shared-admin-token".
 
+nudge:
+  payment-rate-redirect:
+    enabled: ${PAYMENT_RATE_REDIRECT_ENABLED:false}
+    seed: ${PAYMENT_RATE_REDIRECT_SEED:}
+    holdout-percent: ${PAYMENT_RATE_REDIRECT_HOLDOUT_PERCENT:20}
+    salary-threshold: ${PAYMENT_RATE_REDIRECT_SALARY_THRESHOLD:3300}
+    start-date: ${PAYMENT_RATE_REDIRECT_START_DATE:2026-09-01}
+
 hackathon:
   # 05.10.2026 23:59:59 Estonian time
   registration-deadline: 2026-10-05T20:59:59Z

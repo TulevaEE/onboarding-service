@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.nudge.NudgeDecision.of;
 import static ee.tuleva.onboarding.nudge.NudgeKey.SAVINGS_FUND;
 import static ee.tuleva.onboarding.nudge.NudgeKey.SAVINGS_FUND_RECURRING;
 
+import java.math.BigDecimal;
 import java.util.Optional;
 
 final class SavingsNudges {
@@ -18,8 +19,9 @@ final class SavingsNudges {
     if (context.suppresses(SAVINGS_FUND) || !in.adult() || !savingsFundDecidable(in)) {
       return Optional.empty();
     }
-    if (in.savesInSavingsFund().isNo()) {
-      return Optional.of(NudgeDecision.savingsFund(in.savingsFundFeePercent()));
+    BigDecimal feePercent = in.savingsFundFeePercent();
+    if (in.savesInSavingsFund().isNo() && feePercent != null) {
+      return Optional.of(NudgeDecision.savingsFund(feePercent));
     }
     return Optional.empty();
   }

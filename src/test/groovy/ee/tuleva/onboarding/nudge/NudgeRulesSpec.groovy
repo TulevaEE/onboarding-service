@@ -188,6 +188,19 @@ class NudgeRulesSpec extends Specification {
     "saves only through another account, no nudge here"| YES    | NO       | NO           | NudgeContext.THIRD_PILLAR_PAYMENT || NudgeDecision.of(NONE)
   }
 
+  def "an unknown savings fund fee skips the savings fund nudge"() {
+    given:
+    def inputs = everythingSorted()
+        .savesInSavingsFund(NO)
+        .savingsFundSaver(NO)
+        .savingsFundRecurring(NO)
+        .savingsFundFeePercent(null)
+        .build()
+
+    expect:
+    NudgeRules.decide(inputs, NudgeContext.THIRD_PILLAR_PAYMENT) == NudgeDecision.of(NONE)
+  }
+
   def "membership comes last and not right after joining"() {
     given:
     def inputs = everythingSorted().member(false).build()

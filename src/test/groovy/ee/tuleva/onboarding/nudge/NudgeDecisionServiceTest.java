@@ -63,10 +63,14 @@ class NudgeDecisionServiceTest {
                 conversionService,
                 pendingApplications,
                 paymentRateService,
-                savingsFundFeeRate,
                 feeComparisonCalculator,
                 new KnownLookups(
-                    leaverStatus, recurringStatus, saverStatus, taxHeadroom, actingParties)),
+                    leaverStatus,
+                    recurringStatus,
+                    saverStatus,
+                    taxHeadroom,
+                    actingParties,
+                    savingsFundFeeRate)),
             offlineInputs,
             securityContextRunner);
     lenient()
@@ -87,6 +91,24 @@ class NudgeDecisionServiceTest {
         .when(feeComparisonCalculator.forSecondPillar(any(), any()))
         .thenReturn(Optional.empty());
     lenient().when(actingParties.representedBy(any())).thenReturn(List.of());
+  }
+
+  @Test
+  void aKnownSavingsFundFeeGoesIntoTheSavingsFundNudge() {
+    given(saverStatus.savesFor(any())).willReturn(false);
+
+    assertThat(service.decide(member, self, THIRD_PILLAR_PAYMENT))
+        .isEqualTo(NudgeDecision.savingsFund(new BigDecimal("0.28")));
+  }
+
+  @Test
+  void aFailedSavingsFundFeeLookupSkipsTheSavingsFundNudgeInsteadOfFailing() {
+    given(saverStatus.savesFor(any())).willReturn(false);
+    given(savingsFundFeeRate.ongoingChargesPercent())
+        .willThrow(new RuntimeException("fund row missing"));
+
+    assertThat(service.decide(member, self, THIRD_PILLAR_PAYMENT))
+        .isEqualTo(NudgeDecision.of(NudgeKey.NONE));
   }
 
   @Test

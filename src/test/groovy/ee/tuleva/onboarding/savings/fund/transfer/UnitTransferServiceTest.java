@@ -194,7 +194,7 @@ class UnitTransferServiceTest {
   @Test
   void approvingByWhoeverSubmittedIsRefused() {
     var awaiting = anAwaitingTransfer();
-    given(transfers.findById(awaiting.getId())).willReturn(Optional.of(awaiting));
+    given(transfers.findByIdForUpdate(awaiting.getId())).willReturn(Optional.of(awaiting));
 
     assertThatThrownBy(() -> service.approve(awaiting.getId(), "operator@example.com"))
         .isInstanceOf(IllegalStateException.class)
@@ -205,7 +205,7 @@ class UnitTransferServiceTest {
   @Test
   void approvingBySomeoneElseMovesTheUnits() {
     var awaiting = anAwaitingTransfer();
-    given(transfers.findById(awaiting.getId())).willReturn(Optional.of(awaiting));
+    given(transfers.findByIdForUpdate(awaiting.getId())).willReturn(Optional.of(awaiting));
     givenTheRepositoryReturnsWhateverItIsGiven();
     UUID ledgerTransactionId = randomUUID();
     var recorded =
@@ -230,7 +230,7 @@ class UnitTransferServiceTest {
   @Test
   void approvingAsYourselfSpeltDifferentlyIsStillRefused() {
     var awaiting = anAwaitingTransfer();
-    given(transfers.findById(awaiting.getId())).willReturn(Optional.of(awaiting));
+    given(transfers.findByIdForUpdate(awaiting.getId())).willReturn(Optional.of(awaiting));
 
     assertThatThrownBy(() -> service.approve(awaiting.getId(), "  OPERATOR@Example.com "))
         .isInstanceOf(IllegalStateException.class)
@@ -241,7 +241,7 @@ class UnitTransferServiceTest {
   @Test
   void anUnnamedApproverIsRefused() {
     var awaiting = anAwaitingTransfer();
-    given(transfers.findById(awaiting.getId())).willReturn(Optional.of(awaiting));
+    given(transfers.findByIdForUpdate(awaiting.getId())).willReturn(Optional.of(awaiting));
     givenTheLedgerRecords();
 
     assertThatThrownBy(() -> service.approve(awaiting.getId(), "   "))
@@ -266,7 +266,7 @@ class UnitTransferServiceTest {
     var awaiting = anAwaitingTransfer();
     awaiting.executedBy(
         "approver@example.com", randomUUID(), Instant.parse("2026-09-15T08:00:00Z"));
-    given(transfers.findById(awaiting.getId())).willReturn(Optional.of(awaiting));
+    given(transfers.findByIdForUpdate(awaiting.getId())).willReturn(Optional.of(awaiting));
 
     assertThatThrownBy(() -> service.approve(awaiting.getId(), "someone-else@example.com"))
         .isInstanceOf(IllegalStateException.class)
@@ -277,7 +277,7 @@ class UnitTransferServiceTest {
   @Test
   void cancellingLeavesTheUnitsAlone() {
     var awaiting = anAwaitingTransfer();
-    given(transfers.findById(awaiting.getId())).willReturn(Optional.of(awaiting));
+    given(transfers.findByIdForUpdate(awaiting.getId())).willReturn(Optional.of(awaiting));
     givenTheRepositoryReturnsWhateverItIsGiven();
 
     var cancelled = service.cancel(awaiting.getId());

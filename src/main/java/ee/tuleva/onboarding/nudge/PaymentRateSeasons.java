@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.nudge.PaymentRateSeason.Mode.SEASON;
 import ee.tuleva.onboarding.deadline.MandateDeadlines;
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -28,6 +29,23 @@ class PaymentRateSeasons {
     LocalDate fulfillmentDate = deadlines.getPaymentRateFulfillmentDate();
     return new PaymentRateSeason(
         deadline, fulfillmentDate, mode(LocalDate.now(estonianClock), deadline, fulfillmentDate));
+  }
+
+  LocalDate deadlineFor(LocalDate date) {
+    return mandateDeadlinesService
+        .getDeadlines(date.atStartOfDay(estonianClock.getZone()).toInstant())
+        .getPaymentRateDeadline()
+        .atZone(estonianClock.getZone())
+        .toLocalDate();
+  }
+
+  Instant previousDeadline() {
+    return mandateDeadlinesService
+        .getDeadlines()
+        .getPaymentRateDeadline()
+        .atZone(estonianClock.getZone())
+        .minusYears(1)
+        .toInstant();
   }
 
   private static PaymentRateSeason.Mode mode(

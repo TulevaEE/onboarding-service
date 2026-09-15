@@ -56,4 +56,21 @@ class PaymentRateSeasonsSpec extends Specification {
     LAST_DAYS  || true  | false
     CLOSED     || false | true
   }
+
+
+  @Unroll
+  def "the previous payment rate deadline on #now is #previousDeadline"() {
+    given:
+    def clock = Clock.fixed(LocalDateTime.parse(now).atZone(TALLINN).toInstant(), TALLINN)
+    def seasons = new PaymentRateSeasons(clock, new MandateDeadlinesService(clock, new PublicHolidays()))
+
+    expect:
+    seasons.previousDeadline() == LocalDateTime.parse(previousDeadline).atZone(TALLINN).toInstant()
+
+    where:
+    now                   || previousDeadline
+    "2026-09-15T09:00:00" || "2025-11-30T23:59:59.999999999"
+    "2026-11-30T23:59:00" || "2025-11-30T23:59:59.999999999"
+    "2026-12-01T00:00:00" || "2026-11-30T23:59:59.999999999"
+  }
 }

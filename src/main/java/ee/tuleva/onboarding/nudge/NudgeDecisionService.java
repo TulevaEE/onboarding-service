@@ -20,10 +20,16 @@ public class NudgeDecisionService {
   }
 
   public NudgeDecision decide(User user, NudgeAccount actingParty, NudgeContext context) {
-    NudgeInputs inputs =
-        securityContextRunner.callAs(
-            user, () -> inputsAssembler.assemble(user, actingParty, context));
-    return decided(user, context, inputs);
+    return decided(user, context, inputsFor(user, actingParty, context));
+  }
+
+  NudgeInputs inputsFor(User user) {
+    return inputsFor(user, NudgeAccount.self(user), NudgeContext.ACCOUNT);
+  }
+
+  private NudgeInputs inputsFor(User user, NudgeAccount actingParty, NudgeContext context) {
+    return securityContextRunner.callAs(
+        user, () -> inputsAssembler.assemble(user, actingParty, context));
   }
 
   public NudgeDecision decideOffline(User user, NudgeContext context) {

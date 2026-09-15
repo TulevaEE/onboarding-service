@@ -16,6 +16,7 @@ import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatementAccount;
 import ee.tuleva.onboarding.banking.statement.BankStatementBalance;
+import ee.tuleva.onboarding.banking.statement.StatementPeriod;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.LedgerAccount;
 import ee.tuleva.onboarding.ledger.LedgerAccountFixture.EntryFixture;
@@ -36,6 +37,9 @@ import org.springframework.context.ApplicationEventPublisher;
 @ExtendWith(MockitoExtension.class)
 class SebReconciliatorTest {
 
+  private static final StatementPeriod STATEMENT_PERIOD =
+      new StatementPeriod(LocalDate.of(2026, 1, 12), LocalDate.of(2026, 1, 12));
+
   @Mock private LedgerService ledgerService;
   @Mock private BankAccounts bankAccounts;
   @Mock private FundBankLedger fundBankLedger;
@@ -53,7 +57,8 @@ class SebReconciliatorTest {
     BankStatementAccount account =
         new BankStatementAccount("EE123456789012345678", "Test Company", "12345678");
     BankStatement bankStatement =
-        new BankStatement(HISTORIC_STATEMENT, account, List.of(closingBalance), List.of());
+        new BankStatement(
+            HISTORIC_STATEMENT, account, List.of(closingBalance), List.of(), STATEMENT_PERIOD);
 
     LedgerAccount ledgerAccount =
         systemAccountWithBalance(matchingBalance, Instant.parse("2024-01-15T12:00:00Z"));
@@ -77,7 +82,8 @@ class SebReconciliatorTest {
     BankStatementAccount account =
         new BankStatementAccount("EE123456789012345678", "Test Company", "12345678");
     BankStatement bankStatement =
-        new BankStatement(HISTORIC_STATEMENT, account, List.of(closingBalance), List.of());
+        new BankStatement(
+            HISTORIC_STATEMENT, account, List.of(closingBalance), List.of(), STATEMENT_PERIOD);
 
     LedgerAccount ledgerAccount =
         systemAccountWithBalance(matchingBalance, Instant.parse("2024-01-15T12:00:00Z"));
@@ -94,6 +100,7 @@ class SebReconciliatorTest {
         .publishEvent(
             new ReconciliationCompletedEvent(
                 new BankAccount("EE123456789012345678", DEPOSIT_EUR, TKF100, "gw-test"),
+                LocalDate.of(2024, 1, 15),
                 matchingBalance,
                 matchingBalance,
                 true));
@@ -109,7 +116,8 @@ class SebReconciliatorTest {
     BankStatementAccount account =
         new BankStatementAccount("EE987700771001802057", "Test Company", "12345678");
     BankStatement bankStatement =
-        new BankStatement(HISTORIC_STATEMENT, account, List.of(closingBalance), List.of());
+        new BankStatement(
+            HISTORIC_STATEMENT, account, List.of(closingBalance), List.of(), STATEMENT_PERIOD);
 
     LedgerAccount ledgerAccount =
         systemAccountWithBalance(ledgerBalance, Instant.parse("2024-01-15T12:00:00Z"));
@@ -133,7 +141,8 @@ class SebReconciliatorTest {
     BankStatementAccount account =
         new BankStatementAccount("EE987700771001802057", "Test Company", "12345678");
     BankStatement bankStatement =
-        new BankStatement(HISTORIC_STATEMENT, account, List.of(closingBalance), List.of());
+        new BankStatement(
+            HISTORIC_STATEMENT, account, List.of(closingBalance), List.of(), STATEMENT_PERIOD);
 
     LedgerAccount ledgerAccount =
         systemAccountWithBalance(ledgerBalance, Instant.parse("2024-01-15T12:00:00Z"));
@@ -150,6 +159,7 @@ class SebReconciliatorTest {
         .publishEvent(
             new ReconciliationCompletedEvent(
                 new BankAccount("EE987700771001802057", DEPOSIT_EUR, TKF100, "gw-test"),
+                LocalDate.of(2024, 1, 15),
                 bankBalance,
                 ledgerBalance,
                 false));
@@ -162,7 +172,8 @@ class SebReconciliatorTest {
     BankStatementAccount account =
         new BankStatementAccount("EE123456789012345678", "Test Company", "12345678");
     BankStatement bankStatement =
-        new BankStatement(HISTORIC_STATEMENT, account, List.of(openingBalance), List.of());
+        new BankStatement(
+            HISTORIC_STATEMENT, account, List.of(openingBalance), List.of(), STATEMENT_PERIOD);
 
     assertThrows(NoSuchElementException.class, () -> reconciliator.reconcile(bankStatement));
   }
@@ -174,7 +185,8 @@ class SebReconciliatorTest {
     BankStatementAccount account =
         new BankStatementAccount("EE999999999999999999", "Test Company", "12345678");
     BankStatement bankStatement =
-        new BankStatement(HISTORIC_STATEMENT, account, List.of(closingBalance), List.of());
+        new BankStatement(
+            HISTORIC_STATEMENT, account, List.of(closingBalance), List.of(), STATEMENT_PERIOD);
 
     when(bankAccounts.find("EE999999999999999999")).thenReturn(Optional.empty());
 
@@ -190,7 +202,8 @@ class SebReconciliatorTest {
     BankStatementAccount account =
         new BankStatementAccount("EE123456789012345678", "Test Company", "12345678");
     BankStatement bankStatement =
-        new BankStatement(HISTORIC_STATEMENT, account, List.of(closingBalance), List.of());
+        new BankStatement(
+            HISTORIC_STATEMENT, account, List.of(closingBalance), List.of(), STATEMENT_PERIOD);
 
     LedgerAccount ledgerAccount =
         systemAccountWithBalance(matchingBalance, Instant.parse("2024-01-15T12:00:00Z"));
@@ -218,7 +231,8 @@ class SebReconciliatorTest {
     BankStatementAccount account =
         new BankStatementAccount("EE123456789012345678", "Test Company", "12345678");
     BankStatement bankStatement =
-        new BankStatement(HISTORIC_STATEMENT, account, List.of(closingBalance), List.of());
+        new BankStatement(
+            HISTORIC_STATEMENT, account, List.of(closingBalance), List.of(), STATEMENT_PERIOD);
 
     LedgerAccount ledgerAccount =
         systemAccountWithEntries(
@@ -249,7 +263,11 @@ class SebReconciliatorTest {
         new BankStatementAccount("EE123456789012345678", "Test Company", "12345678");
     BankStatement bankStatement =
         new BankStatement(
-            HISTORIC_STATEMENT, account, List.of(openingBalance, closingBalance), List.of());
+            HISTORIC_STATEMENT,
+            account,
+            List.of(openingBalance, closingBalance),
+            List.of(),
+            STATEMENT_PERIOD);
 
     LedgerAccount ledgerAccount =
         systemAccountWithBalance(matchingBalance, Instant.parse("2024-01-15T12:00:00Z"));

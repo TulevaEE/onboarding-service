@@ -13,9 +13,11 @@ import ee.tuleva.onboarding.banking.seb.reconciliation.SebReconciliator;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType;
 import ee.tuleva.onboarding.banking.statement.BankStatementAccount;
+import ee.tuleva.onboarding.banking.statement.StatementPeriod;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
@@ -29,6 +31,9 @@ import org.springframework.scheduling.TaskScheduler;
 
 @ExtendWith(MockitoExtension.class)
 class SebReconciliationListenerTest {
+
+  private static final StatementPeriod STATEMENT_PERIOD =
+      new StatementPeriod(LocalDate.of(2026, 1, 12), LocalDate.of(2026, 1, 12));
 
   private static final Instant FIXED_INSTANT = Instant.parse("2024-01-15T10:00:00Z");
   private static final Duration RECONCILIATION_DELAY = Duration.ofMinutes(5);
@@ -105,6 +110,7 @@ class SebReconciliationListenerTest {
         type,
         new BankStatementAccount("EE123456789012345678", "Test Company", "12345678"),
         List.of(),
-        List.of());
+        List.of(),
+        STATEMENT_PERIOD);
   }
 }

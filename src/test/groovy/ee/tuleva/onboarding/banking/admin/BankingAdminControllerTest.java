@@ -46,6 +46,17 @@ class BankingAdminControllerTest {
           new BankAccount(
               "EE001234567890123458", BankAccountType.FUND_INVESTMENT_EUR, TKF100, "gw-test"));
 
+  private static final List<BankAccount> ALL_BANK_ACCOUNTS =
+      List.of(
+          SAVINGS_FUND_BANK_ACCOUNTS.get(0),
+          SAVINGS_FUND_BANK_ACCOUNTS.get(1),
+          SAVINGS_FUND_BANK_ACCOUNTS.get(2),
+          new BankAccount(
+              "EE001234567890123475",
+              BankAccountType.FUND_INVESTMENT_EUR,
+              TulevaFund.TUK75,
+              "gw-test"));
+
   @Autowired private MockMvc mockMvc;
   @Autowired private ApplicationEvents applicationEvents;
 
@@ -53,8 +64,8 @@ class BankingAdminControllerTest {
   @MockitoBean private SuspenseReclassificationService suspenseReclassificationService;
 
   @Test
-  void fetchSebHistory_withValidToken_returnsOk() throws Exception {
-    given(bankAccounts.findAll(TKF100)).willReturn(SAVINGS_FUND_BANK_ACCOUNTS);
+  void fetchSebHistory_withoutFundCode_fetchesEveryFundsAccounts() throws Exception {
+    given(bankAccounts.findAll()).willReturn(ALL_BANK_ACCOUNTS);
 
     mockMvc
         .perform(
@@ -68,7 +79,7 @@ class BankingAdminControllerTest {
         .andExpect(content().string(containsString("2026-01-31")));
 
     var expectedEvents =
-        SAVINGS_FUND_BANK_ACCOUNTS.stream()
+        ALL_BANK_ACCOUNTS.stream()
             .map(
                 account ->
                     new FetchSebHistoricTransactionsRequested(
@@ -80,7 +91,7 @@ class BankingAdminControllerTest {
 
   @Test
   void fetchSebHistory_withAccountParam_fetchesOnlyThatAccount() throws Exception {
-    given(bankAccounts.findAll(TKF100)).willReturn(SAVINGS_FUND_BANK_ACCOUNTS);
+    given(bankAccounts.findAll()).willReturn(ALL_BANK_ACCOUNTS);
 
     mockMvc
         .perform(

@@ -124,5 +124,7 @@ class SecurityConfigurationSpec extends Specification {
     url                          | token       | status
     "/v1/hackathon-registration" | userToken   | status().isForbidden()
     "/v1/hackathon-registration" | memberToken | status().isOk()
+    "/v1/hackathon-ideas"        | userToken   | status().isForbidden()
+    "/v1/hackathon-ideas"        | memberToken | status().isOk()
   }
 }

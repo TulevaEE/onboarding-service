@@ -25,11 +25,11 @@ public class SavingFundPayment {
   @Builder.Default Currency currency = EUR;
 
   String description;
-  String remitterIban;
-  String remitterName;
+  @Nullable String remitterIban;
+  @Nullable String remitterName;
   @Nullable String remitterIdCode;
-  String beneficiaryIban;
-  String beneficiaryName;
+  @Nullable String beneficiaryIban;
+  @Nullable String beneficiaryName;
   @Nullable String beneficiaryIdCode;
 
   @Nullable String externalId;

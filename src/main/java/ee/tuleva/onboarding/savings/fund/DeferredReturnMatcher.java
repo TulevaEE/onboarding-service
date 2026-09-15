@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.UNAT
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.*;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ZERO;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankMessagesProcessingCompleted;
@@ -131,7 +132,11 @@ public class DeferredReturnMatcher {
             .or(
                 () ->
                     savingFundPaymentRepository.findOriginalPaymentByIbanAndAmount(
-                        returnPayment.getBeneficiaryIban(), returnPayment.getAmount()));
+                        requireNonNull(
+                            returnPayment.getBeneficiaryIban(),
+                            "Outgoing return without beneficiary IBAN: paymentId="
+                                + returnPayment.getId()),
+                        returnPayment.getAmount()));
 
     if (original.isPresent()) {
       completePaymentReturn(original.get());

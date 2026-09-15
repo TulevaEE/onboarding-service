@@ -121,7 +121,7 @@ public class SavingFundPaymentUpsertionService {
             mergeAndValidateField(
                 "description", existing.getDescription(), payment.getDescription()))
         .remitterIban(
-            mergeAndValidateField(
+            mergeAndValidateNullableField(
                 "remitterIban", existing.getRemitterIban(), payment.getRemitterIban()))
         .remitterIdCode(
             mergeAndValidateNullableField(
@@ -133,7 +133,7 @@ public class SavingFundPaymentUpsertionService {
                 existing.getRemitterName(),
                 payment.getRemitterName()))
         .beneficiaryIban(
-            mergeAndValidateField(
+            mergeAndValidateNullableField(
                 "beneficiaryIban", existing.getBeneficiaryIban(), payment.getBeneficiaryIban()))
         .beneficiaryIdCode(
             mergeAndValidateNullableField(
@@ -197,8 +197,8 @@ public class SavingFundPaymentUpsertionService {
     return existingValue;
   }
 
-  private String mergeName(
-      String fieldName, UUID paymentId, String existingValue, String newValue) {
+  private @Nullable String mergeName(
+      String fieldName, UUID paymentId, @Nullable String existingValue, @Nullable String newValue) {
     if (existingValue == null) {
       return newValue;
     } else if (newValue == null) {

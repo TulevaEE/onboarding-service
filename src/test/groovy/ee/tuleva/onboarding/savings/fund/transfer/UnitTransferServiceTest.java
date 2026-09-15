@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.transfer;
 
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.UNIT_TRANSFER;
 import static ee.tuleva.onboarding.savings.fund.transfer.UnitTransferState.CANCELLED;
 import static ee.tuleva.onboarding.savings.fund.transfer.UnitTransferState.EXECUTED;
 import static java.math.BigDecimal.ZERO;
@@ -157,9 +158,13 @@ class UnitTransferServiceTest {
     var awaiting = anAwaitingTransfer();
     given(transfers.findById(awaiting.getId())).willReturn(Optional.of(awaiting));
     givenTheRepositoryReturnsWhateverItIsGiven();
-    var recorded = mock(LedgerTransaction.class);
     UUID ledgerTransactionId = randomUUID();
-    given(recorded.getId()).willReturn(ledgerTransactionId);
+    var recorded =
+        LedgerTransaction.builder()
+            .id(ledgerTransactionId)
+            .transactionType(UNIT_TRANSFER)
+            .transactionDate(Instant.parse("2026-09-15T09:00:00Z"))
+            .build();
     given(
             savingsFundLedger.recordUnitTransfer(
                 any(PartyRef.class), any(PartyRef.class), any(), any()))
@@ -171,6 +176,40 @@ class UnitTransferServiceTest {
     assertThat(approved.getApprovedBy()).isEqualTo("approver@example.com");
     assertThat(approved.getLedgerTransactionId()).isEqualTo(ledgerTransactionId);
     assertThat(approved.getExecutedAt()).isEqualTo(Instant.parse("2026-09-15T09:00:00Z"));
+  }
+
+  @Test
+  void approvingAsYourselfSpeltDifferentlyIsStillRefused() {
+    var awaiting = anAwaitingTransfer();
+    given(transfers.findById(awaiting.getId())).willReturn(Optional.of(awaiting));
+
+    assertThatThrownBy(() -> service.approve(awaiting.getId(), "  OPERATOR@Example.com "))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("approved by someone other than whoever submitted it");
+    verifyNoInteractions(savingsFundLedger);
+  }
+
+  @Test
+  void anUnnamedApproverIsRefused() {
+    var awaiting = anAwaitingTransfer();
+    given(transfers.findById(awaiting.getId())).willReturn(Optional.of(awaiting));
+    givenTheLedgerRecords();
+
+    assertThatThrownBy(() -> service.approve(awaiting.getId(), "   "))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("must name who is approving it");
+  }
+
+  @Test
+  void evidenceCannotBeWrittenToImpersonateTheFieldsAroundIt() {
+    givenTheLedgerQuotes();
+    var withAPipe = commandWithEvidence("Notice by email|0");
+    var withoutIt = commandWithEvidence("Notice by email");
+
+    var one = (Planned) service.preview(withAPipe);
+    var other = (Planned) service.preview(withoutIt);
+
+    assertThat(one.planHash()).isNotEqualTo(other.planHash());
   }
 
   @Test
@@ -205,6 +244,30 @@ class UnitTransferServiceTest {
         .willReturn(List.of(awaiting));
 
     assertThat(service.awaitingApproval()).containsExactly(awaiting);
+  }
+
+  private UnitTransferCommand commandWithEvidence(String evidence) {
+    return new UnitTransferCommand(
+        "38888888888",
+        PERSON,
+        "39999999999",
+        PERSON,
+        new BigDecimal("40.00000"),
+        LocalDate.parse("2026-09-14"),
+        evidence,
+        ZERO);
+  }
+
+  private void givenTheLedgerRecords() {
+    given(
+            savingsFundLedger.recordUnitTransfer(
+                any(PartyRef.class), any(PartyRef.class), any(), any()))
+        .willReturn(
+            LedgerTransaction.builder()
+                .id(randomUUID())
+                .transactionType(UNIT_TRANSFER)
+                .transactionDate(Instant.parse("2026-09-15T09:00:00Z"))
+                .build());
   }
 
   private void givenTheLedgerQuotes() {

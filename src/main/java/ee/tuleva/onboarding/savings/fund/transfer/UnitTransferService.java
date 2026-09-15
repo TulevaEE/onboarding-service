@@ -75,7 +75,7 @@ public class UnitTransferService {
             .evidence(command.evidence())
             .planHash(planned.planHash())
             .state(AWAITING_APPROVAL)
-            .submittedBy(submittedBy)
+            .submittedBy(whoeverIsActing(submittedBy, "submitting it"))
             .build());
   }
 
@@ -93,7 +93,7 @@ public class UnitTransferService {
               + ", state="
               + transfer.getState());
     }
-    if (transfer.getSubmittedBy().equals(approvedBy)) {
+    if (isTheSamePerson(transfer.getSubmittedBy(), approvedBy)) {
       throw new IllegalStateException(
           "A transfer must be approved by someone other than whoever submitted it: id="
               + id
@@ -105,7 +105,8 @@ public class UnitTransferService {
         savingsFundLedger.recordUnitTransfer(
             transfer.from(), transfer.to(), transfer.getFundUnits(), id);
 
-    transfer.executedBy(approvedBy, recorded.getId(), Instant.now(clock));
+    transfer.executedBy(
+        whoeverIsActing(approvedBy, "approving it"), recorded.getId(), Instant.now(clock));
     return transfers.save(transfer);
   }
 
@@ -128,6 +129,22 @@ public class UnitTransferService {
 
   public List<UnitTransfer> awaitingApproval() {
     return transfers.findAllByStateOrderByCreatedAtDesc(AWAITING_APPROVAL);
+  }
+
+  /**
+   * Whoever holds the token names themselves, so the two people are only two people if the names
+   * cannot be made to differ trivially. Compared ignoring case and surrounding space, in case the
+   * identity ever arrives as an address rather than an opaque subject.
+   */
+  private static boolean isTheSamePerson(String submittedBy, String approvedBy) {
+    return submittedBy.strip().equalsIgnoreCase(approvedBy.strip());
+  }
+
+  private static String whoeverIsActing(String actor, String what) {
+    if (actor.isBlank()) {
+      throw new IllegalArgumentException("A transfer must name who is " + what);
+    }
+    return actor.strip();
   }
 
   private Optional<String> whyTheRecipientCannotHoldUnits(PartyRef to) {
@@ -156,7 +173,9 @@ public class UnitTransferService {
 
   /**
    * Binds the approval to the exact numbers the operator was shown. Anything that changes what the
-   * transfer does changes the hash, so a stale confirm cannot be submitted.
+   * transfer does changes the hash, so a stale confirm cannot be submitted. Each field carries its
+   * length because evidence is free text: without that, a value containing the separator could be
+   * read as two fields and two different transfers could hash alike.
    */
   private String hashOf(UnitTransferCommand command, Plan plan) {
     String canonical =
@@ -171,6 +190,7 @@ public class UnitTransferService {
                 command.notifiedAt().toString(),
                 command.evidence(),
                 String.valueOf(command.recipientAcquisitionCostEur()))
+            .map(field -> field.length() + ":" + field)
             .collect(joining("|"));
     return HexFormat.of().formatHex(sha256().digest(canonical.getBytes(UTF_8)));
   }

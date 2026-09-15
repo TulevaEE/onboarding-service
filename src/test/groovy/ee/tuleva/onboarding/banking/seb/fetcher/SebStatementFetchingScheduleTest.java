@@ -40,11 +40,11 @@ class SebStatementFetchingScheduleTest {
   }
 
   @Test
-  void gapReport_firesOnceADayAtNine() {
+  void gapReport_firesOnceADayAfterTheNineOClockFetchHasBeenProcessed() {
     var fires = firesOn("2026-09-12", GAP_REPORT_CRON);
 
     assertThat(fires).hasSize(1);
-    assertThat(fires.getFirst().toLocalTime()).hasToString("09:00");
+    assertThat(fires.getFirst().toLocalTime()).hasToString("09:10");
   }
 
   private static List<ZonedDateTime> firesOn(String date, String cronExpression) {

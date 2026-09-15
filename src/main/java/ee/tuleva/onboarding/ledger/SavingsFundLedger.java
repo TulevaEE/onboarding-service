@@ -96,8 +96,7 @@ public class SavingsFundLedger {
     COUNTERPARTY_IBAN("counterpartyIban"),
     SUB_FAMILY_CODE("subFamilyCode"),
     RECIPIENT_CODE("recipientCode"),
-    RECIPIENT_TYPE("recipientType"),
-    TRANSFERRED_SUBSCRIPTIONS("transferredSubscriptions");
+    RECIPIENT_TYPE("recipientType");
 
     private final String key;
   }

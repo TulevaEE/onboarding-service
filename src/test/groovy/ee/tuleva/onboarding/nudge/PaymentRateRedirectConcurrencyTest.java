@@ -37,7 +37,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 @SpringBootTest
 @TestPropertySource(
     properties = {
-      "nudge.payment-rate-redirect.enabled=true",
       "nudge.payment-rate-redirect.seed=season-2026-test-seed",
       "nudge.payment-rate-redirect.holdout-percent=20",
       "nudge.payment-rate-redirect.start-date=2026-09-01",

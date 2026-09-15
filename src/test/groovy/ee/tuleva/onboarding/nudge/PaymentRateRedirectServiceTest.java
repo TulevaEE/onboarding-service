@@ -83,7 +83,7 @@ class PaymentRateRedirectServiceTest {
   }
 
   private PaymentRateRedirectService serviceOn(String date) {
-    return serviceOn(date, properties(true));
+    return serviceOn(date, properties());
   }
 
   private PaymentRateRedirectService serviceOn(
@@ -99,8 +99,8 @@ class PaymentRateRedirectServiceTest {
         clock);
   }
 
-  private static PaymentRateRedirectProperties properties(boolean enabled) {
-    return new PaymentRateRedirectProperties(enabled, SEED, 20, new BigDecimal("3300"), START_DATE);
+  private static PaymentRateRedirectProperties properties() {
+    return new PaymentRateRedirectProperties(SEED, 20, new BigDecimal("3300"), START_DATE);
   }
 
   @Test
@@ -158,14 +158,6 @@ class PaymentRateRedirectServiceTest {
         .isEqualTo(PaymentRateRedirect.no());
     verify(nudgeExposureRepository, never())
         .recordAssignment(anyLong(), anyString(), anyInt(), any(), any());
-  }
-
-  @Test
-  void theKillSwitchStopsEverythingBeforeAnyLookup() {
-    assertThat(serviceOn("2026-09-15", properties(false)).assign(person("38888880000")))
-        .isEqualTo(PaymentRateRedirect.no());
-
-    verifyNoInteractions(eligibility, nudgeExposureRepository, userService);
   }
 
   @Test

@@ -65,7 +65,7 @@ class StuckPaymentAlertJobTest {
         .id(paymentId)
         .amount(new BigDecimal("2000.00"))
         .status(CREATED)
-        .statusChangedAt(NOW.minus(Duration.ofHours(60)))
+        .createdAt(NOW.minus(Duration.ofHours(60)))
         .build();
   }
 

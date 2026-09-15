@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.transfer;
 
 import static ee.tuleva.onboarding.savings.fund.transfer.UnitTransferState.AWAITING_APPROVAL;
+import static ee.tuleva.onboarding.savings.fund.transfer.UnitTransferState.EXECUTED;
 import static java.math.RoundingMode.UNNECESSARY;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNullElse;
@@ -71,7 +72,9 @@ public class UnitTransferService {
               + planned.planHash());
     }
 
-    var alreadyAwaiting = transfers.findByPlanHashAndState(planned.planHash(), AWAITING_APPROVAL);
+    var alreadyAwaiting =
+        transfers.findFirstByPlanHashAndStateOrderByCreatedAtAsc(
+            planned.planHash(), AWAITING_APPROVAL);
     if (alreadyAwaiting.isPresent()) {
       return alreadyAwaiting.get();
     }
@@ -115,6 +118,14 @@ public class UnitTransferService {
               + id
               + ", submittedBy="
               + transfer.getSubmittedBy());
+    }
+
+    if (transfers.existsByPlanHashAndState(transfer.getPlanHash(), EXECUTED)) {
+      throw new IllegalStateException(
+          "A transfer under this plan has already executed: id="
+              + id
+              + ", planHash="
+              + transfer.getPlanHash());
     }
 
     if (preview(transfer.asCommand()) instanceof Refused refused) {

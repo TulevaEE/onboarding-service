@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.savings.fund.transfer.UnitTransferState.CANCE
 import static ee.tuleva.onboarding.savings.fund.transfer.UnitTransferState.EXECUTED;
 import static jakarta.persistence.EnumType.STRING;
 import static jakarta.persistence.GenerationType.UUID;
+import static org.hibernate.generator.EventType.INSERT;
 
 import ee.tuleva.onboarding.ledger.LedgerParty.PartyType;
 import ee.tuleva.onboarding.ledger.PartyRef;
@@ -22,6 +23,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.Generated;
 import org.hibernate.annotations.JdbcType;
 import org.hibernate.dialect.type.PostgreSQLEnumJdbcType;
 import org.jspecify.annotations.Nullable;
@@ -85,6 +87,7 @@ public class UnitTransfer {
   private @Nullable UUID ledgerTransactionId;
 
   @Column(name = "created_at", nullable = false, updatable = false, insertable = false)
+  @Generated(event = INSERT)
   private @Nullable Instant createdAt;
 
   @Column(name = "executed_at")

@@ -67,6 +67,16 @@ class PaymentRateRedirectServiceTest {
         .build();
   }
 
+  private static AuthenticatedPerson parentActingForChild(String personalCode) {
+    return AuthenticatedPerson.builder()
+        .firstName("Jordan")
+        .lastName("Valdma")
+        .personalCode(personalCode)
+        .userId(sampleUser().build().getId())
+        .role(new Role(RoleType.PERSON, "38812121215", "Child"))
+        .build();
+  }
+
   private PaymentRateRedirectService serviceOn(String date) {
     return serviceOn(date, properties(true));
   }
@@ -137,6 +147,17 @@ class PaymentRateRedirectServiceTest {
   void theKillSwitchStopsEverythingBeforeAnyLookup() {
     assertThat(serviceOn("2026-09-15", properties(false)).assign(person("38888880000")))
         .isEqualTo(PaymentRateRedirect.no());
+
+    verifyNoInteractions(eligibility, nudgeExposureRepository, userService);
+  }
+
+  @Test
+  void aParentActingForAChildIsNeverLookedUpNorRecorded() {
+    PaymentRateRedirectService service = serviceOn("2026-09-15");
+
+    assertThat(service.assign(parentActingForChild("38888880000")))
+        .isEqualTo(PaymentRateRedirect.no());
+    service.dismiss(parentActingForChild("38888880000"));
 
     verifyNoInteractions(eligibility, nudgeExposureRepository, userService);
   }

@@ -51,12 +51,15 @@ class PaymentRateRedirectService {
   }
 
   void dismiss(AuthenticatedPerson person) {
+    if (!person.isActingAsSelf()) {
+      return;
+    }
     nudgeExposureRepository.recordDismissal(
         person.getUserIdOrThrow(), NUDGE_KEY, seasonYear(), estonianClock.instant());
   }
 
   private boolean isWindowOpenFor(AuthenticatedPerson person) {
-    if (!properties.enabled() || person.isLegalEntity()) {
+    if (!properties.enabled() || !person.isActingAsSelf()) {
       return false;
     }
     LocalDate today = LocalDate.now(estonianClock);

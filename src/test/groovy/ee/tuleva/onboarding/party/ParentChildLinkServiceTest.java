@@ -2,11 +2,13 @@ package ee.tuleva.onboarding.party;
 
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.PENDING_KYC;
+import static ee.tuleva.onboarding.party.RepresentationType.GUARDIAN;
 import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -199,5 +201,48 @@ class ParentChildLinkServiceTest {
 
     assertThat(service.findActivelyRepresentedChildren(PARENT))
         .containsExactly(entry(CHILD, older.getId()));
+  }
+
+  @Test
+  void aMinorHasRestrictedLegalCapacityWithoutConsultingTheLinks() {
+    assertThat(service.hasRestrictedLegalCapacity(CHILD)).isTrue();
+
+    verifyNoInteractions(parentChildLinkRepository);
+  }
+
+  @Test
+  void anAdultUnderGuardianshipHasRestrictedLegalCapacity() {
+    given(
+            parentChildLinkRepository
+                .existsByChildPersonalCodeAndRelationshipTypeAndValidUntilAfter(
+                    PARENT, GUARDIAN, TODAY))
+        .willReturn(true);
+
+    assertThat(service.hasRestrictedLegalCapacity(PARENT)).isTrue();
+  }
+
+  @Test
+  void anAdultWithoutGuardianshipHasFullLegalCapacity() {
+    given(
+            parentChildLinkRepository
+                .existsByChildPersonalCodeAndRelationshipTypeAndValidUntilAfter(
+                    PARENT, GUARDIAN, TODAY))
+        .willReturn(false);
+
+    assertThat(service.hasRestrictedLegalCapacity(PARENT)).isFalse();
+  }
+
+  // Born 2008-05-22, so they turn 18 on the fixed clock's today: capacity arrives on the
+  // birthday itself, the same day a LEGAL_REPRESENTATIVE link stops being valid.
+  @Test
+  void capacityArrivesOnTheEighteenthBirthday() {
+    var turnsEighteenToday = "60805220000";
+    given(
+            parentChildLinkRepository
+                .existsByChildPersonalCodeAndRelationshipTypeAndValidUntilAfter(
+                    turnsEighteenToday, GUARDIAN, TODAY))
+        .willReturn(false);
+
+    assertThat(service.hasRestrictedLegalCapacity(turnsEighteenToday)).isFalse();
   }
 }

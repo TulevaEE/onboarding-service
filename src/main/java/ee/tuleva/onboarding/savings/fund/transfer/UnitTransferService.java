@@ -13,6 +13,7 @@ import ee.tuleva.onboarding.savings.SavingsFundOnboardingService;
 import ee.tuleva.onboarding.savings.fund.transfer.UnitTransferVerdict.Plan;
 import ee.tuleva.onboarding.savings.fund.transfer.UnitTransferVerdict.Planned;
 import ee.tuleva.onboarding.savings.fund.transfer.UnitTransferVerdict.Refused;
+import java.math.BigDecimal;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
@@ -24,6 +25,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +39,11 @@ public class UnitTransferService {
   private final Clock clock;
 
   public UnitTransferVerdict preview(UnitTransferCommand command) {
+    Optional<String> unrecordable =
+        whyTheAcquisitionCostCannotBeRecorded(command.recipientAcquisitionCostEur());
+    if (unrecordable.isPresent()) {
+      return new Refused(unrecordable.get());
+    }
     Optional<String> ineligible = whyTheRecipientCannotHoldUnits(command.to());
     if (ineligible.isPresent()) {
       return new Refused(ineligible.get());
@@ -171,6 +178,24 @@ public class UnitTransferService {
       throw new IllegalArgumentException("A transfer must name who is " + what);
     }
     return actor.strip();
+  }
+
+  private static Optional<String> whyTheAcquisitionCostCannotBeRecorded(@Nullable BigDecimal cost) {
+    if (cost == null) {
+      return Optional.empty();
+    }
+    if (cost.signum() < 0) {
+      return Optional.of(
+          "The recipient's acquisition cost cannot be negative: recipientAcquisitionCostEur="
+              + cost.toPlainString());
+    }
+    if (cost.stripTrailingZeros().scale() > 2) {
+      return Optional.of(
+          "The recipient's acquisition cost is held in cents, so it cannot be finer than that:"
+              + " recipientAcquisitionCostEur="
+              + cost.toPlainString());
+    }
+    return Optional.empty();
   }
 
   private Optional<String> whyTheRecipientCannotHoldUnits(PartyRef to) {

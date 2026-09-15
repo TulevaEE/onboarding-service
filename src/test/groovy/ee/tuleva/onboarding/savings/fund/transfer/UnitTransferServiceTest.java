@@ -96,6 +96,31 @@ class UnitTransferServiceTest {
   }
 
   @Test
+  void previewRefusesAnAcquisitionCostBelowZero() {
+    var verdict = service.preview(commandCosting(new BigDecimal("-0.01")));
+
+    assertThat(((Refused) verdict).refused()).contains("acquisition cost");
+    verifyNoInteractions(savingsFundLedger);
+  }
+
+  @Test
+  void previewRefusesAnAcquisitionCostFinerThanCents() {
+    var verdict = service.preview(commandCosting(new BigDecimal("12.345")));
+
+    assertThat(((Refused) verdict).refused()).contains("acquisition cost");
+    verifyNoInteractions(savingsFundLedger);
+  }
+
+  @Test
+  void previewAcceptsAnAcquisitionCostInWholeCents() {
+    givenTheLedgerQuotes();
+
+    assertThat(service.preview(commandCosting(ZERO))).isInstanceOf(Planned.class);
+    assertThat(service.preview(commandCosting(new BigDecimal("0.00")))).isInstanceOf(Planned.class);
+    assertThat(service.preview(commandCosting(new BigDecimal("12.5")))).isInstanceOf(Planned.class);
+  }
+
+  @Test
   void theSamePlanHashesTheSameWay() {
     givenTheLedgerQuotes();
 
@@ -377,6 +402,18 @@ class UnitTransferServiceTest {
         .willReturn(List.of(awaiting));
 
     assertThat(service.awaitingApproval()).containsExactly(awaiting);
+  }
+
+  private UnitTransferCommand commandCosting(BigDecimal recipientAcquisitionCostEur) {
+    return new UnitTransferCommand(
+        command.fromCode(),
+        command.fromType(),
+        command.toCode(),
+        command.toType(),
+        command.fundUnits(),
+        command.notifiedAt(),
+        command.evidence(),
+        recipientAcquisitionCostEur);
   }
 
   private UnitTransferCommand commandWithEvidence(String evidence) {

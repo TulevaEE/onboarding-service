@@ -39,6 +39,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -231,33 +232,39 @@ public class TransactionInputService {
       LocalDate asOfDate,
       FeeType feeType,
       List<CalculationWarning> inputWarnings) {
-    List<DailyAccrual> accruals =
-        accrualsByDate.entrySet().stream()
-            .map(entry -> resolve(resolver, entry.getKey(), entry.getValue()))
-            .toList();
-    List<String> unresolvedReasons =
-        accruals.stream().map(DailyAccrual::unresolvedReason).filter(Objects::nonNull).toList();
+    Map<LocalDate, String> unresolvedReasons = unresolvedReasons(resolver, accrualsByDate.keySet());
     if (!unresolvedReasons.isEmpty()) {
       inputWarnings.add(
           unresolvedFeePolicyWarning(
-              fund, asOfDate, feeType, unresolvedReasons.size(), unresolvedReasons.getFirst()));
+              fund,
+              asOfDate,
+              feeType,
+              unresolvedReasons.size(),
+              unresolvedReasons.values().iterator().next()));
     }
     return sumOf(
-        accruals.stream().filter(DailyAccrual::isReserved).map(DailyAccrual::amount).toList());
+        accrualsByDate.entrySet().stream()
+            .filter(
+                entry ->
+                    unresolvedReasons.containsKey(entry.getKey())
+                        || resolver.chargedOn(entry.getKey()))
+            .map(Map.Entry::getValue)
+            .toList());
   }
 
-  private DailyAccrual resolve(
-      FeeChargedToFundPolicy.Resolver resolver, LocalDate date, BigDecimal amount) {
-    try {
-      return new DailyAccrual(amount, resolver.chargedOn(date), null);
-    } catch (FeePolicyUnresolvedException e) {
-      log.warn("Fee policy does not resolve for one accrual day, reserving it", e);
-      return new DailyAccrual(amount, true, e.getReason());
+  private Map<LocalDate, String> unresolvedReasons(
+      FeeChargedToFundPolicy.Resolver resolver, Set<LocalDate> accrualDates) {
+    Map<LocalDate, String> reasons = new LinkedHashMap<>();
+    for (LocalDate date : accrualDates) {
+      try {
+        resolver.chargedOn(date);
+      } catch (FeePolicyUnresolvedException e) {
+        log.warn("Fee policy does not resolve for one accrual day, reserving it", e);
+        reasons.put(date, e.getReason());
+      }
     }
+    return reasons;
   }
-
-  private record DailyAccrual(
-      BigDecimal amount, boolean isReserved, @Nullable String unresolvedReason) {}
 
   private CalculationWarning unresolvedFeePolicyWarning(
       TulevaFund fund, LocalDate asOfDate, FeeType feeType, int unresolvedDays, String reason) {

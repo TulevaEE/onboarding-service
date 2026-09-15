@@ -64,6 +64,12 @@ import org.springframework.stereotype.Service;
  * recordUnattributedPayment        INCOMING_PAYMENTS_CLEARING → UNRECONCILED_BANK_RECEIPTS
  * bounceBackUnattributedPayment    UNRECONCILED_BANK_RECEIPTS → INCOMING_PAYMENTS_CLEARING
  * </pre>
+ *
+ * <h2>Unit Transfer Flow (units change owner, nothing else moves)</h2>
+ *
+ * <pre>
+ * 1. recordUnitTransfer            Giver:FUND_UNITS → Receiver:FUND_UNITS
+ * </pre>
  */
 @Slf4j
 @Service
@@ -342,19 +348,12 @@ public class SavingsFundLedger {
     return redemptionRecorder.cancelRedemptionReservation(party, fundUnits, externalReference);
   }
 
-  /**
-   * Moves units and their proportional paid-in amount from one party to another. Issues nothing and
-   * redeems nothing: the fund's outstanding units are unchanged.
-   */
   @Transactional
   public LedgerTransaction recordUnitTransfer(
       PartyRef from, PartyRef to, BigDecimal fundUnits, UUID externalReference) {
     return unitTransferRecorder.recordUnitTransfer(from, to, fundUnits, externalReference);
   }
 
-  /**
-   * Answers what {@link #recordUnitTransfer} would do, refusing the same things, writing nothing.
-   */
   public UnitTransferQuote quoteUnitTransfer(PartyRef from, PartyRef to, BigDecimal fundUnits) {
     return unitTransferRecorder.quote(from, to, fundUnits);
   }

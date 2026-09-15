@@ -19,12 +19,6 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-/**
- * Units change owner and nothing else does. SUBSCRIPTIONS records what a party has paid the fund
- * over their lifetime and redemption never reduces it, so a transfer must not either: the recipient
- * paid the fund nothing, and the giver's payments still happened. Their acquisition cost for tax is
- * their own expense, recorded on the transfer rather than carried across the ledger.
- */
 @Component
 @RequiredArgsConstructor
 class UnitTransferLedgerRecorder {
@@ -108,7 +102,6 @@ class UnitTransferLedgerRecorder {
         accounts.resolvePartyAccount(to, FUND_UNITS));
   }
 
-  /** Holdings are stored as negative liabilities; callers think in positive amounts. */
   private BigDecimal holding(LedgerAccount account) {
     return account.getBalance().negate();
   }

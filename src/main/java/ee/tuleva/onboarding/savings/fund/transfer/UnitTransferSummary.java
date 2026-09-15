@@ -7,11 +7,6 @@ import java.time.LocalDate;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 
-/**
- * Carries everything that decides what the transfer does, because the second person approves from
- * this and nothing else. Leaving out the party types, the recipient's acquisition cost or the plan
- * hash would ask them to approve a thing they were never shown.
- */
 public record UnitTransferSummary(
     @Nullable UUID id,
     String fromCode,

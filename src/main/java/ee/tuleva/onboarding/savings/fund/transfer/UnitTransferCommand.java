@@ -7,7 +7,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import org.jspecify.annotations.Nullable;
 
-/** What an operator was asked to transfer, and the notice they are acting on. */
 public record UnitTransferCommand(
     @NotNull String fromCode,
     @NotNull PartyType fromType,

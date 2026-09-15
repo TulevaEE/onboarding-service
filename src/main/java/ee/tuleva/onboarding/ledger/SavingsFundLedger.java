@@ -75,6 +75,7 @@ public class SavingsFundLedger {
   private final Clock clock;
   private final RedemptionLedgerRecorder redemptionRecorder;
   private final UnattributedPaymentLedgerRecorder unattributedRecorder;
+  private final UnitTransferLedgerRecorder unitTransferRecorder;
 
   @Getter
   @AllArgsConstructor
@@ -93,7 +94,10 @@ public class SavingsFundLedger {
     DISPLAY_NAME("displayName"),
     COUNTERPARTY_NAME("counterpartyName"),
     COUNTERPARTY_IBAN("counterpartyIban"),
-    SUB_FAMILY_CODE("subFamilyCode");
+    SUB_FAMILY_CODE("subFamilyCode"),
+    RECIPIENT_CODE("recipientCode"),
+    RECIPIENT_TYPE("recipientType"),
+    TRANSFERRED_SUBSCRIPTIONS("transferredSubscriptions");
 
     private final String key;
   }
@@ -337,6 +341,16 @@ public class SavingsFundLedger {
   public LedgerTransaction cancelRedemptionReservation(
       PartyRef party, BigDecimal fundUnits, UUID externalReference) {
     return redemptionRecorder.cancelRedemptionReservation(party, fundUnits, externalReference);
+  }
+
+  /**
+   * Moves units and their proportional paid-in amount from one party to another. Issues nothing and
+   * redeems nothing: the fund's outstanding units are unchanged.
+   */
+  @Transactional
+  public LedgerTransaction recordUnitTransfer(
+      PartyRef from, PartyRef to, BigDecimal fundUnits, UUID externalReference) {
+    return unitTransferRecorder.recordUnitTransfer(from, to, fundUnits, externalReference);
   }
 
   @Transactional

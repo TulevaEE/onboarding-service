@@ -18,13 +18,11 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class FeeComparisonCalculator {
 
-  private static final BigDecimal HIGH_FEE = new BigDecimal("0.003");
-
   private final ConversionHoldings conversionHoldings;
   private final FundRepository fundRepository;
 
   Optional<FeeComparison> forSecondPillar(Person person, @Nullable BigDecimal weightedFee) {
-    if (weightedFee == null || weightedFee.compareTo(HIGH_FEE) <= 0) {
+    if (weightedFee == null || weightedFee.compareTo(NudgeInputs.HIGH_FEE_FROM) < 0) {
       return Optional.empty();
     }
     BigDecimal value =

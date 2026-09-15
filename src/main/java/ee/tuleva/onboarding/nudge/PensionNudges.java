@@ -8,13 +8,9 @@ import static ee.tuleva.onboarding.nudge.NudgeKey.THIRD_PILLAR_RAISE;
 import static ee.tuleva.onboarding.nudge.NudgeKey.THIRD_PILLAR_RECURRING;
 import static ee.tuleva.onboarding.nudge.NudgeKey.THIRD_PILLAR_START;
 
-import java.math.BigDecimal;
 import java.util.Optional;
-import org.jspecify.annotations.Nullable;
 
 final class PensionNudges {
-
-  private static final BigDecimal HIGH_FEE = new BigDecimal("0.003");
 
   private PensionNudges() {}
 
@@ -48,7 +44,7 @@ final class PensionNudges {
     if (in.pendingSecondPillarTransfer() || !secondPillarNeedsMoving(in)) {
       return Optional.empty();
     }
-    boolean highFee = isHighFee(in.secondPillarFee());
+    boolean highFee = in.secondPillarInHighFeeFund();
     return Optional.of(NudgeDecision.secondPillarTransfer(highFee ? in.feeComparison() : null));
   }
 
@@ -56,7 +52,7 @@ final class PensionNudges {
     if (!in.secondPillarActive() || !in.secondPillarPartiallyConverted()) {
       return true;
     }
-    return !in.secondPillarFullyConverted() && isHighFee(in.secondPillarFee());
+    return !in.secondPillarFullyConverted() && in.secondPillarInHighFeeFund();
   }
 
   private static Optional<NudgeDecision> paymentRate(NudgeInputs in, NudgeContext context) {
@@ -91,7 +87,7 @@ final class PensionNudges {
 
   private static boolean thirdPillarFeesMatter(NudgeInputs in) {
     return !in.thirdPillarPartiallyConverted()
-        || (!in.thirdPillarFullyConverted() && isHighFee(in.thirdPillarFee()));
+        || (!in.thirdPillarFullyConverted() && in.thirdPillarInHighFeeFund());
   }
 
   private static Optional<NudgeDecision> thirdPillarRecurring(
@@ -113,9 +109,5 @@ final class PensionNudges {
 
   private static boolean thirdPillarSaver(NudgeInputs in) {
     return thirdPillarDecidable(in) && in.adult() && in.thirdPillarActive();
-  }
-
-  private static boolean isHighFee(@Nullable BigDecimal fee) {
-    return fee != null && fee.compareTo(HIGH_FEE) > 0;
   }
 }

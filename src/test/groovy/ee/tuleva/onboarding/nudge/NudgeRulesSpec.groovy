@@ -147,7 +147,8 @@ class NudgeRulesSpec extends Specification {
     "not after a third pillar payment"   | false  | false     | false | null   | NudgeContext.THIRD_PILLAR_PAYMENT || NudgeDecision.of(NONE)
     "nothing at Tuleva, check the fees"  | true   | false     | false | 0.0029 | NudgeContext.MEMBERSHIP           || NudgeDecision.of(THIRD_PILLAR_FEES)
     "partially at Tuleva, high fee"      | true   | true      | false | 0.006  | NudgeContext.MEMBERSHIP           || NudgeDecision.of(THIRD_PILLAR_FEES)
-    "partially at Tuleva, low fee"       | true   | true      | false | 0.003  | NudgeContext.MEMBERSHIP           || NudgeDecision.of(NONE)
+    "partially at Tuleva, low fee"       | true   | true      | false | 0.0029 | NudgeContext.MEMBERSHIP           || NudgeDecision.of(NONE)
+    "partially at Tuleva, fee at 0.3 %"  | true   | true      | false | 0.003  | NudgeContext.MEMBERSHIP           || NudgeDecision.of(THIRD_PILLAR_FEES)
   }
 
   def "third pillar recurring and raise: #description"() {

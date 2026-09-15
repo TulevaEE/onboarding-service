@@ -68,6 +68,12 @@ public class UnitTransfer {
   @Column(nullable = false)
   private String evidence;
 
+  @Column(name = "giver_paid_in_eur", nullable = false)
+  private BigDecimal giverPaidInEur;
+
+  @Column(name = "giver_units_owned", nullable = false)
+  private BigDecimal giverUnitsOwned;
+
   @Column(name = "plan_hash", nullable = false)
   private String planHash;
 

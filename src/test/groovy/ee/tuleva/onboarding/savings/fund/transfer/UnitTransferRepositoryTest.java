@@ -120,6 +120,8 @@ class UnitTransferRepositoryTest {
         .recipientAcquisitionCostEur(new BigDecimal("1000.00"))
         .notifiedAt(LocalDate.parse("2026-09-14"))
         .evidence("Notice by email from the owner, 2026-09-14")
+        .giverPaidInEur(new BigDecimal("1000.00"))
+        .giverUnitsOwned(new BigDecimal("100.00000"))
         .planHash("whatever-was-previewed")
         .state(AWAITING_APPROVAL)
         .submittedBy("operator@tuleva.ee");

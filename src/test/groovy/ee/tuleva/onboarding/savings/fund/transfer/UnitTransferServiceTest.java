@@ -156,6 +156,55 @@ class UnitTransferServiceTest {
   }
 
   @Test
+  void submittingKeepsTheGiversFiguresAsTheyWereShown() {
+    givenTheLedgerQuotes();
+    var planned = (Planned) service.preview(command);
+    givenTheRepositoryReturnsWhateverItIsGiven();
+
+    var submitted = service.submit(command, planned.planHash(), "operator@example.com");
+
+    assertThat(submitted.getGiverPaidInEur()).isEqualByComparingTo(planned.plan().giverPaidIn());
+    assertThat(submitted.getGiverUnitsOwned())
+        .isEqualByComparingTo(planned.plan().giverUnitsOwned());
+  }
+
+  @Test
+  void changingWhatTheGiverPaidInChangesThePlanHash() {
+    givenTheLedgerQuotes();
+    var planned = (Planned) service.preview(command);
+
+    given(savingsFundLedger.quoteUnitTransfer(any(), any(), any()))
+        .willReturn(
+            new UnitTransferQuote(
+                new BigDecimal("40.00000"),
+                new BigDecimal("60.00000"),
+                new BigDecimal("40.00000"),
+                new BigDecimal("1500.00"),
+                new BigDecimal("100.00000")));
+    var other = (Planned) service.preview(command);
+
+    assertThat(other.planHash()).isNotEqualTo(planned.planHash());
+  }
+
+  @Test
+  void changingHowManyUnitsTheGiverOwnsChangesThePlanHash() {
+    givenTheLedgerQuotes();
+    var planned = (Planned) service.preview(command);
+
+    given(savingsFundLedger.quoteUnitTransfer(any(), any(), any()))
+        .willReturn(
+            new UnitTransferQuote(
+                new BigDecimal("40.00000"),
+                new BigDecimal("60.00000"),
+                new BigDecimal("40.00000"),
+                new BigDecimal("1000.00"),
+                new BigDecimal("120.00000")));
+    var other = (Planned) service.preview(command);
+
+    assertThat(other.planHash()).isNotEqualTo(planned.planHash());
+  }
+
+  @Test
   void aSpouseInheritingJointPropertyIsRecordedWithAnAcquisitionCostOfTheirOwn() {
     givenTheLedgerQuotes();
     var spouseCountsTheWholeCost =
@@ -344,6 +393,8 @@ class UnitTransferServiceTest {
         .fundUnits(new BigDecimal("40.00000"))
         .notifiedAt(LocalDate.parse("2026-09-14"))
         .evidence("Notice by email from the owner, 2026-09-14")
+        .giverPaidInEur(new BigDecimal("1000.00"))
+        .giverUnitsOwned(new BigDecimal("100.00000"))
         .planHash("whatever-was-previewed")
         .state(UnitTransferState.AWAITING_APPROVAL)
         .submittedBy("operator@example.com")

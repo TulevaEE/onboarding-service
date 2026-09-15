@@ -17,6 +17,8 @@ CREATE TABLE savings_fund_unit_transfer
 
     notified_at                    DATE                             NOT NULL,
     evidence                       TEXT                             NOT NULL,
+    giver_paid_in_eur              DECIMAL(15, 2)                   NOT NULL,
+    giver_units_owned              DECIMAL(15, 5)                   NOT NULL,
     plan_hash                      TEXT                             NOT NULL,
     state                          savings_fund_unit_transfer_state NOT NULL DEFAULT 'AWAITING_APPROVAL',
     submitted_by                   TEXT                             NOT NULL,

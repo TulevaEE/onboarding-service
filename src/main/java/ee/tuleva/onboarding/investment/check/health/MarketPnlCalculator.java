@@ -38,30 +38,27 @@ class MarketPnlCalculator {
       var exitMark = exitMarks.get(isin);
 
       if (previousPrice == null || (todayPrice == null && exitMark == null)) {
-        if (isUnexplainedExit(isin, exitMark, todayQuantities.keySet())) {
-          unexplainedExits.add(isin);
-        } else {
-          unpricedHoldings.add(isin);
-        }
+        recordUnmarkable(
+            isin, exitMark, todayQuantities.keySet(), unexplainedExits, unpricedHoldings);
         continue;
       }
 
-      var stillHeld =
-          todayPrice == null ? ZERO : quantity.min(todayQuantities.getOrDefault(isin, ZERO));
-      var left = quantity.subtract(stillHeld);
+      var exitedQuantity =
+          exitedQuantity(quantity, todayQuantities.get(isin), todayPrice, exitMark);
+      var retainedQuantity = quantity.subtract(exitedQuantity);
 
       if (todayPrice != null) {
-        amount = amount.add(stillHeld.multiply(todayPrice.subtract(previousPrice)));
+        amount = amount.add(retainedQuantity.multiply(todayPrice.subtract(previousPrice)));
       }
-      if (left.signum() == 0) {
+      if (exitedQuantity.signum() == 0) {
         continue;
       }
       if (exitMark != null) {
-        var exitLeg = new ExitLeg(isin, left, previousPrice, exitMark);
+        var exitLeg = new ExitLeg(isin, exitedQuantity, previousPrice, exitMark);
         exitLegs.add(exitLeg);
         amount = amount.add(exitLeg.marketEffect());
       } else if (todayPrice != null) {
-        amount = amount.add(left.multiply(todayPrice.subtract(previousPrice)));
+        amount = amount.add(exitedQuantity.multiply(todayPrice.subtract(previousPrice)));
       }
     }
     return new MarketPnl(
@@ -69,6 +66,33 @@ class MarketPnlCalculator {
         List.copyOf(unpricedHoldings),
         List.copyOf(unexplainedExits),
         List.copyOf(exitLegs));
+  }
+
+  private static void recordUnmarkable(
+      String isin,
+      @Nullable ExitMark exitMark,
+      Set<String> todayIsins,
+      Set<String> unexplainedExits,
+      Set<String> unpricedHoldings) {
+    if (isUnexplainedExit(isin, exitMark, todayIsins)) {
+      unexplainedExits.add(isin);
+    } else {
+      unpricedHoldings.add(isin);
+    }
+  }
+
+  private static BigDecimal exitedQuantity(
+      BigDecimal openingQuantity,
+      @Nullable BigDecimal todayQuantity,
+      @Nullable BigDecimal todayPrice,
+      @Nullable ExitMark exitMark) {
+    if (exitMark != null) {
+      return exitMark.executedQuantity().min(openingQuantity);
+    }
+    if (todayPrice == null || todayQuantity == null) {
+      return openingQuantity;
+    }
+    return openingQuantity.subtract(todayQuantity).max(ZERO);
   }
 
   private static Map<String, BigDecimal> heldQuantities(List<FundPosition> positions) {

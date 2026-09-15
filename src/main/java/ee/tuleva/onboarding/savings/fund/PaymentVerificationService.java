@@ -95,12 +95,7 @@ public class PaymentVerificationService {
     PartyId partyId = partyIdOpt.get();
     var messages = VerificationMessages.forType(partyId.type());
 
-    // Since 18.09.2026 the fund rules deem a purchase order given by a deposit made by the unit
-    // holder "or by a third party for the benefit of the unit holder". Tuleva opens that up for
-    // the case it is meant to serve: gifts to someone who cannot act for themselves — a minor, or
-    // an adult under guardianship. A deposit naming such a unit holder is attributed to them
-    // whoever sent it; everybody else keeps the identity checks, as do company accounts.
-    // Attribution, not authorization: accepting money grants the payer no access to the account,
+    // Attribution, not authorization: accepting money grants the payer no access to the account —
     // acting on someone's behalf still goes through isActiveRepresentation.
     boolean acceptedFromAnyRemitter =
         partyIdFromDescription.isPresent()
@@ -113,10 +108,6 @@ public class PaymentVerificationService {
             .map(r -> isAuthorizedRemitter(r, partyId))
             .orElse(false);
 
-    // Reached by company accounts and by unit holders of full legal capacity. A party taken from
-    // the remitter id code always equals it, so this only ever fires on a description naming
-    // somebody other than the payer. The guardian widening stays as a backstop: a live
-    // representation still funds the account even if the ward reads as fully capable.
     if (!acceptedFromAnyRemitter
         && remitterPartyId.isPresent()
         && !remitterPartyId.get().equals(partyId)
@@ -144,13 +135,8 @@ public class PaymentVerificationService {
       return;
     }
 
-    // Whose money this is, for AML scoring. Three-valued on purpose. The remitter id code settles
-    // it when the bank sends one, and a remitter name matching the unit holder is good evidence
-    // they paid themselves — but a name that does NOT match proves nothing: Wise puts its own name
-    // on the transfer and Montonio often sends no sender details at all, so reading "not the unit
-    // holder's name" as "somebody else" would file the unit holder's own payment, and a parent's
-    // payment for their child, as a stranger's. Unknown stays null, and the AML view leaves those
-    // out exactly as it already does for a missing remitter identity.
+    // Null means undecided, and the AML view leaves those out: a name that does not match is no
+    // evidence of a third party, since Wise sends its own name and Montonio often sends none.
     @Nullable Boolean thirdPartyDeposit;
     if (remitterPartyId.isPresent()) {
       thirdPartyDeposit = !remitterPartyId.get().equals(partyId);

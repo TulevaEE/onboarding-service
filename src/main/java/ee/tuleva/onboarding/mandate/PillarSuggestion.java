@@ -161,8 +161,8 @@ public class PillarSuggestion {
             && !user.hasReachedRetirementAge()
             && !leftSecondPillar
             && !mandatePillars.contains(2)
-            && (!secondPillarActive
-                || !conversion.isSecondPillarPartiallyConverted()
+            && secondPillarActive
+            && (!conversion.isSecondPillarPartiallyConverted()
                 || (!conversion.isSecondPillarFullyConverted()
                     && conversion.getSecondPillarWeightedAverageFee() != null
                     && conversion

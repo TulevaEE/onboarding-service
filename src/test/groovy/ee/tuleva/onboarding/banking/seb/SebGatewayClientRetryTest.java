@@ -56,7 +56,7 @@ class SebGatewayClientRetryTest {
   }
 
   @Test
-  void submitPaymentFile_retriesOn502AndSucceeds() {
+  void submitPaymentFile_retriesOn500AndSucceeds() {
     expectCall().andRespond(withServerError());
     expectCall().andRespond(withServerError());
     expectCall().andRespond(withSuccess("<ok/>", null));
@@ -68,7 +68,7 @@ class SebGatewayClientRetryTest {
   }
 
   @Test
-  void submitPaymentFile_exhaustsEightAttemptsOnPersistent502() {
+  void submitPaymentFile_exhaustsEightAttemptsOnPersistent500() {
     for (int i = 0; i < 8; i++) {
       expectCall().andRespond(withServerError());
     }
@@ -145,7 +145,7 @@ class SebGatewayClientRetryTest {
   }
 
   @Test
-  void getCurrentTransactions_retriesOn502AndSucceeds() {
+  void getCurrentTransactions_retriesOn500AndSucceeds() {
     expectGet(CURRENT_URL).andRespond(withServerError());
     expectGet(CURRENT_URL).andRespond(withSuccess("<report/>", null));
 

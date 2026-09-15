@@ -24,6 +24,7 @@ public class PaymentRateChangeMandates implements PaymentRateChangeHistory {
             requireNonNull(user.getId(), "User id missing for a payment rate history lookup"),
             since)
         .stream()
+        .filter(Mandate::isSigned)
         .map(Mandate::getDetails)
         .filter(Objects::nonNull)
         .map(MandateDetails::getMandateType)

@@ -2,9 +2,11 @@ package ee.tuleva.onboarding.mandate;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.mandate.details.PaymentRateChangeMandateDetails.PaymentRate.SIX;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 
+import ee.tuleva.onboarding.mandate.details.MandateDetails;
 import ee.tuleva.onboarding.mandate.details.PaymentRateChangeMandateDetails;
 import ee.tuleva.onboarding.mandate.details.WithdrawalCancellationMandateDetails;
 import ee.tuleva.onboarding.user.User;
@@ -29,15 +31,23 @@ class PaymentRateChangeMandatesTest {
   @Test
   void aRateChangeSignedInThePeriodCounts() {
     given(mandateRepository.findAllByUserIdAndCreatedDateAfter(user.getId(), SINCE))
-        .willReturn(List.of(mandateWith(new PaymentRateChangeMandateDetails(SIX))));
+        .willReturn(List.of(signed(new PaymentRateChangeMandateDetails(SIX))));
 
     assertThat(paymentRateChangeMandates.hasChangeSince(user, SINCE)).isTrue();
   }
 
   @Test
+  void aRateChangeTheSaverStartedButNeverSignedIsNotAChange() {
+    given(mandateRepository.findAllByUserIdAndCreatedDateAfter(user.getId(), SINCE))
+        .willReturn(List.of(unsigned(new PaymentRateChangeMandateDetails(SIX))));
+
+    assertThat(paymentRateChangeMandates.hasChangeSince(user, SINCE)).isFalse();
+  }
+
+  @Test
   void anotherKindOfMandateInThePeriodDoesNotCount() {
     given(mandateRepository.findAllByUserIdAndCreatedDateAfter(user.getId(), SINCE))
-        .willReturn(List.of(mandateWith(new WithdrawalCancellationMandateDetails())));
+        .willReturn(List.of(signed(new WithdrawalCancellationMandateDetails())));
 
     assertThat(paymentRateChangeMandates.hasChangeSince(user, SINCE)).isFalse();
   }
@@ -50,7 +60,13 @@ class PaymentRateChangeMandatesTest {
     assertThat(paymentRateChangeMandates.hasChangeSince(user, SINCE)).isFalse();
   }
 
-  private Mandate mandateWith(ee.tuleva.onboarding.mandate.details.MandateDetails details) {
+  private Mandate signed(MandateDetails details) {
+    Mandate mandate = unsigned(details);
+    mandate.setMandate("signed".getBytes(UTF_8));
+    return mandate;
+  }
+
+  private Mandate unsigned(MandateDetails details) {
     return Mandate.builder().user(user).pillar(2).details(details).build();
   }
 }

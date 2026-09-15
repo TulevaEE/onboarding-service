@@ -6,7 +6,7 @@ import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 
-import ee.tuleva.onboarding.investment.fees.DepotFeeTierRepository;
+import ee.tuleva.onboarding.investment.fees.DepotRateResolver;
 import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
 import ee.tuleva.onboarding.investment.fees.FeeRate;
 import ee.tuleva.onboarding.investment.fees.FeeRateRepository;
@@ -39,7 +39,7 @@ public class OcfCalculationService {
 
   private final FeeRateRepository feeRateRepository;
   private final FeeChargedToFundPolicy feeChargedToFundPolicy;
-  private final DepotFeeTierRepository depotFeeTierRepository;
+  private final DepotRateResolver depotRateResolver;
   private final InstrumentFeeRepository instrumentFeeRepository;
   private final FundPositionRepository fundPositionRepository;
   private final ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
@@ -110,19 +110,7 @@ public class OcfCalculationService {
     if (!feeChargedToFundPolicy.chargedToFund(fund, DEPOT, asOf)) {
       return ZERO;
     }
-    return feeRateRepository
-        .findValidRate(fund, DEPOT, asOf)
-        .map(rate -> rate.isTierBased() ? getDepotRateFromTier(asOf) : rate.annualRate())
-        .orElse(ZERO);
-  }
-
-  private BigDecimal getDepotRateFromTier(LocalDate asOf) {
-    var latestNavDate = fundPositionRepository.findLatestSecurityNavDateUpTo(asOf).orElse(null);
-    if (latestNavDate == null) {
-      return ZERO;
-    }
-    var totalSecurityAum = fundPositionRepository.sumSecurityMarketValueAllFunds(latestNavDate);
-    return depotFeeTierRepository.findRateForAum(totalSecurityAum, asOf).orElse(ZERO);
+    return depotRateResolver.resolveAnnualRate(fund, asOf);
   }
 
   BigDecimal getUnderlyingFundCost(TulevaFund fund, LocalDate asOf) {

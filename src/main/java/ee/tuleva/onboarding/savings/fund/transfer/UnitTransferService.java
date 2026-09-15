@@ -107,7 +107,8 @@ public class UnitTransferService {
               + ", state="
               + transfer.getState());
     }
-    if (isTheSamePerson(transfer.getSubmittedBy(), approvedBy)) {
+    String approver = whoeverIsActing(approvedBy, "approving it");
+    if (isTheSamePerson(transfer.getSubmittedBy(), approver)) {
       throw new IllegalStateException(
           "A transfer must be approved by someone other than whoever submitted it: id="
               + id
@@ -138,8 +139,7 @@ public class UnitTransferService {
         savingsFundLedger.recordUnitTransfer(
             transfer.from(), transfer.to(), transfer.getFundUnits(), id);
 
-    transfer.executedBy(
-        whoeverIsActing(approvedBy, "approving it"), recorded.getId(), Instant.now(clock));
+    transfer.executedBy(approver, recorded.getId(), Instant.now(clock));
     return transfers.save(transfer);
   }
 

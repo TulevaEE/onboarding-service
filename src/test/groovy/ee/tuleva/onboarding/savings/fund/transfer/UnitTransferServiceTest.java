@@ -348,14 +348,13 @@ class UnitTransferServiceTest {
 
   @Test
   void anUnnamedApproverIsRefused() {
-    givenTheLedgerQuotes();
-    var awaiting = anAwaitingTransfer(theCurrentPlanHash());
+    var awaiting = anAwaitingTransfer();
     given(transfers.findByIdForUpdate(awaiting.getId())).willReturn(Optional.of(awaiting));
-    givenTheLedgerRecords();
 
     assertThatThrownBy(() -> service.approve(awaiting.getId(), "   "))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("must name who is approving it");
+    verifyNoInteractions(savingsFundLedger);
   }
 
   @Test
@@ -426,18 +425,6 @@ class UnitTransferServiceTest {
         LocalDate.parse("2026-09-14"),
         evidence,
         ZERO);
-  }
-
-  private void givenTheLedgerRecords() {
-    given(
-            savingsFundLedger.recordUnitTransfer(
-                any(PartyRef.class), any(PartyRef.class), any(), any()))
-        .willReturn(
-            LedgerTransaction.builder()
-                .id(randomUUID())
-                .transactionType(UNIT_TRANSFER)
-                .transactionDate(Instant.parse("2026-09-15T09:00:00Z"))
-                .build());
   }
 
   private void givenTheLedgerQuotes() {

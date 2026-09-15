@@ -51,6 +51,7 @@ class ExitMarkResolverTest {
                 CCF,
                 new ExitMark(
                     new BigDecimal("17.314"),
+                    new BigDecimal("1000"),
                     new ExitMark.PublishedPrice(new BigDecimal("17.318"), DEALING_NAV_DATE))));
   }
 
@@ -91,7 +92,8 @@ class ExitMarkResolverTest {
 
     var exitMarks = resolver.resolve(NAV_DATE, executedSell(CCF, "17.314", ACCEPTED_ON));
 
-    assertThat(exitMarks.get(CCF)).isEqualTo(new ExitMark(new BigDecimal("17.314"), null));
+    assertThat(exitMarks.get(CCF))
+        .isEqualTo(new ExitMark(new BigDecimal("17.314"), new BigDecimal("1000"), null));
   }
 
   // A price the pipeline itself flagged is not an independent mark, so attributing a dealing cost

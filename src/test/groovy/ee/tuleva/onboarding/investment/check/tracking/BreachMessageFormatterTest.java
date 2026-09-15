@@ -257,6 +257,47 @@ class BreachMessageFormatterTest {
     assertThat(message).contains("Trades moved").contains("-4,045,261.18");
   }
 
+  @Test
+  void theBridgeMakesTheTradeNettingConditionalOnTheCashLegBeingOnTheReport() {
+    var traded =
+        tuk75On20260901().toBuilder()
+            .navFlow(
+                navFlow(
+                    new BigDecimal("5888679.04"),
+                    true,
+                    new BigDecimal("-1735979.79"),
+                    new BigDecimal("-4045261.18")))
+            .build();
+
+    var message =
+        new BreachMessageFormatter(traded, false, RedemptionCycleHint.ordinaryDay()).format();
+
+    assertThat(message)
+        .contains("nets out of net assets only if the cash leg is on the same report")
+        .contains("if it is not, the whole amount reaches UNEXPLAINED")
+        .contains("check trade settlement");
+  }
+
+  @Test
+  void theBridgeNamesTheInstrumentsItCouldNotMarkRatherThanReportingThePartialFigureAsWhole() {
+    var traded =
+        tuk75On20260901().toBuilder()
+            .navFlow(
+                navFlow(
+                    new BigDecimal("5888679.04"),
+                    true,
+                    new BigDecimal("-1735979.79"),
+                    new TradeFlow(BigDecimal.ZERO, List.of("IE0009FT4LX4"))))
+            .build();
+
+    var message =
+        new BreachMessageFormatter(traded, false, RedemptionCycleHint.ordinaryDay()).format();
+
+    assertThat(message)
+        .contains("excluding IE0009FT4LX4")
+        .contains("nothing prices them, so the figure is partial");
+  }
+
   private TrackingDifferenceResult tuk75On20260901() {
     return TrackingDifferenceResult.builder()
         .fund(TUK75)
@@ -296,6 +337,15 @@ class BreachMessageFormatterTest {
       boolean securityQuantitiesChanged,
       BigDecimal marketPnl,
       BigDecimal tradeFlow) {
+    return navFlow(
+        unexplained, securityQuantitiesChanged, marketPnl, new TradeFlow(tradeFlow, List.of()));
+  }
+
+  private NavFlowReconciliation navFlow(
+      BigDecimal unexplained,
+      boolean securityQuantitiesChanged,
+      BigDecimal marketPnl,
+      TradeFlow tradeFlow) {
     return new NavFlowReconciliation(
         new BigDecimal("1126972502.00"),
         new BigDecimal("1142837314.33"),

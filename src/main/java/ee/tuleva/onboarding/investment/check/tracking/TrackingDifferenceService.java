@@ -134,7 +134,8 @@ class TrackingDifferenceService {
     }
 
     if (!failures.isEmpty()) {
-      throw new IncompletePriceDataException(incompletePriceDataReport(failures), results);
+      throw new IncompletePriceDataException(
+          incompletePriceDataReport(failures), new IncompleteRun(results, failures));
     }
 
     return results;
@@ -172,12 +173,13 @@ class TrackingDifferenceService {
       return checkFund(fund, checkDate);
     } catch (IncompletePriceDataException e) {
       log.warn("Skipping fund due to incomplete price data: {}", e.getMessage());
-      failures.add(gapFailure(fund, checkDate, window, reasonOf(e)));
+      failures.add(gapFailure(fund, checkDate, window, FailureReason.of(e)));
       return List.of();
     } catch (Exception e) {
       log.error("Skipping fund due to a failed check: fund={}, checkDate={}", fund, checkDate, e);
       failures.add(
-          gapFailure(fund, checkDate, window, "the check errored (%s)".formatted(reasonOf(e))));
+          gapFailure(
+              fund, checkDate, window, "the check errored (%s)".formatted(FailureReason.of(e))));
       return List.of();
     }
   }
@@ -189,10 +191,6 @@ class TrackingDifferenceService {
         "fund=%s, %s".formatted(fund, reason),
         DAYS.between(checkDate, window.today()),
         lastAttemptDate(checkDate, window.lookbackDays()));
-  }
-
-  private static String reasonOf(Exception e) {
-    return Objects.requireNonNullElse(e.getMessage(), e.getClass().getSimpleName());
   }
 
   private static String incompletePriceDataReport(List<GapFailure> failures) {
@@ -570,17 +568,27 @@ class TrackingDifferenceService {
     eventRepository.save(event);
   }
 
+  record IncompleteRun(List<TrackingDifferenceResult> completedResults, List<GapFailure> gaps) {}
+
   static class IncompletePriceDataException extends RuntimeException {
 
-    private final transient List<TrackingDifferenceResult> completedResults;
+    private final transient IncompleteRun run;
 
     IncompletePriceDataException(String message, List<TrackingDifferenceResult> completedResults) {
+      this(message, new IncompleteRun(completedResults, List.of()));
+    }
+
+    IncompletePriceDataException(String message, IncompleteRun run) {
       super(message);
-      this.completedResults = completedResults;
+      this.run = run;
     }
 
     List<TrackingDifferenceResult> completedResults() {
-      return completedResults;
+      return run.completedResults();
+    }
+
+    List<GapFailure> gaps() {
+      return run.gaps();
     }
   }
 }

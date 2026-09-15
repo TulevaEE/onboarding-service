@@ -12,6 +12,8 @@ import static java.math.BigDecimal.ZERO;
 import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowableOfType;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -36,6 +38,7 @@ import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.instrument.BenchmarkCategoryProxy;
 import ee.tuleva.onboarding.instrument.InstrumentReference;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
+import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceService.GapFailure;
 import ee.tuleva.onboarding.investment.config.InvestmentParameter;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.fees.FeeAccrual;
@@ -55,6 +58,7 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -236,11 +240,13 @@ class TrackingDifferenceServiceTest {
     givenAnUnpriceableHoldingOn(staleDate, LocalDate.of(2026, 3, 27));
     givenTheOnlyNavDateWithoutACheckIs(staleDate);
 
-    assertThatThrownBy(() -> service.fillGaps(30))
-        .isInstanceOf(TrackingDifferenceService.IncompletePriceDataException.class)
-        .hasMessageContaining("IE00MISSING1")
-        .hasMessageContaining("standing gap: unfilled for 11 days")
-        .hasMessageContaining("last attempt 2026-04-29");
+    assertThat(gapsLeftBy(() -> service.fillGaps(30)))
+        .extracting(
+            GapFailure::checkDate,
+            GapFailure::daysUnfilled,
+            GapFailure::lastAttempt,
+            GapFailure::isStanding)
+        .containsExactly(tuple(staleDate, 11L, LocalDate.of(2026, 4, 29), true));
   }
 
   // A date that only missed tonight is ordinary: it may well fill itself tomorrow, so it must not
@@ -250,10 +256,9 @@ class TrackingDifferenceServiceTest {
     givenAnUnpriceableHoldingOn(PREVIOUS_DATE, LocalDate.of(2026, 4, 8));
     givenTheOnlyNavDateWithoutACheckIs(PREVIOUS_DATE);
 
-    assertThatThrownBy(() -> service.fillGaps(30))
-        .isInstanceOf(TrackingDifferenceService.IncompletePriceDataException.class)
-        .hasMessageContaining("IE00MISSING1")
-        .hasMessageNotContaining("standing gap");
+    assertThat(gapsLeftBy(() -> service.fillGaps(30)))
+        .extracting(GapFailure::checkDate, GapFailure::daysUnfilled, GapFailure::isStanding)
+        .containsExactly(tuple(PREVIOUS_DATE, 1L, false));
   }
 
   @Test
@@ -262,9 +267,9 @@ class TrackingDifferenceServiceTest {
     givenAnUnpriceableHoldingOn(staleDate, LocalDate.of(2026, 3, 11));
     givenTheOnlyNavDateWithoutACheckIs(staleDate);
 
-    assertThatThrownBy(() -> service.fillGaps(30))
-        .isInstanceOf(TrackingDifferenceService.IncompletePriceDataException.class)
-        .hasMessageContaining("last attempt 2026-04-10");
+    assertThat(gapsLeftBy(() -> service.fillGaps(30)))
+        .extracting(GapFailure::checkDate, GapFailure::lastAttempt)
+        .containsExactly(tuple(staleDate, LocalDate.of(2026, 4, 10)));
   }
 
   @Test
@@ -306,6 +311,12 @@ class TrackingDifferenceServiceTest {
         .willReturn(new BigDecimal("50000"));
     given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(navDate), eq(10)))
         .willReturn(List.of());
+  }
+
+  private List<GapFailure> gapsLeftBy(ThrowingCallable gapFill) {
+    return catchThrowableOfType(
+            TrackingDifferenceService.IncompletePriceDataException.class, gapFill)
+        .gaps();
   }
 
   private void givenTheOnlyNavDateWithoutACheckIs(LocalDate navDate) {

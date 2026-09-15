@@ -13,6 +13,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 class TradeCalculationEngineTest {
 
@@ -61,8 +63,9 @@ class TradeCalculationEngineTest {
     assertThat(result.noTradeReason()).isNull();
   }
 
-  @Test
-  void calculate_carriesInputWarnings_inANonRebalanceMode() {
+  @ParameterizedTest
+  @EnumSource(TransactionMode.class)
+  void calculate_carriesInputWarnings_inEveryMode(TransactionMode mode) {
     var feePolicyWarning =
         new CalculationWarning(
             CalculationWarningType.FEE_POLICY_UNRESOLVED, "Fee policy does not resolve");
@@ -81,9 +84,9 @@ class TradeCalculationEngineTest {
             .inputWarnings(List.of(feePolicyWarning))
             .build();
 
-    var result = engine.calculate(input, BUY);
+    var result = engine.calculate(input, mode);
 
-    assertThat(result.warnings()).containsExactly(feePolicyWarning);
+    assertThat(result.warnings()).contains(feePolicyWarning);
   }
 
   @Test
@@ -125,9 +128,6 @@ class TradeCalculationEngineTest {
     assertThatThrownBy(() -> engine.calculate(input, BUY))
         .isInstanceOf(IllegalArgumentException.class);
   }
-
-  // A rebalance needs something to rebalance against; with no positions there is nothing to warn
-  // about either.
 
   @Test
   void buy_withANegativeModelWeight_failsLoudly() {

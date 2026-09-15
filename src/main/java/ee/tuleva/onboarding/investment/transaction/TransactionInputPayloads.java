@@ -47,11 +47,6 @@ final class TransactionInputPayloads {
     putIfPresent(result, "positionLimits", serializePositionLimits(input.positionLimits()));
     putIfPresent(result, "fastSellIsins", List.copyOf(input.fastSellIsins()));
     putIfPresent(result, "manualAdjustments", Map.copyOf(manualAdjustments));
-    if (!input.inputWarnings().isEmpty()) {
-      result.put(
-          "inputWarnings",
-          TransactionAuditPayloads.serializeCalculationWarnings(input.inputWarnings()));
-    }
     return result;
   }
 

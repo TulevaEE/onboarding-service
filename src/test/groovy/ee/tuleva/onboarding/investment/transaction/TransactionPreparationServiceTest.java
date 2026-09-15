@@ -25,6 +25,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -1024,22 +1025,23 @@ class TransactionPreparationServiceTest {
     given(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of())).willReturn(input);
     given(calculationEngine.calculate(input, BUY))
         .willThrow(new IllegalStateException("engine blew up"));
+    var savedEvents = new ArrayList<TransactionAuditEvent>();
+    given(auditEventRepository.save(any()))
+        .willAnswer(
+            invocation -> {
+              savedEvents.add(invocation.getArgument(0));
+              return invocation.getArgument(0);
+            });
 
     service.processCommand(command);
 
-    verify(auditEventRepository)
-        .save(
-            argThat(
-                event -> {
-                  if (!"CALCULATION_FAILED".equals(event.getEventType())) {
-                    return false;
-                  }
-                  var inputPayload = (Map<String, Object>) event.getPayload().get("input");
-                  var warnings = (List<Map<String, Object>>) inputPayload.get("inputWarnings");
-                  return warnings != null
-                      && warnings.size() == 1
-                      && "FEE_POLICY_UNRESOLVED".equals(warnings.getFirst().get("type"));
-                }));
+    assertThat(savedEvents)
+        .filteredOn(event -> "CALCULATION_FAILED".equals(event.getEventType()))
+        .singleElement()
+        .extracting(event -> event.getPayload().get("calculationWarnings"))
+        .isEqualTo(
+            List.of(
+                Map.of("type", "FEE_POLICY_UNRESOLVED", "message", "Fee policy does not resolve")));
   }
 
   @Test

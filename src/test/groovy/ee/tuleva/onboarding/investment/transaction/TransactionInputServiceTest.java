@@ -37,6 +37,7 @@ import ee.tuleva.onboarding.investment.epis.R45ReportService;
 import ee.tuleva.onboarding.investment.epis.R45Result;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
+import ee.tuleva.onboarding.investment.fees.FeePolicyUnresolvedException;
 import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.portfolio.*;
 import ee.tuleva.onboarding.investment.position.FundPosition;
@@ -195,7 +196,7 @@ class TransactionInputServiceTest {
     given(
             feeAccrualRepository.getAccruedFeesByDateForMonth(
                 eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT)), any()))
-        .willReturn(Map.of(AS_OF_DATE, new BigDecimal("3000")));
+        .willReturn(Map.of(AS_OF_DATE.minusDays(1), new BigDecimal("3000")));
     // The accrual exists and is read; it is the policy that keeps it out, not a skipped query.
     given(
             feeAccrualRepository.getAccruedFeesByDateForMonth(
@@ -226,7 +227,7 @@ class TransactionInputServiceTest {
     given(
             feeAccrualRepository.getAccruedFeesByDateForMonth(
                 eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT)), any()))
-        .willReturn(Map.of(AS_OF_DATE, new BigDecimal("3000")));
+        .willReturn(Map.of(AS_OF_DATE.minusDays(1), new BigDecimal("3000")));
     given(
             feeAccrualRepository.getAccruedFeesByDateForMonth(
                 eq(TUV100), any(), eq(List.of(FeeType.DEPOT)), any()))
@@ -1195,7 +1196,7 @@ class TransactionInputServiceTest {
   void gatherInput_reservesTheAccrualAndWarns_whenTheFeePolicyDoesNotResolve() {
     var positionDate = AS_OF_DATE;
     given(feeChargedToFundPolicy.resolverFor(TUV100, FeeType.DEPOT))
-        .willThrow(new IllegalStateException("No fee policy configured"));
+        .willThrow(new FeePolicyUnresolvedException("No fee policy configured"));
     given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
         .willReturn(Optional.of(positionDate));
     given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
@@ -1205,12 +1206,16 @@ class TransactionInputServiceTest {
     given(
             feeAccrualRepository.getAccruedFeesByDateForMonth(
                 eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT)), any()))
-        .willReturn(Map.of(AS_OF_DATE, new BigDecimal("3000")));
+        .willReturn(Map.of(AS_OF_DATE.minusDays(1), new BigDecimal("3000")));
     given(
             feeAccrualRepository.getAccruedFeesByDateForMonth(
                 eq(TUV100), any(), eq(List.of(FeeType.DEPOT)), any()))
         .willReturn(
-            Map.of(AS_OF_DATE, new BigDecimal("450"), AS_OF_DATE.minusDays(1), BigDecimal.TEN));
+            Map.of(
+                AS_OF_DATE.minusDays(2),
+                new BigDecimal("450"),
+                AS_OF_DATE.minusDays(1),
+                BigDecimal.TEN));
     given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
         .willReturn(List.of());
     given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
@@ -1225,6 +1230,93 @@ class TransactionInputServiceTest {
     assertThat(result.inputWarnings())
         .extracting(CalculationWarning::type)
         .containsExactly(CalculationWarningType.FEE_POLICY_UNRESOLVED);
+  }
+
+  @Test
+  void gatherInput_reservesOnlyTheUnresolvedDays_whenTheFeePolicyHasAGap() {
+    var positionDate = AS_OF_DATE;
+    given(feeChargedToFundPolicy.resolverFor(TUV100, FeeType.DEPOT))
+        .willReturn(
+            new FeeChargedToFundPolicy.Resolver(
+                TUV100,
+                FeeType.DEPOT,
+                List.of(
+                    new FeeChargedToFundPolicy.Policy(
+                        false, LocalDate.of(2020, 1, 1), AS_OF_DATE.minusDays(2)))));
+    given(feeChargedToFundPolicy.resolverFor(TUV100, FeeType.MANAGEMENT))
+        .willReturn(neverCharged(TUV100, FeeType.MANAGEMENT));
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(positionDate));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
+        .willReturn(List.of());
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
+        .willReturn(List.of());
+    given(
+            feeAccrualRepository.getAccruedFeesByDateForMonth(
+                eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT)), any()))
+        .willReturn(Map.of(AS_OF_DATE.minusDays(1), new BigDecimal("3000")));
+    given(
+            feeAccrualRepository.getAccruedFeesByDateForMonth(
+                eq(TUV100), any(), eq(List.of(FeeType.DEPOT)), any()))
+        .willReturn(
+            Map.of(
+                AS_OF_DATE.minusDays(2),
+                new BigDecimal("450"),
+                AS_OF_DATE.minusDays(1),
+                BigDecimal.TEN));
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(List.of());
+    given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(zeroFundLimit(TUV100)));
+    given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
+    given(r45ReportService.getLatestFlows()).willReturn(Map.of());
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+
+    assertThat(result.liabilityBreakdown().depotFee()).isEqualByComparingTo("10");
+    assertThat(result.liabilityBreakdown().managementFee()).isEqualByComparingTo("0");
+    assertThat(result.inputWarnings())
+        .extracting(CalculationWarning::type)
+        .containsExactly(CalculationWarningType.FEE_POLICY_UNRESOLVED);
+  }
+
+  @Test
+  void gatherInput_warnsOncePerFeeType_whenNeitherFeePolicyResolves() {
+    var positionDate = AS_OF_DATE;
+    given(feeChargedToFundPolicy.resolverFor(TUV100, FeeType.DEPOT))
+        .willThrow(new FeePolicyUnresolvedException("No fee policy configured"));
+    given(feeChargedToFundPolicy.resolverFor(TUV100, FeeType.MANAGEMENT))
+        .willThrow(new FeePolicyUnresolvedException("No fee policy configured"));
+    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(positionDate));
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, SECURITY))
+        .willReturn(List.of());
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(positionDate, TUV100, CASH))
+        .willReturn(List.of());
+    given(
+            feeAccrualRepository.getAccruedFeesByDateForMonth(
+                eq(TUV100), any(), eq(List.of(FeeType.MANAGEMENT)), any()))
+        .willReturn(Map.of(AS_OF_DATE.minusDays(1), new BigDecimal("3000")));
+    given(
+            feeAccrualRepository.getAccruedFeesByDateForMonth(
+                eq(TUV100), any(), eq(List.of(FeeType.DEPOT)), any()))
+        .willReturn(Map.of(AS_OF_DATE.minusDays(1), BigDecimal.TEN));
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(List.of());
+    given(fundLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE))
+        .willReturn(Optional.of(zeroFundLimit(TUV100)));
+    given(positionLimitRepository.findLatestByFundAsOf(TUV100, AS_OF_DATE)).willReturn(List.of());
+    given(r45ReportService.getLatestFlows()).willReturn(Map.of());
+
+    var result = service.gatherInput(TUV100, AS_OF_DATE, Map.of());
+
+    assertThat(result.liabilityBreakdown().depotFee()).isEqualByComparingTo("10");
+    assertThat(result.liabilityBreakdown().managementFee()).isEqualByComparingTo("3000");
+    assertThat(result.inputWarnings())
+        .extracting(CalculationWarning::type)
+        .containsExactly(
+            CalculationWarningType.FEE_POLICY_UNRESOLVED,
+            CalculationWarningType.FEE_POLICY_UNRESOLVED);
   }
 
   private static FeeChargedToFundPolicy.Resolver alwaysCharged(TulevaFund fund, FeeType feeType) {

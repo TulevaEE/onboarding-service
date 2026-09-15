@@ -28,6 +28,7 @@ import ee.tuleva.onboarding.investment.epis.R45ReportService;
 import ee.tuleva.onboarding.investment.epis.R45Result;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
+import ee.tuleva.onboarding.investment.fees.FeePolicyUnresolvedException;
 import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
@@ -37,6 +38,7 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -208,26 +210,67 @@ public class TransactionInputService {
     Map<LocalDate, BigDecimal> accrualsByDate =
         feeAccrualRepository.getAccruedFeesByDateForMonth(
             fund, feeMonth, List.of(feeType), asOfDate);
+    FeeChargedToFundPolicy.Resolver resolver;
     try {
-      return feeChargedToFundPolicy.resolverFor(fund, feeType).sumChargedDays(accrualsByDate);
-    } catch (IllegalStateException e) {
-      inputWarnings.add(unresolvedFeePolicyWarning(fund, asOfDate, feeType, e));
-      return reserveEveryDay(accrualsByDate);
+      resolver = feeChargedToFundPolicy.resolverFor(fund, feeType);
+    } catch (FeePolicyUnresolvedException e) {
+      log.warn("Fee policy does not resolve, reserving every accrual day", e);
+      inputWarnings.add(
+          unresolvedFeePolicyWarning(
+              fund, asOfDate, feeType, accrualsByDate.size(), e.getReason()));
+      return sumOf(accrualsByDate.values());
+    }
+    return sumReservingUnresolvedDays(
+        resolver, accrualsByDate, fund, asOfDate, feeType, inputWarnings);
+  }
+
+  private BigDecimal sumReservingUnresolvedDays(
+      FeeChargedToFundPolicy.Resolver resolver,
+      Map<LocalDate, BigDecimal> accrualsByDate,
+      TulevaFund fund,
+      LocalDate asOfDate,
+      FeeType feeType,
+      List<CalculationWarning> inputWarnings) {
+    List<DailyAccrual> accruals =
+        accrualsByDate.entrySet().stream()
+            .map(entry -> resolve(resolver, entry.getKey(), entry.getValue()))
+            .toList();
+    List<String> unresolvedReasons =
+        accruals.stream().map(DailyAccrual::unresolvedReason).filter(Objects::nonNull).toList();
+    if (!unresolvedReasons.isEmpty()) {
+      inputWarnings.add(
+          unresolvedFeePolicyWarning(
+              fund, asOfDate, feeType, unresolvedReasons.size(), unresolvedReasons.getFirst()));
+    }
+    return sumOf(
+        accruals.stream().filter(DailyAccrual::isReserved).map(DailyAccrual::amount).toList());
+  }
+
+  private DailyAccrual resolve(
+      FeeChargedToFundPolicy.Resolver resolver, LocalDate date, BigDecimal amount) {
+    try {
+      return new DailyAccrual(amount, resolver.chargedOn(date), null);
+    } catch (FeePolicyUnresolvedException e) {
+      log.warn("Fee policy does not resolve for one accrual day, reserving it", e);
+      return new DailyAccrual(amount, true, e.getReason());
     }
   }
 
+  private record DailyAccrual(
+      BigDecimal amount, boolean isReserved, @Nullable String unresolvedReason) {}
+
   private CalculationWarning unresolvedFeePolicyWarning(
-      TulevaFund fund, LocalDate asOfDate, FeeType feeType, IllegalStateException cause) {
+      TulevaFund fund, LocalDate asOfDate, FeeType feeType, int unresolvedDays, String reason) {
     String message =
-        ("Fee policy does not resolve, reserving the accrual as if it were charged to the fund:"
-                + " fund=%s, feeType=%s, asOfDate=%s, reason=%s")
-            .formatted(fund.name(), feeType, asOfDate, cause.getMessage());
+        ("Fee policy does not resolve, reserving the unresolved days as if they were charged to the"
+                + " fund: fund=%s, feeType=%s, asOfDate=%s, unresolvedDays=%d, reason=%s")
+            .formatted(fund.name(), feeType, asOfDate, unresolvedDays, reason);
     log.warn(message);
     return new CalculationWarning(FEE_POLICY_UNRESOLVED, message);
   }
 
-  private BigDecimal reserveEveryDay(Map<LocalDate, BigDecimal> accrualsByDate) {
-    return accrualsByDate.values().stream().reduce(ZERO, BigDecimal::add);
+  private BigDecimal sumOf(Collection<BigDecimal> amounts) {
+    return amounts.stream().reduce(ZERO, BigDecimal::add);
   }
 
   private BigDecimal getFundUnitsReservedValue() {

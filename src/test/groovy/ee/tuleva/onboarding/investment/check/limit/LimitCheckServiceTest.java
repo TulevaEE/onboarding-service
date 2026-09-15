@@ -101,7 +101,7 @@ class LimitCheckServiceTest {
 
   // This is the signal the daily job alerts on: the gap was attempted and is still a gap.
   @Test
-  void aGapThatCannotBeCheckedComesBackAsAFundNotChecked() {
+  void aGapThatCannotBeCheckedComesBackAsAnUnfilledGap() {
     service = createService();
     var gap = LocalDate.of(2026, 3, 3);
     lenient()

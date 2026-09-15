@@ -4,7 +4,6 @@ import static ee.tuleva.onboarding.notification.email.EmailType.*;
 
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateType;
-import ee.tuleva.onboarding.mandate.PillarSuggestion;
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
 import ee.tuleva.onboarding.notification.email.EmailType;
 
@@ -39,13 +38,6 @@ public final class MandateEmailType {
     }
 
     throw new IllegalArgumentException("Cannot find email type for batch");
-  }
-
-  public static EmailType emailTypeFor(Mandate mandate, PillarSuggestion pillarSuggestion) {
-    if (mandate.isThirdPillar() && pillarSuggestion.isSuggestSecondPillar()) {
-      return THIRD_PILLAR_SUGGEST_SECOND;
-    }
-    return THIRD_PILLAR_SUGGEST_SECOND;
   }
 
   private MandateEmailType() {}

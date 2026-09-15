@@ -29,6 +29,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -73,10 +74,6 @@ class LimitCheckService {
     return gaps;
   }
 
-  // A gap that fails is not self-healing and nothing else reports it, so every one of them comes
-  // back every evening. What ages is the wording, not the alert: a date carries how long it has
-  // gone unfilled and the last evening it will be attempted, because after that it leaves the
-  // lookback window and is never tried again.
   LimitCheckRun fillGaps(Map<TulevaFund, List<LocalDate>> gaps, int lookbackDays) {
     var today = LocalDate.now(clock);
     var results = new ArrayList<LimitCheckResult>();
@@ -299,10 +296,7 @@ class LimitCheckService {
   }
 
   private LimitCheckEvent event(
-      TulevaFund fund,
-      LocalDate checkDate,
-      CheckType checkType,
-      @org.jspecify.annotations.Nullable ReserveBreach breach) {
+      TulevaFund fund, LocalDate checkDate, CheckType checkType, @Nullable ReserveBreach breach) {
     return event(
         fund,
         checkDate,
@@ -312,10 +306,7 @@ class LimitCheckService {
   }
 
   private LimitCheckEvent event(
-      TulevaFund fund,
-      LocalDate checkDate,
-      CheckType checkType,
-      @org.jspecify.annotations.Nullable FreeCashBreach breach) {
+      TulevaFund fund, LocalDate checkDate, CheckType checkType, @Nullable FreeCashBreach breach) {
     return event(
         fund,
         checkDate,

@@ -25,6 +25,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -987,6 +988,60 @@ class TransactionPreparationServiceTest {
                         && event.getBatch() != null
                         && TUV100.equals(event.getBatch().getFund())
                         && event.getPayload().containsKey("input")));
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void processCommand_onFailure_carriesInputWarningsIntoTheFailedPayload() {
+    var command =
+        TransactionCommand.builder()
+            .id(16L)
+            .fund(TUV100)
+            .mode(BUY)
+            .asOfDate(LocalDate.of(2026, 1, 15))
+            .manualAdjustments(Map.of())
+            .status(PROCESSING)
+            .build();
+    var feePolicyWarning =
+        new CalculationWarning(
+            CalculationWarningType.FEE_POLICY_UNRESOLVED, "Fee policy does not resolve");
+    var input =
+        FundTransactionInput.builder()
+            .fund(TUV100)
+            .positions(List.of(new PositionSnapshot("IE00A", new BigDecimal("500000"))))
+            .modelWeights(List.of(new ModelWeight("IE00A", new BigDecimal("1.00"))))
+            .grossPortfolioValue(new BigDecimal("1000000"))
+            .cashBuffer(new BigDecimal("50000"))
+            .liabilities(ZERO)
+            .receivables(ZERO)
+            .freeCash(new BigDecimal("100000"))
+            .minTransactionThreshold(new BigDecimal("5000"))
+            .positionLimits(Map.of())
+            .fastSellIsins(Set.of())
+            .inputWarnings(List.of(feePolicyWarning))
+            .build();
+
+    given(clock.instant()).willReturn(Instant.parse("2026-01-15T10:00:00Z"));
+    given(inputService.gatherInput(TUV100, command.getAsOfDate(), Map.of())).willReturn(input);
+    given(calculationEngine.calculate(input, BUY))
+        .willThrow(new IllegalStateException("engine blew up"));
+    var savedEvents = new ArrayList<TransactionAuditEvent>();
+    given(auditEventRepository.save(any()))
+        .willAnswer(
+            invocation -> {
+              savedEvents.add(invocation.getArgument(0));
+              return invocation.getArgument(0);
+            });
+
+    service.processCommand(command);
+
+    assertThat(savedEvents)
+        .filteredOn(event -> "CALCULATION_FAILED".equals(event.getEventType()))
+        .singleElement()
+        .extracting(event -> event.getPayload().get("calculationWarnings"))
+        .isEqualTo(
+            List.of(
+                Map.of("type", "FEE_POLICY_UNRESOLVED", "message", "Fee policy does not resolve")));
   }
 
   @Test

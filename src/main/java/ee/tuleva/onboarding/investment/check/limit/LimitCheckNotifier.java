@@ -33,21 +33,33 @@ class LimitCheckNotifier {
   void notifyBackfillFailed(Exception failure) {
     try {
       notificationService.sendMessage(
-          "🛑 Limit check backfill FAILED — the daily re-run that repairs missed days did not"
-              + " complete, so gaps will persist until it succeeds: error=%s"
-                  .formatted(failure.getMessage()),
+          ("🛑 Limit check backfill FAILED — the re-run that repairs missed days did not complete,"
+                  + " so gaps will persist until it succeeds: error=%s")
+              .formatted(failure.getMessage()),
           INVESTMENT);
     } catch (Exception e) {
       log.error("Failed to send limit check backfill failure notification", e);
     }
   }
 
+  void notifyGapFillFailed(Exception failure) {
+    try {
+      notificationService.sendMessage(
+          ("🛑 Limit check gap fill FAILED — the days with no check were not repaired and will be"
+                  + " retried tomorrow: error=%s")
+              .formatted(failure.getMessage()),
+          INVESTMENT);
+    } catch (Exception e) {
+      log.error("Failed to send limit check gap fill failure notification", e);
+    }
+  }
+
   void notifyPositionSyncFailed(Exception failure) {
     try {
       notificationService.sendMessage(
-          "⚠️ Fee accrual position sync failed before the limit check gap fill — the checks below"
-              + " ran against the positions already stored: error=%s"
-                  .formatted(failure.getMessage()),
+          ("⚠️ Fee accrual position sync failed before the limit check gap fill — the checks below"
+                  + " ran against the positions already stored: error=%s")
+              .formatted(failure.getMessage()),
           INVESTMENT);
     } catch (Exception e) {
       log.error("Failed to send limit check position sync failure notification", e);
@@ -62,25 +74,9 @@ class LimitCheckNotifier {
     }
     var message = new StringBuilder();
     if (!run.results().isEmpty()) {
-      // A gap fill returns many dates per fund, so the fund has to be named once and the dates
-      // said out loud - otherwise the same four codes repeat down the message with nothing to say
-      // which day any of them is about.
-      var fundNames =
-          run.results().stream()
-              .map(r -> r.fund().getCode())
-              .distinct()
-              .sorted()
-              .collect(Collectors.joining(", "));
-      var dates =
-          run.results().stream().map(LimitCheckResult::checkDate).distinct().sorted().toList();
-      message.append(
-          dates.size() == 1
-              ? "✅ Limit check completed: %s within limits on %s"
-                  .formatted(fundNames, dates.getFirst())
-              : "✅ Limit check completed: %s within limits on %d dates, %s to %s"
-                  .formatted(fundNames, dates.size(), dates.getFirst(), dates.getLast()));
+      message.append(allClearNamingEachFundOnceAndEveryDateCovered(run));
     }
-    appendNotChecked(message, run);
+    appendWhatWasNotChecked(message, run);
     notificationService.sendMessage(message.toString(), INVESTMENT);
   }
 
@@ -94,12 +90,31 @@ class LimitCheckNotifier {
 
     var message =
         new StringBuilder("%s LIMIT BREACH DETECTED\n".formatted(severityIcon(worst))).append(body);
-    appendNotChecked(message, run);
+    appendWhatWasNotChecked(message, run);
     notificationService.sendMessage(message.toString(), INVESTMENT);
   }
 
-  private void appendNotChecked(StringBuilder message, LimitCheckRun run) {
+  private static String allClearNamingEachFundOnceAndEveryDateCovered(LimitCheckRun run) {
+    var fundNames =
+        run.results().stream()
+            .map(r -> r.fund().getCode())
+            .distinct()
+            .sorted()
+            .collect(Collectors.joining(", "));
+    var dates =
+        run.results().stream().map(LimitCheckResult::checkDate).distinct().sorted().toList();
+    return dates.size() == 1
+        ? "✅ Limit check completed: %s within limits on %s".formatted(fundNames, dates.getFirst())
+        : "✅ Limit check completed: %s within limits on %d dates, %s to %s"
+            .formatted(fundNames, dates.size(), dates.getFirst(), dates.getLast());
+  }
+
+  private void appendWhatWasNotChecked(StringBuilder message, LimitCheckRun run) {
     appendUnfilledGaps(message, run);
+    appendFundsNotChecked(message, run);
+  }
+
+  private void appendFundsNotChecked(StringBuilder message, LimitCheckRun run) {
     if (run.fundsNotChecked().isEmpty()) {
       return;
     }
@@ -110,10 +125,6 @@ class LimitCheckNotifier {
         .append("⏸ Not checked: %s — no limits were verified for these".formatted(fundNames));
   }
 
-  // These days have no limit check and nothing else will ever mention them, so they are named in
-  // full every evening. Once a gap has stood longer than a working week it is not going to fill
-  // itself, so it says how long it has been open and the last evening it will be attempted before
-  // it drops out of the lookback window unchecked.
   private void appendUnfilledGaps(StringBuilder message, LimitCheckRun run) {
     if (run.unfilledGaps().isEmpty()) {
       return;

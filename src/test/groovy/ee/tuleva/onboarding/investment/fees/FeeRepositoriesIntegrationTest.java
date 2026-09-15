@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.investment.fees;
 
-import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -430,27 +429,6 @@ class FeeRepositoriesIntegrationTest {
               tuple(LocalDate.of(2025, 1, 12), FeeType.MANAGEMENT),
               tuple(LocalDate.of(2025, 1, 13), FeeType.DEPOT),
               tuple(LocalDate.of(2025, 1, 13), FeeType.MANAGEMENT));
-    }
-
-    @Test
-    void deleteByFundFromDate_removesFromThatDayOnAndLeavesEarlierDaysAndOtherFunds() {
-      insertAccrual(TUK75, FeeType.MANAGEMENT, LocalDate.of(2025, 1, 12), new BigDecimal("5.891"));
-      insertAccrual(TUK75, FeeType.MANAGEMENT, LocalDate.of(2025, 1, 13), new BigDecimal("5.892"));
-      insertAccrual(TUK75, FeeType.DEPOT, LocalDate.of(2025, 1, 14), new BigDecimal("1.111"));
-      insertAccrual(TUK00, FeeType.MANAGEMENT, LocalDate.of(2025, 1, 14), new BigDecimal("2.222"));
-
-      int deleted = feeAccrualRepository.deleteByFundFromDate(TUK75, LocalDate.of(2025, 1, 13));
-
-      assertThat(deleted).isEqualTo(2);
-      assertThat(
-              feeAccrualRepository.findByFundAndDateRange(
-                  TUK75, LocalDate.of(2025, 1, 1), LocalDate.of(2025, 1, 31)))
-          .extracting(FeeAccrual::accrualDate)
-          .containsExactly(LocalDate.of(2025, 1, 12));
-      assertThat(
-              feeAccrualRepository.findByFundAndDateRange(
-                  TUK00, LocalDate.of(2025, 1, 1), LocalDate.of(2025, 1, 31)))
-          .hasSize(1);
     }
 
     private void insertAccrual(

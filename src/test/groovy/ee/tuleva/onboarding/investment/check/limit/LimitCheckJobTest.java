@@ -90,7 +90,7 @@ class LimitCheckJobTest {
 
     job.fillLimitCheckGaps();
 
-    verify(limitCheckNotifier).notifyBackfillFailed(any(Exception.class));
+    verify(limitCheckNotifier).notifyGapFillFailed(any(Exception.class));
   }
 
   // The sync covers every fund over the whole window, so one fund's fee-policy gap weeks back
@@ -110,7 +110,7 @@ class LimitCheckJobTest {
     verify(limitCheckNotifier).notifyPositionSyncFailed(any(Exception.class));
     verify(limitCheckService).fillGaps(gaps, GAP_LOOKBACK_DAYS);
     verify(limitCheckNotifier).notify(run);
-    verify(limitCheckNotifier, never()).notifyBackfillFailed(any(Exception.class));
+    verify(limitCheckNotifier, never()).notifyGapFillFailed(any(Exception.class));
   }
 
   @Test

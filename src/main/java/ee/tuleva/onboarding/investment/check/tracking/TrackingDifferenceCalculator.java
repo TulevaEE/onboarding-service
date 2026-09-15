@@ -208,7 +208,9 @@ class TrackingDifferenceCalculator {
     var todayUnits = input.todayUnits();
     var bodHoldings = input.bodHoldings();
     var bodSecuritiesFraction = input.bodSecuritiesFraction();
-    if (openingNetAssets == null
+    var tradeFlow = input.tradeFlow();
+    if (tradeFlow == null
+        || openingNetAssets == null
         || closingNetAssets == null
         || previousUnits == null
         || todayUnits == null
@@ -238,10 +240,12 @@ class TrackingDifferenceCalculator {
         openingNetAssets,
         closingNetAssets,
         marketPnl,
+        tradeFlow,
         unitsChange,
         unitFlow,
         feeAccrual,
         unexplained,
+        unexplained.divide(openingNetAssets, SCALE, HALF_UP),
         input.securityQuantitiesChanged());
   }
 
@@ -275,6 +279,7 @@ class TrackingDifferenceCalculator {
       @Nullable BigDecimal closingNetAssets,
       @Nullable BigDecimal previousUnits,
       @Nullable BigDecimal todayUnits,
+      @Nullable BigDecimal tradeFlow,
       boolean securityQuantitiesChanged) {}
 
   record PriceSnapshot(@Nullable BigDecimal price, @Nullable LocalDate date) {

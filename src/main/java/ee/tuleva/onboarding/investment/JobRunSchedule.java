@@ -14,10 +14,8 @@ public final class JobRunSchedule {
   // Transaction command processing
   public static final String TRANSACTION_COMMAND = "0 * * * * *";
 
-  // Limit check backstop. The check itself runs on NavCalculationCompleted; this fills any day
-  // that produced no event, which the retired yearly backfill ("0 30 8 16 3 *") could leave
-  // unnoticed for up to a year. Late enough that the day's imports and NAV run have landed.
-  public static final String LIMIT_CHECK_DAILY_GAP_FILL = "0 30 18 * * MON-FRI";
+  public static final String TRACKING_DIFFERENCE_GAP_FILL = "0 0 19 * * MON-FRI";
+  public static final String LIMIT_CHECK_GAP_FILL = "0 15 19 * * MON-FRI";
 
   // Backfill schedules (kept on cron, not event-driven)
   public static final String FEE_ACCRUAL_POSITION_BACKFILL = "0 25 12 12 3 *";

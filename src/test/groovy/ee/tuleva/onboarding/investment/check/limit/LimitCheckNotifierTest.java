@@ -75,23 +75,21 @@ class LimitCheckNotifierTest {
   // longer than a working week it also says how long, and when it will stop being attempted.
   @Test
   void aStandingGapIsNamedWithItsAgeAndItsLastAttempt() {
-    var run =
-        new LimitCheckRun(
-            List.of(),
-            List.of(),
-            List.of(
-                new UnfilledGap(TUK75, LocalDate.of(2026, 2, 10), 22, LocalDate.of(2026, 3, 12))));
+    var gap = new UnfilledGap(TUK75, LocalDate.of(2026, 2, 10), 22, LocalDate.of(2026, 3, 12));
 
-    notifier.notify(run);
-
-    verify(notificationService)
-        .sendMessage(
-            contains("TUK75 2026-02-10 — standing gap: open for 22 days, last attempt 2026-03-12"),
-            eq(INVESTMENT));
+    assertThat(gap.describe())
+        .isEqualTo("TUK75 2026-02-10 — standing gap: open for 22 days, last attempt 2026-03-12");
   }
 
   @Test
   void aGapFromTonightIsNamedWithoutTheStandingGapWording() {
+    var gap = new UnfilledGap(TUK75, LocalDate.of(2026, 3, 3), 1, LocalDate.of(2026, 4, 2));
+
+    assertThat(gap.describe()).isEqualTo("TUK75 2026-03-03");
+  }
+
+  @Test
+  void anUnfilledGapReachesTheMessage() {
     var run =
         new LimitCheckRun(
             List.of(),
@@ -100,9 +98,23 @@ class LimitCheckNotifierTest {
 
     notifier.notify(run);
 
-    var captor = org.mockito.ArgumentCaptor.forClass(String.class);
-    verify(notificationService).sendMessage(captor.capture(), eq(INVESTMENT));
-    assertThat(captor.getValue()).contains("TUK75 2026-03-03").doesNotContain("standing gap");
+    verify(notificationService).sendMessage(contains("TUK75 2026-03-03"), eq(INVESTMENT));
+  }
+
+  @Test
+  void aFailedPositionSyncIsAnnouncedWithTheChecksThatStillRan() {
+    notifier.notifyPositionSyncFailed(new RuntimeException("no fee policy"));
+
+    verify(notificationService)
+        .sendMessage(contains("Fee accrual position sync failed"), eq(INVESTMENT));
+  }
+
+  @Test
+  void aFailedGapFillSaysTheDaysWillBeRetried() {
+    notifier.notifyGapFillFailed(new RuntimeException("boom"));
+
+    verify(notificationService)
+        .sendMessage(contains("Limit check gap fill FAILED"), eq(INVESTMENT));
   }
 
   @Test

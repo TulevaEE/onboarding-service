@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.party.PartyId;
@@ -532,5 +533,131 @@ class SavingFundPaymentUpsertionServiceTest {
                 incomingPayment,
                 p -> SavingFundPayment.Status.RECEIVED,
                 p -> SavingFundPayment.Status.RECEIVED));
+  }
+
+  private static final String CALLBACK_DESCRIPTION = "38888888888, 1788961806";
+  private static final BigDecimal CALLBACK_AMOUNT = new BigDecimal("1500.00");
+  private static final Instant CALLBACK_CREATED_AT = Instant.parse("2026-09-09T13:51:14Z");
+  private static final Instant STATEMENT_RECEIVED_BEFORE = Instant.parse("2026-09-10T06:00:00Z");
+
+  @Test
+  void upsert_mergesIntoCreatedPaymentWithoutRemitterIban() {
+    var callbackCreatedId = UUID.randomUUID();
+    given(repository.findByExternalId("EXT-1")).willReturn(Optional.empty());
+    given(repository.findRecentPayments(CALLBACK_DESCRIPTION))
+        .willReturn(List.of(callbackCreatedPayment(callbackCreatedId)));
+
+    service.upsert(
+        statementPayment().build(),
+        p -> SavingFundPayment.Status.RECEIVED,
+        p -> SavingFundPayment.Status.RECEIVED);
+
+    verify(repository).updatePaymentData(eq(callbackCreatedId), any());
+    verify(repository).changeStatus(callbackCreatedId, SavingFundPayment.Status.RECEIVED);
+    verify(repository, never()).savePaymentData(any());
+  }
+
+  @Test
+  void upsert_prefersExactIbanMatchOverPaymentWithoutIban() {
+    var withoutIbanId = UUID.randomUUID();
+    var exactIbanId = UUID.randomUUID();
+    var exactIbanPayment =
+        callbackCreatedPayment(exactIbanId).toBuilder().remitterIban("EE123").build();
+    given(repository.findByExternalId("EXT-1")).willReturn(Optional.empty());
+    given(repository.findRecentPayments(CALLBACK_DESCRIPTION))
+        .willReturn(List.of(callbackCreatedPayment(withoutIbanId), exactIbanPayment));
+
+    service.upsert(
+        statementPayment().build(),
+        p -> SavingFundPayment.Status.RECEIVED,
+        p -> SavingFundPayment.Status.RECEIVED);
+
+    verify(repository).updatePaymentData(eq(exactIbanId), any());
+    verify(repository, never()).updatePaymentData(eq(withoutIbanId), any());
+    verify(repository, never()).savePaymentData(any());
+  }
+
+  @Test
+  void upsert_mergesIntoOldestPaymentWithoutIbanWhenSeveralExist() {
+    var olderId = UUID.randomUUID();
+    var newerId = UUID.randomUUID();
+    given(repository.findByExternalId("EXT-1")).willReturn(Optional.empty());
+    given(repository.findRecentPayments(CALLBACK_DESCRIPTION))
+        .willReturn(List.of(callbackCreatedPayment(olderId), callbackCreatedPayment(newerId)));
+
+    service.upsert(
+        statementPayment().build(),
+        p -> SavingFundPayment.Status.RECEIVED,
+        p -> SavingFundPayment.Status.RECEIVED);
+
+    verify(repository).updatePaymentData(eq(olderId), any());
+    verify(repository, never()).updatePaymentData(eq(newerId), any());
+  }
+
+  @Test
+  void upsert_doesNotMergeIntoTerminalPaymentWithoutIban() {
+    var processedId = UUID.randomUUID();
+    var processedWithoutIban =
+        callbackCreatedPayment(processedId).toBuilder()
+            .status(SavingFundPayment.Status.PROCESSED)
+            .build();
+    given(repository.findByExternalId("EXT-1")).willReturn(Optional.empty());
+    given(repository.findRecentPayments(CALLBACK_DESCRIPTION))
+        .willReturn(List.of(processedWithoutIban));
+
+    service.upsert(
+        statementPayment().build(),
+        p -> SavingFundPayment.Status.RECEIVED,
+        p -> SavingFundPayment.Status.RECEIVED);
+
+    verify(repository).savePaymentData(any());
+    verify(repository, never()).updatePaymentData(any(), any());
+  }
+
+  @Test
+  void upsert_keepsStatementEndToEndIdWhenEnriching() {
+    var callbackCreatedId = UUID.randomUUID();
+    given(repository.findByExternalId("EXT-1")).willReturn(Optional.empty());
+    given(repository.findRecentPayments(CALLBACK_DESCRIPTION))
+        .willReturn(List.of(callbackCreatedPayment(callbackCreatedId)));
+
+    service.upsert(
+        statementPayment().endToEndId("E2E-1").build(),
+        p -> SavingFundPayment.Status.RECEIVED,
+        p -> SavingFundPayment.Status.RECEIVED);
+
+    verify(repository)
+        .updatePaymentData(
+            callbackCreatedId,
+            statementPayment()
+                .id(callbackCreatedId)
+                .endToEndId("E2E-1")
+                .createdAt(CALLBACK_CREATED_AT)
+                .build());
+  }
+
+  private SavingFundPayment callbackCreatedPayment(UUID id) {
+    return SavingFundPayment.builder()
+        .id(id)
+        .amount(CALLBACK_AMOUNT)
+        .currency(EUR)
+        .description(CALLBACK_DESCRIPTION)
+        .createdAt(CALLBACK_CREATED_AT)
+        .build();
+  }
+
+  private SavingFundPayment.SavingFundPaymentBuilder statementPayment() {
+    return SavingFundPayment.builder()
+        .amount(CALLBACK_AMOUNT)
+        .currency(EUR)
+        .description(CALLBACK_DESCRIPTION)
+        .externalId("EXT-1")
+        .remitterIban("EE123")
+        .remitterIdCode("38888888888")
+        .remitterName("MARI MAASIKAS")
+        .beneficiaryIban("EE456")
+        .beneficiaryIdCode("14118923")
+        .beneficiaryName("TULEVA FONDID AS")
+        .receivedBefore(STATEMENT_RECEIVED_BEFORE);
   }
 }

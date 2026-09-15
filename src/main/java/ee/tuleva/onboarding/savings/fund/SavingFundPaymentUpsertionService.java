@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.*;
+import static java.util.Comparator.comparing;
 
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.SavingFundDeadlinesService;
@@ -95,10 +96,19 @@ public class SavingFundPaymentUpsertionService {
         payment.getRemitterIban());
     return repository.findRecentPayments(payment.getDescription()).stream()
         .filter(p -> p.getExternalId() == null)
-        .filter(p -> MATCHABLE_STATUSES.contains(p.getStatus()))
         .filter(p -> p.getAmount().compareTo(payment.getAmount()) == 0)
-        .filter(p -> Objects.equals(p.getRemitterIban(), payment.getRemitterIban()))
+        .filter(p -> isSameBankTransfer(p, payment) || isAwaitingBankDetails(p))
+        .sorted(comparing(p -> p.getRemitterIban() == null))
         .findFirst();
+  }
+
+  private static boolean isSameBankTransfer(SavingFundPayment existing, SavingFundPayment payment) {
+    return MATCHABLE_STATUSES.contains(existing.getStatus())
+        && Objects.equals(existing.getRemitterIban(), payment.getRemitterIban());
+  }
+
+  private static boolean isAwaitingBankDetails(SavingFundPayment existing) {
+    return existing.getStatus() == CREATED && existing.getRemitterIban() == null;
   }
 
   private void updatePayment(SavingFundPayment existing, SavingFundPayment payment) {
@@ -149,6 +159,9 @@ public class SavingFundPaymentUpsertionService {
         .externalId(
             mergeAndValidateNullableField(
                 "externalId", existing.getExternalId(), payment.getExternalId()))
+        .endToEndId(
+            mergeAndValidateNullableField(
+                "endToEndId", existing.getEndToEndId(), payment.getEndToEndId()))
         .createdAt(existing.getCreatedAt())
         .receivedBefore(payment.getReceivedBefore())
         .status(existing.getStatus())

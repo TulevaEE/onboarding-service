@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -14,7 +15,9 @@ import ee.tuleva.onboarding.savings.fund.transfer.UnitTransferVerdict.Plan;
 import ee.tuleva.onboarding.savings.fund.transfer.UnitTransferVerdict.Planned;
 import ee.tuleva.onboarding.savings.fund.transfer.UnitTransferVerdict.Refused;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -158,6 +161,31 @@ class UnitTransferControllerTest {
   }
 
   @Test
+  void cancellingAnswersTheTransfersState() throws Exception {
+    given(unitTransferService.cancel(any())).willReturn(aCancelledTransfer());
+
+    mockMvc
+        .perform(
+            post(TRANSFERS + "/" + UUID.randomUUID() + "/cancel")
+                .header("X-Admin-Token", "valid-token"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.state").value("CANCELLED"))
+        .andExpect(jsonPath("$.submittedBy").value("operator@example.com"));
+  }
+
+  @Test
+  void awaitingApprovalListsWhatStillNeedsASecondPerson() throws Exception {
+    given(unitTransferService.awaitingApproval()).willReturn(List.of(anAwaitingTransfer()));
+
+    mockMvc
+        .perform(get(TRANSFERS + "/awaiting-approval").header("X-Admin-Token", "valid-token"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.length()").value(1))
+        .andExpect(jsonPath("$[0].state").value("AWAITING_APPROVAL"))
+        .andExpect(jsonPath("$[0].fundUnits").value(40.00000));
+  }
+
+  @Test
   void withoutAnAdminTokenNothingIsReachable() throws Exception {
     mockMvc
         .perform(post(TRANSFERS + "/preview").contentType("application/json").content(A_TRANSFER))
@@ -202,6 +230,12 @@ class UnitTransferControllerTest {
                         + ",\"confirm\":\"abc123\",\"submittedBy\":\"operator@example.com\"}"))
         .andExpect(status().isUnauthorized());
     verifyNoInteractions(unitTransferService);
+  }
+
+  private static UnitTransfer aCancelledTransfer() {
+    UnitTransfer transfer = anAwaitingTransfer();
+    transfer.cancelled(Instant.parse("2026-09-15T09:00:00Z"));
+    return transfer;
   }
 
   private static UnitTransfer anAwaitingTransfer() {

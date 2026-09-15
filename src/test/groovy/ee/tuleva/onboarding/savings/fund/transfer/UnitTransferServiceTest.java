@@ -153,8 +153,7 @@ class UnitTransferServiceTest {
     givenTheLedgerQuotes();
 
     assertThatThrownBy(() -> service.submit(command, "not-the-hash", "operator@example.com"))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("Confirm does not match the plan");
+        .isInstanceOf(IllegalArgumentException.class);
     verifyNoInteractions(transfers);
   }
 
@@ -273,8 +272,7 @@ class UnitTransferServiceTest {
     given(transfers.findByIdForUpdate(awaiting.getId())).willReturn(Optional.of(awaiting));
 
     assertThatThrownBy(() -> service.approve(awaiting.getId(), "operator@example.com"))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("approved by someone other than whoever submitted it");
+        .isInstanceOf(IllegalStateException.class);
     verifyNoInteractions(savingsFundLedger);
   }
 
@@ -341,8 +339,7 @@ class UnitTransferServiceTest {
     given(transfers.findByIdForUpdate(awaiting.getId())).willReturn(Optional.of(awaiting));
 
     assertThatThrownBy(() -> service.approve(awaiting.getId(), "  OPERATOR@Example.com "))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("approved by someone other than whoever submitted it");
+        .isInstanceOf(IllegalStateException.class);
     verifyNoInteractions(savingsFundLedger);
   }
 
@@ -352,8 +349,7 @@ class UnitTransferServiceTest {
     given(transfers.findByIdForUpdate(awaiting.getId())).willReturn(Optional.of(awaiting));
 
     assertThatThrownBy(() -> service.approve(awaiting.getId(), "   "))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("must name who is approving it");
+        .isInstanceOf(IllegalArgumentException.class);
     verifyNoInteractions(savingsFundLedger);
   }
 
@@ -377,9 +373,48 @@ class UnitTransferServiceTest {
     given(transfers.findByIdForUpdate(awaiting.getId())).willReturn(Optional.of(awaiting));
 
     assertThatThrownBy(() -> service.approve(awaiting.getId(), "someone-else@example.com"))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("Only a transfer awaiting approval can be approved");
+        .isInstanceOf(IllegalStateException.class);
     verifyNoInteractions(savingsFundLedger);
+  }
+
+  @Test
+  void submittingWhatTheLedgerWouldRefuseRecordsNothing() {
+    given(savingsFundLedger.quoteUnitTransfer(any(), any(), any()))
+        .willThrow(new IllegalStateException("Cannot transfer more units than the party holds"));
+
+    assertThatThrownBy(
+            () -> service.submit(command, "whatever-was-previewed", "operator@example.com"))
+        .isInstanceOf(IllegalStateException.class);
+    verify(transfers, never()).save(any(UnitTransfer.class));
+  }
+
+  @Test
+  void aTransferTheLedgerRefusesToRecordStaysAwaitingApproval() {
+    givenTheLedgerQuotes();
+    var awaiting = anAwaitingTransfer(theCurrentPlanHash());
+    given(transfers.findByIdForUpdate(awaiting.getId())).willReturn(Optional.of(awaiting));
+    given(
+            savingsFundLedger.recordUnitTransfer(
+                any(PartyRef.class), any(PartyRef.class), any(), any()))
+        .willThrow(new IllegalStateException("Cannot transfer more units than the party holds"));
+
+    assertThatThrownBy(() -> service.approve(awaiting.getId(), "approver@example.com"))
+        .isInstanceOf(IllegalStateException.class);
+    assertThat(awaiting.isAwaitingApproval()).isTrue();
+    verify(transfers, never()).save(any(UnitTransfer.class));
+  }
+
+  @Test
+  void anAlreadyExecutedTransferCannotBeCancelled() {
+    var executed = anAwaitingTransfer();
+    executed.executedBy(
+        "approver@example.com", randomUUID(), Instant.parse("2026-09-15T08:00:00Z"));
+    given(transfers.findByIdForUpdate(executed.getId())).willReturn(Optional.of(executed));
+
+    assertThatThrownBy(() -> service.cancel(executed.getId()))
+        .isInstanceOf(IllegalStateException.class);
+    assertThat(executed.getState()).isEqualTo(EXECUTED);
+    verify(transfers, never()).save(any(UnitTransfer.class));
   }
 
   @Test

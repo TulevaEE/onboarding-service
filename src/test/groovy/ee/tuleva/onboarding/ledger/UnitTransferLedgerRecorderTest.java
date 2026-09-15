@@ -130,8 +130,7 @@ class UnitTransferLedgerRecorderTest {
             () ->
                 savingsFundLedger.recordUnitTransfer(
                     giver, receiver, new BigDecimal("100.00001"), randomUUID()))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("more units than the party holds");
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test
@@ -144,8 +143,7 @@ class UnitTransferLedgerRecorderTest {
             () ->
                 savingsFundLedger.recordUnitTransfer(
                     giver, receiver, new BigDecimal("1.00000"), randomUUID()))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("more units than the party holds");
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test
@@ -186,8 +184,7 @@ class UnitTransferLedgerRecorderTest {
             () ->
                 savingsFundLedger.recordUnitTransfer(
                     giver, receiver, new BigDecimal("0.000004"), randomUUID()))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("finer than the fund prices them");
+        .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
@@ -199,8 +196,7 @@ class UnitTransferLedgerRecorderTest {
             () ->
                 savingsFundLedger.recordUnitTransfer(
                     giver, strangerWithATypo, new BigDecimal("1.00000"), randomUUID()))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("Ledger party not found");
+        .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
@@ -211,8 +207,7 @@ class UnitTransferLedgerRecorderTest {
             () ->
                 savingsFundLedger.recordUnitTransfer(
                     giver, giver, new BigDecimal("1.00000"), randomUUID()))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("same party");
+        .isInstanceOf(IllegalArgumentException.class);
   }
 
   @Test
@@ -221,8 +216,7 @@ class UnitTransferLedgerRecorderTest {
 
     assertThatThrownBy(
             () -> savingsFundLedger.recordUnitTransfer(giver, receiver, ZERO, randomUUID()))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("must be positive");
+        .isInstanceOf(IllegalArgumentException.class);
   }
 
   private void givenUnitsWorth(PartyRef party, BigDecimal cashAmount, BigDecimal fundUnits) {

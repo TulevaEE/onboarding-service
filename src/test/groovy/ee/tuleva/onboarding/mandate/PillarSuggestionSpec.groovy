@@ -316,4 +316,42 @@ class PillarSuggestionSpec extends Specification {
     true               | false       | true               | false  | "nudge_membership"
     true               | false       | true               | true   | "nudge_none"
   }
+
+  def "flags a pillar suggestion only when the rendered nudge is about a pillar"() {
+    when:
+    user.getAge() >> 40
+    user.isMember() >> member
+    conversion.isSecondPillarPartiallyConverted() >> secondPillarActive
+    conversion.isThirdPillarPartiallyConverted() >> true
+    conversion.getSecondPillarWeightedAverageFee() >> 0.003
+    conversion.getThirdPillarWeightedAverageFee() >> 0.003
+    paymentRates.canIncrease() >> canIncrease
+    def pillarSuggestion =
+        new PillarSuggestion(
+            user, secondPillarActive, true, conversion, paymentRates, [] as Set, false, savesInSavingsFund)
+
+    then:
+    pillarSuggestion.isAnyPillarSuggestion() == anyPillarSuggestion
+
+    where:
+    secondPillarActive | canIncrease | savesInSavingsFund | member | anyPillarSuggestion
+    false              | false       | true               | false  | true
+    true               | true        | true               | false  | true
+    true               | false       | false              | false  | false
+    true               | false       | true               | false  | false
+    true               | false       | true               | true   | false
+  }
+
+  def "flags a pillar suggestion when the third pillar step is the open one"() {
+    when:
+    user.getAge() >> 40
+    conversion.isSecondPillarPartiallyConverted() >> true
+    conversion.getSecondPillarWeightedAverageFee() >> 0.003
+    conversion.isThirdPillarPartiallyConverted() >> false
+    def pillarSuggestion =
+        new PillarSuggestion(user, true, false, conversion, paymentRates, [] as Set, false)
+
+    then:
+    pillarSuggestion.isAnyPillarSuggestion()
+  }
 }

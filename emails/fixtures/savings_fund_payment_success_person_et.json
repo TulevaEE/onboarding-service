@@ -2,28 +2,34 @@
   "variants": {
     "II samba soovitus": {
       "FNAME": "Mari",
-      "suggestSecondPillar": true
+      "suggestSecondPillar": true,
+      "anyPillarSuggestion": true
     },
     "II samba määra tõstmise soovitus": {
       "FNAME": "Mari",
-      "suggestPaymentRate": true
+      "suggestPaymentRate": true,
+      "anyPillarSuggestion": true
     },
     "III samba soovitus": {
       "FNAME": "Mari",
-      "suggestThirdPillar": true
+      "suggestThirdPillar": true,
+      "anyPillarSuggestion": true
     },
     "III samba tasude soovitus": {
       "FNAME": "Mari",
       "suggestThirdPillar": true,
-      "thirdPillarActive": true
+      "thirdPillarActive": true,
+      "anyPillarSuggestion": true
     },
     "III samba püsimakse soovitus": {
       "FNAME": "Mari",
-      "suggestThirdPillarRecurringPayment": true
+      "suggestThirdPillarRecurringPayment": true,
+      "anyPillarSuggestion": true
     },
     "III samba sissemakse tõstmise soovitus": {
       "FNAME": "Mari",
-      "suggestThirdPillarRaise": true
+      "suggestThirdPillarRaise": true,
+      "anyPillarSuggestion": true
     },
     "kogumisfondi soovitus (ei esine)": {
       "FNAME": "Mari",
@@ -37,7 +43,8 @@
     "II sammas läheb kogumisfondi püsimaksest ette": {
       "FNAME": "Mari",
       "suggestSecondPillar": true,
-      "suggestSavingsFundRecurringPayment": true
+      "suggestSavingsFundRecurringPayment": true,
+      "anyPillarSuggestion": true
     },
     "liikmesuse soovitus": {
       "FNAME": "Mari",

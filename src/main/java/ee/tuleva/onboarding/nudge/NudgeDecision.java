@@ -21,22 +21,27 @@ import java.util.Map;
 import org.jspecify.annotations.Nullable;
 
 @JsonInclude(NON_NULL)
-@JsonPropertyOrder({"key", "tag", "feeComparison", "savingsFundFeePercent"})
+@JsonPropertyOrder({"key", "tag", "feeComparison", "savingsFundFeePercent", "paymentRateSeason"})
 public record NudgeDecision(
     NudgeKey key,
     @Nullable FeeComparison feeComparison,
-    @Nullable BigDecimal savingsFundFeePercent) {
+    @Nullable BigDecimal savingsFundFeePercent,
+    @Nullable PaymentRateSeason paymentRateSeason) {
 
   public static NudgeDecision of(NudgeKey key) {
-    return new NudgeDecision(key, null, null);
+    return new NudgeDecision(key, null, null, null);
   }
 
   public static NudgeDecision secondPillarTransfer(@Nullable FeeComparison feeComparison) {
-    return new NudgeDecision(SECOND_PILLAR_TRANSFER, feeComparison, null);
+    return new NudgeDecision(SECOND_PILLAR_TRANSFER, feeComparison, null, null);
   }
 
   public static NudgeDecision savingsFund(BigDecimal feePercent) {
-    return new NudgeDecision(SAVINGS_FUND, null, feePercent);
+    return new NudgeDecision(SAVINGS_FUND, null, feePercent, null);
+  }
+
+  public NudgeDecision withPaymentRateSeason(PaymentRateSeason season) {
+    return new NudgeDecision(key, feeComparison, savingsFundFeePercent, season);
   }
 
   @JsonProperty

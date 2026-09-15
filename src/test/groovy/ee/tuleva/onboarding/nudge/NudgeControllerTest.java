@@ -4,8 +4,10 @@ import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthent
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonLegalEntity;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.auth.authority.Authority.USER;
+import static ee.tuleva.onboarding.nudge.NudgeContext.ACCOUNT;
 import static ee.tuleva.onboarding.nudge.NudgeContext.SAVINGS_FUND_PAYMENT;
 import static ee.tuleva.onboarding.nudge.NudgeContext.THIRD_PILLAR_PAYMENT;
+import static ee.tuleva.onboarding.nudge.PaymentRateSeason.Mode.SEASON;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
@@ -21,6 +23,7 @@ import ee.tuleva.onboarding.config.SecurityConfiguration;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -112,5 +115,48 @@ class NudgeControllerTest {
   void requiresAuthentication() throws Exception {
     mvc.perform(get("/v1/me/nudge").param("context", "THIRD_PILLAR_PAYMENT"))
         .andExpect(status().isForbidden());
+  }
+
+  @Test
+  void theAccountContextCarriesThePaymentRateSeasonAlongsideTheChosenNudge() throws Exception {
+    AuthenticatedPerson person = sampleAuthenticatedPersonAndMember().build();
+    User user = sampleUser().build();
+    given(userService.getByIdOrThrow(person.getUserId())).willReturn(user);
+    given(nudgeDecisionService.decide(eq(user), eq(NudgeAccount.of(person.getRole())), eq(ACCOUNT)))
+        .willReturn(
+            NudgeDecision.of(NudgeKey.SECOND_PILLAR_PAYMENT_RATE)
+                .withPaymentRateSeason(
+                    new PaymentRateSeason(
+                        LocalDate.of(2026, 11, 30), LocalDate.of(2027, 1, 1), SEASON)));
+
+    mvc.perform(
+            get("/v1/me/nudge")
+                .param("context", "ACCOUNT")
+                .with(authentication(authenticated(person))))
+        .andExpect(status().isOk())
+        .andExpect(
+            content()
+                .json(
+                    """
+                    {"key":"SECOND_PILLAR_PAYMENT_RATE","tag":"nudge_payment_rate",\
+                    "paymentRateSeason":{"deadline":"2026-11-30",\
+                    "fulfillmentDate":"2027-01-01","mode":"SEASON"}}"""));
+  }
+
+  @Test
+  void aDecisionWithoutASeasonCarriesNoSeasonObject() throws Exception {
+    AuthenticatedPerson person = sampleAuthenticatedPersonAndMember().build();
+    User user = sampleUser().build();
+    given(userService.getByIdOrThrow(person.getUserId())).willReturn(user);
+    given(nudgeDecisionService.decide(eq(user), eq(NudgeAccount.of(person.getRole())), eq(ACCOUNT)))
+        .willReturn(NudgeDecision.of(NudgeKey.THIRD_PILLAR_START));
+
+    mvc.perform(
+            get("/v1/me/nudge")
+                .param("context", "ACCOUNT")
+                .with(authentication(authenticated(person))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.key").value("THIRD_PILLAR_START"))
+        .andExpect(jsonPath("$.paymentRateSeason").doesNotExist());
   }
 }

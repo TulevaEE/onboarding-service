@@ -9,6 +9,7 @@ import static ee.tuleva.onboarding.nudge.NudgeKey.THIRD_PILLAR_START;
 import java.util.Set;
 
 public enum NudgeContext {
+  ACCOUNT(Set.of()),
   SECOND_PILLAR_MANDATE(Set.of(SECOND_PILLAR_TRANSFER)),
   SECOND_PILLAR_PAYMENT_RATE(Set.of(NudgeKey.SECOND_PILLAR_PAYMENT_RATE)),
   THIRD_PILLAR_MANDATE(Set.of(THIRD_PILLAR_START, THIRD_PILLAR_FEES)),

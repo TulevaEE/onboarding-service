@@ -27,4 +27,5 @@ record NudgeInputs(
     Known savingsFundSaver,
     Known taxHeadroom,
     @Nullable FeeComparison feeComparison,
-    @Nullable BigDecimal savingsFundFeePercent) {}
+    @Nullable BigDecimal savingsFundFeePercent,
+    PaymentRateSeason paymentRateSeason) {}

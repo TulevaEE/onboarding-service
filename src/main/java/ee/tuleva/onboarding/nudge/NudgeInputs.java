@@ -28,23 +28,4 @@ record NudgeInputs(
     Known taxHeadroom,
     @Nullable FeeComparison feeComparison,
     @Nullable BigDecimal savingsFundFeePercent,
-    PaymentRateSeason paymentRateSeason) {
-
-  static final BigDecimal HIGH_FEE_FROM = new BigDecimal("0.003");
-
-  boolean secondPillarInLowFeeFund() {
-    return secondPillarFee != null && secondPillarFee.compareTo(HIGH_FEE_FROM) < 0;
-  }
-
-  boolean secondPillarInHighFeeFund() {
-    return isHigh(secondPillarFee);
-  }
-
-  boolean thirdPillarInHighFeeFund() {
-    return isHigh(thirdPillarFee);
-  }
-
-  private static boolean isHigh(@Nullable BigDecimal fee) {
-    return fee != null && fee.compareTo(HIGH_FEE_FROM) >= 0;
-  }
-}
+    PaymentRateSeason paymentRateSeason) {}

@@ -44,7 +44,7 @@ final class PensionNudges {
     if (in.pendingSecondPillarTransfer() || !secondPillarNeedsMoving(in)) {
       return Optional.empty();
     }
-    boolean highFee = in.secondPillarInHighFeeFund();
+    boolean highFee = FundFees.isHigh(in.secondPillarFee());
     return Optional.of(NudgeDecision.secondPillarTransfer(highFee ? in.feeComparison() : null));
   }
 
@@ -52,7 +52,7 @@ final class PensionNudges {
     if (!in.secondPillarActive() || !in.secondPillarPartiallyConverted()) {
       return true;
     }
-    return !in.secondPillarFullyConverted() && in.secondPillarInHighFeeFund();
+    return !in.secondPillarFullyConverted() && FundFees.isHigh(in.secondPillarFee());
   }
 
   private static Optional<NudgeDecision> paymentRate(NudgeInputs in, NudgeContext context) {
@@ -87,7 +87,7 @@ final class PensionNudges {
 
   private static boolean thirdPillarFeesMatter(NudgeInputs in) {
     return !in.thirdPillarPartiallyConverted()
-        || (!in.thirdPillarFullyConverted() && in.thirdPillarInHighFeeFund());
+        || (!in.thirdPillarFullyConverted() && FundFees.isHigh(in.thirdPillarFee()));
   }
 
   private static Optional<NudgeDecision> thirdPillarRecurring(

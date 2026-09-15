@@ -96,19 +96,31 @@ public class PaymentVerificationService {
     var messages = VerificationMessages.forType(partyId.type());
 
     // Since 18.09.2026 the fund rules deem a purchase order given by a deposit made by the unit
-    // holder "or by a third party for the benefit of the unit holder", so a deposit whose
-    // description names a natural-person unit holder is attributed to them whoever sent it —
-    // that is what lets grandparents and friends gift into a child's account. Company accounts
-    // keep the stricter identity checks. Attribution, not authorization: accepting money grants
-    // the payer no access, acting on someone's behalf still goes through isActiveRepresentation.
+    // holder "or by a third party for the benefit of the unit holder". Tuleva opens that up for
+    // the case it is meant to serve: gifts to someone who cannot act for themselves — a minor, or
+    // an adult under guardianship. A deposit naming such a unit holder is attributed to them
+    // whoever sent it; everybody else keeps the identity checks, as do company accounts.
+    // Attribution, not authorization: accepting money grants the payer no access to the account,
+    // acting on someone's behalf still goes through isActiveRepresentation.
     boolean acceptedFromAnyRemitter =
-        partyIdFromDescription.isPresent() && partyId.type() == PERSON;
+        partyIdFromDescription.isPresent()
+            && partyId.type() == PERSON
+            && parentChildLinkService.hasRestrictedLegalCapacity(partyId.code());
 
-    // Only company accounts reach this now: a natural person identified in the description is
-    // accepted from any remitter, and a party taken from the remitter id code always equals it.
+    boolean representingChild =
+        remitterPartyId
+            .filter(r -> !r.equals(partyId))
+            .map(r -> isAuthorizedRemitter(r, partyId))
+            .orElse(false);
+
+    // Reached by company accounts and by unit holders of full legal capacity. A party taken from
+    // the remitter id code always equals it, so this only ever fires on a description naming
+    // somebody other than the payer. The guardian widening stays as a backstop: a live
+    // representation still funds the account even if the ward reads as fully capable.
     if (!acceptedFromAnyRemitter
         && remitterPartyId.isPresent()
-        && !remitterPartyId.get().equals(partyId)) {
+        && !remitterPartyId.get().equals(partyId)
+        && !representingChild) {
       identityCheckFailure(payment, messages.codeMismatch());
       return;
     }
@@ -147,12 +159,6 @@ public class PaymentVerificationService {
     } else {
       thirdPartyDeposit = null;
     }
-
-    boolean representingChild =
-        remitterPartyId
-            .filter(r -> !r.equals(partyId))
-            .map(r -> isAuthorizedRemitter(r, partyId))
-            .orElse(false);
 
     savingFundPaymentRepository.attachParty(payment.getId(), partyId);
     savingFundPaymentRepository.markThirdPartyDeposit(payment.getId(), thirdPartyDeposit);

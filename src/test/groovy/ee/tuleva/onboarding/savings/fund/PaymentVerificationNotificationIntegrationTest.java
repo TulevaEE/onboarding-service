@@ -44,10 +44,8 @@ class PaymentVerificationNotificationIntegrationTest {
   private static final String REMITTER_CODE = "48808080880";
   private static final String OTHER_CODE = "39909090994";
   private static final BigDecimal AMOUNT = new BigDecimal("125.00");
-  // A deposit naming someone who is not a Tuleva client. Used to be a code mismatch, but since
-  // the 18.09.2026 rules a deposit from another person for a client's benefit is accepted, so an
-  // unknown recipient is what still drives the failure path these tests are about.
-  private static final String NOT_A_CLIENT = "isik ei ole Tuleva klient";
+  private static final String CODE_MISMATCH =
+      "selgituses olev isikukood ei klapi maksja isikukoodiga";
   private static final String MANDRILL_MESSAGE_ID = "mandrill-savings-payment-failed";
 
   @Autowired private PaymentVerificationService paymentVerificationService;
@@ -74,14 +72,14 @@ class PaymentVerificationNotificationIntegrationTest {
   @Test
   void emailFailureDoesNotRollBackTheVerificationDecision() {
     savePayer();
-    var payment = receivedPaymentForUnknownRecipient();
+    var payment = receivedPaymentWithMismatchedCode();
     given(emailService.send(any(), any(), any())).willThrow(new RuntimeException("Mandrill down"));
 
     paymentVerificationService.process(payment);
 
     var persisted = paymentRepository.findById(payment.getId()).orElseThrow();
     assertThat(persisted.getStatus()).isEqualTo(TO_BE_RETURNED);
-    assertThat(persisted.getReturnReason()).isEqualTo(NOT_A_CLIENT);
+    assertThat(persisted.getReturnReason()).isEqualTo(CODE_MISMATCH);
     assertThat(savingsFundLedger.hasLedgerEntry(payment.getId(), UNATTRIBUTED_PAYMENT)).isTrue();
     verify(notificationService).sendMessage(anyString(), eq(SAVINGS));
   }
@@ -89,14 +87,14 @@ class PaymentVerificationNotificationIntegrationTest {
   @Test
   void bothNotificationsFireOnTheFailurePath() {
     var payer = savePayer();
-    var payment = receivedPaymentForUnknownRecipient();
+    var payment = receivedPaymentWithMismatchedCode();
 
     paymentVerificationService.process(payment);
 
     verify(notificationService)
         .sendMessage(
             "Savings fund unattributed payment: amount=%s EUR, reason=%s, paymentId=%s"
-                .formatted(AMOUNT, NOT_A_CLIENT, payment.getId()),
+                .formatted(AMOUNT, CODE_MISMATCH, payment.getId()),
             SAVINGS);
     verify(emailService)
         .send(
@@ -108,7 +106,7 @@ class PaymentVerificationNotificationIntegrationTest {
   @Test
   void theFailureEmailIsRecordedInTheDatabase() {
     savePayer();
-    var payment = receivedPaymentForUnknownRecipient();
+    var payment = receivedPaymentWithMismatchedCode();
     var mandrillResponse = mock(MandrillMessageStatus.class);
     given(mandrillResponse.getId()).willReturn(MANDRILL_MESSAGE_ID);
     given(mandrillResponse.getStatus()).willReturn("sent");
@@ -124,7 +122,7 @@ class PaymentVerificationNotificationIntegrationTest {
   @Test
   void noNotificationFiresWhenTheTransactionRollsBack() {
     savePayer();
-    var payment = receivedPaymentForUnknownRecipient();
+    var payment = receivedPaymentWithMismatchedCode();
 
     assertThatThrownBy(
             () ->
@@ -153,7 +151,7 @@ class PaymentVerificationNotificationIntegrationTest {
             .build());
   }
 
-  private SavingFundPayment receivedPaymentForUnknownRecipient() {
+  private SavingFundPayment receivedPaymentWithMismatchedCode() {
     var paymentId =
         paymentRepository.savePaymentData(
             SavingFundPayment.builder()

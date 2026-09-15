@@ -32,6 +32,21 @@ class NudgeExposureRepository {
         > 0;
   }
 
+  boolean hasAssignment(long userId, String nudgeKey, int seasonYear) {
+    return jdbcClient
+            .sql(
+                """
+            SELECT count(*) FROM nudge_exposure
+            WHERE user_id = :userId AND nudge_key = :nudgeKey AND season_year = :seasonYear
+            """)
+            .param("userId", userId)
+            .param("nudgeKey", nudgeKey)
+            .param("seasonYear", seasonYear)
+            .query(Long.class)
+            .single()
+        > 0;
+  }
+
   @Transactional
   void recordDismissal(long userId, String nudgeKey, int seasonYear, Instant dismissedAt) {
     jdbcClient

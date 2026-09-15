@@ -41,6 +41,15 @@ class NudgeExposureRepositoryTest {
   }
 
   @Test
+  void anAssignmentIsVisibleForItsSeasonOnly() {
+    assertThat(repository.hasAssignment(userId, KEY, 2026)).isFalse();
+    repository.recordAssignment(userId, KEY, 2026, CONTROL, ASSIGNED_AT);
+
+    assertThat(repository.hasAssignment(userId, KEY, 2026)).isTrue();
+    assertThat(repository.hasAssignment(userId, KEY, 2027)).isFalse();
+  }
+
+  @Test
   void theNextSeasonIsANewOpportunity() {
     assertThat(repository.recordAssignment(userId, KEY, 2026, CONTROL, ASSIGNED_AT)).isTrue();
     assertThat(repository.recordAssignment(userId, KEY, 2027, TREATMENT, ASSIGNED_AT)).isTrue();

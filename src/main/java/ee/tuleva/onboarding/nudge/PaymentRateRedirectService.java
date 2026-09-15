@@ -26,7 +26,7 @@ class PaymentRateRedirectService {
   private final Clock estonianClock;
 
   PaymentRateRedirect assign(AuthenticatedPerson person) {
-    if (!isWindowOpenFor(person)) {
+    if (!isWindowOpenFor(person) || alreadyAssigned(person)) {
       return PaymentRateRedirect.no();
     }
     User user = userService.getByIdOrThrow(person.getUserIdOrThrow());
@@ -56,6 +56,11 @@ class PaymentRateRedirectService {
     }
     nudgeExposureRepository.recordDismissal(
         person.getUserIdOrThrow(), NUDGE_KEY, seasonYear(), estonianClock.instant());
+  }
+
+  private boolean alreadyAssigned(AuthenticatedPerson person) {
+    return nudgeExposureRepository.hasAssignment(
+        person.getUserIdOrThrow(), NUDGE_KEY, seasonYear());
   }
 
   private boolean isWindowOpenFor(AuthenticatedPerson person) {

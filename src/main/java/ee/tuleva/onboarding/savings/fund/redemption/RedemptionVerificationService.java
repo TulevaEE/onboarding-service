@@ -1,21 +1,28 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
-import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.AML;
+import static ee.tuleva.onboarding.aml.ScreeningOutcome.PEP_HIT;
+import static ee.tuleva.onboarding.aml.ScreeningOutcome.SANCTION_HIT;
+import static ee.tuleva.onboarding.aml.ScreeningOutcome.UNAVAILABLE;
+import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_SANCTION;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.PENDING;
-import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.IN_REVIEW;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldService.SYSTEM;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
 
 import ee.tuleva.onboarding.aml.RiskLevels;
 import ee.tuleva.onboarding.aml.SanctionAndPepScreener;
+import ee.tuleva.onboarding.aml.ScreeningOutcome;
 import ee.tuleva.onboarding.country.Country;
+import ee.tuleva.onboarding.kyb.KybCheck;
 import ee.tuleva.onboarding.kyb.LegalEntityScreener;
 import ee.tuleva.onboarding.kyc.KycCountryService;
-import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,14 +34,20 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class RedemptionVerificationService {
 
+  static final String SANCTION = "SANCTION";
+  static final String PEP = "PEP";
+  static final String HIGH_RISK = "HIGH_RISK";
+  static final String KYB_NOT_COMPLETED = "KYB_NOT_COMPLETED";
+  static final String KYB_SCREENING_FAILED = "KYB_SCREENING_FAILED";
+
   private final RedemptionStatusService redemptionStatusService;
+  private final RedemptionHoldService holdService;
   private final UserService userService;
   private final KycCountryService kycCountryService;
   private final SanctionAndPepScreener sanctionAndPepScreener;
   private final RiskLevels riskLevels;
   private final SavingsFundOnboardingRepository savingsFundOnboardingRepository;
   private final LegalEntityScreener legalEntityScreener;
-  private final OperationsNotificationService notificationService;
 
   @Transactional
   public void process(RedemptionRequest request) {
@@ -43,36 +56,34 @@ public class RedemptionVerificationService {
         request.getId(),
         request.getPartyId());
 
-    boolean passed =
+    Verdict verdict =
         switch (request.getPartyId().type()) {
-          case PERSON -> runPersonChecks(request);
-          case LEGAL_ENTITY -> runLegalEntityChecks(request);
+          case PERSON -> verifyPerson(request);
+          case LEGAL_ENTITY -> verifyLegalEntity(request);
         };
 
-    if (!passed) {
-      log.info(
-          "Redemption requires review: id={}, party={}", request.getId(), request.getPartyId());
-      redemptionStatusService.changeStatus(request.getId(), IN_REVIEW);
-      notifyAmlChannel(request);
-    } else {
-      log.info(
-          "Redemption verification passed: id={}, party={}", request.getId(), request.getPartyId());
-      redemptionStatusService.changeStatus(request.getId(), VERIFIED);
+    switch (verdict.outcome()) {
+      case RETRY_LATER ->
+          log.warn(
+              "Screening unavailable, redemption stays reserved for a retry: id={}, party={}",
+              request.getId(),
+              request.getPartyId());
+      case FREEZE -> holdService.freeze(request.getId(), verdict.reason());
+      case HOLD_PAYOUT -> {
+        holdService.holdPayout(request.getId(), verdict.reason(), SYSTEM);
+        redemptionStatusService.changeStatus(request.getId(), RESERVED, VERIFIED);
+      }
+      case CLEAR -> {
+        log.info(
+            "Redemption verification passed: id={}, party={}",
+            request.getId(),
+            request.getPartyId());
+        redemptionStatusService.changeStatus(request.getId(), RESERVED, VERIFIED);
+      }
     }
   }
 
-  private void notifyAmlChannel(RedemptionRequest request) {
-    try {
-      notificationService.sendMessage(
-          "AML: redemption held for review: id=%s, amount=%s EUR"
-              .formatted(request.getId(), request.getRequestedAmount().toPlainString()),
-          AML);
-    } catch (RuntimeException e) {
-      log.error("Failed to notify AML channel about held redemption: id={}", request.getId(), e);
-    }
-  }
-
-  private boolean runPersonChecks(RedemptionRequest request) {
+  private Verdict verifyPerson(RedemptionRequest request) {
     User user =
         userService
             .findByPersonalCode(request.getPartyId().code())
@@ -91,19 +102,27 @@ public class RedemptionVerificationService {
     Set<Country> allCountries = new HashSet<>(countries);
     allCountries.addAll(sanctionAndPepScreener.recordedCitizenships(user));
 
-    boolean screeningClear = sanctionAndPepScreener.isSanctionAndPepClear(user, allCountries);
-    boolean highRisk = riskLevels.isHighRisk(user.getPersonalCode());
-    if (highRisk) {
-      log.info(
-          "Redemption party is high risk: id={}, party={}", request.getId(), request.getPartyId());
+    ScreeningOutcome screening = sanctionAndPepScreener.screeningOutcome(user, allCountries);
+    if (screening == UNAVAILABLE) {
+      return Verdict.retryLater();
     }
-    return screeningClear && !highRisk;
+    if (screening == SANCTION_HIT) {
+      return Verdict.freeze(SANCTION);
+    }
+    List<String> reasons = new ArrayList<>();
+    if (screening == PEP_HIT) {
+      reasons.add(PEP);
+    }
+    if (riskLevels.isHighRisk(user.getPersonalCode())) {
+      reasons.add(HIGH_RISK);
+    }
+    return reasons.isEmpty() ? Verdict.clear() : Verdict.holdPayout(String.join(",", reasons));
   }
 
-  private boolean runLegalEntityChecks(RedemptionRequest request) {
+  private Verdict verifyLegalEntity(RedemptionRequest request) {
     var registryCode = request.getPartyId().code();
     if (savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY)) {
-      return true;
+      return Verdict.clear();
     }
     var needsScreening =
         savingsFundOnboardingRepository
@@ -111,18 +130,50 @@ public class RedemptionVerificationService {
             .map(status -> status == PENDING)
             .orElse(true);
     if (!needsScreening) {
-      return false;
+      return Verdict.holdPayout(KYB_NOT_COMPLETED);
     }
+    List<KybCheck> checks;
     try {
-      legalEntityScreener.screenLatest(registryCode);
+      checks = legalEntityScreener.screenLatest(registryCode);
     } catch (RuntimeException e) {
       log.error(
           "Failed to re-screen legal entity for redemption: requestId={}, registryCode={}",
           request.getId(),
           registryCode,
           e);
-      return false;
+      return Verdict.holdPayout(KYB_SCREENING_FAILED);
     }
-    return savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY);
+    if (checks.stream().anyMatch(check -> check.type() == COMPANY_SANCTION && !check.success())) {
+      return Verdict.freeze(SANCTION);
+    }
+    return savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY)
+        ? Verdict.clear()
+        : Verdict.holdPayout(KYB_NOT_COMPLETED);
+  }
+
+  private record Verdict(Outcome outcome, String reason) {
+
+    enum Outcome {
+      RETRY_LATER,
+      FREEZE,
+      HOLD_PAYOUT,
+      CLEAR
+    }
+
+    static Verdict retryLater() {
+      return new Verdict(Outcome.RETRY_LATER, "");
+    }
+
+    static Verdict freeze(String reason) {
+      return new Verdict(Outcome.FREEZE, reason);
+    }
+
+    static Verdict holdPayout(String reason) {
+      return new Verdict(Outcome.HOLD_PAYOUT, reason);
+    }
+
+    static Verdict clear() {
+      return new Verdict(Outcome.CLEAR, "");
+    }
   }
 }

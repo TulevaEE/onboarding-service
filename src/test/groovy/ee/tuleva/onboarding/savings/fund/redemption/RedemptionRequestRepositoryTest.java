@@ -1,6 +1,10 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.CANCELLED;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.FROZEN;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.PAYOUT_HELD;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestFixture.redemptionRequestFixture;
 import static java.time.temporal.ChronoUnit.DAYS;
@@ -8,6 +12,7 @@ import static java.time.temporal.ChronoUnit.HOURS;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -61,27 +66,46 @@ class RedemptionRequestRepositoryTest {
   }
 
   @Test
-  void excludesRequestReleasedFromReviewAfterTheCutoff() {
+  void excludesFrozenRequestRequeuedAfterTheCutoff() {
     repository.save(
         redemptionRequestFixture()
             .userId(userId)
             .status(VERIFIED)
             .requestedAt(CUTOFF.minus(7, DAYS))
+            .holdReason("SANCTION")
             .reviewedAt(CUTOFF.plus(1, HOURS))
+            .requeuedAt(CUTOFF.plus(1, HOURS))
             .build());
 
     assertThat(repository.findAcceptedBefore(VERIFIED, CUTOFF)).isEmpty();
   }
 
   @Test
-  void includesRequestReleasedFromReviewBeforeTheCutoff() {
+  void includesFrozenRequestRequeuedBeforeTheCutoff() {
     var request =
         repository.save(
             redemptionRequestFixture()
                 .userId(userId)
                 .status(VERIFIED)
                 .requestedAt(CUTOFF.minus(7, DAYS))
+                .holdReason("SANCTION")
                 .reviewedAt(CUTOFF.minus(1, HOURS))
+                .requeuedAt(CUTOFF.minus(1, HOURS))
+                .build());
+
+    assertThat(repository.findAcceptedBefore(VERIFIED, CUTOFF)).containsExactly(request);
+  }
+
+  @Test
+  void keepsTheDealingDateOfAFlaggedRequestWhoseHoldWasReleasedAfterTheCutoff() {
+    var request =
+        repository.save(
+            redemptionRequestFixture()
+                .userId(userId)
+                .status(VERIFIED)
+                .requestedAt(CUTOFF.minus(1, DAYS))
+                .holdReason("PEP")
+                .reviewedAt(CUTOFF.plus(1, HOURS))
                 .build());
 
     assertThat(repository.findAcceptedBefore(VERIFIED, CUTOFF)).containsExactly(request);
@@ -92,10 +116,60 @@ class RedemptionRequestRepositoryTest {
     repository.save(
         redemptionRequestFixture()
             .userId(userId)
-            .status(RedemptionRequest.Status.IN_REVIEW)
+            .status(FROZEN)
             .requestedAt(CUTOFF.minus(7, DAYS))
             .build());
 
     assertThat(repository.findAcceptedBefore(VERIFIED, CUTOFF)).isEmpty();
+  }
+
+  @Test
+  void findsActiveHoldsWhoseNotificationDidNotGoOut() {
+    var unnotified =
+        repository.save(
+            redemptionRequestFixture()
+                .userId(userId)
+                .status(FROZEN)
+                .holdReason("SANCTION")
+                .build());
+    repository.save(
+        redemptionRequestFixture()
+            .userId(userId)
+            .status(PAYOUT_HELD)
+            .holdReason("PEP")
+            .holdNotifiedAt(CUTOFF)
+            .build());
+    repository.save(
+        redemptionRequestFixture()
+            .userId(userId)
+            .status(VERIFIED)
+            .holdReason("PEP")
+            .reviewedAt(CUTOFF)
+            .holdReleasedAt(CUTOFF)
+            .build());
+    repository.save(
+        redemptionRequestFixture().userId(userId).status(CANCELLED).holdReason("PEP").build());
+    repository.save(redemptionRequestFixture().userId(userId).status(VERIFIED).build());
+
+    var statuses = List.of(RESERVED, FROZEN, VERIFIED, PAYOUT_HELD);
+    assertThat(repository.findWithUnsentHoldNotification(statuses)).containsExactly(unnotified);
+  }
+
+  @Test
+  void marksAHoldNotifiedOnlyOnce() {
+    var request =
+        repository.save(
+            redemptionRequestFixture()
+                .userId(userId)
+                .status(FROZEN)
+                .holdReason("SANCTION")
+                .build());
+
+    assertThat(repository.markHoldNotified(request.getId(), CUTOFF)).isEqualTo(1);
+    assertThat(repository.markHoldNotified(request.getId(), CUTOFF.plus(1, HOURS))).isZero();
+
+    entityManager.clear();
+    assertThat(repository.findById(request.getId()).orElseThrow().getHoldNotifiedAt())
+        .isEqualTo(CUTOFF);
   }
 }

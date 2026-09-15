@@ -4,8 +4,13 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.nudge.ExperimentArm.CONTROL;
 import static ee.tuleva.onboarding.nudge.ExperimentArm.TREATMENT;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -111,6 +116,17 @@ class PaymentRateRedirectServiceTest {
   }
 
   @Test
+  void aPersonAlreadyAssignedThisSeasonIsAnsweredWithoutAnyEligibilityLookup() {
+    given(nudgeExposureRepository.hasAssignment(user.getId(), "SECOND_PILLAR_PAYMENT_RATE", 2026))
+        .willReturn(true);
+
+    assertThat(serviceOn("2026-09-15").assign(person("38888880167")))
+        .isEqualTo(PaymentRateRedirect.no());
+
+    verifyNoInteractions(eligibility, userService);
+  }
+
+  @Test
   void aSecondRequestInTheSameSeasonIsRefusedBecauseTheExposureIsAlreadyRecorded() {
     given(eligibility.isEligible(user)).willReturn(true);
     given(
@@ -140,7 +156,8 @@ class PaymentRateRedirectServiceTest {
 
     assertThat(serviceOn("2026-09-15").assign(person("38888880000")))
         .isEqualTo(PaymentRateRedirect.no());
-    verifyNoInteractions(nudgeExposureRepository);
+    verify(nudgeExposureRepository, never())
+        .recordAssignment(anyLong(), anyString(), anyInt(), any(), any());
   }
 
   @Test

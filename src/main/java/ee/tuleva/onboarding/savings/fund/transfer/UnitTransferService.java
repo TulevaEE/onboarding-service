@@ -164,11 +164,6 @@ public class UnitTransferService {
     return transfers.findAllByStateOrderByCreatedAtDesc(AWAITING_APPROVAL);
   }
 
-  /**
-   * Whoever holds the token names themselves, so the two people are only two people if the names
-   * cannot be made to differ trivially. Compared ignoring case and surrounding space, in case the
-   * identity ever arrives as an address rather than an opaque subject.
-   */
   private static boolean isTheSamePerson(String submittedBy, String approvedBy) {
     return submittedBy.strip().equalsIgnoreCase(approvedBy.strip());
   }
@@ -224,12 +219,6 @@ public class UnitTransferService {
     return new Planned(hashOf(command, plan), plan);
   }
 
-  /**
-   * Binds the approval to the exact numbers the operator was shown. Anything that changes what the
-   * transfer does changes the hash, so a stale confirm cannot be submitted. Each field carries its
-   * length because evidence is free text: without that, a value containing the separator could be
-   * read as two fields and two different transfers could hash alike.
-   */
   private String hashOf(UnitTransferCommand command, Plan plan) {
     String canonical =
         Stream.of(

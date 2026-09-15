@@ -36,8 +36,12 @@ class OfflineNudgeInputsTest {
         new OfflineNudgeInputs(
             pensionRegistry,
             new KnownLookups(
-                leaverStatus, recurringStatus, saverStatus, taxHeadroom, actingParties),
-            savingsFundFeeRate);
+                leaverStatus,
+                recurringStatus,
+                saverStatus,
+                taxHeadroom,
+                actingParties,
+                savingsFundFeeRate));
     given(savingsFundFeeRate.ongoingChargesPercent()).willReturn(new BigDecimal("0.28"));
     given(recurringStatus.savingsFund(any())).willReturn(true);
     given(saverStatus.savesFor(any())).willReturn(true);

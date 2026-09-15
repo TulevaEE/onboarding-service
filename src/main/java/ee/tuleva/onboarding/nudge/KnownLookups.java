@@ -1,10 +1,12 @@
 package ee.tuleva.onboarding.nudge;
 
 import ee.tuleva.onboarding.user.User;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.function.BooleanSupplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -17,6 +19,7 @@ class KnownLookups {
   private final SavingsFundSaverStatus saverStatus;
   private final TaxHeadroom taxHeadroom;
   private final ActingParties actingParties;
+  private final SavingsFundFeeRate savingsFundFeeRate;
 
   Known leftSecondPillar(User user) {
     return known("leftSecondPillar", () -> leaverStatus.hasLeft(user.getPersonalCode()));
@@ -38,7 +41,15 @@ class KnownLookups {
     if (ownSaver.isYes()) {
       return Known.YES;
     }
-    List<Known> others = actingParties.representedBy(user).stream().map(this::savesFor).toList();
+    List<NudgeAccount> parties;
+    try {
+      parties = actingParties.representedBy(user);
+    } catch (RuntimeException e) {
+      log.warn(
+          "Nudge input unavailable, skipping the nudges that need it: input=representedParties", e);
+      return Known.UNKNOWN;
+    }
+    List<Known> others = parties.stream().map(this::savesFor).toList();
     if (others.stream().anyMatch(Known::isYes)) {
       return Known.YES;
     }
@@ -50,6 +61,16 @@ class KnownLookups {
 
   Known taxHeadroom(User user) {
     return known("taxHeadroom", () -> taxHeadroom.hasHeadroom(user));
+  }
+
+  @Nullable BigDecimal savingsFundFeePercent() {
+    try {
+      return savingsFundFeeRate.ongoingChargesPercent();
+    } catch (RuntimeException e) {
+      log.warn(
+          "Nudge input unavailable, skipping the nudges that need it: input=savingsFundFee", e);
+      return null;
+    }
   }
 
   private static Known known(String input, BooleanSupplier lookup) {

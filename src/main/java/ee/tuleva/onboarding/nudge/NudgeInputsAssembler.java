@@ -22,7 +22,6 @@ class NudgeInputsAssembler {
   private final UserConversionService conversionService;
   private final PendingMandateApplications pendingApplications;
   private final SecondPillarPaymentRateService paymentRateService;
-  private final SavingsFundFeeRate savingsFundFeeRate;
   private final FeeComparisonCalculator feeComparisonCalculator;
   private final KnownLookups lookups;
 
@@ -61,7 +60,7 @@ class NudgeInputsAssembler {
         .savingsFundSaver(savingsFundSaver)
         .taxHeadroom(pillars.thirdPillarActive() ? lookups.taxHeadroom(user) : Known.NO)
         .feeComparison(feeComparison(user, conversion))
-        .savingsFundFeePercent(savingsFundFeeRate.ongoingChargesPercent())
+        .savingsFundFeePercent(lookups.savingsFundFeePercent())
         .build();
   }
 

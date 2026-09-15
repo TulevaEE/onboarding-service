@@ -10,7 +10,6 @@ class OfflineNudgeInputs {
 
   private final PensionRegistry pensionRegistry;
   private final KnownLookups lookups;
-  private final SavingsFundFeeRate savingsFundFeeRate;
 
   NudgeInputs assemble(User user, NudgeContext context) {
     PensionRegistrySnapshot registry =
@@ -43,7 +42,7 @@ class OfflineNudgeInputs {
         .savingsFundSaver(savingsFundSaver)
         .taxHeadroom(Known.UNKNOWN)
         .feeComparison(null)
-        .savingsFundFeePercent(savingsFundFeeRate.ongoingChargesPercent())
+        .savingsFundFeePercent(lookups.savingsFundFeePercent())
         .build();
   }
 }

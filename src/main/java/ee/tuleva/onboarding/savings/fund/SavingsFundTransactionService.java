@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.savings.fund;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.epis.CashFlow.Type.CONTRIBUTION_CASH;
 import static ee.tuleva.onboarding.epis.CashFlow.Type.SUBTRACTION;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.UNIT_TRANSFER;
 import static ee.tuleva.onboarding.ledger.UserAccount.REDEMPTIONS;
 import static ee.tuleva.onboarding.ledger.UserAccount.SUBSCRIPTIONS;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
@@ -130,8 +131,9 @@ public class SavingsFundTransactionService implements SavingsTransactions {
 
   private List<LedgerEntry> entries(
       String ownerCode, PartyType partyType, UserAccount userAccount) {
-    return List.copyOf(
-        ledgerService.getPartyAccount(ownerCode, partyType, userAccount).getEntries());
+    return ledgerService.getPartyAccount(ownerCode, partyType, userAccount).getEntries().stream()
+        .filter(entry -> entry.getTransaction().getTransactionType() != UNIT_TRANSFER)
+        .toList();
   }
 
   private List<RedemptionRequest> redemptionRequests(

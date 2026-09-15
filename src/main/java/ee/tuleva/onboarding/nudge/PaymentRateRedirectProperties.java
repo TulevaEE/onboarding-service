@@ -7,11 +7,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties("nudge.payment-rate-redirect")
 record PaymentRateRedirectProperties(
-    boolean enabled,
-    @Nullable String seed,
-    int holdoutPercent,
-    BigDecimal salaryThreshold,
-    LocalDate startDate) {
+    @Nullable String seed, int holdoutPercent, BigDecimal salaryThreshold, LocalDate startDate) {
 
   PaymentRateRedirectProperties {
     if (holdoutPercent < 0 || holdoutPercent > 100) {

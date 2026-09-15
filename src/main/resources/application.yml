@@ -78,7 +78,6 @@ admin:
 
 nudge:
   payment-rate-redirect:
-    enabled: ${PAYMENT_RATE_REDIRECT_ENABLED:false}
     seed: ${PAYMENT_RATE_REDIRECT_SEED:}
     holdout-percent: ${PAYMENT_RATE_REDIRECT_HOLDOUT_PERCENT:20}
     salary-threshold: ${PAYMENT_RATE_REDIRECT_SALARY_THRESHOLD:3300}

@@ -64,7 +64,7 @@ class PaymentRateRedirectService {
   }
 
   private boolean isWindowOpenFor(AuthenticatedPerson person) {
-    if (!properties.enabled() || !person.isActingAsSelf()) {
+    if (!person.isActingAsSelf()) {
       return false;
     }
     LocalDate today = LocalDate.now(estonianClock);

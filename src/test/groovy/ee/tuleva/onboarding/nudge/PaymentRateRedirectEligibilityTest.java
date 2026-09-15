@@ -66,7 +66,7 @@ class PaymentRateRedirectEligibilityTest {
 
   private static PaymentRateRedirectProperties properties(BigDecimal salaryThreshold) {
     return new PaymentRateRedirectProperties(
-        true, "season-2026-test-seed", 20, salaryThreshold, LocalDate.of(2026, 9, 1));
+        "season-2026-test-seed", 20, salaryThreshold, LocalDate.of(2026, 9, 1));
   }
 
   @Test

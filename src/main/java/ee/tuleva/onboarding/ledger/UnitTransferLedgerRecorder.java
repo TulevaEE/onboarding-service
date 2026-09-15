@@ -41,9 +41,40 @@ class UnitTransferLedgerRecorder {
   private final LedgerTransactionService ledgerTransactionService;
   private final Clock clock;
 
+  UnitTransferQuote quote(PartyRef from, PartyRef to, BigDecimal units) {
+    return quote(from, to, units, resolve(from, to));
+  }
+
   @Transactional
   LedgerTransaction recordUnitTransfer(
       PartyRef from, PartyRef to, BigDecimal units, UUID externalReference) {
+    var alreadyRecorded =
+        ledgerTransactionService.findByExternalReferenceAndTransactionType(
+            externalReference, UNIT_TRANSFER);
+    if (alreadyRecorded.isPresent()) {
+      return alreadyRecorded.get();
+    }
+
+    Involved involved = resolve(from, to);
+    UnitTransferQuote quote = quote(from, to, units, involved);
+
+    Map<String, Object> metadata = new HashMap<>(accounts.partyMetadata(from, UNIT_TRANSFER));
+    metadata.put(RECIPIENT_CODE.getKey(), to.code());
+    metadata.put(RECIPIENT_TYPE.getKey(), to.type().name());
+    metadata.put(TRANSFERRED_SUBSCRIPTIONS.getKey(), quote.subscriptionsEur());
+
+    return ledgerTransactionService.createTransaction(
+        UNIT_TRANSFER,
+        Instant.now(clock),
+        externalReference,
+        metadata,
+        accounts.entry(involved.fromUnits(), quote.fundUnits()),
+        accounts.entry(involved.toUnits(), quote.fundUnits().negate()),
+        accounts.entry(involved.fromSubscriptions(), quote.subscriptionsEur()),
+        accounts.entry(involved.toSubscriptions(), quote.subscriptionsEur().negate()));
+  }
+
+  private UnitTransferQuote quote(PartyRef from, PartyRef to, BigDecimal units, Involved involved) {
     if (from.equals(to)) {
       throw new IllegalArgumentException(
           "Cannot transfer units to the same party: partyCode=" + from.code());
@@ -59,21 +90,8 @@ class UnitTransferLedgerRecorder {
               + FUND_UNIT.getMaxPrecision());
     }
 
-    var alreadyRecorded =
-        ledgerTransactionService.findByExternalReferenceAndTransactionType(
-            externalReference, UNIT_TRANSFER);
-    if (alreadyRecorded.isPresent()) {
-      return alreadyRecorded.get();
-    }
-
-    LedgerAccount fromUnits = accounts.resolvePartyAccount(from, FUND_UNITS);
-    LedgerAccount toUnits = accounts.resolvePartyAccount(to, FUND_UNITS);
-    LedgerAccount fromReservedUnits = accounts.resolvePartyAccount(from, FUND_UNITS_RESERVED);
-    LedgerAccount fromSubscriptions = accounts.resolvePartyAccount(from, SUBSCRIPTIONS);
-    LedgerAccount toSubscriptions = accounts.resolvePartyAccount(to, SUBSCRIPTIONS);
-
     BigDecimal transferredUnits = units.setScale(FUND_UNIT.getMaxPrecision(), HALF_UP);
-    BigDecimal availableUnits = holding(fromUnits);
+    BigDecimal availableUnits = holding(involved.fromUnits());
 
     if (transferredUnits.compareTo(availableUnits) > 0) {
       throw new IllegalStateException(
@@ -85,24 +103,21 @@ class UnitTransferLedgerRecorder {
               + availableUnits);
     }
 
-    BigDecimal ownedUnits = availableUnits.add(holding(fromReservedUnits));
-    BigDecimal transferredSubscriptions =
-        proportionalSubscriptions(fromSubscriptions, transferredUnits, ownedUnits);
+    BigDecimal ownedUnits = availableUnits.add(holding(involved.fromReservedUnits()));
+    return new UnitTransferQuote(
+        transferredUnits,
+        proportionalSubscriptions(involved.fromSubscriptions(), transferredUnits, ownedUnits),
+        availableUnits.subtract(transferredUnits),
+        holding(involved.toUnits()).add(transferredUnits));
+  }
 
-    Map<String, Object> metadata = new HashMap<>(accounts.partyMetadata(from, UNIT_TRANSFER));
-    metadata.put(RECIPIENT_CODE.getKey(), to.code());
-    metadata.put(RECIPIENT_TYPE.getKey(), to.type().name());
-    metadata.put(TRANSFERRED_SUBSCRIPTIONS.getKey(), transferredSubscriptions);
-
-    return ledgerTransactionService.createTransaction(
-        UNIT_TRANSFER,
-        Instant.now(clock),
-        externalReference,
-        metadata,
-        accounts.entry(fromUnits, transferredUnits),
-        accounts.entry(toUnits, transferredUnits.negate()),
-        accounts.entry(fromSubscriptions, transferredSubscriptions),
-        accounts.entry(toSubscriptions, transferredSubscriptions.negate()));
+  private Involved resolve(PartyRef from, PartyRef to) {
+    return new Involved(
+        accounts.resolvePartyAccount(from, FUND_UNITS),
+        accounts.resolvePartyAccount(from, FUND_UNITS_RESERVED),
+        accounts.resolvePartyAccount(from, SUBSCRIPTIONS),
+        accounts.resolvePartyAccount(to, FUND_UNITS),
+        accounts.resolvePartyAccount(to, SUBSCRIPTIONS));
   }
 
   private BigDecimal proportionalSubscriptions(
@@ -122,4 +137,11 @@ class UnitTransferLedgerRecorder {
   private BigDecimal holding(LedgerAccount account) {
     return account.getBalance().negate();
   }
+
+  private record Involved(
+      LedgerAccount fromUnits,
+      LedgerAccount fromReservedUnits,
+      LedgerAccount fromSubscriptions,
+      LedgerAccount toUnits,
+      LedgerAccount toSubscriptions) {}
 }

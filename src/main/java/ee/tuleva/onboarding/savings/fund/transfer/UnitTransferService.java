@@ -45,14 +45,14 @@ public class UnitTransferService {
     if (unrecordable.isPresent()) {
       return new Refused(unrecordable.get());
     }
-    Optional<String> ineligible = whyTheRecipientCannotHoldUnits(command.to());
+    PartyRef from = new PartyRef(command.fromType(), command.fromCode());
+    PartyRef to = new PartyRef(command.toType(), command.toCode());
+    Optional<String> ineligible = whyTheRecipientCannotHoldUnits(to);
     if (ineligible.isPresent()) {
       return new Refused(ineligible.get());
     }
     try {
-      return planned(
-          command,
-          savingsFundLedger.quoteUnitTransfer(command.from(), command.to(), command.fundUnits()));
+      return planned(command, savingsFundLedger.quoteUnitTransfer(from, to, command.fundUnits()));
     } catch (IllegalArgumentException | IllegalStateException cannot) {
       return new Refused(requireNonNullElse(cannot.getMessage(), cannot.toString()));
     }

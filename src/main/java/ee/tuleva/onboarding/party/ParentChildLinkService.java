@@ -2,11 +2,13 @@ package ee.tuleva.onboarding.party;
 
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.PENDING_KYC;
+import static ee.tuleva.onboarding.party.RepresentationType.GUARDIAN;
 import static java.util.Comparator.comparing;
 import static java.util.Comparator.naturalOrder;
 import static java.util.Comparator.nullsLast;
 
 import ee.tuleva.onboarding.auth.role.ChildRepresentations;
+import ee.tuleva.onboarding.personalcode.PersonalCode;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.Comparator;
@@ -69,6 +71,16 @@ public class ParentChildLinkService implements ChildRepresentations {
         .map(ParentChildLink::getParentPersonalCode)
         .distinct()
         .toList();
+  }
+
+  // Restricted active legal capacity (piiratud teovõime): a minor by age, or an adult a court has
+  // placed under guardianship. Both are represented by somebody else, and both are who the savings
+  // fund accepts third-party deposits for. Suspension is not consulted — a suspended link is an
+  // issue with the guardian, it does not give the ward their capacity back.
+  public boolean hasRestrictedLegalCapacity(String personalCode) {
+    return PersonalCode.isMinor(personalCode, today())
+        || parentChildLinkRepository.existsByChildPersonalCodeAndRelationshipTypeAndValidUntilAfter(
+            personalCode, GUARDIAN, today());
   }
 
   @Override

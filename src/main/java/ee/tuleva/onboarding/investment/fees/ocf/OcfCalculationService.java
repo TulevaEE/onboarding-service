@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.investment.fees.ocf;
 
 import static ee.tuleva.onboarding.investment.fees.FeeType.DEPOT;
 import static ee.tuleva.onboarding.investment.fees.FeeType.MANAGEMENT;
-import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 
@@ -12,7 +11,6 @@ import ee.tuleva.onboarding.investment.fees.FeeRate;
 import ee.tuleva.onboarding.investment.fees.FeeRateRepository;
 import ee.tuleva.onboarding.investment.fees.InstrumentFeeRepository;
 import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
-import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
 import ee.tuleva.onboarding.savings.fund.nav.NavAccountLine;
@@ -41,7 +39,6 @@ public class OcfCalculationService {
   private final FeeChargedToFundPolicy feeChargedToFundPolicy;
   private final DepotRateResolver depotRateResolver;
   private final InstrumentFeeRepository instrumentFeeRepository;
-  private final FundPositionRepository fundPositionRepository;
   private final ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
   private final TransactionExecutionRepository transactionExecutionRepository;
   private final OcfSnapshotRepository ocfSnapshotRepository;
@@ -166,10 +163,7 @@ public class OcfCalculationService {
   BigDecimal getTransactionCostRate(TulevaFund fund, LocalDate monthEnd) {
     var periodStart = monthEnd.minusYears(1).plusDays(1);
     var navDates =
-        fundPositionRepository.findDistinctNavDatesByFund(fund).stream()
-            .filter(d -> !d.isBefore(periodStart) && !d.isAfter(monthEnd))
-            .sorted()
-            .toList();
+        fundNavQueryService.findPublishedNavDatesBetween(fund.getCode(), periodStart, monthEnd);
 
     var effectivePeriodStart = navDates.isEmpty() ? periodStart : navDates.getFirst();
     var txnCosts =
@@ -181,24 +175,21 @@ public class OcfCalculationService {
       return ZERO;
     }
 
-    var avgAum = averageSecurityAum(fund, navDates);
+    var avgAum = averageAum(fund, navDates);
     if (avgAum.signum() <= 0) {
       return ZERO;
     }
     return txnCosts.divide(avgAum, SCALE, HALF_UP);
   }
 
-  private BigDecimal averageSecurityAum(TulevaFund fund, List<LocalDate> navDates) {
+  private BigDecimal averageAum(TulevaFund fund, List<LocalDate> navDates) {
     if (navDates.isEmpty()) {
       return ZERO;
     }
-    var total = ZERO;
-    for (var date : navDates) {
-      total =
-          total.add(
-              fundPositionRepository.sumMarketValueByFundAndAccountTypes(
-                  fund, date, List.of(SECURITY)));
-    }
+    var total =
+        navDates.stream()
+            .map(date -> fundNavQueryService.findAum(fund.getCode(), date))
+            .reduce(ZERO, BigDecimal::add);
     return total.divide(BigDecimal.valueOf(navDates.size()), 2, HALF_UP);
   }
 }

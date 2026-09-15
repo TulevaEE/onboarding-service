@@ -29,6 +29,8 @@ class TrackingDifferenceNotifier {
   private static final int ESCALATION_THRESHOLD_FALLBACK = 4;
   private static final BigDecimal ESCALATION_NET_TD_THRESHOLD_FALLBACK = new BigDecimal("0.001");
   private static final BigDecimal HUNDRED = new BigDecimal("100");
+  private static final String PUBLISHED_WITHOUT_VALIDATION =
+      "NAV report published WITHOUT tracking-difference validation";
 
   private final OperationsNotificationService notificationService;
   private final TrackingDifferenceCalculator calculator;
@@ -37,19 +39,19 @@ class TrackingDifferenceNotifier {
   void notifyCheckCouldNotRun(TulevaFund fund, LocalDate navDate) {
     try {
       notificationService.sendMessage(
-          "⚠️ TD CHECK DID NOT RUN: fund=%s, date=%s — missing NAV, prices, or model data; NAV report published WITHOUT tracking-difference validation"
-              .formatted(fund.getCode(), navDate),
+          "⚠️ TD CHECK DID NOT RUN: fund=%s, date=%s — missing NAV, prices, or model data; %s"
+              .formatted(fund.getCode(), navDate, PUBLISHED_WITHOUT_VALIDATION),
           INVESTMENT);
     } catch (Exception e) {
       log.error("Failed to send tracking difference 'check did not run' notification", e);
     }
   }
 
-  void notifyCheckFailed(TulevaFund fund, LocalDate navDate, @Nullable String reason) {
+  void notifyCheckFailed(TulevaFund fund, LocalDate navDate, String reason) {
     try {
       notificationService.sendMessage(
-          "⚠️ TD CHECK FAILED: fund=%s, date=%s — the check errored (%s); NAV report published WITHOUT tracking-difference validation"
-              .formatted(fund.getCode(), navDate, reason == null ? "no detail" : reason),
+          "⚠️ TD CHECK FAILED: fund=%s, date=%s — the check errored (%s); %s"
+              .formatted(fund.getCode(), navDate, reason, PUBLISHED_WITHOUT_VALIDATION),
           INVESTMENT);
     } catch (Exception e) {
       log.error("Failed to send tracking difference 'check failed' notification", e);

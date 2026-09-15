@@ -218,4 +218,16 @@ class NavTrackingDifferenceGateTest {
     then(trackingDifferenceNotifier).should().notifyCheckFailed(TUK75, NAV_DATE, "unexpected");
     then(trackingDifferenceNotifier).should(never()).notifyCheckCouldNotRun(TUK75, NAV_DATE);
   }
+
+  @Test
+  void passes_andAlertsTheExceptionType_whenUnexpectedExceptionHasNoMessage() {
+    given(trackingDifferenceService.checkFund(TUK75, NAV_DATE))
+        .willThrow(new IllegalStateException());
+
+    assertThat(gate.check(TUK75, NAV_DATE)).isEmpty();
+
+    then(trackingDifferenceNotifier)
+        .should()
+        .notifyCheckFailed(TUK75, NAV_DATE, "IllegalStateException");
+  }
 }

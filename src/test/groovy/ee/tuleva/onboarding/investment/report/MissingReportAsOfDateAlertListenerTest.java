@@ -86,6 +86,17 @@ class MissingReportAsOfDateAlertListenerTest {
   }
 
   @Test
+  void shortensAnUnreadableValueThatIsTooLongToQuote() {
+    listener()
+        .onMissingReportAsOfDate(
+            new MissingReportAsOfDateEvent(SEB, POSITIONS, REPORT_DATE, "x".repeat(250)));
+
+    then(notificationService)
+        .should()
+        .sendMessage(contains("\"" + "x".repeat(100) + "…\""), eq(INVESTMENT));
+  }
+
+  @Test
   void doesNotPropagateANotificationFailure() {
     willThrow(new RuntimeException("slack down"))
         .given(notificationService)

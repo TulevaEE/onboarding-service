@@ -17,6 +17,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 class MissingReportAsOfDateAlertListener {
 
   private static final int ALERT_WINDOW_DAYS = 3;
+  private static final int MAX_QUOTED_VALUE_LENGTH = 100;
 
   private final OperationsNotificationService notificationService;
   private final Clock clock;
@@ -68,6 +69,12 @@ class MissingReportAsOfDateAlertListener {
           + " päise kuju muutunud.";
     }
     return "Raporti „As of“ kuupäeva ei õnnestunud lugeda: \"%s\" – oodatud vorming on AAAA-KK-PP."
-        .formatted(unreadable);
+        .formatted(shortened(unreadable));
+  }
+
+  private static String shortened(String value) {
+    return value.length() <= MAX_QUOTED_VALUE_LENGTH
+        ? value
+        : value.substring(0, MAX_QUOTED_VALUE_LENGTH) + "…";
   }
 }

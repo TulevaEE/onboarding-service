@@ -7,10 +7,4 @@ public record MissingReportAsOfDateEvent(
     ReportProvider provider,
     ReportType reportType,
     LocalDate reportDate,
-    @Nullable String unreadableValue) {
-
-  public MissingReportAsOfDateEvent(
-      ReportProvider provider, ReportType reportType, LocalDate reportDate) {
-    this(provider, reportType, reportDate, null);
-  }
-}
+    @Nullable String unreadableValue) {}

@@ -12,6 +12,7 @@ import static org.mockito.Mockito.mock;
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.report.CsvToJsonConverter;
 import ee.tuleva.onboarding.investment.report.MissingReportAsOfDateEvent;
+import ee.tuleva.onboarding.investment.report.SebReportAsOfDate;
 import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -28,7 +29,7 @@ class SebFundPositionParserTest {
   private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
 
   private final SebFundPositionParser parser =
-      new SebFundPositionParser(Clock.systemUTC(), eventPublisher);
+      new SebFundPositionParser(Clock.systemUTC(), new SebReportAsOfDate(eventPublisher));
   private final CsvToJsonConverter csvConverter = new CsvToJsonConverter();
   private static final LocalDate REPORT_DATE = LocalDate.of(2026, 1, 26);
   private static final LocalDate NAV_DATE = LocalDate.of(2026, 1, 25);
@@ -274,8 +275,6 @@ class SebFundPositionParserTest {
     assertThat(position.getReportDate()).isEqualTo(REPORT_DATE);
   }
 
-  // Warning-only for now: the report is still used, dated from the filename, and the event is the
-  // only signal. Enforcement waits until we have seen the alert behave on real files.
   @Test
   void parse_warnsAndFallsBackToTheReportDate_whenThereIsNoAsOfDate() {
     List<Map<String, Object>> rawData =

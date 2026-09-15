@@ -22,6 +22,7 @@ import static org.mockito.Mockito.verify;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.investment.report.MissingReportAsOfDateEvent;
+import ee.tuleva.onboarding.investment.report.SebReportAsOfDate;
 import ee.tuleva.onboarding.investment.transaction.InstrumentType;
 import ee.tuleva.onboarding.investment.transaction.OrderVenue;
 import ee.tuleva.onboarding.investment.transaction.TransactionAuditEvent;
@@ -107,6 +108,7 @@ class SebPendingTransactionReconciliationServiceTest {
         executionRepository,
         orderRepository,
         eventPublisher,
+        new SebReportAsOfDate(eventPublisher),
         auditRecorder,
         settlementRepository,
         new TransactionSettlementService(settlementRepository, orderRepository, clock),

@@ -1,13 +1,12 @@
 package ee.tuleva.onboarding.investment.position.parser;
 
-import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
 import static java.math.BigDecimal.ONE;
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.investment.position.AccountType;
 import ee.tuleva.onboarding.investment.position.FundPosition;
-import ee.tuleva.onboarding.investment.report.MissingReportAsOfDateEvent;
+import ee.tuleva.onboarding.investment.report.SebReportAsOfDate;
 import ee.tuleva.onboarding.investment.report.SebReportHeaders;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
@@ -23,7 +22,6 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -32,7 +30,7 @@ import org.springframework.stereotype.Component;
 public class SebFundPositionParser implements FundPositionParser {
 
   private final Clock clock;
-  private final ApplicationEventPublisher eventPublisher;
+  private final SebReportAsOfDate asOfDate;
 
   private static final Set<String> FUND_CODES =
       Arrays.stream(TulevaFund.values()).map(TulevaFund::getCode).collect(Collectors.toSet());
@@ -52,20 +50,10 @@ public class SebFundPositionParser implements FundPositionParser {
       return List.of();
     }
 
-    LocalDate navDate = SebReportHeaders.asOfDate(metadata, rawData);
+    LocalDate navDate =
+        asOfDate.resolveOrFallBackToReportDate(POSITIONS, reportDate, metadata, rawData);
     LocalDate sentDate = SebReportHeaders.sentDate(metadata, rawData);
 
-    if (navDate == null) {
-      String unreadable = SebReportHeaders.unreadableAsOfValue(metadata, rawData);
-      log.warn(
-          "No usable 'As of' date in SEB positions report, falling back to report date:"
-              + " reportDate={}, unreadableValue={}",
-          reportDate,
-          unreadable);
-      eventPublisher.publishEvent(
-          new MissingReportAsOfDateEvent(SEB, POSITIONS, reportDate, unreadable));
-      navDate = reportDate;
-    }
     if (sentDate == null) {
       log.warn("No 'Sent' date found in SEB data, falling back to report date");
       sentDate = reportDate;

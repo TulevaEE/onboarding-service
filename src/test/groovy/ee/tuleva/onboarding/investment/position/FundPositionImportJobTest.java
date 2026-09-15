@@ -21,6 +21,7 @@ import ee.tuleva.onboarding.investment.position.parser.SwedbankFundPositionParse
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.investment.report.MissingReportAsOfDateEvent;
+import ee.tuleva.onboarding.investment.report.SebReportAsOfDate;
 import ee.tuleva.onboarding.pipeline.PipelineTracker;
 import ee.tuleva.onboarding.savings.fund.nav.NavPositionsUpdated;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -56,7 +57,7 @@ class FundPositionImportJobTest {
   @BeforeEach
   void setUp() {
     swedbankParser = new SwedbankFundPositionParser(Clock.systemUTC());
-    sebParser = new SebFundPositionParser(Clock.systemUTC(), eventPublisher);
+    sebParser = new SebFundPositionParser(Clock.systemUTC(), new SebReportAsOfDate(eventPublisher));
     importService = new FundPositionImportService(repository, Clock.systemUTC());
     lenient().when(healthCheckService.check(anyList())).thenReturn(List.of());
     job =
@@ -241,8 +242,6 @@ class FundPositionImportJobTest {
         .build();
   }
 
-  // Warning-only for now: the report is still imported, dated from the filename, and the event is
-  // the only signal. Enforcement waits until the alert has been watched on real files.
   @Test
   void importForProviderAndDate_stillImports_whenTheReportCarriesNoAsOfDate() {
     LocalDate date = LocalDate.of(2026, 1, 5);

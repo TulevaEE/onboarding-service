@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ZERO;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.BankAccountType;
@@ -96,7 +97,7 @@ public class SavingsFundStatementProcessor {
   }
 
   private boolean isInternalTransferIncoming(SavingFundPayment payment) {
-    return isIncomingPayment(payment) && isSavingsFundAccount(payment.getRemitterIban());
+    return isIncomingPayment(payment) && isSavingsFundAccount(remitterIbanOf(payment));
   }
 
   private void handleDepositAccountPayment(SavingFundPayment payment) {
@@ -152,7 +153,13 @@ public class SavingsFundStatementProcessor {
 
   private boolean isIncomingFromFundInvestment(SavingFundPayment payment) {
     return isIncomingPayment(payment)
-        && isSavingsFundAccount(payment.getRemitterIban(), FUND_INVESTMENT_EUR);
+        && isSavingsFundAccount(remitterIbanOf(payment), FUND_INVESTMENT_EUR);
+  }
+
+  private static String remitterIbanOf(SavingFundPayment payment) {
+    return requireNonNull(
+        payment.getRemitterIban(),
+        "Payment without remitter IBAN reached statement processing: paymentId=" + payment.getId());
   }
 
   private void handleFundInvestmentAccountPayment(SavingFundPayment payment) {
@@ -179,24 +186,35 @@ public class SavingsFundStatementProcessor {
 
   private boolean isManagementFeePayment(SavingFundPayment payment) {
     return isOutgoingPayment(payment)
-        && managementCompanies.isManagementCompany(payment.getBeneficiaryName())
+        && managementCompanies.isManagementCompany(
+            requireNonNull(
+                payment.getBeneficiaryName(),
+                "Payment without beneficiary name reached statement processing: paymentId="
+                    + payment.getId()))
         && payment.getDescription() != null
         && payment.getDescription().toLowerCase().contains("valitsemistasu");
   }
 
   private boolean isOutgoingToWithdrawalAccount(SavingFundPayment payment) {
     return isOutgoingPayment(payment)
-        && isSavingsFundAccount(payment.getBeneficiaryIban(), WITHDRAWAL_EUR);
+        && isSavingsFundAccount(beneficiaryIbanOf(payment), WITHDRAWAL_EUR);
   }
 
   private boolean isOutgoingToFundAccount(SavingFundPayment payment) {
     return payment.getAmount().compareTo(ZERO) < 0
-        && isSavingsFundAccount(payment.getBeneficiaryIban(), FUND_INVESTMENT_EUR);
+        && isSavingsFundAccount(beneficiaryIbanOf(payment), FUND_INVESTMENT_EUR);
   }
 
   private boolean isOutgoingReturn(SavingFundPayment payment) {
     return payment.getAmount().compareTo(ZERO) < 0
-        && !isSavingsFundAccount(payment.getBeneficiaryIban(), FUND_INVESTMENT_EUR);
+        && !isSavingsFundAccount(beneficiaryIbanOf(payment), FUND_INVESTMENT_EUR);
+  }
+
+  private static String beneficiaryIbanOf(SavingFundPayment payment) {
+    return requireNonNull(
+        payment.getBeneficiaryIban(),
+        "Payment without beneficiary IBAN reached statement processing: paymentId="
+            + payment.getId());
   }
 
   private boolean isSavingsFundAccount(String iban) {

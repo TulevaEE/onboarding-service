@@ -183,13 +183,13 @@ class SavingFundPaymentRepositoryTest {
   }
 
   @Test
-  void findUnconfirmedPayments_returnsUncancelledCreatedPaymentsOlderThanTheThreshold() {
+  void findUnconfirmedPayments_returnsUncancelledCreatedPaymentsCreatedBeforeTheThreshold() {
     var unconfirmed = repository.savePaymentData(createPayment().externalId("1").build());
-    var fresh = repository.savePaymentData(createPayment().externalId("2").build());
+    repository.savePaymentData(createPayment().externalId("2").build());
     var cancelled = repository.savePaymentData(createPayment().externalId("3").build());
     var received = repository.savePaymentData(createPayment().externalId("4").build());
     jdbcTemplate.update(
-        "update saving_fund_payment set status_changed_at='2020-01-01'::date where id in (:ids)",
+        "update saving_fund_payment set created_at='2020-01-01'::date where id in (:ids)",
         Map.of("ids", List.of(unconfirmed, cancelled, received)));
     repository.cancel(cancelled);
     updatePaymentStatus(received, RECEIVED);

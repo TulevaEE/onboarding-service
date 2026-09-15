@@ -50,7 +50,7 @@ public class StuckPaymentAlertJob {
         "Savings fund payment not confirmed by the bank: paymentId={}, amount={} EUR, createdAt={}",
         payment.getId(),
         payment.getAmount(),
-        payment.getStatusChangedAt());
+        payment.getCreatedAt());
   }
 
   private void alert(SavingFundPayment payment) {

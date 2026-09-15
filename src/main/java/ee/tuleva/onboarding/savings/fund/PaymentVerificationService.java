@@ -100,7 +100,7 @@ public class PaymentVerificationService {
     boolean acceptedFromAnyRemitter =
         partyIdFromDescription.isPresent()
             && partyId.type() == PERSON
-            && parentChildLinkService.hasRestrictedLegalCapacity(partyId.code());
+            && isRepresentedWhenTheMoneyArrived(partyId, payment);
 
     boolean representingChild =
         remitterPartyId
@@ -200,6 +200,13 @@ public class PaymentVerificationService {
     return Optional.ofNullable(payment.getPartyId())
         .map(PartyId::code)
         .flatMap(userRepository::findByPersonalCode);
+  }
+
+  private boolean isRepresentedWhenTheMoneyArrived(PartyId partyId, SavingFundPayment payment) {
+    var bookingDate = payment.bookingDate();
+    return bookingDate == null
+        ? parentChildLinkService.hasRestrictedLegalCapacity(partyId.code())
+        : parentChildLinkService.hasRestrictedLegalCapacity(partyId.code(), bookingDate);
   }
 
   // Still needed for MINOR_DEPOSIT_VERIFIED, which tracks a guardian funding the child they

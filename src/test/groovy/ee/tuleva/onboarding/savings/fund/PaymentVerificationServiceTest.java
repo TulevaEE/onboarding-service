@@ -139,7 +139,9 @@ class PaymentVerificationServiceTest {
             .lastName("MAASIKAS")
             .build();
     when(userRepository.findByPersonalCode("61506150006")).thenReturn(Optional.of(unitHolder));
-    when(parentChildLinkService.hasRestrictedLegalCapacity("61506150006")).thenReturn(true);
+    when(parentChildLinkService.hasRestrictedLegalCapacity(
+            "61506150006", LocalDate.of(2025, 10, 1)))
+        .thenReturn(true);
     when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
 
     service.process(payment);
@@ -171,7 +173,9 @@ class PaymentVerificationServiceTest {
             .lastName("MAASIKAS")
             .build();
     when(userRepository.findByPersonalCode("48806046007")).thenReturn(Optional.of(unitHolder));
-    when(parentChildLinkService.hasRestrictedLegalCapacity("48806046007")).thenReturn(false);
+    when(parentChildLinkService.hasRestrictedLegalCapacity(
+            "48806046007", LocalDate.of(2025, 10, 1)))
+        .thenReturn(false);
 
     service.process(payment);
 
@@ -269,7 +273,9 @@ class PaymentVerificationServiceTest {
             .lastName("MEETER")
             .build();
     when(userRepository.findByPersonalCode(any())).thenReturn(Optional.of(unitHolder));
-    when(parentChildLinkService.hasRestrictedLegalCapacity("61506150006")).thenReturn(true);
+    when(parentChildLinkService.hasRestrictedLegalCapacity(
+            "61506150006", LocalDate.of(2025, 10, 1)))
+        .thenReturn(true);
     when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
 
     service.process(payment);
@@ -720,7 +726,8 @@ class PaymentVerificationServiceTest {
             .build();
     when(userRepository.findByPersonalCode(parentCode)).thenReturn(Optional.of(parent));
     when(userRepository.findByPersonalCode(childCode)).thenReturn(Optional.of(child));
-    when(parentChildLinkService.hasRestrictedLegalCapacity(childCode)).thenReturn(true);
+    when(parentChildLinkService.hasRestrictedLegalCapacity(childCode, LocalDate.of(2025, 10, 1)))
+        .thenReturn(true);
     when(parentChildLinkService.findRepresentation(
             parentCode, childCode, Set.of(ACTIVE, PENDING_KYC)))
         .thenReturn(Optional.empty());
@@ -771,7 +778,8 @@ class PaymentVerificationServiceTest {
             .build();
     when(userRepository.findByPersonalCode(remitterCode)).thenReturn(Optional.empty());
     when(userRepository.findByPersonalCode(childCode)).thenReturn(Optional.of(child));
-    when(parentChildLinkService.hasRestrictedLegalCapacity(childCode)).thenReturn(true);
+    when(parentChildLinkService.hasRestrictedLegalCapacity(childCode, LocalDate.of(2025, 10, 1)))
+        .thenReturn(true);
     when(parentChildLinkService.findRepresentation(
             remitterCode, childCode, Set.of(ACTIVE, PENDING_KYC)))
         .thenReturn(Optional.empty());
@@ -827,7 +835,8 @@ class PaymentVerificationServiceTest {
             .lastName("MAASIKAS")
             .build();
     when(userRepository.findByPersonalCode(childCode)).thenReturn(Optional.of(child));
-    when(parentChildLinkService.hasRestrictedLegalCapacity(childCode)).thenReturn(true);
+    when(parentChildLinkService.hasRestrictedLegalCapacity(childCode, LocalDate.of(2025, 10, 1)))
+        .thenReturn(true);
     when(savingsFundOnboardingService.isOnboardingCompleted(new PartyId(PERSON, childCode)))
         .thenReturn(true);
     when(parentChildLinkService.findRepresentation(
@@ -878,8 +887,10 @@ class PaymentVerificationServiceTest {
             .lastName("MAASIKAS")
             .build();
     when(userRepository.findByPersonalCode(childCode)).thenReturn(Optional.of(child));
-    when(parentChildLinkService.hasRestrictedLegalCapacity(childCode)).thenReturn(true);
-    when(parentChildLinkService.hasRestrictedLegalCapacity(childCode)).thenReturn(true);
+    when(parentChildLinkService.hasRestrictedLegalCapacity(childCode, LocalDate.of(2025, 10, 1)))
+        .thenReturn(true);
+    when(parentChildLinkService.hasRestrictedLegalCapacity(childCode, LocalDate.of(2025, 10, 1)))
+        .thenReturn(true);
     when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
     when(parentChildLinkService.findRepresentation(
             remitterCode, childCode, Set.of(ACTIVE, PENDING_KYC)))

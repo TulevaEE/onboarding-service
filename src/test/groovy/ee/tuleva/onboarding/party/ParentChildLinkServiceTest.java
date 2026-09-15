@@ -232,6 +232,16 @@ class ParentChildLinkServiceTest {
     assertThat(service.hasRestrictedLegalCapacity(PARENT)).isFalse();
   }
 
+  @Test
+  void capacityIsAnsweredForTheDateAsked_notForToday() {
+    var turnsEighteenToday = "60805220000";
+    var theDayBefore = TODAY.minusDays(1);
+
+    assertThat(service.hasRestrictedLegalCapacity(turnsEighteenToday, theDayBefore)).isTrue();
+
+    verifyNoInteractions(parentChildLinkRepository);
+  }
+
   // Born 2008-05-22, so they turn 18 on the fixed clock's today: capacity arrives on the
   // birthday itself, the same day a LEGAL_REPRESENTATIVE link stops being valid.
   @Test

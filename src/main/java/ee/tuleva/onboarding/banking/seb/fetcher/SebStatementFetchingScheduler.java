@@ -24,7 +24,7 @@ import org.springframework.web.client.ResourceAccessException;
 public class SebStatementFetchingScheduler {
 
   static final String END_OF_DAY_FETCH_CRON = "0 0/30 4-23 * * *";
-  static final String GAP_REPORT_CRON = "0 0 9 * * *";
+  static final String GAP_REPORT_CRON = "0 10 9 * * *";
   private static final int CATCH_UP_DAYS = 7;
 
   private final ApplicationEventPublisher eventPublisher;

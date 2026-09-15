@@ -4,10 +4,12 @@ import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import ee.tuleva.onboarding.admin.AdminTokenValidator;
 import ee.tuleva.onboarding.savings.fund.transfer.UnitTransferVerdict.Plan;
 import ee.tuleva.onboarding.savings.fund.transfer.UnitTransferVerdict.Planned;
 import ee.tuleva.onboarding.savings.fund.transfer.UnitTransferVerdict.Refused;
@@ -21,11 +23,13 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(controllers = UnitTransferController.class)
-@Import(UnitTransferControllerTest.NoSecurity.class)
+@Import({UnitTransferControllerTest.NoSecurity.class, AdminTokenValidator.class})
+@TestPropertySource(properties = {"admin.api-token=valid-token", "admin.ops-token=ops-token"})
 class UnitTransferControllerTest {
 
   @Autowired MockMvc mockMvc;
@@ -53,10 +57,16 @@ class UnitTransferControllerTest {
                     new BigDecimal("40.00000"),
                     new BigDecimal("60.00000"),
                     new BigDecimal("40.00000"),
-                    BigDecimal.ZERO)));
+                    BigDecimal.ZERO,
+                    new BigDecimal("1000.00"),
+                    new BigDecimal("100.00000"))));
 
     mockMvc
-        .perform(post(TRANSFERS + "/preview").contentType("application/json").content(A_TRANSFER))
+        .perform(
+            post(TRANSFERS + "/preview")
+                .header("X-Admin-Token", "valid-token")
+                .contentType("application/json")
+                .content(A_TRANSFER))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.planHash").value("abc123"))
         .andExpect(jsonPath("$.plan.fundUnits").value(40.00000));
@@ -68,7 +78,11 @@ class UnitTransferControllerTest {
         .willReturn(new Refused("The recipient has not completed savings fund onboarding"));
 
     mockMvc
-        .perform(post(TRANSFERS + "/preview").contentType("application/json").content(A_TRANSFER))
+        .perform(
+            post(TRANSFERS + "/preview")
+                .header("X-Admin-Token", "valid-token")
+                .contentType("application/json")
+                .content(A_TRANSFER))
         .andExpect(status().isOk())
         .andExpect(
             jsonPath("$.refused").value("The recipient has not completed savings fund onboarding"));
@@ -82,6 +96,7 @@ class UnitTransferControllerTest {
     mockMvc
         .perform(
             post(TRANSFERS)
+                .header("X-Admin-Token", "valid-token")
                 .contentType("application/json")
                 .content(
                     "{\"transfer\":"
@@ -100,6 +115,7 @@ class UnitTransferControllerTest {
     mockMvc
         .perform(
             post(TRANSFERS + "/" + UUID.randomUUID() + "/approve")
+                .header("X-Admin-Token", "valid-token")
                 .contentType("application/json")
                 .content("{\"approvedBy\":\"operator@example.com\"}"))
         .andExpect(status().isConflict());
@@ -113,6 +129,7 @@ class UnitTransferControllerTest {
     mockMvc
         .perform(
             post(TRANSFERS + "/" + UUID.randomUUID() + "/approve")
+                .header("X-Admin-Token", "valid-token")
                 .contentType("application/json")
                 .content("{\"approvedBy\":\"approver@example.com\"}"))
         .andExpect(status().isNotFound());
@@ -125,6 +142,7 @@ class UnitTransferControllerTest {
     mockMvc
         .perform(
             post(TRANSFERS)
+                .header("X-Admin-Token", "valid-token")
                 .contentType("application/json")
                 .content(
                     "{\"transfer\":"
@@ -133,6 +151,53 @@ class UnitTransferControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.state").value("AWAITING_APPROVAL"))
         .andExpect(jsonPath("$.submittedBy").value("operator@example.com"));
+  }
+
+  @Test
+  void withoutAnAdminTokenNothingIsReachable() throws Exception {
+    mockMvc
+        .perform(post(TRANSFERS + "/preview").contentType("application/json").content(A_TRANSFER))
+        .andExpect(status().isBadRequest());
+    verifyNoInteractions(unitTransferService);
+  }
+
+  @Test
+  void anApprovalWithAnUnacceptedTokenMovesNothing() throws Exception {
+    mockMvc
+        .perform(
+            post(TRANSFERS + "/" + UUID.randomUUID() + "/approve")
+                .header("X-Admin-Token", "not-the-token")
+                .contentType("application/json")
+                .content("{\"approvedBy\":\"approver@example.com\"}"))
+        .andExpect(status().isUnauthorized());
+    verifyNoInteractions(unitTransferService);
+  }
+
+  @Test
+  void theOpsTokenIsNotEnoughToMoveSomeonesUnits() throws Exception {
+    mockMvc
+        .perform(
+            post(TRANSFERS + "/" + UUID.randomUUID() + "/approve")
+                .header("X-Admin-Token", "ops-token")
+                .contentType("application/json")
+                .content("{\"approvedBy\":\"approver@example.com\"}"))
+        .andExpect(status().isUnauthorized());
+    verifyNoInteractions(unitTransferService);
+  }
+
+  @Test
+  void submittingWithAnUnacceptedTokenRecordsNothing() throws Exception {
+    mockMvc
+        .perform(
+            post(TRANSFERS)
+                .header("X-Admin-Token", "not-the-token")
+                .contentType("application/json")
+                .content(
+                    "{\"transfer\":"
+                        + A_TRANSFER
+                        + ",\"confirm\":\"abc123\",\"submittedBy\":\"operator@example.com\"}"))
+        .andExpect(status().isUnauthorized());
+    verifyNoInteractions(unitTransferService);
   }
 
   private static UnitTransfer anAwaitingTransfer() {

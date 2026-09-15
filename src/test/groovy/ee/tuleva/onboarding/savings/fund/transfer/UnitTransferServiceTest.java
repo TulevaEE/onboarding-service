@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings.fund.transfer;
 
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.UNIT_TRANSFER;
+import static ee.tuleva.onboarding.savings.fund.transfer.UnitTransferState.AWAITING_APPROVAL;
 import static ee.tuleva.onboarding.savings.fund.transfer.UnitTransferState.CANCELLED;
 import static ee.tuleva.onboarding.savings.fund.transfer.UnitTransferState.EXECUTED;
 import static java.math.BigDecimal.ZERO;
@@ -112,7 +113,9 @@ class UnitTransferServiceTest {
             new UnitTransferQuote(
                 new BigDecimal("41.00000"),
                 new BigDecimal("59.00000"),
-                new BigDecimal("41.00000")));
+                new BigDecimal("41.00000"),
+                new BigDecimal("1000.00"),
+                new BigDecimal("100.00000")));
     var other = (Planned) service.preview(command);
 
     assertThat(other.planHash()).isNotEqualTo(planned.planHash());
@@ -140,6 +143,52 @@ class UnitTransferServiceTest {
     assertThat(submitted.getSubmittedBy()).isEqualTo("operator@example.com");
     assertThat(submitted.getPlanHash()).isEqualTo(planned.planHash());
     assertThat(submitted.getRecipientAcquisitionCostEur()).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void theGiversOwnFiguresAreShownSoAnOperatorCanDecideWhatTheRecipientMayCount() {
+    givenTheLedgerQuotes();
+
+    var planned = (Planned) service.preview(command);
+
+    assertThat(planned.plan().giverPaidIn()).isEqualByComparingTo("1000.00");
+    assertThat(planned.plan().giverUnitsOwned()).isEqualByComparingTo("100.00000");
+  }
+
+  @Test
+  void aSpouseInheritingJointPropertyIsRecordedWithAnAcquisitionCostOfTheirOwn() {
+    givenTheLedgerQuotes();
+    var spouseCountsTheWholeCost =
+        new UnitTransferCommand(
+            "38888888888",
+            PERSON,
+            "39999999999",
+            PERSON,
+            new BigDecimal("40.00000"),
+            LocalDate.parse("2026-09-14"),
+            "Notice by email, joint marital property",
+            new BigDecimal("1000.00"));
+    var planned = (Planned) service.preview(spouseCountsTheWholeCost);
+    givenTheRepositoryReturnsWhateverItIsGiven();
+
+    var submitted =
+        service.submit(spouseCountsTheWholeCost, planned.planHash(), "operator@example.com");
+
+    assertThat(submitted.getRecipientAcquisitionCostEur()).isEqualByComparingTo("1000.00");
+  }
+
+  @Test
+  void submittingTheSameTransferTwiceLeavesOneWaitingForApproval() {
+    givenTheLedgerQuotes();
+    var planned = (Planned) service.preview(command);
+    givenTheRepositoryReturnsWhateverItIsGiven();
+    var first = service.submit(command, planned.planHash(), "operator@example.com");
+    given(transfers.findByPlanHashAndState(planned.planHash(), AWAITING_APPROVAL))
+        .willReturn(Optional.of(first));
+
+    var second = service.submit(command, planned.planHash(), "operator@example.com");
+
+    assertThat(second).isSameAs(first);
   }
 
   @Test
@@ -276,7 +325,9 @@ class UnitTransferServiceTest {
             new UnitTransferQuote(
                 new BigDecimal("40.00000"),
                 new BigDecimal("60.00000"),
-                new BigDecimal("40.00000")));
+                new BigDecimal("40.00000"),
+                new BigDecimal("1000.00"),
+                new BigDecimal("100.00000")));
   }
 
   private void givenTheRepositoryReturnsWhateverItIsGiven() {

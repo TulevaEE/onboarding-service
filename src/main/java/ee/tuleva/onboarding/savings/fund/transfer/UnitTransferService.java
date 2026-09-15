@@ -63,6 +63,11 @@ public class UnitTransferService {
               + planned.planHash());
     }
 
+    var alreadyAwaiting = transfers.findByPlanHashAndState(planned.planHash(), AWAITING_APPROVAL);
+    if (alreadyAwaiting.isPresent()) {
+      return alreadyAwaiting.get();
+    }
+
     return transfers.save(
         UnitTransfer.builder()
             .fromPartyCode(command.fromCode())
@@ -167,7 +172,9 @@ public class UnitTransferService {
             quote.fundUnits(),
             quote.giverUnitsAfter(),
             quote.receiverUnitsAfter(),
-            command.recipientAcquisitionCostEur());
+            command.recipientAcquisitionCostEur(),
+            quote.giverPaidIn(),
+            quote.giverUnitsOwned());
     return new Planned(hashOf(command, plan), plan);
   }
 

@@ -28,7 +28,7 @@ class PaymentRateSeasons {
         deadlines.getPaymentRateDeadline().atZone(estonianClock.getZone()).toLocalDate();
     LocalDate fulfillmentDate = deadlines.getPaymentRateFulfillmentDate();
     return new PaymentRateSeason(
-        deadline, fulfillmentDate, mode(LocalDate.now(estonianClock), deadline, fulfillmentDate));
+        deadline, fulfillmentDate, mode(LocalDate.now(estonianClock), deadline));
   }
 
   LocalDate deadlineFor(LocalDate date) {
@@ -48,9 +48,8 @@ class PaymentRateSeasons {
         .toInstant();
   }
 
-  private static PaymentRateSeason.Mode mode(
-      LocalDate today, LocalDate deadline, LocalDate fulfillmentDate) {
-    if (fulfillmentDate.getYear() > today.getYear() + 1) {
+  private static PaymentRateSeason.Mode mode(LocalDate today, LocalDate deadline) {
+    if (deadline.getYear() > today.getYear()) {
       return CLOSED;
     }
     if (today.isBefore(deadline.withDayOfMonth(1))) {

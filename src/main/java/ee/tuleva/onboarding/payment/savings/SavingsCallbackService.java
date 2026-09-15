@@ -58,19 +58,10 @@ public class SavingsCallbackService {
 
     var recipient = recipientParty(merchantReference);
 
-    var senderName = token.getSenderName();
-    var senderIban = token.getSenderIban();
-    if (senderName == null || senderIban == null) {
-      log.warn(
-          "Montonio order token missing sender details, deferring to statement processing: uuid={}",
-          token.getUuid());
-      return true;
-    }
-
     var incomingPayment =
         new IncomingSavingsPayment(
-            senderName,
-            senderIban,
+            token.getSenderName(),
+            token.getSenderIban(),
             merchantReference.getDescription(),
             requireNonNull(
                 token.getGrandTotal(),

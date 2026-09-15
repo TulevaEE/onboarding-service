@@ -1,30 +1,51 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember;
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.seb.Seb.SEB_GATEWAY_TIME_ZONE;
+import static ee.tuleva.onboarding.currency.Currency.EUR;
+import static ee.tuleva.onboarding.kyc.KycCheck.RiskLevel.NONE;
+import static ee.tuleva.onboarding.kyc.KycSurveyPurpose.PERSONAL_ONBOARDING;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_RECEIVED;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
 import static ee.tuleva.onboarding.ledger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
+import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.getaSecretKey;
+import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.getaSerializedSavingsPaymentToken;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.CREATED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RECEIVED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.VERIFIED;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.util.stream.Collectors.toSet;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.nimbusds.jose.JWSObject;
+import com.nimbusds.jose.Payload;
+import com.nimbusds.jose.crypto.MACSigner;
 import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.BankType;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.ProcessBankMessagesRequested;
 import ee.tuleva.onboarding.banking.message.BankingMessage;
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
 import ee.tuleva.onboarding.currency.Currency;
+import ee.tuleva.onboarding.kyc.KycCheck;
+import ee.tuleva.onboarding.kyc.KycCheckPerformedEvent;
 import ee.tuleva.onboarding.ledger.LedgerService;
+import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.payment.email.PaymentEmailSender;
+import ee.tuleva.onboarding.payment.event.SavingsPaymentCreatedEvent;
+import ee.tuleva.onboarding.payment.savings.SavingsCallbackService;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
 import ee.tuleva.onboarding.time.ClockHolder;
+import ee.tuleva.onboarding.user.UserRepository;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -34,11 +55,19 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.json.JsonMapper;
 
 @SpringBootTest
 @Transactional
+@RecordApplicationEvents
 class SavingFundPaymentUpsertionServiceIntegrationTest {
+
+  @MockitoBean private PaymentEmailSender paymentEmailSender;
 
   @Autowired private SavingFundPaymentRepository repository;
   @Autowired private BankingMessageRepository bankingMessageRepository;
@@ -702,5 +731,195 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
     var saved = bankingMessageRepository.save(message);
     eventPublisher.publishEvent(new ProcessBankMessagesRequested());
     return saved.getId();
+  }
+
+  @Nested
+  class CallbackWithoutSenderDetailsTests {
+
+    private static final String PAYER_CODE = "38812121215";
+    private static final PartyId PAYER = new PartyId(PERSON, PAYER_CODE);
+    private static final String DESCRIPTION = PAYER_CODE + ", 1788961806";
+    private static final BigDecimal AMOUNT = new BigDecimal("10.00");
+    private static final Instant STATEMENT_RECEIVED_AT = Instant.parse("2025-10-01T12:00:00Z");
+
+    private static final String STATEMENT_XML =
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?> "
+            + "<Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:camt.052.001.02\"> "
+            + "<BkToCstmrAcctRpt> "
+            + "<GrpHdr> <MsgId>test</MsgId> <CreDtTm>2025-10-01T12:00:00</CreDtTm> </GrpHdr> "
+            + "<Rpt> "
+            + "<Id>test-1</Id> "
+            + "<CreDtTm>2025-10-01T12:00:00</CreDtTm> "
+            + "<FrToDt> <FrDtTm>2025-10-01T00:00:00</FrDtTm> <ToDtTm>2025-10-01T12:00:00</ToDtTm> "
+            + "</FrToDt> "
+            + "<Acct> <Id> <IBAN>EE442200221092874625</IBAN> </Id> "
+            + "<Ownr> <Nm>TULEVA FONDID AS</Nm> "
+            + "<Id> <OrgId> <Othr> <Id>14118923</Id> </Othr> </OrgId> </Id> </Ownr> </Acct> "
+            + "<Ntry> "
+            + "<NtryRef>2025100112345-1</NtryRef>"
+            + "<Amt Ccy=\"EUR\">10.00</Amt> "
+            + "<CdtDbtInd>CRDT</CdtDbtInd> "
+            + "<Sts>BOOK</Sts> "
+            + "<BookgDt> <Dt>2025-10-01</Dt> </BookgDt> "
+            + "<NtryDtls> <TxDtls> "
+            + "<Refs> <AcctSvcrRef>2025100112345-1</AcctSvcrRef> <EndToEndId>E2E-1</EndToEndId> "
+            + "</Refs> "
+            + "<AmtDtls> <TxAmt> <Amt Ccy=\"EUR\">10.00</Amt> </TxAmt> </AmtDtls> "
+            + "<RltdPties> "
+            + "<Dbtr> <Nm>Jordan Valdma</Nm> "
+            + "<Id> <PrvtId> <Othr> <Id>"
+            + PAYER_CODE
+            + "</Id> </Othr> </PrvtId> </Id> </Dbtr> "
+            + "<DbtrAcct> <Id> <IBAN>EE157700771001802057</IBAN> </Id> </DbtrAcct> "
+            + "</RltdPties> "
+            + "<RmtInf> <Ustrd>"
+            + DESCRIPTION
+            + "</Ustrd> </RmtInf> "
+            + "</TxDtls> </NtryDtls> "
+            + "</Ntry> </Rpt> </BkToCstmrAcctRpt> </Document>";
+
+    @Autowired private SavingsCallbackService savingsCallbackService;
+    @Autowired private PaymentVerificationService paymentVerificationService;
+    @Autowired private SavingFundPaymentRepository paymentRepository;
+    @Autowired private SavingsFundLedger savingsFundLedger;
+    @Autowired private UserRepository userRepository;
+    @Autowired private BankingMessageRepository bankingMessageRepository;
+    @Autowired private ApplicationEventPublisher eventPublisher;
+    @Autowired private ApplicationEvents applicationEvents;
+    @Autowired private JsonMapper jsonMapper;
+
+    @BeforeEach
+    void savePayer() {
+      userRepository
+          .findByPersonalCode(PAYER_CODE)
+          .orElseGet(
+              () ->
+                  userRepository.save(
+                      sampleUserNonMember().personalCode(PAYER_CODE).id(null).build()));
+    }
+
+    @Test
+    void paidTokenWithoutSenderDetailsIsRecordedReceiptedOnceAndEnrichedByTheStatement()
+        throws Exception {
+      var recorded = savingsCallbackService.processToken(tokenWithoutSenderDetails());
+
+      assertThat(recorded).isTrue();
+      var payments = paymentRepository.findRecentPayments(DESCRIPTION);
+      assertThat(payments).hasSize(1);
+      var payment = payments.getFirst();
+      assertThat(payment)
+          .usingRecursiveComparison()
+          .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+          .ignoringFields("id", "createdAt", "statusChangedAt")
+          .isEqualTo(
+              SavingFundPayment.builder()
+                  .partyId(PAYER)
+                  .amount(AMOUNT)
+                  .currency(EUR)
+                  .description(DESCRIPTION)
+                  .status(CREATED)
+                  .build());
+      assertThat(receiptEvents()).hasSize(1);
+      assertThat(receiptEvents().getFirst().getUser().getPersonalCode()).isEqualTo(PAYER_CODE);
+      assertThat(receiptEvents().getFirst().getRecipient()).isEqualTo(PAYER);
+
+      processStatement();
+
+      assertThat(paymentRepository.findRecentPayments(DESCRIPTION)).hasSize(1);
+      var enriched = paymentRepository.findById(payment.getId()).orElseThrow();
+      assertThat(enriched)
+          .usingRecursiveComparison()
+          .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
+          .ignoringFields("createdAt", "statusChangedAt")
+          .isEqualTo(
+              SavingFundPayment.builder()
+                  .id(payment.getId())
+                  .partyId(PAYER)
+                  .amount(AMOUNT)
+                  .currency(EUR)
+                  .description(DESCRIPTION)
+                  .remitterIban("EE157700771001802057")
+                  .remitterIdCode(PAYER_CODE)
+                  .remitterName("Jordan Valdma")
+                  .beneficiaryIban("EE442200221092874625")
+                  .beneficiaryIdCode("14118923")
+                  .beneficiaryName("TULEVA FONDID AS")
+                  .externalId("2025100112345-1")
+                  .endToEndId("E2E-1")
+                  .receivedBefore(Instant.parse("2025-10-01T09:00:00Z"))
+                  .status(RECEIVED)
+                  .build());
+
+      completeOnboarding();
+      paymentVerificationService.process(enriched);
+
+      assertThat(paymentRepository.findById(payment.getId()).orElseThrow().getStatus())
+          .isEqualTo(VERIFIED);
+      assertThat(savingsFundLedger.hasLedgerEntry(payment.getId(), PAYMENT_RECEIVED)).isTrue();
+      assertThat(receiptEvents()).hasSize(1);
+    }
+
+    @Test
+    void theSameTokenTwiceRecordsOnePaymentAndOneReceipt() throws Exception {
+      var token = tokenWithoutSenderDetails();
+
+      var recordedFirst = savingsCallbackService.processToken(token);
+      var recordedAgain = savingsCallbackService.processToken(token);
+
+      assertThat(recordedFirst).isTrue();
+      assertThat(recordedAgain).isFalse();
+      assertThat(paymentRepository.findRecentPayments(DESCRIPTION)).hasSize(1);
+      assertThat(receiptEvents()).hasSize(1);
+    }
+
+    @Test
+    void aStatementThatArrivesBeforeTheCallbackLeavesNoReceipt() throws Exception {
+      processStatement();
+
+      var recorded = savingsCallbackService.processToken(tokenWithoutSenderDetails());
+
+      assertThat(recorded).isFalse();
+      assertThat(paymentRepository.findRecentPayments(DESCRIPTION)).hasSize(1);
+      assertThat(receiptEvents()).isEmpty();
+    }
+
+    private List<SavingsPaymentCreatedEvent> receiptEvents() {
+      return applicationEvents.stream(SavingsPaymentCreatedEvent.class).toList();
+    }
+
+    private String tokenWithoutSenderDetails() throws Exception {
+      var original = JWSObject.parse(getaSerializedSavingsPaymentToken());
+      Map<String, Object> payload =
+          jsonMapper.readValue(original.getPayload().toString(), new TypeReference<>() {});
+      payload.remove("senderName");
+      payload.remove("senderIban");
+      Map<String, Object> reference =
+          jsonMapper.readValue((String) payload.get("merchantReference"), new TypeReference<>() {});
+      reference.put("description", DESCRIPTION);
+      payload.put("merchantReference", jsonMapper.writeValueAsString(reference));
+      var token =
+          new JWSObject(original.getHeader(), new Payload(jsonMapper.writeValueAsString(payload)));
+      token.sign(new MACSigner(getaSecretKey().getBytes()));
+      return token.serialize();
+    }
+
+    private void processStatement() {
+      bankingMessageRepository.save(
+          BankingMessage.builder()
+              .bankType(BankType.SEB)
+              .requestId("test")
+              .trackingId("test")
+              .rawResponse(STATEMENT_XML)
+              .timezone(SEB_GATEWAY_TIME_ZONE.getId())
+              .receivedAt(STATEMENT_RECEIVED_AT)
+              .build());
+      eventPublisher.publishEvent(new ProcessBankMessagesRequested());
+    }
+
+    private void completeOnboarding() {
+      eventPublisher.publishEvent(
+          new KycCheckPerformedEvent(
+              this, PAYER_CODE, new KycCheck(NONE, Map.of()), PERSONAL_ONBOARDING));
+    }
   }
 }

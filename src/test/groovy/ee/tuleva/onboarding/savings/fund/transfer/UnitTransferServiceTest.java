@@ -121,7 +121,7 @@ class UnitTransferServiceTest {
   void submittingWithoutThePlanHashIsRefused() {
     givenTheLedgerQuotes();
 
-    assertThatThrownBy(() -> service.submit(command, "not-the-hash", "mari@tuleva.ee"))
+    assertThatThrownBy(() -> service.submit(command, "not-the-hash", "operator@example.com"))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("Confirm does not match the plan");
     verifyNoInteractions(transfers);
@@ -133,10 +133,10 @@ class UnitTransferServiceTest {
     var planned = (Planned) service.preview(command);
     givenTheRepositoryReturnsWhateverItIsGiven();
 
-    var submitted = service.submit(command, planned.planHash(), "mari@tuleva.ee");
+    var submitted = service.submit(command, planned.planHash(), "operator@example.com");
 
     assertThat(submitted.isAwaitingApproval()).isTrue();
-    assertThat(submitted.getSubmittedBy()).isEqualTo("mari@tuleva.ee");
+    assertThat(submitted.getSubmittedBy()).isEqualTo("operator@example.com");
     assertThat(submitted.getPlanHash()).isEqualTo(planned.planHash());
     assertThat(submitted.getRecipientAcquisitionCostEur()).isEqualByComparingTo(ZERO);
   }
@@ -146,7 +146,7 @@ class UnitTransferServiceTest {
     var awaiting = anAwaitingTransfer();
     given(transfers.findById(awaiting.getId())).willReturn(Optional.of(awaiting));
 
-    assertThatThrownBy(() -> service.approve(awaiting.getId(), "mari@tuleva.ee"))
+    assertThatThrownBy(() -> service.approve(awaiting.getId(), "operator@example.com"))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("approved by someone other than whoever submitted it");
     verifyNoInteractions(savingsFundLedger);
@@ -165,10 +165,10 @@ class UnitTransferServiceTest {
                 any(PartyRef.class), any(PartyRef.class), any(), any()))
         .willReturn(recorded);
 
-    var approved = service.approve(awaiting.getId(), "tonu@tuleva.ee");
+    var approved = service.approve(awaiting.getId(), "approver@example.com");
 
     assertThat(approved.getState()).isEqualTo(EXECUTED);
-    assertThat(approved.getApprovedBy()).isEqualTo("tonu@tuleva.ee");
+    assertThat(approved.getApprovedBy()).isEqualTo("approver@example.com");
     assertThat(approved.getLedgerTransactionId()).isEqualTo(ledgerTransactionId);
     assertThat(approved.getExecutedAt()).isEqualTo(Instant.parse("2026-09-15T09:00:00Z"));
   }
@@ -176,10 +176,11 @@ class UnitTransferServiceTest {
   @Test
   void anAlreadyExecutedTransferCannotBeApprovedAgain() {
     var awaiting = anAwaitingTransfer();
-    awaiting.executedBy("tonu@tuleva.ee", randomUUID(), Instant.parse("2026-09-15T08:00:00Z"));
+    awaiting.executedBy(
+        "approver@example.com", randomUUID(), Instant.parse("2026-09-15T08:00:00Z"));
     given(transfers.findById(awaiting.getId())).willReturn(Optional.of(awaiting));
 
-    assertThatThrownBy(() -> service.approve(awaiting.getId(), "kadri@tuleva.ee"))
+    assertThatThrownBy(() -> service.approve(awaiting.getId(), "someone-else@example.com"))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("Only a transfer awaiting approval can be approved");
     verifyNoInteractions(savingsFundLedger);
@@ -231,7 +232,7 @@ class UnitTransferServiceTest {
         .evidence("Notice by email from the owner, 2026-09-14")
         .planHash("whatever-was-previewed")
         .state(UnitTransferState.AWAITING_APPROVAL)
-        .submittedBy("mari@tuleva.ee")
+        .submittedBy("operator@example.com")
         .build();
   }
 }

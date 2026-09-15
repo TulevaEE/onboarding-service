@@ -19,6 +19,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -83,7 +84,7 @@ public class UnitTransferService {
     UnitTransfer transfer =
         transfers
             .findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("No such transfer: id=" + id));
+            .orElseThrow(() -> new NoSuchElementException("No such transfer: id=" + id));
 
     if (!transfer.isAwaitingApproval()) {
       throw new IllegalStateException(
@@ -113,7 +114,7 @@ public class UnitTransferService {
     UnitTransfer transfer =
         transfers
             .findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("No such transfer: id=" + id));
+            .orElseThrow(() -> new NoSuchElementException("No such transfer: id=" + id));
     if (!transfer.isAwaitingApproval()) {
       throw new IllegalStateException(
           "Only a transfer awaiting approval can be cancelled: id="

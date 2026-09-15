@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.transfer;
 
 import static ee.tuleva.onboarding.savings.fund.transfer.UnitTransferState.AWAITING_APPROVAL;
+import static java.math.RoundingMode.UNNECESSARY;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNullElse;
 import static java.util.stream.Collectors.joining;
@@ -82,7 +83,7 @@ public class UnitTransferService {
             .toPartyCode(command.toCode())
             .toPartyType(command.toType())
             .fundUnits(command.fundUnits())
-            .recipientAcquisitionCostEur(command.recipientAcquisitionCostEur())
+            .recipientAcquisitionCostEur(inWholeCents(command.recipientAcquisitionCostEur()))
             .notifiedAt(command.notifiedAt())
             .evidence(command.evidence())
             .giverPaidInEur(planned.plan().giverPaidIn())
@@ -116,23 +117,12 @@ public class UnitTransferService {
               + transfer.getSubmittedBy());
     }
 
-    UnitTransferVerdict stillStands = preview(transfer.asCommand());
-    if (stillStands instanceof Refused refused) {
+    if (preview(transfer.asCommand()) instanceof Refused refused) {
       throw new IllegalStateException(
           "Refusing to approve a transfer the ledger would no longer make: id="
               + id
               + ", refused="
               + refused.refused());
-    }
-    Planned asItStandsNow = (Planned) stillStands;
-    if (!asItStandsNow.planHash().equals(transfer.getPlanHash())) {
-      throw new IllegalStateException(
-          "Refusing to approve a transfer that is no longer what was shown: id="
-              + id
-              + ", submittedPlanHash="
-              + transfer.getPlanHash()
-              + ", currentPlanHash="
-              + asItStandsNow.planHash());
     }
 
     var recorded =
@@ -233,10 +223,19 @@ public class UnitTransferService {
                 plan.giverUnitsOwned().toPlainString(),
                 command.notifiedAt().toString(),
                 command.evidence(),
-                String.valueOf(command.recipientAcquisitionCostEur()))
+                theCostAsHashed(command.recipientAcquisitionCostEur()))
             .map(field -> field.length() + ":" + field)
             .collect(joining("|"));
     return HexFormat.of().formatHex(sha256().digest(canonical.getBytes(UTF_8)));
+  }
+
+  private static @Nullable BigDecimal inWholeCents(@Nullable BigDecimal cost) {
+    return cost == null ? null : cost.setScale(2, UNNECESSARY);
+  }
+
+  private static String theCostAsHashed(@Nullable BigDecimal cost) {
+    BigDecimal inWholeCents = inWholeCents(cost);
+    return inWholeCents == null ? "null" : inWholeCents.toPlainString();
   }
 
   private static MessageDigest sha256() {

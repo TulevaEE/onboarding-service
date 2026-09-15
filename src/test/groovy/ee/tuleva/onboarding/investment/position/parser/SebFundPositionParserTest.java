@@ -1,12 +1,18 @@
 package ee.tuleva.onboarding.investment.position.parser;
 
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
+import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
+import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.*;
 import static java.math.BigDecimal.ONE;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.then;
+import static org.mockito.Mockito.mock;
 
 import ee.tuleva.onboarding.investment.position.FundPosition;
 import ee.tuleva.onboarding.investment.report.CsvToJsonConverter;
+import ee.tuleva.onboarding.investment.report.MissingReportAsOfDateEvent;
+import ee.tuleva.onboarding.investment.report.SebReportAsOfDate;
 import java.io.ByteArrayInputStream;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -16,10 +22,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 
 class SebFundPositionParserTest {
 
-  private final SebFundPositionParser parser = new SebFundPositionParser(Clock.systemUTC());
+  private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
+
+  private final SebFundPositionParser parser =
+      new SebFundPositionParser(Clock.systemUTC(), new SebReportAsOfDate(eventPublisher));
   private final CsvToJsonConverter csvConverter = new CsvToJsonConverter();
   private static final LocalDate REPORT_DATE = LocalDate.of(2026, 1, 26);
   private static final LocalDate NAV_DATE = LocalDate.of(2026, 1, 25);
@@ -37,12 +47,12 @@ class SebFundPositionParserTest {
                 "Currency", "EUR",
                 "Market Value (EUR)", new BigDecimal("5302814.90")));
 
-    List<FundPosition> positions = parser.parse(rawData, REPORT_DATE);
+    List<FundPosition> positions = parseWithAsOfMetadata(rawData);
 
     assertThat(positions).hasSize(1);
 
     FundPosition position = positions.getFirst();
-    assertThat(position.getNavDate()).isEqualTo(REPORT_DATE);
+    assertThat(position.getNavDate()).isEqualTo(NAV_DATE);
     assertThat(position.getReportDate()).isEqualTo(REPORT_DATE);
     assertThat(position.getFund()).isEqualTo(TKF100);
     assertThat(position.getAccountType()).isEqualTo(CASH);
@@ -99,7 +109,7 @@ class SebFundPositionParserTest {
                 "Currency", "EUR",
                 "Market Value (EUR)", new BigDecimal("528888.44")));
 
-    List<FundPosition> positions = parser.parse(rawData, REPORT_DATE);
+    List<FundPosition> positions = parseWithAsOfMetadata(rawData);
 
     assertThat(positions).hasSize(1);
     FundPosition position = positions.getFirst();
@@ -124,7 +134,7 @@ class SebFundPositionParserTest {
                 "Name", "Receivables of outstanding units",
                 "Market Value (EUR)", new BigDecimal("0.00")));
 
-    List<FundPosition> positions = parser.parse(rawData, REPORT_DATE);
+    List<FundPosition> positions = parseWithAsOfMetadata(rawData);
 
     assertThat(positions).hasSize(1);
     FundPosition position = positions.getFirst();
@@ -145,7 +155,7 @@ class SebFundPositionParserTest {
                 "Name", "Payables of redeemed units",
                 "Market Value (EUR)", new BigDecimal("0.00")));
 
-    List<FundPosition> positions = parser.parse(rawData, REPORT_DATE);
+    List<FundPosition> positions = parseWithAsOfMetadata(rawData);
 
     assertThat(positions).hasSize(1);
     FundPosition position = positions.getFirst();
@@ -164,7 +174,7 @@ class SebFundPositionParserTest {
                 "Name", "Total outstanding units:",
                 "Quantity", new BigDecimal("219655461.600")));
 
-    List<FundPosition> positions = parser.parse(rawData, REPORT_DATE);
+    List<FundPosition> positions = parseWithAsOfMetadata(rawData);
 
     assertThat(positions).hasSize(1);
     FundPosition position = positions.getFirst();
@@ -183,7 +193,7 @@ class SebFundPositionParserTest {
                 "Account", "Total",
                 "Market Value (EUR)", new BigDecimal("59801848.29")));
 
-    List<FundPosition> positions = parser.parse(rawData, REPORT_DATE);
+    List<FundPosition> positions = parseWithAsOfMetadata(rawData);
 
     assertThat(positions).hasSize(1);
     FundPosition position = positions.getFirst();
@@ -202,7 +212,7 @@ class SebFundPositionParserTest {
             createDataRow("TUK75", "Cash account in SEB Pank", "3000.00"),
             createDataRow("TUK00", "Cash account in SEB Pank", "4000.00"));
 
-    List<FundPosition> positions = parser.parse(rawData, REPORT_DATE);
+    List<FundPosition> positions = parseWithAsOfMetadata(rawData);
 
     assertThat(positions).hasSize(4);
     assertThat(positions.get(0).getFund()).isEqualTo(TKF100);
@@ -266,7 +276,7 @@ class SebFundPositionParserTest {
   }
 
   @Test
-  void parse_fallsBackToReportDateWhenNoHeaders() {
+  void parse_warnsAndFallsBackToTheReportDate_whenThereIsNoAsOfDate() {
     List<Map<String, Object>> rawData =
         List.of(
             Map.of(
@@ -280,9 +290,25 @@ class SebFundPositionParserTest {
     List<FundPosition> positions = parser.parse(rawData, REPORT_DATE);
 
     assertThat(positions).hasSize(1);
-    FundPosition position = positions.getFirst();
-    assertThat(position.getNavDate()).isEqualTo(REPORT_DATE);
-    assertThat(position.getReportDate()).isEqualTo(REPORT_DATE);
+    assertThat(positions.getFirst().getNavDate()).isEqualTo(REPORT_DATE);
+    then(eventPublisher)
+        .should()
+        .publishEvent(new MissingReportAsOfDateEvent(SEB, POSITIONS, REPORT_DATE, null));
+  }
+
+  @Test
+  void parse_namesTheUnreadableValue_whenTheAsOfDateIsNotADate() {
+    Map<String, Object> asOfRow = new HashMap<>();
+    asOfRow.put("Fund Management Company:", "As of:");
+    asOfRow.put("Tuleva Fondid AS", "25.01.2026");
+    List<Map<String, Object>> rawData =
+        List.of(asOfRow, createDataRow("TKF100", "Cash account in SEB Pank", "1000"));
+
+    parser.parse(rawData, REPORT_DATE);
+
+    then(eventPublisher)
+        .should()
+        .publishEvent(new MissingReportAsOfDateEvent(SEB, POSITIONS, REPORT_DATE, "25.01.2026"));
   }
 
   @Test
@@ -302,7 +328,7 @@ class SebFundPositionParserTest {
                 "Quantity", new BigDecimal("1000"),
                 "Currency", "EUR"));
 
-    List<FundPosition> positions = parser.parse(rawData, REPORT_DATE);
+    List<FundPosition> positions = parseWithAsOfMetadata(rawData);
 
     assertThat(positions).isEmpty();
   }
@@ -314,7 +340,7 @@ class SebFundPositionParserTest {
             + "TKF100;EE861010220306591229;;Cash account in SEB Pank;24826773,530;1,000;EUR;24826773,53\n"
             + "TKF100;VP68168;IE00BMDBMY19;Invesco MSCI ETF;15000,523;35,258;EUR;528888,44";
 
-    List<FundPosition> positions = parser.parse(toJson(csv), REPORT_DATE);
+    List<FundPosition> positions = parseWithAsOfMetadata(toJson(csv));
 
     assertThat(positions).hasSize(2);
     assertThat(positions.get(0).getFund()).isEqualTo(TKF100);
@@ -335,7 +361,7 @@ class SebFundPositionParserTest {
     row.put("Currency", "EUR");
     row.put("Market Value (EUR)", 528888.44);
 
-    List<FundPosition> positions = parser.parse(List.of(row), REPORT_DATE);
+    List<FundPosition> positions = parseWithAsOfMetadata(List.of(row));
 
     assertThat(positions).hasSize(1);
     assertThat(positions.getFirst().getQuantity()).isEqualByComparingTo(new BigDecimal("15000.5"));
@@ -355,7 +381,7 @@ class SebFundPositionParserTest {
     row.put("Currency", "EUR");
     row.put("Market Value (EUR)", "528 888.44");
 
-    List<FundPosition> positions = parser.parse(List.of(row), REPORT_DATE);
+    List<FundPosition> positions = parseWithAsOfMetadata(List.of(row));
 
     assertThat(positions).hasSize(1);
     assertThat(positions.getFirst().getQuantity())
@@ -377,7 +403,7 @@ class SebFundPositionParserTest {
     row.put("Currency", "EUR");
     row.put("Market Value (EUR)", "-");
 
-    List<FundPosition> positions = parser.parse(List.of(row), REPORT_DATE);
+    List<FundPosition> positions = parseWithAsOfMetadata(List.of(row));
 
     assertThat(positions).hasSize(1);
     assertThat(positions.getFirst().getQuantity()).isNull();
@@ -402,10 +428,16 @@ class SebFundPositionParserTest {
     List<Map<String, Object>> rawData =
         List.of(unreadable, createDataRow("TKF100", "Cash account in SEB Pank", "1000"));
 
-    List<FundPosition> positions = parser.parse(rawData, REPORT_DATE);
+    List<FundPosition> positions = parseWithAsOfMetadata(rawData);
 
     assertThat(positions).hasSize(1);
     assertThat(positions.getFirst().getAccountName()).isEqualTo("Cash account in SEB Pank");
+  }
+
+  // Production strips the five preamble rows into metadata via SebReportSource.extractCsvMetadata,
+  // so that is the branch these fixtures must exercise. The raw-data fallback has its own tests.
+  private List<FundPosition> parseWithAsOfMetadata(List<Map<String, Object>> rawData) {
+    return parser.parse(rawData, REPORT_DATE, Map.of("asOfDate", NAV_DATE.toString()));
   }
 
   private Map<String, Object> createDataRow(String fundCode, String name, String marketValue) {

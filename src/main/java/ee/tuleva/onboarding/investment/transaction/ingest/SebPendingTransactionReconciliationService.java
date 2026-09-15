@@ -5,7 +5,7 @@ import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACT
 
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
-import ee.tuleva.onboarding.investment.report.SebReportHeaders;
+import ee.tuleva.onboarding.investment.report.SebReportAsOfDate;
 import ee.tuleva.onboarding.investment.transaction.OrderStatus;
 import ee.tuleva.onboarding.investment.transaction.OrderVenue;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecution;
@@ -43,6 +43,7 @@ public class SebPendingTransactionReconciliationService {
   private final TransactionExecutionRepository executionRepository;
   private final TransactionOrderRepository orderRepository;
   private final ApplicationEventPublisher eventPublisher;
+  private final SebReportAsOfDate sebReportAsOfDate;
   private final ReconciliationAuditRecorder auditRecorder;
   private final TransactionSettlementRepository settlementRepository;
   private final TransactionSettlementService settlementService;
@@ -54,11 +55,14 @@ public class SebPendingTransactionReconciliationService {
 
   @Transactional
   public void reconcile(InvestmentReport report) {
+    LocalDate reportDate = report.getReportDate();
+    LocalDate asOfDate =
+        sebReportAsOfDate.resolveOrFallBackToReportDate(
+            PENDING_TRANSACTIONS, reportDate, report.getMetadata(), report.getRawData());
+
     SebPendingTransactionExtractor.ExtractionResult extraction =
         extractor.extractWithDiagnostics(report);
     List<SebPendingTransactionRow> rows = extraction.rows();
-    LocalDate reportDate = report.getReportDate();
-    LocalDate asOfDate = asOfDate(report);
     TransactionMatchingProperties matchingProperties = matchingPolicy.current();
     log.info(
         "Reconciling SEB pending transactions: reportDate={}, rowCount={}, malformedCount={}",
@@ -198,17 +202,5 @@ public class SebPendingTransactionReconciliationService {
         reportDate);
     settlementService.recordSettlement(order, reportDate);
     auditRecorder.recordSettlementDetected(order, reportDate);
-  }
-
-  private LocalDate asOfDate(InvestmentReport report) {
-    LocalDate asOfDate = SebReportHeaders.asOfDate(report);
-    if (asOfDate == null) {
-      log.warn(
-          "No 'As of' date in SEB pending transactions report, falling back to report date:"
-              + " reportDate={}",
-          report.getReportDate());
-      return report.getReportDate();
-    }
-    return asOfDate;
   }
 }

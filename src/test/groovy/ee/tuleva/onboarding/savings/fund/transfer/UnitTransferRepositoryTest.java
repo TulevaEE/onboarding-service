@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
 import static ee.tuleva.onboarding.savings.fund.transfer.UnitTransferState.AWAITING_APPROVAL;
 import static ee.tuleva.onboarding.savings.fund.transfer.UnitTransferState.CANCELLED;
+import static ee.tuleva.onboarding.savings.fund.transfer.UnitTransferState.EXECUTED;
 import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -12,6 +13,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.UUID;
 import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,7 +28,14 @@ class UnitTransferRepositoryTest {
 
   @Test
   void savesATransferAndReadsBackEverythingItWasGiven() {
-    var saved = repository.save(aTransfer().build());
+    var saved =
+        repository.save(
+            aTransfer()
+                .state(EXECUTED)
+                .approvedBy("approver@tuleva.ee")
+                .ledgerTransactionId(UUID.fromString("11111111-2222-3333-4444-555555555555"))
+                .executedAt(Instant.parse("2026-09-15T09:00:00Z"))
+                .build());
     entityManager.flush();
     entityManager.clear();
 

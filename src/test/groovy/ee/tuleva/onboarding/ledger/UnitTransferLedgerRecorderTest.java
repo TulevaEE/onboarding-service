@@ -19,6 +19,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 import org.springframework.context.annotation.Import;
 
 @DataJpaTest
@@ -38,6 +39,7 @@ class UnitTransferLedgerRecorderTest {
 
   @Autowired LedgerService ledgerService;
   @Autowired SavingsFundLedger savingsFundLedger;
+  @Autowired TestEntityManager entityManager;
 
   PartyRef giver = new PartyRef(PERSON, "38888888888");
   PartyRef receiver = new PartyRef(PERSON, "39999999999");
@@ -120,6 +122,29 @@ class UnitTransferLedgerRecorderTest {
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("UNIT_TRANSFER");
     assertThat(transaction.getMetadata().get("partyCode")).isEqualTo(giver.code());
     assertThat(transaction.getMetadata().get("recipientCode")).isEqualTo(receiver.code());
+  }
+
+  @Test
+  void quotingAnswersTheFiguresTheTransferWouldLeaveBehindAndWritesNothing() {
+    givenUnitsWorth(giver, new BigDecimal("1000.00"), new BigDecimal("100.00000"));
+    savingsFundLedger.reserveFundUnitsForRedemption(
+        giver, new BigDecimal("30.00000"), randomUUID());
+    var transactionsBefore = transactionCount();
+
+    var quote = savingsFundLedger.quoteUnitTransfer(giver, receiver, new BigDecimal("40"));
+
+    assertThat(quote)
+        .isEqualTo(
+            new UnitTransferQuote(
+                new BigDecimal("40.00000"),
+                new BigDecimal("30.00000"),
+                new BigDecimal("40.00000"),
+                new BigDecimal("1000.00"),
+                new BigDecimal("100.00000")));
+    assertThat(transactionCount()).isEqualTo(transactionsBefore);
+    assertThat(holding(giver, FUND_UNITS)).isEqualByComparingTo("70.00000");
+    assertThat(holding(giver, SUBSCRIPTIONS)).isEqualByComparingTo("1000.00");
+    assertThat(holding(receiver, FUND_UNITS)).isEqualByComparingTo(ZERO);
   }
 
   @Test
@@ -226,6 +251,13 @@ class UnitTransferLedgerRecorderTest {
     savingsFundLedger.reservePaymentForSubscription(party, cashAmount, paymentId);
     savingsFundLedger.issueFundUnitsFromReserved(
         party, cashAmount, fundUnits, navPerUnit, paymentId);
+  }
+
+  private long transactionCount() {
+    return entityManager
+        .getEntityManager()
+        .createQuery("SELECT COUNT(transaction) FROM LedgerTransaction transaction", Long.class)
+        .getSingleResult();
   }
 
   private BigDecimal holding(PartyRef party, UserAccount userAccount) {

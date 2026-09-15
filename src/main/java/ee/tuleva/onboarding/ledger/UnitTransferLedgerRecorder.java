@@ -5,6 +5,8 @@ import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.UNIT
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.RECIPIENT_CODE;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.RECIPIENT_TYPE;
 import static ee.tuleva.onboarding.ledger.UserAccount.FUND_UNITS;
+import static ee.tuleva.onboarding.ledger.UserAccount.FUND_UNITS_RESERVED;
+import static ee.tuleva.onboarding.ledger.UserAccount.SUBSCRIPTIONS;
 import static java.math.RoundingMode.HALF_UP;
 
 import jakarta.transaction.Transactional;
@@ -93,12 +95,16 @@ class UnitTransferLedgerRecorder {
     return new UnitTransferQuote(
         transferredUnits,
         availableUnits.subtract(transferredUnits),
-        holding(involved.toUnits()).add(transferredUnits));
+        holding(involved.toUnits()).add(transferredUnits),
+        holding(involved.fromSubscriptions()),
+        availableUnits.add(holding(involved.fromReservedUnits())));
   }
 
   private Involved resolve(PartyRef from, PartyRef to) {
     return new Involved(
         accounts.resolvePartyAccount(from, FUND_UNITS),
+        accounts.resolvePartyAccount(from, FUND_UNITS_RESERVED),
+        accounts.resolvePartyAccount(from, SUBSCRIPTIONS),
         accounts.resolvePartyAccount(to, FUND_UNITS));
   }
 
@@ -107,5 +113,9 @@ class UnitTransferLedgerRecorder {
     return account.getBalance().negate();
   }
 
-  private record Involved(LedgerAccount fromUnits, LedgerAccount toUnits) {}
+  private record Involved(
+      LedgerAccount fromUnits,
+      LedgerAccount fromReservedUnits,
+      LedgerAccount fromSubscriptions,
+      LedgerAccount toUnits) {}
 }

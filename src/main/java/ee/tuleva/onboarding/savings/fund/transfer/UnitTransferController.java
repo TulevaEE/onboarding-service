@@ -5,8 +5,10 @@ import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
+import ee.tuleva.onboarding.admin.AdminTokenValidator;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
@@ -17,6 +19,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -28,30 +31,42 @@ import org.springframework.web.bind.annotation.RestController;
 public class UnitTransferController {
 
   private final UnitTransferService unitTransferService;
+  private final AdminTokenValidator tokenValidator;
 
   @PostMapping("/preview")
-  UnitTransferVerdict preview(@Valid @RequestBody UnitTransferCommand command) {
+  UnitTransferVerdict preview(
+      @RequestHeader("X-Admin-Token") String token,
+      @Valid @RequestBody UnitTransferCommand command) {
+    tokenValidator.validate(token);
     return unitTransferService.preview(command);
   }
 
   @PostMapping
-  UnitTransferSummary submit(@Valid @RequestBody SubmitRequest request) {
+  UnitTransferSummary submit(
+      @RequestHeader("X-Admin-Token") String token, @Valid @RequestBody SubmitRequest request) {
+    tokenValidator.validate(token);
     return UnitTransferSummary.of(
         unitTransferService.submit(request.transfer(), request.confirm(), request.submittedBy()));
   }
 
   @PostMapping("/{id}/approve")
-  UnitTransferSummary approve(@PathVariable UUID id, @Valid @RequestBody ApproveRequest request) {
+  UnitTransferSummary approve(
+      @RequestHeader("X-Admin-Token") String token,
+      @PathVariable UUID id,
+      @Valid @RequestBody ApproveRequest request) {
+    tokenValidator.validate(token);
     return UnitTransferSummary.of(unitTransferService.approve(id, request.approvedBy()));
   }
 
   @PostMapping("/{id}/cancel")
-  UnitTransferSummary cancel(@PathVariable UUID id) {
+  UnitTransferSummary cancel(@RequestHeader("X-Admin-Token") String token, @PathVariable UUID id) {
+    tokenValidator.validate(token);
     return UnitTransferSummary.of(unitTransferService.cancel(id));
   }
 
   @GetMapping("/awaiting-approval")
-  List<UnitTransferSummary> awaitingApproval() {
+  List<UnitTransferSummary> awaitingApproval(@RequestHeader("X-Admin-Token") String token) {
+    tokenValidator.validate(token);
     return unitTransferService.awaitingApproval().stream().map(UnitTransferSummary::of).toList();
   }
 
@@ -78,7 +93,7 @@ public class UnitTransferController {
   }
 
   record SubmitRequest(
-      @Valid UnitTransferCommand transfer,
+      @Valid @NotNull UnitTransferCommand transfer,
       @NotBlank String confirm,
       @NotBlank String submittedBy) {}
 

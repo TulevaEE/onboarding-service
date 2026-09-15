@@ -21,5 +21,7 @@ public sealed interface UnitTransferVerdict {
       BigDecimal fundUnits,
       BigDecimal giverUnitsAfter,
       BigDecimal receiverUnitsAfter,
-      @Nullable BigDecimal recipientAcquisitionCostEur) {}
+      @Nullable BigDecimal recipientAcquisitionCostEur,
+      BigDecimal giverPaidIn,
+      BigDecimal giverUnitsOwned) {}
 }

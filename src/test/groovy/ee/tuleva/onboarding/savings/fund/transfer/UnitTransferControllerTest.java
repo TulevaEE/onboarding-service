@@ -210,6 +210,8 @@ class UnitTransferControllerTest {
         .fundUnits(new BigDecimal("40.00000"))
         .notifiedAt(LocalDate.parse("2026-09-14"))
         .evidence("Notice by email")
+        .giverPaidInEur(new BigDecimal("1000.00"))
+        .giverUnitsOwned(new BigDecimal("100.00000"))
         .planHash("abc123")
         .state(UnitTransferState.AWAITING_APPROVAL)
         .submittedBy("operator@example.com")

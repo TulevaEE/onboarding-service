@@ -78,6 +78,8 @@ public class UnitTransferService {
             .recipientAcquisitionCostEur(command.recipientAcquisitionCostEur())
             .notifiedAt(command.notifiedAt())
             .evidence(command.evidence())
+            .giverPaidInEur(planned.plan().giverPaidIn())
+            .giverUnitsOwned(planned.plan().giverUnitsOwned())
             .planHash(planned.planHash())
             .state(AWAITING_APPROVAL)
             .submittedBy(whoeverIsActing(submittedBy, "submitting it"))
@@ -194,6 +196,8 @@ public class UnitTransferService {
                 plan.fundUnits().toPlainString(),
                 plan.giverUnitsAfter().toPlainString(),
                 plan.receiverUnitsAfter().toPlainString(),
+                plan.giverPaidIn().toPlainString(),
+                plan.giverUnitsOwned().toPlainString(),
                 command.notifiedAt().toString(),
                 command.evidence(),
                 String.valueOf(command.recipientAcquisitionCostEur()))

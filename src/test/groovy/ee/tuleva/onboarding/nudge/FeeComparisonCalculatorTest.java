@@ -50,9 +50,19 @@ class FeeComparisonCalculatorTest {
   }
 
   @Test
-  void noComparisonWhenTheFeeIsNotHigh() {
-    assertThat(calculator.forSecondPillar(user, new BigDecimal("0.003"))).isEmpty();
+  void noComparisonWhenTheFeeIsUnderThreeTenthsOfAPercentOrUnknown() {
+    assertThat(calculator.forSecondPillar(user, new BigDecimal("0.0029"))).isEmpty();
     assertThat(calculator.forSecondPillar(user, null)).isEmpty();
+  }
+
+  @Test
+  void aFeeOfExactlyThreeTenthsOfAPercentCountsAsHigh() {
+    given(conversionHoldings.forPerson(user))
+        .willReturn(List.of(holding(2, new BigDecimal("20000"))));
+    given(fundRepository.findByIsin(TULEVA_SECOND_PILLAR_ISIN))
+        .willReturn(Fund.builder().ongoingChargesFigure(new BigDecimal("0.0028")).build());
+
+    assertThat(calculator.forSecondPillar(user, new BigDecimal("0.003"))).isPresent();
   }
 
   @Test

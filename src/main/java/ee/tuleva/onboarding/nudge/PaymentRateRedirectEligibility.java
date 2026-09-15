@@ -24,7 +24,7 @@ class PaymentRateRedirectEligibility {
 
   boolean isEligible(User user) {
     try {
-      return savesTheStartingRateAtTuleva(user)
+      return savesTheStartingRateInALowFeeFund(user)
           && !paymentRateChangeHistory.hasChangeSince(user, paymentRateSeasons.previousDeadline())
           && earnsEnough(user);
     } catch (RuntimeException e) {
@@ -36,12 +36,12 @@ class PaymentRateRedirectEligibility {
     }
   }
 
-  private boolean savesTheStartingRateAtTuleva(User user) {
+  private boolean savesTheStartingRateInALowFeeFund(User user) {
     NudgeInputs inputs = nudgeDecisionService.inputsFor(user);
     return inputs.adult()
         && !inputs.reachedRetirementAge()
         && inputs.secondPillarActive()
-        && inputs.secondPillarFullyConverted()
+        && inputs.secondPillarInLowFeeFund()
         && inputs.leftSecondPillar().isNo()
         && !inputs.pendingSecondPillarWithdrawal()
         && paysTheStartingRate(paymentRateService.getPaymentRates(user));

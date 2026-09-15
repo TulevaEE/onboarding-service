@@ -90,10 +90,46 @@ class PaymentRateRedirectEligibilityTest {
   }
 
   @Test
-  void aSaverWhoseSecondPillarIsNotFullyAtTulevaIsNotEligible() {
+  void aTwoPercentSaverInACheapFundElsewhereIsEligibleWithoutAnyTulevaUnits() {
     given(nudgeDecisionService.inputsFor(user))
         .willReturn(
-            NudgeInputsFixture.everythingSorted().secondPillarFullyConverted(false).build());
+            NudgeInputsFixture.everythingSorted()
+                .secondPillarPartiallyConverted(false)
+                .secondPillarFullyConverted(false)
+                .secondPillarFee(new BigDecimal("0.0029"))
+                .build());
+
+    assertThat(eligibility.isEligible(user)).isTrue();
+  }
+
+  @Test
+  void aSaverWhoseSecondPillarSitsInAnExpensiveFundIsNotEligibleBecauseTheTransferNudgeWins() {
+    given(nudgeDecisionService.inputsFor(user))
+        .willReturn(
+            NudgeInputsFixture.everythingSorted()
+                .secondPillarPartiallyConverted(false)
+                .secondPillarFullyConverted(false)
+                .secondPillarFee(new BigDecimal("0.0065"))
+                .build());
+    assertThat(eligibility.isEligible(user)).isFalse();
+
+    given(nudgeDecisionService.inputsFor(user))
+        .willReturn(
+            NudgeInputsFixture.everythingSorted()
+                .secondPillarFullyConverted(false)
+                .secondPillarFee(new BigDecimal("0.003"))
+                .build());
+    assertThat(eligibility.isEligible(user)).isFalse();
+  }
+
+  @Test
+  void anUnknownSecondPillarFeeIsNotEligible() {
+    given(nudgeDecisionService.inputsFor(user))
+        .willReturn(
+            NudgeInputsFixture.everythingSorted()
+                .secondPillarFullyConverted(false)
+                .secondPillarFee(null)
+                .build());
 
     assertThat(eligibility.isEligible(user)).isFalse();
   }

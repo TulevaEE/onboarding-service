@@ -4,11 +4,19 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.LocalDate;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.transaction.annotation.Transactional;
 
 interface LimitCheckEventRepository extends JpaRepository<LimitCheckEvent, Long> {
 
   List<LimitCheckEvent> findByFundAndCheckDate(TulevaFund fund, LocalDate checkDate);
+
+  @Query(
+      """
+      SELECT DISTINCT e.checkDate FROM LimitCheckEvent e
+      WHERE e.fund = :fund AND e.checkDate BETWEEN :start AND :end
+      """)
+  List<LocalDate> findDistinctCheckDates(TulevaFund fund, LocalDate start, LocalDate end);
 
   @Transactional
   void deleteByFundAndCheckDateAndCheckType(

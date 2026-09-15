@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -38,6 +39,40 @@ class JobRunScheduleTest {
     STORES_NOTHING_DERIVED_FROM_THE_IMPORT
   }
 
+  @Test
+  void limitCheckGapFill_firesOncePerBusinessDayAtQuarterPast() {
+    CronExpression cron = CronExpression.parse(JobRunSchedule.LIMIT_CHECK_GAP_FILL);
+
+    ZonedDateTime cursor = LocalDateTime.parse("2026-04-13T00:00:00").atZone(TALLINN);
+    ZonedDateTime endOfWeek = cursor.plusDays(7);
+    List<ZonedDateTime> fires = new ArrayList<>();
+    while (true) {
+      ZonedDateTime next = cron.next(cursor);
+      if (next == null || !next.isBefore(endOfWeek)) break;
+      fires.add(next);
+      cursor = next;
+    }
+
+    assertThat(fires).hasSize(5);
+    assertThat(fires)
+        .allSatisfy(
+            fire -> {
+              assertThat(fire.getHour()).isEqualTo(19);
+              assertThat(fire.getMinute()).isEqualTo(15);
+              assertThat(fire.getDayOfWeek().getValue()).isLessThanOrEqualTo(5);
+            });
+  }
+
+  @Test
+  void limitCheckGapFill_firesAfterTheTrackingDifferenceGapFillHasStarted() {
+    var startOfWeek = LocalDateTime.parse("2026-04-13T00:00:00").atZone(TALLINN);
+    var trackingDifference =
+        CronExpression.parse(JobRunSchedule.TRACKING_DIFFERENCE_GAP_FILL).next(startOfWeek);
+    var limitCheck = CronExpression.parse(JobRunSchedule.LIMIT_CHECK_GAP_FILL).next(startOfWeek);
+
+    assertThat(limitCheck).isAfter(trackingDifference);
+  }
+
   private enum ScheduledSlot {
     IMPORT_BUSINESS_HOURS(JobRunSchedule.IMPORT_BUSINESS_HOURS, RUNS_THE_IMPORT),
     TRANSACTION_COMMAND(JobRunSchedule.TRANSACTION_COMMAND, STORES_NOTHING_DERIVED_FROM_THE_IMPORT),
@@ -45,8 +80,8 @@ class JobRunScheduleTest {
         JobRunSchedule.TRACKING_DIFFERENCE_GAP_FILL, STORES_A_RESULT_DERIVED_FROM_THE_IMPORT),
     FEE_ACCRUAL_POSITION_BACKFILL(
         JobRunSchedule.FEE_ACCRUAL_POSITION_BACKFILL, STORES_A_RESULT_DERIVED_FROM_THE_IMPORT),
-    LIMIT_CHECK_BACKFILL(
-        JobRunSchedule.LIMIT_CHECK_BACKFILL, STORES_A_RESULT_DERIVED_FROM_THE_IMPORT),
+    LIMIT_CHECK_GAP_FILL(
+        JobRunSchedule.LIMIT_CHECK_GAP_FILL, STORES_A_RESULT_DERIVED_FROM_THE_IMPORT),
     PEVA_RAVA_PHASE_UPDATE(
         JobRunSchedule.PEVA_RAVA_PHASE_UPDATE, STORES_NOTHING_DERIVED_FROM_THE_IMPORT),
     PEVA_RAVA_FLOW_RECALC(

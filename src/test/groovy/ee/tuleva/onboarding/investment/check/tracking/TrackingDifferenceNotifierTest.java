@@ -1085,7 +1085,7 @@ class TrackingDifferenceNotifierTest {
     then(notificationService)
         .should()
         .sendMessage(
-            contains("TD GAP FILL: 2 past check dates filled, 2026-03-20 to 2026-04-03"),
+            contains("TD GAP FILL: 2 past check dates rewritten, 2026-03-20 to 2026-04-03"),
             eq(INVESTMENT));
     then(notificationService).should().sendMessage(contains("2026-03-20 TUK75"), eq(INVESTMENT));
     then(notificationService)

@@ -8,6 +8,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import org.junit.jupiter.api.Test;
 import org.springframework.scheduling.support.CronExpression;
 
@@ -40,11 +41,11 @@ class JobRunScheduleTest {
     }
   }
 
-  // The TD check had no schedule of any kind: RunTrackingDifferenceCheckRequested is published
-  // only by JobTriggerPoller, off a hand-inserted job_trigger row. This is the first automatic run.
+  private static final long REPORT_IMPORT_LOCK_AT_MOST_MINUTES = 55;
+
   @Test
-  void trackingDifferenceDaily_firesOncePerBusinessDayAfterTheDaysImports() {
-    CronExpression cron = CronExpression.parse(JobRunSchedule.TRACKING_DIFFERENCE_DAILY);
+  void trackingDifferenceGapFill_firesOncePerBusinessDayClearOfTheImportLockWindow() {
+    CronExpression cron = CronExpression.parse(JobRunSchedule.TRACKING_DIFFERENCE_GAP_FILL);
 
     ZonedDateTime cursor = LocalDateTime.parse("2026-04-13T00:00:00").atZone(TALLINN);
     ZonedDateTime endOfWeek = cursor.plusDays(7);
@@ -57,12 +58,39 @@ class JobRunScheduleTest {
     }
 
     assertThat(fires).hasSize(5);
-    assertThat(fires).allSatisfy(fire -> assertThat(fire.getHour()).isEqualTo(18));
+    assertThat(fires).allSatisfy(fire -> assertThat(fire.getHour()).isEqualTo(19));
     assertThat(fires)
         .allSatisfy(fire -> assertThat(fire.getDayOfWeek().getValue()).isLessThanOrEqualTo(5));
-    // IMPORT_BUSINESS_HOURS makes its last fire at 17:55, so 18:00 is after the day's positions
-    // have landed. A date that still is not ready is simply still a gap tomorrow.
-    assertThat(fires.get(0).getHour()).isGreaterThan(17);
+  }
+
+  @Test
+  void trackingDifferenceGapFill_firesAfterTheLastImportCanStillHoldItsLock() {
+    var lastImportFire =
+        lastFireBefore(
+            JobRunSchedule.IMPORT_BUSINESS_HOURS,
+            LocalDateTime.parse("2026-04-13T00:00:00").atZone(TALLINN),
+            LocalDateTime.parse("2026-04-14T00:00:00").atZone(TALLINN));
+    var importLockExpiry = lastImportFire.plusMinutes(REPORT_IMPORT_LOCK_AT_MOST_MINUTES);
+
+    var gapFill =
+        CronExpression.parse(JobRunSchedule.TRACKING_DIFFERENCE_GAP_FILL)
+            .next(LocalDateTime.parse("2026-04-13T00:00:00").atZone(TALLINN));
+
+    assertThat(gapFill).isAfter(importLockExpiry);
+  }
+
+  private static ZonedDateTime lastFireBefore(String cron, ZonedDateTime from, ZonedDateTime to) {
+    CronExpression expression = CronExpression.parse(cron);
+    ZonedDateTime cursor = from;
+    ZonedDateTime last = null;
+    while (true) {
+      ZonedDateTime next = expression.next(cursor);
+      if (next == null || !next.isBefore(to)) {
+        return Objects.requireNonNull(last);
+      }
+      last = next;
+      cursor = next;
+    }
   }
 
   @Test

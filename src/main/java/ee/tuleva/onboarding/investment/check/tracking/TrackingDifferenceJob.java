@@ -1,7 +1,8 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
-import static ee.tuleva.onboarding.investment.JobRunSchedule.TRACKING_DIFFERENCE_DAILY;
+import static ee.tuleva.onboarding.investment.JobRunSchedule.TRACKING_DIFFERENCE_GAP_FILL;
+import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK;
 
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceBackfillRequested;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceCheckRequested;
@@ -44,10 +45,10 @@ class TrackingDifferenceJob {
     }
   }
 
-  @Scheduled(cron = TRACKING_DIFFERENCE_DAILY, zone = TIMEZONE)
+  @Scheduled(cron = TRACKING_DIFFERENCE_GAP_FILL, zone = TIMEZONE)
   @SchedulerLock(
       name = "TrackingDifferenceDailyGapFill",
-      lockAtMostFor = "30m",
+      lockAtMostFor = "2h",
       lockAtLeastFor = "1m")
   void fillTrackingDifferenceGaps() {
     log.info("Starting daily tracking difference gap fill");
@@ -84,20 +85,24 @@ class TrackingDifferenceJob {
     }
   }
 
-  // An evening with no gap to fill is the normal outcome, not a run that checked nothing - the
-  // per-day notifier reports an empty list as "nothing actionable was checked", which on any day
-  // the NAV publication already wrote the events is a false alarm. A fill covering more than one
-  // date is a stretch of past days, and the per-day breach message would post each of them as if
-  // it were today's.
   private void reportGapFill(List<TrackingDifferenceResult> results) {
     if (results.isEmpty()) {
       return;
     }
-    if (results.stream().map(TrackingDifferenceResult::checkDate).distinct().count() > 1) {
+    if (coversMoreThanOneCheckDate(results)) {
       trackingDifferenceNotifier.notifyGapFillSummary(results);
       return;
     }
     trackingDifferenceNotifier.notify(results);
+  }
+
+  private static boolean coversMoreThanOneCheckDate(List<TrackingDifferenceResult> results) {
+    return results.stream()
+            .filter(result -> result.checkType() != BENCHMARK)
+            .map(TrackingDifferenceResult::checkDate)
+            .distinct()
+            .count()
+        > 1;
   }
 
   private static String reasonOf(Exception e) {

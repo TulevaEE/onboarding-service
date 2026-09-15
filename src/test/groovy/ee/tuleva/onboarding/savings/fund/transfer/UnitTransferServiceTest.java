@@ -66,7 +66,7 @@ class UnitTransferServiceTest {
     assertThat(verdict).isInstanceOf(Planned.class);
     var planned = (Planned) verdict;
     assertThat(planned.plan().fundUnits()).isEqualByComparingTo("40.00000");
-    assertThat(planned.plan().transferredSubscriptionsEur()).isEqualByComparingTo("400.00");
+    assertThat(planned.plan().giverUnitsAfter()).isEqualByComparingTo("60.00000");
     assertThat(planned.planHash()).isNotBlank();
   }
 
@@ -110,7 +110,6 @@ class UnitTransferServiceTest {
         .willReturn(
             new UnitTransferQuote(
                 new BigDecimal("41.00000"),
-                new BigDecimal("410.00"),
                 new BigDecimal("59.00000"),
                 new BigDecimal("41.00000")));
     var other = (Planned) service.preview(command);
@@ -212,7 +211,6 @@ class UnitTransferServiceTest {
         .willReturn(
             new UnitTransferQuote(
                 new BigDecimal("40.00000"),
-                new BigDecimal("400.00"),
                 new BigDecimal("60.00000"),
                 new BigDecimal("40.00000")));
   }

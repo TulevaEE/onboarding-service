@@ -63,24 +63,24 @@ class UnitTransferLedgerRecorderTest {
   }
 
   @Test
-  void transferCarriesTheProportionalPaidInAmount() {
+  void transferLeavesThePaidInAmountsWhereTheyWerePaid() {
     givenUnitsWorth(giver, new BigDecimal("1000.00"), new BigDecimal("100.00000"));
 
     savingsFundLedger.recordUnitTransfer(giver, receiver, new BigDecimal("40.00000"), randomUUID());
 
-    assertThat(holding(giver, SUBSCRIPTIONS)).isEqualByComparingTo("600.00");
-    assertThat(holding(receiver, SUBSCRIPTIONS)).isEqualByComparingTo("400.00");
+    assertThat(holding(giver, SUBSCRIPTIONS)).isEqualByComparingTo("1000.00");
+    assertThat(holding(receiver, SUBSCRIPTIONS)).isEqualByComparingTo(ZERO);
   }
 
   @Test
-  void transferOfEverythingLeavesNoPaidInAmountBehind() {
+  void givingAwayEveryUnitStillLeavesThePaidInAmountWithWhoeverPaidIt() {
     givenUnitsWorth(giver, new BigDecimal("1000.00"), new BigDecimal("3.00000"));
 
     savingsFundLedger.recordUnitTransfer(giver, receiver, new BigDecimal("3.00000"), randomUUID());
 
     assertThat(holding(giver, FUND_UNITS)).isEqualByComparingTo(ZERO);
-    assertThat(holding(giver, SUBSCRIPTIONS)).isEqualByComparingTo(ZERO);
-    assertThat(holding(receiver, SUBSCRIPTIONS)).isEqualByComparingTo("1000.00");
+    assertThat(holding(giver, SUBSCRIPTIONS)).isEqualByComparingTo("1000.00");
+    assertThat(holding(receiver, SUBSCRIPTIONS)).isEqualByComparingTo(ZERO);
   }
 
   @Test
@@ -96,16 +96,17 @@ class UnitTransferLedgerRecorderTest {
   }
 
   @Test
-  void transferBalancesWithinEachAssetType() {
+  void transferMovesUnitsAndNothingElse() {
     givenUnitsWorth(giver, new BigDecimal("1000.00"), new BigDecimal("100.00000"));
 
     var transaction =
         savingsFundLedger.recordUnitTransfer(
             giver, receiver, new BigDecimal("40.00000"), randomUUID());
 
-    assertThat(transaction.getEntries()).hasSize(4);
-    assertThat(sumOf(transaction, LedgerAccount.AssetType.FUND_UNIT)).isEqualByComparingTo(ZERO);
-    assertThat(sumOf(transaction, LedgerAccount.AssetType.EUR)).isEqualByComparingTo(ZERO);
+    assertThat(transaction.getEntries()).hasSize(2);
+    assertThat(transaction.getEntries())
+        .allMatch(entry -> entry.getAssetType() == LedgerAccount.AssetType.FUND_UNIT);
+    assertThat(transaction.sum()).isEqualByComparingTo(ZERO);
   }
 
   @Test
@@ -148,15 +149,16 @@ class UnitTransferLedgerRecorderTest {
   }
 
   @Test
-  void transferOfEveryFreeUnitLeavesTheReservedUnitsTheirShareOfThePaidInAmount() {
+  void onlyTheFreeUnitsCanBeGivenAwayWhenSomeAreReservedForRedemption() {
     givenUnitsWorth(giver, new BigDecimal("1000.00"), new BigDecimal("100.00000"));
     savingsFundLedger.reserveFundUnitsForRedemption(
         giver, new BigDecimal("50.00000"), randomUUID());
 
     savingsFundLedger.recordUnitTransfer(giver, receiver, new BigDecimal("50.00000"), randomUUID());
 
-    assertThat(holding(receiver, SUBSCRIPTIONS)).isEqualByComparingTo("500.00");
-    assertThat(holding(giver, SUBSCRIPTIONS)).isEqualByComparingTo("500.00");
+    assertThat(holding(giver, FUND_UNITS)).isEqualByComparingTo(ZERO);
+    assertThat(holding(receiver, FUND_UNITS)).isEqualByComparingTo("50.00000");
+    assertThat(holding(giver, SUBSCRIPTIONS)).isEqualByComparingTo("1000.00");
   }
 
   @Test
@@ -237,12 +239,5 @@ class UnitTransferLedgerRecorderTest {
         .getPartyAccount(party.code(), party.type(), userAccount)
         .getBalance()
         .negate();
-  }
-
-  private BigDecimal sumOf(LedgerTransaction transaction, LedgerAccount.AssetType assetType) {
-    return transaction.getEntries().stream()
-        .filter(entry -> entry.getAssetType() == assetType)
-        .map(LedgerEntry::getAmount)
-        .reduce(ZERO, BigDecimal::add);
   }
 }

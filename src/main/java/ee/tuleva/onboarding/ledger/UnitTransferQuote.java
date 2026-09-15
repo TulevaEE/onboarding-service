@@ -4,7 +4,4 @@ import java.math.BigDecimal;
 
 /** What a transfer would do, answered without writing anything. */
 public record UnitTransferQuote(
-    BigDecimal fundUnits,
-    BigDecimal subscriptionsEur,
-    BigDecimal giverUnitsAfter,
-    BigDecimal receiverUnitsAfter) {}
+    BigDecimal fundUnits, BigDecimal giverUnitsAfter, BigDecimal receiverUnitsAfter) {}

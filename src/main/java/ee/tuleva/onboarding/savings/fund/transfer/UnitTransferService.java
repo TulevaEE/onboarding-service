@@ -147,7 +147,6 @@ public class UnitTransferService {
             command.fromCode(),
             command.toCode(),
             quote.fundUnits(),
-            quote.subscriptionsEur(),
             quote.giverUnitsAfter(),
             quote.receiverUnitsAfter(),
             command.recipientAcquisitionCostEur());
@@ -166,7 +165,6 @@ public class UnitTransferService {
                 command.toType().name(),
                 plan.toCode(),
                 plan.fundUnits().toPlainString(),
-                plan.transferredSubscriptionsEur().toPlainString(),
                 plan.giverUnitsAfter().toPlainString(),
                 plan.receiverUnitsAfter().toPlainString(),
                 command.notifiedAt().toString(),

@@ -55,6 +55,17 @@ class UnitTransferRepositoryTest {
   }
 
   @Test
+  void readsATransferBackForUpdate() {
+    var saved = repository.save(aTransfer().build());
+    entityManager.flush();
+    entityManager.clear();
+
+    var locked = repository.findByIdForUpdate(saved.getId());
+
+    assertThat(locked).get().usingRecursiveComparison().isEqualTo(saved);
+  }
+
+  @Test
   void findsNoTransferUnderAPlanHashInAnotherState() {
     repository.save(aTransfer().planHash("the-plan-that-was-shown").build());
     entityManager.flush();

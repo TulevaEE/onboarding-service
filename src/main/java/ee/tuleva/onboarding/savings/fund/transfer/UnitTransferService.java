@@ -88,7 +88,7 @@ public class UnitTransferService {
   public UnitTransfer approve(UUID id, String approvedBy) {
     UnitTransfer transfer =
         transfers
-            .findById(id)
+            .findByIdForUpdate(id)
             .orElseThrow(() -> new NoSuchElementException("No such transfer: id=" + id));
 
     if (!transfer.isAwaitingApproval()) {
@@ -119,7 +119,7 @@ public class UnitTransferService {
   public UnitTransfer cancel(UUID id) {
     UnitTransfer transfer =
         transfers
-            .findById(id)
+            .findByIdForUpdate(id)
             .orElseThrow(() -> new NoSuchElementException("No such transfer: id=" + id));
     if (!transfer.isAwaitingApproval()) {
       throw new IllegalStateException(

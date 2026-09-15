@@ -301,7 +301,9 @@ class UnitTransferServiceTest {
     var planned = (Planned) service.preview(command);
     givenTheRepositoryReturnsWhateverItIsGiven();
     var first = service.submit(command, planned.planHash(), "operator@example.com");
-    given(transfers.findByPlanHashAndState(planned.planHash(), AWAITING_APPROVAL))
+    given(
+            transfers.findFirstByPlanHashAndStateOrderByCreatedAtAsc(
+                planned.planHash(), AWAITING_APPROVAL))
         .willReturn(Optional.of(first));
 
     var second = service.submit(command, planned.planHash(), "operator@example.com");
@@ -424,6 +426,18 @@ class UnitTransferServiceTest {
     assertThatThrownBy(() -> service.approve(awaiting.getId(), "someone-else@example.com"))
         .isInstanceOf(IllegalStateException.class);
     verifyNoInteractions(savingsFundLedger);
+  }
+
+  @Test
+  void aPlanThatHasAlreadyExecutedIsNotApprovedAgain() {
+    var awaiting = anAwaitingTransfer();
+    given(transfers.findByIdForUpdate(awaiting.getId())).willReturn(Optional.of(awaiting));
+    given(transfers.existsByPlanHashAndState(awaiting.getPlanHash(), EXECUTED)).willReturn(true);
+
+    assertThatThrownBy(() -> service.approve(awaiting.getId(), "approver@example.com"))
+        .isInstanceOf(IllegalStateException.class);
+    verifyTheLedgerMovedNothing();
+    verify(transfers, never()).save(any(UnitTransfer.class));
   }
 
   @Test

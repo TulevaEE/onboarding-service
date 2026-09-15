@@ -58,7 +58,9 @@ class UnitTransferRepositoryTest {
     entityManager.flush();
     entityManager.clear();
 
-    var found = repository.findByPlanHashAndState("the-plan-that-was-shown", AWAITING_APPROVAL);
+    var found =
+        repository.findFirstByPlanHashAndStateOrderByCreatedAtAsc(
+            "the-plan-that-was-shown", AWAITING_APPROVAL);
 
     assertThat(found).get().usingRecursiveComparison().isEqualTo(saved);
   }
@@ -80,7 +82,37 @@ class UnitTransferRepositoryTest {
     entityManager.flush();
     entityManager.clear();
 
-    assertThat(repository.findByPlanHashAndState("the-plan-that-was-shown", CANCELLED)).isEmpty();
+    assertThat(
+            repository.findFirstByPlanHashAndStateOrderByCreatedAtAsc(
+                "the-plan-that-was-shown", CANCELLED))
+        .isEmpty();
+  }
+
+  @Test
+  void findsTheEarliestOfTwoTransfersSubmittedUnderOnePlanHash() {
+    var later = repository.save(aTransfer().planHash("the-plan-that-was-shown").build());
+    var earlier = repository.save(aTransfer().planHash("the-plan-that-was-shown").build());
+    createdAt(later, Instant.parse("2026-09-15T09:00:00Z"));
+    createdAt(earlier, Instant.parse("2026-09-14T09:00:00Z"));
+    entityManager.clear();
+
+    var found =
+        repository.findFirstByPlanHashAndStateOrderByCreatedAtAsc(
+            "the-plan-that-was-shown", AWAITING_APPROVAL);
+
+    assertThat(found).get().extracting(UnitTransfer::getId).isEqualTo(earlier.getId());
+  }
+
+  @Test
+  void knowsWhetherAPlanHasAlreadyExecuted() {
+    repository.save(aTransfer().planHash("the-plan-that-went-through").state(EXECUTED).build());
+    repository.save(aTransfer().planHash("the-plan-still-waiting").build());
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(repository.existsByPlanHashAndState("the-plan-that-went-through", EXECUTED))
+        .isTrue();
+    assertThat(repository.existsByPlanHashAndState("the-plan-still-waiting", EXECUTED)).isFalse();
   }
 
   @Test

@@ -15,6 +15,7 @@ import ee.tuleva.onboarding.time.ClockConfig;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.math.BigDecimal;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
@@ -40,6 +41,11 @@ class UnitTransferLedgerRecorderTest {
 
   PartyRef giver = new PartyRef(PERSON, "38888888888");
   PartyRef receiver = new PartyRef(PERSON, "39999999999");
+
+  @BeforeEach
+  void onboardTheReceiver() {
+    ledgerService.initializeAccounts(receiver);
+  }
 
   @AfterEach
   void tearDown() {
@@ -139,6 +145,60 @@ class UnitTransferLedgerRecorderTest {
                     giver, receiver, new BigDecimal("1.00000"), randomUUID()))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("more units than the party holds");
+  }
+
+  @Test
+  void transferOfEveryFreeUnitLeavesTheReservedUnitsTheirShareOfThePaidInAmount() {
+    givenUnitsWorth(giver, new BigDecimal("1000.00"), new BigDecimal("100.00000"));
+    savingsFundLedger.reserveFundUnitsForRedemption(
+        giver, new BigDecimal("50.00000"), randomUUID());
+
+    savingsFundLedger.recordUnitTransfer(giver, receiver, new BigDecimal("50.00000"), randomUUID());
+
+    assertThat(holding(receiver, SUBSCRIPTIONS)).isEqualByComparingTo("500.00");
+    assertThat(holding(giver, SUBSCRIPTIONS)).isEqualByComparingTo("500.00");
+  }
+
+  @Test
+  void repeatingATransferWithTheSameReferenceRecordsItOnce() {
+    givenUnitsWorth(giver, new BigDecimal("1000.00"), new BigDecimal("100.00000"));
+    var externalReference = randomUUID();
+
+    var first =
+        savingsFundLedger.recordUnitTransfer(
+            giver, receiver, new BigDecimal("40.00000"), externalReference);
+    var second =
+        savingsFundLedger.recordUnitTransfer(
+            giver, receiver, new BigDecimal("40.00000"), externalReference);
+
+    assertThat(second.getId()).isEqualTo(first.getId());
+    assertThat(holding(receiver, FUND_UNITS)).isEqualByComparingTo("40.00000");
+    assertThat(holding(giver, FUND_UNITS)).isEqualByComparingTo("60.00000");
+  }
+
+  @Test
+  void transferOfUnitsFinerThanTheFundPricesThemIsRefused() {
+    givenUnitsWorth(giver, new BigDecimal("1000.00"), new BigDecimal("100.00000"));
+
+    assertThatThrownBy(
+            () ->
+                savingsFundLedger.recordUnitTransfer(
+                    giver, receiver, new BigDecimal("0.000004"), randomUUID()))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("finer than the fund prices them");
+  }
+
+  @Test
+  void transferToAPartyWithNoLedgerPresenceIsRefused() {
+    givenUnitsWorth(giver, new BigDecimal("1000.00"), new BigDecimal("100.00000"));
+    var strangerWithATypo = new PartyRef(PERSON, "37777777777");
+
+    assertThatThrownBy(
+            () ->
+                savingsFundLedger.recordUnitTransfer(
+                    giver, strangerWithATypo, new BigDecimal("1.00000"), randomUUID()))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Ledger party not found");
   }
 
   @Test

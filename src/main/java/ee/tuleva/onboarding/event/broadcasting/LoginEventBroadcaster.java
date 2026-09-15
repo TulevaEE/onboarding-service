@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.event.broadcasting;
 
 import static ee.tuleva.onboarding.event.TrackableEventType.LOGIN;
 
+import ee.tuleva.onboarding.auth.ClientConnection;
 import ee.tuleva.onboarding.auth.SecurityContextRunner;
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
@@ -30,6 +31,7 @@ public class LoginEventBroadcaster {
   private final ConversionDecorator conversionDecorator;
   private final SecurityContextRunner securityContextRunner;
   private final SecondPillarPaymentRateService secondPillarPaymentRateService;
+  private final ClientConnection clientConnection;
 
   @EventListener
   public void onAfterTokenGrantedEvent(AfterTokenGrantedEvent event) {
@@ -40,6 +42,9 @@ public class LoginEventBroadcaster {
     if (event.isIdCard()) {
       data.put("document", event.getIdDocumentType());
     }
+    // Read on the request thread, before the event is published from inside runAs.
+    clientConnection.ipAddress().ifPresent(ipAddress -> data.put("ipAddress", ipAddress));
+    clientConnection.userAgent().ifPresent(userAgent -> data.put("userAgent", userAgent));
 
     securityContextRunner.runAs(
         person,

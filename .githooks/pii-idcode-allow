@@ -21,6 +21,9 @@
 # for a minor, and the sample user is baked into snapshots repo-wide):
 38812121215
 61506150006
+# The sample Smart-ID / authenticated person fixture used across the test
+# suite since 2017 (AuthenticatedPersonFixture, SmartIdFixture and others).
+38501010002
 
 # Repo-invented admin test fixtures, long public on master (moved between
 # test files by the admin controller split)

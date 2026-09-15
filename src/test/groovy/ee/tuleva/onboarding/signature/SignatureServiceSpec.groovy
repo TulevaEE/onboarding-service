@@ -5,6 +5,8 @@ import ee.tuleva.onboarding.signature.mobileid.MobileIdSigner
 import ee.tuleva.onboarding.signature.smartid.SmartIdSigner
 import spock.lang.Specification
 
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
+
 class SignatureServiceSpec extends Specification {
 
     def smartIdSigner = Mock(SmartIdSigner)
@@ -17,11 +19,12 @@ class SignatureServiceSpec extends Specification {
 
     def "startSmartIdSign() delegates to the smart id signer"() {
         given:
+        def signer = sampleAuthenticatedPersonAndMember().build()
         def signatureSession = Mock(SmartIdSignatureSession)
-        1 * smartIdSigner.startSign(files, personalCode) >> signatureSession
+        1 * smartIdSigner.startSign(files, signer) >> signatureSession
 
         when:
-        def session = service.startSmartIdSign(files, personalCode)
+        def session = service.startSmartIdSign(files, signer)
 
         then:
         session == signatureSession

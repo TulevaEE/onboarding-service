@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.auth.AuthenticationTokens;
+import ee.tuleva.onboarding.auth.ClientConnection;
 import ee.tuleva.onboarding.auth.SecurityContextRunner;
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
@@ -88,7 +89,8 @@ public class HandoverTokenLoginEventTest {
             pillarActivations,
             conversionDecorator,
             securityContextRunner,
-            secondPillarPaymentRateService);
+            secondPillarPaymentRateService,
+            new ClientConnection());
 
     when(authenticatedPerson.getPersonalCode()).thenReturn(testPersonalCode);
 

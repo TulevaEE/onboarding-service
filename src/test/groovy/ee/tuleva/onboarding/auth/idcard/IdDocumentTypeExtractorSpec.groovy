@@ -1,8 +1,10 @@
 package ee.tuleva.onboarding.auth.idcard
 
+import ee.tuleva.onboarding.auth.idcard.exception.UnknownCountryException
 import ee.tuleva.onboarding.auth.idcard.exception.UnknownDocumentTypeException
 import ee.tuleva.onboarding.auth.idcard.exception.UnknownExtendedKeyUsageException
 import ee.tuleva.onboarding.auth.idcard.exception.UnknownIssuerException
+import ee.tuleva.onboarding.auth.idcard.exception.UnsupportedDocumentTypeException
 import ee.tuleva.onboarding.auth.idcard.normalizer.CertificateNormalizer
 import ee.tuleva.onboarding.auth.idcard.normalizer.ProductionCertificateNormalizer
 import spock.lang.Specification
@@ -151,6 +153,63 @@ class IdDocumentTypeExtractorSpec extends Specification {
 
         then:
         thrown UnknownExtendedKeyUsageException
+    }
+
+    def "checkDocumentType refuses e-resident and EU citizen cards"() {
+        when:
+        extractor.checkDocumentType(documentType)
+
+        then:
+        thrown(UnsupportedDocumentTypeException)
+
+        where:
+        documentType << [E_RESIDENT_DIGITAL_ID_CARD, EUROPEAN_CITIZEN_ID_CARD]
+    }
+
+    def "checkDocumentType passes an Estonian citizen card"() {
+        when:
+        extractor.checkDocumentType(ESTONIAN_CITIZEN_ID_CARD)
+
+        then:
+        noExceptionThrown()
+    }
+
+    def "checkCountry passes for an Estonian certificate"() {
+        given:
+        X509Certificate cert = Mock()
+        cert.getSubjectX500Principal() >> new X500Principal(
+            "C=EE, O=ESTEID, OU=AUTHENTICATION, CN=\"DOE,JOHN,38888888888\", SURNAME=DOE, GIVENNAME=JOHN, SERIALNUMBER=PNOEE-38888888888")
+
+        when:
+        extractor.checkCountry(cert)
+
+        then:
+        noExceptionThrown()
+    }
+
+    def "checkCountry rejects a certificate from another country"() {
+        given:
+        X509Certificate cert = Mock()
+        cert.getSubjectX500Principal() >> new X500Principal(
+            "C=LV, O=ESTEID, OU=AUTHENTICATION, CN=\"DOE,JOHN,38888888888\", SURNAME=DOE, GIVENNAME=JOHN, SERIALNUMBER=PNOLV-38888888888")
+
+        when:
+        extractor.checkCountry(cert)
+
+        then:
+        thrown(UnknownCountryException)
+    }
+
+    def "checkCountry rejects a certificate without a country"() {
+        given:
+        X509Certificate cert = Mock()
+        cert.getSubjectX500Principal() >> new X500Principal("CN=Nobody")
+
+        when:
+        extractor.checkCountry(cert)
+
+        then:
+        thrown(UnknownCountryException)
     }
 
     def "checkIssuer passes for valid issuer ESTEID-SK 2015"() {

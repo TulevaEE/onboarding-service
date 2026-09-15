@@ -21,6 +21,8 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -48,8 +50,9 @@ class UnitTransferControllerTest {
        "recipientAcquisitionCostEur":"0"}
       """;
 
-  @Test
-  void previewAnswersThePlanAndItsHash() throws Exception {
+  @ParameterizedTest
+  @ValueSource(strings = {"valid-token", "ops-token"})
+  void previewAnswersThePlanAndItsHash(String token) throws Exception {
     given(unitTransferService.preview(any()))
         .willReturn(
             new Planned(
@@ -67,7 +70,7 @@ class UnitTransferControllerTest {
     mockMvc
         .perform(
             post(TRANSFERS + "/preview")
-                .header("X-Admin-Token", "valid-token")
+                .header("X-Admin-Token", token)
                 .contentType("application/json")
                 .content(A_TRANSFER))
         .andExpect(status().isOk())
@@ -138,14 +141,15 @@ class UnitTransferControllerTest {
         .andExpect(status().isNotFound());
   }
 
-  @Test
-  void submittingRecordsTheTransferAndAnswersItsState() throws Exception {
+  @ParameterizedTest
+  @ValueSource(strings = {"valid-token", "ops-token"})
+  void submittingRecordsTheTransferAndAnswersItsState(String token) throws Exception {
     given(unitTransferService.submit(any(), any(), any())).willReturn(anAwaitingTransfer());
 
     mockMvc
         .perform(
             post(TRANSFERS)
-                .header("X-Admin-Token", "valid-token")
+                .header("X-Admin-Token", token)
                 .contentType("application/json")
                 .content(
                     "{\"transfer\":"
@@ -156,25 +160,26 @@ class UnitTransferControllerTest {
         .andExpect(jsonPath("$.submittedBy").value("operator@example.com"));
   }
 
-  @Test
-  void cancellingAnswersTheTransfersState() throws Exception {
+  @ParameterizedTest
+  @ValueSource(strings = {"valid-token", "ops-token"})
+  void cancellingAnswersTheTransfersState(String token) throws Exception {
     given(unitTransferService.cancel(any())).willReturn(aCancelledTransfer());
 
     mockMvc
         .perform(
-            post(TRANSFERS + "/" + UUID.randomUUID() + "/cancel")
-                .header("X-Admin-Token", "valid-token"))
+            post(TRANSFERS + "/" + UUID.randomUUID() + "/cancel").header("X-Admin-Token", token))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.state").value("CANCELLED"))
         .andExpect(jsonPath("$.submittedBy").value("operator@example.com"));
   }
 
-  @Test
-  void awaitingApprovalListsWhatStillNeedsASecondPerson() throws Exception {
+  @ParameterizedTest
+  @ValueSource(strings = {"valid-token", "ops-token"})
+  void awaitingApprovalListsWhatStillNeedsASecondPerson(String token) throws Exception {
     given(unitTransferService.awaitingApproval()).willReturn(List.of(anAwaitingTransfer()));
 
     mockMvc
-        .perform(get(TRANSFERS + "/awaiting-approval").header("X-Admin-Token", "valid-token"))
+        .perform(get(TRANSFERS + "/awaiting-approval").header("X-Admin-Token", token))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.length()").value(1))
         .andExpect(jsonPath("$[0].state").value("AWAITING_APPROVAL"))
@@ -201,16 +206,19 @@ class UnitTransferControllerTest {
     verifyNoInteractions(unitTransferService);
   }
 
-  @Test
-  void theOpsTokenIsNotEnoughToMoveSomeonesUnits() throws Exception {
+  @ParameterizedTest
+  @ValueSource(strings = {"valid-token", "ops-token"})
+  void approvingAnswersTheTransfersState(String token) throws Exception {
+    given(unitTransferService.approve(any(), any())).willReturn(anAwaitingTransfer());
+
     mockMvc
         .perform(
             post(TRANSFERS + "/" + UUID.randomUUID() + "/approve")
-                .header("X-Admin-Token", "ops-token")
+                .header("X-Admin-Token", token)
                 .contentType("application/json")
                 .content("{\"approvedBy\":\"approver@example.com\"}"))
-        .andExpect(status().isUnauthorized());
-    verifyNoInteractions(unitTransferService);
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.submittedBy").value("operator@example.com"));
   }
 
   @Test

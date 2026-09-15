@@ -29,14 +29,14 @@ public class UnitTransferController {
   UnitTransferVerdict preview(
       @RequestHeader("X-Admin-Token") String token,
       @Valid @RequestBody UnitTransferCommand command) {
-    tokenValidator.validate(token);
+    tokenValidator.validateWithOpsAccess(token);
     return unitTransferService.preview(command);
   }
 
   @PostMapping
   UnitTransferSummary submit(
       @RequestHeader("X-Admin-Token") String token, @Valid @RequestBody SubmitRequest request) {
-    tokenValidator.validate(token);
+    tokenValidator.validateWithOpsAccess(token);
     return UnitTransferSummary.of(
         unitTransferService.submit(request.transfer(), request.confirm(), request.submittedBy()));
   }
@@ -46,19 +46,19 @@ public class UnitTransferController {
       @RequestHeader("X-Admin-Token") String token,
       @PathVariable UUID id,
       @Valid @RequestBody ApproveRequest request) {
-    tokenValidator.validate(token);
+    tokenValidator.validateWithOpsAccess(token);
     return UnitTransferSummary.of(unitTransferService.approve(id, request.approvedBy()));
   }
 
   @PostMapping("/{id}/cancel")
   UnitTransferSummary cancel(@RequestHeader("X-Admin-Token") String token, @PathVariable UUID id) {
-    tokenValidator.validate(token);
+    tokenValidator.validateWithOpsAccess(token);
     return UnitTransferSummary.of(unitTransferService.cancel(id));
   }
 
   @GetMapping("/awaiting-approval")
   List<UnitTransferSummary> awaitingApproval(@RequestHeader("X-Admin-Token") String token) {
-    tokenValidator.validate(token);
+    tokenValidator.validateWithOpsAccess(token);
     return unitTransferService.awaitingApproval().stream().map(UnitTransferSummary::of).toList();
   }
 

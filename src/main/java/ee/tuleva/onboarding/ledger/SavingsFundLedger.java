@@ -353,6 +353,13 @@ public class SavingsFundLedger {
     return unitTransferRecorder.recordUnitTransfer(from, to, fundUnits, externalReference);
   }
 
+  /**
+   * Answers what {@link #recordUnitTransfer} would do, refusing the same things, writing nothing.
+   */
+  public UnitTransferQuote quoteUnitTransfer(PartyRef from, PartyRef to, BigDecimal fundUnits) {
+    return unitTransferRecorder.quote(from, to, fundUnits);
+  }
+
   @Transactional
   public LedgerTransaction redeemFundUnitsFromReserved(
       PartyRef party,

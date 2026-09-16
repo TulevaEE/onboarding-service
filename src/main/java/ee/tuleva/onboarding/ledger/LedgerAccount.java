@@ -131,6 +131,13 @@ public class LedgerAccount {
     return purpose == USER_ACCOUNT;
   }
 
+  boolean isOwnedBy(@Nullable LedgerParty party) {
+    return owner != null
+        && party != null
+        && owner.getPartyType() == party.getPartyType()
+        && owner.getOwnerId().equals(party.getOwnerId());
+  }
+
   void addEntry(LedgerEntry entry) {
     if (entry == null) {
       throw new IllegalArgumentException("Entry cannot be null");

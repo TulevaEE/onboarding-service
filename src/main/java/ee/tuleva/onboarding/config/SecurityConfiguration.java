@@ -77,6 +77,12 @@ public class SecurityConfiguration {
                     .requestMatchers(
                         POST, "/v1/payments/notifications", "/v1/payments/savings/notifications")
                     .permitAll()
+                    // A gift link is opened by someone who has no account with us and is not
+                    // going to make one just to hand their grandchild money. One exact path, not
+                    // a wildcard: everything else under /v1/savings-fund/gift-links stays behind
+                    // authentication.
+                    .requestMatchers(GET, "/v1/gift-links/*")
+                    .permitAll()
                     .requestMatchers(GET, "/v1/pension-account-statement", "/v1/me")
                     .hasAnyAuthority(USER, PARTNER)
                     .requestMatchers("/v1/savings-fund-test/**")

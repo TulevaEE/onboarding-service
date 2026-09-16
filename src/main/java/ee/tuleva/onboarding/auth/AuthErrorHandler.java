@@ -3,14 +3,18 @@ package ee.tuleva.onboarding.auth;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.FORBIDDEN;
 import static org.springframework.http.HttpStatus.OK;
+import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 import ee.tuleva.onboarding.auth.idcard.exception.IdCardSessionNotFoundException;
+import ee.tuleva.onboarding.auth.idcard.exception.UnknownCountryException;
+import ee.tuleva.onboarding.auth.idcard.exception.UnsupportedDocumentTypeException;
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.auth.mobileid.MobileIdSessionNotFoundException;
 import ee.tuleva.onboarding.auth.principal.MinorCannotSelfAuthenticateException;
 import ee.tuleva.onboarding.auth.response.AuthNotCompleteException;
 import ee.tuleva.onboarding.auth.role.RoleSwitchAccessDeniedException;
+import ee.tuleva.onboarding.auth.smartid.SmartIdCallbackRejectedException;
 import ee.tuleva.onboarding.auth.smartid.SmartIdSessionNotFoundException;
 import ee.tuleva.onboarding.auth.webeid.WebEidAuthException;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
@@ -20,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.ResponseEntity;
+import org.springframework.resilience.InvocationRejectedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -34,6 +39,41 @@ public class AuthErrorHandler {
     return new ResponseEntity<>(
         ErrorsResponse.ofSingleError("auth.session.not.found", exception.getMessage()),
         UNAUTHORIZED);
+  }
+
+  @ExceptionHandler(SmartIdCallbackRejectedException.class)
+  public ResponseEntity<ErrorsResponse> handleSmartIdCallbackRejected(
+      SmartIdCallbackRejectedException exception) {
+    log.info("Smart-ID callback rejected: {}", exception.getMessage());
+    return new ResponseEntity<>(
+        ErrorsResponse.ofSingleError("smart.id.callback.invalid", exception.getMessage()),
+        UNAUTHORIZED);
+  }
+
+  @ExceptionHandler(UnsupportedDocumentTypeException.class)
+  public ResponseEntity<ErrorsResponse> handleUnsupportedDocumentType(
+      UnsupportedDocumentTypeException exception) {
+    log.info("ID-card login refused: {}", exception.getMessage());
+    return new ResponseEntity<>(
+        ErrorsResponse.ofSingleError("id.card.document.type.not.allowed", exception.getMessage()),
+        BAD_REQUEST);
+  }
+
+  @ExceptionHandler(UnknownCountryException.class)
+  public ResponseEntity<ErrorsResponse> handleUnknownCountry(UnknownCountryException exception) {
+    log.info("ID-card login refused: {}", exception.getMessage());
+    return new ResponseEntity<>(
+        ErrorsResponse.ofSingleError("id.card.country.not.allowed", exception.getMessage()),
+        BAD_REQUEST);
+  }
+
+  @ExceptionHandler(InvocationRejectedException.class)
+  public ResponseEntity<ErrorsResponse> handleTooManyLogins(InvocationRejectedException exception) {
+    log.warn("Login rejected because too many are already in flight: {}", exception.getMessage());
+    return new ResponseEntity<>(
+        ErrorsResponse.ofSingleError(
+            "auth.too.many.requests", "Too many logins are being started right now."),
+        TOO_MANY_REQUESTS);
   }
 
   @ExceptionHandler(AuthNotCompleteException.class)

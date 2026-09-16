@@ -175,8 +175,9 @@ Make sure you are running against the right backend environment (dev or prod).
 
 - Digital signing does not work in the dev environment. Use the production
  configuration to test it locally. See `DigiDocConfiguration.digiDocConfigDev()` and
-  `smartid.hostUrl`, `smartid.relyingPartyUUID`, `smartid.relyingPartyName` config
-   values in `application.yml` and change them to production values. Use VPN for testing.
+  `smartid.hostUrl`, `smartid.relyingPartyUUID`, `smartid.relyingPartyName`, `smartid.scheme-name` and
+   `smartid.trusted-ca-certificates` config values in `application.yml` and change them to production
+   values. Use VPN for testing.
 
 ### Caveats
 
@@ -239,7 +240,25 @@ Configuration is available AWS S3 `s3://tulevasecrets/development-configuration/
 
 In case file has multiple certificate chains, `import-certs.sh` will add all of them.
 
-### Smart-ID, Mobile-ID, ID-card
+### Smart-ID
+
+Smart-ID runs on SK's RP API v3 through `ee.sk.smartid:smart-id-java-client`.
+
+- Login uses the anonymous device-link flow: a QR code on desktop, a same-device link on phones. The
+  personal-code push login is only offered on a browser that has already completed a device-link login
+  (the `SMART_ID_REMEMBERED_ACCOUNT` cookie), because a push can otherwise be triggered remotely by anyone
+  who knows the personal code.
+- Signing stays notification-based. The signing certificate is fetched silently by document number when
+  the user logged in with Smart-ID, otherwise a certificate choice is pushed to the app first. Signatures
+  are requested with `sha256WithRSAEncryption` because DigiDoc4j 6.1 cannot finalize RSASSA-PSS signatures.
+- Two trust stores are involved. TLS to the RP API uses `truststore.jks` (see below). User certificates are
+  validated against SK's CA certificates bundled under `src/main/resources/smart-id/live` and `smart-id/demo`,
+  selected by `smartid.trusted-ca-certificates`. `smartid.scheme-name` must match the environment
+  (`smart-id-demo` on `sid.demo.sk.ee`, `smart-id` in production), otherwise every signature check fails.
+- The same-device flow returns to `smartid.callback-url`, which has to be an `https://` URL of the frontend.
+- Demo test accounts and their outcomes: https://sk-eid.github.io/smart-id-documentation/test_accounts.html
+
+### Smart-ID, Mobile-ID, ID-card TLS trust store
 1. Install keystore explorer if missing `brew install --cask keystore-explorer` or use command line `keytool`
 2. Navigate to the `tulevasecrets` S3 bucket, open either `staging` or `development` directory, download `truststore.jks`.
 3. Add new certs and upload new version back to S3 bucket.
@@ -277,7 +296,9 @@ When adding a new migration for H2 <-> Postgres compatibility, the name must be 
 
 [Test ID Card](https://demo.sk.ee/upload_cert/)
 
-[Test Smart ID](https://github.com/SK-EID/smart-id-documentation/wiki/Smart-ID-demo)
+[Smart-ID RP API v3 documentation](https://sk-eid.github.io/smart-id-documentation/)
+
+[Smart-ID demo test accounts](https://sk-eid.github.io/smart-id-documentation/test_accounts.html)
 
 [Smart-ID and Mobile-ID test data](https://dokobit.support.signicat.com/hc/en-us/articles/20067528968476-Mobile-ID-and-Smart-ID-test-data)
 

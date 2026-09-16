@@ -11,6 +11,7 @@ public final class ExpectedErrorCodes {
           "smart.id.user.refused",
           "smart.id.account.not.found",
           "smart.id.timeout",
+          "smart.id.unsupported.country",
           "mobile.id.cancelled",
           "mobile.id.timeout",
           "mobile.id.no.signal",

@@ -1,22 +1,23 @@
 package ee.tuleva.onboarding.signature.smartid;
 
-import static ee.sk.smartid.HashType.SHA256;
+import static ee.sk.smartid.CertificateLevel.QUALIFIED;
+import static ee.sk.smartid.signature.SigningSignatureAlgorithm.SHA256_WITH_RSA_ENCRYPTION;
 import static java.util.Objects.requireNonNull;
 
-import ee.sk.smartid.CertificateRequestBuilder;
-import ee.sk.smartid.SignableHash;
-import ee.sk.smartid.SignatureRequestBuilder;
-import ee.sk.smartid.SmartIdCertificate;
+import ee.sk.smartid.CertificateChoiceResponse;
+import ee.sk.smartid.CertificateChoiceResponseValidator;
+import ee.sk.smartid.SignatureResponse;
+import ee.sk.smartid.SignatureResponseValidator;
 import ee.sk.smartid.SmartIdClient;
-import ee.sk.smartid.SmartIdSignature;
-import ee.sk.smartid.VerificationCodeCalculator;
+import ee.sk.smartid.common.notification.interactions.NotificationInteraction;
 import ee.sk.smartid.exception.permanent.SmartIdClientException;
 import ee.sk.smartid.rest.SmartIdConnector;
-import ee.sk.smartid.rest.dao.Interaction;
 import ee.sk.smartid.rest.dao.SemanticsIdentifier;
 import ee.sk.smartid.rest.dao.SemanticsIdentifier.CountryCode;
 import ee.sk.smartid.rest.dao.SemanticsIdentifier.IdentityType;
 import ee.sk.smartid.rest.dao.SessionStatus;
+import ee.sk.smartid.signature.SignableData;
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import ee.tuleva.onboarding.signature.DigiDocFacade;
 import ee.tuleva.onboarding.signature.SignatureFile;
@@ -24,10 +25,8 @@ import ee.tuleva.onboarding.signature.SmartIdSignatureSession;
 import java.security.cert.X509Certificate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
 import org.digidoc4j.Container;
 import org.digidoc4j.DataToSign;
-import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
@@ -35,119 +34,102 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class SmartIdSigner {
 
+  private static final String SIGNING_PROMPT = "Tuleva: Sign Document";
+
   private final SmartIdClient smartIdClient;
   private final SmartIdConnector smartIdConnector;
+  private final CertificateChoiceResponseValidator certificateChoiceResponseValidator;
+  private final SignatureResponseValidator signatureResponseValidator;
   private final GenericSessionStore sessionStore;
   private final DigiDocFacade digiDocFacade;
 
-  public SmartIdSignatureSession startSign(List<SignatureFile> files, String personalCode) {
-    String certificateSessionId =
-        certificateRequestBuilder(personalCode).initiateCertificateChoice();
-
-    return new SmartIdSignatureSession(certificateSessionId, personalCode, files);
+  public SmartIdSignatureSession startSign(List<SignatureFile> files, AuthenticatedPerson signer) {
+    var session = new SmartIdSignatureSession(signer.getPersonalCode(), files);
+    String documentNumber = signer.getSmartIdDocumentNumber().orElse(null);
+    if (documentNumber != null) {
+      startSigning(session, signingCertificate(documentNumber), documentNumber);
+    } else {
+      session.setCertificateSessionId(startCertificateChoice(signer.getPersonalCode()));
+    }
+    return session;
   }
 
-  @SneakyThrows
   public byte @Nullable [] getSignedFile(SmartIdSignatureSession session) {
-    SessionStatus certificateSessionStatus = getSessionStatus(session.getCertificateSessionId());
-    if (certificateSessionStatus == null) {
-      return null;
-    }
-
     if (session.getSigningSessionId() == null) {
-      startSigningSession(session, certificateSessionStatus);
+      SessionStatus certificateStatus =
+          completedStatus(requireNonNull(session.getCertificateSessionId()));
+      if (certificateStatus == null) {
+        return null;
+      }
+      CertificateChoiceResponse choice =
+          certificateChoiceResponseValidator.validate(certificateStatus, QUALIFIED);
+      startSigning(session, choice.getCertificate(), choice.getDocumentNumber());
+      sessionStore.save(session);
       return null;
     }
 
-    SessionStatus signingSessionStatus = getSessionStatus(session.getSigningSessionId());
-    if (signingSessionStatus == null) {
+    SessionStatus signingStatus = completedStatus(session.getSigningSessionId());
+    if (signingStatus == null) {
       return null;
     }
-
-    return finalizeSignature(session, signingSessionStatus);
-  }
-
-  @Nullable
-  private SessionStatus getSessionStatus(String sessionId) {
-    SessionStatus sessionStatus = smartIdConnector.getSessionStatus(sessionId);
-    if (sessionStatus == null || "RUNNING".equalsIgnoreCase(sessionStatus.getState())) {
-      return null;
-    }
-    if (!"COMPLETE".equalsIgnoreCase(sessionStatus.getState())) {
-      throw new SmartIdClientException(
-          "Invalid Smart-ID session status: " + sessionStatus.getState());
-    }
-    return sessionStatus;
-  }
-
-  private void startSigningSession(
-      SmartIdSignatureSession session, SessionStatus certificateSessionStatus) {
-    SmartIdCertificate smartIdCertificate =
-        certificateRequestBuilder(session.getPersonalCode())
-            .createSmartIdCertificate(certificateSessionStatus);
-
-    X509Certificate certificate = smartIdCertificate.getCertificate();
-    List<SignatureFile> files = session.getFiles();
-
-    Container container = digiDocFacade.buildContainer(files);
-
-    DataToSign dataToSign = digiDocFacade.dataToSign(container, certificate);
-    byte[] digestToSign = digiDocFacade.digestToSign(dataToSign);
-
-    SignableHash signableHash = signableHash(digestToSign);
-    String documentNumber = smartIdCertificate.getDocumentNumber();
-
-    String signingSessionId =
-        signatureRequestBuilder(signableHash, documentNumber).initiateSigning();
-
-    session.setVerificationCode(VerificationCodeCalculator.calculate(digestToSign));
-    session.setSigningSessionId(signingSessionId);
-    session.setDocumentNumber(documentNumber);
-    session.setDataToSign(dataToSign);
-    session.setSignableHash(signableHash);
-    session.setContainer(container);
-    sessionStore.save(session);
-  }
-
-  @SneakyThrows
-  private byte[] finalizeSignature(
-      SmartIdSignatureSession session, SessionStatus signingSessionStatus) {
-    SmartIdSignature smartIdSignature =
-        signatureRequestBuilder(
-                requireNonNull(session.getSignableHash()),
-                requireNonNull(session.getDocumentNumber()))
-            .createSmartIdSignature(signingSessionStatus);
-
+    SignatureResponse signature = signatureResponseValidator.validate(signingStatus, QUALIFIED);
     return digiDocFacade.addSignatureToContainer(
-        smartIdSignature.getValue(),
+        signature.getSignatureValue(),
         requireNonNull(session.getDataToSign()),
         requireNonNull(session.getContainer()));
   }
 
-  @NotNull
-  private SignableHash signableHash(byte[] digestToSign) {
-    SignableHash signableHash = new SignableHash();
-    signableHash.setHash(digestToSign);
-    signableHash.setHashType(SHA256);
-    return signableHash;
+  private @Nullable SessionStatus completedStatus(String sessionId) {
+    SessionStatus status = smartIdConnector.getSessionStatus(sessionId);
+    if (status == null || "RUNNING".equalsIgnoreCase(status.getState())) {
+      return null;
+    }
+    if (!"COMPLETE".equalsIgnoreCase(status.getState())) {
+      throw new SmartIdClientException(
+          "Invalid Smart-ID session status: state=" + status.getState());
+    }
+    return status;
   }
 
-  private CertificateRequestBuilder certificateRequestBuilder(String personalCode) {
+  private X509Certificate signingCertificate(String documentNumber) {
     return smartIdClient
-        .getCertificate()
+        .createCertificateByDocumentNumber()
+        .withDocumentNumber(documentNumber)
+        .withCertificateLevel(QUALIFIED)
+        .getCertificateByDocumentNumber()
+        .certificate();
+  }
+
+  private String startCertificateChoice(String personalCode) {
+    return smartIdClient
+        .createNotificationCertificateChoice()
         .withSemanticsIdentifier(
             new SemanticsIdentifier(IdentityType.PNO, CountryCode.EE, personalCode))
-        .withCertificateLevel("QUALIFIED");
+        .withCertificateLevel(QUALIFIED)
+        .initCertificateChoice()
+        .sessionID();
   }
 
-  private SignatureRequestBuilder signatureRequestBuilder(
-      SignableHash signableHash, String documentNumber) {
-    return smartIdClient
-        .createSignature()
-        .withDocumentNumber(documentNumber)
-        .withSignableHash(signableHash)
-        .withAllowedInteractionsOrder(
-            List.of(Interaction.displayTextAndPIN("Tuleva: Sign Document")))
-        .withCertificateLevel("QUALIFIED");
+  private void startSigning(
+      SmartIdSignatureSession session, X509Certificate certificate, String documentNumber) {
+    Container container = digiDocFacade.buildContainer(session.getFiles());
+    DataToSign dataToSign = digiDocFacade.dataToSign(container, certificate);
+    var response =
+        smartIdClient
+            .createNotificationSignature()
+            .withDocumentNumber(documentNumber)
+            .withSignableData(
+                new SignableData(
+                    dataToSign.getDataToSign(),
+                    SHA256_WITH_RSA_ENCRYPTION.getHashAlgorithmForLegacy()))
+            .withSignatureAlgorithm(SHA256_WITH_RSA_ENCRYPTION)
+            .withInteractions(List.of(NotificationInteraction.displayTextAndPin(SIGNING_PROMPT)))
+            .withCertificateLevel(QUALIFIED)
+            .initSignatureSession();
+    session.setDocumentNumber(documentNumber);
+    session.setSigningSessionId(response.sessionID());
+    session.setVerificationCode(response.vc().value());
+    session.setDataToSign(dataToSign);
+    session.setContainer(container);
   }
 }

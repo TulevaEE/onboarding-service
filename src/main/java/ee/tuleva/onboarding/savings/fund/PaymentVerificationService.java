@@ -107,12 +107,7 @@ public class PaymentVerificationService {
     }
 
     if (remitterPartyId.isEmpty()
-        && !nameMatcher.isSameName(
-            party.get().name(),
-            Objects.requireNonNull(
-                payment.getRemitterName(),
-                "Payment without remitter name reached verification: paymentId="
-                    + payment.getId()))) {
+        && !nameMatcher.isSameName(party.get().name(), payment.getRemitterName())) {
       identityCheckFailure(payment, messages.nameMismatch());
       return;
     }

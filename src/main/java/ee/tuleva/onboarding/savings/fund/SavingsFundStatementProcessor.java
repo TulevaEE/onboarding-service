@@ -5,7 +5,6 @@ import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ZERO;
-import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.BankAccountType;
@@ -19,6 +18,7 @@ import ee.tuleva.onboarding.savings.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionPayoutRecorder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -97,7 +97,7 @@ public class SavingsFundStatementProcessor {
   }
 
   private boolean isInternalTransferIncoming(SavingFundPayment payment) {
-    return isIncomingPayment(payment) && isSavingsFundAccount(remitterIbanOf(payment));
+    return isIncomingPayment(payment) && isSavingsFundAccount(payment.getRemitterIban());
   }
 
   private void handleDepositAccountPayment(SavingFundPayment payment) {
@@ -153,13 +153,7 @@ public class SavingsFundStatementProcessor {
 
   private boolean isIncomingFromFundInvestment(SavingFundPayment payment) {
     return isIncomingPayment(payment)
-        && isSavingsFundAccount(remitterIbanOf(payment), FUND_INVESTMENT_EUR);
-  }
-
-  private static String remitterIbanOf(SavingFundPayment payment) {
-    return requireNonNull(
-        payment.getRemitterIban(),
-        "Payment without remitter IBAN reached statement processing: paymentId=" + payment.getId());
+        && isSavingsFundAccount(payment.getRemitterIban(), FUND_INVESTMENT_EUR);
   }
 
   private void handleFundInvestmentAccountPayment(SavingFundPayment payment) {
@@ -186,42 +180,31 @@ public class SavingsFundStatementProcessor {
 
   private boolean isManagementFeePayment(SavingFundPayment payment) {
     return isOutgoingPayment(payment)
-        && managementCompanies.isManagementCompany(
-            requireNonNull(
-                payment.getBeneficiaryName(),
-                "Payment without beneficiary name reached statement processing: paymentId="
-                    + payment.getId()))
+        && managementCompanies.isManagementCompany(payment.getBeneficiaryName())
         && payment.getDescription() != null
         && payment.getDescription().toLowerCase().contains("valitsemistasu");
   }
 
   private boolean isOutgoingToWithdrawalAccount(SavingFundPayment payment) {
     return isOutgoingPayment(payment)
-        && isSavingsFundAccount(beneficiaryIbanOf(payment), WITHDRAWAL_EUR);
+        && isSavingsFundAccount(payment.getBeneficiaryIban(), WITHDRAWAL_EUR);
   }
 
   private boolean isOutgoingToFundAccount(SavingFundPayment payment) {
     return payment.getAmount().compareTo(ZERO) < 0
-        && isSavingsFundAccount(beneficiaryIbanOf(payment), FUND_INVESTMENT_EUR);
+        && isSavingsFundAccount(payment.getBeneficiaryIban(), FUND_INVESTMENT_EUR);
   }
 
   private boolean isOutgoingReturn(SavingFundPayment payment) {
     return payment.getAmount().compareTo(ZERO) < 0
-        && !isSavingsFundAccount(beneficiaryIbanOf(payment), FUND_INVESTMENT_EUR);
+        && !isSavingsFundAccount(payment.getBeneficiaryIban(), FUND_INVESTMENT_EUR);
   }
 
-  private static String beneficiaryIbanOf(SavingFundPayment payment) {
-    return requireNonNull(
-        payment.getBeneficiaryIban(),
-        "Payment without beneficiary IBAN reached statement processing: paymentId="
-            + payment.getId());
-  }
-
-  private boolean isSavingsFundAccount(String iban) {
+  private boolean isSavingsFundAccount(@Nullable String iban) {
     return bankAccounts.find(iban).filter(account -> account.belongsTo(TKF100)).isPresent();
   }
 
-  private boolean isSavingsFundAccount(String iban, BankAccountType type) {
+  private boolean isSavingsFundAccount(@Nullable String iban, BankAccountType type) {
     return bankAccounts.find(iban).filter(account -> account.matches(TKF100, type)).isPresent();
   }
 }

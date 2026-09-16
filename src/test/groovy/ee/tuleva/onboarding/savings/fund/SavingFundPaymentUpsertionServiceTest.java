@@ -636,6 +636,32 @@ class SavingFundPaymentUpsertionServiceTest {
                 .build());
   }
 
+  @Test
+  void upsert_takesTheStatementEndToEndIdInsteadOfFailingOnAnEarlierOne() {
+    var existingId = UUID.randomUUID();
+    var existing =
+        callbackCreatedPayment(existingId).toBuilder()
+            .remitterIban("EE123")
+            .endToEndId("E2E-EARLIER")
+            .build();
+    given(repository.findByExternalId("EXT-1")).willReturn(Optional.empty());
+    given(repository.findRecentPayments(CALLBACK_DESCRIPTION)).willReturn(List.of(existing));
+
+    service.upsert(
+        statementPayment().endToEndId("E2E-1").build(),
+        p -> SavingFundPayment.Status.RECEIVED,
+        p -> SavingFundPayment.Status.RECEIVED);
+
+    verify(repository)
+        .updatePaymentData(
+            existingId,
+            statementPayment()
+                .id(existingId)
+                .endToEndId("E2E-1")
+                .createdAt(CALLBACK_CREATED_AT)
+                .build());
+  }
+
   private SavingFundPayment callbackCreatedPayment(UUID id) {
     return SavingFundPayment.builder()
         .id(id)

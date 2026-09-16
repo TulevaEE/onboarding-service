@@ -643,4 +643,48 @@ class SavingsFundStatementProcessorTest {
         .transferToFundAccount(
             new BigDecimal("100.00"), outgoingPayment.getId(), LocalDate.of(2025, 10, 1));
   }
+
+  @Test
+  void incomingPaymentWithoutRemitterIban_isProcessedNormally() {
+    var incomingPayment = aPayment().amount(new BigDecimal("200.00")).remitterIban(null).build();
+    var bankStatement = setupMocksForPayment(incomingPayment);
+
+    processor.process(bankStatement, statementAccount);
+
+    verify(paymentService).upsert(eq(incomingPayment), any(), any());
+  }
+
+  @Test
+  void depositOutgoingWithoutBeneficiaryIban_isNotBookedAsTransferToTheFund() {
+    var outgoingPayment =
+        aPayment()
+            .amount(new BigDecimal("-100.00"))
+            .beneficiaryIban(null)
+            .receivedBefore(Instant.parse("2025-10-01T20:59:59.999999Z"))
+            .build();
+    var bankStatement = setupMocksForPayment(outgoingPayment);
+
+    processor.process(bankStatement, statementAccount);
+
+    verify(paymentService).upsert(eq(outgoingPayment), any(), any());
+    verify(savingsFundLedger, never()).transferToFundAccount(any(), any(), any());
+  }
+
+  @Test
+  void fundInvestmentOutgoingWithoutBeneficiaryName_isNotBookedAsManagementFee() {
+    var outgoingPayment =
+        aPayment()
+            .amount(new BigDecimal("-742.34"))
+            .beneficiaryIban(EXTERNAL_ACCOUNT_IBAN)
+            .beneficiaryName(null)
+            .description("Valitsemistasu 02.-28.02.26")
+            .receivedBefore(Instant.parse("2025-10-01T20:59:59.999999Z"))
+            .build();
+    var bankStatement =
+        setupMocksForPaymentWithAccount(outgoingPayment, FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR);
+
+    processor.process(bankStatement, statementAccount);
+
+    verify(fundBankLedger, never()).recordManagementFeePayment(any(), any(), any(), any(), any());
+  }
 }

@@ -13,7 +13,9 @@ import ee.tuleva.onboarding.savings.SavingFundDeadlinesService;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -660,6 +662,64 @@ class SavingFundPaymentUpsertionServiceTest {
                 .endToEndId("E2E-1")
                 .createdAt(CALLBACK_CREATED_AT)
                 .build());
+  }
+
+  @Test
+  void upsert_doesNotMergeIntoPaymentWithoutIbanCreatedMoreThanAWeekBeforeTheBooking() {
+    var staleId = UUID.randomUUID();
+    var stale =
+        callbackCreatedPayment(staleId).toBuilder()
+            .createdAt(STATEMENT_RECEIVED_BEFORE.minus(Duration.ofDays(8)))
+            .build();
+    given(repository.findByExternalId("EXT-1")).willReturn(Optional.empty());
+    given(repository.findRecentPayments(CALLBACK_DESCRIPTION)).willReturn(List.of(stale));
+
+    service.upsert(
+        statementPayment().build(),
+        p -> SavingFundPayment.Status.RECEIVED,
+        p -> SavingFundPayment.Status.RECEIVED);
+
+    verify(repository).savePaymentData(any());
+    verify(repository, never()).updatePaymentData(any(), any());
+  }
+
+  @Test
+  void upsert_statementRowWithoutIbanDoesNotMergeIntoAStalePaymentWithoutIban() {
+    var stale =
+        callbackCreatedPayment(UUID.randomUUID()).toBuilder()
+            .createdAt(STATEMENT_RECEIVED_BEFORE.minus(Duration.ofDays(8)))
+            .build();
+    given(repository.findByExternalId("EXT-1")).willReturn(Optional.empty());
+    given(repository.findRecentPayments(CALLBACK_DESCRIPTION)).willReturn(List.of(stale));
+
+    service.upsert(
+        statementPayment().remitterIban(null).build(),
+        p -> SavingFundPayment.Status.RECEIVED,
+        p -> SavingFundPayment.Status.RECEIVED);
+
+    verify(repository).savePaymentData(any());
+    verify(repository, never()).updatePaymentData(any(), any());
+  }
+
+  @Test
+  void upsert_measuresTheWeekFromNowWhenTheStatementRowHasNoBookingTime() {
+    var clockedService =
+        new SavingFundPaymentUpsertionService(
+            repository,
+            deadlinesService,
+            new NameMatcher(),
+            Clock.fixed(CALLBACK_CREATED_AT.plus(Duration.ofDays(8)), ZoneOffset.UTC));
+    given(repository.findByExternalId("EXT-1")).willReturn(Optional.empty());
+    given(repository.findRecentPayments(CALLBACK_DESCRIPTION))
+        .willReturn(List.of(callbackCreatedPayment(UUID.randomUUID())));
+
+    clockedService.upsert(
+        statementPayment().receivedBefore(null).build(),
+        p -> SavingFundPayment.Status.RECEIVED,
+        p -> SavingFundPayment.Status.RECEIVED);
+
+    verify(repository).savePaymentData(any());
+    verify(repository, never()).updatePaymentData(any(), any());
   }
 
   private SavingFundPayment callbackCreatedPayment(UUID id) {

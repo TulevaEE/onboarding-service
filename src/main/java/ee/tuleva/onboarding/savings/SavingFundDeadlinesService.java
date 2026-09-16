@@ -16,6 +16,7 @@ public class SavingFundDeadlinesService {
 
   private static final LocalTime CUTOFF_TIME = LocalTime.of(16, 0);
   private static final LocalTime SCREENING_RETRY_CUTOFF_TIME = LocalTime.of(15, 0);
+  private static final Duration MINIMUM_SCREENING_RETRY_WINDOW = Duration.ofMinutes(10);
 
   private LocalDate firstWorkingDayOnOrAfter(LocalDate date) {
     return publicHolidays.nextWorkingDay(date.minusDays(1));
@@ -37,10 +38,14 @@ public class SavingFundDeadlinesService {
   }
 
   public Instant getScreeningRetryDeadline(RedemptionRequest redemptionRequest) {
-    return dealingDay(redemptionRequest.getRequestedAt())
-        .atTime(SCREENING_RETRY_CUTOFF_TIME)
-        .atZone(estonianClock.getZone())
-        .toInstant();
+    Instant requestedAt = redemptionRequest.getRequestedAt();
+    Instant dealingDayCutoff =
+        dealingDay(requestedAt)
+            .atTime(SCREENING_RETRY_CUTOFF_TIME)
+            .atZone(estonianClock.getZone())
+            .toInstant();
+    Instant minimumRetryWindow = requestedAt.plus(MINIMUM_SCREENING_RETRY_WINDOW);
+    return dealingDayCutoff.isAfter(minimumRetryWindow) ? dealingDayCutoff : minimumRetryWindow;
   }
 
   private Instant getCancellationDeadlineFrom(Instant eventInstant) {

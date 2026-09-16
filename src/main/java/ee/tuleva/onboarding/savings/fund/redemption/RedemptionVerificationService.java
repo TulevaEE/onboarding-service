@@ -21,6 +21,7 @@ import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.Optional;
@@ -29,12 +30,17 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestClientException;
+import org.springframework.ws.client.WebServiceIOException;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
 public class RedemptionVerificationService {
 
+  private static final Duration SCREENING_RETRY_BACKOFF = Duration.ofMinutes(5);
+
+  private final RedemptionRequestRepository redemptionRequestRepository;
   private final RedemptionStatusService redemptionStatusService;
   private final UserService userService;
   private final KycCountryService kycCountryService;
@@ -48,6 +54,9 @@ public class RedemptionVerificationService {
 
   @Transactional
   public void process(RedemptionRequest request) {
+    if (attemptedWithinBackoff(request)) {
+      return;
+    }
     log.info(
         "Processing verification for redemption request: id={}, party={}",
         request.getId(),
@@ -62,6 +71,8 @@ public class RedemptionVerificationService {
           "Redemption verification passed: id={}, party={}", request.getId(), request.getPartyId());
       redemptionStatusService.changeStatus(request.getId(), VERIFIED);
     } else if (holdReason.get() == SCREENING_UNAVAILABLE && canStillRetry(request)) {
+      request.setVerificationAttemptedAt(Instant.now(clock));
+      redemptionRequestRepository.save(request);
       log.info(
           "Screening unavailable, retrying until deadline: id={}, party={}, deadline={}",
           request.getId(),
@@ -70,6 +81,12 @@ public class RedemptionVerificationService {
     } else {
       hold(request, holdReason.get());
     }
+  }
+
+  private boolean attemptedWithinBackoff(RedemptionRequest request) {
+    Instant attemptedAt = request.getVerificationAttemptedAt();
+    return attemptedAt != null
+        && attemptedAt.isAfter(Instant.now(clock).minus(SCREENING_RETRY_BACKOFF));
   }
 
   private boolean canStillRetry(RedemptionRequest request) {
@@ -123,7 +140,7 @@ public class RedemptionVerificationService {
     }
     return switch (screening) {
       case MATCH -> Optional.of(SCREENING_MATCH);
-      case UNAVAILABLE -> Optional.of(highRisk ? HIGH_RISK : SCREENING_UNAVAILABLE);
+      case UNAVAILABLE -> Optional.of(SCREENING_UNAVAILABLE);
       case CLEAR -> highRisk ? Optional.of(HIGH_RISK) : Optional.empty();
     };
   }
@@ -143,13 +160,20 @@ public class RedemptionVerificationService {
     }
     try {
       legalEntityScreener.screenLatest(registryCode);
+    } catch (WebServiceIOException | RestClientException e) {
+      log.error(
+          "Legal entity screening service unavailable: requestId={}, registryCode={}",
+          request.getId(),
+          registryCode,
+          e);
+      return Optional.of(SCREENING_UNAVAILABLE);
     } catch (RuntimeException e) {
       log.error(
           "Failed to re-screen legal entity for redemption: requestId={}, registryCode={}",
           request.getId(),
           registryCode,
           e);
-      return Optional.of(SCREENING_UNAVAILABLE);
+      return Optional.of(ONBOARDING_INCOMPLETE);
     }
     return savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY)
         ? Optional.empty()

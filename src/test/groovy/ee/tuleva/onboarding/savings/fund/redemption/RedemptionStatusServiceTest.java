@@ -5,7 +5,6 @@ import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Sta
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestFixture.redemptionRequestFixture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -177,7 +176,7 @@ class RedemptionStatusServiceTest {
 
     assertThat(request.getHoldReason()).isEqualTo(SCREENING_UNAVAILABLE);
     assertThat(request.getStatus()).isEqualTo(IN_REVIEW);
-    verify(repository, times(2)).save(request);
+    verify(repository).save(request);
   }
 
   @Test

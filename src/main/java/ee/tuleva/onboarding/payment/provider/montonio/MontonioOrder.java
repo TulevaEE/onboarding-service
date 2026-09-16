@@ -16,7 +16,9 @@ public record MontonioOrder(
     Currency currency,
     long exp,
     MontonioPaymentMethod payment,
-    MontonioBillingAddress billingAddress,
+    // Absent when nobody was logged in to pay, which is how a gift link works. Montonio only uses
+    // this to prefill the payer's name, and the money is routed by the description regardless.
+    @Nullable MontonioBillingAddress billingAddress,
     String locale) {
 
   @Data

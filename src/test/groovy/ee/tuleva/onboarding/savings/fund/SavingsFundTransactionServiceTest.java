@@ -19,6 +19,7 @@ import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.account.transaction.Transaction;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.ledger.LedgerAccount;
 import ee.tuleva.onboarding.ledger.LedgerAccountFixture.EntryFixture;
 import ee.tuleva.onboarding.ledger.LedgerService;
@@ -26,6 +27,7 @@ import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
 import ee.tuleva.onboarding.savings.SavingsFundConfiguration;
 import ee.tuleva.onboarding.savings.SavingsFundOnboardingService;
+import ee.tuleva.onboarding.savings.fund.nav.NavCalendar;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestRepository;
 import java.math.BigDecimal;
@@ -38,6 +40,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -48,6 +51,7 @@ class SavingsFundTransactionServiceTest {
   @Mock private SavingsFundConfiguration savingsFundConfiguration;
   @Mock private RedemptionRequestRepository redemptionRequestRepository;
   @Mock private SavingFundPaymentRepository savingFundPaymentRepository;
+  @Spy private NavCalendar navCalendar = new NavCalendar(new PublicHolidays());
 
   @InjectMocks private SavingsFundTransactionService service;
 
@@ -458,6 +462,47 @@ class SavingsFundTransactionServiceTest {
     assertThat(service.getTransactions(person))
         .extracting(Transaction::navDate)
         .containsExactly(navDate, navDate);
+  }
+
+  @Test
+  void carriesTheDayThePriceWasCalculatedTheNextWorkingDayAfterTheNavDate() {
+    String isin = "EE0000003283";
+    Instant issuedAt = Instant.parse("2025-03-17T14:00:00Z");
+    LocalDate friday = LocalDate.parse("2025-03-14");
+    LocalDate monday = LocalDate.parse("2025-03-17");
+
+    when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
+    when(savingsFundConfiguration.getIsin()).thenReturn(isin);
+    when(ledgerService.getPartyAccount(personalCode, PERSON, SUBSCRIPTIONS))
+        .thenReturn(
+            subscriptionsAccountWithEntries(
+                List.of(
+                    new EntryFixture(new BigDecimal("100.00"), issuedAt, new BigDecimal("10.0"))
+                        .pricedOn(friday))));
+    when(ledgerService.getPartyAccount(personalCode, PERSON, REDEMPTIONS))
+        .thenReturn(redemptionsAccountWithEntries(List.of()));
+
+    assertThat(service.getTransactions(person))
+        .extracting(Transaction::navDate, Transaction::priceCalculationDate)
+        .containsExactly(tuple(friday, monday));
+  }
+
+  @Test
+  void leavesThePriceCalculationDateOutWhenTheLedgerDoesNotCarryANavDate() {
+    when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
+    when(savingsFundConfiguration.getIsin()).thenReturn("EE0000003283");
+    when(ledgerService.getPartyAccount(personalCode, PERSON, SUBSCRIPTIONS))
+        .thenReturn(
+            subscriptionsAccountWithEntries(
+                List.of(
+                    new EntryFixture(
+                        new BigDecimal("100.00"), Instant.parse("2025-03-11T14:00:00Z")))));
+    when(ledgerService.getPartyAccount(personalCode, PERSON, REDEMPTIONS))
+        .thenReturn(redemptionsAccountWithEntries(List.of()));
+
+    assertThat(service.getTransactions(person))
+        .extracting(Transaction::priceCalculationDate)
+        .containsOnlyNulls();
   }
 
   @Test

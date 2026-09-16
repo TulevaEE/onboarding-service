@@ -10,18 +10,15 @@ import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYM
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
 import static ee.tuleva.onboarding.ledger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
-import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.getaSecretKey;
-import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.getaSerializedSavingsPaymentToken;
+import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedSavingsPaymentTokenWithout;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.CREATED;
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.PROCESSED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RECEIVED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.VERIFIED;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.util.stream.Collectors.toSet;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.nimbusds.jose.JWSObject;
-import com.nimbusds.jose.Payload;
-import com.nimbusds.jose.crypto.MACSigner;
 import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.BankType;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.ProcessBankMessagesRequested;
@@ -59,8 +56,6 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.transaction.annotation.Transactional;
-import tools.jackson.core.type.TypeReference;
-import tools.jackson.databind.json.JsonMapper;
 
 @SpringBootTest
 @Transactional
@@ -150,7 +145,7 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
     assertThat(savedPayment.getBeneficiaryIdCode()).isEqualTo("14118923");
     assertThat(savedPayment.getBeneficiaryName()).isEqualTo("TULEVA FONDID AS");
     assertThat(savedPayment.getExternalId()).isEqualTo("2025100112345-1");
-    assertThat(savedPayment.getStatus()).isEqualTo(SavingFundPayment.Status.RECEIVED);
+    assertThat(savedPayment.getStatus()).isEqualTo(RECEIVED);
     assertThat(savedPayment.getReceivedBefore()).isEqualTo(Instant.parse("2025-10-01T09:00:00Z"));
   }
 
@@ -256,7 +251,7 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
     assertThat(payments).hasSize(1);
     var savedPayment = payments.getFirst();
     assertThat(savedPayment.getAmount()).isEqualByComparingTo(new BigDecimal("-50.00"));
-    assertThat(savedPayment.getStatus()).isEqualTo(SavingFundPayment.Status.PROCESSED);
+    assertThat(savedPayment.getStatus()).isEqualTo(PROCESSED);
     assertThat(savedPayment.getDescription()).isEqualTo("Outgoing payment");
   }
 
@@ -320,7 +315,7 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
     assertThat(payments).hasSize(1);
     var savedPayment = payments.getFirst();
     assertThat(savedPayment.getAmount()).isEqualByComparingTo(new BigDecimal("200.00"));
-    assertThat(savedPayment.getStatus()).isEqualTo(SavingFundPayment.Status.PROCESSED);
+    assertThat(savedPayment.getStatus()).isEqualTo(PROCESSED);
   }
 
   @Test
@@ -375,7 +370,7 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
     assertThat(payments).hasSize(1);
     var savedPayment = payments.getFirst();
     assertThat(savedPayment.getAmount()).isEqualByComparingTo(BigDecimal.ZERO);
-    assertThat(savedPayment.getStatus()).isEqualTo(SavingFundPayment.Status.PROCESSED);
+    assertThat(savedPayment.getStatus()).isEqualTo(PROCESSED);
     assertThat(savedPayment.getDescription()).isEqualTo("Zero payment");
   }
 
@@ -444,7 +439,7 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
     assertThat(payments).hasSize(1);
     var savedPayment = payments.getFirst();
     assertThat(savedPayment.getAmount()).isEqualByComparingTo(new BigDecimal("-100.50"));
-    assertThat(savedPayment.getStatus()).isEqualTo(SavingFundPayment.Status.PROCESSED);
+    assertThat(savedPayment.getStatus()).isEqualTo(PROCESSED);
     assertThat(savedPayment.getBeneficiaryIban()).isEqualTo(investmentIban);
 
     // and - ledger entry is created: INCOMING_PAYMENTS_CLEARING decreases,
@@ -483,7 +478,7 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
       assertThat(updated.getId()).isEqualTo(existingId);
       assertThat(updated.getExternalId()).isEqualTo("2025100112345-1");
       assertThat(updated.getDescription()).isEqualTo("Test payment");
-      assertThat(updated.getStatus()).isEqualTo(SavingFundPayment.Status.RECEIVED);
+      assertThat(updated.getStatus()).isEqualTo(RECEIVED);
       // Montonio payment didn't have receivedBefore, but Swedbank report adds it
       assertThat(updated.getReceivedBefore()).isEqualTo(Instant.parse("2025-10-01T09:00:00Z"));
     }
@@ -498,7 +493,7 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
               .receivedBefore(existingReceivedBefore)
               .build();
       var existingId = repository.savePaymentData(existingPayment);
-      repository.changeStatus(existingId, SavingFundPayment.Status.RECEIVED);
+      repository.changeStatus(existingId, RECEIVED);
       var paymentIdsBefore = paymentIdsBeforeProcessing();
 
       // when - same XML arrives again (duplicate bank statement)
@@ -511,7 +506,7 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
       assertThat(payment).isPresent();
       assertThat(payment.get().getId()).isEqualTo(existingId);
       assertThat(payment.get().getDescription()).isEqualTo("Initial payment");
-      assertThat(payment.get().getStatus()).isEqualTo(SavingFundPayment.Status.RECEIVED);
+      assertThat(payment.get().getStatus()).isEqualTo(RECEIVED);
       assertThat(payment.get().getReceivedBefore()).isEqualTo(existingReceivedBefore);
     }
 
@@ -550,7 +545,7 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
                   .id(paymentId)
                   .partyId(party)
                   .endToEndId("E2E-1")
-                  .status(SavingFundPayment.Status.RECEIVED)
+                  .status(RECEIVED)
                   .build());
     }
 
@@ -736,75 +731,34 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
   @Nested
   class CallbackWithoutSenderDetailsTests {
 
-    private static final String PAYER_CODE = "38812121215";
-    private static final PartyId PAYER = new PartyId(PERSON, PAYER_CODE);
-    private static final String DESCRIPTION = PAYER_CODE + ", 1788961806";
     private static final BigDecimal AMOUNT = new BigDecimal("10.00");
-    private static final Instant STATEMENT_RECEIVED_AT = Instant.parse("2025-10-01T12:00:00Z");
-
-    private static final String STATEMENT_XML =
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?> "
-            + "<Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:camt.052.001.02\"> "
-            + "<BkToCstmrAcctRpt> "
-            + "<GrpHdr> <MsgId>test</MsgId> <CreDtTm>2025-10-01T12:00:00</CreDtTm> </GrpHdr> "
-            + "<Rpt> "
-            + "<Id>test-1</Id> "
-            + "<CreDtTm>2025-10-01T12:00:00</CreDtTm> "
-            + "<FrToDt> <FrDtTm>2025-10-01T00:00:00</FrDtTm> <ToDtTm>2025-10-01T12:00:00</ToDtTm> "
-            + "</FrToDt> "
-            + "<Acct> <Id> <IBAN>EE442200221092874625</IBAN> </Id> "
-            + "<Ownr> <Nm>TULEVA FONDID AS</Nm> "
-            + "<Id> <OrgId> <Othr> <Id>14118923</Id> </Othr> </OrgId> </Id> </Ownr> </Acct> "
-            + "<Ntry> "
-            + "<NtryRef>2025100112345-1</NtryRef>"
-            + "<Amt Ccy=\"EUR\">10.00</Amt> "
-            + "<CdtDbtInd>CRDT</CdtDbtInd> "
-            + "<Sts>BOOK</Sts> "
-            + "<BookgDt> <Dt>2025-10-01</Dt> </BookgDt> "
-            + "<NtryDtls> <TxDtls> "
-            + "<Refs> <AcctSvcrRef>2025100112345-1</AcctSvcrRef> <EndToEndId>E2E-1</EndToEndId> "
-            + "</Refs> "
-            + "<AmtDtls> <TxAmt> <Amt Ccy=\"EUR\">10.00</Amt> </TxAmt> </AmtDtls> "
-            + "<RltdPties> "
-            + "<Dbtr> <Nm>Jordan Valdma</Nm> "
-            + "<Id> <PrvtId> <Othr> <Id>"
-            + PAYER_CODE
-            + "</Id> </Othr> </PrvtId> </Id> </Dbtr> "
-            + "<DbtrAcct> <Id> <IBAN>EE157700771001802057</IBAN> </Id> </DbtrAcct> "
-            + "</RltdPties> "
-            + "<RmtInf> <Ustrd>"
-            + DESCRIPTION
-            + "</Ustrd> </RmtInf> "
-            + "</TxDtls> </NtryDtls> "
-            + "</Ntry> </Rpt> </BkToCstmrAcctRpt> </Document>";
 
     @Autowired private SavingsCallbackService savingsCallbackService;
     @Autowired private PaymentVerificationService paymentVerificationService;
-    @Autowired private SavingFundPaymentRepository paymentRepository;
     @Autowired private SavingsFundLedger savingsFundLedger;
     @Autowired private UserRepository userRepository;
-    @Autowired private BankingMessageRepository bankingMessageRepository;
-    @Autowired private ApplicationEventPublisher eventPublisher;
     @Autowired private ApplicationEvents applicationEvents;
-    @Autowired private JsonMapper jsonMapper;
+
+    private final String payerCode = paymentMatchingXmlTemplate().build().getRemitterIdCode();
+    private final PartyId payer = new PartyId(PERSON, payerCode);
+    private final String description = payerCode + ", 1788961806";
 
     @BeforeEach
     void savePayer() {
       userRepository
-          .findByPersonalCode(PAYER_CODE)
+          .findByPersonalCode(payerCode)
           .orElseGet(
               () ->
                   userRepository.save(
-                      sampleUserNonMember().personalCode(PAYER_CODE).id(null).build()));
+                      sampleUserNonMember().personalCode(payerCode).id(null).build()));
     }
 
     @Test
-    void paidTokenWithoutSenderDetailsIsRecordedReceiptedOnceAndEnrichedByTheStatement()
-        throws Exception {
+    void paidTokenWithoutSenderDetailsIsRecordedReceiptedOnceAndEnrichedByTheStatement() {
       var recorded = savingsCallbackService.processToken(tokenWithoutSenderDetails());
 
       assertThat(recorded).isTrue();
-      var payments = paymentRepository.findRecentPayments(DESCRIPTION);
+      var payments = repository.findRecentPayments(description);
       assertThat(payments).hasSize(1);
       var payment = payments.getFirst();
       assertThat(payment)
@@ -813,54 +767,45 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
           .ignoringFields("id", "createdAt", "statusChangedAt")
           .isEqualTo(
               SavingFundPayment.builder()
-                  .partyId(PAYER)
+                  .partyId(payer)
                   .amount(AMOUNT)
                   .currency(EUR)
-                  .description(DESCRIPTION)
+                  .description(description)
                   .status(CREATED)
                   .build());
       assertThat(receiptEvents()).hasSize(1);
-      assertThat(receiptEvents().getFirst().getUser().getPersonalCode()).isEqualTo(PAYER_CODE);
-      assertThat(receiptEvents().getFirst().getRecipient()).isEqualTo(PAYER);
+      assertThat(receiptEvents().getFirst().getUser().getPersonalCode()).isEqualTo(payerCode);
+      assertThat(receiptEvents().getFirst().getRecipient()).isEqualTo(payer);
 
-      processStatement();
+      processXmlMessage(statement());
 
-      assertThat(paymentRepository.findRecentPayments(DESCRIPTION)).hasSize(1);
-      var enriched = paymentRepository.findById(payment.getId()).orElseThrow();
+      assertThat(repository.findRecentPayments(description)).hasSize(1);
+      var enriched = repository.findById(payment.getId()).orElseThrow();
       assertThat(enriched)
           .usingRecursiveComparison()
           .withComparatorForType(BigDecimal::compareTo, BigDecimal.class)
           .ignoringFields("createdAt", "statusChangedAt")
           .isEqualTo(
-              SavingFundPayment.builder()
+              paymentMatchingXmlTemplate()
                   .id(payment.getId())
-                  .partyId(PAYER)
+                  .partyId(payer)
                   .amount(AMOUNT)
-                  .currency(EUR)
-                  .description(DESCRIPTION)
-                  .remitterIban("EE157700771001802057")
-                  .remitterIdCode(PAYER_CODE)
-                  .remitterName("Jordan Valdma")
-                  .beneficiaryIban("EE442200221092874625")
-                  .beneficiaryIdCode("14118923")
-                  .beneficiaryName("TULEVA FONDID AS")
-                  .externalId("2025100112345-1")
+                  .description(description)
                   .endToEndId("E2E-1")
-                  .receivedBefore(Instant.parse("2025-10-01T09:00:00Z"))
                   .status(RECEIVED)
                   .build());
 
       completeOnboarding();
       paymentVerificationService.process(enriched);
 
-      assertThat(paymentRepository.findById(payment.getId()).orElseThrow().getStatus())
+      assertThat(repository.findById(payment.getId()).orElseThrow().getStatus())
           .isEqualTo(VERIFIED);
       assertThat(savingsFundLedger.hasLedgerEntry(payment.getId(), PAYMENT_RECEIVED)).isTrue();
       assertThat(receiptEvents()).hasSize(1);
     }
 
     @Test
-    void theSameTokenTwiceRecordsOnePaymentAndOneReceipt() throws Exception {
+    void theSameTokenTwiceRecordsOnePaymentAndOneReceipt() {
       var token = tokenWithoutSenderDetails();
 
       var recordedFirst = savingsCallbackService.processToken(token);
@@ -868,18 +813,18 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
 
       assertThat(recordedFirst).isTrue();
       assertThat(recordedAgain).isFalse();
-      assertThat(paymentRepository.findRecentPayments(DESCRIPTION)).hasSize(1);
+      assertThat(repository.findRecentPayments(description)).hasSize(1);
       assertThat(receiptEvents()).hasSize(1);
     }
 
     @Test
-    void aStatementThatArrivesBeforeTheCallbackLeavesNoReceipt() throws Exception {
-      processStatement();
+    void aStatementThatArrivesBeforeTheCallbackLeavesNoReceipt() {
+      processXmlMessage(statement());
 
       var recorded = savingsCallbackService.processToken(tokenWithoutSenderDetails());
 
       assertThat(recorded).isFalse();
-      assertThat(paymentRepository.findRecentPayments(DESCRIPTION)).hasSize(1);
+      assertThat(repository.findRecentPayments(description)).hasSize(1);
       assertThat(receiptEvents()).isEmpty();
     }
 
@@ -887,39 +832,29 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
       return applicationEvents.stream(SavingsPaymentCreatedEvent.class).toList();
     }
 
-    private String tokenWithoutSenderDetails() throws Exception {
-      var original = JWSObject.parse(getaSerializedSavingsPaymentToken());
-      Map<String, Object> payload =
-          jsonMapper.readValue(original.getPayload().toString(), new TypeReference<>() {});
-      payload.remove("senderName");
-      payload.remove("senderIban");
-      Map<String, Object> reference =
-          jsonMapper.readValue((String) payload.get("merchantReference"), new TypeReference<>() {});
-      reference.put("description", DESCRIPTION);
-      payload.put("merchantReference", jsonMapper.writeValueAsString(reference));
-      var token =
-          new JWSObject(original.getHeader(), new Payload(jsonMapper.writeValueAsString(payload)));
-      token.sign(new MACSigner(getaSecretKey().getBytes()));
-      return token.serialize();
+    private String tokenWithoutSenderDetails() {
+      return aSerializedSavingsPaymentTokenWithout(
+          List.of("senderName", "senderIban"),
+          Map.of(
+              "personalCode", payerCode,
+              "recipientPersonalCode", payerCode,
+              "description", description));
     }
 
-    private void processStatement() {
-      bankingMessageRepository.save(
-          BankingMessage.builder()
-              .bankType(BankType.SEB)
-              .requestId("test")
-              .trackingId("test")
-              .rawResponse(STATEMENT_XML)
-              .timezone(SEB_GATEWAY_TIME_ZONE.getId())
-              .receivedAt(STATEMENT_RECEIVED_AT)
-              .build());
-      eventPublisher.publishEvent(new ProcessBankMessagesRequested());
+    private String statement() {
+      return XML_TEMPLATE
+          .replace("100.50", "10.00")
+          .replace("Test payment", description)
+          .replace(
+              "<Refs> <AcctSvcrRef>2025100112345-1</AcctSvcrRef> </Refs>",
+              "<Refs> <AcctSvcrRef>2025100112345-1</AcctSvcrRef> <EndToEndId>E2E-1</EndToEndId>"
+                  + " </Refs>");
     }
 
     private void completeOnboarding() {
       eventPublisher.publishEvent(
           new KycCheckPerformedEvent(
-              this, PAYER_CODE, new KycCheck(NONE, Map.of()), PERSONAL_ONBOARDING));
+              this, payerCode, new KycCheck(NONE, Map.of()), PERSONAL_ONBOARDING));
     }
   }
 }

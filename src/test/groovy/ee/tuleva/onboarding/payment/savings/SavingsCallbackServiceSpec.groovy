@@ -3,10 +3,6 @@ package ee.tuleva.onboarding.payment.savings
 
 import tools.jackson.databind.json.JsonMapper
 import com.nimbusds.jose.JWSObject
-import com.nimbusds.jose.Payload
-import com.nimbusds.jose.crypto.MACSigner
-import groovy.json.JsonOutput
-import groovy.json.JsonSlurper
 import ee.tuleva.onboarding.payment.IncomingSavingsPayment
 import ee.tuleva.onboarding.payment.SavingsPayments
 import ee.tuleva.onboarding.payment.event.SavingsPaymentCreatedEvent
@@ -159,7 +155,7 @@ class SavingsCallbackServiceSpec extends Specification {
   @Unroll
   def "paid token without #missing records the payment without those details and sends the receipt"() {
     given:
-    def serializedToken = withoutSenderDetails(aSerializedSavingsPaymentToken, fields)
+    def serializedToken = aSerializedSavingsPaymentTokenWithout(fields)
     def mockUser = sampleUser().personalCode("38812121215").build()
     def token = tokenParser.parse(JWSObject.parse(serializedToken))
     def expectedPayment = new IncomingSavingsPayment(
@@ -186,12 +182,4 @@ class SavingsCallbackServiceSpec extends Specification {
     "sender IBAN"          | ["senderIban"]
   }
 
-  private String withoutSenderDetails(String serializedToken, List<String> fields) {
-    def original = JWSObject.parse(serializedToken)
-    def payload = new JsonSlurper().parseText(original.payload.toString()) as Map
-    fields.each { payload.remove(it) }
-    def jws = new JWSObject(original.header, new Payload(JsonOutput.toJson(payload)))
-    jws.sign(new MACSigner(aSecretKey.getBytes()))
-    return jws.serialize()
-  }
 }

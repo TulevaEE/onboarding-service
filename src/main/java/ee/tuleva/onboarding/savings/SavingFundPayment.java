@@ -56,6 +56,10 @@ public class SavingFundPayment {
     return requireNonNull(bookingDate(), "Missing receivedBefore: paymentId=" + id);
   }
 
+  public boolean isUnconfirmedSince(Instant cutoff) {
+    return status == CREATED && createdAt.isBefore(cutoff);
+  }
+
   public enum Status {
     CREATED,
     RECEIVED,

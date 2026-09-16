@@ -63,7 +63,7 @@ class SavingsFundTaxReportServiceTest {
         .amount(new BigDecimal(amount))
         .currency(EUR)
         .time(at)
-        .priceDate(at.atZone(ZoneId.of("Europe/Tallinn")).toLocalDate())
+        .navDate(at.atZone(ZoneId.of("Europe/Tallinn")).toLocalDate())
         .settledTime(at)
         .isin("EE0000003283")
         .type(type)

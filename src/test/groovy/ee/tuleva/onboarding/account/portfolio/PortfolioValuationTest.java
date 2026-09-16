@@ -64,7 +64,7 @@ class PortfolioValuationTest {
         .amount(unitCount.multiply(navPerUnit))
         .currency(EUR)
         .time(Instant.parse(time))
-        .priceDate(Instant.parse(priceTime).atZone(ZoneId.of("Europe/Tallinn")).toLocalDate())
+        .navDate(Instant.parse(priceTime).atZone(ZoneId.of("Europe/Tallinn")).toLocalDate())
         .isin(isin)
         .type(type)
         .units(unitCount)

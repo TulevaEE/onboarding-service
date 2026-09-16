@@ -178,7 +178,7 @@ public class SavingsFundTransactionService implements SavingsTransactions {
                 toNavScale(
                     require(ledgerTransaction.findNavPerUnit(), "navPerUnit", ledgerTransaction)));
 
-    ledgerTransaction.findNavDate().ifPresent(transaction::priceDate);
+    ledgerTransaction.findNavDate().ifPresent(transaction::navDate);
 
     return transaction;
   }

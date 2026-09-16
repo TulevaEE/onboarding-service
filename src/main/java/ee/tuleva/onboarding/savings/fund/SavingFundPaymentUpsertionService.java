@@ -1,13 +1,14 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.*;
-import static java.util.Comparator.comparing;
 
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.SavingFundDeadlinesService;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
@@ -90,25 +91,41 @@ public class SavingFundPaymentUpsertionService {
 
   private Optional<SavingFundPayment> findExistingPayment(SavingFundPayment payment) {
     log.debug(
-        "Looking for matching payment by description, amount, and remitter IBAN: {}, {}, {}",
+        "Looking for matching payment: description={}, amount={}, remitterIban={}",
         payment.getDescription(),
         payment.getAmount(),
         payment.getRemitterIban());
-    return repository.findRecentPayments(payment.getDescription()).stream()
-        .filter(p -> p.getExternalId() == null)
-        .filter(p -> p.getAmount().compareTo(payment.getAmount()) == 0)
-        .filter(p -> isSameBankTransfer(p, payment) || isAwaitingBankDetails(p))
-        .sorted(comparing(p -> p.getRemitterIban() == null))
-        .findFirst();
+    var candidates =
+        repository.findRecentPayments(payment.getDescription()).stream()
+            .filter(p -> p.getExternalId() == null)
+            .filter(p -> p.getAmount().compareTo(payment.getAmount()) == 0)
+            .toList();
+    var bankConfirmationWindow = Duration.ofDays(7);
+    var awaitingSince = bookingTimeOf(payment).minus(bankConfirmationWindow);
+    return candidates.stream()
+        .filter(p -> isSameBankTransfer(p, payment))
+        .findFirst()
+        .or(
+            () ->
+                candidates.stream()
+                    .filter(p -> isAwaitingBankDetails(p, awaitingSince))
+                    .findFirst());
+  }
+
+  private Instant bookingTimeOf(SavingFundPayment payment) {
+    return payment.getReceivedBefore() != null ? payment.getReceivedBefore() : clock.instant();
   }
 
   private static boolean isSameBankTransfer(SavingFundPayment existing, SavingFundPayment payment) {
     return MATCHABLE_STATUSES.contains(existing.getStatus())
-        && Objects.equals(existing.getRemitterIban(), payment.getRemitterIban());
+        && existing.getRemitterIban() != null
+        && existing.getRemitterIban().equals(payment.getRemitterIban());
   }
 
-  private static boolean isAwaitingBankDetails(SavingFundPayment existing) {
-    return existing.getStatus() == CREATED && existing.getRemitterIban() == null;
+  private static boolean isAwaitingBankDetails(SavingFundPayment existing, Instant awaitingSince) {
+    return existing.getRemitterIban() == null
+        && existing.getStatus() == CREATED
+        && !existing.isUnconfirmedSince(awaitingSince);
   }
 
   private void updatePayment(SavingFundPayment existing, SavingFundPayment payment) {

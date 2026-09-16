@@ -120,8 +120,7 @@ class PaymentVerificationServiceTest {
     var inOrder = inOrder(savingFundPaymentRepository);
     inOrder
         .verify(savingFundPaymentRepository)
-        .attachParty(payment.getId(), new PartyId(PERSON, "37508295796"));
-    verify(savingFundPaymentRepository).markThirdPartyDeposit(payment.getId(), false);
+        .attachParty(payment.getId(), new PartyId(PERSON, "37508295796"), false);
     inOrder.verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
@@ -153,8 +152,7 @@ class PaymentVerificationServiceTest {
             payment.getId(),
             LocalDate.of(2025, 10, 1));
     verify(savingFundPaymentRepository)
-        .attachParty(payment.getId(), new PartyId(PERSON, "61506150006"));
-    verify(savingFundPaymentRepository).markThirdPartyDeposit(payment.getId(), true);
+        .attachParty(payment.getId(), new PartyId(PERSON, "61506150006"), true);
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verifyNoMoreInteractions(savingFundPaymentRepository);
     verify(applicationEventPublisher, never()).publishEvent(any(UnattributedPaymentEvent.class));
@@ -282,8 +280,7 @@ class PaymentVerificationServiceTest {
 
     verify(userRepository).findByPersonalCode("61506150006");
     verify(savingFundPaymentRepository)
-        .attachParty(payment.getId(), new PartyId(PERSON, "61506150006"));
-    verify(savingFundPaymentRepository).markThirdPartyDeposit(payment.getId(), null);
+        .attachParty(payment.getId(), new PartyId(PERSON, "61506150006"), null);
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verifyNoMoreInteractions(savingFundPaymentRepository);
     verify(applicationEventPublisher, never()).publishEvent(any(UnattributedPaymentEvent.class));
@@ -315,8 +312,7 @@ class PaymentVerificationServiceTest {
     var inOrder = inOrder(savingFundPaymentRepository);
     inOrder
         .verify(savingFundPaymentRepository)
-        .attachParty(payment.getId(), new PartyId(PERSON, "37508295796"));
-    verify(savingFundPaymentRepository).markThirdPartyDeposit(payment.getId(), false);
+        .attachParty(payment.getId(), new PartyId(PERSON, "37508295796"), false);
     inOrder.verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
@@ -346,8 +342,7 @@ class PaymentVerificationServiceTest {
             LocalDate.of(2025, 10, 1));
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verify(savingFundPaymentRepository)
-        .attachParty(payment.getId(), new PartyId(PERSON, "37508295796"));
-    verify(savingFundPaymentRepository).markThirdPartyDeposit(payment.getId(), false);
+        .attachParty(payment.getId(), new PartyId(PERSON, "37508295796"), false);
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 
@@ -376,8 +371,7 @@ class PaymentVerificationServiceTest {
             LocalDate.of(2025, 10, 1));
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verify(savingFundPaymentRepository)
-        .attachParty(payment.getId(), new PartyId(PERSON, "37508295796"));
-    verify(savingFundPaymentRepository).markThirdPartyDeposit(payment.getId(), false);
+        .attachParty(payment.getId(), new PartyId(PERSON, "37508295796"), false);
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 
@@ -416,8 +410,7 @@ class PaymentVerificationServiceTest {
             LocalDate.of(2025, 10, 1));
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verify(savingFundPaymentRepository)
-        .attachParty(payment.getId(), new PartyId(PERSON, "37508295796"));
-    verify(savingFundPaymentRepository).markThirdPartyDeposit(payment.getId(), false);
+        .attachParty(payment.getId(), new PartyId(PERSON, "37508295796"), false);
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 
@@ -446,8 +439,7 @@ class PaymentVerificationServiceTest {
             LocalDate.of(2025, 10, 1));
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verify(savingFundPaymentRepository)
-        .attachParty(payment.getId(), new PartyId(PERSON, "37508295796"));
-    verify(savingFundPaymentRepository).markThirdPartyDeposit(payment.getId(), false);
+        .attachParty(payment.getId(), new PartyId(PERSON, "37508295796"), false);
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 
@@ -547,8 +539,7 @@ class PaymentVerificationServiceTest {
     var inOrder = inOrder(savingFundPaymentRepository);
     inOrder
         .verify(savingFundPaymentRepository)
-        .attachParty(payment.getId(), new PartyId(LEGAL_ENTITY, "14118923"));
-    verify(savingFundPaymentRepository).markThirdPartyDeposit(payment.getId(), false);
+        .attachParty(payment.getId(), new PartyId(LEGAL_ENTITY, "14118923"), false);
     inOrder.verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
@@ -635,8 +626,7 @@ class PaymentVerificationServiceTest {
             payment.getId(),
             LocalDate.of(2025, 10, 1));
     verify(savingFundPaymentRepository)
-        .attachParty(payment.getId(), new PartyId(LEGAL_ENTITY, "14118923"));
-    verify(savingFundPaymentRepository).markThirdPartyDeposit(payment.getId(), false);
+        .attachParty(payment.getId(), new PartyId(LEGAL_ENTITY, "14118923"), false);
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
@@ -658,8 +648,7 @@ class PaymentVerificationServiceTest {
             payment.getId(),
             LocalDate.of(2025, 10, 1));
     verify(savingFundPaymentRepository)
-        .attachParty(payment.getId(), new PartyId(LEGAL_ENTITY, "14118923"));
-    verify(savingFundPaymentRepository).markThirdPartyDeposit(payment.getId(), false);
+        .attachParty(payment.getId(), new PartyId(LEGAL_ENTITY, "14118923"), false);
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
   }
 
@@ -854,8 +843,7 @@ class PaymentVerificationServiceTest {
     var inOrder = inOrder(savingFundPaymentRepository);
     inOrder
         .verify(savingFundPaymentRepository)
-        .attachParty(payment.getId(), new PartyId(PERSON, childCode));
-    verify(savingFundPaymentRepository).markThirdPartyDeposit(payment.getId(), true);
+        .attachParty(payment.getId(), new PartyId(PERSON, childCode), true);
     inOrder.verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verifyNoMoreInteractions(savingFundPaymentRepository);
     verify(applicationEventPublisher)
@@ -899,8 +887,7 @@ class PaymentVerificationServiceTest {
     service.process(payment);
 
     verify(savingFundPaymentRepository)
-        .attachParty(payment.getId(), new PartyId(PERSON, childCode));
-    verify(savingFundPaymentRepository).markThirdPartyDeposit(payment.getId(), true);
+        .attachParty(payment.getId(), new PartyId(PERSON, childCode), true);
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verifyNoMoreInteractions(savingFundPaymentRepository);
     // MINOR_DEPOSIT_VERIFIED stays reserved for a guardian funding the child they represent.

@@ -146,8 +146,7 @@ public class PaymentVerificationService {
       thirdPartyDeposit = null;
     }
 
-    savingFundPaymentRepository.attachParty(payment.getId(), partyId);
-    savingFundPaymentRepository.markThirdPartyDeposit(payment.getId(), thirdPartyDeposit);
+    savingFundPaymentRepository.attachParty(payment.getId(), partyId, thirdPartyDeposit);
 
     log.info(
         "Verification completed for payment {}, attaching to party {}", payment.getId(), partyId);
@@ -203,10 +202,8 @@ public class PaymentVerificationService {
   }
 
   private boolean isRepresentedWhenTheMoneyArrived(PartyId partyId, SavingFundPayment payment) {
-    var bookingDate = payment.bookingDate();
-    return bookingDate == null
-        ? parentChildLinkService.hasRestrictedLegalCapacity(partyId.code())
-        : parentChildLinkService.hasRestrictedLegalCapacity(partyId.code(), bookingDate);
+    return parentChildLinkService.hasRestrictedLegalCapacity(
+        partyId.code(), payment.bookingDateOrThrow());
   }
 
   // Still needed for MINOR_DEPOSIT_VERIFIED, which tracks a guardian funding the child they

@@ -95,23 +95,21 @@ public class PaymentVerificationService {
     PartyId partyId = partyIdOpt.get();
     var messages = VerificationMessages.forType(partyId.type());
 
-    // Attribution, not authorization: accepting money grants the payer no access to the account —
-    // acting on someone's behalf still goes through isActiveRepresentation.
     boolean acceptedFromAnyRemitter =
         partyIdFromDescription.isPresent()
             && partyId.type() == PERSON
             && isRepresentedWhenTheMoneyArrived(partyId, payment);
 
-    boolean representingChild =
+    boolean guardianFundingTheirWard =
         remitterPartyId
             .filter(r -> !r.equals(partyId))
-            .map(r -> isAuthorizedRemitter(r, partyId))
+            .map(r -> isGuardianOf(r, partyId))
             .orElse(false);
 
     if (!acceptedFromAnyRemitter
         && remitterPartyId.isPresent()
         && !remitterPartyId.get().equals(partyId)
-        && !representingChild) {
+        && !guardianFundingTheirWard) {
       identityCheckFailure(payment, messages.codeMismatch());
       return;
     }
@@ -135,8 +133,6 @@ public class PaymentVerificationService {
       return;
     }
 
-    // Null means undecided, and the AML view leaves those out: a name that does not match is no
-    // evidence of a third party, since Wise sends its own name and Montonio often sends none.
     @Nullable Boolean thirdPartyDeposit;
     if (remitterPartyId.isPresent()) {
       thirdPartyDeposit = !remitterPartyId.get().equals(partyId);
@@ -158,7 +154,7 @@ public class PaymentVerificationService {
         Objects.requireNonNull(
             payment.bookingDate(), "Missing receivedBefore: paymentId=" + payment.getId()));
 
-    if (representingChild) {
+    if (guardianFundingTheirWard) {
       applicationEventPublisher.publishEvent(
           new TrackableSystemEvent(
               TrackableEventType.MINOR_DEPOSIT_VERIFIED,
@@ -206,9 +202,7 @@ public class PaymentVerificationService {
         partyId.code(), payment.bookingDateOrThrow());
   }
 
-  // Still needed for MINOR_DEPOSIT_VERIFIED, which tracks a guardian funding the child they
-  // represent — a narrower thing than the third-party deposits now accepted generally above.
-  private boolean isAuthorizedRemitter(PartyId remitter, PartyId party) {
+  private boolean isGuardianOf(PartyId remitter, PartyId party) {
     return remitter.type() == PERSON
         && party.type() == PERSON
         && parentChildLinkService

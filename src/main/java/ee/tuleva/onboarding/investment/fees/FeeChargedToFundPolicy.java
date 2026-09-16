@@ -44,7 +44,7 @@ public class FeeChargedToFundPolicy {
             .list();
 
     if (rows.isEmpty()) {
-      throw new IllegalStateException(
+      throw new FeePolicyUnresolvedException(
           "No fee policy configured: fund=" + fund + ", feeType=" + feeType);
     }
     return new Resolver(fund, feeType, rows);
@@ -55,7 +55,7 @@ public class FeeChargedToFundPolicy {
     public boolean chargedOn(LocalDate date) {
       List<Policy> applicable = rows.stream().filter(policy -> policy.covers(date)).toList();
       if (applicable.size() > 1) {
-        throw new IllegalStateException(
+        throw new FeePolicyUnresolvedException(
             "Overlapping fee policy rows, close the earlier one: fund="
                 + fund
                 + ", feeType="
@@ -69,7 +69,7 @@ public class FeeChargedToFundPolicy {
       if (predatesTheFund(date)) {
         return foundingPolicy().chargedToFund();
       }
-      throw new IllegalStateException(
+      throw new FeePolicyUnresolvedException(
           "Gap in the fee policy, no row covers this date: fund="
               + fund
               + ", feeType="

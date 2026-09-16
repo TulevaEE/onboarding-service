@@ -6,10 +6,11 @@ import java.sql.Date;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
+import java.util.Objects;
 import lombok.Builder;
 import org.jspecify.annotations.Nullable;
 
-@Builder
+@Builder(toBuilder = true)
 public record FeeAccrual(
     Long id,
     TulevaFund fund,
@@ -35,5 +36,17 @@ public record FeeAccrual(
         rs.getBigDecimal("daily_amount_gross"),
         rs.getInt("days_in_year"),
         referenceDateSql != null ? referenceDateSql.toLocalDate() : null);
+  }
+
+  public boolean sameValuesAs(FeeAccrual other) {
+    return fund == other.fund
+        && feeType == other.feeType
+        && accrualDate.equals(other.accrualDate)
+        && feeMonth.equals(other.feeMonth)
+        && baseValue.compareTo(other.baseValue) == 0
+        && annualRate.compareTo(other.annualRate) == 0
+        && dailyAmountGross.compareTo(other.dailyAmountGross) == 0
+        && daysInYear == other.daysInYear
+        && Objects.equals(referenceDate, other.referenceDate);
   }
 }

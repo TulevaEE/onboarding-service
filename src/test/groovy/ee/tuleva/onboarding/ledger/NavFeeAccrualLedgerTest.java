@@ -440,13 +440,60 @@ class NavFeeAccrualLedgerTest {
   }
 
   @Test
-  void deleteFeeAccrualsFromDate_returnsTransactionDeleteCount() {
-    setupJdbcClientMocks();
-    when(statementSpec.update()).thenReturn(3, 8);
+  void reviseFeeAccrual_appendsTheDeltaBetweenNavEquityAndTheFeeAccount() {
+    LocalDate accrualDate = LocalDate.of(2026, 9, 1);
+    Instant expectedTimestamp = accrualDate.atTime(9, 0).atZone(ESTONIAN_ZONE).toInstant();
+    setupAccountMocks();
+    Map<String, Object> metadata = Map.of("operationType", "FEE_ACCRUAL_REVISION");
 
-    int result = navFeeAccrualLedger.deleteFeeAccrualsFromDate(TKF100, LocalDate.of(2026, 2, 1));
+    navFeeAccrualLedger.reviseFeeAccrual(
+        TKF100, accrualDate, MANAGEMENT_FEE_ACCRUAL, new BigDecimal("-33.30"), metadata);
 
-    assertThat(result).isEqualTo(8);
+    verify(ledgerTransactionService)
+        .createTransaction(
+            eq(FEE_ACCRUAL),
+            eq(expectedTimestamp),
+            any(UUID.class),
+            eq(metadata),
+            entriesCaptor.capture());
+    LedgerEntryDto[] entries = entriesCaptor.getValue();
+    assertThat(entries).hasSize(2);
+    assertThat(entries[0].account()).isEqualTo(navEquityAccount);
+    assertThat(entries[0].amount()).isEqualByComparingTo("-33.30");
+    assertThat(entries[1].account()).isEqualTo(managementFeeAccount);
+    assertThat(entries[1].amount()).isEqualByComparingTo("33.30");
+  }
+
+  @Test
+  void reviseFeeAccrual_usesAFreshReferenceSoRepeatedRevisionsOfOneDayAreAllKept() {
+    LocalDate accrualDate = LocalDate.of(2026, 9, 1);
+    setupAccountMocks();
+    ArgumentCaptor<UUID> references = ArgumentCaptor.forClass(UUID.class);
+
+    navFeeAccrualLedger.reviseFeeAccrual(
+        TKF100, accrualDate, MANAGEMENT_FEE_ACCRUAL, new BigDecimal("-33.30"), Map.of());
+    navFeeAccrualLedger.reviseFeeAccrual(
+        TKF100, accrualDate, MANAGEMENT_FEE_ACCRUAL, new BigDecimal("33.30"), Map.of());
+
+    verify(ledgerTransactionService, times(2))
+        .createTransaction(
+            eq(FEE_ACCRUAL),
+            any(Instant.class),
+            references.capture(),
+            any(),
+            any(LedgerEntryDto[].class));
+    assertThat(references.getAllValues()).doesNotHaveDuplicates();
+    verify(ledgerTransactionService, never())
+        .existsByExternalReferenceAndTransactionType(any(), any());
+  }
+
+  @Test
+  void reviseFeeAccrual_skipsAZeroDelta() {
+    navFeeAccrualLedger.reviseFeeAccrual(
+        TKF100, LocalDate.of(2026, 9, 1), MANAGEMENT_FEE_ACCRUAL, ZERO, Map.of());
+
+    verify(ledgerTransactionService, never())
+        .createTransaction(any(), any(), any(), any(), any(LedgerEntryDto[].class));
   }
 
   @Test

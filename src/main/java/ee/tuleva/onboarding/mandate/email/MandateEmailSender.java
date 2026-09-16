@@ -1,24 +1,14 @@
 package ee.tuleva.onboarding.mandate.email;
 
-import static java.util.stream.Collectors.toSet;
+import static ee.tuleva.onboarding.nudge.NudgeContext.SECOND_PILLAR_MANDATE;
+import static ee.tuleva.onboarding.nudge.NudgeContext.SECOND_PILLAR_PAYMENT_RATE;
+import static ee.tuleva.onboarding.nudge.NudgeContext.THIRD_PILLAR_MANDATE;
 
-import ee.tuleva.onboarding.conversion.ConversionResponse;
-import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.mandate.Mandate;
-import ee.tuleva.onboarding.mandate.MandateContactDetails;
-import ee.tuleva.onboarding.mandate.MandateContacts;
-import ee.tuleva.onboarding.mandate.MandateType;
-import ee.tuleva.onboarding.mandate.PillarLeavers;
-import ee.tuleva.onboarding.mandate.PillarSuggestion;
-import ee.tuleva.onboarding.mandate.RecurringContributions;
-import ee.tuleva.onboarding.mandate.SavingsFundSaverStatus;
-import ee.tuleva.onboarding.mandate.TaxHeadroom;
-import ee.tuleva.onboarding.mandate.event.AfterMandateBatchSignedEvent;
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
-import ee.tuleva.onboarding.mandate.event.OnMandateBatchFailedEvent;
-import ee.tuleva.onboarding.paymentrate.PaymentRates;
-import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
-import java.util.Set;
+import ee.tuleva.onboarding.nudge.NudgeContext;
+import ee.tuleva.onboarding.nudge.NudgeDecision;
+import ee.tuleva.onboarding.nudge.NudgeDecisionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -30,70 +20,24 @@ import org.springframework.stereotype.Component;
 public class MandateEmailSender {
 
   private final MandateEmailService mandateEmailService;
-  private final MandateBatchEmailService mandateBatchEmailService;
-  private final MandateContacts mandateContacts;
-  private final UserConversionService conversionService;
-  private final SecondPillarPaymentRateService paymentRateService;
-  private final PillarLeavers pillarLeavers;
-  private final SavingsFundSaverStatus savingsFundSaverStatus;
-  private final RecurringContributions recurringContributions;
-  private final TaxHeadroom taxHeadroom;
+  private final NudgeDecisionService nudgeDecisionService;
 
   @EventListener
   public void sendEmail(AfterMandateSignedEvent event) {
-    MandateContactDetails contactDetails = mandateContacts.getContactDetails(event.getUser());
-    ConversionResponse conversion = conversionService.getConversion(event.getUser());
-    PaymentRates paymentRates = paymentRateService.getPaymentRates(event.getUser());
-    PillarSuggestion pillarSuggestion =
-        new PillarSuggestion(
-            event.getUser(),
-            contactDetails.secondPillarActive(),
-            contactDetails.thirdPillarActive(),
-            conversion,
-            paymentRates,
-            Set.of(event.getMandate().getPillar()),
-            pillarLeavers.hasLeft(event.getUser().getPersonalCode()),
-            savingsFundSaverStatus.isSaver(event.getUser().getPersonalCode()),
-            event.getMandate().getMandateType() == MandateType.PAYMENT_RATE_CHANGE,
-            recurringContributions.recurringPaymentsOf(event.getUser().getPersonalCode()),
-            taxHeadroom.hasHeadroom(event.getUser()));
-    if (!event.getMandate().isPartOfBatch()) {
-      mandateEmailService.sendMandate(
-          event.getUser(), event.getMandate(), pillarSuggestion, event.getLocale());
-    } else {
+    Mandate mandate = event.getMandate();
+    if (mandate.isPartOfBatch()) {
       log.info(
-          "Skipping mandate email because it is part of a batch: mandateId={}",
-          event.getMandate().getId());
+          "Skipping mandate email because it is part of a batch: mandateId={}", mandate.getId());
+      return;
     }
+    NudgeDecision decision = nudgeDecisionService.decide(event.getUser(), contextFor(mandate));
+    mandateEmailService.sendMandate(event.getUser(), mandate, decision, event.getLocale());
   }
 
-  @EventListener
-  public void sendBatchEmail(AfterMandateBatchSignedEvent event) {
-    MandateContactDetails contactDetails = mandateContacts.getContactDetails(event.getUser());
-    ConversionResponse conversion = conversionService.getConversion(event.getUser());
-    PaymentRates paymentRates = paymentRateService.getPaymentRates(event.getUser());
-    Set<Integer> mandatePillars =
-        event.getMandateBatch().getMandates().stream().map(Mandate::getPillar).collect(toSet());
-    PillarSuggestion pillarSuggestion =
-        new PillarSuggestion(
-            event.getUser(),
-            contactDetails.secondPillarActive(),
-            contactDetails.thirdPillarActive(),
-            conversion,
-            paymentRates,
-            mandatePillars,
-            pillarLeavers.hasLeft(event.getUser().getPersonalCode()),
-            savingsFundSaverStatus.isSaver(event.getUser().getPersonalCode()),
-            false,
-            recurringContributions.recurringPaymentsOf(event.getUser().getPersonalCode()),
-            taxHeadroom.hasHeadroom(event.getUser()));
-    mandateBatchEmailService.sendMandateBatch(
-        event.getUser(), event.getMandateBatch(), pillarSuggestion, event.getLocale());
-  }
-
-  @EventListener
-  public void sendBatchFailedEmail(OnMandateBatchFailedEvent event) {
-    mandateBatchEmailService.sendMandateBatchFailedEmail(
-        event.getUser(), event.getMandateBatch(), event.getLocale());
+  static NudgeContext contextFor(Mandate mandate) {
+    if (mandate.isPaymentRateApplication()) {
+      return SECOND_PILLAR_PAYMENT_RATE;
+    }
+    return mandate.getPillar() == 3 ? THIRD_PILLAR_MANDATE : SECOND_PILLAR_MANDATE;
   }
 }

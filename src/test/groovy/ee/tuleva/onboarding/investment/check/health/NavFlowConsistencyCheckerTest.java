@@ -68,7 +68,8 @@ class NavFlowConsistencyCheckerTest {
     var previous = positions(security("IE00A", "10000", "100", "1000000"), units("1000000"));
     var today = positions(cash("1020000"), units("1000000"));
 
-    var exitMarks = Map.of("IE00A", new ExitMark(new BigDecimal("102"), null));
+    var exitMarks =
+        Map.of("IE00A", new ExitMark(new BigDecimal("102"), new BigDecimal("10000"), null));
 
     assertThat(checker.check(TUK75, today, previous, THRESHOLD, exitMarks)).isEmpty();
   }
@@ -85,6 +86,7 @@ class NavFlowConsistencyCheckerTest {
             "IE00A",
             new ExitMark(
                 new BigDecimal("99"),
+                new BigDecimal("10000"),
                 new ExitMark.PublishedPrice(new BigDecimal("101"), LocalDate.parse("2026-08-25"))));
 
     var findings = checker.check(TUK75, today, previous, THRESHOLD, exitMarks);
@@ -105,7 +107,8 @@ class NavFlowConsistencyCheckerTest {
     var previous = positions(security("IE00A", "10000", "100", "1000000"), units("1000000"));
     var today = positions(cash("980000"), units("1000000"));
 
-    var exitMarks = Map.of("IE00A", new ExitMark(new BigDecimal("99"), null));
+    var exitMarks =
+        Map.of("IE00A", new ExitMark(new BigDecimal("99"), new BigDecimal("10000"), null));
 
     var findings = checker.check(TUK75, today, previous, THRESHOLD, exitMarks);
 
@@ -148,19 +151,54 @@ class NavFlowConsistencyCheckerTest {
   }
 
   @Test
-  void aPartlySoldHoldingIsMarkedAtTheReportPriceRatherThanItsExecutionPrice() {
+  void aPartlySoldHoldingSplitsTheQuantityBetweenTheReportMarkAndTheExecutionPrice() {
     var previous = positions(security("IE00A", "10000", "100", "1000000"), units("1000000"));
     var today =
-        positions(security("IE00A", "6000", "102", "612000"), cash("408000"), units("1000000"));
+        positions(security("IE00A", "6000", "102", "612000"), cash("396000"), units("1000000"));
 
-    var exitMarks =
+    assertThat(checker.check(TUK75, today, previous, THRESHOLD, exitMarkAt("99"))).isEmpty();
+  }
+
+  @Test
+  void thePartialExitLegNamesOnlyTheQuantityThatLeft() {
+    var previous = positions(security("IE00A", "10000", "100", "1000000"), units("1000000"));
+    var today = positions(security("IE00A", "6000", "102", "612000"), units("1000000"));
+
+    var findings = checker.check(TUK75, today, previous, THRESHOLD, exitMarkAt("99"));
+
+    assertThat(findings).hasSize(1);
+    assertThat(findings.getFirst().message())
+        .contains("unexplained=-396000.00")
+        .contains("isin=IE00A, quantity=4000, previousPrice=100, exitPrice=99")
+        .contains("dealingCost=-8000.00");
+  }
+
+  @Test
+  void theExitLegNamesTheQuantityActuallySold_notTheNetPositionChange() {
+    var previous = positions(security("IE00A", "10000", "100", "1000000"), units("1000000"));
+    var today = positions(security("IE00A", "6000", "102", "612000"), units("1000000"));
+    var boughtBackSameDay =
         Map.of(
             "IE00A",
             new ExitMark(
                 new BigDecimal("99"),
+                new BigDecimal("5000"),
                 new ExitMark.PublishedPrice(new BigDecimal("101"), LocalDate.parse("2026-08-25"))));
 
-    assertThat(checker.check(TUK75, today, previous, THRESHOLD, exitMarks)).isEmpty();
+    var findings = checker.check(TUK75, today, previous, THRESHOLD, boughtBackSameDay);
+
+    assertThat(findings).hasSize(1);
+    assertThat(findings.getFirst().message())
+        .contains("isin=IE00A, quantity=5000, previousPrice=100, exitPrice=99");
+  }
+
+  private Map<String, ExitMark> exitMarkAt(String executedPrice) {
+    return Map.of(
+        "IE00A",
+        new ExitMark(
+            new BigDecimal(executedPrice),
+            new BigDecimal("4000"),
+            new ExitMark.PublishedPrice(new BigDecimal("101"), LocalDate.parse("2026-08-25"))));
   }
 
   // SebFundPositionParser stores the report's "Total" row as AccountType.NAV, so every imported

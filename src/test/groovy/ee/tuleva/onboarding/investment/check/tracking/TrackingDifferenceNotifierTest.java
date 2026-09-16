@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK_MODEL;
 import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -14,6 +15,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.never;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -350,6 +352,30 @@ class TrackingDifferenceNotifierTest {
     var message = captor.getValue();
     assertThat(message).contains("TD CHECK DID NOT RUN").contains("TUK75").contains("2026-06-25");
     assertThat(message).doesNotContain("within limits");
+  }
+
+  @Test
+  void notifyCheckFailedNamesTheErrorRatherThanMissingData() {
+    notifier.notifyCheckFailed(TUK75, LocalDate.of(2026, 6, 25), "connection reset");
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            "⚠️ TD CHECK FAILED: fund=TUK75, date=2026-06-25 — the check errored (connection"
+                + " reset); NAV report published WITHOUT tracking-difference validation",
+            INVESTMENT);
+  }
+
+  @Test
+  void swallowsExceptionWhenCheckFailedNotificationFails() {
+    willThrow(new RuntimeException("Slack down"))
+        .given(notificationService)
+        .sendMessage(any(String.class), eq(INVESTMENT));
+
+    assertThatCode(() -> notifier.notifyCheckFailed(TUK75, LocalDate.of(2026, 6, 25), "boom"))
+        .doesNotThrowAnyException();
+
+    then(notificationService).should().sendMessage(any(String.class), eq(INVESTMENT));
   }
 
   @Test
@@ -1063,6 +1089,65 @@ class TrackingDifferenceNotifierTest {
     notifier.notify(List.of(result));
 
     then(redemptionCycleLookup).shouldHaveNoInteractions();
+  }
+
+  // A gap fill covering weeks of dates would otherwise send every historical breach through the
+  // daily formatter, so a three-week-old breach arrives in the words of today's alert. The summary
+  // has to date each breach and say up front that these are earlier days.
+  @Test
+  void theGapFillSummaryDatesEveryBreachItReplaysAndSaysTheyArePastDays() {
+    var older =
+        result(true, 2, new BigDecimal("0.004")).toBuilder()
+            .checkDate(LocalDate.of(2026, 3, 20))
+            .build();
+    var newer =
+        result(true, 3, new BigDecimal("0.006")).toBuilder()
+            .checkDate(LocalDate.of(2026, 4, 3))
+            .build();
+
+    notifier.notifyGapFillSummary(List.of(newer, older));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            contains("TD GAP FILL: 2 past check dates rewritten, 2026-03-20 to 2026-04-03"),
+            eq(INVESTMENT));
+    then(notificationService).should().sendMessage(contains("2026-03-20 TUK75"), eq(INVESTMENT));
+    then(notificationService)
+        .should(never())
+        .sendMessage(contains("🛑 TD BREACH DETECTED"), eq(INVESTMENT));
+  }
+
+  @Test
+  void theGapFillSummarySaysSoWhenNoneOfTheFilledDaysBreached() {
+    notifier.notifyGapFillSummary(
+        List.of(
+            result(false, 0, ZERO),
+            result(false, 0, ZERO).toBuilder().checkDate(LocalDate.of(2026, 4, 2)).build()));
+
+    then(notificationService)
+        .should()
+        .sendMessage(contains("No breach on any of them."), eq(INVESTMENT));
+  }
+
+  @Test
+  void theGapFillSummaryOrdersBreachesOnOneDateByFundThenCheckType() {
+    var sameDate = LocalDate.of(2026, 4, 3);
+    var tuk75 = result(true, 2, new BigDecimal("0.004")).toBuilder().checkDate(sameDate).build();
+    var tuv100 =
+        result(true, 2, new BigDecimal("0.004")).toBuilder()
+            .checkDate(sameDate)
+            .fund(TUV100)
+            .build();
+
+    notifier.notifyGapFillSummary(List.of(tuv100, tuk75));
+
+    then(notificationService)
+        .should()
+        .sendMessage(contains("🛑 2026-04-03 TUK75 MODEL_PORTFOLIO"), eq(INVESTMENT));
+    then(notificationService)
+        .should()
+        .sendMessage(contains("🛑 2026-04-03 TUV100 MODEL_PORTFOLIO"), eq(INVESTMENT));
   }
 
   private TrackingDifferenceResult result(

@@ -23,6 +23,7 @@ import ee.tuleva.onboarding.time.ClockConfig;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
 import java.math.BigDecimal;
+import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
@@ -183,18 +184,30 @@ class SavingFundPaymentRepositoryTest {
   }
 
   @Test
-  void findUnconfirmedPayments_returnsUncancelledCreatedPaymentsCreatedBeforeTheThreshold() {
+  void findUnconfirmedPayments_returnsUncancelledCreatedPaymentsCreatedInsideTheReportingWindow() {
     var unconfirmed = repository.savePaymentData(createPayment().externalId("1").build());
     repository.savePaymentData(createPayment().externalId("2").build());
     var cancelled = repository.savePaymentData(createPayment().externalId("3").build());
     var received = repository.savePaymentData(createPayment().externalId("4").build());
+    var olderThanTheWindow = repository.savePaymentData(createPayment().externalId("5").build());
     jdbcTemplate.update(
-        "update saving_fund_payment set created_at='2020-01-01'::date where id in (:ids)",
-        Map.of("ids", List.of(unconfirmed, cancelled, received)));
+        "update saving_fund_payment set created_at=:created_at where id in (:ids)",
+        Map.of(
+            "created_at", Timestamp.from(Instant.now().minus(Duration.ofDays(2))),
+            "ids", List.of(unconfirmed, cancelled, received)));
+    jdbcTemplate.update(
+        "update saving_fund_payment set created_at=:created_at where id=:id",
+        Map.of(
+            "created_at",
+            Timestamp.from(Instant.now().minus(Duration.ofDays(10))),
+            "id",
+            olderThanTheWindow));
     repository.cancel(cancelled);
     updatePaymentStatus(received, RECEIVED);
 
-    var payments = repository.findUnconfirmedPayments(Instant.now().minus(Duration.ofHours(36)));
+    var payments =
+        repository.findUnconfirmedPayments(
+            Instant.now().minus(Duration.ofDays(3)), Instant.now().minus(Duration.ofHours(36)));
 
     assertThat(payments).extracting(SavingFundPayment::getId).containsExactly(unconfirmed);
   }

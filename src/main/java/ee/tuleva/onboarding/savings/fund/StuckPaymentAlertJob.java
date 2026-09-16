@@ -20,15 +20,13 @@ import org.springframework.stereotype.Service;
 @NullMarked
 public class StuckPaymentAlertJob {
 
-  private static final Duration STUCK_THRESHOLD = Duration.ofMinutes(30);
-  private static final Duration UNCONFIRMED_THRESHOLD = Duration.ofHours(36);
-
   private final SavingFundPaymentRepository paymentRepository;
   private final Clock clock;
 
   @Scheduled(cron = "0 */15 * * * *", zone = "Europe/Tallinn")
   @SchedulerLock(name = "StuckPaymentAlertJob_runJob", lockAtMostFor = "5m", lockAtLeastFor = "1m")
   public void runJob() {
+    final Duration STUCK_THRESHOLD = Duration.ofMinutes(30);
     paymentRepository
         .findStuckPayments(Instant.now(clock).minus(STUCK_THRESHOLD), RECEIVED, TO_BE_RETURNED)
         .forEach(this::alert);
@@ -40,8 +38,11 @@ public class StuckPaymentAlertJob {
       lockAtMostFor = "10m",
       lockAtLeastFor = "1m")
   public void reportUnconfirmedPayments() {
+    final Duration UNCONFIRMED_THRESHOLD = Duration.ofHours(36);
+    final Duration REPORT_WINDOW = Duration.ofDays(3);
+    var now = Instant.now(clock);
     paymentRepository
-        .findUnconfirmedPayments(Instant.now(clock).minus(UNCONFIRMED_THRESHOLD))
+        .findUnconfirmedPayments(now.minus(REPORT_WINDOW), now.minus(UNCONFIRMED_THRESHOLD))
         .forEach(this::alertUnconfirmed);
   }
 

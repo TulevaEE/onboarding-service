@@ -96,14 +96,19 @@ public class SavingFundPaymentRepository {
         this::rowMapper);
   }
 
-  public List<SavingFundPayment> findUnconfirmedPayments(Instant createdBefore) {
+  public List<SavingFundPayment> findUnconfirmedPayments(
+      Instant createdAfter, Instant createdBefore) {
     return jdbcTemplate.query(
         """
         select * from saving_fund_payment
-        where status = 'CREATED' and created_at < :created_before and cancelled_at is null
+        where status = 'CREATED'
+          and created_at >= :created_after and created_at < :created_before
+          and cancelled_at is null
         order by created_at asc
         """,
-        Map.of("created_before", Timestamp.from(createdBefore)),
+        Map.of(
+            "created_after", Timestamp.from(createdAfter),
+            "created_before", Timestamp.from(createdBefore)),
         this::rowMapper);
   }
 

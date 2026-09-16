@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.investment.check.limit.LimitCheckRun.UnfilledGap;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -45,6 +46,77 @@ class LimitCheckNotifierTest {
     verify(notificationService).sendMessage(contains("LIMIT BREACH"), eq(INVESTMENT));
   }
 
+  // The gap fill replays dates that can be weeks old, and the message is the only place the reader
+  // sees which day a breach is about. Without the date, a three-week-old HARD breach is word for
+  // word the message a live one would send.
+  @Test
+  void aBreachLineSaysWhichDayItIsAbout() {
+    var breach =
+        new PositionBreach(
+            TUK75,
+            "IE001",
+            "iShares MSCI World",
+            new BigDecimal("21.50"),
+            new BigDecimal("15"),
+            new BigDecimal("20"),
+            HARD);
+    var result =
+        new LimitCheckResult(
+            TUK75, LocalDate.of(2026, 2, 11), List.of(breach), List.of(), null, null);
+
+    notifier.notify(LimitCheckRun.of(List.of(result)));
+
+    verify(notificationService)
+        .sendMessage(contains("[HARD] POSITION TUK75 2026-02-11"), eq(INVESTMENT));
+  }
+
+  // Nothing else will ever mention a day the limit check could not cover: the gap is not in any
+  // event row and no other job looks for it. So it is named every evening, and once it has stood
+  // longer than a working week it also says how long, and when it will stop being attempted.
+  @Test
+  void aStandingGapIsNamedWithItsAgeAndItsLastAttempt() {
+    var gap = new UnfilledGap(TUK75, LocalDate.of(2026, 2, 10), 22, LocalDate.of(2026, 3, 12));
+
+    assertThat(gap.describe())
+        .isEqualTo("TUK75 2026-02-10 — standing gap: open for 22 days, last attempt 2026-03-12");
+  }
+
+  @Test
+  void aGapFromTonightIsNamedWithoutTheStandingGapWording() {
+    var gap = new UnfilledGap(TUK75, LocalDate.of(2026, 3, 3), 1, LocalDate.of(2026, 4, 2));
+
+    assertThat(gap.describe()).isEqualTo("TUK75 2026-03-03");
+  }
+
+  @Test
+  void anUnfilledGapReachesTheMessage() {
+    var run =
+        new LimitCheckRun(
+            List.of(),
+            List.of(),
+            List.of(new UnfilledGap(TUK75, LocalDate.of(2026, 3, 3), 1, LocalDate.of(2026, 4, 2))));
+
+    notifier.notify(run);
+
+    verify(notificationService).sendMessage(contains("TUK75 2026-03-03"), eq(INVESTMENT));
+  }
+
+  @Test
+  void aFailedPositionSyncIsAnnouncedWithTheChecksThatStillRan() {
+    notifier.notifyPositionSyncFailed(new RuntimeException("no fee policy"));
+
+    verify(notificationService)
+        .sendMessage(contains("Fee accrual position sync failed"), eq(INVESTMENT));
+  }
+
+  @Test
+  void aFailedGapFillSaysTheDaysWillBeRetried() {
+    notifier.notifyGapFillFailed(new RuntimeException("boom"));
+
+    verify(notificationService)
+        .sendMessage(contains("Limit check gap fill FAILED"), eq(INVESTMENT));
+  }
+
   @Test
   void sendsAllClearWhenNoBreaches() {
     var result =
@@ -53,6 +125,27 @@ class LimitCheckNotifierTest {
     notifier.notify(LimitCheckRun.of(List.of(result)));
 
     verify(notificationService).sendMessage(contains("TUK75 within limits"), eq(INVESTMENT));
+  }
+
+  // A fill covering several days returns one result per fund per day, and naming the fund once per
+  // result repeats the same four codes down the message without saying which days were covered.
+  @Test
+  void anAllClearOverSeveralDaysNamesEachFundOnceAndSaysWhichDaysItCovered() {
+    var run =
+        LimitCheckRun.of(
+            List.of(
+                new LimitCheckResult(
+                    TUK75, LocalDate.of(2026, 3, 2), List.of(), List.of(), null, null),
+                new LimitCheckResult(
+                    TUK75, LocalDate.of(2026, 3, 3), List.of(), List.of(), null, null),
+                new LimitCheckResult(
+                    TUK75, LocalDate.of(2026, 3, 4), List.of(), List.of(), null, null)));
+
+    notifier.notify(run);
+
+    verify(notificationService)
+        .sendMessage(
+            contains("TUK75 within limits on 3 dates, 2026-03-02 to 2026-03-04"), eq(INVESTMENT));
   }
 
   @Test

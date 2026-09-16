@@ -30,7 +30,11 @@ class ExitMarkResolver {
       var isin = executedSell.getKey();
       var executedPrice = executedSell.getValue();
       exitMarks.put(
-          isin, new ExitMark(executedPrice.price(), published(isin, navDate, executedPrice)));
+          isin,
+          new ExitMark(
+              executedPrice.price(),
+              executedPrice.quantity(),
+              published(isin, navDate, executedPrice)));
     }
     return Map.copyOf(exitMarks);
   }

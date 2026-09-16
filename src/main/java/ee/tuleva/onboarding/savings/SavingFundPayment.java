@@ -25,11 +25,11 @@ public class SavingFundPayment {
   @Builder.Default Currency currency = EUR;
 
   String description;
-  String remitterIban;
-  String remitterName;
+  @Nullable String remitterIban;
+  @Nullable String remitterName;
   @Nullable String remitterIdCode;
-  String beneficiaryIban;
-  String beneficiaryName;
+  @Nullable String beneficiaryIban;
+  @Nullable String beneficiaryName;
   @Nullable String beneficiaryIdCode;
 
   @Nullable String externalId;
@@ -57,6 +57,10 @@ public class SavingFundPayment {
 
   public LocalDate bookingDateOrThrow() {
     return requireNonNull(bookingDate(), "Missing receivedBefore: paymentId=" + id);
+  }
+
+  public boolean isUnconfirmedSince(Instant cutoff) {
+    return status == CREATED && createdAt.isBefore(cutoff);
   }
 
   public enum Status {

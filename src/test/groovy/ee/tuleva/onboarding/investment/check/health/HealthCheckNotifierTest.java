@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.NAV_F
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -52,6 +53,23 @@ class HealthCheckNotifierTest {
     verify(notificationService)
         .sendMessage(contains("source files need to be fixed"), eq(INVESTMENT));
     verify(notificationService).sendMessage(contains("[FAIL]"), eq(INVESTMENT));
+  }
+
+  @Test
+  void importBlockedHeaderNamesOnlyTheBlockedFunds() {
+    var failed = new HealthCheckFinding(TUK75, ISIN_MATCH, FAIL, "TUK75: unknown ISIN");
+    var warned = new HealthCheckFinding(TUV100, COMPLETENESS, WARNING, "TUV100: no CASH");
+
+    notifier.notify(
+        SEB,
+        DATE,
+        List.of(
+            new HealthCheckResult(TUK75, DATE, List.of(failed)),
+            new HealthCheckResult(TUV100, DATE, List.of(warned))));
+
+    verify(notificationService)
+        .sendMessage(
+            contains("IMPORT BLOCKED: SEB 2026-04-15 — TUK75 not imported"), eq(INVESTMENT));
   }
 
   @Test
@@ -169,6 +187,25 @@ class HealthCheckNotifierTest {
     var result = new HealthCheckResult(TUK75, DATE, List.of(finding));
 
     assertThat(notifier.notify(SEB, DATE, List.of(result))).isFalse();
+  }
+
+  @Test
+  void importBlockedHeaderNamesAFundWhoseFailIsUnchangedSinceTheLastRun() {
+    givenPreviousSeverity(ISIN_MATCH, FAIL);
+    var unchangedFail = new HealthCheckFinding(TUK75, ISIN_MATCH, FAIL, "TUK75: unknown ISIN");
+    var newFail = new HealthCheckFinding(TUV100, COMPLETENESS, FAIL, "TUV100: negative SECURITY");
+
+    notifier.notify(
+        SEB,
+        DATE,
+        List.of(
+            new HealthCheckResult(TUK75, DATE, List.of(unchangedFail)),
+            new HealthCheckResult(TUV100, DATE, List.of(newFail))));
+
+    verify(notificationService)
+        .sendMessage(
+            contains("IMPORT BLOCKED: SEB 2026-04-15 — TUK75, TUV100 not imported"),
+            eq(INVESTMENT));
   }
 
   private void givenPreviousNotRun(HealthCheckType checkType, String message) {

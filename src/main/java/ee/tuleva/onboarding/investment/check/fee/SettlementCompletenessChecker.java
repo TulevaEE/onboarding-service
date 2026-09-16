@@ -158,7 +158,7 @@ class SettlementCompletenessChecker {
               settled.subtract(expectedSettlement),
               details));
     }
-    var expectedCount = expectedSettlement.signum() > 0 ? 1 : 0;
+    var expectedCount = expectedSettlement.signum() != 0 ? 1 : 0;
     var actualCount = settlements.stream().map(LedgerEntryAmount::transactionId).distinct().count();
     if (actualCount != expectedCount) {
       findings.add(

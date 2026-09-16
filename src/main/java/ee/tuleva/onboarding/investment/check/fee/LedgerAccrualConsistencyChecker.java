@@ -4,10 +4,7 @@ import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.LEDGER_ACCR
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.FEE_ACCRUAL;
 import static java.math.BigDecimal.ZERO;
 import static java.util.stream.Collectors.groupingBy;
-import static java.util.stream.Collectors.mapping;
 import static java.util.stream.Collectors.reducing;
-import static java.util.stream.Collectors.toMap;
-import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.investment.fees.DailyAccrualAmount;
 import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
@@ -42,7 +39,6 @@ class LedgerAccrualConsistencyChecker {
     var accrualsByDate = accrualsByDate(fund, feeType, from, to);
     var entries = ledgerEntries(fund, feeType, from, to);
     var ledgerByDate = ledgerAmountsByDate(entries);
-    var transactionCountByDate = transactionCountsByDate(entries);
     var charged = feeChargedToFundPolicy.resolverFor(fund, feeType);
 
     var dates = new TreeSet<>(accrualsByDate.keySet());
@@ -56,8 +52,7 @@ class LedgerAccrualConsistencyChecker {
                         date,
                         accrualsByDate.get(date),
                         charged.chargedOn(date),
-                        ledgerByDate.getOrDefault(date, ZERO),
-                        transactionCountByDate.getOrDefault(date, 0L)))
+                        ledgerByDate.getOrDefault(date, ZERO)))
             .filter(Divergence::isDivergent)
             .toList();
 
@@ -71,17 +66,9 @@ class LedgerAccrualConsistencyChecker {
       LocalDate date,
       @Nullable BigDecimal accrual,
       boolean chargedToFund,
-      BigDecimal ledgerAmount,
-      long transactionCount) {
+      BigDecimal ledgerAmount) {
     var expectedLedgerAmount = accrual == null || !chargedToFund ? ZERO : accrual.negate();
-    var expectedTransactionCount = expectedLedgerAmount.signum() == 0 ? 0 : 1;
-    return new Divergence(
-        date,
-        accrual,
-        expectedLedgerAmount,
-        ledgerAmount,
-        transactionCount,
-        expectedTransactionCount);
+    return new Divergence(date, accrual, expectedLedgerAmount, ledgerAmount);
   }
 
   private FeeCheckFinding failure(TulevaFund fund, FeeType feeType, List<Divergence> divergences) {
@@ -141,14 +128,6 @@ class LedgerAccrualConsistencyChecker {
             groupingBy(this::dateOf, reducing(ZERO, LedgerEntryAmount::amount, BigDecimal::add)));
   }
 
-  private Map<LocalDate, Long> transactionCountsByDate(List<LedgerEntryAmount> entries) {
-    return entries.stream()
-        .collect(groupingBy(this::dateOf, mapping(LedgerEntryAmount::transactionId, toSet())))
-        .entrySet()
-        .stream()
-        .collect(toMap(Map.Entry::getKey, e -> (long) e.getValue().size()));
-  }
-
   private LocalDate dateOf(LedgerEntryAmount entry) {
     return entry.transactionDate().atZone(ESTONIAN_ZONE).toLocalDate();
   }
@@ -167,13 +146,10 @@ class LedgerAccrualConsistencyChecker {
       LocalDate date,
       @Nullable BigDecimal accrual,
       BigDecimal expectedLedgerAmount,
-      BigDecimal ledgerAmount,
-      long transactionCount,
-      int expectedTransactionCount) {
+      BigDecimal ledgerAmount) {
 
     boolean isDivergent() {
-      return expectedLedgerAmount.compareTo(ledgerAmount) != 0
-          || transactionCount != expectedTransactionCount;
+      return expectedLedgerAmount.compareTo(ledgerAmount) != 0;
     }
 
     BigDecimal difference() {
@@ -185,10 +161,7 @@ class LedgerAccrualConsistencyChecker {
           + " table="
           + (accrual == null ? "none" : accrual.toPlainString())
           + " ledger="
-          + ledgerAmount.negate().toPlainString()
-          + (transactionCount != expectedTransactionCount
-              ? " entries=" + transactionCount + " expected=" + expectedTransactionCount
-              : "");
+          + ledgerAmount.negate().toPlainString();
     }
   }
 }

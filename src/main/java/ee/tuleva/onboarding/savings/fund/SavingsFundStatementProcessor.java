@@ -18,6 +18,7 @@ import ee.tuleva.onboarding.savings.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionPayoutRecorder;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -199,11 +200,11 @@ public class SavingsFundStatementProcessor {
         && !isSavingsFundAccount(payment.getBeneficiaryIban(), FUND_INVESTMENT_EUR);
   }
 
-  private boolean isSavingsFundAccount(String iban) {
+  private boolean isSavingsFundAccount(@Nullable String iban) {
     return bankAccounts.find(iban).filter(account -> account.belongsTo(TKF100)).isPresent();
   }
 
-  private boolean isSavingsFundAccount(String iban, BankAccountType type) {
+  private boolean isSavingsFundAccount(@Nullable String iban, BankAccountType type) {
     return bankAccounts.find(iban).filter(account -> account.matches(TKF100, type)).isPresent();
   }
 }

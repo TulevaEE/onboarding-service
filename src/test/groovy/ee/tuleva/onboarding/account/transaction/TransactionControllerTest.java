@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -63,13 +64,16 @@ class TransactionControllerTest {
   }
 
   @Test
-  void keepsTheCounterpartyAccountOutOfTheTransactionList() throws Exception {
+  void servesTheFactsAnExecutionNoticeNeeds() throws Exception {
     var transaction =
         Transaction.builder()
             .id(UUID.fromString("550e8400-e29b-41d4-a716-446655440000"))
             .amount(new BigDecimal("100.00"))
             .currency(EUR)
-            .time(Instant.parse("2025-02-01T10:00:00Z"))
+            .time(Instant.parse("2025-02-04T14:00:00Z"))
+            .priceDate(LocalDate.parse("2025-02-03"))
+            .applicationTime(Instant.parse("2025-02-03T11:30:00Z"))
+            .counterpartyIban("EE651010220306497226")
             .isin("EE0000003283")
             .type(CONTRIBUTION_CASH)
             .units(new BigDecimal("10.00000"))
@@ -81,6 +85,39 @@ class TransactionControllerTest {
     mockMvc
         .perform(get("/v1/transactions"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$[0].counterpartyIban").doesNotExist());
+        .andExpect(
+            content()
+                .json(
+                    """
+            [{
+              "time": "2025-02-04T14:00:00Z",
+              "priceDate": "2025-02-03",
+              "applicationTime": "2025-02-03T11:30:00Z",
+              "counterpartyIban": "EE651010220306497226"
+            }]
+            """));
+  }
+
+  @Test
+  void servesTheCounterpartyAccountOfTheTransaction() throws Exception {
+    var transaction =
+        Transaction.builder()
+            .id(UUID.fromString("550e8400-e29b-41d4-a716-446655440000"))
+            .amount(new BigDecimal("100.00"))
+            .currency(EUR)
+            .time(Instant.parse("2025-02-01T10:00:00Z"))
+            .isin("EE0000003283")
+            .type(CONTRIBUTION_CASH)
+            .units(new BigDecimal("10.00000"))
+            .nav(new BigDecimal("1.0000"))
+            .counterpartyIban("EE651010220306497226")
+            .build();
+
+    when(transactionService.getTransactions(any())).thenReturn(List.of(transaction));
+
+    mockMvc
+        .perform(get("/v1/transactions"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].counterpartyIban").value("EE651010220306497226"));
   }
 }

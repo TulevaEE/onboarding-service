@@ -10,27 +10,33 @@ import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.epis.CashFlow;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.UUID;
 import lombok.Builder;
 import org.jetbrains.annotations.NotNull;
 import org.jspecify.annotations.Nullable;
 
-@Builder
+@Builder(toBuilder = true)
 public record Transaction(
     UUID id,
     BigDecimal amount,
     Currency currency,
     Instant time,
-    Instant priceTime,
+    LocalDate priceDate,
     Instant settledTime,
+    @Nullable Instant applicationTime,
+    @Nullable String counterpartyIban,
     @Nullable String isin,
     CashFlow.Type type,
     BigDecimal units,
     BigDecimal nav)
     implements Comparable<Transaction> {
 
+  private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
+
   public Transaction {
-    priceTime = priceTime == null ? time : priceTime;
+    priceDate = priceDate == null ? dateOf(time) : priceDate;
     settledTime = settledTime == null ? time : settledTime;
   }
 
@@ -42,12 +48,16 @@ public record Transaction(
         .amount(cashFlow.getAmount())
         .currency(cashFlow.getCurrency())
         .time(cashFlow.getTime())
-        .priceTime(cashFlow.getPriceTime())
+        .priceDate(dateOf(cashFlow.getPriceTime()))
         .isin(cashFlow.getIsin())
         .type(cashFlow.getType())
         .units(cashFlow.getUnits())
         .nav(cashFlow.getNav())
         .build();
+  }
+
+  private static LocalDate dateOf(Instant time) {
+    return time.atZone(ESTONIAN_ZONE).toLocalDate();
   }
 
   public boolean isAcquisition() {

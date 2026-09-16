@@ -55,12 +55,13 @@ public class IssuingJob {
           }
         });
     log.info("Running issuing job for {} payments", payments.size());
-    var nav = navProvider.getVerifiedNavForIssuingAndRedeeming(TKF100, dealingDate(cutoff));
+    var navDate = dealingDate(cutoff);
+    var nav = navProvider.getVerifiedNavForIssuingAndRedeeming(TKF100, navDate);
     log.info("Running issuing job for {} payments with nav {}", payments.size(), nav);
     var totalAmount = ZERO;
     var totalFundUnits = ZERO;
     for (SavingFundPayment payment : payments) {
-      var result = issuerService.processPayment(payment, nav);
+      var result = issuerService.processPayment(payment, nav, navDate);
       totalAmount = totalAmount.add(result.cashAmount());
       totalFundUnits = totalFundUnits.add(result.fundUnits());
     }

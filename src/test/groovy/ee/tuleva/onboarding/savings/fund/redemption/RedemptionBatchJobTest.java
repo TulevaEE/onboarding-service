@@ -176,6 +176,7 @@ class RedemptionBatchJobTest {
             eq(new BigDecimal("10.00000")),
             any(BigDecimal.class),
             eq(BigDecimal.ONE),
+            any(LocalDate.class),
             eq(requestId));
     verify(eventPublisher, times(2)).publishEvent(any(RequestPaymentEvent.class));
     verify(redemptionStatusService).changeStatus(requestId, REDEEMED);
@@ -503,7 +504,7 @@ class RedemptionBatchJobTest {
     batchJob.runJob();
 
     verify(savingsFundLedger, never())
-        .redeemFundUnitsFromReserved(any(), any(), any(), any(), any());
+        .redeemFundUnitsFromReserved(any(), any(), any(), any(), any(), any());
   }
 
   @Test

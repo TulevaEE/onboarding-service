@@ -7,20 +7,16 @@ import static ee.tuleva.onboarding.epis.CashFlow.Type.SUBTRACTION;
 import static ee.tuleva.onboarding.savings.fund.taxreport.CostBasisMethod.FIFO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.account.transaction.Transaction;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.epis.CashFlow;
 import ee.tuleva.onboarding.savings.fund.SavingsFundTransactionService;
-import ee.tuleva.onboarding.savings.fund.TransactionsWithCounterparties;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -67,7 +63,7 @@ class SavingsFundTaxReportServiceTest {
         .amount(new BigDecimal(amount))
         .currency(EUR)
         .time(at)
-        .priceTime(at)
+        .priceDate(at.atZone(ZoneId.of("Europe/Tallinn")).toLocalDate())
         .settledTime(at)
         .isin("EE0000003283")
         .type(type)
@@ -79,11 +75,9 @@ class SavingsFundTaxReportServiceTest {
   private static final class Statement {
 
     private final List<Transaction> transactions = new ArrayList<>();
-    private final Map<UUID, String> counterpartyIbans = new HashMap<>();
 
     Statement facing(Transaction transaction, String iban) {
-      transactions.add(transaction);
-      counterpartyIbans.put(transaction.id(), iban);
+      transactions.add(transaction.toBuilder().counterpartyIban(iban).build());
       return this;
     }
 
@@ -92,14 +86,13 @@ class SavingsFundTaxReportServiceTest {
       return this;
     }
 
-    TransactionsWithCounterparties build() {
-      return new TransactionsWithCounterparties(
-          List.copyOf(transactions), Map.copyOf(counterpartyIbans));
+    List<Transaction> build() {
+      return List.copyOf(transactions);
     }
   }
 
   @Test
-  void reportsOnePoolWithoutLookingUpCounterpartiesWhenNoInvestmentAccountWasDeclared() {
+  void reportsOnePoolWhenNoInvestmentAccountWasDeclared() {
     given(savingsFundTransactionService.getTransactions(person))
         .willReturn(
             List.of(
@@ -111,12 +104,11 @@ class SavingsFundTaxReportServiceTest {
 
     assertThat(report.totalGain()).isEqualByComparingTo("50.00");
     assertThat(report.investmentAccount()).isNull();
-    verify(savingsFundTransactionService, never()).getTransactionsWithCounterpartyIbans(person);
   }
 
   @Test
   void keepsInvestmentAccountGainsOutOfTheGainsSomeoneDeclares() {
-    given(savingsFundTransactionService.getTransactionsWithCounterpartyIbans(person))
+    given(savingsFundTransactionService.getTransactions(person))
         .willReturn(
             new Statement()
                 .facing(bought("2025-01-10T10:00:00Z", "100", "100.00"), ORDINARY_IBAN)
@@ -137,7 +129,7 @@ class SavingsFundTaxReportServiceTest {
 
   @Test
   void leavesAClosedYearAloneWhenALaterRedemptionGoesElsewhere() {
-    given(savingsFundTransactionService.getTransactionsWithCounterpartyIbans(person))
+    given(savingsFundTransactionService.getTransactions(person))
         .willReturn(
             new Statement()
                 .facing(bought("2025-02-10T10:00:00Z", "100", "200.00"), INVESTMENT_IBAN)
@@ -157,7 +149,7 @@ class SavingsFundTaxReportServiceTest {
 
   @Test
   void leavesAClosedYearAloneWhenALaterTransactionFacesAnUnknownAccount() {
-    given(savingsFundTransactionService.getTransactionsWithCounterpartyIbans(person))
+    given(savingsFundTransactionService.getTransactions(person))
         .willReturn(
             new Statement()
                 .facing(bought("2025-01-10T10:00:00Z", "100", "100.00"), ORDINARY_IBAN)
@@ -179,7 +171,7 @@ class SavingsFundTaxReportServiceTest {
 
   @Test
   void doesNotCallATransactionOrdinaryJustBecauseItsAccountIsUnknown() {
-    given(savingsFundTransactionService.getTransactionsWithCounterpartyIbans(person))
+    given(savingsFundTransactionService.getTransactions(person))
         .willReturn(
             new Statement()
                 .facing(bought("2025-01-10T10:00:00Z", "100", "100.00"), ORDINARY_IBAN)
@@ -198,7 +190,7 @@ class SavingsFundTaxReportServiceTest {
 
   @Test
   void doesNotCallATransactionOrdinaryJustBecauseItsAccountIsGarbled() {
-    given(savingsFundTransactionService.getTransactionsWithCounterpartyIbans(person))
+    given(savingsFundTransactionService.getTransactions(person))
         .willReturn(
             new Statement()
                 .facing(bought("2025-01-10T10:00:00Z", "100", "100.00"), ORDINARY_IBAN)
@@ -217,7 +209,7 @@ class SavingsFundTaxReportServiceTest {
 
   @Test
   void recognisesTheDeclaredAccountHoweverTheBankSpacedIt() {
-    given(savingsFundTransactionService.getTransactionsWithCounterpartyIbans(person))
+    given(savingsFundTransactionService.getTransactions(person))
         .willReturn(
             new Statement()
                 .facing(bought("2025-02-10T10:00:00Z", "100", "200.00"), "ee65 1010 2203 0649 7226")
@@ -235,7 +227,7 @@ class SavingsFundTaxReportServiceTest {
 
   @Test
   void splitsThePoolsWhenAPurchaseAndARedemptionShareTheSameInstant() {
-    given(savingsFundTransactionService.getTransactionsWithCounterpartyIbans(person))
+    given(savingsFundTransactionService.getTransactions(person))
         .willReturn(
             new Statement()
                 .facing(sold("2025-06-10T10:00:00Z", "100", "150.00"), ORDINARY_IBAN)
@@ -255,7 +247,7 @@ class SavingsFundTaxReportServiceTest {
 
   @Test
   void doesNotPickAPoolForSomeoneWhoRedeemedToAnotherAccountThanTheyBoughtFrom() {
-    given(savingsFundTransactionService.getTransactionsWithCounterpartyIbans(person))
+    given(savingsFundTransactionService.getTransactions(person))
         .willReturn(
             new Statement()
                 .facing(bought("2025-02-10T10:00:00Z", "100", "200.00"), INVESTMENT_IBAN)

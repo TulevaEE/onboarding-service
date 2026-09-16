@@ -14,6 +14,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import ee.tuleva.onboarding.time.ClockConfig;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -250,7 +251,7 @@ class UnitTransferLedgerRecorderTest {
     savingsFundLedger.recordPaymentReceived(party, cashAmount, paymentId);
     savingsFundLedger.reservePaymentForSubscription(party, cashAmount, paymentId);
     savingsFundLedger.issueFundUnitsFromReserved(
-        party, cashAmount, fundUnits, navPerUnit, paymentId);
+        party, cashAmount, fundUnits, navPerUnit, LocalDate.parse("2025-03-10"), paymentId);
   }
 
   private long transactionCount() {

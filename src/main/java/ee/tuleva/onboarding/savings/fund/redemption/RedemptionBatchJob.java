@@ -151,7 +151,12 @@ public class RedemptionBatchJob {
                   redemptionRequestRepository.save(toUpdate);
 
                   savingsFundLedger.redeemFundUnitsFromReserved(
-                      LedgerRefs.from(party), request.getFundUnits(), amount, nav, request.getId());
+                      LedgerRefs.from(party),
+                      request.getFundUnits(),
+                      amount,
+                      nav,
+                      dealingDate,
+                      request.getId());
 
                   log.info(
                       "Priced redemption request: id={}, fundUnits={}, cashAmount={}, nav={}",

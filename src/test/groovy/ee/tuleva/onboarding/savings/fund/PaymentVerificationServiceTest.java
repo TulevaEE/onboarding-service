@@ -877,8 +877,6 @@ class PaymentVerificationServiceTest {
     when(userRepository.findByPersonalCode(childCode)).thenReturn(Optional.of(child));
     when(parentChildLinkService.hasRestrictedLegalCapacity(childCode, LocalDate.of(2025, 10, 1)))
         .thenReturn(true);
-    when(parentChildLinkService.hasRestrictedLegalCapacity(childCode, LocalDate.of(2025, 10, 1)))
-        .thenReturn(true);
     when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
     when(parentChildLinkService.findRepresentation(
             remitterCode, childCode, Set.of(ACTIVE, PENDING_KYC)))

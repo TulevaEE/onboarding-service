@@ -558,6 +558,19 @@ class SanctionAndPepScreenerTest {
   }
 
   @Test
+  void screeningOutcome_isMatchWhenOnlyThePepCheckHasFailed() {
+    User user = createUser("123", "First", "Last", 1L);
+    Set<Country> country = Countries.of("EE");
+    MatchResponse emptyResponse =
+        new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode());
+    when(pepAndSanctionCheckService.match(user, country)).thenReturn(emptyResponse);
+    latestCheckIs(SANCTION, true);
+    latestCheckIs(POLITICALLY_EXPOSED_PERSON_AUTO, false);
+
+    assertThat(sanctionAndPepScreener.screeningOutcome(user, country)).isEqualTo(MATCH);
+  }
+
+  @Test
   void screeningOutcome_isMatchWhenNoScreeningRecordExists() {
     User user = createUser("123", "First", "Last", 1L);
     Set<Country> country = Countries.of("EE");

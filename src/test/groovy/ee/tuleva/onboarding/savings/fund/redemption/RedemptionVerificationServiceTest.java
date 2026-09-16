@@ -43,6 +43,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.ws.client.WebServiceIOException;
 
 @ExtendWith(MockitoExtension.class)
 class RedemptionVerificationServiceTest {
@@ -53,6 +54,7 @@ class RedemptionVerificationServiceTest {
   private static final Instant FRIDAY_NOON = Instant.parse("2026-08-28T09:00:00Z");
   private static final Instant FRIDAY_HALF_PAST_THREE = Instant.parse("2026-08-28T12:30:00Z");
 
+  @Mock private RedemptionRequestRepository redemptionRequestRepository;
   @Mock private RedemptionStatusService redemptionStatusService;
   @Mock private UserService userService;
   @Mock private KycCountryService kycCountryService;
@@ -65,6 +67,7 @@ class RedemptionVerificationServiceTest {
   private RedemptionVerificationService serviceAt(Instant now) {
     var clock = Clock.fixed(now, TALLINN);
     return new RedemptionVerificationService(
+        redemptionRequestRepository,
         redemptionStatusService,
         userService,
         kycCountryService,
@@ -179,9 +182,38 @@ class RedemptionVerificationServiceTest {
         .willReturn(UNAVAILABLE);
     given(riskLevels.isHighRisk(PERSONAL_CODE)).willReturn(false);
 
-    serviceAt(FRIDAY_NOON).process(personRequest(requestId));
+    var request = personRequest(requestId);
+    serviceAt(FRIDAY_NOON).process(request);
 
     verifyNoInteractions(redemptionStatusService, notificationService);
+    verify(redemptionRequestRepository).save(request);
+    org.assertj.core.api.Assertions.assertThat(request.getVerificationAttemptedAt())
+        .isEqualTo(FRIDAY_NOON);
+  }
+
+  @Test
+  void process_personRequest_skipsAScreeningAttemptMadeWithinTheLastFiveMinutes() {
+    var request = personRequest(UUID.randomUUID());
+    request.setVerificationAttemptedAt(FRIDAY_NOON.minusSeconds(120));
+
+    serviceAt(FRIDAY_NOON).process(request);
+
+    verifyNoInteractions(
+        userService, sanctionAndPepScreener, redemptionStatusService, notificationService);
+  }
+
+  @Test
+  void process_personRequest_retriesOnceTheBackoffHasElapsed() {
+    var requestId = UUID.randomUUID();
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(CLEAR);
+    given(riskLevels.isHighRisk(PERSONAL_CODE)).willReturn(false);
+    var request = personRequest(requestId);
+    request.setVerificationAttemptedAt(FRIDAY_NOON.minusSeconds(6 * 60));
+
+    serviceAt(FRIDAY_NOON).process(request);
+
+    verify(redemptionStatusService).changeStatus(requestId, VERIFIED);
   }
 
   @Test
@@ -204,7 +236,7 @@ class RedemptionVerificationServiceTest {
   }
 
   @Test
-  void process_personRequest_holdsAHighRiskPartyAtOnceEvenWhenScreeningIsUnavailable() {
+  void process_personRequest_retriesAHighRiskPartyWhileScreeningIsUnavailable() {
     var requestId = UUID.randomUUID();
     var user = givenPersonWithCountries();
     given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE")))
@@ -213,7 +245,20 @@ class RedemptionVerificationServiceTest {
 
     serviceAt(FRIDAY_NOON).process(personRequest(requestId));
 
-    verify(redemptionStatusService).holdForReview(requestId, HIGH_RISK);
+    verifyNoInteractions(redemptionStatusService, notificationService);
+  }
+
+  @Test
+  void process_personRequest_holdsAHighRiskPartyAsScreeningUnavailableAfterTheDeadline() {
+    var requestId = UUID.randomUUID();
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE")))
+        .willReturn(UNAVAILABLE);
+    given(riskLevels.isHighRisk(PERSONAL_CODE)).willReturn(true);
+
+    serviceAt(FRIDAY_HALF_PAST_THREE).process(personRequest(requestId));
+
+    verify(redemptionStatusService).holdForReview(requestId, SCREENING_UNAVAILABLE);
   }
 
   @Test
@@ -326,7 +371,7 @@ class RedemptionVerificationServiceTest {
         .willReturn(false);
     given(savingsFundOnboardingRepository.findStatus(registryCode, LEGAL_ENTITY))
         .willReturn(Optional.empty());
-    willThrow(new IllegalStateException("Ariregister unavailable"))
+    willThrow(new WebServiceIOException("Ariregister unavailable"))
         .given(legalEntityScreener)
         .screenLatest(registryCode);
 
@@ -343,7 +388,7 @@ class RedemptionVerificationServiceTest {
         .willReturn(false);
     given(savingsFundOnboardingRepository.findStatus(registryCode, LEGAL_ENTITY))
         .willReturn(Optional.empty());
-    willThrow(new IllegalStateException("Ariregister unavailable"))
+    willThrow(new WebServiceIOException("Ariregister unavailable"))
         .given(legalEntityScreener)
         .screenLatest(registryCode);
 
@@ -351,6 +396,23 @@ class RedemptionVerificationServiceTest {
 
     verify(redemptionStatusService).holdForReview(requestId, SCREENING_UNAVAILABLE);
     verify(redemptionStatusService, never()).changeStatus(requestId, VERIFIED);
+  }
+
+  @Test
+  void process_legalEntityRequest_holdsAtOnceWhenTheScreenerFailsOnMissingData() {
+    var registryCode = "16001234";
+    var requestId = UUID.randomUUID();
+    given(savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY))
+        .willReturn(false);
+    given(savingsFundOnboardingRepository.findStatus(registryCode, LEGAL_ENTITY))
+        .willReturn(Optional.empty());
+    willThrow(new IllegalStateException("No KYB survey found for company"))
+        .given(legalEntityScreener)
+        .screenLatest(registryCode);
+
+    serviceAt(FRIDAY_NOON).process(legalEntityRequest(requestId, registryCode));
+
+    verify(redemptionStatusService).holdForReview(requestId, ONBOARDING_INCOMPLETE);
   }
 
   private static RedemptionRequest legalEntityRequest(UUID requestId, String registryCode) {

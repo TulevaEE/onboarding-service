@@ -2,8 +2,10 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.AML;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionCutoff.TALLINN;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.FAILED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.IN_REVIEW;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.REDEEMED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
 import static java.util.stream.Collectors.joining;
@@ -12,9 +14,10 @@ import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.savings.SavingFundDeadlinesService;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -30,10 +33,10 @@ import org.springframework.stereotype.Component;
 @Profile("production")
 public class OverdueRedemptionAlertJob {
 
-  private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
   private static final DateTimeFormatter MINUTE = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+  private static final Duration VERIFICATION_GRACE = Duration.ofMinutes(15);
   private static final List<RedemptionRequest.Status> OPEN_STATUSES =
-      List.of(RESERVED, IN_REVIEW, VERIFIED, FAILED);
+      List.of(RESERVED, IN_REVIEW, VERIFIED, REDEEMED, FAILED);
 
   private final Clock clock;
   private final PublicHolidays publicHolidays;
@@ -62,30 +65,49 @@ public class OverdueRedemptionAlertJob {
                 overdue.size(),
                 overdue.stream().map(request -> describe(request, today)).collect(joining("\n")));
     log.warn(message);
-    notificationService.sendMessage(message, AML, ERROR);
+    try {
+      notificationService.sendMessage(message, AML, ERROR);
+    } catch (RuntimeException e) {
+      log.error("Failed to send overdue redemption alert", e);
+    }
   }
 
   private boolean isOverdue(RedemptionRequest request, Instant now) {
     return switch (request.getStatus()) {
-      case RESERVED, IN_REVIEW ->
-          !now.isBefore(deadlinesService.getScreeningRetryDeadline(request));
+      case RESERVED -> now.isAfter(request.getRequestedAt().plus(VERIFICATION_GRACE));
+      case IN_REVIEW -> !now.isBefore(deadlinesService.getScreeningRetryDeadline(request));
       case VERIFIED -> now.isAfter(deadlinesService.getFulfillmentDeadline(request));
+      case REDEEMED -> now.isAfter(settlementDeadline(request));
       case FAILED -> true;
-      case CANCELLED, REDEEMED, PROCESSED -> false;
+      case CANCELLED, PROCESSED -> false;
     };
   }
 
+  private Instant settlementDeadline(RedemptionRequest request) {
+    ZonedDateTime payout = deadlinesService.getFulfillmentDeadline(request).atZone(TALLINN);
+    return publicHolidays
+        .addWorkingDays(payout.toLocalDate(), 1)
+        .atTime(payout.toLocalTime())
+        .atZone(TALLINN)
+        .toInstant();
+  }
+
   private String describe(RedemptionRequest request, LocalDate today) {
-    return "id=%s, status=%s, reason=%s, amount=%s EUR, requested=%s, decisionCutoff=%s, workingDaysWaiting=%d"
-        .formatted(
-            request.getId(),
-            request.getStatus(),
-            request.getHoldReason(),
-            request.getRequestedAmount().toPlainString(),
-            minute(request.getRequestedAt()),
-            minute(deadlinesService.getCancellationDeadline(request)),
-            publicHolidays.countWorkingDaysBehind(
-                request.getRequestedAt().atZone(TALLINN).toLocalDate(), today));
+    String line =
+        "id=%s, status=%s, amount=%s EUR, requested=%s, decisionCutoff=%s, workingDaysWaiting=%d"
+            .formatted(
+                request.getId(),
+                request.getStatus(),
+                request.getRequestedAmount().toPlainString(),
+                minute(request.getRequestedAt()),
+                minute(deadlinesService.getCancellationDeadline(request)),
+                publicHolidays.countWorkingDaysBehind(
+                    request.getRequestedAt().atZone(TALLINN).toLocalDate(), today));
+    return switch (request.getStatus()) {
+      case IN_REVIEW -> line + ", reason=" + request.getHoldReason();
+      case FAILED -> line + ", error=" + request.getErrorReason();
+      default -> line;
+    };
   }
 
   private static String minute(Instant instant) {

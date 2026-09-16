@@ -76,6 +76,8 @@ public class RedemptionRequest {
   @Column(name = "hold_reason")
   private RedemptionHoldReason holdReason;
 
+  @Nullable private Instant verificationAttemptedAt;
+
   @Nullable private String reviewedBy;
 
   @Nullable private String reviewReason;

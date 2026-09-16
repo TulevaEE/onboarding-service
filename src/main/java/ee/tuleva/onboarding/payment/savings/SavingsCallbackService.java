@@ -58,6 +58,14 @@ public class SavingsCallbackService {
 
     var recipient = recipientParty(merchantReference);
 
+    if (token.getSenderName() == null || token.getSenderIban() == null) {
+      log.info(
+          "Montonio order token without sender details, recording without bank details: uuid={}, senderNamePresent={}, senderIbanPresent={}",
+          token.getUuid(),
+          token.getSenderName() != null,
+          token.getSenderIban() != null);
+    }
+
     var incomingPayment =
         new IncomingSavingsPayment(
             token.getSenderName(),
@@ -71,10 +79,13 @@ public class SavingsCallbackService {
                 "Montonio order token missing currency: uuid=" + token.getUuid()),
             recipient);
 
-    if (!savingsPayments.recordIncoming(incomingPayment)) {
-      return false;
+    if (savingsPayments.recordIncoming(incomingPayment)) {
+      sendReceipt(merchantReference, recipient);
     }
+    return true;
+  }
 
+  private void sendReceipt(PaymentReference merchantReference, PartyId recipient) {
     userService
         .findByPersonalCode(merchantReference.getPersonalCode())
         .ifPresent(
@@ -82,8 +93,6 @@ public class SavingsCallbackService {
                 eventPublisher.publishEvent(
                     new SavingsPaymentCreatedEvent(
                         this, user, merchantReference.getLocale(), recipient)));
-
-    return true;
   }
 
   private PartyId recipientParty(PaymentReference ref) {

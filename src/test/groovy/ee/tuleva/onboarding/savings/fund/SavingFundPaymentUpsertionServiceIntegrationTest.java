@@ -805,25 +805,25 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
     }
 
     @Test
-    void theSameTokenTwiceRecordsOnePaymentAndOneReceipt() {
+    void theSameTokenTwiceIsAcceptedBothTimesWithOnePaymentAndOneReceipt() {
       var token = tokenWithoutSenderDetails();
 
-      var recordedFirst = savingsCallbackService.processToken(token);
-      var recordedAgain = savingsCallbackService.processToken(token);
+      var acceptedFirst = savingsCallbackService.processToken(token);
+      var acceptedAgain = savingsCallbackService.processToken(token);
 
-      assertThat(recordedFirst).isTrue();
-      assertThat(recordedAgain).isFalse();
+      assertThat(acceptedFirst).isTrue();
+      assertThat(acceptedAgain).isTrue();
       assertThat(repository.findRecentPayments(description)).hasSize(1);
       assertThat(receiptEvents()).hasSize(1);
     }
 
     @Test
-    void aStatementThatArrivesBeforeTheCallbackLeavesNoReceipt() {
+    void aCallbackAfterTheStatementIsAcceptedWithoutAReceipt() {
       processXmlMessage(statement());
 
-      var recorded = savingsCallbackService.processToken(tokenWithoutSenderDetails());
+      var accepted = savingsCallbackService.processToken(tokenWithoutSenderDetails());
 
-      assertThat(recorded).isFalse();
+      assertThat(accepted).isTrue();
       assertThat(repository.findRecentPayments(description)).hasSize(1);
       assertThat(receiptEvents()).isEmpty();
     }

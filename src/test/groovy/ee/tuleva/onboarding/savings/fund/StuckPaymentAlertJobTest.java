@@ -46,18 +46,19 @@ class StuckPaymentAlertJobTest {
 
     job.runJob();
 
-    verify(paymentRepository, never()).findUnconfirmedPayments(any());
+    verify(paymentRepository, never()).findUnconfirmedPayments(any(), any());
   }
 
   @Test
   void
-      reportUnconfirmedPayments_reportsAppInitiatedPaymentsTheBankHasNotConfirmedWithinThirtySixHours() {
-    given(paymentRepository.findUnconfirmedPayments(any()))
+      reportUnconfirmedPayments_reportsPaymentsUnconfirmedForOverThirtySixHoursInTheLastThreeDays() {
+    given(paymentRepository.findUnconfirmedPayments(any(), any()))
         .willReturn(List.of(createdPayment(randomUUID())));
 
     job.reportUnconfirmedPayments();
 
-    verify(paymentRepository).findUnconfirmedPayments(NOW.minus(Duration.ofHours(36)));
+    verify(paymentRepository)
+        .findUnconfirmedPayments(NOW.minus(Duration.ofDays(3)), NOW.minus(Duration.ofHours(36)));
   }
 
   private SavingFundPayment createdPayment(UUID paymentId) {

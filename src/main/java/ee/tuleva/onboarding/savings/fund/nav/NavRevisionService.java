@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.savings.fund.nav;
 
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.SAVINGS;
 
-import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
 import java.math.BigDecimal;
@@ -22,7 +21,7 @@ class NavRevisionService {
   private final NavCalculationService navCalculationService;
   private final NavPublisher navPublisher;
   private final OperationsNotificationService notificationService;
-  private final PublicHolidays publicHolidays;
+  private final NavCalendar navCalendar;
 
   @EventListener
   void onNavPositionsUpdated(NavPositionsUpdated event) {
@@ -64,7 +63,7 @@ class NavRevisionService {
   }
 
   private LocalDate calculationDate(NavPositionsUpdated event) {
-    return publicHolidays.nextWorkingDay(event.navDate());
+    return navCalendar.calculationDateOf(event.navDate());
   }
 
   private String revisionFailedMessage(NavPositionsUpdated event) {

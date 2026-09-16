@@ -35,7 +35,7 @@ class NavRevisionServiceTest {
   @Mock private NavCalculationService navCalculationService;
   @Mock private NavPublisher navPublisher;
   @Mock private OperationsNotificationService notificationService;
-  @Spy private PublicHolidays publicHolidays = new PublicHolidays();
+  @Spy private NavCalendar navCalendar = new NavCalendar(new PublicHolidays());
 
   @InjectMocks private NavRevisionService service;
 

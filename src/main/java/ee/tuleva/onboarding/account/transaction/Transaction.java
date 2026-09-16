@@ -24,6 +24,7 @@ public record Transaction(
     Currency currency,
     Instant time,
     LocalDate navDate,
+    @Nullable LocalDate priceCalculationDate,
     Instant settledTime,
     @Nullable Instant applicationTime,
     @Nullable String counterpartyIban,

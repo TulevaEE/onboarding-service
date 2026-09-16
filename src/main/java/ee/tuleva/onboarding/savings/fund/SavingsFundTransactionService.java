@@ -3,6 +3,9 @@ package ee.tuleva.onboarding.savings.fund;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.epis.CashFlow.Type.CONTRIBUTION_CASH;
 import static ee.tuleva.onboarding.epis.CashFlow.Type.SUBTRACTION;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.TRANSFER_IN;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.TRANSFER_OUT;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.UNIT_TRANSFER;
 import static ee.tuleva.onboarding.ledger.UserAccount.REDEMPTIONS;
 import static ee.tuleva.onboarding.ledger.UserAccount.SUBSCRIPTIONS;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
@@ -43,6 +46,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class SavingsFundTransactionService implements SavingsTransactions {
+
+  private static final int CENT_SCALE = 2;
 
   private final LedgerService ledgerService;
   private final SavingsFundOnboardingService savingsFundOnboardingService;
@@ -164,8 +169,9 @@ public class SavingsFundTransactionService implements SavingsTransactions {
   }
 
   private Transaction.TransactionBuilder transaction(
-      LedgerEntry entry, CashFlow.Type type, String isin) {
+      LedgerEntry entry, CashFlow.Type cashFlowType, String isin) {
     LedgerTransaction ledgerTransaction = entry.getTransaction();
+    CashFlow.Type type = typeOf(entry, cashFlowType);
 
     Transaction.TransactionBuilder transaction =
         Transaction.builder()
@@ -176,9 +182,8 @@ public class SavingsFundTransactionService implements SavingsTransactions {
             .isin(isin)
             .type(type)
             .units(require(ledgerTransaction.findUserFundUnits(), "fundUnits", ledgerTransaction))
-            .nav(
-                toNavScale(
-                    require(ledgerTransaction.findNavPerUnit(), "navPerUnit", ledgerTransaction)));
+            .nav(navOf(ledgerTransaction))
+            .acquisitionCost(acquisitionCostOf(type, ledgerTransaction));
 
     ledgerTransaction
         .findNavDate()
@@ -191,6 +196,42 @@ public class SavingsFundTransactionService implements SavingsTransactions {
     return transaction;
   }
 
+  private static @Nullable BigDecimal navOf(LedgerTransaction ledgerTransaction) {
+    Optional<BigDecimal> navPerUnit = ledgerTransaction.findNavPerUnit();
+
+    if (ledgerTransaction.getTransactionType() == UNIT_TRANSFER) {
+      return navPerUnit.map(SavingsFundTransactionService::toNavScale).orElse(null);
+    }
+
+    return toNavScale(require(navPerUnit, "navPerUnit", ledgerTransaction));
+  }
+
+  private static @Nullable BigDecimal acquisitionCostOf(
+      CashFlow.Type type, LedgerTransaction ledgerTransaction) {
+    return type == TRANSFER_IN
+        ? ledgerTransaction
+            .findRecipientAcquisitionCost()
+            .map(SavingsFundTransactionService::toCentScale)
+            .orElse(null)
+        : null;
+  }
+
+  private static BigDecimal toCentScale(BigDecimal amount) {
+    return amount.stripTrailingZeros().setScale(CENT_SCALE, UNNECESSARY);
+  }
+
+  private static CashFlow.Type typeOf(LedgerEntry entry, CashFlow.Type cashFlowType) {
+    LedgerTransaction ledgerTransaction = entry.getTransaction();
+
+    if (ledgerTransaction.getTransactionType() != UNIT_TRANSFER) {
+      return cashFlowType;
+    }
+
+    BigDecimal unitsGained =
+        require(entry.findOwnersFundUnitsChange(), "fundUnits", ledgerTransaction);
+    return unitsGained.signum() < 0 ? TRANSFER_OUT : TRANSFER_IN;
+  }
+
   private static BigDecimal require(
       Optional<BigDecimal> value, String field, LedgerTransaction ledgerTransaction) {
     return value.orElseThrow(
@@ -201,7 +242,7 @@ public class SavingsFundTransactionService implements SavingsTransactions {
                         field, ledgerTransaction.getId(), ledgerTransaction.getTransactionDate())));
   }
 
-  private BigDecimal toNavScale(BigDecimal nav) {
+  private static BigDecimal toNavScale(BigDecimal nav) {
     return nav.stripTrailingZeros().setScale(TKF100.getNavScale(), UNNECESSARY);
   }
 }

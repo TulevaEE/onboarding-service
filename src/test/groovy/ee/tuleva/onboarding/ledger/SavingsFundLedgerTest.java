@@ -17,7 +17,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import ee.tuleva.onboarding.time.ClockConfig;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -31,19 +30,7 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
 
 @DataJpaTest
-@Import({
-  LedgerService.class,
-  LedgerAccountService.class,
-  LedgerPartyService.class,
-  LedgerTransactionService.class,
-  UserUnitBalanceGuard.class,
-  SavingsFundLedgerAccounts.class,
-  RedemptionLedgerRecorder.class,
-  UnattributedPaymentLedgerRecorder.class,
-  UnitTransferLedgerRecorder.class,
-  SavingsFundLedger.class,
-  ClockConfig.class
-})
+@Import(SavingsFundLedgerStackConfiguration.class)
 class SavingsFundLedgerTest {
 
   @Autowired LedgerService ledgerService;

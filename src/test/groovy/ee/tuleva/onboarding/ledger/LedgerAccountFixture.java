@@ -7,6 +7,8 @@ import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.FUND_SUBSCRIPTION;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.REDEMPTION_PAYOUT;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.UNIT_TRANSFER;
+import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.RECIPIENT_ACQUISITION_COST_EUR;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_UNITS_OUTSTANDING;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
 import static java.math.BigDecimal.ZERO;
@@ -18,6 +20,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -438,5 +441,109 @@ public class LedgerAccountFixture {
         });
 
     return account;
+  }
+
+  public record UnitTransferFixture(
+      BigDecimal netInvestedShare,
+      BigDecimal fundUnits,
+      BigDecimal recipientAcquisitionCost,
+      Instant transactionDate) {
+
+    public UnitTransferFixture(
+        BigDecimal netInvestedShare, BigDecimal fundUnits, Instant transactionDate) {
+      this(netInvestedShare, fundUnits, null, transactionDate);
+    }
+  }
+
+  public static LedgerAccount subscriptionsAccountWithUnitTransfers(
+      List<UnitTransferFixture> transfers) {
+    LedgerParty owner = party("38888888888");
+    LedgerParty counterparty = party("48888888888");
+
+    LedgerAccount account = subscriptionsAccountOf(owner);
+    LedgerAccount fundUnitsAccount = fundUnitsAccountOf(owner);
+    LedgerAccount counterpartySubscriptions = subscriptionsAccountOf(counterparty);
+    LedgerAccount counterpartyFundUnits = fundUnitsAccountOf(counterparty);
+
+    transfers.forEach(
+        transfer -> {
+          Map<String, Object> metadata = new HashMap<>();
+          if (transfer.recipientAcquisitionCost() != null) {
+            metadata.put(
+                RECIPIENT_ACQUISITION_COST_EUR.getKey(), transfer.recipientAcquisitionCost());
+          }
+          LedgerTransaction transaction =
+              LedgerTransaction.builder()
+                  .id(UUID.randomUUID())
+                  .transactionType(UNIT_TRANSFER)
+                  .transactionDate(transfer.transactionDate())
+                  .metadata(metadata)
+                  .build();
+          transaction.addEntry(account, transfer.netInvestedShare().negate());
+          transaction.addEntry(counterpartySubscriptions, transfer.netInvestedShare());
+          transaction.addEntry(fundUnitsAccount, transfer.fundUnits().negate());
+          transaction.addEntry(counterpartyFundUnits, transfer.fundUnits());
+        });
+
+    return account;
+  }
+
+  public static LedgerAccount redemptionsAccountWithoutNavPerUnit(EntryFixture entry) {
+    LedgerAccount account =
+        LedgerAccount.builder()
+            .name(REDEMPTIONS.name())
+            .purpose(USER_ACCOUNT)
+            .assetType(EUR)
+            .accountType(EXPENSE)
+            .build();
+
+    LedgerAccount fundUnitsReservedAccount =
+        LedgerAccount.builder()
+            .name(FUND_UNITS_RESERVED.name())
+            .purpose(USER_ACCOUNT)
+            .assetType(FUND_UNIT)
+            .accountType(LIABILITY)
+            .build();
+
+    LedgerTransaction transaction =
+        LedgerTransaction.builder()
+            .id(UUID.randomUUID())
+            .transactionType(REDEMPTION_PAYOUT)
+            .transactionDate(entry.transactionDate())
+            .metadata(Map.of())
+            .build();
+    transaction.addEntry(account, entry.amount());
+    transaction.addEntry(
+        fundUnitsReservedAccount, entry.amount().divide(entry.navPerUnit(), 5, HALF_UP));
+
+    return account;
+  }
+
+  private static LedgerParty party(String personalCode) {
+    return LedgerParty.builder()
+        .partyType(LedgerParty.PartyType.PERSON)
+        .ownerId(personalCode)
+        .details(Map.of())
+        .build();
+  }
+
+  private static LedgerAccount subscriptionsAccountOf(LedgerParty owner) {
+    return LedgerAccount.builder()
+        .name(SUBSCRIPTIONS.name())
+        .purpose(USER_ACCOUNT)
+        .assetType(EUR)
+        .accountType(INCOME)
+        .owner(owner)
+        .build();
+  }
+
+  private static LedgerAccount fundUnitsAccountOf(LedgerParty owner) {
+    return LedgerAccount.builder()
+        .name(FUND_UNITS.name())
+        .purpose(USER_ACCOUNT)
+        .assetType(FUND_UNIT)
+        .accountType(LIABILITY)
+        .owner(owner)
+        .build();
   }
 }

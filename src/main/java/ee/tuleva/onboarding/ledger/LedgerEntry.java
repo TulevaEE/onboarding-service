@@ -14,6 +14,7 @@ import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.*;
 import org.hibernate.annotations.Generated;
@@ -66,5 +67,9 @@ public class LedgerEntry {
 
   boolean isUserFundUnit() {
     return assetType == FUND_UNIT && account.isUserAccount();
+  }
+
+  public Optional<BigDecimal> findOwnersFundUnitsChange() {
+    return transaction.findFundUnitsChangeOf(account.getOwner());
   }
 }

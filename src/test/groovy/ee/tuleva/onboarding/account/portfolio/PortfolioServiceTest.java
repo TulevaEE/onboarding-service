@@ -7,6 +7,8 @@ import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthent
 import static ee.tuleva.onboarding.comparisons.returns.Returns.Return.Type.PERSONAL;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.epis.CashFlow.Type.CONTRIBUTION_CASH;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.TRANSFER_IN;
+import static ee.tuleva.onboarding.epis.CashFlow.Type.TRANSFER_OUT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
@@ -24,6 +26,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.FundValueQueries;
 import ee.tuleva.onboarding.comparisons.returns.Returns;
 import ee.tuleva.onboarding.comparisons.returns.ReturnsService;
 import ee.tuleva.onboarding.comparisons.returns.provider.PersonalReturnProvider;
+import ee.tuleva.onboarding.epis.CashFlow;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.savings.SavingsFundConfiguration;
@@ -95,6 +98,28 @@ class PortfolioServiceTest {
         .build();
   }
 
+  private static Transaction transfer(
+      String isin, String time, String units, String amount, CashFlow.Type type) {
+    return Transaction.builder()
+        .id(UUID.nameUUIDFromBytes((isin + time + type).getBytes()))
+        .amount(new BigDecimal(amount))
+        .currency(EUR)
+        .time(Instant.parse(time))
+        .isin(isin)
+        .type(type)
+        .units(new BigDecimal(units))
+        .nav(new BigDecimal("10"))
+        .build();
+  }
+
+  private static Transaction transferIn(String isin, String time, String units, String amount) {
+    return transfer(isin, time, units, amount, TRANSFER_IN);
+  }
+
+  private static Transaction transferOut(String isin, String time, String units, String amount) {
+    return transfer(isin, time, units, amount, TRANSFER_OUT);
+  }
+
   private static FundValue fundValue(String isin, String date, String value) {
     return new FundValue(isin, LocalDate.parse(date), new BigDecimal(value), "TEST", Instant.EPOCH);
   }
@@ -111,6 +136,61 @@ class PortfolioServiceTest {
                     .to(TO)
                     .build()))
         .build();
+  }
+
+  @Test
+  void countsUnitsSomeoneWasGivenAsPartOfTheirSavingsFundHolding() {
+    given(transactionService.getTransactions(person))
+        .willReturn(List.of(transferIn(TKF, "2025-01-01T10:00:00Z", "40", "400.00")));
+    given(fundRepository.findAll()).willReturn(List.of(Fund.builder().isin(TKF).build()));
+    given(fundNavProvider.safeMaxNavDate()).willReturn(FAR_FUTURE);
+    given(fundValueQueries.getLatestValue(any(), any())).willReturn(Optional.empty());
+    given(fundValueQueries.findValuesBetweenDates(eq(TKF), eq(FROM), eq(TO)))
+        .willReturn(List.of(fundValue(TKF, "2025-12-31", "12")));
+
+    Portfolio portfolio = portfolioService.getPortfolio(person, FROM, TO);
+
+    assertThat(portfolio.groups())
+        .extracting(
+            Portfolio.GroupSummary::group,
+            Portfolio.GroupSummary::endValue,
+            Portfolio.GroupSummary::contributions,
+            Portfolio.GroupSummary::withdrawals)
+        .containsExactly(
+            tuple(
+                SAVINGS_FUND,
+                new BigDecimal("480.00"),
+                new BigDecimal("400.00"),
+                new BigDecimal("0.00")));
+  }
+
+  @Test
+  void takesUnitsSomeoneGaveAwayOutOfTheirSavingsFundHolding() {
+    given(transactionService.getTransactions(person))
+        .willReturn(
+            List.of(
+                buy(TKF, "2025-01-01T10:00:00Z", "100", "10"),
+                transferOut(TKF, "2025-06-01T10:00:00Z", "40", "-400.00")));
+    given(fundRepository.findAll()).willReturn(List.of(Fund.builder().isin(TKF).build()));
+    given(fundNavProvider.safeMaxNavDate()).willReturn(FAR_FUTURE);
+    given(fundValueQueries.getLatestValue(any(), any())).willReturn(Optional.empty());
+    given(fundValueQueries.findValuesBetweenDates(eq(TKF), eq(FROM), eq(TO)))
+        .willReturn(List.of(fundValue(TKF, "2025-12-31", "12")));
+
+    Portfolio portfolio = portfolioService.getPortfolio(person, FROM, TO);
+
+    assertThat(portfolio.groups())
+        .extracting(
+            Portfolio.GroupSummary::group,
+            Portfolio.GroupSummary::endValue,
+            Portfolio.GroupSummary::contributions,
+            Portfolio.GroupSummary::withdrawals)
+        .containsExactly(
+            tuple(
+                SAVINGS_FUND,
+                new BigDecimal("720.00"),
+                new BigDecimal("1000.00"),
+                new BigDecimal("400.00")));
   }
 
   @Test

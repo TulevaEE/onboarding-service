@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.savings.fund.transfer;
 
 import java.math.BigDecimal;
-import org.jspecify.annotations.Nullable;
 
 public sealed interface UnitTransferVerdict {
 
@@ -15,7 +14,9 @@ public sealed interface UnitTransferVerdict {
       BigDecimal fundUnits,
       BigDecimal giverUnitsAfter,
       BigDecimal receiverUnitsAfter,
-      @Nullable BigDecimal recipientAcquisitionCostEur,
+      BigDecimal recipientAcquisitionCostEur,
       BigDecimal giverPaidIn,
-      BigDecimal giverUnitsOwned) {}
+      BigDecimal giverUnitsOwned,
+      BigDecimal giverRemainingCost,
+      BigDecimal contributionMoved) {}
 }

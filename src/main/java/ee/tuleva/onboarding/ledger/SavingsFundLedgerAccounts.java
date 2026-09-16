@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.PARTY_TY
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static java.math.RoundingMode.HALF_UP;
 import static java.time.temporal.ChronoUnit.MICROS;
 
 import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
@@ -16,6 +17,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -28,6 +30,7 @@ class SavingsFundLedgerAccounts {
 
   private final LedgerPartyService ledgerPartyService;
   private final LedgerAccountService ledgerAccountService;
+  private final LegacyTransferTypes legacyTransferTypes;
   private final Clock clock;
 
   LedgerAccount resolveSystemAccount(String accountName) {
@@ -50,14 +53,37 @@ class SavingsFundLedgerAccounts {
   }
 
   LedgerAccount resolvePartyAccount(PartyRef party, UserAccount userAccount) {
-    LedgerParty ledgerParty =
-        ledgerPartyService
-            .getParty(party.code(), party.type())
-            .orElseThrow(
-                () ->
-                    new IllegalArgumentException(
-                        "Ledger party not found: partyCode=" + party.code()));
-    return getUserAccount(ledgerParty, userAccount);
+    return getUserAccount(requireParty(party), userAccount);
+  }
+
+  void lockAccountsOfBothParties(PartyRef party, PartyRef otherParty) {
+    ledgerAccountService.lockAccountsOfBoth(requireParty(party), requireParty(otherParty));
+  }
+
+  BigDecimal holding(LedgerAccount account) {
+    return inAccountPrecision(ledgerAccountService.sumOfEntries(account), account);
+  }
+
+  GiverCostBasis costBasisOf(
+      LedgerAccount unitsAccount,
+      LedgerAccount reservedUnitsAccount,
+      LedgerAccount subscriptionsAccount) {
+    return GiverCostBasis.replay(
+        legacyTransferTypes.resolved(
+            ledgerAccountService.unitHoldingChanges(
+                List.of(unitsAccount, reservedUnitsAccount), subscriptionsAccount)));
+  }
+
+  private static BigDecimal inAccountPrecision(BigDecimal sumOfEntries, LedgerAccount account) {
+    return sumOfEntries.negate().setScale(account.getAssetType().getMaxPrecision(), HALF_UP);
+  }
+
+  private LedgerParty requireParty(PartyRef party) {
+    return ledgerPartyService
+        .getParty(party.code(), party.type())
+        .orElseThrow(
+            () ->
+                new IllegalArgumentException("Ledger party not found: partyCode=" + party.code()));
   }
 
   Instant transactionDate(LocalDate bookingDate) {

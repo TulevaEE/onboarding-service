@@ -6,6 +6,8 @@ import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.USER_ACCO
 import ee.tuleva.onboarding.ledger.LedgerAccount.AccountType;
 import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
+import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -52,6 +54,19 @@ class LedgerAccountService {
         USER_ACCOUNT,
         userAccount.getAssetType(),
         userAccount.getAccountType());
+  }
+
+  void lockAccountsOfBoth(LedgerParty owner, LedgerParty otherOwner) {
+    ledgerAccountRepository.lockAccountsOf(List.of(owner, otherOwner));
+  }
+
+  BigDecimal sumOfEntries(LedgerAccount account) {
+    return ledgerAccountRepository.sumOfEntries(account);
+  }
+
+  List<UnitHoldingChange> unitHoldingChanges(
+      Collection<LedgerAccount> unitAccounts, LedgerAccount subscriptionsAccount) {
+    return ledgerAccountRepository.unitHoldingChanges(unitAccounts, subscriptionsAccount);
   }
 
   List<LedgerAccount> getAccounts(LedgerParty owner) {

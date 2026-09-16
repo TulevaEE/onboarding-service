@@ -104,6 +104,8 @@ public class CashFlow implements Comparable<CashFlow> {
     REFUND,
     TRANSFER_TO_PIK,
     TRANSFER_FROM_PIK,
+    TRANSFER_IN,
+    TRANSFER_OUT,
     OTHER
   }
 }

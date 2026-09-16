@@ -648,7 +648,7 @@ class PaymentVerificationServiceTest {
     when(userRepository.findByPersonalCode(parentCode)).thenReturn(Optional.of(parent));
     when(userRepository.findByPersonalCode(childCode)).thenReturn(Optional.of(child));
     when(parentChildLinkService.findRepresentation(
-            parentCode, childCode, Set.of(ACTIVE, PENDING_KYC)))
+            parentCode, childCode, Set.of(ACTIVE, PENDING_KYC), LocalDate.of(2025, 10, 1)))
         .thenReturn(Optional.empty());
 
     service.process(payment);
@@ -698,7 +698,7 @@ class PaymentVerificationServiceTest {
     when(userRepository.findByPersonalCode(remitterCode)).thenReturn(Optional.empty());
     when(userRepository.findByPersonalCode(childCode)).thenReturn(Optional.of(child));
     when(parentChildLinkService.findRepresentation(
-            remitterCode, childCode, Set.of(ACTIVE, PENDING_KYC)))
+            remitterCode, childCode, Set.of(ACTIVE, PENDING_KYC), LocalDate.of(2025, 10, 1)))
         .thenReturn(Optional.empty());
 
     service.process(payment);
@@ -755,7 +755,7 @@ class PaymentVerificationServiceTest {
     when(savingsFundOnboardingService.isOnboardingCompleted(new PartyId(PERSON, childCode)))
         .thenReturn(true);
     when(parentChildLinkService.findRepresentation(
-            parentCode, childCode, Set.of(ACTIVE, PENDING_KYC)))
+            parentCode, childCode, Set.of(ACTIVE, PENDING_KYC), LocalDate.of(2025, 10, 1)))
         .thenReturn(Optional.of(UUID.randomUUID()));
 
     service.process(payment);
@@ -789,12 +789,40 @@ class PaymentVerificationServiceTest {
   }
 
   @Test
+  void process_parentRepresentingChild_lookupUsesTheBookingDateNotTheProcessingDate() {
+    var parentCode = "38812121215";
+    var childCode = "61506150006";
+    var payment = createPayment(parentCode, "for child " + childCode);
+    var child =
+        User.builder()
+            .id(456L)
+            .personalCode(childCode)
+            .firstName("MARI")
+            .lastName("MAASIKAS")
+            .build();
+    when(userRepository.findByPersonalCode(childCode)).thenReturn(Optional.of(child));
+    when(savingsFundOnboardingService.isOnboardingCompleted(new PartyId(PERSON, childCode)))
+        .thenReturn(true);
+    when(parentChildLinkService.findRepresentation(
+            parentCode, childCode, Set.of(ACTIVE, PENDING_KYC), LocalDate.of(2025, 10, 1)))
+        .thenReturn(Optional.of(UUID.randomUUID()));
+
+    service.process(payment);
+
+    verify(parentChildLinkService)
+        .findRepresentation(
+            parentCode, childCode, Set.of(ACTIVE, PENDING_KYC), LocalDate.of(2025, 10, 1));
+    verify(parentChildLinkService, never()).findRepresentation(any(), any(), any());
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
+  }
+
+  @Test
   void process_parentRepresentingChild_noValidLink_bouncesAsCodeMismatch() {
     var parentCode = "38812121215";
     var childCode = "61506150006";
     var payment = createPayment(parentCode, "for child " + childCode);
     when(parentChildLinkService.findRepresentation(
-            parentCode, childCode, Set.of(ACTIVE, PENDING_KYC)))
+            parentCode, childCode, Set.of(ACTIVE, PENDING_KYC), LocalDate.of(2025, 10, 1)))
         .thenReturn(Optional.empty());
 
     service.process(payment);
@@ -804,6 +832,156 @@ class PaymentVerificationServiceTest {
         .addReturnReason(payment.getId(), "selgituses olev isikukood ei klapi maksja isikukoodiga");
     verify(savingFundPaymentRepository, never()).attachParty(any(), any());
     verifyNoMoreInteractions(savingFundPaymentRepository);
+  }
+
+  @Test
+  void process_representativeNameMatches_withoutRemitterIdCode_paymentVerifiedForChild() {
+    var parentCode = "38812121215";
+    var childCode = "61506150006";
+    var payment =
+        createPayment(null, "for child " + childCode).toBuilder()
+            .remitterName("JAAN MAASIKAS")
+            .build();
+    var parent =
+        User.builder()
+            .id(123L)
+            .personalCode(parentCode)
+            .firstName("JAAN")
+            .lastName("MAASIKAS")
+            .build();
+    var child =
+        User.builder()
+            .id(456L)
+            .personalCode(childCode)
+            .firstName("MARI")
+            .lastName("MAASIKAS")
+            .build();
+    when(userRepository.findByPersonalCode(childCode)).thenReturn(Optional.of(child));
+    when(userRepository.findByPersonalCode(parentCode)).thenReturn(Optional.of(parent));
+    when(parentChildLinkService.findRepresentativeCodes(
+            childCode, Set.of(ACTIVE, PENDING_KYC), LocalDate.of(2025, 10, 1)))
+        .thenReturn(List.of(parentCode));
+    when(savingsFundOnboardingService.isOnboardingCompleted(new PartyId(PERSON, childCode)))
+        .thenReturn(true);
+
+    service.process(payment);
+
+    verify(savingsFundLedger)
+        .recordPaymentReceived(
+            LedgerRefs.from(new PartyId(PERSON, childCode)),
+            payment.getAmount(),
+            payment.getId(),
+            LocalDate.of(2025, 10, 1));
+    var inOrder = inOrder(savingFundPaymentRepository);
+    inOrder
+        .verify(savingFundPaymentRepository)
+        .attachParty(payment.getId(), new PartyId(PERSON, childCode));
+    inOrder.verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
+    verifyNoMoreInteractions(savingFundPaymentRepository);
+    verify(applicationEventPublisher)
+        .publishEvent(
+            new TrackableSystemEvent(
+                TrackableEventType.MINOR_DEPOSIT_VERIFIED,
+                Map.of(
+                    "parentPersonalCode",
+                    parentCode,
+                    "childPersonalCode",
+                    childCode,
+                    "paymentId",
+                    payment.getId(),
+                    "amount",
+                    payment.getAmount())));
+  }
+
+  @Test
+  void process_representativeLookupUsesTheBookingDateNotTheProcessingDate() {
+    var parentCode = "38812121215";
+    var childCode = "61506150006";
+    var payment =
+        createPayment(null, "for child " + childCode).toBuilder()
+            .remitterName("JAAN MAASIKAS")
+            .build();
+    var parent =
+        User.builder()
+            .id(123L)
+            .personalCode(parentCode)
+            .firstName("JAAN")
+            .lastName("MAASIKAS")
+            .build();
+    var child =
+        User.builder()
+            .id(456L)
+            .personalCode(childCode)
+            .firstName("MARI")
+            .lastName("MAASIKAS")
+            .build();
+    when(userRepository.findByPersonalCode(childCode)).thenReturn(Optional.of(child));
+    when(userRepository.findByPersonalCode(parentCode)).thenReturn(Optional.of(parent));
+    when(parentChildLinkService.findRepresentativeCodes(
+            childCode, Set.of(ACTIVE, PENDING_KYC), LocalDate.of(2025, 10, 1)))
+        .thenReturn(List.of(parentCode));
+    when(savingsFundOnboardingService.isOnboardingCompleted(new PartyId(PERSON, childCode)))
+        .thenReturn(true);
+
+    service.process(payment);
+
+    verify(parentChildLinkService)
+        .findRepresentativeCodes(childCode, Set.of(ACTIVE, PENDING_KYC), LocalDate.of(2025, 10, 1));
+    verify(parentChildLinkService, never()).findRepresentativeCodes(any(), any());
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
+  }
+
+  @Test
+  void process_noRepresentativeNameMatches_withoutRemitterIdCode_bouncesAsNameMismatch() {
+    var parentCode = "38812121215";
+    var childCode = "61506150006";
+    var payment =
+        createPayment(null, "for child " + childCode).toBuilder()
+            .remitterName("VOORAS INIMENE")
+            .build();
+    var parent =
+        User.builder()
+            .id(123L)
+            .personalCode(parentCode)
+            .firstName("JAAN")
+            .lastName("MAASIKAS")
+            .build();
+    var child =
+        User.builder()
+            .id(456L)
+            .personalCode(childCode)
+            .firstName("MARI")
+            .lastName("MAASIKAS")
+            .build();
+    when(userRepository.findByPersonalCode(childCode)).thenReturn(Optional.of(child));
+    when(userRepository.findByPersonalCode(parentCode)).thenReturn(Optional.of(parent));
+    when(parentChildLinkService.findRepresentativeCodes(
+            childCode, Set.of(ACTIVE, PENDING_KYC), LocalDate.of(2025, 10, 1)))
+        .thenReturn(List.of(parentCode));
+
+    service.process(payment);
+
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
+    verify(savingFundPaymentRepository)
+        .addReturnReason(payment.getId(), "maksja nimi ei klapi Tuleva andmetega");
+    verify(savingFundPaymentRepository, never()).attachParty(any(), any());
+    verifyNoMoreInteractions(savingFundPaymentRepository);
+    verify(applicationEventPublisher, never()).publishEvent(any(TrackableSystemEvent.class));
+  }
+
+  @Test
+  void process_companyPayment_nameMismatch_noRemitterIdCode_doesNotConsultRepresentatives() {
+    var payment = createPayment(null, "company 12345678");
+    var company = Company.builder().registryCode("12345678").name("Tuleva AS").build();
+    when(companyRepository.findByRegistryCode("12345678")).thenReturn(Optional.of(company));
+
+    service.process(payment);
+
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
+    verify(savingFundPaymentRepository)
+        .addReturnReason(payment.getId(), "maksja nimi ei klapi Tuleva andmetega");
+    verify(parentChildLinkService, never()).findRepresentativeCodes(any(), any());
+    verify(parentChildLinkService, never()).findRepresentativeCodes(any(), any(), any());
   }
 
   private SavingFundPayment createPayment(String remitterIdCode, String description) {

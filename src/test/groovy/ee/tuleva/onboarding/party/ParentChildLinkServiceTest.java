@@ -142,6 +142,60 @@ class ParentChildLinkServiceTest {
   }
 
   @Test
+  void findsRepresentativeCodesForChildDeduplicatedAndScopedToTheRequestedStatuses() {
+    var active =
+        ParentChildLink.builder()
+            .parentPersonalCode(PARENT)
+            .childPersonalCode(CHILD)
+            .relationshipType(LEGAL_REPRESENTATIVE)
+            .validUntil(LocalDate.of(2030, 1, 1))
+            .build();
+    var secondLinkForSameParent =
+        ParentChildLink.builder()
+            .parentPersonalCode(PARENT)
+            .childPersonalCode(CHILD)
+            .relationshipType(LEGAL_REPRESENTATIVE)
+            .validUntil(LocalDate.of(2030, 1, 1))
+            .status(PENDING_KYC)
+            .build();
+    var coParent =
+        ParentChildLink.builder()
+            .parentPersonalCode("48002020009")
+            .childPersonalCode(CHILD)
+            .relationshipType(LEGAL_REPRESENTATIVE)
+            .validUntil(LocalDate.of(2030, 1, 1))
+            .build();
+    given(
+            parentChildLinkRepository
+                .findByChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                    CHILD, Set.of(ACTIVE, PENDING_KYC), TODAY))
+        .willReturn(List.of(active, secondLinkForSameParent, coParent));
+
+    assertThat(service.findRepresentativeCodes(CHILD, Set.of(ACTIVE, PENDING_KYC)))
+        .containsExactly(PARENT, "48002020009");
+  }
+
+  @Test
+  void findsRepresentativeCodesAsOfTheGivenDateRatherThanToday() {
+    var bookingDate = LocalDate.of(2026, 5, 20);
+    var link =
+        ParentChildLink.builder()
+            .parentPersonalCode(PARENT)
+            .childPersonalCode(CHILD)
+            .relationshipType(LEGAL_REPRESENTATIVE)
+            .validUntil(LocalDate.of(2026, 5, 21))
+            .build();
+    given(
+            parentChildLinkRepository
+                .findByChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                    CHILD, Set.of(ACTIVE), bookingDate))
+        .willReturn(List.of(link));
+
+    assertThat(service.findRepresentativeCodes(CHILD, Set.of(ACTIVE), bookingDate))
+        .containsExactly(PARENT);
+  }
+
+  @Test
   void findsPendingChildCodesForParent() {
     var pending =
         ParentChildLink.builder()

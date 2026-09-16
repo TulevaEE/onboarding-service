@@ -46,9 +46,17 @@ public class ParentChildLinkService implements ChildRepresentations {
   // built for the same child always name the same one.
   public Optional<UUID> findRepresentation(
       String parentPersonalCode, String childPersonalCode, Set<ParentChildLinkStatus> statuses) {
+    return findRepresentation(parentPersonalCode, childPersonalCode, statuses, today());
+  }
+
+  public Optional<UUID> findRepresentation(
+      String parentPersonalCode,
+      String childPersonalCode,
+      Set<ParentChildLinkStatus> statuses,
+      LocalDate asOf) {
     return parentChildLinkRepository
         .findByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
-            parentPersonalCode, childPersonalCode, statuses, today())
+            parentPersonalCode, childPersonalCode, statuses, asOf)
         .stream()
         .min(CANONICAL_LINK)
         .map(ParentChildLink::getId);
@@ -65,6 +73,24 @@ public class ParentChildLinkService implements ChildRepresentations {
   public List<String> findGuardianCodes(String childPersonalCode) {
     return parentChildLinkRepository
         .findByChildPersonalCodeAndValidUntilAfter(childPersonalCode, today())
+        .stream()
+        .map(ParentChildLink::getParentPersonalCode)
+        .distinct()
+        .toList();
+  }
+
+  public List<String> findRepresentativeCodes(
+      String childPersonalCode, Set<ParentChildLinkStatus> statuses) {
+    return findRepresentativeCodes(childPersonalCode, statuses, today());
+  }
+
+  // Decides whether money is accepted, so it asks as of the day the money arrived, not the day the
+  // job got round to it. Contrast findGuardianCodes, which is AML screening scope.
+  public List<String> findRepresentativeCodes(
+      String childPersonalCode, Set<ParentChildLinkStatus> statuses, LocalDate asOf) {
+    return parentChildLinkRepository
+        .findByChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+            childPersonalCode, statuses, asOf)
         .stream()
         .map(ParentChildLink::getParentPersonalCode)
         .distinct()

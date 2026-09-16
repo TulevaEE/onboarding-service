@@ -22,6 +22,7 @@ import ee.tuleva.onboarding.savings.SavingsFundOnboardingService;
 import ee.tuleva.onboarding.savings.fund.notification.UnattributedPaymentEvent;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
+import java.time.LocalDate;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -91,7 +92,7 @@ public class PaymentVerificationService {
     boolean representingChild =
         remitterPartyId
             .filter(r -> !r.equals(partyId))
-            .map(r -> isAuthorizedRemitter(r, partyId))
+            .map(r -> isAuthorizedRemitter(r, partyId, payment.bookingDate()))
             .orElse(false);
     if (remitterPartyId.isPresent()
         && !remitterPartyId.get().equals(partyId)
@@ -106,10 +107,16 @@ public class PaymentVerificationService {
       return;
     }
 
+    @Nullable PartyId representativeByName = null;
     if (remitterPartyId.isEmpty()
         && !nameMatcher.isSameName(party.get().name(), payment.getRemitterName())) {
-      identityCheckFailure(payment, messages.nameMismatch());
-      return;
+      representativeByName =
+          findRepresentativeByName(partyId, payment.getRemitterName(), payment.bookingDate())
+              .orElse(null);
+      if (representativeByName == null) {
+        identityCheckFailure(payment, messages.nameMismatch());
+        return;
+      }
     }
 
     if (!savingsFundOnboardingService.isOnboardingCompleted(partyId)) {
@@ -129,12 +136,14 @@ public class PaymentVerificationService {
         Objects.requireNonNull(
             payment.bookingDate(), "Missing receivedBefore: paymentId=" + payment.getId()));
 
-    if (representingChild) {
+    @Nullable PartyId payingRepresentative =
+        representingChild ? remitterPartyId.orElseThrow() : representativeByName;
+    if (payingRepresentative != null) {
       applicationEventPublisher.publishEvent(
           new TrackableSystemEvent(
               TrackableEventType.MINOR_DEPOSIT_VERIFIED,
               Map.of(
-                  "parentPersonalCode", remitterPartyId.get().code(),
+                  "parentPersonalCode", payingRepresentative.code(),
                   "childPersonalCode", partyId.code(),
                   "paymentId", payment.getId(),
                   "amount", payment.getAmount())));
@@ -182,16 +191,43 @@ public class PaymentVerificationService {
     return parsePartyId(payment.getRemitterIdCode());
   }
 
+  // The same widening as isAuthorizedRemitter below, reached through the name because no bank is
+  // obliged to send the payer's personal code and Citadele usually does not.
+  private Optional<PartyId> findRepresentativeByName(
+      PartyId party, @Nullable String remitterName, @Nullable LocalDate bookingDate) {
+    if (party.type() != PERSON || remitterName == null) {
+      return Optional.empty();
+    }
+    var statuses = Set.of(ACTIVE, PENDING_KYC);
+    var representativeCodes =
+        bookingDate == null
+            ? parentChildLinkService.findRepresentativeCodes(party.code(), statuses)
+            : parentChildLinkService.findRepresentativeCodes(party.code(), statuses, bookingDate);
+    return representativeCodes.stream()
+        .map(code -> new PartyId(PERSON, code))
+        .filter(
+            representative ->
+                partyResolver
+                    .resolve(representative)
+                    .map(resolved -> nameMatcher.isSameName(resolved.name(), remitterName))
+                    .orElse(false))
+        .findFirst();
+  }
+
   // Attribution, not authorization: deciding whether an incoming payment is plausibly for this
   // child, so we attribute it instead of bouncing it. Accepting money grants the payer no access —
   // acting on the child's behalf goes through isActiveRepresentation. Tuleva intends to accept
   // third-party payments generally, at which point this widening goes away.
-  private boolean isAuthorizedRemitter(PartyId remitter, PartyId party) {
-    return remitter.type() == PERSON
-        && party.type() == PERSON
-        && parentChildLinkService
-            .findRepresentation(remitter.code(), party.code(), Set.of(ACTIVE, PENDING_KYC))
-            .isPresent();
+  private boolean isAuthorizedRemitter(PartyId remitter, PartyId party, @Nullable LocalDate asOf) {
+    if (remitter.type() != PERSON || party.type() != PERSON) {
+      return false;
+    }
+    var statuses = Set.of(ACTIVE, PENDING_KYC);
+    return (asOf == null
+            ? parentChildLinkService.findRepresentation(remitter.code(), party.code(), statuses)
+            : parentChildLinkService.findRepresentation(
+                remitter.code(), party.code(), statuses, asOf))
+        .isPresent();
   }
 
   Optional<PartyId> extractPartyIdFromDescription(String text) {

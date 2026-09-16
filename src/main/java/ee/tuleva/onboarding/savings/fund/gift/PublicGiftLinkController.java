@@ -3,14 +3,18 @@ package ee.tuleva.onboarding.savings.fund.gift;
 import static org.springframework.http.HttpHeaders.CACHE_CONTROL;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
+import ee.tuleva.onboarding.payment.PaymentLink;
 import ee.tuleva.onboarding.user.UserService;
 import io.swagger.v3.oas.annotations.Operation;
+import jakarta.validation.Valid;
 import java.util.NoSuchElementException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -27,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class PublicGiftLinkController {
 
   private final GiftLinkService giftLinkService;
+  private final GiftPaymentService giftPaymentService;
   private final UserService userService;
 
   @GetMapping("/{token}")
@@ -49,6 +54,15 @@ public class PublicGiftLinkController {
                 // by. Showing it is a deliberate choice: without it there is no way to make a
                 // payment from a bank Montonio does not cover, or one over the Montonio ceiling.
                 link.getRecipientPersonalCode()));
+  }
+
+  @PostMapping("/{token}/payments")
+  @Operation(summary = "Start paying a gift, with no account and no login")
+  public ResponseEntity<PaymentLink> startPayment(
+      @PathVariable String token, @Valid @RequestBody GiftPaymentRequest request) {
+    return ResponseEntity.ok()
+        .header(CACHE_CONTROL, "no-store")
+        .body(giftPaymentService.startPayment(token, request));
   }
 
   /**

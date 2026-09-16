@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.personalcode.PersonalCodeValidator;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -23,10 +24,13 @@ public class PaymentInternalReferenceService {
 
   @SneakyThrows
   // TODO: should take Party instead of Person so we wouldn't need to infer the PartyType
-  public String getPaymentReference(Person person, PaymentData paymentData, String description) {
+  // The payer is null when nobody is logged in, which is the case for a gift link: a grandparent
+  // pays without an account, so there is no personal code to record and none is invented.
+  public String getPaymentReference(
+      @Nullable Person person, PaymentData paymentData, String description) {
     PaymentReference paymentReference =
         new PaymentReference(
-            person.getPersonalCode(),
+            person == null ? null : person.getPersonalCode(),
             paymentData.getRecipientPersonalCode(),
             UUID.randomUUID(),
             paymentData.getType(),

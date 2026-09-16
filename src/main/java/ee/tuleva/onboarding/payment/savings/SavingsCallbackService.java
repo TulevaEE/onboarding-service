@@ -86,6 +86,11 @@ public class SavingsCallbackService {
   }
 
   private void sendReceipt(PaymentReference merchantReference, PartyId recipient) {
+    // A gift link has no payer on file, so there is nobody to send a receipt to. Checked here
+    // rather than left to the repository, so it reads as a decision instead of an accident.
+    if (merchantReference.getPersonalCode() == null) {
+      return;
+    }
     userService
         .findByPersonalCode(merchantReference.getPersonalCode())
         .ifPresent(

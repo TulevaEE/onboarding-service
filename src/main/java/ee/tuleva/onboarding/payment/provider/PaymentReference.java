@@ -7,12 +7,15 @@ import java.util.Locale;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import org.jspecify.annotations.Nullable;
 
 @Data
 @AllArgsConstructor
 public class PaymentReference {
 
-  private String personalCode;
+  // Null when the payer was never logged in, which is how a gift link works: the money is
+  // identified by who it is *for*, not by who sent it.
+  private @Nullable String personalCode;
 
   private String recipientPersonalCode;
 

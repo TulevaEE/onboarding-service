@@ -15,6 +15,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -32,6 +33,21 @@ public class SavingsPaymentLinkGenerator implements PaymentLinkGenerator {
 
   @Override
   public PaymentLink getPaymentLink(PaymentData paymentData, Person person) {
+    return buildPaymentLink(paymentData, person);
+  }
+
+  /**
+   * The same payment, minted for somebody who never logged in.
+   *
+   * <p>This is what a gift link uses. Nothing about routing the money depends on knowing the payer:
+   * the description and the merchant reference both name the recipient, and the callback attaches
+   * the payment to them. Who paid is learned afterwards from the bank, if the bank says.
+   */
+  public PaymentLink getAnonymousPaymentLink(PaymentData paymentData) {
+    return buildPaymentLink(paymentData, null);
+  }
+
+  private PaymentLink buildPaymentLink(PaymentData paymentData, @Nullable Person person) {
     if (paymentData.getPaymentChannel() == null) {
       throw new ErrorsResponseException(
           ErrorsResponse.ofSingleError(
@@ -57,8 +73,14 @@ public class SavingsPaymentLinkGenerator implements PaymentLinkGenerator {
     return new RedirectLink(url);
   }
 
+  // The payer is null for a gift link, where nobody logged in. Everything Montonio needs to route
+  // the money comes from the recipient and the channel, so the order is complete without them.
   private MontonioOrder buildOrder(
-      PaymentData paymentData, Person person, String bic, BigDecimal amount, Currency currency) {
+      PaymentData paymentData,
+      @Nullable Person person,
+      String bic,
+      BigDecimal amount,
+      Currency currency) {
     var now = clock.instant();
     var description =
         String.format("%s, %d", paymentData.getRecipientPersonalCode(), now.getEpochSecond());
@@ -85,10 +107,12 @@ public class SavingsPaymentLinkGenerator implements PaymentLinkGenerator {
                         .build())
                 .build())
         .billingAddress(
-            MontonioOrder.MontonioBillingAddress.builder()
-                .firstName(person.getFirstName())
-                .lastName(person.getLastName())
-                .build())
+            person == null
+                ? null
+                : MontonioOrder.MontonioBillingAddress.builder()
+                    .firstName(person.getFirstName())
+                    .lastName(person.getLastName())
+                    .build())
         .build();
   }
 

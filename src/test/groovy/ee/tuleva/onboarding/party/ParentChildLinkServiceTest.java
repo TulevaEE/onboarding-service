@@ -205,7 +205,7 @@ class ParentChildLinkServiceTest {
 
   @Test
   void aMinorHasRestrictedLegalCapacityWithoutConsultingTheLinks() {
-    assertThat(service.hasRestrictedLegalCapacity(CHILD)).isTrue();
+    assertThat(service.hasRestrictedLegalCapacity(CHILD, TODAY)).isTrue();
 
     verifyNoInteractions(parentChildLinkRepository);
   }
@@ -218,7 +218,7 @@ class ParentChildLinkServiceTest {
                     PARENT, GUARDIAN, TODAY))
         .willReturn(true);
 
-    assertThat(service.hasRestrictedLegalCapacity(PARENT)).isTrue();
+    assertThat(service.hasRestrictedLegalCapacity(PARENT, TODAY)).isTrue();
   }
 
   @Test
@@ -229,7 +229,7 @@ class ParentChildLinkServiceTest {
                     PARENT, GUARDIAN, TODAY))
         .willReturn(false);
 
-    assertThat(service.hasRestrictedLegalCapacity(PARENT)).isFalse();
+    assertThat(service.hasRestrictedLegalCapacity(PARENT, TODAY)).isFalse();
   }
 
   @Test
@@ -253,6 +253,6 @@ class ParentChildLinkServiceTest {
                     turnsEighteenToday, GUARDIAN, TODAY))
         .willReturn(false);
 
-    assertThat(service.hasRestrictedLegalCapacity(turnsEighteenToday)).isFalse();
+    assertThat(service.hasRestrictedLegalCapacity(turnsEighteenToday, TODAY)).isFalse();
   }
 }

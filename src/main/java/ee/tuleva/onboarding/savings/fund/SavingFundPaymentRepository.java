@@ -399,23 +399,23 @@ public class SavingFundPaymentRepository {
   }
 
   public void attachParty(UUID paymentId, PartyId partyId) {
+    attachParty(paymentId, partyId, null);
+  }
+
+  public void attachParty(UUID paymentId, PartyId partyId, @Nullable Boolean thirdPartyDeposit) {
     var currentStatus = getAndLockCurrentStatus(paymentId);
     if (!Set.of(CREATED, RECEIVED).contains(currentStatus))
       throw new IllegalStateException(
           "Attaching party is not allowed when payment is " + currentStatus);
-    jdbcTemplate.update(
-        "UPDATE saving_fund_payment SET party_type=:party_type, party_code=:party_code WHERE id=:id",
-        Map.of("id", paymentId, "party_type", partyId.type().name(), "party_code", partyId.code()));
-  }
-
-  // Null means we could not tell, which is different from knowing the unit holder paid.
-  public void markThirdPartyDeposit(UUID paymentId, @Nullable Boolean thirdPartyDeposit) {
     var parameters =
         new MapSqlParameterSource()
             .addValue("id", paymentId)
+            .addValue("party_type", partyId.type().name())
+            .addValue("party_code", partyId.code())
             .addValue("third_party_deposit", thirdPartyDeposit);
     jdbcTemplate.update(
-        "UPDATE saving_fund_payment SET third_party_deposit=:third_party_deposit WHERE id=:id",
+        "UPDATE saving_fund_payment SET party_type=:party_type, party_code=:party_code,"
+            + " third_party_deposit=:third_party_deposit WHERE id=:id",
         parameters);
   }
 

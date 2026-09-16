@@ -73,10 +73,6 @@ public class ParentChildLinkService implements ChildRepresentations {
         .toList();
   }
 
-  public boolean hasRestrictedLegalCapacity(String personalCode) {
-    return hasRestrictedLegalCapacity(personalCode, today());
-  }
-
   // Restricted active legal capacity (piiratud teovõime): a minor by age, or an adult a court has
   // placed under guardianship. Both are represented by somebody else, and both are who the savings
   // fund accepts third-party deposits for. Suspension is not consulted — a suspended link is an

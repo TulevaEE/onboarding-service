@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.jdbc.core.simple.JdbcClient.StatementSpec;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -15,34 +16,107 @@ public class OcfSnapshotRepository {
   private final JdbcClient jdbcClient;
 
   public void save(OcfSnapshot snapshot) {
-    jdbcClient
-        .sql(
-            """
-            MERGE INTO investment_ocf_snapshot AS t
-            USING (VALUES (:fundCode, :snapshotMonth, :managementFeeRate, :depotFeeRate,
-                           :underlyingFundCost, :transactionCostRate, :totalOcf))
-              AS s(fund_code, snapshot_month, management_fee_rate, depot_fee_rate,
-                   underlying_fund_cost, transaction_cost_rate, total_ocf)
-            ON t.fund_code = s.fund_code AND t.snapshot_month = s.snapshot_month
-            WHEN MATCHED THEN UPDATE SET
-              management_fee_rate = s.management_fee_rate,
-              depot_fee_rate = s.depot_fee_rate,
-              underlying_fund_cost = s.underlying_fund_cost,
-              transaction_cost_rate = s.transaction_cost_rate,
-              total_ocf = s.total_ocf
-            WHEN NOT MATCHED THEN INSERT
-              (fund_code, snapshot_month, management_fee_rate, depot_fee_rate,
-               underlying_fund_cost, transaction_cost_rate, total_ocf)
-            VALUES (s.fund_code, s.snapshot_month, s.management_fee_rate, s.depot_fee_rate,
-                    s.underlying_fund_cost, s.transaction_cost_rate, s.total_ocf)
-            """)
-        .param("fundCode", snapshot.fundCode())
+    if (updateWorkingVersion(snapshot) == 0) {
+      insertNextVersion(snapshot);
+    }
+  }
+
+  private int updateWorkingVersion(OcfSnapshot snapshot) {
+    return bindValues(
+            jdbcClient.sql(
+                """
+                UPDATE investment_ocf_snapshot SET
+                  management_fee_rate = :managementFeeRate,
+                  depot_fee_rate = :depotFeeRate,
+                  underlying_fund_cost = :underlyingFundCost,
+                  transaction_cost_rate = :transactionCostRate,
+                  total_ocf = :totalOcf,
+                  complete = :complete,
+                  checks = :checks,
+                  nav_date = :navDate,
+                  nav_calculation_id = :navCalculationId,
+                  assets_under_management = :assetsUnderManagement,
+                  management_fee_rate_id = :managementFeeRateId,
+                  depot_charged_to_fund = :depotChargedToFund,
+                  depot_tier_nav_date = :depotTierNavDate,
+                  depot_tier_basis = :depotTierBasis,
+                  txn_window_start = :txnWindowStart,
+                  txn_window_end = :txnWindowEnd,
+                  txn_commissions = :txnCommissions,
+                  txn_average_aum = :txnAverageAum,
+                  txn_nav_dates = :txnNavDates,
+                  calculated_at = now()
+                WHERE fund_code = :fundCode
+                  AND snapshot_month = :snapshotMonth
+                  AND published_at IS NULL
+                """),
+            snapshot)
+        .update();
+  }
+
+  private void insertNextVersion(OcfSnapshot snapshot) {
+    bindValues(
+            jdbcClient.sql(
+                """
+                INSERT INTO investment_ocf_snapshot
+                  (fund_code, snapshot_month, version, management_fee_rate, depot_fee_rate,
+                   underlying_fund_cost, transaction_cost_rate, total_ocf, complete, checks,
+                   nav_date, nav_calculation_id, assets_under_management, management_fee_rate_id,
+                   depot_charged_to_fund, depot_tier_nav_date, depot_tier_basis,
+                   txn_window_start, txn_window_end, txn_commissions, txn_average_aum,
+                   txn_nav_dates)
+                SELECT :fundCode, :snapshotMonth, COALESCE(MAX(version), 0) + 1,
+                       :managementFeeRate, :depotFeeRate, :underlyingFundCost,
+                       :transactionCostRate, :totalOcf, :complete, :checks,
+                       :navDate, :navCalculationId, :assetsUnderManagement, :managementFeeRateId,
+                       :depotChargedToFund, :depotTierNavDate, :depotTierBasis,
+                       :txnWindowStart, :txnWindowEnd, :txnCommissions, :txnAverageAum,
+                       :txnNavDates
+                FROM investment_ocf_snapshot
+                WHERE fund_code = :fundCode AND snapshot_month = :snapshotMonth
+                """),
+            snapshot)
+        .update();
+  }
+
+  private StatementSpec bindValues(StatementSpec spec, OcfSnapshot snapshot) {
+    var audit = snapshot.audit();
+    return spec.param("fundCode", snapshot.fundCode())
         .param("snapshotMonth", snapshot.snapshotMonth())
         .param("managementFeeRate", snapshot.managementFeeRate())
         .param("depotFeeRate", snapshot.depotFeeRate())
         .param("underlyingFundCost", snapshot.underlyingFundCost())
         .param("transactionCostRate", snapshot.transactionCostRate())
         .param("totalOcf", snapshot.totalOcf())
+        .param("complete", snapshot.complete())
+        .param("checks", snapshot.checks() == null ? "{}" : snapshot.checks())
+        .param("navDate", audit.navDate())
+        .param("navCalculationId", audit.navCalculationId())
+        .param("assetsUnderManagement", audit.assetsUnderManagement())
+        .param("managementFeeRateId", audit.managementFeeRateId())
+        .param("depotChargedToFund", audit.depotChargedToFund())
+        .param("depotTierNavDate", audit.depotTierNavDate())
+        .param("depotTierBasis", audit.depotTierBasis())
+        .param("txnWindowStart", audit.txnWindowStart())
+        .param("txnWindowEnd", audit.txnWindowEnd())
+        .param("txnCommissions", audit.txnCommissions())
+        .param("txnAverageAum", audit.txnAverageAum())
+        .param("txnNavDates", audit.txnNavDates());
+  }
+
+  public void publish(String fundCode, LocalDate snapshotMonth, String publishedIn) {
+    jdbcClient
+        .sql(
+            """
+            UPDATE investment_ocf_snapshot
+            SET published_at = CURRENT_TIMESTAMP, published_in = :publishedIn
+            WHERE fund_code = :fundCode
+              AND snapshot_month = :snapshotMonth
+              AND published_at IS NULL
+            """)
+        .param("fundCode", fundCode)
+        .param("snapshotMonth", snapshotMonth)
+        .param("publishedIn", publishedIn)
         .update();
   }
 
@@ -52,11 +126,44 @@ public class OcfSnapshotRepository {
             """
             SELECT * FROM investment_ocf_snapshot
             WHERE fund_code = :fundCode AND snapshot_month = :snapshotMonth
+            ORDER BY version DESC
+            LIMIT 1
             """)
         .param("fundCode", fundCode)
         .param("snapshotMonth", snapshotMonth)
         .query(OcfSnapshot::fromResultSet)
         .optional();
+  }
+
+  public Optional<OcfSnapshot> findPublishedByFundAndMonth(
+      String fundCode, LocalDate snapshotMonth) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT * FROM investment_ocf_snapshot
+            WHERE fund_code = :fundCode AND snapshot_month = :snapshotMonth
+              AND published_at IS NOT NULL
+            ORDER BY published_at DESC, id DESC
+            LIMIT 1
+            """)
+        .param("fundCode", fundCode)
+        .param("snapshotMonth", snapshotMonth)
+        .query(OcfSnapshot::fromResultSet)
+        .optional();
+  }
+
+  public List<OcfSnapshot> findAllVersions(String fundCode, LocalDate snapshotMonth) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT * FROM investment_ocf_snapshot
+            WHERE fund_code = :fundCode AND snapshot_month = :snapshotMonth
+            ORDER BY version
+            """)
+        .param("fundCode", fundCode)
+        .param("snapshotMonth", snapshotMonth)
+        .query(OcfSnapshot::fromResultSet)
+        .list();
   }
 
   public Optional<OcfSnapshot> findLatestByFund(String fundCode) {
@@ -65,7 +172,7 @@ public class OcfSnapshotRepository {
             """
             SELECT * FROM investment_ocf_snapshot
             WHERE fund_code = :fundCode
-            ORDER BY snapshot_month DESC
+            ORDER BY snapshot_month DESC, version DESC
             LIMIT 1
             """)
         .param("fundCode", fundCode)
@@ -77,9 +184,14 @@ public class OcfSnapshotRepository {
     return jdbcClient
         .sql(
             """
-            SELECT * FROM investment_ocf_snapshot
-            WHERE fund_code = :fundCode
-            ORDER BY snapshot_month DESC
+            SELECT s.* FROM investment_ocf_snapshot s
+            JOIN (SELECT snapshot_month, MAX(version) AS version
+                    FROM investment_ocf_snapshot
+                   WHERE fund_code = :fundCode
+                   GROUP BY snapshot_month) latest
+              ON latest.snapshot_month = s.snapshot_month AND latest.version = s.version
+            WHERE s.fund_code = :fundCode
+            ORDER BY s.snapshot_month DESC
             """)
         .param("fundCode", fundCode)
         .query(OcfSnapshot::fromResultSet)
@@ -92,7 +204,7 @@ public class OcfSnapshotRepository {
             """
             SELECT total_ocf FROM investment_ocf_snapshot
             WHERE fund_code = :fundCode
-            ORDER BY snapshot_month DESC
+            ORDER BY snapshot_month DESC, version DESC
             LIMIT 1
             """)
         .param("fundCode", fundCode)

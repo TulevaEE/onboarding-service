@@ -55,15 +55,17 @@ public class OcfCalculationService {
     var totalOcf = mgmtRate.add(depotRate).add(underlyingCost).add(txnCostRate);
 
     var snapshot =
-        new OcfSnapshot(
-            null,
+        OcfSnapshot.computed(
             fund.getCode(),
             month.atDay(1),
             mgmtRate,
             depotRate,
             underlyingCost,
             txnCostRate,
-            totalOcf);
+            totalOcf,
+            false,
+            null,
+            OcfAudit.empty());
 
     ocfSnapshotRepository.save(snapshot);
 

@@ -431,15 +431,17 @@ class InvestmentAdminControllerTest {
   @Test
   void calculateOcf_forSingleFund_returnsOk() throws Exception {
     var snapshot =
-        new ee.tuleva.onboarding.investment.fees.ocf.OcfSnapshot(
-            1L,
+        ee.tuleva.onboarding.investment.fees.ocf.OcfSnapshot.computed(
             "TUK75",
             LocalDate.of(2026, 4, 1),
             new BigDecimal("0.00340000"),
             new BigDecimal("0.00100000"),
             new BigDecimal("0.00070000"),
             new BigDecimal("0.00020000"),
-            new BigDecimal("0.00530000"));
+            new BigDecimal("0.00530000"),
+            false,
+            null,
+            ee.tuleva.onboarding.investment.fees.ocf.OcfAudit.empty());
     given(ocfCalculationService.calculateOcf(TulevaFund.TUK75, java.time.YearMonth.of(2026, 4)))
         .willReturn(snapshot);
 

@@ -123,15 +123,15 @@ class SavingsCallbackServiceSpec extends Specification {
     recorded
   }
 
-  def "if payment already exists then no payment is saved"() {
+  def "a paid token for a payment that is already recorded is accepted without a second receipt"() {
     given:
     def serializedToken = aSerializedSavingsPaymentToken
     1 * savingsPayments.recordIncoming(_) >> false
     when:
-    def recorded = savingsCallbackService.processToken(serializedToken)
+    def accepted = savingsCallbackService.processToken(serializedToken)
     then:
     0 * eventPublisher.publishEvent(_)
-    !recorded
+    accepted
   }
 
   def "if token is not paid then no payment is saved"() {

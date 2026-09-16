@@ -185,7 +185,12 @@ class SavingsFundLedgerTest {
     setupUserWithFundUnits(cashAmount, fundUnits, navPerUnit, randomUUID());
     savingsFundLedger.reserveFundUnitsForRedemption(testParty, fundUnits, redemptionRequestId);
     savingsFundLedger.redeemFundUnitsFromReserved(
-        testParty, fundUnits, cashAmount, navPerUnit, redemptionRequestId);
+        testParty,
+        fundUnits,
+        cashAmount,
+        navPerUnit,
+        LocalDate.parse("2025-03-10"),
+        redemptionRequestId);
 
     var transfer =
         savingsFundLedger.transferFromFundAccount(cashAmount, redemptionRequestId, bookingDate);
@@ -388,7 +393,7 @@ class SavingsFundLedgerTest {
         savingsFundLedger.reservePaymentForSubscription(testParty, cashAmount, paymentId);
     var subscriptionTx =
         savingsFundLedger.issueFundUnitsFromReserved(
-            testParty, cashAmount, fundUnits, navPerUnit, paymentId);
+            testParty, cashAmount, fundUnits, navPerUnit, LocalDate.parse("2025-03-10"), paymentId);
     var transferTx = savingsFundLedger.transferToFundAccount(cashAmount, paymentId);
 
     verifyDoubleEntry(paymentTx);
@@ -432,7 +437,12 @@ class SavingsFundLedgerTest {
             testParty, redeemUnits, redemptionRequestId);
     var redemptionTx =
         savingsFundLedger.redeemFundUnitsFromReserved(
-            testParty, redeemUnits, redeemAmount, navPerUnit, redemptionRequestId);
+            testParty,
+            redeemUnits,
+            redeemAmount,
+            navPerUnit,
+            LocalDate.parse("2025-03-10"),
+            redemptionRequestId);
     var cashTransferTx =
         savingsFundLedger.transferFromFundAccount(redeemAmount, redemptionRequestId);
     var payoutTx =
@@ -491,7 +501,7 @@ class SavingsFundLedgerTest {
     savingsFundLedger.recordPaymentReceived(testParty, cashAmount, paymentId);
     savingsFundLedger.reservePaymentForSubscription(testParty, cashAmount, paymentId);
     savingsFundLedger.issueFundUnitsFromReserved(
-        testParty, cashAmount, fundUnits, navPerUnit, paymentId);
+        testParty, cashAmount, fundUnits, navPerUnit, LocalDate.parse("2025-03-10"), paymentId);
     savingsFundLedger.transferToFundAccount(cashAmount, paymentId);
 
     assertThat(deltaSince(userUnitsBefore, getUserUnitsAccount()))
@@ -504,7 +514,12 @@ class SavingsFundLedgerTest {
     var redemptionRequestId = randomUUID();
     savingsFundLedger.reserveFundUnitsForRedemption(testParty, fundUnits, redemptionRequestId);
     savingsFundLedger.redeemFundUnitsFromReserved(
-        testParty, fundUnits, cashAmount, navPerUnit, redemptionRequestId);
+        testParty,
+        fundUnits,
+        cashAmount,
+        navPerUnit,
+        LocalDate.parse("2025-03-10"),
+        redemptionRequestId);
     savingsFundLedger.transferFromFundAccount(cashAmount, redemptionRequestId);
     savingsFundLedger.recordRedemptionPayout(
         testParty, cashAmount, customerIban, redemptionRequestId);
@@ -633,7 +648,12 @@ class SavingsFundLedgerTest {
     savingsFundLedger.reserveFundUnitsForRedemption(
         holder, new BigDecimal("5.00000"), holderRedemptionId);
     savingsFundLedger.redeemFundUnitsFromReserved(
-        holder, new BigDecimal("5.00000"), amount, new BigDecimal("10.00"), holderRedemptionId);
+        holder,
+        new BigDecimal("5.00000"),
+        amount,
+        new BigDecimal("10.00"),
+        LocalDate.parse("2025-03-10"),
+        holderRedemptionId);
     priceRedemption(amount, new BigDecimal("5.00000"), new BigDecimal("10.00"), randomUUID());
 
     assertThatThrownBy(
@@ -892,7 +912,7 @@ class SavingsFundLedgerTest {
     savingsFundLedger.recordPaymentReceived(party, cashAmount, paymentId);
     savingsFundLedger.reservePaymentForSubscription(party, cashAmount, paymentId);
     savingsFundLedger.issueFundUnitsFromReserved(
-        party, cashAmount, fundUnits, navPerUnit, paymentId);
+        party, cashAmount, fundUnits, navPerUnit, LocalDate.parse("2025-03-10"), paymentId);
     savingsFundLedger.transferToFundAccount(cashAmount, paymentId);
   }
 
@@ -905,7 +925,12 @@ class SavingsFundLedgerTest {
     savingsFundLedger.reserveFundUnitsForRedemption(
         testParty, fundUnits, redemptionRequestId == null ? randomUUID() : redemptionRequestId);
     savingsFundLedger.redeemFundUnitsFromReserved(
-        testParty, fundUnits, cashAmount, navPerUnit, redemptionRequestId);
+        testParty,
+        fundUnits,
+        cashAmount,
+        navPerUnit,
+        LocalDate.parse("2025-03-10"),
+        redemptionRequestId);
   }
 
   private void setupUserWithFundUnits(
@@ -913,7 +938,7 @@ class SavingsFundLedgerTest {
     savingsFundLedger.recordPaymentReceived(testParty, cashAmount, paymentId);
     savingsFundLedger.reservePaymentForSubscription(testParty, cashAmount, paymentId);
     savingsFundLedger.issueFundUnitsFromReserved(
-        testParty, cashAmount, fundUnits, navPerUnit, paymentId);
+        testParty, cashAmount, fundUnits, navPerUnit, LocalDate.parse("2025-03-10"), paymentId);
     savingsFundLedger.transferToFundAccount(cashAmount, paymentId);
   }
 
@@ -1096,7 +1121,12 @@ class SavingsFundLedgerTest {
 
     var transaction =
         savingsFundLedger.redeemFundUnitsFromReserved(
-            testParty, units, new BigDecimal("200.00"), new BigDecimal("100.00"), null);
+            testParty,
+            units,
+            new BigDecimal("200.00"),
+            new BigDecimal("100.00"),
+            LocalDate.parse("2025-03-10"),
+            null);
 
     assertThat(transaction.getExternalReference()).isNull();
     assertThat(transaction.getMetadata()).doesNotContainKey("redemptionRequestId");
@@ -1121,6 +1151,7 @@ class SavingsFundLedgerTest {
         new BigDecimal("1.00000"),
         new BigDecimal("100.00"),
         new BigDecimal("100.00"),
+        LocalDate.parse("2025-03-10"),
         redemptionRequestId);
 
     assertThat(savingsFundLedger.hasPricingEntry(redemptionRequestId)).isTrue();

@@ -93,6 +93,7 @@ public class SavingsFundLedger {
     PAYER_IBAN("payerIban"),
     CUSTOMER_IBAN("customerIban"),
     NAV_PER_UNIT("navPerUnit"),
+    NAV_DATE("navDate"),
     REDEMPTION_REQUEST_ID("redemptionRequestId"),
     DESCRIPTION("description"),
     INSTRUMENT("instrument"),
@@ -246,6 +247,7 @@ public class SavingsFundLedger {
       BigDecimal cashAmount,
       BigDecimal fundUnits,
       BigDecimal navPerUnit,
+      LocalDate navDate,
       UUID externalReference) {
     LedgerParty ledgerParty = accounts.getParty(party);
     LedgerAccount userCashReservedAccount = accounts.getUserCashReservedAccount(ledgerParty);
@@ -255,6 +257,7 @@ public class SavingsFundLedger {
 
     var metadata = new HashMap<>(accounts.partyMetadata(party, FUND_SUBSCRIPTION));
     metadata.put(NAV_PER_UNIT.getKey(), navPerUnit);
+    metadata.put(NAV_DATE.getKey(), navDate.toString());
 
     return ledgerTransactionService.createTransaction(
         FUND_SUBSCRIPTION,
@@ -364,9 +367,10 @@ public class SavingsFundLedger {
       BigDecimal fundUnits,
       BigDecimal cashAmount,
       BigDecimal navPerUnit,
+      LocalDate navDate,
       UUID redemptionRequestId) {
     return redemptionRecorder.redeemFundUnitsFromReserved(
-        party, fundUnits, cashAmount, navPerUnit, redemptionRequestId);
+        party, fundUnits, cashAmount, navPerUnit, navDate, redemptionRequestId);
   }
 
   @Transactional

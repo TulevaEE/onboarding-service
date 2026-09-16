@@ -12,7 +12,6 @@ import static ee.tuleva.onboarding.ledger.UserAccount.REDEMPTIONS;
 import static ee.tuleva.onboarding.ledger.UserAccount.SUBSCRIPTIONS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.Assertions.entry;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -31,6 +30,7 @@ import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -89,7 +89,7 @@ class SavingsFundTransactionServiceTest {
             Transaction::amount,
             Transaction::currency,
             Transaction::time,
-            Transaction::priceTime,
+            Transaction::priceDate,
             Transaction::settledTime,
             Transaction::isin,
             Transaction::type,
@@ -100,7 +100,7 @@ class SavingsFundTransactionServiceTest {
                 new BigDecimal("50.00"),
                 EUR,
                 newerDate,
-                newerDate,
+                LocalDate.parse("2025-02-20"),
                 newerDate,
                 isin,
                 CONTRIBUTION_CASH,
@@ -110,7 +110,7 @@ class SavingsFundTransactionServiceTest {
                 new BigDecimal("-25.00"),
                 EUR,
                 newerDate,
-                newerDate,
+                LocalDate.parse("2025-02-20"),
                 newerDate,
                 isin,
                 SUBTRACTION,
@@ -120,7 +120,7 @@ class SavingsFundTransactionServiceTest {
                 new BigDecimal("100.00"),
                 EUR,
                 olderDate,
-                olderDate,
+                LocalDate.parse("2025-01-15"),
                 olderDate,
                 isin,
                 CONTRIBUTION_CASH,
@@ -214,11 +214,11 @@ class SavingsFundTransactionServiceTest {
                     .remitterIban("EE123456789012345678")
                     .build()));
 
-    TransactionsWithCounterparties result = service.getTransactionsWithCounterpartyIbans(person);
+    List<Transaction> transactions = service.getTransactions(person);
 
-    assertThat(result.transactions()).hasSize(1);
-    assertThat(result.counterpartyIbans())
-        .containsExactly(entry(result.transactions().getFirst().id(), "EE123456789012345678"));
+    assertThat(transactions)
+        .extracting(Transaction::counterpartyIban)
+        .containsExactly("EE123456789012345678");
   }
 
   @Test
@@ -248,10 +248,9 @@ class SavingsFundTransactionServiceTest {
                     .remitterIban("EE123456789012345678")
                     .build()));
 
-    TransactionsWithCounterparties result = service.getTransactionsWithCounterpartyIbans(person);
+    List<Transaction> transactions = service.getTransactions(person);
 
-    assertThat(result.transactions()).hasSize(1);
-    assertThat(result.counterpartyIbans()).isEmpty();
+    assertThat(transactions).extracting(Transaction::counterpartyIban).containsOnlyNulls();
   }
 
   @Test
@@ -267,10 +266,9 @@ class SavingsFundTransactionServiceTest {
     when(ledgerService.getPartyAccount(personalCode, PERSON, REDEMPTIONS))
         .thenReturn(redemptionsAccountWithEntries(List.of()));
 
-    TransactionsWithCounterparties result = service.getTransactionsWithCounterpartyIbans(person);
+    List<Transaction> transactions = service.getTransactions(person);
 
-    assertThat(result.transactions()).hasSize(1);
-    assertThat(result.counterpartyIbans()).isEmpty();
+    assertThat(transactions).extracting(Transaction::counterpartyIban).containsOnlyNulls();
     verifyNoInteractions(savingFundPaymentRepository);
   }
 
@@ -300,11 +298,11 @@ class SavingsFundTransactionServiceTest {
                     .customerIban("EE111111111111111111")
                     .build()));
 
-    TransactionsWithCounterparties result = service.getTransactionsWithCounterpartyIbans(person);
+    List<Transaction> transactions = service.getTransactions(person);
 
-    assertThat(result.transactions()).hasSize(1);
-    assertThat(result.counterpartyIbans())
-        .containsExactly(entry(result.transactions().getFirst().id(), "EE111111111111111111"));
+    assertThat(transactions)
+        .extracting(Transaction::counterpartyIban)
+        .containsExactly("EE111111111111111111");
   }
 
   @Test
@@ -331,14 +329,13 @@ class SavingsFundTransactionServiceTest {
                     .partyCode(personalCode)
                     .build()));
 
-    TransactionsWithCounterparties result = service.getTransactionsWithCounterpartyIbans(person);
+    List<Transaction> transactions = service.getTransactions(person);
 
-    assertThat(result.transactions()).hasSize(1);
-    assertThat(result.counterpartyIbans()).isEmpty();
+    assertThat(transactions).extracting(Transaction::counterpartyIban).containsOnlyNulls();
   }
 
   @Test
-  void doesNotLookUpCounterpartyAccountsForThePlainTransactionList() {
+  void carriesTheCounterpartyAccountOfEverySide() {
     UUID paymentId = UUID.randomUUID();
     UUID requestId = UUID.randomUUID();
     Instant bookingTime = Instant.parse("2025-03-01T10:00:00Z");
@@ -371,15 +368,115 @@ class SavingsFundTransactionServiceTest {
                     .customerIban("EE111111111111111111")
                     .processedAt(processedAt)
                     .build()));
+    when(savingFundPaymentRepository.findAllById(Set.of(paymentId)))
+        .thenReturn(
+            List.of(
+                SavingFundPayment.builder()
+                    .id(paymentId)
+                    .partyId(PartyId.from(person))
+                    .remitterIban("EE123456789012345678")
+                    .build()));
 
     List<Transaction> transactions = service.getTransactions(person);
 
     assertThat(transactions)
-        .extracting(Transaction::amount, Transaction::settledTime)
+        .extracting(Transaction::amount, Transaction::settledTime, Transaction::counterpartyIban)
         .containsExactly(
-            tuple(new BigDecimal("100.00"), bookingTime),
-            tuple(new BigDecimal("-25.00"), processedAt));
-    verifyNoInteractions(savingFundPaymentRepository);
+            tuple(new BigDecimal("100.00"), bookingTime, "EE123456789012345678"),
+            tuple(new BigDecimal("-25.00"), processedAt, "EE111111111111111111"));
+  }
+
+  @Test
+  void carriesTheTimeTheOrderReachedUs() {
+    String isin = "EE0000003283";
+    UUID paymentId = UUID.randomUUID();
+    UUID requestId = UUID.randomUUID();
+    Instant issuedAt = Instant.parse("2025-03-11T14:00:00Z");
+    Instant paymentReceivedBefore = Instant.parse("2025-03-10T13:45:00Z");
+    Instant redemptionRequestedAt = Instant.parse("2025-03-10T08:12:00Z");
+
+    when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
+    when(savingsFundConfiguration.getIsin()).thenReturn(isin);
+    when(ledgerService.getPartyAccount(personalCode, PERSON, SUBSCRIPTIONS))
+        .thenReturn(
+            subscriptionsAccountWithEntries(
+                List.of(
+                    new EntryFixture(
+                        new BigDecimal("100.00"), issuedAt, new BigDecimal("10.0"), paymentId))));
+    when(ledgerService.getPartyAccount(personalCode, PERSON, REDEMPTIONS))
+        .thenReturn(
+            redemptionsAccountWithEntries(
+                List.of(
+                    new EntryFixture(
+                        new BigDecimal("25.00"), issuedAt, new BigDecimal("10.0"), requestId))));
+    when(savingFundPaymentRepository.findAllById(Set.of(paymentId)))
+        .thenReturn(
+            List.of(
+                SavingFundPayment.builder()
+                    .id(paymentId)
+                    .partyId(PartyId.from(person))
+                    .receivedBefore(paymentReceivedBefore)
+                    .build()));
+    when(redemptionRequestRepository.findAllById(Set.of(requestId)))
+        .thenReturn(
+            List.of(
+                RedemptionRequest.builder()
+                    .id(requestId)
+                    .partyType(PartyId.Type.PERSON)
+                    .partyCode(personalCode)
+                    .requestedAt(redemptionRequestedAt)
+                    .build()));
+
+    assertThat(service.getTransactions(person))
+        .extracting(Transaction::amount, Transaction::applicationTime)
+        .containsExactly(
+            tuple(new BigDecimal("100.00"), paymentReceivedBefore),
+            tuple(new BigDecimal("-25.00"), redemptionRequestedAt));
+  }
+
+  @Test
+  void datesThePriceOnTheDayTheNavWasCalculatedFor() {
+    String isin = "EE0000003283";
+    Instant issuedAt = Instant.parse("2025-03-11T14:00:00Z");
+    LocalDate navDate = LocalDate.parse("2025-03-10");
+
+    when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
+    when(savingsFundConfiguration.getIsin()).thenReturn(isin);
+    when(ledgerService.getPartyAccount(personalCode, PERSON, SUBSCRIPTIONS))
+        .thenReturn(
+            subscriptionsAccountWithEntries(
+                List.of(
+                    new EntryFixture(new BigDecimal("100.00"), issuedAt, new BigDecimal("10.0"))
+                        .pricedOn(navDate))));
+    when(ledgerService.getPartyAccount(personalCode, PERSON, REDEMPTIONS))
+        .thenReturn(
+            redemptionsAccountWithEntries(
+                List.of(
+                    new EntryFixture(new BigDecimal("25.00"), issuedAt, new BigDecimal("10.0"))
+                        .pricedOn(navDate))));
+
+    assertThat(service.getTransactions(person))
+        .extracting(Transaction::priceDate)
+        .containsExactly(navDate, navDate);
+  }
+
+  @Test
+  void datesThePriceOnTheDayOfTheTransactionWhenTheLedgerDoesNotCarryANavDate() {
+    String isin = "EE0000003283";
+    Instant issuedAt = Instant.parse("2025-03-11T22:30:00Z");
+
+    when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
+    when(savingsFundConfiguration.getIsin()).thenReturn(isin);
+    when(ledgerService.getPartyAccount(personalCode, PERSON, SUBSCRIPTIONS))
+        .thenReturn(
+            subscriptionsAccountWithEntries(
+                List.of(new EntryFixture(new BigDecimal("100.00"), issuedAt))));
+    when(ledgerService.getPartyAccount(personalCode, PERSON, REDEMPTIONS))
+        .thenReturn(redemptionsAccountWithEntries(List.of()));
+
+    assertThat(service.getTransactions(person))
+        .extracting(Transaction::priceDate)
+        .containsExactly(LocalDate.parse("2025-03-12"));
   }
 
   @Test

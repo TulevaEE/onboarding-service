@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.savings.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.LedgerRefs;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,7 +24,7 @@ class IssuerService {
   private final SavingFundPaymentRepository savingFundPaymentRepository;
 
   @Transactional
-  IssuingResult processPayment(SavingFundPayment payment, BigDecimal nav) {
+  IssuingResult processPayment(SavingFundPayment payment, BigDecimal nav, LocalDate navDate) {
     var unitsAmount = payment.getAmount().divide(nav, 5, HALF_DOWN); // TODO rounding mode, scale?
     var cashAmount = payment.getAmount();
 
@@ -31,7 +32,7 @@ class IssuerService {
         requireNonNull(
             payment.getPartyId(), "Payment missing party id: paymentId=" + payment.getId());
     savingsFundLedger.issueFundUnitsFromReserved(
-        LedgerRefs.from(partyId), cashAmount, unitsAmount, nav, payment.getId());
+        LedgerRefs.from(partyId), cashAmount, unitsAmount, nav, navDate, payment.getId());
 
     savingFundPaymentRepository.changeStatus(payment.getId(), ISSUED);
     return new IssuingResult(cashAmount, unitsAmount);

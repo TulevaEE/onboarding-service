@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.*;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.CUSTOMER_IBAN;
+import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.NAV_DATE;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.NAV_PER_UNIT;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.OPERATION_TYPE;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.REDEMPTION_REQUEST_ID;
@@ -68,6 +69,7 @@ class RedemptionLedgerRecorder {
       BigDecimal fundUnits,
       BigDecimal cashAmount,
       BigDecimal navPerUnit,
+      LocalDate navDate,
       UUID redemptionRequestId) {
     LedgerParty ledgerParty = accounts.getParty(party);
     LedgerAccount userUnitsReservedAccount = accounts.getUserUnitsReservedAccount(ledgerParty);
@@ -77,6 +79,7 @@ class RedemptionLedgerRecorder {
 
     var metadataBuilder = new HashMap<>(accounts.partyMetadata(party, REDEMPTION_REQUEST));
     metadataBuilder.put(NAV_PER_UNIT.getKey(), navPerUnit);
+    metadataBuilder.put(NAV_DATE.getKey(), navDate.toString());
     if (redemptionRequestId != null) {
       metadataBuilder.put(REDEMPTION_REQUEST_ID.getKey(), redemptionRequestId);
     }

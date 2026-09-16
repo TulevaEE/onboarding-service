@@ -9,7 +9,6 @@ import static java.util.stream.Collectors.toCollection;
 import ee.tuleva.onboarding.account.transaction.Transaction;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -23,7 +22,6 @@ import org.jspecify.annotations.Nullable;
 
 public class PortfolioValuation {
 
-  private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
   private static final int MONEY_SCALE = 2;
   private static final int PERCENTAGE_SCALE = 2;
   private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
@@ -68,21 +66,17 @@ public class PortfolioValuation {
 
     transactions.stream()
         .filter(transaction -> transaction.units() != null)
-        .sorted(comparing(Transaction::priceTime))
+        .sorted(comparing(Transaction::priceDate))
         .forEach(
             transaction -> {
               NavigableMap<LocalDate, BigDecimal> running =
                   byIsin.computeIfAbsent(transaction.isin(), isin -> new TreeMap<>());
               BigDecimal carried =
                   running.isEmpty() ? BigDecimal.ZERO : running.lastEntry().getValue();
-              running.put(pricingDayOf(transaction), carried.add(signedUnits(transaction)));
+              running.put(transaction.priceDate(), carried.add(signedUnits(transaction)));
             });
 
     return byIsin;
-  }
-
-  static LocalDate pricingDayOf(Transaction transaction) {
-    return transaction.priceTime().atZone(ESTONIAN_ZONE).toLocalDate();
   }
 
   private static BigDecimal signedUnits(Transaction transaction) {
@@ -208,8 +202,8 @@ public class PortfolioValuation {
       Set<String> isins, LocalDate from, LocalDate to, boolean acquisitions) {
     return transactions.stream()
         .filter(transaction -> isins.contains(transaction.isin()))
-        .filter(transaction -> !pricingDayOf(transaction).isBefore(from))
-        .filter(transaction -> !pricingDayOf(transaction).isAfter(to))
+        .filter(transaction -> !transaction.priceDate().isBefore(from))
+        .filter(transaction -> !transaction.priceDate().isAfter(to))
         .filter(transaction -> transaction.isAcquisition() == acquisitions)
         .map(transaction -> transaction.amount().abs())
         .reduce(BigDecimal.ZERO, BigDecimal::add)

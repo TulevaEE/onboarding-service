@@ -70,7 +70,7 @@ public class PortfolioService {
 
   private static LocalDate allTimeStart(List<Transaction> transactions, LocalDate to) {
     return transactions.stream()
-        .map(PortfolioValuation::pricingDayOf)
+        .map(Transaction::priceDate)
         .min(naturalOrder())
         .map(firstHolding -> earlierOf(firstHolding, to))
         .orElse(to);

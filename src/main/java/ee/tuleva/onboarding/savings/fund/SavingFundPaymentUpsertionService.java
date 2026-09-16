@@ -160,8 +160,7 @@ public class SavingFundPaymentUpsertionService {
             mergeAndValidateNullableField(
                 "externalId", existing.getExternalId(), payment.getExternalId()))
         .endToEndId(
-            mergeAndValidateNullableField(
-                "endToEndId", existing.getEndToEndId(), payment.getEndToEndId()))
+            payment.getEndToEndId() != null ? payment.getEndToEndId() : existing.getEndToEndId())
         .createdAt(existing.getCreatedAt())
         .receivedBefore(payment.getReceivedBefore())
         .status(existing.getStatus())

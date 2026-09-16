@@ -31,10 +31,7 @@ class OwnAccountTransferRecorder {
     }
     Optional<BankAccount> target =
         bankAccounts
-            .find(
-                requireNonNull(
-                    payment.getBeneficiaryIban(),
-                    "Outgoing payment without beneficiary IBAN: paymentId=" + payment.getId()))
+            .find(payment.getBeneficiaryIban())
             .filter(account -> account.belongsTo(TKF100));
     if (target.isEmpty()) {
       return false;

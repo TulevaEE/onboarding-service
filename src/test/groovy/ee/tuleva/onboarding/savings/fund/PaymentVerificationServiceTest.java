@@ -817,4 +817,19 @@ class PaymentVerificationServiceTest {
         .receivedBefore(Instant.parse("2025-10-01T20:59:59.999999Z"))
         .build();
   }
+
+  @Test
+  void process_userWithoutRemitterNameOrIdCode_isReturnedAsNameMismatch() {
+    var payment = createPayment(null, "to user 37508295796").toBuilder().remitterName(null).build();
+    var user = User.builder().firstName("PEETER").lastName("MEETER").build();
+    when(userRepository.findByPersonalCode(any())).thenReturn(Optional.of(user));
+
+    service.process(payment);
+
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
+    verify(savingFundPaymentRepository)
+        .addReturnReason(payment.getId(), "maksja nimi ei klapi Tuleva andmetega");
+    verify(savingsFundLedger)
+        .recordUnattributedPayment(payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
+  }
 }

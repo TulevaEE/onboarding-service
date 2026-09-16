@@ -89,7 +89,7 @@ class SavingsFundTransactionServiceTest {
             Transaction::amount,
             Transaction::currency,
             Transaction::time,
-            Transaction::priceDate,
+            Transaction::navDate,
             Transaction::settledTime,
             Transaction::isin,
             Transaction::type,
@@ -435,7 +435,7 @@ class SavingsFundTransactionServiceTest {
   }
 
   @Test
-  void datesThePriceOnTheDayTheNavWasCalculatedFor() {
+  void carriesTheNavDateTheOrderWasPricedAt() {
     String isin = "EE0000003283";
     Instant issuedAt = Instant.parse("2025-03-11T14:00:00Z");
     LocalDate navDate = LocalDate.parse("2025-03-10");
@@ -456,12 +456,12 @@ class SavingsFundTransactionServiceTest {
                         .pricedOn(navDate))));
 
     assertThat(service.getTransactions(person))
-        .extracting(Transaction::priceDate)
+        .extracting(Transaction::navDate)
         .containsExactly(navDate, navDate);
   }
 
   @Test
-  void datesThePriceOnTheDayOfTheTransactionWhenTheLedgerDoesNotCarryANavDate() {
+  void datesTheNavOnTheTransactionDayWhenTheLedgerDoesNotCarryANavDate() {
     String isin = "EE0000003283";
     Instant issuedAt = Instant.parse("2025-03-11T22:30:00Z");
 
@@ -475,7 +475,7 @@ class SavingsFundTransactionServiceTest {
         .thenReturn(redemptionsAccountWithEntries(List.of()));
 
     assertThat(service.getTransactions(person))
-        .extracting(Transaction::priceDate)
+        .extracting(Transaction::navDate)
         .containsExactly(LocalDate.parse("2025-03-12"));
   }
 

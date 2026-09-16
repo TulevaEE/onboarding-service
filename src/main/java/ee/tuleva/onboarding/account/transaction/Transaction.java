@@ -23,7 +23,7 @@ public record Transaction(
     BigDecimal amount,
     Currency currency,
     Instant time,
-    LocalDate priceDate,
+    LocalDate navDate,
     Instant settledTime,
     @Nullable Instant applicationTime,
     @Nullable String counterpartyIban,
@@ -36,7 +36,7 @@ public record Transaction(
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
 
   public Transaction {
-    priceDate = priceDate == null ? dateOf(time) : priceDate;
+    navDate = navDate == null ? dateOf(time) : navDate;
     settledTime = settledTime == null ? time : settledTime;
   }
 
@@ -48,7 +48,7 @@ public record Transaction(
         .amount(cashFlow.getAmount())
         .currency(cashFlow.getCurrency())
         .time(cashFlow.getTime())
-        .priceDate(dateOf(cashFlow.getPriceTime()))
+        .navDate(dateOf(cashFlow.getPriceTime()))
         .isin(cashFlow.getIsin())
         .type(cashFlow.getType())
         .units(cashFlow.getUnits())

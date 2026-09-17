@@ -27,7 +27,7 @@ class TransactionTest {
   private static final Instant PRICED = Instant.parse("2025-07-01T00:00:00Z");
 
   @Test
-  void carriesThePricingDayOfTheCashFlow() {
+  void carriesTheNavDateOfTheCashFlow() {
     CashFlow cashFlow =
         CashFlow.builder()
             .isin("EE0000003283")
@@ -43,12 +43,12 @@ class TransactionTest {
     Transaction transaction = Transaction.from(cashFlow);
 
     assertThat(transaction.time()).isEqualTo(BOOKED);
-    assertThat(transaction.priceDate()).isEqualTo(LocalDate.parse("2025-07-01"));
+    assertThat(transaction.navDate()).isEqualTo(LocalDate.parse("2025-07-01"));
   }
 
   @Test
-  void pricesOnTheBookingDayWhenNoPricingDayIsKnown() {
-    assertThat(Transaction.builder().time(BOOKED).build().priceDate())
+  void datesTheNavOnTheBookingDayWhenNoPriceTimeIsKnown() {
+    assertThat(Transaction.builder().time(BOOKED).build().navDate())
         .isEqualTo(BOOKED.atZone(ZoneId.of("Europe/Tallinn")).toLocalDate());
   }
 

@@ -71,7 +71,8 @@ class TransactionControllerTest {
             .amount(new BigDecimal("100.00"))
             .currency(EUR)
             .time(Instant.parse("2025-02-04T14:00:00Z"))
-            .priceDate(LocalDate.parse("2025-02-03"))
+            .navDate(LocalDate.parse("2025-02-03"))
+            .priceCalculationDate(LocalDate.parse("2025-02-04"))
             .applicationTime(Instant.parse("2025-02-03T11:30:00Z"))
             .counterpartyIban("EE651010220306497226")
             .isin("EE0000003283")
@@ -91,7 +92,8 @@ class TransactionControllerTest {
                     """
             [{
               "time": "2025-02-04T14:00:00Z",
-              "priceDate": "2025-02-03",
+              "navDate": "2025-02-03",
+              "priceCalculationDate": "2025-02-04",
               "applicationTime": "2025-02-03T11:30:00Z",
               "counterpartyIban": "EE651010220306497226"
             }]

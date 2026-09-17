@@ -66,14 +66,14 @@ public class PortfolioValuation {
 
     transactions.stream()
         .filter(transaction -> transaction.units() != null)
-        .sorted(comparing(Transaction::priceDate))
+        .sorted(comparing(Transaction::navDate))
         .forEach(
             transaction -> {
               NavigableMap<LocalDate, BigDecimal> running =
                   byIsin.computeIfAbsent(transaction.isin(), isin -> new TreeMap<>());
               BigDecimal carried =
                   running.isEmpty() ? BigDecimal.ZERO : running.lastEntry().getValue();
-              running.put(transaction.priceDate(), carried.add(signedUnits(transaction)));
+              running.put(transaction.navDate(), carried.add(signedUnits(transaction)));
             });
 
     return byIsin;
@@ -202,8 +202,8 @@ public class PortfolioValuation {
       Set<String> isins, LocalDate from, LocalDate to, boolean acquisitions) {
     return transactions.stream()
         .filter(transaction -> isins.contains(transaction.isin()))
-        .filter(transaction -> !transaction.priceDate().isBefore(from))
-        .filter(transaction -> !transaction.priceDate().isAfter(to))
+        .filter(transaction -> !transaction.navDate().isBefore(from))
+        .filter(transaction -> !transaction.navDate().isAfter(to))
         .filter(transaction -> transaction.isAcquisition() == acquisitions)
         .map(transaction -> transaction.amount().abs())
         .reduce(BigDecimal.ZERO, BigDecimal::add)

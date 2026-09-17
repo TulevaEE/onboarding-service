@@ -9,6 +9,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.currency.Currency;
+import ee.tuleva.onboarding.error.ErrorsResponseException;
 import ee.tuleva.onboarding.payment.AnonymousPayment;
 import ee.tuleva.onboarding.payment.PaymentData;
 import ee.tuleva.onboarding.payment.PaymentService;
@@ -55,7 +56,7 @@ class GiftPaymentServiceTest {
     given(giftLinkService.findOpenLink("TOKEN")).willReturn(aLink());
 
     assertThatThrownBy(() -> service.startPayment("TOKEN", request(amount, "Hello")))
-        .isInstanceOf(IllegalArgumentException.class);
+        .isInstanceOf(ErrorsResponseException.class);
 
     verify(paymentService, never()).getAnonymousSavingsPaymentLink(any());
     // A refused payment must not leave a message behind for the parent to puzzle over.

@@ -18,17 +18,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * The page a grandparent opens, with no account and no login.
- *
- * <p>Deliberately says as little as possible: who the gift is for, and what to write in the payment
- * description if they would rather transfer from their own bank. It does not expose a balance, a
- * transaction history, or anything about the parent.
- */
 @RestController
 @RequestMapping("/v1/gift-links")
 @RequiredArgsConstructor
 public class PublicGiftLinkController {
+
+  // The token sits in the URL of a page that names a child, so no shared cache and no index.
+  private static final String NO_STORE = "no-store";
+  private static final String NO_INDEX = "noindex, nofollow";
 
   private final GiftLinkService giftLinkService;
   private final GiftPaymentService giftPaymentService;
@@ -43,17 +40,12 @@ public class PublicGiftLinkController {
             .findByPersonalCode(link.getRecipientPersonalCode())
             .orElseThrow(() -> new NoSuchElementException("No such gift link"));
     return ResponseEntity.ok()
-        // The token is in the URL of a page that names a child, so it stays out of shared caches
-        // and out of anything that might index it.
-        .header(CACHE_CONTROL, "no-store")
-        .header("X-Robots-Tag", "noindex, nofollow")
+        .header(CACHE_CONTROL, NO_STORE)
+        .header("X-Robots-Tag", NO_INDEX)
         .body(
             new PublicGiftLink(
-                recipient.getFirstName() + " " + recipient.getLastName(),
-                // The child's personal code, which is what the fund matches an incoming transfer
-                // by. Showing it is a deliberate choice: without it there is no way to make a
-                // payment from a bank Montonio does not cover, or one over the Montonio ceiling.
-                link.getRecipientPersonalCode()));
+                fullName(recipient.getFirstName(), recipient.getLastName()),
+                paymentDescriptionFor(link)));
   }
 
   @PostMapping("/{token}/payments")
@@ -61,17 +53,21 @@ public class PublicGiftLinkController {
   public ResponseEntity<PaymentLink> startPayment(
       @PathVariable String token, @Valid @RequestBody GiftPaymentRequest request) {
     return ResponseEntity.ok()
-        .header(CACHE_CONTROL, "no-store")
+        .header(CACHE_CONTROL, NO_STORE)
         .body(giftPaymentService.startPayment(token, request));
   }
 
-  /**
-   * A closed link, an unknown token and a recipient we cannot name all answer the same, so nobody
-   * can tell from the outside which one they hit.
-   */
   @ExceptionHandler(NoSuchElementException.class)
   public ResponseEntity<Void> notFound() {
-    return ResponseEntity.status(NOT_FOUND).header(CACHE_CONTROL, "no-store").build();
+    return ResponseEntity.status(NOT_FOUND).header(CACHE_CONTROL, NO_STORE).build();
+  }
+
+  private static String fullName(String firstName, String lastName) {
+    return firstName + " " + lastName;
+  }
+
+  private static String paymentDescriptionFor(GiftLink link) {
+    return link.getRecipientPersonalCode();
   }
 
   public record PublicGiftLink(String recipientName, String paymentDescription) {}

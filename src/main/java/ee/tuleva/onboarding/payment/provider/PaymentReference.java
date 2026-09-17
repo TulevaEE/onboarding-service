@@ -13,8 +13,6 @@ import org.jspecify.annotations.Nullable;
 @AllArgsConstructor
 public class PaymentReference {
 
-  // Null when the payer was never logged in, which is how a gift link works: the money is
-  // identified by who it is *for*, not by who sent it.
   private @Nullable String personalCode;
 
   private String recipientPersonalCode;

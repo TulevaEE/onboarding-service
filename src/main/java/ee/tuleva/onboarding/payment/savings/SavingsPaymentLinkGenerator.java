@@ -37,13 +37,6 @@ public class SavingsPaymentLinkGenerator implements PaymentLinkGenerator {
     return buildPaymentLink(paymentData, person);
   }
 
-  /**
-   * The same payment, minted for somebody who never logged in.
-   *
-   * <p>This is what a gift link uses. Nothing about routing the money depends on knowing the payer:
-   * the description and the merchant reference both name the recipient, and the callback attaches
-   * the payment to them. Who paid is learned afterwards from the bank, if the bank says.
-   */
   public AnonymousPayment getAnonymousPaymentLink(PaymentData paymentData) {
     var description = describe(paymentData);
     return new AnonymousPayment(buildPaymentLink(paymentData, null, description), description);
@@ -85,8 +78,6 @@ public class SavingsPaymentLinkGenerator implements PaymentLinkGenerator {
     return new RedirectLink(url);
   }
 
-  // The payer is null for a gift link, where nobody logged in. Everything Montonio needs to route
-  // the money comes from the recipient and the channel, so the order is complete without them.
   private MontonioOrder buildOrder(
       PaymentData paymentData,
       @Nullable Person person,

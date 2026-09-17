@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.savings.fund.gift;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.SAVINGS;
 
 import ee.tuleva.onboarding.currency.Currency;
+import ee.tuleva.onboarding.error.ErrorsResponseException;
+import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.payment.PaymentData;
 import ee.tuleva.onboarding.payment.PaymentLink;
 import ee.tuleva.onboarding.payment.PaymentService;
@@ -36,8 +38,12 @@ public class GiftPaymentService {
         || amount.compareTo(MIN_AMOUNT) < 0
         || amount.compareTo(MAX_AMOUNT) > 0
         || amount.scale() > 2) {
-      throw new IllegalArgumentException(
-          "A gift must be between " + MIN_AMOUNT + " and " + MAX_AMOUNT + " euros");
+      // Client input, so a stable error code and a 400. An IllegalArgumentException from here
+      // would reach the visitor as a 500, because ErrorHandlingControllerAdvice does not map it.
+      throw new ErrorsResponseException(
+          ErrorsResponse.ofSingleError(
+              "gift.amount.invalid",
+              "A gift must be between " + MIN_AMOUNT + " and " + MAX_AMOUNT + " euros"));
     }
 
     var payment =

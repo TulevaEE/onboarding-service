@@ -23,3 +23,6 @@ CREATE TABLE savings_fund_gift_message
 
 CREATE INDEX idx_savings_fund_gift_message_description
     ON savings_fund_gift_message (description);
+
+CREATE INDEX idx_savings_fund_gift_message_link
+    ON savings_fund_gift_message (gift_link_id);

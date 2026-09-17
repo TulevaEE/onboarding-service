@@ -272,6 +272,24 @@ public class InvestmentAdminController {
     return "OCF calculated for all funds: %s".formatted(yearMonth);
   }
 
+  @PostMapping("/ocf-publish")
+  public String publishOcf(
+      @RequestHeader("X-Admin-Token") String token,
+      @RequestParam String fundCode,
+      @RequestParam String month,
+      @RequestParam String publishedIn) {
+
+    tokenValidator.validate(token);
+
+    var fund = TulevaFund.valueOf(fundCode);
+    var yearMonth = YearMonth.parse(month);
+    if (!ocfCalculationService.publish(fund, yearMonth, publishedIn)) {
+      throw new ResponseStatusException(
+          BAD_REQUEST, "No unpublished OCF snapshot for %s %s".formatted(fundCode, yearMonth));
+    }
+    return "OCF published: %s %s -> %s".formatted(fundCode, yearMonth, publishedIn);
+  }
+
   @PostMapping("/ocf-backfill")
   public String backfillOcf(
       @RequestHeader("X-Admin-Token") String token,

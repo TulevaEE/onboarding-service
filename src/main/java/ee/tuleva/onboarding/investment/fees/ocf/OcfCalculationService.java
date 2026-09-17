@@ -2,13 +2,17 @@ package ee.tuleva.onboarding.investment.fees.ocf;
 
 import static ee.tuleva.onboarding.investment.fees.FeeType.DEPOT;
 import static ee.tuleva.onboarding.investment.fees.FeeType.MANAGEMENT;
+import static ee.tuleva.onboarding.investment.fees.ocf.OcfGap.DEPOT_FEE_RATE_MISSING;
+import static ee.tuleva.onboarding.investment.fees.ocf.OcfGap.MANAGEMENT_FEE_RATE_MISSING;
+import static ee.tuleva.onboarding.investment.fees.ocf.OcfGap.NAV_HAS_NO_POSITIVE_AUM;
+import static ee.tuleva.onboarding.investment.fees.ocf.OcfGap.NO_PUBLISHED_NAV_CALCULATION;
+import static ee.tuleva.onboarding.investment.fees.ocf.OcfGap.TRANSACTION_COSTS_WITHOUT_AVERAGE_AUM;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.investment.fees.DepotRateResolver;
 import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
-import ee.tuleva.onboarding.investment.fees.FeeRate;
 import ee.tuleva.onboarding.investment.fees.FeeRateRepository;
 import ee.tuleva.onboarding.investment.fees.InstrumentFeeRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
@@ -21,11 +25,14 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -45,40 +52,45 @@ public class OcfCalculationService {
   private final TransactionExecutionRepository transactionExecutionRepository;
   private final OcfSnapshotRepository ocfSnapshotRepository;
   private final FundNavQueryService fundNavQueryService;
+  private final OcfJson ocfJson;
 
   public OcfSnapshot calculateOcf(TulevaFund fund, YearMonth month) {
     var monthEnd = month.atEndOfMonth();
 
-    var mgmtRate = getManagementFeeRate(fund, monthEnd);
-    var depotRate = getDepotFeeRate(fund, monthEnd);
-    var underlyingCost = getUnderlyingFundCost(fund, monthEnd);
-    var txnCostRate = getTransactionCostRate(fund, monthEnd);
-    var totalOcf = mgmtRate.add(depotRate).add(underlyingCost).add(txnCostRate);
+    var mgmt = getManagementFee(fund, monthEnd);
+    var depot = getDepotFee(fund, monthEnd);
+    var underlying = getUnderlyingFundCost(fund, monthEnd);
+    var txn = getTransactionCost(fund, monthEnd);
+    var totalOcf = mgmt.rate().add(depot.rate()).add(underlying.rate()).add(txn.rate());
 
+    var gaps = gaps(mgmt, depot, underlying, txn);
     var snapshot =
         OcfSnapshot.computed(
             fund.getCode(),
             month.atDay(1),
-            mgmtRate,
-            depotRate,
-            underlyingCost,
-            txnCostRate,
+            mgmt.rate(),
+            depot.rate(),
+            underlying.rate(),
+            txn.rate(),
             totalOcf,
-            false,
-            null,
-            OcfAudit.empty());
+            gaps.isEmpty(),
+            ocfJson.checks(gaps),
+            audit(mgmt, depot, underlying, txn));
 
     ocfSnapshotRepository.save(snapshot);
 
     log.info(
-        "OCF calculated: fund={}, month={}, mgmt={}, depot={}, underlying={}, txn={}, total={}",
+        "OCF calculated: fund={}, month={}, mgmt={}, depot={}, underlying={}, txn={}, total={},"
+            + " complete={}, gaps={}",
         fund.getCode(),
         month,
-        mgmtRate,
-        depotRate,
-        underlyingCost,
-        txnCostRate,
-        totalOcf);
+        mgmt.rate(),
+        depot.rate(),
+        underlying.rate(),
+        txn.rate(),
+        totalOcf,
+        gaps.isEmpty(),
+        gaps);
 
     return snapshot;
   }
@@ -100,21 +112,72 @@ public class OcfCalculationService {
     }
   }
 
-  BigDecimal getManagementFeeRate(TulevaFund fund, LocalDate asOf) {
+  public boolean publish(TulevaFund fund, YearMonth month, String publishedIn) {
+    var published = ocfSnapshotRepository.publish(fund.getCode(), month.atDay(1), publishedIn);
+    if (published) {
+      log.info(
+          "OCF snapshot published: fund={}, month={}, publishedIn={}",
+          fund.getCode(),
+          month,
+          publishedIn);
+    }
+    return published;
+  }
+
+  private static List<OcfGap> gaps(
+      ManagementFee mgmt, DepotFee depot, UnderlyingFundCost underlying, TransactionCost txn) {
+    var gaps = new ArrayList<OcfGap>();
+    if (mgmt.rateId() == null) {
+      gaps.add(MANAGEMENT_FEE_RATE_MISSING);
+    }
+    if (depot.chargedToFund() && depot.rate().signum() == 0) {
+      gaps.add(DEPOT_FEE_RATE_MISSING);
+    }
+    gaps.addAll(underlying.gaps());
+    gaps.addAll(txn.gaps());
+    return List.copyOf(gaps);
+  }
+
+  private OcfAudit audit(
+      ManagementFee mgmt, DepotFee depot, UnderlyingFundCost underlying, TransactionCost txn) {
+    return new OcfAudit(
+        underlying.navDate(),
+        underlying.navCalculationId(),
+        underlying.assetsUnderManagement(),
+        mgmt.rateId(),
+        depot.chargedToFund(),
+        depot.tierAnchorDate(),
+        depot.tierBasis(),
+        txn.windowStart(),
+        txn.windowEnd(),
+        txn.commissions(),
+        txn.averageAum(),
+        ocfJson.navDates(txn.navDates()));
+  }
+
+  ManagementFee getManagementFee(TulevaFund fund, LocalDate asOf) {
     return feeRateRepository
         .findValidRate(fund, MANAGEMENT, asOf)
-        .map(FeeRate::annualRate)
-        .orElse(ZERO);
+        .map(rate -> new ManagementFee(rate.annualRate(), rate.id()))
+        .orElseGet(
+            () -> {
+              log.warn(
+                  "No management fee rate, it resolves to zero: fund={}, asOf={}",
+                  fund.getCode(),
+                  asOf);
+              return new ManagementFee(ZERO, null);
+            });
   }
 
-  BigDecimal getDepotFeeRate(TulevaFund fund, LocalDate asOf) {
+  DepotFee getDepotFee(TulevaFund fund, LocalDate asOf) {
     if (!feeChargedToFundPolicy.chargedToFund(fund, DEPOT, asOf)) {
-      return ZERO;
+      return new DepotFee(ZERO, false, null, null);
     }
-    return depotRateResolver.resolveAnnualRate(fund, asOf);
+    var rate = depotRateResolver.resolveRate(fund, asOf);
+    return new DepotFee(rate.annualRate(), true, rate.tierAnchorDate(), rate.tierBasis());
   }
 
-  BigDecimal getUnderlyingFundCost(TulevaFund fund, LocalDate asOf) {
+  UnderlyingFundCost getUnderlyingFundCost(TulevaFund fund, LocalDate asOf) {
     var rates = instrumentFeeRepository.findAllValidRates(asOf);
     var rateByIsin =
         rates.stream().collect(Collectors.toMap(r -> r.isin(), r -> r.netOcf(), (a, b) -> a));
@@ -122,20 +185,21 @@ public class OcfCalculationService {
     return computeFromPublishedNav(fund, asOf, rateByIsin);
   }
 
-  private BigDecimal computeFromPublishedNav(
+  private UnderlyingFundCost computeFromPublishedNav(
       TulevaFund fund, LocalDate asOf, Map<String, BigDecimal> rateByIsin) {
+    var navDate =
+        fundNavQueryService.findLatestPublishedNavDateOnOrBefore(fund.getCode(), asOf).orElse(null);
     var calculation =
-        fundNavQueryService
-            .findLatestPublishedNavDateOnOrBefore(fund.getCode(), asOf)
-            .flatMap(
-                navDate -> fundNavQueryService.findPublishedCalculation(fund.getCode(), navDate))
-            .orElse(null);
+        navDate == null
+            ? null
+            : fundNavQueryService.findPublishedCalculation(fund.getCode(), navDate).orElse(null);
     if (calculation == null) {
       log.warn(
           "No published NAV calculation, underlying fund cost resolves to zero: fund={}, asOf={}",
           fund.getCode(),
           asOf);
-      return ZERO;
+      return new UnderlyingFundCost(
+          ZERO, navDate, null, null, List.of(NO_PUBLISHED_NAV_CALCULATION));
     }
     var aum = calculation.assetsUnderManagement();
     if (aum.signum() <= 0) {
@@ -145,7 +209,8 @@ public class OcfCalculationService {
           fund.getCode(),
           asOf,
           aum);
-      return ZERO;
+      return new UnderlyingFundCost(
+          ZERO, navDate, calculation.id(), aum, List.of(NAV_HAS_NO_POSITIVE_AUM));
     }
     var lines = calculation.securityLines();
     var unrated = unratedIsins(lines, rateByIsin);
@@ -156,7 +221,8 @@ public class OcfCalculationService {
         lines.stream()
             .map(line -> line.value().multiply(rateFor(line, rateByIsin)))
             .reduce(ZERO, BigDecimal::add);
-    return weightedCost.divide(aum, SCALE, HALF_UP);
+    return new UnderlyingFundCost(
+        weightedCost.divide(aum, SCALE, HALF_UP), navDate, calculation.id(), aum, List.of());
   }
 
   private static List<String> unratedIsins(
@@ -174,7 +240,7 @@ public class OcfCalculationService {
         rateByIsin.get(line.accountId()), "Unrated holding passed the guard: " + line.accountId());
   }
 
-  BigDecimal getTransactionCostRate(TulevaFund fund, LocalDate monthEnd) {
+  TransactionCost getTransactionCost(TulevaFund fund, LocalDate monthEnd) {
     var periodStart = monthEnd.minusYears(1).plusDays(1);
     var navDates =
         fundNavQueryService.findPublishedNavDatesBetween(fund.getCode(), periodStart, monthEnd);
@@ -190,21 +256,31 @@ public class OcfCalculationService {
             fund.getCode(),
             effectivePeriodStart.atStartOfDay(ESTONIAN_ZONE).toInstant(),
             monthEnd.plusDays(1).atStartOfDay(ESTONIAN_ZONE).toInstant());
-    if (txnCosts.signum() == 0) {
-      return ZERO;
-    }
-
     var avgAum = averageAum(fund, navDates);
+    var window =
+        new TransactionCostWindow(effectivePeriodStart, monthEnd, txnCosts, avgAum, navDates);
+
+    if (txnCosts.signum() == 0) {
+      return window.at(ZERO, List.of());
+    }
     if (avgAum.signum() <= 0) {
-      return ZERO;
+      log.warn(
+          "Transaction costs without an average AUM to divide by, the rate resolves to zero:"
+              + " fund={}, monthEnd={}, commissions={}",
+          fund.getCode(),
+          monthEnd,
+          txnCosts);
+      return window.at(ZERO, List.of(TRANSACTION_COSTS_WITHOUT_AVERAGE_AUM));
     }
     var coveredDays = ChronoUnit.DAYS.between(effectivePeriodStart, monthEnd) + 1;
     if (coveredDays <= 0) {
-      return ZERO;
+      return window.at(ZERO, List.of());
     }
-    return txnCosts
-        .multiply(DAYS_IN_YEAR)
-        .divide(avgAum.multiply(BigDecimal.valueOf(coveredDays)), SCALE, HALF_UP);
+    return window.at(
+        txnCosts
+            .multiply(DAYS_IN_YEAR)
+            .divide(avgAum.multiply(BigDecimal.valueOf(coveredDays)), SCALE, HALF_UP),
+        List.of());
   }
 
   private BigDecimal averageAum(TulevaFund fund, List<LocalDate> navDates) {
@@ -216,5 +292,41 @@ public class OcfCalculationService {
             .map(date -> fundNavQueryService.findAum(fund.getCode(), date))
             .reduce(ZERO, BigDecimal::add);
     return total.divide(BigDecimal.valueOf(navDates.size()), SCALE, HALF_UP);
+  }
+
+  record ManagementFee(BigDecimal rate, @Nullable Long rateId) {}
+
+  record DepotFee(
+      BigDecimal rate,
+      boolean chargedToFund,
+      @Nullable LocalDate tierAnchorDate,
+      @Nullable BigDecimal tierBasis) {}
+
+  record UnderlyingFundCost(
+      BigDecimal rate,
+      @Nullable LocalDate navDate,
+      @Nullable UUID navCalculationId,
+      @Nullable BigDecimal assetsUnderManagement,
+      List<OcfGap> gaps) {}
+
+  record TransactionCost(
+      BigDecimal rate,
+      LocalDate windowStart,
+      LocalDate windowEnd,
+      BigDecimal commissions,
+      BigDecimal averageAum,
+      List<LocalDate> navDates,
+      List<OcfGap> gaps) {}
+
+  private record TransactionCostWindow(
+      LocalDate start,
+      LocalDate end,
+      BigDecimal commissions,
+      BigDecimal averageAum,
+      List<LocalDate> navDates) {
+
+    TransactionCost at(BigDecimal rate, List<OcfGap> gaps) {
+      return new TransactionCost(rate, start, end, commissions, averageAum, navDates, gaps);
+    }
   }
 }

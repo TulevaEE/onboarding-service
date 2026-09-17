@@ -441,7 +441,8 @@ class InvestmentAdminControllerTest {
             new BigDecimal("0.00530000"),
             false,
             null,
-            ee.tuleva.onboarding.investment.fees.ocf.OcfAudit.empty());
+            new ee.tuleva.onboarding.investment.fees.ocf.OcfAudit(
+                null, null, null, null, null, null, null, null, null, null, null, null));
     given(ocfCalculationService.calculateOcf(TulevaFund.TUK75, java.time.YearMonth.of(2026, 4)))
         .willReturn(snapshot);
 
@@ -454,6 +455,43 @@ class InvestmentAdminControllerTest {
                 .param("month", "2026-04"))
         .andExpect(status().isOk())
         .andExpect(content().string(containsString("TUK75")));
+  }
+
+  @Test
+  void publishOcf_marksTheSnapshotPublished() throws Exception {
+    given(
+            ocfCalculationService.publish(
+                TulevaFund.TUK75, java.time.YearMonth.of(2026, 4), "KID 2026"))
+        .willReturn(true);
+
+    mockMvc
+        .perform(
+            post("/admin/ocf-publish")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("fundCode", "TUK75")
+                .param("month", "2026-04")
+                .param("publishedIn", "KID 2026"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("KID 2026")));
+  }
+
+  @Test
+  void publishOcf_failsWhenThereIsNothingUnpublishedToPublish() throws Exception {
+    given(
+            ocfCalculationService.publish(
+                TulevaFund.TUK75, java.time.YearMonth.of(2026, 4), "KID 2026"))
+        .willReturn(false);
+
+    mockMvc
+        .perform(
+            post("/admin/ocf-publish")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("fundCode", "TUK75")
+                .param("month", "2026-04")
+                .param("publishedIn", "KID 2026"))
+        .andExpect(status().isBadRequest());
   }
 
   @Test

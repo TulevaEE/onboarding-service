@@ -105,6 +105,7 @@ public class FundNavQueryService {
         .map(
             calculatedAt ->
                 new NavCalculation(
+                    calculationId,
                     calculatedAt,
                     navReportRepository.findLinesByCalculationId(
                         fundCode, navDate, calculationId)));

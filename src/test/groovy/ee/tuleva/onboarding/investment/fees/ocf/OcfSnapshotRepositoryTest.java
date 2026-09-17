@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.fees.ocf;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -10,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 @DataJpaTest
@@ -27,8 +29,11 @@ class OcfSnapshotRepositoryTest {
     jdbcClient.sql("DELETE FROM investment_ocf_snapshot").update();
   }
 
+  private static final OcfAudit NO_AUDIT =
+      new OcfAudit(null, null, null, null, null, null, null, null, null, null, null, null);
+
   private OcfSnapshot snapshot(LocalDate month, String totalOcf) {
-    return snapshot(month, totalOcf, OcfAudit.empty());
+    return snapshot(month, totalOcf, NO_AUDIT);
   }
 
   private OcfSnapshot snapshot(LocalDate month, String totalOcf, OcfAudit audit) {
@@ -120,7 +125,7 @@ class OcfSnapshotRepositoryTest {
             BigDecimal.ZERO,
             false,
             "{\"unresolvedIsins\":[\"XX0000000001\"]}",
-            OcfAudit.empty()));
+            NO_AUDIT));
 
     var found = repository.findByFundAndMonth("TUK75", APRIL).orElseThrow();
 
@@ -196,5 +201,52 @@ class OcfSnapshotRepositoryTest {
   @Test
   void findByFundAndMonthReturnsEmptyWhenNotFound() {
     assertThat(repository.findByFundAndMonth("TUK75", APRIL)).isEmpty();
+  }
+
+  @Test
+  void publishingAMonthThatWasNeverCalculatedReportsThatNothingWentOut() {
+    assertThat(repository.publish("TUK75", APRIL, "KID 2026")).isFalse();
+  }
+
+  @Test
+  void publishingAMonthWhoseLatestVersionIsAlreadyOutReportsThatNothingWentOut() {
+    repository.save(snapshot(APRIL, "0.00340000"));
+    assertThat(repository.publish("TUK75", APRIL, "KID 2026")).isTrue();
+
+    assertThat(repository.publish("TUK75", APRIL, "KID 2026 second edition")).isFalse();
+  }
+
+  @Test
+  void aRowCannotNameAPublicationWithoutSayingWhenItWentOut() {
+    repository.save(snapshot(APRIL, "0.00340000"));
+
+    assertThatThrownBy(
+            () ->
+                jdbcClient
+                    .sql("UPDATE investment_ocf_snapshot SET published_in = 'KID 2026'")
+                    .update())
+        .isInstanceOf(DataIntegrityViolationException.class);
+  }
+
+  // The previous release's MERGE sets neither version nor complete. If the code is rolled back
+  // while the schema stays, its inserts have to keep working — which is what the column defaults
+  // are for.
+  @Test
+  void anInsertFromBeforeThisMigrationStillLands() {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO investment_ocf_snapshot
+              (fund_code, snapshot_month, management_fee_rate, depot_fee_rate,
+               underlying_fund_cost, transaction_cost_rate, total_ocf)
+            VALUES ('TUK75', :month, 0.0034, 0, 0, 0, 0.0034)
+            """)
+        .param("month", APRIL)
+        .update();
+
+    var found = repository.findByFundAndMonth("TUK75", APRIL).orElseThrow();
+
+    assertThat(found.version()).isEqualTo(1);
+    assertThat(found.complete()).isFalse();
   }
 }

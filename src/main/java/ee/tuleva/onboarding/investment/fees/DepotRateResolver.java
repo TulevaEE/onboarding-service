@@ -31,32 +31,38 @@ public class DepotRateResolver {
   private final NavLedgerRepository navLedgerRepository;
   private final PublicHolidays publicHolidays;
 
-  public BigDecimal resolveAnnualRate(TulevaFund fund, LocalDate calendarDate) {
+  public DepotRate resolveRate(TulevaFund fund, LocalDate calendarDate) {
     LocalDate feeMonth = feeMonthResolver.resolveFeeMonth(calendarDate);
     Optional<FeeRate> rate = feeRateRepository.findValidRate(fund, DEPOT, calendarDate);
     if (rate.isEmpty()) {
       log.warn(
           "No depot fee rate configured, resolving zero: fund={}, date={}", fund, calendarDate);
-      return ZERO;
+      return DepotRate.none();
     }
-    return rate.get().isTierBased() ? rateFromTier(feeMonth) : rate.get().annualRate();
+    return rate.get().isTierBased()
+        ? rateFromTier(feeMonth)
+        : DepotRate.flat(rate.get().annualRate());
   }
 
-  private BigDecimal rateFromTier(LocalDate feeMonth) {
-    BigDecimal totalAssets = combinedFundAssetsTwoMonthEndsBefore(feeMonth);
+  private DepotRate rateFromTier(LocalDate feeMonth) {
+    LocalDate anchor = twoMonthEndsBefore(feeMonth);
+    BigDecimal totalAssets = combinedFundAssetsAt(anchor);
     Optional<BigDecimal> tierRate = tierRepository.findRateForAum(totalAssets, feeMonth);
     if (tierRate.isEmpty()) {
       log.warn(
           "No depot fee tier configured, resolving zero: totalAssets={}, feeMonth={}",
           totalAssets,
           feeMonth);
-      return ZERO;
+      return new DepotRate(ZERO, anchor, totalAssets);
     }
-    return tierRate.get();
+    return new DepotRate(tierRate.get(), anchor, totalAssets);
   }
 
-  private BigDecimal combinedFundAssetsTwoMonthEndsBefore(LocalDate feeMonth) {
-    LocalDate anchor = feeMonth.minusMonths(1).minusDays(1);
+  private static LocalDate twoMonthEndsBefore(LocalDate feeMonth) {
+    return feeMonth.minusMonths(1).minusDays(1);
+  }
+
+  private BigDecimal combinedFundAssetsAt(LocalDate anchor) {
     BigDecimal total = ZERO;
     for (TulevaFund fund : TulevaFund.values()) {
       total = total.add(assetsAtLatestCalculationOnOrBefore(fund, anchor));

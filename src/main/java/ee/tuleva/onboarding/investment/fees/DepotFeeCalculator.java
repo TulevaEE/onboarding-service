@@ -23,7 +23,7 @@ public class DepotFeeCalculator implements FeeCalculator {
   public FeeAccrual calculate(TulevaFund fund, LocalDate calendarDate, FeeBases bases) {
     LocalDate feeMonth = feeMonthResolver.resolveFeeMonth(calendarDate);
 
-    BigDecimal annualRate = depotRateResolver.resolveAnnualRate(fund, calendarDate);
+    BigDecimal annualRate = depotRateResolver.resolveRate(fund, calendarDate).annualRate();
     BigDecimal assetValue = bases.assetValue();
     int daysInYear = actualDaysInYear(calendarDate);
 

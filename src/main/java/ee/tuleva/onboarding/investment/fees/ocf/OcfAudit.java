@@ -23,10 +23,6 @@ public record OcfAudit(
     @Nullable BigDecimal txnAverageAum,
     @Nullable String txnNavDates) {
 
-  public static OcfAudit empty() {
-    return new OcfAudit(null, null, null, null, null, null, null, null, null, null, null, null);
-  }
-
   public static OcfAudit fromResultSet(ResultSet rs) throws SQLException {
     return new OcfAudit(
         localDate(rs, "nav_date"),

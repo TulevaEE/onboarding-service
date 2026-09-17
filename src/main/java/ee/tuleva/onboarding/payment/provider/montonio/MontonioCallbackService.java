@@ -65,9 +65,8 @@ public class MontonioCallbackService {
       return existingPayment;
     }
 
-    // Only the savings fund has anonymous payers, via gift links. Every payment that reaches here
-    // was started by somebody logged in, so a missing code is a broken invariant, not a case to
-    // handle.
+    // Anonymous payers only reach the savings fund callback, so a missing code here is a broken
+    // invariant rather than a case to handle.
     var payerPersonalCode =
         requireNonNull(
             internalReference.getPersonalCode(),

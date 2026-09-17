@@ -16,7 +16,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
-/** A few words from whoever sent a gift, shown to the parent once the money is there. */
 @Entity
 @Table(name = "savings_fund_gift_message")
 @Getter
@@ -25,7 +24,6 @@ import org.jspecify.annotations.Nullable;
 @Builder
 public class GiftMessage {
 
-  /** Long enough for a birthday wish, short enough that nobody stores a novel in our database. */
   public static final int MAX_LENGTH = 300;
 
   @Id

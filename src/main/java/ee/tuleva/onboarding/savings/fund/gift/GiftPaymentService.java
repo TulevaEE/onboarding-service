@@ -15,13 +15,11 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Turns a gift link plus an amount into a Montonio payment, for a visitor with no account. */
 @Service
 @RequiredArgsConstructor
 public class GiftPaymentService {
 
-  // Montonio will not initiate above this, and the manual transfer details are offered instead.
-  // Enforced here as well as in the browser, because the browser is not where the rule lives.
+  // Montonio will not initiate a payment above this.
   private static final BigDecimal MAX_AMOUNT = new BigDecimal("15000");
   private static final BigDecimal MIN_AMOUNT = new BigDecimal("1");
 
@@ -38,8 +36,8 @@ public class GiftPaymentService {
         || amount.compareTo(MIN_AMOUNT) < 0
         || amount.compareTo(MAX_AMOUNT) > 0
         || amount.scale() > 2) {
-      // Client input, so a stable error code and a 400. An IllegalArgumentException from here
-      // would reach the visitor as a 500, because ErrorHandlingControllerAdvice does not map it.
+      // ErrorHandlingControllerAdvice does not map IllegalArgumentException, which would reach an
+      // anonymous visitor as a 500.
       throw new ErrorsResponseException(
           ErrorsResponse.ofSingleError(
               "gift.amount.invalid",
@@ -49,9 +47,6 @@ public class GiftPaymentService {
     var payment =
         paymentService.getAnonymousSavingsPaymentLink(
             PaymentData.builder()
-                // The gift is addressed to the child, and the payment carries no claim about who
-                // sent it. Whether a stranger may pay into this account is decided when the money
-                // lands, not here.
                 .recipientPersonalCode(link.getRecipientPersonalCode())
                 .amount(amount)
                 .currency(Currency.EUR)
@@ -59,9 +54,6 @@ public class GiftPaymentService {
                 .paymentChannel(request.paymentChannel())
                 .build());
 
-    // Written now rather than on the callback, because this is the only moment the giver is here
-    // to have written it. An abandoned payment leaves a message nothing ever joins to, which the
-    // parent's page never sees, since it starts from payments that arrived.
     var message = trimmed(request.message());
     if (message != null) {
       giftMessages.save(

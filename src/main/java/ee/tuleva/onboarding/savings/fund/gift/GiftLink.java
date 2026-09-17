@@ -8,7 +8,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotNull;
-import java.security.SecureRandom;
 import java.time.Instant;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -36,12 +35,6 @@ import org.jspecify.annotations.Nullable;
 @ToString(exclude = "token")
 public class GiftLink {
 
-  // Crockford's base32 alphabet: no I, L, O or U, so 1/I and 0/O cannot be transposed when someone
-  // reads a link aloud, and nothing accidentally spells a word.
-  private static final char[] ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ".toCharArray();
-  private static final int ENTROPY_BYTES = 16;
-  private static final SecureRandom RANDOM = new SecureRandom();
-
   @Id
   @GeneratedValue(strategy = UUID)
   private java.util.UUID id;
@@ -63,36 +56,21 @@ public class GiftLink {
 
   private @Nullable Instant closedAt;
 
+  /**
+   * The recipient's code while this link is open, null once it is closed.
+   *
+   * <p>Bookkeeping in service of a database guarantee: a unique constraint over this column lets a
+   * child have any number of closed links but only one open one. Postgres would express that as a
+   * partial index, which the tests' H2 does not have.
+   */
+  private @Nullable String openForRecipient;
+
   public boolean isOpen() {
     return closedAt == null;
   }
 
   void close(Instant at) {
     this.closedAt = at;
-  }
-
-  /**
-   * 128 bits, because the token is the only thing standing between a stranger and somebody's gift
-   * page. Short and memorable would be guessable, and there is nothing here worth guessing for
-   * except a child's first name.
-   */
-  static String mintToken() {
-    byte[] entropy = new byte[ENTROPY_BYTES];
-    RANDOM.nextBytes(entropy);
-    var token = new StringBuilder();
-    int buffer = 0;
-    int bitsInBuffer = 0;
-    for (byte b : entropy) {
-      buffer = (buffer << 8) | (b & 0xFF);
-      bitsInBuffer += 8;
-      while (bitsInBuffer >= 5) {
-        token.append(ALPHABET[(buffer >> (bitsInBuffer - 5)) & 0x1F]);
-        bitsInBuffer -= 5;
-      }
-    }
-    if (bitsInBuffer > 0) {
-      token.append(ALPHABET[(buffer << (5 - bitsInBuffer)) & 0x1F]);
-    }
-    return token.toString();
+    this.openForRecipient = null;
   }
 }

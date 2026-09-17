@@ -5,6 +5,7 @@ import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.error.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.locale.LocaleService;
+import ee.tuleva.onboarding.payment.AnonymousPayment;
 import ee.tuleva.onboarding.payment.PaymentData;
 import ee.tuleva.onboarding.payment.PaymentLink;
 import ee.tuleva.onboarding.payment.PaymentLinkGenerator;
@@ -43,11 +44,22 @@ public class SavingsPaymentLinkGenerator implements PaymentLinkGenerator {
    * the description and the merchant reference both name the recipient, and the callback attaches
    * the payment to them. Who paid is learned afterwards from the bank, if the bank says.
    */
-  public PaymentLink getAnonymousPaymentLink(PaymentData paymentData) {
-    return buildPaymentLink(paymentData, null);
+  public AnonymousPayment getAnonymousPaymentLink(PaymentData paymentData) {
+    var description = describe(paymentData);
+    return new AnonymousPayment(buildPaymentLink(paymentData, null, description), description);
   }
 
   private PaymentLink buildPaymentLink(PaymentData paymentData, @Nullable Person person) {
+    return buildPaymentLink(paymentData, person, describe(paymentData));
+  }
+
+  private String describe(PaymentData paymentData) {
+    return String.format(
+        "%s, %d", paymentData.getRecipientPersonalCode(), clock.instant().getEpochSecond());
+  }
+
+  private PaymentLink buildPaymentLink(
+      PaymentData paymentData, @Nullable Person person, String description) {
     if (paymentData.getPaymentChannel() == null) {
       throw new ErrorsResponseException(
           ErrorsResponse.ofSingleError(
@@ -68,7 +80,7 @@ public class SavingsPaymentLinkGenerator implements PaymentLinkGenerator {
     if (currency == null || !currency.equals(Currency.EUR)) {
       throw new IllegalArgumentException("Invalid currency: " + currency);
     }
-    var order = buildOrder(paymentData, person, bic, amount, currency);
+    var order = buildOrder(paymentData, person, bic, amount, currency, description);
     var url = orderClient.getPaymentUrl(order, savingsChannelConfiguration);
     return new RedirectLink(url);
   }
@@ -80,10 +92,9 @@ public class SavingsPaymentLinkGenerator implements PaymentLinkGenerator {
       @Nullable Person person,
       String bic,
       BigDecimal amount,
-      Currency currency) {
+      Currency currency,
+      String description) {
     var now = clock.instant();
-    var description =
-        String.format("%s, %d", paymentData.getRecipientPersonalCode(), now.getEpochSecond());
 
     return MontonioOrder.builder()
         .accessKey(savingsChannelConfiguration.getAccessKey())

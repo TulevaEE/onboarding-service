@@ -6,6 +6,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
@@ -47,7 +48,13 @@ class GiftLinkSecurityTest {
     given(userService.findByPersonalCode(CHILD_CODE))
         .willReturn(Optional.of(User.builder().firstName("Mari").lastName("Tamm").build()));
 
-    mvc.perform(get("/v1/gift-links/" + TOKEN)).andExpect(status().isOk());
+    mvc.perform(get("/v1/gift-links/" + TOKEN))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.recipientName").value("Mari Tamm"))
+        .andExpect(jsonPath("$.paymentDescription").value(CHILD_CODE))
+        // Who the gift is for and what to write in the payment, and nothing else about the child
+        // or the parent.
+        .andExpect(jsonPath("$.length()").value(2));
   }
 
   @Test

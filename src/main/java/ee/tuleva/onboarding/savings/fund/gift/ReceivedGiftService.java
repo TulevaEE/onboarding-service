@@ -16,7 +16,6 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-/** What the parent sees under their gift link: who gave, how much, and what they wrote. */
 @Service
 @RequiredArgsConstructor
 public class ReceivedGiftService {
@@ -31,8 +30,6 @@ public class ReceivedGiftService {
     }
     var arrived =
         payments.findPayments(new PartyId(PERSON, childPersonalCode)).stream()
-            // A returned payment is not a gift the child received; showing it would be telling the
-            // parent about money that is on its way back out.
             .filter(payment -> payment.getStatus() != TO_BE_RETURNED)
             .filter(payment -> payment.getStatus() != RETURNED)
             .toList();
@@ -47,19 +44,20 @@ public class ReceivedGiftService {
                     payment.getAmount(),
                     payment.getRemitterName(),
                     messagesByDescription.get(payment.getDescription()),
-                    // Until a payment is verified the money is on its way, not there.
-                    switch (payment.getStatus()) {
-                      case VERIFIED, RESERVED, ISSUED, PROCESSED -> true;
-                      default -> false;
-                    }))
+                    hasReachedTheAccount(payment)))
         .sorted(comparing(ReceivedGift::receivedAt, Comparator.reverseOrder()))
         .toList();
   }
 
-  /**
-   * Two gifts to the same child in the same second share a description, which a determined visitor
-   * could arrange. Rather than guess which message belongs to which payment, neither gets one.
-   */
+  private static boolean hasReachedTheAccount(SavingFundPayment payment) {
+    return switch (payment.getStatus()) {
+      case VERIFIED, RESERVED, ISSUED, PROCESSED -> true;
+      default -> false;
+    };
+  }
+
+  // Two gifts to the same child in the same second share a description, so rather than guess which
+  // message belongs to which payment, neither gets one.
   private Map<String, String> messagesByDescription(List<SavingFundPayment> arrived) {
     var descriptions = arrived.stream().map(SavingFundPayment::getDescription).distinct().toList();
     return giftMessages.findByDescriptionIn(descriptions).stream()

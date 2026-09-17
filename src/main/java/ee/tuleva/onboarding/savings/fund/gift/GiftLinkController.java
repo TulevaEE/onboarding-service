@@ -12,13 +12,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * The parent's side of a gift link.
- *
- * <p>Both endpoints act on the child the caller is currently representing, taken from their role
- * rather than from the request body, so a caller cannot ask for a link to a child they are not
- * acting as.
- */
 @RestController
 @RequestMapping("/v1/savings-fund/gift-links")
 @RequiredArgsConstructor

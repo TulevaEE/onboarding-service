@@ -24,8 +24,6 @@ public class PaymentInternalReferenceService {
 
   @SneakyThrows
   // TODO: should take Party instead of Person so we wouldn't need to infer the PartyType
-  // The payer is null when nobody is logged in, which is the case for a gift link: a grandparent
-  // pays without an account, so there is no personal code to record and none is invented.
   public String getPaymentReference(
       @Nullable Person person, PaymentData paymentData, String description) {
     PaymentReference paymentReference =

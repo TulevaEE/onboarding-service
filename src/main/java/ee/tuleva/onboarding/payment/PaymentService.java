@@ -49,12 +49,6 @@ public class PaymentService {
     };
   }
 
-  /**
-   * A savings fund payment started by somebody with no account, which is what a gift link does.
-   *
-   * <p>Exposed from this module on purpose: the generator that does the work is internal to
-   * payment, and the savings fund has no business reaching into it.
-   */
   public AnonymousPayment getAnonymousSavingsPaymentLink(PaymentData paymentData) {
     return savingsPaymentLinkGenerator.getAnonymousPaymentLink(paymentData);
   }

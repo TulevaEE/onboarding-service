@@ -6,7 +6,6 @@ import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import org.jspecify.annotations.Nullable;
 
-/** What an anonymous visitor sends to start paying: how much, from which bank, and a few words. */
 public record GiftPaymentRequest(
     @NotNull BigDecimal amount,
     @NotNull PaymentChannel paymentChannel,

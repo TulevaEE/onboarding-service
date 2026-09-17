@@ -17,14 +17,14 @@ import lombok.NoArgsConstructor;
 import org.jspecify.annotations.Nullable;
 
 @Entity
-@Table(name = "savings_fund_gift_message")
+@Table(name = "savings_fund_gift")
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class GiftMessage {
+public class Gift {
 
-  public static final int MAX_LENGTH = 300;
+  public static final int MAX_MESSAGE_LENGTH = 300;
 
   @Id
   @GeneratedValue(strategy = UUID)
@@ -42,9 +42,7 @@ public class GiftMessage {
   @Column(nullable = false)
   private BigDecimal amount;
 
-  @NotNull
-  @Column(nullable = false)
-  private String message;
+  private @Nullable String message;
 
   @Column(nullable = false, updatable = false)
   private @Nullable Instant createdAt;

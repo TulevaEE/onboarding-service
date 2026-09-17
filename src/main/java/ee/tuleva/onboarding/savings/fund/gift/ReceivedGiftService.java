@@ -5,6 +5,8 @@ import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RETURNED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.TO_BE_RETURNED;
 import static java.util.Comparator.comparing;
 import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.toMap;
+import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.party.ParentChildLinkService;
 import ee.tuleva.onboarding.party.PartyId;
@@ -13,6 +15,7 @@ import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -21,7 +24,7 @@ import org.springframework.stereotype.Service;
 public class ReceivedGiftService {
 
   private final SavingFundPaymentRepository payments;
-  private final GiftMessageRepository giftMessages;
+  private final GiftRepository gifts;
   private final ParentChildLinkService parentChildLinks;
 
   public List<ReceivedGift> receivedGifts(String parentPersonalCode, String childPersonalCode) {
@@ -34,19 +37,40 @@ public class ReceivedGiftService {
             .filter(payment -> payment.getStatus() != RETURNED)
             .toList();
 
-    var messagesByDescription = messagesByDescription(arrived);
+    var recorded = gifts.findByDescriptionIn(descriptionsOf(arrived));
+    var startedThroughALink = recorded.stream().map(Gift::getDescription).collect(toSet());
+    var messages = unambiguousMessages(recorded);
 
     return arrived.stream()
+        .filter(payment -> isAGift(payment, startedThroughALink, childPersonalCode))
         .map(
             payment ->
                 new ReceivedGift(
                     payment.getCreatedAt(),
                     payment.getAmount(),
                     payment.getRemitterName(),
-                    messagesByDescription.get(payment.getDescription()),
+                    messages.get(payment.getDescription()),
                     hasReachedTheAccount(payment)))
         .sorted(comparing(ReceivedGift::receivedAt, Comparator.reverseOrder()))
         .toList();
+  }
+
+  /**
+   * A gift and the parent's own deposit both arrive as third-party money into the child's account,
+   * so the payment alone cannot tell them apart. Either it was started through the link, or it came
+   * from somebody who is not acting for this child.
+   */
+  private boolean isAGift(
+      SavingFundPayment payment, Set<String> startedThroughALink, String childPersonalCode) {
+    if (startedThroughALink.contains(payment.getDescription())) {
+      return true;
+    }
+    var remitter = payment.getRemitterIdCode();
+    if (remitter == null) {
+      return false;
+    }
+    return !remitter.equals(childPersonalCode)
+        && !parentChildLinks.isActiveRepresentation(remitter, childPersonalCode);
   }
 
   private static boolean hasReachedTheAccount(SavingFundPayment payment) {
@@ -56,17 +80,19 @@ public class ReceivedGiftService {
     };
   }
 
-  // Two gifts to the same child in the same second share a description, so rather than guess which
-  // message belongs to which payment, neither gets one.
-  private Map<String, String> messagesByDescription(List<SavingFundPayment> arrived) {
-    var descriptions = arrived.stream().map(SavingFundPayment::getDescription).distinct().toList();
-    return giftMessages.findByDescriptionIn(descriptions).stream()
-        .collect(groupingBy(GiftMessage::getDescription))
+  private static List<String> descriptionsOf(List<SavingFundPayment> arrived) {
+    return arrived.stream().map(SavingFundPayment::getDescription).distinct().toList();
+  }
+
+  // Two gifts to the same child in the same second share a description. They are both still gifts,
+  // but neither can claim the words, so that description carries no message.
+  private static Map<String, String> unambiguousMessages(List<Gift> recorded) {
+    return recorded.stream()
+        .filter(gift -> gift.getMessage() != null)
+        .collect(groupingBy(Gift::getDescription))
         .entrySet()
         .stream()
         .filter(entry -> entry.getValue().size() == 1)
-        .collect(
-            java.util.stream.Collectors.toMap(
-                Map.Entry::getKey, entry -> entry.getValue().getFirst().getMessage()));
+        .collect(toMap(Map.Entry::getKey, entry -> entry.getValue().getFirst().getMessage()));
   }
 }

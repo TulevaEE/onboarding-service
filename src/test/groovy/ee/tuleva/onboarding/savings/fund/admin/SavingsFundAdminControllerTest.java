@@ -122,13 +122,15 @@ class SavingsFundAdminControllerTest {
   @Test
   void calculateNav_withPublishTrue_calculatesAndPublishes() throws Exception {
     var result = sampleNavResult(LocalDate.of(2026, 2, 17));
-    when(navCalculationService.calculate("TKF100", LocalDate.of(2026, 2, 17))).thenReturn(result);
+    when(navCalculationService.calculate(TulevaFund.TKF100, LocalDate.of(2026, 2, 17)))
+        .thenReturn(result);
 
     mockMvc
         .perform(
             post("/admin/calculate-nav")
                 .with(csrf())
                 .header("X-Admin-Token", "valid-token")
+                .param("fundCode", "TKF100")
                 .param("date", "2026-02-17")
                 .param("publish", "true"))
         .andExpect(status().isOk())
@@ -141,18 +143,47 @@ class SavingsFundAdminControllerTest {
   @Test
   void calculateNav_defaultsToNotPublishing() throws Exception {
     var result = sampleNavResult(LocalDate.of(2026, 2, 17));
-    when(navCalculationService.calculate("TKF100", LocalDate.of(2026, 2, 17))).thenReturn(result);
+    when(navCalculationService.calculate(TulevaFund.TKF100, LocalDate.of(2026, 2, 17)))
+        .thenReturn(result);
 
     mockMvc
         .perform(
             post("/admin/calculate-nav")
                 .with(csrf())
                 .header("X-Admin-Token", "valid-token")
+                .param("fundCode", "TKF100")
                 .param("date", "2026-02-17"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.navPerUnit").value(1.0));
 
     verify(navPublisher, never()).publish(any());
+  }
+
+  @Test
+  void calculateNav_withoutFundCode_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/calculate-nav")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("date", "2026-02-17"))
+        .andExpect(status().isBadRequest());
+
+    verify(navCalculationService, never()).calculate(any(TulevaFund.class), any(LocalDate.class));
+  }
+
+  @Test
+  void calculateNav_withUnknownFundCode_returnsBadRequest() throws Exception {
+    mockMvc
+        .perform(
+            post("/admin/calculate-nav")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("fundCode", "NOPE")
+                .param("date", "2026-02-17"))
+        .andExpect(status().isBadRequest());
+
+    verify(navCalculationService, never()).calculate(any(TulevaFund.class), any(LocalDate.class));
   }
 
   @Test
@@ -162,6 +193,7 @@ class SavingsFundAdminControllerTest {
             post("/admin/calculate-nav")
                 .with(csrf())
                 .header("X-Admin-Token", "wrong-token")
+                .param("fundCode", "TKF100")
                 .param("date", "2026-02-17"))
         .andExpect(status().isUnauthorized());
   }
@@ -169,13 +201,15 @@ class SavingsFundAdminControllerTest {
   @Test
   void calculateNav_withOpsToken_returnsOk() throws Exception {
     var result = sampleNavResult(LocalDate.of(2026, 2, 17));
-    when(navCalculationService.calculate("TKF100", LocalDate.of(2026, 2, 17))).thenReturn(result);
+    when(navCalculationService.calculate(TulevaFund.TKF100, LocalDate.of(2026, 2, 17)))
+        .thenReturn(result);
 
     mockMvc
         .perform(
             post("/admin/calculate-nav")
                 .with(csrf())
                 .header("X-Admin-Token", "ops-token")
+                .param("fundCode", "TKF100")
                 .param("date", "2026-02-17"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.navPerUnit").value(1.0));

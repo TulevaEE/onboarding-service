@@ -1,0 +1,71 @@
+#!/bin/bash
+# Self-test for migration-order. Builds a throwaway repository whose "master"
+# carries V1_1 and V1_2, then branches that add migrations on top of it.
+#
+# A check that lets a bad version through costs a blocked deploy, and one that
+# cries wolf gets bypassed — so both directions are pinned here.
+
+set -uo pipefail
+
+HOOK="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/migration-order"
+MIGRATION_DIR=src/main/resources/db/migration
+TMP=$(mktemp -d)
+trap 'rm -rf "$TMP"' EXIT
+
+passed=0
+failed=0
+
+setup_repo() {
+  rm -rf "$TMP/repo"
+  mkdir -p "$TMP/repo"
+  cd "$TMP/repo" || exit 1
+  git init --quiet --initial-branch=master
+  git config user.email t@example.com
+  git config user.name Test
+  mkdir -p "$MIGRATION_DIR"
+  echo "select 1;" >"$MIGRATION_DIR/V1_1__first.sql"
+  echo "select 1;" >"$MIGRATION_DIR/V1_2__second.sql"
+  git add -A && git commit --quiet -m master
+  git branch base-master
+}
+
+# check <description> <expected exit> <migration file>...
+check() {
+  local description=$1 expected=$2
+  shift 2
+  setup_repo
+  git checkout --quiet -b feature
+  for file in "$@"; do
+    echo "select 1;" >"$MIGRATION_DIR/$file"
+  done
+  git add -A && git commit --quiet --allow-empty -m feature >/dev/null 2>&1
+  local output
+  output=$(MIGRATION_ORDER_BASE=base-master "$HOOK" HEAD 2>&1)
+  local actual=$?
+  if [ "$actual" -eq "$expected" ]; then
+    passed=$((passed + 1))
+  else
+    failed=$((failed + 1))
+    echo "FAIL: $description (expected exit $expected, got $actual)"
+    echo "$output" | sed 's/^/      /'
+  fi
+}
+
+check "next version after master"           0 V1_3__new.sql
+check "two contiguous versions"             0 V1_3__new.sql V1_4__newer.sql
+check "H2 compat beside the new migration"  0 V1_3__new.sql V1_2_1__compat.sql
+check "no migrations at all"                0
+
+check "version master already carries"      1 V1_2__clash.sql
+check "version below master"                1 V1_1__clash.sql
+check "gap above master"                    1 V1_5__gap.sql
+check "gap between two added versions"      1 V1_3__new.sql V1_5__gap.sql
+check "same version claimed twice"          1 V1_3__new.sql V1_3__other.sql
+
+echo ""
+if [ "$failed" -eq 0 ]; then
+  echo "✅ migration-order: $passed checks passed"
+  exit 0
+fi
+echo "❌ migration-order: $failed of $((passed + failed)) checks failed"
+exit 1

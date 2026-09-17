@@ -1,0 +1,115 @@
+#!/bin/bash
+# Flyway runs with strict version ordering, so a migration numbered at or below
+# something master already deployed fails validation and blocks every deploy —
+# ECS rolls back while CI stays green, which is why this cannot be left to the
+# build. The number has to be checked against master, not against the branch it
+# was written on: a PR that merges first claims the numbers, and the branch that
+# picked them earlier is the one that breaks.
+#
+# Checks, against the migrations master carries:
+#   - nothing added at or below master's highest version
+#   - no version claimed twice
+#   - no gap above master's highest version (house style is contiguous)
+#
+#   migration-order [ref]     check ref (default HEAD) against origin/master
+#
+# MIGRATION_ORDER_BASE overrides the branch compared against.
+
+set -uo pipefail
+
+MIGRATION_DIR=src/main/resources/db/migration
+BASE_REF=${MIGRATION_ORDER_BASE:-origin/master}
+HEAD_REF=${1:-HEAD}
+
+if ! git rev-parse --verify --quiet "$BASE_REF^{commit}" >/dev/null 2>&1; then
+  if git fetch --no-tags --quiet origin master 2>/dev/null; then
+    BASE_REF=FETCH_HEAD
+  else
+    echo "migration-order: cannot resolve $BASE_REF, skipping" >&2
+    exit 0
+  fi
+fi
+
+# "V1_271__name.sql" -> "271 0 V1_271__name.sql"
+# "V1_270_1__name.sql" -> "270 1 V1_270_1__name.sql"  (the H2 compat migration
+# sits between 270 and 271, so it sorts on the same integer).
+migrations_of() {
+  git ls-tree -r --name-only "$1" -- "$MIGRATION_DIR" 2>/dev/null | awk '
+    {
+      name = $0
+      sub(/^.*\//, "", name)
+      if (name !~ /^V1_[0-9]+(_1)?__/) next
+      version = name
+      sub(/__.*$/, "", version)
+      sub(/^V1_/, "", version)
+      compat = 0
+      if (index(version, "_") > 0) {
+        split(version, parts, "_")
+        version = parts[1]
+        compat = parts[2]
+      }
+      print version, compat, name
+    }'
+}
+
+base_list=$(migrations_of "$BASE_REF")
+head_list=$(migrations_of "$HEAD_REF")
+
+[ -z "$head_list" ] && exit 0
+
+# Compare on the whole version, not just the integer: an H2 compat migration
+# (V1_{n-1}_1) deliberately sits on an integer master already carries, and
+# Flyway orders 1.271.1 after 1.271.
+sort_key() { echo $(($1 * 10 + $2)); }
+
+base_max=$(printf '%s\n' "$base_list" | awk 'NF {print $1}' | sort -n | tail -1)
+base_max=${base_max:-0}
+base_max_key=$(printf '%s\n' "$base_list" | awk 'NF {print $1 * 10 + $2}' | sort -n | tail -1)
+base_max_key=${base_max_key:-0}
+
+added=$(comm -13 <(printf '%s\n' "$base_list" | sort) <(printf '%s\n' "$head_list" | sort) | awk 'NF')
+[ -z "$added" ] && exit 0
+
+status=0
+report() {
+  if [ "$status" -eq 0 ]; then
+    echo ""
+    echo "❌ Migration version ordering:"
+  fi
+  status=1
+  echo "   $1"
+}
+
+# Nothing may land at or below what master already deployed.
+while read -r version compat name; do
+  if [ "$(sort_key "$version" "$compat")" -le "$base_max_key" ]; then
+    report "$name sorts at or below master's V1_$base_max — renumber it above."
+  fi
+done <<<"$added"
+
+# One version, one migration.
+for key in $(printf '%s\n%s\n' "$base_list" "$added" | awk 'NF {print $1"_"$2}' | sort | uniq -d); do
+  report "V1_${key%_*} is claimed by more than one migration:"
+  printf '%s\n%s\n' "$base_list" "$added" |
+    awk -v k="$key" 'NF && $1"_"$2 == k {print "     " $3}'
+done
+
+# Contiguous with master: a gap makes the next branch's renumbering ambiguous.
+# Compat migrations are exempt — they attach to an integer that already exists.
+expected=$((base_max + 1))
+for version in $(printf '%s\n' "$added" | awk 'NF && $2 == 0 && $1 > '"$base_max"' {print $1}' | sort -n -u); do
+  if [ "$version" -ne "$expected" ]; then
+    report "V1_$version leaves a gap — the next free version above V1_$base_max is V1_$expected."
+    break
+  fi
+  expected=$((version + 1))
+done
+
+if [ "$status" -ne 0 ]; then
+  echo ""
+  echo "   Renumber the files (and any reference to them), then re-run."
+  echo "   Re-check after every merge of master: a racing PR may have taken your numbers."
+  echo ""
+fi
+
+exit $status

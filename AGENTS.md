@@ -94,6 +94,7 @@ NAV cross-check: SEB execution `unit_price` vs `nav_report.market_price` for sam
 Flyway in `src/main/resources/db/migration/`. H2 compat migrations: `V1_{n-1}_1__.sql`.
 
 - **Strict version ordering everywhere — never enable `out-of-order`.** A migration numbered below an already-deployed version fails validation and blocks all deploys (ECS rolls back silently while CI stays green). Before merging, renumber your migrations above the current master max — and re-check after every merge to master, since a racing PR may have claimed your numbers (this happened with V1_198–V1_202: the PR that renumbered *to* V1_202 deployed first and stranded V1_198–V1_201).
+- **`.githooks/migration-order` enforces this** at `pre-push` and in the CircleCI `migration-order` job. CI is the load-bearing one: the race happens *after* you push, when a PR that merges first takes your numbers, and only a re-run against the new master can see it. It rejects a version at or below master's max, a version claimed twice, and a gap above master's max (house style is contiguous). H2 compat migrations are compared on the full version, so `V1_270_1` beside master's `V1_270` is accepted. `.githooks/migration-order-test` self-tests the checker.
 - **Explicit constraint names always** — H2 and PostgreSQL generate different auto-names
 - **Recreate tables** for complex schema changes (create new → migrate → drop old → rename)
 - **Standard SQL only** — must work on both H2 and PostgreSQL:
@@ -133,11 +134,21 @@ Prefer: `text` over `varchar` unless the length is a domain invariant (e.g., `va
 - **Prefer test slices** over `@SpringBootTest` — use `@WebMvcTest` for controllers, `@DataJpaTest` for repositories, etc. Only use `@SpringBootTest` when a slice won't cover the integration
 - Controller tests: `@WebMvcTest` + `@WithMockUser` + `@MockitoBean` (not `@MockBean`) + `.with(csrf())` + `@TestPropertySource` (not `ReflectionTestUtils`)
 
+### Checks and alerts
+
+A check that cannot fire is worse than no check: the digest reports it as verified, so nobody looks again. Before a new check ships, both of these hold.
+
+- **Drive it from real rows, not from stubs.** A unit test that stubs the repository proves a branch exists, not that the query can reach it. Every check reading the database gets an `*IT` that inserts real rows and asserts the severity that comes back. Two shapes have both shipped here: a filter on a column the writing path never populates matches nothing, so the check's input stays `0` while every test passes; and a comparison between two aggregations over the same column is bounded by the rounding they differ in, so it can never exceed its own tolerance. A unit test reaches a branch like that only by stubbing a value the query cannot produce — proving the branch exists rather than that anything can reach it.
+- **Name what fires it and what clears it, in the test names.** A finding with no path back to PASS is a permanent line in the digest. A check that runs for a fund it can never observe returns the same non-answer every period, in a state that can never clear — that is a static fact about the system, not a periodic finding, so return no finding at all.
+- **Ops noise is a defect, not a cosmetic issue.** Operators learn to skim a message that is mostly boilerplate, and the month it finally carries a real FAIL, nobody reads it.
+- **One entity's failure must not take the others down**, and a check that could not run says so rather than returning nothing — an empty result reads as "nothing wrong".
+
 ## Code Style
 
 ### Project-Specific Conventions
 - **Log/exception format**: `"Description: param1=value1, param2=value2"` — greppable
-- **No comments, no Javadoc** on implementation classes. Extract well-named methods instead
+- **No comments, no Javadoc** on implementation classes. Extract well-named methods instead. This binds hardest on *rationale* — the regulation behind a threshold, why a window opens where it does, why a branch is safe. The rationale is not deleted, it moves into the identifier: `SISEKORD_4_P_11_7_FIRST_ESCALATING_BREACH_DAY`, not a comment citing the rule above `ESCALATION_THRESHOLD_FALLBACK`. Applies to SQL and migrations too. Test names carry the narrative; a test needing a comment to say what it pins is misnamed
+- **No unused parameters.** An `@EventListener` that ignores its event names the type in the annotation instead: `@EventListener(RunLimitCheckRequested.class) void onLimitCheckRequested()`. The only exceptions are signatures a framework fixes — `RowMapper`'s `rowNum`, a parameter a SpEL cache key references (`key = "#person.representedPersonalCode"`), an interface being implemented. This is the most frequent automated review finding on our PRs: resolve it before merge rather than leaving the comment standing
 - **Static imports**: assertions, constants, collectors, enum values
 - **Immutability**: `final` fields and public API params; NOT local variables. Prefer `List.of()`, `Map.of()`, records, `@Builder`+`@Singular`, `@Value`
 - **Streams** over for-loops. Method references over lambdas when clearer

@@ -336,7 +336,13 @@ public class SavingFundPaymentRepository {
         .statusChangedAt(instant(rs, "status_changed_at"))
         .cancelledAt(instant(rs, "cancelled_at"))
         .returnReason(rs.getString("return_reason"))
+        .thirdPartyDeposit(nullableBoolean(rs, "third_party_deposit"))
         .build();
+  }
+
+  private @Nullable Boolean nullableBoolean(ResultSet rs, String column) throws SQLException {
+    var value = rs.getBoolean(column);
+    return rs.wasNull() ? null : value;
   }
 
   private @Nullable Instant instant(ResultSet rs, String column) throws SQLException {
@@ -393,13 +399,24 @@ public class SavingFundPaymentRepository {
   }
 
   public void attachParty(UUID paymentId, PartyId partyId) {
+    attachParty(paymentId, partyId, null);
+  }
+
+  public void attachParty(UUID paymentId, PartyId partyId, @Nullable Boolean thirdPartyDeposit) {
     var currentStatus = getAndLockCurrentStatus(paymentId);
     if (!Set.of(CREATED, RECEIVED).contains(currentStatus))
       throw new IllegalStateException(
           "Attaching party is not allowed when payment is " + currentStatus);
+    var parameters =
+        new MapSqlParameterSource()
+            .addValue("id", paymentId)
+            .addValue("party_type", partyId.type().name())
+            .addValue("party_code", partyId.code())
+            .addValue("third_party_deposit", thirdPartyDeposit);
     jdbcTemplate.update(
-        "UPDATE saving_fund_payment SET party_type=:party_type, party_code=:party_code WHERE id=:id",
-        Map.of("id", paymentId, "party_type", partyId.type().name(), "party_code", partyId.code()));
+        "UPDATE saving_fund_payment SET party_type=:party_type, party_code=:party_code,"
+            + " third_party_deposit=:third_party_deposit WHERE id=:id",
+        parameters);
   }
 
   public void attributeManually(UUID paymentId, PartyId partyId, boolean returnCancelled) {

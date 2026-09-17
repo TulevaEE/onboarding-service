@@ -23,6 +23,7 @@ import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
 import ee.tuleva.onboarding.savings.SavingsFundConfiguration;
 import ee.tuleva.onboarding.savings.SavingsFundOnboardingService;
+import ee.tuleva.onboarding.savings.fund.nav.NavCalendar;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestRepository;
 import java.math.BigDecimal;
@@ -48,6 +49,7 @@ public class SavingsFundTransactionService implements SavingsTransactions {
   private final SavingsFundConfiguration savingsFundConfiguration;
   private final RedemptionRequestRepository redemptionRequestRepository;
   private final SavingFundPaymentRepository savingFundPaymentRepository;
+  private final NavCalendar navCalendar;
 
   @Transactional
   @Override
@@ -178,7 +180,13 @@ public class SavingsFundTransactionService implements SavingsTransactions {
                 toNavScale(
                     require(ledgerTransaction.findNavPerUnit(), "navPerUnit", ledgerTransaction)));
 
-    ledgerTransaction.findNavDate().ifPresent(transaction::priceDate);
+    ledgerTransaction
+        .findNavDate()
+        .ifPresent(
+            navDate ->
+                transaction
+                    .navDate(navDate)
+                    .priceCalculationDate(navCalendar.calculationDateOf(navDate)));
 
     return transaction;
   }

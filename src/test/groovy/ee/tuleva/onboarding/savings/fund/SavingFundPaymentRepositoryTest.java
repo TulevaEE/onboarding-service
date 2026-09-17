@@ -283,6 +283,40 @@ class SavingFundPaymentRepositoryTest {
     assertThat(payments.getFirst().getPartyId()).isEqualTo(party);
   }
 
+  @Test
+  void attachParty_recordsTheThirdPartyDepositVerdict() {
+    var user = createUser();
+    var party = new PartyId(PERSON, user.getPersonalCode());
+
+    var id = repository.savePaymentData(createPayment().build());
+    updatePaymentStatus(id, RECEIVED);
+
+    repository.attachParty(id, party, true);
+
+    var payments = repository.findPaymentsWithStatus(RECEIVED);
+
+    assertThat(payments).hasSize(1);
+    assertThat(payments.getFirst().getPartyId()).isEqualTo(party);
+    assertThat(payments.getFirst().getThirdPartyDeposit()).isTrue();
+  }
+
+  @Test
+  void attachParty_withoutAVerdict_leavesTheThirdPartyDepositUndecided() {
+    var user = createUser();
+    var party = new PartyId(PERSON, user.getPersonalCode());
+
+    var id = repository.savePaymentData(createPayment().build());
+    updatePaymentStatus(id, RECEIVED);
+
+    repository.attachParty(id, party);
+
+    var payments = repository.findPaymentsWithStatus(RECEIVED);
+
+    assertThat(payments).hasSize(1);
+    assertThat(payments.getFirst().getPartyId()).isEqualTo(party);
+    assertThat(payments.getFirst().getThirdPartyDeposit()).isNull();
+  }
+
   @ParameterizedTest
   @EnumSource(
       value = Status.class,

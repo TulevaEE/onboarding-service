@@ -63,6 +63,19 @@ public class FundNavQueryService {
     return sumForLatestCalculationIncludingUnpublished(fundCode, navDate, ASSET_ACCOUNT_TYPES);
   }
 
+  // The published NAV the OCF must read. findLatestNavDateOnOrBefore does not filter on
+  // published_at, so pairing it with findPublishedCalculation silently yields nothing whenever the
+  // most recent calculation is still unpublished, even though an earlier published one exists.
+  public Optional<LocalDate> findLatestPublishedNavDateOnOrBefore(
+      String fundCode, LocalDate asOfDate) {
+    return navReportRepository.findLatestPublishedNavDateOnOrBefore(fundCode, asOfDate);
+  }
+
+  // The fund's first published NAV: how much of a trailing year it actually existed for.
+  public Optional<LocalDate> findEarliestPublishedNavDate(String fundCode) {
+    return navReportRepository.findEarliestPublishedNavDate(fundCode);
+  }
+
   public List<LocalDate> findPublishedNavDatesBetween(
       String fundCode, LocalDate from, LocalDate to) {
     return navReportRepository.findPublishedNavDatesBetween(fundCode, from, to);

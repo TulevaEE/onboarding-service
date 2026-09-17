@@ -168,6 +168,24 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
 
   @Query(
       """
+      SELECT MAX(row.navDate) FROM NavReportRow row
+      WHERE row.fundCode = :fundCode
+        AND row.navDate <= :asOfDate
+        AND row.publishedAt IS NOT NULL
+      """)
+  Optional<LocalDate> findLatestPublishedNavDateOnOrBefore(
+      @Param("fundCode") String fundCode, @Param("asOfDate") LocalDate asOfDate);
+
+  @Query(
+      """
+      SELECT MIN(row.navDate) FROM NavReportRow row
+      WHERE row.fundCode = :fundCode
+        AND row.publishedAt IS NOT NULL
+      """)
+  Optional<LocalDate> findEarliestPublishedNavDate(@Param("fundCode") String fundCode);
+
+  @Query(
+      """
       SELECT DISTINCT row.navDate FROM NavReportRow row
       WHERE row.fundCode = :fundCode
         AND row.navDate BETWEEN :from AND :to

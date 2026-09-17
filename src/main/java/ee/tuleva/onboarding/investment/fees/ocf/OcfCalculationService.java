@@ -124,7 +124,7 @@ public class OcfCalculationService {
       TulevaFund fund, LocalDate asOf, Map<String, BigDecimal> rateByIsin) {
     var calculation =
         fundNavQueryService
-            .findLatestNavDateOnOrBefore(fund.getCode(), asOf)
+            .findLatestPublishedNavDateOnOrBefore(fund.getCode(), asOf)
             .flatMap(
                 navDate -> fundNavQueryService.findPublishedCalculation(fund.getCode(), navDate))
             .orElse(null);
@@ -150,9 +150,11 @@ public class OcfCalculationService {
     if (!unrated.isEmpty()) {
       throw new MissingInstrumentRateException(fund, asOf, unrated);
     }
-    return lines.stream()
-        .map(line -> line.value().divide(aum, SCALE, HALF_UP).multiply(rateFor(line, rateByIsin)))
-        .reduce(ZERO, BigDecimal::add);
+    var weightedCost =
+        lines.stream()
+            .map(line -> line.value().multiply(rateFor(line, rateByIsin)))
+            .reduce(ZERO, BigDecimal::add);
+    return weightedCost.divide(aum, SCALE, HALF_UP);
   }
 
   private static List<String> unratedIsins(
@@ -175,7 +177,12 @@ public class OcfCalculationService {
     var navDates =
         fundNavQueryService.findPublishedNavDatesBetween(fund.getCode(), periodStart, monthEnd);
 
-    var effectivePeriodStart = navDates.isEmpty() ? periodStart : navDates.getFirst();
+    // Anchor on the fund's first published NAV, not on the earliest date this window happened to
+    // return. navDates.getFirst() treats a publishing gap as a shorter life: a single missing month
+    // would annualise by 365/335, and a window holding one date would annualise that day by 365.
+    var inception =
+        fundNavQueryService.findEarliestPublishedNavDate(fund.getCode()).orElse(periodStart);
+    var effectivePeriodStart = inception.isAfter(periodStart) ? inception : periodStart;
     var txnCosts =
         transactionExecutionRepository.sumCommissionsForFundAndPeriod(
             fund.getCode(),
@@ -206,6 +213,6 @@ public class OcfCalculationService {
         navDates.stream()
             .map(date -> fundNavQueryService.findAum(fund.getCode(), date))
             .reduce(ZERO, BigDecimal::add);
-    return total.divide(BigDecimal.valueOf(navDates.size()), 2, HALF_UP);
+    return total.divide(BigDecimal.valueOf(navDates.size()), SCALE, HALF_UP);
   }
 }

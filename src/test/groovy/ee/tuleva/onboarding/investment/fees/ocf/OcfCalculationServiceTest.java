@@ -74,7 +74,7 @@ class OcfCalculationServiceTest {
   }
 
   private void givenPublishedCalculation(TulevaFund fund, NavAccountLine... lines) {
-    given(fundNavQueryService.findLatestNavDateOnOrBefore(fund.getCode(), MONTH_END))
+    given(fundNavQueryService.findLatestPublishedNavDateOnOrBefore(fund.getCode(), MONTH_END))
         .willReturn(Optional.of(MONTH_END));
     given(fundNavQueryService.findPublishedCalculation(fund.getCode(), MONTH_END))
         .willReturn(Optional.of(new NavCalculation(Instant.EPOCH, List.of(lines))));
@@ -275,7 +275,7 @@ class OcfCalculationServiceTest {
   @Test
   void underlyingFundCostReturnsZeroWhenNoNavDate() {
     givenRate(new BigDecimal("0.0007"));
-    given(fundNavQueryService.findLatestNavDateOnOrBefore(TUK75.getCode(), MONTH_END))
+    given(fundNavQueryService.findLatestPublishedNavDateOnOrBefore(TUK75.getCode(), MONTH_END))
         .willReturn(Optional.empty());
 
     var cost = service.getUnderlyingFundCost(TUK75, MONTH_END);
@@ -286,7 +286,7 @@ class OcfCalculationServiceTest {
   @Test
   void underlyingFundCostReturnsZeroWhenTheCalculationWasNeverPublished() {
     givenRate(new BigDecimal("0.0007"));
-    given(fundNavQueryService.findLatestNavDateOnOrBefore(TUK75.getCode(), MONTH_END))
+    given(fundNavQueryService.findLatestPublishedNavDateOnOrBefore(TUK75.getCode(), MONTH_END))
         .willReturn(Optional.of(MONTH_END));
     given(fundNavQueryService.findPublishedCalculation(TUK75.getCode(), MONTH_END))
         .willReturn(Optional.empty());
@@ -326,7 +326,7 @@ class OcfCalculationServiceTest {
                     .isin("XX0000000002")
                     .netOcf(new BigDecimal("0.0007"))
                     .build()));
-    given(fundNavQueryService.findLatestNavDateOnOrBefore(TKF100.getCode(), MONTH_END))
+    given(fundNavQueryService.findLatestPublishedNavDateOnOrBefore(TKF100.getCode(), MONTH_END))
         .willReturn(Optional.empty());
 
     var cost = service.getUnderlyingFundCost(TKF100, MONTH_END);
@@ -374,8 +374,10 @@ class OcfCalculationServiceTest {
   }
 
   @Test
-  void transactionCostWindowStartsAtEarliestAvailableNavDate() {
+  void transactionCostWindowStartsAtTheFundsFirstPublishedNav() {
     var firstNavDate = MONTH_END.minusMonths(3);
+    given(fundNavQueryService.findEarliestPublishedNavDate(TUK75.getCode()))
+        .willReturn(Optional.of(firstNavDate));
     given(
             fundNavQueryService.findPublishedNavDatesBetween(
                 TUK75.getCode(), MONTH_END.minusYears(1).plusDays(1), MONTH_END))
@@ -401,6 +403,8 @@ class OcfCalculationServiceTest {
   @Test
   void aShortHistoryIsAnnualisedSoItCanSitBesideTheAnnualComponents() {
     var firstNavDate = MONTH_END.minusMonths(3);
+    given(fundNavQueryService.findEarliestPublishedNavDate(TUK75.getCode()))
+        .willReturn(Optional.of(firstNavDate));
     given(
             fundNavQueryService.findPublishedNavDatesBetween(
                 TUK75.getCode(), MONTH_END.minusYears(1).plusDays(1), MONTH_END))
@@ -417,6 +421,27 @@ class OcfCalculationServiceTest {
     // 91 days covered. The period ratio is 1000 / 100M = 0.00001; left unscaled it would be added
     // to three components that are already annual rates, understating the fund's OCF by 91/365.
     assertThat(cost).isEqualByComparingTo(new BigDecimal("0.00004011"));
+  }
+
+  @Test
+  void aPublishingGapDoesNotShortenTheWindowForAFundThatExistedThroughout() {
+    var periodStart = MONTH_END.minusYears(1).plusDays(1);
+    given(fundNavQueryService.findEarliestPublishedNavDate(TUK75.getCode()))
+        .willReturn(Optional.of(MONTH_END.minusYears(5)));
+    // Only one published NAV survives in the window. Anchoring on it would annualise a single
+    // day's trading by 365; the fund's inception says it lived the whole year.
+    given(fundNavQueryService.findPublishedNavDatesBetween(TUK75.getCode(), periodStart, MONTH_END))
+        .willReturn(List.of(MONTH_END));
+    given(
+            transactionExecutionRepository.sumCommissionsForFundAndPeriod(
+                eq(TUK75.getCode()), any(), any()))
+        .willReturn(new BigDecimal("1000"));
+    given(fundNavQueryService.findAum(eq(TUK75.getCode()), any()))
+        .willReturn(new BigDecimal("100000000"));
+
+    var cost = service.getTransactionCostRate(TUK75, MONTH_END);
+
+    assertThat(cost).isEqualByComparingTo(new BigDecimal("0.00001"));
   }
 
   @Test

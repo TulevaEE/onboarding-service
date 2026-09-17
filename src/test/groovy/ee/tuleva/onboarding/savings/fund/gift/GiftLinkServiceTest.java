@@ -64,7 +64,8 @@ class GiftLinkServiceTest {
   @Test
   void theFirstAskMintsALinkNobodyCouldGuess() {
     given(parentChildLinks.isActiveRepresentation(PARENT, CHILD)).willReturn(true);
-    given(giftLinks.findByRecipientPersonalCodeAndClosedAtIsNull(CHILD)).willReturn(Optional.empty());
+    given(giftLinks.findByRecipientPersonalCodeAndClosedAtIsNull(CHILD))
+        .willReturn(Optional.empty());
     given(giftLinks.save(any())).willAnswer(saved -> saved.getArgument(0));
 
     var minted = service.openLinkFor(PARENT, CHILD);

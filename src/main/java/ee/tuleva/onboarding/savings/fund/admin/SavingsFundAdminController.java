@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.savings.fund.nav.NavCalculationService;
 import ee.tuleva.onboarding.savings.fund.nav.NavPublisher;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionBatchJob;
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionReviewService;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
@@ -53,7 +54,7 @@ public class SavingsFundAdminController {
   @PostMapping("/calculate-nav")
   public NavCalculationResult calculateNav(
       @RequestHeader("X-Admin-Token") String token,
-      @RequestParam(defaultValue = "TKF100") String fundCode,
+      @RequestParam("fundCode") TulevaFund fund,
       @RequestParam(required = false) @Nullable @DateTimeFormat(iso = DATE) LocalDate date,
       @RequestParam(defaultValue = "false") boolean publish) {
 
@@ -63,11 +64,11 @@ public class SavingsFundAdminController {
 
     log.info(
         "Admin triggered NAV calculation: fund={}, date={}, publish={}",
-        fundCode,
+        fund,
         calculationDate,
         publish);
 
-    NavCalculationResult result = navCalculationService.calculate(fundCode, calculationDate);
+    NavCalculationResult result = navCalculationService.calculate(fund, calculationDate);
 
     if (publish) {
       navPublisher.publish(result);

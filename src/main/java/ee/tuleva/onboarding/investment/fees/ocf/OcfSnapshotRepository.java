@@ -5,10 +5,13 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.core.simple.JdbcClient.StatementSpec;
 import org.springframework.stereotype.Repository;
 
+@Slf4j
 @Repository
 @RequiredArgsConstructor
 public class OcfSnapshotRepository {
@@ -16,8 +19,23 @@ public class OcfSnapshotRepository {
   private final JdbcClient jdbcClient;
 
   public void save(OcfSnapshot snapshot) {
-    if (updateWorkingVersion(snapshot) == 0) {
+    if (updateWorkingVersion(snapshot) > 0) {
+      return;
+    }
+    try {
       insertNextVersion(snapshot);
+    } catch (DuplicateKeyException e) {
+      // Two calculations for the same fund and month read the same MAX(version) and picked the same
+      // next number; the unique constraint let exactly one through. The winner's row is now the
+      // working version, so the loser writes into it instead of racing for a number again — both
+      // runs computed the same month, so overwriting is the intended outcome, not a lost update.
+      if (updateWorkingVersion(snapshot) == 0) {
+        throw e;
+      }
+      log.info(
+          "Concurrent OCF snapshot insert for fund={}, month={}; wrote into the winning version",
+          snapshot.fundCode(),
+          snapshot.snapshotMonth());
     }
   }
 
@@ -104,20 +122,32 @@ public class OcfSnapshotRepository {
         .param("txnNavDates", audit.txnNavDates());
   }
 
-  public void publish(String fundCode, LocalDate snapshotMonth, String publishedIn) {
-    jdbcClient
-        .sql(
-            """
-            UPDATE investment_ocf_snapshot
-            SET published_at = CURRENT_TIMESTAMP, published_in = :publishedIn
-            WHERE fund_code = :fundCode
-              AND snapshot_month = :snapshotMonth
-              AND published_at IS NULL
-            """)
-        .param("fundCode", fundCode)
-        .param("snapshotMonth", snapshotMonth)
-        .param("publishedIn", publishedIn)
-        .update();
+  /**
+   * Marks the working version as published. Returns false when there was nothing to publish — no
+   * snapshot for that month, or its latest version has already gone out somewhere.
+   */
+  public boolean publish(String fundCode, LocalDate snapshotMonth, String publishedIn) {
+    var published =
+        jdbcClient
+            .sql(
+                """
+                UPDATE investment_ocf_snapshot
+                SET published_at = CURRENT_TIMESTAMP, published_in = :publishedIn
+                WHERE fund_code = :fundCode
+                  AND snapshot_month = :snapshotMonth
+                  AND published_at IS NULL
+                """)
+            .param("fundCode", fundCode)
+            .param("snapshotMonth", snapshotMonth)
+            .param("publishedIn", publishedIn)
+            .update();
+    if (published == 0) {
+      log.warn(
+          "Nothing to publish: fund={}, month={} has no unpublished snapshot",
+          fundCode,
+          snapshotMonth);
+    }
+    return published > 0;
   }
 
   public Optional<OcfSnapshot> findByFundAndMonth(String fundCode, LocalDate snapshotMonth) {

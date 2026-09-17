@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.party.ParentChildLinkService;
@@ -18,7 +17,6 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -79,21 +77,8 @@ class GiftLinkServiceTest {
     assertThat(minted.getToken()).hasSizeGreaterThanOrEqualTo(25).matches("[0-9A-HJKMNP-TV-Z]+");
   }
 
-  @Test
-  void replacingClosesTheOldLinkAndHandsOutADifferentToken() {
-    var existing = aLink("OLDTOKEN");
-    given(giftLinks.findById(existing.getId())).willReturn(Optional.of(existing));
-    given(parentChildLinks.isActiveRepresentation(PARENT, CHILD)).willReturn(true);
-    given(giftLinks.save(any())).willAnswer(saved -> saved.getArgument(0));
-
-    var replacement = service.replaceLink(PARENT, existing.getId());
-
-    var saved = ArgumentCaptor.forClass(GiftLink.class);
-    verify(giftLinks, times(2)).save(saved.capture());
-    assertThat(saved.getAllValues().getFirst().getClosedAt()).isEqualTo(NOW);
-    assertThat(replacement.getToken()).isNotEqualTo("OLDTOKEN");
-    assertThat(replacement.isOpen()).isTrue();
-  }
+  // Replacing a link is covered by GiftLinkServiceDatabaseTest instead: against mocks it passed
+  // while the real unique constraint rejected it.
 
   @Test
   void aParentWhoLostRepresentationCannotReplaceTheLinkTheyOnceMade() {

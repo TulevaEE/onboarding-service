@@ -38,7 +38,9 @@ public class GiftLinkService {
             .orElseThrow(() -> new NoSuchElementException("No such gift link: id=" + id));
     requireRepresentation(parentPersonalCode, link.getRecipientPersonalCode());
     link.close(clock.instant());
-    giftLinks.save(link);
+    // Flushed before the replacement is minted: Hibernate runs inserts before updates, so the new
+    // row would otherwise claim open_for_recipient while the old row still holds it.
+    giftLinks.saveAndFlush(link);
     return mint(parentPersonalCode, link.getRecipientPersonalCode());
   }
 

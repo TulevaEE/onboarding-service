@@ -4,13 +4,13 @@ import static ee.tuleva.onboarding.investment.fees.FeeType.DEPOT;
 import static ee.tuleva.onboarding.investment.fees.FeeType.MANAGEMENT;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
+import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.investment.fees.DepotRateResolver;
 import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
 import ee.tuleva.onboarding.investment.fees.FeeRate;
 import ee.tuleva.onboarding.investment.fees.FeeRateRepository;
 import ee.tuleva.onboarding.investment.fees.InstrumentFeeRepository;
-import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
 import ee.tuleva.onboarding.savings.fund.nav.NavAccountLine;
@@ -20,6 +20,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -33,13 +34,14 @@ import org.springframework.stereotype.Service;
 public class OcfCalculationService {
 
   private static final int SCALE = 8;
+  private static final BigDecimal DAYS_IN_YEAR = BigDecimal.valueOf(365);
+  private static final String UNIDENTIFIED_HOLDING = "<no isin>";
   private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
 
   private final FeeRateRepository feeRateRepository;
   private final FeeChargedToFundPolicy feeChargedToFundPolicy;
   private final DepotRateResolver depotRateResolver;
   private final InstrumentFeeRepository instrumentFeeRepository;
-  private final ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
   private final TransactionExecutionRepository transactionExecutionRepository;
   private final OcfSnapshotRepository ocfSnapshotRepository;
   private final FundNavQueryService fundNavQueryService;
@@ -118,21 +120,7 @@ public class OcfCalculationService {
     var rateByIsin =
         rates.stream().collect(Collectors.toMap(r -> r.isin(), r -> r.netOcf(), (a, b) -> a));
 
-    if (fund == TulevaFund.TKF100) {
-      return computeFromModelPortfolio(fund, asOf, rateByIsin);
-    }
     return computeFromPublishedNav(fund, asOf, rateByIsin);
-  }
-
-  private BigDecimal computeFromModelPortfolio(
-      TulevaFund fund, LocalDate asOf, Map<String, BigDecimal> rateByIsin) {
-    var allocations = modelPortfolioAllocationRepository.findLatestByFundAsOf(fund, asOf);
-    if (allocations.isEmpty()) {
-      return ZERO;
-    }
-    return allocations.stream()
-        .map(a -> a.getWeight().multiply(rateByIsin.getOrDefault(a.getIsin(), ZERO)))
-        .reduce(ZERO, BigDecimal::add);
   }
 
   private BigDecimal computeFromPublishedNav(
@@ -150,14 +138,29 @@ public class OcfCalculationService {
     if (aum.signum() <= 0) {
       return ZERO;
     }
-    return calculation.securityLines().stream()
+    var lines = calculation.securityLines();
+    var unrated = unratedIsins(lines, rateByIsin);
+    if (!unrated.isEmpty()) {
+      throw new MissingInstrumentRateException(fund, asOf, unrated);
+    }
+    return lines.stream()
         .map(line -> line.value().divide(aum, SCALE, HALF_UP).multiply(rateFor(line, rateByIsin)))
         .reduce(ZERO, BigDecimal::add);
   }
 
+  private static List<String> unratedIsins(
+      List<NavAccountLine> lines, Map<String, BigDecimal> rateByIsin) {
+    return lines.stream()
+        .map(NavAccountLine::accountId)
+        .map(isin -> isin == null ? UNIDENTIFIED_HOLDING : isin)
+        .filter(isin -> !rateByIsin.containsKey(isin))
+        .distinct()
+        .toList();
+  }
+
   private static BigDecimal rateFor(NavAccountLine line, Map<String, BigDecimal> rateByIsin) {
-    var isin = line.accountId();
-    return isin == null ? ZERO : rateByIsin.getOrDefault(isin, ZERO);
+    return requireNonNull(
+        rateByIsin.get(line.accountId()), "Unrated holding passed the guard: " + line.accountId());
   }
 
   BigDecimal getTransactionCostRate(TulevaFund fund, LocalDate monthEnd) {
@@ -179,7 +182,13 @@ public class OcfCalculationService {
     if (avgAum.signum() <= 0) {
       return ZERO;
     }
-    return txnCosts.divide(avgAum, SCALE, HALF_UP);
+    var coveredDays = ChronoUnit.DAYS.between(effectivePeriodStart, monthEnd) + 1;
+    if (coveredDays <= 0) {
+      return ZERO;
+    }
+    return txnCosts
+        .multiply(DAYS_IN_YEAR)
+        .divide(avgAum.multiply(BigDecimal.valueOf(coveredDays)), SCALE, HALF_UP);
   }
 
   private BigDecimal averageAum(TulevaFund fund, List<LocalDate> navDates) {

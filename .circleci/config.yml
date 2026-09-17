@@ -184,6 +184,21 @@ jobs:
             BASE=$(git merge-base FETCH_HEAD HEAD)
             git diff "$BASE"..HEAD | .githooks/pii-scan
 
+  migration-order:
+    docker:
+      - image: cimg/base:stable
+    resource_class: small
+    steps:
+      - checkout
+      - run:
+          name: Self-test the checker
+          command: .githooks/migration-order-test
+      - run:
+          name: Check migration versions against master
+          command: |
+            git fetch --no-tags origin master
+            MIGRATION_ORDER_BASE=FETCH_HEAD .githooks/migration-order HEAD
+
   flag-for-additional-review:
     docker:
       - image: cimg/base:stable
@@ -372,6 +387,8 @@ workflows:
             - codecov
 
       - pii-scan
+
+      - migration-order
 
       - emails-build
 

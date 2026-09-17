@@ -9,6 +9,7 @@ HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 UNBORN=0000000000000000000000000000000000000000
 DEFAULT_BRANCH=origin/master
 
+pii_status=0
 status=0
 while read -r _local_ref local_sha _remote_ref remote_sha; do
   [ "$local_sha" = "$UNBORN" ] && continue
@@ -32,13 +33,18 @@ while read -r _local_ref local_sha _remote_ref remote_sha; do
   PII_IBAN_ALLOW_SOURCE=$(git show "$local_sha:.githooks/pii-iban-allow" 2>/dev/null || true)
   PII_IDCODE_ALLOW_SOURCE=$(git show "$local_sha:.githooks/pii-idcode-allow" 2>/dev/null || true)
   export PII_IBAN_ALLOW_SOURCE PII_IDCODE_ALLOW_SOURCE
-  git diff "$base..$local_sha" 2>/dev/null | "$HOOK_DIR/pii-scan" || status=1
+  git diff "$base..$local_sha" 2>/dev/null | "$HOOK_DIR/pii-scan" || pii_status=1
+
+  # Cheap here, expensive later: a migration numbered into master's range passes
+  # CI and only fails at deploy time, with ECS rolling back silently.
+  "$HOOK_DIR/migration-order" "$local_sha" || status=1
 done
 
-if [ "$status" -ne 0 ]; then
+if [ "$pii_status" -ne 0 ]; then
   echo "   Push aborted. Amend the commits so the data never reaches GitHub;"
   echo "   pushing first and removing later leaves it in the public history."
   echo ""
+  status=1
 fi
 
 exit $status

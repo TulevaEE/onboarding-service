@@ -44,6 +44,8 @@ class OcfSnapshotRepositoryTest {
         BigDecimal.ZERO,
         BigDecimal.ZERO,
         BigDecimal.ZERO,
+        RebateBasis.NET,
+        BigDecimal.ZERO,
         new BigDecimal(totalOcf),
         true,
         null,
@@ -122,6 +124,8 @@ class OcfSnapshotRepositoryTest {
             BigDecimal.ZERO,
             BigDecimal.ZERO,
             BigDecimal.ZERO,
+            RebateBasis.NET,
+            BigDecimal.ZERO,
             BigDecimal.ZERO,
             false,
             "{\"unresolvedIsins\":[\"XX0000000001\"]}",
@@ -131,6 +135,40 @@ class OcfSnapshotRepositoryTest {
 
     assertThat(found.complete()).isFalse();
     assertThat(found.checks()).contains("XX0000000001");
+  }
+
+  @Test
+  void bothRebateBasesAndTheChosenOneSurviveTheRoundTrip() {
+    repository.save(
+        OcfSnapshot.computed(
+            "TUK75",
+            APRIL,
+            BigDecimal.ZERO,
+            BigDecimal.ZERO,
+            new BigDecimal("0.00200000"),
+            new BigDecimal("0.00150000"),
+            RebateBasis.NET,
+            BigDecimal.ZERO,
+            new BigDecimal("0.00150000"),
+            true,
+            null,
+            NO_AUDIT));
+
+    var found = repository.findByFundAndMonth("TUK75", APRIL).orElseThrow();
+
+    assertThat(found.underlyingFundCostGross()).isEqualByComparingTo(new BigDecimal("0.002"));
+    assertThat(found.underlyingFundCostNet()).isEqualByComparingTo(new BigDecimal("0.0015"));
+    assertThat(found.rebateBasis()).isEqualTo(RebateBasis.NET);
+    assertThat(found.underlyingFundCost()).isEqualByComparingTo(new BigDecimal("0.0015"));
+  }
+
+  @Test
+  void aRowSaysWhichMethodologyProducedIt() {
+    repository.save(snapshot(APRIL, "0.00340000"));
+
+    var found = repository.findByFundAndMonth("TUK75", APRIL).orElseThrow();
+
+    assertThat(found.methodology()).isEqualTo(OcfMethodology.EX_ANTE_NET_ASSETS_V1);
   }
 
   @Test

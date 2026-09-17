@@ -175,6 +175,71 @@ class OcfCalculationServiceTest {
   }
 
   @Test
+  void underlyingFundCostIsKeptOnBothTheGrossAndTheNetRebateBasis() {
+    var fund = TUK75;
+    setupManagementFee(fund, ZERO);
+    setupDepotFee(fund, ZERO);
+    setupNoTransactionCosts(fund);
+
+    given(instrumentFeeRepository.findAllValidRates(MONTH_END))
+        .willReturn(
+            List.of(
+                InstrumentFee.builder()
+                    .isin(ISIN)
+                    .publishedOcf(new BigDecimal("0.0020"))
+                    .rebateRate(new BigDecimal("0.0005"))
+                    .netOcf(new BigDecimal("0.0015"))
+                    .build()));
+    givenPublishedCalculation(
+        fund,
+        securityLine(ISIN, new BigDecimal("100000000")),
+        unitsLine(new BigDecimal("100000000")));
+
+    var result = service.calculateOcf(fund, MONTH);
+
+    assertThat(result.underlyingFundCostGross()).isEqualByComparingTo(new BigDecimal("0.0020"));
+    assertThat(result.underlyingFundCostNet()).isEqualByComparingTo(new BigDecimal("0.0015"));
+    assertThat(result.rebateBasis()).isEqualTo(RebateBasis.NET);
+    assertThat(result.underlyingFundCost()).isEqualByComparingTo(new BigDecimal("0.0015"));
+  }
+
+  @Test
+  void aSnapshotNamesTheMethodologyThatProducedIt() {
+    var fund = TUK75;
+    setupManagementFee(fund, ZERO);
+    setupDepotFee(fund, ZERO);
+    setupNoTransactionCosts(fund);
+    setupNoInstrumentFees();
+    givenPublishedCalculation(fund, unitsLine(new BigDecimal("100000000")));
+
+    var result = service.calculateOcf(fund, MONTH);
+
+    assertThat(result.methodology()).isEqualTo(OcfMethodology.EX_ANTE_NET_ASSETS_V1);
+  }
+
+  @Test
+  void aSnapshotAssertsTheCostCategoriesItLeavesOut() {
+    var fund = TUK75;
+    setupManagementFee(fund, ZERO);
+    setupDepotFee(fund, ZERO);
+    setupNoTransactionCosts(fund);
+    setupNoInstrumentFees();
+    givenPublishedCalculation(fund, unitsLine(new BigDecimal("100000000")));
+
+    var result = service.calculateOcf(fund, MONTH);
+
+    // CESR/10-674 p 5 leaves these out of the ongoing charges figure. Their absence is an
+    // assertion, not an accident, so the snapshot says so rather than staying silent.
+    assertThat(result.checks())
+        .contains("ENTRY_CHARGES")
+        .contains("EXIT_CHARGES")
+        .contains("PERFORMANCE_FEES")
+        .contains("BORROWING_INTEREST")
+        .contains("DERIVATIVE_HOLDING_COSTS")
+        .contains("SOFT_COMMISSIONS");
+  }
+
+  @Test
   void transactionCostDividesByAverageNavAndNotBySecuritiesAlone() {
     var fund = TUK75;
     // Spans the whole trailing year, so annualisation is a no-op and this pins the denominator
@@ -541,7 +606,11 @@ class OcfCalculationServiceTest {
     given(rs.getDate("snapshot_month")).willReturn(Date.valueOf("2026-04-01"));
     given(rs.getBigDecimal("management_fee_rate")).willReturn(new BigDecimal("0.0034"));
     given(rs.getBigDecimal("depot_fee_rate")).willReturn(new BigDecimal("0.0010"));
+    given(rs.getString("methodology")).willReturn("EX_ANTE_NET_ASSETS_V1");
+    given(rs.getString("rebate_basis")).willReturn("NET");
     given(rs.getBigDecimal("underlying_fund_cost")).willReturn(new BigDecimal("0.0007"));
+    given(rs.getBigDecimal("underlying_fund_cost_gross")).willReturn(new BigDecimal("0.0009"));
+    given(rs.getBigDecimal("underlying_fund_cost_net")).willReturn(new BigDecimal("0.0007"));
     given(rs.getBigDecimal("transaction_cost_rate")).willReturn(new BigDecimal("0.0002"));
     given(rs.getBigDecimal("total_ocf")).willReturn(new BigDecimal("0.0053"));
 
@@ -553,6 +622,9 @@ class OcfCalculationServiceTest {
     assertThat(snapshot.managementFeeRate()).isEqualByComparingTo(new BigDecimal("0.0034"));
     assertThat(snapshot.depotFeeRate()).isEqualByComparingTo(new BigDecimal("0.0010"));
     assertThat(snapshot.underlyingFundCost()).isEqualByComparingTo(new BigDecimal("0.0007"));
+    assertThat(snapshot.underlyingFundCostGross()).isEqualByComparingTo(new BigDecimal("0.0009"));
+    assertThat(snapshot.rebateBasis()).isEqualTo(RebateBasis.NET);
+    assertThat(snapshot.methodology()).isEqualTo(OcfMethodology.EX_ANTE_NET_ASSETS_V1);
     assertThat(snapshot.transactionCostRate()).isEqualByComparingTo(new BigDecimal("0.0002"));
     assertThat(snapshot.totalOcf()).isEqualByComparingTo(new BigDecimal("0.0053"));
   }
@@ -569,7 +641,7 @@ class OcfCalculationServiceTest {
     var snapshot = service.calculateOcf(TUK75, MONTH);
 
     assertThat(snapshot.complete()).isTrue();
-    assertThat(snapshot.checks()).isEqualTo("{\"gaps\":[]}");
+    assertThat(snapshot.checks()).contains("\"gaps\":[]");
     assertThat(snapshot.audit())
         .isEqualTo(
             new OcfAudit(
@@ -600,7 +672,7 @@ class OcfCalculationServiceTest {
     var snapshot = service.calculateOcf(TUK75, MONTH);
 
     assertThat(snapshot.complete()).isFalse();
-    assertThat(snapshot.checks()).isEqualTo("{\"gaps\":[\"MANAGEMENT_FEE_RATE_MISSING\"]}");
+    assertThat(snapshot.checks()).contains("\"gaps\":[\"MANAGEMENT_FEE_RATE_MISSING\"]");
   }
 
   @Test
@@ -615,7 +687,7 @@ class OcfCalculationServiceTest {
     var snapshot = service.calculateOcf(TUK75, MONTH);
 
     assertThat(snapshot.complete()).isFalse();
-    assertThat(snapshot.checks()).isEqualTo("{\"gaps\":[\"DEPOT_FEE_RATE_MISSING\"]}");
+    assertThat(snapshot.checks()).contains("\"gaps\":[\"DEPOT_FEE_RATE_MISSING\"]");
   }
 
   @Test
@@ -645,7 +717,7 @@ class OcfCalculationServiceTest {
     var snapshot = service.calculateOcf(TUK75, MONTH);
 
     assertThat(snapshot.complete()).isFalse();
-    assertThat(snapshot.checks()).isEqualTo("{\"gaps\":[\"NO_PUBLISHED_NAV_CALCULATION\"]}");
+    assertThat(snapshot.checks()).contains("\"gaps\":[\"NO_PUBLISHED_NAV_CALCULATION\"]");
     assertThat(snapshot.underlyingFundCost()).isEqualByComparingTo(ZERO);
   }
 
@@ -666,8 +738,7 @@ class OcfCalculationServiceTest {
     var snapshot = service.calculateOcf(TUK75, MONTH);
 
     assertThat(snapshot.complete()).isFalse();
-    assertThat(snapshot.checks())
-        .isEqualTo("{\"gaps\":[\"TRANSACTION_COSTS_WITHOUT_AVERAGE_AUM\"]}");
+    assertThat(snapshot.checks()).contains("\"gaps\":[\"TRANSACTION_COSTS_WITHOUT_AVERAGE_AUM\"]");
   }
 
   @Test

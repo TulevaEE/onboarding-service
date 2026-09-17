@@ -47,6 +47,10 @@ public class OcfSnapshotRepository {
                   management_fee_rate = :managementFeeRate,
                   depot_fee_rate = :depotFeeRate,
                   underlying_fund_cost = :underlyingFundCost,
+                  underlying_fund_cost_gross = :underlyingFundCostGross,
+                  underlying_fund_cost_net = :underlyingFundCostNet,
+                  rebate_basis = :rebateBasis,
+                  methodology = :methodology,
                   transaction_cost_rate = :transactionCostRate,
                   total_ocf = :totalOcf,
                   complete = :complete,
@@ -78,13 +82,17 @@ public class OcfSnapshotRepository {
                 """
                 INSERT INTO investment_ocf_snapshot
                   (fund_code, snapshot_month, version, management_fee_rate, depot_fee_rate,
-                   underlying_fund_cost, transaction_cost_rate, total_ocf, complete, checks,
+                   underlying_fund_cost, underlying_fund_cost_gross, underlying_fund_cost_net,
+                   rebate_basis, methodology,
+                   transaction_cost_rate, total_ocf, complete, checks,
                    nav_date, nav_calculation_id, assets_under_management, management_fee_rate_id,
                    depot_charged_to_fund, depot_tier_nav_date, depot_tier_basis,
                    txn_window_start, txn_window_end, txn_commissions, txn_average_aum,
                    txn_nav_dates)
                 SELECT :fundCode, :snapshotMonth, COALESCE(MAX(version), 0) + 1,
                        :managementFeeRate, :depotFeeRate, :underlyingFundCost,
+                       :underlyingFundCostGross, :underlyingFundCostNet, :rebateBasis,
+                       :methodology,
                        :transactionCostRate, :totalOcf, :complete, :checks,
                        :navDate, :navCalculationId, :assetsUnderManagement, :managementFeeRateId,
                        :depotChargedToFund, :depotTierNavDate, :depotTierBasis,
@@ -104,6 +112,10 @@ public class OcfSnapshotRepository {
         .param("managementFeeRate", snapshot.managementFeeRate())
         .param("depotFeeRate", snapshot.depotFeeRate())
         .param("underlyingFundCost", snapshot.underlyingFundCost())
+        .param("underlyingFundCostGross", snapshot.underlyingFundCostGross())
+        .param("underlyingFundCostNet", snapshot.underlyingFundCostNet())
+        .param("rebateBasis", snapshot.rebateBasis().name())
+        .param("methodology", snapshot.methodology().name())
         .param("transactionCostRate", snapshot.transactionCostRate())
         .param("totalOcf", snapshot.totalOcf())
         .param("complete", snapshot.complete())

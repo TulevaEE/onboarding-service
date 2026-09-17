@@ -437,6 +437,8 @@ class InvestmentAdminControllerTest {
             new BigDecimal("0.00340000"),
             new BigDecimal("0.00100000"),
             new BigDecimal("0.00070000"),
+            new BigDecimal("0.00070000"),
+            ee.tuleva.onboarding.investment.fees.ocf.RebateBasis.NET,
             new BigDecimal("0.00020000"),
             new BigDecimal("0.00530000"),
             false,

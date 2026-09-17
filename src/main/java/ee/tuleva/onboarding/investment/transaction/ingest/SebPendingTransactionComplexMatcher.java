@@ -21,6 +21,7 @@ class SebPendingTransactionComplexMatcher {
   private final TransactionExecutionRepository executionRepository;
   private final SebClientNameToFundResolver fundResolver;
   private final QuantityAmountValidator quantityAmountValidator;
+  private final ReportedQuantityNormalizer quantityNormalizer;
 
   Optional<TransactionOrder> match(
       SebPendingTransactionRow row, TransactionMatchingProperties properties) {
@@ -107,9 +108,11 @@ class SebPendingTransactionComplexMatcher {
       SebPendingTransactionRow row,
       TransactionMatchingProperties properties) {
     List<TransactionExecution> executions = executionRepository.findAllByOrderId(order.getId());
+    SebPendingTransactionRow normalized = quantityNormalizer.normalize(order, row, executions);
     return executions.isEmpty()
-        ? quantityAmountValidator.withinTolerance(order, row, properties)
-        : quantityAmountValidator.withinResidualTolerance(order, row, executions, properties);
+        ? quantityAmountValidator.withinTolerance(order, normalized, properties)
+        : quantityAmountValidator.withinResidualTolerance(
+            order, normalized, executions, properties);
   }
 
   private boolean withinResidualAwareNearMiss(
@@ -117,8 +120,9 @@ class SebPendingTransactionComplexMatcher {
       SebPendingTransactionRow row,
       TransactionMatchingProperties properties) {
     List<TransactionExecution> executions = executionRepository.findAllByOrderId(order.getId());
+    SebPendingTransactionRow normalized = quantityNormalizer.normalize(order, row, executions);
     return executions.isEmpty()
-        ? quantityAmountValidator.withinNearMiss(order, row, properties)
-        : quantityAmountValidator.withinResidualNearMiss(order, row, executions, properties);
+        ? quantityAmountValidator.withinNearMiss(order, normalized, properties)
+        : quantityAmountValidator.withinResidualNearMiss(order, normalized, executions, properties);
   }
 }

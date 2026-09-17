@@ -114,9 +114,6 @@ public class OcfCalculationService {
 
   BigDecimal getUnderlyingFundCost(TulevaFund fund, LocalDate asOf) {
     var rates = instrumentFeeRepository.findAllValidRates(asOf);
-    if (rates.isEmpty()) {
-      return ZERO;
-    }
     var rateByIsin =
         rates.stream().collect(Collectors.toMap(r -> r.isin(), r -> r.netOcf(), (a, b) -> a));
 
@@ -132,10 +129,20 @@ public class OcfCalculationService {
                 navDate -> fundNavQueryService.findPublishedCalculation(fund.getCode(), navDate))
             .orElse(null);
     if (calculation == null) {
+      log.warn(
+          "No published NAV calculation, underlying fund cost resolves to zero: fund={}, asOf={}",
+          fund.getCode(),
+          asOf);
       return ZERO;
     }
     var aum = calculation.assetsUnderManagement();
     if (aum.signum() <= 0) {
+      log.warn(
+          "Published NAV has no positive AUM, underlying fund cost resolves to zero: fund={},"
+              + " asOf={}, aum={}",
+          fund.getCode(),
+          asOf,
+          aum);
       return ZERO;
     }
     var lines = calculation.securityLines();

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.party.ParentChildLinkService;
@@ -24,8 +25,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class GiftLinkServiceTest {
 
-  private static final String PARENT = "38812121212";
-  private static final String CHILD = "50108120265";
+  private static final String PARENT = "38888888888";
+  private static final String CHILD = "61001010000";
   private static final Instant NOW = Instant.parse("2026-09-16T10:00:00Z");
 
   @Mock GiftLinkRepository giftLinks;
@@ -88,7 +89,7 @@ class GiftLinkServiceTest {
     var replacement = service.replaceLink(PARENT, existing.getId());
 
     var saved = ArgumentCaptor.forClass(GiftLink.class);
-    verify(giftLinks, org.mockito.Mockito.times(2)).save(saved.capture());
+    verify(giftLinks, times(2)).save(saved.capture());
     assertThat(saved.getAllValues().getFirst().getClosedAt()).isEqualTo(NOW);
     assertThat(replacement.getToken()).isNotEqualTo("OLDTOKEN");
     assertThat(replacement.isOpen()).isTrue();

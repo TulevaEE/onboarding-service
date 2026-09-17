@@ -56,7 +56,7 @@ public class GiftLink {
   }
 
   void close(Instant at) {
-    this.closedAt = at;
-    this.openForRecipient = null;
+    closedAt = at;
+    openForRecipient = null;
   }
 }

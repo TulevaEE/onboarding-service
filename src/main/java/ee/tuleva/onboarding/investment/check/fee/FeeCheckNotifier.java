@@ -9,6 +9,7 @@ import static ee.tuleva.onboarding.notification.OperationsNotificationService.Ch
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -55,8 +56,9 @@ class FeeCheckNotifier {
           if (current == null) {
             continue;
           }
-          var previous = previousSeverity(result, checkType, scope);
-          if (current == previous) {
+          var previous = previousState(result, checkType, scope);
+          if (current == previous.severity()
+              && sameAmount(currentDeviation(result, checkType, scope), previous.deviation())) {
             continue;
           }
           transitions.add(
@@ -77,8 +79,15 @@ class FeeCheckNotifier {
   }
 
   // Diffs within the fee_month bucket, so a fresh month's failure is never masked by the previous
-  // month having failed too, while a daily deviation that persists stays silent after the first.
-  private FeeCheckSeverity previousSeverity(
+  // month having failed too.
+  //
+  // The deviation travels with the severity because severity alone goes blind on a standing
+  // failure: a divergence that cannot be recalculated - a fee accrual is forward-only, so a day
+  // written before a fix keeps its old base forever - parks the check at FAIL, and from then on
+  // every later FAIL is "no change" and never reaches anyone. A second bad day would arrive in
+  // silence. Comparing the amount too keeps an unchanged failure quiet while letting a failure that
+  // moved speak again.
+  private PreviousState previousState(
       FeeCheckResult result, FeeCheckType checkType, FeeCheckScope scope) {
     var rows =
         result.feeMonth() == null
@@ -87,11 +96,27 @@ class FeeCheckNotifier {
             : eventRepository.findLatestDeliveredForFeeMonth(
                 result.fund(), checkType, scope, result.feeMonth(), PREVIOUS_AND_CURRENT);
     if (rows.size() < 2) {
-      return PASS;
+      return new PreviousState(PASS, null);
     }
-    var severity = rows.get(1).getSeverity();
-    return severity != null ? severity : PASS;
+    var previous = rows.get(1);
+    var severity = previous.getSeverity();
+    return new PreviousState(severity != null ? severity : PASS, previous.getDeviationAmount());
   }
+
+  private BigDecimal currentDeviation(
+      FeeCheckResult result, FeeCheckType checkType, FeeCheckScope scope) {
+    return FeeCheckFinding.totalDeviation(
+        result.findings().stream()
+            .filter(f -> f.checkType() == checkType && f.scope() == scope)
+            .toList());
+  }
+
+  // A row written before the amount was recorded has none; that is the same as no deviation.
+  private static boolean sameAmount(BigDecimal current, @Nullable BigDecimal previous) {
+    return current.compareTo(previous == null ? BigDecimal.ZERO : previous) == 0;
+  }
+
+  private record PreviousState(FeeCheckSeverity severity, @Nullable BigDecimal deviation) {}
 
   private String message(FeeCheckResult result, FeeCheckType checkType, FeeCheckScope scope) {
     return result.findings().stream()

@@ -20,8 +20,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -51,6 +53,36 @@ class FeeCheckNotifierTest {
 
     assertThat(notifier.notify(List.of(dailyResult(FAIL)))).isEqualTo(NOTHING_TO_REPORT);
     verifyNoInteractions(notificationService);
+  }
+
+  @Test
+  void aPersistingFailureThatGrewAlertsAgainSoANewBadDayIsNotSwallowed() {
+    givenDailyHistory(event(FAIL, "1000"), event(FAIL, "1000"));
+
+    assertThat(notifier.notify(List.of(dailyResult(FAIL, "7500")))).isEqualTo(SENT);
+  }
+
+  @Test
+  void aPersistingFailureThatDidNotMoveStaysSilent() {
+    givenDailyHistory(event(FAIL, "1000"), event(FAIL, "1000"));
+
+    assertThat(notifier.notify(List.of(dailyResult(FAIL, "1000")))).isEqualTo(NOTHING_TO_REPORT);
+    verifyNoInteractions(notificationService);
+  }
+
+  @Test
+  void anUnchangedDeviationIsComparedByValueNotByScale() {
+    givenDailyHistory(event(FAIL, "1000.00"), event(FAIL, "1000.00"));
+
+    assertThat(notifier.notify(List.of(dailyResult(FAIL, "1000.0")))).isEqualTo(NOTHING_TO_REPORT);
+    verifyNoInteractions(notificationService);
+  }
+
+  @Test
+  void aFailureThatAcquiresADeviationWhereThereWasNoneAlerts() {
+    givenDailyHistory(event(FAIL, null), event(FAIL, null));
+
+    assertThat(notifier.notify(List.of(dailyResult(FAIL, "500")))).isEqualTo(SENT);
   }
 
   @Test
@@ -112,10 +144,27 @@ class FeeCheckNotifierTest {
   }
 
   private void givenDailyHistory(FeeCheckSeverity current, FeeCheckSeverity previous) {
+    givenDailyHistory(event(current), event(previous));
+  }
+
+  private void givenDailyHistory(FeeCheckEvent current, FeeCheckEvent previous) {
     given(
             eventRepository.findLatestDelivered(
                 eq(TUK75), eq(LEDGER_ACCRUAL_CONSISTENCY), eq(MANAGEMENT), any()))
-        .willReturn(List.of(event(current), event(previous)));
+        .willReturn(List.of(current, previous));
+  }
+
+  private FeeCheckEvent event(FeeCheckSeverity severity, @Nullable String deviation) {
+    return FeeCheckEvent.builder()
+        .fund(TUK75)
+        .severity(severity)
+        .deviationAmount(deviation == null ? null : new BigDecimal(deviation))
+        .build();
+  }
+
+  private FeeCheckResult dailyResult(FeeCheckSeverity severity, String deviation) {
+    return new FeeCheckResult(
+        TUK75, CHECK_DATE, null, List.of(finding(severity, new BigDecimal(deviation))));
   }
 
   private void givenMonthlyHistory(
@@ -139,13 +188,17 @@ class FeeCheckNotifierTest {
   }
 
   private FeeCheckFinding finding(FeeCheckSeverity severity) {
+    return finding(severity, null);
+  }
+
+  private FeeCheckFinding finding(FeeCheckSeverity severity, @Nullable BigDecimal deviation) {
     return new FeeCheckFinding(
         TUK75,
         LEDGER_ACCRUAL_CONSISTENCY,
         MANAGEMENT,
         severity,
         severity == PASS ? "" : severity + " detail",
-        null,
+        deviation,
         java.util.Map.of());
   }
 }

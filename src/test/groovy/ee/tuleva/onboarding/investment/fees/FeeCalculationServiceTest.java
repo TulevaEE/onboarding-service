@@ -346,7 +346,8 @@ class FeeCalculationServiceTest {
 
     verify(feeAccrualRepository, never()).save(any());
     verify(navFeeAccrualLedger, never()).recordFeeAccrual(any(), any(), any(), any(), any());
-    verify(navFeeAccrualLedger, never()).reviseFeeAccrual(any(), any(), any(), any(), any());
+    verify(navFeeAccrualLedger, never())
+        .reviseFeeAccrual(any(), any(), any(), any(), anyInt(), any());
   }
 
   @Test
@@ -375,11 +376,13 @@ class FeeCalculationServiceTest {
             eq(day),
             eq(MANAGEMENT_FEE_ACCRUAL),
             eq(new BigDecimal("-33.30")),
+            eq(1),
             argThat(
                 metadata ->
                     "FEE_ACCRUAL_REVISION".equals(metadata.get("operationType"))
                         && new BigDecimal("6418.71").equals(metadata.get("previousLedgerAmount"))
-                        && new BigDecimal("6385.41").equals(metadata.get("ledgerAmount"))));
+                        && new BigDecimal("6385.41").equals(metadata.get("ledgerAmount"))
+                        && Integer.valueOf(1).equals(metadata.get("revision"))));
     verify(navFeeAccrualLedger, never()).recordFeeAccrual(any(), any(), any(), any(), any());
   }
 
@@ -401,7 +404,8 @@ class FeeCalculationServiceTest {
 
     verify(feeAccrualRepository).save(recomputedMgmt);
     verify(navFeeAccrualLedger, never()).recordFeeAccrual(any(), any(), any(), any(), any());
-    verify(navFeeAccrualLedger, never()).reviseFeeAccrual(any(), any(), any(), any(), any());
+    verify(navFeeAccrualLedger, never())
+        .reviseFeeAccrual(any(), any(), any(), any(), anyInt(), any());
   }
 
   @Test
@@ -422,7 +426,12 @@ class FeeCalculationServiceTest {
 
     verify(navFeeAccrualLedger)
         .reviseFeeAccrual(
-            eq(TUK75), eq(day), eq(MANAGEMENT_FEE_ACCRUAL), eq(new BigDecimal("-6418.71")), any());
+            eq(TUK75),
+            eq(day),
+            eq(MANAGEMENT_FEE_ACCRUAL),
+            eq(new BigDecimal("-6418.71")),
+            eq(1),
+            any());
   }
 
   @Test
@@ -443,7 +452,8 @@ class FeeCalculationServiceTest {
     verify(navFeeAccrualLedger)
         .recordFeeAccrual(
             eq(TUK75), eq(day), eq(MANAGEMENT_FEE_ACCRUAL), eq(new BigDecimal("6418.71")), any());
-    verify(navFeeAccrualLedger, never()).reviseFeeAccrual(any(), any(), any(), any(), any());
+    verify(navFeeAccrualLedger, never())
+        .reviseFeeAccrual(any(), any(), any(), any(), anyInt(), any());
   }
 
   @Test
@@ -520,10 +530,43 @@ class FeeCalculationServiceTest {
           .save(createAccrual(TUK75, FeeType.MANAGEMENT, day, correctedBase, correctedDaily));
       verify(navFeeAccrualLedger)
           .reviseFeeAccrual(
-              eq(TUK75), eq(day), eq(MANAGEMENT_FEE_ACCRUAL), eq(new BigDecimal("-11.39")), any());
+              eq(TUK75),
+              eq(day),
+              eq(MANAGEMENT_FEE_ACCRUAL),
+              eq(new BigDecimal("-11.39")),
+              eq(1),
+              any());
     }
     verify(calculator1, never()).calculate(eq(TUK75), eq(LocalDate.of(2026, 9, 7)), any());
     verify(navFeeAccrualLedger, never()).recordFeeAccrual(any(), any(), any(), any(), any());
+  }
+
+  @Test
+  void calculateFeesForNav_numbersARevisionAfterTheTransactionsAlreadyOnThatDay() {
+    LocalDate day = LocalDate.of(2026, 9, 1);
+    BigDecimal storedBase = new BigDecimal("1136915291.97");
+    BigDecimal correctedBase = new BigDecimal("1135951200.00");
+    FeeAccrual storedMgmt =
+        createAccrual(TUK75, FeeType.MANAGEMENT, day, storedBase, new BigDecimal("6385.414654"));
+    FeeAccrual correctedMgmt =
+        createAccrual(TUK75, FeeType.MANAGEMENT, day, correctedBase, new BigDecimal("6380.000000"));
+    FeeAccrual depotAccrual = createAccrual(TUK75, FeeType.DEPOT, day, correctedBase, ZERO);
+    givenCalculated(TUK75, day, storedBase, correctedMgmt, depotAccrual);
+    givenStoredRows(TUK75, day, storedMgmt, depotAccrual);
+    givenLedgerEntries(TUK75, MANAGEMENT_FEE_ACCRUAL, day, "-6418.71", "33.30");
+    givenLedgerEntries(TUK75, DEPOT_FEE_ACCRUAL, day);
+
+    service.calculateFeesForNav(
+        TUK75, day, new FeeBases(correctedBase, correctedBase), cutoffAfter(day), null);
+
+    verify(navFeeAccrualLedger)
+        .reviseFeeAccrual(
+            eq(TUK75),
+            eq(day),
+            eq(MANAGEMENT_FEE_ACCRUAL),
+            eq(new BigDecimal("-5.41")),
+            eq(2),
+            argThat(metadata -> Integer.valueOf(2).equals(metadata.get("revision"))));
   }
 
   private void givenCalculated(

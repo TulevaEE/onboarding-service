@@ -63,6 +63,34 @@ public class FundNavQueryService {
     return sumForLatestCalculationIncludingUnpublished(fundCode, navDate, ASSET_ACCOUNT_TYPES);
   }
 
+  // The published NAV the OCF must read. findLatestNavDateOnOrBefore does not filter on
+  // published_at, so pairing it with findPublishedCalculation silently yields nothing whenever the
+  // most recent calculation is still unpublished, even though an earlier published one exists.
+  public Optional<LocalDate> findLatestPublishedNavDateOnOrBefore(
+      String fundCode, LocalDate asOfDate) {
+    return navReportRepository.findLatestPublishedNavDateOnOrBefore(fundCode, asOfDate);
+  }
+
+  // The fund's first published NAV: how much of a trailing year it actually existed for.
+  public Optional<LocalDate> findEarliestPublishedNavDate(String fundCode) {
+    return navReportRepository.findEarliestPublishedNavDate(fundCode);
+  }
+
+  public List<LocalDate> findPublishedNavDatesBetween(
+      String fundCode, LocalDate from, LocalDate to) {
+    return navReportRepository.findPublishedNavDatesBetween(fundCode, from, to);
+  }
+
+  // The published calculation: what an official figure such as the OCF must be built from, so that
+  // its instrument values and its NAV come from one and the same calculation.
+  public Optional<NavCalculation> findPublishedCalculation(String fundCode, LocalDate navDate) {
+    return navReportRepository
+        .findFirstByFundCodeAndNavDateAndPublishedAtIsNotNullOrderByPublishedAtDescIdDesc(
+            fundCode, navDate)
+        .map(NavReportRow::getCalculationId)
+        .flatMap(calculationId -> calculation(fundCode, navDate, calculationId));
+  }
+
   public Optional<NavCalculation> findLatestCalculation(String fundCode, LocalDate navDate) {
     return navReportRepository
         .findFirstByFundCodeAndNavDateOrderByIdDesc(fundCode, navDate)

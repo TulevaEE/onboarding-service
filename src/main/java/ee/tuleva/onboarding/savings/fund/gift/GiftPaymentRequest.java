@@ -9,4 +9,4 @@ import org.jspecify.annotations.Nullable;
 public record GiftPaymentRequest(
     @NotNull BigDecimal amount,
     @NotNull PaymentChannel paymentChannel,
-    @Size(max = GiftMessage.MAX_LENGTH) @Nullable String message) {}
+    @Size(max = Gift.MAX_MESSAGE_LENGTH) @Nullable String message) {}

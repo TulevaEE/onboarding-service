@@ -36,7 +36,7 @@ class GiftPaymentServiceTest {
   private static final Instant NOW = Instant.parse("2026-09-16T10:00:00Z");
 
   @Mock GiftLinkService giftLinkService;
-  @Mock GiftMessageRepository giftMessages;
+  @Mock GiftRepository gifts;
   @Mock PaymentService paymentService;
 
   GiftPaymentService service;
@@ -45,7 +45,7 @@ class GiftPaymentServiceTest {
   void setUp() {
     service =
         new GiftPaymentService(
-            giftLinkService, giftMessages, paymentService, Clock.fixed(NOW, ZoneOffset.UTC));
+            giftLinkService, gifts, paymentService, Clock.fixed(NOW, ZoneOffset.UTC));
   }
 
   @ParameterizedTest
@@ -60,7 +60,7 @@ class GiftPaymentServiceTest {
 
     verify(paymentService, never()).getAnonymousSavingsPaymentLink(any());
     // A refused payment must not leave a message behind for the parent to puzzle over.
-    verify(giftMessages, never()).save(any());
+    verify(gifts, never()).save(any());
   }
 
   @ParameterizedTest
@@ -86,8 +86,8 @@ class GiftPaymentServiceTest {
 
     service.startPayment("TOKEN", request("100", "  Palju õnne, Mari!  "));
 
-    var saved = ArgumentCaptor.forClass(GiftMessage.class);
-    verify(giftMessages).save(saved.capture());
+    var saved = ArgumentCaptor.forClass(Gift.class);
+    verify(gifts).save(saved.capture());
     // The description is the only thing the payment carries back, whichever way it reaches us.
     assertThat(saved.getValue().getDescription()).isEqualTo(DESCRIPTION);
     assertThat(saved.getValue().getMessage()).isEqualTo("Palju õnne, Mari!");
@@ -96,23 +96,27 @@ class GiftPaymentServiceTest {
 
   @ParameterizedTest
   @ValueSource(strings = {"", "   "})
-  void anEmptyGreetingIsNoGreeting(String message) {
+  void aGiftWithNoGreetingIsStillRecordedAsAGift(String message) {
     givenAPaymentIsMinted();
 
     service.startPayment("TOKEN", request("100", message));
 
-    verify(giftMessages, never()).save(any());
+    var saved = ArgumentCaptor.forClass(Gift.class);
+    // Recorded even without words, or it could not later be told apart from the parent's own money.
+    verify(gifts).save(saved.capture());
+    assertThat(saved.getValue().getMessage()).isNull();
+    assertThat(saved.getValue().getDescription()).isEqualTo(DESCRIPTION);
   }
 
   @Test
   void aGreetingTooLongToBeAGreetingIsCutDown() {
     givenAPaymentIsMinted();
 
-    service.startPayment("TOKEN", request("100", "a".repeat(GiftMessage.MAX_LENGTH + 50)));
+    service.startPayment("TOKEN", request("100", "a".repeat(Gift.MAX_MESSAGE_LENGTH + 50)));
 
-    var saved = ArgumentCaptor.forClass(GiftMessage.class);
-    verify(giftMessages).save(saved.capture());
-    assertThat(saved.getValue().getMessage()).hasSize(GiftMessage.MAX_LENGTH);
+    var saved = ArgumentCaptor.forClass(Gift.class);
+    verify(gifts).save(saved.capture());
+    assertThat(saved.getValue().getMessage()).hasSize(Gift.MAX_MESSAGE_LENGTH);
   }
 
   private void givenAPaymentIsMinted() {

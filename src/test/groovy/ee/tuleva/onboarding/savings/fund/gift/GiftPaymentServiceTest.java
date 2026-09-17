@@ -31,8 +31,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class GiftPaymentServiceTest {
 
-  private static final String CHILD = "50108120265";
-  private static final String DESCRIPTION = "50108120265, 1758012345";
+  private static final String CHILD = "61001010000";
+  private static final String DESCRIPTION = "61001010000, 1758012345";
   private static final Instant NOW = Instant.parse("2026-09-16T10:00:00Z");
 
   @Mock GiftLinkService giftLinkService;
@@ -131,7 +131,7 @@ class GiftPaymentServiceTest {
         .id(UUID.randomUUID())
         .token("TOKEN")
         .recipientPersonalCode(CHILD)
-        .createdByPersonalCode("38812121212")
+        .createdByPersonalCode("38888888888")
         .createdAt(NOW)
         .build();
   }

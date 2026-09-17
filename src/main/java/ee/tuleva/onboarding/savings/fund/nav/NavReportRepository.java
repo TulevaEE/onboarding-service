@@ -160,6 +160,41 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
   Optional<NavReportRow> findFirstByFundCodeAndNavDateOrderByIdDesc(
       String fundCode, LocalDate navDate);
 
+  // Same precedence as sumPublishedMarketValueByAccountType: a backdated calculation with a lower
+  // id but a later published_at is the official one.
+  Optional<NavReportRow>
+      findFirstByFundCodeAndNavDateAndPublishedAtIsNotNullOrderByPublishedAtDescIdDesc(
+          String fundCode, LocalDate navDate);
+
+  @Query(
+      """
+      SELECT MAX(row.navDate) FROM NavReportRow row
+      WHERE row.fundCode = :fundCode
+        AND row.navDate <= :asOfDate
+        AND row.publishedAt IS NOT NULL
+      """)
+  Optional<LocalDate> findLatestPublishedNavDateOnOrBefore(
+      @Param("fundCode") String fundCode, @Param("asOfDate") LocalDate asOfDate);
+
+  @Query(
+      """
+      SELECT MIN(row.navDate) FROM NavReportRow row
+      WHERE row.fundCode = :fundCode
+        AND row.publishedAt IS NOT NULL
+      """)
+  Optional<LocalDate> findEarliestPublishedNavDate(@Param("fundCode") String fundCode);
+
+  @Query(
+      """
+      SELECT DISTINCT row.navDate FROM NavReportRow row
+      WHERE row.fundCode = :fundCode
+        AND row.navDate BETWEEN :from AND :to
+        AND row.publishedAt IS NOT NULL
+      ORDER BY row.navDate
+      """)
+  List<LocalDate> findPublishedNavDatesBetween(
+      @Param("fundCode") String fundCode, @Param("from") LocalDate from, @Param("to") LocalDate to);
+
   @Query(
       """
       SELECT new ee.tuleva.onboarding.savings.fund.nav.NavAccountLine(

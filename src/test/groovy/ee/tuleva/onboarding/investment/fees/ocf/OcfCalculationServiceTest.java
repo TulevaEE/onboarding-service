@@ -2,53 +2,57 @@ package ee.tuleva.onboarding.investment.fees.ocf;
 
 import static ee.tuleva.onboarding.investment.fees.FeeType.DEPOT;
 import static ee.tuleva.onboarding.investment.fees.FeeType.MANAGEMENT;
-import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.*;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.tuleva.onboarding.investment.fees.*;
 import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
-import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocation;
-import ee.tuleva.onboarding.investment.portfolio.ModelPortfolioAllocationRepository;
-import ee.tuleva.onboarding.investment.position.FundPosition;
-import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
+import ee.tuleva.onboarding.savings.FundNavQueryService;
+import ee.tuleva.onboarding.savings.fund.nav.NavAccountLine;
+import ee.tuleva.onboarding.savings.fund.nav.NavCalculation;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class OcfCalculationServiceTest {
 
   @Mock private FeeRateRepository feeRateRepository;
-  @Mock private DepotFeeTierRepository depotFeeTierRepository;
+  @Mock private DepotRateResolver depotRateResolver;
   @Mock private InstrumentFeeRepository instrumentFeeRepository;
-  @Mock private FundPositionRepository fundPositionRepository;
-  @Mock private ModelPortfolioAllocationRepository modelPortfolioAllocationRepository;
   @Mock private TransactionExecutionRepository transactionExecutionRepository;
   @Mock private OcfSnapshotRepository ocfSnapshotRepository;
+  @Mock private FundNavQueryService fundNavQueryService;
 
   @Mock(strictness = Mock.Strictness.LENIENT)
   private FeeChargedToFundPolicy feeChargedToFundPolicy;
+
+  @Spy private OcfJson ocfJson = new OcfJson(new ObjectMapper());
 
   @InjectMocks private OcfCalculationService service;
 
@@ -59,6 +63,29 @@ class OcfCalculationServiceTest {
 
   private static final YearMonth MONTH = YearMonth.of(2026, 4);
   private static final LocalDate MONTH_END = MONTH.atEndOfMonth();
+  private static final String ISIN = "XX0000000001";
+  private static final UUID CALCULATION_ID =
+      UUID.fromString("00000000-0000-4000-8000-000000000001");
+
+  private static NavAccountLine securityLine(String isin, BigDecimal marketValue) {
+    return new NavAccountLine("SECURITY", isin, isin, null, null, marketValue);
+  }
+
+  private static NavAccountLine unitsLine(BigDecimal marketValue) {
+    return new NavAccountLine("UNITS", "UNITS", null, null, null, marketValue);
+  }
+
+  private void givenRate(BigDecimal netOcf) {
+    given(instrumentFeeRepository.findAllValidRates(MONTH_END))
+        .willReturn(List.of(InstrumentFee.builder().isin(ISIN).netOcf(netOcf).build()));
+  }
+
+  private void givenPublishedCalculation(TulevaFund fund, NavAccountLine... lines) {
+    given(fundNavQueryService.findLatestPublishedNavDateOnOrBefore(fund.getCode(), MONTH_END))
+        .willReturn(Optional.of(MONTH_END));
+    given(fundNavQueryService.findPublishedCalculation(fund.getCode(), MONTH_END))
+        .willReturn(Optional.of(new NavCalculation(CALCULATION_ID, Instant.EPOCH, List.of(lines))));
+  }
 
   @Test
   void calculateOcfSumsAllComponents() {
@@ -88,7 +115,7 @@ class OcfCalculationServiceTest {
 
     assertThat(result.depotFeeRate()).isEqualByComparingTo(ZERO);
     assertThat(result.totalOcf()).isEqualByComparingTo(new BigDecimal("0.0034"));
-    verify(feeRateRepository, never()).findValidRate(fund, DEPOT, MONTH_END);
+    verifyNoInteractions(depotRateResolver);
   }
 
   @Test
@@ -99,28 +126,21 @@ class OcfCalculationServiceTest {
 
     given(instrumentFeeRepository.findAllValidRates(MONTH_END))
         .willReturn(
-            List.of(
-                InstrumentFee.builder()
-                    .isin("IE00BFNM3G45")
-                    .netOcf(new BigDecimal("0.0007"))
-                    .build()));
-    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(fund, MONTH_END))
-        .willReturn(Optional.of(MONTH_END));
-    var position = mock(FundPosition.class);
-    given(position.getMarketValue()).willReturn(new BigDecimal("100000000"));
-    given(position.getAccountId()).willReturn("IE00BFNM3G45");
-    given(fundPositionRepository.findByNavDateAndFundAndAccountType(MONTH_END, fund, SECURITY))
-        .willReturn(List.of(position));
+            List.of(InstrumentFee.builder().isin(ISIN).netOcf(new BigDecimal("0.0007")).build()));
+    givenPublishedCalculation(
+        fund,
+        securityLine(ISIN, new BigDecimal("100000000")),
+        unitsLine(new BigDecimal("100000000")));
 
     given(
             transactionExecutionRepository.sumCommissionsForFundAndPeriod(
                 eq(fund.getCode()), any(), any()))
         .willReturn(new BigDecimal("50000"));
-    given(fundPositionRepository.findDistinctNavDatesByFund(fund))
-        .willReturn(List.of(MONTH_END.minusDays(30), MONTH_END));
     given(
-            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
-                eq(fund), any(), eq(List.of(SECURITY))))
+            fundNavQueryService.findPublishedNavDatesBetween(
+                fund.getCode(), MONTH_END.minusYears(1).plusDays(1), MONTH_END))
+        .willReturn(List.of(MONTH_END.minusDays(30), MONTH_END));
+    given(fundNavQueryService.findAum(eq(fund.getCode()), any()))
         .willReturn(new BigDecimal("100000000"));
 
     var result = service.calculateOcf(fund, MONTH);
@@ -133,7 +153,120 @@ class OcfCalculationServiceTest {
   }
 
   @Test
-  void tkf100UsesModelPortfolioForUnderlyingCost() {
+  void underlyingFundCostWeighsInstrumentsByShareOfTotalNav() {
+    var fund = TUK75;
+    setupManagementFee(fund, ZERO);
+    setupDepotFee(fund, ZERO);
+    setupNoTransactionCosts(fund);
+
+    given(instrumentFeeRepository.findAllValidRates(MONTH_END))
+        .willReturn(
+            List.of(InstrumentFee.builder().isin(ISIN).netOcf(new BigDecimal("0.0010")).build()));
+    givenPublishedCalculation(
+        fund,
+        securityLine(ISIN, new BigDecimal("80000000")),
+        unitsLine(new BigDecimal("100000000")));
+
+    var result = service.calculateOcf(fund, MONTH);
+
+    // 80M of securities inside a 100M NAV: weight 0.8, not 1.0 of the securities sleeve.
+    // The 20M of cash bears no underlying fund fee and correctly dilutes the cost.
+    assertThat(result.underlyingFundCost()).isEqualByComparingTo(new BigDecimal("0.0008"));
+  }
+
+  @Test
+  void underlyingFundCostIsKeptOnBothTheGrossAndTheNetRebateBasis() {
+    var fund = TUK75;
+    setupManagementFee(fund, ZERO);
+    setupDepotFee(fund, ZERO);
+    setupNoTransactionCosts(fund);
+
+    given(instrumentFeeRepository.findAllValidRates(MONTH_END))
+        .willReturn(
+            List.of(
+                InstrumentFee.builder()
+                    .isin(ISIN)
+                    .publishedOcf(new BigDecimal("0.0020"))
+                    .rebateRate(new BigDecimal("0.0005"))
+                    .netOcf(new BigDecimal("0.0015"))
+                    .build()));
+    givenPublishedCalculation(
+        fund,
+        securityLine(ISIN, new BigDecimal("100000000")),
+        unitsLine(new BigDecimal("100000000")));
+
+    var result = service.calculateOcf(fund, MONTH);
+
+    assertThat(result.underlyingFundCostGross()).isEqualByComparingTo(new BigDecimal("0.0020"));
+    assertThat(result.underlyingFundCostNet()).isEqualByComparingTo(new BigDecimal("0.0015"));
+    assertThat(result.rebateBasis()).isEqualTo(RebateBasis.NET);
+    assertThat(result.underlyingFundCost()).isEqualByComparingTo(new BigDecimal("0.0015"));
+  }
+
+  @Test
+  void aSnapshotNamesTheMethodologyThatProducedIt() {
+    var fund = TUK75;
+    setupManagementFee(fund, ZERO);
+    setupDepotFee(fund, ZERO);
+    setupNoTransactionCosts(fund);
+    setupNoInstrumentFees();
+    givenPublishedCalculation(fund, unitsLine(new BigDecimal("100000000")));
+
+    var result = service.calculateOcf(fund, MONTH);
+
+    assertThat(result.methodology()).isEqualTo(OcfMethodology.EX_ANTE_NET_ASSETS_V1);
+  }
+
+  @Test
+  void aSnapshotAssertsTheCostCategoriesItLeavesOut() {
+    var fund = TUK75;
+    setupManagementFee(fund, ZERO);
+    setupDepotFee(fund, ZERO);
+    setupNoTransactionCosts(fund);
+    setupNoInstrumentFees();
+    givenPublishedCalculation(fund, unitsLine(new BigDecimal("100000000")));
+
+    var result = service.calculateOcf(fund, MONTH);
+
+    // CESR/10-674 p 5 leaves these out of the ongoing charges figure. Their absence is an
+    // assertion, not an accident, so the snapshot says so rather than staying silent.
+    assertThat(result.checks())
+        .contains("ENTRY_CHARGES")
+        .contains("EXIT_CHARGES")
+        .contains("PERFORMANCE_FEES")
+        .contains("BORROWING_INTEREST")
+        .contains("DERIVATIVE_HOLDING_COSTS")
+        .contains("SOFT_COMMISSIONS");
+  }
+
+  @Test
+  void transactionCostDividesByAverageNavAndNotBySecuritiesAlone() {
+    var fund = TUK75;
+    // Spans the whole trailing year, so annualisation is a no-op and this pins the denominator
+    // alone: average NAV, not the securities sleeve.
+    var earlier = MONTH_END.minusYears(1).plusDays(1);
+    given(
+            fundNavQueryService.findPublishedNavDatesBetween(
+                fund.getCode(), MONTH_END.minusYears(1).plusDays(1), MONTH_END))
+        .willReturn(List.of(earlier, MONTH_END));
+    given(fundNavQueryService.findAum(fund.getCode(), earlier))
+        .willReturn(new BigDecimal("90000000"));
+    given(fundNavQueryService.findAum(fund.getCode(), MONTH_END))
+        .willReturn(new BigDecimal("110000000"));
+    given(
+            transactionExecutionRepository.sumCommissionsForFundAndPeriod(
+                eq(fund.getCode()), any(), any()))
+        .willReturn(new BigDecimal("50000"));
+
+    var rate = service.getTransactionCost(fund, MONTH_END).rate();
+
+    // 50 000 / average NAV of 100M. Dividing by the securities sleeve would inflate the rate by
+    // the cash share, the same error the underlying fund cost carried.
+    assertThat(rate).isEqualByComparingTo(new BigDecimal("0.0005"));
+  }
+
+  @Test
+  void tkf100WeighsByPublishedNavLikeEveryOtherFund() {
     var fund = TKF100;
     setupManagementFee(fund, new BigDecimal("0.0034"));
     setupDepotFee(fund, ZERO);
@@ -143,76 +276,53 @@ class OcfCalculationServiceTest {
         .willReturn(
             List.of(
                 InstrumentFee.builder()
-                    .isin("IE00BJZ2DC62")
+                    .isin("XX0000000002")
                     .netOcf(new BigDecimal("0.0007"))
                     .build(),
                 InstrumentFee.builder()
-                    .isin("IE00BMDBMY19")
+                    .isin("XX0000000003")
                     .netOcf(new BigDecimal("0.0016"))
                     .build()));
-
-    var alloc1 = mock(ModelPortfolioAllocation.class);
-    given(alloc1.getIsin()).willReturn("IE00BJZ2DC62");
-    given(alloc1.getWeight()).willReturn(new BigDecimal("0.60"));
-    var alloc2 = mock(ModelPortfolioAllocation.class);
-    given(alloc2.getIsin()).willReturn("IE00BMDBMY19");
-    given(alloc2.getWeight()).willReturn(new BigDecimal("0.40"));
-
-    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(fund, MONTH_END))
-        .willReturn(List.of(alloc1, alloc2));
+    givenPublishedCalculation(
+        fund,
+        securityLine("XX0000000002", new BigDecimal("600000")),
+        securityLine("XX0000000003", new BigDecimal("400000")),
+        unitsLine(new BigDecimal("1250000")));
 
     var result = service.calculateOcf(fund, MONTH);
 
-    // 0.60 * 0.0007 + 0.40 * 0.0016 = 0.00042 + 0.00064 = 0.00106
-    assertThat(result.underlyingFundCost()).isEqualByComparingTo(new BigDecimal("0.00106"));
+    // The model portfolio assumed 100% invested: 0.60 * 0.0007 + 0.40 * 0.0016 = 0.00106.
+    // Against the published NAV the fund is 80% invested, so the real weights are 0.48 and 0.32.
+    assertThat(result.underlyingFundCost()).isEqualByComparingTo(new BigDecimal("0.000848"));
   }
 
   @Test
-  void depotFeeUsesRateTableFirst() {
-    given(feeRateRepository.findValidRate(TUK75, DEPOT, MONTH_END))
-        .willReturn(
-            Optional.of(
-                new FeeRate(
-                    1L,
-                    TUK75,
-                    DEPOT,
-                    new BigDecimal("0.0009"),
-                    FeeRateSource.FIXED,
-                    MONTH_END.minusYears(1),
-                    null)));
+  void depotFeeComesFromTheSharedResolverSoItCannotDifferFromTheAccrual() {
+    given(depotRateResolver.resolveRate(TUK75, MONTH_END))
+        .willReturn(DepotRate.flat(new BigDecimal("0.0009")));
 
-    var rate = service.getDepotFeeRate(TUK75, MONTH_END);
+    var rate = service.getDepotFee(TUK75, MONTH_END).rate();
 
     assertThat(rate).isEqualByComparingTo(new BigDecimal("0.0009"));
   }
 
   @Test
-  void depotFeeUsesTierWhenTheRowSaysTier() {
-    given(feeRateRepository.findValidRate(TUV100, DEPOT, MONTH_END))
-        .willReturn(
-            Optional.of(
-                new FeeRate(
-                    1L, TUV100, DEPOT, ZERO, FeeRateSource.TIER, MONTH_END.minusYears(1), null)));
-    given(fundPositionRepository.findLatestSecurityNavDateUpTo(MONTH_END))
-        .willReturn(Optional.of(MONTH_END));
-    given(fundPositionRepository.sumSecurityMarketValueAllFunds(MONTH_END))
-        .willReturn(new BigDecimal("200000000"));
-    given(depotFeeTierRepository.findRateForAum(new BigDecimal("200000000"), MONTH_END))
-        .willReturn(Optional.of(new BigDecimal("0.0010")));
+  void depotFeeIsZeroWhenTheResolverFindsNoRate() {
+    given(depotRateResolver.resolveRate(TUV100, MONTH_END)).willReturn(DepotRate.none());
 
-    var rate = service.getDepotFeeRate(TUV100, MONTH_END);
+    var rate = service.getDepotFee(TUV100, MONTH_END).rate();
 
-    assertThat(rate).isEqualByComparingTo(new BigDecimal("0.0010"));
+    assertThat(rate).isEqualByComparingTo(ZERO);
   }
 
   @Test
-  void depotFeeIsZeroWhenNoRateRowExists() {
-    given(feeRateRepository.findValidRate(TUV100, DEPOT, MONTH_END)).willReturn(Optional.empty());
+  void depotFeeAsksForNoRateAtAllWhenTheFundDoesNotBearIt() {
+    given(feeChargedToFundPolicy.chargedToFund(TUV100, DEPOT, MONTH_END)).willReturn(false);
 
-    var rate = service.getDepotFeeRate(TUV100, MONTH_END);
+    var rate = service.getDepotFee(TUV100, MONTH_END).rate();
 
     assertThat(rate).isEqualByComparingTo(ZERO);
-    verifyNoInteractions(depotFeeTierRepository);
+    verifyNoInteractions(depotRateResolver);
   }
 
   @Test
@@ -220,7 +330,7 @@ class OcfCalculationServiceTest {
     given(feeRateRepository.findValidRate(TUK75, MANAGEMENT, MONTH_END))
         .willReturn(Optional.empty());
 
-    var rate = service.getManagementFeeRate(TUK75, MONTH_END);
+    var rate = service.getManagementFee(TUK75, MONTH_END).rate();
 
     assertThat(rate).isEqualByComparingTo(ZERO);
   }
@@ -229,83 +339,98 @@ class OcfCalculationServiceTest {
   void underlyingFundCostReturnsZeroWhenNoRates() {
     given(instrumentFeeRepository.findAllValidRates(MONTH_END)).willReturn(List.of());
 
-    var cost = service.getUnderlyingFundCost(TUK75, MONTH_END);
+    var cost = service.getUnderlyingFundCost(TUK75, MONTH_END).rate();
 
     assertThat(cost).isEqualByComparingTo(ZERO);
   }
 
   @Test
-  void underlyingFundCostReturnsZeroWhenNoPositionNavDate() {
-    given(instrumentFeeRepository.findAllValidRates(MONTH_END))
-        .willReturn(
-            List.of(
-                InstrumentFee.builder()
-                    .isin("IE00BFNM3G45")
-                    .netOcf(new BigDecimal("0.0007"))
-                    .build()));
-    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, MONTH_END))
+  void underlyingFundCostReturnsZeroWhenNoNavDate() {
+    givenRate(new BigDecimal("0.0007"));
+    given(fundNavQueryService.findLatestPublishedNavDateOnOrBefore(TUK75.getCode(), MONTH_END))
         .willReturn(Optional.empty());
 
-    var cost = service.getUnderlyingFundCost(TUK75, MONTH_END);
+    var cost = service.getUnderlyingFundCost(TUK75, MONTH_END).rate();
 
     assertThat(cost).isEqualByComparingTo(ZERO);
   }
 
   @Test
-  void underlyingFundCostReturnsZeroWhenNoPositions() {
-    given(instrumentFeeRepository.findAllValidRates(MONTH_END))
-        .willReturn(
-            List.of(
-                InstrumentFee.builder()
-                    .isin("IE00BFNM3G45")
-                    .netOcf(new BigDecimal("0.0007"))
-                    .build()));
-    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, MONTH_END))
+  void underlyingFundCostReturnsZeroWhenTheCalculationWasNeverPublished() {
+    givenRate(new BigDecimal("0.0007"));
+    given(fundNavQueryService.findLatestPublishedNavDateOnOrBefore(TUK75.getCode(), MONTH_END))
         .willReturn(Optional.of(MONTH_END));
-    given(fundPositionRepository.findByNavDateAndFundAndAccountType(MONTH_END, TUK75, SECURITY))
-        .willReturn(List.of());
+    given(fundNavQueryService.findPublishedCalculation(TUK75.getCode(), MONTH_END))
+        .willReturn(Optional.empty());
 
-    var cost = service.getUnderlyingFundCost(TUK75, MONTH_END);
-
-    assertThat(cost).isEqualByComparingTo(ZERO);
-  }
-
-  @Test
-  void underlyingFundCostReturnsZeroWhenZeroTotalValue() {
-    given(instrumentFeeRepository.findAllValidRates(MONTH_END))
-        .willReturn(
-            List.of(
-                InstrumentFee.builder()
-                    .isin("IE00BFNM3G45")
-                    .netOcf(new BigDecimal("0.0007"))
-                    .build()));
-    given(fundPositionRepository.findLatestNavDateByFundAndAsOfDate(TUK75, MONTH_END))
-        .willReturn(Optional.of(MONTH_END));
-    var position = mock(FundPosition.class);
-    given(position.getMarketValue()).willReturn(ZERO);
-    given(fundPositionRepository.findByNavDateAndFundAndAccountType(MONTH_END, TUK75, SECURITY))
-        .willReturn(List.of(position));
-
-    var cost = service.getUnderlyingFundCost(TUK75, MONTH_END);
+    var cost = service.getUnderlyingFundCost(TUK75, MONTH_END).rate();
 
     assertThat(cost).isEqualByComparingTo(ZERO);
   }
 
   @Test
-  void tkf100ReturnsZeroWhenNoModelAllocations() {
+  void underlyingFundCostReturnsZeroWhenNoSecurityLines() {
+    givenRate(new BigDecimal("0.0007"));
+    givenPublishedCalculation(TUK75, unitsLine(new BigDecimal("100000000")));
+
+    var cost = service.getUnderlyingFundCost(TUK75, MONTH_END).rate();
+
+    assertThat(cost).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void underlyingFundCostReturnsZeroWhenAumIsZero() {
+    givenRate(new BigDecimal("0.0007"));
+    givenPublishedCalculation(
+        TUK75, securityLine(ISIN, new BigDecimal("100000000")), unitsLine(ZERO));
+
+    var cost = service.getUnderlyingFundCost(TUK75, MONTH_END).rate();
+
+    assertThat(cost).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void tkf100ReturnsZeroWhenNoPublishedCalculation() {
     given(instrumentFeeRepository.findAllValidRates(MONTH_END))
         .willReturn(
             List.of(
                 InstrumentFee.builder()
-                    .isin("IE00BJZ2DC62")
+                    .isin("XX0000000002")
                     .netOcf(new BigDecimal("0.0007"))
                     .build()));
-    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TKF100, MONTH_END))
-        .willReturn(List.of());
+    given(fundNavQueryService.findLatestPublishedNavDateOnOrBefore(TKF100.getCode(), MONTH_END))
+        .willReturn(Optional.empty());
 
-    var cost = service.getUnderlyingFundCost(TKF100, MONTH_END);
+    var cost = service.getUnderlyingFundCost(TKF100, MONTH_END).rate();
 
     assertThat(cost).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void aHeldInstrumentWithNoRateFailsInsteadOfCountingAsFree() {
+    givenRate(new BigDecimal("0.0007"));
+    givenPublishedCalculation(
+        TUK75,
+        securityLine(ISIN, new BigDecimal("500000")),
+        securityLine("XX0000000009", new BigDecimal("500000")),
+        unitsLine(new BigDecimal("1000000")));
+
+    assertThatThrownBy(() -> service.getUnderlyingFundCost(TUK75, MONTH_END).rate())
+        .isInstanceOf(MissingInstrumentRateException.class)
+        .hasMessageContaining("XX0000000009");
+  }
+
+  @Test
+  void aHoldingWithNoIsinFailsTheSameWay() {
+    givenRate(new BigDecimal("0.0007"));
+    givenPublishedCalculation(
+        TUK75,
+        securityLine(ISIN, new BigDecimal("500000")),
+        new NavAccountLine("SECURITY", "?", null, null, null, new BigDecimal("500000")),
+        unitsLine(new BigDecimal("1000000")));
+
+    assertThatThrownBy(() -> service.getUnderlyingFundCost(TUK75, MONTH_END).rate())
+        .isInstanceOf(MissingInstrumentRateException.class);
   }
 
   @Test
@@ -315,26 +440,28 @@ class OcfCalculationServiceTest {
                 eq(TUK75.getCode()), any(), any()))
         .willReturn(ZERO);
 
-    var cost = service.getTransactionCostRate(TUK75, MONTH_END);
+    var cost = service.getTransactionCost(TUK75, MONTH_END).rate();
 
     assertThat(cost).isEqualByComparingTo(ZERO);
   }
 
   @Test
-  void transactionCostWindowStartsAtEarliestAvailableNavDate() {
+  void transactionCostWindowStartsAtTheFundsFirstPublishedNav() {
     var firstNavDate = MONTH_END.minusMonths(3);
-    given(fundPositionRepository.findDistinctNavDatesByFund(TUK75))
-        .willReturn(List.of(MONTH_END, firstNavDate));
+    given(fundNavQueryService.findEarliestPublishedNavDate(TUK75.getCode()))
+        .willReturn(Optional.of(firstNavDate));
+    given(
+            fundNavQueryService.findPublishedNavDatesBetween(
+                TUK75.getCode(), MONTH_END.minusYears(1).plusDays(1), MONTH_END))
+        .willReturn(List.of(firstNavDate, MONTH_END));
     given(
             transactionExecutionRepository.sumCommissionsForFundAndPeriod(
                 eq(TUK75.getCode()), any(), any()))
         .willReturn(new BigDecimal("1000"));
-    given(
-            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
-                eq(TUK75), any(), eq(List.of(SECURITY))))
+    given(fundNavQueryService.findAum(eq(TUK75.getCode()), any()))
         .willReturn(new BigDecimal("100000000"));
 
-    var cost = service.getTransactionCostRate(TUK75, MONTH_END);
+    var cost = service.getTransactionCost(TUK75, MONTH_END).rate();
 
     assertThat(cost.signum()).isGreaterThan(0);
     var zone = ZoneId.of("Europe/Tallinn");
@@ -346,14 +473,78 @@ class OcfCalculationServiceTest {
   }
 
   @Test
+  void aShortHistoryIsAnnualisedSoItCanSitBesideTheAnnualComponents() {
+    var firstNavDate = MONTH_END.minusMonths(3);
+    given(fundNavQueryService.findEarliestPublishedNavDate(TUK75.getCode()))
+        .willReturn(Optional.of(firstNavDate));
+    given(
+            fundNavQueryService.findPublishedNavDatesBetween(
+                TUK75.getCode(), MONTH_END.minusYears(1).plusDays(1), MONTH_END))
+        .willReturn(List.of(firstNavDate, MONTH_END));
+    given(
+            transactionExecutionRepository.sumCommissionsForFundAndPeriod(
+                eq(TUK75.getCode()), any(), any()))
+        .willReturn(new BigDecimal("1000"));
+    given(fundNavQueryService.findAum(eq(TUK75.getCode()), any()))
+        .willReturn(new BigDecimal("100000000"));
+
+    var cost = service.getTransactionCost(TUK75, MONTH_END).rate();
+
+    // 91 days covered. The period ratio is 1000 / 100M = 0.00001; left unscaled it would be added
+    // to three components that are already annual rates, understating the fund's OCF by 91/365.
+    assertThat(cost).isEqualByComparingTo(new BigDecimal("0.00004011"));
+  }
+
+  @Test
+  void aPublishingGapDoesNotShortenTheWindowForAFundThatExistedThroughout() {
+    var periodStart = MONTH_END.minusYears(1).plusDays(1);
+    given(fundNavQueryService.findEarliestPublishedNavDate(TUK75.getCode()))
+        .willReturn(Optional.of(MONTH_END.minusYears(5)));
+    // Only one published NAV survives in the window. Anchoring on it would annualise a single
+    // day's trading by 365; the fund's inception says it lived the whole year.
+    given(fundNavQueryService.findPublishedNavDatesBetween(TUK75.getCode(), periodStart, MONTH_END))
+        .willReturn(List.of(MONTH_END));
+    given(
+            transactionExecutionRepository.sumCommissionsForFundAndPeriod(
+                eq(TUK75.getCode()), any(), any()))
+        .willReturn(new BigDecimal("1000"));
+    given(fundNavQueryService.findAum(eq(TUK75.getCode()), any()))
+        .willReturn(new BigDecimal("100000000"));
+
+    var cost = service.getTransactionCost(TUK75, MONTH_END).rate();
+
+    assertThat(cost).isEqualByComparingTo(new BigDecimal("0.00001"));
+  }
+
+  @Test
+  void aFullYearOfHistoryIsLeftAtItsObservedRate() {
+    var periodStart = MONTH_END.minusYears(1).plusDays(1);
+    given(fundNavQueryService.findPublishedNavDatesBetween(TUK75.getCode(), periodStart, MONTH_END))
+        .willReturn(List.of(periodStart, MONTH_END));
+    given(
+            transactionExecutionRepository.sumCommissionsForFundAndPeriod(
+                eq(TUK75.getCode()), any(), any()))
+        .willReturn(new BigDecimal("1000"));
+    given(fundNavQueryService.findAum(eq(TUK75.getCode()), any()))
+        .willReturn(new BigDecimal("100000000"));
+
+    var cost = service.getTransactionCost(TUK75, MONTH_END).rate();
+
+    assertThat(cost).isEqualByComparingTo(new BigDecimal("0.00001"));
+  }
+
+  @Test
   void transactionCostReturnsZeroWhenZeroAum() {
     given(
             transactionExecutionRepository.sumCommissionsForFundAndPeriod(
                 eq(TUK75.getCode()), any(), any()))
         .willReturn(new BigDecimal("1000"));
-    given(fundPositionRepository.findDistinctNavDatesByFund(TUK75)).willReturn(List.of());
+    given(
+            fundNavQueryService.findPublishedNavDatesBetween(
+                TUK75.getCode(), MONTH_END.minusYears(1).plusDays(1), MONTH_END))
+        .willReturn(List.of());
 
-    var cost = service.getTransactionCostRate(TUK75, MONTH_END);
+    var cost = service.getTransactionCost(TUK75, MONTH_END).rate();
 
     assertThat(cost).isEqualByComparingTo(ZERO);
   }
@@ -367,17 +558,7 @@ class OcfCalculationServiceTest {
       } else {
         given(feeRateRepository.findValidRate(eq(fund), eq(MANAGEMENT), any()))
             .willReturn(Optional.empty());
-        given(feeRateRepository.findValidRate(eq(fund), eq(DEPOT), any()))
-            .willReturn(
-                Optional.of(
-                    new FeeRate(
-                        1L,
-                        fund,
-                        DEPOT,
-                        ZERO,
-                        FeeRateSource.FIXED,
-                        MONTH_END.minusYears(1),
-                        null)));
+        given(depotRateResolver.resolveRate(eq(fund), any())).willReturn(DepotRate.none());
         given(
                 transactionExecutionRepository.sumCommissionsForFundAndPeriod(
                     eq(fund.getCode()), any(), any()))
@@ -402,12 +583,7 @@ class OcfCalculationServiceTest {
       lenient()
           .when(feeRateRepository.findValidRate(eq(fund), eq(MANAGEMENT), any()))
           .thenReturn(Optional.empty());
-      lenient()
-          .when(feeRateRepository.findValidRate(eq(fund), eq(DEPOT), any()))
-          .thenReturn(
-              Optional.of(
-                  new FeeRate(
-                      1L, fund, DEPOT, ZERO, FeeRateSource.FIXED, MONTH_END.minusYears(1), null)));
+      lenient().when(depotRateResolver.resolveRate(eq(fund), any())).thenReturn(DepotRate.none());
       lenient().when(instrumentFeeRepository.findAllValidRates(any())).thenReturn(List.of());
       lenient()
           .when(
@@ -430,7 +606,11 @@ class OcfCalculationServiceTest {
     given(rs.getDate("snapshot_month")).willReturn(Date.valueOf("2026-04-01"));
     given(rs.getBigDecimal("management_fee_rate")).willReturn(new BigDecimal("0.0034"));
     given(rs.getBigDecimal("depot_fee_rate")).willReturn(new BigDecimal("0.0010"));
+    given(rs.getString("methodology")).willReturn("EX_ANTE_NET_ASSETS_V1");
+    given(rs.getString("rebate_basis")).willReturn("NET");
     given(rs.getBigDecimal("underlying_fund_cost")).willReturn(new BigDecimal("0.0007"));
+    given(rs.getBigDecimal("underlying_fund_cost_gross")).willReturn(new BigDecimal("0.0009"));
+    given(rs.getBigDecimal("underlying_fund_cost_net")).willReturn(new BigDecimal("0.0007"));
     given(rs.getBigDecimal("transaction_cost_rate")).willReturn(new BigDecimal("0.0002"));
     given(rs.getBigDecimal("total_ocf")).willReturn(new BigDecimal("0.0053"));
 
@@ -442,8 +622,152 @@ class OcfCalculationServiceTest {
     assertThat(snapshot.managementFeeRate()).isEqualByComparingTo(new BigDecimal("0.0034"));
     assertThat(snapshot.depotFeeRate()).isEqualByComparingTo(new BigDecimal("0.0010"));
     assertThat(snapshot.underlyingFundCost()).isEqualByComparingTo(new BigDecimal("0.0007"));
+    assertThat(snapshot.underlyingFundCostGross()).isEqualByComparingTo(new BigDecimal("0.0009"));
+    assertThat(snapshot.rebateBasis()).isEqualTo(RebateBasis.NET);
+    assertThat(snapshot.methodology()).isEqualTo(OcfMethodology.EX_ANTE_NET_ASSETS_V1);
     assertThat(snapshot.transactionCostRate()).isEqualByComparingTo(new BigDecimal("0.0002"));
     assertThat(snapshot.totalOcf()).isEqualByComparingTo(new BigDecimal("0.0053"));
+  }
+
+  @Test
+  void aCalculationWithEveryInputResolvedIsCompleteAndCarriesItsSources() {
+    setupManagementFee(TUK75, new BigDecimal("0.0034"));
+    setupDepotFee(TUK75, new BigDecimal("0.0010"));
+    givenRate(new BigDecimal("0.0010"));
+    givenPublishedCalculation(
+        TUK75, securityLine(ISIN, new BigDecimal("500000")), unitsLine(new BigDecimal("1000000")));
+    givenTransactionCosts(new BigDecimal("1000"), new BigDecimal("1000000"));
+
+    var snapshot = service.calculateOcf(TUK75, MONTH);
+
+    assertThat(snapshot.complete()).isTrue();
+    assertThat(snapshot.checks()).contains("\"gaps\":[]");
+    assertThat(snapshot.audit())
+        .isEqualTo(
+            new OcfAudit(
+                MONTH_END,
+                CALCULATION_ID,
+                new BigDecimal("1000000"),
+                1L,
+                true,
+                null,
+                null,
+                MONTH_END.minusMonths(3),
+                MONTH_END,
+                new BigDecimal("1000"),
+                new BigDecimal("1000000.00000000"),
+                "[\"%s\",\"%s\"]".formatted(MONTH_END.minusMonths(3), MONTH_END)));
+  }
+
+  @Test
+  void aMissingManagementFeeRateLeavesTheSnapshotIncompleteAndNamesTheGap() {
+    given(feeRateRepository.findValidRate(TUK75, MANAGEMENT, MONTH_END))
+        .willReturn(Optional.empty());
+    setupDepotFee(TUK75, new BigDecimal("0.0010"));
+    givenRate(new BigDecimal("0.0010"));
+    givenPublishedCalculation(
+        TUK75, securityLine(ISIN, new BigDecimal("500000")), unitsLine(new BigDecimal("1000000")));
+    setupNoTransactionCosts(TUK75);
+
+    var snapshot = service.calculateOcf(TUK75, MONTH);
+
+    assertThat(snapshot.complete()).isFalse();
+    assertThat(snapshot.checks()).contains("\"gaps\":[\"MANAGEMENT_FEE_RATE_MISSING\"]");
+  }
+
+  @Test
+  void aDepotRateOfZeroOnAFundThatIsChargedOneIsAGapRatherThanAFreeDepot() {
+    setupManagementFee(TUK75, new BigDecimal("0.0034"));
+    setupDepotFee(TUK75, ZERO);
+    givenRate(new BigDecimal("0.0010"));
+    givenPublishedCalculation(
+        TUK75, securityLine(ISIN, new BigDecimal("500000")), unitsLine(new BigDecimal("1000000")));
+    setupNoTransactionCosts(TUK75);
+
+    var snapshot = service.calculateOcf(TUK75, MONTH);
+
+    assertThat(snapshot.complete()).isFalse();
+    assertThat(snapshot.checks()).contains("\"gaps\":[\"DEPOT_FEE_RATE_MISSING\"]");
+  }
+
+  @Test
+  void aZeroDepotRateOnAFundThatIsNotChargedOneIsNotAGap() {
+    given(feeChargedToFundPolicy.chargedToFund(TUV100, DEPOT, MONTH_END)).willReturn(false);
+    setupManagementFee(TUV100, new BigDecimal("0.0034"));
+    givenRate(new BigDecimal("0.0010"));
+    givenPublishedCalculation(
+        TUV100, securityLine(ISIN, new BigDecimal("500000")), unitsLine(new BigDecimal("1000000")));
+    setupNoTransactionCosts(TUV100);
+
+    var snapshot = service.calculateOcf(TUV100, MONTH);
+
+    assertThat(snapshot.complete()).isTrue();
+    assertThat(snapshot.audit().depotChargedToFund()).isFalse();
+  }
+
+  @Test
+  void anUnpublishedNavLeavesTheSnapshotIncompleteInsteadOfQuietlyDroppingTheUnderlyingCost() {
+    setupManagementFee(TUK75, new BigDecimal("0.0034"));
+    setupDepotFee(TUK75, new BigDecimal("0.0010"));
+    setupNoInstrumentFees();
+    given(fundNavQueryService.findLatestPublishedNavDateOnOrBefore(TUK75.getCode(), MONTH_END))
+        .willReturn(Optional.empty());
+    setupNoTransactionCosts(TUK75);
+
+    var snapshot = service.calculateOcf(TUK75, MONTH);
+
+    assertThat(snapshot.complete()).isFalse();
+    assertThat(snapshot.checks()).contains("\"gaps\":[\"NO_PUBLISHED_NAV_CALCULATION\"]");
+    assertThat(snapshot.underlyingFundCost()).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  void transactionCostsWithNoAverageAumToDivideByAreAGap() {
+    setupManagementFee(TUK75, new BigDecimal("0.0034"));
+    setupDepotFee(TUK75, new BigDecimal("0.0010"));
+    givenRate(new BigDecimal("0.0010"));
+    givenPublishedCalculation(
+        TUK75, securityLine(ISIN, new BigDecimal("500000")), unitsLine(new BigDecimal("1000000")));
+    given(
+            transactionExecutionRepository.sumCommissionsForFundAndPeriod(
+                eq(TUK75.getCode()), any(), any()))
+        .willReturn(new BigDecimal("1000"));
+    given(fundNavQueryService.findPublishedNavDatesBetween(eq(TUK75.getCode()), any(), any()))
+        .willReturn(List.of());
+
+    var snapshot = service.calculateOcf(TUK75, MONTH);
+
+    assertThat(snapshot.complete()).isFalse();
+    assertThat(snapshot.checks()).contains("\"gaps\":[\"TRANSACTION_COSTS_WITHOUT_AVERAGE_AUM\"]");
+  }
+
+  @Test
+  void publishingReportsWhetherAnythingActuallyWentOut() {
+    given(ocfSnapshotRepository.publish("TUK75", MONTH.atDay(1), "KID 2026")).willReturn(true);
+
+    assertThat(service.publish(TUK75, MONTH, "KID 2026")).isTrue();
+  }
+
+  @Test
+  void publishingAMonthThatHasNoUnpublishedSnapshotReportsFailure() {
+    given(ocfSnapshotRepository.publish("TUK75", MONTH.atDay(1), "KID 2026")).willReturn(false);
+
+    assertThat(service.publish(TUK75, MONTH, "KID 2026")).isFalse();
+  }
+
+  private void givenTransactionCosts(BigDecimal commissions, BigDecimal aum) {
+    var firstNavDate = MONTH_END.minusMonths(3);
+    given(fundNavQueryService.findEarliestPublishedNavDate(TUK75.getCode()))
+        .willReturn(Optional.of(firstNavDate));
+    given(
+            fundNavQueryService.findPublishedNavDatesBetween(
+                TUK75.getCode(), MONTH_END.minusYears(1).plusDays(1), MONTH_END))
+        .willReturn(List.of(firstNavDate, MONTH_END));
+    given(
+            transactionExecutionRepository.sumCommissionsForFundAndPeriod(
+                eq(TUK75.getCode()), any(), any()))
+        .willReturn(commissions);
+    given(fundNavQueryService.findAum(eq(TUK75.getCode()), any())).willReturn(aum);
   }
 
   private void setupManagementFee(TulevaFund fund, BigDecimal rate) {
@@ -461,11 +785,7 @@ class OcfCalculationServiceTest {
   }
 
   private void setupDepotFee(TulevaFund fund, BigDecimal rate) {
-    given(feeRateRepository.findValidRate(fund, DEPOT, MONTH_END))
-        .willReturn(
-            Optional.of(
-                new FeeRate(
-                    1L, fund, DEPOT, rate, FeeRateSource.FIXED, MONTH_END.minusYears(1), null)));
+    given(depotRateResolver.resolveRate(fund, MONTH_END)).willReturn(DepotRate.flat(rate));
   }
 
   private void setupNoInstrumentFees() {

@@ -24,7 +24,7 @@ public class GiftPaymentService {
   private static final BigDecimal MIN_AMOUNT = new BigDecimal("1");
 
   private final GiftLinkService giftLinkService;
-  private final GiftMessageRepository giftMessages;
+  private final GiftRepository gifts;
   private final PaymentService paymentService;
   private final Clock clock;
 
@@ -54,17 +54,16 @@ public class GiftPaymentService {
                 .paymentChannel(request.paymentChannel())
                 .build());
 
-    var message = trimmed(request.message());
-    if (message != null) {
-      giftMessages.save(
-          GiftMessage.builder()
-              .giftLinkId(link.getId())
-              .description(payment.description())
-              .amount(amount)
-              .message(message)
-              .createdAt(clock.instant())
-              .build());
-    }
+    // Recorded whether or not a greeting was written: this row is what later tells a gift apart
+    // from the parent's own deposit, which arrives looking the same.
+    gifts.save(
+        Gift.builder()
+            .giftLinkId(link.getId())
+            .description(payment.description())
+            .amount(amount)
+            .message(trimmed(request.message()))
+            .createdAt(clock.instant())
+            .build());
     return payment.link();
   }
 
@@ -73,8 +72,8 @@ public class GiftPaymentService {
       return null;
     }
     var trimmed = message.strip();
-    return trimmed.length() > GiftMessage.MAX_LENGTH
-        ? trimmed.substring(0, GiftMessage.MAX_LENGTH)
+    return trimmed.length() > Gift.MAX_MESSAGE_LENGTH
+        ? trimmed.substring(0, Gift.MAX_MESSAGE_LENGTH)
         : trimmed;
   }
 }

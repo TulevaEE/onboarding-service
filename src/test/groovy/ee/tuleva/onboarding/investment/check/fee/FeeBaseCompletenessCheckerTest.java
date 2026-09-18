@@ -64,10 +64,17 @@ class FeeBaseCompletenessCheckerTest {
         feeAccrualRepository, expectedFeeBases, publicHolidays, new BigDecimal("0.01"));
   }
 
+  // The funds straddled the deploy that moved the depot base to gross aktiva: each fund's accrual
+  // for 17 August was written by its own NAV run the next morning, two of them before the new code
+  // was live and one after, so no single date describes both. Every depot accrual before the
+  // cutover was zero at a zero rate, so the base behind it is not worth holding to either
+  // definition.
   @Test
-  void aDepotBaseWrittenBeforeTheAssetValueCutoverIsCheckedAgainstTheNetNavBase() {
+  void aDepotBaseWrittenBeforeTheCutoverIsNotCheckedAgainstEitherDefinition() {
     checker = checkerWithDepotAssetBaseFrom(LATER_WORKING_DAY);
-    givenAccruals(base(WORKING_DAY, MANAGEMENT, NAV_TOTAL), base(WORKING_DAY, DEPOT, NAV_TOTAL));
+    givenAccruals(
+        base(WORKING_DAY, MANAGEMENT, NAV_TOTAL),
+        base(WORKING_DAY, DEPOT, new BigDecimal("777777.77")));
     givenNavFeeBaseTotal(WORKING_DAY, NAV_TOTAL);
 
     assertThat(check(TUK75)).singleElement().extracting(FeeCheckFinding::severity).isEqualTo(PASS);
@@ -101,8 +108,49 @@ class FeeBaseCompletenessCheckerTest {
     var finding = check(TUK75).getFirst();
 
     assertThat(finding.severity()).isEqualTo(FAIL);
-    assertThat(finding.deviationAmount())
-        .isEqualByComparingTo(missing.multiply(new BigDecimal("2")));
+    assertThat(finding.deviationAmount()).isEqualByComparingTo(missing);
+  }
+
+  // Both fees are charged on components of the same calculation, so one wrong calculation shows up
+  // once per fee type. Adding them up reported twice the money that was ever at stake.
+  @Test
+  void aBaseErrorBothFeeTypesInheritIsCountedOnce() {
+    var missing = new BigDecimal("27693.25");
+    givenAccruals(
+        base(WORKING_DAY, MANAGEMENT, NAV_TOTAL.add(missing)),
+        base(WORKING_DAY, DEPOT, NAV_TOTAL.add(missing)));
+    givenBothFeeBaseTotalsEqual(WORKING_DAY, NAV_TOTAL);
+
+    assertThat(check(TUK75).getFirst().deviationAmount()).isEqualByComparingTo(missing);
+  }
+
+  @Test
+  void aDayWhoseFeeTypesDivergeByDifferentAmountsReportsTheLarger() {
+    givenAccruals(
+        base(WORKING_DAY, MANAGEMENT, NAV_TOTAL.add(new BigDecimal("500"))),
+        base(WORKING_DAY, DEPOT, ASSET_TOTAL.add(new BigDecimal("1200"))));
+    givenBothFeeBaseTotalsEqual(WORKING_DAY, NAV_TOTAL);
+    givenAssetTotal(WORKING_DAY, ASSET_TOTAL);
+
+    assertThat(check(TUK75).getFirst().deviationAmount())
+        .isEqualByComparingTo(new BigDecimal("1200"));
+  }
+
+  // A base too high on one day and too low on another are two errors, not one that cancels. Summed
+  // signed, TUK75's August and September deviations netted off and understated the total by 2M.
+  @Test
+  void deviationsPointingInOppositeDirectionsDoNotCancel() {
+    var tooLow = new BigDecimal("3964956.25");
+    var tooHigh = new BigDecimal("5928441.07");
+    givenAccruals(
+        base(WORKING_DAY, MANAGEMENT, NAV_TOTAL.subtract(tooLow)),
+        base(WORKING_DAY, DEPOT, NAV_TOTAL.subtract(tooLow)),
+        base(LATER_WORKING_DAY, MANAGEMENT, NAV_TOTAL.add(tooHigh)),
+        base(LATER_WORKING_DAY, DEPOT, NAV_TOTAL.add(tooHigh)));
+    givenBothFeeBaseTotalsEqual(WORKING_DAY, NAV_TOTAL);
+    givenBothFeeBaseTotalsEqual(LATER_WORKING_DAY, NAV_TOTAL);
+
+    assertThat(check(TUK75).getFirst().deviationAmount()).isEqualByComparingTo(tooLow.add(tooHigh));
   }
 
   @Test
@@ -312,7 +360,7 @@ class FeeBaseCompletenessCheckerTest {
 
     assertThat(finding.severity()).isEqualTo(FAIL);
     assertThat(finding.message()).contains(" ... (2 more)");
-    assertThat(finding.deviationAmount()).isEqualByComparingTo(new BigDecimal("24000"));
+    assertThat(finding.deviationAmount()).isEqualByComparingTo(new BigDecimal("12000"));
   }
 
   private static List<LocalDate> workingDays(LocalDate from, int count) {

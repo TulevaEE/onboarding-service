@@ -18,7 +18,6 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
@@ -69,7 +68,7 @@ class FeeBaseCompletenessChecker {
     }
 
     if (!mismatches.isEmpty()) {
-      return List.of(failure(fund, mismatches, totalDeviation.abs()));
+      return List.of(failure(fund, mismatches, totalDeviation));
     }
     if (!notRunDays.isEmpty()) {
       return List.of(notRun(fund, notRunDays));
@@ -98,17 +97,21 @@ class FeeBaseCompletenessChecker {
     return checkDivergence(date, bases, expected.get(), mismatches);
   }
 
+  // Both fees are charged on components of one calculation, so one wrong calculation diverges once
+  // per fee type, and adding those up reported twice the base that was ever wrong. Absolute,
+  // because a day accrued too high and a day accrued too low are two errors, not one that cancels.
   private BigDecimal checkDivergence(
       LocalDate date,
       List<FeeBaseValue> bases,
       Map<FeeType, BigDecimal> expected,
       List<String> mismatches) {
     var divergent = new TreeMap<String, String>();
-    var dayDeviation = ZERO;
+    var widestDeviation = ZERO;
     for (var base : bases) {
-      var navComponent =
-          Objects.requireNonNull(
-              expected.get(base.feeType()), "Expected fee base missing: feeType=" + base.feeType());
+      var navComponent = expected.get(base.feeType());
+      if (navComponent == null) {
+        continue;
+      }
       var deviation = navComponent.subtract(base.baseValue());
       if (deviation.abs().compareTo(feeBaseTolerance) <= 0) {
         continue;
@@ -121,12 +124,12 @@ class FeeBaseCompletenessChecker {
               + navComponent.toPlainString()
               + " missing="
               + deviation.toPlainString());
-      dayDeviation = dayDeviation.add(deviation);
+      widestDeviation = widestDeviation.max(deviation.abs());
     }
     if (!divergent.isEmpty()) {
       mismatches.add(date + " " + divergent);
     }
-    return dayDeviation;
+    return widestDeviation;
   }
 
   private List<FeeType> feeTypesThatStoppedAccruing(
@@ -180,11 +183,11 @@ class FeeBaseCompletenessChecker {
         FEE_BASE_COMPLETENESS,
         ALL,
         FeeCheckSeverity.NOT_RUN,
-        "No nav_report rows to compare the fee base against on "
+        "No published NAV to compare the fee base against on "
             + days.size()
             + " working day(s): "
             + days.stream().limit(MAX_DAYS_IN_MESSAGE).map(LocalDate::toString).toList(),
         null,
-        Map.of("daysWithoutNavReport", days.stream().map(LocalDate::toString).toList()));
+        Map.of("daysWithoutPublishedNav", days.stream().map(LocalDate::toString).toList()));
   }
 }

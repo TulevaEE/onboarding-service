@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
@@ -180,6 +181,35 @@ class DepotFeeCalculatorTest {
     FeeAccrual result = calculator.calculate(TUK75, date, BASES);
 
     assertThat(result.annualRate()).isEqualByComparingTo(ZERO);
+  }
+
+  // The anchor date is the newest calculation whether or not it went out, but the assets come from
+  // the published one. A month end whose NAV never went out therefore read as a fund worth nothing
+  // and dropped the combined basis a band. A basis that cannot be completed is not a basis to
+  // charge a rate off.
+  @Test
+  void calculate_accruesNothingWhenAFundsAnchorHasNoPublishedAssets() {
+    LocalDate date = LocalDate.of(2025, 7, 15);
+    LocalDate feeMonth = LocalDate.of(2025, 7, 1);
+    LocalDate anchorDate = LocalDate.of(2025, 5, 30);
+
+    given(feeMonthResolver.resolveFeeMonth(date)).willReturn(feeMonth);
+    given(feeRateRepository.findValidRate(TUK75, FeeType.DEPOT, date))
+        .willReturn(Optional.of(tierRow(TUK75, LocalDate.of(2025, 1, 1), null)));
+    given(fundNavQueryService.findLatestNavDateOnOrBefore(anyString(), eq(MAY_END)))
+        .willReturn(Optional.of(anchorDate));
+    given(fundNavQueryService.findAssetTotal(anyString(), eq(anchorDate)))
+        .willReturn(Optional.empty());
+    lenient().when(publicHolidays.nextWorkingDay(anchorDate)).thenReturn(LocalDate.of(2025, 6, 2));
+    lenient()
+        .when(navLedgerRepository.getSystemAccountBalanceBefore(anyString(), any(Instant.class)))
+        .thenReturn(ZERO);
+
+    FeeAccrual result = calculator.calculate(TUK75, date, BASES);
+
+    assertThat(result.annualRate()).isEqualByComparingTo(ZERO);
+    assertThat(result.dailyAmountGross()).isEqualByComparingTo(ZERO);
+    verifyNoInteractions(tierRepository);
   }
 
   @Test

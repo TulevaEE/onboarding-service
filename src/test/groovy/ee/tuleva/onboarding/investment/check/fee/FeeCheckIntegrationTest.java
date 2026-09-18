@@ -47,6 +47,7 @@ class FeeCheckIntegrationTest {
   private static final BigDecimal PENDING_REDEMPTIONS = new BigDecimal("-12000.00");
   private static final BigDecimal ASSET_VALUE =
       BASE_VALUE.subtract(TRADE_PAYABLES).subtract(PENDING_REDEMPTIONS);
+  private static final Instant PUBLISHED_AT = Instant.parse("2026-06-05T08:00:00Z");
 
   @Autowired private FeeCheckService feeCheckService;
   @Autowired private FeeCalculationService feeCalculationService;
@@ -193,6 +194,35 @@ class FeeCheckIntegrationTest {
     verifyNoInteractions(notificationService);
   }
 
+  // An ad-hoc recalculation is written to nav_report before anything decides whether it goes out,
+  // and it re-accrues the day's fees on its own components. Reading it back as the NAV the fee was
+  // charged on turned a correct fee base into a FAIL, and would hide a wrong one behind whichever
+  // run happened last.
+  @Test
+  void aRecalculationThatWasNeverPublishedIsNotTheNavTheFeeWasChargedOn() {
+    accrueFor(DAY_ONE);
+    seedMatchingCustodianPositionsAndNavReport(DAY_ONE);
+    insertSystemAccount("BLACKROCK_ADJUSTMENT:TUK75", "ASSET");
+    insertBlackrockAdjustment(DAY_ONE, new BigDecimal("100.00"));
+    insertUnpublishedNavReportRow(DAY_ONE, "SECURITY", "Security", new BigDecimal("1.00"));
+
+    feeCheckService.runDailyChecks(List.of(TUK75), DAY_ONE);
+
+    assertThat(findEvent(TUK75, "FEE_BASE_COMPLETENESS", "ALL").get("severity")).isEqualTo("PASS");
+  }
+
+  @Test
+  void aDayWhoseNavNeverWentOutIsNotRunRatherThanADeviation() {
+    accrueFor(DAY_ONE);
+    insertUnpublishedNavReportRow(DAY_ONE, "SECURITY", "Security", BASE_VALUE);
+
+    feeCheckService.runDailyChecks(List.of(TUK75), DAY_ONE);
+
+    var event = findEvent(TUK75, "FEE_BASE_COMPLETENESS", "ALL");
+    assertThat(event.get("severity")).isEqualTo("NOT_RUN");
+    assertThat(event.get("deviation_found")).isEqualTo(false);
+  }
+
   // The redemptions row is reported by the custodian but sourced from our own register, so it has
   // to drop out of both sides. Seeding it non-zero is what proves the exclusion is symmetric.
   private void seedMatchingCustodianPositionsAndNavReport(LocalDate navDate) {
@@ -304,6 +334,26 @@ class FeeCheckIntegrationTest {
         .sql(
             """
             INSERT INTO nav_report
+            (nav_date, fund_code, account_type, account_name, market_value, calculation_id,
+             published_at)
+            VALUES (:navDate, 'TUK75', :accountType, :accountName, :marketValue, :calculationId,
+                    :publishedAt)
+            """)
+        .param("navDate", navDate)
+        .param("accountType", accountType)
+        .param("accountName", accountName)
+        .param("marketValue", marketValue)
+        .param("calculationId", UUID.nameUUIDFromBytes("test-calc".getBytes()))
+        .param("publishedAt", Timestamp.from(PUBLISHED_AT))
+        .update();
+  }
+
+  private void insertUnpublishedNavReportRow(
+      LocalDate navDate, String accountType, String accountName, BigDecimal marketValue) {
+    jdbcClient
+        .sql(
+            """
+            INSERT INTO nav_report
             (nav_date, fund_code, account_type, account_name, market_value, calculation_id)
             VALUES (:navDate, 'TUK75', :accountType, :accountName, :marketValue, :calculationId)
             """)
@@ -311,7 +361,7 @@ class FeeCheckIntegrationTest {
         .param("accountType", accountType)
         .param("accountName", accountName)
         .param("marketValue", marketValue)
-        .param("calculationId", UUID.nameUUIDFromBytes("test-calc".getBytes()))
+        .param("calculationId", UUID.nameUUIDFromBytes("test-recalculation".getBytes()))
         .update();
   }
 

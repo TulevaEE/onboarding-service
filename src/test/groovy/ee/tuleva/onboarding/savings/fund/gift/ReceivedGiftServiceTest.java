@@ -28,6 +28,7 @@ class ReceivedGiftServiceTest {
 
   private static final String PARENT = "38888888888";
   private static final String CHILD = "61001010000";
+  private static final String CO_PARENT = "48002020009";
   private static final String GRANDPARENT = "39999999999";
   private static final Instant NOW = Instant.parse("2026-09-17T10:00:00Z");
 
@@ -55,7 +56,7 @@ class ReceivedGiftServiceTest {
   void leavesOutTheParentsOwnDeposit() {
     var own = payment("own-deposit", PARENT, "Kristjan Tamm", VERIFIED);
     givenPayments(own);
-    given(parentChildLinks.isActiveRepresentation(PARENT, CHILD)).willReturn(true);
+    given(parentChildLinks.isGuardian(PARENT, CHILD)).willReturn(true);
     given(gifts.findByDescriptionIn(any())).willReturn(List.of());
 
     assertThat(service.receivedGifts(PARENT, CHILD)).isEmpty();
@@ -70,9 +71,18 @@ class ReceivedGiftServiceTest {
   }
 
   @Test
+  void leavesOutTheDepositOfAParentWhoseOwnKycHasNotClearedYet() {
+    givenPayments(payment("co-parent-deposit", CO_PARENT, "Kristjan Tamm", VERIFIED));
+    given(parentChildLinks.isGuardian(CO_PARENT, CHILD)).willReturn(true);
+    given(gifts.findByDescriptionIn(any())).willReturn(List.of());
+
+    assertThat(service.receivedGifts(PARENT, CHILD)).isEmpty();
+  }
+
+  @Test
   void showsATransferFromSomebodyWhoDoesNotActForTheChild() {
     givenPayments(payment("from-grandma", GRANDPARENT, "Leida Tamm", VERIFIED));
-    given(parentChildLinks.isActiveRepresentation(GRANDPARENT, CHILD)).willReturn(false);
+    given(parentChildLinks.isGuardian(GRANDPARENT, CHILD)).willReturn(false);
     given(gifts.findByDescriptionIn(any())).willReturn(List.of());
 
     assertThat(service.receivedGifts(PARENT, CHILD))

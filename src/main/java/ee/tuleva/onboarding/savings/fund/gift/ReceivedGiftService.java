@@ -71,7 +71,7 @@ public class ReceivedGiftService {
       return false;
     }
     return !remitter.equals(childPersonalCode)
-        && !parentChildLinks.isActiveRepresentation(remitter, childPersonalCode);
+        && !parentChildLinks.isGuardian(remitter, childPersonalCode);
   }
 
   private static boolean hasReachedTheAccount(SavingFundPayment payment) {

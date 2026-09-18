@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.savings.fund.gift;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willAnswer;
+import static org.mockito.BDDMockito.willReturn;
 
 import ee.tuleva.onboarding.party.ParentChildLinkService;
 import java.time.Clock;
@@ -76,6 +77,24 @@ class GiftLinkServiceDatabaseTest {
     assertThat(losers.getId()).isEqualTo(winners.getId());
     assertThat(giftLinks.findAll().stream().filter(GiftLink::isOpen).map(GiftLink::getId).toList())
         .containsExactly(winners.getId());
+  }
+
+  @Test
+  @Transactional(propagation = Propagation.NOT_SUPPORTED)
+  void theReplacementThatLosesTheRaceHandsBackTheLinkTheWinnerMinted() {
+    var original = service.openLinkFor(PARENT, CHILD);
+    var winners = service.replaceLink(PARENT, original.getId());
+    givenTheClosedLinkStillReadsAsOpen(original);
+
+    var losers = service.replaceLink(PARENT, original.getId());
+
+    assertThat(losers.getId()).isEqualTo(winners.getId());
+    assertThat(giftLinks.findAll().stream().filter(GiftLink::isOpen).map(GiftLink::getId).toList())
+        .containsExactly(winners.getId());
+  }
+
+  private void givenTheClosedLinkStillReadsAsOpen(GiftLink stale) {
+    willReturn(Optional.of(stale)).given(giftLinks).findByIdAndClosedAtIsNull(stale.getId());
   }
 
   private void givenTheOpenLinkIsMissedOnce() {

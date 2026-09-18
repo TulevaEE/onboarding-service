@@ -1,7 +1,5 @@
 package ee.tuleva.onboarding.savings.fund;
 
-import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
-import static ee.tuleva.onboarding.party.ParentChildLinkStatus.PENDING_KYC;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.TO_BE_RETURNED;
@@ -34,8 +32,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
 
@@ -482,6 +478,9 @@ class PaymentVerificationServiceTest {
     assertThat(service.extractPartyIdFromDescription("123456789"))
         .withFailMessage("9 digits not a valid registry code")
         .isEmpty();
+    assertThat(service.extractPartyIdFromDescription("38812121215, 1758182400, KQZM"))
+        .withFailMessage("a gift link description still names its recipient")
+        .contains(new PartyId(PERSON, "38812121215"));
     assertThat(service.extractPartyIdFromDescription("P13694547 makse 37508295796"))
         .withFailMessage(
             "11-digit personal code must take precedence over any 8-digit substring elsewhere")
@@ -717,9 +716,7 @@ class PaymentVerificationServiceTest {
     when(userRepository.findByPersonalCode(childCode)).thenReturn(Optional.of(child));
     when(parentChildLinkService.hasRestrictedLegalCapacity(childCode, LocalDate.of(2025, 10, 1)))
         .thenReturn(true);
-    when(parentChildLinkService.findRepresentation(
-            parentCode, childCode, Set.of(ACTIVE, PENDING_KYC)))
-        .thenReturn(Optional.empty());
+    when(parentChildLinkService.isGuardian(parentCode, childCode)).thenReturn(false);
 
     service.process(payment);
 
@@ -769,9 +766,7 @@ class PaymentVerificationServiceTest {
     when(userRepository.findByPersonalCode(childCode)).thenReturn(Optional.of(child));
     when(parentChildLinkService.hasRestrictedLegalCapacity(childCode, LocalDate.of(2025, 10, 1)))
         .thenReturn(true);
-    when(parentChildLinkService.findRepresentation(
-            remitterCode, childCode, Set.of(ACTIVE, PENDING_KYC)))
-        .thenReturn(Optional.empty());
+    when(parentChildLinkService.isGuardian(remitterCode, childCode)).thenReturn(false);
 
     service.process(payment);
 
@@ -828,9 +823,7 @@ class PaymentVerificationServiceTest {
         .thenReturn(true);
     when(savingsFundOnboardingService.isOnboardingCompleted(new PartyId(PERSON, childCode)))
         .thenReturn(true);
-    when(parentChildLinkService.findRepresentation(
-            parentCode, childCode, Set.of(ACTIVE, PENDING_KYC)))
-        .thenReturn(Optional.of(UUID.randomUUID()));
+    when(parentChildLinkService.isGuardian(parentCode, childCode)).thenReturn(true);
 
     service.process(payment);
 
@@ -878,9 +871,7 @@ class PaymentVerificationServiceTest {
     when(parentChildLinkService.hasRestrictedLegalCapacity(childCode, LocalDate.of(2025, 10, 1)))
         .thenReturn(true);
     when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
-    when(parentChildLinkService.findRepresentation(
-            remitterCode, childCode, Set.of(ACTIVE, PENDING_KYC)))
-        .thenReturn(Optional.empty());
+    when(parentChildLinkService.isGuardian(remitterCode, childCode)).thenReturn(false);
 
     service.process(payment);
 

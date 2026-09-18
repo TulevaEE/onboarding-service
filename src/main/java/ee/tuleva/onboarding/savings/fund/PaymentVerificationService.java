@@ -1,7 +1,5 @@
 package ee.tuleva.onboarding.savings.fund;
 
-import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
-import static ee.tuleva.onboarding.party.ParentChildLinkStatus.PENDING_KYC;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.TO_BE_RETURNED;
@@ -26,7 +24,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.regex.Pattern;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -205,9 +202,7 @@ public class PaymentVerificationService {
   private boolean isGuardianOf(PartyId remitter, PartyId party) {
     return remitter.type() == PERSON
         && party.type() == PERSON
-        && parentChildLinkService
-            .findRepresentation(remitter.code(), party.code(), Set.of(ACTIVE, PENDING_KYC))
-            .isPresent();
+        && parentChildLinkService.isGuardian(remitter.code(), party.code());
   }
 
   Optional<PartyId> extractPartyIdFromDescription(String text) {

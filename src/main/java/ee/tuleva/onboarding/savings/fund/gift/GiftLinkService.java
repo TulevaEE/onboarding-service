@@ -10,7 +10,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
@@ -32,36 +32,45 @@ public class GiftLinkService {
     return giftLinks
         .findByRecipientPersonalCodeAndClosedAtIsNull(childPersonalCode)
         .orElseGet(
-            () -> mintUnlessAnotherRequestGotThereFirst(parentPersonalCode, childPersonalCode));
+            () ->
+                orTheOpenLinkAnotherRequestLeft(
+                    childPersonalCode,
+                    "Gift link neither minted nor open",
+                    transaction -> mint(parentPersonalCode, childPersonalCode)));
   }
 
-  private GiftLink mintUnlessAnotherRequestGotThereFirst(
-      String parentPersonalCode, String childPersonalCode) {
-    try {
-      return requireNonNull(
-          transactionTemplate.execute(transaction -> mint(parentPersonalCode, childPersonalCode)));
-    } catch (DataIntegrityViolationException anotherRequestMintedTheOpenLink) {
-      return giftLinks
-          .findByRecipientPersonalCodeAndClosedAtIsNull(childPersonalCode)
-          .orElseThrow(
-              () ->
-                  new IllegalStateException(
-                      "Gift link neither minted nor open: childPersonalCode=" + childPersonalCode));
-    }
-  }
-
-  @Transactional
   public GiftLink replaceLink(String parentPersonalCode, UUID id) {
     var link =
         giftLinks
             .findByIdAndClosedAtIsNull(id)
             .orElseThrow(() -> new NoSuchElementException("No such open gift link: id=" + id));
-    requireRepresentation(parentPersonalCode, link.getRecipientPersonalCode());
-    link.close(clock.instant());
-    // Flushed before the replacement is minted: Hibernate runs inserts before updates, so the new
-    // row would otherwise claim open_for_recipient while the old row still holds it.
-    giftLinks.saveAndFlush(link);
-    return mint(parentPersonalCode, link.getRecipientPersonalCode());
+    var childPersonalCode = link.getRecipientPersonalCode();
+    requireRepresentation(parentPersonalCode, childPersonalCode);
+    return orTheOpenLinkAnotherRequestLeft(
+        childPersonalCode,
+        "Gift link neither replaced nor open",
+        transaction -> {
+          link.close(clock.instant());
+          // Flushed before the replacement is minted: Hibernate runs inserts before updates, so
+          // the new row would otherwise claim open_for_recipient while the old row still holds it.
+          giftLinks.saveAndFlush(link);
+          return mint(parentPersonalCode, childPersonalCode);
+        });
+  }
+
+  // Two requests for the same child race for the one open link the unique constraint allows. The
+  // loser is told what the winner left rather than being handed the constraint violation.
+  private GiftLink orTheOpenLinkAnotherRequestLeft(
+      String childPersonalCode, String failure, TransactionCallback<GiftLink> work) {
+    try {
+      return requireNonNull(transactionTemplate.execute(work));
+    } catch (DataIntegrityViolationException anotherRequestGotThereFirst) {
+      return giftLinks
+          .findByRecipientPersonalCodeAndClosedAtIsNull(childPersonalCode)
+          .orElseThrow(
+              () ->
+                  new IllegalStateException(failure + ": childPersonalCode=" + childPersonalCode));
+    }
   }
 
   public GiftLink findOpenLink(String token) {

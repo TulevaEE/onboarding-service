@@ -87,6 +87,48 @@ class SavingsPaymentLinkGeneratorSpec extends Specification {
     }
 
 
+    def "an anonymous payment description carries a random suffix the order repeats"() {
+        given:
+        def paymentData = new PaymentData("38812121215", new BigDecimal("10.00"), EUR, SAVINGS, LHV)
+
+        paymentChannelConfiguration.getPaymentProviderChannel(LHV) >> PaymentFixture.aMontonioPaymentChannel()
+        paymentInternalReferenceService.getPaymentReference(_, paymentData, _) >> "REF123456"
+        localeService.getCurrentLocale() >> Locale.ENGLISH
+
+        def order
+        orderClient.getPaymentUrl(_ as MontonioOrder, _ as SavingsChannelConfiguration) >> { args ->
+          order = args[0]
+          return "https://payment.url"
+        }
+
+        when:
+        def payment = generator.getAnonymousPaymentLink(paymentData)
+
+        then:
+        payment.description ==~ /^38812121215, \d+, [A-HJKMNP-TV-Z]{6}$/
+        order.payment.methodOptions.paymentDescription == payment.description
+    }
+
+    def "two anonymous payments for the same child in the same second are told apart"() {
+        given:
+        def paymentData = new PaymentData("38812121215", new BigDecimal("10.00"), EUR, SAVINGS, LHV)
+
+        paymentChannelConfiguration.getPaymentProviderChannel(LHV) >> PaymentFixture.aMontonioPaymentChannel()
+        paymentInternalReferenceService.getPaymentReference(_, paymentData, _) >> "REF123456"
+        localeService.getCurrentLocale() >> Locale.ENGLISH
+        orderClient.getPaymentUrl(_ as MontonioOrder, _ as SavingsChannelConfiguration) >> "https://payment.url"
+
+        when:
+        def first = generator.getAnonymousPaymentLink(paymentData)
+        def second = generator.getAnonymousPaymentLink(paymentData)
+
+        then:
+        def sameSecond = "38812121215, " + clock.instant().getEpochSecond() + ", "
+        first.description.startsWith(sameSecond)
+        second.description.startsWith(sameSecond)
+        first.description != second.description
+    }
+
     def "rejects a payment channel with no BIC as 400"() {
         given:
         def person = samplePerson

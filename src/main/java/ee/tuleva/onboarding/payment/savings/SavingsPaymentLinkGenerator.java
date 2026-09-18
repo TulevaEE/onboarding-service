@@ -13,6 +13,7 @@ import ee.tuleva.onboarding.payment.RedirectLink;
 import ee.tuleva.onboarding.payment.provider.PaymentInternalReferenceService;
 import ee.tuleva.onboarding.payment.provider.montonio.*;
 import java.math.BigDecimal;
+import java.security.SecureRandom;
 import java.time.Clock;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
@@ -32,14 +33,31 @@ public class SavingsPaymentLinkGenerator implements PaymentLinkGenerator {
 
   private static final BigDecimal MIN_AMOUNT = new BigDecimal("0.01");
 
+  // Letters only: the recipient is read back out of the description by matching digit runs, so a
+  // digit here could pass for a personal or registry code. No I, L, O or U either, because a payer
+  // may have to copy the description into their own bank.
+  private static final String SUFFIX_ALPHABET = "ABCDEFGHJKMNPQRSTVWXYZ";
+  private static final int SUFFIX_LENGTH = 6;
+  private static final SecureRandom RANDOM = new SecureRandom();
+
   @Override
   public PaymentLink getPaymentLink(PaymentData paymentData, Person person) {
     return buildPaymentLink(paymentData, person);
   }
 
   public AnonymousPayment getAnonymousPaymentLink(PaymentData paymentData) {
-    var description = describe(paymentData);
+    // Anyone holding a gift link can start two payments in the same second, and the callback drops
+    // a description it has already seen, so an anonymous payment gets a description of its own.
+    var description = describe(paymentData) + ", " + randomSuffix();
     return new AnonymousPayment(buildPaymentLink(paymentData, null, description), description);
+  }
+
+  private static String randomSuffix() {
+    var suffix = new StringBuilder(SUFFIX_LENGTH);
+    for (int i = 0; i < SUFFIX_LENGTH; i++) {
+      suffix.append(SUFFIX_ALPHABET.charAt(RANDOM.nextInt(SUFFIX_ALPHABET.length())));
+    }
+    return suffix.toString();
   }
 
   private PaymentLink buildPaymentLink(PaymentData paymentData, @Nullable Person person) {

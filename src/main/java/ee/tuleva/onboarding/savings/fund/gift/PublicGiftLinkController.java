@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.gift;
 
 import static org.springframework.http.HttpHeaders.CACHE_CONTROL;
+import static org.springframework.http.HttpStatus.FORBIDDEN;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 import ee.tuleva.onboarding.payment.PaymentLink;
@@ -60,6 +61,11 @@ public class PublicGiftLinkController {
   @ExceptionHandler(NoSuchElementException.class)
   public ResponseEntity<Void> notFound() {
     return ResponseEntity.status(NOT_FOUND).header(CACHE_CONTROL, NO_STORE).build();
+  }
+
+  @ExceptionHandler(NotAllowedToGiftForException.class)
+  public ResponseEntity<Void> forbidden() {
+    return ResponseEntity.status(FORBIDDEN).header(CACHE_CONTROL, NO_STORE).build();
   }
 
   private static String fullName(String firstName, String lastName) {

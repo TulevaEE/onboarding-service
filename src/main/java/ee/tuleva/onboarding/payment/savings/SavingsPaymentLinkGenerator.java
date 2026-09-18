@@ -61,8 +61,11 @@ public class SavingsPaymentLinkGenerator implements PaymentLinkGenerator {
     var channel =
         paymentChannelConfiguration.getPaymentProviderChannel(paymentData.getPaymentChannel());
     if (channel == null || channel.getBic() == null) {
-      throw new IllegalArgumentException(
-          "Invalid payment channel: " + paymentData.getPaymentChannel());
+      throw new ErrorsResponseException(
+          ErrorsResponse.ofSingleError(
+              "payment.channel.invalid",
+              "Payment channel is not available for savings payments: paymentChannel="
+                  + paymentData.getPaymentChannel()));
     }
     var bic = channel.getBic();
     var amount = paymentData.getAmount();

@@ -121,6 +121,18 @@ class ReceivedGiftServiceTest {
         .allSatisfy(gift -> assertThat(gift.message()).isNull());
   }
 
+  @Test
+  void showsNoMessageWhenOnlyOneOfTwoGiftsSharingADescriptionCarriesWords() {
+    givenPayments(
+        payment("same-second", null, null, VERIFIED), payment("same-second", null, null, VERIFIED));
+    given(gifts.findByDescriptionIn(any()))
+        .willReturn(List.of(gift("same-second", "From Grandma"), gift("same-second", null)));
+
+    assertThat(service.receivedGifts(PARENT, CHILD))
+        .hasSize(2)
+        .allSatisfy(gift -> assertThat(gift.message()).isNull());
+  }
+
   private void givenPayments(SavingFundPayment... found) {
     given(payments.findPayments(any())).willReturn(List.of(found));
   }
@@ -141,7 +153,7 @@ class ReceivedGiftServiceTest {
         .build();
   }
 
-  private static Gift gift(String description, String message) {
+  private static Gift gift(String description, @Nullable String message) {
     return Gift.builder()
         .giftLinkId(UUID.randomUUID())
         .description(description)

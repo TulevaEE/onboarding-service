@@ -1,13 +1,17 @@
 package ee.tuleva.onboarding.savings.fund.gift;
 
+import static java.util.Objects.requireNonNull;
+
 import ee.tuleva.onboarding.party.ParentChildLinkService;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 @RequiredArgsConstructor
@@ -21,21 +25,37 @@ public class GiftLinkService {
   private final GiftLinkRepository giftLinks;
   private final ParentChildLinkService parentChildLinks;
   private final Clock clock;
+  private final TransactionTemplate transactionTemplate;
 
-  @Transactional
   public GiftLink openLinkFor(String parentPersonalCode, String childPersonalCode) {
     requireRepresentation(parentPersonalCode, childPersonalCode);
     return giftLinks
         .findByRecipientPersonalCodeAndClosedAtIsNull(childPersonalCode)
-        .orElseGet(() -> mint(parentPersonalCode, childPersonalCode));
+        .orElseGet(
+            () -> mintUnlessAnotherRequestGotThereFirst(parentPersonalCode, childPersonalCode));
+  }
+
+  private GiftLink mintUnlessAnotherRequestGotThereFirst(
+      String parentPersonalCode, String childPersonalCode) {
+    try {
+      return requireNonNull(
+          transactionTemplate.execute(transaction -> mint(parentPersonalCode, childPersonalCode)));
+    } catch (DataIntegrityViolationException anotherRequestMintedTheOpenLink) {
+      return giftLinks
+          .findByRecipientPersonalCodeAndClosedAtIsNull(childPersonalCode)
+          .orElseThrow(
+              () ->
+                  new IllegalStateException(
+                      "Gift link neither minted nor open: childPersonalCode=" + childPersonalCode));
+    }
   }
 
   @Transactional
   public GiftLink replaceLink(String parentPersonalCode, UUID id) {
     var link =
         giftLinks
-            .findById(id)
-            .orElseThrow(() -> new NoSuchElementException("No such gift link: id=" + id));
+            .findByIdAndClosedAtIsNull(id)
+            .orElseThrow(() -> new NoSuchElementException("No such open gift link: id=" + id));
     requireRepresentation(parentPersonalCode, link.getRecipientPersonalCode());
     link.close(clock.instant());
     // Flushed before the replacement is minted: Hibernate runs inserts before updates, so the new
@@ -77,7 +97,7 @@ public class GiftLinkService {
   }
 
   private GiftLink mint(String parentPersonalCode, String childPersonalCode) {
-    return giftLinks.save(
+    return giftLinks.saveAndFlush(
         GiftLink.builder()
             .token(mintToken())
             .recipientPersonalCode(childPersonalCode)

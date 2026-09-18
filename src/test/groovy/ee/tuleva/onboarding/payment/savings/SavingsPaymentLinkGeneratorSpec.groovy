@@ -17,6 +17,7 @@ import java.time.ZoneOffset
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.LHV
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.TULUNDUSUHISTU
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.SAVINGS
 
 
@@ -86,7 +87,7 @@ class SavingsPaymentLinkGeneratorSpec extends Specification {
     }
 
 
-    def "throws exception when payment channel has no BIC"() {
+    def "rejects a payment channel with no BIC as 400"() {
         given:
         def person = samplePerson
         def paymentData = new PaymentData("38812121215", new BigDecimal("10.00"), EUR, SAVINGS, LHV)
@@ -98,8 +99,22 @@ class SavingsPaymentLinkGeneratorSpec extends Specification {
         generator.getPaymentLink(paymentData, person)
 
         then:
-        def exception = thrown(IllegalArgumentException)
-        exception.message == "Invalid payment channel: LHV"
+        def exception = thrown(ErrorsResponseException)
+        exception.errorsResponse.errors[0].code == "payment.channel.invalid"
+    }
+
+    def "rejects a payment channel Montonio is not configured for as 400"() {
+        given:
+        def paymentData = new PaymentData("38812121215", new BigDecimal("10.00"), EUR, SAVINGS, TULUNDUSUHISTU)
+
+        paymentChannelConfiguration.getPaymentProviderChannel(TULUNDUSUHISTU) >> null
+
+        when:
+        generator.getAnonymousPaymentLink(paymentData)
+
+        then:
+        def exception = thrown(ErrorsResponseException)
+        exception.errorsResponse.errors[0].code == "payment.channel.invalid"
     }
 
     def "rejects savings payment without payment channel as 400"() {

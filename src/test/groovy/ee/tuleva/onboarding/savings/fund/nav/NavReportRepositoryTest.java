@@ -255,6 +255,53 @@ class NavReportRepositoryTest {
     assertThat(navReportRepository.findPublishedNavPerUnit(navDate, "TKF100", "NAV")).isEmpty();
   }
 
+  // The fee base a fee was charged on is the one the published NAV carried. An ad-hoc
+  // recalculation that never went out must not become the yardstick the accrual is measured
+  // against, or a bad unpublished run reads as a correct fee base and a correct one as wrong.
+  @Test
+  void sumPublishedCalculationMarketValueByAccountTypes_ignoresANewerUnpublishedCalculation() {
+    var navDate = LocalDate.of(2026, 9, 1);
+    var publishedCalculation = UUID.randomUUID();
+    navReportRepository.save(
+        componentRow(navDate, publishedCalculation, "SECURITY", "16113135.38"));
+    navReportRepository.save(
+        componentRow(navDate, publishedCalculation, "LIABILITY", "-100000.00"));
+    navReportRepository.markAsPublished(publishedCalculation);
+
+    var unpublishedCalculation = UUID.randomUUID();
+    navReportRepository.save(
+        componentRow(navDate, unpublishedCalculation, "SECURITY", "16040828.63"));
+
+    assertThat(
+            navReportRepository.sumPublishedCalculationMarketValueByAccountTypes(
+                "TKF100", navDate, List.of("SECURITY", "CASH", "RECEIVABLES", "LIABILITY")))
+        .isEqualByComparingTo("16013135.38");
+  }
+
+  @Test
+  void sumPublishedCalculationMarketValueByAccountTypes_picksTheMostRecentlyPublished() {
+    var navDate = LocalDate.of(2026, 9, 1);
+    navReportRepository.save(
+        componentRow(
+            navDate,
+            UUID.randomUUID(),
+            "SECURITY",
+            "16013135.38",
+            Instant.parse("2026-09-02T12:00:00Z")));
+    navReportRepository.save(
+        componentRow(
+            navDate,
+            UUID.randomUUID(),
+            "SECURITY",
+            "15900000.00",
+            Instant.parse("2026-09-02T09:00:00Z")));
+
+    assertThat(
+            navReportRepository.sumPublishedCalculationMarketValueByAccountTypes(
+                "TKF100", navDate, List.of("SECURITY", "CASH", "RECEIVABLES", "LIABILITY")))
+        .isEqualByComparingTo("16013135.38");
+  }
+
   @Test
   void findLatestNavPerUnit_readsTheCalculationBeingGatedBeforeItIsPublished() {
     var navDate = LocalDate.of(2026, 8, 27);
@@ -267,6 +314,30 @@ class NavReportRepositoryTest {
     assertThat(navReportRepository.findLatestNavPerUnit(navDate, "TKF100", "NAV"))
         .get(as(BIG_DECIMAL))
         .isEqualByComparingTo("1.5000");
+  }
+
+  private static NavReportRow componentRow(
+      LocalDate navDate, UUID calculationId, String accountType, String marketValue) {
+    return componentRow(navDate, calculationId, accountType, marketValue, null);
+  }
+
+  private static NavReportRow componentRow(
+      LocalDate navDate,
+      UUID calculationId,
+      String accountType,
+      String marketValue,
+      Instant publishedAt) {
+    return NavReportRow.builder()
+        .navDate(navDate)
+        .fundCode("TKF100")
+        .accountType(accountType)
+        .accountName(accountType)
+        .quantity(new BigDecimal(marketValue))
+        .marketPrice(new BigDecimal("1.00"))
+        .marketValue(new BigDecimal(marketValue))
+        .calculationId(calculationId)
+        .publishedAt(publishedAt)
+        .build();
   }
 
   private static NavReportRow navRow(

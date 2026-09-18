@@ -80,35 +80,40 @@ public class DepotFeeCalculator implements FeeCalculator {
   }
 
   private BigDecimal determineDepotRateFromTier(LocalDate feeMonth) {
-    BigDecimal totalAssets = combinedFundAssetsTwoMonthEndsBefore(feeMonth);
-    Optional<BigDecimal> tierRate = tierRepository.findRateForAum(totalAssets, feeMonth);
+    Optional<BigDecimal> totalAssets = combinedFundAssetsTwoMonthEndsBefore(feeMonth);
+    if (totalAssets.isEmpty()) {
+      log.warn("No published assets behind the depot tier, accruing zero: feeMonth={}", feeMonth);
+      return ZERO;
+    }
+    Optional<BigDecimal> tierRate = tierRepository.findRateForAum(totalAssets.get(), feeMonth);
     if (tierRate.isEmpty()) {
       log.warn(
           "No depot fee tier configured, accruing zero: totalAssets={}, feeMonth={}",
-          totalAssets,
+          totalAssets.get(),
           feeMonth);
       return ZERO;
     }
     return tierRate.get();
   }
 
-  private BigDecimal combinedFundAssetsTwoMonthEndsBefore(LocalDate feeMonth) {
+  // A fund short of its published month end leaves the band unknown, not lower: summing what we do
+  // have would read that fund as worth nothing and could charge every fund the wrong rate.
+  private Optional<BigDecimal> combinedFundAssetsTwoMonthEndsBefore(LocalDate feeMonth) {
     LocalDate anchor = feeMonth.minusMonths(1).minusDays(1);
     return Arrays.stream(TulevaFund.values())
-        .map(fund -> assetsAtLatestCalculationOnOrBefore(fund, anchor))
-        .reduce(ZERO, BigDecimal::add);
+        .map(fund -> publishedAssetsAtAnchor(fund, anchor))
+        .reduce(Optional.of(ZERO), (total, assets) -> total.flatMap(sum -> assets.map(sum::add)));
   }
 
-  private BigDecimal assetsAtLatestCalculationOnOrBefore(TulevaFund fund, LocalDate anchor) {
+  private Optional<BigDecimal> publishedAssetsAtAnchor(TulevaFund fund, LocalDate anchor) {
+    Optional<LocalDate> navDate =
+        fundNavQueryService.findLatestNavDateOnOrBefore(fund.getCode(), anchor);
+    if (navDate.isEmpty()) {
+      return Optional.of(ZERO);
+    }
     return fundNavQueryService
-        .findLatestNavDateOnOrBefore(fund.getCode(), anchor)
-        .map(
-            navDate ->
-                fundNavQueryService
-                    .findAssetTotal(fund.getCode(), navDate)
-                    .orElse(ZERO)
-                    .add(savingsFundBlackrockAdjustment(fund, navDate)))
-        .orElse(ZERO);
+        .findAssetTotal(fund.getCode(), navDate.get())
+        .map(assets -> assets.add(savingsFundBlackrockAdjustment(fund, navDate.get())));
   }
 
   private BigDecimal savingsFundBlackrockAdjustment(TulevaFund fund, LocalDate navDate) {

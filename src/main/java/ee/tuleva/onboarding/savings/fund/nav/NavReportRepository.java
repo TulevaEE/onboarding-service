@@ -138,6 +138,8 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
       @Param("navDate") LocalDate navDate,
       @Param("accountType") String accountType);
 
+  // The components the published NAV was built from, for reading back the fee base a fee was
+  // charged on. Same publication ordering as findPublishedNavPerUnit, and for the same reason.
   @Query(
       value =
           """
@@ -148,11 +150,12 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
             AND nr.calculation_id = (
               SELECT calculation_id FROM nav_report
               WHERE nav_date = :navDate AND fund_code = :fundCode
-              ORDER BY id DESC LIMIT 1
+                AND published_at IS NOT NULL
+              ORDER BY published_at DESC, id DESC LIMIT 1
             )
           """,
       nativeQuery = true)
-  BigDecimal sumLatestCalculationMarketValueByAccountTypes(
+  BigDecimal sumPublishedCalculationMarketValueByAccountTypes(
       @Param("fundCode") String fundCode,
       @Param("navDate") LocalDate navDate,
       @Param("accountTypes") List<String> accountTypes);
@@ -183,6 +186,4 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
       @Param("fundCode") String fundCode,
       @Param("navDate") LocalDate navDate,
       @Param("calculationId") UUID calculationId);
-
-  boolean existsByFundCodeAndNavDate(String fundCode, LocalDate navDate);
 }

@@ -56,11 +56,11 @@ public class FundNavQueryService {
   }
 
   public Optional<BigDecimal> findFeeBaseComponentTotal(String fundCode, LocalDate navDate) {
-    return sumForLatestCalculationIncludingUnpublished(fundCode, navDate, FEE_BASE_ACCOUNT_TYPES);
+    return sumForPublishedCalculation(fundCode, navDate, FEE_BASE_ACCOUNT_TYPES);
   }
 
   public Optional<BigDecimal> findAssetTotal(String fundCode, LocalDate navDate) {
-    return sumForLatestCalculationIncludingUnpublished(fundCode, navDate, ASSET_ACCOUNT_TYPES);
+    return sumForPublishedCalculation(fundCode, navDate, ASSET_ACCOUNT_TYPES);
   }
 
   public Optional<NavCalculation> findLatestCalculation(String fundCode, LocalDate navDate) {
@@ -82,13 +82,13 @@ public class FundNavQueryService {
                         fundCode, navDate, calculationId)));
   }
 
-  private Optional<BigDecimal> sumForLatestCalculationIncludingUnpublished(
+  private Optional<BigDecimal> sumForPublishedCalculation(
       String fundCode, LocalDate navDate, List<String> accountTypes) {
-    if (!navReportRepository.existsByFundCodeAndNavDate(fundCode, navDate)) {
+    if (!navReportRepository.existsPublishedByNavDateAndFundCode(navDate, fundCode)) {
       return Optional.empty();
     }
     return Optional.of(
-        navReportRepository.sumLatestCalculationMarketValueByAccountTypes(
+        navReportRepository.sumPublishedCalculationMarketValueByAccountTypes(
             fundCode, navDate, accountTypes));
   }
 

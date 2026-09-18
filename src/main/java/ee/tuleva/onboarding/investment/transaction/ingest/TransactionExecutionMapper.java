@@ -32,10 +32,17 @@ class TransactionExecutionMapper {
     execution.setTotalConsideration(row.total());
     execution.setSettlementAmount(row.settlementAmount());
     execution.setCommissionAmount(row.brokerFee());
-    execution.setScheduledSettlementDate(row.settlementDate());
+    keepSettlementDateSebReportedFirst(execution, row);
     execution.setSource(SOURCE_SEB_OOTEL);
     execution.setModifiedBy(MODIFIED_BY_SEB_RECONCILIATION);
     return execution;
+  }
+
+  private static void keepSettlementDateSebReportedFirst(
+      TransactionExecution execution, SebPendingTransactionRow row) {
+    if (execution.getScheduledSettlementDate() == null) {
+      execution.setScheduledSettlementDate(row.settlementDate());
+    }
   }
 
   // Art 16: no silent alteration of a transaction record.

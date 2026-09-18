@@ -12,16 +12,13 @@ import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.CUSTODIAN_P
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.FEE_BASE_COMPLETENESS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.LEDGER_ACCRUAL_CONSISTENCY;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.SETTLEMENT_COMPLETENESS;
-import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.investment.fees.FeeType;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
@@ -243,20 +240,12 @@ class FeeCheckService {
                     .feeScope(scope)
                     .severity(severity)
                     .deviationFound(severity == WARNING || severity == FAIL)
-                    .deviationAmount(totalDeviation(findings))
+                    .deviationAmount(FeeCheckFinding.totalDeviation(findings))
                     .result(Map.of("findings", findings.stream().map(this::describe).toList()))
                     .build()));
       }
     }
     return saved;
-  }
-
-  private BigDecimal totalDeviation(List<FeeCheckFinding> findings) {
-    return findings.stream()
-        .map(FeeCheckFinding::deviationAmount)
-        .filter(Objects::nonNull)
-        .map(BigDecimal::abs)
-        .reduce(ZERO, BigDecimal::add);
   }
 
   private Map<String, Object> describe(FeeCheckFinding finding) {

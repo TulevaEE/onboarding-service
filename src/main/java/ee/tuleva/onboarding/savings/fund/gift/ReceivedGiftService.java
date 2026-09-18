@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RETURNED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.TO_BE_RETURNED;
 import static java.util.Comparator.comparing;
+import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
@@ -87,12 +88,10 @@ public class ReceivedGiftService {
   // Two gifts to the same child in the same second share a description. They are both still gifts,
   // but neither can claim the words, so that description carries no message.
   private static Map<String, String> unambiguousMessages(List<Gift> recorded) {
-    return recorded.stream()
+    return recorded.stream().collect(groupingBy(Gift::getDescription)).values().stream()
+        .filter(sharingADescription -> sharingADescription.size() == 1)
+        .map(List::getFirst)
         .filter(gift -> gift.getMessage() != null)
-        .collect(groupingBy(Gift::getDescription))
-        .entrySet()
-        .stream()
-        .filter(entry -> entry.getValue().size() == 1)
-        .collect(toMap(Map.Entry::getKey, entry -> entry.getValue().getFirst().getMessage()));
+        .collect(toMap(Gift::getDescription, gift -> requireNonNull(gift.getMessage())));
   }
 }

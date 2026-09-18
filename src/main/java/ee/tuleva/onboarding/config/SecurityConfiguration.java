@@ -77,6 +77,10 @@ public class SecurityConfiguration {
                     .requestMatchers(
                         POST, "/v1/payments/notifications", "/v1/payments/savings/notifications")
                     .permitAll()
+                    .requestMatchers(GET, "/v1/gift-links/*")
+                    .permitAll()
+                    .requestMatchers(POST, "/v1/gift-links/*/payments")
+                    .permitAll()
                     .requestMatchers(GET, "/v1/pension-account-statement", "/v1/me")
                     .hasAnyAuthority(USER, PARTNER)
                     .requestMatchers("/v1/savings-fund-test/**")

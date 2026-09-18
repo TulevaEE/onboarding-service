@@ -86,6 +86,9 @@ public class SavingsCallbackService {
   }
 
   private void sendReceipt(PaymentReference merchantReference, PartyId recipient) {
+    if (merchantReference.getPersonalCode() == null) {
+      return;
+    }
     userService
         .findByPersonalCode(merchantReference.getPersonalCode())
         .ifPresent(

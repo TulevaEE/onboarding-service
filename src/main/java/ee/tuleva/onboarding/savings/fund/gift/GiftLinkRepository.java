@@ -9,4 +9,6 @@ public interface GiftLinkRepository extends JpaRepository<GiftLink, UUID> {
   Optional<GiftLink> findByTokenAndClosedAtIsNull(String token);
 
   Optional<GiftLink> findByRecipientPersonalCodeAndClosedAtIsNull(String recipientPersonalCode);
+
+  Optional<GiftLink> findByIdAndClosedAtIsNull(UUID id);
 }

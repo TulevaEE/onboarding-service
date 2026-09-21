@@ -173,46 +173,58 @@ public class OcfCalculationService {
   }
 
   BigDecimal getTransactionCostRate(TulevaFund fund, LocalDate monthEnd) {
-    var periodStart = monthEnd.minusYears(1).plusDays(1);
-    var navDates =
-        fundNavQueryService.findPublishedNavDatesBetween(fund.getCode(), periodStart, monthEnd);
-
-    // Anchor on the fund's first published NAV, not on the earliest date this window happened to
-    // return. navDates.getFirst() treats a publishing gap as a shorter life: a single missing month
-    // would annualise by 365/335, and a window holding one date would annualise that day by 365.
-    var inception =
-        fundNavQueryService.findEarliestPublishedNavDate(fund.getCode()).orElse(periodStart);
-    var effectivePeriodStart = inception.isAfter(periodStart) ? inception : periodStart;
+    var trailingYearStart = monthEnd.minusYears(1).plusDays(1);
+    var periodStart = laterOf(fund.getInceptionDate(), trailingYearStart);
+    if (periodStart.isAfter(monthEnd)) {
+      return ZERO;
+    }
     var txnCosts =
         transactionExecutionRepository.sumCommissionsForFundAndPeriod(
             fund.getCode(),
-            effectivePeriodStart.atStartOfDay(ESTONIAN_ZONE).toInstant(),
+            periodStart.atStartOfDay(ESTONIAN_ZONE).toInstant(),
             monthEnd.plusDays(1).atStartOfDay(ESTONIAN_ZONE).toInstant());
     if (txnCosts.signum() == 0) {
       return ZERO;
     }
 
-    var avgAum = averageAum(fund, navDates);
+    var avgAum = averageAumOverPublishedNavDates(fund, periodStart, monthEnd);
     if (avgAum.signum() <= 0) {
       return ZERO;
     }
-    var coveredDays = ChronoUnit.DAYS.between(effectivePeriodStart, monthEnd) + 1;
-    if (coveredDays <= 0) {
-      return ZERO;
-    }
+    var daysOfFundLifeInThePeriod = ChronoUnit.DAYS.between(periodStart, monthEnd) + 1;
     return txnCosts
         .multiply(DAYS_IN_YEAR)
-        .divide(avgAum.multiply(BigDecimal.valueOf(coveredDays)), SCALE, HALF_UP);
+        .divide(avgAum.multiply(BigDecimal.valueOf(daysOfFundLifeInThePeriod)), SCALE, HALF_UP);
   }
 
-  private BigDecimal averageAum(TulevaFund fund, List<LocalDate> navDates) {
+  private static LocalDate laterOf(LocalDate one, LocalDate other) {
+    return one.isAfter(other) ? one : other;
+  }
+
+  private BigDecimal averageAumOverPublishedNavDates(
+      TulevaFund fund, LocalDate periodStart, LocalDate monthEnd) {
+    var navDates =
+        fundNavQueryService.findPublishedNavDatesBetween(fund.getCode(), periodStart, monthEnd);
     if (navDates.isEmpty()) {
       return ZERO;
     }
+    warnWhenNavObservationsStartAfterThePeriod(fund, periodStart, navDates.getFirst());
     var total =
         navDates.stream()
             .map(date -> fundNavQueryService.findAum(fund.getCode(), date))
             .reduce(ZERO, BigDecimal::add);
     return total.divide(BigDecimal.valueOf(navDates.size()), SCALE, HALF_UP);
+  }
+
+  private static void warnWhenNavObservationsStartAfterThePeriod(
+      TulevaFund fund, LocalDate periodStart, LocalDate firstNavDate) {
+    if (YearMonth.from(firstNavDate).isAfter(YearMonth.from(periodStart))) {
+      log.warn(
+          "Average NAV estimated from the months that carry a published NAV, transaction cost rate"
+              + " is approximate: fund={}, periodStart={}, firstPublishedNavDate={}",
+          fund.getCode(),
+          periodStart,
+          firstNavDate);
+    }
   }
 }

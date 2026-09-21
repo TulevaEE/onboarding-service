@@ -4,9 +4,11 @@ import static ee.tuleva.onboarding.auth.authority.Authority.*;
 import static org.springframework.http.HttpMethod.*;
 import static org.springframework.security.config.http.SessionCreationPolicy.IF_REQUIRED;
 
+import ee.tuleva.onboarding.auth.capacity.RestrictedCapacityFilter;
 import ee.tuleva.onboarding.auth.jwt.JwtAuthorizationFilter;
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
+import ee.tuleva.onboarding.auth.role.ChildRepresentations;
 import lombok.SneakyThrows;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,7 +26,9 @@ public class SecurityConfiguration {
   @Bean
   @SneakyThrows
   public SecurityFilterChain securityFilterChain(
-      HttpSecurity http, JwtAuthorizationFilter jwtAuthorizationFilter) {
+      HttpSecurity http,
+      JwtAuthorizationFilter jwtAuthorizationFilter,
+      RestrictedCapacityFilter restrictedCapacityFilter) {
     http.csrf(csrf -> csrf.disable())
         .authorizeHttpRequests(
             authorize ->
@@ -101,7 +105,8 @@ public class SecurityConfiguration {
                         PathPatternRequestMatcher.withDefaults().matcher(GET, "/v1/logout"))
                     .logoutSuccessHandler(
                         (request, response, authentication) -> response.setStatus(200)))
-        .addFilterBefore(jwtAuthorizationFilter, UsernamePasswordAuthenticationFilter.class);
+        .addFilterBefore(jwtAuthorizationFilter, UsernamePasswordAuthenticationFilter.class)
+        .addFilterAfter(restrictedCapacityFilter, JwtAuthorizationFilter.class);
 
     return http.build();
   }
@@ -110,5 +115,11 @@ public class SecurityConfiguration {
   public JwtAuthorizationFilter jwtAuthorizationFilter(
       JwtTokenUtil jwtTokenUtil, PrincipalService principalService) {
     return new JwtAuthorizationFilter(jwtTokenUtil, principalService);
+  }
+
+  @Bean
+  public RestrictedCapacityFilter restrictedCapacityFilter(
+      ChildRepresentations childRepresentations) {
+    return new RestrictedCapacityFilter(childRepresentations);
   }
 }

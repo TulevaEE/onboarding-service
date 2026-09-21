@@ -81,6 +81,11 @@ public class ParentChildLinkService implements ChildRepresentations {
         .toList();
   }
 
+  @Override
+  public boolean hasRestrictedLegalCapacity(String personalCode) {
+    return hasRestrictedLegalCapacity(personalCode, today());
+  }
+
   public boolean hasRestrictedLegalCapacity(String personalCode, LocalDate asOf) {
     return PersonalCode.isMinor(personalCode, asOf)
         || parentChildLinkRepository.existsByChildPersonalCodeAndRelationshipTypeAndValidUntilAfter(

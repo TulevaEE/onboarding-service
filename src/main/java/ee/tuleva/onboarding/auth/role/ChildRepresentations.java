@@ -12,4 +12,6 @@ public interface ChildRepresentations {
   boolean isActiveRepresentation(String personalCode, String childCode);
 
   boolean isGuardian(String personalCode, String childCode);
+
+  boolean hasRestrictedLegalCapacity(String personalCode);
 }

@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
+import ee.tuleva.onboarding.auth.role.ChildRepresentations;
 import ee.tuleva.onboarding.config.SecurityConfiguration;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -37,6 +38,7 @@ class PaymentRateRedirectControllerTest {
 
   @MockitoBean private JwtTokenUtil jwtTokenUtil;
   @MockitoBean private PrincipalService principalService;
+  @MockitoBean private ChildRepresentations childRepresentations;
 
   private static Authentication authenticated(AuthenticatedPerson person) {
     return new UsernamePasswordAuthenticationToken(

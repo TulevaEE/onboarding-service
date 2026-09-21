@@ -74,6 +74,8 @@ public class SecurityConfiguration {
                     .permitAll()
                     .requestMatchers(GET, "/v1/payments/member-success")
                     .permitAll()
+                    .requestMatchers(GET, "/v1/payments/savings/callback")
+                    .permitAll()
                     .requestMatchers(
                         POST, "/v1/payments/notifications", "/v1/payments/savings/notifications")
                     .permitAll()

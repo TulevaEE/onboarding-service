@@ -1,0 +1,1 @@
+ALTER TABLE redemption_request ADD COLUMN verification_attempted_at TIMESTAMPTZ;

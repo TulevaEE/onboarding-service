@@ -57,12 +57,16 @@ public class BankMessageDelegator {
       var messageName =
           extractMessageName(extractNamespace(message.getRawResponse()).orElseThrow());
       var messageType = BankMessageType.fromXmlType(messageName);
+      message.setMessageType(messageType);
 
       if (messageType == PAYMENT_ORDER_CONFIRMATION) {
         paymentStatusReportHandler.handle(message.getRawResponse());
       } else {
         var bankStatement =
             extractBankStatement(message.getRawResponse(), messageType, message.getTimezoneId());
+        message.setAccountIban(bankStatement.getBankStatementAccount().iban());
+        message.setStatementFrom(bankStatement.getPeriod().from());
+        message.setStatementTo(bankStatement.getPeriod().to());
         var statementEvent =
             new BankStatementReceived(message.getId(), message.getBankType(), bankStatement);
         eventPublisher.publishEvent(statementEvent);

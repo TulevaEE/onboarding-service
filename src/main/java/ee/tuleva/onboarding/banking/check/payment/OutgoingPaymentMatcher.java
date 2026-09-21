@@ -47,13 +47,29 @@ public class OutgoingPaymentMatcher {
       return;
     }
 
+    var beneficiaryIban = debit.beneficiaryIban();
     var wrongAmount = debited.compareTo(logged.getAmount()) != 0;
-    var wrongBeneficiary = !debit.beneficiaryIban().equalsIgnoreCase(logged.getBeneficiaryIban());
+    if (beneficiaryIban == null || beneficiaryIban.isBlank()) {
+      paymentCheckService.record(DEBIT_MISMATCH, HOLD, endToEndId, unverifiableDetail(wrongAmount));
+      markExecuted(logged);
+      return;
+    }
+
+    var wrongBeneficiary = !beneficiaryIban.equalsIgnoreCase(logged.getBeneficiaryIban());
     if (wrongAmount || wrongBeneficiary) {
       paymentCheckService.record(
           DEBIT_MISMATCH, HOLD, endToEndId, mismatchDetail(wrongAmount, wrongBeneficiary));
     }
     markExecuted(logged);
+  }
+
+  private static String unverifiableDetail(boolean wrongAmount) {
+    var unverifiable =
+        "the statement does not say which account the bank paid, so the beneficiary cannot be"
+            + " corroborated";
+    return wrongAmount
+        ? "the bank debited an amount other than the one we authorised, and " + unverifiable
+        : unverifiable;
   }
 
   private static String mismatchDetail(boolean wrongAmount, boolean wrongBeneficiary) {
@@ -74,9 +90,10 @@ public class OutgoingPaymentMatcher {
   private void reportUnbacked(StatementDebit debit, String key, String detail) {
     var beneficiary = debit.beneficiaryIban();
     var legitimate =
-        contains(sebAccountConfiguration.getBankFeeIbans(), beneficiary)
-            || contains(sebAccountConfiguration.getOwnAccountIbans(), beneficiary)
-            || contains(sebAccountConfiguration.getRegistrarIbans(), beneficiary);
+        beneficiary != null
+            && (contains(sebAccountConfiguration.getBankFeeIbans(), beneficiary)
+                || contains(sebAccountConfiguration.getOwnAccountIbans(), beneficiary)
+                || contains(sebAccountConfiguration.getRegistrarIbans(), beneficiary));
 
     paymentCheckService.record(
         PHANTOM_DEBIT,

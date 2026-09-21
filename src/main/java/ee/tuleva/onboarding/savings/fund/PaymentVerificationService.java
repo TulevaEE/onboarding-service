@@ -78,7 +78,15 @@ public class PaymentVerificationService {
   public void process(SavingFundPayment payment) {
     log.info("Processing payment {}", payment.getId());
 
-    var partyIdOpt = extractPartyId(payment);
+    var partyIdFromDescription = extractPartyIdFromDescription(payment.getDescription());
+    var remitterPartyId = parsePartyId(payment.getRemitterIdCode());
+    var partyIdOpt = partyIdFromDescription;
+    if (partyIdOpt.isEmpty()) {
+      log.info(
+          "Payment {} has no code in description, falling back to remitter id code",
+          payment.getId());
+      partyIdOpt = remitterPartyId;
+    }
     if (partyIdOpt.isEmpty()) {
       identityCheckFailure(payment, "makse ei sisalda tuvastatavat isikukoodi/registrikoodi");
       return;
@@ -87,15 +95,21 @@ public class PaymentVerificationService {
     PartyId partyId = partyIdOpt.get();
     var messages = VerificationMessages.forType(partyId.type());
 
-    var remitterPartyId = parsePartyId(payment.getRemitterIdCode());
-    boolean representingChild =
+    boolean acceptedFromAnyRemitter =
+        partyIdFromDescription.isPresent()
+            && partyId.type() == PERSON
+            && isRepresentedWhenTheMoneyArrived(partyId, payment);
+
+    boolean guardianFundingTheirWard =
         remitterPartyId
             .filter(r -> !r.equals(partyId))
-            .map(r -> isAuthorizedRemitter(r, partyId))
+            .map(r -> isGuardianOf(r, partyId))
             .orElse(false);
-    if (remitterPartyId.isPresent()
+
+    if (!acceptedFromAnyRemitter
+        && remitterPartyId.isPresent()
         && !remitterPartyId.get().equals(partyId)
-        && !representingChild) {
+        && !guardianFundingTheirWard) {
       identityCheckFailure(payment, messages.codeMismatch());
       return;
     }
@@ -106,8 +120,10 @@ public class PaymentVerificationService {
       return;
     }
 
-    if (remitterPartyId.isEmpty()
-        && !nameMatcher.isSameName(party.get().name(), payment.getRemitterName())) {
+    boolean remitterNameIsUnitHolder =
+        nameMatcher.isSameName(party.get().name(), payment.getRemitterName());
+
+    if (!acceptedFromAnyRemitter && remitterPartyId.isEmpty() && !remitterNameIsUnitHolder) {
       identityCheckFailure(payment, messages.nameMismatch());
       return;
     }
@@ -117,7 +133,16 @@ public class PaymentVerificationService {
       return;
     }
 
-    savingFundPaymentRepository.attachParty(payment.getId(), partyId);
+    @Nullable Boolean thirdPartyDeposit;
+    if (remitterPartyId.isPresent()) {
+      thirdPartyDeposit = !remitterPartyId.get().equals(partyId);
+    } else if (remitterNameIsUnitHolder) {
+      thirdPartyDeposit = false;
+    } else {
+      thirdPartyDeposit = null;
+    }
+
+    savingFundPaymentRepository.attachParty(payment.getId(), partyId, thirdPartyDeposit);
 
     log.info(
         "Verification completed for payment {}, attaching to party {}", payment.getId(), partyId);
@@ -129,7 +154,7 @@ public class PaymentVerificationService {
         Objects.requireNonNull(
             payment.bookingDate(), "Missing receivedBefore: paymentId=" + payment.getId()));
 
-    if (representingChild) {
+    if (guardianFundingTheirWard) {
       applicationEventPublisher.publishEvent(
           new TrackableSystemEvent(
               TrackableEventType.MINOR_DEPOSIT_VERIFIED,
@@ -172,21 +197,12 @@ public class PaymentVerificationService {
         .flatMap(userRepository::findByPersonalCode);
   }
 
-  private Optional<PartyId> extractPartyId(SavingFundPayment payment) {
-    var partyIdFromDescription = extractPartyIdFromDescription(payment.getDescription());
-    if (partyIdFromDescription.isPresent()) {
-      return partyIdFromDescription;
-    }
-    log.info(
-        "Payment {} has no code in description, falling back to remitter id code", payment.getId());
-    return parsePartyId(payment.getRemitterIdCode());
+  private boolean isRepresentedWhenTheMoneyArrived(PartyId partyId, SavingFundPayment payment) {
+    return parentChildLinkService.hasRestrictedLegalCapacity(
+        partyId.code(), payment.bookingDateOrThrow());
   }
 
-  // Attribution, not authorization: deciding whether an incoming payment is plausibly for this
-  // child, so we attribute it instead of bouncing it. Accepting money grants the payer no access —
-  // acting on the child's behalf goes through isActiveRepresentation. Tuleva intends to accept
-  // third-party payments generally, at which point this widening goes away.
-  private boolean isAuthorizedRemitter(PartyId remitter, PartyId party) {
+  private boolean isGuardianOf(PartyId remitter, PartyId party) {
     return remitter.type() == PERSON
         && party.type() == PERSON
         && parentChildLinkService

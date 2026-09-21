@@ -133,15 +133,23 @@ class BreachMessageFormatter {
             .formatted(formatEur(flow.unexplained()), formatPercent(flow.unexplainedFraction())));
     if (flow.securityQuantitiesChanged()) {
       sb.append(
-          "\n    Trades moved %s EUR at the mark — cash and securities move together, so this nets"
-                  .formatted(formatAmount(flow.tradeFlow()))
-              + " out of net assets and only the execution difference reaches UNEXPLAINED.");
+          "\n    Trades moved %s EUR at the mark%s — this nets out of net assets only if the cash"
+                  .formatted(formatAmount(flow.tradeFlow().atMark()), unpriced(flow.tradeFlow()))
+              + " leg is on the same report; if it is not, the whole amount reaches UNEXPLAINED.");
     } else {
       sb.append("\n    No security quantity changed, so trading cannot explain this.");
     }
     if (flow.marketPnl().signum() == 0) {
       sb.append("\n    No holding moved in price either.");
     }
+  }
+
+  private String unpriced(TradeFlow tradeFlow) {
+    if (tradeFlow.isComplete()) {
+      return "";
+    }
+    return " (excluding %s — nothing prices them, so the figure is partial)"
+        .formatted(String.join(", ", tradeFlow.unpricedIsins()));
   }
 
   private void appendRedemptionCycleSection() {

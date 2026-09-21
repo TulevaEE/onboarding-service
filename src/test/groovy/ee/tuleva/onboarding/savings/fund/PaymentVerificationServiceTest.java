@@ -120,20 +120,80 @@ class PaymentVerificationServiceTest {
     var inOrder = inOrder(savingFundPaymentRepository);
     inOrder
         .verify(savingFundPaymentRepository)
-        .attachParty(payment.getId(), new PartyId(PERSON, "37508295796"));
+        .attachParty(payment.getId(), new PartyId(PERSON, "37508295796"), false);
     inOrder.verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 
   @Test
-  void process_personalCodeMismatch() {
-    var payment = createPayment("37508295796", "for user 45009144745");
+  void process_thirdPartyDeposit_isAttributedToTheUnitHolderNamedInTheDescription() {
+    // A grandparent gifting into a grandchild's account: the remitter is neither the unit holder
+    // nor their guardian, which bounced before the 18.09.2026 rules.
+    var payment = createPayment("37508295796", "for user 61506150006");
+    var unitHolder =
+        User.builder()
+            .id(456L)
+            .personalCode("61506150006")
+            .firstName("MARI")
+            .lastName("MAASIKAS")
+            .build();
+    when(userRepository.findByPersonalCode("61506150006")).thenReturn(Optional.of(unitHolder));
+    when(parentChildLinkService.hasRestrictedLegalCapacity(
+            "61506150006", LocalDate.of(2025, 10, 1)))
+        .thenReturn(true);
+    when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
+
+    service.process(payment);
+
+    verify(savingsFundLedger)
+        .recordPaymentReceived(
+            LedgerRefs.from(new PartyId(PERSON, "61506150006")),
+            payment.getAmount(),
+            payment.getId(),
+            LocalDate.of(2025, 10, 1));
+    verify(savingFundPaymentRepository)
+        .attachParty(payment.getId(), new PartyId(PERSON, "61506150006"), true);
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
+    verifyNoMoreInteractions(savingFundPaymentRepository);
+    verify(applicationEventPublisher, never()).publishEvent(any(UnattributedPaymentEvent.class));
+  }
+
+  @Test
+  void process_thirdPartyDeposit_toAnAdultOfFullCapacity_stillBounces() {
+    // The widening is only for unit holders who cannot act for themselves. A gift to an ordinary
+    // adult is still returned, as it was before 18.09.2026.
+    var payment = createPayment("37508295796", "for user 48806046007");
+    var unitHolder =
+        User.builder()
+            .id(789L)
+            .personalCode("48806046007")
+            .firstName("MARI")
+            .lastName("MAASIKAS")
+            .build();
+    when(userRepository.findByPersonalCode("48806046007")).thenReturn(Optional.of(unitHolder));
+    when(parentChildLinkService.hasRestrictedLegalCapacity(
+            "48806046007", LocalDate.of(2025, 10, 1)))
+        .thenReturn(false);
 
     service.process(payment);
 
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
     verify(savingFundPaymentRepository)
         .addReturnReason(payment.getId(), "selgituses olev isikukood ei klapi maksja isikukoodiga");
+    verifyNoMoreInteractions(savingFundPaymentRepository);
+  }
+
+  @Test
+  void process_companyAccount_registryCodeMismatch_stillBounces() {
+    // The widening is for natural persons only; company accounts keep the identity checks.
+    var payment = createPayment("14118923", "company 10391131");
+
+    service.process(payment);
+
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
+    verify(savingFundPaymentRepository)
+        .addReturnReason(
+            payment.getId(), "selgituses olev registrikood ei klapi maksja registrikoodiga");
     verify(savingsFundLedger)
         .recordUnattributedPayment(payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
     verify(applicationEventPublisher)
@@ -141,7 +201,7 @@ class PaymentVerificationServiceTest {
             new UnattributedPaymentEvent(
                 payment.getId(),
                 payment.getAmount(),
-                "selgituses olev isikukood ei klapi maksja isikukoodiga"));
+                "selgituses olev registrikood ei klapi maksja registrikoodiga"));
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 
@@ -198,24 +258,32 @@ class PaymentVerificationServiceTest {
   }
 
   @Test
-  void process_userNameMismatch_withoutRemitterIdCode() {
-    var payment = createPayment(null, "to user 37508295796");
-    var user = User.builder().firstName("PEETER").lastName("MEETER").build();
-    when(userRepository.findByPersonalCode(any())).thenReturn(Optional.of(user));
+  void process_withoutRemitterIdCode_isAcceptedButWhoPaidStaysUnknown() {
+    // Montonio often omits the remitter id code and foreign banks always do, so a gift from such
+    // a bank used to bounce on the name check. It is accepted now — but a name that does not match
+    // is not evidence of a third party (Wise sends its own name), so the verdict stays null.
+    var payment = createPayment(null, "to user 61506150006");
+    var unitHolder =
+        User.builder()
+            .id(444L)
+            .personalCode("61506150006")
+            .firstName("PEETER")
+            .lastName("MEETER")
+            .build();
+    when(userRepository.findByPersonalCode(any())).thenReturn(Optional.of(unitHolder));
+    when(parentChildLinkService.hasRestrictedLegalCapacity(
+            "61506150006", LocalDate.of(2025, 10, 1)))
+        .thenReturn(true);
+    when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
 
     service.process(payment);
 
-    verify(userRepository).findByPersonalCode("37508295796");
-    verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
+    verify(userRepository).findByPersonalCode("61506150006");
     verify(savingFundPaymentRepository)
-        .addReturnReason(payment.getId(), "maksja nimi ei klapi Tuleva andmetega");
-    verify(savingsFundLedger)
-        .recordUnattributedPayment(payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
-    verify(applicationEventPublisher)
-        .publishEvent(
-            new UnattributedPaymentEvent(
-                payment.getId(), payment.getAmount(), "maksja nimi ei klapi Tuleva andmetega"));
+        .attachParty(payment.getId(), new PartyId(PERSON, "61506150006"), null);
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verifyNoMoreInteractions(savingFundPaymentRepository);
+    verify(applicationEventPublisher, never()).publishEvent(any(UnattributedPaymentEvent.class));
   }
 
   @Test
@@ -244,7 +312,7 @@ class PaymentVerificationServiceTest {
     var inOrder = inOrder(savingFundPaymentRepository);
     inOrder
         .verify(savingFundPaymentRepository)
-        .attachParty(payment.getId(), new PartyId(PERSON, "37508295796"));
+        .attachParty(payment.getId(), new PartyId(PERSON, "37508295796"), false);
     inOrder.verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
@@ -274,7 +342,7 @@ class PaymentVerificationServiceTest {
             LocalDate.of(2025, 10, 1));
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verify(savingFundPaymentRepository)
-        .attachParty(payment.getId(), new PartyId(PERSON, "37508295796"));
+        .attachParty(payment.getId(), new PartyId(PERSON, "37508295796"), false);
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 
@@ -303,7 +371,7 @@ class PaymentVerificationServiceTest {
             LocalDate.of(2025, 10, 1));
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verify(savingFundPaymentRepository)
-        .attachParty(payment.getId(), new PartyId(PERSON, "37508295796"));
+        .attachParty(payment.getId(), new PartyId(PERSON, "37508295796"), false);
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 
@@ -342,7 +410,7 @@ class PaymentVerificationServiceTest {
             LocalDate.of(2025, 10, 1));
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verify(savingFundPaymentRepository)
-        .attachParty(payment.getId(), new PartyId(PERSON, "37508295796"));
+        .attachParty(payment.getId(), new PartyId(PERSON, "37508295796"), false);
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 
@@ -371,7 +439,7 @@ class PaymentVerificationServiceTest {
             LocalDate.of(2025, 10, 1));
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verify(savingFundPaymentRepository)
-        .attachParty(payment.getId(), new PartyId(PERSON, "37508295796"));
+        .attachParty(payment.getId(), new PartyId(PERSON, "37508295796"), false);
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 
@@ -471,7 +539,7 @@ class PaymentVerificationServiceTest {
     var inOrder = inOrder(savingFundPaymentRepository);
     inOrder
         .verify(savingFundPaymentRepository)
-        .attachParty(payment.getId(), new PartyId(LEGAL_ENTITY, "14118923"));
+        .attachParty(payment.getId(), new PartyId(LEGAL_ENTITY, "14118923"), false);
     inOrder.verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
@@ -558,7 +626,7 @@ class PaymentVerificationServiceTest {
             payment.getId(),
             LocalDate.of(2025, 10, 1));
     verify(savingFundPaymentRepository)
-        .attachParty(payment.getId(), new PartyId(LEGAL_ENTITY, "14118923"));
+        .attachParty(payment.getId(), new PartyId(LEGAL_ENTITY, "14118923"), false);
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
@@ -580,7 +648,7 @@ class PaymentVerificationServiceTest {
             payment.getId(),
             LocalDate.of(2025, 10, 1));
     verify(savingFundPaymentRepository)
-        .attachParty(payment.getId(), new PartyId(LEGAL_ENTITY, "14118923"));
+        .attachParty(payment.getId(), new PartyId(LEGAL_ENTITY, "14118923"), false);
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
   }
 
@@ -647,6 +715,8 @@ class PaymentVerificationServiceTest {
             .build();
     when(userRepository.findByPersonalCode(parentCode)).thenReturn(Optional.of(parent));
     when(userRepository.findByPersonalCode(childCode)).thenReturn(Optional.of(child));
+    when(parentChildLinkService.hasRestrictedLegalCapacity(childCode, LocalDate.of(2025, 10, 1)))
+        .thenReturn(true);
     when(parentChildLinkService.findRepresentation(
             parentCode, childCode, Set.of(ACTIVE, PENDING_KYC)))
         .thenReturn(Optional.empty());
@@ -655,7 +725,7 @@ class PaymentVerificationServiceTest {
 
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
     verify(savingFundPaymentRepository)
-        .addReturnReason(payment.getId(), "selgituses olev isikukood ei klapi maksja isikukoodiga");
+        .addReturnReason(payment.getId(), "see isik ei ole täiendava kogumisfondiga liitunud");
     verify(savingsFundLedger)
         .recordUnattributedPayment(payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
     verify(applicationEventPublisher)
@@ -663,7 +733,7 @@ class PaymentVerificationServiceTest {
             new UnattributedPaymentEvent(
                 payment.getId(),
                 payment.getAmount(),
-                "selgituses olev isikukood ei klapi maksja isikukoodiga"));
+                "see isik ei ole täiendava kogumisfondiga liitunud"));
     verify(applicationEventPublisher)
         .publishEvent(
             argThat(
@@ -697,6 +767,8 @@ class PaymentVerificationServiceTest {
             .build();
     when(userRepository.findByPersonalCode(remitterCode)).thenReturn(Optional.empty());
     when(userRepository.findByPersonalCode(childCode)).thenReturn(Optional.of(child));
+    when(parentChildLinkService.hasRestrictedLegalCapacity(childCode, LocalDate.of(2025, 10, 1)))
+        .thenReturn(true);
     when(parentChildLinkService.findRepresentation(
             remitterCode, childCode, Set.of(ACTIVE, PENDING_KYC)))
         .thenReturn(Optional.empty());
@@ -705,7 +777,7 @@ class PaymentVerificationServiceTest {
 
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
     verify(savingFundPaymentRepository)
-        .addReturnReason(payment.getId(), "selgituses olev isikukood ei klapi maksja isikukoodiga");
+        .addReturnReason(payment.getId(), "see isik ei ole täiendava kogumisfondiga liitunud");
     verify(savingsFundLedger)
         .recordUnattributedPayment(payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
     verify(applicationEventPublisher)
@@ -713,7 +785,7 @@ class PaymentVerificationServiceTest {
             new UnattributedPaymentEvent(
                 payment.getId(),
                 payment.getAmount(),
-                "selgituses olev isikukood ei klapi maksja isikukoodiga"));
+                "see isik ei ole täiendava kogumisfondiga liitunud"));
     verify(applicationEventPublisher, never()).publishEvent(any(SavingsPaymentFailedEvent.class));
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
@@ -752,6 +824,8 @@ class PaymentVerificationServiceTest {
             .lastName("MAASIKAS")
             .build();
     when(userRepository.findByPersonalCode(childCode)).thenReturn(Optional.of(child));
+    when(parentChildLinkService.hasRestrictedLegalCapacity(childCode, LocalDate.of(2025, 10, 1)))
+        .thenReturn(true);
     when(savingsFundOnboardingService.isOnboardingCompleted(new PartyId(PERSON, childCode)))
         .thenReturn(true);
     when(parentChildLinkService.findRepresentation(
@@ -769,7 +843,7 @@ class PaymentVerificationServiceTest {
     var inOrder = inOrder(savingFundPaymentRepository);
     inOrder
         .verify(savingFundPaymentRepository)
-        .attachParty(payment.getId(), new PartyId(PERSON, childCode));
+        .attachParty(payment.getId(), new PartyId(PERSON, childCode), true);
     inOrder.verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verifyNoMoreInteractions(savingFundPaymentRepository);
     verify(applicationEventPublisher)
@@ -789,21 +863,33 @@ class PaymentVerificationServiceTest {
   }
 
   @Test
-  void process_parentRepresentingChild_noValidLink_bouncesAsCodeMismatch() {
-    var parentCode = "38812121215";
+  void process_depositForChild_noValidLink_isAcceptedButNotCountedAsAGuardianDeposit() {
+    var remitterCode = "38812121215";
     var childCode = "61506150006";
-    var payment = createPayment(parentCode, "for child " + childCode);
+    var payment = createPayment(remitterCode, "for child " + childCode);
+    var child =
+        User.builder()
+            .id(456L)
+            .personalCode(childCode)
+            .firstName("MARI")
+            .lastName("MAASIKAS")
+            .build();
+    when(userRepository.findByPersonalCode(childCode)).thenReturn(Optional.of(child));
+    when(parentChildLinkService.hasRestrictedLegalCapacity(childCode, LocalDate.of(2025, 10, 1)))
+        .thenReturn(true);
+    when(savingsFundOnboardingService.isOnboardingCompleted(any(PartyId.class))).thenReturn(true);
     when(parentChildLinkService.findRepresentation(
-            parentCode, childCode, Set.of(ACTIVE, PENDING_KYC)))
+            remitterCode, childCode, Set.of(ACTIVE, PENDING_KYC)))
         .thenReturn(Optional.empty());
 
     service.process(payment);
 
-    verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
     verify(savingFundPaymentRepository)
-        .addReturnReason(payment.getId(), "selgituses olev isikukood ei klapi maksja isikukoodiga");
-    verify(savingFundPaymentRepository, never()).attachParty(any(), any());
+        .attachParty(payment.getId(), new PartyId(PERSON, childCode), true);
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verifyNoMoreInteractions(savingFundPaymentRepository);
+    // MINOR_DEPOSIT_VERIFIED stays reserved for a guardian funding the child they represent.
+    verify(applicationEventPublisher, never()).publishEvent(any(TrackableSystemEvent.class));
   }
 
   private SavingFundPayment createPayment(String remitterIdCode, String description) {
@@ -816,5 +902,20 @@ class PaymentVerificationServiceTest {
         .description(description)
         .receivedBefore(Instant.parse("2025-10-01T20:59:59.999999Z"))
         .build();
+  }
+
+  @Test
+  void process_userWithoutRemitterNameOrIdCode_isReturnedAsNameMismatch() {
+    var payment = createPayment(null, "to user 37508295796").toBuilder().remitterName(null).build();
+    var user = User.builder().firstName("PEETER").lastName("MEETER").build();
+    when(userRepository.findByPersonalCode(any())).thenReturn(Optional.of(user));
+
+    service.process(payment);
+
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
+    verify(savingFundPaymentRepository)
+        .addReturnReason(payment.getId(), "maksja nimi ei klapi Tuleva andmetega");
+    verify(savingsFundLedger)
+        .recordUnattributedPayment(payment.getAmount(), payment.getId(), LocalDate.of(2025, 10, 1));
   }
 }

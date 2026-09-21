@@ -28,6 +28,7 @@ import ee.tuleva.onboarding.investment.position.FundPositionLedgerService;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
 import ee.tuleva.onboarding.investment.position.parser.SebFundPositionParser;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
+import ee.tuleva.onboarding.investment.report.SebReportSource;
 import ee.tuleva.onboarding.ledger.*;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
 import ee.tuleva.onboarding.time.ClockHolder;
@@ -67,6 +68,7 @@ class NavPipelineIntegrationTest {
 
   @Autowired InvestmentReportService investmentReportService;
   @Autowired SebFundPositionParser sebFundPositionParser;
+  @Autowired SebReportSource sebReportSource;
   @Autowired FundPositionImportService fundPositionImportService;
   @Autowired FundPositionRepository fundPositionRepository;
   @Autowired NavPositionLedger navPositionLedger;
@@ -203,7 +205,13 @@ class NavPipelineIntegrationTest {
             .replace(cells[7], reduced.setScale(2, HALF_UP).toPlainString().replace(".", ","));
     byte[] csvBytes = original.replace(cashRow, reissuedRow).getBytes(StandardCharsets.UTF_8);
     investmentReportService.saveReport(
-        SEB, POSITIONS, pair.navDate, new ByteArrayInputStream(csvBytes), ';', 5, Map.of());
+        SEB,
+        POSITIONS,
+        pair.navDate,
+        new ByteArrayInputStream(csvBytes),
+        ';',
+        5,
+        sebReportSource.extractCsvMetadata(csvBytes));
   }
 
   private void seedModelPortfolioFromImportedSecurities(LocalDate effectiveDate) {
@@ -764,7 +772,13 @@ class NavPipelineIntegrationTest {
     byte[] csvBytes = Files.readAllBytes(positionReportFile);
     var report =
         investmentReportService.saveReport(
-            SEB, POSITIONS, reportDate, new ByteArrayInputStream(csvBytes), ';', 5, Map.of());
+            SEB,
+            POSITIONS,
+            reportDate,
+            new ByteArrayInputStream(csvBytes),
+            ';',
+            5,
+            sebReportSource.extractCsvMetadata(csvBytes));
     var positions =
         sebFundPositionParser.parse(report.getRawData(), reportDate, report.getMetadata());
     fundPositionImportService.importNewPositions(positions);

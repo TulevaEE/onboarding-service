@@ -135,6 +135,7 @@ class HealthCheckServiceTest {
             "IE001",
             new ExitMark(
                 new BigDecimal("99"),
+                new BigDecimal("900"),
                 new ExitMark.PublishedPrice(new BigDecimal("101"), previousNavDate)));
 
     given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, NAV_DATE))

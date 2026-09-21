@@ -1,15 +1,21 @@
 package ee.tuleva.onboarding.investment.fees;
 
+import static ee.tuleva.onboarding.investment.fees.FeeType.MANAGEMENT;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.FEE_ACCRUAL;
+import static ee.tuleva.onboarding.ledger.SystemAccount.MANAGEMENT_FEE_ACCRUAL;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.ledger.LedgerEntryAmount;
+import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,6 +32,8 @@ class FeeCalculationIntegrationTest {
   private static final BigDecimal BASE_VALUE = new BigDecimal("1000000000");
 
   @Autowired private FeeCalculationService feeCalculationService;
+  @Autowired private FeeAccrualRepository feeAccrualRepository;
+  @Autowired private NavLedgerRepository navLedgerRepository;
   @Autowired private JdbcClient jdbcClient;
 
   @BeforeEach
@@ -100,6 +108,99 @@ class FeeCalculationIntegrationTest {
     assertThat(result.managementFeeAccrual()).isPositive();
     assertThat(result.depotFeeAccrual()).isEqualByComparingTo(java.math.BigDecimal.ZERO);
     assertThat(findAccrual(TKF100, FeeType.DEPOT, TEST_DATE).dailyAmountGross()).isPositive();
+  }
+
+  @Test
+  void calculateFeesForNav_revisesAnAlreadyAccruedDayByAppendingTheDeltaAndKeepsLaterDaysRight() {
+    LocalDate dayOne = TEST_DATE;
+    LocalDate dayTwo = TEST_DATE.plusDays(1);
+    BigDecimal firstBase = new BigDecimal("1000000000");
+    BigDecimal dayTwoBase = new BigDecimal("1001000000");
+    BigDecimal correctedBase = new BigDecimal("994000000");
+    calculate(TUK75, dayOne, firstBase);
+    calculate(TUK75, dayTwo, dayTwoBase);
+
+    calculate(TUK75, dayOne, correctedBase);
+    FeeResult throughDayTwo = calculate(TUK75, dayTwo, dayTwoBase);
+
+    assertThat(findAccrual(TUK75, MANAGEMENT, dayOne).baseValue())
+        .isEqualByComparingTo(correctedBase);
+    assertThat(findAccrual(TUK75, MANAGEMENT, dayOne).dailyAmountGross())
+        .isEqualByComparingTo("6808.219178");
+    assertThat(throughDayTwo.managementFeeAccrual()).isEqualByComparingTo("13664.38");
+    assertThat(managementFeeLedgerAmounts(TUK75, dayOne, dayTwo))
+        .containsExactlyInAnyOrder(
+            new BigDecimal("-6849.32"), new BigDecimal("41.10"), new BigDecimal("-6856.16"));
+    assertThat(managementFeeBalance(TUK75)).isEqualByComparingTo("-13664.38");
+  }
+
+  @Test
+  void calculateFeesForNav_revisingBackAndForthAppendsEveryStepAndEndsOnTheLatestValue() {
+    LocalDate dayOne = TEST_DATE;
+    BigDecimal firstBase = new BigDecimal("1000000000");
+    BigDecimal correctedBase = new BigDecimal("994000000");
+    calculate(TUK75, dayOne, firstBase);
+
+    calculate(TUK75, dayOne, correctedBase);
+    calculate(TUK75, dayOne, firstBase);
+    calculate(TUK75, dayOne, correctedBase);
+    calculate(TUK75, dayOne, correctedBase);
+
+    assertThat(managementFeeLedgerAmounts(TUK75, dayOne, dayOne))
+        .containsExactlyInAnyOrder(
+            new BigDecimal("-6849.32"),
+            new BigDecimal("41.10"),
+            new BigDecimal("-41.10"),
+            new BigDecimal("41.10"));
+    assertThat(managementFeeBalance(TUK75)).isEqualByComparingTo("-6808.22");
+  }
+
+  @Test
+  void calculateFeesForNav_recordsTheLedgerEntryForAnAccrualRowThatHasNone() {
+    LocalDate dayOne = TEST_DATE;
+    BigDecimal base = new BigDecimal("1000000000");
+    feeAccrualRepository.save(
+        FeeAccrual.builder()
+            .fund(TUK75)
+            .feeType(MANAGEMENT)
+            .accrualDate(dayOne)
+            .feeMonth(dayOne.withDayOfMonth(1))
+            .baseValue(base)
+            .annualRate(new BigDecimal("0.0025"))
+            .dailyAmountGross(new BigDecimal("6849.315068"))
+            .daysInYear(365)
+            .referenceDate(dayOne)
+            .build());
+
+    calculate(TUK75, dayOne, base);
+
+    assertThat(managementFeeLedgerAmounts(TUK75, dayOne, dayOne))
+        .containsExactly(new BigDecimal("-6849.32"));
+  }
+
+  private FeeResult calculate(TulevaFund fund, LocalDate positionReportDate, BigDecimal base) {
+    Instant feeCutoff =
+        positionReportDate.plusDays(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
+    return feeCalculationService.calculateFeesForNav(
+        fund, positionReportDate, new FeeBases(base, base), feeCutoff, null);
+  }
+
+  private List<BigDecimal> managementFeeLedgerAmounts(
+      TulevaFund fund, LocalDate from, LocalDate to) {
+    return navLedgerRepository
+        .findEntriesByTransactionTypeBetween(
+            MANAGEMENT_FEE_ACCRUAL.getAccountName(fund),
+            FEE_ACCRUAL,
+            from.atStartOfDay(ESTONIAN_ZONE).toInstant(),
+            to.plusDays(1).atStartOfDay(ESTONIAN_ZONE).toInstant())
+        .stream()
+        .map(LedgerEntryAmount::amount)
+        .map(amount -> amount.setScale(2, java.math.RoundingMode.HALF_UP))
+        .toList();
+  }
+
+  private BigDecimal managementFeeBalance(TulevaFund fund) {
+    return navLedgerRepository.getSystemAccountBalance(MANAGEMENT_FEE_ACCRUAL.getAccountName(fund));
   }
 
   private FeeAccrual findAccrual(TulevaFund fund, FeeType feeType, LocalDate accrualDate) {

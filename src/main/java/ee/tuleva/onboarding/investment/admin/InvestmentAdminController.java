@@ -8,7 +8,6 @@ import ee.tuleva.onboarding.admin.AdminTokenValidator;
 import ee.tuleva.onboarding.investment.check.tracking.PeriodType;
 import ee.tuleva.onboarding.investment.check.tracking.PeriodicTdAttributionService;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceBackfillRequested;
-import ee.tuleva.onboarding.investment.fees.FeeAccrualRepository;
 import ee.tuleva.onboarding.investment.fees.ocf.OcfCalculationService;
 import ee.tuleva.onboarding.investment.position.FundPositionImportJob;
 import ee.tuleva.onboarding.investment.position.FundPositionLedgerService;
@@ -20,7 +19,6 @@ import ee.tuleva.onboarding.investment.report.publishing.InvestmentReportPublish
 import ee.tuleva.onboarding.investment.report.publishing.InvestmentReportPublishingResult;
 import ee.tuleva.onboarding.investment.report.publishing.data.InvestmentReportDataService;
 import ee.tuleva.onboarding.investment.report.publishing.pdf.InvestmentReportPdfGenerator;
-import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.savings.NavFeeBackfill;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import jakarta.transaction.Transactional;
@@ -60,8 +58,6 @@ public class InvestmentAdminController {
   private final FundPositionLedgerService fundPositionLedgerService;
   private final FundPositionRepository fundPositionRepository;
   private final ReportImportJob reportImportJob;
-  private final FeeAccrualRepository feeAccrualRepository;
-  private final NavFeeAccrualLedger navFeeAccrualLedger;
   private final NavFeeBackfill navFeeBackfill;
   private final Optional<InvestmentReportPublisher> investmentReportPublisher;
   private final InvestmentReportDataService investmentReportDataService;
@@ -119,8 +115,6 @@ public class InvestmentAdminController {
     log.info(
         "Admin triggered date-scoped position re-record: fund={}, fromDate={}", fund, fromDate);
     fundPositionLedgerService.rerecordPositionsFromDate(fund, fromDate);
-    navFeeAccrualLedger.deleteFeeAccrualsFromDate(fund, fromDate);
-    feeAccrualRepository.deleteByFundFromDate(fund, fromDate);
     LocalDate latestNavDate = fundPositionRepository.findLatestNavDateByFund(fund).orElse(fromDate);
     navFeeBackfill.backfillFees(fund, fromDate, latestNavDate);
 

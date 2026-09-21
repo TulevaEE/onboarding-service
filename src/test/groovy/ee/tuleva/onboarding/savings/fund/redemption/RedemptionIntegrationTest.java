@@ -47,6 +47,7 @@ import ee.tuleva.onboarding.user.UserRepository;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -257,7 +258,12 @@ class RedemptionIntegrationTest {
 
     // Step 2: Price and redeem (happens in batch job at T+2)
     savingsFundLedger.redeemFundUnitsFromReserved(
-        testPartyRef, fundUnits, cashAmount, navPerUnit, redemptionRequestId);
+        testPartyRef,
+        fundUnits,
+        cashAmount,
+        navPerUnit,
+        LocalDate.parse("2025-03-10"),
+        redemptionRequestId);
 
     // Steps 3 & 4: Transfer and payout (happens during bank statement reconciliation)
     savingsFundLedger.transferFromFundAccount(cashAmount, redemptionRequestId);
@@ -369,7 +375,7 @@ class RedemptionIntegrationTest {
     savingsFundLedger.recordPaymentReceived(testPartyRef, cashAmount, paymentId);
     savingsFundLedger.reservePaymentForSubscription(testPartyRef, cashAmount, paymentId);
     savingsFundLedger.issueFundUnitsFromReserved(
-        testPartyRef, cashAmount, fundUnits, navPerUnit, paymentId);
+        testPartyRef, cashAmount, fundUnits, navPerUnit, LocalDate.parse("2025-03-10"), paymentId);
     savingsFundLedger.transferToFundAccount(cashAmount, paymentId);
   }
 
@@ -786,7 +792,7 @@ class RedemptionIntegrationTest {
     savingsFundLedger.recordPaymentReceived(partyRef, cashAmount, paymentId);
     savingsFundLedger.reservePaymentForSubscription(partyRef, cashAmount, paymentId);
     savingsFundLedger.issueFundUnitsFromReserved(
-        partyRef, cashAmount, fundUnits, navPerUnit, paymentId);
+        partyRef, cashAmount, fundUnits, navPerUnit, LocalDate.parse("2025-03-10"), paymentId);
     savingsFundLedger.transferToFundAccount(cashAmount, paymentId);
   }
 

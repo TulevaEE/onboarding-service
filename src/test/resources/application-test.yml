@@ -97,6 +97,9 @@ payment-provider:
     lhv:
       access-key: exampleAccessKey
       secret-key: exampleSecretKeyexampleSecretKeyexampleSecretKey
+  savings-channel:
+    access-key: exampleAccessKey
+    secret-key: exampleSecretKeyexampleSecretKeyexampleSecretKey
 
 opensanctions:
   url: http://localhost:9

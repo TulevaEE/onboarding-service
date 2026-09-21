@@ -117,6 +117,38 @@ public class NavFeeAccrualLedger {
   }
 
   @Transactional
+  public void reviseFeeAccrual(
+      TulevaFund fund,
+      LocalDate accrualDate,
+      SystemAccount feeAccount,
+      BigDecimal delta,
+      Map<String, Object> metadata) {
+    if (delta.signum() == 0) {
+      log.info(
+          "Skipping zero fee accrual revision: fund={}, date={}, feeAccount={}",
+          fund,
+          accrualDate,
+          feeAccount.name());
+      return;
+    }
+
+    log.info(
+        "Creating fee accrual revision ledger entry: fund={}, date={}, feeAccount={}, delta={}",
+        fund,
+        accrualDate,
+        feeAccount.name(),
+        delta);
+    Instant transactionDate = accrualDate.atTime(9, 0).atZone(ESTONIAN_ZONE).toInstant();
+    ledgerTransactionService.createTransaction(
+        FEE_ACCRUAL,
+        transactionDate,
+        UUID.randomUUID(),
+        metadata,
+        entry(getSystemAccount(NAV_EQUITY, fund), delta),
+        entry(getSystemAccount(feeAccount, fund), delta.negate()));
+  }
+
+  @Transactional
   public BlackrockAdjustmentResult recordBlackrockAdjustment(
       TulevaFund fund, LocalDate date, BigDecimal targetBalance) {
     Instant cutoff = date.atTime(fund.getNavCutoffTime()).atZone(ESTONIAN_ZONE).toInstant();
@@ -159,48 +191,6 @@ public class NavFeeAccrualLedger {
         delta);
 
     return new BlackrockAdjustmentResult(fund, date, currentBalance, targetBalance, delta, true);
-  }
-
-  @Transactional
-  public int deleteFeeAccrualsFromDate(TulevaFund fund, LocalDate fromDate) {
-    String fundName = fund.name();
-    Instant cutoff = fromDate.atTime(9, 0).atZone(ESTONIAN_ZONE).toInstant();
-    int entriesDeleted =
-        jdbcClient
-            .sql(
-                """
-                DELETE FROM ledger.entry
-                WHERE transaction_id IN (
-                  SELECT id FROM ledger.transaction
-                  WHERE transaction_type = 'FEE_ACCRUAL'
-                    AND CAST(metadata AS VARCHAR) LIKE :fundPattern
-                    AND transaction_date >= :cutoff
-                )
-                """)
-            .param("fundPattern", "%\"fund\":%\"" + fundName + "\"%")
-            .param("cutoff", java.sql.Timestamp.from(cutoff))
-            .update();
-
-    int txDeleted =
-        jdbcClient
-            .sql(
-                """
-                DELETE FROM ledger.transaction
-                WHERE transaction_type = 'FEE_ACCRUAL'
-                  AND CAST(metadata AS VARCHAR) LIKE :fundPattern
-                  AND transaction_date >= :cutoff
-                """)
-            .param("fundPattern", "%\"fund\":%\"" + fundName + "\"%")
-            .param("cutoff", java.sql.Timestamp.from(cutoff))
-            .update();
-
-    log.info(
-        "Deleted fee accruals from date: fund={}, fromDate={}, transactions={}, entries={}",
-        fund,
-        fromDate,
-        txDeleted,
-        entriesDeleted);
-    return txDeleted;
   }
 
   @Transactional

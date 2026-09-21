@@ -1,13 +1,19 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
+import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
+import static ee.tuleva.onboarding.investment.JobRunSchedule.TRACKING_DIFFERENCE_GAP_FILL;
+import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK;
+
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceBackfillRequested;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceCheckRequested;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.context.annotation.Profile;
 import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -15,6 +21,8 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 @Profile({"production", "staging"})
 class TrackingDifferenceJob {
+
+  static final int GAP_LOOKBACK_DAYS = 30;
 
   private final TrackingDifferenceService trackingDifferenceService;
   private final TrackingDifferenceNotifier trackingDifferenceNotifier;
@@ -28,12 +36,34 @@ class TrackingDifferenceJob {
       trackingDifferenceNotifier.notify(results);
       log.info("Tracking difference check completed: resultCount={}", results.size());
     } catch (TrackingDifferenceService.IncompletePriceDataException e) {
-      trackingDifferenceNotifier.notifyRunIncomplete("TD check", reasonOf(e));
+      trackingDifferenceNotifier.notifyRunIncomplete("TD check", FailureReason.of(e));
       trackingDifferenceNotifier.notify(e.completedResults());
       log.error("Tracking difference check incomplete", e);
     } catch (Exception e) {
       log.error("Tracking difference check failed", e);
-      trackingDifferenceNotifier.notifyRunFailed("TD check", reasonOf(e));
+      trackingDifferenceNotifier.notifyRunFailed("TD check", FailureReason.of(e));
+    }
+  }
+
+  @Scheduled(cron = TRACKING_DIFFERENCE_GAP_FILL, zone = TIMEZONE)
+  @SchedulerLock(
+      name = "TrackingDifferenceDailyGapFill",
+      lockAtMostFor = "2h",
+      lockAtLeastFor = "1m")
+  void fillTrackingDifferenceGaps() {
+    log.info("Starting daily tracking difference gap fill");
+
+    try {
+      var results = trackingDifferenceService.fillGaps(GAP_LOOKBACK_DAYS);
+      reportGapFill(results);
+      log.info("Tracking difference gap fill completed: resultCount={}", results.size());
+    } catch (TrackingDifferenceService.IncompletePriceDataException e) {
+      trackingDifferenceNotifier.notifyRunIncomplete("TD daily gap fill", FailureReason.of(e));
+      reportGapFill(e.completedResults());
+      log.error("Tracking difference gap fill incomplete", e);
+    } catch (Exception e) {
+      log.error("Tracking difference gap fill failed", e);
+      trackingDifferenceNotifier.notifyRunFailed("TD daily gap fill", FailureReason.of(e));
     }
   }
 
@@ -46,16 +76,32 @@ class TrackingDifferenceJob {
       trackingDifferenceNotifier.notifyBackfillSummary(event.daysBack(), results);
       log.info("Tracking difference backfill completed: resultCount={}", results.size());
     } catch (TrackingDifferenceService.IncompletePriceDataException e) {
-      trackingDifferenceNotifier.notifyRunIncomplete("TD backfill", reasonOf(e));
+      trackingDifferenceNotifier.notifyRunIncomplete("TD backfill", FailureReason.of(e));
       trackingDifferenceNotifier.notifyBackfillSummary(event.daysBack(), e.completedResults());
       log.error("Tracking difference backfill incomplete", e);
     } catch (Exception e) {
       log.error("Tracking difference backfill failed", e);
-      trackingDifferenceNotifier.notifyRunFailed("TD backfill", reasonOf(e));
+      trackingDifferenceNotifier.notifyRunFailed("TD backfill", FailureReason.of(e));
     }
   }
 
-  private static String reasonOf(Exception e) {
-    return e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+  private void reportGapFill(List<TrackingDifferenceResult> results) {
+    if (results.isEmpty()) {
+      return;
+    }
+    if (coversMoreThanOneCheckDate(results)) {
+      trackingDifferenceNotifier.notifyGapFillSummary(results);
+      return;
+    }
+    trackingDifferenceNotifier.notify(results);
+  }
+
+  private static boolean coversMoreThanOneCheckDate(List<TrackingDifferenceResult> results) {
+    return results.stream()
+            .filter(result -> result.checkType() != BENCHMARK)
+            .map(TrackingDifferenceResult::checkDate)
+            .distinct()
+            .count()
+        > 1;
   }
 }

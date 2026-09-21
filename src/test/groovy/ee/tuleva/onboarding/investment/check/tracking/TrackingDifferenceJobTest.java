@@ -1,5 +1,9 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
+import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
+import static ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceJob.GAP_LOOKBACK_DAYS;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static java.math.BigDecimal.ZERO;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
@@ -8,6 +12,7 @@ import static org.mockito.Mockito.never;
 
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceBackfillRequested;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceCheckRequested;
+import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,10 +23,24 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class TrackingDifferenceJobTest {
 
+  private static final LocalDate NAV_DATE = LocalDate.of(2026, 9, 11);
+
   @Mock TrackingDifferenceService service;
   @Mock TrackingDifferenceNotifier notifier;
 
   @InjectMocks TrackingDifferenceJob job;
+
+  private static TrackingDifferenceResult result(LocalDate checkDate) {
+    return TrackingDifferenceResult.builder()
+        .fund(TUK75)
+        .checkDate(checkDate)
+        .checkType(MODEL_PORTFOLIO)
+        .trackingDifference(ZERO)
+        .fundReturn(ZERO)
+        .benchmarkReturn(ZERO)
+        .breach(false)
+        .build();
+  }
 
   @Test
   void adHocEventDelegatesToServiceAndNotifier() {
@@ -75,6 +94,75 @@ class TrackingDifferenceJobTest {
     job.onTrackingDifferenceCheckRequested(new RunTrackingDifferenceCheckRequested());
 
     then(notifier).should().notify(partialResults);
+  }
+
+  // The NAV publication writes the check events on an ordinary day, so most evenings there is no
+  // gap at all. The per-day notifier reads an empty list as "nothing actionable was checked" and
+  // posts it to INVESTMENT, which would put a warning on the channel every weekday for the case
+  // that means everything worked.
+  @Test
+  void anEveningWithNoGapToFillSaysNothing() {
+    given(service.fillGaps(GAP_LOOKBACK_DAYS)).willReturn(List.of());
+
+    job.fillTrackingDifferenceGaps();
+
+    then(service).should().fillGaps(GAP_LOOKBACK_DAYS);
+    then(notifier).should(never()).notify(anyList());
+    then(notifier).should(never()).notifyGapFillSummary(anyList());
+  }
+
+  // One missed day is the case the daily run exists for, and its breach is current enough to read
+  // as the daily alert it would have been.
+  @Test
+  void aSingleMissedDayIsReportedAsTheDayItself() {
+    var results = List.of(result(NAV_DATE));
+    given(service.fillGaps(GAP_LOOKBACK_DAYS)).willReturn(results);
+
+    job.fillTrackingDifferenceGaps();
+
+    then(notifier).should().notify(results);
+    then(notifier).should(never()).notifyGapFillSummary(anyList());
+  }
+
+  // The first run after a deploy or an outage can carry weeks of dates. Sent through the per-day
+  // formatter, every historical breach arrives today as a fresh "TD BREACH DETECTED".
+  @Test
+  void aFillCoveringSeveralDaysIsSummarisedRatherThanReplayedDayByDay() {
+    var results = List.of(result(NAV_DATE.minusDays(1)), result(NAV_DATE));
+    given(service.fillGaps(GAP_LOOKBACK_DAYS)).willReturn(results);
+
+    job.fillTrackingDifferenceGaps();
+
+    then(notifier).should().notifyGapFillSummary(results);
+    then(notifier).should(never()).notify(anyList());
+  }
+
+  @Test
+  void aFailedDailyRunIsReportedRatherThanOnlyLogged() {
+    doThrow(new RuntimeException("boom")).when(service).fillGaps(GAP_LOOKBACK_DAYS);
+
+    job.fillTrackingDifferenceGaps();
+
+    then(notifier).should().notifyRunFailed("TD daily gap fill", "boom");
+    then(notifier).should(never()).notify(anyList());
+  }
+
+  @Test
+  void anIncompleteDailyRunNamesTheFundsItCouldNotCheck() {
+    var partialResults = List.<TrackingDifferenceResult>of();
+    doThrow(
+            new TrackingDifferenceService.IncompletePriceDataException(
+                "Incomplete security price data:\nTUK75: IE00MISSING1", partialResults))
+        .when(service)
+        .fillGaps(GAP_LOOKBACK_DAYS);
+
+    job.fillTrackingDifferenceGaps();
+
+    then(notifier)
+        .should()
+        .notifyRunIncomplete(
+            "TD daily gap fill", "Incomplete security price data:\nTUK75: IE00MISSING1");
+    then(notifier).should(never()).notify(partialResults);
   }
 
   @Test

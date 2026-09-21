@@ -40,12 +40,7 @@ class ThirdPillarPaymentArrivedJobTest {
         "EST",
         new BigDecimal("100.00"),
         LocalDate.parse("2026-08-16"),
-        true,
-        true,
-        true,
-        false,
-        false,
-        false);
+        true);
   }
 
   @Test

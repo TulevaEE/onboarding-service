@@ -5,8 +5,10 @@ import static java.util.Objects.requireNonNull;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.core.retry.RetryTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
@@ -24,69 +26,78 @@ public class SebGatewayClient {
 
   public String getEodTransactions(String iban, String orgId) {
     log.info("Fetching EOD transactions: iban={}", iban);
-    return requireNonNull(
-        sebGatewayRestClient
-            .get()
-            .uri("/v1/accounts/{iban}/eod-transactions", iban)
-            .header("OrgId", orgId)
-            .retrieve()
-            .body(String.class),
-        "Empty EOD transactions response: iban=" + iban);
+    return getRetrying(
+        "Empty EOD transactions response: iban=" + iban,
+        () ->
+            sebGatewayRestClient
+                .get()
+                .uri("/v1/accounts/{iban}/eod-transactions", iban)
+                .header("OrgId", orgId)
+                .retrieve()
+                .body(String.class));
   }
 
   public String getCurrentTransactions(String iban, String orgId) {
     log.info("Fetching current day transactions: iban={}", iban);
-    return requireNonNull(
-        sebGatewayRestClient
-            .get()
-            .uri(
-                uriBuilder ->
-                    uriBuilder
-                        .path("/v1/accounts/{iban}/current-transactions")
-                        .queryParam("page", 1)
-                        .queryParam("size", 3000)
-                        .build(iban))
-            .header("OrgId", orgId)
-            .retrieve()
-            .body(String.class),
-        "Empty current transactions response: iban=" + iban);
+    return getRetrying(
+        "Empty current transactions response: iban=" + iban,
+        () ->
+            sebGatewayRestClient
+                .get()
+                .uri(
+                    uriBuilder ->
+                        uriBuilder
+                            .path("/v1/accounts/{iban}/current-transactions")
+                            .queryParam("page", 1)
+                            .queryParam("size", 3000)
+                            .build(iban))
+                .header("OrgId", orgId)
+                .retrieve()
+                .body(String.class));
   }
 
   public String getTransactions(String iban, String orgId, LocalDate dateFrom, LocalDate dateTo) {
     log.info("Fetching transactions: iban={}, dateFrom={}, dateTo={}", iban, dateFrom, dateTo);
-    return requireNonNull(
-        sebGatewayRestClient
-            .get()
-            .uri(
-                uriBuilder ->
-                    uriBuilder
-                        .path("/v1/accounts/{iban}/transactions")
-                        .queryParam("from", dateFrom.format(DATE_FORMAT))
-                        .queryParam("to", dateTo.format(DATE_FORMAT))
-                        .queryParam("page", 1)
-                        .queryParam("size", 3000)
-                        .build(iban))
-            .header("OrgId", orgId)
-            .retrieve()
-            .body(String.class),
+    return getRetrying(
         "Empty transactions response: iban="
             + iban
             + ", dateFrom="
             + dateFrom
             + ", dateTo="
-            + dateTo);
+            + dateTo,
+        () ->
+            sebGatewayRestClient
+                .get()
+                .uri(
+                    uriBuilder ->
+                        uriBuilder
+                            .path("/v1/accounts/{iban}/transactions")
+                            .queryParam("from", dateFrom.format(DATE_FORMAT))
+                            .queryParam("to", dateTo.format(DATE_FORMAT))
+                            .queryParam("page", 1)
+                            .queryParam("size", 3000)
+                            .build(iban))
+                .header("OrgId", orgId)
+                .retrieve()
+                .body(String.class));
   }
 
   public String getBalances(String iban, String orgId) {
     log.info("Fetching balances: iban={}", iban);
-    return requireNonNull(
-        sebGatewayRestClient
-            .get()
-            .uri("/v1/accounts/{iban}/balances", iban)
-            .header("OrgId", orgId)
-            .retrieve()
-            .body(String.class),
-        "Empty balances response: iban=" + iban);
+    return getRetrying(
+        "Empty balances response: iban=" + iban,
+        () ->
+            sebGatewayRestClient
+                .get()
+                .uri("/v1/accounts/{iban}/balances", iban)
+                .header("OrgId", orgId)
+                .retrieve()
+                .body(String.class));
+  }
+
+  private String getRetrying(String emptyResponseMessage, Supplier<@Nullable String> request) {
+    return sebGatewayRetryTemplate.invoke(
+        () -> requireNonNull(request.get(), emptyResponseMessage));
   }
 
   public String submitPaymentFile(String paymentXml, String idempotencyKey, String orgId) {

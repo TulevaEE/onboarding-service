@@ -64,6 +64,12 @@ import org.springframework.stereotype.Service;
  * recordUnattributedPayment        INCOMING_PAYMENTS_CLEARING → UNRECONCILED_BANK_RECEIPTS
  * bounceBackUnattributedPayment    UNRECONCILED_BANK_RECEIPTS → INCOMING_PAYMENTS_CLEARING
  * </pre>
+ *
+ * <h2>Unit Transfer Flow (units change owner, nothing else moves)</h2>
+ *
+ * <pre>
+ * 1. recordUnitTransfer            Giver:FUND_UNITS → Receiver:FUND_UNITS
+ * </pre>
  */
 @Slf4j
 @Service
@@ -75,6 +81,7 @@ public class SavingsFundLedger {
   private final Clock clock;
   private final RedemptionLedgerRecorder redemptionRecorder;
   private final UnattributedPaymentLedgerRecorder unattributedRecorder;
+  private final UnitTransferLedgerRecorder unitTransferRecorder;
 
   @Getter
   @AllArgsConstructor
@@ -86,6 +93,7 @@ public class SavingsFundLedger {
     PAYER_IBAN("payerIban"),
     CUSTOMER_IBAN("customerIban"),
     NAV_PER_UNIT("navPerUnit"),
+    NAV_DATE("navDate"),
     REDEMPTION_REQUEST_ID("redemptionRequestId"),
     DESCRIPTION("description"),
     INSTRUMENT("instrument"),
@@ -93,7 +101,9 @@ public class SavingsFundLedger {
     DISPLAY_NAME("displayName"),
     COUNTERPARTY_NAME("counterpartyName"),
     COUNTERPARTY_IBAN("counterpartyIban"),
-    SUB_FAMILY_CODE("subFamilyCode");
+    SUB_FAMILY_CODE("subFamilyCode"),
+    RECIPIENT_CODE("recipientCode"),
+    RECIPIENT_TYPE("recipientType");
 
     private final String key;
   }
@@ -237,6 +247,7 @@ public class SavingsFundLedger {
       BigDecimal cashAmount,
       BigDecimal fundUnits,
       BigDecimal navPerUnit,
+      LocalDate navDate,
       UUID externalReference) {
     LedgerParty ledgerParty = accounts.getParty(party);
     LedgerAccount userCashReservedAccount = accounts.getUserCashReservedAccount(ledgerParty);
@@ -246,6 +257,7 @@ public class SavingsFundLedger {
 
     var metadata = new HashMap<>(accounts.partyMetadata(party, FUND_SUBSCRIPTION));
     metadata.put(NAV_PER_UNIT.getKey(), navPerUnit);
+    metadata.put(NAV_DATE.getKey(), navDate.toString());
 
     return ledgerTransactionService.createTransaction(
         FUND_SUBSCRIPTION,
@@ -340,14 +352,25 @@ public class SavingsFundLedger {
   }
 
   @Transactional
+  public LedgerTransaction recordUnitTransfer(
+      PartyRef from, PartyRef to, BigDecimal fundUnits, UUID externalReference) {
+    return unitTransferRecorder.recordUnitTransfer(from, to, fundUnits, externalReference);
+  }
+
+  public UnitTransferQuote quoteUnitTransfer(PartyRef from, PartyRef to, BigDecimal fundUnits) {
+    return unitTransferRecorder.quote(from, to, fundUnits);
+  }
+
+  @Transactional
   public LedgerTransaction redeemFundUnitsFromReserved(
       PartyRef party,
       BigDecimal fundUnits,
       BigDecimal cashAmount,
       BigDecimal navPerUnit,
+      LocalDate navDate,
       UUID redemptionRequestId) {
     return redemptionRecorder.redeemFundUnitsFromReserved(
-        party, fundUnits, cashAmount, navPerUnit, redemptionRequestId);
+        party, fundUnits, cashAmount, navPerUnit, navDate, redemptionRequestId);
   }
 
   @Transactional

@@ -6,7 +6,7 @@ record NavFlowReconciliation(
     BigDecimal openingNetAssets,
     BigDecimal closingNetAssets,
     BigDecimal marketPnl,
-    BigDecimal tradeFlow,
+    TradeFlow tradeFlow,
     BigDecimal unitsChange,
     BigDecimal unitFlow,
     BigDecimal feeAccrual,

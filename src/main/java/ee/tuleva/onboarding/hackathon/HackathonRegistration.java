@@ -50,6 +50,8 @@ public class HackathonRegistration {
   @NotNull
   private List<HackathonSkill> skills;
 
+  @Nullable private String otherSkills;
+
   @JdbcTypeCode(JSON)
   @NotNull
   private List<HackathonChallenge> challenges;
@@ -62,6 +64,16 @@ public class HackathonRegistration {
 
   @Nullable private String linkedinUrl;
 
+  @Enumerated(STRING)
+  @Nullable
+  private HackathonTshirtColor tshirtColor;
+
+  @Enumerated(STRING)
+  @Nullable
+  private HackathonTshirtSize tshirtSize;
+
+  @Nullable private Instant termsAcceptedTime;
+
   @Column(updatable = false)
   private Instant createdTime;
 
@@ -72,10 +84,16 @@ public class HackathonRegistration {
     phoneNumber = request.phoneNumber();
     role = request.role();
     skills = request.skills();
+    otherSkills = request.otherSkills();
     challenges = request.challenges();
     participation = request.participation();
     idea = request.idea();
     linkedinUrl = request.linkedinUrl();
+    tshirtColor = request.tshirtColor();
+    tshirtSize = request.tshirtSize();
+    if (termsAcceptedTime == null) {
+      termsAcceptedTime = now;
+    }
     updatedTime = now;
   }
 }

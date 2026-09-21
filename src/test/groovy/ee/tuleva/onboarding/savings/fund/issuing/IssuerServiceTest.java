@@ -15,6 +15,7 @@ import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.LedgerRefs;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -40,11 +41,14 @@ class IssuerServiceTest {
     var party = new PartyId(PERSON, "38812121215");
     var payment = aPayment().amount(TEN).partyId(party).status(RESERVED).build();
 
-    issuerService.processPayment(payment, ONE);
+    var navDate = LocalDate.parse("2025-03-10");
+
+    issuerService.processPayment(payment, ONE, navDate);
 
     var issuedUnits = TEN.divide(ONE, 5, HALF_DOWN);
     verify(savingsFundLedger)
-        .issueFundUnitsFromReserved(LedgerRefs.from(party), TEN, issuedUnits, ONE, payment.getId());
+        .issueFundUnitsFromReserved(
+            LedgerRefs.from(party), TEN, issuedUnits, ONE, navDate, payment.getId());
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), ISSUED);
   }
 
@@ -56,7 +60,7 @@ class IssuerServiceTest {
 
     var payment = aPayment().amount(paymentAmount).partyId(party).status(RESERVED).build();
 
-    var result = issuerService.processPayment(payment, nav);
+    var result = issuerService.processPayment(payment, nav, LocalDate.parse("2025-03-10"));
 
     var expectedUnits = paymentAmount.divide(nav, 5, HALF_DOWN);
     assertThat(result).isEqualTo(new IssuingResult(paymentAmount, expectedUnits));

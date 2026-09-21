@@ -19,6 +19,7 @@ import ee.tuleva.onboarding.deadline.PublicHolidays
 import org.slf4j.LoggerFactory
 import org.springframework.core.env.Environment
 import spock.lang.Specification
+import spock.lang.Unroll
 
 import java.time.Clock
 import java.time.Duration
@@ -320,6 +321,45 @@ class FundValueIndexingJobSpec extends Specification {
         then:
         1 * failingRetriever.retrieveValuesForRange(FundValueIndexingJob.EARLIEST_DATE, TODAY) >> { throw new RuntimeException("FTP connection failed") }
         1 * successRetriever.retrieveValuesForRange(FundValueIndexingJob.EARLIEST_DATE, TODAY) >> []
+    }
+
+    @Unroll
+    def "#entryPoint stores the Euronext close before EODHD reads it to confirm a repeated Paris close"() {
+        given:
+        def eodhd = Mock(ComparisonIndexRetriever)
+        def euronext = Mock(ComparisonIndexRetriever)
+        eodhd.getKey() >> EODHDValueRetriever.KEY
+        euronext.getKey() >> EuronextValueRetriever.KEY
+        eodhd.expectedStorageKeys() >> Set.of(EODHDValueRetriever.KEY)
+        euronext.expectedStorageKeys() >> Set.of(EuronextValueRetriever.KEY)
+        fundValueRepository.findLatestDateByKeys(_) >> [:]
+        def confirmingClose = aFundValue("LU1708330318.XPAR", TODAY.minusDays(1), 48.295)
+
+        def job = new FundValueIndexingJob(
+            fundValueRepository,
+            [eodhd, euronext],
+            Mock(Environment),
+            fundNavRetrieverFactory,
+            CLOCK,
+            publicHolidays,
+            priceDataFreshnessAlertJob)
+
+        when:
+        refresh(job)
+
+        then:
+        1 * euronext.retrieveValuesForRange(FundValueIndexingJob.EARLIEST_DATE, TODAY) >> [confirmingClose]
+
+        then:
+        1 * fundValueRepository.save(confirmingClose) >> Optional.of(confirmingClose)
+
+        then:
+        1 * eodhd.retrieveValuesForRange(FundValueIndexingJob.EARLIEST_DATE, TODAY) >> []
+
+        where:
+        entryPoint                 | refresh
+        "refreshAll"               | { it.refreshAll() }
+        "refreshForNavCalculation" | { it.refreshForNavCalculation() }
     }
 
     def "after initDynamicRetrievers, refreshes both static and dynamic retrievers"() {

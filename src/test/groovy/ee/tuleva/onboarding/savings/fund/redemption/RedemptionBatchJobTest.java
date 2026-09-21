@@ -185,6 +185,7 @@ class RedemptionBatchJobTest {
             eq(new BigDecimal("10.00000")),
             any(BigDecimal.class),
             eq(BigDecimal.ONE),
+            any(LocalDate.class),
             eq(requestId));
     verify(eventPublisher, times(2)).publishEvent(any(RequestPaymentEvent.class));
     verify(redemptionStatusService).changeStatus(requestId, REDEEMED);
@@ -212,7 +213,7 @@ class RedemptionBatchJobTest {
     // The whole point of validating first: nothing is priced, no units leave the party's account,
     // and no cash is moved to the withdrawal account for a payout that cannot happen.
     verify(savingsFundLedger, never())
-        .redeemFundUnitsFromReserved(any(), any(), any(), any(), any());
+        .redeemFundUnitsFromReserved(any(), any(), any(), any(), any(), any());
     verify(eventPublisher, never()).publishEvent(any(RequestPaymentEvent.class));
     verify(redemptionStatusService).changeStatus(requestId, FAILED);
   }
@@ -649,7 +650,7 @@ class RedemptionBatchJobTest {
     batchJob.runJob();
 
     verify(savingsFundLedger, never())
-        .redeemFundUnitsFromReserved(any(), any(), any(), any(), any());
+        .redeemFundUnitsFromReserved(any(), any(), any(), any(), any(), any());
   }
 
   @Test

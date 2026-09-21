@@ -1,10 +1,16 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
+import static ee.tuleva.onboarding.aml.ScreeningOutcome.CLEAR;
+import static ee.tuleva.onboarding.aml.ScreeningOutcome.MATCH;
+import static ee.tuleva.onboarding.aml.ScreeningOutcome.UNAVAILABLE;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.AML;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
-import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.IN_REVIEW;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.HIGH_RISK;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.ONBOARDING_INCOMPLETE;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.SCREENING_MATCH;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.SCREENING_UNAVAILABLE;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestFixture.redemptionRequestFixture;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -14,27 +20,41 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.aml.RiskLevels;
 import ee.tuleva.onboarding.aml.SanctionAndPepScreener;
 import ee.tuleva.onboarding.country.Countries;
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.kyb.LegalEntityScreener;
 import ee.tuleva.onboarding.kyc.KycCountryService;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.savings.SavingFundDeadlinesService;
 import ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
+import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.ws.client.WebServiceIOException;
 
 @ExtendWith(MockitoExtension.class)
 class RedemptionVerificationServiceTest {
 
+  private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
+  private static final String PERSONAL_CODE = "38812121215";
+  private static final Instant THURSDAY_EVENING = Instant.parse("2026-08-27T19:19:35Z");
+  private static final Instant FRIDAY_NOON = Instant.parse("2026-08-28T09:00:00Z");
+  private static final Instant FRIDAY_HALF_PAST_THREE = Instant.parse("2026-08-28T12:30:00Z");
+
+  @Mock private RedemptionRequestRepository redemptionRequestRepository;
   @Mock private RedemptionStatusService redemptionStatusService;
   @Mock private UserService userService;
   @Mock private KycCountryService kycCountryService;
@@ -44,194 +64,270 @@ class RedemptionVerificationServiceTest {
   @Mock private LegalEntityScreener legalEntityScreener;
   @Mock private OperationsNotificationService notificationService;
 
-  @InjectMocks private RedemptionVerificationService service;
+  private RedemptionVerificationService serviceAt(Instant now) {
+    var clock = Clock.fixed(now, TALLINN);
+    return new RedemptionVerificationService(
+        redemptionRequestRepository,
+        redemptionStatusService,
+        userService,
+        kycCountryService,
+        sanctionAndPepScreener,
+        riskLevels,
+        savingsFundOnboardingRepository,
+        legalEntityScreener,
+        notificationService,
+        new SavingFundDeadlinesService(new PublicHolidays(), clock),
+        clock);
+  }
 
-  @Test
-  void process_personRequest_transitionsToVerifiedWhenScreeningClearAndNotHighRisk() {
-    var userId = 1L;
-    var requestId = UUID.randomUUID();
-    var request =
-        redemptionRequestFixture()
-            .id(requestId)
-            .userId(userId)
-            .partyType(PERSON)
-            .partyCode("38812121215")
-            .build();
-    var user = sampleUser().id(userId).build();
-    var countries = Countries.of("EE");
+  private RedemptionVerificationService service() {
+    return serviceAt(FRIDAY_NOON);
+  }
 
-    given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
-    given(kycCountryService.getCountries(userId)).willReturn(Optional.of(countries));
-    given(sanctionAndPepScreener.isSanctionAndPepClear(user, countries)).willReturn(true);
-    given(riskLevels.isHighRisk(user.getPersonalCode())).willReturn(false);
+  private static RedemptionRequest personRequest(UUID requestId) {
+    return redemptionRequestFixture()
+        .id(requestId)
+        .userId(1L)
+        .partyType(PERSON)
+        .partyCode(PERSONAL_CODE)
+        .requestedAt(THURSDAY_EVENING)
+        .build();
+  }
 
-    service.process(request);
-
-    verify(redemptionStatusService).changeStatus(requestId, VERIFIED);
-    verify(redemptionStatusService, never()).changeStatus(requestId, IN_REVIEW);
+  private User givenPersonWithCountries() {
+    var user = sampleUser().id(1L).personalCode(PERSONAL_CODE).build();
+    given(userService.findByPersonalCode(PERSONAL_CODE)).willReturn(Optional.of(user));
+    given(kycCountryService.getCountries(1L)).willReturn(Optional.of(Countries.of("EE")));
+    return user;
   }
 
   @Test
-  void process_personRequest_transitionsToInReviewWhenScreeningNotClear() {
-    var userId = 1L;
+  void process_personRequest_transitionsToVerifiedWhenScreeningClearAndNotHighRisk() {
     var requestId = UUID.randomUUID();
-    var request =
-        redemptionRequestFixture()
-            .id(requestId)
-            .userId(userId)
-            .partyType(PERSON)
-            .partyCode("38812121215")
-            .build();
-    var user = sampleUser().id(userId).build();
-    var countries = Countries.of("EE");
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(CLEAR);
+    given(riskLevels.isHighRisk(PERSONAL_CODE)).willReturn(false);
 
-    given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
-    given(kycCountryService.getCountries(userId)).willReturn(Optional.of(countries));
-    given(sanctionAndPepScreener.isSanctionAndPepClear(user, countries)).willReturn(false);
+    service().process(personRequest(requestId));
 
-    service.process(request);
+    verify(redemptionStatusService).changeStatus(requestId, VERIFIED);
+    verify(redemptionStatusService, never()).holdForReview(any(), any());
+    verifyNoInteractions(notificationService);
+  }
 
-    verify(redemptionStatusService).changeStatus(requestId, IN_REVIEW);
+  @Test
+  void process_personRequest_holdsForReviewWhenScreeningMatches() {
+    var requestId = UUID.randomUUID();
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(MATCH);
+
+    service().process(personRequest(requestId));
+
+    verify(redemptionStatusService).holdForReview(requestId, SCREENING_MATCH);
     verify(redemptionStatusService, never()).changeStatus(requestId, VERIFIED);
     verify(notificationService)
         .sendMessage(
-            "AML: redemption held for review: id=" + requestId + ", amount=10.00 EUR", AML);
+            "AML: redemption held for review: id="
+                + requestId
+                + ", amount=10.00 EUR, reason=SCREENING_MATCH",
+            AML);
   }
 
   @Test
   void process_personRequest_holdsRedemptionEvenWhenNotificationFails() {
-    var userId = 1L;
     var requestId = UUID.randomUUID();
-    var request =
-        redemptionRequestFixture()
-            .id(requestId)
-            .userId(userId)
-            .partyType(PERSON)
-            .partyCode("38812121215")
-            .build();
-    var user = sampleUser().id(userId).build();
-    var countries = Countries.of("EE");
-
-    given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
-    given(kycCountryService.getCountries(userId)).willReturn(Optional.of(countries));
-    given(sanctionAndPepScreener.isSanctionAndPepClear(user, countries)).willReturn(false);
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(MATCH);
     willThrow(new IllegalStateException("Slack unavailable"))
         .given(notificationService)
         .sendMessage(anyString(), any());
 
-    service.process(request);
+    service().process(personRequest(requestId));
 
-    verify(redemptionStatusService).changeStatus(requestId, IN_REVIEW);
+    verify(redemptionStatusService).holdForReview(requestId, SCREENING_MATCH);
     verify(redemptionStatusService, never()).changeStatus(requestId, VERIFIED);
   }
 
   @Test
-  void process_personRequest_transitionsToInReviewWhenPartyIsHighRisk() {
-    var userId = 1L;
+  void process_personRequest_holdsForReviewWhenPartyIsHighRisk() {
     var requestId = UUID.randomUUID();
-    var request =
-        redemptionRequestFixture()
-            .id(requestId)
-            .userId(userId)
-            .partyType(PERSON)
-            .partyCode("38812121215")
-            .build();
-    var user = sampleUser().id(userId).build();
-    var countries = Countries.of("EE");
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(CLEAR);
+    given(riskLevels.isHighRisk(PERSONAL_CODE)).willReturn(true);
 
-    given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
-    given(kycCountryService.getCountries(userId)).willReturn(Optional.of(countries));
-    given(sanctionAndPepScreener.isSanctionAndPepClear(user, countries)).willReturn(true);
-    given(riskLevels.isHighRisk(user.getPersonalCode())).willReturn(true);
+    service().process(personRequest(requestId));
 
-    service.process(request);
-
-    verify(redemptionStatusService).changeStatus(requestId, IN_REVIEW);
+    verify(redemptionStatusService).holdForReview(requestId, HIGH_RISK);
     verify(redemptionStatusService, never()).changeStatus(requestId, VERIFIED);
+  }
+
+  @Test
+  void process_personRequest_aMatchOutranksHighRiskAsTheHoldReason() {
+    var requestId = UUID.randomUUID();
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(MATCH);
+    given(riskLevels.isHighRisk(PERSONAL_CODE)).willReturn(true);
+
+    service().process(personRequest(requestId));
+
+    verify(redemptionStatusService).holdForReview(requestId, SCREENING_MATCH);
+  }
+
+  @Test
+  void
+      process_personRequest_leavesTheRequestReservedWhileScreeningIsUnavailableBeforeTheDeadline() {
+    var requestId = UUID.randomUUID();
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE")))
+        .willReturn(UNAVAILABLE);
+    given(riskLevels.isHighRisk(PERSONAL_CODE)).willReturn(false);
+
+    var request = personRequest(requestId);
+    serviceAt(FRIDAY_NOON).process(request);
+
+    verifyNoInteractions(redemptionStatusService, notificationService);
+    verify(redemptionRequestRepository).save(request);
+    org.assertj.core.api.Assertions.assertThat(request.getVerificationAttemptedAt())
+        .isEqualTo(FRIDAY_NOON);
+  }
+
+  @Test
+  void process_personRequest_skipsAScreeningAttemptMadeWithinTheLastFiveMinutes() {
+    var request = personRequest(UUID.randomUUID());
+    request.setVerificationAttemptedAt(FRIDAY_NOON.minusSeconds(120));
+
+    serviceAt(FRIDAY_NOON).process(request);
+
+    verifyNoInteractions(
+        userService, sanctionAndPepScreener, redemptionStatusService, notificationService);
+  }
+
+  @Test
+  void process_personRequest_retriesOnceTheBackoffHasElapsed() {
+    var requestId = UUID.randomUUID();
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(CLEAR);
+    given(riskLevels.isHighRisk(PERSONAL_CODE)).willReturn(false);
+    var request = personRequest(requestId);
+    request.setVerificationAttemptedAt(FRIDAY_NOON.minusSeconds(6 * 60));
+
+    serviceAt(FRIDAY_NOON).process(request);
+
+    verify(redemptionStatusService).changeStatus(requestId, VERIFIED);
+  }
+
+  @Test
+  void process_personRequest_holdsAsScreeningUnavailableOnceTheRetryDeadlineHasPassed() {
+    var requestId = UUID.randomUUID();
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE")))
+        .willReturn(UNAVAILABLE);
+    given(riskLevels.isHighRisk(PERSONAL_CODE)).willReturn(false);
+
+    serviceAt(FRIDAY_HALF_PAST_THREE).process(personRequest(requestId));
+
+    verify(redemptionStatusService).holdForReview(requestId, SCREENING_UNAVAILABLE);
+    verify(notificationService)
+        .sendMessage(
+            "AML: redemption held for review: id="
+                + requestId
+                + ", amount=10.00 EUR, reason=SCREENING_UNAVAILABLE",
+            AML);
+  }
+
+  @Test
+  void process_personRequest_retriesAHighRiskPartyWhileScreeningIsUnavailable() {
+    var requestId = UUID.randomUUID();
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE")))
+        .willReturn(UNAVAILABLE);
+    given(riskLevels.isHighRisk(PERSONAL_CODE)).willReturn(true);
+
+    serviceAt(FRIDAY_NOON).process(personRequest(requestId));
+
+    verifyNoInteractions(redemptionStatusService, notificationService);
+  }
+
+  @Test
+  void process_personRequest_holdsAHighRiskPartyAsScreeningUnavailableAfterTheDeadline() {
+    var requestId = UUID.randomUUID();
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE")))
+        .willReturn(UNAVAILABLE);
+    given(riskLevels.isHighRisk(PERSONAL_CODE)).willReturn(true);
+
+    serviceAt(FRIDAY_HALF_PAST_THREE).process(personRequest(requestId));
+
+    verify(redemptionStatusService).holdForReview(requestId, SCREENING_UNAVAILABLE);
   }
 
   @Test
   void process_personRequest_screensThePartyNotTheActor() {
-    var actorUserId = 1L;
     var childCode = "61506150006";
     var requestId = UUID.randomUUID();
     var request =
         redemptionRequestFixture()
             .id(requestId)
-            .userId(actorUserId)
+            .userId(1L)
             .partyType(PERSON)
             .partyCode(childCode)
+            .requestedAt(THURSDAY_EVENING)
             .build();
     var child = sampleUser().id(2L).personalCode(childCode).build();
-    var countries = Countries.of("EE");
-
     given(userService.findByPersonalCode(childCode)).willReturn(Optional.of(child));
-    given(kycCountryService.getCountries(child.getId())).willReturn(Optional.of(countries));
-    given(sanctionAndPepScreener.isSanctionAndPepClear(child, countries)).willReturn(true);
+    given(kycCountryService.getCountries(2L)).willReturn(Optional.of(Countries.of("EE")));
+    given(sanctionAndPepScreener.screeningOutcome(child, Countries.of("EE"))).willReturn(CLEAR);
     given(riskLevels.isHighRisk(childCode)).willReturn(false);
 
-    service.process(request);
+    service().process(request);
 
     verify(redemptionStatusService).changeStatus(requestId, VERIFIED);
   }
 
   @Test
   void process_personRequest_throwsWhenKycCountryMissing() {
-    var userId = 1L;
-    var request =
-        redemptionRequestFixture()
-            .userId(userId)
-            .partyType(PERSON)
-            .partyCode("38812121215")
-            .build();
-    var user = sampleUser().id(userId).build();
+    var user = sampleUser().id(1L).personalCode(PERSONAL_CODE).build();
+    given(userService.findByPersonalCode(PERSONAL_CODE)).willReturn(Optional.of(user));
+    given(kycCountryService.getCountries(1L)).willReturn(Optional.empty());
 
-    given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
-    given(kycCountryService.getCountries(userId)).willReturn(Optional.empty());
-
-    assertThatThrownBy(() -> service.process(request)).isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(() -> service().process(personRequest(UUID.randomUUID())))
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test
   void process_personRequest_throwsWhenPartyUserNotFound() {
-    var request =
-        redemptionRequestFixture().userId(1L).partyType(PERSON).partyCode("61506150006").build();
+    given(userService.findByPersonalCode(PERSONAL_CODE)).willReturn(Optional.empty());
 
-    given(userService.findByPersonalCode("61506150006")).willReturn(Optional.empty());
-
-    assertThatThrownBy(() -> service.process(request)).isInstanceOf(IllegalStateException.class);
+    assertThatThrownBy(() -> service().process(personRequest(UUID.randomUUID())))
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test
   void process_legalEntityRequest_transitionsToVerifiedWhenLatestKybCompleted() {
     var registryCode = "16001234";
     var requestId = UUID.randomUUID();
-    var request = legalEntityRequest(requestId, registryCode);
-
     given(savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY))
         .willReturn(true);
 
-    service.process(request);
+    service().process(legalEntityRequest(requestId, registryCode));
 
     verify(redemptionStatusService).changeStatus(requestId, VERIFIED);
-    verify(redemptionStatusService, never()).changeStatus(requestId, IN_REVIEW);
+    verify(redemptionStatusService, never()).holdForReview(any(), any());
     verify(legalEntityScreener, never()).screenLatest(registryCode);
   }
 
   @Test
-  void process_legalEntityRequest_transitionsToInReviewWhenLatestKybRejected() {
+  void process_legalEntityRequest_holdsForReviewWhenLatestKybRejected() {
     var registryCode = "16001234";
     var requestId = UUID.randomUUID();
-    var request = legalEntityRequest(requestId, registryCode);
-
     given(savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY))
         .willReturn(false);
     given(savingsFundOnboardingRepository.findStatus(registryCode, LEGAL_ENTITY))
         .willReturn(Optional.of(SavingsFundOnboardingStatus.REJECTED));
 
-    service.process(request);
+    service().process(legalEntityRequest(requestId, registryCode));
 
-    verify(redemptionStatusService).changeStatus(requestId, IN_REVIEW);
+    verify(redemptionStatusService).holdForReview(requestId, ONBOARDING_INCOMPLETE);
     verify(redemptionStatusService, never()).changeStatus(requestId, VERIFIED);
     verify(legalEntityScreener, never()).screenLatest(registryCode);
   }
@@ -240,71 +336,83 @@ class RedemptionVerificationServiceTest {
   void process_legalEntityRequest_reScreensWhenStatusMissingThenVerifiesIfCompleted() {
     var registryCode = "16001234";
     var requestId = UUID.randomUUID();
-    var request = legalEntityRequest(requestId, registryCode);
-
     given(savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY))
         .willReturn(false, true);
     given(savingsFundOnboardingRepository.findStatus(registryCode, LEGAL_ENTITY))
         .willReturn(Optional.empty());
 
-    service.process(request);
+    service().process(legalEntityRequest(requestId, registryCode));
 
     verify(legalEntityScreener).screenLatest(registryCode);
     verify(redemptionStatusService).changeStatus(requestId, VERIFIED);
   }
 
   @Test
-  void process_legalEntityRequest_reScreensWhenStatusPendingThenInReviewIfRejected() {
+  void process_legalEntityRequest_reScreensWhenStatusPendingThenHoldsIfStillIncomplete() {
     var registryCode = "16001234";
     var requestId = UUID.randomUUID();
-    var request = legalEntityRequest(requestId, registryCode);
-
     given(savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY))
         .willReturn(false, false);
     given(savingsFundOnboardingRepository.findStatus(registryCode, LEGAL_ENTITY))
         .willReturn(Optional.of(SavingsFundOnboardingStatus.PENDING));
 
-    service.process(request);
+    service().process(legalEntityRequest(requestId, registryCode));
 
     verify(legalEntityScreener).screenLatest(registryCode);
-    verify(redemptionStatusService).changeStatus(requestId, IN_REVIEW);
+    verify(redemptionStatusService).holdForReview(requestId, ONBOARDING_INCOMPLETE);
   }
 
   @Test
-  void process_legalEntityRequest_routesToInReviewWhenStatusStillMissingAfterReScreen() {
+  void
+      process_legalEntityRequest_leavesTheRequestReservedWhileTheScreenerIsUnavailableBeforeTheDeadline() {
     var registryCode = "16001234";
     var requestId = UUID.randomUUID();
-    var request = legalEntityRequest(requestId, registryCode);
-
-    given(savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY))
-        .willReturn(false, false);
-    given(savingsFundOnboardingRepository.findStatus(registryCode, LEGAL_ENTITY))
-        .willReturn(Optional.empty());
-
-    service.process(request);
-
-    verify(legalEntityScreener).screenLatest(registryCode);
-    verify(redemptionStatusService).changeStatus(requestId, IN_REVIEW);
-  }
-
-  @Test
-  void process_legalEntityRequest_routesToInReviewWhenScreenLatestThrows() {
-    var registryCode = "16001234";
-    var requestId = UUID.randomUUID();
-    var request = legalEntityRequest(requestId, registryCode);
-
     given(savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY))
         .willReturn(false);
     given(savingsFundOnboardingRepository.findStatus(registryCode, LEGAL_ENTITY))
         .willReturn(Optional.empty());
-    willThrow(new IllegalStateException("Ariregister unavailable"))
+    willThrow(new WebServiceIOException("Ariregister unavailable"))
         .given(legalEntityScreener)
         .screenLatest(registryCode);
 
-    service.process(request);
+    serviceAt(FRIDAY_NOON).process(legalEntityRequest(requestId, registryCode));
 
-    verify(redemptionStatusService).changeStatus(requestId, IN_REVIEW);
+    verifyNoInteractions(redemptionStatusService, notificationService);
+  }
+
+  @Test
+  void process_legalEntityRequest_holdsAsScreeningUnavailableOnceTheRetryDeadlineHasPassed() {
+    var registryCode = "16001234";
+    var requestId = UUID.randomUUID();
+    given(savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY))
+        .willReturn(false);
+    given(savingsFundOnboardingRepository.findStatus(registryCode, LEGAL_ENTITY))
+        .willReturn(Optional.empty());
+    willThrow(new WebServiceIOException("Ariregister unavailable"))
+        .given(legalEntityScreener)
+        .screenLatest(registryCode);
+
+    serviceAt(FRIDAY_HALF_PAST_THREE).process(legalEntityRequest(requestId, registryCode));
+
+    verify(redemptionStatusService).holdForReview(requestId, SCREENING_UNAVAILABLE);
     verify(redemptionStatusService, never()).changeStatus(requestId, VERIFIED);
+  }
+
+  @Test
+  void process_legalEntityRequest_holdsAtOnceWhenTheScreenerFailsOnMissingData() {
+    var registryCode = "16001234";
+    var requestId = UUID.randomUUID();
+    given(savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY))
+        .willReturn(false);
+    given(savingsFundOnboardingRepository.findStatus(registryCode, LEGAL_ENTITY))
+        .willReturn(Optional.empty());
+    willThrow(new IllegalStateException("No KYB survey found for company"))
+        .given(legalEntityScreener)
+        .screenLatest(registryCode);
+
+    serviceAt(FRIDAY_NOON).process(legalEntityRequest(requestId, registryCode));
+
+    verify(redemptionStatusService).holdForReview(requestId, ONBOARDING_INCOMPLETE);
   }
 
   private static RedemptionRequest legalEntityRequest(UUID requestId, String registryCode) {
@@ -312,32 +420,22 @@ class RedemptionVerificationServiceTest {
         .id(requestId)
         .partyType(LEGAL_ENTITY)
         .partyCode(registryCode)
+        .requestedAt(THURSDAY_EVENING)
         .build();
   }
 
   @Test
   void process_personRequest_screensAgainstCitizenshipsTheSurveyDoesNotCarry() {
-    var userId = 1L;
     var requestId = UUID.randomUUID();
-    var request =
-        redemptionRequestFixture()
-            .id(requestId)
-            .userId(userId)
-            .partyType(PERSON)
-            .partyCode("38812121215")
-            .build();
-    var user = sampleUser().id(userId).build();
-
-    given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
-    given(kycCountryService.getCountries(userId)).willReturn(Optional.of(Countries.of("EE")));
+    var user = givenPersonWithCountries();
     given(sanctionAndPepScreener.recordedCitizenships(user)).willReturn(Countries.of("RU"));
-    given(sanctionAndPepScreener.isSanctionAndPepClear(user, Countries.of("EE", "RU")))
-        .willReturn(true);
-    given(riskLevels.isHighRisk(user.getPersonalCode())).willReturn(false);
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE", "RU")))
+        .willReturn(CLEAR);
+    given(riskLevels.isHighRisk(PERSONAL_CODE)).willReturn(false);
 
-    service.process(request);
+    service().process(personRequest(requestId));
 
-    verify(sanctionAndPepScreener).isSanctionAndPepClear(user, Countries.of("EE", "RU"));
+    verify(sanctionAndPepScreener).screeningOutcome(user, Countries.of("EE", "RU"));
     verify(redemptionStatusService).changeStatus(requestId, VERIFIED);
   }
 }

@@ -716,7 +716,7 @@ class TrackingDifferenceCalculatorTest {
             .accruedFeeFraction(BigDecimal.ZERO)
             .bodHoldings(List.of(bodHolding("IE00A", new BigDecimal("1.00"), "102", "100")))
             .bodSecuritiesFraction(new BigDecimal("1.00"))
-            .tradeFlow(BigDecimal.ZERO)
+            .tradeFlow(TradeFlow.none())
             .build();
 
     var result = calculator.calculate(input);
@@ -732,7 +732,6 @@ class TrackingDifferenceCalculatorTest {
                 new BigDecimal("1.02"),
                 new BigDecimal("1.00"),
                 bodHolding("IE00A", new BigDecimal("1.00"), "102", "100"))
-            .tradeFlow(BigDecimal.ZERO)
             .openingNetAssets(new BigDecimal("1000000"))
             .closingNetAssets(new BigDecimal("1122000"))
             .previousUnits(new BigDecimal("1000000"))
@@ -756,7 +755,6 @@ class TrackingDifferenceCalculatorTest {
                 new BigDecimal("1.25"),
                 new BigDecimal("1.00"),
                 bodHolding("IE00A", new BigDecimal("1.00"), "100", "100"))
-            .tradeFlow(BigDecimal.ZERO)
             .openingNetAssets(new BigDecimal("1000000"))
             .closingNetAssets(new BigDecimal("1000000"))
             .previousUnits(new BigDecimal("1000000"))
@@ -781,7 +779,6 @@ class TrackingDifferenceCalculatorTest {
                 new BigDecimal("1.25"),
                 new BigDecimal("1.00"),
                 bodHolding("IE00A", new BigDecimal("1.00"), "100", "100"))
-            .tradeFlow(BigDecimal.ZERO)
             .openingNetAssets(new BigDecimal("1000000"))
             .closingNetAssets(new BigDecimal("1000000"))
             .previousUnits(new BigDecimal("1000000"))
@@ -804,7 +801,6 @@ class TrackingDifferenceCalculatorTest {
                 new BigDecimal("1.00"),
                 bodHolding("IE00A", new BigDecimal("0.50"), "102", "100"),
                 bodHolding("IE00B", new BigDecimal("0.50"), "50", "50"))
-            .tradeFlow(BigDecimal.ZERO)
             .openingNetAssets(new BigDecimal("1000000"))
             .closingNetAssets(new BigDecimal("1010000"))
             .previousUnits(new BigDecimal("1000000"))
@@ -827,7 +823,6 @@ class TrackingDifferenceCalculatorTest {
                 new BigDecimal("1.0108"),
                 new BigDecimal("1.00"),
                 bodHolding("IE00A", new BigDecimal("1.00"), "101", "100"))
-            .tradeFlow(BigDecimal.ZERO)
             .bodSecuritiesFraction(new BigDecimal("1.08"))
             .openingNetAssets(new BigDecimal("1000000"))
             .closingNetAssets(new BigDecimal("1010800"))

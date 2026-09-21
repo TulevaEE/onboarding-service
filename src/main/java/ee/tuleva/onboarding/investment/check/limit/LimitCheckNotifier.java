@@ -33,12 +33,36 @@ class LimitCheckNotifier {
   void notifyBackfillFailed(Exception failure) {
     try {
       notificationService.sendMessage(
-          "🛑 Limit check backfill FAILED — the daily re-run that repairs missed days did not"
-              + " complete, so gaps will persist until it succeeds: error=%s"
-                  .formatted(failure.getMessage()),
+          ("🛑 Limit check backfill FAILED — the re-run that repairs missed days did not complete,"
+                  + " so gaps will persist until it succeeds: error=%s")
+              .formatted(failure.getMessage()),
           INVESTMENT);
     } catch (Exception e) {
       log.error("Failed to send limit check backfill failure notification", e);
+    }
+  }
+
+  void notifyGapFillFailed(Exception failure) {
+    try {
+      notificationService.sendMessage(
+          ("🛑 Limit check gap fill FAILED — the days with no check were not repaired and will be"
+                  + " retried tomorrow: error=%s")
+              .formatted(failure.getMessage()),
+          INVESTMENT);
+    } catch (Exception e) {
+      log.error("Failed to send limit check gap fill failure notification", e);
+    }
+  }
+
+  void notifyPositionSyncFailed(Exception failure) {
+    try {
+      notificationService.sendMessage(
+          ("⚠️ Fee accrual position sync failed before the limit check gap fill — the checks below"
+                  + " ran against the positions already stored: error=%s")
+              .formatted(failure.getMessage()),
+          INVESTMENT);
+    } catch (Exception e) {
+      log.error("Failed to send limit check position sync failure notification", e);
     }
   }
 
@@ -50,11 +74,9 @@ class LimitCheckNotifier {
     }
     var message = new StringBuilder();
     if (!run.results().isEmpty()) {
-      var fundNames =
-          run.results().stream().map(r -> r.fund().getCode()).collect(Collectors.joining(", "));
-      message.append("✅ Limit check completed: %s within limits".formatted(fundNames));
+      message.append(allClearNamingEachFundOnceAndEveryDateCovered(run));
     }
-    appendNotChecked(message, run);
+    appendWhatWasNotChecked(message, run);
     notificationService.sendMessage(message.toString(), INVESTMENT);
   }
 
@@ -68,11 +90,31 @@ class LimitCheckNotifier {
 
     var message =
         new StringBuilder("%s LIMIT BREACH DETECTED\n".formatted(severityIcon(worst))).append(body);
-    appendNotChecked(message, run);
+    appendWhatWasNotChecked(message, run);
     notificationService.sendMessage(message.toString(), INVESTMENT);
   }
 
-  private void appendNotChecked(StringBuilder message, LimitCheckRun run) {
+  private static String allClearNamingEachFundOnceAndEveryDateCovered(LimitCheckRun run) {
+    var fundNames =
+        run.results().stream()
+            .map(r -> r.fund().getCode())
+            .distinct()
+            .sorted()
+            .collect(Collectors.joining(", "));
+    var dates =
+        run.results().stream().map(LimitCheckResult::checkDate).distinct().sorted().toList();
+    return dates.size() == 1
+        ? "✅ Limit check completed: %s within limits on %s".formatted(fundNames, dates.getFirst())
+        : "✅ Limit check completed: %s within limits on %d dates, %s to %s"
+            .formatted(fundNames, dates.size(), dates.getFirst(), dates.getLast());
+  }
+
+  private void appendWhatWasNotChecked(StringBuilder message, LimitCheckRun run) {
+    appendUnfilledGaps(message, run);
+    appendFundsNotChecked(message, run);
+  }
+
+  private void appendFundsNotChecked(StringBuilder message, LimitCheckRun run) {
     if (run.fundsNotChecked().isEmpty()) {
       return;
     }
@@ -81,6 +123,16 @@ class LimitCheckNotifier {
     message
         .append(message.isEmpty() ? "" : "\n\n")
         .append("⏸ Not checked: %s — no limits were verified for these".formatted(fundNames));
+  }
+
+  private void appendUnfilledGaps(StringBuilder message, LimitCheckRun run) {
+    if (run.unfilledGaps().isEmpty()) {
+      return;
+    }
+    message
+        .append(message.isEmpty() ? "" : "\n\n")
+        .append("⏸ Not checked — no limits were verified for these days:");
+    run.unfilledGaps().forEach(gap -> message.append("\n  ").append(gap.describe()));
   }
 
   private BreachSeverity appendResultBreaches(StringBuilder body, LimitCheckResult result) {
@@ -100,11 +152,12 @@ class LimitCheckNotifier {
       if (breach.severity() != OK) {
         worst = worse(worst, breach.severity());
         body.append(
-            "\n%s [%s] POSITION %s: %s=%s%%, soft=%s%%, hard=%s%%"
+            "\n%s [%s] POSITION %s %s: %s=%s%%, soft=%s%%, hard=%s%%"
                 .formatted(
                     severityIcon(breach.severity()),
                     breach.severity(),
                     result.fund(),
+                    result.checkDate(),
                     breach.label(),
                     breach.actualPercent(),
                     breach.softLimitPercent(),
@@ -120,11 +173,12 @@ class LimitCheckNotifier {
       if (breach.severity() != OK) {
         worst = worse(worst, breach.severity());
         body.append(
-            "\n%s [%s] PROVIDER %s: %s=%s%%, soft=%s%%, hard=%s%%"
+            "\n%s [%s] PROVIDER %s %s: %s=%s%%, soft=%s%%, hard=%s%%"
                 .formatted(
                     severityIcon(breach.severity()),
                     breach.severity(),
                     result.fund(),
+                    result.checkDate(),
                     breach.provider(),
                     breach.actualPercent(),
                     breach.softLimitPercent(),
@@ -140,11 +194,12 @@ class LimitCheckNotifier {
     }
     var breach = result.reserveBreach();
     body.append(
-        "\n%s [%s] RESERVE %s: cash=%s, soft=%s, hard=%s"
+        "\n%s [%s] RESERVE %s %s: cash=%s, soft=%s, hard=%s"
             .formatted(
                 severityIcon(breach.severity()),
                 breach.severity(),
                 result.fund(),
+                result.checkDate(),
                 breach.cashBalance(),
                 breach.reserveSoft(),
                 breach.reserveHard()));

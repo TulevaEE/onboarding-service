@@ -32,6 +32,8 @@ public class Email {
 
   private @Nullable String mailchimpCampaign;
 
+  private @Nullable String nudge;
+
   @NotNull
   @Enumerated(STRING)
   private EmailType type;

@@ -38,9 +38,21 @@ public class PaymentReturningService {
     var description = returnReason != null ? "Tagastus: " + returnReason : "Tagastus";
     var paymentRequest =
         PaymentRequest.tulevaPaymentBuilder(endToEndIdConverter.toEndToEndId(payment.getId()))
-            .remitterIban(payment.getBeneficiaryIban())
-            .beneficiaryName(payment.getRemitterName())
-            .beneficiaryIban(payment.getRemitterIban())
+            .remitterIban(
+                requireNonNull(
+                    payment.getBeneficiaryIban(),
+                    "Payment without beneficiary IBAN cannot be returned: paymentId="
+                        + payment.getId()))
+            .beneficiaryName(
+                requireNonNull(
+                    payment.getRemitterName(),
+                    "Payment without remitter name cannot be returned: paymentId="
+                        + payment.getId()))
+            .beneficiaryIban(
+                requireNonNull(
+                    payment.getRemitterIban(),
+                    "Payment without remitter IBAN cannot be returned: paymentId="
+                        + payment.getId()))
             .amount(payment.getAmount())
             .description(description)
             .build();

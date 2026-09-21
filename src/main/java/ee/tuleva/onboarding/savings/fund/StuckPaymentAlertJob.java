@@ -22,7 +22,6 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 @NullMarked
 public class StuckPaymentAlertJob {
-  private static final Duration STUCK_THRESHOLD = Duration.ofMinutes(30);
 
   private final SavingFundPaymentRepository paymentRepository;
   private final PaymentCheckService paymentCheckService;
@@ -31,9 +30,32 @@ public class StuckPaymentAlertJob {
   @Scheduled(cron = "0 */15 * * * *", zone = "Europe/Tallinn")
   @SchedulerLock(name = "StuckPaymentAlertJob_runJob", lockAtMostFor = "5m", lockAtLeastFor = "1m")
   public void runJob() {
+    final Duration STUCK_THRESHOLD = Duration.ofMinutes(30);
     paymentRepository
         .findStuckPayments(Instant.now(clock).minus(STUCK_THRESHOLD), RECEIVED, TO_BE_RETURNED)
         .forEach(this::alert);
+  }
+
+  @Scheduled(cron = "0 5 9 * * *", zone = "Europe/Tallinn")
+  @SchedulerLock(
+      name = "StuckPaymentAlertJob_reportUnconfirmedPayments",
+      lockAtMostFor = "10m",
+      lockAtLeastFor = "1m")
+  public void reportUnconfirmedPayments() {
+    final Duration UNCONFIRMED_THRESHOLD = Duration.ofHours(36);
+    final Duration REPORT_WINDOW = Duration.ofDays(3);
+    var now = Instant.now(clock);
+    paymentRepository
+        .findUnconfirmedPayments(now.minus(REPORT_WINDOW), now.minus(UNCONFIRMED_THRESHOLD))
+        .forEach(this::alertUnconfirmed);
+  }
+
+  private void alertUnconfirmed(SavingFundPayment payment) {
+    log.error(
+        "Savings fund payment not confirmed by the bank: paymentId={}, amount={} EUR, createdAt={}",
+        payment.getId(),
+        payment.getAmount(),
+        payment.getCreatedAt());
   }
 
   private void alert(SavingFundPayment payment) {

@@ -88,6 +88,29 @@ class OutgoingPaymentMatcherTest {
     verify(outgoingPaymentService).recordExecuted(END_TO_END_ID);
   }
 
+  // The end-to-end id is ours, so on its own it proves only that the bank echoed our reference
+  // back. Without a beneficiary iban there is nothing to corroborate where the money went, and
+  // passing it in silence is exactly the hole these checks exist to close.
+  @Test
+  void aDebitThatDoesNotSayWhichAccountWasPaidCannotBeCorroborated() {
+    when(outgoingPaymentRepository.findByEndToEndId(END_TO_END_ID))
+        .thenReturn(Optional.of(logged(new BigDecimal("10.00"), OutgoingPaymentStatus.SUBMITTED)));
+
+    matcher.match(debit(new BigDecimal("10.00"), END_TO_END_ID, null));
+
+    verify(paymentCheckService).record(eq(DEBIT_MISMATCH), eq(HOLD), eq(END_TO_END_ID), any());
+    verify(outgoingPaymentService).recordExecuted(END_TO_END_ID);
+  }
+
+  @Test
+  void anUnidentifiedDebitWithNoBeneficiaryIsNotTreatedAsAllowlisted() {
+    lenient().when(sebAccountConfiguration.getBankFeeIbans()).thenReturn(List.of(BANK_FEE_IBAN));
+
+    matcher.match(debit(new BigDecimal("10.00"), null, null));
+
+    verify(paymentCheckService).record(eq(PHANTOM_DEBIT), eq(HOLD), any(), any());
+  }
+
   @Test
   void aDebitWithNothingBehindItIsAPhantom() {
     when(outgoingPaymentRepository.findByEndToEndId(END_TO_END_ID)).thenReturn(Optional.empty());

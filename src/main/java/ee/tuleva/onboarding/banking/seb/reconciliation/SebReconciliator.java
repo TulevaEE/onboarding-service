@@ -49,7 +49,11 @@ public class SebReconciliator {
     if (ledgerAccountBalance.compareTo(closingBankBalance.balance()) != 0) {
       eventPublisher.publishEvent(
           new ReconciliationCompletedEvent(
-              account, closingBankBalance.balance(), ledgerAccountBalance, false));
+              account,
+              closingBankBalance.time(),
+              closingBankBalance.balance(),
+              ledgerAccountBalance,
+              false));
 
       var diff = ledgerAccountBalance.subtract(closingBankBalance.balance());
       throw new IllegalStateException(
@@ -72,7 +76,11 @@ public class SebReconciliator {
 
     eventPublisher.publishEvent(
         new ReconciliationCompletedEvent(
-            account, closingBankBalance.balance(), ledgerAccountBalance, true));
+            account,
+            closingBankBalance.time(),
+            closingBankBalance.balance(),
+            ledgerAccountBalance,
+            true));
 
     log.info(
         "Reconciliation successful: bankAccount={}, balance={}, ledgerAccount={}",

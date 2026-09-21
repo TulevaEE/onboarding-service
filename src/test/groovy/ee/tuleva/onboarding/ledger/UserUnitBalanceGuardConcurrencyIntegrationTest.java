@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.LedgerRefs;
 import java.math.BigDecimal;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -46,6 +47,7 @@ class UserUnitBalanceGuardConcurrencyIntegrationTest {
   private static final BigDecimal HELD_UNITS = new BigDecimal("10.00000");
   private static final BigDecimal NAV = new BigDecimal("10.0000");
   private static final BigDecimal CASH = new BigDecimal("100.00");
+  private static final LocalDate NAV_DATE = LocalDate.parse("2025-03-10");
 
   @Autowired SavingsFundLedger savingsFundLedger;
   @Autowired JdbcClient jdbcClient;
@@ -114,7 +116,7 @@ class UserUnitBalanceGuardConcurrencyIntegrationTest {
                   transactionTemplate.executeWithoutResult(
                       status ->
                           savingsFundLedger.redeemFundUnitsFromReserved(
-                              party, HELD_UNITS, CASH, NAV, UUID.randomUUID()));
+                              party, HELD_UNITS, CASH, NAV, NAV_DATE, UUID.randomUUID()));
                 }
               });
 
@@ -131,7 +133,8 @@ class UserUnitBalanceGuardConcurrencyIntegrationTest {
   private void giveTheParty(PartyRef party) {
     savingsFundLedger.recordPaymentReceived(party, CASH, UUID.randomUUID());
     savingsFundLedger.reservePaymentForSubscription(party, CASH, UUID.randomUUID());
-    savingsFundLedger.issueFundUnitsFromReserved(party, CASH, HELD_UNITS, NAV, UUID.randomUUID());
+    savingsFundLedger.issueFundUnitsFromReserved(
+        party, CASH, HELD_UNITS, NAV, NAV_DATE, UUID.randomUUID());
   }
 
   private List<Throwable> runConcurrently(int threads, ThrowingIntConsumer body) throws Exception {

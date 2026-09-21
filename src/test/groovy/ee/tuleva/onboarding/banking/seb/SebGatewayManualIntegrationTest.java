@@ -121,7 +121,8 @@ class SebGatewayManualIntegrationTest {
 
   @Test
   void fetchAndProcessEodTransactions() {
-    eventPublisher.publishEvent(new FetchSebEodTransactionsRequested(depositAccount()));
+    eventPublisher.publishEvent(
+        new FetchSebEodTransactionsRequested(depositAccount(), LocalDate.now().minusDays(1)));
     eventPublisher.publishEvent(new ProcessBankMessagesRequested());
 
     List<BankStatementReceived> receivedEvents =

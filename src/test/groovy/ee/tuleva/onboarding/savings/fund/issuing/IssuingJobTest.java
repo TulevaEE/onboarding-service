@@ -10,6 +10,7 @@ import static java.time.ZoneOffset.UTC;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static java.time.temporal.ChronoUnit.HOURS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import ch.qos.logback.classic.Level;
@@ -49,7 +50,7 @@ class IssuingJobTest {
     eventPublisher = mock(ApplicationEventPublisher.class);
     lenient().when(navProvider.getVerifiedNavForIssuingAndRedeeming(any(), any())).thenReturn(nav);
     lenient()
-        .when(issuerService.processPayment(any(), any()))
+        .when(issuerService.processPayment(any(), any(), any()))
         .thenReturn(new IssuingResult(ZERO, ZERO));
   }
 
@@ -92,8 +93,9 @@ class IssuingJobTest {
 
     issuingJob.runJob();
 
-    verify(issuerService, times(1)).processPayment(reservedPaymentFromYesterday, nav);
-    verify(issuerService, never()).processPayment(reservedPaymentToday, nav);
+    verify(issuerService, times(1))
+        .processPayment(eq(reservedPaymentFromYesterday), eq(nav), any());
+    verify(issuerService, never()).processPayment(eq(reservedPaymentToday), eq(nav), any());
   }
 
   @Test
@@ -119,9 +121,10 @@ class IssuingJobTest {
 
     issuingJob.runJob();
 
-    verify(issuerService, times(1)).processPayment(paymentFromTwoDaysBefore, nav);
-    verify(issuerService, never()).processPayment(paymentFromYesterday, nav);
-    verify(issuerService, never()).processPayment(paymentFromTwoDaysBeforeButAfterCutoff, nav);
+    verify(issuerService, times(1)).processPayment(eq(paymentFromTwoDaysBefore), eq(nav), any());
+    verify(issuerService, never()).processPayment(eq(paymentFromYesterday), eq(nav), any());
+    verify(issuerService, never())
+        .processPayment(eq(paymentFromTwoDaysBeforeButAfterCutoff), eq(nav), any());
   }
 
   @Test
@@ -147,9 +150,10 @@ class IssuingJobTest {
 
     issuingJob.runJob();
 
-    verify(issuerService, times(1)).processPayment(paymentFromTwoDaysBefore, nav);
-    verify(issuerService, never()).processPayment(paymentFromYesterday, nav);
-    verify(issuerService, never()).processPayment(paymentFromTwoDaysBeforeButAfterCutoff, nav);
+    verify(issuerService, times(1)).processPayment(eq(paymentFromTwoDaysBefore), eq(nav), any());
+    verify(issuerService, never()).processPayment(eq(paymentFromYesterday), eq(nav), any());
+    verify(issuerService, never())
+        .processPayment(eq(paymentFromTwoDaysBeforeButAfterCutoff), eq(nav), any());
   }
 
   @Test
@@ -168,8 +172,8 @@ class IssuingJobTest {
 
     issuingJob.runJob();
 
-    verify(issuerService, times(1)).processPayment(paymentFromYesterday, nav);
-    verify(issuerService, never()).processPayment(paymentAfterCutoff, nav);
+    verify(issuerService, times(1)).processPayment(eq(paymentFromYesterday), eq(nav), any());
+    verify(issuerService, never()).processPayment(eq(paymentAfterCutoff), eq(nav), any());
   }
 
   @Test
@@ -194,8 +198,8 @@ class IssuingJobTest {
 
     issuingJob.runJob();
 
-    verify(issuerService, times(1)).processPayment(paymentMadeOnFriday, nav);
-    verify(issuerService, never()).processPayment(paymentFromWeekend, nav);
+    verify(issuerService, times(1)).processPayment(eq(paymentMadeOnFriday), eq(nav), any());
+    verify(issuerService, never()).processPayment(eq(paymentFromWeekend), eq(nav), any());
   }
 
   @Test
@@ -220,8 +224,9 @@ class IssuingJobTest {
 
     issuingJob.runJob();
 
-    verify(issuerService, times(1)).processPayment(paymentFromMondayBeforeChristmas, nav);
-    verify(issuerService, never()).processPayment(paymentMadeOnPublicHoliday, nav);
+    verify(issuerService, times(1))
+        .processPayment(eq(paymentFromMondayBeforeChristmas), eq(nav), any());
+    verify(issuerService, never()).processPayment(eq(paymentMadeOnPublicHoliday), eq(nav), any());
   }
 
   @Test
@@ -239,8 +244,8 @@ class IssuingJobTest {
 
     issuingJob.runJob();
 
-    verify(issuerService, times(1)).processPayment(paymentBeforeThursdayCutoff, nav);
-    verify(issuerService, never()).processPayment(paymentAfterThursdayCutoff, nav);
+    verify(issuerService, times(1)).processPayment(eq(paymentBeforeThursdayCutoff), eq(nav), any());
+    verify(issuerService, never()).processPayment(eq(paymentAfterThursdayCutoff), eq(nav), any());
   }
 
   @Test
@@ -258,8 +263,8 @@ class IssuingJobTest {
 
     issuingJob.runJob();
 
-    verify(issuerService, times(1)).processPayment(paymentBeforeThursdayCutoff, nav);
-    verify(issuerService, never()).processPayment(paymentAfterThursdayCutoff, nav);
+    verify(issuerService, times(1)).processPayment(eq(paymentBeforeThursdayCutoff), eq(nav), any());
+    verify(issuerService, never()).processPayment(eq(paymentAfterThursdayCutoff), eq(nav), any());
   }
 
   @Test
@@ -277,8 +282,8 @@ class IssuingJobTest {
 
     issuingJob.runJob();
 
-    verify(issuerService, times(1)).processPayment(paymentBeforeThursdayCutoff, nav);
-    verify(issuerService, never()).processPayment(paymentAfterThursdayCutoff, nav);
+    verify(issuerService, times(1)).processPayment(eq(paymentBeforeThursdayCutoff), eq(nav), any());
+    verify(issuerService, never()).processPayment(eq(paymentAfterThursdayCutoff), eq(nav), any());
   }
 
   @Test
@@ -296,8 +301,8 @@ class IssuingJobTest {
 
     issuingJob.runJob();
 
-    verify(issuerService, times(1)).processPayment(paymentBeforeTuesdayCutoff, nav);
-    verify(issuerService, never()).processPayment(paymentAfterTuesdayCutoff, nav);
+    verify(issuerService, times(1)).processPayment(eq(paymentBeforeTuesdayCutoff), eq(nav), any());
+    verify(issuerService, never()).processPayment(eq(paymentAfterTuesdayCutoff), eq(nav), any());
   }
 
   @Test
@@ -328,6 +333,7 @@ class IssuingJobTest {
     issuingJob.runJob();
 
     verify(navProvider).getVerifiedNavForIssuingAndRedeeming(TKF100, LocalDate.of(2025, 1, 13));
+    verify(issuerService).processPayment(any(), eq(nav), eq(LocalDate.of(2025, 1, 13)));
   }
 
   @Test
@@ -346,6 +352,7 @@ class IssuingJobTest {
     issuingJob.runJob();
 
     verify(navProvider).getVerifiedNavForIssuingAndRedeeming(TKF100, LocalDate.of(2025, 1, 14));
+    verify(issuerService).processPayment(any(), eq(nav), eq(LocalDate.of(2025, 1, 14)));
   }
 
   @Test
@@ -370,9 +377,9 @@ class IssuingJobTest {
 
     when(paymentRepository.findPaymentsWithStatus(RESERVED))
         .thenReturn(List.of(payment1, payment2));
-    when(issuerService.processPayment(payment1, nav))
+    when(issuerService.processPayment(eq(payment1), eq(nav), any()))
         .thenReturn(new IssuingResult(new BigDecimal("500.00"), new BigDecimal("50.04100")));
-    when(issuerService.processPayment(payment2, nav))
+    when(issuerService.processPayment(eq(payment2), eq(nav), any()))
         .thenReturn(new IssuingResult(new BigDecimal("1000.00"), new BigDecimal("100.08201")));
 
     issuingJob.runJob();

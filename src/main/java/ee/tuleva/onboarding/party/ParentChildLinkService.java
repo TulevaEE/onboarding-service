@@ -2,11 +2,13 @@ package ee.tuleva.onboarding.party;
 
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.PENDING_KYC;
+import static ee.tuleva.onboarding.party.RepresentationType.GUARDIAN;
 import static java.util.Comparator.comparing;
 import static java.util.Comparator.naturalOrder;
 import static java.util.Comparator.nullsLast;
 
 import ee.tuleva.onboarding.auth.role.ChildRepresentations;
+import ee.tuleva.onboarding.personalcode.PersonalCode;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.Comparator;
@@ -69,6 +71,12 @@ public class ParentChildLinkService implements ChildRepresentations {
         .map(ParentChildLink::getParentPersonalCode)
         .distinct()
         .toList();
+  }
+
+  public boolean hasRestrictedLegalCapacity(String personalCode, LocalDate asOf) {
+    return PersonalCode.isMinor(personalCode, asOf)
+        || parentChildLinkRepository.existsByChildPersonalCodeAndRelationshipTypeAndValidUntilAfter(
+            personalCode, GUARDIAN, asOf);
   }
 
   @Override

@@ -1,11 +1,13 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.CREATED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RECEIVED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.TO_BE_RETURNED;
 import static java.util.UUID.randomUUID;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
@@ -38,6 +40,36 @@ class StuckPaymentAlertJobTest {
 
     verify(paymentRepository)
         .findStuckPayments(NOW.minus(Duration.ofMinutes(30)), RECEIVED, TO_BE_RETURNED);
+  }
+
+  @Test
+  void runJob_doesNotLookAtAppInitiatedPaymentsTheBankHasNotConfirmedYet() {
+    given(paymentRepository.findStuckPayments(any(), any(), any())).willReturn(List.of());
+
+    job.runJob();
+
+    verify(paymentRepository, never()).findUnconfirmedPayments(any(), any());
+  }
+
+  @Test
+  void
+      reportUnconfirmedPayments_reportsPaymentsUnconfirmedForOverThirtySixHoursInTheLastThreeDays() {
+    given(paymentRepository.findUnconfirmedPayments(any(), any()))
+        .willReturn(List.of(createdPayment(randomUUID())));
+
+    job.reportUnconfirmedPayments();
+
+    verify(paymentRepository)
+        .findUnconfirmedPayments(NOW.minus(Duration.ofDays(3)), NOW.minus(Duration.ofHours(36)));
+  }
+
+  private SavingFundPayment createdPayment(UUID paymentId) {
+    return SavingFundPayment.builder()
+        .id(paymentId)
+        .amount(new BigDecimal("2000.00"))
+        .status(CREATED)
+        .createdAt(NOW.minus(Duration.ofHours(60)))
+        .build();
   }
 
   private SavingFundPayment stuckPayment(UUID paymentId) {

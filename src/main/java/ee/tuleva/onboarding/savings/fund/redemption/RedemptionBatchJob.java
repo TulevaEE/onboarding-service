@@ -149,7 +149,7 @@ public class RedemptionBatchJob {
     List<RedemptionRequest> priced = new ArrayList<>();
     for (RedemptionRequest request : payable) {
       try {
-        BigDecimal cashAmount = priceRedemption(request, nav);
+        BigDecimal cashAmount = priceRedemption(request, nav, dealingDate);
         if (cashAmount.compareTo(ZERO) > 0) {
           totalCashAmount = totalCashAmount.add(cashAmount);
           priced.add(request);
@@ -172,7 +172,8 @@ public class RedemptionBatchJob {
         new RedemptionBatchCompletedEvent(priced.size(), payoutCount, totalCashAmount, nav));
   }
 
-  private BigDecimal priceRedemption(RedemptionRequest request, BigDecimal nav) {
+  private BigDecimal priceRedemption(
+      RedemptionRequest request, BigDecimal nav, LocalDate dealingDate) {
     return transactionTemplate.execute(
         ignored -> {
           RedemptionRequest toUpdate =
@@ -205,7 +206,12 @@ public class RedemptionBatchJob {
           }
 
           savingsFundLedger.redeemFundUnitsFromReserved(
-              LedgerRefs.from(party), request.getFundUnits(), amount, nav, request.getId());
+              LedgerRefs.from(party),
+              request.getFundUnits(),
+              amount,
+              nav,
+              dealingDate,
+              request.getId());
 
           log.info(
               "Priced redemption request: id={}, fundUnits={}, cashAmount={}, nav={}",

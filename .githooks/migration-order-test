@@ -12,6 +12,7 @@ set -uo pipefail
 HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HOOK="$HOOK_DIR/migration-order"
 PRE_PUSH="$HOOK_DIR/pre-push"
+PRE_COMMIT="$HOOK_DIR/pre-commit"
 MIGRATION_DIR=src/main/resources/db/migration
 JAVA_MIGRATION_DIR=src/main/java/db/migration
 TMP=$(mktemp -d)
@@ -144,6 +145,42 @@ push_check "pre-push blocks personal data" \
   1 "Push aborted"           -             "$PII_FIXTURE_ID_CODE"
 push_check "pre-push blocks personal data beside a numbering warning" \
   1 "Push aborted"           V1_2__clash.sql "$PII_FIXTURE_ID_CODE"
+
+# pre-commit weighs its two checks the same way pre-push does. The throwaway
+# repository has no Gradle wrapper, so spotlessCheck cannot succeed there —
+# which is the failing-formatter path, reached by the same `! ./gradlew` branch
+# a real formatting complaint takes.
+#
+# commit_check <description> <expected exit> <expected output> <id code|->
+commit_check() {
+  local description=$1 expected=$2 expected_output=$3 idcode=$4
+  setup_repo
+  git checkout --quiet -b feature
+  [ "$idcode" != - ] && printf 'String owner = "%s";\n' "$idcode" >Fixture.java
+  echo "select 1;" >"$MIGRATION_DIR/V1_3__new.sql"
+  git add -A
+  local output actual
+  output=$("$PRE_COMMIT" 2>&1)
+  actual=$?
+  if [ "$actual" -ne "$expected" ]; then
+    failed=$((failed + 1))
+    echo "FAIL: $description (expected exit $expected, got $actual)"
+    echo "$output" | sed 's/^/      /'
+    return
+  fi
+  if [ "$expected_output" != - ] && ! printf '%s' "$output" | grep -qF "$expected_output"; then
+    failed=$((failed + 1))
+    echo "FAIL: $description (output does not mention: $expected_output)"
+    echo "$output" | sed 's/^/      /'
+    return
+  fi
+  passed=$((passed + 1))
+}
+
+commit_check "pre-commit warns about formatting instead of blocking" \
+  0 "not blocking the commit" -
+commit_check "pre-commit blocks personal data" \
+  1 -                         "$PII_FIXTURE_ID_CODE"
 
 echo ""
 if [ "$failed" -eq 0 ]; then

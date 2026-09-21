@@ -18,6 +18,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import ee.tuleva.onboarding.admin.AdminTokenValidator;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceBackfillRequested;
+import ee.tuleva.onboarding.investment.fees.ocf.IncompleteOcfSnapshotException;
 import ee.tuleva.onboarding.investment.position.FundPositionImportJob;
 import ee.tuleva.onboarding.investment.position.FundPositionLedgerService;
 import ee.tuleva.onboarding.investment.position.FundPositionRepository;
@@ -476,6 +477,45 @@ class InvestmentAdminControllerTest {
                 .param("publishedIn", "KID 2026"))
         .andExpect(status().isOk())
         .andExpect(content().string(containsString("KID 2026")));
+  }
+
+  @Test
+  void publishOcf_failsWhenTheSnapshotIsIncomplete() throws Exception {
+    given(
+            ocfCalculationService.publish(
+                TulevaFund.TUK75, java.time.YearMonth.of(2026, 4), "KID 2026"))
+        .willThrow(IncompleteOcfSnapshotException.class);
+
+    mockMvc
+        .perform(
+            post("/admin/ocf-publish")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("fundCode", "TUK75")
+                .param("month", "2026-04")
+                .param("publishedIn", "KID 2026"))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void publishOcf_publishesAnIncompleteSnapshotOnlyWhenTheOverrideIsAsked() throws Exception {
+    given(
+            ocfCalculationService.publishDespiteGaps(
+                TulevaFund.TUK75, java.time.YearMonth.of(2026, 4), "KID 2026"))
+        .willReturn(true);
+
+    mockMvc
+        .perform(
+            post("/admin/ocf-publish")
+                .with(csrf())
+                .header("X-Admin-Token", "valid-token")
+                .param("fundCode", "TUK75")
+                .param("month", "2026-04")
+                .param("publishedIn", "KID 2026")
+                .param("despiteGaps", "true"))
+        .andExpect(status().isOk());
+
+    verify(ocfCalculationService, never()).publish(any(), any(), any());
   }
 
   @Test

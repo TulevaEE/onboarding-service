@@ -52,6 +52,22 @@ class OcfSnapshotRepositoryTest {
         audit);
   }
 
+  private OcfSnapshot incompleteSnapshot(LocalDate month) {
+    return OcfSnapshot.computed(
+        "TUK75",
+        month,
+        BigDecimal.ZERO,
+        BigDecimal.ZERO,
+        BigDecimal.ZERO,
+        BigDecimal.ZERO,
+        RebateBasis.NET,
+        BigDecimal.ZERO,
+        BigDecimal.ZERO,
+        false,
+        "{\"gaps\":[\"MANAGEMENT_FEE_RATE_MISSING\"]}",
+        NO_AUDIT);
+  }
+
   @Test
   void saveAndFindByFundAndMonth() {
     repository.save(snapshot(APRIL, "0.00340000"));
@@ -252,6 +268,34 @@ class OcfSnapshotRepositoryTest {
     assertThat(repository.publish("TUK75", APRIL, "KID 2026")).isTrue();
 
     assertThat(repository.publish("TUK75", APRIL, "KID 2026 second edition")).isFalse();
+  }
+
+  @Test
+  void publishingAnIncompleteSnapshotIsRefusedAndNamesTheGaps() {
+    repository.save(incompleteSnapshot(APRIL));
+
+    assertThatThrownBy(() -> repository.publish("TUK75", APRIL, "KID 2026"))
+        .isInstanceOf(IncompleteOcfSnapshotException.class)
+        .hasMessageContaining("MANAGEMENT_FEE_RATE_MISSING");
+
+    assertThat(repository.findPublishedByFundAndMonth("TUK75", APRIL)).isEmpty();
+  }
+
+  @Test
+  void anIncompleteSnapshotGoesOutOnlyUnderAnExplicitOverrideAndStaysMarkedIncomplete() {
+    repository.save(incompleteSnapshot(APRIL));
+
+    assertThat(repository.publishDespiteGaps("TUK75", APRIL, "KID 2026")).isTrue();
+
+    var published = repository.findPublishedByFundAndMonth("TUK75", APRIL).orElseThrow();
+    assertThat(published.publishedIn()).isEqualTo("KID 2026");
+    assertThat(published.complete()).isFalse();
+    assertThat(published.checks()).contains("MANAGEMENT_FEE_RATE_MISSING");
+  }
+
+  @Test
+  void theOverrideStillReportsAMonthThatWasNeverCalculatedAsNothingPublished() {
+    assertThat(repository.publishDespiteGaps("TUK75", APRIL, "KID 2026")).isFalse();
   }
 
   @Test

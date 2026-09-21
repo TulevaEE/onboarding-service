@@ -788,6 +788,14 @@ class OcfCalculationServiceTest {
     assertThat(service.publish(TUK75, MONTH, "KID 2026")).isFalse();
   }
 
+  @Test
+  void overridingTheCompletenessGuardTakesItsOwnCallSite() {
+    given(ocfSnapshotRepository.publishDespiteGaps("TUK75", MONTH.atDay(1), "KID 2026"))
+        .willReturn(true);
+
+    assertThat(service.publishDespiteGaps(TUK75, MONTH, "KID 2026")).isTrue();
+  }
+
   private void givenTransactionCosts(BigDecimal commissions, BigDecimal aum) {
     given(
             fundNavQueryService.findPublishedNavDatesBetween(

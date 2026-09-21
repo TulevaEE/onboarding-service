@@ -16,6 +16,9 @@ import org.springframework.stereotype.Repository;
 @RequiredArgsConstructor
 public class OcfSnapshotRepository {
 
+  private static final String ONLY_WHEN_COMPLETE = "  AND complete = true\n";
+  private static final String GAPS_AND_ALL = "";
+
   private final JdbcClient jdbcClient;
 
   public void save(OcfSnapshot snapshot) {
@@ -136,30 +139,88 @@ public class OcfSnapshotRepository {
 
   /**
    * Marks the working version as published. Returns false when there was nothing to publish — no
-   * snapshot for that month, or its latest version has already gone out somewhere.
+   * snapshot for that month, or its latest version has already gone out somewhere. A snapshot whose
+   * completeness flag is false is refused outright: a component that fell back to zero because its
+   * input was missing must not become the official figure with the reason sitting unread in a
+   * column.
    */
   public boolean publish(String fundCode, LocalDate snapshotMonth, String publishedIn) {
-    var published =
-        jdbcClient
-            .sql(
-                """
-                UPDATE investment_ocf_snapshot
-                SET published_at = CURRENT_TIMESTAMP, published_in = :publishedIn
-                WHERE fund_code = :fundCode
-                  AND snapshot_month = :snapshotMonth
-                  AND published_at IS NULL
-                """)
-            .param("fundCode", fundCode)
-            .param("snapshotMonth", snapshotMonth)
-            .param("publishedIn", publishedIn)
-            .update();
-    if (published == 0) {
-      log.warn(
-          "Nothing to publish: fund={}, month={} has no unpublished snapshot",
-          fundCode,
-          snapshotMonth);
+    if (stampPublished(fundCode, snapshotMonth, publishedIn, ONLY_WHEN_COMPLETE) > 0) {
+      return true;
     }
-    return published > 0;
+    var incomplete = incompleteWorkingVersion(fundCode, snapshotMonth);
+    if (incomplete.isPresent()) {
+      throw new IncompleteOcfSnapshotException(incomplete.get());
+    }
+    return nothingToPublish(fundCode, snapshotMonth);
+  }
+
+  /**
+   * Publishes the working version whatever its gaps, for a month that is genuinely missing an input
+   * and still has to go out under a documented decision. The row keeps complete = false, so the
+   * audit trail says the figure went out with the gaps its checks column names rather than claiming
+   * the snapshot was whole.
+   */
+  public boolean publishDespiteGaps(String fundCode, LocalDate snapshotMonth, String publishedIn) {
+    var incomplete = incompleteWorkingVersion(fundCode, snapshotMonth);
+    if (stampPublished(fundCode, snapshotMonth, publishedIn, GAPS_AND_ALL) == 0) {
+      return nothingToPublish(fundCode, snapshotMonth);
+    }
+    incomplete.ifPresent(
+        snapshot ->
+            log.warn(
+                "Incomplete OCF snapshot published under an override: fund={}, month={},"
+                    + " publishedIn={}, checks={}",
+                fundCode,
+                snapshotMonth,
+                publishedIn,
+                snapshot.checks()));
+    return true;
+  }
+
+  private int stampPublished(
+      String fundCode, LocalDate snapshotMonth, String publishedIn, String completenessPredicate) {
+    var sql =
+        """
+        UPDATE investment_ocf_snapshot
+        SET published_at = CURRENT_TIMESTAMP, published_in = :publishedIn
+        WHERE fund_code = :fundCode
+          AND snapshot_month = :snapshotMonth
+          AND published_at IS NULL
+        """
+            + completenessPredicate;
+    return jdbcClient
+        .sql(sql)
+        .param("fundCode", fundCode)
+        .param("snapshotMonth", snapshotMonth)
+        .param("publishedIn", publishedIn)
+        .update();
+  }
+
+  private Optional<OcfSnapshot> incompleteWorkingVersion(String fundCode, LocalDate snapshotMonth) {
+    return jdbcClient
+        .sql(
+            """
+            SELECT * FROM investment_ocf_snapshot
+            WHERE fund_code = :fundCode
+              AND snapshot_month = :snapshotMonth
+              AND published_at IS NULL
+              AND complete = false
+            ORDER BY version DESC
+            LIMIT 1
+            """)
+        .param("fundCode", fundCode)
+        .param("snapshotMonth", snapshotMonth)
+        .query(OcfSnapshot::fromResultSet)
+        .optional();
+  }
+
+  private boolean nothingToPublish(String fundCode, LocalDate snapshotMonth) {
+    log.warn(
+        "Nothing to publish: fund={}, month={} has no unpublished snapshot",
+        fundCode,
+        snapshotMonth);
+    return false;
   }
 
   public Optional<OcfSnapshot> findByFundAndMonth(String fundCode, LocalDate snapshotMonth) {

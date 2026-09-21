@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.admin;
 
+import static java.util.Objects.requireNonNullElse;
 import static org.springframework.format.annotation.DateTimeFormat.ISO.DATE;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
@@ -8,6 +9,7 @@ import ee.tuleva.onboarding.admin.AdminTokenValidator;
 import ee.tuleva.onboarding.investment.check.tracking.PeriodType;
 import ee.tuleva.onboarding.investment.check.tracking.PeriodicTdAttributionService;
 import ee.tuleva.onboarding.investment.event.RunTrackingDifferenceBackfillRequested;
+import ee.tuleva.onboarding.investment.fees.ocf.IncompleteOcfSnapshotException;
 import ee.tuleva.onboarding.investment.fees.ocf.OcfCalculationService;
 import ee.tuleva.onboarding.investment.position.FundPositionImportJob;
 import ee.tuleva.onboarding.investment.position.FundPositionLedgerService;
@@ -277,17 +279,30 @@ public class InvestmentAdminController {
       @RequestHeader("X-Admin-Token") String token,
       @RequestParam String fundCode,
       @RequestParam String month,
-      @RequestParam String publishedIn) {
+      @RequestParam String publishedIn,
+      @RequestParam(defaultValue = "false") boolean despiteGaps) {
 
     tokenValidator.validate(token);
 
     var fund = TulevaFund.valueOf(fundCode);
     var yearMonth = YearMonth.parse(month);
-    if (!ocfCalculationService.publish(fund, yearMonth, publishedIn)) {
+    if (!publishOcfSnapshot(fund, yearMonth, publishedIn, despiteGaps)) {
       throw new ResponseStatusException(
           BAD_REQUEST, "No unpublished OCF snapshot for %s %s".formatted(fundCode, yearMonth));
     }
     return "OCF published: %s %s -> %s".formatted(fundCode, yearMonth, publishedIn);
+  }
+
+  private boolean publishOcfSnapshot(
+      TulevaFund fund, YearMonth month, String publishedIn, boolean despiteGaps) {
+    try {
+      return despiteGaps
+          ? ocfCalculationService.publishDespiteGaps(fund, month, publishedIn)
+          : ocfCalculationService.publish(fund, month, publishedIn);
+    } catch (IncompleteOcfSnapshotException refusal) {
+      throw new ResponseStatusException(
+          BAD_REQUEST, requireNonNullElse(refusal.getMessage(), refusal.toString()), refusal);
+    }
   }
 
   @PostMapping("/ocf-backfill")

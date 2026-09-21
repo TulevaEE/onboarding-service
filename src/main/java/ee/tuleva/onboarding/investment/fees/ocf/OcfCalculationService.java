@@ -117,7 +117,23 @@ public class OcfCalculationService {
   }
 
   public boolean publish(TulevaFund fund, YearMonth month, String publishedIn) {
-    var published = ocfSnapshotRepository.publish(fund.getCode(), month.atDay(1), publishedIn);
+    return logPublication(
+        fund,
+        month,
+        publishedIn,
+        ocfSnapshotRepository.publish(fund.getCode(), month.atDay(1), publishedIn));
+  }
+
+  public boolean publishDespiteGaps(TulevaFund fund, YearMonth month, String publishedIn) {
+    return logPublication(
+        fund,
+        month,
+        publishedIn,
+        ocfSnapshotRepository.publishDespiteGaps(fund.getCode(), month.atDay(1), publishedIn));
+  }
+
+  private boolean logPublication(
+      TulevaFund fund, YearMonth month, String publishedIn, boolean published) {
     if (published) {
       log.info(
           "OCF snapshot published: fund={}, month={}, publishedIn={}",

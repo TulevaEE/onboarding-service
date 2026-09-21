@@ -13,6 +13,7 @@ import static ee.tuleva.onboarding.notification.OperationsNotificationService.Ch
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -128,6 +129,23 @@ class FeeCheckNotifierTest {
         .sendMessage(contains("settlementTransactionCount=1/2"), eq(INVESTMENT));
   }
 
+  // The fingerprint tags every identifier with its severity so a finding that changes severity
+  // reads as a change, but the line the operator sees already opens with it.
+  @Test
+  void aReAlertDoesNotRepeatTheSeverityTheLineAlreadyCarries() {
+    var divergentDay = findingSaying("a divergent day nobody has fixed", "2026-06-01 divergence");
+    givenDailyHistory(event(FAIL, "0", divergentDay), event(FAIL, "0", divergentDay));
+    var duplicateSettlement =
+        findingSaying("a second settlement transaction appeared", "settlementTransactionCount=1/2");
+
+    notifier.notify(List.of(dailyResult(divergentDay, duplicateSettlement)));
+
+    verify(notificationService)
+        .sendMessage(
+            argThat(message -> !message.contains("FAIL settlementTransactionCount")),
+            eq(INVESTMENT));
+  }
+
   // A fixed fee month has no rolling window and no fund-wide anchor, so nothing but the money
   // itself can make its total fall - a settlement shortfall that improved still has to speak.
   @Test
@@ -155,7 +173,8 @@ class FeeCheckNotifierTest {
   // across every fund at once.
   @Test
   void aPreviousRowFromBeforeFingerprintsExistedDoesNotMakeAStandingCheckSpeakAgain() {
-    givenDailyHistory(eventPredatingFingerprints(FAIL), eventPredatingFingerprints(FAIL));
+    givenDailyHistory(
+        eventPredatingFingerprints(FAIL, "1000"), eventPredatingFingerprints(FAIL, "1000"));
 
     var standing = finding(FAIL, new BigDecimal("1000"), "2026-06-01 divergence");
 
@@ -163,9 +182,21 @@ class FeeCheckNotifierTest {
     verifyNoInteractions(notificationService);
   }
 
+  // Missing the fingerprint is not the same as having nothing to compare: the row still carries the
+  // deviation, so a standing failure that grew has to speak on that run like any other.
+  @Test
+  void aPreviousRowFromBeforeFingerprintsExistedStillReportsADeviationThatGrew() {
+    givenDailyHistory(
+        eventPredatingFingerprints(FAIL, "1000"), eventPredatingFingerprints(FAIL, "1000"));
+
+    var grown = finding(FAIL, new BigDecimal("1500"), "2026-06-01 divergence");
+
+    assertThat(notifier.notify(List.of(dailyResult(grown)))).isEqualTo(SENT);
+  }
+
   @Test
   void aPreviousRowFromBeforeFingerprintsExistedStillReportsASeverityChange() {
-    givenDailyHistory(eventPredatingFingerprints(FAIL), eventPredatingFingerprints(PASS));
+    givenDailyHistory(eventPredatingFingerprints(FAIL, "0"), eventPredatingFingerprints(PASS, "0"));
 
     assertThat(notifier.notify(List.of(dailyResult(FAIL)))).isEqualTo(SENT);
   }
@@ -301,8 +332,12 @@ class FeeCheckNotifierTest {
     return event(severity, null);
   }
 
-  private FeeCheckEvent eventPredatingFingerprints(FeeCheckSeverity severity) {
-    return FeeCheckEvent.builder().fund(TUK75).severity(severity).build();
+  private FeeCheckEvent eventPredatingFingerprints(FeeCheckSeverity severity, String deviation) {
+    return FeeCheckEvent.builder()
+        .fund(TUK75)
+        .severity(severity)
+        .deviationAmount(new BigDecimal(deviation))
+        .build();
   }
 
   private FeeCheckResult dailyResult(FeeCheckSeverity severity) {

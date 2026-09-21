@@ -83,12 +83,21 @@ class FeeCheckNotifier {
       return true;
     }
     if (predatesTheFingerprint(previous)) {
-      return false;
+      return movedEnoughToSpeak(current, previous, result);
     }
     return !gainedSince(current, previous).isEmpty()
-        || (result.feeMonth() != null
-            ? totalDiffers(current, previous)
-            : totalGrew(current, previous));
+        || movedEnoughToSpeak(current, previous, result);
+  }
+
+  // A row written before the fingerprint existed carries none, and reading that absence as a check
+  // that gained every finding it reports would post one message per standing check on the first run
+  // after deploy. Comparing what it does carry keeps that run quiet without going blind on a
+  // deviation that actually moved.
+  private boolean movedEnoughToSpeak(
+      CheckState current, CheckState previous, FeeCheckResult result) {
+    return result.feeMonth() != null
+        ? totalDiffers(current, previous)
+        : totalGrew(current, previous);
   }
 
   private static boolean sameSeverity(CheckState current, CheckState previous) {
@@ -176,12 +185,23 @@ class FeeCheckNotifier {
   }
 
   private String newlyFound(List<String> gained) {
-    var shown = gained.stream().limit(MAX_GAINED_IN_MESSAGE).toList();
+    var shown =
+        gained.stream()
+            .limit(MAX_GAINED_IN_MESSAGE)
+            .map(FeeCheckNotifier::withoutSeverityTag)
+            .toList();
     var suffix =
         gained.size() > MAX_GAINED_IN_MESSAGE
             ? " ... (" + (gained.size() - MAX_GAINED_IN_MESSAGE) + " more)"
             : "";
     return "New since the last alert: " + String.join(" · ", shown) + suffix;
+  }
+
+  // The fingerprint tags each identifier with its severity so that the same finding at a new
+  // severity reads as a change. The line already opens with that severity, so the tag is dropped
+  // on the way to the operator rather than said twice.
+  private static String withoutSeverityTag(String taggedIdentifier) {
+    return taggedIdentifier.substring(taggedIdentifier.indexOf(' ') + 1);
   }
 
   private List<FeeCheckFinding> findingsCarrying(

@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.company.RelationshipType.BOARD_MEMBER;
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.AML;
 import static ee.tuleva.onboarding.savings.SavingFundPaymentFixture.aPayment;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.PEP;
@@ -18,6 +19,8 @@ import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -36,6 +39,7 @@ import ee.tuleva.onboarding.ledger.LedgerAccount;
 import ee.tuleva.onboarding.ledger.LedgerParty;
 import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.FundNavProvider;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
@@ -96,6 +100,7 @@ class RedemptionIntegrationTest {
   @Autowired ApplicationEvents applicationEvents;
 
   @MockitoBean SebGatewayClient sebGatewayClient;
+  @MockitoBean OperationsNotificationService operationsNotificationService;
   @MockitoBean FundNavProvider navProvider;
 
   User testUser;
@@ -822,6 +827,10 @@ class RedemptionIntegrationTest {
     var held = redemptionRequestRepository.findById(requestId).orElseThrow();
     assertThat(held.getStatus()).isEqualTo(PAYOUT_HELD);
     assertThat(held.getCashAmount()).isEqualByComparingTo(redemptionAmount);
+    verify(operationsNotificationService)
+        .sendMessage(
+            contains("payout held for review: id=%s, cashAmount=25.00 EUR".formatted(requestId)),
+            eq(AML));
     assertThat(held.getProcessedAt()).isNull();
     assertThat(savingsFundLedger.hasPricingEntry(requestId)).isTrue();
     assertThat(getUserFundUnitsReservedAccount().getBalance()).isEqualByComparingTo(ZERO);

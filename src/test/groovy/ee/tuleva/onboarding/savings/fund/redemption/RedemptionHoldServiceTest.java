@@ -177,6 +177,35 @@ class RedemptionHoldServiceTest {
   }
 
   @Test
+  void holdPayout_takesAnAlreadyPricedRequestOutOfTheFundingQueueAtOnce() {
+    var requestId = UUID.randomUUID();
+    var request =
+        redemptionRequestFixture()
+            .id(requestId)
+            .status(VERIFIED)
+            .cashAmount(new java.math.BigDecimal("25.00"))
+            .build();
+    given(repository.findByIdForUpdate(requestId)).willReturn(Optional.of(request));
+    given(notifier.notifyPayoutHold(request)).willReturn(true);
+
+    service.holdPayoutManually(requestId, "AML Specialist", "TKF volume alert");
+
+    verify(redemptionStatusService).changeStatus(requestId, PAYOUT_HELD);
+  }
+
+  @Test
+  void holdPayout_leavesAnUnpricedRequestForTheBatchToPrice() {
+    var requestId = UUID.randomUUID();
+    var request = redemptionRequestFixture().id(requestId).status(VERIFIED).build();
+    given(repository.findByIdForUpdate(requestId)).willReturn(Optional.of(request));
+    given(notifier.notifyPayoutHold(request)).willReturn(true);
+
+    service.holdPayoutManually(requestId, "AML Specialist", "TKF volume alert");
+
+    verify(redemptionStatusService, never()).changeStatus(any(), any());
+  }
+
+  @Test
   void holdPayout_rejectsRequestWhosePayoutIsAlreadySent() {
     var requestId = UUID.randomUUID();
     var request = redemptionRequestFixture().id(requestId).status(REDEEMED).build();
@@ -273,6 +302,38 @@ class RedemptionHoldServiceTest {
     assertThat(request.getReviewedBy()).isEqualTo("AML Specialist");
     assertThat(request.getReviewedAt()).isEqualTo(TestClockHolder.now.minusSeconds(60));
     verify(payoutService).payOutHeld(requestId);
+  }
+
+  @Test
+  void release_failedPayoutUnderHold_clearsTheHoldSoTheAdminRetryCanSendIt() {
+    runTransactionsInline();
+    var requestId = UUID.randomUUID();
+    var request =
+        redemptionRequestFixture()
+            .id(requestId)
+            .status(FAILED)
+            .cashAmount(new java.math.BigDecimal("25.00"))
+            .holdReasons(Set.of(PEP))
+            .build();
+    given(repository.findByIdForUpdate(requestId)).willReturn(Optional.of(request));
+
+    service.release(requestId, "AML Specialist", "Source of funds confirmed");
+
+    assertThat(request.hasActiveHold()).isFalse();
+    assertThat(request.getStatus()).isEqualTo(FAILED);
+    verify(payoutService, never()).payOutHeld(any());
+    verify(redemptionStatusService, never()).changeStatus(any(), any());
+  }
+
+  @Test
+  void release_rejectsFailedRequestWithoutAnActiveHold() {
+    runTransactionsInline();
+    var requestId = UUID.randomUUID();
+    var request = redemptionRequestFixture().id(requestId).status(FAILED).build();
+    given(repository.findByIdForUpdate(requestId)).willReturn(Optional.of(request));
+
+    assertThatThrownBy(() -> service.release(requestId, "AML Specialist", "reason"))
+        .isInstanceOf(IllegalStateException.class);
   }
 
   @Test

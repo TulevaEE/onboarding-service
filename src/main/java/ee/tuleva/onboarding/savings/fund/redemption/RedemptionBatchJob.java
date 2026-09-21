@@ -140,10 +140,9 @@ public class RedemptionBatchJob {
 
     BigDecimal totalCashAmount = ZERO;
     List<RedemptionRequest> priced = new ArrayList<>();
-    List<RedemptionRequest> held = new ArrayList<>();
     for (RedemptionRequest request : payable) {
       try {
-        BigDecimal cashAmount = priceRedemption(request, nav, dealingDate, held);
+        BigDecimal cashAmount = priceRedemption(request, nav, dealingDate);
         if (cashAmount.compareTo(ZERO) > 0) {
           totalCashAmount = totalCashAmount.add(cashAmount);
           priced.add(request);
@@ -154,13 +153,14 @@ public class RedemptionBatchJob {
         payoutService.markAsFailed(request.getId(), e);
       }
     }
-    held.forEach(holdNotifier::notifyPayoutHeldAtPricing);
 
     if (totalCashAmount.compareTo(ZERO) <= 0) {
       return;
     }
 
-    // Held payouts are in the transfer: their cash waits on the withdrawal account until released.
+    // A priced request stays VERIFIED until its cash is on the withdrawal account, so a run that
+    // dies between pricing and the transfer is picked up and funded again on the next pass. Held
+    // payouts are funded with the rest: their cash waits on that account until someone releases it.
     UUID batchId = BatchId.of("redemption", priced.stream().map(RedemptionRequest::getId).toList());
     transferFromFundAccount(totalCashAmount, batchId);
     PayoutResult result = processIndividualPayouts(priced, batchId);
@@ -170,10 +170,7 @@ public class RedemptionBatchJob {
   }
 
   private BigDecimal priceRedemption(
-      RedemptionRequest request,
-      BigDecimal nav,
-      LocalDate dealingDate,
-      List<RedemptionRequest> held) {
+      RedemptionRequest request, BigDecimal nav, LocalDate dealingDate) {
     return transactionTemplate.execute(
         ignored -> {
           RedemptionRequest toUpdate =
@@ -184,7 +181,6 @@ public class RedemptionBatchJob {
                 "Skipping pricing for already priced redemption: id={}, cashAmount={}",
                 request.getId(),
                 toUpdate.getCashAmount());
-            holdPayoutIfFlagged(toUpdate, held);
             return toUpdate.getCashAmount();
           }
 
@@ -220,23 +216,8 @@ public class RedemptionBatchJob {
               request.getFundUnits(),
               amount,
               nav);
-          holdPayoutIfFlagged(toUpdate, held);
           return amount;
         });
-  }
-
-  // Runs inside the pricing transaction with the row locked: a priced request under AML hold is
-  // PAYOUT_HELD in the same commit, so it can neither be paid nor priced twice.
-  private void holdPayoutIfFlagged(RedemptionRequest request, List<RedemptionRequest> held) {
-    if (request.hasActiveHold() && request.getStatus() == VERIFIED) {
-      redemptionStatusService.changeStatus(request.getId(), PAYOUT_HELD);
-      held.add(request);
-      log.info(
-          "Held payout of redemption under AML review: id={}, cashAmount={}, reasons={}",
-          request.getId(),
-          request.getCashAmount(),
-          request.getHoldReasons());
-    }
   }
 
   private void transferFromFundAccount(BigDecimal totalAmount, UUID batchId) {
@@ -260,22 +241,16 @@ public class RedemptionBatchJob {
     int payoutCount = 0;
     int heldCount = 0;
     for (RedemptionRequest request : requests) {
-      RedemptionRequest updated =
-          redemptionRequestRepository.findById(request.getId()).orElseThrow();
-      if (updated.getCashAmount() == null) {
-        continue;
-      }
-      if (updated.hasActiveHold()) {
-        heldCount++;
-        continue;
-      }
-
-      try {
-        payoutService.payOut(updated, batchId);
-        payoutCount++;
-      } catch (Exception e) {
-        log.error("Failed to process payout for redemption: id={}", updated.getId(), e);
-        payoutService.markAsFailed(updated.getId(), e);
+      switch (payoutService.payOut(request.getId(), batchId)) {
+        case PAID -> payoutCount++;
+        case HELD -> {
+          heldCount++;
+          // Pricing wrote the amount in its own transaction, so re-read rather than alerting with
+          // the instance this run selected, which still carries no cashAmount or NAV.
+          holdNotifier.notifyPayoutHeldAtPricing(
+              redemptionRequestRepository.findById(request.getId()).orElseThrow());
+        }
+        case SKIPPED, FAILED_TO_SEND -> {}
       }
     }
     return new PayoutResult(payoutCount, heldCount);
@@ -303,7 +278,7 @@ public class RedemptionBatchJob {
 
     request.setErrorReason(null);
     redemptionRequestRepository.save(request);
-    payoutService.payOut(request, null);
+    payoutService.payOutOnRetry(request);
 
     log.info("Retried failed payout: id={}, amount={}", request.getId(), request.getCashAmount());
   }

@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_SANCTION;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
-import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.PENDING;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.HIGH_RISK;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.KYB_SCREENING_FAILED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.ONBOARDING_INCOMPLETE;
@@ -157,14 +156,8 @@ public class RedemptionVerificationService {
     if (savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY)) {
       return new Verdict.Clear();
     }
-    var needsScreening =
-        savingsFundOnboardingRepository
-            .findStatus(registryCode, LEGAL_ENTITY)
-            .map(status -> status == PENDING)
-            .orElse(true);
-    if (!needsScreening) {
-      return new Verdict.HoldPayout(Set.of(ONBOARDING_INCOMPLETE));
-    }
+    // A rejected company is re-screened too: its rejection may be a sanctions hit, and that must
+    // stop the order rather than only its payout. Monitoring already re-screens rejected companies.
     List<KybCheck> checks;
     try {
       checks = legalEntityScreener.screenLatest(registryCode);

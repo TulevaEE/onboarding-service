@@ -34,7 +34,6 @@ import ee.tuleva.onboarding.kyb.KybCheck;
 import ee.tuleva.onboarding.kyb.LegalEntityScreener;
 import ee.tuleva.onboarding.kyc.KycCountryService;
 import ee.tuleva.onboarding.savings.SavingFundDeadlinesService;
-import ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
@@ -281,27 +280,38 @@ class RedemptionVerificationServiceTest {
   }
 
   @Test
-  void process_legalEntityRequest_holdsThePayoutWhenLatestKybRejected() {
+  void process_legalEntityRequest_reScreensARejectedCompanyAndFreezesOnItsSanction() {
     var requestId = UUID.randomUUID();
     given(savingsFundOnboardingRepository.isOnboardingCompleted(REGISTRY_CODE, LEGAL_ENTITY))
         .willReturn(false);
-    given(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
-        .willReturn(Optional.of(SavingsFundOnboardingStatus.REJECTED));
+    given(legalEntityScreener.screenLatest(REGISTRY_CODE))
+        .willReturn(List.of(new KybCheck(COMPANY_SANCTION, false, Map.of())));
+
+    service().process(legalEntityRequest(requestId));
+
+    verify(holdService).freeze(requestId);
+    verifyNoInteractions(redemptionStatusService);
+  }
+
+  @Test
+  void process_legalEntityRequest_holdsThePayoutWhenARejectedCompanyHasNoSanction() {
+    var requestId = UUID.randomUUID();
+    given(savingsFundOnboardingRepository.isOnboardingCompleted(REGISTRY_CODE, LEGAL_ENTITY))
+        .willReturn(false, false);
+    given(legalEntityScreener.screenLatest(REGISTRY_CODE))
+        .willReturn(List.of(new KybCheck(COMPANY_ACTIVE, false, Map.of())));
 
     service().process(legalEntityRequest(requestId));
 
     verify(holdService).holdPayout(requestId, Set.of(ONBOARDING_INCOMPLETE));
     verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
-    verifyNoInteractions(legalEntityScreener);
   }
 
   @Test
-  void process_legalEntityRequest_reScreensWhenStatusMissingThenVerifiesIfCompleted() {
+  void process_legalEntityRequest_reScreensThenVerifiesIfNowCompleted() {
     var requestId = UUID.randomUUID();
     given(savingsFundOnboardingRepository.isOnboardingCompleted(REGISTRY_CODE, LEGAL_ENTITY))
         .willReturn(false, true);
-    given(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
-        .willReturn(Optional.empty());
     given(legalEntityScreener.screenLatest(REGISTRY_CODE))
         .willReturn(List.of(new KybCheck(COMPANY_SANCTION, true, Map.of())));
 
@@ -312,12 +322,10 @@ class RedemptionVerificationServiceTest {
   }
 
   @Test
-  void process_legalEntityRequest_reScreensWhenStatusPendingThenHoldsThePayoutIfStillIncomplete() {
+  void process_legalEntityRequest_reScreensThenHoldsThePayoutIfStillIncomplete() {
     var requestId = UUID.randomUUID();
     given(savingsFundOnboardingRepository.isOnboardingCompleted(REGISTRY_CODE, LEGAL_ENTITY))
         .willReturn(false, false);
-    given(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
-        .willReturn(Optional.of(SavingsFundOnboardingStatus.PENDING));
     given(legalEntityScreener.screenLatest(REGISTRY_CODE))
         .willReturn(List.of(new KybCheck(COMPANY_ACTIVE, false, Map.of())));
 
@@ -332,8 +340,6 @@ class RedemptionVerificationServiceTest {
     var requestId = UUID.randomUUID();
     given(savingsFundOnboardingRepository.isOnboardingCompleted(REGISTRY_CODE, LEGAL_ENTITY))
         .willReturn(false);
-    given(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
-        .willReturn(Optional.empty());
     given(legalEntityScreener.screenLatest(REGISTRY_CODE))
         .willReturn(
             List.of(
@@ -351,8 +357,6 @@ class RedemptionVerificationServiceTest {
     var request = legalEntityRequest(UUID.randomUUID());
     given(savingsFundOnboardingRepository.isOnboardingCompleted(REGISTRY_CODE, LEGAL_ENTITY))
         .willReturn(false);
-    given(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
-        .willReturn(Optional.empty());
     willThrow(new WebServiceIOException("Ariregister unreachable"))
         .given(legalEntityScreener)
         .screenLatest(REGISTRY_CODE);
@@ -368,8 +372,6 @@ class RedemptionVerificationServiceTest {
     var requestId = UUID.randomUUID();
     given(savingsFundOnboardingRepository.isOnboardingCompleted(REGISTRY_CODE, LEGAL_ENTITY))
         .willReturn(false);
-    given(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
-        .willReturn(Optional.empty());
     willThrow(new WebServiceIOException("Ariregister unreachable"))
         .given(legalEntityScreener)
         .screenLatest(REGISTRY_CODE);
@@ -385,8 +387,6 @@ class RedemptionVerificationServiceTest {
     var requestId = UUID.randomUUID();
     given(savingsFundOnboardingRepository.isOnboardingCompleted(REGISTRY_CODE, LEGAL_ENTITY))
         .willReturn(false);
-    given(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
-        .willReturn(Optional.empty());
     willThrow(new IllegalStateException("No board members"))
         .given(legalEntityScreener)
         .screenLatest(REGISTRY_CODE);

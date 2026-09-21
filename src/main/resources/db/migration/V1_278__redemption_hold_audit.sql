@@ -21,6 +21,14 @@ SELECT id, CASE WHEN hold_reason = 'SCREENING_MATCH' THEN 'SANCTION' ELSE hold_r
   FROM redemption_request
  WHERE hold_reason IS NOT NULL;
 
+-- approve-review left hold_reason in place and recorded the decision in reviewed_at only. Without
+-- this the migrated reason reads as an active hold again, so an approved payout would be held a
+-- second time and an approved FAILED request could be neither retried nor released.
+UPDATE redemption_request
+   SET hold_released_at = reviewed_at
+ WHERE reviewed_at IS NOT NULL
+   AND hold_reason IS NOT NULL;
+
 ALTER TABLE redemption_request DROP COLUMN hold_reason;
 
 -- IN_REVIEW is retired. Its rows hold units that were never sold, so they can only become FROZEN:

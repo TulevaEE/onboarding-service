@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.PAYOUT;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.FAILED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.PAYOUT_HELD;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.REDEEMED;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.util.Objects.requireNonNull;
 
@@ -51,30 +52,84 @@ class RedemptionPayoutService {
   private final PaymentCheckService paymentCheckService;
   private final TransactionTemplate transactionTemplate;
 
-  void payOut(RedemptionRequest request, @Nullable UUID batchId) {
-    sendPayout(request, batchId);
-    markAsRedeemed(request.getId());
+  enum Outcome {
+    PAID,
+    HELD,
+    SKIPPED,
+    FAILED_TO_SEND
   }
 
-  // The claim (PAYOUT_HELD -> REDEEMED under a row lock) commits before the bank is called, so two
-  // concurrent releases cannot both send the money; a failed send is recorded as FAILED for retry.
-  void payOutHeld(UUID requestId) {
+  // Claiming (VERIFIED -> REDEEMED under a row lock) commits before the bank is called, so a hold
+  // or a release landing mid-batch cannot leave the money sent twice or sent after a hold.
+  Outcome payOut(UUID requestId, @Nullable UUID batchId) {
+    Claim claim;
+    try {
+      claim = requireNonNull(transactionTemplate.execute(tx -> claimForPayout(requestId)));
+    } catch (Exception e) {
+      log.error("Failed to claim redemption for payout: id={}", requestId, e);
+      markAsFailed(requestId, e);
+      return Outcome.FAILED_TO_SEND;
+    }
+    RedemptionRequest claimed = claim.request();
+    return claim.outcome() == Outcome.PAID && claimed != null
+        ? send(claimed, batchId)
+        : claim.outcome();
+  }
+
+  // The hold has just been released, so the claim only has to win the race against a second
+  // release and against the batch job picking the same request up.
+  Outcome payOutHeld(UUID requestId) {
     RedemptionRequest claimed =
         requireNonNull(transactionTemplate.execute(tx -> claimHeldPayout(requestId)));
+    return send(claimed, null);
+  }
+
+  // An admin retry already holds the row lock and has checked the request, and a failure should
+  // surface to the caller rather than being swallowed into another FAILED.
+  void payOutOnRetry(RedemptionRequest request) {
+    markAsRedeemed(request.getId());
+    sendPayout(request, null);
+  }
+
+  private Outcome send(RedemptionRequest claimed, @Nullable UUID batchId) {
     try {
-      sendPayout(claimed, null);
+      sendPayout(claimed, batchId);
+      return Outcome.PAID;
     } catch (Exception e) {
-      log.error("Failed to pay out released redemption: id={}", requestId, e);
-      markAsFailed(requestId, e);
+      log.error("Failed to send redemption payout: id={}", claimed.getId(), e);
+      markAsFailed(claimed.getId(), e);
+      return Outcome.FAILED_TO_SEND;
     }
   }
 
+  private Claim claimForPayout(UUID requestId) {
+    RedemptionRequest request = lockOrThrow(requestId);
+    if (request.getStatus() != VERIFIED || request.getCashAmount() == null) {
+      log.info(
+          "Redemption is no longer payable, skipping: id={}, status={}",
+          requestId,
+          request.getStatus());
+      return new Claim(Outcome.SKIPPED, null);
+    }
+    if (request.hasActiveHold()) {
+      redemptionStatusService.changeStatus(requestId, PAYOUT_HELD);
+      log.info(
+          "Held payout of redemption under AML review: id={}, cashAmount={}, reasons={}",
+          requestId,
+          request.getCashAmount(),
+          request.getHoldReasons());
+      return new Claim(Outcome.HELD, request);
+    }
+    requirePayable(request);
+    markAsRedeemed(requestId);
+    return new Claim(Outcome.PAID, request);
+  }
+
+  // A claim carries the request only when it is the caller's to send.
+  private record Claim(Outcome outcome, @Nullable RedemptionRequest request) {}
+
   private RedemptionRequest claimHeldPayout(UUID requestId) {
-    RedemptionRequest request =
-        redemptionRequestRepository
-            .findByIdForUpdate(requestId)
-            .orElseThrow(
-                () -> new NoSuchElementException("Redemption request not found: id=" + requestId));
+    RedemptionRequest request = lockOrThrow(requestId);
     if (request.getStatus() != PAYOUT_HELD) {
       throw new IllegalStateException(
           "Cannot pay out, payout is not held: id="
@@ -85,26 +140,34 @@ class RedemptionPayoutService {
     if (request.getCashAmount() == null) {
       throw new IllegalStateException("Cannot pay out, not priced: id=" + requestId);
     }
-    // The IBAN and the ledger can have moved while the money sat on hold, so the payout
-    // preconditions are checked again here, not only before pricing.
+    requirePayable(request);
+    markAsRedeemed(requestId);
+    return request;
+  }
+
+  // The IBAN and the ledger can have moved while the money sat on hold, so the payout
+  // preconditions are checked again here, not only before pricing.
+  private void requirePayable(RedemptionRequest request) {
     payoutValidator
         .findBlockingReason(request)
         .ifPresent(
             reason -> {
               paymentCheckService.recordStoppedPayment(
-                  PAYOUT_BLOCKED, requestId.toString(), reason);
+                  PAYOUT_BLOCKED, request.getId().toString(), reason);
               throw new IllegalStateException(
-                  "Cannot pay out released redemption: id=" + requestId + ", reason=" + reason);
+                  "Cannot pay out redemption: id=" + request.getId() + ", reason=" + reason);
             });
-    markAsRedeemed(requestId);
-    return request;
+  }
+
+  private RedemptionRequest lockOrThrow(UUID requestId) {
+    return redemptionRequestRepository
+        .findByIdForUpdate(requestId)
+        .orElseThrow(
+            () -> new NoSuchElementException("Redemption request not found: id=" + requestId));
   }
 
   private void sendPayout(RedemptionRequest request, @Nullable UUID batchId) {
-    BigDecimal cashAmount = request.getCashAmount();
-    if (cashAmount == null) {
-      throw new IllegalStateException("Cannot pay out, not priced: id=" + request.getId());
-    }
+    BigDecimal cashAmount = requireNonNull(request.getCashAmount());
     PartyId party = request.getPartyId();
     String beneficiaryName = getBeneficiaryName(party, request.getCustomerIban());
     PaymentRequest paymentRequest =
@@ -125,7 +188,7 @@ class RedemptionPayoutService {
         beneficiaryName);
   }
 
-  void markAsRedeemed(UUID requestId) {
+  private void markAsRedeemed(UUID requestId) {
     redemptionStatusService.changeStatus(requestId, REDEEMED);
     RedemptionRequest request = redemptionRequestRepository.findById(requestId).orElseThrow();
     request.setProcessedAt(Instant.now(clock));
@@ -137,7 +200,9 @@ class RedemptionPayoutService {
       RedemptionRequest request = redemptionRequestRepository.findById(requestId).orElseThrow();
       request.setErrorReason(e.toString());
       redemptionRequestRepository.save(request);
-      redemptionStatusService.changeStatus(requestId, FAILED);
+      if (request.getStatus() != FAILED) {
+        redemptionStatusService.changeStatus(requestId, FAILED);
+      }
     } catch (Exception ex) {
       log.error("Failed to mark redemption as failed: id={}", requestId, ex);
     }

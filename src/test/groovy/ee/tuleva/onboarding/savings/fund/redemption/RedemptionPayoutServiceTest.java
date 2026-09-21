@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.PAYOUT_BLOCKED;
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.PAYOUT;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.PEP;
@@ -183,6 +184,75 @@ class RedemptionPayoutServiceTest {
 
     assertThatThrownBy(() -> service.payOutHeld(requestId))
         .isInstanceOf(NoSuchElementException.class);
+  }
+
+  @Test
+  void payOut_holdsThePayoutWhenAHoldLandedAfterTheBatchSelectedTheRequest() {
+    var requestId = UUID.randomUUID();
+    var request =
+        redemptionRequestFixture()
+            .id(requestId)
+            .status(VERIFIED)
+            .customerIban(CUSTOMER_IBAN)
+            .cashAmount(new BigDecimal("25.00"))
+            .holdReasons(Set.of(PEP))
+            .build();
+    given(redemptionRequestRepository.findByIdForUpdate(requestId))
+        .willReturn(Optional.of(request));
+
+    assertThat(service.payOut(requestId, UUID.randomUUID()))
+        .isEqualTo(RedemptionPayoutService.Outcome.HELD);
+
+    verify(redemptionStatusService).changeStatus(requestId, PAYOUT_HELD);
+    verify(redemptionStatusService, never()).changeStatus(requestId, REDEEMED);
+    verify(eventPublisher, never()).publishEvent(any(RequestPaymentEvent.class));
+  }
+
+  @Test
+  void payOut_skipsARequestAnotherRunAlreadyClaimed() {
+    var requestId = UUID.randomUUID();
+    var request =
+        redemptionRequestFixture()
+            .id(requestId)
+            .status(REDEEMED)
+            .cashAmount(new BigDecimal("25.00"))
+            .build();
+    given(redemptionRequestRepository.findByIdForUpdate(requestId))
+        .willReturn(Optional.of(request));
+
+    assertThat(service.payOut(requestId, UUID.randomUUID()))
+        .isEqualTo(RedemptionPayoutService.Outcome.SKIPPED);
+
+    verify(redemptionStatusService, never()).changeStatus(any(), any());
+    verify(eventPublisher, never()).publishEvent(any(RequestPaymentEvent.class));
+  }
+
+  @Test
+  void payOut_stopsThePaymentWhenTheBeneficiaryIbanNoLongerBelongsToTheParty() {
+    var requestId = UUID.randomUUID();
+    var request =
+        redemptionRequestFixture()
+            .id(requestId)
+            .status(VERIFIED)
+            .customerIban(CUSTOMER_IBAN)
+            .cashAmount(new BigDecimal("25.00"))
+            .build();
+    given(redemptionRequestRepository.findByIdForUpdate(requestId))
+        .willReturn(Optional.of(request));
+    given(redemptionRequestRepository.findById(requestId)).willReturn(Optional.of(request));
+    given(payoutValidator.findBlockingReason(request))
+        .willReturn(Optional.of("Beneficiary IBAN no longer belongs to the party"));
+
+    assertThat(service.payOut(requestId, UUID.randomUUID()))
+        .isEqualTo(RedemptionPayoutService.Outcome.FAILED_TO_SEND);
+
+    verify(paymentCheckService)
+        .recordStoppedPayment(
+            PAYOUT_BLOCKED,
+            requestId.toString(),
+            "Beneficiary IBAN no longer belongs to the party");
+    verify(eventPublisher, never()).publishEvent(any(RequestPaymentEvent.class));
+    verify(redemptionStatusService, never()).changeStatus(requestId, REDEEMED);
   }
 
   private static RedemptionRequest heldRequest(UUID requestId, Long userId) {

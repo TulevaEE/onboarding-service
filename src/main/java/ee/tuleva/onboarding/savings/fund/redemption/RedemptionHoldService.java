@@ -73,6 +73,11 @@ public class RedemptionHoldService {
       return;
     }
     startHold(request, reasons, by, comment);
+    // An already-priced request has had its cash transferred, so it leaves the VERIFIED queue now:
+    // left there, the next batch run would fund the same cash a second time.
+    if (request.getStatus() == VERIFIED && request.getCashAmount() != null) {
+      redemptionStatusService.changeStatus(id, PAYOUT_HELD);
+    }
     if (notifier.notifyPayoutHold(request)) {
       markNotified(request);
     }
@@ -110,6 +115,15 @@ public class RedemptionHoldService {
         if (request.hasActiveHold()) {
           recordReview(request, by, reason);
         }
+      }
+      // A payout that failed while held stays FAILED: releasing only clears the hold, and the
+      // admin retry endpoint is what sends the money. Without this it could be neither.
+      case FAILED -> {
+        if (!request.hasActiveHold()) {
+          throw new IllegalStateException(
+              "Nothing to release: id=" + id + ", status=" + status + ", no active hold");
+        }
+        recordReview(request, by, reason);
       }
       default ->
           throw new IllegalStateException(

@@ -66,6 +66,9 @@ class OcfCalculationServiceTest {
   private static final String ISIN = "XX0000000001";
   private static final UUID CALCULATION_ID =
       UUID.fromString("00000000-0000-4000-8000-000000000001");
+  private static final ZoneId ESTONIAN_ZONE = ZoneId.of("Europe/Tallinn");
+  private static final LocalDate TRAILING_YEAR_START = MONTH_END.minusYears(1).plusDays(1);
+  private static final LocalDate FIRST_NAV_DATE_IN_WINDOW = MONTH_END.minusMonths(3);
 
   private static NavAccountLine securityLine(String isin, BigDecimal marketValue) {
     return new NavAccountLine("SECURITY", isin, isin, null, null, marketValue);
@@ -336,12 +339,15 @@ class OcfCalculationServiceTest {
   }
 
   @Test
-  void underlyingFundCostReturnsZeroWhenNoRates() {
+  void anEmptyRateTableFailsTheSameWayAsASingleMissingRate() {
     given(instrumentFeeRepository.findAllValidRates(MONTH_END)).willReturn(List.of());
+    givenPublishedCalculation(
+        TUK75,
+        securityLine(ISIN, new BigDecimal("100000000")),
+        unitsLine(new BigDecimal("100000000")));
 
-    var cost = service.getUnderlyingFundCost(TUK75, MONTH_END).rate();
-
-    assertThat(cost).isEqualByComparingTo(ZERO);
+    assertThatThrownBy(() -> service.getUnderlyingFundCost(TUK75, MONTH_END))
+        .isInstanceOf(MissingInstrumentRateException.class);
   }
 
   @Test
@@ -446,41 +452,54 @@ class OcfCalculationServiceTest {
   }
 
   @Test
-  void transactionCostWindowStartsAtTheFundsFirstPublishedNav() {
-    var firstNavDate = MONTH_END.minusMonths(3);
-    given(fundNavQueryService.findEarliestPublishedNavDate(TUK75.getCode()))
-        .willReturn(Optional.of(firstNavDate));
-    given(
-            fundNavQueryService.findPublishedNavDatesBetween(
-                TUK75.getCode(), MONTH_END.minusYears(1).plusDays(1), MONTH_END))
-        .willReturn(List.of(firstNavDate, MONTH_END));
+  void transactionCostWindowStartsAtTheFundsInception() {
+    var inception = TKF100.getInceptionDate();
+    given(fundNavQueryService.findPublishedNavDatesBetween(TKF100.getCode(), inception, MONTH_END))
+        .willReturn(List.of(inception, MONTH_END));
     given(
             transactionExecutionRepository.sumCommissionsForFundAndPeriod(
-                eq(TUK75.getCode()), any(), any()))
+                eq(TKF100.getCode()), any(), any()))
         .willReturn(new BigDecimal("1000"));
-    given(fundNavQueryService.findAum(eq(TUK75.getCode()), any()))
+    given(fundNavQueryService.findAum(eq(TKF100.getCode()), any()))
         .willReturn(new BigDecimal("100000000"));
 
-    var cost = service.getTransactionCost(TUK75, MONTH_END).rate();
+    var cost = service.getTransactionCost(TKF100, MONTH_END).rate();
 
     assertThat(cost.signum()).isGreaterThan(0);
-    var zone = ZoneId.of("Europe/Tallinn");
     verify(transactionExecutionRepository)
         .sumCommissionsForFundAndPeriod(
-            TUK75.getCode(),
-            firstNavDate.atStartOfDay(zone).toInstant(),
-            MONTH_END.plusDays(1).atStartOfDay(zone).toInstant());
+            TKF100.getCode(),
+            inception.atStartOfDay(ESTONIAN_ZONE).toInstant(),
+            MONTH_END.plusDays(1).atStartOfDay(ESTONIAN_ZONE).toInstant());
   }
 
   @Test
-  void aShortHistoryIsAnnualisedSoItCanSitBesideTheAnnualComponents() {
-    var firstNavDate = MONTH_END.minusMonths(3);
-    given(fundNavQueryService.findEarliestPublishedNavDate(TUK75.getCode()))
-        .willReturn(Optional.of(firstNavDate));
+  void aFundYoungerThanAYearIsAnnualisedOverTheDaysSinceItsInception() {
+    var inception = TKF100.getInceptionDate();
+    given(fundNavQueryService.findPublishedNavDatesBetween(TKF100.getCode(), inception, MONTH_END))
+        .willReturn(List.of(inception, MONTH_END));
     given(
-            fundNavQueryService.findPublishedNavDatesBetween(
-                TUK75.getCode(), MONTH_END.minusYears(1).plusDays(1), MONTH_END))
-        .willReturn(List.of(firstNavDate, MONTH_END));
+            transactionExecutionRepository.sumCommissionsForFundAndPeriod(
+                eq(TKF100.getCode()), any(), any()))
+        .willReturn(new BigDecimal("1000"));
+    given(fundNavQueryService.findAum(eq(TKF100.getCode()), any()))
+        .willReturn(new BigDecimal("100000000"));
+
+    var cost = service.getTransactionCost(TKF100, MONTH_END).rate();
+
+    // 88 days of life. The period ratio is 1000 / 100M = 0.00001; left unscaled it would be added
+    // to three components that are already annual rates, understating the fund's OCF by 88/365.
+    assertThat(cost).isEqualByComparingTo(new BigDecimal("0.00004148"));
+  }
+
+  @Test
+  void aFundOlderThanAYearIsNeverAnnualisedHoweverLateItsPublishedNavHistoryStarts() {
+    var periodStart = MONTH_END.minusYears(1).plusDays(1);
+    // The nav_report table only reaches back a month here, and the commissions of a whole year are
+    // measured against it. Anchoring the window on the stored history would cut the numerator down
+    // to that month and then scale what remains by 365/30.
+    given(fundNavQueryService.findPublishedNavDatesBetween(TUK75.getCode(), periodStart, MONTH_END))
+        .willReturn(List.of(MONTH_END.minusMonths(1), MONTH_END));
     given(
             transactionExecutionRepository.sumCommissionsForFundAndPeriod(
                 eq(TUK75.getCode()), any(), any()))
@@ -490,16 +509,17 @@ class OcfCalculationServiceTest {
 
     var cost = service.getTransactionCost(TUK75, MONTH_END).rate();
 
-    // 91 days covered. The period ratio is 1000 / 100M = 0.00001; left unscaled it would be added
-    // to three components that are already annual rates, understating the fund's OCF by 91/365.
-    assertThat(cost).isEqualByComparingTo(new BigDecimal("0.00004011"));
+    assertThat(cost).isEqualByComparingTo(new BigDecimal("0.00001"));
+    verify(transactionExecutionRepository)
+        .sumCommissionsForFundAndPeriod(
+            TUK75.getCode(),
+            periodStart.atStartOfDay(ESTONIAN_ZONE).toInstant(),
+            MONTH_END.plusDays(1).atStartOfDay(ESTONIAN_ZONE).toInstant());
   }
 
   @Test
   void aPublishingGapDoesNotShortenTheWindowForAFundThatExistedThroughout() {
     var periodStart = MONTH_END.minusYears(1).plusDays(1);
-    given(fundNavQueryService.findEarliestPublishedNavDate(TUK75.getCode()))
-        .willReturn(Optional.of(MONTH_END.minusYears(5)));
     // Only one published NAV survives in the window. Anchoring on it would annualise a single
     // day's trading by 365; the fund's inception says it lived the whole year.
     given(fundNavQueryService.findPublishedNavDatesBetween(TUK75.getCode(), periodStart, MONTH_END))
@@ -514,6 +534,19 @@ class OcfCalculationServiceTest {
     var cost = service.getTransactionCost(TUK75, MONTH_END).rate();
 
     assertThat(cost).isEqualByComparingTo(new BigDecimal("0.00001"));
+  }
+
+  @Test
+  void aMonthThatEndsBeforeTheFundExistedHasNoTransactionCost() {
+    var monthEndBeforeInception = TKF100.getInceptionDate().minusDays(1);
+
+    var txn = service.getTransactionCost(TKF100, monthEndBeforeInception);
+
+    assertThat(txn.rate()).isEqualByComparingTo(ZERO);
+    assertThat(txn.windowStart()).isEqualTo(TKF100.getInceptionDate());
+    assertThat(txn.navDates()).isEmpty();
+    assertThat(txn.gaps()).isEmpty();
+    verifyNoInteractions(transactionExecutionRepository, fundNavQueryService);
   }
 
   @Test
@@ -652,11 +685,11 @@ class OcfCalculationServiceTest {
                 true,
                 null,
                 null,
-                MONTH_END.minusMonths(3),
+                TRAILING_YEAR_START,
                 MONTH_END,
                 new BigDecimal("1000"),
                 new BigDecimal("1000000.00000000"),
-                "[\"%s\",\"%s\"]".formatted(MONTH_END.minusMonths(3), MONTH_END)));
+                "[\"%s\",\"%s\"]".formatted(FIRST_NAV_DATE_IN_WINDOW, MONTH_END)));
   }
 
   @Test
@@ -756,13 +789,10 @@ class OcfCalculationServiceTest {
   }
 
   private void givenTransactionCosts(BigDecimal commissions, BigDecimal aum) {
-    var firstNavDate = MONTH_END.minusMonths(3);
-    given(fundNavQueryService.findEarliestPublishedNavDate(TUK75.getCode()))
-        .willReturn(Optional.of(firstNavDate));
     given(
             fundNavQueryService.findPublishedNavDatesBetween(
-                TUK75.getCode(), MONTH_END.minusYears(1).plusDays(1), MONTH_END))
-        .willReturn(List.of(firstNavDate, MONTH_END));
+                TUK75.getCode(), TRAILING_YEAR_START, MONTH_END))
+        .willReturn(List.of(FIRST_NAV_DATE_IN_WINDOW, MONTH_END));
     given(
             transactionExecutionRepository.sumCommissionsForFundAndPeriod(
                 eq(TUK75.getCode()), any(), any()))

@@ -71,11 +71,6 @@ public class FundNavQueryService {
     return navReportRepository.findLatestPublishedNavDateOnOrBefore(fundCode, asOfDate);
   }
 
-  // The fund's first published NAV: how much of a trailing year it actually existed for.
-  public Optional<LocalDate> findEarliestPublishedNavDate(String fundCode) {
-    return navReportRepository.findEarliestPublishedNavDate(fundCode);
-  }
-
   public List<LocalDate> findPublishedNavDatesBetween(
       String fundCode, LocalDate from, LocalDate to) {
     return navReportRepository.findPublishedNavDatesBetween(fundCode, from, to);

@@ -10,7 +10,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
-import ee.tuleva.onboarding.auth.role.ChildRepresentations;
 import ee.tuleva.onboarding.config.SecurityConfiguration;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -33,7 +32,6 @@ class WorldMarketBenchmarkControllerTest {
   // Needed by the imported SecurityConfiguration's JwtAuthorizationFilter bean.
   @MockitoBean private JwtTokenUtil jwtTokenUtil;
   @MockitoBean private PrincipalService principalService;
-  @MockitoBean private ChildRepresentations childRepresentations;
 
   @Test
   void servesWorldMarketReturnsAnonymouslyWithPublicCaching() throws Exception {

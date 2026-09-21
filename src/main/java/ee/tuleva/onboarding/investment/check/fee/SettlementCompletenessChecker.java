@@ -169,7 +169,7 @@ class SettlementCompletenessChecker {
           finding(
               fund,
               scope,
-              "settlementTransactionCount",
+              "settlementTransactionCount=" + expectedCount + "/" + actualCount,
               "Expected "
                   + expectedCount
                   + " "

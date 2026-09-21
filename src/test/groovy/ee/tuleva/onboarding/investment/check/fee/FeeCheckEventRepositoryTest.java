@@ -15,11 +15,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
 import org.springframework.data.domain.Limit;
 
 @DataJpaTest
@@ -30,6 +32,7 @@ class FeeCheckEventRepositoryTest {
   private static final Instant BASE_TIME = Instant.parse("2026-06-03T07:00:00Z");
 
   @Autowired FeeCheckEventRepository repository;
+  @Autowired TestEntityManager entityManager;
 
   private int saved = 0;
 
@@ -129,6 +132,32 @@ class FeeCheckEventRepositoryTest {
     repository.saveAndFlush(event);
 
     assertThat(repository.findAll().getFirst().getResult()).isEqualTo(detail);
+  }
+
+  // The notifier reads the fingerprint back out of the jsonb column on every run. If the round trip
+  // returned anything that is not a list, it would fall back to comparing severity alone and go
+  // silent on a standing failure again, with every unit test still green.
+  @Test
+  void theFingerprintSurvivesTheJsonRoundTrip() {
+    var fingerprint = List.of("FAIL 2026-05-04 divergence", "FAIL settlementTransactionCount=1/2");
+    var event = event(FEE_BASE_COMPLETENESS, ALL, null, FAIL);
+    event.setResult(Map.of(FeeCheckEvent.FINGERPRINT, fingerprint));
+
+    repository.saveAndFlush(event);
+    entityManager.clear();
+
+    assertThat(repository.findAll().getFirst().fingerprint())
+        .containsExactlyElementsOf(fingerprint);
+  }
+
+  // Rows written before the fingerprint existed have to stay distinguishable from rows that
+  // reported nothing, or the first run after the deploy announces every standing check at once.
+  @Test
+  void aRowWrittenWithoutAFingerprintHasNoneRatherThanAnEmptyOne() {
+    save(FEE_BASE_COMPLETENESS, ALL, null, FAIL);
+    entityManager.clear();
+
+    assertThat(repository.findAll().getFirst().fingerprint()).isNull();
   }
 
   @Test

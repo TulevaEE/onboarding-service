@@ -80,7 +80,7 @@ class CashSettlementChecker {
           finding(
               fund,
               WARNING,
-              List.of("multiplePaymentsInWindow"),
+              List.of("multiplePaymentsInWindow=" + payments.size()),
               "Found "
                   + payments.size()
                   + " management fee payments in the window for "

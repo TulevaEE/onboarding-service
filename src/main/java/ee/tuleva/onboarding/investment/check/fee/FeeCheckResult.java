@@ -11,6 +11,10 @@ record FeeCheckResult(
     @Nullable LocalDate feeMonth,
     List<FeeCheckFinding> findings) {
 
+  boolean coversAFixedFeeMonth() {
+    return feeMonth != null;
+  }
+
   boolean hasFails() {
     return findings.stream().anyMatch(f -> f.severity() == FeeCheckSeverity.FAIL);
   }

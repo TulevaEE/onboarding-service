@@ -179,6 +179,26 @@ class FeeBaseCompletenessCheckerTest {
     assertThat(finding.message()).contains("DEPOT");
   }
 
+  // The fee type is still not accruing on every later day in the window, so a dated identifier per
+  // day would make the notifier repeat the same standing failure every morning. The stretch is
+  // named once; the message still lists every day it covers.
+  @Test
+  void aFeeTypeThatIsStillNotAccruingTheNextDayNamesTheStretchOnce() {
+    givenAccruals(
+        base(EARLIER_WORKING_DAY, MANAGEMENT, NAV_TOTAL),
+        base(EARLIER_WORKING_DAY, DEPOT, NAV_TOTAL),
+        base(WORKING_DAY, MANAGEMENT, NAV_TOTAL),
+        base(LATER_WORKING_DAY, MANAGEMENT, NAV_TOTAL));
+    givenBothFeeBaseTotalsEqual(EARLIER_WORKING_DAY, NAV_TOTAL);
+
+    var finding = check(TUK75).getFirst();
+
+    assertThat(finding.identifiers())
+        .containsExactly("stopped accruing [DEPOT] since " + WORKING_DAY);
+    assertThat(finding.message())
+        .contains(WORKING_DAY.toString(), LATER_WORKING_DAY.toString(), "2 day(s)");
+  }
+
   // A fee type that is not in use yet legitimately has no rows at all. Every working day then has
   // one fee type and not the other, and none of them may be reported.
   @Test

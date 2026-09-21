@@ -80,9 +80,11 @@ class FeeCheckNotifierTest {
     verifyNoInteractions(notificationService);
   }
 
+  // deviation_amount is nullable, so a check that has never carried an amount reads back as null
+  // and the previous state has to survive it.
   @Test
   void aFailureThatAcquiresADeviationWhereThereWasNoneAlerts() {
-    givenDailyHistory(event(FAIL, "0"), event(FAIL, "0"));
+    givenDailyHistory(event(FAIL, null), event(FAIL, null));
 
     assertThat(notifier.notify(List.of(dailyResult(FAIL, "500")))).isEqualTo(SENT);
   }
@@ -92,10 +94,80 @@ class FeeCheckNotifierTest {
     var divergentDay = finding(FAIL, new BigDecimal("1000"), "2026-06-01 divergence");
     givenDailyHistory(event(FAIL, "1000", divergentDay), event(FAIL, "1000", divergentDay));
 
-    var missingSettlementTransaction = finding(FAIL, null, "settlementTransactionCount");
+    var missingSettlementTransaction = finding(FAIL, null, "settlementTransactionCount=1/2");
 
     assertThat(notifier.notify(List.of(dailyResult(divergentDay, missingSettlementTransaction))))
         .isEqualTo(SENT);
+  }
+
+  // The finding messages of a re-alert at an unchanged severity are the ones the operator read on
+  // the run they already dismissed, so the message has to carry the newly found one.
+  @Test
+  void aReAlertAtAnUnchangedSeverityNamesWhatWasNewlyFound() {
+    var divergentDay = findingSaying("a divergent day nobody has fixed", "2026-06-01 divergence");
+    givenDailyHistory(event(FAIL, "0", divergentDay), event(FAIL, "0", divergentDay));
+    var duplicateSettlement =
+        findingSaying("a second settlement transaction appeared", "settlementTransactionCount=1/2");
+
+    assertThat(notifier.notify(List.of(dailyResult(divergentDay, duplicateSettlement))))
+        .isEqualTo(SENT);
+    verify(notificationService)
+        .sendMessage(contains("a second settlement transaction appeared"), eq(INVESTMENT));
+  }
+
+  @Test
+  void aReAlertNamesTheFingerprintEntryItGained() {
+    var divergentDay = findingSaying("a divergent day nobody has fixed", "2026-06-01 divergence");
+    givenDailyHistory(event(FAIL, "0", divergentDay), event(FAIL, "0", divergentDay));
+    var duplicateSettlement =
+        findingSaying("a second settlement transaction appeared", "settlementTransactionCount=1/2");
+
+    notifier.notify(List.of(dailyResult(divergentDay, duplicateSettlement)));
+
+    verify(notificationService)
+        .sendMessage(contains("settlementTransactionCount=1/2"), eq(INVESTMENT));
+  }
+
+  // A fixed fee month has no rolling window and no fund-wide anchor, so nothing but the money
+  // itself can make its total fall - a settlement shortfall that improved still has to speak.
+  @Test
+  void aMonthlyTotalThatFellIsStillReported() {
+    var shortfall = finding(FAIL, new BigDecimal("500"), "settledAmount");
+    givenMonthlyHistory(JUNE, event(FAIL, "500", shortfall), event(FAIL, "500", shortfall));
+
+    var improved = finding(FAIL, new BigDecimal("100"), "settledAmount");
+
+    assertThat(notifier.notify(List.of(monthlyResult(JUNE, improved)))).isEqualTo(SENT);
+  }
+
+  @Test
+  void aMonthlyTotalThatDidNotMoveStaysSilent() {
+    var shortfall = finding(FAIL, new BigDecimal("500"), "settledAmount");
+    givenMonthlyHistory(JUNE, event(FAIL, "500", shortfall), event(FAIL, "500", shortfall));
+
+    assertThat(notifier.notify(List.of(monthlyResult(JUNE, shortfall))))
+        .isEqualTo(NOTHING_TO_REPORT);
+    verifyNoInteractions(notificationService);
+  }
+
+  // Every row written before this mechanism existed carries no fingerprint at all. Reading those as
+  // "reported nothing" would make the first run after the deploy announce every standing check
+  // across every fund at once.
+  @Test
+  void aPreviousRowFromBeforeFingerprintsExistedDoesNotMakeAStandingCheckSpeakAgain() {
+    givenDailyHistory(eventPredatingFingerprints(FAIL), eventPredatingFingerprints(FAIL));
+
+    var standing = finding(FAIL, new BigDecimal("1000"), "2026-06-01 divergence");
+
+    assertThat(notifier.notify(List.of(dailyResult(standing)))).isEqualTo(NOTHING_TO_REPORT);
+    verifyNoInteractions(notificationService);
+  }
+
+  @Test
+  void aPreviousRowFromBeforeFingerprintsExistedStillReportsASeverityChange() {
+    givenDailyHistory(eventPredatingFingerprints(FAIL), eventPredatingFingerprints(PASS));
+
+    assertThat(notifier.notify(List.of(dailyResult(FAIL)))).isEqualTo(SENT);
   }
 
   @Test
@@ -214,13 +286,22 @@ class FeeCheckNotifierTest {
 
   private void givenMonthlyHistory(
       LocalDate feeMonth, FeeCheckSeverity current, FeeCheckSeverity previous) {
+    givenMonthlyHistory(feeMonth, event(current), event(previous));
+  }
+
+  private void givenMonthlyHistory(
+      LocalDate feeMonth, FeeCheckEvent current, FeeCheckEvent previous) {
     given(
             eventRepository.findLatestDeliveredForFeeMonth(
                 eq(TUK75), eq(LEDGER_ACCRUAL_CONSISTENCY), eq(MANAGEMENT), eq(feeMonth), any()))
-        .willReturn(List.of(event(current), event(previous)));
+        .willReturn(List.of(current, previous));
   }
 
   private FeeCheckEvent event(FeeCheckSeverity severity) {
+    return event(severity, null);
+  }
+
+  private FeeCheckEvent eventPredatingFingerprints(FeeCheckSeverity severity) {
     return FeeCheckEvent.builder().fund(TUK75).severity(severity).build();
   }
 
@@ -229,11 +310,27 @@ class FeeCheckNotifierTest {
   }
 
   private FeeCheckResult monthlyResult(LocalDate feeMonth, FeeCheckSeverity severity) {
-    return new FeeCheckResult(TUK75, CHECK_DATE, feeMonth, List.of(finding(severity)));
+    return monthlyResult(feeMonth, finding(severity));
+  }
+
+  private FeeCheckResult monthlyResult(LocalDate feeMonth, FeeCheckFinding... findings) {
+    return new FeeCheckResult(TUK75, CHECK_DATE, feeMonth, List.of(findings));
   }
 
   private FeeCheckFinding finding(FeeCheckSeverity severity) {
     return finding(severity, null);
+  }
+
+  private FeeCheckFinding findingSaying(String message, String... identifiers) {
+    return new FeeCheckFinding(
+        TUK75,
+        LEDGER_ACCRUAL_CONSISTENCY,
+        MANAGEMENT,
+        FAIL,
+        message,
+        null,
+        List.of(identifiers),
+        Map.of());
   }
 
   private FeeCheckFinding finding(

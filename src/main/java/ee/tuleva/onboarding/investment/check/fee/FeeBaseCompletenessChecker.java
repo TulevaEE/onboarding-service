@@ -29,6 +29,9 @@ import org.springframework.stereotype.Component;
 class FeeBaseCompletenessChecker {
 
   private static final int MAX_DAYS_IN_MESSAGE = 10;
+  private static final String ACCRUED_NOTHING_AT_ALL = "accrued no fee at all";
+  private static final String STOPPED_ACCRUING = "stopped accruing ";
+  private static final String NO_NAV_REPORT = "no nav_report rows to compare the fee base against";
 
   private final FeeAccrualRepository feeAccrualRepository;
   private final ExpectedFeeBases expectedFeeBases;
@@ -48,19 +51,20 @@ class FeeBaseCompletenessChecker {
 
   List<FeeCheckFinding> check(TulevaFund fund, LocalDate from, LocalDate to) {
     var basesByDate = basesByDate(fund, from, to);
+    var workingDays =
+        datesBetweenFirstAndLastAccrual(basesByDate).stream()
+            .filter(publicHolidays::isWorkingDay)
+            .toList();
 
-    var mismatches = new ArrayList<String>();
+    var mismatches = new ArrayList<DatedCondition>();
     var notRunDays = new ArrayList<LocalDate>();
     var totalDeviation = ZERO;
     var feeTypesSeenSoFar = EnumSet.noneOf(FeeType.class);
 
-    for (var date : datesBetweenFirstAndLastAccrual(basesByDate)) {
-      if (!publicHolidays.isWorkingDay(date)) {
-        continue;
-      }
+    for (var date : workingDays) {
       var bases = basesByDate.get(date);
       if (bases == null) {
-        mismatches.add(date + " accrued no fee at all");
+        mismatches.add(new DatedCondition(date, ACCRUED_NOTHING_AT_ALL));
         continue;
       }
       totalDeviation =
@@ -69,10 +73,10 @@ class FeeBaseCompletenessChecker {
     }
 
     if (!mismatches.isEmpty()) {
-      return List.of(failure(fund, mismatches, totalDeviation.abs()));
+      return List.of(failure(fund, mismatches, totalDeviation.abs(), workingDays));
     }
     if (!notRunDays.isEmpty()) {
-      return List.of(notRun(fund, notRunDays));
+      return List.of(notRun(fund, notRunDays, workingDays));
     }
     return List.of(FeeCheckFinding.pass(fund, FEE_BASE_COMPLETENESS, ALL));
   }
@@ -82,12 +86,12 @@ class FeeBaseCompletenessChecker {
       LocalDate date,
       List<FeeBaseValue> bases,
       Set<FeeType> feeTypesSeenSoFar,
-      List<String> mismatches,
+      List<DatedCondition> mismatches,
       List<LocalDate> notRunDays) {
     var stopped = feeTypesThatStoppedAccruing(bases, feeTypesSeenSoFar);
     bases.forEach(base -> feeTypesSeenSoFar.add(base.feeType()));
     if (!stopped.isEmpty()) {
-      mismatches.add(date + " stopped accruing " + stopped);
+      mismatches.add(new DatedCondition(date, STOPPED_ACCRUING + stopped));
       return ZERO;
     }
     var expected = expectedFeeBases.expectedBases(fund, bases, date);
@@ -102,7 +106,7 @@ class FeeBaseCompletenessChecker {
       LocalDate date,
       List<FeeBaseValue> bases,
       Map<FeeType, BigDecimal> expected,
-      List<String> mismatches) {
+      List<DatedCondition> mismatches) {
     var divergent = new TreeMap<String, String>();
     var dayDeviation = ZERO;
     for (var base : bases) {
@@ -124,7 +128,7 @@ class FeeBaseCompletenessChecker {
       dayDeviation = dayDeviation.add(deviation);
     }
     if (!divergent.isEmpty()) {
-      mismatches.add(date + " " + divergent);
+      mismatches.add(new DatedCondition(date, divergent.toString()));
     }
     return dayDeviation;
   }
@@ -154,11 +158,15 @@ class FeeBaseCompletenessChecker {
   }
 
   private FeeCheckFinding failure(
-      TulevaFund fund, List<String> mismatches, BigDecimal totalDeviation) {
-    var shown = mismatches.stream().limit(MAX_DAYS_IN_MESSAGE).toList();
+      TulevaFund fund,
+      List<DatedCondition> mismatches,
+      BigDecimal totalDeviation,
+      List<LocalDate> examinedDays) {
+    var described = mismatches.stream().map(DatedCondition::describe).toList();
+    var shown = described.stream().limit(MAX_DAYS_IN_MESSAGE).toList();
     var suffix =
-        mismatches.size() > MAX_DAYS_IN_MESSAGE
-            ? " ... (" + (mismatches.size() - MAX_DAYS_IN_MESSAGE) + " more)"
+        described.size() > MAX_DAYS_IN_MESSAGE
+            ? " ... (" + (described.size() - MAX_DAYS_IN_MESSAGE) + " more)"
             : "";
     return new FeeCheckFinding(
         fund,
@@ -166,16 +174,17 @@ class FeeBaseCompletenessChecker {
         ALL,
         FeeCheckSeverity.FAIL,
         "Fee base does not match the published NAV components on "
-            + mismatches.size()
+            + described.size()
             + " day(s): "
             + String.join(" · ", shown)
             + suffix,
         totalDeviation,
-        List.copyOf(mismatches),
-        Map.of("mismatches", mismatches, "totalDeviation", totalDeviation.toPlainString()));
+        DatedCondition.stretchIdentifiers(mismatches, examinedDays),
+        Map.of("mismatches", described, "totalDeviation", totalDeviation.toPlainString()));
   }
 
-  private FeeCheckFinding notRun(TulevaFund fund, List<LocalDate> days) {
+  private FeeCheckFinding notRun(
+      TulevaFund fund, List<LocalDate> days, List<LocalDate> examinedDays) {
     var daysWithoutNavReport = days.stream().map(LocalDate::toString).toList();
     return new FeeCheckFinding(
         fund,
@@ -187,7 +196,9 @@ class FeeBaseCompletenessChecker {
             + " working day(s): "
             + days.stream().limit(MAX_DAYS_IN_MESSAGE).map(LocalDate::toString).toList(),
         null,
-        daysWithoutNavReport,
+        DatedCondition.stretchIdentifiers(
+            days.stream().map(day -> new DatedCondition(day, NO_NAV_REPORT)).toList(),
+            examinedDays),
         Map.of("daysWithoutNavReport", daysWithoutNavReport));
   }
 }

@@ -21,6 +21,8 @@ import org.springframework.stereotype.Component;
 class CustodianCompletenessChecker {
 
   private static final int MAX_DAYS_IN_MESSAGE = 10;
+  private static final String NO_NAV_REPORT =
+      "no nav_report rows to compare the custodian positions against";
 
   private final FundPositionRepository fundPositionRepository;
   private final CustodianPositionComparator comparator;
@@ -79,7 +81,11 @@ class CustodianCompletenessChecker {
                   .limit(MAX_DAYS_IN_MESSAGE)
                   .map(LocalDate::toString)
                   .toList(),
-          notComparedDates.stream().map(LocalDate::toString).toList());
+          DatedCondition.stretchIdentifiers(
+              notComparedDates.stream()
+                  .map(date -> new DatedCondition(date, NO_NAV_REPORT))
+                  .toList(),
+              navDates));
     }
     return List.of(FeeCheckFinding.pass(fund, CUSTODIAN_POSITION_COMPLETENESS, ALL));
   }
@@ -178,7 +184,7 @@ class CustodianCompletenessChecker {
             totalDeviation.toPlainString()));
   }
 
-  private List<FeeCheckFinding> notRun(TulevaFund fund, String message, List<String> blindDates) {
+  private List<FeeCheckFinding> notRun(TulevaFund fund, String message, List<String> identifiers) {
     return List.of(
         new FeeCheckFinding(
             fund,
@@ -187,7 +193,7 @@ class CustodianCompletenessChecker {
             FeeCheckSeverity.NOT_RUN,
             message,
             null,
-            blindDates,
+            identifiers,
             Map.of()));
   }
 }

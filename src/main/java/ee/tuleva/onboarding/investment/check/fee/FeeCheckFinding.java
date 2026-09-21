@@ -45,6 +45,10 @@ record FeeCheckFinding(
         .toList();
   }
 
+  boolean carriesAnyOf(List<String> taggedIdentifiers) {
+    return severityTaggedIdentifiers().anyMatch(taggedIdentifiers::contains);
+  }
+
   private Stream<String> severityTaggedIdentifiers() {
     return identifiers.stream().map(identifier -> severity + " " + identifier);
   }

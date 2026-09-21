@@ -27,6 +27,8 @@ class FeeCheckNotifier {
 
   private static final Limit PREVIOUS_AND_CURRENT = Limit.of(2);
 
+  private static final int MAX_GAINED_IN_MESSAGE = 5;
+
   private static final Map<FeeCheckSeverity, String> EMOJI =
       Map.of(FAIL, "🛑", WARNING, "⚠️", NOT_RUN, "⏸", INFO, "ℹ️", PASS, "✅");
 
@@ -58,17 +60,35 @@ class FeeCheckNotifier {
           }
           var current = state(findings);
           var previous = previousState(result, checkType, scope);
-          if (current.sameSeverityAs(previous)
-              && !current.gainedAFindingSince(previous)
-              && !current.deviationGrewSince(previous)) {
+          if (!hasSomethingNewToSay(current, previous, result)) {
             continue;
           }
+          var gained =
+              current.sameSeverityAs(previous) ? current.gainedSince(previous) : List.<String>of();
           transitions.add(
-              new Transition(result, checkType, scope, current.severity(), firstMessage(findings)));
+              new Transition(
+                  result, checkType, scope, current.severity(), message(findings, gained)));
         }
       }
     }
     return transitions;
+  }
+
+  // A monthly leg is keyed on a fixed fee month: nothing rolls out of view, so a total that fell is
+  // the money itself moving and has to speak. Only the daily legs sum over a window that moves on
+  // its own, where a smaller total can mean no more than the oldest day leaving the window.
+  private boolean hasSomethingNewToSay(
+      CheckState current, CheckState previous, FeeCheckResult result) {
+    if (!current.sameSeverityAs(previous)) {
+      return true;
+    }
+    if (previous.predatesTheFingerprint()) {
+      return false;
+    }
+    return !current.gainedSince(previous).isEmpty()
+        || (result.coversAFixedFeeMonth()
+            ? current.totalDiffersFrom(previous)
+            : current.totalGrewSince(previous));
   }
 
   private List<FeeCheckFinding> findingsOf(
@@ -94,12 +114,13 @@ class FeeCheckNotifier {
   // FAIL, and from then on every later FAIL is "no change" and never reaches anyone.
   private CheckState previousState(
       FeeCheckResult result, FeeCheckType checkType, FeeCheckScope scope) {
+    var feeMonth = result.feeMonth();
     var rows =
-        result.feeMonth() == null
+        feeMonth == null
             ? eventRepository.findLatestDelivered(
                 result.fund(), checkType, scope, PREVIOUS_AND_CURRENT)
             : eventRepository.findLatestDeliveredForFeeMonth(
-                result.fund(), checkType, scope, result.feeMonth(), PREVIOUS_AND_CURRENT);
+                result.fund(), checkType, scope, feeMonth, PREVIOUS_AND_CURRENT);
     if (rows.size() < 2) {
       return new CheckState(PASS, List.of(), BigDecimal.ZERO);
     }
@@ -112,23 +133,61 @@ class FeeCheckNotifier {
         deviation != null ? deviation : BigDecimal.ZERO);
   }
 
-  // The daily checks sum over a window that moves on its own, so a total alone cannot tell a check
-  // that found something new from one whose oldest day rolled out of view. Only what the check
-  // gained speaks: a finding it was not already reporting, or a divergence that grew.
+  // What a run reported: the worst severity, the set of findings behind it, and what they add up
+  // to. Severity alone goes blind on a standing failure, and a total alone cannot tell a check that
+  // found something new from one whose oldest day rolled out of view.
   private record CheckState(
-      FeeCheckSeverity severity, List<String> fingerprint, BigDecimal totalDeviation) {
+      FeeCheckSeverity severity, @Nullable List<String> fingerprint, BigDecimal totalDeviation) {
 
     boolean sameSeverityAs(CheckState other) {
       return severity == other.severity;
     }
 
-    boolean gainedAFindingSince(CheckState previous) {
-      return !previous.fingerprint.containsAll(fingerprint);
+    boolean predatesTheFingerprint() {
+      return fingerprint == null;
     }
 
-    boolean deviationGrewSince(CheckState previous) {
+    List<String> gainedSince(CheckState previous) {
+      var alreadyReported = previous.fingerprint;
+      var reporting = fingerprint;
+      if (alreadyReported == null || reporting == null) {
+        return List.of();
+      }
+      return reporting.stream().filter(entry -> !alreadyReported.contains(entry)).toList();
+    }
+
+    boolean totalGrewSince(CheckState previous) {
       return totalDeviation.compareTo(previous.totalDeviation) > 0;
     }
+
+    boolean totalDiffersFrom(CheckState previous) {
+      return totalDeviation.compareTo(previous.totalDeviation) != 0;
+    }
+  }
+
+  // At an unchanged severity the finding messages read exactly as they did on the run the operator
+  // has already seen, so a re-alert has to name what the check has newly found - and say it in the
+  // words of the finding that carries it, not of whichever finding happens to come first.
+  private String message(List<FeeCheckFinding> findings, List<String> gained) {
+    if (gained.isEmpty()) {
+      return firstMessage(findings);
+    }
+    var carried = firstMessage(findingsCarrying(findings, gained));
+    return newlyFound(gained) + (carried.isBlank() ? "" : " · " + carried);
+  }
+
+  private String newlyFound(List<String> gained) {
+    var shown = gained.stream().limit(MAX_GAINED_IN_MESSAGE).toList();
+    var suffix =
+        gained.size() > MAX_GAINED_IN_MESSAGE
+            ? " ... (" + (gained.size() - MAX_GAINED_IN_MESSAGE) + " more)"
+            : "";
+    return "New since the last alert: " + String.join(" · ", shown) + suffix;
+  }
+
+  private List<FeeCheckFinding> findingsCarrying(
+      List<FeeCheckFinding> findings, List<String> gained) {
+    return findings.stream().filter(finding -> finding.carriesAnyOf(gained)).toList();
   }
 
   private String firstMessage(List<FeeCheckFinding> findings) {

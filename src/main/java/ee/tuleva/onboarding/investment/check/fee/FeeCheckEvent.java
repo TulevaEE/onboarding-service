@@ -78,12 +78,13 @@ class FeeCheckEvent {
 
   private @Nullable Instant createdAt;
 
-  // Rows written before the notifier compared finding sets have no fingerprint, so they read as an
-  // empty set and the first run after them announces whatever those checks are still reporting.
-  List<String> fingerprint() {
+  // A row written before the notifier compared finding sets carries no fingerprint at all, which is
+  // not the same as one that reported nothing: null lets the run after the deploy fall back to
+  // comparing severity alone instead of announcing every check that is still reporting something.
+  @Nullable List<String> fingerprint() {
     return result.get(FINGERPRINT) instanceof List<?> stored
         ? stored.stream().map(String::valueOf).toList()
-        : List.of();
+        : null;
   }
 
   @PrePersist

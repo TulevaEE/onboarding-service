@@ -1,13 +1,17 @@
 package ee.tuleva.onboarding.banking.processor;
 
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.HOLD;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.STATEMENT_UNPROCESSABLE;
 import static ee.tuleva.onboarding.banking.message.BankMessageType.PAYMENT_ORDER_CONFIRMATION;
 
+import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankMessagesProcessingCompleted;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.BankStatementReceived;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.ProcessBankMessagesRequested;
 import ee.tuleva.onboarding.banking.message.BankMessageType;
 import ee.tuleva.onboarding.banking.message.BankingMessage;
 import ee.tuleva.onboarding.banking.message.BankingMessageRepository;
+import ee.tuleva.onboarding.banking.payment.PaymentStatusReportHandler;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatementExtractor;
 import java.io.StringReader;
@@ -28,9 +32,10 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class BankMessageDelegator {
-
   private final Clock clock;
   private final BankingMessageRepository bankingMessageRepository;
+  private final PaymentStatusReportHandler paymentStatusReportHandler;
+  private final PaymentCheckService paymentCheckService;
   private final BankStatementExtractor bankStatementExtractor;
   private final ApplicationEventPublisher eventPublisher;
 
@@ -55,10 +60,7 @@ public class BankMessageDelegator {
       message.setMessageType(messageType);
 
       if (messageType == PAYMENT_ORDER_CONFIRMATION) {
-        log.info(
-            "Payment order confirmation received: messageId={}, bankType={}",
-            message.getId(),
-            message.getBankType());
+        paymentStatusReportHandler.handle(message.getRawResponse());
       } else {
         var bankStatement =
             extractBankStatement(message.getRawResponse(), messageType, message.getTimezoneId());
@@ -74,6 +76,11 @@ public class BankMessageDelegator {
       bankingMessageRepository.save(message);
     } catch (Exception e) {
       log.error("Failed to process message: messageId={}", message.getId(), e);
+      paymentCheckService.record(
+          STATEMENT_UNPROCESSABLE,
+          HOLD,
+          String.valueOf(message.getId()),
+          "a bank message could not be processed: " + e.getClass().getSimpleName());
       message.setFailedAt(clock.instant());
       bankingMessageRepository.save(message);
     }

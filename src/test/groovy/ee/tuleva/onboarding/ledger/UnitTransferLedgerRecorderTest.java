@@ -29,6 +29,7 @@ import org.springframework.context.annotation.Import;
   LedgerAccountService.class,
   LedgerPartyService.class,
   LedgerTransactionService.class,
+  UserUnitBalanceGuard.class,
   SavingsFundLedgerAccounts.class,
   RedemptionLedgerRecorder.class,
   UnattributedPaymentLedgerRecorder.class,

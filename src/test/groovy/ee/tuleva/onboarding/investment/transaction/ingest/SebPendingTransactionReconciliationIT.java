@@ -428,6 +428,52 @@ class SebPendingTransactionReconciliationIT {
   }
 
   @Test
+  void reconcile_fundRedemptionRoundedBySeb_auditEventKeepsSebReportedQuantity() {
+    UUID redemptionRef = UUID.randomUUID();
+    TransactionBatch batch =
+        batchRepository.save(TransactionBatch.builder().fund(TKF100).createdBy("test").build());
+    TransactionOrder redemption =
+        orderRepository.save(
+            TransactionOrder.builder()
+                .batch(batch)
+                .fund(TKF100)
+                .instrumentIsin("IE0009FT4LX4")
+                .transactionType(SELL)
+                .instrumentType(FUND)
+                .orderQuantity(new BigDecimal("18811874.096"))
+                .orderVenue(OrderVenue.SEB)
+                .orderUuid(redemptionRef)
+                .orderStatus(SENT)
+                .build());
+
+    InvestmentReport redemptionReport =
+        reportRepository.save(
+            InvestmentReport.builder()
+                .provider(SEB)
+                .reportType(PENDING_TRANSACTIONS)
+                .reportDate(LocalDate.of(2026, 8, 26))
+                .rawData(List.of(redemptionRow(redemptionRef, "DLA1116935", "18811874.1")))
+                .metadata(Map.of("source", "fixture", "asOfDate", "2026-08-26"))
+                .createdAt(Instant.now())
+                .build());
+
+    reconciliationService.reconcile(redemptionReport);
+    entityManager.flush();
+    entityManager.clear();
+
+    Map<String, Object> payload =
+        auditEventRepository
+            .findByOrderIdAndEventType(redemption.getId(), "EXECUTION_MATCHED")
+            .getFirst()
+            .getPayload();
+    assertThat(new BigDecimal(payload.get("sebReportedQuantity").toString()))
+        .isEqualByComparingTo("18811874.1");
+    assertThat(new BigDecimal(payload.get("quantity").toString()))
+        .isEqualByComparingTo("18811874.096");
+    assertThat(payload.get("quantitySubstitutionReason")).isEqualTo("SEB_REPORTED_PRECISION");
+  }
+
+  @Test
   void reconcile_fundRedemptionGenuinelyOverfilled_stillRaisesMismatch(ApplicationEvents events) {
     UUID redemptionRef = UUID.randomUUID();
     TransactionBatch batch =

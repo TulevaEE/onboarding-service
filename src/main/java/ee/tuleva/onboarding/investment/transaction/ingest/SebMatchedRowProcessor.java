@@ -5,11 +5,13 @@ import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepositor
 import ee.tuleva.onboarding.investment.transaction.TransactionOrder;
 import ee.tuleva.onboarding.investment.transaction.TransactionSettlement;
 import ee.tuleva.onboarding.investment.transaction.TransactionSettlementRepository;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
@@ -59,11 +61,22 @@ class SebMatchedRowProcessor {
       reportMismatch(mismatch.get().withReportDate(reportDate), normalizedRow);
       return RowOutcome.MATCHED;
     }
-    if (executionUpserter.upsert(normalizedRow, order, reportDate, asOfDate)) {
+    BigDecimal reportedQuantity = substitutedReportedQuantity(row, normalizedRow);
+    if (executionUpserter.upsert(normalizedRow, order, reportDate, asOfDate, reportedQuantity)) {
       checkPriceConsistency(order, reportDate, matchingProperties);
       return RowOutcome.MATCHED;
     }
     return RowOutcome.SKIPPED;
+  }
+
+  private static @Nullable BigDecimal substitutedReportedQuantity(
+      SebPendingTransactionRow reportedRow, SebPendingTransactionRow normalizedRow) {
+    BigDecimal reported = reportedRow.quantity();
+    BigDecimal stored = normalizedRow.quantity();
+    if (reported == null || stored == null || stored.compareTo(reported) == 0) {
+      return null;
+    }
+    return reported;
   }
 
   private void checkPriceConsistency(

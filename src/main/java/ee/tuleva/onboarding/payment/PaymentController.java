@@ -67,9 +67,9 @@ public class PaymentController {
   public RedirectView getSavingsPaymentReturnRedirect(
       @RequestParam("order-token") String serializedToken) {
     log.info("Processing savings payment return redirect");
-    boolean paid = paymentService.processSavingsPaymentToken(serializedToken);
+    var outcome = paymentService.processSavingsPaymentToken(serializedToken);
 
-    return paid
+    return outcome.paid()
         ? new RedirectView(frontendUrl + "/savings-fund/payment/success")
         : new RedirectView(frontendUrl + "/savings-fund/payment");
   }

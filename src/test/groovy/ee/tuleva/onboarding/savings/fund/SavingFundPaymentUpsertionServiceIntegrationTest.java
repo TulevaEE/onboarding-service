@@ -757,7 +757,7 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
     void paidTokenWithoutSenderDetailsIsRecordedReceiptedOnceAndEnrichedByTheStatement() {
       var recorded = savingsCallbackService.processToken(tokenWithoutSenderDetails());
 
-      assertThat(recorded).isTrue();
+      assertThat(recorded.paid()).isTrue();
       var payments = repository.findRecentPayments(description);
       assertThat(payments).hasSize(1);
       var payment = payments.getFirst();
@@ -811,8 +811,8 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
       var acceptedFirst = savingsCallbackService.processToken(token);
       var acceptedAgain = savingsCallbackService.processToken(token);
 
-      assertThat(acceptedFirst).isTrue();
-      assertThat(acceptedAgain).isTrue();
+      assertThat(acceptedFirst.paid()).isTrue();
+      assertThat(acceptedAgain.paid()).isTrue();
       assertThat(repository.findRecentPayments(description)).hasSize(1);
       assertThat(receiptEvents()).hasSize(1);
     }
@@ -823,7 +823,7 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
 
       var accepted = savingsCallbackService.processToken(tokenWithoutSenderDetails());
 
-      assertThat(accepted).isTrue();
+      assertThat(accepted.paid()).isTrue();
       assertThat(repository.findRecentPayments(description)).hasSize(1);
       assertThat(receiptEvents()).isEmpty();
     }

@@ -31,7 +31,8 @@ class PaymentControllerSecurityTest {
 
   @Test
   void savingsPaymentWebhookIsAcceptedWithoutAuthentication() throws Exception {
-    given(paymentService.processSavingsPaymentToken(ORDER_TOKEN)).willReturn(true);
+    given(paymentService.processSavingsPaymentToken(ORDER_TOKEN))
+        .willReturn(new SavingsPaymentOutcome(true, null));
 
     mvc.perform(
             post("/v1/payments/savings/notifications")

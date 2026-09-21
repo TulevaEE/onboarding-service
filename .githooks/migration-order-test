@@ -3,11 +3,15 @@
 # carries V1_1 and V1_2, then branches that add migrations on top of it.
 #
 # A check that lets a bad version through costs a blocked deploy, and one that
-# cries wolf gets bypassed — so both directions are pinned here.
+# cries wolf gets bypassed — so both directions are pinned here, and the last
+# cases drive pre-push, where how hard a complaint lands decides whether the
+# whole hook gets bypassed.
 
 set -uo pipefail
 
-HOOK="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/migration-order"
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HOOK="$HOOK_DIR/migration-order"
+PRE_PUSH="$HOOK_DIR/pre-push"
 MIGRATION_DIR=src/main/resources/db/migration
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
@@ -61,6 +65,55 @@ check "version below master"                1 V1_1__clash.sql
 check "gap above master"                    1 V1_5__gap.sql
 check "gap between two added versions"      1 V1_3__new.sql V1_5__gap.sql
 check "same version claimed twice"          1 V1_3__new.sql V1_3__other.sql
+
+# How pre-push weighs this checker is part of the checker's contract. Git has a
+# single --no-verify for the whole hook, so a numbering complaint that blocked
+# the push would also be a reason to switch off pii-scan beside it — and on a
+# public repository that scan is the only one that cannot be caught afterwards.
+#
+# The throwaway repository carries no .githooks/pii-idcode-allow, so pre-push
+# exports an empty allowlist and the code below reads as a finding there. It may
+# stand in this file because this repository's own allowlist carries it.
+PII_FIXTURE_ID_CODE=38812121215
+
+# push_check <description> <expected exit> <expected output> <migration|-> <id code|->
+push_check() {
+  local description=$1 expected=$2 expected_output=$3 migration=$4 idcode=$5
+  setup_repo
+  git checkout --quiet -b feature
+  [ "$migration" != - ] && echo "select 1;" >"$MIGRATION_DIR/$migration"
+  [ "$idcode" != - ] && printf 'String owner = "%s";\n' "$idcode" >Fixture.java
+  git add -A && git commit --quiet -m feature >/dev/null 2>&1
+  local output actual
+  output=$(printf 'refs/heads/feature %s refs/heads/feature %s\n' \
+    "$(git rev-parse HEAD)" "$(git rev-parse base-master)" |
+    MIGRATION_ORDER_BASE=base-master "$PRE_PUSH" origin "$TMP/remote" 2>&1)
+  actual=$?
+  if [ "$actual" -ne "$expected" ]; then
+    failed=$((failed + 1))
+    echo "FAIL: $description (expected exit $expected, got $actual)"
+    echo "$output" | sed 's/^/      /'
+    return
+  fi
+  if [ "$expected_output" != - ] && ! printf '%s' "$output" | grep -qF "$expected_output"; then
+    failed=$((failed + 1))
+    echo "FAIL: $description (output does not mention: $expected_output)"
+    echo "$output" | sed 's/^/      /'
+    return
+  fi
+  passed=$((passed + 1))
+}
+
+push_check "pre-push lets a clean branch through" \
+  0 -                        -             -
+push_check "pre-push warns about numbering instead of blocking" \
+  0 "Not blocking the push"  V1_5__gap.sql -
+push_check "pre-push names the migration it warns about" \
+  0 "V1_2__clash.sql"        V1_2__clash.sql -
+push_check "pre-push blocks personal data" \
+  1 "Push aborted"           -             "$PII_FIXTURE_ID_CODE"
+push_check "pre-push blocks personal data beside a numbering warning" \
+  1 "Push aborted"           V1_5__gap.sql "$PII_FIXTURE_ID_CODE"
 
 echo ""
 if [ "$failed" -eq 0 ]; then

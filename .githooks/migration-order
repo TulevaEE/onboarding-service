@@ -17,7 +17,10 @@
 
 set -uo pipefail
 
-MIGRATION_DIR=src/main/resources/db/migration
+# Flyway loads SQL and Java migrations off one version sequence, so a check that
+# reads only one of the two directories cannot see a collision between them —
+# listing the SQL directory alone is how V1_275 was taken twice.
+MIGRATION_DIRS=(src/main/resources/db/migration src/main/java/db/migration)
 BASE_REF=${MIGRATION_ORDER_BASE:-origin/master}
 HEAD_REF=${1:-HEAD}
 
@@ -34,7 +37,7 @@ fi
 # "V1_270_1__name.sql" -> "270 1 V1_270_1__name.sql"  (the H2 compat migration
 # sits between 270 and 271, so it sorts on the same integer).
 migrations_of() {
-  git ls-tree -r --name-only "$1" -- "$MIGRATION_DIR" 2>/dev/null | awk '
+  git ls-tree -r --name-only "$1" -- "${MIGRATION_DIRS[@]}" 2>/dev/null | awk '
     {
       name = $0
       sub(/^.*\//, "", name)
@@ -80,6 +83,15 @@ report() {
   echo "   $1"
 }
 
+# A gap above master's highest version is house style, not a Flyway failure:
+# 1.278 and 1.280 apply in order whether or not 1.279 ever exists. Failing on it
+# would make two open PRs unable to hold distinct numbers — the branch that took
+# the higher one is correct, and is exactly the case this check would block.
+advise() {
+  echo ""
+  echo "⚠️  Migration version numbering: $1"
+}
+
 # Nothing may land at or below what master already deployed.
 while read -r version compat name; do
   if [ "$(sort_key "$version" "$compat")" -le "$base_max_key" ]; then
@@ -99,7 +111,7 @@ done
 expected=$((base_max + 1))
 for version in $(printf '%s\n' "$added" | awk 'NF && $2 == 0 && $1 > '"$base_max"' {print $1}' | sort -n -u); do
   if [ "$version" -ne "$expected" ]; then
-    report "V1_$version leaves a gap — the next free version above V1_$base_max is V1_$expected."
+    advise "V1_$version leaves a gap — the lowest free version above V1_$base_max is V1_$expected. Fine if another open PR holds the ones between."
     break
   fi
   expected=$((version + 1))

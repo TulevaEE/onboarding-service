@@ -64,7 +64,7 @@ class FeeCheckNotifier {
             continue;
           }
           var gained =
-              current.sameSeverityAs(previous) ? current.gainedSince(previous) : List.<String>of();
+              sameSeverity(current, previous) ? gainedSince(current, previous) : List.<String>of();
           transitions.add(
               new Transition(
                   result, checkType, scope, current.severity(), message(findings, gained)));
@@ -79,16 +79,41 @@ class FeeCheckNotifier {
   // its own, where a smaller total can mean no more than the oldest day leaving the window.
   private boolean hasSomethingNewToSay(
       CheckState current, CheckState previous, FeeCheckResult result) {
-    if (!current.sameSeverityAs(previous)) {
+    if (!sameSeverity(current, previous)) {
       return true;
     }
-    if (previous.predatesTheFingerprint()) {
+    if (predatesTheFingerprint(previous)) {
       return false;
     }
-    return !current.gainedSince(previous).isEmpty()
-        || (result.coversAFixedFeeMonth()
-            ? current.totalDiffersFrom(previous)
-            : current.totalGrewSince(previous));
+    return !gainedSince(current, previous).isEmpty()
+        || (result.feeMonth() != null
+            ? totalDiffers(current, previous)
+            : totalGrew(current, previous));
+  }
+
+  private static boolean sameSeverity(CheckState current, CheckState previous) {
+    return current.severity() == previous.severity();
+  }
+
+  private static boolean predatesTheFingerprint(CheckState state) {
+    return state.fingerprint() == null;
+  }
+
+  private static List<String> gainedSince(CheckState current, CheckState previous) {
+    var alreadyReported = previous.fingerprint();
+    var reporting = current.fingerprint();
+    if (alreadyReported == null || reporting == null) {
+      return List.of();
+    }
+    return reporting.stream().filter(entry -> !alreadyReported.contains(entry)).toList();
+  }
+
+  private static boolean totalGrew(CheckState current, CheckState previous) {
+    return current.totalDeviation().compareTo(previous.totalDeviation()) > 0;
+  }
+
+  private static boolean totalDiffers(CheckState current, CheckState previous) {
+    return current.totalDeviation().compareTo(previous.totalDeviation()) != 0;
   }
 
   private List<FeeCheckFinding> findingsOf(
@@ -137,33 +162,7 @@ class FeeCheckNotifier {
   // to. Severity alone goes blind on a standing failure, and a total alone cannot tell a check that
   // found something new from one whose oldest day rolled out of view.
   private record CheckState(
-      FeeCheckSeverity severity, @Nullable List<String> fingerprint, BigDecimal totalDeviation) {
-
-    boolean sameSeverityAs(CheckState other) {
-      return severity == other.severity;
-    }
-
-    boolean predatesTheFingerprint() {
-      return fingerprint == null;
-    }
-
-    List<String> gainedSince(CheckState previous) {
-      var alreadyReported = previous.fingerprint;
-      var reporting = fingerprint;
-      if (alreadyReported == null || reporting == null) {
-        return List.of();
-      }
-      return reporting.stream().filter(entry -> !alreadyReported.contains(entry)).toList();
-    }
-
-    boolean totalGrewSince(CheckState previous) {
-      return totalDeviation.compareTo(previous.totalDeviation) > 0;
-    }
-
-    boolean totalDiffersFrom(CheckState previous) {
-      return totalDeviation.compareTo(previous.totalDeviation) != 0;
-    }
-  }
+      FeeCheckSeverity severity, @Nullable List<String> fingerprint, BigDecimal totalDeviation) {}
 
   // At an unchanged severity the finding messages read exactly as they did on the run the operator
   // has already seen, so a re-alert has to name what the check has newly found - and say it in the

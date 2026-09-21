@@ -150,6 +150,11 @@ public class OcfSnapshotRepository {
     }
     var incomplete = incompleteWorkingVersion(fundCode, snapshotMonth);
     if (incomplete.isPresent()) {
+      log.warn(
+          "Refused to publish an incomplete OCF snapshot: fund={}, month={}, checks={}",
+          fundCode,
+          snapshotMonth,
+          incomplete.get().checks());
       throw new IncompleteOcfSnapshotException(incomplete.get());
     }
     return nothingToPublish(fundCode, snapshotMonth);

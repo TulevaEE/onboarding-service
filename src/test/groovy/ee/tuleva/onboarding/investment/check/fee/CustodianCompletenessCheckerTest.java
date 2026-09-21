@@ -151,9 +151,7 @@ class CustodianCompletenessCheckerTest {
 
     assertThat(finding.severity()).isEqualTo(NOT_RUN);
     assertThat(finding.identifiers())
-        .containsExactly(
-            "no nav_report rows to compare the custodian positions against since "
-                + EARLIER_POSITION_DATE);
+        .containsExactly("no nav_report rows to compare the custodian positions against ongoing");
   }
 
   // The window is 35 days wide, so only comparing the single latest position date in it meant a

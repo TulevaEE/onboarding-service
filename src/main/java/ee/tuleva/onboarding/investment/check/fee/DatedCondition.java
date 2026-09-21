@@ -10,6 +10,8 @@ record DatedCondition(LocalDate date, String description) {
 
   private static final int OUTSIDE_THE_EXAMINED_DAYS = -1;
 
+  private static final int FIRST_EXAMINED_DAY = 0;
+
   String describe() {
     return date + " " + description;
   }
@@ -28,10 +30,20 @@ record DatedCondition(LocalDate date, String description) {
       var at = position.getOrDefault(occurrence.date(), OUTSIDE_THE_EXAMINED_DAYS);
       var previous = positionOfPreviousOccurrence.put(occurrence.description(), at);
       if (previous == null || at != previous + 1) {
-        identifiers.add(occurrence.description() + " since " + occurrence.date());
+        identifiers.add(identify(occurrence, at));
       }
     }
     return List.copyOf(identifiers);
+  }
+
+  // A stretch reaching the oldest day the check still examines may have begun before it, so dating
+  // it to that day would re-date it every morning as the lookback rolls forward - a new identifier
+  // each day, and the daily alert the stretch rule exists to prevent. Only a stretch that starts
+  // inside the window has a start worth naming.
+  private static String identify(DatedCondition occurrence, int at) {
+    return at <= FIRST_EXAMINED_DAY
+        ? occurrence.description() + " ongoing"
+        : occurrence.description() + " since " + occurrence.date();
   }
 
   private static Map<LocalDate, Integer> positionsOf(List<LocalDate> examinedDays) {

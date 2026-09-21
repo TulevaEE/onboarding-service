@@ -106,14 +106,22 @@ public class DepotFeeCalculator implements FeeCalculator {
   }
 
   private Optional<BigDecimal> publishedAssetsAtAnchor(TulevaFund fund, LocalDate anchor) {
-    Optional<LocalDate> navDate =
-        fundNavQueryService.findLatestNavDateOnOrBefore(fund.getCode(), anchor);
-    if (navDate.isEmpty()) {
+    if (hasNotLaunchedBy(fund, anchor)) {
       return Optional.of(ZERO);
     }
     return fundNavQueryService
-        .findAssetTotal(fund.getCode(), navDate.get())
-        .map(assets -> assets.add(savingsFundBlackrockAdjustment(fund, navDate.get())));
+        .findLatestPublishedNavDateOnOrBefore(fund.getCode(), anchor)
+        .flatMap(navDate -> publishedAssetsOn(fund, navDate));
+  }
+
+  private boolean hasNotLaunchedBy(TulevaFund fund, LocalDate anchor) {
+    return fundNavQueryService.findLatestNavDateOnOrBefore(fund.getCode(), anchor).isEmpty();
+  }
+
+  private Optional<BigDecimal> publishedAssetsOn(TulevaFund fund, LocalDate navDate) {
+    return fundNavQueryService
+        .findAssetTotal(fund.getCode(), navDate)
+        .map(assets -> assets.add(savingsFundBlackrockAdjustment(fund, navDate)));
   }
 
   private BigDecimal savingsFundBlackrockAdjustment(TulevaFund fund, LocalDate navDate) {

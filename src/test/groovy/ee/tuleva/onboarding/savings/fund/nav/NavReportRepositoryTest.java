@@ -316,6 +316,28 @@ class NavReportRepositoryTest {
         .isEqualByComparingTo("1.5000");
   }
 
+  @Test
+  void findLatestPublishedNavDateByFundOnOrBefore_skipsADateWhoseCalculationNeverWentOut() {
+    var monthEnd = LocalDate.of(2026, 5, 29);
+    var dayBefore = monthEnd.minusDays(1);
+    var publishedCalculation = UUID.randomUUID();
+    navReportRepository.save(navRow(dayBefore, publishedCalculation, "1.40000000", null));
+    navReportRepository.markAsPublished(publishedCalculation);
+    navReportRepository.save(navRow(monthEnd, UUID.randomUUID(), "1.41000000", null));
+
+    assertThat(navReportRepository.findLatestPublishedNavDateByFundOnOrBefore("TKF100", monthEnd))
+        .hasValue(dayBefore);
+  }
+
+  @Test
+  void findLatestPublishedNavDateByFundOnOrBefore_isEmptyWhenNothingWasEverPublished() {
+    var monthEnd = LocalDate.of(2026, 5, 29);
+    navReportRepository.save(navRow(monthEnd, UUID.randomUUID(), "1.41000000", null));
+
+    assertThat(navReportRepository.findLatestPublishedNavDateByFundOnOrBefore("TKF100", monthEnd))
+        .isEmpty();
+  }
+
   private static NavReportRow componentRow(
       LocalDate navDate, UUID calculationId, String accountType, String marketValue) {
     return componentRow(navDate, calculationId, accountType, marketValue, null);

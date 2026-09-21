@@ -43,6 +43,12 @@ public class FundNavQueryService {
         fundCode, NAV_ACCOUNT_TYPE, asOfDate);
   }
 
+  // The anchor for a reader of published sums: the newest date whose calculation actually went out.
+  public Optional<LocalDate> findLatestPublishedNavDateOnOrBefore(
+      String fundCode, LocalDate asOfDate) {
+    return navReportRepository.findLatestPublishedNavDateByFundOnOrBefore(fundCode, asOfDate);
+  }
+
   public BigDecimal findAum(String fundCode, LocalDate navDate) {
     return navReportRepository.sumPublishedMarketValueByAccountType(fundCode, navDate, "UNITS");
   }

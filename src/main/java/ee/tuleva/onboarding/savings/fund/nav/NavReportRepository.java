@@ -62,6 +62,20 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
       @Param("accountType") String accountType,
       @Param("asOfDate") LocalDate asOfDate);
 
+  // The newest date a published sum can be read at. A date holding a calculation that never went
+  // out is not one, so a reader that only sees published numbers falls back to the date that did.
+  @Query(
+      value =
+          """
+          SELECT MAX(nav_date) FROM nav_report
+          WHERE fund_code = :fundCode
+            AND nav_date <= :asOfDate
+            AND published_at IS NOT NULL
+          """,
+      nativeQuery = true)
+  Optional<LocalDate> findLatestPublishedNavDateByFundOnOrBefore(
+      @Param("fundCode") String fundCode, @Param("asOfDate") LocalDate asOfDate);
+
   @Query(
       value =
           """

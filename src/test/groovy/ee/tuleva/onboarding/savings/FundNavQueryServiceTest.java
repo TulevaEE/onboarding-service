@@ -91,4 +91,14 @@ class FundNavQueryServiceTest {
 
     assertThat(result).hasValue(NAV_DATE.minusDays(1));
   }
+
+  @Test
+  void findLatestPublishedNavDateOnOrBefore_delegatesToTheRepositorysPublishedLookup() {
+    given(navReportRepository.findLatestPublishedNavDateByFundOnOrBefore("TUK00", NAV_DATE))
+        .willReturn(Optional.of(NAV_DATE.minusDays(3)));
+
+    var result = service.findLatestPublishedNavDateOnOrBefore("TUK00", NAV_DATE);
+
+    assertThat(result).hasValue(NAV_DATE.minusDays(3));
+  }
 }

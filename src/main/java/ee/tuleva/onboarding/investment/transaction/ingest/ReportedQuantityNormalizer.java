@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 class ReportedQuantityNormalizer {
 
   private static final MathContext SEB_REPORTED_PRECISION = new MathContext(10);
+  private static final BigDecimal HALF = new BigDecimal("0.5");
 
   SebPendingTransactionRow normalize(
       TransactionOrder order,
@@ -30,10 +31,14 @@ class ReportedQuantityNormalizer {
     }
     BigDecimal otherPieces = sumOtherPieces(existingExecutions, row.ourRef());
     BigDecimal cumulative = otherPieces.add(reported);
-    if (cumulative.compareTo(ordered) == 0 || !roundsTogether(cumulative, ordered)) {
+    if (cumulative.compareTo(ordered) == 0 || !withinReportedRounding(cumulative, ordered)) {
       return row;
     }
-    return row.withQuantity(ordered.subtract(otherPieces));
+    BigDecimal remainder = ordered.subtract(otherPieces);
+    if (remainder.signum() <= 0) {
+      return row;
+    }
+    return row.withQuantity(remainder);
   }
 
   private static boolean isQuantityDriven(TransactionOrder order) {
@@ -41,8 +46,14 @@ class ReportedQuantityNormalizer {
         || order.getTransactionType() == TransactionType.SELL;
   }
 
-  private static boolean roundsTogether(BigDecimal left, BigDecimal right) {
-    return left.round(SEB_REPORTED_PRECISION).compareTo(right.round(SEB_REPORTED_PRECISION)) == 0;
+  private static boolean withinReportedRounding(BigDecimal cumulative, BigDecimal ordered) {
+    return cumulative.subtract(ordered).abs().compareTo(halfUlpAtReportedPrecision(ordered)) <= 0;
+  }
+
+  private static BigDecimal halfUlpAtReportedPrecision(BigDecimal value) {
+    int integerDigits = value.precision() - value.scale();
+    int ulpScale = SEB_REPORTED_PRECISION.getPrecision() - integerDigits;
+    return BigDecimal.ONE.movePointLeft(ulpScale).multiply(HALF);
   }
 
   private static BigDecimal sumOtherPieces(

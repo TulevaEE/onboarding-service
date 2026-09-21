@@ -77,6 +77,28 @@ class ReportedQuantityNormalizerTest {
   }
 
   @Test
+  void orderedQuantityWhoseLastDigitSitsOnTheRoundingBoundaryAbsorbsTheResidue() {
+    TransactionOrder order = order(FUND, SELL, "18811874.105");
+    List<TransactionExecution> earlierPieces = List.of(execution("DLA1", "10000000"));
+
+    SebPendingTransactionRow normalized =
+        normalizer.normalize(order, row("DLA2", "8811874.104"), earlierPieces);
+
+    assertThat(normalized.quantity()).isEqualByComparingTo("8811874.105");
+  }
+
+  @Test
+  void correctionRowArrivingAfterTheOrderIsFullyExecutedIsLeftAlone() {
+    TransactionOrder order = order(FUND, SELL, "18811874.096");
+    List<TransactionExecution> fullyExecutedPieces = List.of(execution("DLA1", "18811874.096"));
+
+    SebPendingTransactionRow normalized =
+        normalizer.normalize(order, row("DLA2", "0.002"), fullyExecutedPieces);
+
+    assertThat(normalized.quantity()).isEqualByComparingTo("0.002");
+  }
+
+  @Test
   void openSplitFarFromTheOrderedTotalIsLeftAlone() {
     TransactionOrder order = order(ETF, BUY, "32746837");
 

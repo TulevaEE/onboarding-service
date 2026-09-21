@@ -218,7 +218,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
     given:
     def mvc = mockMvc(paymentController)
 
-    1 * paymentService.processSavingsPaymentToken(aSerializedSavingsPaymentToken) >> true
+    1 * paymentService.processSavingsPaymentToken(aSerializedSavingsPaymentToken) >> new SavingsPaymentOutcome(true, null)
     expect:
     mvc.perform(get("/v1/payments/savings/callback")
         .param("order-token", aSerializedSavingsPaymentToken))
@@ -229,7 +229,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
     given:
     def mvc = mockMvc(paymentController)
 
-    1 * paymentService.processSavingsPaymentToken(aSerializedSavingsPaymentToken) >> false
+    1 * paymentService.processSavingsPaymentToken(aSerializedSavingsPaymentToken) >> new SavingsPaymentOutcome(false, null)
     expect:
     mvc.perform(get("/v1/payments/savings/callback")
         .param("order-token", aSerializedSavingsPaymentToken))

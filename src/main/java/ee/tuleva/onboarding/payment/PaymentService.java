@@ -78,7 +78,7 @@ public class PaymentService {
     userService.registerAsMember(user.getIdOrThrow());
   }
 
-  boolean processSavingsPaymentToken(String serializedToken) {
+  SavingsPaymentOutcome processSavingsPaymentToken(String serializedToken) {
     return savingsCallbackService.processToken(serializedToken);
   }
 }

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.*;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestFixture.redemptionRequestFixture;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -253,6 +254,42 @@ class RedemptionStatusServiceTest {
     when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
 
     assertThatThrownBy(() -> redemptionStatusService.changeStatus(requestId, CANCELLED))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void changeStatus_refusesToMoveAFrozenOrderStraightToAPayout() {
+    var requestId = UUID.randomUUID();
+    var request = redemptionRequestFixture().id(requestId).status(FROZEN).build();
+
+    when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
+
+    assertThatThrownBy(() -> redemptionStatusService.changeStatus(requestId, REDEEMED))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void changeStatus_holdsAVerifiedPayoutAndLaterRedeemsIt() {
+    var requestId = UUID.randomUUID();
+    var request = redemptionRequestFixture().id(requestId).status(VERIFIED).build();
+
+    when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
+
+    redemptionStatusService.changeStatus(requestId, PAYOUT_HELD);
+    assertThat(request.getStatus()).isEqualTo(PAYOUT_HELD);
+
+    redemptionStatusService.changeStatus(requestId, REDEEMED);
+    assertThat(request.getStatus()).isEqualTo(REDEEMED);
+  }
+
+  @Test
+  void changeStatus_refusesAnUnexpectedCurrentStatus() {
+    var requestId = UUID.randomUUID();
+    var request = redemptionRequestFixture().id(requestId).status(VERIFIED).build();
+
+    when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
+
+    assertThatThrownBy(() -> redemptionStatusService.changeStatus(requestId, RESERVED, VERIFIED))
         .isInstanceOf(IllegalStateException.class);
   }
 }

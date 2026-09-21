@@ -1,6 +1,9 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.AML;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.HIGH_RISK;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.PEP;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.SANCTION;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.FROZEN;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.PAYOUT_HELD;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
@@ -13,6 +16,7 @@ import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.math.BigDecimal;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,7 +36,11 @@ class RedemptionHoldNotifierTest {
   @Test
   void notifyHold_describesAFrozenOrderAsASanctionsHit() {
     var request =
-        redemptionRequestFixture().id(REQUEST_ID).status(FROZEN).holdReason("SANCTION").build();
+        redemptionRequestFixture()
+            .id(REQUEST_ID)
+            .status(FROZEN)
+            .holdReasons(Set.of(SANCTION))
+            .build();
 
     assertThat(notifier.notifyHold(request)).isTrue();
 
@@ -50,7 +58,7 @@ class RedemptionHoldNotifierTest {
         redemptionRequestFixture()
             .id(REQUEST_ID)
             .status(VERIFIED)
-            .holdReason("PEP,HIGH_RISK")
+            .holdReasons(Set.of(PEP, HIGH_RISK))
             .build();
 
     assertThat(notifier.notifyHold(request)).isTrue();
@@ -58,7 +66,7 @@ class RedemptionHoldNotifierTest {
     verify(notificationService)
         .sendMessage(
             "AML: redemption will be executed but the payout is held for review: "
-                + "id=2db696b5-00ee-4937-87b4-8192c675e4b5, amount=10.00 EUR, reason=PEP,HIGH_RISK. "
+                + "id=2db696b5-00ee-4937-87b4-8192c675e4b5, amount=10.00 EUR, reasons=[PEP, HIGH_RISK]. "
                 + "Release: POST /admin/redemptions/2db696b5-00ee-4937-87b4-8192c675e4b5/release",
             AML);
   }
@@ -69,7 +77,7 @@ class RedemptionHoldNotifierTest {
         redemptionRequestFixture()
             .id(REQUEST_ID)
             .status(PAYOUT_HELD)
-            .holdReason("PEP")
+            .holdReasons(Set.of(PEP))
             .cashAmount(new BigDecimal("25.00"))
             .navPerUnit(new BigDecimal("2.50000"))
             .build();
@@ -92,19 +100,13 @@ class RedemptionHoldNotifierTest {
   }
 
   @Test
-  void notifyUnscreened_countsTheWaitingRequests() {
-    assertThat(notifier.notifyUnscreened(3)).isTrue();
-
-    verify(notificationService)
-        .sendMessage(
-            "AML: 3 redemption request(s) unscreened for over an hour, is the screening service down?",
-            AML);
-  }
-
-  @Test
   void notifyHold_reportsADeliveryFailureInsteadOfThrowing() {
     var request =
-        redemptionRequestFixture().id(REQUEST_ID).status(FROZEN).holdReason("SANCTION").build();
+        redemptionRequestFixture()
+            .id(REQUEST_ID)
+            .status(FROZEN)
+            .holdReasons(Set.of(SANCTION))
+            .build();
     willThrow(new IllegalStateException("Slack unavailable"))
         .given(notificationService)
         .sendMessage(anyString(), any());

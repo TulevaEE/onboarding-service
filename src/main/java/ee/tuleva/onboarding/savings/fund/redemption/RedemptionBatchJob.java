@@ -2,12 +2,16 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.PAYOUT_BLOCKED;
+import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.REDEMPTION_TRANSFER;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 
 import ee.tuleva.onboarding.banking.BankAccounts;
+import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
+import ee.tuleva.onboarding.banking.payment.BatchId;
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.payment.PaymentRequest;
 import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
@@ -41,7 +45,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 @RequiredArgsConstructor
 @Profile("!staging")
 public class RedemptionBatchJob {
-
   private static final ZoneId CUTOFF_TIMEZONE = RedemptionCutoff.TALLINN;
 
   private final Clock clock;
@@ -54,6 +57,8 @@ public class RedemptionBatchJob {
   private final TransactionTemplate transactionTemplate;
   private final FundNavProvider navProvider;
   private final EndToEndIdConverter endToEndIdConverter;
+  private final RedemptionPayoutValidator payoutValidator;
+  private final PaymentCheckService paymentCheckService;
   private final RedemptionPayoutService payoutService;
   private final RedemptionHoldNotifier holdNotifier;
 
@@ -72,7 +77,6 @@ public class RedemptionBatchJob {
         "Running redemption job for {} verified requests submitted before {}",
         toProcess.size(),
         cutoff);
-
     processVerifiedRequests(toProcess, dealingDate(cutoff));
   }
 
@@ -113,111 +117,112 @@ public class RedemptionBatchJob {
 
   private void processVerifiedRequests(List<RedemptionRequest> toProcess, LocalDate dealingDate) {
     BigDecimal nav = getNAV(dealingDate);
-    BigDecimal totalCashAmount = ZERO;
 
+    List<RedemptionRequest> payable = new ArrayList<>();
     for (RedemptionRequest request : toProcess) {
-      List<RedemptionRequest> held = new ArrayList<>();
+      var blockingReason = payoutValidator.findBlockingReason(request);
+      if (blockingReason.isPresent()) {
+        log.error(
+            "Redemption cannot be paid, failing it before pricing: id={}, reason={}",
+            request.getId(),
+            blockingReason.get());
+        stopPayment(request.getId(), blockingReason.get());
+        payoutService.markAsFailed(
+            request.getId(), new IllegalStateException(blockingReason.get()));
+        continue;
+      }
+      payable.add(request);
+    }
+
+    if (payable.isEmpty()) {
+      return;
+    }
+
+    BigDecimal totalCashAmount = ZERO;
+    List<RedemptionRequest> priced = new ArrayList<>();
+    List<RedemptionRequest> held = new ArrayList<>();
+    for (RedemptionRequest request : payable) {
       try {
-        BigDecimal cashAmount =
-            transactionTemplate.execute(ignored -> priceRequest(request, nav, held));
-        totalCashAmount = totalCashAmount.add(cashAmount);
+        BigDecimal cashAmount = priceRedemption(request, nav, dealingDate, held);
+        if (cashAmount.compareTo(ZERO) > 0) {
+          totalCashAmount = totalCashAmount.add(cashAmount);
+          priced.add(request);
+        }
       } catch (Exception e) {
         log.error("Failed to price redemption request: id={}", request.getId(), e);
+        stopPayment(request.getId(), "Pricing failed, so nothing was paid");
         payoutService.markAsFailed(request.getId(), e);
       }
-      held.forEach(holdNotifier::notifyPayoutHeldAtPricing);
+    }
+    held.forEach(holdNotifier::notifyPayoutHeldAtPricing);
+
+    if (totalCashAmount.compareTo(ZERO) <= 0) {
+      return;
     }
 
-    if (totalCashAmount.compareTo(ZERO) > 0) {
-      // Held payouts are in the total: their cash waits on the withdrawal account until released.
-      transferFromFundAccount(totalCashAmount);
-      PayoutResult result = processIndividualPayouts(toProcess);
-      eventPublisher.publishEvent(
-          new RedemptionBatchCompletedEvent(
-              toProcess.size(), result.payoutCount(), result.heldCount(), totalCashAmount, nav));
-    }
+    // Held payouts are in the transfer: their cash waits on the withdrawal account until released.
+    UUID batchId = BatchId.of("redemption", priced.stream().map(RedemptionRequest::getId).toList());
+    transferFromFundAccount(totalCashAmount, batchId);
+    PayoutResult result = processIndividualPayouts(priced, batchId);
+    eventPublisher.publishEvent(
+        new RedemptionBatchCompletedEvent(
+            priced.size(), result.payoutCount(), result.heldCount(), totalCashAmount, nav));
   }
 
-  private BigDecimal priceRequest(
-      RedemptionRequest request, BigDecimal nav, List<RedemptionRequest> held) {
-    RedemptionRequest toUpdate =
-        redemptionRequestRepository.findByIdForUpdate(request.getId()).orElseThrow();
+  private BigDecimal priceRedemption(
+      RedemptionRequest request,
+      BigDecimal nav,
+      LocalDate dealingDate,
+      List<RedemptionRequest> held) {
+    return transactionTemplate.execute(
+        ignored -> {
+          RedemptionRequest toUpdate =
+              redemptionRequestRepository.findByIdForUpdate(request.getId()).orElseThrow();
 
-    if (toUpdate.getCashAmount() != null) {
-      log.info(
-          "Skipping pricing for already priced redemption: id={}, cashAmount={}",
-          request.getId(),
-          toUpdate.getCashAmount());
-      holdPayoutIfFlagged(toUpdate, held);
-      return toUpdate.getCashAmount();
-    }
+          if (toUpdate.getCashAmount() != null) {
+            log.info(
+                "Skipping pricing for already priced redemption: id={}, cashAmount={}",
+                request.getId(),
+                toUpdate.getCashAmount());
+            holdPayoutIfFlagged(toUpdate, held);
+            return toUpdate.getCashAmount();
+          }
 
-    if (savingsFundLedger.hasPricingEntry(request.getId())) {
-      log.warn("Ledger entry already exists for redemption pricing: id={}", request.getId());
-      return ZERO;
-    }
+          if (savingsFundLedger.hasPricingEntry(request.getId())) {
+            log.warn("Ledger entry already exists for redemption pricing: id={}", request.getId());
+            return ZERO;
+          }
 
-    PartyId party = toUpdate.getPartyId();
-    BigDecimal amount = request.getFundUnits().multiply(nav).setScale(2, HALF_UP);
-    toUpdate.setCashAmount(amount);
-    toUpdate.setNavPerUnit(nav);
-    redemptionRequestRepository.save(toUpdate);
+          PartyId party = toUpdate.getPartyId();
+          BigDecimal amount = request.getFundUnits().multiply(nav).setScale(2, HALF_UP);
 
-    savingsFundLedger.redeemFundUnitsFromReserved(
-        LedgerRefs.from(party), request.getFundUnits(), amount, nav, request.getId());
+          toUpdate.setCashAmount(amount);
+          toUpdate.setNavPerUnit(nav);
+          redemptionRequestRepository.save(toUpdate);
 
-    log.info(
-        "Priced redemption request: id={}, fundUnits={}, cashAmount={}, nav={}",
-        request.getId(),
-        request.getFundUnits(),
-        amount,
-        nav);
-    holdPayoutIfFlagged(toUpdate, held);
-    return amount;
-  }
+          if (!toUpdate.amountReconciles()) {
+            throw new IllegalStateException(
+                "Priced amount does not reconcile against units times NAV: id=%s, expected=%s, actual=%s"
+                    .formatted(request.getId(), toUpdate.expectedAmount(), amount));
+          }
 
-  private void transferFromFundAccount(BigDecimal totalAmount) {
-    log.info("Transferring {} EUR from fund account to payout account", totalAmount);
+          savingsFundLedger.redeemFundUnitsFromReserved(
+              LedgerRefs.from(party),
+              request.getFundUnits(),
+              amount,
+              nav,
+              dealingDate,
+              request.getId());
 
-    UUID batchId = UUID.randomUUID();
-    PaymentRequest paymentRequest =
-        PaymentRequest.tulevaPaymentBuilder(endToEndIdConverter.toEndToEndId(batchId))
-            .remitterIban(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR))
-            .beneficiaryName("Tuleva Täiendav Kogumisfond")
-            .beneficiaryIban(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR))
-            .amount(totalAmount)
-            .description("Redemptions batch")
-            .build();
-
-    eventPublisher.publishEvent(new RequestPaymentEvent(paymentRequest, batchId));
-    log.info("Sent batch transfer request: batchId={}, amount={}", batchId, totalAmount);
-  }
-
-  private PayoutResult processIndividualPayouts(List<RedemptionRequest> requests) {
-    int payoutCount = 0;
-    int heldCount = 0;
-    for (RedemptionRequest request : requests) {
-      RedemptionRequest updated =
-          redemptionRequestRepository.findById(request.getId()).orElseThrow();
-
-      if (updated.getCashAmount() == null) {
-        continue;
-      }
-
-      if (updated.hasActiveHold()) {
-        heldCount++;
-        continue;
-      }
-
-      try {
-        payoutService.payOut(updated);
-        payoutCount++;
-      } catch (Exception e) {
-        log.error("Failed to process payout for redemption: id={}", updated.getId(), e);
-        payoutService.markAsFailed(updated.getId(), e);
-      }
-    }
-    return new PayoutResult(payoutCount, heldCount);
+          log.info(
+              "Priced redemption request: id={}, fundUnits={}, cashAmount={}, nav={}",
+              request.getId(),
+              request.getFundUnits(),
+              amount,
+              nav);
+          holdPayoutIfFlagged(toUpdate, held);
+          return amount;
+        });
   }
 
   // Runs inside the pricing transaction with the row locked: a priced request under AML hold is
@@ -227,11 +232,53 @@ public class RedemptionBatchJob {
       redemptionStatusService.changeStatus(request.getId(), PAYOUT_HELD);
       held.add(request);
       log.info(
-          "Held payout of redemption under AML review: id={}, cashAmount={}, reason={}",
+          "Held payout of redemption under AML review: id={}, cashAmount={}, reasons={}",
           request.getId(),
           request.getCashAmount(),
-          request.getHoldReason());
+          request.getHoldReasons());
     }
+  }
+
+  private void transferFromFundAccount(BigDecimal totalAmount, UUID batchId) {
+    log.info("Transferring {} EUR from fund account to payout account", totalAmount);
+
+    PaymentRequest paymentRequest =
+        PaymentRequest.tulevaPaymentBuilder(endToEndIdConverter.toEndToEndId(batchId))
+            .remitterIban(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR))
+            .beneficiaryName("Tuleva Täiendav Kogumisfond")
+            .beneficiaryIban(bankAccounts.getIban(TKF100, WITHDRAWAL_EUR))
+            .amount(totalAmount)
+            .description("Redemptions batch")
+            .build();
+
+    eventPublisher.publishEvent(
+        new RequestPaymentEvent(paymentRequest, batchId, REDEMPTION_TRANSFER, batchId));
+    log.info("Sent batch transfer request: batchId={}, amount={}", batchId, totalAmount);
+  }
+
+  private PayoutResult processIndividualPayouts(List<RedemptionRequest> requests, UUID batchId) {
+    int payoutCount = 0;
+    int heldCount = 0;
+    for (RedemptionRequest request : requests) {
+      RedemptionRequest updated =
+          redemptionRequestRepository.findById(request.getId()).orElseThrow();
+      if (updated.getCashAmount() == null) {
+        continue;
+      }
+      if (updated.hasActiveHold()) {
+        heldCount++;
+        continue;
+      }
+
+      try {
+        payoutService.payOut(updated, batchId);
+        payoutCount++;
+      } catch (Exception e) {
+        log.error("Failed to process payout for redemption: id={}", updated.getId(), e);
+        payoutService.markAsFailed(updated.getId(), e);
+      }
+    }
+    return new PayoutResult(payoutCount, heldCount);
   }
 
   @Transactional
@@ -256,9 +303,13 @@ public class RedemptionBatchJob {
 
     request.setErrorReason(null);
     redemptionRequestRepository.save(request);
-    payoutService.payOut(request);
+    payoutService.payOut(request, null);
 
     log.info("Retried failed payout: id={}, amount={}", request.getId(), request.getCashAmount());
+  }
+
+  private void stopPayment(UUID requestId, String reason) {
+    paymentCheckService.recordStoppedPayment(PAYOUT_BLOCKED, requestId.toString(), reason);
   }
 
   private BigDecimal getNAV(LocalDate dealingDate) {

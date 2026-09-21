@@ -9,15 +9,15 @@ import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_ACTIVE;
 import static ee.tuleva.onboarding.kyb.KybCheckType.COMPANY_SANCTION;
 import static ee.tuleva.onboarding.party.PartyId.Type.LEGAL_ENTITY;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
-import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldService.SYSTEM;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.HIGH_RISK;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.KYB_SCREENING_FAILED;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.ONBOARDING_INCOMPLETE;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.PEP;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.SCREENING_UNAVAILABLE;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestFixture.redemptionRequestFixture;
-import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerificationService.HIGH_RISK;
-import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerificationService.KYB_NOT_COMPLETED;
-import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerificationService.KYB_SCREENING_FAILED;
-import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerificationService.PEP;
-import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionVerificationService.SANCTION;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -29,25 +29,40 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import ee.tuleva.onboarding.aml.RiskLevels;
 import ee.tuleva.onboarding.aml.SanctionAndPepScreener;
 import ee.tuleva.onboarding.country.Countries;
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.kyb.KybCheck;
 import ee.tuleva.onboarding.kyb.LegalEntityScreener;
 import ee.tuleva.onboarding.kyc.KycCountryService;
+import ee.tuleva.onboarding.savings.SavingFundDeadlinesService;
 import ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus;
 import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingRepository;
+import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.ws.client.WebServiceIOException;
 
 @ExtendWith(MockitoExtension.class)
 class RedemptionVerificationServiceTest {
 
+  private static final ZoneId TALLINN = ZoneId.of("Europe/Tallinn");
+  private static final String PERSONAL_CODE = "38812121215";
+  private static final String REGISTRY_CODE = "16001234";
+  private static final Instant THURSDAY_EVENING = Instant.parse("2026-08-27T19:19:35Z");
+  private static final Instant FRIDAY_NOON = Instant.parse("2026-08-28T09:00:00Z");
+  private static final Instant FRIDAY_HALF_PAST_THREE = Instant.parse("2026-08-28T12:30:00Z");
+
+  @Mock private RedemptionRequestRepository redemptionRequestRepository;
   @Mock private RedemptionStatusService redemptionStatusService;
   @Mock private RedemptionHoldService holdService;
   @Mock private UserService userService;
@@ -57,158 +72,177 @@ class RedemptionVerificationServiceTest {
   @Mock private SavingsFundOnboardingRepository savingsFundOnboardingRepository;
   @Mock private LegalEntityScreener legalEntityScreener;
 
-  @InjectMocks private RedemptionVerificationService service;
+  private RedemptionVerificationService serviceAt(Instant now) {
+    var clock = Clock.fixed(now, TALLINN);
+    return new RedemptionVerificationService(
+        redemptionRequestRepository,
+        redemptionStatusService,
+        holdService,
+        userService,
+        kycCountryService,
+        sanctionAndPepScreener,
+        riskLevels,
+        savingsFundOnboardingRepository,
+        legalEntityScreener,
+        new SavingFundDeadlinesService(new PublicHolidays(), clock),
+        clock);
+  }
+
+  private RedemptionVerificationService service() {
+    return serviceAt(FRIDAY_NOON);
+  }
 
   @Test
   void process_personRequest_verifiesWhenScreeningClearAndNotHighRisk() {
-    var userId = 1L;
     var requestId = UUID.randomUUID();
-    var request = personRequest(requestId, userId, "38812121215");
-    var user = sampleUser().id(userId).build();
-    var countries = Countries.of("EE");
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(CLEAR);
+    given(riskLevels.isHighRisk(PERSONAL_CODE)).willReturn(false);
 
-    given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
-    given(kycCountryService.getCountries(userId)).willReturn(Optional.of(countries));
-    given(sanctionAndPepScreener.screeningOutcome(user, countries)).willReturn(CLEAR);
-    given(riskLevels.isHighRisk(user.getPersonalCode())).willReturn(false);
-
-    service.process(request);
+    service().process(personRequest(requestId));
 
     verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
     verifyNoInteractions(holdService);
   }
 
   @Test
-  void process_personRequest_freezesOnSanctionsHit() {
-    var userId = 1L;
+  void process_personRequest_freezesTheOrderOnASanctionsHit() {
     var requestId = UUID.randomUUID();
-    var request = personRequest(requestId, userId, "38812121215");
-    var user = sampleUser().id(userId).build();
-    var countries = Countries.of("EE");
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE")))
+        .willReturn(SANCTION_HIT);
 
-    given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
-    given(kycCountryService.getCountries(userId)).willReturn(Optional.of(countries));
-    given(sanctionAndPepScreener.screeningOutcome(user, countries)).willReturn(SANCTION_HIT);
+    service().process(personRequest(requestId));
 
-    service.process(request);
-
-    verify(holdService).freeze(requestId, SANCTION);
-    verify(holdService, never()).holdPayout(any(), any(), any());
-    verifyNoInteractions(redemptionStatusService);
-    verify(riskLevels, never()).isHighRisk(any());
+    verify(holdService).freeze(requestId);
+    verify(holdService, never()).holdPayout(any(), any());
+    verifyNoInteractions(redemptionStatusService, riskLevels);
   }
 
   @Test
-  void process_personRequest_verifiesButHoldsPayoutOnPepHit() {
-    var userId = 1L;
+  void process_personRequest_executesTheOrderButHoldsThePayoutOnAPepHit() {
     var requestId = UUID.randomUUID();
-    var request = personRequest(requestId, userId, "38812121215");
-    var user = sampleUser().id(userId).build();
-    var countries = Countries.of("EE");
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(PEP_HIT);
+    given(riskLevels.isHighRisk(PERSONAL_CODE)).willReturn(false);
 
-    given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
-    given(kycCountryService.getCountries(userId)).willReturn(Optional.of(countries));
-    given(sanctionAndPepScreener.screeningOutcome(user, countries)).willReturn(PEP_HIT);
-    given(riskLevels.isHighRisk(user.getPersonalCode())).willReturn(false);
+    service().process(personRequest(requestId));
 
-    service.process(request);
-
-    verify(holdService).holdPayout(requestId, PEP, SYSTEM);
+    verify(holdService).holdPayout(requestId, Set.of(PEP));
     verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
-    verify(holdService, never()).freeze(any(), any());
+    verify(holdService, never()).freeze(any());
   }
 
   @Test
-  void process_personRequest_verifiesButHoldsPayoutWhenPartyIsHighRisk() {
-    var userId = 1L;
+  void process_personRequest_executesTheOrderButHoldsThePayoutWhenThePartyIsHighRisk() {
     var requestId = UUID.randomUUID();
-    var request = personRequest(requestId, userId, "38812121215");
-    var user = sampleUser().id(userId).build();
-    var countries = Countries.of("EE");
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(CLEAR);
+    given(riskLevels.isHighRisk(PERSONAL_CODE)).willReturn(true);
 
-    given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
-    given(kycCountryService.getCountries(userId)).willReturn(Optional.of(countries));
-    given(sanctionAndPepScreener.screeningOutcome(user, countries)).willReturn(CLEAR);
-    given(riskLevels.isHighRisk(user.getPersonalCode())).willReturn(true);
+    service().process(personRequest(requestId));
 
-    service.process(request);
-
-    verify(holdService).holdPayout(requestId, HIGH_RISK, SYSTEM);
+    verify(holdService).holdPayout(requestId, Set.of(HIGH_RISK));
     verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
   }
 
   @Test
-  void process_personRequest_joinsSeveralHoldReasons() {
-    var userId = 1L;
+  void process_personRequest_recordsEveryHoldReasonThatApplies() {
     var requestId = UUID.randomUUID();
-    var request = personRequest(requestId, userId, "38812121215");
-    var user = sampleUser().id(userId).build();
-    var countries = Countries.of("EE");
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(PEP_HIT);
+    given(riskLevels.isHighRisk(PERSONAL_CODE)).willReturn(true);
 
-    given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
-    given(kycCountryService.getCountries(userId)).willReturn(Optional.of(countries));
-    given(sanctionAndPepScreener.screeningOutcome(user, countries)).willReturn(PEP_HIT);
-    given(riskLevels.isHighRisk(user.getPersonalCode())).willReturn(true);
+    service().process(personRequest(requestId));
 
-    service.process(request);
-
-    verify(holdService).holdPayout(requestId, "PEP,HIGH_RISK", SYSTEM);
+    verify(holdService).holdPayout(requestId, Set.of(PEP, HIGH_RISK));
     verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
   }
 
   @Test
-  void process_personRequest_leavesRequestReservedWhenScreeningIsUnavailable() {
-    var userId = 1L;
+  void process_personRequest_recordsTheAttemptAndRetriesWhileScreeningIsUnavailable() {
+    var request = personRequest(UUID.randomUUID());
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE")))
+        .willReturn(UNAVAILABLE);
+
+    serviceAt(FRIDAY_NOON).process(request);
+
+    assertThat(request.getVerificationAttemptedAt()).isEqualTo(FRIDAY_NOON);
+    verify(redemptionRequestRepository).save(request);
+    verifyNoInteractions(holdService, redemptionStatusService, riskLevels);
+  }
+
+  @Test
+  void process_personRequest_executesTheOrderAndHoldsThePayoutOnceTheRetryDeadlineHasPassed() {
     var requestId = UUID.randomUUID();
-    var request = personRequest(requestId, userId, "38812121215");
-    var user = sampleUser().id(userId).build();
-    var countries = Countries.of("EE");
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE")))
+        .willReturn(UNAVAILABLE);
 
-    given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
-    given(kycCountryService.getCountries(userId)).willReturn(Optional.of(countries));
-    given(sanctionAndPepScreener.screeningOutcome(user, countries)).willReturn(UNAVAILABLE);
+    serviceAt(FRIDAY_HALF_PAST_THREE).process(personRequest(requestId));
 
-    service.process(request);
+    verify(holdService).holdPayout(requestId, Set.of(SCREENING_UNAVAILABLE));
+    verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
+  }
 
-    verifyNoInteractions(holdService);
-    verifyNoInteractions(redemptionStatusService);
-    verify(riskLevels, never()).isHighRisk(any());
+  @Test
+  void process_personRequest_skipsAScreeningAttemptMadeWithinTheLastFiveMinutes() {
+    var request = personRequest(UUID.randomUUID());
+    request.setVerificationAttemptedAt(FRIDAY_NOON.minusSeconds(120));
+
+    serviceAt(FRIDAY_NOON).process(request);
+
+    verifyNoInteractions(userService, sanctionAndPepScreener, redemptionStatusService, holdService);
+  }
+
+  @Test
+  void process_personRequest_retriesOnceTheBackoffHasElapsed() {
+    var requestId = UUID.randomUUID();
+    var user = givenPersonWithCountries();
+    given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE"))).willReturn(CLEAR);
+    given(riskLevels.isHighRisk(PERSONAL_CODE)).willReturn(false);
+    var request = personRequest(requestId);
+    request.setVerificationAttemptedAt(FRIDAY_NOON.minusSeconds(6 * 60));
+
+    serviceAt(FRIDAY_NOON).process(request);
+
+    verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
   }
 
   @Test
   void process_personRequest_screensThePartyNotTheActor() {
-    var actorUserId = 1L;
     var childCode = "61506150006";
     var requestId = UUID.randomUUID();
-    var request = personRequest(requestId, actorUserId, childCode);
     var child = sampleUser().id(2L).personalCode(childCode).build();
-    var countries = Countries.of("EE");
-
     given(userService.findByPersonalCode(childCode)).willReturn(Optional.of(child));
-    given(kycCountryService.getCountries(child.getId())).willReturn(Optional.of(countries));
-    given(sanctionAndPepScreener.screeningOutcome(child, countries)).willReturn(CLEAR);
+    given(kycCountryService.getCountries(2L)).willReturn(Optional.of(Countries.of("EE")));
+    given(sanctionAndPepScreener.screeningOutcome(child, Countries.of("EE"))).willReturn(CLEAR);
     given(riskLevels.isHighRisk(childCode)).willReturn(false);
 
-    service.process(request);
+    service()
+        .process(
+            redemptionRequestFixture()
+                .id(requestId)
+                .userId(1L)
+                .partyType(PERSON)
+                .partyCode(childCode)
+                .requestedAt(THURSDAY_EVENING)
+                .build());
 
     verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
   }
 
   @Test
   void process_personRequest_screensAgainstCitizenshipsTheSurveyDoesNotCarry() {
-    var userId = 1L;
     var requestId = UUID.randomUUID();
-    var request = personRequest(requestId, userId, "38812121215");
-    var user = sampleUser().id(userId).build();
-
-    given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
-    given(kycCountryService.getCountries(userId)).willReturn(Optional.of(Countries.of("EE")));
+    var user = givenPersonWithCountries();
     given(sanctionAndPepScreener.recordedCitizenships(user)).willReturn(Countries.of("RU"));
     given(sanctionAndPepScreener.screeningOutcome(user, Countries.of("EE", "RU")))
         .willReturn(CLEAR);
-    given(riskLevels.isHighRisk(user.getPersonalCode())).willReturn(false);
+    given(riskLevels.isHighRisk(PERSONAL_CODE)).willReturn(false);
 
-    service.process(request);
+    service().process(personRequest(requestId));
 
     verify(sanctionAndPepScreener).screeningOutcome(user, Countries.of("EE", "RU"));
     verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
@@ -216,153 +250,176 @@ class RedemptionVerificationServiceTest {
 
   @Test
   void process_personRequest_throwsWhenKycCountryMissing() {
-    var userId = 1L;
-    var request = personRequest(UUID.randomUUID(), userId, "38812121215");
-    var user = sampleUser().id(userId).build();
-
-    given(userService.findByPersonalCode("38812121215")).willReturn(Optional.of(user));
-    given(kycCountryService.getCountries(userId)).willReturn(Optional.empty());
+    var user = sampleUser().id(1L).personalCode(PERSONAL_CODE).build();
+    given(userService.findByPersonalCode(PERSONAL_CODE)).willReturn(Optional.of(user));
+    given(kycCountryService.getCountries(1L)).willReturn(Optional.empty());
+    var service = service();
+    var request = personRequest(UUID.randomUUID());
 
     assertThatThrownBy(() -> service.process(request)).isInstanceOf(IllegalStateException.class);
   }
 
   @Test
   void process_personRequest_throwsWhenPartyUserNotFound() {
-    var request = personRequest(UUID.randomUUID(), 1L, "61506150006");
-
-    given(userService.findByPersonalCode("61506150006")).willReturn(Optional.empty());
+    given(userService.findByPersonalCode(PERSONAL_CODE)).willReturn(Optional.empty());
+    var service = service();
+    var request = personRequest(UUID.randomUUID());
 
     assertThatThrownBy(() -> service.process(request)).isInstanceOf(IllegalStateException.class);
   }
 
   @Test
   void process_legalEntityRequest_verifiesWhenLatestKybCompleted() {
-    var registryCode = "16001234";
     var requestId = UUID.randomUUID();
-    var request = legalEntityRequest(requestId, registryCode);
-
-    given(savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY))
+    given(savingsFundOnboardingRepository.isOnboardingCompleted(REGISTRY_CODE, LEGAL_ENTITY))
         .willReturn(true);
 
-    service.process(request);
+    service().process(legalEntityRequest(requestId));
 
     verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
-    verifyNoInteractions(holdService);
-    verify(legalEntityScreener, never()).screenLatest(registryCode);
+    verifyNoInteractions(holdService, legalEntityScreener);
   }
 
   @Test
-  void process_legalEntityRequest_holdsPayoutWhenLatestKybRejected() {
-    var registryCode = "16001234";
+  void process_legalEntityRequest_holdsThePayoutWhenLatestKybRejected() {
     var requestId = UUID.randomUUID();
-    var request = legalEntityRequest(requestId, registryCode);
-
-    given(savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY))
+    given(savingsFundOnboardingRepository.isOnboardingCompleted(REGISTRY_CODE, LEGAL_ENTITY))
         .willReturn(false);
-    given(savingsFundOnboardingRepository.findStatus(registryCode, LEGAL_ENTITY))
+    given(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
         .willReturn(Optional.of(SavingsFundOnboardingStatus.REJECTED));
 
-    service.process(request);
+    service().process(legalEntityRequest(requestId));
 
-    verify(holdService).holdPayout(requestId, KYB_NOT_COMPLETED, SYSTEM);
+    verify(holdService).holdPayout(requestId, Set.of(ONBOARDING_INCOMPLETE));
     verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
-    verify(legalEntityScreener, never()).screenLatest(registryCode);
+    verifyNoInteractions(legalEntityScreener);
   }
 
   @Test
   void process_legalEntityRequest_reScreensWhenStatusMissingThenVerifiesIfCompleted() {
-    var registryCode = "16001234";
     var requestId = UUID.randomUUID();
-    var request = legalEntityRequest(requestId, registryCode);
-
-    given(savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY))
+    given(savingsFundOnboardingRepository.isOnboardingCompleted(REGISTRY_CODE, LEGAL_ENTITY))
         .willReturn(false, true);
-    given(savingsFundOnboardingRepository.findStatus(registryCode, LEGAL_ENTITY))
+    given(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
         .willReturn(Optional.empty());
-    given(legalEntityScreener.screenLatest(registryCode))
+    given(legalEntityScreener.screenLatest(REGISTRY_CODE))
         .willReturn(List.of(new KybCheck(COMPANY_SANCTION, true, Map.of())));
 
-    service.process(request);
+    service().process(legalEntityRequest(requestId));
 
     verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
     verifyNoInteractions(holdService);
   }
 
   @Test
-  void process_legalEntityRequest_reScreensWhenStatusPendingThenHoldsPayoutIfStillNotCompleted() {
-    var registryCode = "16001234";
+  void process_legalEntityRequest_reScreensWhenStatusPendingThenHoldsThePayoutIfStillIncomplete() {
     var requestId = UUID.randomUUID();
-    var request = legalEntityRequest(requestId, registryCode);
-
-    given(savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY))
+    given(savingsFundOnboardingRepository.isOnboardingCompleted(REGISTRY_CODE, LEGAL_ENTITY))
         .willReturn(false, false);
-    given(savingsFundOnboardingRepository.findStatus(registryCode, LEGAL_ENTITY))
+    given(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
         .willReturn(Optional.of(SavingsFundOnboardingStatus.PENDING));
-    given(legalEntityScreener.screenLatest(registryCode))
+    given(legalEntityScreener.screenLatest(REGISTRY_CODE))
         .willReturn(List.of(new KybCheck(COMPANY_ACTIVE, false, Map.of())));
 
-    service.process(request);
+    service().process(legalEntityRequest(requestId));
 
-    verify(holdService).holdPayout(requestId, KYB_NOT_COMPLETED, SYSTEM);
+    verify(holdService).holdPayout(requestId, Set.of(ONBOARDING_INCOMPLETE));
     verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
   }
 
   @Test
-  void process_legalEntityRequest_freezesWhenReScreeningFindsACompanySanction() {
-    var registryCode = "16001234";
+  void process_legalEntityRequest_freezesTheOrderWhenReScreeningFindsACompanySanction() {
     var requestId = UUID.randomUUID();
-    var request = legalEntityRequest(requestId, registryCode);
-
-    given(savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY))
+    given(savingsFundOnboardingRepository.isOnboardingCompleted(REGISTRY_CODE, LEGAL_ENTITY))
         .willReturn(false);
-    given(savingsFundOnboardingRepository.findStatus(registryCode, LEGAL_ENTITY))
+    given(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
         .willReturn(Optional.empty());
-    given(legalEntityScreener.screenLatest(registryCode))
+    given(legalEntityScreener.screenLatest(REGISTRY_CODE))
         .willReturn(
             List.of(
                 new KybCheck(COMPANY_ACTIVE, true, Map.of()),
                 new KybCheck(COMPANY_SANCTION, false, Map.of())));
 
-    service.process(request);
+    service().process(legalEntityRequest(requestId));
 
-    verify(holdService).freeze(requestId, SANCTION);
+    verify(holdService).freeze(requestId);
     verifyNoInteractions(redemptionStatusService);
   }
 
   @Test
-  void process_legalEntityRequest_holdsPayoutWhenScreenLatestThrows() {
-    var registryCode = "16001234";
-    var requestId = UUID.randomUUID();
-    var request = legalEntityRequest(requestId, registryCode);
-
-    given(savingsFundOnboardingRepository.isOnboardingCompleted(registryCode, LEGAL_ENTITY))
+  void process_legalEntityRequest_retriesWhileTheScreeningServiceIsUnreachable() {
+    var request = legalEntityRequest(UUID.randomUUID());
+    given(savingsFundOnboardingRepository.isOnboardingCompleted(REGISTRY_CODE, LEGAL_ENTITY))
         .willReturn(false);
-    given(savingsFundOnboardingRepository.findStatus(registryCode, LEGAL_ENTITY))
+    given(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
         .willReturn(Optional.empty());
-    willThrow(new IllegalStateException("Ariregister unavailable"))
+    willThrow(new WebServiceIOException("Ariregister unreachable"))
         .given(legalEntityScreener)
-        .screenLatest(registryCode);
+        .screenLatest(REGISTRY_CODE);
 
-    service.process(request);
+    serviceAt(FRIDAY_NOON).process(request);
 
-    verify(holdService).holdPayout(requestId, KYB_SCREENING_FAILED, SYSTEM);
+    assertThat(request.getVerificationAttemptedAt()).isEqualTo(FRIDAY_NOON);
+    verifyNoInteractions(holdService, redemptionStatusService);
+  }
+
+  @Test
+  void process_legalEntityRequest_holdsThePayoutOnceTheScreeningRetryDeadlineHasPassed() {
+    var requestId = UUID.randomUUID();
+    given(savingsFundOnboardingRepository.isOnboardingCompleted(REGISTRY_CODE, LEGAL_ENTITY))
+        .willReturn(false);
+    given(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
+        .willReturn(Optional.empty());
+    willThrow(new WebServiceIOException("Ariregister unreachable"))
+        .given(legalEntityScreener)
+        .screenLatest(REGISTRY_CODE);
+
+    serviceAt(FRIDAY_HALF_PAST_THREE).process(legalEntityRequest(requestId));
+
+    verify(holdService).holdPayout(requestId, Set.of(SCREENING_UNAVAILABLE));
     verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
   }
 
-  private static RedemptionRequest personRequest(UUID requestId, long userId, String personalCode) {
+  @Test
+  void process_legalEntityRequest_holdsThePayoutAtOnceWhenTheScreenerFailsOnMissingData() {
+    var requestId = UUID.randomUUID();
+    given(savingsFundOnboardingRepository.isOnboardingCompleted(REGISTRY_CODE, LEGAL_ENTITY))
+        .willReturn(false);
+    given(savingsFundOnboardingRepository.findStatus(REGISTRY_CODE, LEGAL_ENTITY))
+        .willReturn(Optional.empty());
+    willThrow(new IllegalStateException("No board members"))
+        .given(legalEntityScreener)
+        .screenLatest(REGISTRY_CODE);
+
+    service().process(legalEntityRequest(requestId));
+
+    verify(holdService).holdPayout(requestId, Set.of(KYB_SCREENING_FAILED));
+    verify(redemptionStatusService).changeStatus(requestId, RESERVED, VERIFIED);
+  }
+
+  private User givenPersonWithCountries() {
+    var user = sampleUser().id(1L).personalCode(PERSONAL_CODE).build();
+    given(userService.findByPersonalCode(PERSONAL_CODE)).willReturn(Optional.of(user));
+    given(kycCountryService.getCountries(1L)).willReturn(Optional.of(Countries.of("EE")));
+    return user;
+  }
+
+  private static RedemptionRequest personRequest(UUID requestId) {
     return redemptionRequestFixture()
         .id(requestId)
-        .userId(userId)
+        .userId(1L)
         .partyType(PERSON)
-        .partyCode(personalCode)
+        .partyCode(PERSONAL_CODE)
+        .requestedAt(THURSDAY_EVENING)
         .build();
   }
 
-  private static RedemptionRequest legalEntityRequest(UUID requestId, String registryCode) {
+  private static RedemptionRequest legalEntityRequest(UUID requestId) {
     return redemptionRequestFixture()
         .id(requestId)
         .partyType(LEGAL_ENTITY)
-        .partyCode(registryCode)
+        .partyCode(REGISTRY_CODE)
+        .requestedAt(THURSDAY_EVENING)
         .build();
   }
 }

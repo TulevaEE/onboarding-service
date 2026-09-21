@@ -33,6 +33,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -130,6 +131,42 @@ class PortfolioServiceTest {
 
     assertThat(portfolio.from()).isEqualTo(FIRST_HOLDING);
     assertThat(portfolio.series().getFirst().date()).isEqualTo(FIRST_HOLDING);
+  }
+
+  @Test
+  void valuesNothingWhenThePeriodEndsBeforeTheFirstHolding() {
+    LocalDate beforeFirstHolding = LocalDate.parse("2018-12-31");
+    given(transactionService.getTransactions(person))
+        .willReturn(List.of(buy(PILLAR_2, "2019-03-05T10:00:00Z", "100", "2")));
+    given(fundRepository.findAll())
+        .willReturn(List.of(Fund.builder().isin(PILLAR_2).pillar(2).build()));
+    given(fundValueQueries.getLatestValue(any(), any()))
+        .willReturn(Optional.of(fundValue(PILLAR_2, "2018-12-28", "1.5")));
+    given(fundValueQueries.findValuesBetweenDates(any(), any(), any()))
+        .willReturn(List.of(fundValue(PILLAR_2, "2018-12-31", "1.6")));
+
+    Portfolio portfolio = portfolioService.getPortfolio(person, null, beforeFirstHolding);
+
+    assertThat(portfolio.from()).isEqualTo(beforeFirstHolding);
+    assertThat(portfolio.to()).isEqualTo(beforeFirstHolding);
+    assertThat(portfolio.groups())
+        .containsExactly(
+            Portfolio.GroupSummary.builder()
+                .group(SECOND_PILLAR)
+                .startValue(new BigDecimal("0.00"))
+                .endValue(new BigDecimal("0.00"))
+                .contributions(new BigDecimal("0.00"))
+                .withdrawals(new BigDecimal("0.00"))
+                .gain(new BigDecimal("0.00"))
+                .gainPercentage(new BigDecimal("0.00"))
+                .build());
+    assertThat(portfolio.series())
+        .containsExactly(
+            new Portfolio.ValuePoint(
+                beforeFirstHolding, Map.of(SECOND_PILLAR, new BigDecimal("0.00"))));
+    verify(fundValueQueries)
+        .findValuesBetweenDates(PILLAR_2, beforeFirstHolding, beforeFirstHolding);
+    verify(returnsService, never()).get(any(), any(), any(), any());
   }
 
   @Test

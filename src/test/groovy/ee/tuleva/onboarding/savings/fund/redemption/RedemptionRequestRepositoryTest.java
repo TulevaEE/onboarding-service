@@ -1,9 +1,12 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.PEP;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.SANCTION;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.CANCELLED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.FROZEN;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.PAYOUT_HELD;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.PROCESSED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestFixture.redemptionRequestFixture;
@@ -13,6 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -72,7 +76,7 @@ class RedemptionRequestRepositoryTest {
             .userId(userId)
             .status(VERIFIED)
             .requestedAt(CUTOFF.minus(7, DAYS))
-            .holdReason("SANCTION")
+            .holdReasons(Set.of(SANCTION))
             .reviewedAt(CUTOFF.plus(1, HOURS))
             .requeuedAt(CUTOFF.plus(1, HOURS))
             .build());
@@ -88,7 +92,7 @@ class RedemptionRequestRepositoryTest {
                 .userId(userId)
                 .status(VERIFIED)
                 .requestedAt(CUTOFF.minus(7, DAYS))
-                .holdReason("SANCTION")
+                .holdReasons(Set.of(SANCTION))
                 .reviewedAt(CUTOFF.minus(1, HOURS))
                 .requeuedAt(CUTOFF.minus(1, HOURS))
                 .build());
@@ -104,7 +108,7 @@ class RedemptionRequestRepositoryTest {
                 .userId(userId)
                 .status(VERIFIED)
                 .requestedAt(CUTOFF.minus(1, DAYS))
-                .holdReason("PEP")
+                .holdReasons(Set.of(PEP))
                 .reviewedAt(CUTOFF.plus(1, HOURS))
                 .build());
 
@@ -130,25 +134,29 @@ class RedemptionRequestRepositoryTest {
             redemptionRequestFixture()
                 .userId(userId)
                 .status(FROZEN)
-                .holdReason("SANCTION")
+                .holdReasons(Set.of(SANCTION))
                 .build());
     repository.save(
         redemptionRequestFixture()
             .userId(userId)
             .status(PAYOUT_HELD)
-            .holdReason("PEP")
+            .holdReasons(Set.of(PEP))
             .holdNotifiedAt(CUTOFF)
             .build());
     repository.save(
         redemptionRequestFixture()
             .userId(userId)
             .status(VERIFIED)
-            .holdReason("PEP")
+            .holdReasons(Set.of(PEP))
             .reviewedAt(CUTOFF)
             .holdReleasedAt(CUTOFF)
             .build());
     repository.save(
-        redemptionRequestFixture().userId(userId).status(CANCELLED).holdReason("PEP").build());
+        redemptionRequestFixture()
+            .userId(userId)
+            .status(CANCELLED)
+            .holdReasons(Set.of(PEP))
+            .build());
     repository.save(redemptionRequestFixture().userId(userId).status(VERIFIED).build());
 
     var statuses = List.of(RESERVED, FROZEN, VERIFIED, PAYOUT_HELD);
@@ -162,7 +170,7 @@ class RedemptionRequestRepositoryTest {
             redemptionRequestFixture()
                 .userId(userId)
                 .status(FROZEN)
-                .holdReason("SANCTION")
+                .holdReasons(Set.of(SANCTION))
                 .build());
 
     assertThat(repository.markHoldNotified(request.getId(), CUTOFF)).isEqualTo(1);
@@ -171,5 +179,16 @@ class RedemptionRequestRepositoryTest {
     entityManager.clear();
     assertThat(repository.findById(request.getId()).orElseThrow().getHoldNotifiedAt())
         .isEqualTo(CUTOFF);
+  }
+
+  @Test
+  void findsRequestsInAnyOfTheGivenStatuses() {
+    var reserved =
+        repository.save(redemptionRequestFixture().userId(userId).status(RESERVED).build());
+    var frozen = repository.save(redemptionRequestFixture().userId(userId).status(FROZEN).build());
+    repository.save(redemptionRequestFixture().userId(userId).status(PROCESSED).build());
+
+    assertThat(repository.findByStatusIn(List.of(RESERVED, FROZEN)))
+        .containsExactlyInAnyOrder(reserved, frozen);
   }
 }

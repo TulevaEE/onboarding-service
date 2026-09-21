@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType;
 import ee.tuleva.onboarding.banking.statement.BankStatementAccount;
 import ee.tuleva.onboarding.banking.statement.BankStatementBalance;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
+import ee.tuleva.onboarding.banking.statement.StatementPeriod;
 import ee.tuleva.onboarding.banking.statement.TransactionType;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
 import java.math.BigDecimal;
@@ -29,6 +30,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class PensionFundStatementProcessorTest {
+
+  private static final StatementPeriod STATEMENT_PERIOD =
+      new StatementPeriod(LocalDate.of(2026, 1, 12), LocalDate.of(2026, 1, 12));
 
   private static final String TUK75_IBAN = "EE001234567890123475";
   private static final BankAccount TUK75_ACCOUNT =
@@ -336,7 +340,8 @@ class PensionFundStatementProcessorTest {
                     BankStatementBalance.StatementBalanceType.OPEN,
                     LocalDate.of(2026, 2, 10),
                     new BigDecimal("123456.78"))),
-            List.of());
+            List.of(),
+            STATEMENT_PERIOD);
 
     processor.process(statement, TUK75_ACCOUNT);
 
@@ -357,7 +362,8 @@ class PensionFundStatementProcessorTest {
                     BankStatementBalance.StatementBalanceType.OPEN,
                     LocalDate.of(2026, 2, 10),
                     new BigDecimal("123456.78"))),
-            List.of());
+            List.of(),
+            STATEMENT_PERIOD);
 
     processor.process(statement, TUK75_ACCOUNT);
 
@@ -378,7 +384,8 @@ class PensionFundStatementProcessorTest {
         BankStatementType.HISTORIC_STATEMENT,
         new BankStatementAccount(TUK75_IBAN, "Tuleva Maailma Aktsiate Pensionifond", "14118923"),
         List.of(),
-        List.of(entries));
+        List.of(entries),
+        STATEMENT_PERIOD);
   }
 
   private BankStatementEntry entry(BigDecimal amount, String remittanceInformation) {

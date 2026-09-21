@@ -520,4 +520,20 @@ class DeferredReturnMatcherTest {
 
     verify(savingFundPaymentRepository).findUnmatchedOutgoingReturns(DEPOSIT_IBAN);
   }
+
+  @Test
+  void returnWithoutBeneficiaryIban_isLeftUnmatchedInsteadOfFailingTheRun() {
+    var returnPayment =
+        aPayment().amount(new BigDecimal("-75.00")).beneficiaryIban(null).endToEndId(null).build();
+    when(savingFundPaymentRepository.findUnmatchedOutgoingReturns(DEPOSIT_IBAN))
+        .thenReturn(List.of(returnPayment));
+    when(savingFundPaymentRepository.findOriginalPaymentForReturn(any()))
+        .thenReturn(Optional.empty());
+
+    deferredReturnMatcher.onBankMessagesProcessed(new BankMessagesProcessingCompleted());
+
+    verify(savingFundPaymentRepository, never()).findOriginalPaymentByIbanAndAmount(any(), any());
+    verify(savingsFundLedger, never()).bounceBackUnattributedPayment(any(), any());
+    verify(savingsFundLedger, never()).recordPaymentCancelled(any(), any(), any());
+  }
 }

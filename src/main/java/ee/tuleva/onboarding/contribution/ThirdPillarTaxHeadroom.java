@@ -5,7 +5,7 @@ import ee.tuleva.onboarding.epis.Contribution;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.SecondPillarContribution;
 import ee.tuleva.onboarding.epis.ThirdPillarContribution;
-import ee.tuleva.onboarding.mandate.TaxHeadroom;
+import ee.tuleva.onboarding.nudge.TaxHeadroom;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
@@ -34,12 +34,7 @@ public class ThirdPillarTaxHeadroom implements TaxHeadroom {
 
   @Override
   public boolean hasHeadroom(Person person) {
-    try {
-      return hasConfidentHeadroom(person);
-    } catch (Exception e) {
-      log.warn("Skipping third pillar raise nudge, contribution lookup failed", e);
-      return false;
-    }
+    return hasConfidentHeadroom(person);
   }
 
   private boolean hasConfidentHeadroom(Person person) {

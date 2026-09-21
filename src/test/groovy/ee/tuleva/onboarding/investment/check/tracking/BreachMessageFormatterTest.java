@@ -1,11 +1,13 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
 import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK;
+import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK_MODEL;
 import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -190,6 +192,112 @@ class BreachMessageFormatterTest {
         .doesNotContain("that is the unexplained amount");
   }
 
+  @Test
+  void aHoldingStaleOnBothLegsIsNamedAsCancellingOutRatherThanListedPlainly() {
+    var benchmarkModel =
+        tuk75On20260901().toBuilder()
+            .checkType(BENCHMARK_MODEL)
+            .securityAttributions(
+                List.of(
+                    benchmarkAttribution("IE00BFG1TM61", "0", "0"),
+                    benchmarkAttribution("IE000I9HGDZ3", "0.0009", "-0.0022")))
+            .build();
+
+    var message =
+        new BreachMessageFormatter(benchmarkModel, false, RedemptionCycleHint.ordinaryDay())
+            .format();
+
+    assertThat(message)
+        .contains("IE00BFG1TM61: instrument 0.00%, index 0.00%")
+        .contains("stale on both legs, cancels out — not the cause");
+  }
+
+  @Test
+  void aHoldingFlatAgainstAMovingIndexIsNotDismissedAsStale() {
+    var benchmarkModel =
+        tuk75On20260901().toBuilder()
+            .checkType(BENCHMARK_MODEL)
+            .securityAttributions(List.of(benchmarkAttribution("IE00BFG1TM61", "0", "-0.0022")))
+            .build();
+
+    var message =
+        new BreachMessageFormatter(benchmarkModel, false, RedemptionCycleHint.ordinaryDay())
+            .format();
+
+    assertThat(message).doesNotContain("cancels out");
+  }
+
+  private SecurityAttribution benchmarkAttribution(
+      String isin, String securityReturn, String benchmarkReturn) {
+    return new SecurityAttribution(
+        isin,
+        BigDecimal.ZERO,
+        BigDecimal.ZERO,
+        null,
+        new BigDecimal(securityReturn),
+        new BigDecimal(benchmarkReturn),
+        BigDecimal.ZERO);
+  }
+
+  @Test
+  void theBridgeNamesWhatTheTradesWereWorthWhenQuantitiesMoved() {
+    var traded =
+        tuk75On20260901().toBuilder()
+            .navFlow(
+                navFlow(
+                    new BigDecimal("5888679.04"),
+                    true,
+                    new BigDecimal("-1735979.79"),
+                    new BigDecimal("-4045261.18")))
+            .build();
+
+    var message =
+        new BreachMessageFormatter(traded, false, RedemptionCycleHint.ordinaryDay()).format();
+
+    assertThat(message).contains("Trades moved").contains("-4,045,261.18");
+  }
+
+  @Test
+  void theBridgeMakesTheTradeNettingConditionalOnTheCashLegBeingOnTheReport() {
+    var traded =
+        tuk75On20260901().toBuilder()
+            .navFlow(
+                navFlow(
+                    new BigDecimal("5888679.04"),
+                    true,
+                    new BigDecimal("-1735979.79"),
+                    new BigDecimal("-4045261.18")))
+            .build();
+
+    var message =
+        new BreachMessageFormatter(traded, false, RedemptionCycleHint.ordinaryDay()).format();
+
+    assertThat(message)
+        .contains("nets out of net assets only if the cash leg is on the same report")
+        .contains("if it is not, the whole amount reaches UNEXPLAINED")
+        .contains("check trade settlement");
+  }
+
+  @Test
+  void theBridgeNamesTheInstrumentsItCouldNotMarkRatherThanReportingThePartialFigureAsWhole() {
+    var traded =
+        tuk75On20260901().toBuilder()
+            .navFlow(
+                navFlow(
+                    new BigDecimal("5888679.04"),
+                    true,
+                    new BigDecimal("-1735979.79"),
+                    new TradeFlow(BigDecimal.ZERO, List.of("IE0009FT4LX4"))))
+            .build();
+
+    var message =
+        new BreachMessageFormatter(traded, false, RedemptionCycleHint.ordinaryDay()).format();
+
+    assertThat(message)
+        .contains("excluding IE0009FT4LX4")
+        .contains("nothing prices them, so the figure is partial");
+  }
+
   private TrackingDifferenceResult tuk75On20260901() {
     return TrackingDifferenceResult.builder()
         .fund(TUK75)
@@ -221,14 +329,33 @@ class BreachMessageFormatterTest {
 
   private NavFlowReconciliation navFlow(
       BigDecimal unexplained, boolean securityQuantitiesChanged, BigDecimal marketPnl) {
+    return navFlow(unexplained, securityQuantitiesChanged, marketPnl, BigDecimal.ZERO);
+  }
+
+  private NavFlowReconciliation navFlow(
+      BigDecimal unexplained,
+      boolean securityQuantitiesChanged,
+      BigDecimal marketPnl,
+      BigDecimal tradeFlow) {
+    return navFlow(
+        unexplained, securityQuantitiesChanged, marketPnl, new TradeFlow(tradeFlow, List.of()));
+  }
+
+  private NavFlowReconciliation navFlow(
+      BigDecimal unexplained,
+      boolean securityQuantitiesChanged,
+      BigDecimal marketPnl,
+      TradeFlow tradeFlow) {
     return new NavFlowReconciliation(
         new BigDecimal("1126972502.00"),
         new BigDecimal("1142837314.33"),
         marketPnl,
+        tradeFlow,
         new BigDecimal("7306865.600"),
         new BigDecimal("11718531.79"),
         new BigDecimal("6418.71"),
         unexplained,
+        unexplained.divide(new BigDecimal("1126972502.00"), 6, RoundingMode.HALF_UP),
         securityQuantitiesChanged);
   }
 

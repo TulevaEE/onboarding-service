@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.RETURN;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_RECEIVED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RETURNED;
 import static java.util.Objects.requireNonNull;
 
@@ -8,7 +10,6 @@ import ee.tuleva.onboarding.banking.payment.PaymentRequest;
 import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -17,7 +18,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class PaymentReturningService {
-
   private final ApplicationEventPublisher eventPublisher;
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final SavingsFundLedger savingsFundLedger;
@@ -28,7 +28,7 @@ public class PaymentReturningService {
     sendReturnPaymentOrder(payment);
     savingFundPaymentRepository.changeStatus(payment.getId(), RETURNED);
 
-    if (isUserCancelledPayment(payment)) {
+    if (wasCreditedToHolder(payment)) {
       reserveUserBalanceForReturn(payment);
     }
   }
@@ -38,17 +38,30 @@ public class PaymentReturningService {
     var description = returnReason != null ? "Tagastus: " + returnReason : "Tagastus";
     var paymentRequest =
         PaymentRequest.tulevaPaymentBuilder(endToEndIdConverter.toEndToEndId(payment.getId()))
-            .remitterIban(payment.getBeneficiaryIban())
-            .beneficiaryName(payment.getRemitterName())
-            .beneficiaryIban(payment.getRemitterIban())
+            .remitterIban(
+                requireNonNull(
+                    payment.getBeneficiaryIban(),
+                    "Payment without beneficiary IBAN cannot be returned: paymentId="
+                        + payment.getId()))
+            .beneficiaryName(
+                requireNonNull(
+                    payment.getRemitterName(),
+                    "Payment without remitter name cannot be returned: paymentId="
+                        + payment.getId()))
+            .beneficiaryIban(
+                requireNonNull(
+                    payment.getRemitterIban(),
+                    "Payment without remitter IBAN cannot be returned: paymentId="
+                        + payment.getId()))
             .amount(payment.getAmount())
             .description(description)
             .build();
-    eventPublisher.publishEvent(new RequestPaymentEvent(paymentRequest, UUID.randomUUID()));
+    eventPublisher.publishEvent(new RequestPaymentEvent(paymentRequest, payment.getId(), RETURN));
   }
 
-  private boolean isUserCancelledPayment(SavingFundPayment payment) {
-    return payment.getPartyId() != null;
+  private boolean wasCreditedToHolder(SavingFundPayment payment) {
+    return payment.getPartyId() != null
+        && savingsFundLedger.hasLedgerEntry(payment.getId(), PAYMENT_RECEIVED);
   }
 
   private void reserveUserBalanceForReturn(SavingFundPayment payment) {

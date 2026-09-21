@@ -9,7 +9,8 @@ import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.PERSON;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
 import static ee.tuleva.onboarding.savings.SavingFundPaymentFixture.aPayment;
 import static ee.tuleva.onboarding.savings.SavingsFundOnboardingStatus.COMPLETED;
-import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldService.SYSTEM;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.PEP;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.SANCTION;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
@@ -48,7 +49,9 @@ import ee.tuleva.onboarding.user.UserRepository;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -259,7 +262,12 @@ class RedemptionIntegrationTest {
 
     // Step 2: Price and redeem (happens in batch job at T+2)
     savingsFundLedger.redeemFundUnitsFromReserved(
-        testPartyRef, fundUnits, cashAmount, navPerUnit, redemptionRequestId);
+        testPartyRef,
+        fundUnits,
+        cashAmount,
+        navPerUnit,
+        LocalDate.parse("2025-03-10"),
+        redemptionRequestId);
 
     // Steps 3 & 4: Transfer and payout (happens during bank statement reconciliation)
     savingsFundLedger.transferFromFundAccount(cashAmount, redemptionRequestId);
@@ -371,7 +379,7 @@ class RedemptionIntegrationTest {
     savingsFundLedger.recordPaymentReceived(testPartyRef, cashAmount, paymentId);
     savingsFundLedger.reservePaymentForSubscription(testPartyRef, cashAmount, paymentId);
     savingsFundLedger.issueFundUnitsFromReserved(
-        testPartyRef, cashAmount, fundUnits, navPerUnit, paymentId);
+        testPartyRef, cashAmount, fundUnits, navPerUnit, LocalDate.parse("2025-03-10"), paymentId);
     savingsFundLedger.transferToFundAccount(cashAmount, paymentId);
   }
 
@@ -551,7 +559,7 @@ class RedemptionIntegrationTest {
 
     var payoutEvent =
         applicationEvents.stream(RequestPaymentEvent.class)
-            .filter(e -> requestId.equals(e.requestId()))
+            .filter(e -> requestId.equals(e.sourceId()))
             .findFirst()
             .orElseThrow(() -> new AssertionError("No RequestPaymentEvent for redemption request"));
     assertThat(payoutEvent.paymentRequest().beneficiaryName()).isEqualTo(companyName);
@@ -788,7 +796,7 @@ class RedemptionIntegrationTest {
     savingsFundLedger.recordPaymentReceived(partyRef, cashAmount, paymentId);
     savingsFundLedger.reservePaymentForSubscription(partyRef, cashAmount, paymentId);
     savingsFundLedger.issueFundUnitsFromReserved(
-        partyRef, cashAmount, fundUnits, navPerUnit, paymentId);
+        partyRef, cashAmount, fundUnits, navPerUnit, LocalDate.parse("2025-03-10"), paymentId);
     savingsFundLedger.transferToFundAccount(cashAmount, paymentId);
   }
 
@@ -805,7 +813,7 @@ class RedemptionIntegrationTest {
     var requestId = request.getId();
 
     // Verification found a PEP hit: the order still goes ahead, only the payout waits.
-    redemptionHoldService.holdPayout(requestId, "PEP", SYSTEM);
+    redemptionHoldService.holdPayout(requestId, Set.of(PEP));
     redemptionStatusService.changeStatus(requestId, VERIFIED);
 
     ClockHolder.setClock(Clock.fixed(tuesday, UTC));
@@ -822,7 +830,7 @@ class RedemptionIntegrationTest {
         .isEqualByComparingTo(redemptionAmount.negate());
     assertThat(
             applicationEvents.stream(RequestPaymentEvent.class)
-                .filter(e -> requestId.equals(e.requestId())))
+                .filter(e -> requestId.equals(e.sourceId())))
         .isEmpty();
     verify(sebGatewayClient, times(1)).submitPaymentFile(any(), any(), any());
 
@@ -835,7 +843,7 @@ class RedemptionIntegrationTest {
     assertThat(released.getProcessedAt()).isNotNull();
     var payoutEvent =
         applicationEvents.stream(RequestPaymentEvent.class)
-            .filter(e -> requestId.equals(e.requestId()))
+            .filter(e -> requestId.equals(e.sourceId()))
             .findFirst()
             .orElseThrow(() -> new AssertionError("No payout event after release"));
     assertThat(payoutEvent.paymentRequest().amount()).isEqualByComparingTo(redemptionAmount);
@@ -857,11 +865,11 @@ class RedemptionIntegrationTest {
             testAuthenticatedPerson, redemptionAmount, EUR, VALID_IBAN);
     var requestId = request.getId();
 
-    redemptionHoldService.freeze(requestId, "SANCTION");
+    redemptionHoldService.freeze(requestId);
 
     var frozen = redemptionRequestRepository.findById(requestId).orElseThrow();
     assertThat(frozen.getStatus()).isEqualTo(FROZEN);
-    assertThat(frozen.getHoldReason()).isEqualTo("SANCTION");
+    assertThat(frozen.getHoldReasons()).containsExactly(SANCTION);
 
     // The customer cannot take the units back out of the freeze.
     redemptionService.cancelRedemption(requestId, testAuthenticatedPerson);

@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.investment.check.limit;
 
-import static ee.tuleva.onboarding.investment.JobRunSchedule.LIMIT_CHECK_BACKFILL;
+import static ee.tuleva.onboarding.investment.JobRunSchedule.LIMIT_CHECK_GAP_FILL;
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 import static ee.tuleva.onboarding.pipeline.PipelineStep.LIMIT_CHECK;
 
@@ -28,6 +28,7 @@ import org.springframework.stereotype.Component;
 public class LimitCheckJob {
 
   private static final int BACKFILL_DAYS = 25;
+  static final int GAP_LOOKBACK_DAYS = 30;
 
   private final LimitCheckService limitCheckService;
   private final LimitCheckNotifier limitCheckNotifier;
@@ -70,8 +71,36 @@ public class LimitCheckJob {
     backfillLimitChecks();
   }
 
-  @Scheduled(cron = LIMIT_CHECK_BACKFILL, zone = TIMEZONE)
-  @SchedulerLock(name = "LimitCheckBackfillJob", lockAtMostFor = "30m", lockAtLeastFor = "5m")
+  @Scheduled(cron = LIMIT_CHECK_GAP_FILL, zone = TIMEZONE)
+  @SchedulerLock(name = "LimitCheckGapFill", lockAtMostFor = "2h", lockAtLeastFor = "1m")
+  void fillLimitCheckGaps() {
+    try {
+      var gaps = limitCheckService.gapDates(GAP_LOOKBACK_DAYS);
+      if (gaps.isEmpty()) {
+        log.info("No limit check gaps to fill");
+        return;
+      }
+
+      log.info("Filling limit check gaps: gaps={}", gaps);
+      syncFeeAccrualPositionsWithoutAbortingTheFill();
+
+      limitCheckNotifier.notify(limitCheckService.fillGaps(gaps, GAP_LOOKBACK_DAYS));
+    } catch (Exception e) {
+      log.error("Limit check gap fill failed", e);
+      limitCheckNotifier.notifyGapFillFailed(e);
+    }
+  }
+
+  private void syncFeeAccrualPositionsWithoutAbortingTheFill() {
+    try {
+      int synced = feeAccrualPositionSyncJob.sync(GAP_LOOKBACK_DAYS);
+      log.info("Fee accrual positions synced before gap fill: positionsWritten={}", synced);
+    } catch (Exception e) {
+      log.error("Fee accrual position sync failed before limit check gap fill", e);
+      limitCheckNotifier.notifyPositionSyncFailed(e);
+    }
+  }
+
   void backfillLimitChecks() {
     log.info("Starting limit check backfill");
 

@@ -16,8 +16,9 @@ import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
 
 public interface RedemptionRequestRepository extends CrudRepository<RedemptionRequest, UUID> {
-
   List<RedemptionRequest> findByStatus(Status status);
+
+  List<RedemptionRequest> findByStatusIn(Collection<Status> statuses);
 
   Optional<RedemptionRequest> findByIdAndStatus(UUID id, Status status);
 
@@ -39,7 +40,7 @@ public interface RedemptionRequestRepository extends CrudRepository<RedemptionRe
   @Query(
       """
       SELECT r FROM RedemptionRequest r
-      WHERE r.holdReason IS NOT NULL
+      WHERE r.holdReasons IS NOT EMPTY
         AND r.holdReleasedAt IS NULL
         AND r.holdNotifiedAt IS NULL
         AND r.status IN :statuses

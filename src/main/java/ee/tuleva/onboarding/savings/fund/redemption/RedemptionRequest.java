@@ -8,7 +8,10 @@ import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.time.ClockHolder;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
+import java.util.EnumSet;
+import java.util.Set;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -72,6 +75,8 @@ public class RedemptionRequest {
 
   @Nullable private String errorReason;
 
+  @Nullable private Instant verificationAttemptedAt;
+
   // RedemptionController returns this entity to the customer, and RahaPTS forbids telling the
   // customer about an AML suspicion, so the review and hold columns never leave the server.
   @JsonIgnore @Nullable private String reviewedBy;
@@ -80,7 +85,18 @@ public class RedemptionRequest {
 
   @JsonIgnore @Nullable private Instant reviewedAt;
 
-  @JsonIgnore @Nullable private String holdReason;
+  @JsonIgnore
+  @ElementCollection(fetch = FetchType.EAGER)
+  @CollectionTable(
+      name = "redemption_hold_reason",
+      joinColumns =
+          @JoinColumn(
+              name = "redemption_request_id",
+              foreignKey = @ForeignKey(name = "fk_redemption_hold_reason_request")))
+  @Column(name = "reason", nullable = false)
+  @Enumerated(STRING)
+  @Builder.Default
+  private Set<RedemptionHoldReason> holdReasons = EnumSet.noneOf(RedemptionHoldReason.class);
 
   @JsonIgnore @Nullable private String holdComment;
 
@@ -128,7 +144,30 @@ public class RedemptionRequest {
     return new PartyId(partyType, partyCode);
   }
 
+  // Alerts and logs name the reasons, so they are read back in enum order rather than in whatever
+  // order the caller's Set happened to iterate.
+  public Set<RedemptionHoldReason> getHoldReasons() {
+    return holdReasons.isEmpty() ? Set.of() : EnumSet.copyOf(holdReasons);
+  }
+
+  // Hibernate rewrites the collection in place on merge, so it may never hold an immutable Set.
+  public void setHoldReasons(Set<RedemptionHoldReason> reasons) {
+    holdReasons =
+        reasons.isEmpty() ? EnumSet.noneOf(RedemptionHoldReason.class) : EnumSet.copyOf(reasons);
+  }
+
   public boolean hasActiveHold() {
-    return holdReason != null && holdReleasedAt == null;
+    return !holdReasons.isEmpty() && holdReleasedAt == null;
+  }
+
+  public boolean amountReconciles() {
+    if (fundUnits == null || navPerUnit == null || cashAmount == null) {
+      return false;
+    }
+    return expectedAmount().compareTo(cashAmount) == 0;
+  }
+
+  public BigDecimal expectedAmount() {
+    return fundUnits.multiply(navPerUnit).setScale(2, RoundingMode.HALF_UP);
   }
 }

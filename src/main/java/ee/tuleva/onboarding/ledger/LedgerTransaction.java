@@ -15,6 +15,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -70,7 +71,8 @@ public class LedgerTransaction {
     REGISTRAR_PAYOUT,
     UNCLASSIFIED_BANK_ENTRY,
     OPENING_BALANCE,
-    OWN_ACCOUNT_TRANSFER
+    OWN_ACCOUNT_TRANSFER,
+    UNIT_TRANSFER
   }
 
   @Id
@@ -144,6 +146,11 @@ public class LedgerTransaction {
   public Optional<BigDecimal> findNavPerUnit() {
     Object navValue = metadata.get("navPerUnit");
     return Optional.ofNullable(navValue).map(value -> new BigDecimal(value.toString()));
+  }
+
+  public Optional<LocalDate> findNavDate() {
+    Object navDate = metadata.get("navDate");
+    return Optional.ofNullable(navDate).map(value -> LocalDate.parse(value.toString()));
   }
 
   private static BigDecimal normalizeScale(BigDecimal amount, AssetType assetType) {

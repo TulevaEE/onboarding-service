@@ -210,16 +210,6 @@
       "from_email": "tuleva@tuleva.ee",
       "from_name": "Tuleva"
     },
-    "savings_fund_payment_success_en": {
-      "subject": "Contribution to Tuleva Additional Investment Fund is done",
-      "from_email": "tuleva@tuleva.ee",
-      "from_name": "Tuleva"
-    },
-    "savings_fund_payment_success_et": {
-      "subject": "Sissemakse täiendavasse kogumisfondi on tehtud",
-      "from_email": "tuleva@tuleva.ee",
-      "from_name": "Tuleva"
-    },
     "savings_fund_payment_success_person_en": {
       "subject": "Contribution to Tuleva Additional Investment Fund is done",
       "from_email": "tuleva@tuleva.ee",
@@ -335,7 +325,6 @@
     "membership": "Sent as soon as a person becomes a Tuleva member, right after the membership application is completed.",
     "savings_fund_payment_cancelled": "Sent when a savings fund payment is cancelled before units are issued and the money is sent back to the payer.",
     "savings_fund_payment_failed": "Sent when a savings fund payment fails our checks and the money is returned to the payer.",
-    "savings_fund_payment_success": "Sent when a savings fund payment made inside the app is completed. Bank transfer payments use the person, child, or company variants instead.",
     "savings_fund_payment_success_child": "Sent to the parent when their bank transfer to a child's savings fund account is matched and units are issued.",
     "savings_fund_payment_success_company": "Sent to the representative when a bank transfer to a company's savings fund account is matched and units are issued.",
     "savings_fund_payment_success_person": "Sent when a bank transfer to the saver's own savings fund account is matched and units are issued.",

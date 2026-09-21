@@ -1,11 +1,14 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.MANUAL;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.SANCTION;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
-import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,7 +23,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 public class RedemptionHoldService {
 
   static final String SYSTEM = "SYSTEM";
-  static final String MANUAL = "MANUAL";
 
   private static final List<Status> HOLDABLE_STATUSES =
       List.of(RESERVED, FROZEN, VERIFIED, PAYOUT_HELD);
@@ -32,31 +34,32 @@ public class RedemptionHoldService {
   private final TransactionTemplate transactionTemplate;
 
   @Transactional
-  public void freeze(UUID id, String reason) {
+  public void freeze(UUID id) {
     RedemptionRequest request = findForUpdate(id);
     if (request.getStatus() != RESERVED) {
       throw new IllegalStateException(
           "Only reserved redemptions can be frozen: id=" + id + ", status=" + request.getStatus());
     }
-    startHold(request, reason, SYSTEM, request.getHoldComment());
+    startHold(request, Set.of(SANCTION), SYSTEM, null);
     redemptionStatusService.changeStatus(id, FROZEN);
     if (notifier.notifyFrozen(request)) {
       markNotified(request);
     }
-    log.info("Redemption frozen: id={}, reason={}", id, reason);
+    log.info("Redemption frozen: id={}, reason={}", id, SANCTION);
   }
 
   @Transactional
-  public void holdPayout(UUID id, String reason, String by) {
-    holdPayout(id, reason, by, null);
+  public void holdPayout(UUID id, Set<RedemptionHoldReason> reasons) {
+    holdPayout(id, reasons, SYSTEM, null);
   }
 
   @Transactional
   public void holdPayoutManually(UUID id, String by, String comment) {
-    holdPayout(id, MANUAL, by, comment);
+    holdPayout(id, Set.of(MANUAL), by, comment);
   }
 
-  private void holdPayout(UUID id, String reason, String by, @Nullable String comment) {
+  private void holdPayout(
+      UUID id, Set<RedemptionHoldReason> reasons, String by, @Nullable String comment) {
     RedemptionRequest request = findForUpdate(id);
     if (request.getStatus() != RESERVED && request.getStatus() != VERIFIED) {
       throw new IllegalStateException(
@@ -66,14 +69,14 @@ public class RedemptionHoldService {
               + request.getStatus());
     }
     if (request.hasActiveHold()) {
-      addHoldReason(request, reason);
+      addHoldReasons(request, reasons);
       return;
     }
-    startHold(request, reason, by, comment);
+    startHold(request, reasons, by, comment);
     if (notifier.notifyPayoutHold(request)) {
       markNotified(request);
     }
-    log.info("Redemption payout held: id={}, reason={}, by={}", id, reason, by);
+    log.info("Redemption payout held: id={}, reasons={}, by={}", id, reasons, by);
   }
 
   // SebPaymentRequestListener is a plain @EventListener, so the payout event must be published
@@ -124,21 +127,25 @@ public class RedemptionHoldService {
     }
   }
 
-  private void addHoldReason(RedemptionRequest request, String reason) {
-    String existing = requireNonNull(request.getHoldReason());
-    if (!List.of(existing.split(",")).contains(reason)) {
-      request.setHoldReason(existing + "," + reason);
+  private void addHoldReasons(RedemptionRequest request, Set<RedemptionHoldReason> reasons) {
+    Set<RedemptionHoldReason> merged = EnumSet.noneOf(RedemptionHoldReason.class);
+    merged.addAll(request.getHoldReasons());
+    if (merged.addAll(reasons)) {
+      request.setHoldReasons(merged);
       repository.save(request);
     }
     log.info(
-        "Redemption already on hold, reason added: id={}, reasons={}",
+        "Redemption already on hold, reasons merged: id={}, reasons={}",
         request.getId(),
-        request.getHoldReason());
+        request.getHoldReasons());
   }
 
   private void startHold(
-      RedemptionRequest request, String reason, String by, @Nullable String comment) {
-    request.setHoldReason(reason);
+      RedemptionRequest request,
+      Set<RedemptionHoldReason> reasons,
+      String by,
+      @Nullable String comment) {
+    request.setHoldReasons(reasons);
     request.setHoldComment(comment);
     request.setHoldAt(clock().instant());
     request.setHeldBy(by);

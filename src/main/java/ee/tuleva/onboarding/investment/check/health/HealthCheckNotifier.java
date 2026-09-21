@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.N
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.PASS;
 import static ee.tuleva.onboarding.investment.check.health.HealthCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static java.util.stream.Collectors.joining;
 
 import ee.tuleva.onboarding.investment.report.ReportProvider;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
@@ -12,6 +13,8 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -31,7 +34,7 @@ public class HealthCheckNotifier {
         for (var checkType : HealthCheckType.values()) {
           var current = currentSeverity(result, checkType);
           var previous = previousSeverity(result.fund(), result.checkDate(), checkType);
-          if (current == previous) {
+          if (current == previous && !reasonChanged(result, checkType, current)) {
             continue;
           }
           transitions.add(new Transition(result, checkType, current, previous));
@@ -45,7 +48,7 @@ public class HealthCheckNotifier {
       var activeTransitions = transitions.stream().filter(t -> t.current != PASS).toList();
       var clearedTransitions = transitions.stream().filter(t -> t.current == PASS).toList();
 
-      var message = buildMessage(provider, date, activeTransitions, clearedTransitions);
+      var message = buildMessage(provider, date, results, activeTransitions, clearedTransitions);
       notificationService.sendMessage(message, INVESTMENT);
       return true;
 
@@ -63,6 +66,43 @@ public class HealthCheckNotifier {
         .orElse(PASS);
   }
 
+  private boolean reasonChanged(
+      HealthCheckResult result, HealthCheckType checkType, HealthCheckSeverity current) {
+    if (current != NOT_RUN) {
+      return false;
+    }
+    var rows =
+        eventRepository.findTop2ByFundAndCheckDateAndCheckTypeOrderByCreatedAtDesc(
+            result.fund(), result.checkDate(), checkType);
+    if (rows.size() < 2) {
+      return false;
+    }
+    return !messages(result, checkType).equals(storedMessages(rows.get(1)));
+  }
+
+  private List<String> messages(HealthCheckResult result, HealthCheckType checkType) {
+    return result.findings().stream()
+        .filter(finding -> finding.checkType() == checkType)
+        .map(HealthCheckFinding::message)
+        .sorted()
+        .toList();
+  }
+
+  @SuppressWarnings("unchecked")
+  private List<String> storedMessages(HealthCheckEvent event) {
+    var findings = event.getResult().get("findings");
+    if (!(findings instanceof List<?> list)) {
+      return List.of();
+    }
+    return list.stream()
+        .filter(Map.class::isInstance)
+        .map(finding -> ((Map<String, Object>) finding).get("message"))
+        .filter(Objects::nonNull)
+        .map(Object::toString)
+        .sorted()
+        .toList();
+  }
+
   private HealthCheckSeverity previousSeverity(
       TulevaFund fund, LocalDate checkDate, HealthCheckType checkType) {
     var rows =
@@ -76,9 +116,13 @@ public class HealthCheckNotifier {
   }
 
   private String buildMessage(
-      ReportProvider provider, LocalDate date, List<Transition> active, List<Transition> cleared) {
+      ReportProvider provider,
+      LocalDate date,
+      List<HealthCheckResult> results,
+      List<Transition> active,
+      List<Transition> cleared) {
     var message = new StringBuilder();
-    message.append(header(provider, date, active));
+    message.append(header(provider, date, results, active));
 
     for (var transition : active) {
       for (var finding : transition.result.findings()) {
@@ -108,9 +152,18 @@ public class HealthCheckNotifier {
     return message.toString();
   }
 
-  private String header(ReportProvider provider, LocalDate date, List<Transition> active) {
-    if (active.stream().anyMatch(t -> t.current == FAIL)) {
-      return "IMPORT BLOCKED: %s %s — source files need to be fixed\n".formatted(provider, date);
+  private String header(
+      ReportProvider provider,
+      LocalDate date,
+      List<HealthCheckResult> results,
+      List<Transition> active) {
+    var blockedFunds =
+        HealthCheckResult.blockedFunds(results).stream()
+            .map(TulevaFund::getCode)
+            .collect(joining(", "));
+    if (!blockedFunds.isEmpty()) {
+      return "IMPORT BLOCKED: %s %s — %s not imported, source files need to be fixed\n"
+          .formatted(provider, date, blockedFunds);
     }
     if (active.stream().anyMatch(t -> t.current == WARNING)) {
       return "Import warning: %s %s\n".formatted(provider, date);

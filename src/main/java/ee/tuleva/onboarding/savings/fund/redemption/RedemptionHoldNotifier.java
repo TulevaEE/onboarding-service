@@ -31,11 +31,11 @@ class RedemptionHoldNotifier {
   boolean notifyPayoutHold(RedemptionRequest request) {
     return send(
         ("AML: redemption will be executed but the payout is held for review: "
-                + "id=%s, amount=%s EUR, reason=%s. Release: POST /admin/redemptions/%s/release")
+                + "id=%s, amount=%s EUR, reasons=%s. Release: POST /admin/redemptions/%s/release")
             .formatted(
                 request.getId(),
                 request.getRequestedAmount().toPlainString(),
-                request.getHoldReason(),
+                request.getHoldReasons(),
                 request.getId()));
   }
 
@@ -47,12 +47,6 @@ class RedemptionHoldNotifier {
 
   boolean notifyReleased(UUID requestId) {
     return send("AML: redemption released: id=%s".formatted(requestId));
-  }
-
-  boolean notifyUnscreened(int count) {
-    return send(
-        "AML: %d redemption request(s) unscreened for over an hour, is the screening service down?"
-            .formatted(count));
   }
 
   private boolean send(String message) {

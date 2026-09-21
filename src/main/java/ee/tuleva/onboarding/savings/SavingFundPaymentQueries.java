@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.savings;
 
 import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
+import java.time.Clock;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -13,8 +15,11 @@ import org.springframework.stereotype.Component;
 public class SavingFundPaymentQueries {
 
   private final SavingFundPaymentRepository savingFundPaymentRepository;
+  private final Clock clock;
 
   public List<SavingFundPayment> getPendingPayments(PartyId partyId) {
+    final Duration BANK_CONFIRMATION_WINDOW = Duration.ofDays(7);
+    var unconfirmedCutoff = clock.instant().minus(BANK_CONFIRMATION_WINDOW);
     return savingFundPaymentRepository
         .findPaymentsWithStatus(
             partyId,
@@ -25,6 +30,7 @@ public class SavingFundPaymentQueries {
             SavingFundPayment.Status.FROZEN,
             SavingFundPayment.Status.TO_BE_RETURNED)
         .stream()
+        .filter(payment -> !payment.isUnconfirmedSince(unconfirmedCutoff))
         .toList();
   }
 

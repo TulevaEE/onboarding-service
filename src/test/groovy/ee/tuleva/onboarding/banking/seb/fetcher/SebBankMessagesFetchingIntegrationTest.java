@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.banking.seb.fetcher;
 import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
 import static ee.tuleva.onboarding.banking.BankType.SEB;
+import static ee.tuleva.onboarding.banking.message.BankMessageType.HISTORIC_STATEMENT;
+import static ee.tuleva.onboarding.banking.message.BankMessageType.INTRA_DAY_REPORT;
 import static ee.tuleva.onboarding.banking.seb.Seb.SEB_GATEWAY_TIME_ZONE;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -62,6 +64,10 @@ class SebBankMessagesFetchingIntegrationTest {
     assertThat(message.getTimezoneId()).isEqualTo(SEB_GATEWAY_TIME_ZONE);
     assertThat(message.getProcessedAt()).isNull();
     assertThat(message.getFailedAt()).isNull();
+    assertThat(message.getMessageType()).isEqualTo(INTRA_DAY_REPORT);
+    assertThat(message.getAccountIban()).isEqualTo(DEPOSIT_IBAN);
+    assertThat(message.getStatementFrom()).isNull();
+    assertThat(message.getStatementTo()).isNull();
   }
 
   @Test
@@ -71,7 +77,8 @@ class SebBankMessagesFetchingIntegrationTest {
 
     eventPublisher.publishEvent(
         new FetchSebEodTransactionsRequested(
-            new BankAccount(WITHDRAWAL_IBAN, WITHDRAWAL_EUR, TKF100, "gw-test")));
+            new BankAccount(WITHDRAWAL_IBAN, WITHDRAWAL_EUR, TKF100, "gw-test"),
+            LocalDate.of(2026, 1, 12)));
 
     List<BankingMessage> messages = findAllUnprocessedMessages();
     assertThat(messages).hasSize(1);
@@ -80,6 +87,10 @@ class SebBankMessagesFetchingIntegrationTest {
     assertThat(message.getBankType()).isEqualTo(SEB);
     assertThat(message.getRawResponse()).isEqualTo(testXml);
     assertThat(message.getTimezoneId()).isEqualTo(SEB_GATEWAY_TIME_ZONE);
+    assertThat(message.getMessageType()).isEqualTo(HISTORIC_STATEMENT);
+    assertThat(message.getAccountIban()).isEqualTo(WITHDRAWAL_IBAN);
+    assertThat(message.getStatementFrom()).isEqualTo(LocalDate.of(2026, 1, 12));
+    assertThat(message.getStatementTo()).isEqualTo(LocalDate.of(2026, 1, 12));
   }
 
   @Test
@@ -101,6 +112,10 @@ class SebBankMessagesFetchingIntegrationTest {
     assertThat(message.getBankType()).isEqualTo(SEB);
     assertThat(message.getRawResponse()).isEqualTo(testXml);
     assertThat(message.getTimezoneId()).isEqualTo(SEB_GATEWAY_TIME_ZONE);
+    assertThat(message.getMessageType()).isEqualTo(HISTORIC_STATEMENT);
+    assertThat(message.getAccountIban()).isEqualTo(DEPOSIT_IBAN);
+    assertThat(message.getStatementFrom()).isEqualTo(dateFrom);
+    assertThat(message.getStatementTo()).isEqualTo(dateTo);
   }
 
   private List<BankingMessage> findAllUnprocessedMessages() {

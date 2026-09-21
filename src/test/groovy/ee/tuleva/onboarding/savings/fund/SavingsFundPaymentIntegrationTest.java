@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.banking.seb.Seb.SEB_GATEWAY_TIME_ZONE;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.*;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_BOUNCE_BACK;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_CANCELLED;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_RECEIVED;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.PENDING_KYC;
@@ -622,6 +623,7 @@ class SavingsFundPaymentIntegrationTest {
     assertThat(payment.getPartyId()).isNull(); // Not attached to any party
     assertThat(payment.getReturnReason())
         .isEqualTo("selgituses olev isikukood ei klapi maksja isikukoodiga");
+    assertThat(payment.getThirdPartyDeposit()).isNull();
 
     // Assert ledger: payment recorded as unattributed
     var paymentAmount = new BigDecimal("50.00");
@@ -696,13 +698,67 @@ class SavingsFundPaymentIntegrationTest {
         .isEqualByComparingTo(paymentAmount);
   }
 
+  @Test
+  void depositFromAnUnrelatedAdultIsVerifiedForTheMinorAndRecordedAsAThirdPartyDeposit() {
+    var minorCode = "61506150006";
+    userRepository.save(
+        User.builder()
+            .firstName("Mari")
+            .lastName("Maasikas")
+            .personalCode(minorCode)
+            .email("mari.maasikas@example.com")
+            .phoneNumber("+372 5555 8888")
+            .build());
+    savingsFundOnboardingRepository.saveOnboardingStatus(minorCode, PERSON, COMPLETED);
+
+    persistXmlMessage(
+        createPaymentFromJuriTammXml("test-gift", "2025092909000-3", "Kingitus " + minorCode), NOW);
+
+    // Step 1: Process XML message → Payment should be RECEIVED
+    eventPublisher.publishEvent(new ProcessBankMessagesRequested());
+
+    var payment = paymentRepository.findByExternalId("2025092909000-3").orElseThrow();
+    assertThat(payment.getStatus()).isEqualTo(RECEIVED);
+    assertThat(payment.getThirdPartyDeposit()).isNull();
+    var paymentId = payment.getId();
+    ownedPaymentIds.add(paymentId);
+
+    // Step 2: Run verification job → VERIFIED for the minor, flagged as a third party deposit
+    paymentVerificationJob.runJob();
+
+    payment = paymentRepository.findById(paymentId).orElseThrow();
+    assertThat(payment.getStatus()).isEqualTo(VERIFIED);
+    assertThat(payment.getPartyId()).isEqualTo(new PartyId(PERSON, minorCode));
+    assertThat(payment.getThirdPartyDeposit()).isTrue();
+    assertThat(payment.getReturnReason()).isNull();
+
+    // Assert ledger: the cash liability lands on the minor, not on the unrelated payer
+    var paymentAmount = new BigDecimal("50.00");
+    assertThat(savingsFundLedger.hasLedgerEntry(paymentId, PAYMENT_RECEIVED)).isTrue();
+    assertThat(scopedBalance(getCashAccount(minorCode)))
+        .isEqualByComparingTo(paymentAmount.negate());
+    assertThat(scopedBalance(getUserCashAccount())).isEqualByComparingTo(ZERO);
+    assertThat(scopedBalance(getIncomingPaymentsClearingAccount()))
+        .isEqualByComparingTo(paymentAmount);
+  }
+
   private String createPaymentForChildXml(String childCode) {
+    return createPaymentFromJuriTammXml(
+        "test-for-child", "2025092909000-2", "Payment for " + childCode);
+  }
+
+  private String createPaymentFromJuriTammXml(
+      String messageId, String externalId, String description) {
     return "<?xml version=\"1.0\" encoding=\"UTF-8\"?> "
         + "<Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:camt.052.001.02\"> "
         + "<BkToCstmrAcctRpt> "
-        + "<GrpHdr> <MsgId>test-for-child</MsgId> <CreDtTm>2025-09-29T09:00:00</CreDtTm> </GrpHdr> "
+        + "<GrpHdr> <MsgId>"
+        + messageId
+        + "</MsgId> <CreDtTm>2025-09-29T09:00:00</CreDtTm> </GrpHdr> "
         + "<Rpt> "
-        + "<Id>test-for-child-1</Id> "
+        + "<Id>"
+        + messageId
+        + "-1</Id> "
         + "<CreDtTm>2025-09-29T09:00:00</CreDtTm> "
         + "<FrToDt> "
         + "<FrDtTm>2025-09-29T00:00:00</FrDtTm> "
@@ -715,13 +771,17 @@ class SavingsFundPaymentIntegrationTest {
         + "</Ownr> "
         + "</Acct> "
         + "<Ntry> "
-        + "<NtryRef>2025092909000-2</NtryRef>"
+        + "<NtryRef>"
+        + externalId
+        + "</NtryRef>"
         + "<Amt Ccy=\"EUR\">50.00</Amt> "
         + "<CdtDbtInd>CRDT</CdtDbtInd> "
         + "<Sts>BOOK</Sts> "
         + "<BookgDt> <Dt>2025-09-29</Dt> </BookgDt> "
         + "<NtryDtls> <TxDtls> "
-        + "<Refs> <AcctSvcrRef>2025092909000-2</AcctSvcrRef> </Refs> "
+        + "<Refs> <AcctSvcrRef>"
+        + externalId
+        + "</AcctSvcrRef> </Refs> "
         + "<AmtDtls> <TxAmt> <Amt Ccy=\"EUR\">50.00</Amt> </TxAmt> </AmtDtls> "
         + "<RltdPties> "
         + "<Dbtr> <Nm>Jüri Tamm</Nm> "
@@ -729,8 +789,8 @@ class SavingsFundPaymentIntegrationTest {
         + "</Dbtr> "
         + "<DbtrAcct> <Id> <IBAN>EE982200221234567890</IBAN> </Id> </DbtrAcct> "
         + "</RltdPties> "
-        + "<RmtInf> <Ustrd>Payment for "
-        + childCode
+        + "<RmtInf> <Ustrd>"
+        + description
         + "</Ustrd> </RmtInf> "
         + "</TxDtls> </NtryDtls> "
         + "</Ntry> "

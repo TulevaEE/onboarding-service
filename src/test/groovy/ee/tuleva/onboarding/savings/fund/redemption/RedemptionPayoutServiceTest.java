@@ -2,7 +2,9 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
+import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.PAYOUT;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.PEP;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestFixture.redemptionRequestFixture;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
@@ -17,6 +19,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.banking.BankAccounts;
+import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.payment.PaymentRequest;
 import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
@@ -29,6 +32,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.NoSuchElementException;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,6 +56,8 @@ class RedemptionPayoutServiceTest {
   @Mock private SavingFundPaymentRepository savingFundPaymentRepository;
   @Mock private CompanyRepository companyRepository;
   @Mock private UserRepository userRepository;
+  @Mock private RedemptionPayoutValidator payoutValidator;
+  @Mock private PaymentCheckService paymentCheckService;
   @Mock private TransactionTemplate transactionTemplate;
 
   private RedemptionPayoutService service;
@@ -76,6 +82,8 @@ class RedemptionPayoutServiceTest {
             new EndToEndIdConverter(),
             companyRepository,
             userRepository,
+            payoutValidator,
+            paymentCheckService,
             transactionTemplate);
   }
 
@@ -106,7 +114,7 @@ class RedemptionPayoutServiceTest {
     inOrder.verify(redemptionStatusService).changeStatus(requestId, REDEEMED);
     inOrder
         .verify(eventPublisher)
-        .publishEvent(new RequestPaymentEvent(expectedPayment, requestId));
+        .publishEvent(new RequestPaymentEvent(expectedPayment, requestId, PAYOUT, null));
     assertThat(request.getProcessedAt()).isEqualTo(NOW);
   }
 
@@ -154,7 +162,11 @@ class RedemptionPayoutServiceTest {
   void payOutHeld_rejectsRequestThatWasNeverPriced() {
     var requestId = UUID.randomUUID();
     var request =
-        redemptionRequestFixture().id(requestId).status(PAYOUT_HELD).holdReason("PEP").build();
+        redemptionRequestFixture()
+            .id(requestId)
+            .status(PAYOUT_HELD)
+            .holdReasons(Set.of(PEP))
+            .build();
     given(redemptionRequestRepository.findByIdForUpdate(requestId))
         .willReturn(Optional.of(request));
 
@@ -180,7 +192,7 @@ class RedemptionPayoutServiceTest {
         .status(PAYOUT_HELD)
         .customerIban(CUSTOMER_IBAN)
         .cashAmount(new BigDecimal("25.00"))
-        .holdReason("PEP")
+        .holdReasons(Set.of(PEP))
         .holdReleasedAt(NOW)
         .reviewedAt(NOW)
         .build();

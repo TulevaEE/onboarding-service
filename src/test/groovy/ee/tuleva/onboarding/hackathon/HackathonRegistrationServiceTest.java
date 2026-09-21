@@ -9,6 +9,10 @@ import static ee.tuleva.onboarding.hackathon.HackathonRole.MENTOR;
 import static ee.tuleva.onboarding.hackathon.HackathonRole.PARTICIPANT;
 import static ee.tuleva.onboarding.hackathon.HackathonSkill.DATA_AND_AI;
 import static ee.tuleva.onboarding.hackathon.HackathonSkill.SOFTWARE_DEVELOPMENT;
+import static ee.tuleva.onboarding.hackathon.HackathonTshirtColor.NAVY;
+import static ee.tuleva.onboarding.hackathon.HackathonTshirtColor.WHITE;
+import static ee.tuleva.onboarding.hackathon.HackathonTshirtSize.L;
+import static ee.tuleva.onboarding.hackathon.HackathonTshirtSize.M;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -37,9 +41,10 @@ import org.springframework.dao.DataIntegrityViolationException;
 @ExtendWith(MockitoExtension.class)
 class HackathonRegistrationServiceTest {
 
-  private static final Instant DEADLINE = Instant.parse("2026-09-20T20:59:59Z");
+  private static final Instant DEADLINE = Instant.parse("2026-10-05T20:59:59Z");
   private static final Instant BEFORE_DEADLINE = Instant.parse("2026-08-12T10:00:00Z");
-  private static final Instant AFTER_DEADLINE = Instant.parse("2026-09-21T10:00:00Z");
+  private static final Instant LATER_BEFORE_DEADLINE = Instant.parse("2026-09-15T10:00:00Z");
+  private static final Instant AFTER_DEADLINE = Instant.parse("2026-10-06T10:00:00Z");
 
   @Mock private HackathonRegistrationRepository repository;
   @Mock private UserService userService;
@@ -73,10 +78,14 @@ class HackathonRegistrationServiceTest {
         "+37255555555",
         PARTICIPANT,
         List.of(SOFTWARE_DEVELOPMENT, DATA_AND_AI),
+        "Projektijuhtimine",
         List.of(FAIR_LENDING),
         LOOKING_FOR_TEAM,
         "Fondiosaku tagatisel krediidiliin",
-        "https://linkedin.com/in/example");
+        "https://linkedin.com/in/example",
+        WHITE,
+        M,
+        true);
   }
 
   @Test
@@ -96,10 +105,14 @@ class HackathonRegistrationServiceTest {
                 user.getPhoneNumber(),
                 null,
                 List.of(),
+                null,
                 List.of(),
                 null,
                 null,
-                null));
+                null,
+                null,
+                null,
+                false));
   }
 
   @Test
@@ -121,10 +134,30 @@ class HackathonRegistrationServiceTest {
                 request.phoneNumber(),
                 request.role(),
                 request.skills(),
+                "Projektijuhtimine",
                 request.challenges(),
                 request.participation(),
                 request.idea(),
-                request.linkedinUrl()));
+                request.linkedinUrl(),
+                WHITE,
+                M,
+                true));
+  }
+
+  @Test
+  void getRegistration_forARegistrationMadeBeforeTheTermsExisted_reportsTermsNotAccepted() {
+    var legacy = sampleRequest().toRegistration(user.getId(), BEFORE_DEADLINE);
+    legacy.setTshirtColor(null);
+    legacy.setTshirtSize(null);
+    legacy.setTermsAcceptedTime(null);
+    given(userService.getByIdOrThrow(user.getId())).willReturn(user);
+    given(repository.findByUserId(user.getId())).willReturn(Optional.of(legacy));
+
+    var dto = service.getRegistration(authenticatedPerson);
+
+    assertThat(dto.termsAccepted()).isFalse();
+    assertThat(dto.tshirtColor()).isNull();
+    assertThat(dto.tshirtSize()).isNull();
   }
 
   @Test
@@ -151,6 +184,7 @@ class HackathonRegistrationServiceTest {
 
     assertThat(dto.registered()).isTrue();
     assertThat(dto.skills()).containsExactly(SOFTWARE_DEVELOPMENT, DATA_AND_AI);
+    assertThat(dto.termsAccepted()).isTrue();
     verify(repository).save(request.toRegistration(user.getId(), BEFORE_DEADLINE));
     verify(hackathonEmailService).sendRegistrationConfirmation(user, saved, Locale.of("et"));
   }
@@ -164,10 +198,14 @@ class HackathonRegistrationServiceTest {
             null,
             MENTOR,
             List.of(DATA_AND_AI),
+            null,
             List.of(),
             WITH_TEAM,
             null,
-            null);
+            null,
+            NAVY,
+            L,
+            true);
     given(userService.getByIdOrThrow(user.getId())).willReturn(user);
     given(repository.findByUserId(user.getId())).willReturn(Optional.of(existing));
     given(repository.save(existing)).willReturn(existing);
@@ -184,12 +222,42 @@ class HackathonRegistrationServiceTest {
                 null,
                 MENTOR,
                 List.of(DATA_AND_AI),
+                null,
                 List.of(),
                 WITH_TEAM,
                 null,
-                null));
+                null,
+                NAVY,
+                L,
+                true));
     verify(hackathonEmailService, never())
         .sendRegistrationConfirmation(any(), any(), any(Locale.class));
+  }
+
+  @Test
+  void register_withAnExistingRegistration_keepsTheTimeTheTermsWereFirstAccepted() {
+    var existing = sampleRequest().toRegistration(user.getId(), BEFORE_DEADLINE);
+    given(userService.getByIdOrThrow(user.getId())).willReturn(user);
+    given(repository.findByUserId(user.getId())).willReturn(Optional.of(existing));
+    given(repository.save(existing)).willReturn(existing);
+
+    serviceAt(LATER_BEFORE_DEADLINE).register(authenticatedPerson, sampleRequest());
+
+    assertThat(existing.getTermsAcceptedTime()).isEqualTo(BEFORE_DEADLINE);
+    assertThat(existing.getUpdatedTime()).isEqualTo(LATER_BEFORE_DEADLINE);
+  }
+
+  @Test
+  void register_updatingARegistrationMadeBeforeTheTermsExisted_recordsTheAcceptanceNow() {
+    var legacy = sampleRequest().toRegistration(user.getId(), BEFORE_DEADLINE);
+    legacy.setTermsAcceptedTime(null);
+    given(userService.getByIdOrThrow(user.getId())).willReturn(user);
+    given(repository.findByUserId(user.getId())).willReturn(Optional.of(legacy));
+    given(repository.save(legacy)).willReturn(legacy);
+
+    serviceAt(LATER_BEFORE_DEADLINE).register(authenticatedPerson, sampleRequest());
+
+    assertThat(legacy.getTermsAcceptedTime()).isEqualTo(LATER_BEFORE_DEADLINE);
   }
 
   @Test

@@ -31,6 +31,7 @@ import org.springframework.context.annotation.Import;
   LedgerAccountService.class,
   LedgerPartyService.class,
   LedgerTransactionService.class,
+  UserUnitBalanceGuard.class,
   ClockConfig.class
 })
 public class LedgerTransactionIntegrationTest {
@@ -68,13 +69,13 @@ public class LedgerTransactionIntegrationTest {
         Instant.now(clock),
         UUID.randomUUID(),
         Map.of("operationType", "TEST_TRANSACTION"),
-        new LedgerEntryDto(cashAccount, new BigDecimal("1000.00")),
-        new LedgerEntryDto(systemAccount, new BigDecimal("-1000.00")));
+        new LedgerEntryDto(systemAccount, new BigDecimal("1000.00")),
+        new LedgerEntryDto(cashAccount, new BigDecimal("-1000.00")));
 
-    assertThat(getCashAccount(user).getBalance()).isEqualByComparingTo("1000.00");
+    assertThat(getCashAccount(user).getBalance()).isEqualByComparingTo("-1000.00");
     assertThat(getCashAccount(user).getEntries().size()).isEqualTo(1);
 
-    assertThat(getSystemAccount().getBalance()).isEqualByComparingTo("-1000.00");
+    assertThat(getSystemAccount().getBalance()).isEqualByComparingTo("1000.00");
     assertThat(getSystemAccount().getEntries().size()).isEqualTo(1);
 
     ledgerTransactionService.createTransaction(
@@ -82,8 +83,8 @@ public class LedgerTransactionIntegrationTest {
         Instant.now(clock),
         UUID.randomUUID(),
         Map.of("operationType", "TEST_TRANSACTION_2"),
-        new LedgerEntryDto(cashAccount, new BigDecimal("-1000.00")),
-        new LedgerEntryDto(systemAccount, new BigDecimal("1000.00")));
+        new LedgerEntryDto(cashAccount, new BigDecimal("1000.00")),
+        new LedgerEntryDto(systemAccount, new BigDecimal("-1000.00")));
 
     assertThat(getCashAccount(user).getBalance()).isEqualByComparingTo(ZERO);
     assertThat(getCashAccount(user).getEntries().size()).isEqualTo(2);
@@ -106,24 +107,24 @@ public class LedgerTransactionIntegrationTest {
         Instant.now(clock),
         externalReference1,
         Map.of("operationType", "PAYMENT", "externalReference", externalReference1.toString()),
-        new LedgerEntryDto(cashAccount, new BigDecimal("100.00")),
-        new LedgerEntryDto(systemAccount, new BigDecimal("-100.00")));
+        new LedgerEntryDto(systemAccount, new BigDecimal("100.00")),
+        new LedgerEntryDto(cashAccount, new BigDecimal("-100.00")));
 
     ledgerTransactionService.createTransaction(
         ADJUSTMENT,
         Instant.now(clock),
         externalReference2,
         Map.of("operationType", "PAYMENT", "externalReference", externalReference2.toString()),
-        new LedgerEntryDto(cashAccount, new BigDecimal("200.00")),
-        new LedgerEntryDto(systemAccount, new BigDecimal("-200.00")));
+        new LedgerEntryDto(systemAccount, new BigDecimal("200.00")),
+        new LedgerEntryDto(cashAccount, new BigDecimal("-200.00")));
 
     ledgerTransactionService.createTransaction(
         ADJUSTMENT,
         Instant.now(clock),
         UUID.randomUUID(),
         Map.of("operationType", "OTHER_TRANSACTION"),
-        new LedgerEntryDto(cashAccount, new BigDecimal("300.00")),
-        new LedgerEntryDto(systemAccount, new BigDecimal("-300.00")));
+        new LedgerEntryDto(systemAccount, new BigDecimal("300.00")),
+        new LedgerEntryDto(cashAccount, new BigDecimal("-300.00")));
 
     var allTransactions = ledgerTransactionRepository.findAll();
     var transactionsWithRef1 =

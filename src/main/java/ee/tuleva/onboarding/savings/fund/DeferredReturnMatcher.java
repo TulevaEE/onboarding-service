@@ -19,6 +19,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -130,8 +131,11 @@ public class DeferredReturnMatcher {
             .findOriginalPaymentForReturn(returnPayment.getEndToEndId())
             .or(
                 () ->
-                    savingFundPaymentRepository.findOriginalPaymentByIbanAndAmount(
-                        returnPayment.getBeneficiaryIban(), returnPayment.getAmount()));
+                    Optional.ofNullable(returnPayment.getBeneficiaryIban())
+                        .flatMap(
+                            iban ->
+                                savingFundPaymentRepository.findOriginalPaymentByIbanAndAmount(
+                                    iban, returnPayment.getAmount())));
 
     if (original.isPresent()) {
       completePaymentReturn(original.get());

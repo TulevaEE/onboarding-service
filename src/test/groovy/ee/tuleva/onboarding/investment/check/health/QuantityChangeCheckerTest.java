@@ -136,7 +136,7 @@ class QuantityChangeCheckerTest {
   }
 
   @Test
-  void warnsWhenTheChangeIgnoresASettledSaleAndOnlyMatchesTheBuys() {
+  void warnsWhenTheIncreaseMatchesTheExecutedBuysAndIgnoresTheExecutedSells() {
     var today = List.of(security("IE0009FT4LX4", new BigDecimal("2000")));
     var previous = List.of(security("IE0009FT4LX4", new BigDecimal("1000")));
     var traded =
@@ -154,7 +154,7 @@ class QuantityChangeCheckerTest {
   }
 
   @Test
-  void warnsWhenLessSettledThanWeTraded() {
+  void warnsWhenTheIncreaseFallsShortOfTheExecutedBuys() {
     var today = List.of(security("IE0009FT4LX4", new BigDecimal("1200")));
     var previous = List.of(security("IE0009FT4LX4", new BigDecimal("1000")));
     var traded = Map.of("IE0009FT4LX4", new TradedQuantity(new BigDecimal("500"), ZERO));

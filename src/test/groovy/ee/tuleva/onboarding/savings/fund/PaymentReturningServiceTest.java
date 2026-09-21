@@ -1,9 +1,11 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_RECEIVED;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RETURNED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -91,11 +93,34 @@ class PaymentReturningServiceTest {
             .beneficiaryIban("EE222222222222222222")
             .returnReason("Kasutaja soovil")
             .build();
+    given(savingsFundLedger.hasLedgerEntry(paymentId, PAYMENT_RECEIVED)).willReturn(true);
 
     service.createReturn(payment);
 
     verify(savingsFundLedger)
         .reservePaymentForCancellation(LedgerRefs.from(party), amount, paymentId);
+  }
+
+  @Test
+  void createReturn_withPartyButNeverCreditedToIt_doesNotReservePaymentForCancellation() {
+    var party = new PartyId(PERSON, "38812121215");
+    var paymentId = UUID.randomUUID();
+    var payment =
+        SavingFundPayment.builder()
+            .id(paymentId)
+            .partyId(party)
+            .amount(new BigDecimal("2100.00"))
+            .remitterName("John Doe")
+            .remitterIban("EE111111111111111111")
+            .beneficiaryName("Tuleva")
+            .beneficiaryIban("EE222222222222222222")
+            .returnReason("isik ei ole läbinud hoolsusmeetmeid")
+            .build();
+    given(savingsFundLedger.hasLedgerEntry(paymentId, PAYMENT_RECEIVED)).willReturn(false);
+
+    service.createReturn(payment);
+
+    verify(savingsFundLedger, never()).reservePaymentForCancellation(any(), any(), any());
   }
 
   @Test

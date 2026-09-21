@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.fees;
 
 import static ee.tuleva.onboarding.investment.fees.FeeType.*;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.FEE_ACCRUAL;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static java.math.RoundingMode.HALF_UP;
 import static java.util.Objects.requireNonNull;
@@ -8,6 +9,8 @@ import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.ResolvedPrice;
+import ee.tuleva.onboarding.deadline.PublicHolidays;
+import ee.tuleva.onboarding.ledger.LedgerEntryAmount;
 import ee.tuleva.onboarding.ledger.NavFeeAccrualLedger;
 import ee.tuleva.onboarding.ledger.NavLedgerRepository;
 import ee.tuleva.onboarding.ledger.SystemAccount;
@@ -20,6 +23,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -38,6 +42,7 @@ public class FeeCalculationService {
   private final NavLedgerRepository navLedgerRepository;
   private final FeeMonthResolver feeMonthResolver;
   private final FeeChargedToFundPolicy feeChargedToFundPolicy;
+  private final PublicHolidays publicHolidays;
 
   private void settleMonthlyFeesIfNeeded(TulevaFund fund, LocalDate month) {
     Instant cutoff = month.plusMonths(1).atStartOfDay().atZone(ESTONIAN_ZONE).toInstant();
@@ -49,7 +54,7 @@ public class FeeCalculationService {
           navLedgerRepository.getSystemAccountBalanceBefore(
               feeAccount.getAccountName(fund), cutoff);
       BigDecimal settlementAmount = balance.negate();
-      if (settlementAmount.signum() > 0) {
+      if (settlementAmount.signum() != 0) {
         navFeeAccrualLedger.settleFeeAccrual(fund, settlementDate, feeAccount, settlementAmount);
       }
     }
@@ -87,6 +92,7 @@ public class FeeCalculationService {
         feeAccrualRepository
             .findLatestAccrualDate(fund)
             .map(d -> d.plusDays(1))
+            .filter(d -> d.isBefore(positionReportDate))
             .orElse(positionReportDate);
 
     FeeBases previousBases =
@@ -95,11 +101,10 @@ public class FeeCalculationService {
             feeAccrualRepository.findLatestBaseValue(fund, DEPOT).orElse(bases.assetValue()));
 
     log.info(
-        "calculateFeesForNav: fund={}, positionReportDate={}, startDate={}, willProcess={}",
+        "calculateFeesForNav: fund={}, positionReportDate={}, startDate={}",
         fund,
         positionReportDate,
-        startDate,
-        !startDate.isAfter(positionReportDate));
+        startDate);
 
     Map<FeeType, FeeChargedToFundPolicy.Resolver> chargedPolicies =
         Arrays.stream(FeeType.values())
@@ -113,9 +118,10 @@ public class FeeCalculationService {
         settleMonthlyFeesIfNeeded(fund, feeMonth.minusMonths(1));
       }
       FeeBases dayBases = day.isBefore(positionReportDate) ? previousBases : bases;
-      recordDailyFees(fund, day, dayBases, chargedPolicies, securityPrices);
+      reconcileDay(fund, day, dayBases, chargedPolicies, securityPrices);
       previousFeeMonth = feeMonth;
     }
+    reconcileNonWorkingDaysAfter(fund, positionReportDate, bases, chargedPolicies, securityPrices);
 
     BigDecimal mgmtFee = chargedAccrual(chargedPolicies, fund, MANAGEMENT, positionReportDate);
     BigDecimal depotFee = chargedAccrual(chargedPolicies, fund, DEPOT, positionReportDate);
@@ -138,7 +144,27 @@ public class FeeCalculationService {
     return amount.signum() == 0 ? BigDecimal.ZERO : amount.setScale(2, HALF_UP);
   }
 
-  private void recordDailyFees(
+  private void reconcileNonWorkingDaysAfter(
+      TulevaFund fund,
+      LocalDate positionReportDate,
+      FeeBases bases,
+      Map<FeeType, FeeChargedToFundPolicy.Resolver> chargedPolicies,
+      Map<String, ResolvedPrice> securityPrices) {
+    LocalDate firstDayAfter = positionReportDate.plusDays(1);
+    LocalDate nextWorkingDay = publicHolidays.nextWorkingDay(positionReportDate);
+    if (!nextWorkingDay.isAfter(firstDayAfter)) {
+      return;
+    }
+    feeAccrualRepository
+        .findByFundAndDateRange(fund, firstDayAfter, nextWorkingDay.minusDays(1))
+        .stream()
+        .map(FeeAccrual::accrualDate)
+        .distinct()
+        .sorted()
+        .forEach(day -> reconcileDay(fund, day, bases, chargedPolicies, securityPrices));
+  }
+
+  private void reconcileDay(
       TulevaFund fund,
       LocalDate date,
       FeeBases bases,
@@ -146,33 +172,79 @@ public class FeeCalculationService {
       Map<String, ResolvedPrice> securityPrices) {
     for (FeeCalculator calculator : feeCalculators) {
       FeeAccrual accrual = calculator.calculate(fund, date, bases);
-      feeAccrualRepository.save(accrual);
+      Optional<FeeAccrual> existing =
+          feeAccrualRepository.findByFundAndAccrualDateAndFeeType(fund, date, accrual.feeType());
+      if (existing.filter(accrual::sameValuesAs).isEmpty()) {
+        feeAccrualRepository.save(accrual);
+      }
       FeeChargedToFundPolicy.Resolver resolver =
           requireNonNull(
               chargedPolicies.get(accrual.feeType()),
               "No fee policy resolver: feeType=" + accrual.feeType());
-      if (!resolver.chargedOn(date)) {
-        log.info(
-            "recordDailyFees: fund={}, date={}, feeType={}, tracked but not charged to the fund",
-            fund,
-            date,
-            accrual.feeType());
-        continue;
-      }
-      SystemAccount feeAccount = accrual.feeType().getAccrualAccount();
-      BigDecimal ledgerAmount = roundForLedger(accrual.dailyAmountGross());
+      reconcileLedger(fund, date, accrual, resolver.chargedOn(date), securityPrices);
+    }
+  }
+
+  private void reconcileLedger(
+      TulevaFund fund,
+      LocalDate date,
+      FeeAccrual accrual,
+      boolean chargedToFund,
+      Map<String, ResolvedPrice> securityPrices) {
+    SystemAccount feeAccount = accrual.feeType().getAccrualAccount();
+    BigDecimal target =
+        chargedToFund ? roundForLedger(accrual.dailyAmountGross()) : BigDecimal.ZERO;
+    List<LedgerEntryAmount> entries =
+        navLedgerRepository.findEntriesByTransactionTypeBetween(
+            feeAccount.getAccountName(fund),
+            FEE_ACCRUAL,
+            startOfDay(date),
+            startOfDay(date.plusDays(1)));
+    BigDecimal recorded =
+        entries.stream()
+            .map(LedgerEntryAmount::amount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add)
+            .negate();
+    if (target.compareTo(recorded) == 0) {
       log.info(
-          "recordDailyFees: fund={}, date={}, feeType={}, ledgerAmount={}",
+          "Fee accrual ledger in sync: fund={}, date={}, feeType={}, amount={}",
           fund,
           date,
           accrual.feeType(),
-          ledgerAmount);
-      Map<String, Object> metadata = buildAccrualMetadata(accrual, feeAccount, ledgerAmount);
-      if (securityPrices != null && !securityPrices.isEmpty()) {
-        metadata.put("securityPrices", formatSecurityPrices(securityPrices));
-      }
-      navFeeAccrualLedger.recordFeeAccrual(fund, date, feeAccount, ledgerAmount, metadata);
+          target);
+      return;
     }
+    Map<String, Object> metadata = buildAccrualMetadata(accrual, feeAccount, target);
+    if (securityPrices != null && !securityPrices.isEmpty()) {
+      metadata.put("securityPrices", formatSecurityPrices(securityPrices));
+    }
+    if (entries.isEmpty()) {
+      log.info(
+          "Recording fee accrual: fund={}, date={}, feeType={}, ledgerAmount={}",
+          fund,
+          date,
+          accrual.feeType(),
+          target);
+      navFeeAccrualLedger.recordFeeAccrual(fund, date, feeAccount, target, metadata);
+      return;
+    }
+    BigDecimal delta = target.subtract(recorded);
+    metadata.put("operationType", "FEE_ACCRUAL_REVISION");
+    metadata.put("previousLedgerAmount", recorded);
+    metadata.put("delta", delta);
+    log.info(
+        "Revising fee accrual: fund={}, date={}, feeType={}, previous={}, target={}, delta={}",
+        fund,
+        date,
+        accrual.feeType(),
+        recorded,
+        target,
+        delta);
+    navFeeAccrualLedger.reviseFeeAccrual(fund, date, feeAccount, delta, metadata);
+  }
+
+  private static Instant startOfDay(LocalDate date) {
+    return date.atStartOfDay(ESTONIAN_ZONE).toInstant();
   }
 
   private Map<String, String> formatSecurityPrices(Map<String, ResolvedPrice> securityPrices) {

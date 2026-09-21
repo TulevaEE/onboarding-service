@@ -28,6 +28,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.IntStream;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
@@ -169,15 +170,27 @@ public class FundPositionImportJob {
         "Parsed fund positions: provider={}, date={}, count={}", provider, date, positions.size());
 
     var healthResults = healthCheckService.check(positions);
-    if (healthResults.stream().anyMatch(HealthCheckResult::hasFails)) {
+    Set<TulevaFund> blockedFunds = HealthCheckResult.blockedFunds(healthResults);
+
+    if (!blockedFunds.isEmpty()) {
       healthCheckFailed = true;
-      healthCheckFailureDetail = "Import blocked: provider=%s, date=%s".formatted(provider, date);
+      healthCheckFailureDetail =
+          "Import blocked: provider=%s, date=%s, funds=%s".formatted(provider, date, blockedFunds);
+      log.error(
+          "Health check failed, import blocked for these funds: provider={}, date={}, funds={}",
+          provider,
+          date,
+          blockedFunds);
+    }
+
+    List<FundPosition> importablePositions =
+        positions.stream().filter(position -> !blockedFunds.contains(position.getFund())).toList();
+    if (importablePositions.isEmpty()) {
       notifyHealth(provider, date, healthResults);
-      log.error("Health check failed, import blocked: provider={}, date={}", provider, date);
       return ImportResult.none();
     }
 
-    ImportResult result = importService.upsertPositions(positions);
+    ImportResult result = importService.upsertPositions(importablePositions);
 
     notifyHealth(provider, date, healthResults);
     if (result.imported() > 0 || result.updated() > 0) {
@@ -192,7 +205,7 @@ public class FundPositionImportJob {
         investmentReport.getRawData().size());
 
     List<TulevaFund> navFunds =
-        positions.stream()
+        importablePositions.stream()
             .map(FundPosition::getFund)
             .filter(TulevaFund::hasNavCalculation)
             .distinct()

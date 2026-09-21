@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.PAYOUT_BLOCKED;
+import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.PAYOUT;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.FAILED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.PAYOUT_HELD;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.REDEEMED;
@@ -8,6 +10,7 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.banking.BankAccounts;
+import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.payment.PaymentRequest;
 import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
@@ -25,6 +28,7 @@ import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -43,10 +47,12 @@ class RedemptionPayoutService {
   private final EndToEndIdConverter endToEndIdConverter;
   private final CompanyRepository companyRepository;
   private final UserRepository userRepository;
+  private final RedemptionPayoutValidator payoutValidator;
+  private final PaymentCheckService paymentCheckService;
   private final TransactionTemplate transactionTemplate;
 
-  void payOut(RedemptionRequest request) {
-    sendPayout(request);
+  void payOut(RedemptionRequest request, @Nullable UUID batchId) {
+    sendPayout(request, batchId);
     markAsRedeemed(request.getId());
   }
 
@@ -56,7 +62,7 @@ class RedemptionPayoutService {
     RedemptionRequest claimed =
         requireNonNull(transactionTemplate.execute(tx -> claimHeldPayout(requestId)));
     try {
-      sendPayout(claimed);
+      sendPayout(claimed, null);
     } catch (Exception e) {
       log.error("Failed to pay out released redemption: id={}", requestId, e);
       markAsFailed(requestId, e);
@@ -79,11 +85,22 @@ class RedemptionPayoutService {
     if (request.getCashAmount() == null) {
       throw new IllegalStateException("Cannot pay out, not priced: id=" + requestId);
     }
+    // The IBAN and the ledger can have moved while the money sat on hold, so the payout
+    // preconditions are checked again here, not only before pricing.
+    payoutValidator
+        .findBlockingReason(request)
+        .ifPresent(
+            reason -> {
+              paymentCheckService.recordStoppedPayment(
+                  PAYOUT_BLOCKED, requestId.toString(), reason);
+              throw new IllegalStateException(
+                  "Cannot pay out released redemption: id=" + requestId + ", reason=" + reason);
+            });
     markAsRedeemed(requestId);
     return request;
   }
 
-  void sendPayout(RedemptionRequest request) {
+  private void sendPayout(RedemptionRequest request, @Nullable UUID batchId) {
     BigDecimal cashAmount = request.getCashAmount();
     if (cashAmount == null) {
       throw new IllegalStateException("Cannot pay out, not priced: id=" + request.getId());
@@ -98,8 +115,14 @@ class RedemptionPayoutService {
             .amount(cashAmount)
             .description("Fondi tagasivõtmine")
             .build();
-    eventPublisher.publishEvent(new RequestPaymentEvent(paymentRequest, request.getId()));
-    log.info("Sent redemption payout: id={}, amount={}", request.getId(), cashAmount);
+    eventPublisher.publishEvent(
+        new RequestPaymentEvent(paymentRequest, request.getId(), PAYOUT, batchId));
+    log.info(
+        "Sent redemption payout: id={}, amount={}, iban={}, beneficiaryName={}",
+        request.getId(),
+        cashAmount,
+        request.getCustomerIban(),
+        beneficiaryName);
   }
 
   void markAsRedeemed(UUID requestId) {

@@ -525,7 +525,7 @@ class SanctionAndPepScreenerTest {
   }
 
   @Test
-  void screeningOutcome_isUnavailableWhenScreeningThrows() {
+  void screeningOutcome_isUnavailableWhenTheScreeningServiceThrows() {
     User user = createUser("123", "First", "Last", 1L);
     Set<Country> country = Countries.of("EE");
     when(pepAndSanctionCheckService.match(user, country))
@@ -541,20 +541,8 @@ class SanctionAndPepScreenerTest {
     MatchResponse emptyResponse =
         new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode());
     when(pepAndSanctionCheckService.match(user, country)).thenReturn(emptyResponse);
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
-            "123", SANCTION))
-        .thenReturn(
-            Optional.of(
-                AmlCheck.builder().personalCode("123").type(SANCTION).success(true).build()));
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
-            "123", POLITICALLY_EXPOSED_PERSON_AUTO))
-        .thenReturn(
-            Optional.of(
-                AmlCheck.builder()
-                    .personalCode("123")
-                    .type(POLITICALLY_EXPOSED_PERSON_AUTO)
-                    .success(false)
-                    .build()));
+    latestCheckIs(SANCTION, true);
+    latestCheckIs(POLITICALLY_EXPOSED_PERSON_AUTO, false);
 
     assertThat(sanctionAndPepScreener.screeningOutcome(user, country)).isEqualTo(PEP_HIT);
   }
@@ -566,11 +554,7 @@ class SanctionAndPepScreenerTest {
     MatchResponse emptyResponse =
         new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode());
     when(pepAndSanctionCheckService.match(user, country)).thenReturn(emptyResponse);
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
-            "123", SANCTION))
-        .thenReturn(
-            Optional.of(
-                AmlCheck.builder().personalCode("123").type(SANCTION).success(true).build()));
+    latestCheckIs(SANCTION, true);
     when(amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
             "123", POLITICALLY_EXPOSED_PERSON_AUTO))
         .thenReturn(Optional.empty());
@@ -585,20 +569,8 @@ class SanctionAndPepScreenerTest {
     MatchResponse emptyResponse =
         new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode());
     when(pepAndSanctionCheckService.match(user, country)).thenReturn(emptyResponse);
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
-            "123", SANCTION))
-        .thenReturn(
-            Optional.of(
-                AmlCheck.builder().personalCode("123").type(SANCTION).success(true).build()));
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
-            "123", POLITICALLY_EXPOSED_PERSON_AUTO))
-        .thenReturn(
-            Optional.of(
-                AmlCheck.builder()
-                    .personalCode("123")
-                    .type(POLITICALLY_EXPOSED_PERSON_AUTO)
-                    .success(true)
-                    .build()));
+    latestCheckIs(SANCTION, true);
+    latestCheckIs(POLITICALLY_EXPOSED_PERSON_AUTO, true);
 
     assertThat(sanctionAndPepScreener.screeningOutcome(user, country)).isEqualTo(CLEAR);
   }
@@ -607,23 +579,8 @@ class SanctionAndPepScreenerTest {
   void screeningOutcome_isSanctionHitWhenLatestSanctionCheckHasFailed() {
     User user = createUser("123", "First", "Last", 1L);
     Set<Country> country = Countries.of("EE");
-    ArrayNode results = objectMapper.createArrayNode();
-    ObjectNode result = objectMapper.createObjectNode();
-    result.put("id", "sanction123");
-    result.put("match", true);
-    ArrayNode topics = objectMapper.createArrayNode();
-    topics.add("sanction");
-    ObjectNode properties = objectMapper.createObjectNode();
-    properties.set("topics", topics);
-    result.set("properties", properties);
-    results.add(result);
-    MatchResponse matchResponse = new MatchResponse(results, objectMapper.createObjectNode());
-    when(pepAndSanctionCheckService.match(user, country)).thenReturn(matchResponse);
-    when(amlCheckRepository.findFirstByPersonalCodeAndTypeOrderByCreatedTimeDescIdDesc(
-            "123", SANCTION))
-        .thenReturn(
-            Optional.of(
-                AmlCheck.builder().personalCode("123").type(SANCTION).success(false).build()));
+    when(pepAndSanctionCheckService.match(user, country)).thenReturn(sanctionAndPepMatch());
+    latestCheckIs(SANCTION, false);
 
     assertThat(sanctionAndPepScreener.screeningOutcome(user, country)).isEqualTo(SANCTION_HIT);
   }

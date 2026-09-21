@@ -37,12 +37,12 @@ public class RedemptionStatusService {
 
   @Transactional
   public void changeStatus(UUID id, Status newStatus) {
-    transition(findForUpdate(id), newStatus);
+    transition(lockedRequest(id), newStatus);
   }
 
   @Transactional
   public void changeStatus(UUID id, Status expectedCurrentStatus, Status newStatus) {
-    RedemptionRequest request = findForUpdate(id);
+    RedemptionRequest request = lockedRequest(id);
     if (request.getStatus() != expectedCurrentStatus) {
       throw new IllegalStateException(
           "Redemption is no longer "
@@ -55,6 +55,12 @@ public class RedemptionStatusService {
     transition(request, newStatus);
   }
 
+  private RedemptionRequest lockedRequest(UUID id) {
+    return repository
+        .findByIdForUpdate(id)
+        .orElseThrow(() -> new IllegalArgumentException("Redemption request not found: id=" + id));
+  }
+
   private void transition(RedemptionRequest request, Status newStatus) {
     Status currentStatus = request.getStatus();
     if (!ALLOWED_TRANSITIONS.contains(new StatusTransition(currentStatus, newStatus))) {
@@ -64,24 +70,16 @@ public class RedemptionStatusService {
               + ", newStatus="
               + newStatus);
     }
-
     log.info(
         "RedemptionRequest status change: id={}, currentStatus={}, newStatus={}",
         request.getId(),
         currentStatus,
         newStatus);
-
     request.setStatus(newStatus);
     if (newStatus == CANCELLED) {
       request.setCancelledAt(clock().instant());
     }
     repository.save(request);
-  }
-
-  private RedemptionRequest findForUpdate(UUID id) {
-    return repository
-        .findByIdForUpdate(id)
-        .orElseThrow(() -> new IllegalArgumentException("Redemption request not found: id=" + id));
   }
 
   private record StatusTransition(Status from, Status to) {}

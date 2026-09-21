@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.comparisons.fundvalue;
 
 import static java.util.Collections.emptyList;
+import static java.util.Comparator.comparingInt;
 import static java.util.Comparator.naturalOrder;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
@@ -79,15 +80,25 @@ public class FundValueIndexingJob {
         "Running indexing job on retrievers: staticRetrievers={}, dynamicRetrievers={}",
         staticRetrievers,
         dynamicRetrievers);
-    Stream.concat(staticRetrievers.stream(), dynamicRetrievers.stream())
+    confirmationSourcesFirst(Stream.concat(staticRetrievers.stream(), dynamicRetrievers.stream()))
         .forEach(this::refreshRetriever);
   }
 
   public void refreshForNavCalculation() {
     log.info("Running targeted NAV price refresh: keys={}", NAV_CRITICAL_RETRIEVER_KEYS);
-    staticRetrievers.stream()
-        .filter(retriever -> NAV_CRITICAL_RETRIEVER_KEYS.contains(retriever.getKey()))
+    confirmationSourcesFirst(
+            staticRetrievers.stream()
+                .filter(retriever -> NAV_CRITICAL_RETRIEVER_KEYS.contains(retriever.getKey())))
         .forEach(this::refreshRetriever);
+  }
+
+  private Stream<ComparisonIndexRetriever> confirmationSourcesFirst(
+      Stream<ComparisonIndexRetriever> retrievers) {
+    return retrievers.sorted(comparingInt(retriever -> isConfirmationSource(retriever) ? 0 : 1));
+  }
+
+  private boolean isConfirmationSource(ComparisonIndexRetriever retriever) {
+    return EuronextValueRetriever.KEY.equals(retriever.getKey());
   }
 
   private void refreshRetriever(ComparisonIndexRetriever retriever) {

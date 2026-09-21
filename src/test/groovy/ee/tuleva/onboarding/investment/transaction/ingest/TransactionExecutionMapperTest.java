@@ -86,10 +86,7 @@ class TransactionExecutionMapperTest {
   }
 
   @Test
-  void applyTo_keepsTheSettlementDateSebReportedFirst() {
-    // SEB restates "Settlement date" when a trade slips. The first value is the plan we hold
-    // them to; taking the restatement would leave plan and outcome agreeing on every row and
-    // no settlement delay could ever be seen.
+  void applyTo_keepsTheSettlementDateSebReportedFirstWhenTheRestatementArrivesLater() {
     UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
     TransactionOrder order = fundOrder(clientRef);
     TransactionExecution existing =
@@ -117,6 +114,36 @@ class TransactionExecutionMapperTest {
     assertThat(existing.getScheduledSettlementDate()).isEqualTo(LocalDate.of(2026, 5, 15));
   }
 
+  @Test
+  void applyTo_takesTheOldestReportsSettlementDateWhenReportsAreReplayedNewestFirst() {
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder order = fundOrder(clientRef);
+
+    TransactionExecution execution =
+        mapper.toExecution(
+            rowSettlingOn(clientRef, "2026-05-15"), order, LocalDate.of(2026, 5, 14));
+    mapper.applyTo(execution, rowSettlingOn(clientRef, "2026-05-13"), order);
+
+    assertThat(execution.getScheduledSettlementDate()).isEqualTo(LocalDate.of(2026, 5, 13));
+  }
+
+  @Test
+  void applyTo_keepsTheStoredSettlementDateWhenTheReportCarriesNone() {
+    UUID clientRef = UUID.fromString("bd83f551-8c79-4193-b92b-18e1dfd0bd29");
+    TransactionOrder order = fundOrder(clientRef);
+    TransactionExecution existing =
+        TransactionExecution.builder()
+            .id(7L)
+            .orderId(123L)
+            .source("SEB_OOTEL")
+            .scheduledSettlementDate(LocalDate.of(2026, 5, 13))
+            .build();
+
+    mapper.applyTo(existing, rowWithoutSettlementDate(clientRef), order);
+
+    assertThat(existing.getScheduledSettlementDate()).isEqualTo(LocalDate.of(2026, 5, 13));
+  }
+
   private static TransactionOrder fundOrder(UUID clientRef) {
     return TransactionOrder.builder()
         .id(123L)
@@ -132,6 +159,12 @@ class TransactionExecutionMapperTest {
   private static SebPendingTransactionRow rowSettlingOn(UUID clientRef, String settlementDate) {
     Map<String, Object> raw = new HashMap<>(rawSample(clientRef));
     raw.put("Settlement date", settlementDate);
+    return SebPendingTransactionRow.fromRawData(raw);
+  }
+
+  private static SebPendingTransactionRow rowWithoutSettlementDate(UUID clientRef) {
+    Map<String, Object> raw = new HashMap<>(rawSample(clientRef));
+    raw.remove("Settlement date");
     return SebPendingTransactionRow.fromRawData(raw);
   }
 

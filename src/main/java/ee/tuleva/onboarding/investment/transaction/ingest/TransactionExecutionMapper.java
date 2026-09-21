@@ -32,17 +32,27 @@ class TransactionExecutionMapper {
     execution.setTotalConsideration(row.total());
     execution.setSettlementAmount(row.settlementAmount());
     execution.setCommissionAmount(row.brokerFee());
-    keepSettlementDateSebReportedFirst(execution, row);
+    keepEarliestSettlementDateSebReported(execution, row);
     execution.setSource(SOURCE_SEB_OOTEL);
     execution.setModifiedBy(MODIFIED_BY_SEB_RECONCILIATION);
     return execution;
   }
 
-  private static void keepSettlementDateSebReportedFirst(
+  private static void keepEarliestSettlementDateSebReported(
       TransactionExecution execution, SebPendingTransactionRow row) {
-    if (execution.getScheduledSettlementDate() == null) {
-      execution.setScheduledSettlementDate(row.settlementDate());
+    execution.setScheduledSettlementDate(
+        earlier(execution.getScheduledSettlementDate(), row.settlementDate()));
+  }
+
+  private static @Nullable LocalDate earlier(
+      @Nullable LocalDate stored, @Nullable LocalDate reported) {
+    if (stored == null) {
+      return reported;
     }
+    if (reported == null) {
+      return stored;
+    }
+    return reported.isBefore(stored) ? reported : stored;
   }
 
   // Art 16: no silent alteration of a transaction record.

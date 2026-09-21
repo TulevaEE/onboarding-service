@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.mandate.email.webhook
 
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil
 import ee.tuleva.onboarding.auth.principal.PrincipalService
-import ee.tuleva.onboarding.auth.role.ChildRepresentations
 import ee.tuleva.onboarding.config.SecurityConfiguration
 import org.spockframework.spring.SpringBean
 import org.springframework.beans.factory.annotation.Autowired
@@ -32,9 +31,6 @@ class MandrillWebhookControllerSpec extends Specification {
 
   @SpringBean
   PrincipalService principalService = Mock()
-
-  @SpringBean
-  ChildRepresentations childRepresentations = Mock()
 
   def "accepts webhook POST and returns 200 OK"() {
     given:

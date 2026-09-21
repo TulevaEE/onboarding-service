@@ -86,6 +86,7 @@ class SettlementCompletenessChecker {
                     stalled ? WARNING : NOT_RUN,
                     message,
                     null,
+                    List.of("nextMonthAccrualMissing"),
                     Map.of("feeMonth", feeMonth.toString(), "graceEnds", graceEnds.toString())))
         .toList();
   }
@@ -115,6 +116,7 @@ class SettlementCompletenessChecker {
           finding(
               fund,
               scope,
+              "openingBalance",
               "Fee month "
                   + feeMonth
                   + " opened with a non-zero "
@@ -132,6 +134,7 @@ class SettlementCompletenessChecker {
           finding(
               fund,
               scope,
+              "closingResidual",
               "Fee month "
                   + feeMonth
                   + " left a "
@@ -147,6 +150,7 @@ class SettlementCompletenessChecker {
           finding(
               fund,
               scope,
+              "settledAmount",
               "Settled "
                   + feeType
                   + " fees for "
@@ -165,6 +169,7 @@ class SettlementCompletenessChecker {
           finding(
               fund,
               scope,
+              "settlementTransactionCount",
               "Expected "
                   + expectedCount
                   + " "
@@ -180,7 +185,14 @@ class SettlementCompletenessChecker {
     if (findings.isEmpty()) {
       return List.of(
           new FeeCheckFinding(
-              fund, SETTLEMENT_COMPLETENESS, scope, FeeCheckSeverity.PASS, "", null, details));
+              fund,
+              SETTLEMENT_COMPLETENESS,
+              scope,
+              FeeCheckSeverity.PASS,
+              "",
+              null,
+              List.of(),
+              details));
     }
     return findings;
   }
@@ -203,6 +215,7 @@ class SettlementCompletenessChecker {
   private FeeCheckFinding finding(
       TulevaFund fund,
       FeeCheckScope scope,
+      String identifier,
       String message,
       @Nullable BigDecimal deviation,
       Map<String, Object> details) {
@@ -213,6 +226,7 @@ class SettlementCompletenessChecker {
         FAIL,
         message,
         deviation == null ? null : deviation.abs(),
+        List.of(identifier),
         details);
   }
 

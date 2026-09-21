@@ -213,6 +213,7 @@ class FeeCheckService {
                       NOT_RUN,
                       "Check did not run: " + e.getClass().getSimpleName(),
                       null,
+                      List.of(e.getClass().getSimpleName()),
                       Map.of()))
           .toList();
     }
@@ -241,7 +242,12 @@ class FeeCheckService {
                     .severity(severity)
                     .deviationFound(severity == WARNING || severity == FAIL)
                     .deviationAmount(FeeCheckFinding.totalDeviation(findings))
-                    .result(Map.of("findings", findings.stream().map(this::describe).toList()))
+                    .result(
+                        Map.of(
+                            "findings",
+                            findings.stream().map(this::describe).toList(),
+                            FeeCheckEvent.FINGERPRINT,
+                            FeeCheckFinding.fingerprint(findings)))
                     .build()));
       }
     }

@@ -171,10 +171,12 @@ class FeeBaseCompletenessChecker {
             + String.join(" · ", shown)
             + suffix,
         totalDeviation,
+        List.copyOf(mismatches),
         Map.of("mismatches", mismatches, "totalDeviation", totalDeviation.toPlainString()));
   }
 
   private FeeCheckFinding notRun(TulevaFund fund, List<LocalDate> days) {
+    var daysWithoutNavReport = days.stream().map(LocalDate::toString).toList();
     return new FeeCheckFinding(
         fund,
         FEE_BASE_COMPLETENESS,
@@ -185,6 +187,7 @@ class FeeBaseCompletenessChecker {
             + " working day(s): "
             + days.stream().limit(MAX_DAYS_IN_MESSAGE).map(LocalDate::toString).toList(),
         null,
-        Map.of("daysWithoutNavReport", days.stream().map(LocalDate::toString).toList()));
+        daysWithoutNavReport,
+        Map.of("daysWithoutNavReport", daysWithoutNavReport));
   }
 }

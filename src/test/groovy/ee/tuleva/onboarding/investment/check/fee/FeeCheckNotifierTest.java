@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.investment.check.fee.FeeCheckNotification.SEN
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckNotification.SENT;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckScope.MANAGEMENT;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.FAIL;
+import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.INFO;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.NOT_RUN;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckSeverity.PASS;
 import static ee.tuleva.onboarding.investment.check.fee.FeeCheckType.LEDGER_ACCRUAL_CONSISTENCY;
@@ -23,6 +24,7 @@ import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -80,9 +82,46 @@ class FeeCheckNotifierTest {
 
   @Test
   void aFailureThatAcquiresADeviationWhereThereWasNoneAlerts() {
-    givenDailyHistory(event(FAIL, null), event(FAIL, null));
+    givenDailyHistory(event(FAIL, "0"), event(FAIL, "0"));
 
     assertThat(notifier.notify(List.of(dailyResult(FAIL, "500")))).isEqualTo(SENT);
+  }
+
+  @Test
+  void aFailureThatAcquiresAFindingCarryingNoDeviationAlerts() {
+    var divergentDay = finding(FAIL, new BigDecimal("1000"), "2026-06-01 divergence");
+    givenDailyHistory(event(FAIL, "1000", divergentDay), event(FAIL, "1000", divergentDay));
+
+    var missingSettlementTransaction = finding(FAIL, null, "settlementTransactionCount");
+
+    assertThat(notifier.notify(List.of(dailyResult(divergentDay, missingSettlementTransaction))))
+        .isEqualTo(SENT);
+  }
+
+  @Test
+  void aTotalThatFellOnlyBecauseTheWindowRolledStaysSilent() {
+    var stillInTheWindow = finding(FAIL, new BigDecimal("1000"), "2026-06-01 divergence");
+    var rolledOutOfTheWindow = finding(FAIL, new BigDecimal("500"), "2026-05-01 divergence");
+    givenDailyHistory(
+        event(FAIL, "1500", stillInTheWindow, rolledOutOfTheWindow),
+        event(FAIL, "1500", stillInTheWindow, rolledOutOfTheWindow));
+
+    assertThat(notifier.notify(List.of(dailyResult(stillInTheWindow))))
+        .isEqualTo(NOTHING_TO_REPORT);
+    verifyNoInteractions(notificationService);
+  }
+
+  @Test
+  void aNoteWhoseOldestDayRolledOutOfTheWindowIsNotReportedAgain() {
+    var stillInTheWindow = finding(INFO, new BigDecimal("200"), "2026-06-02 re-sent");
+    var rolledOutOfTheWindow = finding(INFO, new BigDecimal("300"), "2026-05-02 re-sent");
+    givenDailyHistory(
+        event(INFO, "500", stillInTheWindow, rolledOutOfTheWindow),
+        event(INFO, "500", stillInTheWindow, rolledOutOfTheWindow));
+
+    assertThat(notifier.notify(List.of(dailyResult(stillInTheWindow))))
+        .isEqualTo(NOTHING_TO_REPORT);
+    verifyNoInteractions(notificationService);
   }
 
   @Test
@@ -154,17 +193,23 @@ class FeeCheckNotifierTest {
         .willReturn(List.of(current, previous));
   }
 
-  private FeeCheckEvent event(FeeCheckSeverity severity, @Nullable String deviation) {
+  private FeeCheckEvent event(
+      FeeCheckSeverity severity, @Nullable String deviation, FeeCheckFinding... findings) {
     return FeeCheckEvent.builder()
         .fund(TUK75)
         .severity(severity)
         .deviationAmount(deviation == null ? null : new BigDecimal(deviation))
+        .result(Map.of(FeeCheckEvent.FINGERPRINT, FeeCheckFinding.fingerprint(List.of(findings))))
         .build();
   }
 
   private FeeCheckResult dailyResult(FeeCheckSeverity severity, String deviation) {
     return new FeeCheckResult(
         TUK75, CHECK_DATE, null, List.of(finding(severity, new BigDecimal(deviation))));
+  }
+
+  private FeeCheckResult dailyResult(FeeCheckFinding... findings) {
+    return new FeeCheckResult(TUK75, CHECK_DATE, null, List.of(findings));
   }
 
   private void givenMonthlyHistory(
@@ -191,7 +236,8 @@ class FeeCheckNotifierTest {
     return finding(severity, null);
   }
 
-  private FeeCheckFinding finding(FeeCheckSeverity severity, @Nullable BigDecimal deviation) {
+  private FeeCheckFinding finding(
+      FeeCheckSeverity severity, @Nullable BigDecimal deviation, String... identifiers) {
     return new FeeCheckFinding(
         TUK75,
         LEDGER_ACCRUAL_CONSISTENCY,
@@ -199,6 +245,7 @@ class FeeCheckNotifierTest {
         severity,
         severity == PASS ? "" : severity + " detail",
         deviation,
-        java.util.Map.of());
+        List.of(identifiers),
+        Map.of());
   }
 }

@@ -39,7 +39,7 @@ class CustodianCompletenessChecker {
   List<FeeCheckFinding> check(TulevaFund fund, LocalDate from, LocalDate to) {
     var navDates = fundPositionRepository.findDistinctNavDatesByFundBetween(fund, from, to);
     if (navDates.isEmpty()) {
-      return notRun(fund, "No custodian position report between " + from + " and " + to);
+      return notRun(fund, "No custodian position report between " + from + " and " + to, List.of());
     }
 
     var notComparedDates = new ArrayList<LocalDate>();
@@ -78,7 +78,8 @@ class CustodianCompletenessChecker {
               + notComparedDates.stream()
                   .limit(MAX_DAYS_IN_MESSAGE)
                   .map(LocalDate::toString)
-                  .toList());
+                  .toList(),
+          notComparedDates.stream().map(LocalDate::toString).toList());
     }
     return List.of(FeeCheckFinding.pass(fund, CUSTODIAN_POSITION_COMPLETENESS, ALL));
   }
@@ -154,6 +155,12 @@ class CustodianCompletenessChecker {
             .map(CustodianDayComparison::totalDifference)
             .map(BigDecimal::abs)
             .reduce(ZERO, BigDecimal::add);
+    var lines =
+        days.stream()
+            .flatMap(
+                day ->
+                    day.differences().stream().map(difference -> day.navDate() + " " + difference))
+            .toList();
     return new FeeCheckFinding(
         fund,
         CUSTODIAN_POSITION_COMPLETENESS,
@@ -161,21 +168,17 @@ class CustodianCompletenessChecker {
         severity,
         message,
         totalDeviation,
+        lines,
         Map.of(
             "days",
             days.stream().map(day -> day.navDate().toString()).toList(),
             "lines",
-            days.stream()
-                .flatMap(
-                    day ->
-                        day.differences().stream()
-                            .map(difference -> day.navDate() + " " + difference))
-                .toList(),
+            lines,
             "totalDeviation",
             totalDeviation.toPlainString()));
   }
 
-  private List<FeeCheckFinding> notRun(TulevaFund fund, String message) {
+  private List<FeeCheckFinding> notRun(TulevaFund fund, String message, List<String> blindDates) {
     return List.of(
         new FeeCheckFinding(
             fund,
@@ -184,6 +187,7 @@ class CustodianCompletenessChecker {
             FeeCheckSeverity.NOT_RUN,
             message,
             null,
+            blindDates,
             Map.of()));
   }
 }

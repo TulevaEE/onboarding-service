@@ -17,6 +17,7 @@ import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -32,6 +33,8 @@ import org.jspecify.annotations.Nullable;
 @AllArgsConstructor
 @NoArgsConstructor
 class FeeCheckEvent {
+
+  static final String FINGERPRINT = "fingerprint";
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -74,6 +77,14 @@ class FeeCheckEvent {
   private Map<String, Object> result = Map.of();
 
   private @Nullable Instant createdAt;
+
+  // Rows written before the notifier compared finding sets have no fingerprint, so they read as an
+  // empty set and the first run after them announces whatever those checks are still reporting.
+  List<String> fingerprint() {
+    return result.get(FINGERPRINT) instanceof List<?> stored
+        ? stored.stream().map(String::valueOf).toList()
+        : List.of();
+  }
 
   @PrePersist
   protected void onCreate() {

@@ -80,6 +80,7 @@ class CashSettlementChecker {
           finding(
               fund,
               WARNING,
+              List.of("multiplePaymentsInWindow"),
               "Found "
                   + payments.size()
                   + " management fee payments in the window for "
@@ -93,13 +94,14 @@ class CashSettlementChecker {
 
     if (payments.isEmpty()) {
       if (settled.signum() == 0) {
-        return List.of(finding(fund, PASS, "", null, details));
+        return List.of(finding(fund, PASS, List.of(), "", null, details));
       }
       if (checkDate.isBefore(windowCloses)) {
         return List.of(
             finding(
                 fund,
                 NOT_RUN,
+                List.of("paymentWindowStillOpen"),
                 "No fee payment observed for " + feeMonth + " yet, window closes " + windowCloses,
                 null,
                 details));
@@ -108,6 +110,7 @@ class CashSettlementChecker {
           finding(
               fund,
               WARNING,
+              List.of("noPaymentObserved"),
               "Settled "
                   + settled.toPlainString()
                   + " of management fees for "
@@ -125,6 +128,7 @@ class CashSettlementChecker {
           finding(
               fund,
               WARNING,
+              List.of("paymentDiffersFromSettlement"),
               "Management fees paid for "
                   + feeMonth
                   + " were "
@@ -135,7 +139,7 @@ class CashSettlementChecker {
               deviation,
               details));
     }
-    return List.of(finding(fund, PASS, "", null, details));
+    return List.of(finding(fund, PASS, List.of(), "", null, details));
   }
 
   private String amounts(List<LedgerEntryAmount> payments) {
@@ -147,6 +151,7 @@ class CashSettlementChecker {
   private FeeCheckFinding finding(
       TulevaFund fund,
       FeeCheckSeverity severity,
+      List<String> identifiers,
       String message,
       @Nullable BigDecimal deviation,
       Map<String, Object> details) {
@@ -157,6 +162,7 @@ class CashSettlementChecker {
         severity,
         message,
         deviation == null ? null : deviation.abs(),
+        identifiers,
         details);
   }
 

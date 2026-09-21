@@ -52,42 +52,47 @@ class FeeCheckNotifier {
     for (var result : results) {
       for (var checkType : FeeCheckType.values()) {
         for (var scope : FeeCheckScope.values()) {
-          var current = currentSeverity(result, checkType, scope);
-          if (current == null) {
+          var findings = findingsOf(result, checkType, scope);
+          if (findings.isEmpty()) {
             continue;
           }
+          var current = state(findings);
           var previous = previousState(result, checkType, scope);
-          if (current == previous.severity()
-              && sameAmount(currentDeviation(result, checkType, scope), previous.deviation())) {
+          if (current.sameSeverityAs(previous)
+              && !current.gainedAFindingSince(previous)
+              && !current.deviationGrewSince(previous)) {
             continue;
           }
           transitions.add(
-              new Transition(result, checkType, scope, current, message(result, checkType, scope)));
+              new Transition(result, checkType, scope, current.severity(), firstMessage(findings)));
         }
       }
     }
     return transitions;
   }
 
-  private @Nullable FeeCheckSeverity currentSeverity(
+  private List<FeeCheckFinding> findingsOf(
       FeeCheckResult result, FeeCheckType checkType, FeeCheckScope scope) {
     return result.findings().stream()
         .filter(f -> f.checkType() == checkType && f.scope() == scope)
-        .map(FeeCheckFinding::severity)
-        .max(Enum::compareTo)
-        .orElse(null);
+        .toList();
+  }
+
+  private CheckState state(List<FeeCheckFinding> findings) {
+    return new CheckState(
+        findings.stream().map(FeeCheckFinding::severity).max(Enum::compareTo).orElseThrow(),
+        FeeCheckFinding.fingerprint(findings),
+        FeeCheckFinding.totalDeviation(findings));
   }
 
   // Diffs within the fee_month bucket, so a fresh month's failure is never masked by the previous
   // month having failed too.
   //
-  // The deviation travels with the severity because severity alone goes blind on a standing
-  // failure: a divergence that cannot be recalculated - a fee accrual is forward-only, so a day
-  // written before a fix keeps its old base forever - parks the check at FAIL, and from then on
-  // every later FAIL is "no change" and never reaches anyone. A second bad day would arrive in
-  // silence. Comparing the amount too keeps an unchanged failure quiet while letting a failure that
-  // moved speak again.
-  private PreviousState previousState(
+  // The finding set and the deviation travel with the severity because severity alone goes blind
+  // on a standing failure: a divergence that cannot be recalculated - a fee accrual is
+  // forward-only, so a day written before a fix keeps its old base forever - parks the check at
+  // FAIL, and from then on every later FAIL is "no change" and never reaches anyone.
+  private CheckState previousState(
       FeeCheckResult result, FeeCheckType checkType, FeeCheckScope scope) {
     var rows =
         result.feeMonth() == null
@@ -96,31 +101,38 @@ class FeeCheckNotifier {
             : eventRepository.findLatestDeliveredForFeeMonth(
                 result.fund(), checkType, scope, result.feeMonth(), PREVIOUS_AND_CURRENT);
     if (rows.size() < 2) {
-      return new PreviousState(PASS, null);
+      return new CheckState(PASS, List.of(), BigDecimal.ZERO);
     }
     var previous = rows.get(1);
     var severity = previous.getSeverity();
-    return new PreviousState(severity != null ? severity : PASS, previous.getDeviationAmount());
+    var deviation = previous.getDeviationAmount();
+    return new CheckState(
+        severity != null ? severity : PASS,
+        previous.fingerprint(),
+        deviation != null ? deviation : BigDecimal.ZERO);
   }
 
-  private BigDecimal currentDeviation(
-      FeeCheckResult result, FeeCheckType checkType, FeeCheckScope scope) {
-    return FeeCheckFinding.totalDeviation(
-        result.findings().stream()
-            .filter(f -> f.checkType() == checkType && f.scope() == scope)
-            .toList());
+  // The daily checks sum over a window that moves on its own, so a total alone cannot tell a check
+  // that found something new from one whose oldest day rolled out of view. Only what the check
+  // gained speaks: a finding it was not already reporting, or a divergence that grew.
+  private record CheckState(
+      FeeCheckSeverity severity, List<String> fingerprint, BigDecimal totalDeviation) {
+
+    boolean sameSeverityAs(CheckState other) {
+      return severity == other.severity;
+    }
+
+    boolean gainedAFindingSince(CheckState previous) {
+      return !previous.fingerprint.containsAll(fingerprint);
+    }
+
+    boolean deviationGrewSince(CheckState previous) {
+      return totalDeviation.compareTo(previous.totalDeviation) > 0;
+    }
   }
 
-  // A row written before the amount was recorded has none; that is the same as no deviation.
-  private static boolean sameAmount(BigDecimal current, @Nullable BigDecimal previous) {
-    return current.compareTo(previous == null ? BigDecimal.ZERO : previous) == 0;
-  }
-
-  private record PreviousState(FeeCheckSeverity severity, @Nullable BigDecimal deviation) {}
-
-  private String message(FeeCheckResult result, FeeCheckType checkType, FeeCheckScope scope) {
-    return result.findings().stream()
-        .filter(f -> f.checkType() == checkType && f.scope() == scope)
+  private String firstMessage(List<FeeCheckFinding> findings) {
+    return findings.stream()
         .map(FeeCheckFinding::message)
         .filter(m -> !m.isBlank())
         .findFirst()

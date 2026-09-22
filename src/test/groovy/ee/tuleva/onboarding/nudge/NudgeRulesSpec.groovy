@@ -35,7 +35,36 @@ class NudgeRulesSpec extends Specification {
     def inputs = everythingSorted().secondPillarActive(false).savingsFundRecurring(NO).build()
 
     expect:
-    NudgeRules.decide(inputs, NudgeContext.SAVINGS_FUND_PAYMENT) == NudgeDecision.secondPillarTransfer(null)
+    NudgeRules.decide(inputs, NudgeContext.SAVINGS_FUND_PAYMENT) == NudgeDecision.of(SECOND_PILLAR_START)
+  }
+
+  def "second pillar start: #description"() {
+    given:
+    def inputs = everythingSorted()
+        .secondPillarActive(false)
+        .secondPillarPartiallyConverted(false)
+        .secondPillarFullyConverted(false)
+        .secondPillarFee(null)
+        .adult(adult)
+        .reachedRetirementAge(retired)
+        .leftSecondPillar(leftSecondPillar)
+        .pendingSecondPillarWithdrawal(pendingWithdrawal)
+        .savesInSavingsFund(NO)
+        .build()
+
+    expect:
+    NudgeRules.decide(inputs, context) == expected
+
+    where:
+    description                                         | adult | retired | leftSecondPillar | pendingWithdrawal | context                              || expected
+    "a never-joiner is invited to open a second pillar" | true  | false   | NO               | false             | NudgeContext.THIRD_PILLAR_PAYMENT    || NudgeDecision.of(SECOND_PILLAR_START)
+    "also on the account page"                          | true  | false   | NO               | false             | NudgeContext.ACCOUNT                 || NudgeDecision.of(SECOND_PILLAR_START)
+    "not right after signing a second pillar mandate"   | true  | false   | NO               | false             | NudgeContext.SECOND_PILLAR_MANDATE   || NudgeDecision.savingsFund(0.28)
+    "not at retirement age"                             | true  | true    | NO               | false             | NudgeContext.THIRD_PILLAR_PAYMENT    || NudgeDecision.savingsFund(0.28)
+    "not a minor"                                       | false | false   | NO               | false             | NudgeContext.THIRD_PILLAR_PAYMENT    || NudgeDecision.of(NONE)
+    "never a leaver"                                    | true  | false   | YES              | false             | NudgeContext.THIRD_PILLAR_PAYMENT    || NudgeDecision.savingsFund(0.28)
+    "nothing while the leaver status is unknown"        | true  | false   | UNKNOWN          | false             | NudgeContext.THIRD_PILLAR_PAYMENT    || NudgeDecision.of(NONE)
+    "not with a pending withdrawal"                     | true  | false   | NO               | true              | NudgeContext.THIRD_PILLAR_PAYMENT    || NudgeDecision.savingsFund(0.28)
   }
 
   def "second pillar transfer: #description"() {
@@ -53,7 +82,7 @@ class NudgeRulesSpec extends Specification {
 
     where:
     description                              | secondPillarActive | partially | fully | fee    || expected
-    "no second pillar at all"                | false              | false     | false | null   || NudgeDecision.secondPillarTransfer(null)
+    "no second pillar at all"                | false              | false     | false | null   || NudgeDecision.of(SECOND_PILLAR_START)
     "nothing at Tuleva yet"                  | true               | false     | false | 0.0029 || NudgeDecision.secondPillarTransfer(null)
     "partially at Tuleva, high fee"          | true               | true      | false | 0.0065 || NudgeDecision.secondPillarTransfer(sampleFeeComparison())
     "partially at Tuleva, low fee"           | true               | true      | false | 0.0029 || NudgeDecision.of(NONE)
@@ -99,7 +128,7 @@ class NudgeRulesSpec extends Specification {
     "a leaver gets no second pillar nudges"       | YES              | true   || NudgeDecision.savingsFund(0.28)
     "unknown skips second pillar and savings"     | UNKNOWN          | true   || NudgeDecision.of(NONE)
     "unknown still allows the membership nudge"   | UNKNOWN          | false  || NudgeDecision.of(MEMBERSHIP)
-    "known non-leaver gets the transfer nudge"    | NO               | true   || NudgeDecision.secondPillarTransfer(null)
+    "known non-leaver gets the start nudge"       | NO               | true   || NudgeDecision.of(SECOND_PILLAR_START)
   }
 
   def "payment rate: #description"() {

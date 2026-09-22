@@ -1,5 +1,12 @@
 {
   "variants": {
+    "second pillar start suggestion": {
+      "FNAME": "Jaan",
+      "increased": false,
+      "paymentRateFulfillmentDate": "01.01.2027",
+      "newPaymentRate": "2",
+      "suggestSecondPillarStart": true
+    },
     "second pillar suggestion": {
       "FNAME": "Jaan",
       "increased": false,

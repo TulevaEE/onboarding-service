@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.nudge.NudgeKey.MEMBERSHIP;
 import static ee.tuleva.onboarding.nudge.NudgeKey.SAVINGS_FUND;
 import static ee.tuleva.onboarding.nudge.NudgeKey.SAVINGS_FUND_RECURRING;
 import static ee.tuleva.onboarding.nudge.NudgeKey.SECOND_PILLAR_PAYMENT_RATE;
+import static ee.tuleva.onboarding.nudge.NudgeKey.SECOND_PILLAR_START;
 import static ee.tuleva.onboarding.nudge.NudgeKey.SECOND_PILLAR_TRANSFER;
 import static ee.tuleva.onboarding.nudge.NudgeKey.THIRD_PILLAR_FEES;
 import static ee.tuleva.onboarding.nudge.NudgeKey.THIRD_PILLAR_RAISE;
@@ -51,6 +52,7 @@ public record NudgeDecision(
 
   public Map<String, Object> mergeVars(Locale locale) {
     Map<String, Object> vars = new HashMap<>();
+    vars.put("suggestSecondPillarStart", key == SECOND_PILLAR_START);
     vars.put("suggestSecondPillar", key == SECOND_PILLAR_TRANSFER);
     vars.put("suggestPaymentRate", key == SECOND_PILLAR_PAYMENT_RATE);
     vars.put("suggestThirdPillar", key == THIRD_PILLAR_START || key == THIRD_PILLAR_FEES);

@@ -11,7 +11,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.tuleva.onboarding.investment.fees.*;
 import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
@@ -38,6 +37,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import tools.jackson.databind.json.JsonMapper;
 
 @ExtendWith(MockitoExtension.class)
 class OcfCalculationServiceTest {
@@ -52,7 +52,7 @@ class OcfCalculationServiceTest {
   @Mock(strictness = Mock.Strictness.LENIENT)
   private FeeChargedToFundPolicy feeChargedToFundPolicy;
 
-  @Spy private OcfJson ocfJson = new OcfJson(new ObjectMapper());
+  @Spy private OcfJson ocfJson = new OcfJson(JsonMapper.builder().build());
 
   @InjectMocks private OcfCalculationService service;
 

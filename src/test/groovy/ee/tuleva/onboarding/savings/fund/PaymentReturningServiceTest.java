@@ -1,11 +1,16 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_CANCEL_REQUESTED;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.PAYMENT_RECEIVED;
 import static ee.tuleva.onboarding.party.PartyId.Type.PERSON;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RETURNED;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -18,6 +23,7 @@ import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
 import java.math.BigDecimal;
 import java.util.UUID;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,22 +31,111 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @ExtendWith(MockitoExtension.class)
 class PaymentReturningServiceTest {
 
+  private static final PartyId PARTY = new PartyId(PERSON, "38812121215");
+
   @Mock ApplicationEventPublisher eventPublisher;
   @Mock SavingFundPaymentRepository savingFundPaymentRepository;
   @Mock SavingsFundLedger savingsFundLedger;
+  @Mock TransactionTemplate transactionTemplate;
   EndToEndIdConverter endToEndIdConverter = new EndToEndIdConverter();
 
   PaymentReturningService service;
 
   @BeforeEach
   void setUp() {
+    doAnswer(
+            invocation -> {
+              Consumer<TransactionStatus> callback = invocation.getArgument(0);
+              callback.accept(null);
+              return null;
+            })
+        .when(transactionTemplate)
+        .executeWithoutResult(any());
     service =
         new PaymentReturningService(
-            eventPublisher, savingFundPaymentRepository, savingsFundLedger, endToEndIdConverter);
+            eventPublisher,
+            savingFundPaymentRepository,
+            savingsFundLedger,
+            endToEndIdConverter,
+            transactionTemplate);
+  }
+
+  @Test
+  void createReturn_reservesTheBalanceBeforeSendingAndMarksItReturnedOnlyOnceTheOrderIsOut() {
+    var payment = creditedPayment();
+    given(savingsFundLedger.hasLedgerEntry(payment.getId(), PAYMENT_RECEIVED)).willReturn(true);
+
+    service.createReturn(payment);
+
+    var inOrder = inOrder(savingsFundLedger, eventPublisher, savingFundPaymentRepository);
+    inOrder
+        .verify(savingsFundLedger)
+        .reservePaymentForCancellation(
+            LedgerRefs.from(PARTY), payment.getAmount(), payment.getId());
+    inOrder.verify(eventPublisher).publishEvent(any(RequestPaymentEvent.class));
+    inOrder.verify(savingFundPaymentRepository).changeStatus(payment.getId(), RETURNED);
+  }
+
+  @Test
+  void createReturn_whenTheLedgerReservationFails_sendsNothingToTheBankAndLeavesTheStatusAlone() {
+    var payment = creditedPayment();
+    given(savingsFundLedger.hasLedgerEntry(payment.getId(), PAYMENT_RECEIVED)).willReturn(true);
+    willThrow(new IllegalStateException("Insufficient balance"))
+        .given(savingsFundLedger)
+        .reservePaymentForCancellation(any(), any(), any());
+
+    assertThatThrownBy(() -> service.createReturn(payment))
+        .isInstanceOf(IllegalStateException.class);
+
+    verify(eventPublisher, never()).publishEvent(any(RequestPaymentEvent.class));
+    verify(savingFundPaymentRepository, never()).changeStatus(any(), any());
+  }
+
+  @Test
+  void createReturn_whenTheBankRejectsTheOrder_leavesThePaymentToBeReturned() {
+    var payment = creditedPayment();
+    given(savingsFundLedger.hasLedgerEntry(payment.getId(), PAYMENT_RECEIVED)).willReturn(true);
+    willThrow(new IllegalStateException("Payment file failed integrity validation"))
+        .given(eventPublisher)
+        .publishEvent(any(RequestPaymentEvent.class));
+
+    assertThatThrownBy(() -> service.createReturn(payment))
+        .isInstanceOf(IllegalStateException.class);
+
+    verify(savingFundPaymentRepository, never()).changeStatus(any(), any());
+  }
+
+  @Test
+  void createReturn_whenTheBalanceIsAlreadyReserved_doesNotReserveItASecondTime() {
+    var payment = creditedPayment();
+    given(savingsFundLedger.hasLedgerEntry(payment.getId(), PAYMENT_RECEIVED)).willReturn(true);
+    given(savingsFundLedger.hasLedgerEntry(payment.getId(), PAYMENT_CANCEL_REQUESTED))
+        .willReturn(true);
+
+    service.createReturn(payment);
+
+    verify(savingsFundLedger, never()).reservePaymentForCancellation(any(), any(), any());
+    verify(eventPublisher).publishEvent(any(RequestPaymentEvent.class));
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), RETURNED);
+  }
+
+  private SavingFundPayment creditedPayment() {
+    return SavingFundPayment.builder()
+        .id(UUID.randomUUID())
+        .partyId(PARTY)
+        .amount(new BigDecimal("100.00"))
+        .remitterName("John Doe")
+        .remitterIban("EE111111111111111111")
+        .beneficiaryName("Tuleva")
+        .beneficiaryIban("EE222222222222222222")
+        .returnReason("Kasutaja soovil")
+        .build();
   }
 
   @Test

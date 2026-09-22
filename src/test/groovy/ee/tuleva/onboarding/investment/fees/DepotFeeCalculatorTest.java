@@ -21,9 +21,9 @@ import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -37,7 +37,21 @@ class DepotFeeCalculatorTest {
   @Mock private NavLedgerRepository navLedgerRepository;
   @Mock private PublicHolidays publicHolidays;
 
-  @InjectMocks private DepotFeeCalculator calculator;
+  private DepotFeeCalculator calculator;
+
+  @BeforeEach
+  void setUp() {
+    calculator =
+        new DepotFeeCalculator(
+            feeMonthResolver,
+            new DepotRateResolver(
+                tierRepository,
+                feeRateRepository,
+                fundNavQueryService,
+                feeMonthResolver,
+                navLedgerRepository,
+                publicHolidays));
+  }
 
   private static final BigDecimal NAV_FEE_BASE = new BigDecimal("480000000");
   private static final BigDecimal ASSET_VALUE = new BigDecimal("500000000");

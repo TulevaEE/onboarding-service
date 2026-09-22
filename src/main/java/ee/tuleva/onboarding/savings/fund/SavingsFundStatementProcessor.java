@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.savings.fund;
 import static ee.tuleva.onboarding.banking.BankAccountType.DEPOSIT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.banking.BankAccountType.WITHDRAWAL_EUR;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.WARNING;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.UNMODELLED_DEBIT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static java.math.BigDecimal.ZERO;
 
@@ -10,6 +12,9 @@ import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.ManagementCompanies;
+import ee.tuleva.onboarding.banking.StatementDebit;
+import ee.tuleva.onboarding.banking.check.payment.OutgoingPaymentMatcher;
+import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.event.BankMessageEvents.SavingsFundStatementReceived;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
@@ -28,7 +33,6 @@ import org.springframework.stereotype.Component;
 @ConditionalOnProperty(prefix = "seb-gateway", name = "enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class SavingsFundStatementProcessor {
-
   private final SavingFundPaymentExtractor paymentExtractor;
   private final SavingFundPaymentUpsertionService paymentService;
   private final ManagementCompanies managementCompanies;
@@ -36,6 +40,8 @@ public class SavingsFundStatementProcessor {
   private final SavingsFundLedger savingsFundLedger;
   private final OwnAccountTransferRecorder ownAccountTransferRecorder;
   private final FundBankLedger fundBankLedger;
+  private final PaymentCheckService paymentCheckService;
+  private final OutgoingPaymentMatcher outgoingPaymentMatcher;
   private final RedemptionPayoutRecorder redemptionPayoutRecorder;
 
   @EventListener
@@ -86,6 +92,8 @@ public class SavingsFundStatementProcessor {
       return;
     }
 
+    outgoingPaymentMatcher.match(debitOf(payment));
+
     switch (accountType) {
       case DEPOSIT_EUR ->
           paymentService.upsert(
@@ -122,6 +130,11 @@ public class SavingsFundStatementProcessor {
     } else {
       log.error(
           "Unhandled payment type: paymentId={}, amount={}", payment.getId(), payment.getAmount());
+      paymentCheckService.record(
+          UNMODELLED_DEBIT,
+          WARNING,
+          String.valueOf(payment.getId()),
+          "money moved in a shape the system does not model");
     }
   }
 
@@ -148,6 +161,11 @@ public class SavingsFundStatementProcessor {
           "Unhandled WITHDRAWAL_EUR payment: amount={}, remitterIban={}",
           payment.getAmount(),
           payment.getRemitterIban());
+      paymentCheckService.record(
+          UNMODELLED_DEBIT,
+          WARNING,
+          String.valueOf(payment.getId()),
+          "an unmodelled movement on the payout account");
     }
   }
 
@@ -206,5 +224,13 @@ public class SavingsFundStatementProcessor {
 
   private boolean isSavingsFundAccount(@Nullable String iban, BankAccountType type) {
     return bankAccounts.find(iban).filter(account -> account.matches(TKF100, type)).isPresent();
+  }
+
+  private static StatementDebit debitOf(SavingFundPayment payment) {
+    return new StatementDebit(
+        payment.getExternalId(),
+        payment.getAmount(),
+        payment.getBeneficiaryIban(),
+        payment.getEndToEndId());
   }
 }

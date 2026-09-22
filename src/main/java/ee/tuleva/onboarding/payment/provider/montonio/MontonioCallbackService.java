@@ -65,7 +65,13 @@ public class MontonioCallbackService {
       return existingPayment;
     }
 
-    User user = userService.findByPersonalCode(internalReference.getPersonalCode()).orElseThrow();
+    // Anonymous payers only reach the savings fund callback, so a missing code here is a broken
+    // invariant rather than a case to handle.
+    var payerPersonalCode =
+        requireNonNull(
+            internalReference.getPersonalCode(),
+            "Payment without a payer: uuid=" + internalReference.getUuid());
+    User user = userService.findByPersonalCode(payerPersonalCode).orElseThrow();
 
     Payment paymentToBeSaved =
         Payment.builder()

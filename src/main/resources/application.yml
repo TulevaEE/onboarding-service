@@ -65,7 +65,8 @@ mailchimp:
 opensanctions:
   url: https://yente.tuleva.ee
   connect-timeout: 5s
-  read-timeout: 15s
+  read-timeout: 30s
+  retry-delay: 500ms
 
 eodhd:
   api-token: ${EODHD_API_TOKEN:}

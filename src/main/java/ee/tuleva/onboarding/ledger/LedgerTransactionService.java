@@ -21,8 +21,8 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 class LedgerTransactionService {
-
   private final LedgerTransactionRepository ledgerTransactionRepository;
+  private final UserUnitBalanceGuard userUnitBalanceGuard;
 
   @Transactional
   public LedgerTransaction createTransaction(
@@ -31,6 +31,8 @@ class LedgerTransactionService {
       @Nullable UUID externalReference,
       Map<String, Object> metadata,
       LedgerEntryDto... ledgerEntryDtos) {
+    userUnitBalanceGuard.check(transactionType, ledgerEntryDtos);
+
     var transaction =
         LedgerTransaction.builder()
             .transactionType(transactionType)

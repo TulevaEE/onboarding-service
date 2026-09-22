@@ -65,9 +65,21 @@ class PaymentProviderFixture {
 
   static String aSerializedSavingsPaymentTokenWithout(
       Collection<String> removedFields, Map<String, Object> merchantReferenceChanges = [:]) {
+    return aResignedSavingsPaymentToken(removedFields, [:], merchantReferenceChanges)
+  }
+
+  static String aSerializedSavingsPaymentTokenWith(Map<String, Object> payloadChanges) {
+    return aResignedSavingsPaymentToken([], payloadChanges, [:])
+  }
+
+  private static String aResignedSavingsPaymentToken(
+      Collection<String> removedFields,
+      Map<String, Object> payloadChanges,
+      Map<String, Object> merchantReferenceChanges) {
     def original = JWSObject.parse(aSerializedSavingsPaymentToken)
     def payload = new JsonSlurper().parseText(original.payload.toString()) as Map
     removedFields.each { payload.remove(it) }
+    payload.putAll(payloadChanges)
     def reference = new JsonSlurper().parseText(payload.merchantReference as String) as Map
     reference.putAll(merchantReferenceChanges)
     payload.merchantReference = JsonOutput.toJson(reference)

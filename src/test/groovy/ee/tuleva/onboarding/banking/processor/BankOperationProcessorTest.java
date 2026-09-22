@@ -13,6 +13,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.banking.BankAccount;
+import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.banking.statement.TransactionType;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
@@ -37,6 +38,8 @@ class BankOperationProcessorTest {
 
   @Mock FundBankLedger fundBankLedger;
   @Mock TradeSettlementParser tradeSettlementParser;
+
+  @Mock PaymentCheckService paymentCheckService;
 
   @InjectMocks BankOperationProcessor processor;
 

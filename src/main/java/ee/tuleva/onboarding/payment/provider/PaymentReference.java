@@ -7,12 +7,13 @@ import java.util.Locale;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import org.jspecify.annotations.Nullable;
 
 @Data
 @AllArgsConstructor
 public class PaymentReference {
 
-  private String personalCode;
+  private @Nullable String personalCode;
 
   private String recipientPersonalCode;
 

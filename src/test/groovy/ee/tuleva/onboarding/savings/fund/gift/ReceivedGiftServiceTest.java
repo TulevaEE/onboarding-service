@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.savings.fund.gift;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.CREATED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RETURNED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.VERIFIED;
+import static ee.tuleva.onboarding.savings.fund.gift.GiftLinkFixture.aReplacedLink;
+import static ee.tuleva.onboarding.savings.fund.gift.GiftLinkFixture.anOpenLink;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -15,6 +17,8 @@ import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,13 +39,13 @@ class ReceivedGiftServiceTest {
   @Mock SavingFundPaymentRepository payments;
   @Mock GiftRepository gifts;
   @Mock ParentChildLinkService parentChildLinks;
+  @Mock GiftLinkRepository giftLinks;
 
   ReceivedGiftService service;
 
   @BeforeEach
   void setUp() {
-    service = new ReceivedGiftService(payments, gifts, parentChildLinks);
-    given(parentChildLinks.isActiveRepresentation(PARENT, CHILD)).willReturn(true);
+    service = new ReceivedGiftService(payments, gifts, parentChildLinks, giftLinks);
   }
 
   @Test
@@ -53,7 +57,53 @@ class ReceivedGiftServiceTest {
   }
 
   @Test
+  void readsWhatTheChildALinkWasMadeForReceived() {
+    givenParentRepresentsChild();
+    var link = anOpenLink(CHILD, PARENT);
+    given(giftLinks.findById(link.getId())).willReturn(Optional.of(link));
+    givenPayments(payment("from-grandma", GRANDPARENT, "Leida Tamm", VERIFIED));
+    given(parentChildLinks.isGuardian(GRANDPARENT, CHILD)).willReturn(false);
+    given(gifts.findByDescriptionIn(any())).willReturn(List.of());
+
+    assertThat(service.receivedGifts(PARENT, link.getId()))
+        .singleElement()
+        .satisfies(gift -> assertThat(gift.giverName()).isEqualTo("Leida Tamm"));
+  }
+
+  @Test
+  void stillReadsTheGiftsThroughALinkTheParentHasSinceReplaced() {
+    givenParentRepresentsChild();
+    var replaced = aReplacedLink(CHILD, PARENT);
+    given(giftLinks.findById(replaced.getId())).willReturn(Optional.of(replaced));
+    givenPayments(payment("from-grandma", GRANDPARENT, "Leida Tamm", VERIFIED));
+    given(parentChildLinks.isGuardian(GRANDPARENT, CHILD)).willReturn(false);
+    given(gifts.findByDescriptionIn(any())).willReturn(List.of());
+
+    assertThat(service.receivedGifts(PARENT, replaced.getId())).hasSize(1);
+  }
+
+  @Test
+  void holdingALinkIdDoesNotLetAStrangerReadWhatTheChildReceived() {
+    var link = anOpenLink(CHILD, PARENT);
+    given(giftLinks.findById(link.getId())).willReturn(Optional.of(link));
+    given(parentChildLinks.isActiveRepresentation(PARENT, CHILD)).willReturn(false);
+
+    assertThatThrownBy(() -> service.receivedGifts(PARENT, link.getId()))
+        .isInstanceOf(NotAllowedToGiftForException.class);
+  }
+
+  @Test
+  void aLinkThatIsNotThereHasNoGiftsToRead() {
+    var id = UUID.randomUUID();
+    given(giftLinks.findById(id)).willReturn(Optional.empty());
+
+    assertThatThrownBy(() -> service.receivedGifts(PARENT, id))
+        .isInstanceOf(NoSuchElementException.class);
+  }
+
+  @Test
   void leavesOutTheParentsOwnDeposit() {
+    givenParentRepresentsChild();
     var own = payment("own-deposit", PARENT, "Kristjan Tamm", VERIFIED);
     givenPayments(own);
     given(parentChildLinks.isGuardian(PARENT, CHILD)).willReturn(true);
@@ -64,6 +114,7 @@ class ReceivedGiftServiceTest {
 
   @Test
   void leavesOutTheChildsOwnMoney() {
+    givenParentRepresentsChild();
     givenPayments(payment("childs-own", CHILD, "Mari Tamm", VERIFIED));
     given(gifts.findByDescriptionIn(any())).willReturn(List.of());
 
@@ -72,6 +123,7 @@ class ReceivedGiftServiceTest {
 
   @Test
   void leavesOutTheDepositOfAParentWhoseOwnKycHasNotClearedYet() {
+    givenParentRepresentsChild();
     givenPayments(payment("co-parent-deposit", CO_PARENT, "Kristjan Tamm", VERIFIED));
     given(parentChildLinks.isGuardian(CO_PARENT, CHILD)).willReturn(true);
     given(gifts.findByDescriptionIn(any())).willReturn(List.of());
@@ -81,6 +133,7 @@ class ReceivedGiftServiceTest {
 
   @Test
   void showsATransferFromSomebodyWhoDoesNotActForTheChild() {
+    givenParentRepresentsChild();
     givenPayments(payment("from-grandma", GRANDPARENT, "Leida Tamm", VERIFIED));
     given(parentChildLinks.isGuardian(GRANDPARENT, CHILD)).willReturn(false);
     given(gifts.findByDescriptionIn(any())).willReturn(List.of());
@@ -96,6 +149,7 @@ class ReceivedGiftServiceTest {
 
   @Test
   void showsALinkPaymentBeforeTheBankHasSaidWhoPaid() {
+    givenParentRepresentsChild();
     givenPayments(payment("through-the-link", null, null, CREATED));
     given(gifts.findByDescriptionIn(any()))
         .willReturn(List.of(gift("through-the-link", "Palju õnne!")));
@@ -112,6 +166,7 @@ class ReceivedGiftServiceTest {
 
   @Test
   void leavesOutMoneyOnItsWayBackOut() {
+    givenParentRepresentsChild();
     givenPayments(payment("returned", GRANDPARENT, "Leida Tamm", RETURNED));
     given(gifts.findByDescriptionIn(any())).willReturn(List.of());
 
@@ -120,6 +175,7 @@ class ReceivedGiftServiceTest {
 
   @Test
   void showsBothGiftsButNeitherMessageWhenTwoShareADescription() {
+    givenParentRepresentsChild();
     givenPayments(
         payment("same-second", null, null, VERIFIED), payment("same-second", null, null, VERIFIED));
     given(gifts.findByDescriptionIn(any()))
@@ -133,6 +189,7 @@ class ReceivedGiftServiceTest {
 
   @Test
   void showsNoMessageWhenOnlyOneOfTwoGiftsSharingADescriptionCarriesWords() {
+    givenParentRepresentsChild();
     givenPayments(
         payment("same-second", null, null, VERIFIED), payment("same-second", null, null, VERIFIED));
     given(gifts.findByDescriptionIn(any()))
@@ -145,6 +202,10 @@ class ReceivedGiftServiceTest {
 
   private void givenPayments(SavingFundPayment... found) {
     given(payments.findPayments(any())).willReturn(List.of(found));
+  }
+
+  private void givenParentRepresentsChild() {
+    given(parentChildLinks.isActiveRepresentation(PARENT, CHILD)).willReturn(true);
   }
 
   private static SavingFundPayment payment(

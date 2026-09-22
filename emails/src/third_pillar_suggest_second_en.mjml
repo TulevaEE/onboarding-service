@@ -21,7 +21,7 @@
             index fund:
           </strong>
         </mj-text>
-        <mj-button href="https://pension.tuleva.ee/login?language=en">
+        <mj-button href="https://pension.tuleva.ee/login?language=en&utm_content=nudge_second_pillar">
           Check your second pillar
         </mj-button>
       </mj-column>

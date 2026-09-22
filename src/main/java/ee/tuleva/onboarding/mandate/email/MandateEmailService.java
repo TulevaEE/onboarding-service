@@ -1,9 +1,7 @@
 package ee.tuleva.onboarding.mandate.email;
 
 import static ee.tuleva.onboarding.mandate.EmailVariablesAttachments.*;
-import static ee.tuleva.onboarding.notification.email.EmailType.THIRD_PILLAR_SUGGEST_SECOND;
 import static java.time.format.DateTimeFormatter.ofPattern;
-import static java.time.temporal.ChronoUnit.DAYS;
 import static java.time.temporal.ChronoUnit.HOURS;
 import static java.util.Objects.requireNonNull;
 
@@ -20,6 +18,7 @@ import ee.tuleva.onboarding.mandate.batch.MandateBatch;
 import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.notification.email.EmailType;
+import ee.tuleva.onboarding.notification.email.SecondPillarLetterScheduler;
 import ee.tuleva.onboarding.nudge.FundFees;
 import ee.tuleva.onboarding.nudge.NudgeDecision;
 import ee.tuleva.onboarding.nudge.NudgeKey;
@@ -47,6 +46,7 @@ public class MandateEmailService {
   private final MandateDeadlinesService mandateDeadlinesService;
   private final SecondPillarPaymentRateService secondPillarPaymentRateService;
   private final AuthenticationHolder authenticationHolder;
+  private final SecondPillarLetterScheduler secondPillarLetter;
 
   public void sendMandate(User user, Mandate mandate, NudgeDecision decision, Locale locale) {
     if (emailPersistenceService.hasEmailsForMandate(mandate.getIdOrThrow())) {
@@ -59,7 +59,7 @@ public class MandateEmailService {
       case 3 -> {
         scheduleThirdPillarPaymentReminderEmail(user, mandate, locale);
         if (decision.key() == NudgeKey.SECOND_PILLAR_TRANSFER) {
-          scheduleThirdPillarSuggestSecondEmail(user, mandate, locale);
+          secondPillarLetter.schedule(user, locale, SecondPillarLetterScheduler.Trigger.MANDATE);
         }
       }
       default -> throw new IllegalArgumentException("Unknown pillar: " + mandate.getPillar());
@@ -231,35 +231,6 @@ public class MandateEmailService {
                     EmailType.THIRD_PILLAR_PAYMENT_REMINDER_MANDATE,
                     response.getStatus(),
                     mandate.getIdOrThrow()));
-  }
-
-  void scheduleThirdPillarSuggestSecondEmail(User user, Mandate mandate, Locale locale) {
-    Instant sendAt = Instant.now(clock).plus(3, DAYS);
-    EmailType emailType = THIRD_PILLAR_SUGGEST_SECOND;
-    String templateName = emailType.getTemplateName(locale);
-
-    if (hasEmailsToday(user, emailType, mandate)) {
-      log.info(
-          "Already has email today: personalCode={}, emailType={}, mandateId={}",
-          user.getPersonalCode(),
-          emailType,
-          mandate.getId());
-      return;
-    }
-
-    MandrillMessage message =
-        emailService.newMandrillMessage(
-            user.getEmail(),
-            templateName,
-            getNameMergeVars(user),
-            List.of("pillar_3.1", "suggest_2"));
-
-    emailService
-        .send(user, message, templateName, sendAt)
-        .ifPresent(
-            response ->
-                emailPersistenceService.save(
-                    user, response.getId(), THIRD_PILLAR_SUGGEST_SECOND, response.getStatus()));
   }
 
   boolean isPaymentRateDecreased(Integer oldRate, Integer newRate) {

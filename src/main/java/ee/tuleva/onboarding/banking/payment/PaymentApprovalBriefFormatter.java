@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.banking.payment;
 
 import static ee.tuleva.onboarding.banking.payment.PaymentApprovalBrief.amount;
+import static ee.tuleva.onboarding.banking.payment.PaymentApprovalBrief.count;
 
 import org.springframework.stereotype.Component;
 
@@ -66,9 +67,5 @@ public class PaymentApprovalBriefFormatter {
     text.append(
         "\n  Approve per account. Each account's count and total must match its bank list.");
     return text.toString();
-  }
-
-  private static String count(int payments) {
-    return payments == 1 ? "1 payment" : payments + " payments";
   }
 }

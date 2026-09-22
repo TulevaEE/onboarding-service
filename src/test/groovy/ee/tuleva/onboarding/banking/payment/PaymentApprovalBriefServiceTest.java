@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.SUBMITT
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.PAYOUT;
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.REDEMPTION_TRANSFER;
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.RETURN;
+import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentType.SUBSCRIPTION_TRANSFER;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -19,8 +20,10 @@ import ee.tuleva.onboarding.banking.seb.SebAccountBalanceReader;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -33,6 +36,8 @@ class PaymentApprovalBriefServiceTest {
   private static final Instant TODAY_AFTERNOON = Instant.parse("2026-04-10T13:05:00Z");
   private static final Instant YESTERDAY_AFTERNOON = Instant.parse("2026-04-09T13:05:00Z");
   private static final String IBAN = "EE222222222222222222";
+  private static final UUID BATCH = UUID.fromString("11111111-1111-1111-1111-111111111111");
+  private static final UUID OTHER_BATCH = UUID.fromString("22222222-2222-2222-2222-222222222222");
   private static final BankAccount ACCOUNT =
       new BankAccount(IBAN, WITHDRAWAL_EUR, TKF100, "gateway-client");
 
@@ -101,7 +106,8 @@ class PaymentApprovalBriefServiceTest {
   void aCleanDayWithNothingHeldNeedsNoAttention() {
     givenAccountResolves();
     givenPayments(
-        payment(SUBMITTED, REDEMPTION_TRANSFER, "100.00"), payment(SUBMITTED, PAYOUT, "100.00"));
+        batched(SUBMITTED, REDEMPTION_TRANSFER, "100.00", BATCH),
+        batched(SUBMITTED, PAYOUT, "100.00", BATCH));
 
     var brief = service().build(DATE, List.of());
 
@@ -114,16 +120,13 @@ class PaymentApprovalBriefServiceTest {
   void theTransferIsShownAgainstThePayoutsItFunds() {
     givenAccountResolves();
     givenPayments(
-        payment(SUBMITTED, REDEMPTION_TRANSFER, "400.00"),
-        payment(SUBMITTED, PAYOUT, "250.00"),
-        payment(SUBMITTED, PAYOUT, "150.00"));
+        batched(SUBMITTED, REDEMPTION_TRANSFER, "400.00", BATCH),
+        batched(SUBMITTED, PAYOUT, "250.00", BATCH),
+        batched(SUBMITTED, PAYOUT, "150.00", BATCH));
 
     var brief = service().build(DATE, List.of());
 
-    assertThat(brief.verdicts())
-        .contains(
-            new PaymentApprovalBrief.Verdict(
-                "payouts == transfer to withdrawal account", true, "400.00 = 400.00"));
+    assertThat(brief.verdicts()).contains(tie(BATCH, true, "400.00 = 400.00"));
     assertThat(brief.attention()).isFalse();
   }
 
@@ -131,32 +134,28 @@ class PaymentApprovalBriefServiceTest {
   void aTransferThatDoesNotFundItsPayoutsFailsTheVerdictAndNeedsAttention() {
     givenAccountResolves();
     givenPayments(
-        payment(SUBMITTED, REDEMPTION_TRANSFER, "400.00"), payment(SUBMITTED, PAYOUT, "100.00"));
+        batched(SUBMITTED, REDEMPTION_TRANSFER, "400.00", BATCH),
+        batched(SUBMITTED, PAYOUT, "100.00", BATCH));
 
     var brief = service().build(DATE, List.of());
 
-    assertThat(brief.verdicts())
-        .contains(
-            new PaymentApprovalBrief.Verdict(
-                "payouts == transfer to withdrawal account", false, "100.00 = 400.00"));
+    assertThat(brief.verdicts()).contains(tie(BATCH, false, "100.00 = 400.00"));
     assertThat(brief.attention()).isTrue();
   }
 
   // An already approved transfer drops off the pending screen while its payouts are still on it, so
-  // the tie is computed over the whole day rather than over what is still pending. Otherwise it
+  // the tie is computed over the whole batch rather than over what is still pending. Otherwise it
   // would report an imbalance every time the signatory approved one account before the other.
   @Test
   void theTieHoldsEvenOnceOneSideHasAlreadyBeenApproved() {
     givenAccountResolves();
     givenPayments(
-        payment(EXECUTED, REDEMPTION_TRANSFER, "400.00"), payment(SUBMITTED, PAYOUT, "400.00"));
+        batched(EXECUTED, REDEMPTION_TRANSFER, "400.00", BATCH),
+        batched(SUBMITTED, PAYOUT, "400.00", BATCH));
 
     var brief = service().build(DATE, List.of());
 
-    assertThat(brief.verdicts())
-        .contains(
-            new PaymentApprovalBrief.Verdict(
-                "payouts == transfer to withdrawal account", true, "400.00 = 400.00"));
+    assertThat(brief.verdicts()).contains(tie(BATCH, true, "400.00 = 400.00"));
   }
 
   // The bank keeps a payment on its pending screen until somebody approves it, so a batch created
@@ -174,21 +173,70 @@ class PaymentApprovalBriefServiceTest {
     assertThat(brief.grandTotal()).isEqualByComparingTo("150.00");
   }
 
-  // Yesterday's transfer funds yesterday's payouts, so a payout carried into today has to be tied
-  // against the day it was attempted rather than against today's empty transfer total.
+  // Yesterday's transfer funds yesterday's payouts, so a batch left unapproved overnight is tied
+  // against its own transfer and not against whatever else is on today's brief.
   @Test
-  void aCarriedOverPayoutIsTiedAgainstTheTransferOfTheDayItWasAttempted() {
+  void aBatchCarriedOverFromYesterdayIsTiedOnItsOwn() {
     givenAccountResolves();
     givenPayments(
-        payment(EXECUTED, REDEMPTION_TRANSFER, "400.00", YESTERDAY_AFTERNOON),
-        payment(SUBMITTED, PAYOUT, "400.00", YESTERDAY_AFTERNOON));
+        batched(EXECUTED, REDEMPTION_TRANSFER, "400.00", YESTERDAY_AFTERNOON, BATCH),
+        batched(SUBMITTED, PAYOUT, "400.00", YESTERDAY_AFTERNOON, BATCH),
+        payment(SUBMITTED, PAYOUT, "70.00"));
+
+    var brief = service().build(DATE, List.of());
+
+    assertThat(brief.verdicts()).contains(tie(BATCH, true, "400.00 = 400.00"));
+  }
+
+  // Each batch funds itself, so summing them would let an underfunded batch hide behind an
+  // overfunded one and would make a batch stuck for weeks drag weeks of payouts into the sum.
+  @Test
+  void twoBatchesAreTiedIndependentlyAndOneFailingDoesNotHideTheOther() {
+    givenAccountResolves();
+    givenPayments(
+        batched(EXECUTED, REDEMPTION_TRANSFER, "400.00", YESTERDAY_AFTERNOON, BATCH),
+        batched(SUBMITTED, PAYOUT, "400.00", YESTERDAY_AFTERNOON, BATCH),
+        batched(SUBMITTED, REDEMPTION_TRANSFER, "100.00", OTHER_BATCH),
+        batched(SUBMITTED, PAYOUT, "60.00", OTHER_BATCH));
+
+    var brief = service().build(DATE, List.of());
+
+    assertThat(brief.verdicts())
+        .contains(tie(BATCH, true, "400.00 = 400.00"), tie(OTHER_BATCH, false, "60.00 = 100.00"));
+    assertThat(brief.attention()).isTrue();
+  }
+
+  // A retried payout is re-sent on its own, without a transfer of its own, so it has no batch to be
+  // tied against. It is listed rather than silently dropped, and it does not fail its batch's tie.
+  @Test
+  void aRetriedPayoutWithNoBatchDoesNotBreakTheTie() {
+    givenAccountResolves();
+    givenPayments(
+        batched(SUBMITTED, REDEMPTION_TRANSFER, "400.00", BATCH),
+        batched(SUBMITTED, PAYOUT, "400.00", BATCH),
+        payment(SUBMITTED, PAYOUT, "70.00"));
 
     var brief = service().build(DATE, List.of());
 
     assertThat(brief.verdicts())
         .contains(
+            tie(BATCH, true, "400.00 = 400.00"),
             new PaymentApprovalBrief.Verdict(
-                "payouts == transfer to withdrawal account", true, "400.00 = 400.00"));
+                "retried payouts, outside any batch", true, "1 payment, 70.00"));
+    assertThat(brief.attention()).isFalse();
+  }
+
+  // A batch of subscription transfers has neither a redemption transfer nor a payout, so tying it
+  // would print "0.00 = 0.00" instead of a check.
+  @Test
+  void aBatchWithNoRedemptionTrafficShowsNoTie() {
+    givenAccountResolves();
+    givenPayments(batched(SUBMITTED, SUBSCRIPTION_TRANSFER, "100.00", BATCH));
+
+    var brief = service().build(DATE, List.of());
+
+    assertThat(brief.verdicts())
+        .noneSatisfy(verdict -> assertThat(verdict.label()).contains("transfer"));
   }
 
   // A day with neither a transfer nor a payout has nothing to tie, and an equation reading
@@ -283,6 +331,22 @@ class PaymentApprovalBriefServiceTest {
         .willAnswer(
             invocation ->
                 attemptedBetween(all, invocation.getArgument(0), invocation.getArgument(1)));
+    lenient()
+        .when(outgoingPaymentRepository.findByBatchIdIn(any()))
+        .thenAnswer(invocation -> inBatches(all, invocation.getArgument(0)));
+  }
+
+  private static List<OutgoingPayment> inBatches(
+      List<OutgoingPayment> payments, Collection<UUID> batchIds) {
+    return payments.stream().filter(payment -> batchIds.contains(payment.getBatchId())).toList();
+  }
+
+  private static PaymentApprovalBrief.Verdict tie(UUID batchId, boolean passed, String detail) {
+    return new PaymentApprovalBrief.Verdict(
+        "payouts == transfer to withdrawal account (batch %s)"
+            .formatted(batchId.toString().substring(0, 8)),
+        passed,
+        detail);
   }
 
   private static boolean awaitsApproval(OutgoingPayment payment) {
@@ -304,6 +368,25 @@ class PaymentApprovalBriefServiceTest {
 
   private static OutgoingPayment payment(
       OutgoingPaymentStatus status, OutgoingPaymentType type, String amount, Instant attemptedAt) {
+    return builder(status, type, amount, attemptedAt).build();
+  }
+
+  private static OutgoingPayment batched(
+      OutgoingPaymentStatus status, OutgoingPaymentType type, String amount, UUID batchId) {
+    return batched(status, type, amount, TODAY_AFTERNOON, batchId);
+  }
+
+  private static OutgoingPayment batched(
+      OutgoingPaymentStatus status,
+      OutgoingPaymentType type,
+      String amount,
+      Instant attemptedAt,
+      UUID batchId) {
+    return builder(status, type, amount, attemptedAt).batchId(batchId).build();
+  }
+
+  private static OutgoingPayment.OutgoingPaymentBuilder builder(
+      OutgoingPaymentStatus status, OutgoingPaymentType type, String amount, Instant attemptedAt) {
     return OutgoingPayment.builder()
         .endToEndId("E2E-" + amount + "-" + type + "-" + attemptedAt)
         .paymentType(type)
@@ -313,15 +396,15 @@ class PaymentApprovalBriefServiceTest {
         .currency("EUR")
         .bodyHash("hash")
         .status(status)
-        .attemptedAt(attemptedAt)
-        .build();
+        .attemptedAt(attemptedAt);
   }
 
   @Test
   void aFindingAboutMoneyThatAlreadyLeftIsNotCountedAsHeldBackFromTheBank() {
     givenAccountResolves();
     givenPayments(
-        payment(SUBMITTED, REDEMPTION_TRANSFER, "100.00"), payment(SUBMITTED, PAYOUT, "100.00"));
+        batched(SUBMITTED, REDEMPTION_TRANSFER, "100.00", BATCH),
+        batched(SUBMITTED, PAYOUT, "100.00", BATCH));
 
     var brief =
         service()

@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.springframework.data.repository.CrudRepository;
 
 public interface OutgoingPaymentRepository extends CrudRepository<OutgoingPayment, Long> {
@@ -15,6 +16,8 @@ public interface OutgoingPaymentRepository extends CrudRepository<OutgoingPaymen
   List<OutgoingPayment> findByStatusIn(Collection<OutgoingPaymentStatus> statuses);
 
   List<OutgoingPayment> findByAttemptedAtBetween(Instant from, Instant to);
+
+  List<OutgoingPayment> findByBatchIdIn(Collection<UUID> batchIds);
 
   List<OutgoingPayment> findByStatusAndAttemptedAtBefore(
       OutgoingPaymentStatus status, Instant before);

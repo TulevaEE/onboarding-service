@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.report;
 
+import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SWEDBANK;
 import static ee.tuleva.onboarding.investment.report.ReportType.PENDING_TRANSACTIONS;
 import static ee.tuleva.onboarding.investment.report.ReportType.POSITIONS;
@@ -153,5 +154,45 @@ class InvestmentReportRepositoryTest {
             SWEDBANK, POSITIONS, LocalDate.of(2026, 1, 15));
 
     assertThat(result).isEmpty();
+  }
+
+  @Test
+  void findById_readsBackAHistoricalSwedbankPositionsReport() {
+    InvestmentReport stored =
+        repository.save(
+            InvestmentReport.builder()
+                .provider(SWEDBANK)
+                .reportType(POSITIONS)
+                .reportDate(LocalDate.of(2026, 2, 27))
+                .rawData(List.of(Map.of("AssetName", "Management Fee Payable")))
+                .createdAt(Instant.now())
+                .build());
+
+    Optional<InvestmentReport> result = repository.findById(stored.getId());
+
+    assertThat(result).isPresent();
+    assertThat(result.get().getProvider()).isEqualTo(SWEDBANK);
+  }
+
+  @Test
+  void findAll_readsBackEveryStoredProvider() {
+    repository.save(
+        InvestmentReport.builder()
+            .provider(SWEDBANK)
+            .reportType(POSITIONS)
+            .reportDate(LocalDate.of(2026, 2, 27))
+            .createdAt(Instant.now())
+            .build());
+    repository.save(
+        InvestmentReport.builder()
+            .provider(SEB)
+            .reportType(POSITIONS)
+            .reportDate(LocalDate.of(2026, 2, 27))
+            .createdAt(Instant.now())
+            .build());
+
+    List<InvestmentReport> result = repository.findAll();
+
+    assertThat(result).extracting(InvestmentReport::getProvider).containsExactly(SWEDBANK, SEB);
   }
 }

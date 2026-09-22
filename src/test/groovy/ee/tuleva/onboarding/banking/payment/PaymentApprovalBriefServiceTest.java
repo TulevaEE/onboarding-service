@@ -46,7 +46,11 @@ class PaymentApprovalBriefServiceTest {
   @Mock SebAccountBalanceReader balanceReader;
 
   private PaymentApprovalBriefService service() {
-    return new PaymentApprovalBriefService(outgoingPaymentRepository, bankAccounts, balanceReader);
+    return new PaymentApprovalBriefService(
+        outgoingPaymentRepository,
+        bankAccounts,
+        balanceReader,
+        new BatchTies(outgoingPaymentRepository));
   }
 
   // A payment already executed was approved earlier and is no longer on the bank's pending screen,

@@ -17,10 +17,8 @@ import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.seb.SebAccountBalanceReader;
 import java.math.BigDecimal;
-import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
@@ -32,6 +30,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class PaymentApprovalBriefServiceTest {
 
   private static final LocalDate DATE = LocalDate.of(2026, 4, 10);
+  private static final Instant TODAY_AFTERNOON = Instant.parse("2026-04-10T13:05:00Z");
+  private static final Instant YESTERDAY_AFTERNOON = Instant.parse("2026-04-09T13:05:00Z");
   private static final String IBAN = "EE222222222222222222";
   private static final BankAccount ACCOUNT =
       new BankAccount(IBAN, WITHDRAWAL_EUR, TKF100, "gateway-client");
@@ -40,12 +40,8 @@ class PaymentApprovalBriefServiceTest {
   @Mock BankAccounts bankAccounts;
   @Mock SebAccountBalanceReader balanceReader;
 
-  private final Clock clock =
-      Clock.fixed(Instant.parse("2026-04-10T12:00:00Z"), ZoneId.of("Europe/Tallinn"));
-
   private PaymentApprovalBriefService service() {
-    return new PaymentApprovalBriefService(
-        outgoingPaymentRepository, bankAccounts, balanceReader, clock);
+    return new PaymentApprovalBriefService(outgoingPaymentRepository, bankAccounts, balanceReader);
   }
 
   // A payment already executed was approved earlier and is no longer on the bank's pending screen,
@@ -53,7 +49,7 @@ class PaymentApprovalBriefServiceTest {
   @Test
   void anAlreadyExecutedPaymentIsNotOnThePendingScreenSoItIsNotCounted() {
     givenAccountResolves();
-    givenPaymentsToday(payment(SUBMITTED, PAYOUT, "100.00"), payment(EXECUTED, PAYOUT, "999.00"));
+    givenPayments(payment(SUBMITTED, PAYOUT, "100.00"), payment(EXECUTED, PAYOUT, "999.00"));
 
     var brief = service().build(DATE, List.of());
 
@@ -65,7 +61,7 @@ class PaymentApprovalBriefServiceTest {
   void theProjectedBalanceIsWhatTheAccountIsLeftWithOnceThesePaymentsExecute() {
     givenAccountResolves();
     given(balanceReader.available(ACCOUNT)).willReturn(Optional.of(new BigDecimal("1000.00")));
-    givenPaymentsToday(payment(SUBMITTED, PAYOUT, "300.00"));
+    givenPayments(payment(SUBMITTED, PAYOUT, "300.00"));
 
     var brief = service().build(DATE, List.of());
 
@@ -79,7 +75,7 @@ class PaymentApprovalBriefServiceTest {
   void anAccountThatWouldGoNegativeNeedsAttention() {
     givenAccountResolves();
     given(balanceReader.available(ACCOUNT)).willReturn(Optional.of(new BigDecimal("100.00")));
-    givenPaymentsToday(payment(SUBMITTED, PAYOUT, "300.00"));
+    givenPayments(payment(SUBMITTED, PAYOUT, "300.00"));
 
     var brief = service().build(DATE, List.of());
 
@@ -94,7 +90,7 @@ class PaymentApprovalBriefServiceTest {
   @Test
   void aPaymentStillInFlightNeedsAttention() {
     givenAccountResolves();
-    givenPaymentsToday(payment(ATTEMPTED, PAYOUT, "100.00"));
+    givenPayments(payment(ATTEMPTED, PAYOUT, "100.00"));
 
     var brief = service().build(DATE, List.of());
 
@@ -104,7 +100,7 @@ class PaymentApprovalBriefServiceTest {
   @Test
   void aCleanDayWithNothingHeldNeedsNoAttention() {
     givenAccountResolves();
-    givenPaymentsToday(
+    givenPayments(
         payment(SUBMITTED, REDEMPTION_TRANSFER, "100.00"), payment(SUBMITTED, PAYOUT, "100.00"));
 
     var brief = service().build(DATE, List.of());
@@ -117,7 +113,7 @@ class PaymentApprovalBriefServiceTest {
   @Test
   void theTransferIsShownAgainstThePayoutsItFunds() {
     givenAccountResolves();
-    givenPaymentsToday(
+    givenPayments(
         payment(SUBMITTED, REDEMPTION_TRANSFER, "400.00"),
         payment(SUBMITTED, PAYOUT, "250.00"),
         payment(SUBMITTED, PAYOUT, "150.00"));
@@ -134,7 +130,7 @@ class PaymentApprovalBriefServiceTest {
   @Test
   void aTransferThatDoesNotFundItsPayoutsFailsTheVerdictAndNeedsAttention() {
     givenAccountResolves();
-    givenPaymentsToday(
+    givenPayments(
         payment(SUBMITTED, REDEMPTION_TRANSFER, "400.00"), payment(SUBMITTED, PAYOUT, "100.00"));
 
     var brief = service().build(DATE, List.of());
@@ -152,8 +148,40 @@ class PaymentApprovalBriefServiceTest {
   @Test
   void theTieHoldsEvenOnceOneSideHasAlreadyBeenApproved() {
     givenAccountResolves();
-    givenPaymentsToday(
+    givenPayments(
         payment(EXECUTED, REDEMPTION_TRANSFER, "400.00"), payment(SUBMITTED, PAYOUT, "400.00"));
+
+    var brief = service().build(DATE, List.of());
+
+    assertThat(brief.verdicts())
+        .contains(
+            new PaymentApprovalBrief.Verdict(
+                "payouts == transfer to withdrawal account", true, "400.00 = 400.00"));
+  }
+
+  // The bank keeps a payment on its pending screen until somebody approves it, so a batch created
+  // after yesterday's cutoff and left unapproved overnight has to stay on the brief.
+  @Test
+  void aPaymentLeftUnapprovedOvernightIsStillOnTheBrief() {
+    givenAccountResolves();
+    givenPayments(
+        payment(SUBMITTED, PAYOUT, "100.00", YESTERDAY_AFTERNOON),
+        payment(SUBMITTED, PAYOUT, "50.00", TODAY_AFTERNOON));
+
+    var brief = service().build(DATE, List.of());
+
+    assertThat(brief.totalPaymentCount()).isEqualTo(2);
+    assertThat(brief.grandTotal()).isEqualByComparingTo("150.00");
+  }
+
+  // Yesterday's transfer funds yesterday's payouts, so a payout carried into today has to be tied
+  // against the day it was attempted rather than against today's empty transfer total.
+  @Test
+  void aCarriedOverPayoutIsTiedAgainstTheTransferOfTheDayItWasAttempted() {
+    givenAccountResolves();
+    givenPayments(
+        payment(EXECUTED, REDEMPTION_TRANSFER, "400.00", YESTERDAY_AFTERNOON),
+        payment(SUBMITTED, PAYOUT, "400.00", YESTERDAY_AFTERNOON));
 
     var brief = service().build(DATE, List.of());
 
@@ -168,7 +196,7 @@ class PaymentApprovalBriefServiceTest {
   @Test
   void aDayWithNoRedemptionTrafficShowsNoTie() {
     givenAccountResolves();
-    givenPaymentsToday(payment(SUBMITTED, RETURN, "100.00"));
+    givenPayments(payment(SUBMITTED, RETURN, "100.00"));
 
     var brief = service().build(DATE, List.of());
 
@@ -181,7 +209,7 @@ class PaymentApprovalBriefServiceTest {
   @Test
   void aGateThatHeldSomethingIsNotTicked() {
     givenAccountResolves();
-    givenPaymentsToday(payment(SUBMITTED, PAYOUT, "100.00"));
+    givenPayments(payment(SUBMITTED, PAYOUT, "100.00"));
 
     var brief =
         service()
@@ -200,7 +228,7 @@ class PaymentApprovalBriefServiceTest {
   @Test
   void heldPaymentsAreCountedWithTheirDistinctReasonsAndNeedAttention() {
     givenAccountResolves();
-    givenPaymentsToday(payment(SUBMITTED, PAYOUT, "100.00"));
+    givenPayments(payment(SUBMITTED, PAYOUT, "100.00"));
 
     var brief =
         service()
@@ -223,7 +251,7 @@ class PaymentApprovalBriefServiceTest {
   @Test
   void paymentsAreSummarisedPerFlowWithinAnAccount() {
     givenAccountResolves();
-    givenPaymentsToday(
+    givenPayments(
         payment(SUBMITTED, PAYOUT, "100.00"),
         payment(SUBMITTED, PAYOUT, "50.00"),
         payment(SUBMITTED, REDEMPTION_TRANSFER, "400.00"));
@@ -247,15 +275,37 @@ class PaymentApprovalBriefServiceTest {
     lenient().when(balanceReader.available(any(BankAccount.class))).thenReturn(Optional.empty());
   }
 
-  private void givenPaymentsToday(OutgoingPayment... payments) {
+  private void givenPayments(OutgoingPayment... payments) {
+    var all = List.of(payments);
+    given(outgoingPaymentRepository.findAwaitingApproval())
+        .willReturn(all.stream().filter(PaymentApprovalBriefServiceTest::awaitsApproval).toList());
     given(outgoingPaymentRepository.findByAttemptedAtBetween(any(), any()))
-        .willReturn(List.of(payments));
+        .willAnswer(
+            invocation ->
+                attemptedBetween(all, invocation.getArgument(0), invocation.getArgument(1)));
+  }
+
+  private static boolean awaitsApproval(OutgoingPayment payment) {
+    return payment.getStatus() == SUBMITTED || payment.getStatus() == ATTEMPTED;
+  }
+
+  private static List<OutgoingPayment> attemptedBetween(
+      List<OutgoingPayment> payments, Instant from, Instant to) {
+    return payments.stream()
+        .filter(payment -> !payment.getAttemptedAt().isBefore(from))
+        .filter(payment -> payment.getAttemptedAt().isBefore(to))
+        .toList();
   }
 
   private static OutgoingPayment payment(
       OutgoingPaymentStatus status, OutgoingPaymentType type, String amount) {
+    return payment(status, type, amount, TODAY_AFTERNOON);
+  }
+
+  private static OutgoingPayment payment(
+      OutgoingPaymentStatus status, OutgoingPaymentType type, String amount, Instant attemptedAt) {
     return OutgoingPayment.builder()
-        .endToEndId("E2E-" + amount + "-" + type)
+        .endToEndId("E2E-" + amount + "-" + type + "-" + attemptedAt)
         .paymentType(type)
         .remitterIban(IBAN)
         .beneficiaryIban("EE333333333333333333")
@@ -263,14 +313,14 @@ class PaymentApprovalBriefServiceTest {
         .currency("EUR")
         .bodyHash("hash")
         .status(status)
-        .attemptedAt(Instant.parse("2026-04-10T09:00:00Z"))
+        .attemptedAt(attemptedAt)
         .build();
   }
 
   @Test
   void aFindingAboutMoneyThatAlreadyLeftIsNotCountedAsHeldBackFromTheBank() {
     givenAccountResolves();
-    givenPaymentsToday(
+    givenPayments(
         payment(SUBMITTED, REDEMPTION_TRANSFER, "100.00"), payment(SUBMITTED, PAYOUT, "100.00"));
 
     var brief =

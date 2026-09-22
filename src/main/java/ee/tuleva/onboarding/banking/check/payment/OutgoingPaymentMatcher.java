@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.PHANTO
 import static ee.tuleva.onboarding.banking.payment.OutgoingPaymentStatus.EXECUTED;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import ee.tuleva.onboarding.banking.ManagementCompanies;
 import ee.tuleva.onboarding.banking.StatementDebit;
 import ee.tuleva.onboarding.banking.payment.OutgoingPayment;
 import ee.tuleva.onboarding.banking.payment.OutgoingPaymentRepository;
@@ -28,6 +29,7 @@ public class OutgoingPaymentMatcher {
   private final OutgoingPaymentService outgoingPaymentService;
   private final PaymentCheckService paymentCheckService;
   private final SebAccountConfiguration sebAccountConfiguration;
+  private final ManagementCompanies managementCompanies;
 
   public void match(StatementDebit debit) {
     if (debit.amount().signum() >= 0) {
@@ -88,12 +90,7 @@ public class OutgoingPaymentMatcher {
   }
 
   private void reportUnbacked(StatementDebit debit, String key, String detail) {
-    var beneficiary = debit.beneficiaryIban();
-    var legitimate =
-        beneficiary != null
-            && (contains(sebAccountConfiguration.getBankFeeIbans(), beneficiary)
-                || contains(sebAccountConfiguration.getOwnAccountIbans(), beneficiary)
-                || contains(sebAccountConfiguration.getRegistrarIbans(), beneficiary));
+    var legitimate = managementCompanies.isManagementFee(debit) || isAllowlisted(debit);
 
     paymentCheckService.record(
         PHANTOM_DEBIT,
@@ -115,6 +112,14 @@ public class OutgoingPaymentMatcher {
     } catch (NoSuchAlgorithmException e) {
       throw new IllegalStateException("SHA-256 is not available", e);
     }
+  }
+
+  private boolean isAllowlisted(StatementDebit debit) {
+    var beneficiary = debit.beneficiaryIban();
+    return beneficiary != null
+        && (contains(sebAccountConfiguration.getBankFeeIbans(), beneficiary)
+            || contains(sebAccountConfiguration.getOwnAccountIbans(), beneficiary)
+            || contains(sebAccountConfiguration.getRegistrarIbans(), beneficiary));
   }
 
   private static boolean contains(List<String> ibans, String iban) {

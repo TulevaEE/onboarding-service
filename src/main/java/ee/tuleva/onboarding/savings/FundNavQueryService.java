@@ -15,10 +15,8 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class FundNavQueryService {
 
-  // Written by NavReportMapper.navRow on every published calculation.
   private static final String NAV_ACCOUNT_TYPE = "NAV";
 
-  // Fee base per Tingimused 18.2.1: every asset less every non-fee liability.
   private static final List<String> FEE_BASE_ACCOUNT_TYPES =
       List.of("SECURITY", "CASH", "RECEIVABLES", "LIABILITY");
 
@@ -27,13 +25,10 @@ public class FundNavQueryService {
 
   private final NavReportRepository navReportRepository;
 
-  // The official NAV per unit: what everyone outside the calculation itself should read.
   public Optional<BigDecimal> findPublishedNavPerUnit(String fundCode, LocalDate navDate) {
     return navReportRepository.findPublishedNavPerUnit(navDate, fundCode, NAV_ACCOUNT_TYPE);
   }
 
-  // The NAV per unit of the newest calculation, published or not, for the gates that run before
-  // publication and therefore have to read the calculation they are gating.
   public Optional<BigDecimal> findLatestNavPerUnit(String fundCode, LocalDate navDate) {
     return navReportRepository.findLatestNavPerUnit(navDate, fundCode, NAV_ACCOUNT_TYPE);
   }
@@ -63,6 +58,24 @@ public class FundNavQueryService {
     return sumForLatestCalculationIncludingUnpublished(fundCode, navDate, ASSET_ACCOUNT_TYPES);
   }
 
+  public Optional<LocalDate> findLatestPublishedNavDateOnOrBefore(
+      String fundCode, LocalDate asOfDate) {
+    return navReportRepository.findLatestPublishedNavDateOnOrBefore(fundCode, asOfDate);
+  }
+
+  public List<LocalDate> findPublishedNavDatesBetween(
+      String fundCode, LocalDate from, LocalDate to) {
+    return navReportRepository.findPublishedNavDatesBetween(fundCode, from, to);
+  }
+
+  public Optional<NavCalculation> findPublishedCalculation(String fundCode, LocalDate navDate) {
+    return navReportRepository
+        .findFirstByFundCodeAndNavDateAndPublishedAtIsNotNullOrderByPublishedAtDescIdDesc(
+            fundCode, navDate)
+        .map(NavReportRow::getCalculationId)
+        .flatMap(calculationId -> calculation(fundCode, navDate, calculationId));
+  }
+
   public Optional<NavCalculation> findLatestCalculation(String fundCode, LocalDate navDate) {
     return navReportRepository
         .findFirstByFundCodeAndNavDateOrderByIdDesc(fundCode, navDate)
@@ -77,6 +90,7 @@ public class FundNavQueryService {
         .map(
             calculatedAt ->
                 new NavCalculation(
+                    calculationId,
                     calculatedAt,
                     navReportRepository.findLinesByCalculationId(
                         fundCode, navDate, calculationId)));

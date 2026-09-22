@@ -14,9 +14,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
 
-  // The NAV that actually went out. nav_report keeps every calculation for a date, so a
-  // recalculation that is still unpublished must never be served as the official price.
-  // Order by published_at first: a backdated recalculation has a lower id but a later publication.
   @Query(
       value =
           """
@@ -32,8 +29,6 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
       @Param("fundCode") String fundCode,
       @Param("accountType") String accountType);
 
-  // The newest calculation whether or not it is published, for the gates that run between
-  // persisting a NAV calculation and publishing it.
   @Query(
       value =
           """
@@ -99,8 +94,6 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
   void deleteUnpublishedByNavDateAndFundCode(
       @Param("navDate") LocalDate navDate, @Param("fundCode") String fundCode);
 
-  // Delete + saveAll commit independently. If saveAll fails, partial rows share the new
-  // calculationId and remain unpublished, so the next NAV run replaces them.
   default void replaceByNavDateAndFundCode(
       LocalDate navDate, String fundCode, List<NavReportRow> rows) {
     deleteUnpublishedByNavDateAndFundCode(navDate, fundCode);
@@ -116,8 +109,6 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
       nativeQuery = true)
   void markAsPublished(@Param("calculationId") UUID calculationId);
 
-  // Pick the most recently published calculation. Order by published_at first so a backdated
-  // calc (lower id but later published_at) doesn't get masked by an earlier-published one.
   @Query(
       value =
           """
@@ -159,6 +150,31 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
 
   Optional<NavReportRow> findFirstByFundCodeAndNavDateOrderByIdDesc(
       String fundCode, LocalDate navDate);
+
+  Optional<NavReportRow>
+      findFirstByFundCodeAndNavDateAndPublishedAtIsNotNullOrderByPublishedAtDescIdDesc(
+          String fundCode, LocalDate navDate);
+
+  @Query(
+      """
+      SELECT MAX(row.navDate) FROM NavReportRow row
+      WHERE row.fundCode = :fundCode
+        AND row.navDate <= :asOfDate
+        AND row.publishedAt IS NOT NULL
+      """)
+  Optional<LocalDate> findLatestPublishedNavDateOnOrBefore(
+      @Param("fundCode") String fundCode, @Param("asOfDate") LocalDate asOfDate);
+
+  @Query(
+      """
+      SELECT DISTINCT row.navDate FROM NavReportRow row
+      WHERE row.fundCode = :fundCode
+        AND row.navDate BETWEEN :from AND :to
+        AND row.publishedAt IS NOT NULL
+      ORDER BY row.navDate
+      """)
+  List<LocalDate> findPublishedNavDatesBetween(
+      @Param("fundCode") String fundCode, @Param("from") LocalDate from, @Param("to") LocalDate to);
 
   @Query(
       """

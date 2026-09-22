@@ -21,7 +21,7 @@ public class RedemptionVerificationJob {
   @Scheduled(fixedRateString = "1m")
   @SchedulerLock(
       name = "RedemptionVerificationJob_runJob",
-      lockAtMostFor = "50s",
+      lockAtMostFor = "10m",
       lockAtLeastFor = "10s")
   public void runJob() {
     redemptionRequestRepository.findByStatus(RESERVED).stream()

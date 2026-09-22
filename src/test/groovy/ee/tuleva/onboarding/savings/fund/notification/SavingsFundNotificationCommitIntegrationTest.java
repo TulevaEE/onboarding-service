@@ -48,6 +48,7 @@ import ee.tuleva.onboarding.user.UserRepository;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -346,7 +347,12 @@ class SavingsFundNotificationCommitIntegrationTest {
     savingsFundLedger.recordPaymentReceived(party, HELD_CASH, HELD_UNITS_REFERENCE);
     savingsFundLedger.reservePaymentForSubscription(party, HELD_CASH, HELD_UNITS_REFERENCE);
     savingsFundLedger.issueFundUnitsFromReserved(
-        party, HELD_CASH, HELD_UNITS, new BigDecimal("10.00000"), HELD_UNITS_REFERENCE);
+        party,
+        HELD_CASH,
+        HELD_UNITS,
+        new BigDecimal("10.00000"),
+        LocalDate.parse("2025-03-10"),
+        HELD_UNITS_REFERENCE);
     savingsFundLedger.transferToFundAccount(HELD_CASH, HELD_UNITS_REFERENCE);
   }
 

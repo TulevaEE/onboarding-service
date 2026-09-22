@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.investment.config.InvestmentParameter.TRACKIN
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.TRACKING_MAX_DAILY_RETURN;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
+import static java.util.Objects.requireNonNullElse;
 
 import ee.tuleva.onboarding.investment.TrackingCheckType;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
@@ -208,6 +209,7 @@ class TrackingDifferenceCalculator {
     var todayUnits = input.todayUnits();
     var bodHoldings = input.bodHoldings();
     var bodSecuritiesFraction = input.bodSecuritiesFraction();
+    var tradeFlow = requireNonNullElse(input.tradeFlow(), TradeFlow.none());
     if (openingNetAssets == null
         || closingNetAssets == null
         || previousUnits == null
@@ -238,10 +240,12 @@ class TrackingDifferenceCalculator {
         openingNetAssets,
         closingNetAssets,
         marketPnl,
+        tradeFlow,
         unitsChange,
         unitFlow,
         feeAccrual,
         unexplained,
+        unexplained.divide(openingNetAssets, SCALE, HALF_UP),
         input.securityQuantitiesChanged());
   }
 
@@ -275,6 +279,7 @@ class TrackingDifferenceCalculator {
       @Nullable BigDecimal closingNetAssets,
       @Nullable BigDecimal previousUnits,
       @Nullable BigDecimal todayUnits,
+      @Nullable TradeFlow tradeFlow,
       boolean securityQuantitiesChanged) {}
 
   record PriceSnapshot(@Nullable BigDecimal price, @Nullable LocalDate date) {

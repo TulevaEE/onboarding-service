@@ -13,10 +13,14 @@ import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.BankAccountType;
 import ee.tuleva.onboarding.banking.BankAccounts;
 import ee.tuleva.onboarding.banking.ManagementCompanies;
+import ee.tuleva.onboarding.banking.StatementDebit;
+import ee.tuleva.onboarding.banking.check.payment.OutgoingPaymentMatcher;
+import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.banking.payment.EndToEndIdConverter;
 import ee.tuleva.onboarding.banking.statement.BankStatement;
 import ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType;
 import ee.tuleva.onboarding.banking.statement.BankStatementAccount;
+import ee.tuleva.onboarding.banking.statement.StatementPeriod;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.InternalTransferLedger;
 import ee.tuleva.onboarding.ledger.LedgerParty.PartyType;
@@ -43,6 +47,9 @@ import org.springframework.context.ApplicationEventPublisher;
 
 class SavingsFundStatementProcessorTest {
 
+  private static final StatementPeriod STATEMENT_PERIOD =
+      new StatementPeriod(LocalDate.of(2026, 1, 12), LocalDate.of(2026, 1, 12));
+
   private BankAccount statementAccount;
 
   private static final String DEPOSIT_ACCOUNT_IBAN = "EE442200221092874625";
@@ -63,12 +70,15 @@ class SavingsFundStatementProcessorTest {
   RedemptionRequestRepository redemptionRequestRepository = mock(RedemptionRequestRepository.class);
   RedemptionStatusService redemptionStatusService = mock(RedemptionStatusService.class);
   EndToEndIdConverter endToEndIdConverter = new EndToEndIdConverter();
+  PaymentCheckService paymentCheckService = mock(PaymentCheckService.class);
+  OutgoingPaymentMatcher outgoingPaymentMatcher = mock(OutgoingPaymentMatcher.class);
   RedemptionPayoutRecorder redemptionPayoutRecorder =
       new RedemptionPayoutRecorder(
           savingsFundLedger,
           redemptionRequestRepository,
           redemptionStatusService,
-          endToEndIdConverter);
+          endToEndIdConverter,
+          paymentCheckService);
 
   SavingsFundStatementProcessor processor =
       new SavingsFundStatementProcessor(
@@ -79,6 +89,8 @@ class SavingsFundStatementProcessorTest {
           savingsFundLedger,
           ownAccountTransferRecorder,
           fundBankLedger,
+          paymentCheckService,
+          outgoingPaymentMatcher,
           redemptionPayoutRecorder);
 
   @Test
@@ -263,7 +275,8 @@ class SavingsFundStatementProcessorTest {
             BankStatementType.INTRA_DAY_REPORT,
             new BankStatementAccount(accountIban, "Tuleva Fondid AS", "14118923"),
             List.of(),
-            List.of());
+            List.of(),
+            STATEMENT_PERIOD);
     statementAccount = new BankAccount(accountIban, accountType, TKF100, "gw-test");
     when(paymentExtractor.extractPayments(bankStatement)).thenReturn(List.of(payment));
 
@@ -637,5 +650,70 @@ class SavingsFundStatementProcessorTest {
     verify(savingsFundLedger)
         .transferToFundAccount(
             new BigDecimal("100.00"), outgoingPayment.getId(), LocalDate.of(2025, 10, 1));
+  }
+
+  @Test
+  void aDebitIsHandedToTheMatcherKeyedByItsStatementEntry() {
+    var outgoingPayment =
+        aPayment()
+            .id(null)
+            .externalId("seb-entry-1")
+            .endToEndId("e2e-1")
+            .amount(new BigDecimal("-100.00"))
+            .beneficiaryIban(EXTERNAL_ACCOUNT_IBAN)
+            .build();
+    var bankStatement = setupMocksForPayment(outgoingPayment);
+    when(bankAccounts.find(EXTERNAL_ACCOUNT_IBAN)).thenReturn(Optional.empty());
+
+    processor.process(bankStatement, statementAccount);
+
+    verify(outgoingPaymentMatcher)
+        .match(
+            new StatementDebit(
+                "seb-entry-1", new BigDecimal("-100.00"), EXTERNAL_ACCOUNT_IBAN, "e2e-1"));
+  }
+
+  @Test
+  void incomingPaymentWithoutRemitterIban_isProcessedNormally() {
+    var incomingPayment = aPayment().amount(new BigDecimal("200.00")).remitterIban(null).build();
+    var bankStatement = setupMocksForPayment(incomingPayment);
+
+    processor.process(bankStatement, statementAccount);
+
+    verify(paymentService).upsert(eq(incomingPayment), any(), any());
+  }
+
+  @Test
+  void depositOutgoingWithoutBeneficiaryIban_isNotBookedAsTransferToTheFund() {
+    var outgoingPayment =
+        aPayment()
+            .amount(new BigDecimal("-100.00"))
+            .beneficiaryIban(null)
+            .receivedBefore(Instant.parse("2025-10-01T20:59:59.999999Z"))
+            .build();
+    var bankStatement = setupMocksForPayment(outgoingPayment);
+
+    processor.process(bankStatement, statementAccount);
+
+    verify(paymentService).upsert(eq(outgoingPayment), any(), any());
+    verify(savingsFundLedger, never()).transferToFundAccount(any(), any(), any());
+  }
+
+  @Test
+  void fundInvestmentOutgoingWithoutBeneficiaryName_isNotBookedAsManagementFee() {
+    var outgoingPayment =
+        aPayment()
+            .amount(new BigDecimal("-742.34"))
+            .beneficiaryIban(EXTERNAL_ACCOUNT_IBAN)
+            .beneficiaryName(null)
+            .description("Valitsemistasu 02.-28.02.26")
+            .receivedBefore(Instant.parse("2025-10-01T20:59:59.999999Z"))
+            .build();
+    var bankStatement =
+        setupMocksForPaymentWithAccount(outgoingPayment, FUND_INVESTMENT_IBAN, FUND_INVESTMENT_EUR);
+
+    processor.process(bankStatement, statementAccount);
+
+    verify(fundBankLedger, never()).recordManagementFeePayment(any(), any(), any(), any(), any());
   }
 }

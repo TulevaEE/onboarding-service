@@ -1,16 +1,38 @@
 package ee.tuleva.onboarding.investment.check.limit;
 
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
+import java.time.LocalDate;
 import java.util.List;
 
-record LimitCheckRun(List<LimitCheckResult> results, List<TulevaFund> fundsNotChecked) {
+record LimitCheckRun(
+    List<LimitCheckResult> results,
+    List<TulevaFund> fundsNotChecked,
+    List<UnfilledGap> unfilledGaps) {
+
+  record UnfilledGap(
+      TulevaFund fund, LocalDate checkDate, long daysUnfilled, LocalDate lastAttempt) {
+
+    private static final int STANDING_GAP_DAYS = 5;
+
+    String describe() {
+      if (daysUnfilled <= STANDING_GAP_DAYS) {
+        return "%s %s".formatted(fund.getCode(), checkDate);
+      }
+      return "%s %s — standing gap: open for %d days, last attempt %s"
+          .formatted(fund.getCode(), checkDate, daysUnfilled, lastAttempt);
+    }
+  }
+
+  LimitCheckRun(List<LimitCheckResult> results, List<TulevaFund> fundsNotChecked) {
+    this(results, fundsNotChecked, List.of());
+  }
 
   static LimitCheckRun of(List<LimitCheckResult> results) {
-    return new LimitCheckRun(results, List.of());
+    return new LimitCheckRun(results, List.of(), List.of());
   }
 
   boolean isEmpty() {
-    return results.isEmpty() && fundsNotChecked.isEmpty();
+    return results.isEmpty() && fundsNotChecked.isEmpty() && unfilledGaps.isEmpty();
   }
 
   boolean hasBreaches() {

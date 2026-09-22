@@ -1,8 +1,11 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.WARNING;
+import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.PAYMENT_STUCK;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.RECEIVED;
 import static ee.tuleva.onboarding.savings.SavingFundPayment.Status.TO_BE_RETURNED;
 
+import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
 import java.time.Clock;
 import java.time.Duration;
@@ -20,17 +23,39 @@ import org.springframework.stereotype.Service;
 @NullMarked
 public class StuckPaymentAlertJob {
 
-  private static final Duration STUCK_THRESHOLD = Duration.ofMinutes(30);
-
   private final SavingFundPaymentRepository paymentRepository;
+  private final PaymentCheckService paymentCheckService;
   private final Clock clock;
 
   @Scheduled(cron = "0 */15 * * * *", zone = "Europe/Tallinn")
   @SchedulerLock(name = "StuckPaymentAlertJob_runJob", lockAtMostFor = "5m", lockAtLeastFor = "1m")
   public void runJob() {
+    final Duration STUCK_THRESHOLD = Duration.ofMinutes(30);
     paymentRepository
         .findStuckPayments(Instant.now(clock).minus(STUCK_THRESHOLD), RECEIVED, TO_BE_RETURNED)
         .forEach(this::alert);
+  }
+
+  @Scheduled(cron = "0 5 9 * * *", zone = "Europe/Tallinn")
+  @SchedulerLock(
+      name = "StuckPaymentAlertJob_reportUnconfirmedPayments",
+      lockAtMostFor = "10m",
+      lockAtLeastFor = "1m")
+  public void reportUnconfirmedPayments() {
+    final Duration UNCONFIRMED_THRESHOLD = Duration.ofHours(36);
+    final Duration REPORT_WINDOW = Duration.ofDays(3);
+    var now = Instant.now(clock);
+    paymentRepository
+        .findUnconfirmedPayments(now.minus(REPORT_WINDOW), now.minus(UNCONFIRMED_THRESHOLD))
+        .forEach(this::alertUnconfirmed);
+  }
+
+  private void alertUnconfirmed(SavingFundPayment payment) {
+    log.error(
+        "Savings fund payment not confirmed by the bank: paymentId={}, amount={} EUR, createdAt={}",
+        payment.getId(),
+        payment.getAmount(),
+        payment.getCreatedAt());
   }
 
   private void alert(SavingFundPayment payment) {
@@ -40,5 +65,11 @@ public class StuckPaymentAlertJob {
         payment.getStatus(),
         payment.getAmount(),
         payment.getStatusChangedAt());
+    paymentCheckService.record(
+        PAYMENT_STUCK,
+        WARNING,
+        String.valueOf(payment.getId()),
+        "an inbound payment has been in %s since %s"
+            .formatted(payment.getStatus(), payment.getStatusChangedAt()));
   }
 }

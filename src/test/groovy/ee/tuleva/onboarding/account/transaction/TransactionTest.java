@@ -15,6 +15,8 @@ import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.epis.CashFlow;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -25,7 +27,7 @@ class TransactionTest {
   private static final Instant PRICED = Instant.parse("2025-07-01T00:00:00Z");
 
   @Test
-  void carriesThePricingTimeOfTheCashFlow() {
+  void carriesTheNavDateOfTheCashFlow() {
     CashFlow cashFlow =
         CashFlow.builder()
             .isin("EE0000003283")
@@ -41,12 +43,13 @@ class TransactionTest {
     Transaction transaction = Transaction.from(cashFlow);
 
     assertThat(transaction.time()).isEqualTo(BOOKED);
-    assertThat(transaction.priceTime()).isEqualTo(PRICED);
+    assertThat(transaction.navDate()).isEqualTo(LocalDate.parse("2025-07-01"));
   }
 
   @Test
-  void pricesAtTheBookingTimeWhenNoPricingTimeIsKnown() {
-    assertThat(Transaction.builder().time(BOOKED).build().priceTime()).isEqualTo(BOOKED);
+  void datesTheNavOnTheBookingDayWhenNoPriceTimeIsKnown() {
+    assertThat(Transaction.builder().time(BOOKED).build().navDate())
+        .isEqualTo(BOOKED.atZone(ZoneId.of("Europe/Tallinn")).toLocalDate());
   }
 
   @ParameterizedTest
@@ -54,7 +57,7 @@ class TransactionTest {
       value = CashFlow.Type.class,
       names = {"CONTRIBUTION_CASH", "CONTRIBUTION_CASH_WORKPLACE", "CONTRIBUTION"})
   void contributionsAreAcquisitions(CashFlow.Type type) {
-    assertThat(Transaction.builder().type(type).build().isAcquisition()).isTrue();
+    assertThat(Transaction.builder().time(BOOKED).type(type).build().isAcquisition()).isTrue();
   }
 
   @ParameterizedTest
@@ -62,7 +65,7 @@ class TransactionTest {
       value = CashFlow.Type.class,
       names = {"SUBTRACTION", "CASH", "REFUND", "TRANSFER_TO_PIK", "TRANSFER_FROM_PIK", "OTHER"})
   void everythingElseIsNotAnAcquisition(CashFlow.Type type) {
-    assertThat(Transaction.builder().type(type).build().isAcquisition()).isFalse();
+    assertThat(Transaction.builder().time(BOOKED).type(type).build().isAcquisition()).isFalse();
   }
 
   @ParameterizedTest

@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.party.PartyId;
 import ee.tuleva.onboarding.time.ClockHolder;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
@@ -23,7 +24,6 @@ import org.jspecify.annotations.Nullable;
 @NoArgsConstructor
 @AllArgsConstructor
 public class RedemptionRequest {
-
   @Id
   @GeneratedValue(strategy = GenerationType.UUID)
   private UUID id;
@@ -71,6 +71,13 @@ public class RedemptionRequest {
 
   @Nullable private String errorReason;
 
+  @Nullable
+  @Enumerated(STRING)
+  @Column(name = "hold_reason")
+  private RedemptionHoldReason holdReason;
+
+  @Nullable private Instant verificationAttemptedAt;
+
   @Nullable private String reviewedBy;
 
   @Nullable private String reviewReason;
@@ -106,5 +113,16 @@ public class RedemptionRequest {
 
   public PartyId getPartyId() {
     return new PartyId(partyType, partyCode);
+  }
+
+  public boolean amountReconciles() {
+    if (fundUnits == null || navPerUnit == null || cashAmount == null) {
+      return false;
+    }
+    return expectedAmount().compareTo(cashAmount) == 0;
+  }
+
+  public BigDecimal expectedAmount() {
+    return fundUnits.multiply(navPerUnit).setScale(2, RoundingMode.HALF_UP);
   }
 }

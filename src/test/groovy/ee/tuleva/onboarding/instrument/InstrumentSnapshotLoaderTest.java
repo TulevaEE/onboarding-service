@@ -52,6 +52,43 @@ class InstrumentSnapshotLoaderTest {
         .containsExactly(new InstrumentDataFinding.EodhdListedWithoutTicker("IE00NOTICK1"));
   }
 
+  @Test
+  void aBenchmarkProxyThatHasBeenDeactivatedIsReportedAsAFrozenBenchmark() {
+    var retired = deactivated(instrument("IE00RETIRED1", "OLD.DE", "OLD.XETRA", true));
+    var current = instrument("IE00CURRENT1", "NEW.DE", "NEW.XETRA", true);
+    given(instrumentReferenceRepository.findAllByOrderByIdAsc())
+        .willReturn(List.of(retired, current));
+    given(benchmarkCategoryProxyRepository.findAll())
+        .willReturn(
+            List.of(
+                new BenchmarkCategoryProxy(1L, "BOND_GLOBAL", "IE00RETIRED1", "IE00RETIRED1", null),
+                new BenchmarkCategoryProxy(2L, "BOND_EURO", "IE00CURRENT1", "IE00CURRENT1", null)));
+
+    var snapshot = loader.loadSnapshot();
+
+    assertThat(snapshot.findings())
+        .containsExactly(
+            new InstrumentDataFinding.InactiveBenchmarkProxy(
+                "BOND_GLOBAL", "etfProxyIsin", "IE00RETIRED1"),
+            new InstrumentDataFinding.InactiveBenchmarkProxy(
+                "BOND_GLOBAL", "indexProxyIsin", "IE00RETIRED1"));
+  }
+
+  @Test
+  void aProxyIsinWithNoInstrumentRowIsLeftToResolveBenchmarkProxy() {
+    var only = instrument("IE00PRESENT1", "OK.DE", "OK.XETRA", true);
+    given(instrumentReferenceRepository.findAllByOrderByIdAsc()).willReturn(List.of(only));
+    given(benchmarkCategoryProxyRepository.findAll())
+        .willReturn(
+            List.of(
+                new BenchmarkCategoryProxy(
+                    1L, "BOND_GLOBAL", "IE00NOTCACHED", "IE00NOTCACHED", null)));
+
+    var snapshot = loader.loadSnapshot();
+
+    assertThat(snapshot.findings()).isEmpty();
+  }
+
   private static InstrumentReference instrument(
       String isin, String yahooTicker, String eodhdTicker, boolean eodhdListed) {
     var instrument = BeanUtils.instantiateClass(InstrumentReference.class);
@@ -60,6 +97,11 @@ class InstrumentSnapshotLoaderTest {
     ReflectionTestUtils.setField(instrument, "eodhdTicker", eodhdTicker);
     ReflectionTestUtils.setField(instrument, "eodhdListed", eodhdListed);
     ReflectionTestUtils.setField(instrument, "active", true);
+    return instrument;
+  }
+
+  private static InstrumentReference deactivated(InstrumentReference instrument) {
+    ReflectionTestUtils.setField(instrument, "active", false);
     return instrument;
   }
 }

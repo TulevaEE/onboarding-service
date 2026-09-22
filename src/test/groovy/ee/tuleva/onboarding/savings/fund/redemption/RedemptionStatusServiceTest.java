@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionHoldReason.*;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.*;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequestFixture.redemptionRequestFixture;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -162,5 +163,31 @@ class RedemptionStatusServiceTest {
 
     assertThatThrownBy(() -> redemptionStatusService.changeStatus(requestId, CANCELLED))
         .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
+  void holdForReview_recordsTheReasonAndMovesToInReview() {
+    var requestId = UUID.randomUUID();
+    var request = redemptionRequestFixture().id(requestId).status(RESERVED).build();
+
+    when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
+
+    redemptionStatusService.holdForReview(requestId, SCREENING_UNAVAILABLE);
+
+    assertThat(request.getHoldReason()).isEqualTo(SCREENING_UNAVAILABLE);
+    assertThat(request.getStatus()).isEqualTo(IN_REVIEW);
+    verify(repository).save(request);
+  }
+
+  @Test
+  void holdForReview_refusesARequestThatIsNotReserved() {
+    var requestId = UUID.randomUUID();
+    var request = redemptionRequestFixture().id(requestId).status(VERIFIED).build();
+
+    when(repository.findByIdForUpdate(requestId)).thenReturn(Optional.of(request));
+
+    assertThatThrownBy(() -> redemptionStatusService.holdForReview(requestId, HIGH_RISK))
+        .isInstanceOf(IllegalStateException.class);
+    assertThat(request.getHoldReason()).isNull();
   }
 }

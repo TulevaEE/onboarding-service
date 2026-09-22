@@ -5,8 +5,10 @@ import static java.util.Objects.requireNonNull;
 
 import com.nimbusds.jose.JWSObject;
 import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.payment.GiftPayments;
 import ee.tuleva.onboarding.payment.IncomingSavingsPayment;
 import ee.tuleva.onboarding.payment.PaymentData;
+import ee.tuleva.onboarding.payment.SavingsPaymentOutcome;
 import ee.tuleva.onboarding.payment.SavingsPayments;
 import ee.tuleva.onboarding.payment.event.SavingsPaymentCreatedEvent;
 import ee.tuleva.onboarding.payment.provider.PaymentReference;
@@ -29,10 +31,11 @@ public class SavingsCallbackService {
   private final MontonioTokenParser tokenParser;
   private final SavingsChannelConfiguration savingsChannelConfiguration;
   private final SavingsPayments savingsPayments;
+  private final GiftPayments giftPayments;
   private final ApplicationEventPublisher eventPublisher;
 
   @SneakyThrows
-  public boolean processToken(String serializedToken) {
+  public SavingsPaymentOutcome processToken(String serializedToken) {
     var jwsObject = JWSObject.parse(serializedToken);
     tokenParser.verifyToken(jwsObject, savingsChannelConfiguration.getSecretKey());
     var token = tokenParser.parse(jwsObject);
@@ -46,31 +49,33 @@ public class SavingsCallbackService {
             token.getMerchantReference(),
             "Montonio order token missing merchant reference: uuid=" + token.getUuid());
 
-    if (!paymentStatus.equals(MontonioOrderToken.MontonioOrderStatus.PAID)) {
-      log.info("Montonio order {} not paid", merchantReference);
-      return false;
-    }
-
     if (!merchantReference.getPaymentType().equals(PaymentData.PaymentType.SAVINGS)) {
       log.error("Montonio order {} not SAVINGS type", merchantReference);
-      return false;
+      return new SavingsPaymentOutcome(false, null);
+    }
+
+    var giftLinkToken =
+        giftPayments.findGiftLinkToken(merchantReference.getDescription()).orElse(null);
+
+    if (!paymentStatus.equals(MontonioOrderToken.MontonioOrderStatus.PAID)) {
+      log.info("Montonio order {} not paid", merchantReference);
+      return new SavingsPaymentOutcome(false, giftLinkToken);
     }
 
     var recipient = recipientParty(merchantReference);
 
-    var senderName = token.getSenderName();
-    var senderIban = token.getSenderIban();
-    if (senderName == null || senderIban == null) {
-      log.warn(
-          "Montonio order token missing sender details, deferring to statement processing: uuid={}",
-          token.getUuid());
-      return true;
+    if (token.getSenderName() == null || token.getSenderIban() == null) {
+      log.info(
+          "Montonio order token without sender details, recording without bank details: uuid={}, senderNamePresent={}, senderIbanPresent={}",
+          token.getUuid(),
+          token.getSenderName() != null,
+          token.getSenderIban() != null);
     }
 
     var incomingPayment =
         new IncomingSavingsPayment(
-            senderName,
-            senderIban,
+            token.getSenderName(),
+            token.getSenderIban(),
             merchantReference.getDescription(),
             requireNonNull(
                 token.getGrandTotal(),
@@ -80,10 +85,16 @@ public class SavingsCallbackService {
                 "Montonio order token missing currency: uuid=" + token.getUuid()),
             recipient);
 
-    if (!savingsPayments.recordIncoming(incomingPayment)) {
-      return false;
+    if (savingsPayments.recordIncoming(incomingPayment)) {
+      sendReceipt(merchantReference, recipient);
     }
+    return new SavingsPaymentOutcome(true, giftLinkToken);
+  }
 
+  private void sendReceipt(PaymentReference merchantReference, PartyId recipient) {
+    if (merchantReference.getPersonalCode() == null) {
+      return;
+    }
     userService
         .findByPersonalCode(merchantReference.getPersonalCode())
         .ifPresent(
@@ -91,8 +102,6 @@ public class SavingsCallbackService {
                 eventPublisher.publishEvent(
                     new SavingsPaymentCreatedEvent(
                         this, user, merchantReference.getLocale(), recipient)));
-
-    return true;
   }
 
   private PartyId recipientParty(PaymentReference ref) {

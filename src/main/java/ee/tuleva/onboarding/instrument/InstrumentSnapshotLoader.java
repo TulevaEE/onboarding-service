@@ -2,11 +2,13 @@ package ee.tuleva.onboarding.instrument;
 
 import ee.tuleva.onboarding.instrument.InstrumentDataFinding.AmbiguousLookupKey;
 import ee.tuleva.onboarding.instrument.InstrumentDataFinding.EodhdListedWithoutTicker;
+import ee.tuleva.onboarding.instrument.InstrumentDataFinding.InactiveBenchmarkProxy;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -65,6 +67,8 @@ class InstrumentSnapshotLoader {
                 proxy.benchmarkCategory(),
                 List.of(existing.etfProxyIsin(), proxy.etfProxyIsin())));
       }
+      flagInactiveProxy(newByIsin, proxy, "etfProxyIsin", proxy.etfProxyIsin(), findings);
+      flagInactiveProxy(newByIsin, proxy, "indexProxyIsin", proxy.indexProxyIsin(), findings);
     }
 
     return new Snapshot(
@@ -85,6 +89,21 @@ class InstrumentSnapshotLoader {
       Map<String, InstrumentReference> byShortTicker,
       Map<String, BenchmarkCategoryProxy> proxyByCategory,
       List<InstrumentDataFinding> findings) {}
+
+  private static void flagInactiveProxy(
+      Map<String, InstrumentReference> byIsin,
+      BenchmarkCategoryProxy proxy,
+      String role,
+      @Nullable String proxyIsin,
+      List<InstrumentDataFinding> findings) {
+    if (proxyIsin == null) {
+      return;
+    }
+    var instrument = byIsin.get(proxyIsin);
+    if (instrument != null && !instrument.isActive()) {
+      findings.add(new InactiveBenchmarkProxy(proxy.benchmarkCategory(), role, proxyIsin));
+    }
+  }
 
   private static void putFirstWins(
       Map<String, InstrumentReference> map,

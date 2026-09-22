@@ -31,7 +31,7 @@ public enum FundReportMapping {
       TulevaFund.TKF100,
       "Tuleva Täiendava Kogumisfondi",
       "Aktsiafondid",
-      "taiendav-kogumisfond",
+      "tuleva-taiendav-kogumisfond-dokumendid",
       false);
 
   private static final Map<TulevaFund, FundReportMapping> BY_FUND =

@@ -7,4 +7,6 @@ public interface HackathonRegistrationRepository
     extends JpaRepository<HackathonRegistration, Long> {
 
   Optional<HackathonRegistration> findByUserId(Long userId);
+
+  boolean existsByUserId(Long userId);
 }

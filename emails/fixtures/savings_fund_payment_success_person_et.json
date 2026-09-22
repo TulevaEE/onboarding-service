@@ -5,6 +5,16 @@
       "suggestSecondPillar": true,
       "anyPillarSuggestion": true
     },
+    "II samba tasude võrdlus": {
+      "FNAME": "Mari",
+      "suggestSecondPillar": true,
+      "hasFeeComparison": true,
+      "secondPillarFeePercent": "0,65",
+      "secondPillarFeeAmount": 130,
+      "tulevaFeeAmount": 56,
+      "secondPillarSavingsAmount": 74,
+      "anyPillarSuggestion": true
+    },
     "II samba määra tõstmise soovitus": {
       "FNAME": "Mari",
       "suggestPaymentRate": true,

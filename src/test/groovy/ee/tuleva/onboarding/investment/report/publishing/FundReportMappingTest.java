@@ -20,6 +20,17 @@ class FundReportMappingTest {
   }
 
   @Test
+  void pageSlugsPointAtThePagesThatCarryTheAcfReportField() {
+    assertThat(FundReportMapping.all())
+        .extracting(FundReportMapping::pageSlug)
+        .containsExactly(
+            "tuleva-maailma-aktsiate-pensionifond",
+            "tuleva-maailma-volakirjade-pensionifond",
+            "tuleva-iii-samba-pensionifond",
+            "tuleva-taiendav-kogumisfond-dokumendid");
+  }
+
+  @Test
   void estonianMonthReturnsCorrectNames() {
     assertThat(FundReportMapping.estonianMonth(1)).isEqualTo("jaanuar");
     assertThat(FundReportMapping.estonianMonth(3)).isEqualTo("märts");
@@ -42,13 +53,11 @@ class FundReportMappingTest {
   @Test
   void tkf100ExcludedFromEmail() {
     assertThat(FundReportMapping.TKF100.includeInEmail()).isFalse();
-    assertThat(FundReportMapping.TKF100.pageSlug()).isNotNull();
   }
 
   @Test
   void tuk75IncludedInEmail() {
     assertThat(FundReportMapping.TUK75.includeInEmail()).isTrue();
-    assertThat(FundReportMapping.TUK75.pageSlug()).isNotNull();
   }
 
   @Test

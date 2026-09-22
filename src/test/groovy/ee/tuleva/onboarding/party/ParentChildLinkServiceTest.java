@@ -2,11 +2,13 @@ package ee.tuleva.onboarding.party;
 
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.PENDING_KYC;
+import static ee.tuleva.onboarding.party.RepresentationType.GUARDIAN;
 import static ee.tuleva.onboarding.party.RepresentationType.LEGAL_REPRESENTATIVE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -119,6 +121,32 @@ class ParentChildLinkServiceTest {
   }
 
   @Test
+  void aParentWhoseOwnKycIsPendingIsAGuardianButNotAnActiveRepresentation() {
+    var pending =
+        ParentChildLink.builder()
+            .id(LINK_ID)
+            .parentPersonalCode(PARENT)
+            .childPersonalCode(CHILD)
+            .relationshipType(LEGAL_REPRESENTATIVE)
+            .status(PENDING_KYC)
+            .validUntil(LocalDate.of(2030, 1, 1))
+            .build();
+    given(
+            parentChildLinkRepository
+                .findByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                    PARENT, CHILD, Set.of(ACTIVE, PENDING_KYC), TODAY))
+        .willReturn(List.of(pending));
+
+    assertThat(service.isGuardian(PARENT, CHILD)).isTrue();
+    assertThat(service.isActiveRepresentation(PARENT, CHILD)).isFalse();
+  }
+
+  @Test
+  void isNotAGuardianWhenNoLinkIsActiveOrPending() {
+    assertThat(service.isGuardian(PARENT, CHILD)).isFalse();
+  }
+
+  @Test
   void findsGuardianCodesAcrossAllUnexpiredLinksIncludingSuspendedAndPending() {
     var active =
         ParentChildLink.builder()
@@ -199,5 +227,58 @@ class ParentChildLinkServiceTest {
 
     assertThat(service.findActivelyRepresentedChildren(PARENT))
         .containsExactly(entry(CHILD, older.getId()));
+  }
+
+  @Test
+  void aMinorHasRestrictedLegalCapacityWithoutConsultingTheLinks() {
+    assertThat(service.hasRestrictedLegalCapacity(CHILD, TODAY)).isTrue();
+
+    verifyNoInteractions(parentChildLinkRepository);
+  }
+
+  @Test
+  void anAdultUnderGuardianshipHasRestrictedLegalCapacity() {
+    given(
+            parentChildLinkRepository
+                .existsByChildPersonalCodeAndRelationshipTypeAndValidUntilAfter(
+                    PARENT, GUARDIAN, TODAY))
+        .willReturn(true);
+
+    assertThat(service.hasRestrictedLegalCapacity(PARENT, TODAY)).isTrue();
+  }
+
+  @Test
+  void anAdultWithoutGuardianshipHasFullLegalCapacity() {
+    given(
+            parentChildLinkRepository
+                .existsByChildPersonalCodeAndRelationshipTypeAndValidUntilAfter(
+                    PARENT, GUARDIAN, TODAY))
+        .willReturn(false);
+
+    assertThat(service.hasRestrictedLegalCapacity(PARENT, TODAY)).isFalse();
+  }
+
+  @Test
+  void capacityIsAnsweredForTheDateAsked_notForToday() {
+    var turnsEighteenToday = "60805220000";
+    var theDayBefore = TODAY.minusDays(1);
+
+    assertThat(service.hasRestrictedLegalCapacity(turnsEighteenToday, theDayBefore)).isTrue();
+
+    verifyNoInteractions(parentChildLinkRepository);
+  }
+
+  // Born 2008-05-22, so they turn 18 on the fixed clock's today: capacity arrives on the
+  // birthday itself, the same day a LEGAL_REPRESENTATIVE link stops being valid.
+  @Test
+  void capacityArrivesOnTheEighteenthBirthday() {
+    var turnsEighteenToday = "60805220000";
+    given(
+            parentChildLinkRepository
+                .existsByChildPersonalCodeAndRelationshipTypeAndValidUntilAfter(
+                    turnsEighteenToday, GUARDIAN, TODAY))
+        .willReturn(false);
+
+    assertThat(service.hasRestrictedLegalCapacity(turnsEighteenToday, TODAY)).isFalse();
   }
 }

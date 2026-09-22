@@ -17,6 +17,7 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -289,13 +290,32 @@ public class LedgerAccountFixture {
   }
 
   public record EntryFixture(
-      BigDecimal amount, Instant transactionDate, BigDecimal navPerUnit, UUID externalReference) {
+      BigDecimal amount,
+      Instant transactionDate,
+      BigDecimal navPerUnit,
+      UUID externalReference,
+      LocalDate navDate) {
+    public EntryFixture(
+        BigDecimal amount, Instant transactionDate, BigDecimal navPerUnit, UUID externalReference) {
+      this(amount, transactionDate, navPerUnit, externalReference, null);
+    }
+
     public EntryFixture(BigDecimal amount, Instant transactionDate, BigDecimal navPerUnit) {
       this(amount, transactionDate, navPerUnit, null);
     }
 
     public EntryFixture(BigDecimal amount, Instant transactionDate) {
       this(amount, transactionDate, new BigDecimal("10.0"));
+    }
+
+    public EntryFixture pricedOn(LocalDate navDate) {
+      return new EntryFixture(amount, transactionDate, navPerUnit, externalReference, navDate);
+    }
+
+    Map<String, Object> metadata() {
+      return navDate == null
+          ? Map.of("navPerUnit", navPerUnit)
+          : Map.of("navPerUnit", navPerUnit, "navDate", navDate.toString());
     }
   }
 
@@ -326,7 +346,7 @@ public class LedgerAccountFixture {
                   .transactionType(FUND_SUBSCRIPTION)
                   .transactionDate(entry.transactionDate())
                   .externalReference(entry.externalReference())
-                  .metadata(Map.of("navPerUnit", navPerUnit))
+                  .metadata(entry.metadata())
                   .build();
           transaction.addEntry(account, entry.amount().negate());
           transaction.addEntry(fundUnitsAccount, fundUnits.negate());
@@ -411,7 +431,7 @@ public class LedgerAccountFixture {
                   .transactionType(REDEMPTION_PAYOUT)
                   .transactionDate(entry.transactionDate())
                   .externalReference(entry.externalReference())
-                  .metadata(Map.of("navPerUnit", navPerUnit))
+                  .metadata(entry.metadata())
                   .build();
           transaction.addEntry(account, entry.amount());
           transaction.addEntry(fundUnitsReservedAccount, fundUnits);

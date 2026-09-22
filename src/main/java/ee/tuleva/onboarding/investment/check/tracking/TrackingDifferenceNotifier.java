@@ -24,11 +24,11 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class TrackingDifferenceNotifier {
 
-  // Sisekord nr 4 p 11.7: escalate once the breach "püsib enam kui kolm (3) tööpäeva", so the
-  // fourth consecutive breach day is the first that escalates.
-  private static final int ESCALATION_THRESHOLD_FALLBACK = 4;
+  private static final int SISEKORD_4_P_11_7_FIRST_ESCALATING_BREACH_DAY = 4;
   private static final BigDecimal ESCALATION_NET_TD_THRESHOLD_FALLBACK = new BigDecimal("0.001");
   private static final BigDecimal HUNDRED = new BigDecimal("100");
+  private static final String PUBLISHED_WITHOUT_VALIDATION =
+      "NAV report published WITHOUT tracking-difference validation";
 
   private final OperationsNotificationService notificationService;
   private final TrackingDifferenceCalculator calculator;
@@ -37,11 +37,22 @@ class TrackingDifferenceNotifier {
   void notifyCheckCouldNotRun(TulevaFund fund, LocalDate navDate) {
     try {
       notificationService.sendMessage(
-          "⚠️ TD CHECK DID NOT RUN: fund=%s, date=%s — missing NAV, prices, or model data; NAV report published WITHOUT tracking-difference validation"
-              .formatted(fund.getCode(), navDate),
+          "⚠️ TD CHECK DID NOT RUN: fund=%s, date=%s — missing NAV, prices, or model data; %s"
+              .formatted(fund.getCode(), navDate, PUBLISHED_WITHOUT_VALIDATION),
           INVESTMENT);
     } catch (Exception e) {
       log.error("Failed to send tracking difference 'check did not run' notification", e);
+    }
+  }
+
+  void notifyCheckFailed(TulevaFund fund, LocalDate navDate, String reason) {
+    try {
+      notificationService.sendMessage(
+          "⚠️ TD CHECK FAILED: fund=%s, date=%s — the check errored (%s); %s"
+              .formatted(fund.getCode(), navDate, reason, PUBLISHED_WITHOUT_VALIDATION),
+          INVESTMENT);
+    } catch (Exception e) {
+      log.error("Failed to send tracking difference 'check failed' notification", e);
     }
   }
 
@@ -153,11 +164,60 @@ class TrackingDifferenceNotifier {
             formatPercent(worst));
   }
 
+  private static List<TrackingDifferenceResult> alertableResults(
+      List<TrackingDifferenceResult> results) {
+    return results.stream().filter(r -> r.checkType() != BENCHMARK).toList();
+  }
+
+  void notifyGapFillSummary(List<TrackingDifferenceResult> results) {
+    try {
+      var alertableResults = alertableResults(results);
+      if (alertableResults.isEmpty()) {
+        return;
+      }
+      var dates =
+          alertableResults.stream()
+              .map(TrackingDifferenceResult::checkDate)
+              .distinct()
+              .sorted()
+              .toList();
+      var breaches =
+          alertableResults.stream()
+              .filter(TrackingDifferenceResult::hasAnyBreach)
+              .sorted(
+                  Comparator.comparing(TrackingDifferenceResult::checkDate)
+                      .thenComparing(r -> r.fund().getCode())
+                      .thenComparing(r -> r.checkType().name()))
+              .toList();
+
+      var message =
+          new StringBuilder(
+              ("🕗 TD GAP FILL: %d past check dates rewritten, %s to %s — these are earlier days,"
+                      + " not today's check\n")
+                  .formatted(dates.size(), dates.getFirst(), dates.getLast()));
+      if (breaches.isEmpty()) {
+        message.append("  No breach on any of them.");
+      } else {
+        breaches.forEach(
+            result ->
+                message.append(
+                    "\n  🛑 %s %s %s: TD=%s%%, %d consecutive days"
+                        .formatted(
+                            result.checkDate(),
+                            result.fund().getCode(),
+                            result.checkType(),
+                            formatPercent(result.trackingDifference()),
+                            result.consecutiveBreachDays())));
+      }
+      notificationService.sendMessage(message.toString(), INVESTMENT);
+    } catch (Exception e) {
+      log.error("Failed to send tracking difference gap fill summary", e);
+    }
+  }
+
   void notify(List<TrackingDifferenceResult> results) {
     try {
-      var alertableResults = results.stream().filter(r -> r.checkType() != BENCHMARK).toList();
-      // The ACWI benchmark is suppressed from alerts, so a run holding only benchmark results
-      // checked nothing anyone acts on - the same empty run as no results at all.
+      var alertableResults = alertableResults(results);
       if (alertableResults.isEmpty()) {
         notificationService.sendMessage(
             """
@@ -280,7 +340,9 @@ class TrackingDifferenceNotifier {
     } catch (Exception e) {
       log.error("Escalation parameters unavailable, using fallback: {}", e.getMessage());
       return new EscalationRule(
-          ESCALATION_THRESHOLD_FALLBACK, ESCALATION_NET_TD_THRESHOLD_FALLBACK, true);
+          SISEKORD_4_P_11_7_FIRST_ESCALATING_BREACH_DAY,
+          ESCALATION_NET_TD_THRESHOLD_FALLBACK,
+          true);
     }
   }
 

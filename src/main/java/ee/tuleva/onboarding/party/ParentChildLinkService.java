@@ -2,11 +2,13 @@ package ee.tuleva.onboarding.party;
 
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.ACTIVE;
 import static ee.tuleva.onboarding.party.ParentChildLinkStatus.PENDING_KYC;
+import static ee.tuleva.onboarding.party.RepresentationType.GUARDIAN;
 import static java.util.Comparator.comparing;
 import static java.util.Comparator.naturalOrder;
 import static java.util.Comparator.nullsLast;
 
 import ee.tuleva.onboarding.auth.role.ChildRepresentations;
+import ee.tuleva.onboarding.personalcode.PersonalCode;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.Comparator;
@@ -60,6 +62,14 @@ public class ParentChildLinkService implements ChildRepresentations {
     return findRepresentation(parentPersonalCode, childPersonalCode, Set.of(ACTIVE)).isPresent();
   }
 
+  // The parent acting *for* the child with their own money: a link awaiting the parent's KYC is
+  // still that child's guardian, so their deposit is not a stranger's gift.
+  @Override
+  public boolean isGuardian(String parentPersonalCode, String childPersonalCode) {
+    return findRepresentation(parentPersonalCode, childPersonalCode, Set.of(ACTIVE, PENDING_KYC))
+        .isPresent();
+  }
+
   // AML screening scope, not an authorization check: suspended and PENDING_KYC links count,
   // because suspension does not cleanse the guardian-risk association (mirrors check_24).
   public List<String> findGuardianCodes(String childPersonalCode) {
@@ -69,6 +79,12 @@ public class ParentChildLinkService implements ChildRepresentations {
         .map(ParentChildLink::getParentPersonalCode)
         .distinct()
         .toList();
+  }
+
+  public boolean hasRestrictedLegalCapacity(String personalCode, LocalDate asOf) {
+    return PersonalCode.isMinor(personalCode, asOf)
+        || parentChildLinkRepository.existsByChildPersonalCodeAndRelationshipTypeAndValidUntilAfter(
+            personalCode, GUARDIAN, asOf);
   }
 
   @Override

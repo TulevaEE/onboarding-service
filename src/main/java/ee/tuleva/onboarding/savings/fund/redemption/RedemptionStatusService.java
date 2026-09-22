@@ -36,12 +36,26 @@ public class RedemptionStatusService {
 
   @Transactional
   public void changeStatus(UUID id, Status newStatus) {
-    RedemptionRequest request =
-        repository
-            .findByIdForUpdate(id)
-            .orElseThrow(
-                () -> new IllegalArgumentException("Redemption request not found: id=" + id));
+    RedemptionRequest request = lockedRequest(id);
+    transition(request, newStatus);
+    repository.save(request);
+  }
 
+  @Transactional
+  public void holdForReview(UUID id, RedemptionHoldReason reason) {
+    RedemptionRequest request = lockedRequest(id);
+    transition(request, IN_REVIEW);
+    request.setHoldReason(reason);
+    repository.save(request);
+  }
+
+  private RedemptionRequest lockedRequest(UUID id) {
+    return repository
+        .findByIdForUpdate(id)
+        .orElseThrow(() -> new IllegalArgumentException("Redemption request not found: id=" + id));
+  }
+
+  private void transition(RedemptionRequest request, Status newStatus) {
     Status currentStatus = request.getStatus();
     if (!ALLOWED_TRANSITIONS.contains(new StatusTransition(currentStatus, newStatus))) {
       throw new IllegalStateException(
@@ -50,18 +64,15 @@ public class RedemptionStatusService {
               + ", newStatus="
               + newStatus);
     }
-
     log.info(
         "RedemptionRequest status change: id={}, currentStatus={}, newStatus={}",
-        id,
+        request.getId(),
         currentStatus,
         newStatus);
-
     request.setStatus(newStatus);
     if (newStatus == CANCELLED) {
       request.setCancelledAt(clock().instant());
     }
-    repository.save(request);
   }
 
   private record StatusTransition(Status from, Status to) {}

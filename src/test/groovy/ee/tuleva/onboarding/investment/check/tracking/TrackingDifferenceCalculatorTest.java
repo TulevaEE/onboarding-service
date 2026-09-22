@@ -716,6 +716,7 @@ class TrackingDifferenceCalculatorTest {
             .accruedFeeFraction(BigDecimal.ZERO)
             .bodHoldings(List.of(bodHolding("IE00A", new BigDecimal("1.00"), "102", "100")))
             .bodSecuritiesFraction(new BigDecimal("1.00"))
+            .tradeFlow(TradeFlow.none())
             .build();
 
     var result = calculator.calculate(input);
@@ -789,9 +790,7 @@ class TrackingDifferenceCalculatorTest {
     assertThat(result).isPresent();
     var flow = result.get().navFlow();
     assertThat(flow).isNotNull();
-    assertThat(
-            flow.unexplained().divide(flow.openingNetAssets(), 6, java.math.RoundingMode.HALF_UP))
-        .isEqualByComparingTo(result.get().navResidual());
+    assertThat(flow.unexplainedFraction()).isEqualByComparingTo(result.get().navResidual());
   }
 
   @Test
@@ -815,6 +814,30 @@ class TrackingDifferenceCalculatorTest {
     assertThat(flow).isNotNull();
     assertThat(flow.marketPnl()).isEqualByComparingTo(new BigDecimal("10000"));
     assertThat(flow.unexplained()).isEqualByComparingTo(BigDecimal.ZERO);
+  }
+
+  @Test
+  void navFlowReconcilesWhenSecuritiesAreWorthMoreThanTheFund() {
+    var input =
+        navFlowInput(
+                new BigDecimal("1.0108"),
+                new BigDecimal("1.00"),
+                bodHolding("IE00A", new BigDecimal("1.00"), "101", "100"))
+            .bodSecuritiesFraction(new BigDecimal("1.08"))
+            .openingNetAssets(new BigDecimal("1000000"))
+            .closingNetAssets(new BigDecimal("1010800"))
+            .previousUnits(new BigDecimal("1000000"))
+            .todayUnits(new BigDecimal("1000000"))
+            .build();
+
+    var result = calculator.calculate(input);
+
+    assertThat(result).isPresent();
+    var flow = result.get().navFlow();
+    assertThat(flow).isNotNull();
+    assertThat(flow.marketPnl()).isEqualByComparingTo(new BigDecimal("10800"));
+    assertThat(flow.unexplained()).isEqualByComparingTo(BigDecimal.ZERO);
+    assertThat(result.get().navResidualBreach()).isFalse();
   }
 
   private TrackingInput.TrackingInputBuilder navFlowInput(

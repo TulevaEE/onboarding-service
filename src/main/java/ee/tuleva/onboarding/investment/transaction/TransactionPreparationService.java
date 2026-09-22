@@ -122,6 +122,11 @@ public class TransactionPreparationService {
     if (input != null) {
       payload.put(
           "input", TransactionInputPayloads.serializeInput(input, command.getManualAdjustments()));
+      if (!input.inputWarnings().isEmpty()) {
+        payload.put(
+            "calculationWarnings",
+            TransactionAuditPayloads.serializeCalculationWarnings(input.inputWarnings()));
+      }
     }
     payload.put("exceptionClass", e.getClass().getName());
     putIfPresent(payload, "errorMessage", command.getErrorMessage());

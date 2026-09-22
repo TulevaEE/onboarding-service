@@ -7,6 +7,7 @@ import static org.mockito.BDDMockito.mock;
 
 import com.sun.net.httpserver.HttpServer;
 import ee.tuleva.onboarding.banking.seb.fetcher.SebStatementFetchingScheduler;
+import ee.tuleva.onboarding.banking.seb.fetcher.StatementCoverage;
 import ee.tuleva.onboarding.banking.seb.listener.SebReconciliationListener;
 import ee.tuleva.onboarding.banking.seb.reconciliation.SebReconciliator;
 import java.math.BigInteger;
@@ -214,12 +215,14 @@ class SebGatewayConfigurationTest {
   }
 
   @Test
-  void sebStatementFetchingScheduler_isConstructedFromThePublisherAndAccounts() {
+  void sebStatementFetchingScheduler_isConstructedFromThePublisherAccountsCoverageAndClock() {
     var eventPublisher = mock(ApplicationEventPublisher.class);
     var bankAccounts = mock(SebBankAccounts.class);
+    var statementCoverage = mock(StatementCoverage.class);
 
     SebStatementFetchingScheduler scheduler =
-        config.sebStatementFetchingScheduler(eventPublisher, bankAccounts);
+        config.sebStatementFetchingScheduler(
+            eventPublisher, bankAccounts, statementCoverage, Clock.systemUTC());
 
     assertThat(scheduler).isNotNull();
   }

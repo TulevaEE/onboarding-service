@@ -5,12 +5,14 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+@Slf4j
 @Component
 @NullMarked
 @RequiredArgsConstructor
@@ -29,12 +31,30 @@ class ReferenceDataChangeDescriber {
                   change.recordKey(),
                   change.changedBy(),
                   change.changedAt()));
-      for (var line : fieldLines(change)) {
+      for (var line : describableFieldLines(change)) {
         body.append("  ").append(line).append('\n');
       }
       body.append('\n');
     }
     return body.toString();
+  }
+
+  private List<String> describableFieldLines(ReferenceDataChange change) {
+    try {
+      return fieldLines(change);
+    } catch (RuntimeException e) {
+      log.error(
+          "Could not describe a reference data history row, mailing its raw values instead:"
+              + " historyId={}, table={}, recordKey={}",
+          change.id(),
+          change.tableName(),
+          change.recordKey(),
+          e);
+      return List.of(
+          "could not be described: " + e.getMessage(),
+          "old_values: " + change.oldValues(),
+          "new_values: " + change.newValues());
+    }
   }
 
   private List<String> fieldLines(ReferenceDataChange change) {

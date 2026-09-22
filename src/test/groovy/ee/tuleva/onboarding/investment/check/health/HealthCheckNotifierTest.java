@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.investment.check.health.HealthCheckType.NAV_F
 import static ee.tuleva.onboarding.investment.report.ReportProvider.SEB;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -14,6 +15,7 @@ import static org.mockito.Mockito.*;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -51,6 +53,23 @@ class HealthCheckNotifierTest {
     verify(notificationService)
         .sendMessage(contains("source files need to be fixed"), eq(INVESTMENT));
     verify(notificationService).sendMessage(contains("[FAIL]"), eq(INVESTMENT));
+  }
+
+  @Test
+  void importBlockedHeaderNamesOnlyTheBlockedFunds() {
+    var failed = new HealthCheckFinding(TUK75, ISIN_MATCH, FAIL, "TUK75: unknown ISIN");
+    var warned = new HealthCheckFinding(TUV100, COMPLETENESS, WARNING, "TUV100: no CASH");
+
+    notifier.notify(
+        SEB,
+        DATE,
+        List.of(
+            new HealthCheckResult(TUK75, DATE, List.of(failed)),
+            new HealthCheckResult(TUV100, DATE, List.of(warned))));
+
+    verify(notificationService)
+        .sendMessage(
+            contains("IMPORT BLOCKED: SEB 2026-04-15 — TUK75 not imported"), eq(INVESTMENT));
   }
 
   @Test
@@ -137,6 +156,68 @@ class HealthCheckNotifierTest {
     var notified = notifier.notify(SEB, DATE, List.of(result));
 
     assertThat(notified).isFalse();
+  }
+
+  // A check that could not run for a new reason needs saying out loud: the reasons call for
+  // different work, and severity alone cannot tell a missing threshold row from an unexplained
+  // exit.
+  @Test
+  void sendsAgainWhenTheReasonACheckCouldNotRunChanges() {
+    givenPreviousNotRun(NAV_FLOW_CONSISTENCY, "could not be reconciled: no threshold configured");
+    var finding =
+        new HealthCheckFinding(
+            TUK75,
+            NAV_FLOW_CONSISTENCY,
+            NOT_RUN,
+            "could not be reconciled: unexplainedExits=IE00A");
+    var result = new HealthCheckResult(TUK75, DATE, List.of(finding));
+
+    assertThat(notifier.notify(SEB, DATE, List.of(result))).isTrue();
+  }
+
+  @Test
+  void silentWhenTheSameCheckCouldNotRunForTheSameReason() {
+    givenPreviousNotRun(NAV_FLOW_CONSISTENCY, "could not be reconciled: no threshold configured");
+    var finding =
+        new HealthCheckFinding(
+            TUK75,
+            NAV_FLOW_CONSISTENCY,
+            NOT_RUN,
+            "could not be reconciled: no threshold configured");
+    var result = new HealthCheckResult(TUK75, DATE, List.of(finding));
+
+    assertThat(notifier.notify(SEB, DATE, List.of(result))).isFalse();
+  }
+
+  @Test
+  void importBlockedHeaderNamesAFundWhoseFailIsUnchangedSinceTheLastRun() {
+    givenPreviousSeverity(ISIN_MATCH, FAIL);
+    var unchangedFail = new HealthCheckFinding(TUK75, ISIN_MATCH, FAIL, "TUK75: unknown ISIN");
+    var newFail = new HealthCheckFinding(TUV100, COMPLETENESS, FAIL, "TUV100: negative SECURITY");
+
+    notifier.notify(
+        SEB,
+        DATE,
+        List.of(
+            new HealthCheckResult(TUK75, DATE, List.of(unchangedFail)),
+            new HealthCheckResult(TUV100, DATE, List.of(newFail))));
+
+    verify(notificationService)
+        .sendMessage(
+            contains("IMPORT BLOCKED: SEB 2026-04-15 — TUK75, TUV100 not imported"),
+            eq(INVESTMENT));
+  }
+
+  private void givenPreviousNotRun(HealthCheckType checkType, String message) {
+    var stored =
+        HealthCheckEvent.builder()
+            .severity(NOT_RUN)
+            .result(Map.of("findings", List.of(Map.of("message", message))))
+            .build();
+    lenient()
+        .doReturn(List.of(stored, stored))
+        .when(eventRepository)
+        .findTop2ByFundAndCheckDateAndCheckTypeOrderByCreatedAtDesc(TUK75, DATE, checkType);
   }
 
   private void givenPreviousSeverity(HealthCheckType checkType, HealthCheckSeverity severity) {

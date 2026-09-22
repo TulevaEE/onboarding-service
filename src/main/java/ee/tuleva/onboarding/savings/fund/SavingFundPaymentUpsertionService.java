@@ -7,6 +7,8 @@ import ee.tuleva.onboarding.savings.SavingFundDeadlinesService;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
@@ -89,16 +91,41 @@ public class SavingFundPaymentUpsertionService {
 
   private Optional<SavingFundPayment> findExistingPayment(SavingFundPayment payment) {
     log.debug(
-        "Looking for matching payment by description, amount, and remitter IBAN: {}, {}, {}",
+        "Looking for matching payment: description={}, amount={}, remitterIban={}",
         payment.getDescription(),
         payment.getAmount(),
         payment.getRemitterIban());
-    return repository.findRecentPayments(payment.getDescription()).stream()
-        .filter(p -> p.getExternalId() == null)
-        .filter(p -> MATCHABLE_STATUSES.contains(p.getStatus()))
-        .filter(p -> p.getAmount().compareTo(payment.getAmount()) == 0)
-        .filter(p -> Objects.equals(p.getRemitterIban(), payment.getRemitterIban()))
-        .findFirst();
+    var candidates =
+        repository.findRecentPayments(payment.getDescription()).stream()
+            .filter(p -> p.getExternalId() == null)
+            .filter(p -> p.getAmount().compareTo(payment.getAmount()) == 0)
+            .toList();
+    var bankConfirmationWindow = Duration.ofDays(7);
+    var awaitingSince = bookingTimeOf(payment).minus(bankConfirmationWindow);
+    return candidates.stream()
+        .filter(p -> isSameBankTransfer(p, payment))
+        .findFirst()
+        .or(
+            () ->
+                candidates.stream()
+                    .filter(p -> isAwaitingBankDetails(p, awaitingSince))
+                    .findFirst());
+  }
+
+  private Instant bookingTimeOf(SavingFundPayment payment) {
+    return payment.getReceivedBefore() != null ? payment.getReceivedBefore() : clock.instant();
+  }
+
+  private static boolean isSameBankTransfer(SavingFundPayment existing, SavingFundPayment payment) {
+    return MATCHABLE_STATUSES.contains(existing.getStatus())
+        && existing.getRemitterIban() != null
+        && existing.getRemitterIban().equals(payment.getRemitterIban());
+  }
+
+  private static boolean isAwaitingBankDetails(SavingFundPayment existing, Instant awaitingSince) {
+    return existing.getRemitterIban() == null
+        && existing.getStatus() == CREATED
+        && !existing.isUnconfirmedSince(awaitingSince);
   }
 
   private void updatePayment(SavingFundPayment existing, SavingFundPayment payment) {
@@ -121,7 +148,7 @@ public class SavingFundPaymentUpsertionService {
             mergeAndValidateField(
                 "description", existing.getDescription(), payment.getDescription()))
         .remitterIban(
-            mergeAndValidateField(
+            mergeAndValidateNullableField(
                 "remitterIban", existing.getRemitterIban(), payment.getRemitterIban()))
         .remitterIdCode(
             mergeAndValidateNullableField(
@@ -133,7 +160,7 @@ public class SavingFundPaymentUpsertionService {
                 existing.getRemitterName(),
                 payment.getRemitterName()))
         .beneficiaryIban(
-            mergeAndValidateField(
+            mergeAndValidateNullableField(
                 "beneficiaryIban", existing.getBeneficiaryIban(), payment.getBeneficiaryIban()))
         .beneficiaryIdCode(
             mergeAndValidateNullableField(
@@ -149,6 +176,8 @@ public class SavingFundPaymentUpsertionService {
         .externalId(
             mergeAndValidateNullableField(
                 "externalId", existing.getExternalId(), payment.getExternalId()))
+        .endToEndId(
+            payment.getEndToEndId() != null ? payment.getEndToEndId() : existing.getEndToEndId())
         .createdAt(existing.getCreatedAt())
         .receivedBefore(payment.getReceivedBefore())
         .status(existing.getStatus())
@@ -197,8 +226,8 @@ public class SavingFundPaymentUpsertionService {
     return existingValue;
   }
 
-  private String mergeName(
-      String fieldName, UUID paymentId, String existingValue, String newValue) {
+  private @Nullable String mergeName(
+      String fieldName, UUID paymentId, @Nullable String existingValue, @Nullable String newValue) {
     if (existingValue == null) {
       return newValue;
     } else if (newValue == null) {

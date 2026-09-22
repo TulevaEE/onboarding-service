@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.aml;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
+import static ee.tuleva.onboarding.aml.ScreeningOutcome.*;
 import static java.util.stream.Collectors.toUnmodifiableSet;
 
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
@@ -76,12 +77,14 @@ public class SanctionAndPepScreener {
     return Set.of();
   }
 
-  public boolean isSanctionAndPepClear(Person person, Set<Country> countries) {
+  public ScreeningOutcome screeningOutcome(Person person, Set<Country> countries) {
     if (screenForSanctionAndPep(person, countries).failed()) {
-      return false;
+      return UNAVAILABLE;
     }
-    return latestCheckPassed(person, SANCTION)
-        && latestCheckPassed(person, POLITICALLY_EXPOSED_PERSON_AUTO);
+    boolean clear =
+        latestCheckPassed(person, SANCTION)
+            && latestCheckPassed(person, POLITICALLY_EXPOSED_PERSON_AUTO);
+    return clear ? CLEAR : MATCH;
   }
 
   private boolean latestCheckPassed(Person person, AmlCheckType type) {

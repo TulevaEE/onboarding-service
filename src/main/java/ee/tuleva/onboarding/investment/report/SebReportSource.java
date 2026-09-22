@@ -62,10 +62,10 @@ public class SebReportSource extends AbstractReportSource {
       }
       String label = columns[0].trim();
       String value = columns[1].trim();
-      if ("Sent:".equals(label)) {
-        metadata.put("sentDate", value);
-      } else if ("As of:".equals(label)) {
-        metadata.put("asOfDate", value);
+      if (SebReportHeaders.SENT_LABEL.equals(label)) {
+        metadata.put(SebReportHeaders.SENT_METADATA_KEY, value);
+      } else if (SebReportHeaders.AS_OF_LABEL.equals(label)) {
+        metadata.put(SebReportHeaders.AS_OF_METADATA_KEY, value);
       }
     }
     return metadata;

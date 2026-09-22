@@ -13,6 +13,7 @@ import ee.tuleva.onboarding.epis.CashFlow;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -63,7 +64,7 @@ class PortfolioValuationTest {
         .amount(unitCount.multiply(navPerUnit))
         .currency(EUR)
         .time(Instant.parse(time))
-        .priceTime(Instant.parse(priceTime))
+        .navDate(Instant.parse(priceTime).atZone(ZoneId.of("Europe/Tallinn")).toLocalDate())
         .isin(isin)
         .type(type)
         .units(unitCount)

@@ -50,6 +50,10 @@ public class InstrumentReferenceFixture {
     return set("country", country);
   }
 
+  public InstrumentReferenceFixture instrumentType(String instrumentType) {
+    return set("instrumentType", instrumentType);
+  }
+
   public InstrumentReferenceFixture yahooTicker(String yahooTicker) {
     return set("yahooTicker", yahooTicker);
   }

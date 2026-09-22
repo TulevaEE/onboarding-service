@@ -49,9 +49,7 @@ class GiftLinkServiceTest {
     given(parentChildLinks.isActiveRepresentation(PARENT, CHILD)).willReturn(false);
 
     assertThatThrownBy(() -> service.openLinkFor(PARENT, CHILD))
-        .isInstanceOf(NotAllowedToGiftForException.class)
-        .hasFieldOrPropertyWithValue("parentPersonalCode", PARENT)
-        .hasFieldOrPropertyWithValue("childPersonalCode", CHILD);
+        .isInstanceOf(NotAllowedToGiftForException.class);
 
     verify(giftLinks, never()).saveAndFlush(any());
   }

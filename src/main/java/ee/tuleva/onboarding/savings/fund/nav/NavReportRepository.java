@@ -60,6 +60,18 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
   @Query(
       value =
           """
+          SELECT MAX(nav_date) FROM nav_report
+          WHERE fund_code = :fundCode
+            AND nav_date <= :asOfDate
+            AND published_at IS NOT NULL
+          """,
+      nativeQuery = true)
+  Optional<LocalDate> findLatestPublishedNavDateByFundOnOrBefore(
+      @Param("fundCode") String fundCode, @Param("asOfDate") LocalDate asOfDate);
+
+  @Query(
+      value =
+          """
           SELECT * FROM nav_report
           WHERE nav_date = :navDate AND fund_code = :fundCode
             AND calculation_id = (
@@ -139,11 +151,12 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
             AND nr.calculation_id = (
               SELECT calculation_id FROM nav_report
               WHERE nav_date = :navDate AND fund_code = :fundCode
-              ORDER BY id DESC LIMIT 1
+                AND published_at IS NOT NULL
+              ORDER BY published_at DESC, id DESC LIMIT 1
             )
           """,
       nativeQuery = true)
-  BigDecimal sumLatestCalculationMarketValueByAccountTypes(
+  BigDecimal sumPublishedCalculationMarketValueByAccountTypes(
       @Param("fundCode") String fundCode,
       @Param("navDate") LocalDate navDate,
       @Param("accountTypes") List<String> accountTypes);
@@ -154,16 +167,6 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
   Optional<NavReportRow>
       findFirstByFundCodeAndNavDateAndPublishedAtIsNotNullOrderByPublishedAtDescIdDesc(
           String fundCode, LocalDate navDate);
-
-  @Query(
-      """
-      SELECT MAX(row.navDate) FROM NavReportRow row
-      WHERE row.fundCode = :fundCode
-        AND row.navDate <= :asOfDate
-        AND row.publishedAt IS NOT NULL
-      """)
-  Optional<LocalDate> findLatestPublishedNavDateOnOrBefore(
-      @Param("fundCode") String fundCode, @Param("asOfDate") LocalDate asOfDate);
 
   @Query(
       """
@@ -199,6 +202,4 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
       @Param("fundCode") String fundCode,
       @Param("navDate") LocalDate navDate,
       @Param("calculationId") UUID calculationId);
-
-  boolean existsByFundCodeAndNavDate(String fundCode, LocalDate navDate);
 }

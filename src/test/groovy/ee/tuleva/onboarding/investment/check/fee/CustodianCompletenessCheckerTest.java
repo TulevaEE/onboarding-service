@@ -139,6 +139,21 @@ class CustodianCompletenessCheckerTest {
     assertThat(check().getFirst().severity()).isEqualTo(NOT_RUN);
   }
 
+  // A stretch of position dates with no nav_report is one gap in coverage that lasts, not a new
+  // finding on each of them: dated identifiers would repeat "Could not check" every morning.
+  @Test
+  void aRunOfPositionDatesWithoutANavReportNamesTheStretchOnce() {
+    givenPositionDates(EARLIER_POSITION_DATE, POSITION_DATE);
+    given(comparator.compare(TUK75, EARLIER_POSITION_DATE)).willReturn(Optional.empty());
+    given(comparator.compare(TUK75, POSITION_DATE)).willReturn(Optional.empty());
+
+    var finding = check().getFirst();
+
+    assertThat(finding.severity()).isEqualTo(NOT_RUN);
+    assertThat(finding.identifiers())
+        .containsExactly("no nav_report rows to compare the custodian positions against ongoing");
+  }
+
   // The window is 35 days wide, so only comparing the single latest position date in it meant a
   // wrong custodian input on any earlier day was never looked at - not on the day it landed if the
   // pipeline was behind, and never again afterwards.

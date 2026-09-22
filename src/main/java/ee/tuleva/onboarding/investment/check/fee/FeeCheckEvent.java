@@ -17,6 +17,7 @@ import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -33,6 +34,8 @@ import org.jspecify.annotations.Nullable;
 @NoArgsConstructor
 class FeeCheckEvent {
 
+  static final String FINGERPRINT = "fingerprint";
+
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private @Nullable Long id;
@@ -44,8 +47,6 @@ class FeeCheckEvent {
 
   @NotNull private LocalDate checkDate;
 
-  // Null for the daily legs, which walk a window spanning two fee months. The monthly legs set it,
-  // which is what gives each month its own severity-transition history in the notifier.
   private @Nullable LocalDate feeMonth;
 
   @NotNull
@@ -64,8 +65,6 @@ class FeeCheckEvent {
 
   private @Nullable BigDecimal deviationAmount;
 
-  // Skips this row when the next run looks for the previous severity, so a deviation first seen
-  // during a Slack outage alerts again rather than going silent for good.
   @NotNull private boolean alertFailed;
 
   @NotNull
@@ -74,6 +73,12 @@ class FeeCheckEvent {
   private Map<String, Object> result = Map.of();
 
   private @Nullable Instant createdAt;
+
+  @Nullable List<String> fingerprint() {
+    return result.get(FINGERPRINT) instanceof List<?> stored
+        ? stored.stream().map(String::valueOf).toList()
+        : null;
+  }
 
   @PrePersist
   protected void onCreate() {

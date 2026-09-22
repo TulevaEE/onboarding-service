@@ -15,9 +15,6 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-// The BlackRock adjustment is a direct input to the fee base but is entered by hand, per fund per
-// day, with no idempotency key. A stale balance is indistinguishable from a correct one, so age is
-// the only signal available until the entry is ingested rather than typed.
 @Component
 class BlackrockAdjustmentFreshnessChecker {
 
@@ -47,6 +44,7 @@ class BlackrockAdjustmentFreshnessChecker {
           finding(
               fund,
               FeeCheckSeverity.NOT_RUN,
+              List.of("noAdjustmentEverPosted"),
               "No BlackRock adjustment has ever been posted for this fund",
               Map.of()));
     }
@@ -61,6 +59,7 @@ class BlackrockAdjustmentFreshnessChecker {
           finding(
               fund,
               FeeCheckSeverity.WARNING,
+              List.of("staleSince=" + latestDate),
               "BlackRock adjustment is "
                   + ageWorkingDays
                   + " working days old (last posted "
@@ -68,12 +67,16 @@ class BlackrockAdjustmentFreshnessChecker {
                   + "); the fee base may be running on a stale balance",
               details));
     }
-    return List.of(finding(fund, FeeCheckSeverity.PASS, "", details));
+    return List.of(finding(fund, FeeCheckSeverity.PASS, List.of(), "", details));
   }
 
   private FeeCheckFinding finding(
-      TulevaFund fund, FeeCheckSeverity severity, String message, Map<String, Object> details) {
+      TulevaFund fund,
+      FeeCheckSeverity severity,
+      List<String> identifiers,
+      String message,
+      Map<String, Object> details) {
     return new FeeCheckFinding(
-        fund, BLACKROCK_ADJUSTMENT_FRESHNESS, ALL, severity, message, null, details);
+        fund, BLACKROCK_ADJUSTMENT_FRESHNESS, ALL, severity, message, null, identifiers, details);
   }
 }

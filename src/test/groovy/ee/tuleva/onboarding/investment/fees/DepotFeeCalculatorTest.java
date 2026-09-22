@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.fees;
 
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -8,6 +9,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
@@ -165,6 +167,8 @@ class DepotFeeCalculatorTest {
         .willReturn(Optional.of(tierRow(TUK75, LocalDate.of(2025, 1, 1), null)));
     given(fundNavQueryService.findLatestNavDateOnOrBefore(anyString(), eq(MAY_END)))
         .willReturn(Optional.of(LocalDate.of(2025, 5, 30)));
+    given(fundNavQueryService.findLatestPublishedNavDateOnOrBefore(anyString(), eq(MAY_END)))
+        .willReturn(Optional.of(LocalDate.of(2025, 5, 30)));
     given(fundNavQueryService.findAssetTotal(anyString(), eq(LocalDate.of(2025, 5, 30))))
         .willReturn(Optional.of(new BigDecimal("250000000")));
     given(publicHolidays.nextWorkingDay(LocalDate.of(2025, 5, 30)))
@@ -194,6 +198,93 @@ class DepotFeeCalculatorTest {
     FeeAccrual result = calculator.calculate(TUK75, date, BASES);
 
     assertThat(result.annualRate()).isEqualByComparingTo(ZERO);
+  }
+
+  // The anchor date and the assets read at it are now the same definition of a month end: the
+  // newest one that went out. A launched fund whose published assets are still unreadable leaves
+  // the band unknown, and a basis that cannot be completed is not a basis to charge a rate off.
+  @Test
+  void calculate_accruesNothingWhenAFundsAnchorHasNoPublishedAssets() {
+    LocalDate date = LocalDate.of(2025, 7, 15);
+    LocalDate feeMonth = LocalDate.of(2025, 7, 1);
+    LocalDate anchorDate = LocalDate.of(2025, 5, 30);
+
+    given(feeMonthResolver.resolveFeeMonth(date)).willReturn(feeMonth);
+    given(feeRateRepository.findValidRate(TUK75, FeeType.DEPOT, date))
+        .willReturn(Optional.of(tierRow(TUK75, LocalDate.of(2025, 1, 1), null)));
+    given(fundNavQueryService.findLatestNavDateOnOrBefore(anyString(), eq(MAY_END)))
+        .willReturn(Optional.of(anchorDate));
+    given(fundNavQueryService.findLatestPublishedNavDateOnOrBefore(anyString(), eq(MAY_END)))
+        .willReturn(Optional.of(anchorDate));
+    given(fundNavQueryService.findAssetTotal(anyString(), eq(anchorDate)))
+        .willReturn(Optional.empty());
+    lenient().when(publicHolidays.nextWorkingDay(anchorDate)).thenReturn(LocalDate.of(2025, 6, 2));
+    lenient()
+        .when(navLedgerRepository.getSystemAccountBalanceBefore(anyString(), any(Instant.class)))
+        .thenReturn(ZERO);
+
+    FeeAccrual result = calculator.calculate(TUK75, date, BASES);
+
+    assertThat(result.annualRate()).isEqualByComparingTo(ZERO);
+    assertThat(result.dailyAmountGross()).isEqualByComparingTo(ZERO);
+    verifyNoInteractions(tierRepository);
+  }
+
+  @Test
+  void calculate_anchorsOnTheLastPublishedMonthEndWhenTheNewestCalculationNeverWentOut() {
+    LocalDate date = LocalDate.of(2025, 7, 15);
+    LocalDate feeMonth = LocalDate.of(2025, 7, 1);
+    LocalDate publishedAnchor = LocalDate.of(2025, 5, 29);
+    BigDecimal tierRate = new BigDecimal("0.0004");
+
+    given(feeMonthResolver.resolveFeeMonth(date)).willReturn(feeMonth);
+    given(feeRateRepository.findValidRate(TUK75, FeeType.DEPOT, date))
+        .willReturn(Optional.of(tierRow(TUK75, LocalDate.of(2025, 1, 1), null)));
+    given(fundNavQueryService.findLatestNavDateOnOrBefore(anyString(), eq(MAY_END)))
+        .willReturn(Optional.of(MAY_END));
+    given(fundNavQueryService.findLatestPublishedNavDateOnOrBefore(anyString(), eq(MAY_END)))
+        .willReturn(Optional.of(publishedAnchor));
+    lenient()
+        .when(fundNavQueryService.findAssetTotal(anyString(), eq(MAY_END)))
+        .thenReturn(Optional.empty());
+    given(fundNavQueryService.findAssetTotal(anyString(), eq(publishedAnchor)))
+        .willReturn(Optional.of(new BigDecimal("350000000")));
+    given(publicHolidays.nextWorkingDay(publishedAnchor)).willReturn(LocalDate.of(2025, 6, 2));
+    given(navLedgerRepository.getSystemAccountBalanceBefore(anyString(), any(Instant.class)))
+        .willReturn(ZERO);
+    given(tierRepository.findRateForAum(new BigDecimal("1400000000"), feeMonth))
+        .willReturn(Optional.of(tierRate));
+
+    FeeAccrual result = calculator.calculate(TUK75, date, BASES);
+
+    assertThat(result.annualRate()).isEqualByComparingTo(tierRate);
+  }
+
+  @Test
+  void calculate_accruesNothingWhenOneFundOfFourIsMissingItsPublishedAssets() {
+    LocalDate date = LocalDate.of(2025, 7, 15);
+    LocalDate feeMonth = LocalDate.of(2025, 7, 1);
+
+    given(feeMonthResolver.resolveFeeMonth(date)).willReturn(feeMonth);
+    given(feeRateRepository.findValidRate(TUK75, FeeType.DEPOT, date))
+        .willReturn(Optional.of(tierRow(TUK75, LocalDate.of(2025, 1, 1), null)));
+    given(fundNavQueryService.findLatestNavDateOnOrBefore(anyString(), eq(MAY_END)))
+        .willReturn(Optional.of(MAY_END));
+    given(fundNavQueryService.findLatestPublishedNavDateOnOrBefore(anyString(), eq(MAY_END)))
+        .willReturn(Optional.of(MAY_END));
+    given(fundNavQueryService.findAssetTotal(anyString(), eq(MAY_END)))
+        .willReturn(Optional.of(new BigDecimal("350000000")));
+    given(fundNavQueryService.findAssetTotal(eq(TUK00.getCode()), eq(MAY_END)))
+        .willReturn(Optional.empty());
+    given(publicHolidays.nextWorkingDay(MAY_END)).willReturn(MAY_END.plusDays(1));
+    given(navLedgerRepository.getSystemAccountBalanceBefore(anyString(), any(Instant.class)))
+        .willReturn(ZERO);
+
+    FeeAccrual result = calculator.calculate(TUK75, date, BASES);
+
+    assertThat(result.annualRate()).isEqualByComparingTo(ZERO);
+    assertThat(result.dailyAmountGross()).isEqualByComparingTo(ZERO);
+    verifyNoInteractions(tierRepository);
   }
 
   @Test
@@ -294,6 +385,8 @@ class DepotFeeCalculatorTest {
         .willReturn(Optional.of(tierRow(TUK75, LocalDate.of(2025, 1, 1), null)));
     given(fundNavQueryService.findLatestNavDateOnOrBefore(anyString(), eq(MAY_END)))
         .willReturn(Optional.of(MAY_END));
+    given(fundNavQueryService.findLatestPublishedNavDateOnOrBefore(anyString(), eq(MAY_END)))
+        .willReturn(Optional.of(MAY_END));
     given(fundNavQueryService.findAssetTotal(anyString(), eq(MAY_END)))
         .willReturn(Optional.of(new BigDecimal("350000000")));
     given(publicHolidays.nextWorkingDay(MAY_END)).willReturn(MAY_END.plusDays(1));
@@ -314,6 +407,8 @@ class DepotFeeCalculatorTest {
 
   private void stubEveryFundsAssets(LocalDate anchor, BigDecimal perFundAssets) {
     given(fundNavQueryService.findLatestNavDateOnOrBefore(anyString(), eq(anchor)))
+        .willReturn(Optional.of(anchor));
+    given(fundNavQueryService.findLatestPublishedNavDateOnOrBefore(anyString(), eq(anchor)))
         .willReturn(Optional.of(anchor));
     given(fundNavQueryService.findAssetTotal(anyString(), eq(anchor)))
         .willReturn(Optional.of(perFundAssets));

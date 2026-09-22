@@ -38,6 +38,11 @@ public class FundNavQueryService {
         fundCode, NAV_ACCOUNT_TYPE, asOfDate);
   }
 
+  public Optional<LocalDate> findLatestPublishedNavDateOnOrBefore(
+      String fundCode, LocalDate asOfDate) {
+    return navReportRepository.findLatestPublishedNavDateByFundOnOrBefore(fundCode, asOfDate);
+  }
+
   public BigDecimal findAum(String fundCode, LocalDate navDate) {
     return navReportRepository.sumPublishedMarketValueByAccountType(fundCode, navDate, "UNITS");
   }
@@ -51,16 +56,11 @@ public class FundNavQueryService {
   }
 
   public Optional<BigDecimal> findFeeBaseComponentTotal(String fundCode, LocalDate navDate) {
-    return sumForLatestCalculationIncludingUnpublished(fundCode, navDate, FEE_BASE_ACCOUNT_TYPES);
+    return sumForPublishedCalculation(fundCode, navDate, FEE_BASE_ACCOUNT_TYPES);
   }
 
   public Optional<BigDecimal> findAssetTotal(String fundCode, LocalDate navDate) {
-    return sumForLatestCalculationIncludingUnpublished(fundCode, navDate, ASSET_ACCOUNT_TYPES);
-  }
-
-  public Optional<LocalDate> findLatestPublishedNavDateOnOrBefore(
-      String fundCode, LocalDate asOfDate) {
-    return navReportRepository.findLatestPublishedNavDateOnOrBefore(fundCode, asOfDate);
+    return sumForPublishedCalculation(fundCode, navDate, ASSET_ACCOUNT_TYPES);
   }
 
   public List<LocalDate> findPublishedNavDatesBetween(
@@ -96,13 +96,13 @@ public class FundNavQueryService {
                         fundCode, navDate, calculationId)));
   }
 
-  private Optional<BigDecimal> sumForLatestCalculationIncludingUnpublished(
+  private Optional<BigDecimal> sumForPublishedCalculation(
       String fundCode, LocalDate navDate, List<String> accountTypes) {
-    if (!navReportRepository.existsByFundCodeAndNavDate(fundCode, navDate)) {
+    if (!navReportRepository.existsPublishedByNavDateAndFundCode(navDate, fundCode)) {
       return Optional.empty();
     }
     return Optional.of(
-        navReportRepository.sumLatestCalculationMarketValueByAccountTypes(
+        navReportRepository.sumPublishedCalculationMarketValueByAccountTypes(
             fundCode, navDate, accountTypes));
   }
 

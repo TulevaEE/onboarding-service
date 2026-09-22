@@ -26,11 +26,6 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-// Closes the loop from the accrual ledger to money actually leaving the fund account. Matching is
-// deliberately coarse: the payment carries no fee month, no fee type and no reference to the
-// settled accrual, and it is recognised from a beneficiary name plus a description substring. So a
-// renamed payment description reads here as "settlement not observed", which is the honest result -
-// the fix for that belongs in the ingestion matcher, not in this check.
 @Component
 class CashSettlementChecker {
 
@@ -166,9 +161,6 @@ class CashSettlementChecker {
         details);
   }
 
-  // A month is only settled on its last day, so anything paid before that belongs to the previous
-  // month: opening the window on the fee month instead would sweep it in and report two payments
-  // every single month.
   private List<LedgerEntryAmount> paymentsSinceSettlement(
       TulevaFund fund, LocalDate settlementDate, LocalDate windowCloses) {
     return entries(

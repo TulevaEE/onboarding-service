@@ -47,8 +47,6 @@ class FeeCheckEvent {
 
   @NotNull private LocalDate checkDate;
 
-  // Null for the daily legs, which walk a window spanning two fee months. The monthly legs set it,
-  // which is what gives each month its own severity-transition history in the notifier.
   private @Nullable LocalDate feeMonth;
 
   @NotNull
@@ -67,8 +65,6 @@ class FeeCheckEvent {
 
   private @Nullable BigDecimal deviationAmount;
 
-  // Skips this row when the next run looks for the previous severity, so a deviation first seen
-  // during a Slack outage alerts again rather than going silent for good.
   @NotNull private boolean alertFailed;
 
   @NotNull
@@ -78,9 +74,6 @@ class FeeCheckEvent {
 
   private @Nullable Instant createdAt;
 
-  // A row written before the notifier compared finding sets carries no fingerprint at all, which is
-  // not the same as one that reported nothing: null lets the run after the deploy fall back to
-  // comparing severity alone instead of announcing every check that is still reporting something.
   @Nullable List<String> fingerprint() {
     return result.get(FINGERPRINT) instanceof List<?> stored
         ? stored.stream().map(String::valueOf).toList()

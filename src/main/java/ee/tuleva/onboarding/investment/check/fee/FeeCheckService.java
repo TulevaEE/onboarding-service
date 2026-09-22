@@ -70,23 +70,20 @@ class FeeCheckService {
         funds,
         checkDate,
         null,
-        fund -> dailyFindings(fund, windowStart(fund, checkDate), checkDate));
+        fund ->
+            dailyFindings(
+                fund, windowStartCoveringUnresolvedDeviations(fund, checkDate), checkDate));
   }
 
-  // Reaches back over whatever the run that first saw an outstanding deviation was looking at.
-  // A rolling window alone lets an unfixed deviation age out, and the checker's pass on a window
-  // that no longer covers the divergent date is announced as CLEARED.
-  private LocalDate windowStart(TulevaFund fund, LocalDate checkDate) {
-    var rollingFrom = checkDate.minusDays(lookbackDays);
+  private LocalDate windowStartCoveringUnresolvedDeviations(TulevaFund fund, LocalDate checkDate) {
+    var rollingWindowStart = checkDate.minusDays(lookbackDays);
     return eventRepository
         .findOldestUnresolvedDailyDeviationDate(fund)
         .map(firstSeen -> firstSeen.minusDays(lookbackDays))
-        .filter(rollingFrom::isAfter)
-        .orElse(rollingFrom);
+        .filter(rollingWindowStart::isAfter)
+        .orElse(rollingWindowStart);
   }
 
-  // The cash leg trails the settlement leg by a month: a month settles on its last day but the
-  // payment only lands weeks later, so asking about the same month would always answer NOT_RUN.
   @Transactional
   List<FeeCheckResult> runMonthlyChecks(
       List<TulevaFund> funds, LocalDate settlementMonth, LocalDate cashMonth, LocalDate checkDate) {
@@ -107,8 +104,6 @@ class FeeCheckService {
     return results;
   }
 
-  // A run whose alert never reached anyone must not become the baseline the next run diffs
-  // against, or a deviation that first appeared during a Slack outage stays silent forever.
   private void notifyAndRecordDelivery(List<FeeCheckResult> results, List<FeeCheckEvent> saved) {
     if (notifier.notify(results) != FeeCheckNotification.SEND_FAILED) {
       return;
@@ -192,8 +187,6 @@ class FeeCheckService {
         () -> settlementCompletenessChecker.check(fund, feeMonth, checkDate));
   }
 
-  // The fallback covers the same scopes the checker would have written, so a later successful run
-  // can transition them back out of NOT_RUN.
   private List<FeeCheckFinding> runChecker(
       TulevaFund fund,
       FeeCheckType checkType,

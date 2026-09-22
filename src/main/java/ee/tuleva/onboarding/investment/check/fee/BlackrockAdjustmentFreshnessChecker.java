@@ -15,9 +15,6 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-// The BlackRock adjustment is a direct input to the fee base but is entered by hand, per fund per
-// day, with no idempotency key. A stale balance is indistinguishable from a correct one, so age is
-// the only signal available until the entry is ingested rather than typed.
 @Component
 class BlackrockAdjustmentFreshnessChecker {
 

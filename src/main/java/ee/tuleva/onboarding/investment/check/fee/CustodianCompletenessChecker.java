@@ -14,9 +14,6 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-// The fee base recomputes cleanly from the NAV components even when a custodian row never made it
-// into the ledger, because those components are themselves fed by the filtered ingestion. Only
-// comparing against the custodian report can see a wrong input rather than a wrong formula.
 @Component
 class CustodianCompletenessChecker {
 

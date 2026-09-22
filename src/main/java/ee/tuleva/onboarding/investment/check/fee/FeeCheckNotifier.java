@@ -74,9 +74,6 @@ class FeeCheckNotifier {
     return transitions;
   }
 
-  // A monthly leg is keyed on a fixed fee month: nothing rolls out of view, so a total that fell is
-  // the money itself moving and has to speak. Only the daily legs sum over a window that moves on
-  // its own, where a smaller total can mean no more than the oldest day leaving the window.
   private boolean hasSomethingNewToSay(
       CheckState current, CheckState previous, FeeCheckResult result) {
     if (!sameSeverity(current, previous)) {
@@ -89,15 +86,15 @@ class FeeCheckNotifier {
         || movedEnoughToSpeak(current, previous, result);
   }
 
-  // A row written before the fingerprint existed carries none, and reading that absence as a check
-  // that gained every finding it reports would post one message per standing check on the first run
-  // after deploy. Comparing what it does carry keeps that run quiet without going blind on a
-  // deviation that actually moved.
   private boolean movedEnoughToSpeak(
       CheckState current, CheckState previous, FeeCheckResult result) {
-    return result.feeMonth() != null
-        ? totalDiffers(current, previous)
+    return keyedToAFixedFeeMonth(result)
+        ? totalMovedEitherWay(current, previous)
         : totalGrew(current, previous);
+  }
+
+  private static boolean keyedToAFixedFeeMonth(FeeCheckResult result) {
+    return result.feeMonth() != null;
   }
 
   private static boolean sameSeverity(CheckState current, CheckState previous) {
@@ -121,7 +118,7 @@ class FeeCheckNotifier {
     return current.totalDeviation().compareTo(previous.totalDeviation()) > 0;
   }
 
-  private static boolean totalDiffers(CheckState current, CheckState previous) {
+  private static boolean totalMovedEitherWay(CheckState current, CheckState previous) {
     return current.totalDeviation().compareTo(previous.totalDeviation()) != 0;
   }
 
@@ -139,13 +136,6 @@ class FeeCheckNotifier {
         FeeCheckFinding.totalDeviation(findings));
   }
 
-  // Diffs within the fee_month bucket, so a fresh month's failure is never masked by the previous
-  // month having failed too.
-  //
-  // The finding set and the deviation travel with the severity because severity alone goes blind
-  // on a standing failure: a divergence that cannot be recalculated - a fee accrual is
-  // forward-only, so a day written before a fix keeps its old base forever - parks the check at
-  // FAIL, and from then on every later FAIL is "no change" and never reaches anyone.
   private CheckState previousState(
       FeeCheckResult result, FeeCheckType checkType, FeeCheckScope scope) {
     var feeMonth = result.feeMonth();
@@ -167,15 +157,9 @@ class FeeCheckNotifier {
         deviation != null ? deviation : BigDecimal.ZERO);
   }
 
-  // What a run reported: the worst severity, the set of findings behind it, and what they add up
-  // to. Severity alone goes blind on a standing failure, and a total alone cannot tell a check that
-  // found something new from one whose oldest day rolled out of view.
   private record CheckState(
       FeeCheckSeverity severity, @Nullable List<String> fingerprint, BigDecimal totalDeviation) {}
 
-  // At an unchanged severity the finding messages read exactly as they did on the run the operator
-  // has already seen, so a re-alert has to name what the check has newly found - and say it in the
-  // words of the finding that carries it, not of whichever finding happens to come first.
   private String message(List<FeeCheckFinding> findings, List<String> gained) {
     if (gained.isEmpty()) {
       return firstMessage(findings);
@@ -197,9 +181,6 @@ class FeeCheckNotifier {
     return "New since the last alert: " + String.join(" · ", shown) + suffix;
   }
 
-  // The fingerprint tags each identifier with its severity so that the same finding at a new
-  // severity reads as a change. The line already opens with that severity, so the tag is dropped
-  // on the way to the operator rather than said twice.
   private static String withoutSeverityTag(String taggedIdentifier) {
     return taggedIdentifier.substring(taggedIdentifier.indexOf(' ') + 1);
   }

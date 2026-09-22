@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.investment.transaction.OrderStatus.EXECUTED;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SENT;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.SETTLED;
 import static ee.tuleva.onboarding.investment.transaction.TransactionType.BUY;
+import static ee.tuleva.onboarding.investment.transaction.TransactionType.SELL;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TKF100;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -383,6 +384,148 @@ class SebPendingTransactionReconciliationIT {
     assertThat(alert.minUnitPrice()).isEqualByComparingTo("9.99");
     assertThat(alert.maxUnitPrice()).isEqualByComparingTo("10.40");
     assertThat(alert.reportDate()).isEqualTo(LocalDate.of(2026, 6, 24));
+  }
+
+  @Test
+  void reconcile_fundRedemptionRoundedBySeb_storesOrderedQuantityAndRaisesNoMismatch(
+      ApplicationEvents events) {
+    UUID redemptionRef = UUID.randomUUID();
+    TransactionBatch batch =
+        batchRepository.save(TransactionBatch.builder().fund(TKF100).createdBy("test").build());
+    TransactionOrder redemption =
+        orderRepository.save(
+            TransactionOrder.builder()
+                .batch(batch)
+                .fund(TKF100)
+                .instrumentIsin("IE0009FT4LX4")
+                .transactionType(SELL)
+                .instrumentType(FUND)
+                .orderQuantity(new BigDecimal("18811874.096"))
+                .orderVenue(OrderVenue.SEB)
+                .orderUuid(redemptionRef)
+                .orderStatus(SENT)
+                .build());
+
+    InvestmentReport redemptionReport =
+        reportRepository.save(
+            InvestmentReport.builder()
+                .provider(SEB)
+                .reportType(PENDING_TRANSACTIONS)
+                .reportDate(LocalDate.of(2026, 8, 26))
+                .rawData(List.of(redemptionRow(redemptionRef, "DLA1116935", "18811874.1")))
+                .metadata(Map.of("source", "fixture", "asOfDate", "2026-08-26"))
+                .createdAt(Instant.now())
+                .build());
+
+    reconciliationService.reconcile(redemptionReport);
+    entityManager.flush();
+    entityManager.clear();
+
+    assertThat(events.stream(QuantityAmountMismatchEvent.class)).isEmpty();
+    TransactionExecution execution =
+        executionRepository.findAllByOrderId(redemption.getId()).getFirst();
+    assertThat(execution.getExecutedQuantity()).isEqualByComparingTo("18811874.096");
+  }
+
+  @Test
+  void reconcile_fundRedemptionRoundedBySeb_auditEventKeepsSebReportedQuantity() {
+    UUID redemptionRef = UUID.randomUUID();
+    TransactionBatch batch =
+        batchRepository.save(TransactionBatch.builder().fund(TKF100).createdBy("test").build());
+    TransactionOrder redemption =
+        orderRepository.save(
+            TransactionOrder.builder()
+                .batch(batch)
+                .fund(TKF100)
+                .instrumentIsin("IE0009FT4LX4")
+                .transactionType(SELL)
+                .instrumentType(FUND)
+                .orderQuantity(new BigDecimal("18811874.096"))
+                .orderVenue(OrderVenue.SEB)
+                .orderUuid(redemptionRef)
+                .orderStatus(SENT)
+                .build());
+
+    InvestmentReport redemptionReport =
+        reportRepository.save(
+            InvestmentReport.builder()
+                .provider(SEB)
+                .reportType(PENDING_TRANSACTIONS)
+                .reportDate(LocalDate.of(2026, 8, 26))
+                .rawData(List.of(redemptionRow(redemptionRef, "DLA1116935", "18811874.1")))
+                .metadata(Map.of("source", "fixture", "asOfDate", "2026-08-26"))
+                .createdAt(Instant.now())
+                .build());
+
+    reconciliationService.reconcile(redemptionReport);
+    entityManager.flush();
+    entityManager.clear();
+
+    Map<String, Object> payload =
+        auditEventRepository
+            .findByOrderIdAndEventType(redemption.getId(), "EXECUTION_MATCHED")
+            .getFirst()
+            .getPayload();
+    assertThat(new BigDecimal(payload.get("sebReportedQuantity").toString()))
+        .isEqualByComparingTo("18811874.1");
+    assertThat(new BigDecimal(payload.get("quantity").toString()))
+        .isEqualByComparingTo("18811874.096");
+    assertThat(payload.get("quantitySubstitutionReason")).isEqualTo("SEB_REPORTED_PRECISION");
+  }
+
+  @Test
+  void reconcile_fundRedemptionGenuinelyOverfilled_stillRaisesMismatch(ApplicationEvents events) {
+    UUID redemptionRef = UUID.randomUUID();
+    TransactionBatch batch =
+        batchRepository.save(TransactionBatch.builder().fund(TKF100).createdBy("test").build());
+    orderRepository.save(
+        TransactionOrder.builder()
+            .batch(batch)
+            .fund(TKF100)
+            .instrumentIsin("IE0009FT4LX4")
+            .transactionType(SELL)
+            .instrumentType(FUND)
+            .orderQuantity(new BigDecimal("18811874.096"))
+            .orderVenue(OrderVenue.SEB)
+            .orderUuid(redemptionRef)
+            .orderStatus(SENT)
+            .build());
+
+    InvestmentReport redemptionReport =
+        reportRepository.save(
+            InvestmentReport.builder()
+                .provider(SEB)
+                .reportType(PENDING_TRANSACTIONS)
+                .reportDate(LocalDate.of(2026, 8, 26))
+                .rawData(List.of(redemptionRow(redemptionRef, "DLA1116935", "18811974.096")))
+                .metadata(Map.of("source", "fixture", "asOfDate", "2026-08-26"))
+                .createdAt(Instant.now())
+                .build());
+
+    reconciliationService.reconcile(redemptionReport);
+
+    assertThat(events.stream(QuantityAmountMismatchEvent.class)).hasSize(1);
+  }
+
+  private static Map<String, Object> redemptionRow(UUID clientRef, String ourRef, String quantity) {
+    BigDecimal qty = new BigDecimal(quantity);
+    BigDecimal unitPrice = new BigDecimal("17.314");
+    Map<String, Object> raw = new HashMap<>();
+    raw.put("ISIN", "IE0009FT4LX4");
+    raw.put("Price", unitPrice);
+    raw.put("Total", qty.multiply(unitPrice));
+    raw.put("Account", "VP68958");
+    raw.put("Our ref", ourRef);
+    raw.put("Buy/Sell", "Sell");
+    raw.put("Quantity", qty);
+    raw.put("Broker fee", new BigDecimal("0.00"));
+    raw.put("Client ref", clientRef.toString());
+    raw.put("Trade date", "2026-08-24T09:48:09Z");
+    raw.put("Settlement date", "2026-08-27");
+    raw.put("Settlement amount", qty.multiply(unitPrice));
+    raw.put("Client name", "Tuleva Täiendav Kogumisfond");
+    raw.put("Instrument name", "CCF Developed World (ESG Screened) Index Fund Class X0");
+    return raw;
   }
 
   private static Map<String, Object> splitRowAtPrice(

@@ -87,6 +87,8 @@ Package layout: `ee.tuleva.onboarding.investment.transaction.ingest/` holds reco
 
 Scheduled jobs: `SebPendingTransactionReconciliationJob` (daily 09:00 EET, 7-day lookback) is load-bearing because `ReportImportCompleted` only fires on a *successful* `saveReport` — unchanged S3 files produce no event. `PortfolioCostBasisJob` (daily 10:00 EET) advances the ledger; a self-heal job (02:30 EET) rebuilds the last 14 days.
 
+SEB reports quantities and prices to **10 significant digits**, so a fund holding above 10M units comes back with its third decimal rounded off (`18811874.096` → `18811874.1`). The reported quantity is therefore not the authority on units redeemed — `ReportedQuantityNormalizer` takes the ordered quantity whenever the cumulative agrees at that precision, with the closing piece absorbing the residue. Without it a full redemption reads as an overfill, is quarantined before the upsert and never settles; stored raw it would also leave a negative residual in the cost-basis ledger.
+
 NAV cross-check: SEB execution `unit_price` vs `nav_report.market_price` for same ISIN+date, ETF-only, T+0, `1.0%` tolerance. Alerts (unmatched rows, price mismatches, overdue settlements) go through `EmailService.sendSystemEmail` (Mandrill).
 
 ## Database

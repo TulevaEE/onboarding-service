@@ -43,7 +43,7 @@ class ReconciliationAuditRecorderTest {
 
   @Test
   void recordExecutionMatched_savesEventWithOrderIdAndRowPayload() {
-    newRecorder().recordExecutionMatched(sampleOrder(), sampleRow(), REPORT_DATE);
+    newRecorder().recordExecutionMatched(sampleOrder(), sampleRow(), REPORT_DATE, null);
 
     verify(auditEventRepository)
         .save(
@@ -60,7 +60,7 @@ class ReconciliationAuditRecorderTest {
 
   @Test
   void recordExecutionMatched_savesEventWithFullRowPayload() {
-    newRecorder().recordExecutionMatched(sampleOrder(), sampleRow(), REPORT_DATE);
+    newRecorder().recordExecutionMatched(sampleOrder(), sampleRow(), REPORT_DATE, null);
 
     verify(auditEventRepository)
         .save(
@@ -80,6 +80,61 @@ class ReconciliationAuditRecorderTest {
                         && "VP68168".equals(event.getPayload().get("account"))
                         && "ICAV Amundi MSCI USA Screened UCITS ETF"
                             .equals(event.getPayload().get("instrumentName"))));
+  }
+
+  @Test
+  void recordExecutionMatched_quantitySubstituted_savesSebReportedQuantityBesideStoredQuantity() {
+    newRecorder()
+        .recordExecutionMatched(
+            sampleOrder(), sampleRow(), REPORT_DATE, new BigDecimal("15007.0001"));
+
+    verify(auditEventRepository)
+        .save(
+            argThat(
+                (TransactionAuditEvent event) ->
+                    "EXECUTION_MATCHED".equals(event.getEventType())
+                        && new BigDecimal("15007").equals(event.getPayload().get("quantity"))
+                        && new BigDecimal("15007.0001")
+                            .equals(event.getPayload().get("sebReportedQuantity"))
+                        && "SEB_REPORTED_PRECISION"
+                            .equals(event.getPayload().get("quantitySubstitutionReason"))));
+  }
+
+  @Test
+  void recordExecutionMatched_quantityNotSubstituted_savesNoSebReportedQuantity() {
+    newRecorder().recordExecutionMatched(sampleOrder(), sampleRow(), REPORT_DATE, null);
+
+    verify(auditEventRepository)
+        .save(
+            argThat(
+                (TransactionAuditEvent event) ->
+                    "EXECUTION_MATCHED".equals(event.getEventType())
+                        && !event.getPayload().containsKey("sebReportedQuantity")
+                        && !event.getPayload().containsKey("quantitySubstitutionReason")));
+  }
+
+  @Test
+  void recordExecutionUpdated_quantitySubstituted_savesSebReportedQuantityBesideDelta() {
+    newRecorder()
+        .recordExecutionUpdated(
+            sampleOrder(),
+            sampleRow(),
+            REPORT_DATE,
+            Map.of("executedQuantity", "15006"),
+            Map.of("executedQuantity", "15007"),
+            new BigDecimal("15007.0001"));
+
+    verify(auditEventRepository)
+        .save(
+            argThat(
+                (TransactionAuditEvent event) ->
+                    "EXECUTION_UPDATED".equals(event.getEventType())
+                        && new BigDecimal("15007.0001")
+                            .equals(event.getPayload().get("sebReportedQuantity"))
+                        && "SEB_REPORTED_PRECISION"
+                            .equals(event.getPayload().get("quantitySubstitutionReason"))
+                        && Map.of("executedQuantity", "15007")
+                            .equals(event.getPayload().get("after"))));
   }
 
   @Test

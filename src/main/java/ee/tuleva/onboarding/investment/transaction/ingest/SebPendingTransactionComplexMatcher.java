@@ -21,6 +21,7 @@ class SebPendingTransactionComplexMatcher {
   private final TransactionExecutionRepository executionRepository;
   private final SebClientNameToFundResolver fundResolver;
   private final QuantityAmountValidator quantityAmountValidator;
+  private final ReportedQuantityNormalizer quantityNormalizer;
 
   Optional<TransactionOrder> match(
       SebPendingTransactionRow row, TransactionMatchingProperties properties) {
@@ -47,9 +48,6 @@ class SebPendingTransactionComplexMatcher {
     return Optional.of(inTolerance.get(0));
   }
 
-  // True if the row has any same-fund+ISIN+side order within the near-miss band — including the
-  // ambiguous case where findNearMiss returns empty because there is more than one candidate. The
-  // settlement digest uses this so a near-miss row is treated as a mismatch, not as "unmatched".
   boolean hasNearMissCandidate(
       SebPendingTransactionRow row, TransactionMatchingProperties properties) {
     List<TransactionOrder> candidates = sameFundIsinSideCandidates(row);
@@ -66,19 +64,22 @@ class SebPendingTransactionComplexMatcher {
     if (candidates == null) {
       return Optional.empty();
     }
-    // Only consider candidates that are NOT already a clean in-tolerance match —
-    // a clean match would have been picked up by match() and is not a near miss.
     List<TransactionOrder> nearMissCandidates =
-        candidates.stream()
-            .filter(o -> !withinResidualAwareTolerance(o, row, properties))
-            .filter(o -> withinResidualAwareNearMiss(o, row, properties))
-            .toList();
+        candidates.stream().filter(o -> isNearMissButNotCleanMatch(o, row, properties)).toList();
 
     if (nearMissCandidates.size() != 1) {
       return Optional.empty();
     }
     TransactionOrder order = nearMissCandidates.get(0);
     return Optional.of(quantityAmountValidator.buildMismatchEvent(order, row, properties));
+  }
+
+  private boolean isNearMissButNotCleanMatch(
+      TransactionOrder order,
+      SebPendingTransactionRow row,
+      TransactionMatchingProperties properties) {
+    return !withinResidualAwareTolerance(order, row, properties)
+        && withinResidualAwareNearMiss(order, row, properties);
   }
 
   private @Nullable List<TransactionOrder> sameFundIsinSideCandidates(
@@ -107,9 +108,11 @@ class SebPendingTransactionComplexMatcher {
       SebPendingTransactionRow row,
       TransactionMatchingProperties properties) {
     List<TransactionExecution> executions = executionRepository.findAllByOrderId(order.getId());
+    SebPendingTransactionRow normalized = quantityNormalizer.normalize(order, row, executions);
     return executions.isEmpty()
-        ? quantityAmountValidator.withinTolerance(order, row, properties)
-        : quantityAmountValidator.withinResidualTolerance(order, row, executions, properties);
+        ? quantityAmountValidator.withinTolerance(order, normalized, properties)
+        : quantityAmountValidator.withinResidualTolerance(
+            order, normalized, executions, properties);
   }
 
   private boolean withinResidualAwareNearMiss(
@@ -117,8 +120,9 @@ class SebPendingTransactionComplexMatcher {
       SebPendingTransactionRow row,
       TransactionMatchingProperties properties) {
     List<TransactionExecution> executions = executionRepository.findAllByOrderId(order.getId());
+    SebPendingTransactionRow normalized = quantityNormalizer.normalize(order, row, executions);
     return executions.isEmpty()
-        ? quantityAmountValidator.withinNearMiss(order, row, properties)
-        : quantityAmountValidator.withinResidualNearMiss(order, row, executions, properties);
+        ? quantityAmountValidator.withinNearMiss(order, normalized, properties)
+        : quantityAmountValidator.withinResidualNearMiss(order, normalized, executions, properties);
   }
 }

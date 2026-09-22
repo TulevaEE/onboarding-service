@@ -79,7 +79,8 @@ class GiftLinkSecurityTest {
 
   @Test
   void aStrangerMayNotReadTheGiftsAChildReceived() throws Exception {
-    mvc.perform(get("/v1/savings-fund/gift-links/gifts")).andExpect(status().isForbidden());
+    mvc.perform(get("/v1/savings-fund/gift-links/" + UUID.randomUUID() + "/gifts"))
+        .andExpect(status().isForbidden());
 
     verifyNoInteractions(receivedGiftService);
   }

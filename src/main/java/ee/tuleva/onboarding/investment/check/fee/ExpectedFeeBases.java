@@ -73,9 +73,6 @@ class ExpectedFeeBases {
     return Optional.of(total.get().add(navFeeBaseBlackrockAdjustment(fund, date)));
   }
 
-  // The funds crossed over on different days, so no date holds them all to one definition. Left
-  // uncompared rather than held to the old one: every depot accrual before the cutover is zero at
-  // a zero rate, so there is no fee behind the base either way.
   private boolean predatesTheAssetBaseCutover(FeeType feeType, LocalDate accrualDate) {
     return feeType == FeeType.DEPOT && accrualDate.isBefore(depotAssetBaseFrom);
   }

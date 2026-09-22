@@ -97,16 +97,13 @@ class FeeBaseCompletenessChecker {
     return checkDivergence(date, bases, expected.get(), mismatches);
   }
 
-  // Both fees are charged on components of one calculation, so one wrong calculation diverges once
-  // per fee type, and adding those up reported twice the base that was ever wrong. Absolute,
-  // because a day accrued too high and a day accrued too low are two errors, not one that cancels.
   private BigDecimal checkDivergence(
       LocalDate date,
       List<FeeBaseValue> bases,
       Map<FeeType, BigDecimal> expected,
       List<String> mismatches) {
     var divergent = new TreeMap<String, String>();
-    var widestDeviation = ZERO;
+    var widestAbsoluteDeviation = ZERO;
     for (var base : bases) {
       var navComponent = expected.get(base.feeType());
       if (navComponent == null) {
@@ -124,12 +121,12 @@ class FeeBaseCompletenessChecker {
               + navComponent.toPlainString()
               + " missing="
               + deviation.toPlainString());
-      widestDeviation = widestDeviation.max(deviation.abs());
+      widestAbsoluteDeviation = widestAbsoluteDeviation.max(deviation.abs());
     }
     if (!divergent.isEmpty()) {
       mismatches.add(date + " " + divergent);
     }
-    return widestDeviation;
+    return widestAbsoluteDeviation;
   }
 
   private List<FeeType> feeTypesThatStoppedAccruing(

@@ -57,8 +57,6 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
       @Param("accountType") String accountType,
       @Param("asOfDate") LocalDate asOfDate);
 
-  // The newest date a published sum can be read at. A date holding a calculation that never went
-  // out is not one, so a reader that only sees published numbers falls back to the date that did.
   @Query(
       value =
           """
@@ -143,8 +141,6 @@ public interface NavReportRepository extends JpaRepository<NavReportRow, Long> {
       @Param("navDate") LocalDate navDate,
       @Param("accountType") String accountType);
 
-  // The components the published NAV was built from, for reading back the fee base a fee was
-  // charged on. Same publication ordering as findPublishedNavPerUnit, and for the same reason.
   @Query(
       value =
           """

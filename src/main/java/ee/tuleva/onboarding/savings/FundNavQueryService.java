@@ -38,10 +38,6 @@ public class FundNavQueryService {
         fundCode, NAV_ACCOUNT_TYPE, asOfDate);
   }
 
-  // The anchor for a reader of published sums: the newest date whose calculation actually went
-  // out. findLatestNavDateOnOrBefore does not filter on published_at, so pairing it with
-  // findPublishedCalculation silently yields nothing whenever the most recent calculation is still
-  // unpublished, even though an earlier published one exists.
   public Optional<LocalDate> findLatestPublishedNavDateOnOrBefore(
       String fundCode, LocalDate asOfDate) {
     return navReportRepository.findLatestPublishedNavDateByFundOnOrBefore(fundCode, asOfDate);

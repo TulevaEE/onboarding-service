@@ -70,8 +70,6 @@ public class DepotRateResolver {
     return feeMonth.minusMonths(1).minusDays(1);
   }
 
-  // A fund short of its published month end leaves the band unknown, not lower: summing what we do
-  // have would read that fund as worth nothing and could charge every fund the wrong rate.
   private Optional<BigDecimal> combinedFundAssetsAt(LocalDate anchor) {
     return Arrays.stream(TulevaFund.values())
         .map(fund -> publishedAssetsAtAnchor(fund, anchor))

@@ -20,7 +20,7 @@
             indeksfondis:
           </strong>
         </mj-text>
-        <mj-button href="https://pension.tuleva.ee/login">Vaatan järele</mj-button>
+        <mj-button href="https://pension.tuleva.ee/login?utm_content=nudge_second_pillar">Vaatan järele</mj-button>
       </mj-column>
     </mj-section>
 

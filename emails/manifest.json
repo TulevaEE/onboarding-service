@@ -335,7 +335,7 @@
     "third_pillar_payment_arrived": "Sent by the daily noon job to people whose first ever own contribution has reached the third pillar fund, including payers who have never logged in. Each person gets it once; capped at 200 recipients per day.",
     "third_pillar_payment_reminder_mandate": "Scheduled one hour after signing a third pillar mandate and cancelled if the payment arrives first, so it only reaches people who have not paid yet.",
     "third_pillar_payment_success_mandate": "Sent when the third pillar payment made inside the app is completed, with the signed mandate attached. Cancels the pending payment reminder.",
-    "third_pillar_suggest_second": "Scheduled three days after signing a third pillar mandate, only for adults whose second pillar is not with Tuleva.",
+    "third_pillar_suggest_second": "Scheduled three days after signing a third pillar mandate, or after the first bank payment of a saver without a Tuleva account, only for adults who have a second pillar that is not with Tuleva.",
     "withdrawal_batch": "Sent right after signing a batch of withdrawal applications (fund pension or partial withdrawal), with the signed applications attached and the payout timing.",
     "savings_fund_onboarding_completed_person": "Planned: sent when a person’s savings fund account is opened (KYC passed), inviting the first contribution. The event exists in code; the email trigger is not wired yet.",
     "savings_fund_onboarding_completed_child": "Planned: sent to the parent when a child’s savings fund account is opened, inviting the first contribution. Trigger not wired yet.",

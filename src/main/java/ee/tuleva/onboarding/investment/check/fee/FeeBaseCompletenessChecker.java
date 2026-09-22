@@ -18,7 +18,6 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
@@ -31,7 +30,7 @@ class FeeBaseCompletenessChecker {
   private static final int MAX_DAYS_IN_MESSAGE = 10;
   private static final String ACCRUED_NOTHING_AT_ALL = "accrued no fee at all";
   private static final String STOPPED_ACCRUING = "stopped accruing ";
-  private static final String NO_NAV_REPORT = "no nav_report rows to compare the fee base against";
+  private static final String NO_PUBLISHED_NAV = "no published NAV to compare the fee base against";
 
   private final FeeAccrualRepository feeAccrualRepository;
   private final ExpectedFeeBases expectedFeeBases;
@@ -73,7 +72,7 @@ class FeeBaseCompletenessChecker {
     }
 
     if (!mismatches.isEmpty()) {
-      return List.of(failure(fund, mismatches, totalDeviation.abs(), workingDays));
+      return List.of(failure(fund, mismatches, totalDeviation, workingDays));
     }
     if (!notRunDays.isEmpty()) {
       return List.of(notRun(fund, notRunDays, workingDays));
@@ -108,11 +107,12 @@ class FeeBaseCompletenessChecker {
       Map<FeeType, BigDecimal> expected,
       List<DatedCondition> mismatches) {
     var divergent = new TreeMap<String, String>();
-    var dayDeviation = ZERO;
+    var widestAbsoluteDeviation = ZERO;
     for (var base : bases) {
-      var navComponent =
-          Objects.requireNonNull(
-              expected.get(base.feeType()), "Expected fee base missing: feeType=" + base.feeType());
+      var navComponent = expected.get(base.feeType());
+      if (navComponent == null) {
+        continue;
+      }
       var deviation = navComponent.subtract(base.baseValue());
       if (deviation.abs().compareTo(feeBaseTolerance) <= 0) {
         continue;
@@ -125,12 +125,12 @@ class FeeBaseCompletenessChecker {
               + navComponent.toPlainString()
               + " missing="
               + deviation.toPlainString());
-      dayDeviation = dayDeviation.add(deviation);
+      widestAbsoluteDeviation = widestAbsoluteDeviation.max(deviation.abs());
     }
     if (!divergent.isEmpty()) {
       mismatches.add(new DatedCondition(date, divergent.toString()));
     }
-    return dayDeviation;
+    return widestAbsoluteDeviation;
   }
 
   private List<FeeType> feeTypesThatStoppedAccruing(
@@ -185,20 +185,19 @@ class FeeBaseCompletenessChecker {
 
   private FeeCheckFinding notRun(
       TulevaFund fund, List<LocalDate> days, List<LocalDate> examinedDays) {
-    var daysWithoutNavReport = days.stream().map(LocalDate::toString).toList();
     return new FeeCheckFinding(
         fund,
         FEE_BASE_COMPLETENESS,
         ALL,
         FeeCheckSeverity.NOT_RUN,
-        "No nav_report rows to compare the fee base against on "
+        "No published NAV to compare the fee base against on "
             + days.size()
             + " working day(s): "
             + days.stream().limit(MAX_DAYS_IN_MESSAGE).map(LocalDate::toString).toList(),
         null,
         DatedCondition.stretchIdentifiers(
-            days.stream().map(day -> new DatedCondition(day, NO_NAV_REPORT)).toList(),
+            days.stream().map(day -> new DatedCondition(day, NO_PUBLISHED_NAV)).toList(),
             examinedDays),
-        Map.of("daysWithoutNavReport", daysWithoutNavReport));
+        Map.of("daysWithoutPublishedNav", days.stream().map(LocalDate::toString).toList()));
   }
 }

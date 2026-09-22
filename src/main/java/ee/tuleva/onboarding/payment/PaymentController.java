@@ -67,11 +67,17 @@ public class PaymentController {
   public RedirectView getSavingsPaymentReturnRedirect(
       @RequestParam("order-token") String serializedToken) {
     log.info("Processing savings payment return redirect");
-    boolean paid = paymentService.processSavingsPaymentToken(serializedToken);
+    var outcome = paymentService.processSavingsPaymentToken(serializedToken);
 
-    return paid
-        ? new RedirectView(frontendUrl + "/savings-fund/payment/success")
-        : new RedirectView(frontendUrl + "/savings-fund/payment");
+    return new RedirectView(frontendUrl + savingsReturnPath(outcome));
+  }
+
+  private static String savingsReturnPath(SavingsPaymentOutcome outcome) {
+    var giftLinkToken = outcome.giftLinkToken();
+    if (giftLinkToken == null) {
+      return outcome.paid() ? "/savings-fund/payment/success" : "/savings-fund/payment";
+    }
+    return outcome.paid() ? "/kingitus/" + giftLinkToken + "/tehtud" : "/kingitus/" + giftLinkToken;
   }
 
   @PostMapping("/savings/notifications")

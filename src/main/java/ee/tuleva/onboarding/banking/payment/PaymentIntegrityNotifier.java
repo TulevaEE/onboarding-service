@@ -1,0 +1,79 @@
+package ee.tuleva.onboarding.banking.payment;
+
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NullMarked;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.event.EventListener;
+import org.springframework.stereotype.Component;
+
+@Slf4j
+@Component
+@NullMarked
+public class PaymentIntegrityNotifier {
+  private final OperationsNotificationService notificationService;
+  private final Clock clock;
+  private final Duration cooldown;
+  private final Map<String, Instant> lastAlertedAt = new ConcurrentHashMap<>();
+
+  PaymentIntegrityNotifier(
+      OperationsNotificationService notificationService,
+      Clock clock,
+      @Value("${banking.payment.integrity-alert-cooldown:PT1H}") Duration cooldown) {
+    this.notificationService = notificationService;
+    this.clock = clock;
+    this.cooldown = cooldown;
+  }
+
+  @EventListener
+  public void onPaymentBlocked(PaymentBlockedEvent event) {
+    var checks = event.violations().stream().map(PaymentIntegrityViolation::summary).toList();
+    send(
+        cooldownKey("blocked", event.paymentRequest(), checks),
+        "🔴 Payment BLOCKED before sending to SEB — the generated file does not match the payment request. checks=%s, endToEndId=%s <!channel>"
+            .formatted(checks, event.paymentRequest().endToEndId()));
+  }
+
+  @EventListener
+  public void onPaymentMisrouted(PaymentMisroutedEvent event) {
+    send(
+        cooldownKey("misrouted", event.paymentRequest(), List.of()),
+        "🔴 Payment NOT SENT — remitter is not a known SEB account, so no bank received it. endToEndId=%s <!channel>"
+            .formatted(event.paymentRequest().endToEndId()));
+  }
+
+  private static String cooldownKey(
+      String kind, PaymentRequest paymentRequest, List<String> checks) {
+    return String.join(
+        "|",
+        kind,
+        paymentRequest.remitterIban(),
+        paymentRequest.beneficiaryIban(),
+        String.valueOf(paymentRequest.amount()),
+        checks.toString());
+  }
+
+  private void send(String key, String message) {
+    var now = Instant.now(clock);
+    var previous = lastAlertedAt.get(key);
+    if (previous != null && previous.plus(cooldown).isAfter(now)) {
+      return;
+    }
+    lastAlertedAt.entrySet().removeIf(entry -> entry.getValue().plus(cooldown).isBefore(now));
+    lastAlertedAt.put(key, now);
+    try {
+      notificationService.sendMessage(message, INVESTMENT);
+    } catch (Exception e) {
+      lastAlertedAt.remove(key);
+      log.error("Failed to send payment integrity notification", e);
+    }
+  }
+}

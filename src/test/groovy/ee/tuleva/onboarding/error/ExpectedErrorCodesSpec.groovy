@@ -21,6 +21,8 @@ class ExpectedErrorCodesSpec extends Specification {
     "mobile.id.certificates.revoked" || true
     "invalid.mandate.checks.missing" || true
     "new.user.flow.signup.error.email.duplicate" || true
+    "gift.amount.invalid"            || true
+    "payment.channel.invalid"        || true
 
     "mobile.id.configuration.error"  || false
     "mobile.id.communication.error"  || false

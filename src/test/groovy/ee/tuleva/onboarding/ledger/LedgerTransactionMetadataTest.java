@@ -29,6 +29,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
   LedgerAccountService.class,
   LedgerPartyService.class,
   LedgerTransactionService.class,
+  UserUnitBalanceGuard.class,
   ClockConfig.class
 })
 class LedgerTransactionMetadataTest {

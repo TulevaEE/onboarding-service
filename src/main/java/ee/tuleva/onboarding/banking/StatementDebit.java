@@ -7,4 +7,6 @@ public record StatementDebit(
     @Nullable String entryId,
     BigDecimal amount,
     @Nullable String beneficiaryIban,
+    @Nullable String beneficiaryName,
+    @Nullable String description,
     @Nullable String endToEndId) {}

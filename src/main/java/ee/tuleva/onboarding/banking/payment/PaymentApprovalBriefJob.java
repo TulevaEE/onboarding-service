@@ -29,7 +29,7 @@ public class PaymentApprovalBriefJob {
   private final PublicHolidays publicHolidays;
   private final Clock clock;
 
-  @Scheduled(cron = "0 45 15 * * MON-FRI", zone = "Europe/Tallinn")
+  @Scheduled(cron = "0 20 16 * * MON-FRI", zone = "Europe/Tallinn")
   @SchedulerLock(name = "PaymentApprovalBriefJob", lockAtMostFor = "10m", lockAtLeastFor = "1m")
   public void postBrief() {
     var today = clock.instant().atZone(TALLINN).toLocalDate();

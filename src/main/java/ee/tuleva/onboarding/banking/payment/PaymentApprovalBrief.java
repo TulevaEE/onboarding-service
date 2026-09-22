@@ -43,4 +43,8 @@ public record PaymentApprovalBrief(
   public static String amount(BigDecimal value) {
     return String.format(Locale.ROOT, "%,.2f", value);
   }
+
+  public static String count(int payments) {
+    return payments == 1 ? "1 payment" : payments + " payments";
+  }
 }

@@ -197,10 +197,7 @@ public class SavingsFundStatementProcessor {
   }
 
   private boolean isManagementFeePayment(SavingFundPayment payment) {
-    return isOutgoingPayment(payment)
-        && managementCompanies.isManagementCompany(payment.getBeneficiaryName())
-        && payment.getDescription() != null
-        && payment.getDescription().toLowerCase().contains("valitsemistasu");
+    return managementCompanies.isManagementFee(debitOf(payment));
   }
 
   private boolean isOutgoingToWithdrawalAccount(SavingFundPayment payment) {
@@ -231,6 +228,8 @@ public class SavingsFundStatementProcessor {
         payment.getExternalId(),
         payment.getAmount(),
         payment.getBeneficiaryIban(),
+        payment.getBeneficiaryName(),
+        payment.getDescription(),
         payment.getEndToEndId());
   }
 }

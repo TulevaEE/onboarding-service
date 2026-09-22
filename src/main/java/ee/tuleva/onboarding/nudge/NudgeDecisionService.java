@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.nudge;
 
 import ee.tuleva.onboarding.auth.SecurityContextRunner;
+import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.user.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,7 +34,18 @@ public class NudgeDecisionService {
   }
 
   public NudgeDecision decideOffline(User user, NudgeContext context) {
-    return decided(user, context, offlineInputs.assemble(user, context));
+    return decided(user, context, offlineInputs.assemble(OfflineSaver.of(user), context));
+  }
+
+  public NudgeDecision decideForRegistryOnly(Person person, NudgeContext context) {
+    NudgeDecision decision =
+        NudgeRules.decide(
+            offlineInputs.assemble(OfflineSaver.registryOnly(person), context), context);
+    log.info(
+        "Nudge decided for a person without an account: context={}, nudge={}",
+        context,
+        decision.key());
+    return decision;
   }
 
   private NudgeDecision decided(User user, NudgeContext context, NudgeInputs inputs) {

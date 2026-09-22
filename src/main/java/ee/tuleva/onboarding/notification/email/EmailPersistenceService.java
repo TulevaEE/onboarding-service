@@ -135,6 +135,11 @@ public class EmailPersistenceService {
         .orElse(false);
   }
 
+  public boolean hasPendingOrSentEmail(Person person, EmailType type) {
+    return emailRepository.existsByPersonalCodeAndTypeAndStatusIn(
+        person.getPersonalCode(), type, List.of(SENT, QUEUED, SCHEDULED));
+  }
+
   public Optional<Instant> getLastEmailSendDate(Person person, EmailType type) {
     return emailRepository
         .findFirstByPersonalCodeAndTypeOrderByCreatedDateDescIdDesc(person.getPersonalCode(), type)

@@ -1,0 +1,191 @@
+#!/bin/bash
+# Self-test for migration-order. Builds a throwaway repository whose "master"
+# carries V1_1 and V1_2, then branches that add migrations on top of it.
+#
+# A check that lets a bad version through costs a blocked deploy, and one that
+# cries wolf gets bypassed — so both directions are pinned here, and the last
+# cases drive pre-push, where how hard a complaint lands decides whether the
+# whole hook gets bypassed.
+
+set -uo pipefail
+
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HOOK="$HOOK_DIR/migration-order"
+PRE_PUSH="$HOOK_DIR/pre-push"
+PRE_COMMIT="$HOOK_DIR/pre-commit"
+MIGRATION_DIR=src/main/resources/db/migration
+JAVA_MIGRATION_DIR=src/main/java/db/migration
+TMP=$(mktemp -d)
+trap 'rm -rf "$TMP"' EXIT
+
+passed=0
+failed=0
+
+setup_repo() {
+  rm -rf "$TMP/repo"
+  mkdir -p "$TMP/repo"
+  cd "$TMP/repo" || exit 1
+  git init --quiet --initial-branch=master
+  git config user.email t@example.com
+  git config user.name Test
+  mkdir -p "$MIGRATION_DIR"
+  echo "select 1;" >"$MIGRATION_DIR/V1_1__first.sql"
+  echo "select 1;" >"$MIGRATION_DIR/V1_2__second.sql"
+  git add -A && git commit --quiet -m master
+  git branch base-master
+}
+
+# check <description> <expected exit> <migration file>...
+check() {
+  local description=$1 expected=$2
+  shift 2
+  setup_repo
+  git checkout --quiet -b feature
+  for file in "$@"; do
+    echo "select 1;" >"$MIGRATION_DIR/$file"
+  done
+  git add -A && git commit --quiet --allow-empty -m feature >/dev/null 2>&1
+  local output
+  output=$(MIGRATION_ORDER_BASE=base-master "$HOOK" HEAD 2>&1)
+  local actual=$?
+  if [ "$actual" -eq "$expected" ]; then
+    passed=$((passed + 1))
+  else
+    failed=$((failed + 1))
+    echo "FAIL: $description (expected exit $expected, got $actual)"
+    echo "$output" | sed 's/^/      /'
+  fi
+}
+
+# Master's highest version can live in the Java directory: Flyway reads both off
+# one sequence, and package-info.java sits beside them without being one.
+java_check() {
+  local description=$1 expected=$2 file=$3
+  setup_repo
+  mkdir -p "$JAVA_MIGRATION_DIR"
+  echo "class V1_3__java_migration {}" >"$JAVA_MIGRATION_DIR/V1_3__java_migration.java"
+  echo "package db.migration;" >"$JAVA_MIGRATION_DIR/package-info.java"
+  git add -A && git commit --quiet -m "java migration" >/dev/null 2>&1
+  git branch --quiet --force base-master
+  git checkout --quiet -b feature
+  echo "select 1;" >"$MIGRATION_DIR/$file"
+  git add -A && git commit --quiet -m feature >/dev/null 2>&1
+  local output
+  output=$(MIGRATION_ORDER_BASE=base-master "$HOOK" HEAD 2>&1)
+  local actual=$?
+  if [ "$actual" -eq "$expected" ]; then
+    passed=$((passed + 1))
+  else
+    failed=$((failed + 1))
+    echo "FAIL: $description (expected exit $expected, got $actual)"
+    echo "$output" | sed 's/^/      /'
+  fi
+}
+
+java_check "sql clashing with master's java migration"  1 V1_3__clash.sql
+java_check "sql below master's java migration"          1 V1_2__clash.sql
+java_check "next version after master's java migration" 0 V1_4__new.sql
+
+check "next version after master"           0 V1_3__new.sql
+check "two contiguous versions"             0 V1_3__new.sql V1_4__newer.sql
+check "H2 compat beside the new migration"  0 V1_3__new.sql V1_2_1__compat.sql
+check "no migrations at all"                0
+
+check "version master already carries"      1 V1_2__clash.sql
+check "version below master"                1 V1_1__clash.sql
+check "gap above master is advisory"        0 V1_5__gap.sql
+check "gap between two added versions"      0 V1_3__new.sql V1_5__gap.sql
+check "same version claimed twice"          1 V1_3__new.sql V1_3__other.sql
+
+# How pre-push weighs this checker is part of the checker's contract. Git has a
+# single --no-verify for the whole hook, so a numbering complaint that blocked
+# the push would also be a reason to switch off pii-scan beside it — and on a
+# public repository that scan is the only one that cannot be caught afterwards.
+#
+# The throwaway repository carries no .githooks/pii-idcode-allow, so pre-push
+# exports an empty allowlist and the code below reads as a finding there. It may
+# stand in this file because this repository's own allowlist carries it.
+PII_FIXTURE_ID_CODE=38812121215
+
+# push_check <description> <expected exit> <expected output> <migration|-> <id code|->
+push_check() {
+  local description=$1 expected=$2 expected_output=$3 migration=$4 idcode=$5
+  setup_repo
+  git checkout --quiet -b feature
+  [ "$migration" != - ] && echo "select 1;" >"$MIGRATION_DIR/$migration"
+  [ "$idcode" != - ] && printf 'String owner = "%s";\n' "$idcode" >Fixture.java
+  git add -A && git commit --quiet -m feature >/dev/null 2>&1
+  local output actual
+  output=$(printf 'refs/heads/feature %s refs/heads/feature %s\n' \
+    "$(git rev-parse HEAD)" "$(git rev-parse base-master)" |
+    MIGRATION_ORDER_BASE=base-master "$PRE_PUSH" origin "$TMP/remote" 2>&1)
+  actual=$?
+  if [ "$actual" -ne "$expected" ]; then
+    failed=$((failed + 1))
+    echo "FAIL: $description (expected exit $expected, got $actual)"
+    echo "$output" | sed 's/^/      /'
+    return
+  fi
+  if [ "$expected_output" != - ] && ! printf '%s' "$output" | grep -qF "$expected_output"; then
+    failed=$((failed + 1))
+    echo "FAIL: $description (output does not mention: $expected_output)"
+    echo "$output" | sed 's/^/      /'
+    return
+  fi
+  passed=$((passed + 1))
+}
+
+push_check "pre-push lets a clean branch through" \
+  0 -                        V1_3__new.sql -
+push_check "pre-push warns about numbering instead of blocking" \
+  0 "leaves a gap"           V1_5__gap.sql -
+push_check "pre-push names the migration it warns about" \
+  0 "V1_2__clash.sql"        V1_2__clash.sql -
+push_check "pre-push blocks personal data" \
+  1 "Push aborted"           -             "$PII_FIXTURE_ID_CODE"
+push_check "pre-push blocks personal data beside a numbering warning" \
+  1 "Push aborted"           V1_2__clash.sql "$PII_FIXTURE_ID_CODE"
+
+# pre-commit weighs its two checks the same way pre-push does. The throwaway
+# repository has no Gradle wrapper, so spotlessCheck cannot succeed there —
+# which is the failing-formatter path, reached by the same `! ./gradlew` branch
+# a real formatting complaint takes.
+#
+# commit_check <description> <expected exit> <expected output> <id code|->
+commit_check() {
+  local description=$1 expected=$2 expected_output=$3 idcode=$4
+  setup_repo
+  git checkout --quiet -b feature
+  [ "$idcode" != - ] && printf 'String owner = "%s";\n' "$idcode" >Fixture.java
+  echo "select 1;" >"$MIGRATION_DIR/V1_3__new.sql"
+  git add -A
+  local output actual
+  output=$("$PRE_COMMIT" 2>&1)
+  actual=$?
+  if [ "$actual" -ne "$expected" ]; then
+    failed=$((failed + 1))
+    echo "FAIL: $description (expected exit $expected, got $actual)"
+    echo "$output" | sed 's/^/      /'
+    return
+  fi
+  if [ "$expected_output" != - ] && ! printf '%s' "$output" | grep -qF "$expected_output"; then
+    failed=$((failed + 1))
+    echo "FAIL: $description (output does not mention: $expected_output)"
+    echo "$output" | sed 's/^/      /'
+    return
+  fi
+  passed=$((passed + 1))
+}
+
+commit_check "pre-commit warns about formatting instead of blocking" \
+  0 "not blocking the commit" -
+commit_check "pre-commit blocks personal data" \
+  1 -                         "$PII_FIXTURE_ID_CODE"
+
+echo ""
+if [ "$failed" -eq 0 ]; then
+  echo "✅ migration-order: $passed checks passed"
+  exit 0
+fi
+echo "❌ migration-order: $failed of $((passed + failed)) checks failed"
+exit 1

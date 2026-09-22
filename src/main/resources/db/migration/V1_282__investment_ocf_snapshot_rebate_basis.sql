@@ -19,7 +19,7 @@ WHERE underlying_fund_cost_net IS NULL;
 
 -- Left nullable on purpose. underlying_fund_cost stays the figure that entered the total, and these
 -- two say what it would have been on either basis. A row written by the previous release (the
--- rollback window V1_279 kept open) knows the first and not the other two, and null says so rather
+-- rollback window V1_281 kept open) knows the first and not the other two, and null says so rather
 -- than a zero that would contradict the column beside it.
 
 -- Without this a five-year-old row cannot say whether it was weighted against net assets or against

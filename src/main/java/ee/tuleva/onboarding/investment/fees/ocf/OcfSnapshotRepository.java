@@ -27,19 +27,20 @@ public class OcfSnapshotRepository {
     }
     try {
       insertNextVersion(snapshot);
-    } catch (DuplicateKeyException e) {
-      // Two calculations for the same fund and month read the same MAX(version) and picked the same
-      // next number; the unique constraint let exactly one through. The winner's row is now the
-      // working version, so the loser writes into it instead of racing for a number again — both
-      // runs computed the same month, so overwriting is the intended outcome, not a lost update.
-      if (updateWorkingVersion(snapshot) == 0) {
-        throw e;
-      }
-      log.info(
-          "Concurrent OCF snapshot insert for fund={}, month={}; wrote into the winning version",
-          snapshot.fundCode(),
-          snapshot.snapshotMonth());
+    } catch (DuplicateKeyException versionNumberTakenByAConcurrentInsert) {
+      writeIntoTheVersionThatWonTheRace(snapshot, versionNumberTakenByAConcurrentInsert);
     }
+  }
+
+  private void writeIntoTheVersionThatWonTheRace(
+      OcfSnapshot snapshot, DuplicateKeyException versionNumberTakenByAConcurrentInsert) {
+    if (updateWorkingVersion(snapshot) == 0) {
+      throw versionNumberTakenByAConcurrentInsert;
+    }
+    log.info(
+        "Concurrent OCF snapshot insert for fund={}, month={}; wrote into the winning version",
+        snapshot.fundCode(),
+        snapshot.snapshotMonth());
   }
 
   private int updateWorkingVersion(OcfSnapshot snapshot) {
@@ -137,13 +138,6 @@ public class OcfSnapshotRepository {
         .param("txnNavDates", audit.txnNavDates());
   }
 
-  /**
-   * Marks the working version as published. Returns false when there was nothing to publish — no
-   * snapshot for that month, or its latest version has already gone out somewhere. A snapshot whose
-   * completeness flag is false is refused outright: a component that fell back to zero because its
-   * input was missing must not become the official figure with the reason sitting unread in a
-   * column.
-   */
   public boolean publish(String fundCode, LocalDate snapshotMonth, String publishedIn) {
     if (stampPublished(fundCode, snapshotMonth, publishedIn, ONLY_WHEN_COMPLETE) > 0) {
       return true;
@@ -160,12 +154,6 @@ public class OcfSnapshotRepository {
     return nothingToPublish(fundCode, snapshotMonth);
   }
 
-  /**
-   * Publishes the working version whatever its gaps, for a month that is genuinely missing an input
-   * and still has to go out under a documented decision. The row keeps complete = false, so the
-   * audit trail says the figure went out with the gaps its checks column names rather than claiming
-   * the snapshot was whole.
-   */
   public boolean publishDespiteGaps(String fundCode, LocalDate snapshotMonth, String publishedIn) {
     var incomplete = incompleteWorkingVersion(fundCode, snapshotMonth);
     if (stampPublished(fundCode, snapshotMonth, publishedIn, GAPS_AND_ALL) == 0) {

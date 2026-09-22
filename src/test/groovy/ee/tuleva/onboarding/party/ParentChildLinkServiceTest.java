@@ -121,6 +121,32 @@ class ParentChildLinkServiceTest {
   }
 
   @Test
+  void aParentWhoseOwnKycIsPendingIsAGuardianButNotAnActiveRepresentation() {
+    var pending =
+        ParentChildLink.builder()
+            .id(LINK_ID)
+            .parentPersonalCode(PARENT)
+            .childPersonalCode(CHILD)
+            .relationshipType(LEGAL_REPRESENTATIVE)
+            .status(PENDING_KYC)
+            .validUntil(LocalDate.of(2030, 1, 1))
+            .build();
+    given(
+            parentChildLinkRepository
+                .findByParentPersonalCodeAndChildPersonalCodeAndStatusInAndSuspendedAtIsNullAndValidUntilAfter(
+                    PARENT, CHILD, Set.of(ACTIVE, PENDING_KYC), TODAY))
+        .willReturn(List.of(pending));
+
+    assertThat(service.isGuardian(PARENT, CHILD)).isTrue();
+    assertThat(service.isActiveRepresentation(PARENT, CHILD)).isFalse();
+  }
+
+  @Test
+  void isNotAGuardianWhenNoLinkIsActiveOrPending() {
+    assertThat(service.isGuardian(PARENT, CHILD)).isFalse();
+  }
+
+  @Test
   void findsGuardianCodesAcrossAllUnexpiredLinksIncludingSuspendedAndPending() {
     var active =
         ParentChildLink.builder()

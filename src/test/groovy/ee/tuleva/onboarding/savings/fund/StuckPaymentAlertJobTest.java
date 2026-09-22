@@ -10,6 +10,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import ee.tuleva.onboarding.banking.check.payment.PaymentCheckService;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -27,7 +28,8 @@ class StuckPaymentAlertJobTest {
   SavingFundPaymentRepository paymentRepository = mock(SavingFundPaymentRepository.class);
   Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
 
-  StuckPaymentAlertJob job = new StuckPaymentAlertJob(paymentRepository, clock);
+  StuckPaymentAlertJob job =
+      new StuckPaymentAlertJob(paymentRepository, mock(PaymentCheckService.class), clock);
 
   @Test
   void reportsPaymentsStalledInJobDrivenStatusesForOverHalfAnHour() {

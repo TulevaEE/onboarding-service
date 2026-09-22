@@ -1,5 +1,12 @@
 package ee.tuleva.onboarding.nudge;
 
+import static ee.tuleva.onboarding.nudge.NudgeKey.SECOND_PILLAR_PAYMENT_RATE;
+import static ee.tuleva.onboarding.nudge.NudgeKey.SECOND_PILLAR_TRANSFER;
+import static ee.tuleva.onboarding.nudge.NudgeKey.THIRD_PILLAR_FEES;
+import static ee.tuleva.onboarding.nudge.NudgeKey.THIRD_PILLAR_RAISE;
+import static ee.tuleva.onboarding.nudge.NudgeKey.THIRD_PILLAR_RECURRING;
+import static ee.tuleva.onboarding.nudge.NudgeKey.THIRD_PILLAR_START;
+import static java.util.Arrays.stream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
@@ -74,8 +81,7 @@ class NudgeDecisionSerializationTest {
         contract.valueStream().map(node -> node.get("key").asString()).distinct().toList();
 
     assertThat(keysInContract)
-        .containsExactlyInAnyOrderElementsOf(
-            java.util.Arrays.stream(NudgeKey.values()).map(Enum::name).toList());
+        .containsExactlyInAnyOrderElementsOf(stream(NudgeKey.values()).map(Enum::name).toList());
   }
 
   @Test
@@ -101,7 +107,7 @@ class NudgeDecisionSerializationTest {
   @Test
   void anyPillarSuggestionIsRaisedForPensionPillarNudgesOnly() {
     List<NudgeKey> flagged =
-        java.util.Arrays.stream(NudgeKey.values())
+        stream(NudgeKey.values())
             .filter(
                 key ->
                     Boolean.TRUE.equals(
@@ -110,12 +116,12 @@ class NudgeDecisionSerializationTest {
 
     assertThat(flagged)
         .containsExactly(
-            NudgeKey.SECOND_PILLAR_TRANSFER,
-            NudgeKey.SECOND_PILLAR_PAYMENT_RATE,
-            NudgeKey.THIRD_PILLAR_START,
-            NudgeKey.THIRD_PILLAR_FEES,
-            NudgeKey.THIRD_PILLAR_RECURRING,
-            NudgeKey.THIRD_PILLAR_RAISE);
+            SECOND_PILLAR_TRANSFER,
+            SECOND_PILLAR_PAYMENT_RATE,
+            THIRD_PILLAR_START,
+            THIRD_PILLAR_FEES,
+            THIRD_PILLAR_RECURRING,
+            THIRD_PILLAR_RAISE);
   }
 
   @Test

@@ -566,8 +566,9 @@ tasks.withType<JavaCompile> {
 
 tasks.withType<GroovyCompile> {
     // The joint Groovy/Java compile of the whole test tree runs in Gradle's compiler worker, whose
-    // default heap (a quarter of the CircleCI Large container) no longer holds it.
-    groovyOptions.forkOptions.memoryMaximumSize = "4g"
+    // default heap (a quarter of the CircleCI Large container, 2 GB) no longer holds it. The
+    // worker stays resident through the tests, which already fill the 8 GB, so no more than this.
+    groovyOptions.forkOptions.memoryMaximumSize = "3g"
 }
 
 tasks.withType<Test> {

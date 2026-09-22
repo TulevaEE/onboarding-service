@@ -53,9 +53,7 @@ class ReceivedGiftServiceTest {
     given(parentChildLinks.isActiveRepresentation(PARENT, CHILD)).willReturn(false);
 
     assertThatThrownBy(() -> service.receivedGifts(PARENT, CHILD))
-        .isInstanceOf(NotAllowedToGiftForException.class)
-        .hasFieldOrPropertyWithValue("parentPersonalCode", PARENT)
-        .hasFieldOrPropertyWithValue("childPersonalCode", CHILD);
+        .isInstanceOf(NotAllowedToGiftForException.class);
   }
 
   @Test

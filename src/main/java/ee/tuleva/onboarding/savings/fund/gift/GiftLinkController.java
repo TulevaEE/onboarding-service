@@ -61,10 +61,7 @@ public class GiftLinkController {
   // The body would otherwise carry the child's personal code back to whoever asked.
   @ExceptionHandler(NotAllowedToGiftForException.class)
   public ResponseEntity<Void> forbidden(NotAllowedToGiftForException refusal) {
-    log.error(
-        "Refused gift link access: parentPersonalCode={}, childPersonalCode={}",
-        refusal.getParentPersonalCode(),
-        refusal.getChildPersonalCode());
+    log.error("Refused gift link access: {}", refusal.getMessage());
     return ResponseEntity.status(FORBIDDEN).build();
   }
 }

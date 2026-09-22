@@ -55,7 +55,6 @@ class TransactionExecutionMapper {
     return reported.isBefore(stored) ? reported : stored;
   }
 
-  // Art 16: no silent alteration of a transaction record.
   Map<String, Object> mutableFieldsForDeltaAudit(TransactionExecution execution) {
     Map<String, Object> snapshot = new LinkedHashMap<>();
     snapshot.put("brokerTransactionId", asString(execution.getBrokerTransactionId()));

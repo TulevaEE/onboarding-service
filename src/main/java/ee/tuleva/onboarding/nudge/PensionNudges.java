@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.nudge;
 
 import static ee.tuleva.onboarding.nudge.NudgeDecision.of;
 import static ee.tuleva.onboarding.nudge.NudgeKey.SECOND_PILLAR_PAYMENT_RATE;
+import static ee.tuleva.onboarding.nudge.NudgeKey.SECOND_PILLAR_START;
 import static ee.tuleva.onboarding.nudge.NudgeKey.SECOND_PILLAR_TRANSFER;
 import static ee.tuleva.onboarding.nudge.NudgeKey.THIRD_PILLAR_FEES;
 import static ee.tuleva.onboarding.nudge.NudgeKey.THIRD_PILLAR_RAISE;
@@ -15,7 +16,8 @@ final class PensionNudges {
   private PensionNudges() {}
 
   static Optional<NudgeDecision> decide(NudgeInputs in, NudgeContext context) {
-    return secondPillarTransfer(in, context)
+    return secondPillarStart(in, context)
+        .or(() -> secondPillarTransfer(in, context))
         .or(() -> paymentRate(in, context))
         .or(() -> thirdPillar(in, context))
         .or(() -> thirdPillarRecurring(in, context))
@@ -36,6 +38,13 @@ final class PensionNudges {
     return in.thirdPillarRecurring().isNo() || in.taxHeadroom().isKnown();
   }
 
+  private static Optional<NudgeDecision> secondPillarStart(NudgeInputs in, NudgeContext context) {
+    if (context.suppresses(SECOND_PILLAR_START) || !secondPillarEligible(in)) {
+      return Optional.empty();
+    }
+    return in.secondPillarActive() ? Optional.empty() : Optional.of(of(SECOND_PILLAR_START));
+  }
+
   private static Optional<NudgeDecision> secondPillarTransfer(
       NudgeInputs in, NudgeContext context) {
     if (context.suppresses(SECOND_PILLAR_TRANSFER) || !secondPillarEligible(in)) {
@@ -49,7 +58,10 @@ final class PensionNudges {
   }
 
   private static boolean secondPillarNeedsMoving(NudgeInputs in) {
-    if (!in.secondPillarActive() || !in.secondPillarPartiallyConverted()) {
+    if (!in.secondPillarActive()) {
+      return false;
+    }
+    if (!in.secondPillarPartiallyConverted()) {
       return true;
     }
     return !in.secondPillarFullyConverted() && FundFees.isHigh(in.secondPillarFee());

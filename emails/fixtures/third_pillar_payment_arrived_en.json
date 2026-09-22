@@ -1,5 +1,11 @@
 {
   "variants": {
+    "second pillar start suggestion": {
+      "FNAME": "Mari",
+      "paymentDate": "12.08.2026",
+      "hasTulevaUser": true,
+      "suggestSecondPillarStart": true
+    },
     "second pillar suggestion": {
       "FNAME": "Mari",
       "paymentDate": "12.08.2026",

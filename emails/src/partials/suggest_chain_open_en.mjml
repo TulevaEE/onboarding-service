@@ -1,4 +1,6 @@
-<mj-raw>*|IF:suggestSecondPillar|*</mj-raw>
+<mj-raw>*|IF:suggestSecondPillarStart|*</mj-raw>
+<mj-include path="./suggest_second_pillar_start_en.mjml" />
+<mj-raw>*|ELSEIF:suggestSecondPillar|*</mj-raw>
 <mj-include path="./suggest_second_pillar_en.mjml" />
 <mj-raw>*|ELSEIF:suggestPaymentRate|*</mj-raw>
 <mj-include path="./suggest_payment_rate_en.mjml" />

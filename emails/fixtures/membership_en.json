@@ -1,5 +1,12 @@
 {
   "variants": {
+    "second pillar start suggestion": {
+      "FNAME": "Liina",
+      "LNAME": "Kask",
+      "memberNumber": "247",
+      "memberDate": "21.05.2026",
+      "suggestSecondPillarStart": true
+    },
     "no extra suggestion": {
       "FNAME": "Liina",
       "LNAME": "Kask",

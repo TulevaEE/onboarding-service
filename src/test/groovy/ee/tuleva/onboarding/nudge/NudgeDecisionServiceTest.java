@@ -182,12 +182,33 @@ class NudgeDecisionServiceTest {
   }
 
   @Test
+  void decidesForARegistryOnlyPersonWithoutAnAccountFromTheRegistryAlone() {
+    PersonImpl person =
+        PersonImpl.builder()
+            .personalCode("38801010004")
+            .firstName("Registry")
+            .lastName("Person")
+            .build();
+    given(
+            offlineInputs.assemble(
+                OfflineSaver.registryOnly(person), NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
+        .willReturn(
+            NudgeInputsFixture.everythingSorted()
+                .secondPillarPartiallyConverted(false)
+                .secondPillarFullyConverted(false)
+                .build());
+
+    assertThat(service.decideForRegistryOnly(person, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
+        .isEqualTo(NudgeDecision.secondPillarTransfer(null));
+  }
+
+  @Test
   void aCompanyPayerGoesThroughTheSameChainAsEveryoneElse() {
     given(recurringStatus.savingsFund(company)).willReturn(true);
     given(pillarStatus.of(member)).willReturn(new PillarActivity(false, false));
 
     assertThat(service.decide(member, company, SAVINGS_FUND_PAYMENT))
-        .isEqualTo(NudgeDecision.secondPillarTransfer(null));
+        .isEqualTo(NudgeDecision.of(NudgeKey.SECOND_PILLAR_START));
   }
 
   @Test

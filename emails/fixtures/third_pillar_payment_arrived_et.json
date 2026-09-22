@@ -1,5 +1,11 @@
 {
   "variants": {
+    "II samba avamise soovitus": {
+      "FNAME": "Mari",
+      "paymentDate": "12.08.2026",
+      "hasTulevaUser": true,
+      "suggestSecondPillarStart": true
+    },
     "II samba soovitus": {
       "FNAME": "Mari",
       "paymentDate": "12.08.2026",

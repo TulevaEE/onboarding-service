@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.banking.payment;
 
+import ee.tuleva.onboarding.banking.payment.PaymentStatusReport.TransactionStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -24,21 +25,35 @@ public class PaymentStatusReportHandler {
     }
 
     for (var transaction : report.transactionStatuses()) {
-      if (transaction.status().isRejection()) {
-        log.error(
-            "Bank rejected a payment we submitted: endToEndId={}, reasonCode={}",
-            transaction.endToEndId(),
-            transaction.reasonCode());
-        outgoingPaymentService.recordFailed(
-            transaction.endToEndId(), "Rejected by the bank: " + transaction.reasonCode());
-        eventPublisher.publishEvent(
-            new PaymentRejectedEvent(transaction.endToEndId(), transaction.reasonCode()));
-      } else {
-        log.info(
-            "Payment status report: endToEndId={}, status={}",
-            transaction.endToEndId(),
-            transaction.status());
+      switch (transaction.status()) {
+        case REJECTED -> recordRejected(transaction);
+        case CANCELLED -> recordCancelled(transaction);
+        default ->
+            log.info(
+                "Payment status report: endToEndId={}, status={}",
+                transaction.endToEndId(),
+                transaction.status());
       }
     }
+  }
+
+  private void recordRejected(TransactionStatus transaction) {
+    log.error(
+        "Bank rejected a payment we submitted: endToEndId={}, reasonCode={}",
+        transaction.endToEndId(),
+        transaction.reasonCode());
+    outgoingPaymentService.recordFailed(
+        transaction.endToEndId(), "Rejected by the bank: " + transaction.reasonCode());
+    eventPublisher.publishEvent(
+        new PaymentRejectedEvent(transaction.endToEndId(), transaction.reasonCode()));
+  }
+
+  private void recordCancelled(TransactionStatus transaction) {
+    log.warn(
+        "Payment cancelled at the bank before it was paid: endToEndId={}, reasonCode={}",
+        transaction.endToEndId(),
+        transaction.reasonCode());
+    outgoingPaymentService.recordFailed(
+        transaction.endToEndId(), "Cancelled at the bank: reasonCode=" + transaction.reasonCode());
   }
 }

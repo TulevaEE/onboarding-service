@@ -7,8 +7,10 @@ import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.investment.fees.*;
@@ -48,6 +50,7 @@ class OcfCalculationServiceTest {
   @Mock private TransactionExecutionRepository transactionExecutionRepository;
   @Mock private OcfSnapshotRepository ocfSnapshotRepository;
   @Mock private FundNavQueryService fundNavQueryService;
+  @Mock private OcfNotifier ocfNotifier;
 
   @Mock(strictness = Mock.Strictness.LENIENT)
   private FeeChargedToFundPolicy feeChargedToFundPolicy;
@@ -603,6 +606,64 @@ class OcfCalculationServiceTest {
     service.calculateForAllFunds(MONTH);
 
     verify(ocfSnapshotRepository, times(TulevaFund.values().length - 1)).save(any());
+  }
+
+  @Test
+  void calculateForAllFundsReportsWhichFundFailed() {
+    for (var fund : TulevaFund.values()) {
+      if (fund == TUK75) {
+        given(feeRateRepository.findValidRate(eq(fund), eq(MANAGEMENT), any()))
+            .willThrow(new RuntimeException("test error"));
+      } else {
+        given(feeRateRepository.findValidRate(eq(fund), eq(MANAGEMENT), any()))
+            .willReturn(Optional.empty());
+        given(depotRateResolver.resolveRate(eq(fund), any())).willReturn(DepotRate.none());
+        given(
+                transactionExecutionRepository.sumCommissionsForFundAndPeriod(
+                    eq(fund.getCode()), any(), any()))
+            .willReturn(ZERO);
+      }
+    }
+    given(instrumentFeeRepository.findAllValidRates(any())).willReturn(List.of());
+
+    service.calculateForAllFunds(MONTH);
+
+    then(ocfNotifier)
+        .should()
+        .notifyRun(eq(MONTH), argThat(outcomes -> failedFunds(outcomes).equals(List.of(TUK75))));
+  }
+
+  private static List<TulevaFund> failedFunds(List<OcfRunOutcome> outcomes) {
+    return outcomes.stream().filter(OcfRunOutcome::failed).map(OcfRunOutcome::fund).toList();
+  }
+
+  @Test
+  void backfillMonthsReportsOnceForTheWholeRunRatherThanOncePerMonth() {
+    var clock =
+        Clock.fixed(
+            MONTH.atDay(15).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant(),
+            ZoneId.of("Europe/Tallinn"));
+
+    for (var fund : TulevaFund.values()) {
+      lenient()
+          .when(feeRateRepository.findValidRate(eq(fund), eq(MANAGEMENT), any()))
+          .thenReturn(Optional.empty());
+      lenient().when(depotRateResolver.resolveRate(eq(fund), any())).thenReturn(DepotRate.none());
+      lenient().when(instrumentFeeRepository.findAllValidRates(any())).thenReturn(List.of());
+      lenient()
+          .when(
+              transactionExecutionRepository.sumCommissionsForFundAndPeriod(
+                  eq(fund.getCode()), any(), any()))
+          .thenReturn(ZERO);
+    }
+
+    service.backfillMonths(3, clock);
+
+    then(ocfNotifier)
+        .should()
+        .notifyBackfill(
+            eq(3), argThat(outcomes -> outcomes.size() == 3 * TulevaFund.values().length));
+    then(ocfNotifier).should(never()).notifyRun(any(), any());
   }
 
   @Test

@@ -37,13 +37,13 @@ class TrackingDifferenceQueryServiceTest {
             .build();
     given(eventRepository.findDeduplicatedEventsForPeriod(TUK00, BENCHMARK_MODEL, DATE, DATE))
         .willReturn(List.of(event));
-    given(calculator.breachThreshold(DATE)).willReturn(new BigDecimal("0.001"));
+    given(calculator.benchmarkModelBreachThreshold(DATE)).willReturn(new BigDecimal("0.0015"));
 
     var result = queryService.findLatestBenchmarkModel(TUK00, DATE);
 
     assertThat(result)
         .contains(
-            new TrackingDifferenceSummary(new BigDecimal("0.001073"), new BigDecimal("0.001")));
+            new TrackingDifferenceSummary(new BigDecimal("0.001073"), new BigDecimal("0.0015")));
   }
 
   @Test

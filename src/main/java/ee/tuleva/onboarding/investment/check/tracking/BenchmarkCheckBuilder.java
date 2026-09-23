@@ -241,7 +241,7 @@ class BenchmarkCheckBuilder {
         totalWeightedBenchmarkReturn.divide(totalWeight, SCALE, RoundingMode.HALF_UP);
     var instrumentReturn = totalWeightedReturn.divide(totalWeight, SCALE, RoundingMode.HALF_UP);
     var td = instrumentReturn.subtract(benchmarkReturn).setScale(SCALE, RoundingMode.HALF_UP);
-    var breach = td.abs().compareTo(calculator.breachThreshold(checkDate)) >= 0;
+    var breach = td.abs().compareTo(calculator.benchmarkModelBreachThreshold(checkDate)) >= 0;
 
     var priorBreaches =
         consecutiveBreachTracker.countConsecutiveBreaches(fund, BENCHMARK_MODEL, checkDate);

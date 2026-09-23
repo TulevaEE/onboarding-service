@@ -1474,6 +1474,115 @@ class TrackingDifferenceServiceTest {
   }
 
   @Test
+  void benchmarkModelDoesNotBreachBelowItsOwnLooserThreshold() {
+    skipOtherFunds(TUK75);
+    lenient()
+        .when(
+            parameterRepository.findLatestValue(
+                eq(InvestmentParameter.TRACKING_BREACH_THRESHOLD), any(LocalDate.class)))
+        .thenReturn(new BigDecimal("0.001"));
+    lenient()
+        .when(
+            parameterRepository.findLatestValueIfPresent(
+                eq(InvestmentParameter.BENCHMARK_MODEL_BREACH_THRESHOLD), any(LocalDate.class)))
+        .thenReturn(Optional.of(new BigDecimal("0.0015")));
+
+    givenSingleEmHoldingWithReturns("20.024", "20.00", "500.00", "500.00");
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var bmModel = results.stream().filter(r -> r.checkType() == BENCHMARK_MODEL).findFirst();
+    assertThat(bmModel).isPresent();
+    assertThat(bmModel.get().trackingDifference()).isEqualByComparingTo(new BigDecimal("0.0012"));
+    assertThat(bmModel.get().breach()).isFalse();
+  }
+
+  @Test
+  void modelPortfolioStillBreachesAtTheDailyThresholdWhileBenchmarkModelIsLooser() {
+    skipOtherFunds(TUK75);
+    lenient()
+        .when(
+            parameterRepository.findLatestValue(
+                eq(InvestmentParameter.TRACKING_BREACH_THRESHOLD), any(LocalDate.class)))
+        .thenReturn(new BigDecimal("0.001"));
+    lenient()
+        .when(
+            parameterRepository.findLatestValueIfPresent(
+                eq(InvestmentParameter.BENCHMARK_MODEL_BREACH_THRESHOLD), any(LocalDate.class)))
+        .thenReturn(Optional.of(new BigDecimal("0.0015")));
+
+    givenSingleEmHoldingWithReturns("20.024", "20.00", "500.00", "500.00");
+
+    var results = service.runChecksAsOf(CHECK_DATE);
+
+    var modelPortfolio = results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst();
+    assertThat(modelPortfolio).isPresent();
+    assertThat(modelPortfolio.get().breach()).isTrue();
+  }
+
+  private void givenSingleEmHoldingWithReturns(
+      String price, String previousPrice, String benchmark, String previousBenchmark) {
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.10")));
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.00")));
+
+    var emIsin = "IE00BKPTWY98";
+    given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, CHECK_DATE))
+        .willReturn(
+            List.of(
+                ModelPortfolioAllocation.builder()
+                    .fund(TUK75)
+                    .isin(emIsin)
+                    .weight(new BigDecimal("1.00"))
+                    .effectiveDate(LocalDate.of(2026, 1, 1))
+                    .build()));
+
+    given(positionPriceResolver.resolve(eq(emIsin), eq(CHECK_DATE), any(Instant.class)))
+        .willReturn(
+            Optional.of(
+                ResolvedPrice.builder()
+                    .usedPrice(new BigDecimal(price))
+                    .validationStatus(ValidationStatus.OK)
+                    .priceDate(CHECK_DATE)
+                    .build()));
+    given(positionPriceResolver.resolve(eq(emIsin), eq(PREVIOUS_DATE), any(Instant.class)))
+        .willReturn(
+            Optional.of(
+                ResolvedPrice.builder()
+                    .usedPrice(new BigDecimal(previousPrice))
+                    .validationStatus(ValidationStatus.OK)
+                    .priceDate(PREVIOUS_DATE)
+                    .build()));
+
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(CHECK_DATE, TUK75, SECURITY))
+        .willReturn(
+            List.of(
+                FundPosition.builder()
+                    .fund(TUK75)
+                    .navDate(CHECK_DATE)
+                    .accountType(SECURITY)
+                    .accountId(emIsin)
+                    .marketValue(new BigDecimal("950000"))
+                    .build()));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, CHECK_DATE, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(new BigDecimal("1000000"));
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, CHECK_DATE, List.of(CASH)))
+        .willReturn(new BigDecimal("50000"));
+    given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(CHECK_DATE), eq(10)))
+        .willReturn(List.of());
+
+    given(fundValueProvider.getLatestValue("MSCI_EM", CHECK_DATE))
+        .willReturn(Optional.of(fundValue(benchmark)));
+    given(fundValueProvider.getLatestValue("MSCI_EM", PREVIOUS_DATE))
+        .willReturn(Optional.of(fundValue(previousBenchmark)));
+  }
+
+  @Test
   void benchmarkModelSkipsWhenBenchmarkDataMissing() {
     skipOtherFunds(TUK75);
 

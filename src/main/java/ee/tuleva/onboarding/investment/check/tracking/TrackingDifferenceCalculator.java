@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
+import static ee.tuleva.onboarding.investment.config.InvestmentParameter.BENCHMARK_MODEL_BREACH_THRESHOLD;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.ESCALATION_LOOKBACK_DAYS;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.ESCALATION_NET_TD_THRESHOLD;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.ESCALATION_THRESHOLD_DAYS;
@@ -33,6 +34,12 @@ class TrackingDifferenceCalculator {
 
   BigDecimal breachThreshold(LocalDate asOf) {
     return parameterRepository.findLatestValue(TRACKING_BREACH_THRESHOLD, asOf);
+  }
+
+  BigDecimal benchmarkModelBreachThreshold(LocalDate asOf) {
+    return parameterRepository
+        .findLatestValueIfPresent(BENCHMARK_MODEL_BREACH_THRESHOLD, asOf)
+        .orElseGet(() -> breachThreshold(asOf));
   }
 
   int escalationLookbackDays(LocalDate asOf) {

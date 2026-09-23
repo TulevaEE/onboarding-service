@@ -8,9 +8,9 @@ import static java.math.RoundingMode.HALF_UP;
 import java.math.BigDecimal;
 import java.util.List;
 
-record GiverCostBasis(BigDecimal remainingUnits, BigDecimal remainingCost) {
+public record GiverCostBasis(BigDecimal remainingUnits, BigDecimal remainingCost) {
 
-  static GiverCostBasis replay(List<UnitHoldingChange> history) {
+  public static GiverCostBasis replay(List<UnitHoldingChange> history) {
     BigDecimal units = ZERO;
     BigDecimal cost = ZERO;
 
@@ -27,7 +27,7 @@ record GiverCostBasis(BigDecimal remainingUnits, BigDecimal remainingCost) {
         cost.setScale(EUR.getMaxPrecision(), HALF_UP));
   }
 
-  BigDecimal costOf(BigDecimal units) {
+  public BigDecimal costOf(BigDecimal units) {
     if (remainingUnits.signum() <= 0) {
       throw new IllegalStateException(
           "The giver holds no units whose cost could follow them: remainingUnits="

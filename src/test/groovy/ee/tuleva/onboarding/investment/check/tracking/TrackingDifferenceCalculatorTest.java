@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
 import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
+import static ee.tuleva.onboarding.investment.config.InvestmentParameter.BENCHMARK_MODEL_BREACH_THRESHOLD;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.ESCALATION_LOOKBACK_DAYS;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.ESCALATION_NET_TD_THRESHOLD;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.ESCALATION_THRESHOLD_DAYS;
@@ -18,6 +19,7 @@ import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -45,6 +47,28 @@ class TrackingDifferenceCalculatorTest {
         .willReturn(BREACH_THRESHOLD);
     given(parameterRepository.findLatestValue(TRACKING_MAX_DAILY_RETURN, CHECK_DATE))
         .willReturn(MAX_DAILY_RETURN);
+  }
+
+  @Test
+  void benchmarkModelBreachThresholdUsesItsOwnParameterWhenSet() {
+    given(
+            parameterRepository.findLatestValueIfPresent(
+                BENCHMARK_MODEL_BREACH_THRESHOLD, CHECK_DATE))
+        .willReturn(Optional.of(new BigDecimal("0.0015")));
+
+    assertThat(calculator.benchmarkModelBreachThreshold(CHECK_DATE))
+        .isEqualByComparingTo(new BigDecimal("0.0015"));
+  }
+
+  @Test
+  void benchmarkModelBreachThresholdFallsBackToTheDailyThresholdWhenUnset() {
+    given(
+            parameterRepository.findLatestValueIfPresent(
+                BENCHMARK_MODEL_BREACH_THRESHOLD, CHECK_DATE))
+        .willReturn(Optional.empty());
+
+    assertThat(calculator.benchmarkModelBreachThreshold(CHECK_DATE))
+        .isEqualByComparingTo(BREACH_THRESHOLD);
   }
 
   @Test

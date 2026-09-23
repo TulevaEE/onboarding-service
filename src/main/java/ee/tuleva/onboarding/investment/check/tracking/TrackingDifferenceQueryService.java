@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
 
 import ee.tuleva.onboarding.investment.TrackingCheckType;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +37,12 @@ public class TrackingDifferenceQueryService {
         .map(
             event ->
                 new TrackingDifferenceSummary(
-                    event.getTrackingDifference(), calculator.breachThreshold(navDate)));
+                    event.getTrackingDifference(), breachThresholdFor(checkType, navDate)));
+  }
+
+  private BigDecimal breachThresholdFor(TrackingCheckType checkType, LocalDate navDate) {
+    return checkType == BENCHMARK_MODEL
+        ? calculator.benchmarkModelBreachThreshold(navDate)
+        : calculator.breachThreshold(navDate);
   }
 }

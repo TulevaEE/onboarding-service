@@ -4,10 +4,14 @@ import static ee.tuleva.onboarding.banking.BankType.SEB;
 import static ee.tuleva.onboarding.banking.BankType.SWEDBANK;
 import static ee.tuleva.onboarding.banking.message.BankMessageType.HISTORIC_STATEMENT;
 import static ee.tuleva.onboarding.banking.message.BankMessageType.INTRA_DAY_REPORT;
+import static ee.tuleva.onboarding.banking.message.BankingMessageRepositoryTest.Outcome.FAILED;
+import static ee.tuleva.onboarding.banking.message.BankingMessageRepositoryTest.Outcome.PROCESSED;
+import static ee.tuleva.onboarding.banking.message.BankingMessageRepositoryTest.Outcome.UNPROCESSED;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.banking.BankType;
 import ee.tuleva.onboarding.banking.statement.StatementPeriod;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
@@ -15,6 +19,7 @@ import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.jdbc.core.simple.JdbcClient;
 
 @DataJpaTest
 class BankingMessageRepositoryTest {
@@ -24,6 +29,7 @@ class BankingMessageRepositoryTest {
   private static final Instant PROCESSED_AT = Instant.parse("2026-09-14T01:00:33Z");
 
   @Autowired BankingMessageRepository repository;
+  @Autowired JdbcClient jdbcClient;
 
   @Test
   void
@@ -69,6 +75,69 @@ class BankingMessageRepositoryTest {
     save(SEB, HISTORIC_STATEMENT, IBAN, null, null);
 
     assertThat(repository.findEarliestStatementDate(SEB, HISTORIC_STATEMENT, IBAN)).isEmpty();
+  }
+
+  @Test
+  void latestProcessedStatement_isTheLastOneTheMatcherHasSeenForTheAccount() {
+    var fourPm = store(IBAN, INTRA_DAY_REPORT, "2026-09-23", "2026-09-23T13:00:05Z", PROCESSED);
+    store(IBAN, INTRA_DAY_REPORT, "2026-09-23", "2026-09-23T12:30:05Z", PROCESSED);
+    store(IBAN, INTRA_DAY_REPORT, null, "2026-09-23T13:30:05Z", UNPROCESSED);
+    store(IBAN, INTRA_DAY_REPORT, "2026-09-23", "2026-09-23T13:35:05Z", FAILED);
+    store(OTHER_IBAN, INTRA_DAY_REPORT, "2026-09-23", "2026-09-23T13:40:05Z", PROCESSED);
+
+    assertThat(repository.findLatestProcessedStatement(IBAN))
+        .hasValueSatisfying(message -> assertThat(message.getId()).isEqualTo(fourPm));
+  }
+
+  @Test
+  void latestProcessedStatement_isTodaysReportRatherThanACatchUpOfEarlierDaysFetchedAfterIt() {
+    var today = store(IBAN, INTRA_DAY_REPORT, "2026-09-23", "2026-09-23T13:00:05Z", PROCESSED);
+    store(IBAN, HISTORIC_STATEMENT, "2026-09-22", "2026-09-23T13:05:05Z", PROCESSED);
+
+    assertThat(repository.findLatestProcessedStatement(IBAN))
+        .hasValueSatisfying(message -> assertThat(message.getId()).isEqualTo(today));
+  }
+
+  @Test
+  void latestProcessedStatement_isAbsentUntilOneHasBeenProcessed() {
+    store(IBAN, INTRA_DAY_REPORT, null, "2026-09-23T13:00:05Z", UNPROCESSED);
+
+    assertThat(repository.findLatestProcessedStatement(IBAN)).isEmpty();
+  }
+
+  enum Outcome {
+    PROCESSED,
+    UNPROCESSED,
+    FAILED
+  }
+
+  private UUID store(
+      String iban,
+      BankMessageType messageType,
+      @Nullable String statementDate,
+      String receivedAt,
+      Outcome outcome) {
+    var id = UUID.randomUUID();
+    var received = Timestamp.from(Instant.parse(receivedAt));
+    jdbcClient
+        .sql(
+            """
+            insert into banking_message (id, bank_type, request_id, tracking_id, raw_response,
+              timezone, message_type, account_iban, statement_from, statement_to, processed_at,
+              failed_at, received_at)
+            values (:id, 'SEB', 'request', 'tracking', '<Document/>', 'Europe/Tallinn',
+              :messageType, :iban, :statementDate, :statementDate, :processedAt, :failedAt,
+              :receivedAt)
+            """)
+        .param("id", id)
+        .param("messageType", messageType.name())
+        .param("iban", iban)
+        .param("statementDate", statementDate == null ? null : LocalDate.parse(statementDate))
+        .param("processedAt", outcome == PROCESSED ? received : null)
+        .param("failedAt", outcome == FAILED ? received : null)
+        .param("receivedAt", received)
+        .update();
+    return id;
   }
 
   private void save(

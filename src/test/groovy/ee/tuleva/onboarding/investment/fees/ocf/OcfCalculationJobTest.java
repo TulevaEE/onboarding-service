@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.fees.ocf;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
@@ -10,6 +11,7 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneId;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -56,6 +58,16 @@ class OcfCalculationJobTest {
     job.onOcfCalculationRequested();
 
     verify(service).calculateForAllFunds(YearMonth.of(2026, 5));
+  }
+
+  @Test
+  void theScheduledRunAndTheRequestedRunShareOneLockSoTheyCannotOverlap() throws Exception {
+    var scheduled = OcfCalculationJob.class.getDeclaredMethod("computeMonthlyIfReady");
+    var requested = OcfCalculationJob.class.getDeclaredMethod("onOcfCalculationRequested");
+
+    assertThat(requested.getAnnotation(SchedulerLock.class)).isNotNull();
+    assertThat(requested.getAnnotation(SchedulerLock.class).name())
+        .isEqualTo(scheduled.getAnnotation(SchedulerLock.class).name());
   }
 
   private void setupClock(LocalDate date) {

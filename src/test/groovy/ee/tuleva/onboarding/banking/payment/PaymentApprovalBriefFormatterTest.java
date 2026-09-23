@@ -3,8 +3,10 @@ package ee.tuleva.onboarding.banking.payment;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 class PaymentApprovalBriefFormatterTest {
@@ -35,6 +37,28 @@ class PaymentApprovalBriefFormatterTest {
     var text = formatter.format(brief(true, 0));
 
     assertThat(text).contains("after execution", "would go negative");
+  }
+
+  @Test
+  void theProjectionSaysWhichStatementItsBalanceComesFromSoItsAgeIsVisible() {
+    var text = formatter.format(brief(projected("19386.49", "2026-08-10T13:00:05Z")));
+
+    assertThat(text).contains("      after execution: 19,386.49 (balance as of 16:00 statement)\n");
+  }
+
+  @Test
+  void aStatementFromAnEarlierDayIsShownWithItsDate() {
+    var text = formatter.format(brief(projected("19386.49", "2026-08-09T01:00:33Z")));
+
+    assertThat(text)
+        .contains("      after execution: 19,386.49 (balance as of 2026-08-09 04:00 statement)\n");
+  }
+
+  @Test
+  void anAccountWithNoProcessedStatementShowsNoProjectionRatherThanAGuess() {
+    var text = formatter.format(brief(null));
+
+    assertThat(text).doesNotContain("after execution");
   }
 
   @Test
@@ -72,6 +96,29 @@ class PaymentApprovalBriefFormatterTest {
     assertThat(text).doesNotContain("✅ payout entitlement");
   }
 
+  private static PaymentApprovalBrief.ProjectedBalance projected(String amount, String asOf) {
+    return new PaymentApprovalBrief.ProjectedBalance(new BigDecimal(amount), Instant.parse(asOf));
+  }
+
+  private static PaymentApprovalBrief brief(
+      PaymentApprovalBrief.@Nullable ProjectedBalance projectedBalance) {
+    return new PaymentApprovalBrief(
+        LocalDate.of(2026, 8, 10),
+        List.of(
+            new PaymentApprovalBrief.AccountSummary(
+                "DEPOSIT_EUR",
+                List.of(
+                    new PaymentApprovalBrief.FlowSummary(
+                        "to fund account", 1, new BigDecimal("150959.33"))),
+                1,
+                new BigDecimal("150959.33"),
+                projectedBalance)),
+        List.of(),
+        0,
+        List.of(),
+        false);
+  }
+
   private static PaymentApprovalBrief brief(boolean attention, int held) {
     return new PaymentApprovalBrief(
         LocalDate.of(2026, 8, 10),
@@ -91,7 +138,8 @@ class PaymentApprovalBriefFormatterTest {
                         "payouts to clients", 7, new BigDecimal("12345.67"))),
                 7,
                 new BigDecimal("12345.67"),
-                new BigDecimal("-1.00"))),
+                new PaymentApprovalBrief.ProjectedBalance(
+                    new BigDecimal("-1.00"), Instant.parse("2026-08-10T13:00:05Z")))),
         List.of(
             new PaymentApprovalBrief.Verdict(
                 "payouts == transfer to withdrawal account", true, "12,345.67 = 12,345.67"),

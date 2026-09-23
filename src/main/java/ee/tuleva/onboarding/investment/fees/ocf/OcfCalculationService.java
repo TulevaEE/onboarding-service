@@ -9,6 +9,7 @@ import static ee.tuleva.onboarding.investment.fees.ocf.OcfGap.NO_PUBLISHED_NAV_C
 import static ee.tuleva.onboarding.investment.fees.ocf.OcfGap.TRANSACTION_COSTS_WITHOUT_AVERAGE_AUM;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
+import static java.util.Arrays.stream;
 import static java.util.Objects.requireNonNull;
 
 import ee.tuleva.onboarding.investment.fees.DepotRateResolver;
@@ -31,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
@@ -55,8 +57,13 @@ public class OcfCalculationService {
   private final OcfSnapshotRepository ocfSnapshotRepository;
   private final FundNavQueryService fundNavQueryService;
   private final OcfJson ocfJson;
+  private final OcfNotifier ocfNotifier;
 
   public OcfSnapshot calculateOcf(TulevaFund fund, YearMonth month) {
+    return computeSnapshot(fund, month).snapshot();
+  }
+
+  private ComputedOcf computeSnapshot(TulevaFund fund, YearMonth month) {
     var monthEnd = month.atEndOfMonth();
 
     var mgmt = getManagementFee(fund, monthEnd);
@@ -96,24 +103,40 @@ public class OcfCalculationService {
         gaps.isEmpty(),
         gaps);
 
-    return snapshot;
+    return new ComputedOcf(snapshot, gaps);
   }
 
   public void calculateForAllFunds(YearMonth month) {
-    for (var fund : TulevaFund.values()) {
-      try {
-        calculateOcf(fund, month);
-      } catch (Exception e) {
-        log.error("OCF calculation failed: fund={}, month={}", fund.getCode(), month, e);
-      }
-    }
+    ocfNotifier.notifyRun(month, computeAllFunds(month));
   }
 
   public void backfillMonths(int monthsBack, Clock clock) {
     var now = YearMonth.now(clock);
-    for (int i = 1; i <= monthsBack; i++) {
-      calculateForAllFunds(now.minusMonths(i));
+    var outcomes =
+        IntStream.rangeClosed(1, monthsBack)
+            .mapToObj(now::minusMonths)
+            .flatMap(month -> computeAllFunds(month).stream())
+            .toList();
+    ocfNotifier.notifyBackfill(monthsBack, outcomes);
+  }
+
+  private List<OcfRunOutcome> computeAllFunds(YearMonth month) {
+    return stream(TulevaFund.values()).map(fund -> computeFund(fund, month)).toList();
+  }
+
+  private OcfRunOutcome computeFund(TulevaFund fund, YearMonth month) {
+    try {
+      var computed = computeSnapshot(fund, month);
+      return OcfRunOutcome.computed(fund, month, computed.snapshot(), computed.gaps());
+    } catch (Exception e) {
+      log.error("OCF calculation failed: fund={}, month={}", fund.getCode(), month, e);
+      return OcfRunOutcome.failed(fund, month, reasonOf(e));
     }
+  }
+
+  private static String reasonOf(Exception e) {
+    var message = e.getMessage();
+    return message == null ? e.getClass().getSimpleName() : message;
   }
 
   public boolean publish(TulevaFund fund, YearMonth month, String publishedIn) {
@@ -343,6 +366,8 @@ public class OcfCalculationService {
           firstNavDate);
     }
   }
+
+  private record ComputedOcf(OcfSnapshot snapshot, List<OcfGap> gaps) {}
 
   record ManagementFee(BigDecimal rate, @Nullable Long rateId) {}
 

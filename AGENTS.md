@@ -50,6 +50,7 @@ Follow **Uncle Bob** (Clean Code, SOLID), **Kent Beck** (TDD, simple design), **
 ### Code Quality
 - `./gradlew spotlessApply` (Google Java style via Spotless)
 - `./gradlew spotlessCheck`
+- **Review every diff twice before asking for a commit**: `codex review --uncommitted` (or `--base master`) AND the Claude Code `/code-review` skill at `high` effort, run as a fork so it uses the session's best model. Address or explicitly dismiss every finding from both, then re-run the affected tests.
 
 ### Refactoring Metrics (the oracle)
 - `./gradlew scorecard` — runs tests + PMD, aggregates everything into `metrics/scorecard.json`, and **fails on any ratchet regression** vs the previous commit's scorecard. Ratcheted down: modulith violations, module cycles, PMD violations, unmarked packages, @SpringBootTest count, top-15 class lines. Ratcheted up: line/branch coverage.

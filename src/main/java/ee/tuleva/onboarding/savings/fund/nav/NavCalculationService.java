@@ -52,11 +52,6 @@ public class NavCalculationService implements NavFeeBackfill {
   private final Clock clock;
 
   @Transactional
-  public NavCalculationResult calculate(String fundCode, LocalDate calculationDate) {
-    return calculate(TulevaFund.fromCode(fundCode), calculationDate);
-  }
-
-  @Transactional
   public NavCalculationResult calculate(TulevaFund fund, LocalDate calculationDate) {
     log.info("Starting NAV calculation: fund={}, date={}", fund, calculationDate);
 

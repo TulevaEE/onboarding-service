@@ -122,6 +122,7 @@ public class NavFeeAccrualLedger {
       LocalDate accrualDate,
       SystemAccount feeAccount,
       BigDecimal delta,
+      int revision,
       Map<String, Object> metadata) {
     if (delta.signum() == 0) {
       log.info(
@@ -132,17 +133,31 @@ public class NavFeeAccrualLedger {
       return;
     }
 
+    UUID externalReference = generateRevisionReference(fund, accrualDate, feeAccount, revision);
+    if (ledgerTransactionService.existsByExternalReferenceAndTransactionType(
+        externalReference, FEE_ACCRUAL)) {
+      log.warn(
+          "Fee accrual revision already recorded, skipping: fund={}, date={}, feeAccount={}, revision={}, requestedDelta={}",
+          fund,
+          accrualDate,
+          feeAccount.name(),
+          revision,
+          delta);
+      return;
+    }
+
     log.info(
-        "Creating fee accrual revision ledger entry: fund={}, date={}, feeAccount={}, delta={}",
+        "Creating fee accrual revision ledger entry: fund={}, date={}, feeAccount={}, revision={}, delta={}",
         fund,
         accrualDate,
         feeAccount.name(),
+        revision,
         delta);
     Instant transactionDate = accrualDate.atTime(9, 0).atZone(ESTONIAN_ZONE).toInstant();
     ledgerTransactionService.createTransaction(
         FEE_ACCRUAL,
         transactionDate,
-        UUID.randomUUID(),
+        externalReference,
         metadata,
         entry(getSystemAccount(NAV_EQUITY, fund), delta),
         entry(getSystemAccount(feeAccount, fund), delta.negate()));
@@ -232,6 +247,13 @@ public class NavFeeAccrualLedger {
   private UUID generateAccrualReference(
       TulevaFund fund, LocalDate accrualDate, SystemAccount feeAccount) {
     String key = fund.name() + ":" + accrualDate + ":" + feeAccount.name();
+    return UUID.nameUUIDFromBytes(key.getBytes(UTF_8));
+  }
+
+  private UUID generateRevisionReference(
+      TulevaFund fund, LocalDate accrualDate, SystemAccount feeAccount, int revision) {
+    String key =
+        fund.name() + ":" + accrualDate + ":" + feeAccount.name() + ":REVISION:" + revision;
     return UUID.nameUUIDFromBytes(key.getBytes(UTF_8));
   }
 

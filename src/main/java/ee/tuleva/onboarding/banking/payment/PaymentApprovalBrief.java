@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.banking.payment;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
@@ -20,11 +21,13 @@ public record PaymentApprovalBrief(
       List<FlowSummary> flows,
       int paymentCount,
       BigDecimal total,
-      @Nullable BigDecimal projectedBalance) {
+      @Nullable ProjectedBalance projectedBalance) {
     public boolean goesNegative() {
-      return projectedBalance != null && projectedBalance.signum() < 0;
+      return projectedBalance != null && projectedBalance.amount().signum() < 0;
     }
   }
+
+  public record ProjectedBalance(BigDecimal amount, Instant asOf) {}
 
   public record FlowSummary(String label, int paymentCount, BigDecimal total) {}
 
@@ -42,5 +45,9 @@ public record PaymentApprovalBrief(
 
   public static String amount(BigDecimal value) {
     return String.format(Locale.ROOT, "%,.2f", value);
+  }
+
+  public static String count(int payments) {
+    return payments == 1 ? "1 payment" : payments + " payments";
   }
 }

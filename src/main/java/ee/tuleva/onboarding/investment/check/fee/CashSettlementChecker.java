@@ -26,11 +26,6 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-// Closes the loop from the accrual ledger to money actually leaving the fund account. Matching is
-// deliberately coarse: the payment carries no fee month, no fee type and no reference to the
-// settled accrual, and it is recognised from a beneficiary name plus a description substring. So a
-// renamed payment description reads here as "settlement not observed", which is the honest result -
-// the fix for that belongs in the ingestion matcher, not in this check.
 @Component
 class CashSettlementChecker {
 
@@ -80,6 +75,7 @@ class CashSettlementChecker {
           finding(
               fund,
               WARNING,
+              List.of("multiplePaymentsInWindow=" + payments.size()),
               "Found "
                   + payments.size()
                   + " management fee payments in the window for "
@@ -93,13 +89,14 @@ class CashSettlementChecker {
 
     if (payments.isEmpty()) {
       if (settled.signum() == 0) {
-        return List.of(finding(fund, PASS, "", null, details));
+        return List.of(finding(fund, PASS, List.of(), "", null, details));
       }
       if (checkDate.isBefore(windowCloses)) {
         return List.of(
             finding(
                 fund,
                 NOT_RUN,
+                List.of("paymentWindowStillOpen"),
                 "No fee payment observed for " + feeMonth + " yet, window closes " + windowCloses,
                 null,
                 details));
@@ -108,6 +105,7 @@ class CashSettlementChecker {
           finding(
               fund,
               WARNING,
+              List.of("noPaymentObserved"),
               "Settled "
                   + settled.toPlainString()
                   + " of management fees for "
@@ -125,6 +123,7 @@ class CashSettlementChecker {
           finding(
               fund,
               WARNING,
+              List.of("paymentDiffersFromSettlement"),
               "Management fees paid for "
                   + feeMonth
                   + " were "
@@ -135,7 +134,7 @@ class CashSettlementChecker {
               deviation,
               details));
     }
-    return List.of(finding(fund, PASS, "", null, details));
+    return List.of(finding(fund, PASS, List.of(), "", null, details));
   }
 
   private String amounts(List<LedgerEntryAmount> payments) {
@@ -147,6 +146,7 @@ class CashSettlementChecker {
   private FeeCheckFinding finding(
       TulevaFund fund,
       FeeCheckSeverity severity,
+      List<String> identifiers,
       String message,
       @Nullable BigDecimal deviation,
       Map<String, Object> details) {
@@ -157,12 +157,10 @@ class CashSettlementChecker {
         severity,
         message,
         deviation == null ? null : deviation.abs(),
+        identifiers,
         details);
   }
 
-  // A month is only settled on its last day, so anything paid before that belongs to the previous
-  // month: opening the window on the fee month instead would sweep it in and report two payments
-  // every single month.
   private List<LedgerEntryAmount> paymentsSinceSettlement(
       TulevaFund fund, LocalDate settlementDate, LocalDate windowCloses) {
     return entries(

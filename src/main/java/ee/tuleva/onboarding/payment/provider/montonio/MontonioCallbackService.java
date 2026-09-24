@@ -12,7 +12,6 @@ import ee.tuleva.onboarding.payment.provider.PaymentReference;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
-import java.text.ParseException;
 import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -34,11 +33,12 @@ public class MontonioCallbackService {
   private final PaymentRepository paymentRepository;
   private final JsonMapper objectMapper;
   private final ApplicationEventPublisher eventPublisher;
+  private final MontonioTokenParser tokenParser;
 
   public Optional<Payment> processToken(String serializedToken) {
     // TODO: can we create a separate class for the token and encapsulate the verify() and
     // isFinalized() logic there?
-    JWSObject token = parseToken(serializedToken);
+    JWSObject token = tokenParser.parseSerialized(serializedToken);
     verifyToken(token);
 
     Map<String, Object> json = token.getPayload().toJSONObject();
@@ -65,7 +65,13 @@ public class MontonioCallbackService {
       return existingPayment;
     }
 
-    User user = userService.findByPersonalCode(internalReference.getPersonalCode()).orElseThrow();
+    // Anonymous payers only reach the savings fund callback, so a missing code here is a broken
+    // invariant rather than a case to handle.
+    var payerPersonalCode =
+        requireNonNull(
+            internalReference.getPersonalCode(),
+            "Payment without a payer: uuid=" + internalReference.getUuid());
+    User user = userService.findByPersonalCode(payerPersonalCode).orElseThrow();
 
     Payment paymentToBeSaved =
         Payment.builder()
@@ -106,17 +112,6 @@ public class MontonioCallbackService {
     return requireNonNull(paymentStatus, "Missing paymentStatus in token")
         .toString()
         .equalsIgnoreCase("PAID");
-  }
-
-  private JWSObject parseToken(String serializedToken) {
-    if (serializedToken == null || serializedToken.isBlank()) {
-      throw new BadCredentialsException("Missing payment token");
-    }
-    try {
-      return JWSObject.parse(serializedToken);
-    } catch (ParseException e) {
-      throw new BadCredentialsException("Malformed payment token", e);
-    }
   }
 
   @SneakyThrows

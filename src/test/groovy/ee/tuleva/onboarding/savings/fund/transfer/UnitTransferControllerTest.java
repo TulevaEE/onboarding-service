@@ -65,7 +65,9 @@ class UnitTransferControllerTest {
                     new BigDecimal("40.00000"),
                     BigDecimal.ZERO,
                     new BigDecimal("1000.00"),
-                    new BigDecimal("100.00000"))));
+                    new BigDecimal("100.00000"),
+                    new BigDecimal("100.00000"),
+                    new BigDecimal("400.00"))));
 
     mockMvc
         .perform(
@@ -184,6 +186,23 @@ class UnitTransferControllerTest {
         .andExpect(jsonPath("$.length()").value(1))
         .andExpect(jsonPath("$[0].state").value("AWAITING_APPROVAL"))
         .andExpect(jsonPath("$[0].fundUnits").value(40.00000));
+  }
+
+  @Test
+  void aTransferWithoutWhatTheUnitsCostTheRecipientIsRefused() throws Exception {
+    mockMvc
+        .perform(
+            post(TRANSFERS + "/preview")
+                .header("X-Admin-Token", "valid-token")
+                .contentType("application/json")
+                .content(
+                    """
+                    {"fromCode":"38888888888","fromType":"PERSON","toCode":"39999999999",
+                     "toType":"PERSON","fundUnits":"40.00000","notifiedAt":"2026-09-14",
+                     "evidence":"Notice by email"}
+                    """))
+        .andExpect(status().isBadRequest());
+    verifyNoInteractions(unitTransferService);
   }
 
   @Test

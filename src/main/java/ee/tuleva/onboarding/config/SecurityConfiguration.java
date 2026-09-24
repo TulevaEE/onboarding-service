@@ -2,11 +2,16 @@ package ee.tuleva.onboarding.config;
 
 import static ee.tuleva.onboarding.auth.authority.Authority.*;
 import static org.springframework.http.HttpMethod.*;
+import static org.springframework.security.authorization.AuthorityAuthorizationManager.hasAuthority;
+import static org.springframework.security.authorization.AuthorizationManagers.allOf;
+import static org.springframework.security.authorization.AuthorizationManagers.not;
 import static org.springframework.security.config.http.SessionCreationPolicy.IF_REQUIRED;
 
 import ee.tuleva.onboarding.auth.jwt.JwtAuthorizationFilter;
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
+import java.util.Arrays;
+import java.util.stream.Stream;
 import lombok.SneakyThrows;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,11 +20,20 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 
 @Configuration
 // @EnableWebSecurity(debug = true)
 @EnableWebSecurity
 public class SecurityConfiguration {
+
+  private static final String[] MEMBER_PATHS = {
+    "/v1/listings/**",
+    "/v1/capital-transfer-contracts/**",
+    "/v1/hackathon-registration/**",
+    "/v1/hackathon-ideas/**"
+  };
 
   @Bean
   @SneakyThrows
@@ -46,15 +60,20 @@ public class SecurityConfiguration {
                         "/error")
                     .permitAll()
                     .requestMatchers(
+                        POST, "/v1/payments/notifications", "/v1/payments/savings/notifications")
+                    .permitAll()
+                    .requestMatchers(GET, "/v1/gift-links/*")
+                    .permitAll()
+                    .requestMatchers(POST, "/v1/gift-links/*/payments")
+                    .permitAll()
+                    .requestMatchers(writesTo(MEMBER_PATHS))
+                    .access(allOf(hasAuthority(MEMBER), not(hasAuthority(WARD))))
+                    .requestMatchers(writesTo("/v1/**"))
+                    .access(allOf(hasAuthority(USER), not(hasAuthority(WARD))))
+                    .requestMatchers(
                         GET, "/v1/me/capital", "/v1/me/capital/events", "/v1/capital/total")
                     .hasAuthority(MEMBER)
-                    .requestMatchers("/v1/listings/**")
-                    .hasAuthority(MEMBER)
-                    .requestMatchers("/v1/capital-transfer-contracts/**")
-                    .hasAuthority(MEMBER)
-                    .requestMatchers("/v1/hackathon-registration/**")
-                    .hasAuthority(MEMBER)
-                    .requestMatchers("/v1/hackathon-ideas/**")
+                    .requestMatchers(MEMBER_PATHS)
                     .hasAuthority(MEMBER)
                     .requestMatchers(GET, "/v1/funds")
                     .permitAll()
@@ -74,8 +93,7 @@ public class SecurityConfiguration {
                     .permitAll()
                     .requestMatchers(GET, "/v1/payments/member-success")
                     .permitAll()
-                    .requestMatchers(
-                        POST, "/v1/payments/notifications", "/v1/payments/savings/notifications")
+                    .requestMatchers(GET, "/v1/payments/savings/callback")
                     .permitAll()
                     .requestMatchers(GET, "/v1/pension-account-statement", "/v1/me")
                     .hasAnyAuthority(USER, PARTNER)
@@ -98,6 +116,18 @@ public class SecurityConfiguration {
         .addFilterBefore(jwtAuthorizationFilter, UsernamePasswordAuthenticationFilter.class);
 
     return http.build();
+  }
+
+  private static RequestMatcher writesTo(String... patterns) {
+    return new OrRequestMatcher(
+        Arrays.stream(patterns)
+            .flatMap(
+                pattern ->
+                    Stream.of(POST, PUT, PATCH, DELETE)
+                        .<RequestMatcher>map(
+                            method ->
+                                PathPatternRequestMatcher.withDefaults().matcher(method, pattern)))
+            .toList());
   }
 
   @Bean

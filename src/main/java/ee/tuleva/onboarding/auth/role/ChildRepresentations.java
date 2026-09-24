@@ -10,4 +10,8 @@ public interface ChildRepresentations {
   List<String> findPendingChildCodes(String personalCode);
 
   boolean isActiveRepresentation(String personalCode, String childCode);
+
+  boolean isGuardian(String personalCode, String childCode);
+
+  boolean hasRestrictedLegalCapacity(String personalCode);
 }

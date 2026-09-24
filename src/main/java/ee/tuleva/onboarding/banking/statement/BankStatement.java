@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.banking.statement;
 import static ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType.HISTORIC_STATEMENT;
 import static ee.tuleva.onboarding.banking.statement.BankStatement.BankStatementType.INTRA_DAY_REPORT;
 import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.CLOSE;
+import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.INTERIM_BOOKED;
 import static ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType.OPEN;
 import static java.math.BigDecimal.ZERO;
 
@@ -11,11 +12,13 @@ import ee.tuleva.onboarding.banking.iso20022.camt052.BankToCustomerAccountReport
 import ee.tuleva.onboarding.banking.iso20022.camt052.DateTimePeriodDetails;
 import ee.tuleva.onboarding.banking.iso20022.camt053.AccountStatement2;
 import ee.tuleva.onboarding.banking.iso20022.camt053.BankToCustomerStatementV02;
+import ee.tuleva.onboarding.banking.statement.BankStatementBalance.StatementBalanceType;
 import java.math.BigDecimal;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import javax.xml.datatype.XMLGregorianCalendar;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -25,9 +28,12 @@ import org.jspecify.annotations.Nullable;
 @RequiredArgsConstructor
 public class BankStatement {
 
+  @RequiredArgsConstructor
   public enum BankStatementType {
-    INTRA_DAY_REPORT,
-    HISTORIC_STATEMENT
+    INTRA_DAY_REPORT(INTERIM_BOOKED),
+    HISTORIC_STATEMENT(CLOSE);
+
+    private final StatementBalanceType bookedBalanceType;
   }
 
   private final BankStatementType type;
@@ -35,6 +41,13 @@ public class BankStatement {
   private final List<BankStatementBalance> balances;
   private final List<BankStatementEntry> entries;
   private final StatementPeriod period;
+
+  public Optional<BigDecimal> bookedBalance() {
+    return balances.stream()
+        .filter(balance -> balance.type() == type.bookedBalanceType)
+        .map(BankStatementBalance::balance)
+        .findFirst();
+  }
 
   record TransactionSummary(
       @Nullable String totalCount,

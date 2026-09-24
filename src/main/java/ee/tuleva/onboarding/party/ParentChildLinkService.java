@@ -62,6 +62,14 @@ public class ParentChildLinkService implements ChildRepresentations {
     return findRepresentation(parentPersonalCode, childPersonalCode, Set.of(ACTIVE)).isPresent();
   }
 
+  // The parent acting *for* the child with their own money: a link awaiting the parent's KYC is
+  // still that child's guardian, so their deposit is not a stranger's gift.
+  @Override
+  public boolean isGuardian(String parentPersonalCode, String childPersonalCode) {
+    return findRepresentation(parentPersonalCode, childPersonalCode, Set.of(ACTIVE, PENDING_KYC))
+        .isPresent();
+  }
+
   // AML screening scope, not an authorization check: suspended and PENDING_KYC links count,
   // because suspension does not cleanse the guardian-risk association (mirrors check_24).
   public List<String> findGuardianCodes(String childPersonalCode) {
@@ -71,6 +79,11 @@ public class ParentChildLinkService implements ChildRepresentations {
         .map(ParentChildLink::getParentPersonalCode)
         .distinct()
         .toList();
+  }
+
+  @Override
+  public boolean hasRestrictedLegalCapacity(String personalCode) {
+    return hasRestrictedLegalCapacity(personalCode, today());
   }
 
   public boolean hasRestrictedLegalCapacity(String personalCode, LocalDate asOf) {

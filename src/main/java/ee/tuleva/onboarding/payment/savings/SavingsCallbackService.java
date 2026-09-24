@@ -3,10 +3,11 @@ package ee.tuleva.onboarding.payment.savings;
 import static ee.tuleva.onboarding.payment.provider.PaymentInternalReferenceService.inferPartyType;
 import static java.util.Objects.requireNonNull;
 
-import com.nimbusds.jose.JWSObject;
 import ee.tuleva.onboarding.party.PartyId;
+import ee.tuleva.onboarding.payment.GiftPayments;
 import ee.tuleva.onboarding.payment.IncomingSavingsPayment;
 import ee.tuleva.onboarding.payment.PaymentData;
+import ee.tuleva.onboarding.payment.SavingsPaymentOutcome;
 import ee.tuleva.onboarding.payment.SavingsPayments;
 import ee.tuleva.onboarding.payment.event.SavingsPaymentCreatedEvent;
 import ee.tuleva.onboarding.payment.provider.PaymentReference;
@@ -15,7 +16,6 @@ import ee.tuleva.onboarding.payment.provider.montonio.MontonioTokenParser;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -29,11 +29,11 @@ public class SavingsCallbackService {
   private final MontonioTokenParser tokenParser;
   private final SavingsChannelConfiguration savingsChannelConfiguration;
   private final SavingsPayments savingsPayments;
+  private final GiftPayments giftPayments;
   private final ApplicationEventPublisher eventPublisher;
 
-  @SneakyThrows
-  public boolean processToken(String serializedToken) {
-    var jwsObject = JWSObject.parse(serializedToken);
+  public SavingsPaymentOutcome processToken(String serializedToken) {
+    var jwsObject = tokenParser.parseSerialized(serializedToken);
     tokenParser.verifyToken(jwsObject, savingsChannelConfiguration.getSecretKey());
     var token = tokenParser.parse(jwsObject);
 
@@ -46,14 +46,17 @@ public class SavingsCallbackService {
             token.getMerchantReference(),
             "Montonio order token missing merchant reference: uuid=" + token.getUuid());
 
-    if (!paymentStatus.equals(MontonioOrderToken.MontonioOrderStatus.PAID)) {
-      log.info("Montonio order {} not paid", merchantReference);
-      return false;
-    }
-
     if (!merchantReference.getPaymentType().equals(PaymentData.PaymentType.SAVINGS)) {
       log.error("Montonio order {} not SAVINGS type", merchantReference);
-      return false;
+      return new SavingsPaymentOutcome(false, null);
+    }
+
+    var giftLinkToken =
+        giftPayments.findGiftLinkToken(merchantReference.getDescription()).orElse(null);
+
+    if (!paymentStatus.equals(MontonioOrderToken.MontonioOrderStatus.PAID)) {
+      log.info("Montonio order {} not paid", merchantReference);
+      return new SavingsPaymentOutcome(false, giftLinkToken);
     }
 
     var recipient = recipientParty(merchantReference);
@@ -82,10 +85,13 @@ public class SavingsCallbackService {
     if (savingsPayments.recordIncoming(incomingPayment)) {
       sendReceipt(merchantReference, recipient);
     }
-    return true;
+    return new SavingsPaymentOutcome(true, giftLinkToken);
   }
 
   private void sendReceipt(PaymentReference merchantReference, PartyId recipient) {
+    if (merchantReference.getPersonalCode() == null) {
+      return;
+    }
     userService
         .findByPersonalCode(merchantReference.getPersonalCode())
         .ifPresent(

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.transaction;
 
 import static ee.tuleva.onboarding.investment.transaction.InstrumentType.ETF;
+import static ee.tuleva.onboarding.investment.transaction.InstrumentType.FUND;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.CANCELLED;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.DISCARDED;
 import static ee.tuleva.onboarding.investment.transaction.OrderStatus.DRAFT;
@@ -157,6 +158,57 @@ class TransactionRegistryViewsIT {
   }
 
   @Test
+  void settlementDelays_judgesFundsAgainstTheDateSebFirstReported() {
+    // Our T+N estimate is only the mode for funds, so it is not the yardstick. SEB's own
+    // first-reported settlement date is. Here the estimate says today-2 and SEB said today-4;
+    // settling on today-3 is late against SEB even though it beats our estimate.
+    TransactionOrder fund = persistFundOrder(LocalDate.now().minusDays(2));
+    persistExecutionSettlingOn(fund, LocalDate.now().minusDays(4));
+    persistSettlement(fund, LocalDate.now().minusDays(3));
+    entityManager.flush();
+
+    Map<String, Object> row = settlementDelayRow(fund);
+
+    assertThat(((java.sql.Date) row.get("expected_settlement_date")).toLocalDate())
+        .isEqualTo(LocalDate.now().minusDays(2));
+    assertThat(((java.sql.Date) row.get("first_reported_settlement_date")).toLocalDate())
+        .isEqualTo(LocalDate.now().minusDays(4));
+    assertThat(((java.sql.Date) row.get("benchmark_settlement_date")).toLocalDate())
+        .isEqualTo(LocalDate.now().minusDays(4));
+    assertThat(row.get("settled_on_time")).isEqualTo(false);
+  }
+
+  @Test
+  void settlementDelays_keepsOurEstimateForEtfs() {
+    // ETF T+2 is accurate, so nothing changes there — an ETF is still judged against the
+    // estimate even when SEB reported a different date.
+    TransactionOrder etf = persistOrder(EXECUTED, LocalDate.now().minusDays(2), "100");
+    persistExecutionSettlingOn(etf, LocalDate.now().minusDays(4));
+    persistSettlement(etf, LocalDate.now().minusDays(3));
+    entityManager.flush();
+
+    Map<String, Object> row = settlementDelayRow(etf);
+
+    assertThat(((java.sql.Date) row.get("benchmark_settlement_date")).toLocalDate())
+        .isEqualTo(LocalDate.now().minusDays(2));
+    assertThat(row.get("settled_on_time")).isEqualTo(true);
+  }
+
+  @Test
+  void settlementDelays_fallsBackToOurEstimateWhenSebNeverReportedAFundSettlementDate() {
+    TransactionOrder fund = persistFundOrder(LocalDate.now().minusDays(4));
+    persistSettlement(fund, LocalDate.now().minusDays(3));
+    entityManager.flush();
+
+    Map<String, Object> row = settlementDelayRow(fund);
+
+    assertThat(row.get("first_reported_settlement_date")).isNull();
+    assertThat(((java.sql.Date) row.get("benchmark_settlement_date")).toLocalDate())
+        .isEqualTo(LocalDate.now().minusDays(4));
+    assertThat(row.get("settled_on_time")).isEqualTo(false);
+  }
+
+  @Test
   void overdueOrders_includesSentOrdersPastExpectedSettlementWithoutExecution() {
     TransactionOrder overdue = persistOrder(SENT, LocalDate.now().minusDays(2), "100");
     TransactionOrder sentButExecuted = persistOrder(SENT, LocalDate.now().minusDays(2), "100");
@@ -303,7 +355,8 @@ class TransactionRegistryViewsIT {
     return jdbcClient
         .sql(
             "select order_id, order_uuid, fund_code, expected_settlement_date,"
-                + " actual_settlement_date, settled_on_time from v_settlement_delays"
+                + " actual_settlement_date, first_reported_settlement_date,"
+                + " benchmark_settlement_date, settled_on_time from v_settlement_delays"
                 + " where order_id = ?")
         .param(order.getId())
         .query()
@@ -343,6 +396,22 @@ class TransactionRegistryViewsIT {
         .orderUuid(UUID.randomUUID())
         .orderStatus(status)
         .expectedSettlementDate(expectedSettlementDate);
+  }
+
+  private TransactionOrder persistFundOrder(LocalDate expectedSettlementDate) {
+    return orderRepository.save(
+        orderBuilder(EXECUTED, expectedSettlementDate)
+            .instrumentType(FUND)
+            .instrumentIsin("IE0009FT4LX4")
+            .orderQuantity(new BigDecimal("100"))
+            .build());
+  }
+
+  private TransactionExecution persistExecutionSettlingOn(
+      TransactionOrder order, LocalDate scheduledSettlementDate) {
+    TransactionExecution execution = persistExecution(order, "100.0000");
+    execution.setScheduledSettlementDate(scheduledSettlementDate);
+    return executionRepository.save(execution);
   }
 
   private TransactionExecution persistExecution(TransactionOrder order, String executedQuantity) {

@@ -20,8 +20,8 @@ import ee.tuleva.onboarding.investment.check.health.HealthCheckFinding;
 import ee.tuleva.onboarding.investment.check.health.HealthCheckNotifier;
 import ee.tuleva.onboarding.investment.check.health.HealthCheckResult;
 import ee.tuleva.onboarding.investment.check.health.HealthCheckService;
+import ee.tuleva.onboarding.investment.position.FundPositionImportService.ImportResult;
 import ee.tuleva.onboarding.investment.position.parser.SebFundPositionParser;
-import ee.tuleva.onboarding.investment.position.parser.SwedbankFundPositionParser;
 import ee.tuleva.onboarding.investment.report.InvestmentReport;
 import ee.tuleva.onboarding.investment.report.InvestmentReportService;
 import ee.tuleva.onboarding.investment.report.MissingReportAsOfDateEvent;
@@ -53,20 +53,17 @@ class FundPositionImportJobTest {
   @Mock private ApplicationEventPublisher eventPublisher;
   @Mock private PipelineTracker pipelineTracker;
 
-  private SwedbankFundPositionParser swedbankParser;
   private SebFundPositionParser sebParser;
   private FundPositionImportService importService;
   private FundPositionImportJob job;
 
   @BeforeEach
   void setUp() {
-    swedbankParser = new SwedbankFundPositionParser(Clock.systemUTC());
     sebParser = new SebFundPositionParser(Clock.systemUTC(), new SebReportAsOfDate(eventPublisher));
     importService = new FundPositionImportService(repository, Clock.systemUTC());
     lenient().when(healthCheckService.check(anyList())).thenReturn(List.of());
     job =
         new FundPositionImportJob(
-            swedbankParser,
             sebParser,
             importService,
             reportService,
@@ -81,46 +78,37 @@ class FundPositionImportJobTest {
   private static final List<Map<String, Object>> SAMPLE_RAW_DATA =
       List.of(
           Map.ofEntries(
-              entry("ReportDate", "06.01.2026"),
-              entry("NAVDate", "05.01.2026"),
-              entry("Portfolio", "Tuleva Maailma Aktsiate Pensionifond"),
-              entry("AssetType", "Equities"),
-              entry("FundCurr", "EUR"),
+              entry("Client name", "TUK75"),
+              entry("Account", "EE861010220306591229"),
               entry("ISIN", "IE00BFG1TM61"),
-              entry("AssetName", "ISHARES DEV WLD ESG"),
+              entry("Name", "ISHARES DEV WLD ESG"),
               entry("Quantity", "1000000"),
-              entry("AssetCurr", "EUR"),
-              entry("MarketValuePC", "33500000")),
+              entry("Currency", "EUR"),
+              entry("Market Value (EUR)", "33500000")),
           Map.ofEntries(
-              entry("ReportDate", "06.01.2026"),
-              entry("NAVDate", "05.01.2026"),
-              entry("Portfolio", "Tuleva Maailma Aktsiate Pensionifond"),
-              entry("AssetType", "Cash & Cash Equiv"),
-              entry("FundCurr", "EUR"),
+              entry("Client name", "TUK75"),
+              entry("Account", "EE861010220306591229"),
               entry("ISIN", ""),
-              entry("AssetName", "Overnight Deposit"),
+              entry("Name", "Cash account in SEB Pank"),
               entry("Quantity", "5000000"),
-              entry("AssetCurr", "EUR"),
-              entry("MarketValuePC", "5000000")),
+              entry("Currency", "EUR"),
+              entry("Market Value (EUR)", "5000000")),
           Map.ofEntries(
-              entry("ReportDate", "06.01.2026"),
-              entry("NAVDate", "05.01.2026"),
-              entry("Portfolio", "Tuleva Vabatahtlik Pensionifon"),
-              entry("AssetType", "Equities"),
-              entry("FundCurr", "EUR"),
+              entry("Client name", "TUV100"),
+              entry("Account", "EE861010220306591230"),
               entry("ISIN", "IE00BFNM3G45"),
-              entry("AssetName", "ISHARES USA ESG"),
+              entry("Name", "ISHARES USA ESG"),
               entry("Quantity", "500000"),
-              entry("AssetCurr", "EUR"),
-              entry("MarketValuePC", "6000000")));
+              entry("Currency", "EUR"),
+              entry("Market Value (EUR)", "6000000")));
 
-  private InvestmentReport createSwedbankReport(LocalDate date) {
+  private InvestmentReport createSebReport(LocalDate date) {
     return InvestmentReport.builder()
-        .provider(SWEDBANK)
+        .provider(SEB)
         .reportType(POSITIONS)
         .reportDate(date)
         .rawData(SAMPLE_RAW_DATA)
-        .metadata(Map.of())
+        .metadata(Map.of("asOfDate", date.toString(), "sentDate", date.plusDays(1).toString()))
         .createdAt(Instant.now())
         .build();
   }
@@ -128,12 +116,12 @@ class FundPositionImportJobTest {
   @Test
   void importForProviderAndDate_parsesAndSavesPositions() {
     LocalDate date = LocalDate.of(2026, 1, 5);
-    when(reportService.getReport(SWEDBANK, POSITIONS, date))
-        .thenReturn(Optional.of(createSwedbankReport(date)));
+    when(reportService.getReport(SEB, POSITIONS, date))
+        .thenReturn(Optional.of(createSebReport(date)));
     when(repository.findByNavDateAndFundAndAccountTypeAndAccountName(any(), any(), any(), any()))
         .thenReturn(Optional.empty());
 
-    job.importForProviderAndDate(SWEDBANK, date);
+    job.importForProviderAndDate(SEB, date);
 
     verify(repository, times(3)).save(any(FundPosition.class));
   }
@@ -141,8 +129,8 @@ class FundPositionImportJobTest {
   @Test
   void importForProviderAndDate_skipsExistingPositions() {
     LocalDate date = LocalDate.of(2026, 1, 5);
-    when(reportService.getReport(SWEDBANK, POSITIONS, date))
-        .thenReturn(Optional.of(createSwedbankReport(date)));
+    when(reportService.getReport(SEB, POSITIONS, date))
+        .thenReturn(Optional.of(createSebReport(date)));
     when(repository.findByNavDateAndFundAndAccountTypeAndAccountName(
             eq(LocalDate.of(2026, 1, 5)), eq(TUK75), eq(SECURITY), eq("ISHARES DEV WLD ESG")))
         .thenReturn(
@@ -157,13 +145,13 @@ class FundPositionImportJobTest {
                     .marketValue(new java.math.BigDecimal("33500000"))
                     .build()));
     when(repository.findByNavDateAndFundAndAccountTypeAndAccountName(
-            eq(LocalDate.of(2026, 1, 5)), eq(TUK75), eq(CASH), eq("Overnight Deposit")))
+            eq(LocalDate.of(2026, 1, 5)), eq(TUK75), eq(CASH), eq("Cash account in SEB Pank")))
         .thenReturn(Optional.empty());
     when(repository.findByNavDateAndFundAndAccountTypeAndAccountName(
             eq(LocalDate.of(2026, 1, 5)), eq(TUV100), eq(SECURITY), eq("ISHARES USA ESG")))
         .thenReturn(Optional.empty());
 
-    job.importForProviderAndDate(SWEDBANK, date);
+    job.importForProviderAndDate(SEB, date);
 
     verify(repository, times(2)).save(any(FundPosition.class));
   }
@@ -171,8 +159,8 @@ class FundPositionImportJobTest {
   @Test
   void importForProviderAndDate_publishesNavPositionsUpdated_forFundsWithChangedRows() {
     LocalDate date = LocalDate.of(2026, 1, 5);
-    given(reportService.getReport(SWEDBANK, POSITIONS, date))
-        .willReturn(Optional.of(createSwedbankReport(date)));
+    given(reportService.getReport(SEB, POSITIONS, date))
+        .willReturn(Optional.of(createSebReport(date)));
     given(repository.findByNavDateAndFundAndAccountTypeAndAccountName(any(), any(), any(), any()))
         .willReturn(Optional.empty());
     given(
@@ -189,7 +177,7 @@ class FundPositionImportJobTest {
                     .marketValue(new java.math.BigDecimal("33500000"))
                     .build()));
 
-    job.importForProviderAndDate(SWEDBANK, date);
+    job.importForProviderAndDate(SEB, date);
 
     var inOrder = inOrder(fundPositionLedgerService, eventPublisher);
     inOrder.verify(fundPositionLedgerService).rerecordPositionsFromDate(TUK75, date);
@@ -200,8 +188,8 @@ class FundPositionImportJobTest {
   @Test
   void importForProviderAndDate_doesNotPublishNavPositionsUpdated_whenNothingChanged() {
     LocalDate date = LocalDate.of(2026, 1, 5);
-    given(reportService.getReport(SWEDBANK, POSITIONS, date))
-        .willReturn(Optional.of(createSwedbankReport(date)));
+    given(reportService.getReport(SEB, POSITIONS, date))
+        .willReturn(Optional.of(createSebReport(date)));
     given(
             repository.findByNavDateAndFundAndAccountTypeAndAccountName(
                 eq(date), eq(TUK75), eq(SECURITY), eq("ISHARES DEV WLD ESG")))
@@ -211,10 +199,11 @@ class FundPositionImportJobTest {
                     date, TUK75, SECURITY, "ISHARES DEV WLD ESG", "1000000", "33500000")));
     given(
             repository.findByNavDateAndFundAndAccountTypeAndAccountName(
-                eq(date), eq(TUK75), eq(CASH), eq("Overnight Deposit")))
+                eq(date), eq(TUK75), eq(CASH), eq("Cash account in SEB Pank")))
         .willReturn(
             Optional.of(
-                existingPosition(date, TUK75, CASH, "Overnight Deposit", "5000000", "5000000")));
+                existingPosition(
+                    date, TUK75, CASH, "Cash account in SEB Pank", "5000000", "5000000")));
     given(
             repository.findByNavDateAndFundAndAccountTypeAndAccountName(
                 eq(date), eq(TUV100), eq(SECURITY), eq("ISHARES USA ESG")))
@@ -222,7 +211,7 @@ class FundPositionImportJobTest {
             Optional.of(
                 existingPosition(date, TUV100, SECURITY, "ISHARES USA ESG", "500000", "6000000")));
 
-    job.importForProviderAndDate(SWEDBANK, date);
+    job.importForProviderAndDate(SEB, date);
 
     verify(eventPublisher, never()).publishEvent(any(NavPositionsUpdated.class));
     verify(fundPositionLedgerService, never()).rerecordPositionsFromDate(any(), any());
@@ -279,20 +268,21 @@ class FundPositionImportJobTest {
   @Test
   void importForProviderAndDate_handlesNoReportInDatabase() {
     LocalDate date = LocalDate.of(2026, 1, 5);
-    when(reportService.getReport(SWEDBANK, POSITIONS, date)).thenReturn(Optional.empty());
+    when(reportService.getReport(SEB, POSITIONS, date)).thenReturn(Optional.empty());
 
-    job.importForProviderAndDate(SWEDBANK, date);
+    job.importForProviderAndDate(SEB, date);
 
     verify(repository, never()).save(any());
   }
 
   @Test
-  void runImport_processesMultipleDaysForBothProviders() {
+  void runImport_looksUpOnlySebPositionsForTheLookbackWindow() {
     when(reportService.getReport(any(), any(), any())).thenReturn(Optional.empty());
 
     job.runImport();
 
-    verify(reportService, times(28)).getReport(any(), any(), any());
+    verify(reportService, times(14)).getReport(eq(SEB), eq(POSITIONS), any());
+    verify(reportService, times(14)).getReport(any(), any(), any());
   }
 
   @Test
@@ -301,28 +291,18 @@ class FundPositionImportJobTest {
 
     job.runImport();
 
-    verify(reportService, times(28)).getReport(any(), any(), any());
-  }
-
-  @Test
-  void runImport_processesBothProviders() {
-    when(reportService.getReport(any(), any(), any())).thenReturn(Optional.empty());
-
-    job.runImport();
-
-    verify(reportService, times(14)).getReport(eq(SWEDBANK), eq(POSITIONS), any());
-    verify(reportService, times(14)).getReport(eq(SEB), eq(POSITIONS), any());
+    verify(reportService, times(14)).getReport(any(), any(), any());
   }
 
   @Test
   void importForProviderAndDate_recordsToLedgerForNavCalculationFunds() {
     LocalDate date = LocalDate.of(2026, 1, 5);
-    when(reportService.getReport(SWEDBANK, POSITIONS, date))
-        .thenReturn(Optional.of(createSwedbankReport(date)));
+    when(reportService.getReport(SEB, POSITIONS, date))
+        .thenReturn(Optional.of(createSebReport(date)));
     when(repository.findByNavDateAndFundAndAccountTypeAndAccountName(any(), any(), any(), any()))
         .thenReturn(Optional.empty());
 
-    job.importForProviderAndDate(SWEDBANK, date);
+    job.importForProviderAndDate(SEB, date);
 
     verify(fundPositionLedgerService).recordPositionsToLedger(TUK75, date);
     verify(fundPositionLedgerService).recordPositionsToLedger(TUV100, date);
@@ -331,9 +311,9 @@ class FundPositionImportJobTest {
   @Test
   void importForProviderAndDate_doesNotRecordToLedger_whenNoReportFound() {
     LocalDate date = LocalDate.of(2026, 1, 5);
-    when(reportService.getReport(SWEDBANK, POSITIONS, date)).thenReturn(Optional.empty());
+    when(reportService.getReport(SEB, POSITIONS, date)).thenReturn(Optional.empty());
 
-    job.importForProviderAndDate(SWEDBANK, date);
+    job.importForProviderAndDate(SEB, date);
 
     verify(fundPositionLedgerService, never())
         .recordPositionsToLedger(any(TulevaFund.class), any());
@@ -342,15 +322,15 @@ class FundPositionImportJobTest {
   @Test
   void importForProviderAndDate_blocksOnlyTheFailingFund() {
     LocalDate date = LocalDate.of(2026, 1, 5);
-    when(reportService.getReport(SWEDBANK, POSITIONS, date))
-        .thenReturn(Optional.of(createSwedbankReport(date)));
+    when(reportService.getReport(SEB, POSITIONS, date))
+        .thenReturn(Optional.of(createSebReport(date)));
     when(healthCheckService.check(anyList())).thenReturn(List.of(isinMatchFail(TUK75, date)));
 
-    var result = job.importForProviderAndDate(SWEDBANK, date);
+    var result = job.importForProviderAndDate(SEB, date);
 
     assertThat(result.changedRowsByFund()).containsOnlyKeys(TUV100);
     verify(repository, times(1)).save(any(FundPosition.class));
-    verify(healthCheckNotifier).notify(eq(SWEDBANK), eq(date), anyList());
+    verify(healthCheckNotifier).notify(eq(SEB), eq(date), anyList());
 
     verify(fundPositionLedgerService).recordPositionsToLedger(TUV100, date);
     verify(eventPublisher).publishEvent(new NavPositionsUpdated(TUV100, date, 1));
@@ -361,24 +341,24 @@ class FundPositionImportJobTest {
   @Test
   void importForProviderAndDate_importsNothing_whenEveryFundFails() {
     LocalDate date = LocalDate.of(2026, 1, 5);
-    when(reportService.getReport(SWEDBANK, POSITIONS, date))
-        .thenReturn(Optional.of(createSwedbankReport(date)));
+    when(reportService.getReport(SEB, POSITIONS, date))
+        .thenReturn(Optional.of(createSebReport(date)));
     when(healthCheckService.check(anyList()))
         .thenReturn(List.of(isinMatchFail(TUK75, date), isinMatchFail(TUV100, date)));
 
-    var result = job.importForProviderAndDate(SWEDBANK, date);
+    var result = job.importForProviderAndDate(SEB, date);
 
     assertThat(result.imported()).isEqualTo(0);
     assertThat(result.updated()).isEqualTo(0);
     verify(repository, never()).save(any(FundPosition.class));
-    verify(healthCheckNotifier).notify(eq(SWEDBANK), eq(date), anyList());
+    verify(healthCheckNotifier).notify(eq(SEB), eq(date), anyList());
   }
 
   @Test
   void importForProviderAndDate_blocksTheFundWithANegativeSecurityQuantity() {
     LocalDate date = LocalDate.of(2026, 1, 5);
-    when(reportService.getReport(SWEDBANK, POSITIONS, date))
-        .thenReturn(Optional.of(createSwedbankReport(date)));
+    when(reportService.getReport(SEB, POSITIONS, date))
+        .thenReturn(Optional.of(createSebReport(date)));
     when(healthCheckService.check(anyList()))
         .thenReturn(
             List.of(
@@ -392,7 +372,7 @@ class FundPositionImportJobTest {
                             FAIL,
                             "TUK75: negative SECURITY quantity -50 for ISIN IE00BFG1TM61")))));
 
-    var result = job.importForProviderAndDate(SWEDBANK, date);
+    var result = job.importForProviderAndDate(SEB, date);
 
     assertThat(result.changedRowsByFund()).containsOnlyKeys(TUV100);
   }
@@ -400,11 +380,11 @@ class FundPositionImportJobTest {
   @Test
   void importForProviderAndDate_importsAFundThatHasNoHealthResultOfItsOwn() {
     LocalDate date = LocalDate.of(2026, 1, 5);
-    when(reportService.getReport(SWEDBANK, POSITIONS, date))
-        .thenReturn(Optional.of(createSwedbankReport(date)));
+    when(reportService.getReport(SEB, POSITIONS, date))
+        .thenReturn(Optional.of(createSebReport(date)));
     when(healthCheckService.check(anyList())).thenReturn(List.of(isinMatchFail(TUK75, date)));
 
-    var result = job.importForProviderAndDate(SWEDBANK, date);
+    var result = job.importForProviderAndDate(SEB, date);
 
     assertThat(result.changedRowsByFund()).containsOnlyKeys(TUV100);
     verify(fundPositionLedgerService).recordPositionsToLedger(TUV100, date);
@@ -420,8 +400,8 @@ class FundPositionImportJobTest {
   @Test
   void importForProviderAndDate_proceedsAndNotifiesOnNotRun() {
     LocalDate date = LocalDate.of(2026, 1, 5);
-    when(reportService.getReport(SWEDBANK, POSITIONS, date))
-        .thenReturn(Optional.of(createSwedbankReport(date)));
+    when(reportService.getReport(SEB, POSITIONS, date))
+        .thenReturn(Optional.of(createSebReport(date)));
     when(repository.findByNavDateAndFundAndAccountTypeAndAccountName(any(), any(), any(), any()))
         .thenReturn(Optional.empty());
     var notRunResult =
@@ -438,17 +418,17 @@ class FundPositionImportJobTest {
                         + " configured yet")));
     when(healthCheckService.check(anyList())).thenReturn(List.of(notRunResult));
 
-    job.importForProviderAndDate(SWEDBANK, date);
+    job.importForProviderAndDate(SEB, date);
 
     verify(repository, times(3)).save(any(FundPosition.class));
-    verify(healthCheckNotifier).notify(eq(SWEDBANK), eq(date), anyList());
+    verify(healthCheckNotifier).notify(eq(SEB), eq(date), anyList());
   }
 
   @Test
   void importForProviderAndDate_proceedsAndNotifiesOnWarning() {
     LocalDate date = LocalDate.of(2026, 1, 5);
-    when(reportService.getReport(SWEDBANK, POSITIONS, date))
-        .thenReturn(Optional.of(createSwedbankReport(date)));
+    when(reportService.getReport(SEB, POSITIONS, date))
+        .thenReturn(Optional.of(createSebReport(date)));
     when(repository.findByNavDateAndFundAndAccountTypeAndAccountName(any(), any(), any(), any()))
         .thenReturn(Optional.empty());
     var warningResult =
@@ -463,9 +443,20 @@ class FundPositionImportJobTest {
                     "no CASH")));
     when(healthCheckService.check(anyList())).thenReturn(List.of(warningResult));
 
-    job.importForProviderAndDate(SWEDBANK, date);
+    job.importForProviderAndDate(SEB, date);
 
     verify(repository, times(3)).save(any(FundPosition.class));
-    verify(healthCheckNotifier).notify(eq(SWEDBANK), eq(date), anyList());
+    verify(healthCheckNotifier).notify(eq(SEB), eq(date), anyList());
+  }
+
+  @Test
+  void importForProviderAndDate_importsNothing_forAProviderWithoutAParser() {
+    LocalDate date = LocalDate.of(2026, 1, 5);
+
+    var result = job.importForProviderAndDate(SWEDBANK, date);
+
+    assertThat(result).isEqualTo(ImportResult.none());
+    verify(reportService, never()).getReport(any(), any(), any());
+    verify(repository, never()).save(any());
   }
 }

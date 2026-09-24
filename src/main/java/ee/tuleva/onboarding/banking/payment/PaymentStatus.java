@@ -10,16 +10,13 @@ public enum PaymentStatus {
   ACCEPTED_WITH_CHANGE("ACWC"),
   PENDING("PDNG"),
   REJECTED("RJCT"),
+  CANCELLED("CANC"),
   UNKNOWN("");
 
   private final String isoCode;
 
   PaymentStatus(String isoCode) {
     this.isoCode = isoCode;
-  }
-
-  public boolean isRejection() {
-    return this == REJECTED;
   }
 
   public static PaymentStatus from(String reportedCode) {

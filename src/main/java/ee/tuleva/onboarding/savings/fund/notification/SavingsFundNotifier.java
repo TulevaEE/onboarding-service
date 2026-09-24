@@ -42,18 +42,6 @@ public class SavingsFundNotifier {
     }
   }
 
-  @TransactionalEventListener(phase = AFTER_COMMIT)
-  public void onSubscriptionBatchSent(SubscriptionBatchSentEvent event) {
-    try {
-      notificationService.sendMessage(
-          "Savings fund subscription batch sent to SEB: totalAmount=%s EUR"
-              .formatted(event.totalAmount()),
-          SAVINGS);
-    } catch (Exception e) {
-      log.error("Failed to send subscription batch notification", e);
-    }
-  }
-
   @EventListener
   public void onRedemptionBatchCompleted(RedemptionBatchCompletedEvent event) {
     try {
@@ -64,18 +52,6 @@ public class SavingsFundNotifier {
           SAVINGS);
     } catch (Exception e) {
       log.error("Failed to send redemption batch notification", e);
-    }
-  }
-
-  @EventListener
-  public void onPaymentsReturned(PaymentsReturnedEvent event) {
-    try {
-      notificationService.sendMessage(
-          "Savings fund returns: payments=%d, totalAmount=%s EUR"
-              .formatted(event.paymentCount(), event.totalAmount()),
-          SAVINGS);
-    } catch (Exception e) {
-      log.error("Failed to send payments returned notification", e);
     }
   }
 

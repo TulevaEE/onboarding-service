@@ -19,7 +19,6 @@ import ee.tuleva.onboarding.banking.payment.RequestPaymentEvent;
 import ee.tuleva.onboarding.event.TrackableSystemEvent;
 import ee.tuleva.onboarding.savings.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
-import ee.tuleva.onboarding.savings.fund.notification.SubscriptionBatchSentEvent;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
@@ -90,28 +89,5 @@ class FundAccountPaymentJobTest {
     job.createPaymentRequest();
 
     verify(eventPublisher, never()).publishEvent(any(RequestPaymentEvent.class));
-  }
-
-  @Test
-  @SuppressWarnings("unchecked")
-  void createPaymentRequest_publishesSubscriptionBatchSentEvent() {
-    var payments =
-        List.of(
-            SavingFundPayment.builder().id(UUID.randomUUID()).amount(new BigDecimal("40")).build(),
-            SavingFundPayment.builder()
-                .id(UUID.randomUUID())
-                .amount(new BigDecimal("50.40"))
-                .build());
-    when(savingFundPaymentRepository.findPaymentsWithStatus(ISSUED)).thenReturn(payments);
-    when(bankAccounts.getIban(TKF100, FUND_INVESTMENT_EUR)).thenReturn("investment-IBAN");
-    when(bankAccounts.getIban(TKF100, DEPOSIT_EUR)).thenReturn("deposit-IBAN");
-
-    job.createPaymentRequest();
-
-    var captor = ArgumentCaptor.forClass(SubscriptionBatchSentEvent.class);
-    verify(eventPublisher).publishEvent(captor.capture());
-    var event = captor.getValue();
-    assertThat(event.paymentCount()).isEqualTo(2);
-    assertThat(event.totalAmount()).isEqualTo(new BigDecimal("90.40"));
   }
 }

@@ -1,11 +1,16 @@
 package ee.tuleva.onboarding.instrument;
 
+import static java.util.stream.Collectors.toSet;
+
 import jakarta.annotation.PostConstruct;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
@@ -50,6 +55,10 @@ public class InstrumentReferenceService {
 
   @Scheduled(cron = "0 5 * * * *", zone = "Europe/Tallinn")
   void scheduledRefresh() {
+    refresh();
+  }
+
+  public boolean refresh() {
     try {
       var snapshot = snapshotLoader.loadSnapshot();
       var liveCount = instruments.size();
@@ -62,10 +71,11 @@ public class InstrumentReferenceService {
             liveCount,
             loadedCount,
             lastRefreshedAt);
-        return;
+        return false;
       }
 
       apply(snapshot);
+      return true;
     } catch (Exception e) {
       log.error(
           "Failed to refresh instrument reference cache, keeping the live snapshot:"
@@ -73,6 +83,7 @@ public class InstrumentReferenceService {
           instruments.size(),
           lastRefreshedAt,
           e);
+      return false;
     }
   }
 
@@ -134,6 +145,13 @@ public class InstrumentReferenceService {
 
   public List<InstrumentReference> activeInstruments() {
     return instruments.stream().filter(InstrumentReference::isActive).toList();
+  }
+
+  public Set<String> benchmarkProxyIsins() {
+    return proxyByCategory.values().stream()
+        .flatMap(proxy -> Stream.of(proxy.etfProxyIsin(), proxy.indexProxyIsin()))
+        .filter(Objects::nonNull)
+        .collect(toSet());
   }
 
   public List<String> getXetraIsins() {

@@ -50,6 +50,9 @@ public interface ModelPortfolioAllocationRepository
       """)
   List<ModelPortfolioAllocation> findPreviousByFundAsOf(TulevaFund fund, LocalDate asOf);
 
+  @Query("SELECT MAX(m.effectiveDate) FROM ModelPortfolioAllocation m WHERE m.isin = :isin")
+  Optional<LocalDate> findLatestEffectiveDateByIsin(String isin);
+
   // Distinct effective dates of upcoming model-portfolio versions (a switch scheduled to take
   // effect after :asOf). Lets readiness checks (e.g. price history) run before the version goes
   // live.

@@ -17,6 +17,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.Nullable;
@@ -40,6 +42,13 @@ class BenchmarkCheckBuilder {
                       new BenchmarkComponent("LU0839970364", new BigDecimal("0.50")))),
           TulevaFund.TUV100, new BenchmarkConfig(MSCI_ACWI_KEY),
           TulevaFund.TKF100, new BenchmarkConfig(MSCI_ACWI_KEY));
+
+  static Set<String> benchmarkIsins() {
+    return BENCHMARK_CONFIGS.values().stream()
+        .flatMap(config -> config.components().stream())
+        .map(BenchmarkComponent::key)
+        .collect(Collectors.toSet());
+  }
 
   private final TrackingDifferenceCalculator calculator;
   private final FundValueProvider fundValueProvider;

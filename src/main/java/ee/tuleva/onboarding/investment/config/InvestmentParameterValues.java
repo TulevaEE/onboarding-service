@@ -1,9 +1,11 @@
 package ee.tuleva.onboarding.investment.config;
 
+import static ee.tuleva.onboarding.investment.config.InvestmentParameter.INSTRUMENT_RETIREMENT_NAV_DATES;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.NAV_IMPACT_VOLUME_THRESHOLD;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.REDEMPTION_LIQUIDITY_WARNING_SHARE_OF_AUM;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.REDEMPTION_PAYOUT_WARNING_THRESHOLD;
 
+import ee.tuleva.onboarding.investment.instrument.InstrumentRetirementThreshold;
 import ee.tuleva.onboarding.savings.RedemptionAlertThresholds;
 import ee.tuleva.onboarding.savings.fund.nav.NavImpactThreshold;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -15,13 +17,19 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-class InvestmentParameterValues implements NavImpactThreshold, RedemptionAlertThresholds {
+class InvestmentParameterValues
+    implements NavImpactThreshold, RedemptionAlertThresholds, InstrumentRetirementThreshold {
 
   private final InvestmentParameterRepository repository;
 
   @Override
   public BigDecimal navImpactVolumeThreshold(LocalDate asOf) {
     return repository.findLatestValue(NAV_IMPACT_VOLUME_THRESHOLD, asOf);
+  }
+
+  @Override
+  public Optional<BigDecimal> requiredNavDatesOffTheBooks(LocalDate asOf) {
+    return repository.findLatestValueIfPresent(INSTRUMENT_RETIREMENT_NAV_DATES, asOf);
   }
 
   @Override

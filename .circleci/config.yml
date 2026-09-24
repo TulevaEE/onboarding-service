@@ -380,7 +380,19 @@ jobs:
 
 workflows:
   version: 2
+  merge-queue:
+    when:
+      matches:
+        pattern: "^gh-readonly-queue/.*$"
+        value: << pipeline.git.branch >>
+    jobs:
+      - migration-order
+
   onboarding-service-workflow:
+    unless:
+      matches:
+        pattern: "^gh-readonly-queue/.*$"
+        value: << pipeline.git.branch >>
     jobs:
       - build:
           context:

@@ -7,13 +7,18 @@ import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.instrument.InstrumentRetirement;
 import ee.tuleva.onboarding.investment.instrument.InstrumentRetirementCandidateFinder.RetirementCandidate;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import java.time.Clock;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
+import org.jspecify.annotations.Nullable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -26,25 +31,45 @@ class InstrumentRetirementJob {
   private final InstrumentRetirement instrumentRetirement;
   private final InstrumentReferenceService instrumentReferenceService;
   private final OperationsNotificationService notificationService;
+  private final Clock clock;
+
+  private final AtomicReference<Set<String>> lastReportedFailures = new AtomicReference<>(Set.of());
+  private final AtomicReference<@Nullable LocalDate> lastFailureReportDate =
+      new AtomicReference<>();
 
   @Scheduled(cron = "0 15 * * * *", zone = TIMEZONE)
   @SchedulerLock(name = "InstrumentRetirementJob", lockAtMostFor = "10m", lockAtLeastFor = "1m")
   void retireInstrumentsOffTheBooks() {
-    var candidates = retirementCandidateFinder.findCandidates();
-    if (candidates.isEmpty()) {
-      return;
-    }
-
     var retired = new ArrayList<RetirementCandidate>();
     var failed = new LinkedHashMap<String, String>();
-    candidates.forEach(candidate -> retire(candidate, retired, failed));
+    retirementCandidateFinder
+        .findCandidates()
+        .forEach(candidate -> retire(candidate, retired, failed));
 
-    if (retired.isEmpty() && failed.isEmpty()) {
+    if (failed.isEmpty()) {
+      lastReportedFailures.set(Set.of());
+    }
+    if (retired.isEmpty() && (failed.isEmpty() || wasReportedToday(failed.keySet()))) {
       return;
     }
 
     var cacheRefreshed = retired.isEmpty() || instrumentReferenceService.refresh();
     notificationService.sendMessage(formatRetirements(retired, failed, cacheRefreshed), INVESTMENT);
+    lastReportedFailures.set(Set.copyOf(failed.keySet()));
+    lastFailureReportDate.set(LocalDate.now(clock));
+  }
+
+  private boolean wasReportedToday(Set<String> failedIsins) {
+    var unchangedToday =
+        failedIsins.equals(lastReportedFailures.get())
+            && LocalDate.now(clock).equals(lastFailureReportDate.get());
+    if (unchangedToday) {
+      log.info(
+          "Suppressing unchanged instrument retirement failures: failed={}, lastReportDate={}",
+          failedIsins,
+          lastFailureReportDate.get());
+    }
+    return unchangedToday;
   }
 
   private void retire(
@@ -77,7 +102,9 @@ class InstrumentRetirementJob {
       }
     }
     if (!failed.isEmpty()) {
-      sb.append("COULD NOT RETIRE — fix the instrument reference data\n");
+      sb.append(
+          "COULD NOT RETIRE — fix the instrument reference data. Repeated once a day while it"
+              + " stays unfixed.\n");
       failed.forEach((isin, reason) -> sb.append("  %s — %s\n".formatted(isin, reason)));
     }
     return sb.toString().stripTrailing();

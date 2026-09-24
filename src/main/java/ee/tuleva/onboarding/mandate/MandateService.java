@@ -95,10 +95,11 @@ public class MandateService {
     return signService.startMobileIdSign(files, user.getPersonalCode(), phoneNumber);
   }
 
-  public SmartIdSignatureSession smartIdSign(Long mandateId, Long userId) {
-    User user = userService.getById(userId).orElseThrow();
-    List<SignatureFile> files = mandateFileService.getMandateFiles(mandateId, userId);
-    return signService.startSmartIdSign(files, user.getPersonalCode());
+  public SmartIdSignatureSession smartIdSign(
+      Long mandateId, AuthenticatedPerson authenticatedPerson) {
+    List<SignatureFile> files =
+        mandateFileService.getMandateFiles(mandateId, authenticatedPerson.getUserIdOrThrow());
+    return signService.startSmartIdSign(files, authenticatedPerson);
   }
 
   public SignatureStatus finalizeSmartIdSignature(

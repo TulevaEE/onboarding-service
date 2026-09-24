@@ -73,6 +73,24 @@ class JobRunScheduleTest {
     assertThat(limitCheck).isAfter(trackingDifference);
   }
 
+  @Test
+  void instrumentRetirement_firesOncePerBusinessDayAfterTheEveningGapFills() {
+    ZonedDateTime weekStart = LocalDateTime.parse("2026-04-13T00:00:00").atZone(TALLINN);
+    List<ZonedDateTime> fires =
+        firesBetween(JobRunSchedule.INSTRUMENT_RETIREMENT, weekStart, weekStart.plusDays(7));
+
+    assertThat(fires).hasSize(5);
+    assertThat(fires)
+        .allSatisfy(
+            fire -> {
+              assertThat(fire.getDayOfWeek().getValue()).isLessThanOrEqualTo(5);
+              assertThat(fire)
+                  .isAfter(
+                      CronExpression.parse(JobRunSchedule.LIMIT_CHECK_GAP_FILL)
+                          .next(fire.toLocalDate().atStartOfDay(TALLINN)));
+            });
+  }
+
   private enum ScheduledSlot {
     IMPORT_BUSINESS_HOURS(JobRunSchedule.IMPORT_BUSINESS_HOURS, RUNS_THE_IMPORT),
     TRANSACTION_COMMAND(JobRunSchedule.TRANSACTION_COMMAND, STORES_NOTHING_DERIVED_FROM_THE_IMPORT),
@@ -82,6 +100,8 @@ class JobRunScheduleTest {
         JobRunSchedule.FEE_ACCRUAL_POSITION_BACKFILL, STORES_A_RESULT_DERIVED_FROM_THE_IMPORT),
     LIMIT_CHECK_GAP_FILL(
         JobRunSchedule.LIMIT_CHECK_GAP_FILL, STORES_A_RESULT_DERIVED_FROM_THE_IMPORT),
+    INSTRUMENT_RETIREMENT(
+        JobRunSchedule.INSTRUMENT_RETIREMENT, STORES_A_RESULT_DERIVED_FROM_THE_IMPORT),
     PEVA_RAVA_PHASE_UPDATE(
         JobRunSchedule.PEVA_RAVA_PHASE_UPDATE, STORES_NOTHING_DERIVED_FROM_THE_IMPORT),
     PEVA_RAVA_FLOW_RECALC(

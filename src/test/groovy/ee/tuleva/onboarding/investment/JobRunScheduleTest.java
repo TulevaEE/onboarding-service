@@ -91,11 +91,26 @@ class JobRunScheduleTest {
             });
   }
 
+  @Test
+  void septemberNavCorrectionBackfill_firesThisEveningAfterEveryEveningJobHasStarted() {
+    var morning = LocalDateTime.parse("2026-09-25T00:00:00").atZone(TALLINN);
+    var backfill =
+        CronExpression.parse(JobRunSchedule.TRACKING_DIFFERENCE_SEPTEMBER_NAV_CORRECTION_BACKFILL)
+            .next(morning);
+    var retirement = CronExpression.parse(JobRunSchedule.INSTRUMENT_RETIREMENT).next(morning);
+
+    assertThat(backfill).isEqualTo(LocalDateTime.parse("2026-09-25T20:15:00").atZone(TALLINN));
+    assertThat(backfill).isAfter(retirement);
+  }
+
   private enum ScheduledSlot {
     IMPORT_BUSINESS_HOURS(JobRunSchedule.IMPORT_BUSINESS_HOURS, RUNS_THE_IMPORT),
     TRANSACTION_COMMAND(JobRunSchedule.TRANSACTION_COMMAND, STORES_NOTHING_DERIVED_FROM_THE_IMPORT),
     TRACKING_DIFFERENCE_GAP_FILL(
         JobRunSchedule.TRACKING_DIFFERENCE_GAP_FILL, STORES_A_RESULT_DERIVED_FROM_THE_IMPORT),
+    TRACKING_DIFFERENCE_SEPTEMBER_NAV_CORRECTION_BACKFILL(
+        JobRunSchedule.TRACKING_DIFFERENCE_SEPTEMBER_NAV_CORRECTION_BACKFILL,
+        STORES_A_RESULT_DERIVED_FROM_THE_IMPORT),
     FEE_ACCRUAL_POSITION_BACKFILL(
         JobRunSchedule.FEE_ACCRUAL_POSITION_BACKFILL, STORES_A_RESULT_DERIVED_FROM_THE_IMPORT),
     LIMIT_CHECK_GAP_FILL(

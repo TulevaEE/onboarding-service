@@ -178,6 +178,17 @@ class TrackingDifferenceJobTest {
   }
 
   @Test
+  void theSeptemberNavCorrectionBackfillRerunsTheThirtyDaysReachingBackBeforeTheCorrection() {
+    var results = List.<TrackingDifferenceResult>of();
+    given(service.backfillChecks(30)).willReturn(results);
+
+    job.backfillAfterTheSeptemberNavCorrection();
+
+    then(service).should().backfillChecks(30);
+    then(notifier).should().notifyBackfillSummary(30, results);
+  }
+
+  @Test
   void backfillReachesAsFarBackAsTheEventAsksFor() {
     var results = List.<TrackingDifferenceResult>of();
     given(service.backfillChecks(40)).willReturn(results);

@@ -7,7 +7,6 @@ import static java.time.temporal.ChronoUnit.DAYS;
 import static java.util.Arrays.stream;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.groupingBy;
-import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.mapping;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
@@ -47,10 +46,6 @@ import org.springframework.stereotype.Component;
 class TrackingDifferenceService {
 
   private static final int SCALE = 6;
-  private static final int FRESH_GAP_DAYS = 5;
-  private static final String STANDING_GAP =
-      "%s [standing gap: unfilled for %d days, last attempt %s — the missing price has to be"
-          + " inserted by hand, nothing backfills it]";
 
   private final Clock clock;
   private final FundPositionRepository fundPositionRepository;
@@ -127,7 +122,7 @@ class TrackingDifferenceService {
     return allResults;
   }
 
-  List<TrackingDifferenceResult> fillGaps(int lookbackDays) {
+  GapFillRun fillGaps(int lookbackDays) {
     var window = new GapWindow(LocalDate.now(clock), lookbackDays);
     var results = new ArrayList<TrackingDifferenceResult>();
     var failures = new ArrayList<GapFailure>();
@@ -143,12 +138,7 @@ class TrackingDifferenceService {
       }
     }
 
-    if (!failures.isEmpty()) {
-      throw new IncompletePriceDataException(
-          incompletePriceDataReport(failures), new IncompleteRun(results, failures));
-    }
-
-    return results;
+    return new GapFillRun(results, failures);
   }
 
   private @Nullable LocalDate fillUntilOneSucceeds(
@@ -203,12 +193,6 @@ class TrackingDifferenceService {
         lastAttemptDate(checkDate, window.lookbackDays()));
   }
 
-  private static String incompletePriceDataReport(List<GapFailure> failures) {
-    return failures.stream()
-        .map(GapFailure::describe)
-        .collect(joining("\n", "Incomplete security price data:\n", ""));
-  }
-
   private LocalDate lastAttemptDate(LocalDate checkDate, int lookbackDays) {
     var lastDayInWindow = checkDate.plusDays(lookbackDays);
     return publicHolidays.isWorkingDay(lastDayInWindow)
@@ -231,18 +215,6 @@ class TrackingDifferenceService {
 
     LocalDate from() {
       return today.minusDays(lookbackDays);
-    }
-  }
-
-  record GapFailure(LocalDate checkDate, String reason, long daysUnfilled, LocalDate lastAttempt) {
-
-    boolean isStanding() {
-      return daysUnfilled > FRESH_GAP_DAYS;
-    }
-
-    String describe() {
-      var line = "checkDate=%s, %s".formatted(checkDate, reason);
-      return isStanding() ? STANDING_GAP.formatted(line, daysUnfilled, lastAttempt) : line;
     }
   }
 
@@ -578,27 +550,17 @@ class TrackingDifferenceService {
     eventRepository.save(event);
   }
 
-  record IncompleteRun(List<TrackingDifferenceResult> completedResults, List<GapFailure> gaps) {}
-
   static class IncompletePriceDataException extends RuntimeException {
 
-    private final transient IncompleteRun run;
+    private final transient List<TrackingDifferenceResult> completedResults;
 
     IncompletePriceDataException(String message, List<TrackingDifferenceResult> completedResults) {
-      this(message, new IncompleteRun(completedResults, List.of()));
-    }
-
-    IncompletePriceDataException(String message, IncompleteRun run) {
       super(message);
-      this.run = run;
+      this.completedResults = completedResults;
     }
 
     List<TrackingDifferenceResult> completedResults() {
-      return run.completedResults();
-    }
-
-    List<GapFailure> gaps() {
-      return run.gaps();
+      return completedResults;
     }
   }
 }

@@ -54,13 +54,13 @@ class TrackingDifferenceJob {
     log.info("Starting daily tracking difference gap fill");
 
     try {
-      var results = trackingDifferenceService.fillGaps(GAP_LOOKBACK_DAYS);
-      reportGapFill(results);
-      log.info("Tracking difference gap fill completed: resultCount={}", results.size());
-    } catch (TrackingDifferenceService.IncompletePriceDataException e) {
-      trackingDifferenceNotifier.notifyRunIncomplete("TD daily gap fill", FailureReason.of(e));
-      reportGapFill(e.completedResults());
-      log.error("Tracking difference gap fill incomplete", e);
+      var run = trackingDifferenceService.fillGaps(GAP_LOOKBACK_DAYS);
+      reportFailures(run.failures());
+      reportGapFill(run.results());
+      log.info(
+          "Tracking difference gap fill completed: resultCount={}, failureCount={}",
+          run.results().size(),
+          run.failures().size());
     } catch (Exception e) {
       log.error("Tracking difference gap fill failed", e);
       trackingDifferenceNotifier.notifyRunFailed("TD daily gap fill", FailureReason.of(e));
@@ -84,6 +84,14 @@ class TrackingDifferenceJob {
       log.error("Tracking difference backfill failed", e);
       trackingDifferenceNotifier.notifyRunFailed("TD backfill", FailureReason.of(e));
     }
+  }
+
+  private void reportFailures(List<GapFailure> failures) {
+    if (failures.isEmpty()) {
+      return;
+    }
+    trackingDifferenceNotifier.notifyRunIncomplete(
+        "TD daily gap fill", GapFailure.report(failures));
   }
 
   private void reportGapFill(List<TrackingDifferenceResult> results) {

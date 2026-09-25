@@ -103,7 +103,7 @@ class TrackingDifferenceJobTest {
   // that means everything worked.
   @Test
   void anEveningWithNoGapToFillSaysNothing() {
-    given(service.fillGaps(GAP_LOOKBACK_DAYS)).willReturn(List.of());
+    given(service.fillGaps(GAP_LOOKBACK_DAYS)).willReturn(new GapFillRun(List.of(), List.of()));
 
     job.fillTrackingDifferenceGaps();
 
@@ -117,7 +117,7 @@ class TrackingDifferenceJobTest {
   @Test
   void aSingleMissedDayIsReportedAsTheDayItself() {
     var results = List.of(result(NAV_DATE));
-    given(service.fillGaps(GAP_LOOKBACK_DAYS)).willReturn(results);
+    given(service.fillGaps(GAP_LOOKBACK_DAYS)).willReturn(new GapFillRun(results, List.of()));
 
     job.fillTrackingDifferenceGaps();
 
@@ -130,7 +130,7 @@ class TrackingDifferenceJobTest {
   @Test
   void aFillCoveringSeveralDaysIsSummarisedRatherThanReplayedDayByDay() {
     var results = List.of(result(NAV_DATE.minusDays(1)), result(NAV_DATE));
-    given(service.fillGaps(GAP_LOOKBACK_DAYS)).willReturn(results);
+    given(service.fillGaps(GAP_LOOKBACK_DAYS)).willReturn(new GapFillRun(results, List.of()));
 
     job.fillTrackingDifferenceGaps();
 
@@ -149,21 +149,51 @@ class TrackingDifferenceJobTest {
   }
 
   @Test
-  void anIncompleteDailyRunNamesTheFundsItCouldNotCheck() {
-    var partialResults = List.<TrackingDifferenceResult>of();
-    doThrow(
-            new TrackingDifferenceService.IncompletePriceDataException(
-                "Incomplete security price data:\nTUK75: IE00MISSING1", partialResults))
-        .when(service)
-        .fillGaps(GAP_LOOKBACK_DAYS);
+  void anIncompleteDailyRunNamesEveryDateItCouldNotCheckAndMarksTheStandingOnes() {
+    var freshGap =
+        new GapFailure(
+            NAV_DATE, "fund=TUK75, missingIsins=[IE00MISSING1]", 1, NAV_DATE.plusDays(30));
+    var standingGap =
+        new GapFailure(
+            NAV_DATE.minusDays(10),
+            "fund=TUK00, missingIsins=[IE00MISSING2]",
+            11,
+            NAV_DATE.plusDays(20));
+    given(service.fillGaps(GAP_LOOKBACK_DAYS))
+        .willReturn(new GapFillRun(List.of(), List.of(freshGap, standingGap)));
 
     job.fillTrackingDifferenceGaps();
 
     then(notifier)
         .should()
         .notifyRunIncomplete(
-            "TD daily gap fill", "Incomplete security price data:\nTUK75: IE00MISSING1");
-    then(notifier).should(never()).notify(partialResults);
+            "TD daily gap fill",
+            """
+            Incomplete security price data:
+            checkDate=2026-09-11, fund=TUK75, missingIsins=[IE00MISSING1]
+            checkDate=2026-09-01, fund=TUK00, missingIsins=[IE00MISSING2] [standing gap: \
+            unfilled for 11 days, last attempt 2026-10-01 — the missing price has to be inserted \
+            by hand, nothing backfills it]""");
+    then(notifier).should(never()).notify(anyList());
+  }
+
+  @Test
+  void anIncompleteDailyRunStillReportsTheDatesItDidFill() {
+    var filled = List.of(result(NAV_DATE));
+    var gap =
+        new GapFailure(
+            NAV_DATE.minusDays(1), "fund=TUK00, missingIsins=[IE00MISSING1]", 2, NAV_DATE);
+    given(service.fillGaps(GAP_LOOKBACK_DAYS)).willReturn(new GapFillRun(filled, List.of(gap)));
+
+    job.fillTrackingDifferenceGaps();
+
+    then(notifier)
+        .should()
+        .notifyRunIncomplete(
+            "TD daily gap fill",
+            "Incomplete security price data:\n"
+                + "checkDate=2026-09-10, fund=TUK00, missingIsins=[IE00MISSING1]");
+    then(notifier).should().notify(filled);
   }
 
   @Test

@@ -40,7 +40,6 @@ import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.instrument.BenchmarkCategoryProxy;
 import ee.tuleva.onboarding.instrument.InstrumentReference;
 import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
-import ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceService.GapFailure;
 import ee.tuleva.onboarding.investment.config.InvestmentParameter;
 import ee.tuleva.onboarding.investment.config.InvestmentParameterRepository;
 import ee.tuleva.onboarding.investment.fees.FeeAccrual;
@@ -60,7 +59,6 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -197,7 +195,7 @@ class TrackingDifferenceServiceTest {
     given(eventRepository.findDistinctCheckDates(TUK75, PREVIOUS_DATE, CHECK_DATE))
         .willReturn(List.of(CHECK_DATE));
 
-    var results = service.fillGaps(30);
+    var results = service.fillGaps(30).results();
 
     assertThat(results).isNotEmpty();
     assertThat(results).allMatch(r -> r.checkDate().equals(PREVIOUS_DATE));
@@ -216,7 +214,7 @@ class TrackingDifferenceServiceTest {
     given(eventRepository.findDistinctCheckDates(TUK75, from, CHECK_DATE))
         .willReturn(asList(alreadyChecked, CHECK_DATE));
 
-    assertThat(service.fillGaps(30)).isEmpty();
+    assertThat(service.fillGaps(30)).isEqualTo(new GapFillRun(List.of(), List.of()));
 
     verify(fundNavQueryService, never()).findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE);
   }
@@ -229,9 +227,9 @@ class TrackingDifferenceServiceTest {
     given(eventRepository.findDistinctCheckDates(TUK75, from, CHECK_DATE))
         .willReturn(asList(PREVIOUS_DATE, CHECK_DATE));
 
-    var results = service.fillGaps(30);
+    var run = service.fillGaps(30);
 
-    assertThat(results).isEmpty();
+    assertThat(run).isEqualTo(new GapFillRun(List.of(), List.of()));
     verify(fundNavQueryService, never()).findLatestNavPerUnit(anyString(), any(LocalDate.class));
   }
 
@@ -246,7 +244,7 @@ class TrackingDifferenceServiceTest {
     givenAnUnpriceableHoldingOn(staleDate, LocalDate.of(2026, 3, 27));
     givenTheOnlyNavDateWithoutACheckIs(staleDate);
 
-    assertThat(gapsLeftBy(() -> service.fillGaps(30)))
+    assertThat(service.fillGaps(30).failures())
         .extracting(
             GapFailure::checkDate,
             GapFailure::daysUnfilled,
@@ -262,7 +260,7 @@ class TrackingDifferenceServiceTest {
     givenAnUnpriceableHoldingOn(PREVIOUS_DATE, LocalDate.of(2026, 4, 8));
     givenTheOnlyNavDateWithoutACheckIs(PREVIOUS_DATE);
 
-    assertThat(gapsLeftBy(() -> service.fillGaps(30)))
+    assertThat(service.fillGaps(30).failures())
         .extracting(GapFailure::checkDate, GapFailure::daysUnfilled, GapFailure::isStanding)
         .containsExactly(tuple(PREVIOUS_DATE, 1L, false));
   }
@@ -273,7 +271,7 @@ class TrackingDifferenceServiceTest {
     givenAnUnpriceableHoldingOn(staleDate, LocalDate.of(2026, 3, 11));
     givenTheOnlyNavDateWithoutACheckIs(staleDate);
 
-    assertThat(gapsLeftBy(() -> service.fillGaps(30)))
+    assertThat(service.fillGaps(30).failures())
         .extracting(GapFailure::checkDate, GapFailure::lastAttempt)
         .containsExactly(tuple(staleDate, LocalDate.of(2026, 4, 10)));
   }
@@ -284,8 +282,16 @@ class TrackingDifferenceServiceTest {
     given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
         .willThrow(new IllegalStateException("boom"));
 
-    assertThatThrownBy(() -> service.fillGaps(30))
-        .isInstanceOf(TrackingDifferenceService.IncompletePriceDataException.class);
+    assertThat(service.fillGaps(30))
+        .isEqualTo(
+            new GapFillRun(
+                List.of(),
+                List.of(
+                    new GapFailure(
+                        PREVIOUS_DATE,
+                        "fund=TUK75, the check errored (boom)",
+                        1,
+                        LocalDate.of(2026, 5, 8)))));
   }
 
   private void givenACheckableFundOn(LocalDate navDate, LocalDate previousDate) {
@@ -317,12 +323,6 @@ class TrackingDifferenceServiceTest {
         .willReturn(new BigDecimal("50000"));
     given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(navDate), eq(10)))
         .willReturn(List.of());
-  }
-
-  private List<GapFailure> gapsLeftBy(ThrowingCallable gapFill) {
-    return catchThrowableOfType(
-            TrackingDifferenceService.IncompletePriceDataException.class, gapFill)
-        .gaps();
   }
 
   private void givenTheOnlyNavDateWithoutACheckIs(LocalDate navDate) {

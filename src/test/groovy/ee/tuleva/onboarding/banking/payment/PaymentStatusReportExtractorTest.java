@@ -1,7 +1,11 @@
 package ee.tuleva.onboarding.banking.payment;
 
+import static ee.tuleva.onboarding.banking.payment.PaymentStatus.ACCEPTED_SETTLEMENT_COMPLETED;
+import static ee.tuleva.onboarding.banking.payment.PaymentStatus.REJECTED;
+import static ee.tuleva.onboarding.banking.payment.PaymentStatus.UNKNOWN;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ee.tuleva.onboarding.banking.payment.PaymentStatusReport.TransactionStatus;
 import org.junit.jupiter.api.Test;
 
 class PaymentStatusReportExtractorTest {
@@ -23,12 +27,8 @@ class PaymentStatusReportExtractorTest {
         </OrgnlPmtInfAndSts>
         """));
 
-    assertThat(report.transactionStatuses()).hasSize(1);
-    var transaction = report.transactionStatuses().getFirst();
-    assertThat(transaction.endToEndId()).isEqualTo("abc123");
-    assertThat(transaction.status()).isEqualTo(PaymentStatus.REJECTED);
-    assertThat(transaction.status().isRejection()).isTrue();
-    assertThat(transaction.reasonCode()).isEqualTo("AC01");
+    assertThat(report.transactionStatuses())
+        .containsExactly(new TransactionStatus("abc123", REJECTED, "AC01"));
   }
 
   @Test
@@ -47,10 +47,10 @@ class PaymentStatusReportExtractorTest {
         </OrgnlPmtInfAndSts>
         """));
 
-    assertThat(report.transactionStatuses()).hasSize(2);
-    assertThat(report.rejections())
-        .singleElement()
-        .satisfies(transaction -> assertThat(transaction.endToEndId()).isEqualTo("two"));
+    assertThat(report.transactionStatuses())
+        .containsExactly(
+            new TransactionStatus("one", ACCEPTED_SETTLEMENT_COMPLETED, null),
+            new TransactionStatus("two", REJECTED, null));
   }
 
   @Test
@@ -76,8 +76,8 @@ class PaymentStatusReportExtractorTest {
         </OrgnlPmtInfAndSts>
         """));
 
-    assertThat(report.transactionStatuses().getFirst().status()).isEqualTo(PaymentStatus.UNKNOWN);
-    assertThat(report.rejections()).isEmpty();
+    assertThat(report.transactionStatuses())
+        .containsExactly(new TransactionStatus("abc123", UNKNOWN, null));
   }
 
   @Test
@@ -111,8 +111,8 @@ class PaymentStatusReportExtractorTest {
         </OrgnlPmtInfAndSts>
         """));
 
-    assertThat(report.transactionStatuses().getFirst().status()).isEqualTo(PaymentStatus.UNKNOWN);
-    assertThat(report.rejections()).isEmpty();
+    assertThat(report.transactionStatuses())
+        .containsExactly(new TransactionStatus("abc123", UNKNOWN, null));
   }
 
   private static String report(String body) {

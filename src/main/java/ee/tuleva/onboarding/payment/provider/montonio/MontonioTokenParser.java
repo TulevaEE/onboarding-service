@@ -4,9 +4,11 @@ import static java.util.Objects.requireNonNull;
 
 import com.nimbusds.jose.JWSObject;
 import com.nimbusds.jose.crypto.MACVerifier;
+import java.text.ParseException;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import org.jspecify.annotations.Nullable;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.json.JsonMapper;
@@ -17,6 +19,17 @@ public class MontonioTokenParser {
 
   private final JsonMapper objectMapper;
   private final MontonioPaymentChannelConfiguration montonioPaymentChannelConfiguration;
+
+  public JWSObject parseSerialized(@Nullable String serializedToken) {
+    if (serializedToken == null || serializedToken.isBlank()) {
+      throw new BadCredentialsException("Missing payment token");
+    }
+    try {
+      return JWSObject.parse(serializedToken);
+    } catch (ParseException e) {
+      throw new BadCredentialsException("Malformed payment token", e);
+    }
+  }
 
   @SneakyThrows
   public MontonioOrderToken parse(JWSObject token) {

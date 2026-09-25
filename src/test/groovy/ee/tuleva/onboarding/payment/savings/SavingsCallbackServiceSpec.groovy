@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.payment.provider.montonio.MontonioTokenParser
 import ee.tuleva.onboarding.party.PartyId
 import ee.tuleva.onboarding.user.UserService
 import org.springframework.context.ApplicationEventPublisher
+import org.springframework.security.authentication.BadCredentialsException
 import spock.lang.Specification
 import spock.lang.Unroll
 
@@ -222,4 +223,15 @@ class SavingsCallbackServiceSpec extends Specification {
     "sender IBAN"          | ["senderIban"]
   }
 
+  def "rejects a missing or malformed token without recording or publishing anything"() {
+    when:
+    savingsCallbackService.processToken(malformedToken)
+    then:
+    thrown(BadCredentialsException)
+    0 * savingsPayments.recordIncoming(_)
+    0 * giftPayments.findGiftLinkToken(_)
+    0 * eventPublisher.publishEvent(_)
+    where:
+    malformedToken << ["garbage", "", "   ", "a.b.c", null]
+  }
 }

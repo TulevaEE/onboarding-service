@@ -40,15 +40,15 @@ while read -r _local_ref local_sha _remote_ref remote_sha; do
   git diff "$base..$local_sha" 2>/dev/null | "$HOOK_DIR/pii-scan" || pii_status=1
 
   # Early notice, not a verdict: which versions are free is decided by whatever
-  # merges first, so only the CircleCI job re-running against the new master can
-  # settle it. Blocking here would buy nothing and cost the PII scan.
+  # merges first, so only the merge queue's migration-order run can settle it.
+  # Blocking here would buy nothing and cost the PII scan.
   "$HOOK_DIR/migration-order" "$local_sha" || migration_status=1
 done
 
 if [ "$migration_status" -ne 0 ]; then
   echo "⚠️  Not blocking the push: which versions are free is decided against"
-  echo "   master as it stands at merge time, and the CircleCI migration-order"
-  echo "   job fails the build until they are. Renumber before merging."
+  echo "   master as it stands at merge time, and the merge queue rejects the PR"
+  echo "   until they are. Renumber before merging."
   echo ""
 fi
 

@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.instrument;
 import static ee.tuleva.onboarding.investment.JobRunSchedule.INSTRUMENT_RETIREMENT;
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 
 import ee.tuleva.onboarding.instrument.InstrumentRetirement;
 import ee.tuleva.onboarding.instrument.InstrumentRetirementOutcome;
@@ -20,6 +21,10 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class InstrumentRetirementJob {
 
+  private static final String CHECK_COULD_NOT_RUN =
+      "INSTRUMENT RETIREMENT CHECK COULD NOT RUN — nothing was retired today; the cause is in the"
+          + " application log. The job tries again the next working day.";
+
   private final InstrumentRetirementCandidateFinder retirementCandidateFinder;
   private final InstrumentRetirement instrumentRetirement;
   private final OperationsNotificationService notificationService;
@@ -27,7 +32,21 @@ class InstrumentRetirementJob {
   @Scheduled(cron = INSTRUMENT_RETIREMENT, zone = TIMEZONE)
   @SchedulerLock(name = "InstrumentRetirementJob", lockAtMostFor = "10m", lockAtLeastFor = "1m")
   void retireInstrumentsOffTheBooks() {
-    var candidates = retirementCandidateFinder.findCandidates();
+    List<RetirementCandidate> candidates;
+    try {
+      candidates = retirementCandidateFinder.findCandidates();
+    } catch (RuntimeException e) {
+      log.error(
+          "Instrument retirement check could not run, nothing was retired: exception={}",
+          e.getClass().getSimpleName(),
+          e);
+      notificationService.sendMessage(CHECK_COULD_NOT_RUN, INVESTMENT, ERROR);
+      return;
+    }
+    retire(candidates);
+  }
+
+  private void retire(List<RetirementCandidate> candidates) {
     var outcome =
         instrumentRetirement.retire(candidates.stream().map(RetirementCandidate::isin).toList());
 

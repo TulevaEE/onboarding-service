@@ -9,6 +9,7 @@ import spock.lang.Specification
 import java.time.LocalDate
 
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR
 
 class InstrumentRetirementJobSpec extends Specification {
 
@@ -87,6 +88,22 @@ class InstrumentRetirementJobSpec extends Specification {
         { it.contains("INSTRUMENT RETIRED") && it.contains("IE00BFG1TM61") &&
             it.contains("COULD NOT RETIRE") && it.contains("IE0009FT4LX4") },
         INVESTMENT)
+  }
+
+  def "says the retirement check could not run when finding the candidates fails"() {
+    given:
+    retirementCandidateFinder.findCandidates() >> { throw new IllegalStateException("model data changed mid-run") }
+
+    when:
+    job.retireInstrumentsOffTheBooks()
+
+    then:
+    0 * instrumentRetirement._
+    1 * notificationService.sendMessage(
+        "INSTRUMENT RETIREMENT CHECK COULD NOT RUN — nothing was retired today; the cause is in"
+            + " the application log. The job tries again the next working day.",
+        INVESTMENT, ERROR)
+    0 * notificationService._
   }
 
   private static InstrumentRetirementOutcome outcome(

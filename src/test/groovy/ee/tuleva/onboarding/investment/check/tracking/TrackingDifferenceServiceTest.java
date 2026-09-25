@@ -3683,6 +3683,27 @@ class TrackingDifferenceServiceTest {
   }
 
   @Test
+  void backfillChecksCarriesOnPastADateItCannotPriceAndHandsBackEveryDateItDidRerun() {
+    var unpriceableDate = LocalDate.of(2026, 4, 8);
+    givenAnUnpriceableHoldingOn(unpriceableDate, LocalDate.of(2026, 4, 7));
+    givenACheckableFundOn(CHECK_DATE, PREVIOUS_DATE);
+    given(fundNavQueryService.findLatestNavDateOnOrBefore(TUK75.getCode(), unpriceableDate))
+        .willReturn(Optional.of(unpriceableDate));
+    given(fundNavQueryService.findLatestNavDateOnOrBefore(TUK75.getCode(), CHECK_DATE))
+        .willReturn(Optional.of(CHECK_DATE));
+
+    var incompleteRun =
+        catchThrowableOfType(
+            TrackingDifferenceService.IncompletePriceDataException.class,
+            () -> service.backfillChecks(2));
+
+    assertThat(incompleteRun.completedResults())
+        .extracting(TrackingDifferenceResult::fund, TrackingDifferenceResult::checkDate)
+        .isNotEmpty()
+        .containsOnly(tuple(TUK75, CHECK_DATE));
+  }
+
+  @Test
   void backfillChecksReturnsAggregatedResultsAcrossDays() {
     setupFundData(TUK75);
 

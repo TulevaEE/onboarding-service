@@ -108,10 +108,20 @@ class TrackingDifferenceService {
   List<TrackingDifferenceResult> backfillChecks(int daysBack) {
     var today = LocalDate.now(clock);
     var allResults = new ArrayList<TrackingDifferenceResult>();
+    var incompleteDays = new ArrayList<String>();
 
     for (int i = daysBack; i >= 0; i--) {
       var asOfDate = today.minusDays(i);
-      allResults.addAll(runChecksAsOf(asOfDate));
+      try {
+        allResults.addAll(runChecksAsOf(asOfDate));
+      } catch (IncompletePriceDataException e) {
+        allResults.addAll(e.completedResults());
+        incompleteDays.add("asOfDate=%s: %s".formatted(asOfDate, e.getMessage()));
+      }
+    }
+
+    if (!incompleteDays.isEmpty()) {
+      throw new IncompletePriceDataException(String.join("\n", incompleteDays), allResults);
     }
 
     return allResults;

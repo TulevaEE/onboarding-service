@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.investment.fees.FeeType.DEPOT;
 import static ee.tuleva.onboarding.investment.fees.FeeType.MANAGEMENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.*;
 import static java.math.BigDecimal.ZERO;
+import static java.util.Arrays.stream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -32,6 +33,7 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -587,21 +589,7 @@ class OcfCalculationServiceTest {
 
   @Test
   void calculateForAllFundsIsolatesErrors() {
-    for (var fund : TulevaFund.values()) {
-      if (fund == TUK75) {
-        given(feeRateRepository.findValidRate(eq(fund), eq(MANAGEMENT), any()))
-            .willThrow(new RuntimeException("test error"));
-      } else {
-        given(feeRateRepository.findValidRate(eq(fund), eq(MANAGEMENT), any()))
-            .willReturn(Optional.empty());
-        given(depotRateResolver.resolveRate(eq(fund), any())).willReturn(DepotRate.none());
-        given(
-                transactionExecutionRepository.sumCommissionsForFundAndPeriod(
-                    eq(fund.getCode()), any(), any()))
-            .willReturn(ZERO);
-      }
-    }
-    given(instrumentFeeRepository.findAllValidRates(any())).willReturn(List.of());
+    givenEveryFundButTuk75ComputesWithNothingCharged();
 
     service.calculateForAllFunds(MONTH);
 
@@ -610,21 +598,7 @@ class OcfCalculationServiceTest {
 
   @Test
   void calculateForAllFundsReportsWhichFundFailed() {
-    for (var fund : TulevaFund.values()) {
-      if (fund == TUK75) {
-        given(feeRateRepository.findValidRate(eq(fund), eq(MANAGEMENT), any()))
-            .willThrow(new RuntimeException("test error"));
-      } else {
-        given(feeRateRepository.findValidRate(eq(fund), eq(MANAGEMENT), any()))
-            .willReturn(Optional.empty());
-        given(depotRateResolver.resolveRate(eq(fund), any())).willReturn(DepotRate.none());
-        given(
-                transactionExecutionRepository.sumCommissionsForFundAndPeriod(
-                    eq(fund.getCode()), any(), any()))
-            .willReturn(ZERO);
-      }
-    }
-    given(instrumentFeeRepository.findAllValidRates(any())).willReturn(List.of());
+    givenEveryFundButTuk75ComputesWithNothingCharged();
 
     service.calculateForAllFunds(MONTH);
 
@@ -638,59 +612,73 @@ class OcfCalculationServiceTest {
   }
 
   @Test
-  void backfillMonthsReportsOnceForTheWholeRunRatherThanOncePerMonth() {
-    var clock =
-        Clock.fixed(
-            MONTH.atDay(15).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant(),
-            ZoneId.of("Europe/Tallinn"));
+  void backfillMonthsReportsEveryFundInEachOfTheMonthsOnceForTheWholeRun() {
+    givenEveryFundComputesWithNothingCharged();
 
-    for (var fund : TulevaFund.values()) {
-      lenient()
-          .when(feeRateRepository.findValidRate(eq(fund), eq(MANAGEMENT), any()))
-          .thenReturn(Optional.empty());
-      lenient().when(depotRateResolver.resolveRate(eq(fund), any())).thenReturn(DepotRate.none());
-      lenient().when(instrumentFeeRepository.findAllValidRates(any())).thenReturn(List.of());
-      lenient()
-          .when(
-              transactionExecutionRepository.sumCommissionsForFundAndPeriod(
-                  eq(fund.getCode()), any(), any()))
-          .thenReturn(ZERO);
-    }
-
-    service.backfillMonths(3, clock);
+    service.backfillMonths(3, clockIn(MONTH));
 
     then(ocfNotifier)
         .should()
         .notifyBackfill(
-            eq(3), argThat(outcomes -> outcomes.size() == 3 * TulevaFund.values().length));
+            eq(3),
+            argThat(
+                outcomes ->
+                    fundMonths(outcomes)
+                        .equals(
+                            everyFundIn(
+                                MONTH.minusMonths(1),
+                                MONTH.minusMonths(2),
+                                MONTH.minusMonths(3)))));
     then(ocfNotifier).should(never()).notifyRun(any(), any());
   }
 
   @Test
   void backfillMonthsComputesMultipleMonths() {
-    var clock =
-        Clock.fixed(
-            MONTH.atDay(15).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant(),
-            ZoneId.of("Europe/Tallinn"));
+    givenEveryFundComputesWithNothingCharged();
 
-    for (var fund : TulevaFund.values()) {
-      lenient()
-          .when(feeRateRepository.findValidRate(eq(fund), eq(MANAGEMENT), any()))
-          .thenReturn(Optional.empty());
-      lenient().when(depotRateResolver.resolveRate(eq(fund), any())).thenReturn(DepotRate.none());
-      lenient().when(instrumentFeeRepository.findAllValidRates(any())).thenReturn(List.of());
-      lenient()
-          .when(
-              transactionExecutionRepository.sumCommissionsForFundAndPeriod(
-                  eq(fund.getCode()), any(), any()))
-          .thenReturn(ZERO);
-    }
+    service.backfillMonths(3, clockIn(MONTH));
 
-    service.backfillMonths(3, clock);
-
-    // 3 months * 4 funds = 12 saves
     verify(ocfSnapshotRepository, times(3 * TulevaFund.values().length)).save(any());
   }
+
+  private void givenEveryFundComputesWithNothingCharged() {
+    stream(TulevaFund.values()).forEach(this::givenFundComputesWithNothingCharged);
+    given(instrumentFeeRepository.findAllValidRates(any())).willReturn(List.of());
+  }
+
+  private void givenEveryFundButTuk75ComputesWithNothingCharged() {
+    stream(TulevaFund.values())
+        .filter(fund -> fund != TUK75)
+        .forEach(this::givenFundComputesWithNothingCharged);
+    given(feeRateRepository.findValidRate(eq(TUK75), eq(MANAGEMENT), any()))
+        .willThrow(new RuntimeException("test error"));
+    given(instrumentFeeRepository.findAllValidRates(any())).willReturn(List.of());
+  }
+
+  private void givenFundComputesWithNothingCharged(TulevaFund fund) {
+    given(feeRateRepository.findValidRate(eq(fund), eq(MANAGEMENT), any()))
+        .willReturn(Optional.empty());
+    given(depotRateResolver.resolveRate(eq(fund), any())).willReturn(DepotRate.none());
+    setupNoTransactionCosts(fund);
+  }
+
+  private static Clock clockIn(YearMonth month) {
+    return Clock.fixed(month.atDay(15).atStartOfDay(ESTONIAN_ZONE).toInstant(), ESTONIAN_ZONE);
+  }
+
+  private static List<FundMonth> fundMonths(List<OcfRunOutcome> outcomes) {
+    return outcomes.stream()
+        .map(outcome -> new FundMonth(outcome.fund(), outcome.month()))
+        .toList();
+  }
+
+  private static List<FundMonth> everyFundIn(YearMonth... months) {
+    return Stream.of(months)
+        .flatMap(month -> stream(TulevaFund.values()).map(fund -> new FundMonth(fund, month)))
+        .toList();
+  }
+
+  private record FundMonth(TulevaFund fund, YearMonth month) {}
 
   @Test
   void ocfSnapshotFromResultSetMapsAllFields() throws SQLException {

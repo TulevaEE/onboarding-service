@@ -119,6 +119,27 @@ class TrackingDifferenceNotifier {
     }
   }
 
+  void notifyAttributionNotWritten(
+      TulevaFund fund, LocalDate periodStart, LocalDate periodEnd, List<LocalDate> staleDates) {
+    try {
+      notificationService.sendMessage(
+          """
+          ⚠️ TD ATTRIBUTION NOT WRITTEN: fund=%s, period=%s to %s
+            The NAV of %s changed after the check ran and the recheck did not
+            complete, so the stored fund return of those dates is stale. Any attribution already
+            stored for this period is left as it was. Rerun it once those dates recheck; the
+            reason per date is in the logs."""
+              .formatted(
+                  fund.getCode(),
+                  periodStart,
+                  periodEnd,
+                  staleDates.stream().map(LocalDate::toString).collect(joining(", "))),
+          INVESTMENT);
+    } catch (Exception e) {
+      log.error("Failed to send TD attribution not written notification", e);
+    }
+  }
+
   private static String toBps(BigDecimal value) {
     return value
         .multiply(new BigDecimal("10000"))

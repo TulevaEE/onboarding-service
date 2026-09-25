@@ -130,6 +130,11 @@ class TrackingDifferenceService {
         .reduce(GapFillRun.NOTHING_TO_FILL, GapFillRun::and);
   }
 
+  GapFillRun reconcileSince(TulevaFund fund, LocalDate since) {
+    var today = LocalDate.now(clock);
+    return fillGaps(fund, new GapWindow(today, (int) DAYS.between(since, today)));
+  }
+
   private GapFillRun fillGaps(TulevaFund fund, GapWindow window) {
     var results = new ArrayList<TrackingDifferenceResult>();
     var failures = new ArrayList<GapFailure>();

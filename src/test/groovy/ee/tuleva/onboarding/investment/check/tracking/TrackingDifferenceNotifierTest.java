@@ -1251,6 +1251,52 @@ class TrackingDifferenceNotifierTest {
     then(notificationService).shouldHaveNoInteractions();
   }
 
+  @Test
+  void anAttributionLeftUnwrittenBecauseOfStaleDatesNamesTheFundPeriodAndDates() {
+    notifier.notifyAttributionNotWritten(
+        TUK75,
+        LocalDate.of(2026, 4, 1),
+        LocalDate.of(2026, 4, 30),
+        List.of(LocalDate.of(2026, 4, 10), LocalDate.of(2026, 4, 13)));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ⚠️ TD ATTRIBUTION NOT WRITTEN: fund=TUK75, period=2026-04-01 to 2026-04-30
+              The NAV of 2026-04-10, 2026-04-13 changed after the check ran and the recheck did not
+              complete, so the stored fund return of those dates is stale. Any attribution already
+              stored for this period is left as it was. Rerun it once those dates recheck; the
+              reason per date is in the logs.""",
+            INVESTMENT);
+  }
+
+  @Test
+  void swallowsExceptionWhenAttributionNotWrittenNotificationFails() {
+    willThrow(new RuntimeException("Slack down"))
+        .given(notificationService)
+        .sendMessage(any(String.class), eq(INVESTMENT));
+
+    assertThatCode(
+            () ->
+                notifier.notifyAttributionNotWritten(
+                    TUK75,
+                    LocalDate.of(2026, 4, 1),
+                    LocalDate.of(2026, 4, 30),
+                    List.of(LocalDate.of(2026, 4, 10))))
+        .doesNotThrowAnyException();
+  }
+
+  @Test
+  void swallowsExceptionWhenGapFillSummaryFails() {
+    willThrow(new RuntimeException("Slack down"))
+        .given(notificationService)
+        .sendMessage(any(String.class), eq(INVESTMENT));
+
+    assertThatCode(() -> notifier.notifyGapFillSummary(gapFill(result(false, 0, ZERO))))
+        .doesNotThrowAnyException();
+  }
+
   private static GapFillRun gapFill(TrackingDifferenceResult... results) {
     return new GapFillRun(List.of(results), List.of(), Map.of());
   }

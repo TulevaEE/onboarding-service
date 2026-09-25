@@ -34,6 +34,12 @@ record GapFillRun(
         .collect(toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue));
   }
 
+  List<LocalDate> staleDatesNotRechecked(TulevaFund fund) {
+    return staleCheckDates.getOrDefault(fund, List.of()).stream()
+        .filter(checkDate -> !wasRechecked(fund, checkDate))
+        .toList();
+  }
+
   private List<LocalDate> rechecked(TulevaFund fund, List<LocalDate> checkDates) {
     return checkDates.stream().filter(checkDate -> wasRechecked(fund, checkDate)).toList();
   }

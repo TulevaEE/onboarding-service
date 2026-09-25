@@ -265,6 +265,33 @@ class TrackingDifferenceServiceTest {
   }
 
   @Test
+  void reconcilingOneFundSinceADateRechecksItsStaleDatesFromThatDateThroughToday() {
+    var since = LocalDate.of(2026, 3, 1);
+    givenACheckableFundOn(PREVIOUS_DATE, LocalDate.of(2026, 4, 8));
+    givenNoHoldingsOrUnitsOn(LocalDate.of(2026, 4, 8));
+    givenNoUnitsOn(PREVIOUS_DATE);
+    given(fundPositionRepository.findDistinctNavDatesByFundBetween(TUK75, since, CHECK_DATE))
+        .willReturn(List.of(PREVIOUS_DATE));
+    given(eventRepository.findDistinctCheckDates(TUK75, since, CHECK_DATE))
+        .willReturn(List.of(PREVIOUS_DATE));
+    given(eventRepository.findDistinctCheckDates(TUK75, PREVIOUS_DATE, CHECK_DATE))
+        .willReturn(List.of(PREVIOUS_DATE));
+    given(
+            eventRepository.findDeduplicatedEventsForPeriod(
+                TUK75, MODEL_PORTFOLIO, since, CHECK_DATE))
+        .willReturn(List.of(storedEvent(PREVIOUS_DATE, new BigDecimal("0.020000"))));
+
+    var run = service.reconcileSince(TUK75, since);
+
+    assertThat(run.results())
+        .extracting(TrackingDifferenceResult::fund, TrackingDifferenceResult::checkDate)
+        .containsExactly(tuple(TUK75, PREVIOUS_DATE));
+    assertThat(run.staleCheckDates()).isEqualTo(Map.of(TUK75, List.of(PREVIOUS_DATE)));
+    verify(fundPositionRepository, never())
+        .findDistinctNavDatesByFundBetween(eq(TUK00), any(LocalDate.class), any(LocalDate.class));
+  }
+
+  @Test
   void fillGapsChecksNothingWhenEveryNavDateAlreadyHasACheck() {
     var from = CHECK_DATE.minusDays(30);
     given(fundPositionRepository.findDistinctNavDatesByFundBetween(TUK75, from, CHECK_DATE))

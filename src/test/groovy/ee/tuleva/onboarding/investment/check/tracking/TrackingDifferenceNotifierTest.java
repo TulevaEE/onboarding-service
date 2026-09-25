@@ -1011,6 +1011,31 @@ class TrackingDifferenceNotifierTest {
   }
 
   @Test
+  void aBackfillThatCouldNotRerunEveryDateIsHeadedIncompleteRatherThanComplete() {
+    var results =
+        List.of(
+            result(true, 1, new BigDecimal("0.0015")).toBuilder()
+                .checkDate(LocalDate.of(2026, 4, 3))
+                .trackingDifference(new BigDecimal("0.0150"))
+                .build());
+
+    notifier.notifyIncompleteBackfillSummary(30, results);
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ⚠️ TD BACKFILL INCOMPLETE: daysBack=30
+              The check dates named in the message above were not re-run and keep their old \
+            events, and the breach streaks counted after them still run through those events. \
+            Rerun the backfill once their prices are in.
+
+              TUK75 MODEL_PORTFOLIO: 1 check dates 2026-04-03 to 2026-04-03, 1 breaches, \
+            largest TD +1.50%""",
+            INVESTMENT);
+  }
+
+  @Test
   void theLargestBackfilledTdIsTheOneFurthestFromZeroInEitherDirection() {
     var results =
         List.of(

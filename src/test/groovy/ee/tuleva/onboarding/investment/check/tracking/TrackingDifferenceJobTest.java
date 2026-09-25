@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceJob.GAP_LOOKBACK_DAYS;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
@@ -209,7 +210,7 @@ class TrackingDifferenceJobTest {
   }
 
   @Test
-  void backfillNotifiesPartialResultsOnIncompletePriceData() {
+  void aBackfillThatCouldNotPriceEveryDateIsSummarisedAsIncompleteNeverAsComplete() {
     var partialResults = List.<TrackingDifferenceResult>of();
     doThrow(
             new TrackingDifferenceService.IncompletePriceDataException(
@@ -219,7 +220,9 @@ class TrackingDifferenceJobTest {
 
     job.onTrackingDifferenceBackfillRequested(new RunTrackingDifferenceBackfillRequested(7));
 
-    then(notifier).should().notifyBackfillSummary(7, partialResults);
+    then(notifier).should().notifyRunIncomplete("TD backfill", "missing prices");
+    then(notifier).should().notifyIncompleteBackfillSummary(7, partialResults);
+    then(notifier).should(never()).notifyBackfillSummary(anyInt(), anyList());
   }
 
   @Test

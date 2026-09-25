@@ -29,6 +29,14 @@ class TrackingDifferenceNotifier {
   private static final BigDecimal HUNDRED = new BigDecimal("100");
   private static final String PUBLISHED_WITHOUT_VALIDATION =
       "NAV report published WITHOUT tracking-difference validation";
+  private static final String BACKFILL_COMPLETE_HEADER = "✅ TD BACKFILL COMPLETE: daysBack=%d\n";
+  private static final String BACKFILL_INCOMPLETE_HEADER =
+      """
+      ⚠️ TD BACKFILL INCOMPLETE: daysBack=%d
+        The check dates named in the message above were not re-run and keep their old \
+      events, and the breach streaks counted after them still run through those events. \
+      Rerun the backfill once their prices are in.
+      """;
 
   private final OperationsNotificationService notificationService;
   private final TrackingDifferenceCalculator calculator;
@@ -117,6 +125,15 @@ class TrackingDifferenceNotifier {
   }
 
   void notifyBackfillSummary(int daysBack, List<TrackingDifferenceResult> results) {
+    sendBackfillSummary(BACKFILL_COMPLETE_HEADER.formatted(daysBack), daysBack, results);
+  }
+
+  void notifyIncompleteBackfillSummary(int daysBack, List<TrackingDifferenceResult> results) {
+    sendBackfillSummary(BACKFILL_INCOMPLETE_HEADER.formatted(daysBack), daysBack, results);
+  }
+
+  private void sendBackfillSummary(
+      String header, int daysBack, List<TrackingDifferenceResult> results) {
     try {
       if (results.isEmpty()) {
         notificationService.sendMessage(
@@ -129,7 +146,7 @@ class TrackingDifferenceNotifier {
         return;
       }
 
-      var message = new StringBuilder("✅ TD BACKFILL COMPLETE: daysBack=%d\n".formatted(daysBack));
+      var message = new StringBuilder(header);
       results.stream()
           .collect(
               Collectors.groupingBy(

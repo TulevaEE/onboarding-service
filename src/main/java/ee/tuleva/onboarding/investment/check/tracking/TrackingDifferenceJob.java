@@ -77,7 +77,8 @@ class TrackingDifferenceJob {
       log.info("Tracking difference backfill completed: resultCount={}", results.size());
     } catch (TrackingDifferenceService.IncompletePriceDataException e) {
       trackingDifferenceNotifier.notifyRunIncomplete("TD backfill", FailureReason.of(e));
-      trackingDifferenceNotifier.notifyBackfillSummary(event.daysBack(), e.completedResults());
+      trackingDifferenceNotifier.notifyIncompleteBackfillSummary(
+          event.daysBack(), e.completedResults());
       log.error("Tracking difference backfill incomplete", e);
     } catch (Exception e) {
       log.error("Tracking difference backfill failed", e);

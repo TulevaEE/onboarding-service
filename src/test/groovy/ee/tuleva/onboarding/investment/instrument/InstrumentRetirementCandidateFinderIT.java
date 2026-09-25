@@ -21,7 +21,6 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -198,16 +197,6 @@ class InstrumentRetirementCandidateFinderIT {
   }
 
   @Test
-  void honoursAThresholdRaisedInInvestmentParameter() {
-    modelPortfolio(MODEL_THAT_HELD_IT, EXITED_ISIN, STILL_HELD_ISIN);
-    modelPortfolio(LIVE_MODEL, STILL_HELD_ISIN);
-    heldUntil(EXITED_ISIN, LAST_HELD_ON);
-    heldThroughout(STILL_HELD_ISIN);
-
-    assertThat(finderWithThreshold(new BigDecimal("6")).findCandidates()).isEmpty();
-  }
-
-  @Test
   void doesNotLetOtherFundsNavDatesRunDownTheClockForAFundThatHeldIt() {
     modelPortfolio(MODEL_THAT_HELD_IT, EXITED_ISIN, STILL_HELD_ISIN);
     modelPortfolio(LIVE_MODEL, STILL_HELD_ISIN);
@@ -268,16 +257,11 @@ class InstrumentRetirementCandidateFinderIT {
   }
 
   private InstrumentRetirementCandidateFinder finder() {
-    return finderWithThreshold(null);
-  }
-
-  private InstrumentRetirementCandidateFinder finderWithThreshold(BigDecimal navDates) {
     return new InstrumentRetirementCandidateFinder(
         instrumentReferenceService(activeInstruments(), benchmarkProxies()),
         allocationRepository,
         fundPositionRepository,
         () -> Set.of(FUND_BENCHMARK_ISIN),
-        asOf -> Optional.ofNullable(navDates),
         CLOCK);
   }
 

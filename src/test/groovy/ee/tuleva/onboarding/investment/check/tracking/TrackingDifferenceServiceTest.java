@@ -5,6 +5,8 @@ import static ee.tuleva.onboarding.instrument.InstrumentReferenceServiceFixture.
 import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK;
 import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK_MODEL;
 import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
+import static ee.tuleva.onboarding.investment.config.InvestmentParameter.BENCHMARK_MODEL_BREACH_THRESHOLD;
+import static ee.tuleva.onboarding.investment.config.InvestmentParameter.TRACKING_BREACH_THRESHOLD;
 import static ee.tuleva.onboarding.investment.position.AccountType.*;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
@@ -87,6 +89,10 @@ class TrackingDifferenceServiceTest {
 
   private static final LocalDate CHECK_DATE = LocalDate.of(2026, 4, 10);
   private static final LocalDate PREVIOUS_DATE = LocalDate.of(2026, 4, 9);
+  private static final BigDecimal TRACKING_BREACH_THRESHOLD_VALUE = new BigDecimal("0.001");
+  private static final BigDecimal LOOSER_BENCHMARK_MODEL_BREACH_THRESHOLD_VALUE =
+      new BigDecimal("0.0015");
+  private static final BigDecimal TWELVE_BASIS_POINT_GAP = new BigDecimal("0.001200");
   private static final Clock FIXED_CLOCK =
       Clock.fixed(Instant.parse("2026-04-10T16:00:00Z"), ZoneId.of("Europe/Tallinn"));
 
@@ -1474,58 +1480,37 @@ class TrackingDifferenceServiceTest {
   }
 
   @Test
-  void benchmarkModelDoesNotBreachBelowItsOwnLooserThreshold() {
+  void aGapAboveTheTrackingBreachThresholdButBelowBenchmarkModelsOwnBreachesOnlyModelPortfolio() {
     skipOtherFunds(TUK75);
-    lenient()
-        .when(
-            parameterRepository.findLatestValue(
-                eq(InvestmentParameter.TRACKING_BREACH_THRESHOLD), any(LocalDate.class)))
-        .thenReturn(new BigDecimal("0.001"));
-    lenient()
-        .when(
+    given(parameterRepository.findLatestValue(eq(TRACKING_BREACH_THRESHOLD), any(LocalDate.class)))
+        .willReturn(TRACKING_BREACH_THRESHOLD_VALUE);
+    given(
             parameterRepository.findLatestValueIfPresent(
-                eq(InvestmentParameter.BENCHMARK_MODEL_BREACH_THRESHOLD), any(LocalDate.class)))
-        .thenReturn(Optional.of(new BigDecimal("0.0015")));
-
-    givenSingleEmHoldingWithReturns("20.024", "20.00", "500.00", "500.00");
+                eq(BENCHMARK_MODEL_BREACH_THRESHOLD), any(LocalDate.class)))
+        .willReturn(Optional.of(LOOSER_BENCHMARK_MODEL_BREACH_THRESHOLD_VALUE));
+    var navUpTwentyFourBasisPoints = "10.024";
+    var holdingUpTwelveBasisPoints = "20.024";
+    givenTuk75HeldEntirelyInEmergingMarkets(
+        navUpTwentyFourBasisPoints, "10.00", holdingUpTwelveBasisPoints, "20.00", "500.00");
 
     var results = service.runChecksAsOf(CHECK_DATE);
 
-    var bmModel = results.stream().filter(r -> r.checkType() == BENCHMARK_MODEL).findFirst();
-    assertThat(bmModel).isPresent();
-    assertThat(bmModel.get().trackingDifference()).isEqualByComparingTo(new BigDecimal("0.0012"));
-    assertThat(bmModel.get().breach()).isFalse();
+    assertThat(results)
+        .extracting(
+            TrackingDifferenceResult::checkType,
+            TrackingDifferenceResult::trackingDifference,
+            TrackingDifferenceResult::breach)
+        .containsExactlyInAnyOrder(
+            tuple(MODEL_PORTFOLIO, TWELVE_BASIS_POINT_GAP, true),
+            tuple(BENCHMARK_MODEL, TWELVE_BASIS_POINT_GAP, false));
   }
 
-  @Test
-  void modelPortfolioStillBreachesAtTheDailyThresholdWhileBenchmarkModelIsLooser() {
-    skipOtherFunds(TUK75);
-    lenient()
-        .when(
-            parameterRepository.findLatestValue(
-                eq(InvestmentParameter.TRACKING_BREACH_THRESHOLD), any(LocalDate.class)))
-        .thenReturn(new BigDecimal("0.001"));
-    lenient()
-        .when(
-            parameterRepository.findLatestValueIfPresent(
-                eq(InvestmentParameter.BENCHMARK_MODEL_BREACH_THRESHOLD), any(LocalDate.class)))
-        .thenReturn(Optional.of(new BigDecimal("0.0015")));
-
-    givenSingleEmHoldingWithReturns("20.024", "20.00", "500.00", "500.00");
-
-    var results = service.runChecksAsOf(CHECK_DATE);
-
-    var modelPortfolio = results.stream().filter(r -> r.checkType() == MODEL_PORTFOLIO).findFirst();
-    assertThat(modelPortfolio).isPresent();
-    assertThat(modelPortfolio.get().breach()).isTrue();
-  }
-
-  private void givenSingleEmHoldingWithReturns(
-      String price, String previousPrice, String benchmark, String previousBenchmark) {
+  private void givenTuk75HeldEntirelyInEmergingMarkets(
+      String nav, String previousNav, String price, String previousPrice, String flatBenchmark) {
     given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE))
-        .willReturn(Optional.of(new BigDecimal("10.10")));
+        .willReturn(Optional.of(new BigDecimal(nav)));
     given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
-        .willReturn(Optional.of(new BigDecimal("10.00")));
+        .willReturn(Optional.of(new BigDecimal(previousNav)));
 
     var emIsin = "IE00BKPTWY98";
     given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, CHECK_DATE))
@@ -1577,9 +1562,9 @@ class TrackingDifferenceServiceTest {
         .willReturn(List.of());
 
     given(fundValueProvider.getLatestValue("MSCI_EM", CHECK_DATE))
-        .willReturn(Optional.of(fundValue(benchmark)));
+        .willReturn(Optional.of(fundValue(flatBenchmark)));
     given(fundValueProvider.getLatestValue("MSCI_EM", PREVIOUS_DATE))
-        .willReturn(Optional.of(fundValue(previousBenchmark)));
+        .willReturn(Optional.of(fundValue(flatBenchmark)));
   }
 
   @Test

@@ -1,10 +1,14 @@
 package ee.tuleva.onboarding.instrument;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED;
 
+import ee.tuleva.onboarding.instrument.InstrumentRetirementOutcome.Refusal;
 import ee.tuleva.onboarding.time.ClockConfig;
+import java.sql.SQLException;
 import java.util.List;
+import javax.sql.DataSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,12 +30,14 @@ class InstrumentRetirementTest {
 
   private static final String RETIRING_ISIN = "IE00RETIRE01";
   private static final String NEIGHBOUR_ISIN = "IE00RETIRE02";
+  private static final String BOND_GLOBAL_BENCHMARK_PROXY_ISIN = "IE00BDBRDM35";
   private static final List<String> ISINS_THIS_TEST_INSERTS =
       List.of(RETIRING_ISIN, NEIGHBOUR_ISIN);
 
   @Autowired private InstrumentRetirement instrumentRetirement;
   @Autowired private InstrumentReferenceService instrumentReferenceService;
   @Autowired private JdbcClient jdbcClient;
+  @Autowired private DataSource dataSource;
 
   @AfterEach
   void removeTheInstrumentsThisTestCommitted() {
@@ -90,6 +96,24 @@ class InstrumentRetirementTest {
         .hasValueSatisfying(instrument -> assertThat(instrument.isActive()).isFalse());
   }
 
+  @Test
+  void refusesToRetireABenchmarkProxyAndStillRetiresTheOthersInTheSameCall() throws SQLException {
+    assumeTrue(isPostgres(), "The benchmark proxy write guard is plpgsql, PostgreSQL only");
+    assertThat(isActive(BOND_GLOBAL_BENCHMARK_PROXY_ISIN)).isTrue();
+    insertInstrument(RETIRING_ISIN, true);
+
+    var outcome =
+        instrumentRetirement.retire(List.of(BOND_GLOBAL_BENCHMARK_PROXY_ISIN, RETIRING_ISIN));
+
+    assertThat(outcome.retiredIsins()).containsExactly(RETIRING_ISIN);
+    assertThat(outcome.refusals())
+        .extracting(Refusal::isin)
+        .containsExactly(BOND_GLOBAL_BENCHMARK_PROXY_ISIN);
+    assertThat(outcome.cacheReloadedOnThisInstance()).isTrue();
+    assertThat(isActive(BOND_GLOBAL_BENCHMARK_PROXY_ISIN)).isTrue();
+    assertThat(isActive(RETIRING_ISIN)).isFalse();
+  }
+
   private void insertInstrument(String isin, boolean active) {
     jdbcClient
         .sql(
@@ -109,5 +133,11 @@ class InstrumentRetirementTest {
         .param("isin", isin)
         .query(Boolean.class)
         .single();
+  }
+
+  private boolean isPostgres() throws SQLException {
+    try (var connection = dataSource.getConnection()) {
+      return connection.getMetaData().getDatabaseProductName().toLowerCase().contains("postgresql");
+    }
   }
 }

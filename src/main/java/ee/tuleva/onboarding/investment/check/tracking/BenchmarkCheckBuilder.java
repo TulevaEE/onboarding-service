@@ -83,7 +83,7 @@ class BenchmarkCheckBuilder {
             .subtract(yesterdayNav.value())
             .divide(yesterdayNav.value(), 6, RoundingMode.HALF_UP);
     var td = fundReturn.subtract(benchmarkReturn.get());
-    var breach = td.abs().compareTo(calculator.breachThreshold(checkDate)) >= 0;
+    var breach = td.abs().compareTo(calculator.breachThreshold(BENCHMARK, checkDate)) >= 0;
 
     var priorBreaches =
         consecutiveBreachTracker.countConsecutiveBreaches(fund, BENCHMARK, checkDate);
@@ -241,7 +241,7 @@ class BenchmarkCheckBuilder {
         totalWeightedBenchmarkReturn.divide(totalWeight, SCALE, RoundingMode.HALF_UP);
     var instrumentReturn = totalWeightedReturn.divide(totalWeight, SCALE, RoundingMode.HALF_UP);
     var td = instrumentReturn.subtract(benchmarkReturn).setScale(SCALE, RoundingMode.HALF_UP);
-    var breach = td.abs().compareTo(calculator.benchmarkModelBreachThreshold(checkDate)) >= 0;
+    var breach = td.abs().compareTo(calculator.breachThreshold(BENCHMARK_MODEL, checkDate)) >= 0;
 
     var priorBreaches =
         consecutiveBreachTracker.countConsecutiveBreaches(fund, BENCHMARK_MODEL, checkDate);

@@ -19,6 +19,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 class TrackingDifferenceQueryServiceTest {
 
   private static final LocalDate DATE = LocalDate.of(2026, 6, 5);
+  private static final BigDecimal TRACKING_BREACH_THRESHOLD = new BigDecimal("0.001");
+  private static final BigDecimal BENCHMARK_MODEL_BREACH_THRESHOLD = new BigDecimal("0.0015");
 
   @Mock private TrackingDifferenceEventRepository eventRepository;
   @Mock private TrackingDifferenceCalculator calculator;
@@ -37,13 +39,15 @@ class TrackingDifferenceQueryServiceTest {
             .build();
     given(eventRepository.findDeduplicatedEventsForPeriod(TUK00, BENCHMARK_MODEL, DATE, DATE))
         .willReturn(List.of(event));
-    given(calculator.benchmarkModelBreachThreshold(DATE)).willReturn(new BigDecimal("0.0015"));
+    given(calculator.breachThreshold(BENCHMARK_MODEL, DATE))
+        .willReturn(BENCHMARK_MODEL_BREACH_THRESHOLD);
 
     var result = queryService.findLatestBenchmarkModel(TUK00, DATE);
 
     assertThat(result)
         .contains(
-            new TrackingDifferenceSummary(new BigDecimal("0.001073"), new BigDecimal("0.0015")));
+            new TrackingDifferenceSummary(
+                new BigDecimal("0.001073"), BENCHMARK_MODEL_BREACH_THRESHOLD));
   }
 
   @Test
@@ -69,13 +73,13 @@ class TrackingDifferenceQueryServiceTest {
             .build();
     given(eventRepository.findDeduplicatedEventsForPeriod(TUK00, MODEL_PORTFOLIO, DATE, DATE))
         .willReturn(List.of(event));
-    given(calculator.breachThreshold(DATE)).willReturn(new BigDecimal("0.001"));
+    given(calculator.breachThreshold(MODEL_PORTFOLIO, DATE)).willReturn(TRACKING_BREACH_THRESHOLD);
 
     var result = queryService.findLatestModelPortfolio(TUK00, DATE);
 
     assertThat(result)
         .contains(
-            new TrackingDifferenceSummary(new BigDecimal("0.001500"), new BigDecimal("0.001")));
+            new TrackingDifferenceSummary(new BigDecimal("0.001500"), TRACKING_BREACH_THRESHOLD));
   }
 
   @Test

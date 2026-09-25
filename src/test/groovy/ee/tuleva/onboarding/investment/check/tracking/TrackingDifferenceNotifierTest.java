@@ -1176,6 +1176,24 @@ class TrackingDifferenceNotifierTest {
   }
 
   @Test
+  void theGapFillSummaryOrdersBreachesOfOneFundOnOneDateByCheckType() {
+    var modelPortfolio = result(true, 2, new BigDecimal("0.004"));
+    var benchmarkModel = modelPortfolio.toBuilder().checkType(BENCHMARK_MODEL).build();
+
+    notifier.notifyGapFillSummary(gapFill(modelPortfolio, benchmarkModel));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            🕗 TD GAP FILL: 1 past check dates rewritten, 2026-04-03 to 2026-04-03 — these are \
+            earlier days, not today's check
+              🛑 2026-04-03 TUK75 BENCHMARK_MODEL: TD=+0.15%, 2 consecutive days
+              🛑 2026-04-03 TUK75 MODEL_PORTFOLIO: TD=+0.15%, 2 consecutive days""",
+            INVESTMENT);
+  }
+
+  @Test
   void theGapFillSummaryNamesEveryDateRecheckedBecauseItsNavWasCorrectedAfterTheCheckRan() {
     var earlier = LocalDate.of(2026, 4, 2);
     var later = LocalDate.of(2026, 4, 3);

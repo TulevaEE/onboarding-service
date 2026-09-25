@@ -60,6 +60,7 @@ public record NudgeDecision(
     vars.put("suggestSavingsFund", key == SAVINGS_FUND);
     vars.put("suggestSavingsFundRecurringPayment", key == SAVINGS_FUND_RECURRING);
     vars.put("suggestMembership", key == MEMBERSHIP);
+    vars.put("anyPillarSuggestion", key.isPillar());
     vars.put("hasFeeComparison", feeComparison != null);
     if (feeComparison != null) {
       vars.put("secondPillarFeePercent", percent(feeComparison.currentFeePercent(), locale));

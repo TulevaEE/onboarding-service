@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.nudge;
 
+import java.util.EnumSet;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -18,4 +19,15 @@ public enum NudgeKey {
   NONE("nudge_none");
 
   private final String tag;
+
+  public boolean isPillar() {
+    return EnumSet.of(
+            SECOND_PILLAR_TRANSFER,
+            SECOND_PILLAR_PAYMENT_RATE,
+            THIRD_PILLAR_START,
+            THIRD_PILLAR_FEES,
+            THIRD_PILLAR_RECURRING,
+            THIRD_PILLAR_RAISE)
+        .contains(this);
+  }
 }

@@ -1,5 +1,4 @@
 <mj-raw>*|IF:hasFeeComparison|*</mj-raw>
-<mj-text><strong>Euros paid in fees earn no returns</strong></mj-text>
 <mj-text>
   You are saving your second pillar in high fee funds (*|secondPillarFeePercent|*% per year).
   This year you will pay *|secondPillarFeeAmount|*&nbsp;€ in fees, and in the Tuleva fund you

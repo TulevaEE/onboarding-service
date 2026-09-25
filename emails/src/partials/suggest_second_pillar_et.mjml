@@ -1,5 +1,4 @@
 <mj-raw>*|IF:hasFeeComparison|*</mj-raw>
-<mj-text><strong>Tasudeks makstud eurod tootlust ei teeni</strong></mj-text>
 <mj-text>
   Kogud II&nbsp;sammast kõrge tasuga fondides (*|secondPillarFeePercent|*% aastas). Sel aastal
   maksad tasudeks *|secondPillarFeeAmount|*&nbsp;€, Tuleva fondis maksaksid

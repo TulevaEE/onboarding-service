@@ -104,22 +104,17 @@ class DualMemberOwnershipScreenerTest {
   }
 
   @Test
-  void twoBoardMembersWhereABeneficialOwnerIsNotAShareholderFails() {
-    var person1 = boardMemberOwner("38501010001", 60.0).build();
-    var person2 =
-        kybPerson("38501010002")
-            .boardMember(true)
-            .shareholder(false)
-            .beneficialOwner(true)
-            .ownershipPercent(BigDecimal.valueOf(40.0))
-            .build();
-    var data = companyWith(person1, person2);
+  void twoBoardMembersWhereTheNonShareholderIsABeneficialOwnerThroughTheBoardSeatPasses() {
+    var soleOwner = boardMemberOwner("38501010001", 100.0).build();
+    var directorRegisteredAsBeneficialOwner =
+        boardMemberOnly("38888888888").beneficialOwner(true).build();
+    var data = companyWith(soleOwner, directorRegisteredAsBeneficialOwner);
 
     var result = screener.screen(data);
 
     assertThat(result)
         .extracting(KybCheck::type, KybCheck::success)
-        .containsExactly(tuple(DUAL_MEMBER_OWNERSHIP, false));
+        .containsExactly(tuple(DUAL_MEMBER_OWNERSHIP, true));
   }
 
   @Test

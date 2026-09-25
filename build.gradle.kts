@@ -577,6 +577,7 @@ tasks.withType<Test> {
         "-XX:+HeapDumpOnOutOfMemoryError",
         "-XX:HeapDumpPath=/tmp/heapdump.hprof",
     )
+    systemProperty("user.timezone", "UTC")
     // CircleCI Large (Docker): 8GB RAM, 2 forks × 2GB = 4GB, leaves 4GB for OS/Gradle/PostgreSQL
     // Local dev: 16GB RAM, 3 forks × 2GB = 6GB, leaves 10GB for OS/IDE
     maxHeapSize = "2g"

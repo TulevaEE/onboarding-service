@@ -25,10 +25,8 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
-import org.springframework.transaction.annotation.Transactional;
 
 @DataJpaTest
-@Transactional
 class InstrumentRetirementCandidateFinderIT {
 
   private static final LocalDate TODAY = LocalDate.of(2026, 9, 24);
@@ -216,8 +214,10 @@ class InstrumentRetirementCandidateFinderIT {
   }
 
   @Test
-  void ignoresABenchmarkProxyThatIsNeitherHeldNorModelled() {
+  void neverRetiresABenchmarkProxyEvenOnceAModelDroppedItAndItWasSold() {
+    modelPortfolio(MODEL_THAT_HELD_IT, BENCHMARK_PROXY_ISIN, STILL_HELD_ISIN);
     modelPortfolio(LIVE_MODEL, STILL_HELD_ISIN);
+    heldUntil(BENCHMARK_PROXY_ISIN, LAST_HELD_ON);
     heldThroughout(STILL_HELD_ISIN);
 
     assertThat(finder().findCandidates()).isEmpty();
@@ -225,12 +225,34 @@ class InstrumentRetirementCandidateFinderIT {
 
   @Test
   void ignoresAnInstrumentAddedAheadOfItsFirstModelPortfolio() {
+    modelPortfolio(MODEL_THAT_HELD_IT, EXITED_ISIN, STILL_HELD_ISIN);
+    modelPortfolio(LIVE_MODEL, STILL_HELD_ISIN);
+    heldUntil(EXITED_ISIN, LAST_HELD_ON);
+    heldThroughout(STILL_HELD_ISIN);
+
+    assertThat(finder().findCandidates())
+        .containsExactly(new RetirementCandidate(EXITED_ISIN, EXITED_ISIN, LAST_HELD_ON, 5));
+  }
+
+  @Test
+  void countsFromTheModelDropForAnInstrumentNoFundEverReported() {
+    modelPortfolio(MODEL_THAT_HELD_IT, EXITED_ISIN, STILL_HELD_ISIN);
     modelPortfolio(LIVE_MODEL, STILL_HELD_ISIN);
     heldThroughout(STILL_HELD_ISIN);
 
     assertThat(finder().findCandidates())
-        .extracting(RetirementCandidate::isin)
-        .doesNotContain(AWAITING_FIRST_MODEL_ISIN);
+        .containsExactly(new RetirementCandidate(EXITED_ISIN, EXITED_ISIN, LIVE_MODEL, 6));
+  }
+
+  @Test
+  void keepsAnInstrumentALiveModelStillCarriesAtZeroWeight() {
+    modelPortfolio(MODEL_THAT_HELD_IT, EXITED_ISIN, STILL_HELD_ISIN);
+    modelPortfolio(LIVE_MODEL, STILL_HELD_ISIN);
+    allocation(TUK75, LIVE_MODEL, EXITED_ISIN, BigDecimal.ZERO);
+    heldUntil(EXITED_ISIN, LAST_HELD_ON);
+    heldThroughout(STILL_HELD_ISIN);
+
+    assertThat(finder().findCandidates()).isEmpty();
   }
 
   @Test

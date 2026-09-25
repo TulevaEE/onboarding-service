@@ -58,7 +58,7 @@ public class InstrumentReferenceService {
     refresh();
   }
 
-  public boolean refresh() {
+  boolean refresh() {
     try {
       var snapshot = snapshotLoader.loadSnapshot();
       var liveCount = instruments.size();

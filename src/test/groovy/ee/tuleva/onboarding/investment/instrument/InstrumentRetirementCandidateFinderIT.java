@@ -103,6 +103,42 @@ class InstrumentRetirementCandidateFinderIT {
   }
 
   @Test
+  void keepsAnInstrumentReportedWithoutAQuantityAtTheLatestNavDateAsHeld() {
+    modelPortfolio(MODEL_THAT_HELD_IT, EXITED_ISIN, STILL_HELD_ISIN);
+    modelPortfolio(LIVE_MODEL, STILL_HELD_ISIN);
+    heldUntil(EXITED_ISIN, LAST_HELD_ON);
+    NAV_DATES.stream().skip(1).forEach(navDate -> position(EXITED_ISIN, null, navDate));
+    heldThroughout(STILL_HELD_ISIN);
+
+    assertThat(finder().findCandidates()).isEmpty();
+  }
+
+  @Test
+  void startsTheClockAtTheLastNavDateItWasReportedWithoutAQuantity() {
+    modelPortfolio(MODEL_THAT_HELD_IT, EXITED_ISIN, STILL_HELD_ISIN);
+    modelPortfolio(LIVE_MODEL, STILL_HELD_ISIN);
+    heldUntil(EXITED_ISIN, LAST_HELD_ON);
+    position(EXITED_ISIN, null, NAV_DATES.get(1));
+    NAV_DATES.stream().skip(2).forEach(navDate -> position(EXITED_ISIN, BigDecimal.ZERO, navDate));
+    heldThroughout(STILL_HELD_ISIN);
+
+    assertThat(finder().findCandidates()).isEmpty();
+  }
+
+  @Test
+  void letsAFundThatReportedItOnlyWithoutAQuantityGateTheClock() {
+    modelPortfolio(MODEL_THAT_HELD_IT, EXITED_ISIN, STILL_HELD_ISIN);
+    modelPortfolio(LIVE_MODEL, STILL_HELD_ISIN);
+    heldUntil(TUK75, EXITED_ISIN, LAST_HELD_ON);
+    heldThroughout(TUK75, STILL_HELD_ISIN);
+    position(TUV100, EXITED_ISIN, null, LAST_HELD_ON);
+    position(TUV100, STILL_HELD_ISIN, SOME_UNITS, LAST_HELD_ON);
+    position(TUV100, STILL_HELD_ISIN, SOME_UNITS, NAV_DATES.get(1));
+
+    assertThat(finder().findCandidates()).isEmpty();
+  }
+
+  @Test
   void ignoresAnInstrumentStillHeldAtTheLatestNavDate() {
     modelPortfolio(MODEL_THAT_HELD_IT, EXITED_ISIN, STILL_HELD_ISIN);
     modelPortfolio(LIVE_MODEL, STILL_HELD_ISIN);

@@ -34,7 +34,8 @@ public interface FundPositionRepository extends JpaRepository<FundPosition, Long
   @Query(
       """
       SELECT MAX(fp.navDate) FROM FundPosition fp
-      WHERE fp.accountId = :accountId AND fp.accountType = :accountType AND fp.quantity <> 0
+      WHERE fp.accountId = :accountId AND fp.accountType = :accountType
+        AND (fp.quantity IS NULL OR fp.quantity <> 0)
       """)
   Optional<LocalDate> findLatestNavDateHeld(String accountId, AccountType accountType);
 
@@ -48,7 +49,8 @@ public interface FundPositionRepository extends JpaRepository<FundPosition, Long
   @Query(
       """
       SELECT DISTINCT fp.fund FROM FundPosition fp
-      WHERE fp.accountId = :accountId AND fp.accountType = :accountType AND fp.quantity <> 0
+      WHERE fp.accountId = :accountId AND fp.accountType = :accountType
+        AND (fp.quantity IS NULL OR fp.quantity <> 0)
       """)
   List<TulevaFund> findFundsThatHeld(String accountId, AccountType accountType);
 

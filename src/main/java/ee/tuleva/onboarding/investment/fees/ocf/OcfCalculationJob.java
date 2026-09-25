@@ -21,14 +21,12 @@ import org.springframework.stereotype.Component;
 @Profile({"production", "staging"})
 public class OcfCalculationJob {
 
-  static final String OCF_CALCULATION_LOCK = "OcfCalculationJob";
-
   private final OcfCalculationService service;
   private final BusinessDays businessDays;
   private final Clock clock;
 
   @Scheduled(cron = "0 0 9 1-14 * *", zone = TIMEZONE)
-  @SchedulerLock(name = OCF_CALCULATION_LOCK, lockAtMostFor = "PT30M", lockAtLeastFor = "PT5M")
+  @SchedulerLock(name = "OcfCalculationJob", lockAtMostFor = "PT30M", lockAtLeastFor = "PT5M")
   void computeMonthlyIfReady() {
     var today = LocalDate.now(clock);
     if (!businessDays.isNthBusinessDayOfMonth(today, 4)) {
@@ -40,7 +38,6 @@ public class OcfCalculationJob {
   }
 
   @EventListener(RunOcfCalculationRequested.class)
-  @SchedulerLock(name = OCF_CALCULATION_LOCK, lockAtMostFor = "PT30M")
   void onOcfCalculationRequested() {
     var lastMonth = YearMonth.now(clock).minusMonths(1);
     log.info("OCF calculation requested: period={}", lastMonth);

@@ -152,7 +152,8 @@ class TrackingDifferenceServiceTest {
                 fundValueProvider,
                 priorityPriceProvider,
                 new BenchmarkLegResolver(trackedInstruments()),
-                consecutiveBreachTracker));
+                consecutiveBreachTracker),
+            new StaleFundReturnDetector(eventRepository, fundNavQueryService, publicHolidays));
     serviceLogs.start();
     serviceLogger().addAppender(serviceLogs);
   }
@@ -214,9 +215,53 @@ class TrackingDifferenceServiceTest {
     given(eventRepository.findDistinctCheckDates(TUK75, from, CHECK_DATE))
         .willReturn(asList(alreadyChecked, CHECK_DATE));
 
-    assertThat(service.fillGaps(30)).isEqualTo(new GapFillRun(List.of(), List.of()));
+    assertThat(service.fillGaps(30)).isEqualTo(new GapFillRun(List.of(), List.of(), Map.of()));
 
     verify(fundNavQueryService, never()).findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE);
+  }
+
+  @Test
+  void fillGapsRechecksADateWhoseNavWasCorrectedAndThenEveryLaterDateInOrder() {
+    var from = CHECK_DATE.minusDays(30);
+    var twoDaysBefore = LocalDate.of(2026, 4, 8);
+    givenACheckableFundOn(PREVIOUS_DATE, twoDaysBefore);
+    givenACheckableFundOnTheDayAfterACheckableOne(CHECK_DATE);
+    givenNoHoldingsOrUnitsOn(twoDaysBefore);
+    givenNoUnitsOn(PREVIOUS_DATE);
+    givenNoUnitsOn(CHECK_DATE);
+    given(fundPositionRepository.findDistinctNavDatesByFundBetween(TUK75, from, CHECK_DATE))
+        .willReturn(asList(twoDaysBefore, PREVIOUS_DATE, CHECK_DATE));
+    given(eventRepository.findDistinctCheckDates(TUK75, from, CHECK_DATE))
+        .willReturn(asList(twoDaysBefore, PREVIOUS_DATE, CHECK_DATE));
+    given(eventRepository.findDistinctCheckDates(TUK75, PREVIOUS_DATE, CHECK_DATE))
+        .willReturn(asList(PREVIOUS_DATE, CHECK_DATE));
+    given(eventRepository.findDeduplicatedEventsForPeriod(TUK75, MODEL_PORTFOLIO, from, CHECK_DATE))
+        .willReturn(List.of(storedEvent(PREVIOUS_DATE, new BigDecimal("0.020000"))));
+
+    var run = service.fillGaps(30);
+
+    assertThat(run.results())
+        .extracting(TrackingDifferenceResult::checkDate)
+        .containsExactly(PREVIOUS_DATE, CHECK_DATE);
+    assertThat(run.failures()).isEmpty();
+    assertThat(run.staleCheckDates()).isEqualTo(Map.of(TUK75, List.of(PREVIOUS_DATE)));
+  }
+
+  @Test
+  void fillGapsLeavesADateAloneWhileItsStoredFundReturnStillMatchesTheNav() {
+    var from = CHECK_DATE.minusDays(30);
+    given(fundPositionRepository.findDistinctNavDatesByFundBetween(TUK75, from, CHECK_DATE))
+        .willReturn(List.of(CHECK_DATE));
+    given(eventRepository.findDistinctCheckDates(TUK75, from, CHECK_DATE))
+        .willReturn(List.of(CHECK_DATE));
+    given(eventRepository.findDeduplicatedEventsForPeriod(TUK75, MODEL_PORTFOLIO, from, CHECK_DATE))
+        .willReturn(List.of(storedEvent(CHECK_DATE, new BigDecimal("0.010000"))));
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.10")));
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
+        .willReturn(Optional.of(new BigDecimal("10.00")));
+
+    assertThat(service.fillGaps(30)).isEqualTo(new GapFillRun(List.of(), List.of(), Map.of()));
   }
 
   @Test
@@ -229,7 +274,7 @@ class TrackingDifferenceServiceTest {
 
     var run = service.fillGaps(30);
 
-    assertThat(run).isEqualTo(new GapFillRun(List.of(), List.of()));
+    assertThat(run).isEqualTo(new GapFillRun(List.of(), List.of(), Map.of()));
     verify(fundNavQueryService, never()).findLatestNavPerUnit(anyString(), any(LocalDate.class));
   }
 
@@ -291,20 +336,25 @@ class TrackingDifferenceServiceTest {
                         PREVIOUS_DATE,
                         "fund=TUK75, the check errored (boom)",
                         1,
-                        LocalDate.of(2026, 5, 8)))));
+                        LocalDate.of(2026, 5, 8))),
+                Map.of()));
   }
 
   private void givenACheckableFundOn(LocalDate navDate, LocalDate previousDate) {
-    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), navDate))
-        .willReturn(Optional.of(new BigDecimal("10.10")));
     given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), previousDate))
         .willReturn(Optional.of(new BigDecimal("10.00")));
+    given(positionPriceResolver.resolve(eq("IE00B4L5Y983"), eq(previousDate), any(Instant.class)))
+        .willReturn(Optional.of(resolvedPrice("100.00")));
+    givenACheckableFundOnTheDayAfterACheckableOne(navDate);
+  }
+
+  private void givenACheckableFundOnTheDayAfterACheckableOne(LocalDate navDate) {
+    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), navDate))
+        .willReturn(Optional.of(new BigDecimal("10.10")));
     given(modelPortfolioAllocationRepository.findLatestByFundAsOf(TUK75, navDate))
         .willReturn(List.of(allocation("IE00B4L5Y983", "1.00")));
     given(positionPriceResolver.resolve(eq("IE00B4L5Y983"), eq(navDate), any(Instant.class)))
         .willReturn(Optional.of(resolvedPrice("102.00")));
-    given(positionPriceResolver.resolve(eq("IE00B4L5Y983"), eq(previousDate), any(Instant.class)))
-        .willReturn(Optional.of(resolvedPrice("100.00")));
     given(fundPositionRepository.findByNavDateAndFundAndAccountType(navDate, TUK75, SECURITY))
         .willReturn(
             List.of(
@@ -323,6 +373,32 @@ class TrackingDifferenceServiceTest {
         .willReturn(new BigDecimal("50000"));
     given(eventRepository.findMostRecentEvents(eq(TUK75), any(), eq(navDate), eq(10)))
         .willReturn(List.of());
+  }
+
+  private void givenNoHoldingsOrUnitsOn(LocalDate navDate) {
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(navDate, TUK75, SECURITY))
+        .willReturn(List.of());
+    given(
+            fundPositionRepository.sumMarketValueByFundAndAccountTypes(
+                TUK75, navDate, List.of(SECURITY, CASH, RECEIVABLES, LIABILITY)))
+        .willReturn(ZERO);
+    givenNoUnitsOn(navDate);
+  }
+
+  private void givenNoUnitsOn(LocalDate navDate) {
+    given(fundPositionRepository.findByNavDateAndFundAndAccountType(navDate, TUK75, UNITS))
+        .willReturn(List.of());
+  }
+
+  private static TrackingDifferenceEvent storedEvent(LocalDate checkDate, BigDecimal fundReturn) {
+    return TrackingDifferenceEvent.builder()
+        .fund(TUK75)
+        .checkDate(checkDate)
+        .checkType(MODEL_PORTFOLIO)
+        .trackingDifference(ZERO)
+        .fundReturn(fundReturn)
+        .benchmarkReturn(fundReturn)
+        .build();
   }
 
   private void givenTheOnlyNavDateWithoutACheckIs(LocalDate navDate) {

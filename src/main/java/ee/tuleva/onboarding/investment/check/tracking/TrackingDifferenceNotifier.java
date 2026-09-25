@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK;
 import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK_MODEL;
 import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
+import static java.util.stream.Collectors.joining;
 
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
@@ -12,6 +13,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -186,9 +188,9 @@ class TrackingDifferenceNotifier {
     return results.stream().filter(r -> r.checkType() != BENCHMARK).toList();
   }
 
-  void notifyGapFillSummary(List<TrackingDifferenceResult> results) {
+  void notifyGapFillSummary(GapFillRun run) {
     try {
-      var alertableResults = alertableResults(results);
+      var alertableResults = alertableResults(run.results());
       if (alertableResults.isEmpty()) {
         return;
       }
@@ -210,10 +212,14 @@ class TrackingDifferenceNotifier {
       var message =
           new StringBuilder(
               ("🕗 TD GAP FILL: %d past check dates rewritten, %s to %s — these are earlier days,"
-                      + " not today's check\n")
+                      + " not today's check")
                   .formatted(dates.size(), dates.getFirst(), dates.getLast()));
+      var recheckedStaleDates = run.recheckedStaleDates();
+      if (!recheckedStaleDates.isEmpty()) {
+        message.append(formatRecheckedStaleDates(recheckedStaleDates));
+      }
       if (breaches.isEmpty()) {
-        message.append("  No breach on any of them.");
+        message.append("\n  No breach on any of them.");
       } else {
         breaches.forEach(
             result ->
@@ -230,6 +236,20 @@ class TrackingDifferenceNotifier {
     } catch (Exception e) {
       log.error("Failed to send tracking difference gap fill summary", e);
     }
+  }
+
+  private static String formatRecheckedStaleDates(Map<TulevaFund, List<LocalDate>> rechecked) {
+    return rechecked.entrySet().stream()
+        .map(fundDates -> formatFundDates(fundDates.getKey(), fundDates.getValue()))
+        .sorted()
+        .collect(joining("; ", "\n  Rechecked because the NAV changed after the check ran: ", ""));
+  }
+
+  private static String formatFundDates(TulevaFund fund, List<LocalDate> checkDates) {
+    return checkDates.stream()
+        .sorted()
+        .map(LocalDate::toString)
+        .collect(joining(", ", fund.getCode() + " ", ""));
   }
 
   void notify(List<TrackingDifferenceResult> results) {

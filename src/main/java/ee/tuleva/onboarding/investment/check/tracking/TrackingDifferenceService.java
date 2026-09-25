@@ -59,6 +59,7 @@ class TrackingDifferenceService {
   private final SecurityDataBuilder securityDataBuilder;
   private final ConsecutiveBreachTracker consecutiveBreachTracker;
   private final BenchmarkCheckBuilder benchmarkCheckBuilder;
+  private final StaleFundReturnDetector staleFundReturnDetector;
 
   List<TrackingDifferenceResult> runChecks() {
     return runChecksAsOf(LocalDate.now(clock), List.of(TulevaFund.values()));
@@ -124,21 +125,33 @@ class TrackingDifferenceService {
 
   GapFillRun fillGaps(int lookbackDays) {
     var window = new GapWindow(LocalDate.now(clock), lookbackDays);
+    return stream(TulevaFund.values())
+        .map(fund -> fillGaps(fund, window))
+        .reduce(GapFillRun.NOTHING_TO_FILL, GapFillRun::and);
+  }
+
+  private GapFillRun fillGaps(TulevaFund fund, GapWindow window) {
     var results = new ArrayList<TrackingDifferenceResult>();
     var failures = new ArrayList<GapFailure>();
-
-    for (var fund : TulevaFund.values()) {
-      var gaps = uncheckedDates(fund, window);
-      var firstFilled = fillUntilOneSucceeds(fund, gaps, window, results, failures);
-      if (firstFilled == null) {
-        continue;
-      }
-      for (var checkDate : datesAfterTheFirstFilledGap(fund, gaps, firstFilled, window.today())) {
+    var staleCheckDates =
+        staleFundReturnDetector.staleCheckDates(fund, window.from(), window.today());
+    var datesNeedingACheck = datesNeedingACheck(uncheckedDates(fund, window), staleCheckDates);
+    var firstChecked = fillUntilOneSucceeds(fund, datesNeedingACheck, window, results, failures);
+    if (firstChecked != null) {
+      for (var checkDate :
+          datesAfterTheFirstFilledGap(fund, datesNeedingACheck, firstChecked, window.today())) {
         results.addAll(checkOrRecordFailure(fund, checkDate, window, failures));
       }
     }
+    return GapFillRun.forFund(fund, results, failures, staleCheckDates);
+  }
 
-    return new GapFillRun(results, failures);
+  private static List<LocalDate> datesNeedingACheck(
+      List<LocalDate> uncheckedDates, List<LocalDate> staleCheckDates) {
+    return Stream.concat(uncheckedDates.stream(), staleCheckDates.stream())
+        .distinct()
+        .sorted()
+        .toList();
   }
 
   private @Nullable LocalDate fillUntilOneSucceeds(

@@ -56,7 +56,7 @@ class TrackingDifferenceJob {
     try {
       var run = trackingDifferenceService.fillGaps(GAP_LOOKBACK_DAYS);
       reportFailures(run.failures());
-      reportGapFill(run.results());
+      reportGapFill(run);
       log.info(
           "Tracking difference gap fill completed: resultCount={}, failureCount={}",
           run.results().size(),
@@ -94,15 +94,15 @@ class TrackingDifferenceJob {
         "TD daily gap fill", GapFailure.report(failures));
   }
 
-  private void reportGapFill(List<TrackingDifferenceResult> results) {
-    if (results.isEmpty()) {
+  private void reportGapFill(GapFillRun run) {
+    if (run.results().isEmpty()) {
       return;
     }
-    if (coversMoreThanOneCheckDate(results)) {
-      trackingDifferenceNotifier.notifyGapFillSummary(results);
+    if (coversMoreThanOneCheckDate(run.results()) || !run.recheckedStaleDates().isEmpty()) {
+      trackingDifferenceNotifier.notifyGapFillSummary(run);
       return;
     }
-    trackingDifferenceNotifier.notify(results);
+    trackingDifferenceNotifier.notify(run.results());
   }
 
   private static boolean coversMoreThanOneCheckDate(List<TrackingDifferenceResult> results) {

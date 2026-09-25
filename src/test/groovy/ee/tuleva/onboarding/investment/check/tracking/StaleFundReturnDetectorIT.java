@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.investment.check.tracking;
 import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK_MODEL;
 import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
@@ -85,16 +86,38 @@ class StaleFundReturnDetectorIT {
     assertThat(detector.staleCheckDates(TUK75, MONDAY, PERIOD_END)).containsExactly(MONDAY);
   }
 
+  @Test
+  void aLaterCalculationThatWasNeverPublishedDoesNotMakeItsDateStale() {
+    storeUnpublishedNav(FRIDAY, FRIDAY_NAV_AS_CORRECTED);
+
+    assertThat(detector.staleCheckDates(TUK75, PERIOD_START, PERIOD_END)).isEmpty();
+  }
+
+  @Test
+  void aPublishedCorrectionIsLeftAloneWhileARecheckWouldReadALaterUnpublishedCalculation() {
+    correctNavInPlace(FRIDAY, FRIDAY_NAV_AS_CORRECTED);
+    storeUnpublishedNav(FRIDAY, new BigDecimal("10.2300"));
+
+    assertThat(detector.staleCheckDates(TUK75, PERIOD_START, PERIOD_END)).isEmpty();
+  }
+
   private void storeNav(LocalDate navDate, BigDecimal navPerUnit) {
     navReportRepository.save(
-        NavReportRow.builder()
-            .navDate(navDate)
-            .fundCode(TUK75.getCode())
-            .accountType("NAV")
-            .accountName("Net asset value per unit")
-            .marketPrice(navPerUnit)
-            .calculationId(UUID.randomUUID())
-            .build());
+        navRow(navDate, navPerUnit).publishedAt(navDate.atTime(16, 0).toInstant(UTC)).build());
+  }
+
+  private void storeUnpublishedNav(LocalDate navDate, BigDecimal navPerUnit) {
+    navReportRepository.save(navRow(navDate, navPerUnit).build());
+  }
+
+  private static NavReportRow.NavReportRowBuilder navRow(LocalDate navDate, BigDecimal navPerUnit) {
+    return NavReportRow.builder()
+        .navDate(navDate)
+        .fundCode(TUK75.getCode())
+        .accountType("NAV")
+        .accountName("Net asset value per unit")
+        .marketPrice(navPerUnit)
+        .calculationId(UUID.randomUUID());
   }
 
   private void correctNavInPlace(LocalDate navDate, BigDecimal correctedNavPerUnit) {

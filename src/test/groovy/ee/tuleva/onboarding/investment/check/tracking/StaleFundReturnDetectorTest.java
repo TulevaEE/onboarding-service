@@ -42,10 +42,10 @@ class StaleFundReturnDetectorTest {
   }
 
   @Test
-  void anEventWhoseFundReturnTheCurrentNavStillGivesIsNotStale() {
+  void anEventWhoseFundReturnThePublishedNavStillGivesIsNotStale() {
     givenStoredEvents(event(FRIDAY, RETURN_WHEN_CHECKED));
-    givenNav(FRIDAY, NAV_WHEN_CHECKED);
-    givenNav(THURSDAY, PREVIOUS_NAV);
+    givenPublishedNav(FRIDAY, NAV_WHEN_CHECKED);
+    givenPublishedNav(THURSDAY, PREVIOUS_NAV);
 
     assertThat(detector.staleCheckDates(TUK75, FROM, TO)).isEmpty();
   }
@@ -80,8 +80,8 @@ class StaleFundReturnDetectorTest {
   @Test
   void aStoredReturnThatDiffersOnlyInTrailingZerosIsNotStale() {
     givenStoredEvents(event(FRIDAY, new BigDecimal("0.01")));
-    givenNav(FRIDAY, NAV_WHEN_CHECKED);
-    givenNav(THURSDAY, PREVIOUS_NAV);
+    givenPublishedNav(FRIDAY, NAV_WHEN_CHECKED);
+    givenPublishedNav(THURSDAY, PREVIOUS_NAV);
 
     assertThat(detector.staleCheckDates(TUK75, FROM, TO)).isEmpty();
   }
@@ -92,29 +92,29 @@ class StaleFundReturnDetectorTest {
         event(THURSDAY, RETURN_WHEN_CHECKED),
         event(FRIDAY, RETURN_WHEN_CHECKED),
         event(MONDAY, RETURN_WHEN_CHECKED));
-    givenNav(LocalDate.of(2026, 4, 8), PREVIOUS_NAV);
+    givenPublishedNav(LocalDate.of(2026, 4, 8), PREVIOUS_NAV);
     givenNav(THURSDAY, NAV_WHEN_CHECKED);
     givenNav(FRIDAY, CORRECTED_NAV);
-    givenNav(MONDAY, CORRECTED_NAV.multiply(new BigDecimal("1.01")));
+    givenPublishedNav(MONDAY, CORRECTED_NAV.multiply(new BigDecimal("1.01")));
 
     assertThat(detector.staleCheckDates(TUK75, FROM, TO)).containsExactly(FRIDAY);
   }
 
   @Test
-  void aCheckDateWhoseNavIsNowMissingIsNotStaleSoItDoesNotRefireEveryDay() {
+  void aCheckDateWhosePublishedNavIsNowMissingIsNotStaleSoItDoesNotRefireEveryDay() {
     givenStoredEvents(event(FRIDAY, RETURN_WHEN_CHECKED));
-    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), FRIDAY))
+    given(fundNavQueryService.findPublishedNavPerUnit(TUK75.getCode(), FRIDAY))
         .willReturn(Optional.empty());
-    givenNav(THURSDAY, PREVIOUS_NAV);
+    givenPublishedNav(THURSDAY, PREVIOUS_NAV);
 
     assertThat(detector.staleCheckDates(TUK75, FROM, TO)).isEmpty();
   }
 
   @Test
-  void aCheckDateWhosePreviousNavIsNowMissingIsNotStale() {
+  void aCheckDateWhosePreviousPublishedNavIsNowMissingIsNotStale() {
     givenStoredEvents(event(FRIDAY, RETURN_WHEN_CHECKED));
-    givenNav(FRIDAY, CORRECTED_NAV);
-    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), THURSDAY))
+    givenPublishedNav(FRIDAY, CORRECTED_NAV);
+    given(fundNavQueryService.findPublishedNavPerUnit(TUK75.getCode(), THURSDAY))
         .willReturn(Optional.empty());
 
     assertThat(detector.staleCheckDates(TUK75, FROM, TO)).isEmpty();
@@ -123,8 +123,19 @@ class StaleFundReturnDetectorTest {
   @Test
   void aZeroPreviousNavGivesNoReturnToCompareSoTheEventIsNotStale() {
     givenStoredEvents(event(FRIDAY, RETURN_WHEN_CHECKED));
-    givenNav(FRIDAY, CORRECTED_NAV);
-    givenNav(THURSDAY, BigDecimal.ZERO);
+    givenPublishedNav(FRIDAY, CORRECTED_NAV);
+    givenPublishedNav(THURSDAY, BigDecimal.ZERO);
+
+    assertThat(detector.staleCheckDates(TUK75, FROM, TO)).isEmpty();
+  }
+
+  @Test
+  void aPublishedCorrectionIsNotStaleWhileARecheckWouldStoreALaterUnpublishedReturnInstead() {
+    givenStoredEvents(event(FRIDAY, RETURN_WHEN_CHECKED));
+    givenPublishedNav(FRIDAY, CORRECTED_NAV);
+    givenPublishedNav(THURSDAY, PREVIOUS_NAV);
+    givenLatestNav(FRIDAY, new BigDecimal("10.11"));
+    givenLatestNav(THURSDAY, PREVIOUS_NAV);
 
     assertThat(detector.staleCheckDates(TUK75, FROM, TO)).isEmpty();
   }
@@ -135,6 +146,16 @@ class StaleFundReturnDetectorTest {
   }
 
   private void givenNav(LocalDate navDate, BigDecimal navPerUnit) {
+    givenPublishedNav(navDate, navPerUnit);
+    givenLatestNav(navDate, navPerUnit);
+  }
+
+  private void givenPublishedNav(LocalDate navDate, BigDecimal navPerUnit) {
+    given(fundNavQueryService.findPublishedNavPerUnit(TUK75.getCode(), navDate))
+        .willReturn(Optional.of(navPerUnit));
+  }
+
+  private void givenLatestNav(LocalDate navDate, BigDecimal navPerUnit) {
     given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), navDate))
         .willReturn(Optional.of(navPerUnit));
   }

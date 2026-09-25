@@ -237,6 +237,8 @@ class TrackingDifferenceServiceTest {
         .willReturn(asList(PREVIOUS_DATE, CHECK_DATE));
     given(eventRepository.findDeduplicatedEventsForPeriod(TUK75, MODEL_PORTFOLIO, from, CHECK_DATE))
         .willReturn(List.of(storedEvent(PREVIOUS_DATE, new BigDecimal("0.020000"))));
+    givenPublishedNav(twoDaysBefore, "10.00");
+    givenPublishedNav(PREVIOUS_DATE, "10.10");
 
     var run = service.fillGaps(30);
 
@@ -248,7 +250,7 @@ class TrackingDifferenceServiceTest {
   }
 
   @Test
-  void fillGapsLeavesADateAloneWhileItsStoredFundReturnStillMatchesTheNav() {
+  void fillGapsLeavesADateAloneWhileItsStoredFundReturnStillMatchesThePublishedNav() {
     var from = CHECK_DATE.minusDays(30);
     given(fundPositionRepository.findDistinctNavDatesByFundBetween(TUK75, from, CHECK_DATE))
         .willReturn(List.of(CHECK_DATE));
@@ -256,10 +258,8 @@ class TrackingDifferenceServiceTest {
         .willReturn(List.of(CHECK_DATE));
     given(eventRepository.findDeduplicatedEventsForPeriod(TUK75, MODEL_PORTFOLIO, from, CHECK_DATE))
         .willReturn(List.of(storedEvent(CHECK_DATE, new BigDecimal("0.010000"))));
-    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), CHECK_DATE))
-        .willReturn(Optional.of(new BigDecimal("10.10")));
-    given(fundNavQueryService.findLatestNavPerUnit(TUK75.getCode(), PREVIOUS_DATE))
-        .willReturn(Optional.of(new BigDecimal("10.00")));
+    givenPublishedNav(CHECK_DATE, "10.10");
+    givenPublishedNav(PREVIOUS_DATE, "10.00");
 
     assertThat(service.fillGaps(30)).isEqualTo(new GapFillRun(List.of(), List.of(), Map.of()));
   }
@@ -280,6 +280,8 @@ class TrackingDifferenceServiceTest {
             eventRepository.findDeduplicatedEventsForPeriod(
                 TUK75, MODEL_PORTFOLIO, since, CHECK_DATE))
         .willReturn(List.of(storedEvent(PREVIOUS_DATE, new BigDecimal("0.020000"))));
+    givenPublishedNav(LocalDate.of(2026, 4, 8), "10.00");
+    givenPublishedNav(PREVIOUS_DATE, "10.10");
 
     var run = service.reconcileSince(TUK75, since);
 
@@ -365,6 +367,11 @@ class TrackingDifferenceServiceTest {
                         1,
                         LocalDate.of(2026, 5, 8))),
                 Map.of()));
+  }
+
+  private void givenPublishedNav(LocalDate navDate, String navPerUnit) {
+    given(fundNavQueryService.findPublishedNavPerUnit(TUK75.getCode(), navDate))
+        .willReturn(Optional.of(new BigDecimal(navPerUnit)));
   }
 
   private void givenACheckableFundOn(LocalDate navDate, LocalDate previousDate) {

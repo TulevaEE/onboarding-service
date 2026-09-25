@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.banking.seb.processor.PensionFundEntryClassifier.Reg
 import ee.tuleva.onboarding.banking.seb.processor.PensionFundEntryClassifier.RegistrarPayout
 import ee.tuleva.onboarding.banking.seb.processor.PensionFundEntryClassifier.TradeSettlement
 import ee.tuleva.onboarding.banking.seb.processor.PensionFundEntryClassifier.Unclassified
+import ee.tuleva.onboarding.banking.seb.processor.PensionFundEntryClassifier.UnrecognisedManagementCompanyCredit
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry
 import ee.tuleva.onboarding.banking.statement.TransactionType
 import ee.tuleva.onboarding.instrument.InstrumentReference
@@ -73,16 +74,18 @@ class PensionFundEntryClassifierSpec extends Specification {
     "registrar debit"                        | entry("ICDT", -250000.00, "AS Pensionikeskus", REGISTRAR_IBAN, "tagasivõtmine")    | new RegistrarPayout()
     "registrar credit with null code"        | entry(null, 500000.00, "AS Pensionikeskus", REGISTRAR_IBAN, "laekumine")           | new RegistrarContribution()
     "management fee payment"                 | entry("ICDT", -742.34, "Tuleva Fondid AS", OTHER_IBAN, "Valitsemistasu 02/2026")   | new ManagementFeePayment()
-    "management fee refund credited back"    | entry("RCDT", 742.34, "Tuleva Fondid AS", OTHER_IBAN, "Valitsemistasu tagastus")   | new ManagementFeeRebate()
     "book transfer without kickback"         | entry("BOOK", 100.00, null, null, "Internal transfer")                             | new Unclassified("subFamilyCode=BOOK")
     "unknown counterparty"                   | entry("RCDT", 15000.00, "Random Company OU", OTHER_IBAN, "ülekanne")               | new Unclassified("unknown counterparty")
     "detailed adjustment code"               | entry("OTHR", 99.99, "Random Company OU", OTHER_IBAN, "midagi")                    | new Unclassified("unknown counterparty")
     "detail-less unknown code"               | entry("XXXX", 10.00, null, null, "tundmatu")                                       | new Unclassified("subFamilyCode=XXXX")
     "detail-less null code"                  | entry(null, 10.00, null, null, "tundmatu")                                         | new Unclassified("subFamilyCode=null")
-    "management company credit is a rebate"  | entry("RCDT", 100.00, "Tuleva Fondid AS", OTHER_IBAN, "muu ülekanne")              | new ManagementFeeRebate()
+    "management company credit not stated as a rebate goes to suspense" | entry("RCDT", 100.00, "Tuleva Fondid AS", OTHER_IBAN, "muu ülekanne") | new UnrecognisedManagementCompanyCredit()
+    "management company rebate in capitals"  | entry("RCDT", 100.00, "Tuleva Fondid AS", OTHER_IBAN, "BR REBATE 02/2026")       | new ManagementFeeRebate()
+    "management company credit without remittance goes to suspense" | entry("RCDT", 100.00, "Tuleva Fondid AS", OTHER_IBAN, null) | new UnrecognisedManagementCompanyCredit()
+    "management company kickback transfer"   | entry("ESCT", 4370.58, "Tuleva Fondid AS", OTHER_IBAN, "Kickback 02/2026")         | new ManagementFeeRebate()
     "management company rebate transfer"     | entry("ESCT", 34720.54, "Tuleva Fondid AS", OTHER_IBAN, "TUK75 BR rebate")         | new ManagementFeeRebate()
     "management company expense debit"       | entry("BOOK", -1500.00, "Tuleva Fondid AS", OTHER_IBAN, "BR tasud")                | new ManagementFeePayment()
-    "damage compensation from manager"       | entry("BOOK", 250.00, "Tuleva Fondid AS", OTHER_IBAN, "Kahju hüvitamine fondile")  | new ManagementFeeRebate()
+    "management company book credit not stated as a rebate goes to suspense" | entry("BOOK", 250.00, "Tuleva Fondid AS", OTHER_IBAN, "Ülekanne fondile") | new UnrecognisedManagementCompanyCredit()
     "subfund redemption settlement"          | entry("REDM", 993343.12, null, null, REDM_SALE)                                    | developedWorldSettlement(new BigDecimal("59145"))
     "own account transfer in"                | entry("ESCT", 1633975.32, "TULEVA MAAILMA AKTSIATE PENSIONIFOND", OWN_ACCOUNT_IBAN, "Ülekanne fondi teisele kontole") | new OwnAccountTransfer()
     "own account transfer out"               | entry("ICDT", -50000.00, "TULEVA MAAILMA AKTSIATE PENSIONIFOND", OWN_ACCOUNT_IBAN, "Ülekanne fondi teisele kontole") | new OwnAccountTransfer()
@@ -90,7 +93,7 @@ class PensionFundEntryClassifierSpec extends Specification {
     "detailed ADJT from unknown party"       | entry("ADJT", 12.34, "Random Company OU", OTHER_IBAN, "korrektsioon")              | new Unclassified("unknown counterparty")
     "enriched kickback booking"              | entry("BOOK", 4370.58, "BlackRock AM", OTHER_IBAN, "Management fee kickback VP00001") | new ManagementFeeRebate()
     "entry with null remittance"             | entry("XXXX", 10.00, null, null, null)                                             | new Unclassified("subFamilyCode=XXXX")
-    "management company zero amount is a rebate" | entry("BOOK", 0.00, "Tuleva Fondid AS", OTHER_IBAN, "nullülekanne")           | new ManagementFeeRebate()
+    "management company zero amount not stated as a rebate goes to suspense" | entry("BOOK", 0.00, "Tuleva Fondid AS", OTHER_IBAN, "nullülekanne") | new UnrecognisedManagementCompanyCredit()
     "registrar zero amount is a payout"      | entry("RCDT", 0.00, "AS Pensionikeskus", REGISTRAR_IBAN, "null-liikumine")         | new RegistrarPayout()
   }
 

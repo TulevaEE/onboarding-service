@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.banking.seb.processor;
 
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import ee.tuleva.onboarding.banking.BankAccount;
@@ -8,6 +9,8 @@ import ee.tuleva.onboarding.banking.statement.BankStatementBalance;
 import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
 import ee.tuleva.onboarding.ledger.FundBankLedger.UnclassifiedEntryDetails;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
+import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -26,6 +29,7 @@ public class PensionFundStatementProcessor {
 
   private final PensionFundEntryClassifier classifier;
   private final FundBankLedger fundBankLedger;
+  private final OperationsNotificationService notificationService;
 
   public void process(BankStatement statement, BankAccount account) {
     log.info(
@@ -85,6 +89,18 @@ public class PensionFundStatementProcessor {
               account.ledgerAccount(),
               bookingDate,
               entry.remittanceInformation());
+      case PensionFundEntryClassifier.UnrecognisedManagementCompanyCredit() -> {
+        log.warn(
+            "Management company credit not stated as a rebate, held in suspense: account={}, externalId={}, amount={}",
+            account,
+            entry.externalId(),
+            entry.amount());
+        recordInSuspense(entry, account, fund, amount, externalReference, bookingDate);
+        notificationService.sendMessage(
+            unrecognisedManagementCompanyCreditMessage(
+                fund, amount, bookingDate, externalReference),
+            INVESTMENT);
+      }
       case PensionFundEntryClassifier.ManagementFeePayment() ->
           fundBankLedger.recordManagementFeePayment(
               fund, amount.negate(), externalReference, entry.remittanceInformation(), bookingDate);
@@ -120,20 +136,39 @@ public class PensionFundStatementProcessor {
             entry.amount(),
             entry.subFamilyCode(),
             reason);
-        var details = entry.details();
-        fundBankLedger.recordUnclassifiedBankEntry(
-            fund,
-            amount,
-            externalReference,
-            account.ledgerAccount(),
-            bookingDate,
-            new UnclassifiedEntryDetails(
-                details == null ? null : details.getName(),
-                details == null ? null : details.getIban(),
-                entry.remittanceInformation(),
-                entry.subFamilyCode()));
+        recordInSuspense(entry, account, fund, amount, externalReference, bookingDate);
       }
     }
+  }
+
+  private void recordInSuspense(
+      BankStatementEntry entry,
+      BankAccount account,
+      TulevaFund fund,
+      BigDecimal amount,
+      UUID externalReference,
+      LocalDate bookingDate) {
+    var details = entry.details();
+    fundBankLedger.recordUnclassifiedBankEntry(
+        fund,
+        amount,
+        externalReference,
+        account.ledgerAccount(),
+        bookingDate,
+        new UnclassifiedEntryDetails(
+            details == null ? null : details.getName(),
+            details == null ? null : details.getIban(),
+            entry.remittanceInformation(),
+            entry.subFamilyCode()));
+  }
+
+  private static String unrecognisedManagementCompanyCreditMessage(
+      TulevaFund fund, BigDecimal amount, LocalDate bookingDate, UUID externalReference) {
+    return """
+        ⚠️ Credit from the management company held in suspense: fund=%s, amount=%s, bookingDate=%s, externalReference=%s
+        Its remittance text does not say rebate or kickback, so it is not booked automatically.
+        Read the text on the suspense entry and book it to the right account with a ledger adjustment."""
+        .formatted(fund.getCode(), amount.toPlainString(), bookingDate, externalReference);
   }
 
   private static LocalDate bookingDate(BankStatementEntry entry, BankAccount account) {

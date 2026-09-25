@@ -185,19 +185,13 @@ class BenchmarkCheckBuilder {
     var totalWeightedBenchmarkReturn = ZERO;
     var totalWeight = ZERO;
     var attributions = new ArrayList<SecurityAttribution>();
-
-    // Every holding is supposed to have a proxy with data behind it. One that does not is a data
-    // error, so the weight it takes out of this check is carried on the result rather than being
-    // dropped - a check covering part of the sleeve must not read as a clean all-clear.
-    var gapIsins = new ArrayList<String>();
-    var gapWeight = ZERO;
+    var holdingsReportedAsBenchmarkGap = new ArrayList<SecurityData>();
 
     for (var s : validSecurities) {
       var benchmarkKey = resolveBenchmarkKey(s.isin());
       if (benchmarkKey == null) {
         log.warn("No benchmark proxy for holding: fund={}, isin={}", fund, s.isin());
-        gapIsins.add(s.isin());
-        gapWeight = gapWeight.add(s.actualWeight());
+        holdingsReportedAsBenchmarkGap.add(s);
         continue;
       }
       var bmReturn =
@@ -212,8 +206,7 @@ class BenchmarkCheckBuilder {
             fund,
             s.isin(),
             benchmarkKey);
-        gapIsins.add(s.isin());
-        gapWeight = gapWeight.add(s.actualWeight());
+        holdingsReportedAsBenchmarkGap.add(s);
         continue;
       }
       var secReturn =
@@ -285,9 +278,17 @@ class BenchmarkCheckBuilder {
             .cashDrag(ZERO)
             .feeDrag(ZERO)
             .residual(ZERO)
-            .benchmarkGapIsins(List.copyOf(gapIsins))
-            .benchmarkGapWeight(gapWeight)
+            .benchmarkGapIsins(isins(holdingsReportedAsBenchmarkGap))
+            .benchmarkGapWeight(totalActualWeight(holdingsReportedAsBenchmarkGap))
             .build());
+  }
+
+  private static List<String> isins(List<SecurityData> holdings) {
+    return holdings.stream().map(SecurityData::isin).toList();
+  }
+
+  private static BigDecimal totalActualWeight(List<SecurityData> holdings) {
+    return holdings.stream().map(SecurityData::actualWeight).reduce(ZERO, BigDecimal::add);
   }
 
   private @Nullable String resolveBenchmarkKey(String isin) {

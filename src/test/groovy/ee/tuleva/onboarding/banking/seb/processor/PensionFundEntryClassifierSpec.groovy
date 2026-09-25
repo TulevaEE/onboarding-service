@@ -95,7 +95,7 @@ class PensionFundEntryClassifierSpec extends Specification {
   }
 
   static TradeSettlement developedWorldSettlement(BigDecimal units) {
-    new TradeSettlement("IE00BFG1TM61", "0P000152G5",
+    new TradeSettlement("IE00BFG1TM61", "BDWTEIA",
         "iShares Developed World Screened Index Fund", units)
   }
 

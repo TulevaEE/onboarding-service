@@ -273,7 +273,18 @@ public class PeriodicTdAttributionService {
     }
     accumulator.logWarnings(periodEnd);
 
-    return accumulator.toEtfLayer(measuredSum, coveredDays);
+    return accumulator.toEtfLayer(
+        measuredSum, coveredDays, etfLayerCoveredYearFraction(bmModelEvents));
+  }
+
+  private BigDecimal etfLayerCoveredYearFraction(List<TrackingDifferenceEvent> bmModelEvents) {
+    return bmModelEvents.stream()
+        .map(TrackingDifferenceEvent::getCheckDate)
+        .map(
+            d ->
+                YearFraction.eachDayWeighedByItsOwnYear(
+                    publicHolidays.previousWorkingDay(d).plusDays(1), d))
+        .reduce(ZERO, BigDecimal::add);
   }
 
   private int etfLayerCoveredDays(List<TrackingDifferenceEvent> bmModelEvents) {

@@ -141,13 +141,13 @@ class InstrumentRetirementCandidateFinder {
                 fundPositionRepository
                     .findByNavDateAndFundAndAccountType(navDate, fund, SECURITY)
                     .stream())
-        .filter(InstrumentRetirementCandidateFinder::isNotFullyDeinvested)
+        .filter(position -> !isSoldOut(position))
         .flatMap(position -> Stream.ofNullable(position.getAccountId()));
   }
 
-  private static boolean isNotFullyDeinvested(FundPosition position) {
+  private static boolean isSoldOut(FundPosition position) {
     var quantity = position.getQuantity();
-    return quantity != null && quantity.compareTo(ZERO) != 0;
+    return quantity != null && quantity.compareTo(ZERO) == 0;
   }
 
   private static Stream<TulevaFund> navCalculatingFunds() {

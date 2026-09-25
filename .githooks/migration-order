@@ -120,7 +120,7 @@ done
 if [ "$status" -ne 0 ]; then
   echo ""
   echo "   Renumber the files (and any reference to them), then re-run."
-  echo "   Re-check after every merge of master: a racing PR may have taken your numbers."
+  echo "   The merge queue re-checks against master and the PRs ahead of yours."
   echo ""
 fi
 

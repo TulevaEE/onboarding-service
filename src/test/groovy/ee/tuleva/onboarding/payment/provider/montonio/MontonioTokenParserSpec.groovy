@@ -52,4 +52,20 @@ class MontonioTokenParserSpec extends Specification {
     parsed.grandTotal == new BigDecimal("10.00")
     parsed.paymentStatus == MontonioOrderToken.MontonioOrderStatus.PAID
   }
+
+  def "parseSerialized: parses a well-formed token"() {
+    when:
+    def parsed = montonioTokenParser.parseSerialized(aSerializedSavingsPaymentToken)
+    then:
+    parsed.serialize() == aSerializedSavingsPaymentToken
+  }
+
+  def "parseSerialized: rejects a missing or malformed token"() {
+    when:
+    montonioTokenParser.parseSerialized(malformedToken)
+    then:
+    thrown(BadCredentialsException)
+    where:
+    malformedToken << ["garbage", "", "   ", "a.b.c", null]
+  }
 }

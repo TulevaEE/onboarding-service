@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.banking.seb.processor;
 
 import static ee.tuleva.onboarding.banking.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -17,6 +18,7 @@ import ee.tuleva.onboarding.banking.statement.BankStatementEntry;
 import ee.tuleva.onboarding.banking.statement.StatementPeriod;
 import ee.tuleva.onboarding.banking.statement.TransactionType;
 import ee.tuleva.onboarding.ledger.FundBankLedger;
+import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -40,6 +42,7 @@ class PensionFundStatementProcessorTest {
 
   @Mock private PensionFundEntryClassifier classifier;
   @Mock private FundBankLedger fundBankLedger;
+  @Mock private OperationsNotificationService notificationService;
 
   @InjectMocks private PensionFundStatementProcessor processor;
 
@@ -155,6 +158,34 @@ class PensionFundStatementProcessorTest {
             eq(
                 new FundBankLedger.UnclassifiedEntryDetails(
                     "Mystery OU", "EE001234567890123499", "selgituseta", "OTHR")));
+    verifyNoInteractions(notificationService);
+  }
+
+  @Test
+  void managementCompanyCreditNotStatedAsARebate_landsInSuspenseAndAsksAPersonToBookIt() {
+    var entry =
+        entryWithCounterparty(
+            new BigDecimal("100.00"),
+            "muu ülekanne",
+            "Tuleva Fondid AS",
+            "EE001234567890123488",
+            "RCDT");
+    when(classifier.classify(entry))
+        .thenReturn(new PensionFundEntryClassifier.UnrecognisedManagementCompanyCredit());
+
+    processor.process(statementWith(entry), TUK75_ACCOUNT);
+
+    verify(fundBankLedger)
+        .recordUnclassifiedBankEntry(
+            eq(TUK75),
+            eq(new BigDecimal("100.00")),
+            any(UUID.class),
+            eq(FUND_INVESTMENT_CASH_CLEARING),
+            eq(LocalDate.of(2025, 10, 1)),
+            eq(
+                new FundBankLedger.UnclassifiedEntryDetails(
+                    "Tuleva Fondid AS", "EE001234567890123488", "muu ülekanne", "RCDT")));
+    verify(notificationService).sendMessage(any(), eq(INVESTMENT));
   }
 
   @Test

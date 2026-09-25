@@ -161,11 +161,11 @@ class TrackingDifferenceService {
 
   private @Nullable LocalDate fillUntilOneSucceeds(
       TulevaFund fund,
-      List<LocalDate> gaps,
+      List<LocalDate> datesNeedingACheck,
       GapWindow window,
       List<TrackingDifferenceResult> results,
       List<GapFailure> failures) {
-    for (var checkDate : gaps) {
+    for (var checkDate : datesNeedingACheck) {
       var checked = checkOrRecordFailure(fund, checkDate, window, failures);
       results.addAll(checked);
       if (!checked.isEmpty()) {
@@ -176,9 +176,10 @@ class TrackingDifferenceService {
   }
 
   private List<LocalDate> datesAfterTheFirstFilledGap(
-      TulevaFund fund, List<LocalDate> gaps, LocalDate firstFilled, LocalDate to) {
+      TulevaFund fund, List<LocalDate> datesNeedingACheck, LocalDate firstFilled, LocalDate to) {
     return Stream.concat(
-            gaps.stream(), eventRepository.findDistinctCheckDates(fund, firstFilled, to).stream())
+            datesNeedingACheck.stream(),
+            eventRepository.findDistinctCheckDates(fund, firstFilled, to).stream())
         .filter(firstFilled::isBefore)
         .distinct()
         .sorted()

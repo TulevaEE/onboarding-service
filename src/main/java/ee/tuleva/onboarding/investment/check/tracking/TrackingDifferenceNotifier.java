@@ -13,7 +13,6 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -215,62 +214,11 @@ class TrackingDifferenceNotifier {
       if (alertableResults.isEmpty()) {
         return;
       }
-      var dates =
-          alertableResults.stream()
-              .map(TrackingDifferenceResult::checkDate)
-              .distinct()
-              .sorted()
-              .toList();
-      var breaches =
-          alertableResults.stream()
-              .filter(TrackingDifferenceResult::hasAnyBreach)
-              .sorted(
-                  Comparator.comparing(TrackingDifferenceResult::checkDate)
-                      .thenComparing(r -> r.fund().getCode())
-                      .thenComparing(r -> r.checkType().name()))
-              .toList();
-
-      var message =
-          new StringBuilder(
-              ("🕗 TD GAP FILL: %d past check dates rewritten, %s to %s — these are earlier days,"
-                      + " not today's check")
-                  .formatted(dates.size(), dates.getFirst(), dates.getLast()));
-      var recheckedStaleDates = run.recheckedStaleDates();
-      if (!recheckedStaleDates.isEmpty()) {
-        message.append(formatRecheckedStaleDates(recheckedStaleDates));
-      }
-      if (breaches.isEmpty()) {
-        message.append("\n  No breach on any of them.");
-      } else {
-        breaches.forEach(
-            result ->
-                message.append(
-                    "\n  🛑 %s %s %s: TD=%s%%, %d consecutive days"
-                        .formatted(
-                            result.checkDate(),
-                            result.fund().getCode(),
-                            result.checkType(),
-                            formatPercent(result.trackingDifference()),
-                            result.consecutiveBreachDays())));
-      }
-      notificationService.sendMessage(message.toString(), INVESTMENT);
+      notificationService.sendMessage(
+          GapFillSummaryFormatter.format(alertableResults, run.recheckedStaleDates()), INVESTMENT);
     } catch (Exception e) {
       log.error("Failed to send tracking difference gap fill summary", e);
     }
-  }
-
-  private static String formatRecheckedStaleDates(Map<TulevaFund, List<LocalDate>> rechecked) {
-    return rechecked.entrySet().stream()
-        .map(fundDates -> formatFundDates(fundDates.getKey(), fundDates.getValue()))
-        .sorted()
-        .collect(joining("; ", "\n  Rechecked because the NAV changed after the check ran: ", ""));
-  }
-
-  private static String formatFundDates(TulevaFund fund, List<LocalDate> checkDates) {
-    return checkDates.stream()
-        .sorted()
-        .map(LocalDate::toString)
-        .collect(joining(", ", fund.getCode() + " ", ""));
   }
 
   void notify(List<TrackingDifferenceResult> results) {

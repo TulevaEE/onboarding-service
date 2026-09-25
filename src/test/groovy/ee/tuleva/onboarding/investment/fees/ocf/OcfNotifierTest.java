@@ -7,6 +7,7 @@ import static ee.tuleva.onboarding.notification.OperationsNotificationService.Se
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.INFO;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
+import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUV100;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
@@ -79,9 +80,9 @@ class OcfNotifierTest {
         .should()
         .sendMessage(
             """
-            ⚠️ OCF RUN WROTE AN INCOMPLETE FIGURE: month=2026-04, 1 of 2 funds have gaps
-              A component resolved to zero instead of failing, so those totals are understated and
-              must not be published until the gap is closed.
+            ⚠️ OCF RUN WROTE AN INCOMPLETE FIGURE: month=2026-04, 1 of 2 funds has gaps
+              A component resolved to zero instead of failing, so that total is understated and
+              must not be published until it is complete.
               ✅ TUK75 2026-04: 0.34%
               ⚠️ TUK00 2026-04: 0.21%, incomplete — NO_PUBLISHED_NAV_CALCULATION""",
             INVESTMENT, ERROR);
@@ -102,11 +103,31 @@ class OcfNotifierTest {
         .should()
         .sendMessage(
             """
-            ⚠️ OCF RUN WROTE AN INCOMPLETE FIGURE: month=2026-04, 1 of 1 funds have gaps
-              A component resolved to zero instead of failing, so those totals are understated and
-              must not be published until the gap is closed.
+            ⚠️ OCF RUN WROTE AN INCOMPLETE FIGURE: month=2026-04, 1 of 1 funds has gaps
+              A component resolved to zero instead of failing, so that total is understated and
+              must not be published until it is complete.
               ⚠️ TUK75 2026-04: 0.21%, incomplete — NO_PUBLISHED_NAV_CALCULATION, \
             TRANSACTION_COSTS_WITHOUT_AVERAGE_AUM""",
+            INVESTMENT, ERROR);
+  }
+
+  @Test
+  void aRunWhereSeveralFundsHaveGapsSpeaksOfThemInThePlural() {
+    notifier.notifyRun(
+        MONTH,
+        List.of(
+            incomplete(TUK75, "0.0034", NO_PUBLISHED_NAV_CALCULATION),
+            incomplete(TUK00, "0.0021", NO_PUBLISHED_NAV_CALCULATION)));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ⚠️ OCF RUN WROTE AN INCOMPLETE FIGURE: month=2026-04, 2 of 2 funds have gaps
+              A component resolved to zero instead of failing, so those totals are understated and
+              must not be published until they are complete.
+              ⚠️ TUK75 2026-04: 0.34%, incomplete — NO_PUBLISHED_NAV_CALCULATION
+              ⚠️ TUK00 2026-04: 0.21%, incomplete — NO_PUBLISHED_NAV_CALCULATION""",
             INVESTMENT, ERROR);
   }
 
@@ -135,10 +156,33 @@ class OcfNotifierTest {
             """
             ⚠️ OCF RUN RAN ONLY IN PART: month=2026-04, 1 of 2 funds failed
               Nothing here says what their OCF is this period. The rest were written.
-            ⚠️ 1 of the written ones has a gap: a component resolved to zero instead of failing,
-              so that total is understated and must not be published until the gap is closed.
+            ⚠️ 1 of the written ones has gaps: a component resolved to zero instead of failing,
+              so that total is understated and must not be published until it is complete.
               🛑 TUK75 2026-04: no rate for XX0000000001
               ⚠️ TUK00 2026-04: 0.21%, incomplete — NO_PUBLISHED_NAV_CALCULATION""",
+            INVESTMENT, ERROR);
+  }
+
+  @Test
+  void aFailureBesideSeveralIncompleteFundsWarnsAboutThemInThePlural() {
+    notifier.notifyRun(
+        MONTH,
+        List.of(
+            failed(TUK75),
+            incomplete(TUK00, "0.0021", NO_PUBLISHED_NAV_CALCULATION),
+            incomplete(TUV100, "0.0040", NO_PUBLISHED_NAV_CALCULATION)));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ⚠️ OCF RUN RAN ONLY IN PART: month=2026-04, 1 of 3 funds failed
+              Nothing here says what their OCF is this period. The rest were written.
+            ⚠️ 2 of the written ones have gaps: a component resolved to zero instead of failing,
+              so those totals are understated and must not be published until they are complete.
+              🛑 TUK75 2026-04: no rate for XX0000000001
+              ⚠️ TUK00 2026-04: 0.21%, incomplete — NO_PUBLISHED_NAV_CALCULATION
+              ⚠️ TUV100 2026-04: 0.40%, incomplete — NO_PUBLISHED_NAV_CALCULATION""",
             INVESTMENT, ERROR);
   }
 

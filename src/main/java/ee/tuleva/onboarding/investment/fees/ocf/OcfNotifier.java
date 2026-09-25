@@ -105,21 +105,36 @@ class OcfNotifier {
     if (incomplete == 0) {
       return Stream.empty();
     }
+    var wording = GapWording.forCount(incomplete);
     return Stream.of(
         """
-        %s %d of the written ones has a gap: a component resolved to zero instead of failing,
-          so that total is understated and must not be published until the gap is closed."""
-            .formatted(INCOMPLETE.icon, incomplete));
+        %s %d of the written ones %s: a component resolved to zero instead of failing,
+          so %s and must not be published until %s."""
+            .formatted(
+                INCOMPLETE.icon,
+                incomplete,
+                wording.haveGaps,
+                wording.totalsAreUnderstated,
+                wording.theyAreComplete));
   }
 
   private static String wroteIncompleteFigures(
       OcfRunKind kind, String scope, long incomplete, List<OcfRunOutcome> outcomes) {
+    var wording = GapWording.forCount(incomplete);
     return """
-        %s %s WROTE AN INCOMPLETE FIGURE: %s, %d of %d %s have gaps
-          A component resolved to zero instead of failing, so those totals are understated and
-          must not be published until the gap is closed."""
+        %s %s WROTE AN INCOMPLETE FIGURE: %s, %d of %d %s %s
+          A component resolved to zero instead of failing, so %s and
+          must not be published until %s."""
         .formatted(
-            INCOMPLETE.icon, kind.label, scope, incomplete, outcomes.size(), countedUnit(outcomes));
+            INCOMPLETE.icon,
+            kind.label,
+            scope,
+            incomplete,
+            outcomes.size(),
+            countedUnit(outcomes),
+            wording.haveGaps,
+            wording.totalsAreUnderstated,
+            wording.theyAreComplete);
   }
 
   private static long countWith(OutcomeStatus status, List<OcfRunOutcome> outcomes) {
@@ -174,6 +189,20 @@ class OcfNotifier {
     BACKFILL("OCF BACKFILL");
 
     private final String label;
+  }
+
+  @RequiredArgsConstructor
+  private enum GapWording {
+    ONE_FUND("has gaps", "that total is understated", "it is complete"),
+    SEVERAL_FUNDS("have gaps", "those totals are understated", "they are complete");
+
+    private final String haveGaps;
+    private final String totalsAreUnderstated;
+    private final String theyAreComplete;
+
+    private static GapWording forCount(long incompleteFunds) {
+      return incompleteFunds == 1 ? ONE_FUND : SEVERAL_FUNDS;
+    }
   }
 
   @RequiredArgsConstructor

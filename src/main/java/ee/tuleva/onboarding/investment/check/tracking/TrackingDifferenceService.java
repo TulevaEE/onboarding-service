@@ -140,7 +140,7 @@ class TrackingDifferenceService {
     var failures = new ArrayList<GapFailure>();
     var staleCheckDates =
         staleFundReturnDetector.staleCheckDates(fund, window.from(), window.today());
-    var datesNeedingACheck = datesNeedingACheck(uncheckedDates(fund, window), staleCheckDates);
+    var datesNeedingACheck = datesNeedingACheck(fund, window, staleCheckDates);
     var firstChecked = fillUntilOneSucceeds(fund, datesNeedingACheck, window, results, failures);
     if (firstChecked != null) {
       for (var checkDate :
@@ -149,14 +149,6 @@ class TrackingDifferenceService {
       }
     }
     return GapFillRun.forFund(fund, results, failures, staleCheckDates);
-  }
-
-  private static List<LocalDate> datesNeedingACheck(
-      List<LocalDate> uncheckedDates, List<LocalDate> staleCheckDates) {
-    return Stream.concat(uncheckedDates.stream(), staleCheckDates.stream())
-        .distinct()
-        .sorted()
-        .toList();
   }
 
   private @Nullable LocalDate fillUntilOneSucceeds(
@@ -219,15 +211,16 @@ class TrackingDifferenceService {
         : publicHolidays.previousWorkingDay(lastDayInWindow);
   }
 
-  private List<LocalDate> uncheckedDates(TulevaFund fund, GapWindow window) {
+  private List<LocalDate> datesNeedingACheck(
+      TulevaFund fund, GapWindow window, List<LocalDate> staleCheckDates) {
     var datesWithAnyCheckEvent =
         Set.copyOf(eventRepository.findDistinctCheckDates(fund, window.from(), window.today()));
-    return fundPositionRepository
-        .findDistinctNavDatesByFundBetween(fund, window.from(), window.today())
-        .stream()
-        .filter(navDate -> !datesWithAnyCheckEvent.contains(navDate))
-        .sorted()
-        .toList();
+    var uncheckedNavDates =
+        fundPositionRepository
+            .findDistinctNavDatesByFundBetween(fund, window.from(), window.today())
+            .stream()
+            .filter(navDate -> !datesWithAnyCheckEvent.contains(navDate));
+    return Stream.concat(uncheckedNavDates, staleCheckDates.stream()).distinct().sorted().toList();
   }
 
   record GapWindow(LocalDate today, int lookbackDays) {

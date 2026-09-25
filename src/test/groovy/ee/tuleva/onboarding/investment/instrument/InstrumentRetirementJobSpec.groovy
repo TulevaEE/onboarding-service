@@ -10,6 +10,7 @@ import java.time.LocalDate
 
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.INFO
 
 class InstrumentRetirementJobSpec extends Specification {
 
@@ -32,7 +33,7 @@ class InstrumentRetirementJobSpec extends Specification {
     1 * notificationService.sendMessage(
         { it.contains("INSTRUMENT RETIRED") && it.contains("IE0009FT4LX4") &&
             it.contains("neither held nor in a model after 2026-08-27, 5 NAV dates since") },
-        INVESTMENT)
+        INVESTMENT, INFO)
   }
 
   def "says so when the retirement could not be applied to this instance's cache"() {
@@ -45,7 +46,8 @@ class InstrumentRetirementJobSpec extends Specification {
 
     then:
     1 * notificationService.sendMessage(
-        { it.contains("INSTRUMENT RETIRED") && it.contains("could not be reloaded") }, INVESTMENT)
+        { it.contains("INSTRUMENT RETIRED") && it.contains("could not be reloaded") }, INVESTMENT,
+        INFO)
   }
 
   def "stays quiet when the instrument was already retired"() {
@@ -71,7 +73,7 @@ class InstrumentRetirementJobSpec extends Specification {
     1 * instrumentRetirement.retire(["IE0009FT4LX4"]) >>
         outcome([], [new Refusal("IE0009FT4LX4", "still a benchmark proxy")], false)
     1 * notificationService.sendMessage(
-        { it.contains("COULD NOT RETIRE") && it.contains("IE0009FT4LX4") }, INVESTMENT)
+        { it.contains("COULD NOT RETIRE") && it.contains("IE0009FT4LX4") }, INVESTMENT, ERROR)
   }
 
   def "retires the instruments it can even when one of them fails"() {
@@ -87,7 +89,7 @@ class InstrumentRetirementJobSpec extends Specification {
     1 * notificationService.sendMessage(
         { it.contains("INSTRUMENT RETIRED") && it.contains("IE00BFG1TM61") &&
             it.contains("COULD NOT RETIRE") && it.contains("IE0009FT4LX4") },
-        INVESTMENT)
+        INVESTMENT, ERROR)
   }
 
   def "says the retirement check could not run when finding the candidates fails"() {

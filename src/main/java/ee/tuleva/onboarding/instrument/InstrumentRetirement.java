@@ -1,11 +1,14 @@
 package ee.tuleva.onboarding.instrument;
 
+import static java.util.Objects.requireNonNullElse;
+
 import ee.tuleva.onboarding.instrument.InstrumentRetirementOutcome.Refusal;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.NestedExceptionUtils;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -35,8 +38,13 @@ public class InstrumentRetirement {
       return Stream.of(new Retired(isin));
     } catch (RuntimeException e) {
       log.error("Failed to retire instrument: isin={}", isin, e);
-      return Stream.of(new Refused(new Refusal(isin, String.valueOf(e.getMessage()))));
+      return Stream.of(new Refused(new Refusal(isin, reasonFor(e))));
     }
+  }
+
+  private static String reasonFor(RuntimeException e) {
+    var cause = NestedExceptionUtils.getMostSpecificCause(e);
+    return requireNonNullElse(cause.getMessage(), cause.getClass().getSimpleName());
   }
 
   private static <T extends Attempt> Stream<T> only(Class<T> kind, List<Attempt> attempts) {

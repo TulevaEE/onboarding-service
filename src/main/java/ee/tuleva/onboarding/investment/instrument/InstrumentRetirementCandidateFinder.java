@@ -125,14 +125,14 @@ class InstrumentRetirementCandidateFinder {
     return fundsThatHeldIt.stream()
         .mapToLong(fund -> navDatesReportedSince(fund, clockStartedOn))
         .min()
-        .orElse(0);
+        .orElseThrow();
   }
 
   private long navDatesAnyFundHasReportedSince(LocalDate clockStartedOn) {
     return navCalculatingFunds()
         .mapToLong(fund -> navDatesReportedSince(fund, clockStartedOn))
         .max()
-        .orElse(0);
+        .orElseThrow();
   }
 
   private long navDatesReportedSince(TulevaFund fund, LocalDate clockStartedOn) {

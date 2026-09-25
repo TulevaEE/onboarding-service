@@ -22,6 +22,7 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -1129,7 +1130,7 @@ class TrackingDifferenceNotifierTest {
             .checkDate(LocalDate.of(2026, 4, 3))
             .build();
 
-    notifier.notifyGapFillSummary(List.of(newer, older));
+    notifier.notifyGapFillSummary(gapFill(newer, older));
 
     then(notificationService)
         .should()
@@ -1145,7 +1146,7 @@ class TrackingDifferenceNotifierTest {
   @Test
   void theGapFillSummarySaysSoWhenNoneOfTheFilledDaysBreached() {
     notifier.notifyGapFillSummary(
-        List.of(
+        gapFill(
             result(false, 0, ZERO),
             result(false, 0, ZERO).toBuilder().checkDate(LocalDate.of(2026, 4, 2)).build()));
 
@@ -1164,7 +1165,7 @@ class TrackingDifferenceNotifierTest {
             .fund(TUV100)
             .build();
 
-    notifier.notifyGapFillSummary(List.of(tuv100, tuk75));
+    notifier.notifyGapFillSummary(gapFill(tuv100, tuk75));
 
     then(notificationService)
         .should()
@@ -1172,6 +1173,180 @@ class TrackingDifferenceNotifierTest {
     then(notificationService)
         .should()
         .sendMessage(contains("🛑 2026-04-03 TUV100 MODEL_PORTFOLIO"), eq(INVESTMENT));
+  }
+
+  @Test
+  void theGapFillSummaryOrdersBreachesOfOneFundOnOneDateByCheckType() {
+    var modelPortfolio = result(true, 2, new BigDecimal("0.004"));
+    var benchmarkModel = modelPortfolio.toBuilder().checkType(BENCHMARK_MODEL).build();
+
+    notifier.notifyGapFillSummary(gapFill(modelPortfolio, benchmarkModel));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            🕗 TD GAP FILL: 1 past check dates rewritten, 2026-04-03 to 2026-04-03 — these are \
+            earlier days, not today's check
+              🛑 2026-04-03 TUK75 BENCHMARK_MODEL: TD=+0.15%, 2 consecutive days
+              🛑 2026-04-03 TUK75 MODEL_PORTFOLIO: TD=+0.15%, 2 consecutive days""",
+            INVESTMENT);
+  }
+
+  @Test
+  void theGapFillSummaryNamesEveryDateRecheckedBecauseItsNavWasCorrectedAfterTheCheckRan() {
+    var earlier = LocalDate.of(2026, 4, 2);
+    var later = LocalDate.of(2026, 4, 3);
+    var run =
+        new GapFillRun(
+            List.of(
+                result(false, 0, ZERO).toBuilder().checkDate(earlier).build(),
+                result(false, 0, ZERO).toBuilder().checkDate(later).build(),
+                result(false, 0, ZERO).toBuilder().checkDate(earlier).fund(TUV100).build()),
+            List.of(),
+            Map.of(TUK75, List.of(earlier, later), TUV100, List.of(earlier)));
+
+    notifier.notifyGapFillSummary(run);
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            🕗 TD GAP FILL: 2 past check dates rewritten, 2026-04-02 to 2026-04-03 — these are \
+            earlier days, not today's check
+              Rechecked because the NAV changed after the check ran: TUK75 2026-04-02, \
+            2026-04-03; TUV100 2026-04-02
+              No breach on any of them.""",
+            INVESTMENT);
+  }
+
+  @Test
+  void theGapFillSummaryDoesNotCountAStaleDateItCouldNotRecheckAsRechecked() {
+    var notRechecked = LocalDate.of(2026, 4, 2);
+    var rechecked = LocalDate.of(2026, 4, 3);
+    var run =
+        new GapFillRun(
+            List.of(
+                result(true, 2, new BigDecimal("0.004")).toBuilder().checkDate(rechecked).build()),
+            List.of(),
+            Map.of(TUK75, List.of(notRechecked, rechecked)));
+
+    notifier.notifyGapFillSummary(run);
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            🕗 TD GAP FILL: 1 past check dates rewritten, 2026-04-03 to 2026-04-03 — these are \
+            earlier days, not today's check
+              Rechecked because the NAV changed after the check ran: TUK75 2026-04-03
+              🛑 2026-04-03 TUK75 MODEL_PORTFOLIO: TD=+0.15%, 2 consecutive days""",
+            INVESTMENT);
+  }
+
+  @Test
+  void theGapFillSummaryCountsOnlyAModelPortfolioResultOfTheSameFundAsARecheck() {
+    var earlier = LocalDate.of(2026, 4, 2);
+    var later = LocalDate.of(2026, 4, 3);
+    var run =
+        new GapFillRun(
+            List.of(
+                result(false, 0, ZERO).toBuilder().checkDate(earlier).build(),
+                result(false, 0, ZERO).toBuilder().checkDate(later).build(),
+                result(false, 0, ZERO).toBuilder()
+                    .checkDate(earlier)
+                    .fund(TUV100)
+                    .checkType(BENCHMARK_MODEL)
+                    .build()),
+            List.of(),
+            Map.of(TUK75, List.of(later), TUV100, List.of(earlier)));
+
+    notifier.notifyGapFillSummary(run);
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            🕗 TD GAP FILL: 2 past check dates rewritten, 2026-04-02 to 2026-04-03 — these are \
+            earlier days, not today's check
+              Rechecked because the NAV changed after the check ran: TUK75 2026-04-03
+              No breach on any of them.""",
+            INVESTMENT);
+  }
+
+  @Test
+  void theGapFillSummaryListsNoRecheckWhenNoNavWasCorrected() {
+    notifier.notifyGapFillSummary(
+        gapFill(
+            result(true, 1, new BigDecimal("0.0015")),
+            result(false, 0, ZERO).toBuilder().checkDate(LocalDate.of(2026, 4, 2)).build()));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            🕗 TD GAP FILL: 2 past check dates rewritten, 2026-04-02 to 2026-04-03 — these are \
+            earlier days, not today's check
+              🛑 2026-04-03 TUK75 MODEL_PORTFOLIO: TD=+0.15%, 1 consecutive days""",
+            INVESTMENT);
+  }
+
+  @Test
+  void theGapFillSummarySaysNothingWhenOnlyTheSuppressedBenchmarkWasRewritten() {
+    notifier.notifyGapFillSummary(
+        gapFill(result(false, 0, ZERO).toBuilder().checkType(BENCHMARK).build()));
+
+    then(notificationService).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void anAttributionLeftUnwrittenBecauseOfStaleDatesNamesTheFundPeriodAndDates() {
+    notifier.notifyAttributionNotWritten(
+        TUK75,
+        LocalDate.of(2026, 4, 1),
+        LocalDate.of(2026, 4, 30),
+        List.of(LocalDate.of(2026, 4, 10), LocalDate.of(2026, 4, 13)));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ⚠️ TD ATTRIBUTION NOT WRITTEN: fund=TUK75, period=2026-04-01 to 2026-04-30
+              The NAV of 2026-04-10, 2026-04-13 changed after the check ran and the recheck did not
+              complete, so the stored fund return of those dates is stale. Any attribution already
+              stored for this period is left as it was. Rerun it once those dates recheck; the
+              reason per date is in the logs.""",
+            INVESTMENT);
+  }
+
+  @Test
+  void swallowsExceptionWhenAttributionNotWrittenNotificationFails() {
+    willThrow(new RuntimeException("Slack down"))
+        .given(notificationService)
+        .sendMessage(any(String.class), eq(INVESTMENT));
+
+    assertThatCode(
+            () ->
+                notifier.notifyAttributionNotWritten(
+                    TUK75,
+                    LocalDate.of(2026, 4, 1),
+                    LocalDate.of(2026, 4, 30),
+                    List.of(LocalDate.of(2026, 4, 10))))
+        .doesNotThrowAnyException();
+  }
+
+  @Test
+  void swallowsExceptionWhenGapFillSummaryFails() {
+    willThrow(new RuntimeException("Slack down"))
+        .given(notificationService)
+        .sendMessage(any(String.class), eq(INVESTMENT));
+
+    assertThatCode(() -> notifier.notifyGapFillSummary(gapFill(result(false, 0, ZERO))))
+        .doesNotThrowAnyException();
+  }
+
+  private static GapFillRun gapFill(TrackingDifferenceResult... results) {
+    return new GapFillRun(List.of(results), List.of(), Map.of());
   }
 
   private TrackingDifferenceResult result(

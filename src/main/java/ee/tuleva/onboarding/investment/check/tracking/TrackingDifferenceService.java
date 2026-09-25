@@ -7,7 +7,6 @@ import static java.time.temporal.ChronoUnit.DAYS;
 import static java.util.Arrays.stream;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.groupingBy;
-import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.mapping;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.Collectors.toSet;
@@ -47,10 +46,6 @@ import org.springframework.stereotype.Component;
 class TrackingDifferenceService {
 
   private static final int SCALE = 6;
-  private static final int FRESH_GAP_DAYS = 5;
-  private static final String STANDING_GAP =
-      "%s [standing gap: unfilled for %d days, last attempt %s — the missing price has to be"
-          + " inserted by hand, nothing backfills it]";
 
   private final Clock clock;
   private final FundPositionRepository fundPositionRepository;
@@ -64,6 +59,7 @@ class TrackingDifferenceService {
   private final SecurityDataBuilder securityDataBuilder;
   private final ConsecutiveBreachTracker consecutiveBreachTracker;
   private final BenchmarkCheckBuilder benchmarkCheckBuilder;
+  private final StaleFundReturnDetector staleFundReturnDetector;
 
   List<TrackingDifferenceResult> runChecks() {
     return runChecksAsOf(LocalDate.now(clock), List.of(TulevaFund.values()));
@@ -127,37 +123,41 @@ class TrackingDifferenceService {
     return allResults;
   }
 
-  List<TrackingDifferenceResult> fillGaps(int lookbackDays) {
+  GapFillRun fillGaps(int lookbackDays) {
     var window = new GapWindow(LocalDate.now(clock), lookbackDays);
+    return stream(TulevaFund.values())
+        .map(fund -> fillGaps(fund, window))
+        .reduce(GapFillRun.NOTHING_TO_FILL, GapFillRun::and);
+  }
+
+  GapFillRun reconcileSince(TulevaFund fund, LocalDate since) {
+    var today = LocalDate.now(clock);
+    return fillGaps(fund, new GapWindow(today, (int) DAYS.between(since, today)));
+  }
+
+  private GapFillRun fillGaps(TulevaFund fund, GapWindow window) {
     var results = new ArrayList<TrackingDifferenceResult>();
     var failures = new ArrayList<GapFailure>();
-
-    for (var fund : TulevaFund.values()) {
-      var gaps = uncheckedDates(fund, window);
-      var firstFilled = fillUntilOneSucceeds(fund, gaps, window, results, failures);
-      if (firstFilled == null) {
-        continue;
-      }
-      for (var checkDate : datesAfterTheFirstFilledGap(fund, gaps, firstFilled, window.today())) {
+    var staleCheckDates =
+        staleFundReturnDetector.staleCheckDates(fund, window.from(), window.today());
+    var datesNeedingACheck = datesNeedingACheck(fund, window, staleCheckDates);
+    var firstChecked = fillUntilOneSucceeds(fund, datesNeedingACheck, window, results, failures);
+    if (firstChecked != null) {
+      for (var checkDate :
+          datesAfterTheFirstFilledGap(fund, datesNeedingACheck, firstChecked, window.today())) {
         results.addAll(checkOrRecordFailure(fund, checkDate, window, failures));
       }
     }
-
-    if (!failures.isEmpty()) {
-      throw new IncompletePriceDataException(
-          incompletePriceDataReport(failures), new IncompleteRun(results, failures));
-    }
-
-    return results;
+    return GapFillRun.forFund(fund, results, failures, staleCheckDates);
   }
 
   private @Nullable LocalDate fillUntilOneSucceeds(
       TulevaFund fund,
-      List<LocalDate> gaps,
+      List<LocalDate> datesNeedingACheck,
       GapWindow window,
       List<TrackingDifferenceResult> results,
       List<GapFailure> failures) {
-    for (var checkDate : gaps) {
+    for (var checkDate : datesNeedingACheck) {
       var checked = checkOrRecordFailure(fund, checkDate, window, failures);
       results.addAll(checked);
       if (!checked.isEmpty()) {
@@ -168,9 +168,10 @@ class TrackingDifferenceService {
   }
 
   private List<LocalDate> datesAfterTheFirstFilledGap(
-      TulevaFund fund, List<LocalDate> gaps, LocalDate firstFilled, LocalDate to) {
+      TulevaFund fund, List<LocalDate> datesNeedingACheck, LocalDate firstFilled, LocalDate to) {
     return Stream.concat(
-            gaps.stream(), eventRepository.findDistinctCheckDates(fund, firstFilled, to).stream())
+            datesNeedingACheck.stream(),
+            eventRepository.findDistinctCheckDates(fund, firstFilled, to).stream())
         .filter(firstFilled::isBefore)
         .distinct()
         .sorted()
@@ -203,12 +204,6 @@ class TrackingDifferenceService {
         lastAttemptDate(checkDate, window.lookbackDays()));
   }
 
-  private static String incompletePriceDataReport(List<GapFailure> failures) {
-    return failures.stream()
-        .map(GapFailure::describe)
-        .collect(joining("\n", "Incomplete security price data:\n", ""));
-  }
-
   private LocalDate lastAttemptDate(LocalDate checkDate, int lookbackDays) {
     var lastDayInWindow = checkDate.plusDays(lookbackDays);
     return publicHolidays.isWorkingDay(lastDayInWindow)
@@ -216,33 +211,22 @@ class TrackingDifferenceService {
         : publicHolidays.previousWorkingDay(lastDayInWindow);
   }
 
-  private List<LocalDate> uncheckedDates(TulevaFund fund, GapWindow window) {
+  private List<LocalDate> datesNeedingACheck(
+      TulevaFund fund, GapWindow window, List<LocalDate> staleCheckDates) {
     var datesWithAnyCheckEvent =
         Set.copyOf(eventRepository.findDistinctCheckDates(fund, window.from(), window.today()));
-    return fundPositionRepository
-        .findDistinctNavDatesByFundBetween(fund, window.from(), window.today())
-        .stream()
-        .filter(navDate -> !datesWithAnyCheckEvent.contains(navDate))
-        .sorted()
-        .toList();
+    var uncheckedNavDates =
+        fundPositionRepository
+            .findDistinctNavDatesByFundBetween(fund, window.from(), window.today())
+            .stream()
+            .filter(navDate -> !datesWithAnyCheckEvent.contains(navDate));
+    return Stream.concat(uncheckedNavDates, staleCheckDates.stream()).distinct().sorted().toList();
   }
 
   record GapWindow(LocalDate today, int lookbackDays) {
 
     LocalDate from() {
       return today.minusDays(lookbackDays);
-    }
-  }
-
-  record GapFailure(LocalDate checkDate, String reason, long daysUnfilled, LocalDate lastAttempt) {
-
-    boolean isStanding() {
-      return daysUnfilled > FRESH_GAP_DAYS;
-    }
-
-    String describe() {
-      var line = "checkDate=%s, %s".formatted(checkDate, reason);
-      return isStanding() ? STANDING_GAP.formatted(line, daysUnfilled, lastAttempt) : line;
     }
   }
 
@@ -578,27 +562,17 @@ class TrackingDifferenceService {
     eventRepository.save(event);
   }
 
-  record IncompleteRun(List<TrackingDifferenceResult> completedResults, List<GapFailure> gaps) {}
-
   static class IncompletePriceDataException extends RuntimeException {
 
-    private final transient IncompleteRun run;
+    private final transient List<TrackingDifferenceResult> completedResults;
 
     IncompletePriceDataException(String message, List<TrackingDifferenceResult> completedResults) {
-      this(message, new IncompleteRun(completedResults, List.of()));
-    }
-
-    IncompletePriceDataException(String message, IncompleteRun run) {
       super(message);
-      this.run = run;
+      this.completedResults = completedResults;
     }
 
     List<TrackingDifferenceResult> completedResults() {
-      return run.completedResults();
-    }
-
-    List<GapFailure> gaps() {
-      return run.gaps();
+      return completedResults;
     }
   }
 }

@@ -9,6 +9,7 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -16,6 +17,8 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -87,6 +90,7 @@ class PeriodicTdAttributionServiceTest {
 
   @Mock private InvestmentParameterRepository parameterRepository;
   @Mock private TrackingDifferenceNotifier notifier;
+  @Mock private TdAttributionPeriodReconciler periodReconciler;
 
   @BeforeEach
   void setUp() {
@@ -105,7 +109,8 @@ class PeriodicTdAttributionServiceTest {
             new PublicHolidays(),
             new BenchmarkLegResolver(trackedInstruments()),
             parameterRepository,
-            notifier);
+            notifier,
+            periodReconciler);
 
     // Default lenient stubs for Phase 3 data sources (overridden in specific tests)
     given(transactionExecutionRepository.sumCommissionsForFundAndPeriod(anyString(), any(), any()))
@@ -176,6 +181,49 @@ class PeriodicTdAttributionServiceTest {
             TUK75, PERIOD_START, PERIOD_END, MONTHLY);
     verify(attributionRepository).save(any(PeriodicTdAttribution.class));
     verify(attributionRepository).save(argThat(e -> e.getDetails().size() == 2));
+  }
+
+  @Test
+  void theAttributionReconcilesItsPeriodBeforeReadingTheEventsItIsBuiltFrom() {
+    setupStandardMocks();
+
+    service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY);
+
+    var inOrder = inOrder(periodReconciler, tdEventRepository, attributionRepository);
+    inOrder.verify(periodReconciler).reconcile(TUK75, PERIOD_START, PERIOD_END);
+    inOrder
+        .verify(tdEventRepository)
+        .findDeduplicatedEventsForPeriod(TUK75, MODEL_PORTFOLIO, PERIOD_START, PERIOD_END);
+    inOrder.verify(attributionRepository).save(any(PeriodicTdAttribution.class));
+  }
+
+  @Test
+  void anAttributionWhosePeriodStillHoldsStaleEventsIsNotWritten() {
+    setupStandardMocks();
+    willThrow(new IllegalStateException("stale"))
+        .given(periodReconciler)
+        .reconcile(TUK75, PERIOD_START, PERIOD_END);
+
+    assertThatThrownBy(() -> service.computeAttribution(TUK75, PERIOD_START, PERIOD_END, MONTHLY))
+        .isInstanceOf(IllegalStateException.class);
+
+    then(attributionRepository).shouldHaveNoInteractions();
+  }
+
+  @Test
+  void oneFundWhosePeriodCannotBeReconciledDoesNotStopTheOthers() {
+    setupStandardMocks();
+    willThrow(new IllegalStateException("stale"))
+        .given(periodReconciler)
+        .reconcile(TUK00, PERIOD_START, PERIOD_END);
+
+    service.computeForAllFunds(PERIOD_START, PERIOD_END, MONTHLY);
+
+    verify(attributionRepository, times(TulevaFund.values().length - 1))
+        .save(any(PeriodicTdAttribution.class));
+    verify(attributionRepository, never())
+        .deleteByFundAndPeriodStartAndPeriodEndAndPeriodType(
+            TUK00, PERIOD_START, PERIOD_END, MONTHLY);
   }
 
   @Test

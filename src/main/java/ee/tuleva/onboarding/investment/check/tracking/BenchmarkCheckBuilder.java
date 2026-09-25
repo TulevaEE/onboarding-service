@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.investment.check.tracking;
 
 import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK;
 import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK_MODEL;
+import static ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.dailyReturn;
+import static ee.tuleva.onboarding.investment.check.tracking.TrackingDifferenceCalculator.safeDailyReturn;
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
@@ -86,11 +88,7 @@ class BenchmarkCheckBuilder {
       return Optional.empty();
     }
 
-    var fundReturn =
-        todayNav
-            .value()
-            .subtract(yesterdayNav.value())
-            .divide(yesterdayNav.value(), SCALE, RoundingMode.HALF_UP);
+    var fundReturn = dailyReturn(todayNav.value(), yesterdayNav.value());
     var td = fundReturn.subtract(benchmarkReturn.get());
     var breach = td.abs().compareTo(calculator.breachThreshold(BENCHMARK, checkDate)) >= 0;
 
@@ -219,7 +217,7 @@ class BenchmarkCheckBuilder {
         continue;
       }
       var secReturn =
-          calculator.safeDailyReturn(
+          safeDailyReturn(
               s.today().requirePrice(s.isin()),
               s.previous().requirePrice(s.isin()),
               maxDailyReturn);
@@ -312,6 +310,6 @@ class BenchmarkCheckBuilder {
       return Optional.empty();
     }
     return Optional.of(
-        calculator.safeDailyReturn(today.get().value(), yesterday.get().value(), maxDailyReturn));
+        safeDailyReturn(today.get().value(), yesterday.get().value(), maxDailyReturn));
   }
 }

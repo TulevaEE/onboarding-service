@@ -61,6 +61,7 @@ public class PeriodicTdAttributionService {
   private final BenchmarkLegResolver benchmarkLegResolver;
   private final InvestmentParameterRepository parameterRepository;
   private final TrackingDifferenceNotifier notifier;
+  private final TdAttributionPeriodReconciler periodReconciler;
 
   private final TdAttributionCalculator calculator = new TdAttributionCalculator();
 
@@ -80,7 +81,7 @@ public class PeriodicTdAttributionService {
 
   public TdAttributionResult computeAttribution(
       TulevaFund fund, LocalDate periodStart, LocalDate periodEnd, PeriodType periodType) {
-
+    periodReconciler.reconcile(fund, periodStart, periodEnd);
     var input = buildInput(fund, periodStart, periodEnd, periodType);
     var result = calculator.calculate(input);
     var entity = toEntity(result);

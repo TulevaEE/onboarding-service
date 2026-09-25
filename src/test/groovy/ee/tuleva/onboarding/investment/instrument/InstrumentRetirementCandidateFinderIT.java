@@ -46,6 +46,8 @@ class InstrumentRetirementCandidateFinderIT {
 
   private static final LocalDate MODEL_THAT_HELD_IT = LocalDate.of(2026, 6, 17);
   private static final LocalDate LIVE_MODEL = LocalDate.of(2026, 8, 19);
+  private static final LocalDate MODEL_THAT_KEPT_IT_AT_ZERO_WEIGHT = LocalDate.of(2026, 3, 2);
+  private static final LocalDate LONG_SINCE_SOLD_ON = LocalDate.of(2026, 2, 27);
 
   private static final String EXITED_ISIN = "IE0009FT4LX4";
   private static final String STILL_HELD_ISIN = "IE00BFG1TM61";
@@ -84,6 +86,51 @@ class InstrumentRetirementCandidateFinderIT {
     modelPortfolio(MODEL_THAT_HELD_IT, EXITED_ISIN, STILL_HELD_ISIN);
     modelPortfolio(LIVE_MODEL, STILL_HELD_ISIN);
     heldUntil(EXITED_ISIN, NAV_DATES.get(2));
+    heldThroughout(STILL_HELD_ISIN);
+
+    assertThat(finder().findCandidates()).isEmpty();
+  }
+
+  @Test
+  void doesNotRetireOnTheDayALiveModelDropsAnInstrumentSoldLongAgo() {
+    modelPortfolio(MODEL_THAT_KEPT_IT_AT_ZERO_WEIGHT, STILL_HELD_ISIN);
+    allocation(TUK75, MODEL_THAT_KEPT_IT_AT_ZERO_WEIGHT, EXITED_ISIN, BigDecimal.ZERO);
+    modelPortfolio(TODAY, STILL_HELD_ISIN);
+    position(EXITED_ISIN, SOME_UNITS, LONG_SINCE_SOLD_ON);
+    heldThroughout(STILL_HELD_ISIN);
+
+    assertThat(finder().findCandidates()).isEmpty();
+  }
+
+  @Test
+  void waitsForFiveNavDatesAfterTheModelDroppedItNotCountingTheDayOfTheDrop() {
+    modelPortfolio(MODEL_THAT_HELD_IT, EXITED_ISIN, STILL_HELD_ISIN);
+    modelPortfolio(NAV_DATES.get(1), STILL_HELD_ISIN);
+    position(EXITED_ISIN, SOME_UNITS, LONG_SINCE_SOLD_ON);
+    heldThroughout(STILL_HELD_ISIN);
+
+    assertThat(finder().findCandidates()).isEmpty();
+  }
+
+  @Test
+  void retiresOnceFiveNavDatesHavePassedAfterTheModelDroppedIt() {
+    modelPortfolio(MODEL_THAT_HELD_IT, EXITED_ISIN, STILL_HELD_ISIN);
+    modelPortfolio(NAV_DATES.getFirst(), STILL_HELD_ISIN);
+    position(EXITED_ISIN, SOME_UNITS, LONG_SINCE_SOLD_ON);
+    heldThroughout(STILL_HELD_ISIN);
+
+    assertThat(finder().findCandidates())
+        .containsExactly(
+            new RetirementCandidate(EXITED_ISIN, EXITED_ISIN, NAV_DATES.getFirst(), 5));
+  }
+
+  @Test
+  void startsTheClockWhenTheLastFundsModelDropsIt() {
+    modelPortfolio(TUK75, MODEL_THAT_HELD_IT, EXITED_ISIN, STILL_HELD_ISIN);
+    modelPortfolio(TUK75, LIVE_MODEL, STILL_HELD_ISIN);
+    modelPortfolio(TUV100, MODEL_THAT_HELD_IT, EXITED_ISIN, STILL_HELD_ISIN);
+    modelPortfolio(TUV100, NAV_DATES.get(2), STILL_HELD_ISIN);
+    position(EXITED_ISIN, SOME_UNITS, LONG_SINCE_SOLD_ON);
     heldThroughout(STILL_HELD_ISIN);
 
     assertThat(finder().findCandidates()).isEmpty();
@@ -280,15 +327,24 @@ class InstrumentRetirementCandidateFinderIT {
   }
 
   private void modelPortfolio(LocalDate effectiveDate, String... isins) {
+    modelPortfolio(TUK75, effectiveDate, isins);
+  }
+
+  private void modelPortfolio(TulevaFund fund, LocalDate effectiveDate, String... isins) {
     for (var isin : isins) {
-      allocationRepository.save(
-          ModelPortfolioAllocation.builder()
-              .fund(TUK75)
-              .effectiveDate(effectiveDate)
-              .isin(isin)
-              .weight(BigDecimal.ONE)
-              .build());
+      allocation(fund, effectiveDate, isin, BigDecimal.ONE);
     }
+  }
+
+  private void allocation(
+      TulevaFund fund, LocalDate effectiveDate, String isin, BigDecimal weight) {
+    allocationRepository.save(
+        ModelPortfolioAllocation.builder()
+            .fund(fund)
+            .effectiveDate(effectiveDate)
+            .isin(isin)
+            .weight(weight)
+            .build());
   }
 
   private void cashOnly(LocalDate navDate) {

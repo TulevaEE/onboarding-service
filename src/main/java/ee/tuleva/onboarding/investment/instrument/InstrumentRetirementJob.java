@@ -43,11 +43,11 @@ class InstrumentRetirementJob {
     var message = new StringBuilder();
     if (!outcome.retiredIsins().isEmpty()) {
       message.append(
-          "INSTRUMENT RETIRED — off the books long enough that active is now false, so prices are"
-              + " no longer imported or checked\n");
+          "INSTRUMENT RETIRED — neither held nor in a model for long enough that active is now"
+              + " false, so prices are no longer imported or checked\n");
       candidates.stream()
           .filter(candidate -> outcome.retiredIsins().contains(candidate.isin()))
-          .forEach(candidate -> message.append(describe(candidate)));
+          .forEach(candidate -> message.append("  %s\n".formatted(candidate.describe())));
       message.append("Stored prices and findByIsin are unaffected.\n");
       if (outcome.retiredWithoutReloadingThisInstance()) {
         message.append(
@@ -62,14 +62,5 @@ class InstrumentRetirementJob {
       outcome.refusals().forEach(refusal -> message.append("  %s\n".formatted(refusal.describe())));
     }
     return message.toString().stripTrailing();
-  }
-
-  private static String describe(RetirementCandidate candidate) {
-    return "  %s %s — last on the books %s, %d NAV dates ago\n"
-        .formatted(
-            candidate.isin(),
-            candidate.displayName(),
-            candidate.offTheBooksSince(),
-            candidate.navDatesOffTheBooks());
   }
 }

@@ -30,7 +30,7 @@ class InstrumentRetirementJobSpec extends Specification {
     1 * instrumentRetirement.retire(["IE0009FT4LX4"]) >> outcome(["IE0009FT4LX4"], [], true)
     1 * notificationService.sendMessage(
         { it.contains("INSTRUMENT RETIRED") && it.contains("IE0009FT4LX4") &&
-            it.contains("2026-08-27") && it.contains("5 NAV dates ago") },
+            it.contains("neither held nor in a model after 2026-08-27, 5 NAV dates since") },
         INVESTMENT)
   }
 

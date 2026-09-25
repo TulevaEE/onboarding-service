@@ -1,7 +1,8 @@
 package ee.tuleva.onboarding.investment.instrument
 
-import ee.tuleva.onboarding.instrument.InstrumentReferenceService
 import ee.tuleva.onboarding.instrument.InstrumentRetirement
+import ee.tuleva.onboarding.instrument.InstrumentRetirementOutcome
+import ee.tuleva.onboarding.instrument.InstrumentRetirementOutcome.Refusal
 import ee.tuleva.onboarding.notification.OperationsNotificationService
 import spock.lang.Specification
 
@@ -13,16 +14,10 @@ class InstrumentRetirementJobSpec extends Specification {
 
   InstrumentRetirementCandidateFinder retirementCandidateFinder = Stub()
   InstrumentRetirement instrumentRetirement = Mock()
-  InstrumentReferenceService instrumentReferenceService = Stub()
   OperationsNotificationService notificationService = Mock()
 
   InstrumentRetirementJob job = new InstrumentRetirementJob(
-      retirementCandidateFinder, instrumentRetirement, instrumentReferenceService,
-      notificationService)
-
-  def setup() {
-    instrumentReferenceService.refresh() >> true
-  }
+      retirementCandidateFinder, instrumentRetirement, notificationService)
 
   def "retires an instrument that has been off the books for five nav dates and says so"() {
     given:
@@ -32,7 +27,7 @@ class InstrumentRetirementJobSpec extends Specification {
     job.retireInstrumentsOffTheBooks()
 
     then:
-    1 * instrumentRetirement.retire("IE0009FT4LX4") >> true
+    1 * instrumentRetirement.retire(["IE0009FT4LX4"]) >> outcome(["IE0009FT4LX4"], [], true)
     1 * notificationService.sendMessage(
         { it.contains("INSTRUMENT RETIRED") && it.contains("IE0009FT4LX4") &&
             it.contains("2026-08-27") && it.contains("5 NAV dates ago") },
@@ -41,11 +36,8 @@ class InstrumentRetirementJobSpec extends Specification {
 
   def "says so when the retirement could not be applied to this instance's cache"() {
     given:
-    def failingCacheService = Stub(InstrumentReferenceService) { refresh() >> false }
-    def job = new InstrumentRetirementJob(
-        retirementCandidateFinder, instrumentRetirement, failingCacheService, notificationService)
     retirementCandidateFinder.findCandidates() >> [candidate()]
-    instrumentRetirement.retire("IE0009FT4LX4") >> true
+    instrumentRetirement.retire(["IE0009FT4LX4"]) >> outcome(["IE0009FT4LX4"], [], false)
 
     when:
     job.retireInstrumentsOffTheBooks()
@@ -63,7 +55,7 @@ class InstrumentRetirementJobSpec extends Specification {
     job.retireInstrumentsOffTheBooks()
 
     then:
-    1 * instrumentRetirement.retire("IE0009FT4LX4") >> false
+    1 * instrumentRetirement.retire(["IE0009FT4LX4"]) >> outcome([], [], false)
     0 * notificationService.sendMessage(_ as String, INVESTMENT)
   }
 
@@ -75,7 +67,8 @@ class InstrumentRetirementJobSpec extends Specification {
     job.retireInstrumentsOffTheBooks()
 
     then:
-    1 * instrumentRetirement.retire("IE0009FT4LX4") >> { throw new IllegalStateException("still a benchmark proxy") }
+    1 * instrumentRetirement.retire(["IE0009FT4LX4"]) >>
+        outcome([], [new Refusal("IE0009FT4LX4", "still a benchmark proxy")], false)
     1 * notificationService.sendMessage(
         { it.contains("COULD NOT RETIRE") && it.contains("IE0009FT4LX4") }, INVESTMENT)
   }
@@ -88,12 +81,17 @@ class InstrumentRetirementJobSpec extends Specification {
     job.retireInstrumentsOffTheBooks()
 
     then:
-    1 * instrumentRetirement.retire("IE0009FT4LX4") >> { throw new IllegalStateException("nope") }
-    1 * instrumentRetirement.retire("IE00BFG1TM61") >> true
+    1 * instrumentRetirement.retire(["IE0009FT4LX4", "IE00BFG1TM61"]) >>
+        outcome(["IE00BFG1TM61"], [new Refusal("IE0009FT4LX4", "nope")], true)
     1 * notificationService.sendMessage(
         { it.contains("INSTRUMENT RETIRED") && it.contains("IE00BFG1TM61") &&
             it.contains("COULD NOT RETIRE") && it.contains("IE0009FT4LX4") },
         INVESTMENT)
+  }
+
+  private static InstrumentRetirementOutcome outcome(
+      List<String> retiredIsins, List<Refusal> refusals, boolean cacheReloadedOnThisInstance) {
+    new InstrumentRetirementOutcome(retiredIsins, refusals, cacheReloadedOnThisInstance)
   }
 
   private static InstrumentRetirementCandidateFinder.RetirementCandidate candidate(

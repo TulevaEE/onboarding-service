@@ -4,14 +4,11 @@ import static ee.tuleva.onboarding.investment.JobRunSchedule.INSTRUMENT_RETIREME
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 
-import ee.tuleva.onboarding.instrument.InstrumentReferenceService;
 import ee.tuleva.onboarding.instrument.InstrumentRetirement;
+import ee.tuleva.onboarding.instrument.InstrumentRetirementOutcome;
 import ee.tuleva.onboarding.investment.instrument.InstrumentRetirementCandidateFinder.RetirementCandidate;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
@@ -25,62 +22,46 @@ class InstrumentRetirementJob {
 
   private final InstrumentRetirementCandidateFinder retirementCandidateFinder;
   private final InstrumentRetirement instrumentRetirement;
-  private final InstrumentReferenceService instrumentReferenceService;
   private final OperationsNotificationService notificationService;
 
   @Scheduled(cron = INSTRUMENT_RETIREMENT, zone = TIMEZONE)
   @SchedulerLock(name = "InstrumentRetirementJob", lockAtMostFor = "10m", lockAtLeastFor = "1m")
   void retireInstrumentsOffTheBooks() {
-    var retired = new ArrayList<RetirementCandidate>();
-    var failed = new LinkedHashMap<String, String>();
-    retirementCandidateFinder
-        .findCandidates()
-        .forEach(candidate -> retire(candidate, retired, failed));
+    var candidates = retirementCandidateFinder.findCandidates();
+    var outcome =
+        instrumentRetirement.retire(candidates.stream().map(RetirementCandidate::isin).toList());
 
-    if (retired.isEmpty() && failed.isEmpty()) {
+    if (outcome.isEmpty()) {
       return;
     }
 
-    var cacheRefreshed = retired.isEmpty() || instrumentReferenceService.refresh();
-    notificationService.sendMessage(formatRetirements(retired, failed, cacheRefreshed), INVESTMENT);
-  }
-
-  private void retire(
-      RetirementCandidate candidate,
-      List<RetirementCandidate> retired,
-      Map<String, String> failed) {
-    try {
-      if (instrumentRetirement.retire(candidate.isin())) {
-        retired.add(candidate);
-      }
-    } catch (Exception e) {
-      log.error("Failed to retire instrument: isin={}", candidate.isin(), e);
-      failed.put(candidate.isin(), String.valueOf(e.getMessage()));
-    }
+    notificationService.sendMessage(formatRetirements(candidates, outcome), INVESTMENT);
   }
 
   private static String formatRetirements(
-      List<RetirementCandidate> retired, Map<String, String> failed, boolean cacheRefreshed) {
-    var sb = new StringBuilder();
-    if (!retired.isEmpty()) {
-      sb.append(
+      List<RetirementCandidate> candidates, InstrumentRetirementOutcome outcome) {
+    var message = new StringBuilder();
+    if (!outcome.retiredIsins().isEmpty()) {
+      message.append(
           "INSTRUMENT RETIRED — off the books long enough that active is now false, so prices are"
               + " no longer imported or checked\n");
-      retired.forEach(candidate -> sb.append(describe(candidate)));
-      sb.append("Stored prices and findByIsin are unaffected.\n");
-      if (!cacheRefreshed) {
-        sb.append(
+      candidates.stream()
+          .filter(candidate -> outcome.retiredIsins().contains(candidate.isin()))
+          .forEach(candidate -> message.append(describe(candidate)));
+      message.append("Stored prices and findByIsin are unaffected.\n");
+      if (outcome.retiredWithoutReloadingThisInstance()) {
+        message.append(
             "The instrument cache on this instance could not be reloaded, so imports and checks"
                 + " stop within the hour rather than immediately.\n");
       }
     }
-    if (!failed.isEmpty()) {
-      sb.append(
+    if (!outcome.refusals().isEmpty()) {
+      message.append(
           "COULD NOT RETIRE — fix the instrument reference data; the job tries again the next"
               + " working day\n");
-      failed.forEach((isin, reason) -> sb.append("  %s — %s\n".formatted(isin, reason)));
+      outcome.refusals().forEach(refusal -> message.append("  %s\n".formatted(refusal.describe())));
     }
-    return sb.toString().stripTrailing();
+    return message.toString().stripTrailing();
   }
 
   private static String describe(RetirementCandidate candidate) {

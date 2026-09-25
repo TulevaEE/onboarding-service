@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.investment.JobRunSchedule.INSTRUMENT_RETIREME
 import static ee.tuleva.onboarding.investment.JobRunSchedule.TIMEZONE;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
+import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.INFO;
 
 import ee.tuleva.onboarding.instrument.InstrumentRetirement;
 import ee.tuleva.onboarding.instrument.InstrumentRetirementOutcome;
@@ -54,7 +55,8 @@ class InstrumentRetirementJob {
       return;
     }
 
-    notificationService.sendMessage(formatRetirements(candidates, outcome), INVESTMENT);
+    var severity = outcome.refusals().isEmpty() ? INFO : ERROR;
+    notificationService.sendMessage(formatRetirements(candidates, outcome), INVESTMENT, severity);
   }
 
   private static String formatRetirements(

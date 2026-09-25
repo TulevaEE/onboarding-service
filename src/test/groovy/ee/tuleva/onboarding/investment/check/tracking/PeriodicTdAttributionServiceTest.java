@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK00;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
+import static java.math.RoundingMode.HALF_UP;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 import static org.mockito.ArgumentMatchers.any;
@@ -687,6 +688,29 @@ class PeriodicTdAttributionServiceTest {
   }
 
   @Test
+  void aLeapYearAnnualisesTheEtfLayerOcfOverItsOwnThreeHundredSixtySixDays() {
+    var ordinaryYear = etfOcfDragOverTwoWorkingDaysFrom(LocalDate.of(2026, 3, 4));
+    var leapYear = etfOcfDragOverTwoWorkingDaysFrom(LocalDate.of(2028, 3, 1));
+
+    assertThat(ordinaryYear).isNegative();
+    assertThat(leapYear)
+        .isCloseTo(
+            ordinaryYear.multiply(new BigDecimal("365")).divide(new BigDecimal("366"), 20, HALF_UP),
+            within(new BigDecimal("0.00000002")));
+  }
+
+  private BigDecimal etfOcfDragOverTwoWorkingDaysFrom(LocalDate wednesday) {
+    var periodStart = wednesday.withDayOfMonth(1);
+    var periodEnd = wednesday.withDayOfMonth(wednesday.lengthOfMonth());
+    setupStandardMocks(periodStart, periodEnd, wednesday);
+    givenBenchmarkModelEvents(periodStart, periodEnd, wednesday, List.of(ISIN_DW, ISIN_EUROPE_ETF));
+    given(instrumentFeeRepository.findAllValidRates(periodEnd))
+        .willReturn(List.of(instrumentFee(ISIN_DW, "0.0400")));
+
+    return service.computeAttribution(TUK75, periodStart, periodEnd, MONTHLY).etfOcfDrag();
+  }
+
+  @Test
   void anEtfLayerWithNoMeasuredDayIsReportedAsZeroRatherThanAsOutperformance() {
     setupStandardMocks();
     given(instrumentFeeRepository.findAllValidRates(PERIOD_END))
@@ -845,13 +869,18 @@ class PeriodicTdAttributionServiceTest {
   }
 
   private void givenBenchmarkModelEventsMeasuring(List<String> measuredIsins) {
+    givenBenchmarkModelEvents(PERIOD_START, PERIOD_END, LocalDate.of(2026, 4, 1), measuredIsins);
+  }
+
+  private void givenBenchmarkModelEvents(
+      LocalDate periodStart, LocalDate periodEnd, LocalDate date1, List<String> measuredIsins) {
     given(
             tdEventRepository.findDeduplicatedEventsForPeriod(
-                TUK75, TrackingCheckType.BENCHMARK_MODEL, PERIOD_START, PERIOD_END))
+                TUK75, TrackingCheckType.BENCHMARK_MODEL, periodStart, periodEnd))
         .willReturn(
             List.of(
-                benchmarkModelEvent(LocalDate.of(2026, 4, 1), "-0.00010", measuredIsins),
-                benchmarkModelEvent(LocalDate.of(2026, 4, 2), "-0.00015", measuredIsins)));
+                benchmarkModelEvent(date1, "-0.00010", measuredIsins),
+                benchmarkModelEvent(date1.plusDays(1), "-0.00015", measuredIsins)));
   }
 
   private TrackingDifferenceEvent benchmarkModelEvent(
@@ -886,21 +915,24 @@ class PeriodicTdAttributionServiceTest {
   // --- shared setup ---
 
   private void setupStandardMocks() {
-    var date1 = LocalDate.of(2026, 4, 1);
-    var date2 = LocalDate.of(2026, 4, 2);
+    setupStandardMocks(PERIOD_START, PERIOD_END, LocalDate.of(2026, 4, 1));
+  }
+
+  private void setupStandardMocks(LocalDate periodStart, LocalDate periodEnd, LocalDate date1) {
+    var date2 = date1.plusDays(1);
 
     given(
             tdEventRepository.findDeduplicatedEventsForPeriod(
-                TUK75, MODEL_PORTFOLIO, PERIOD_START, PERIOD_END))
+                TUK75, MODEL_PORTFOLIO, periodStart, periodEnd))
         .willReturn(List.of(tdEvent(date1, "0.0008", "0.001"), tdEvent(date2, "0.0005", "0.0007")));
 
-    given(feeAccrualRepository.findByFundAndDateRange(TUK75, PERIOD_START, PERIOD_END))
+    given(feeAccrualRepository.findByFundAndDateRange(TUK75, periodStart, periodEnd))
         .willReturn(
             List.of(
                 feeAccrual(date1, FeeType.MANAGEMENT, "27.40"),
                 feeAccrual(date2, FeeType.MANAGEMENT, "27.40")));
 
-    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, PERIOD_END))
+    given(feeRateRepository.findValidRate(TUK75, FeeType.MANAGEMENT, periodEnd))
         .willReturn(
             Optional.of(
                 new FeeRate(
@@ -909,12 +941,12 @@ class PeriodicTdAttributionServiceTest {
                     FeeType.MANAGEMENT,
                     new BigDecimal("0.0027"),
                     FeeRateSource.FIXED,
-                    PERIOD_START,
+                    periodStart,
                     null)));
 
     given(
             modelPortfolioAllocationRepository.findVersionsActiveDuringPeriod(
-                TUK75, PERIOD_START, PERIOD_END))
+                TUK75, periodStart, periodEnd))
         .willReturn(
             List.of(
                 modelAllocation(ISIN_DW, "0.70", date1),

@@ -81,7 +81,7 @@ class BenchmarkCheckBuilder {
         todayNav
             .value()
             .subtract(yesterdayNav.value())
-            .divide(yesterdayNav.value(), 6, RoundingMode.HALF_UP);
+            .divide(yesterdayNav.value(), SCALE, RoundingMode.HALF_UP);
     var td = fundReturn.subtract(benchmarkReturn.get());
     var breach = td.abs().compareTo(calculator.breachThreshold(BENCHMARK, checkDate)) >= 0;
 
@@ -141,7 +141,7 @@ class BenchmarkCheckBuilder {
               .get()
               .value()
               .subtract(yesterday.get().value())
-              .divide(yesterday.get().value(), 6, RoundingMode.HALF_UP));
+              .divide(yesterday.get().value(), SCALE, RoundingMode.HALF_UP));
     }
 
     var totalReturn = ZERO;
@@ -156,7 +156,7 @@ class BenchmarkCheckBuilder {
               .get()
               .value()
               .subtract(yesterday.get().value())
-              .divide(yesterday.get().value(), 6, RoundingMode.HALF_UP);
+              .divide(yesterday.get().value(), SCALE, RoundingMode.HALF_UP);
       totalReturn = totalReturn.add(component.weight().multiply(componentReturn));
     }
     return Optional.of(totalReturn.setScale(6, RoundingMode.HALF_UP));

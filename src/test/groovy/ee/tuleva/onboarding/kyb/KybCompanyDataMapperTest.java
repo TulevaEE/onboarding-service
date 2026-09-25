@@ -89,6 +89,34 @@ class KybCompanyDataMapperTest {
   }
 
   @Test
+  void mapsManagingDirectorAsBoardMember() {
+    var managingBoardMember =
+        new CompanyRelationship(
+            "F",
+            "JUHJ",
+            "juhatuse liige (juhataja)",
+            "Jaan",
+            "Tamm",
+            "38888888888",
+            null,
+            LocalDate.of(2006, 1, 2),
+            null,
+            null,
+            null,
+            "EST");
+
+    var detail =
+        new CompanyDetail("Test OÜ", "12345678", "R", "OÜ", null, null, null, null, List.of());
+
+    var result =
+        mapper.toKybCompanyData(
+            detail, PERSONAL_CODE, List.of(managingBoardMember), NO_BENEFICIAL_OWNERS, SELF_CERT);
+
+    assertThat(result.relatedPersons())
+        .containsExactly(kybPerson().personalCode(PERSONAL_CODE).boardMember(true).build());
+  }
+
+  @Test
   void mapsMultipleDistinctPersons() {
     var person1 =
         new CompanyRelationship(

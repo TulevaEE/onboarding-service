@@ -2,9 +2,17 @@ package ee.tuleva.onboarding.kyb;
 
 import java.util.Set;
 
-final class KybRelationshipRoles {
+public final class KybRelationshipRoles {
 
   static final String BOARD_MEMBER_ROLE = "JUHL"; // juhatuse liige (board member)
+  static final String MANAGING_BOARD_MEMBER_ROLE =
+      "JUHJ"; // juhatuse liige (juhataja), board member who is also the managing director
+
+  // Both codes mean juhatuse liige (board member): Äriregister files some board members as "JUHJ"
+  // (juhatuse liige (juhataja)) instead of "JUHL".
+  public static final Set<String> BOARD_MEMBER_ROLES =
+      Set.of(BOARD_MEMBER_ROLE, MANAGING_BOARD_MEMBER_ROLE);
+
   static final String NASDAQ_CSD_SHAREHOLDER_ROLE = "O"; // osanik (shares held in Nasdaq CSD)
   static final String BUSINESS_REGISTRY_SHAREHOLDER_ROLE =
       "OSAN"; // osanik (listed in the registry)
@@ -21,6 +29,7 @@ final class KybRelationshipRoles {
   static final Set<String> RELATED_PERSON_ROLES =
       Set.of(
           BOARD_MEMBER_ROLE,
+          MANAGING_BOARD_MEMBER_ROLE,
           NASDAQ_CSD_SHAREHOLDER_ROLE,
           BUSINESS_REGISTRY_SHAREHOLDER_ROLE,
           BENEFICIAL_OWNER_ROLE);

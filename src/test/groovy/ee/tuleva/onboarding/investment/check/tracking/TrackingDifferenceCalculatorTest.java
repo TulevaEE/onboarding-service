@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
+import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK;
+import static ee.tuleva.onboarding.investment.TrackingCheckType.BENCHMARK_MODEL;
 import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.BENCHMARK_MODEL_BREACH_THRESHOLD;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.ESCALATION_LOOKBACK_DAYS;
@@ -35,6 +37,7 @@ class TrackingDifferenceCalculatorTest {
 
   private static final LocalDate CHECK_DATE = LocalDate.of(2026, 4, 3);
   private static final BigDecimal BREACH_THRESHOLD = new BigDecimal("0.005");
+  private static final BigDecimal BENCHMARK_MODEL_OWN_BREACH_THRESHOLD = new BigDecimal("0.0015");
   private static final BigDecimal MAX_DAILY_RETURN = new BigDecimal("0.5");
 
   @Mock private InvestmentParameterRepository parameterRepository;
@@ -50,24 +53,37 @@ class TrackingDifferenceCalculatorTest {
   }
 
   @Test
-  void benchmarkModelBreachThresholdUsesItsOwnParameterWhenSet() {
+  void benchmarkModelReadsItsOwnBreachThresholdOnceOneIsInEffect() {
     given(
             parameterRepository.findLatestValueIfPresent(
                 BENCHMARK_MODEL_BREACH_THRESHOLD, CHECK_DATE))
-        .willReturn(Optional.of(new BigDecimal("0.0015")));
+        .willReturn(Optional.of(BENCHMARK_MODEL_OWN_BREACH_THRESHOLD));
 
-    assertThat(calculator.benchmarkModelBreachThreshold(CHECK_DATE))
-        .isEqualByComparingTo(new BigDecimal("0.0015"));
+    assertThat(calculator.breachThreshold(BENCHMARK_MODEL, CHECK_DATE))
+        .isEqualByComparingTo(BENCHMARK_MODEL_OWN_BREACH_THRESHOLD);
   }
 
   @Test
-  void benchmarkModelBreachThresholdFallsBackToTheDailyThresholdWhenUnset() {
+  void benchmarkModelReadsTheTrackingBreachThresholdOnDatesBeforeItHadItsOwn() {
     given(
             parameterRepository.findLatestValueIfPresent(
                 BENCHMARK_MODEL_BREACH_THRESHOLD, CHECK_DATE))
         .willReturn(Optional.empty());
 
-    assertThat(calculator.benchmarkModelBreachThreshold(CHECK_DATE))
+    assertThat(calculator.breachThreshold(BENCHMARK_MODEL, CHECK_DATE))
+        .isEqualByComparingTo(BREACH_THRESHOLD);
+  }
+
+  @Test
+  void modelPortfolioAndBenchmarkReadTheTrackingBreachThresholdEvenWhenBenchmarkModelHasItsOwn() {
+    given(
+            parameterRepository.findLatestValueIfPresent(
+                BENCHMARK_MODEL_BREACH_THRESHOLD, CHECK_DATE))
+        .willReturn(Optional.of(BENCHMARK_MODEL_OWN_BREACH_THRESHOLD));
+
+    assertThat(calculator.breachThreshold(MODEL_PORTFOLIO, CHECK_DATE))
+        .isEqualByComparingTo(BREACH_THRESHOLD);
+    assertThat(calculator.breachThreshold(BENCHMARK, CHECK_DATE))
         .isEqualByComparingTo(BREACH_THRESHOLD);
   }
 
@@ -620,13 +636,6 @@ class TrackingDifferenceCalculatorTest {
     assertThatThrownBy(() -> calculator.calculate(input))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("parameter=TRACKING_BREACH_THRESHOLD");
-  }
-
-  @Test
-  void breachThreshold_delegatesToRepository() {
-    BigDecimal value = calculator.breachThreshold(CHECK_DATE);
-
-    assertThat(value).isEqualByComparingTo(BREACH_THRESHOLD);
   }
 
   private TrackingInput inputWithNav(BigDecimal todayNav, BigDecimal yesterdayNav) {

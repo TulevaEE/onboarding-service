@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
+import static ee.tuleva.onboarding.investment.TrackingCheckType.MODEL_PORTFOLIO;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.BENCHMARK_MODEL_BREACH_THRESHOLD;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.ESCALATION_LOOKBACK_DAYS;
 import static ee.tuleva.onboarding.investment.config.InvestmentParameter.ESCALATION_NET_TD_THRESHOLD;
@@ -32,14 +33,31 @@ class TrackingDifferenceCalculator {
 
   private final InvestmentParameterRepository parameterRepository;
 
-  BigDecimal breachThreshold(LocalDate asOf) {
-    return parameterRepository.findLatestValue(TRACKING_BREACH_THRESHOLD, asOf);
+  BigDecimal breachThreshold(TrackingCheckType checkType, LocalDate checkDate) {
+    return switch (checkType) {
+      case MODEL_PORTFOLIO, BENCHMARK -> trackingBreachThreshold(checkDate);
+      case BENCHMARK_MODEL -> benchmarkModelBreachThreshold(checkDate);
+    };
   }
 
-  BigDecimal benchmarkModelBreachThreshold(LocalDate asOf) {
+  private BigDecimal navResidualBreachThreshold(LocalDate checkDate) {
+    return breachThreshold(MODEL_PORTFOLIO, checkDate);
+  }
+
+  private BigDecimal trackingBreachThreshold(LocalDate checkDate) {
+    return parameterRepository.findLatestValue(TRACKING_BREACH_THRESHOLD, checkDate);
+  }
+
+  private BigDecimal benchmarkModelBreachThreshold(LocalDate checkDate) {
     return parameterRepository
-        .findLatestValueIfPresent(BENCHMARK_MODEL_BREACH_THRESHOLD, asOf)
-        .orElseGet(() -> breachThreshold(asOf));
+        .findLatestValueIfPresent(BENCHMARK_MODEL_BREACH_THRESHOLD, checkDate)
+        .orElseGet(
+            () -> trackingBreachThresholdThatGovernedBeforeBenchmarkModelHadItsOwn(checkDate));
+  }
+
+  private BigDecimal trackingBreachThresholdThatGovernedBeforeBenchmarkModelHadItsOwn(
+      LocalDate checkDate) {
+    return trackingBreachThreshold(checkDate);
   }
 
   int escalationLookbackDays(LocalDate asOf) {
@@ -84,7 +102,7 @@ class TrackingDifferenceCalculator {
       return Optional.empty();
     }
 
-    BigDecimal breachThreshold = breachThreshold(input.checkDate());
+    var breachThreshold = breachThreshold(input.checkType(), input.checkDate());
 
     var fundReturn =
         input
@@ -150,7 +168,7 @@ class TrackingDifferenceCalculator {
 
     var residual = trackingDifference.subtract(attributedSum).setScale(SCALE, HALF_UP);
 
-    var navResidual = computeNavResidual(input, fundReturn, feeDrag, breachThreshold);
+    var navResidual = computeNavResidual(input, fundReturn, feeDrag);
 
     return Optional.of(
         TrackingDifferenceResult.builder()
@@ -174,7 +192,7 @@ class TrackingDifferenceCalculator {
   }
 
   private NavResidualCheck computeNavResidual(
-      TrackingInput input, BigDecimal fundReturn, BigDecimal feeDrag, BigDecimal breachThreshold) {
+      TrackingInput input, BigDecimal fundReturn, BigDecimal feeDrag) {
     if (input.bodSecuritiesFraction() == null
         || input.bodHoldings() == null
         || input.bodHoldings().isEmpty()) {
@@ -188,7 +206,7 @@ class TrackingDifferenceCalculator {
             .add(feeDrag)
             .setScale(SCALE, HALF_UP);
     var value = fundReturn.subtract(bodImpliedFundReturn).setScale(SCALE, HALF_UP);
-    var breach = value.abs().compareTo(breachThreshold) >= 0;
+    var breach = value.abs().compareTo(navResidualBreachThreshold(input.checkDate())) >= 0;
     return new NavResidualCheck(bodImpliedFundReturn, value, breach);
   }
 

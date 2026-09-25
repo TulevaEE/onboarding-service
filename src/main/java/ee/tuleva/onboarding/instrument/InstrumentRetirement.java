@@ -34,7 +34,7 @@ public class InstrumentRetirement {
         log.info("Instrument was already retired, nothing to do: isin={}", isin);
         return Stream.empty();
       }
-      log.warn("Retired instrument, prices are no longer imported or checked: isin={}", isin);
+      log.warn("Retired instrument, active is now false: isin={}", isin);
       return Stream.of(new Retired(isin));
     } catch (RuntimeException e) {
       log.error("Failed to retire instrument: isin={}", isin, e);

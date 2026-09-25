@@ -3,29 +3,20 @@ package ee.tuleva.onboarding.investment.fees.ocf;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.time.YearMonth;
 import java.util.List;
-import org.jspecify.annotations.Nullable;
 
-record OcfRunOutcome(
-    TulevaFund fund,
-    YearMonth month,
-    @Nullable OcfSnapshot snapshot,
-    List<OcfGap> gaps,
-    @Nullable String failureReason) {
+sealed interface OcfRunOutcome permits OcfRunOutcome.Computed, OcfRunOutcome.Failed {
 
-  static OcfRunOutcome computed(
-      TulevaFund fund, YearMonth month, OcfSnapshot snapshot, List<OcfGap> gaps) {
-    return new OcfRunOutcome(fund, month, snapshot, gaps, null);
+  TulevaFund fund();
+
+  YearMonth month();
+
+  record Computed(TulevaFund fund, YearMonth month, OcfSnapshot snapshot, List<OcfGap> gaps)
+      implements OcfRunOutcome {
+
+    boolean incomplete() {
+      return !gaps.isEmpty();
+    }
   }
 
-  static OcfRunOutcome failed(TulevaFund fund, YearMonth month, String failureReason) {
-    return new OcfRunOutcome(fund, month, null, List.of(), failureReason);
-  }
-
-  boolean failed() {
-    return snapshot == null;
-  }
-
-  boolean incomplete() {
-    return snapshot != null && !gaps.isEmpty();
-  }
+  record Failed(TulevaFund fund, YearMonth month, String reason) implements OcfRunOutcome {}
 }

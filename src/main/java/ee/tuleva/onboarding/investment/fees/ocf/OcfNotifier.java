@@ -6,6 +6,8 @@ import static ee.tuleva.onboarding.notification.OperationsNotificationService.Se
 import static java.math.RoundingMode.HALF_UP;
 import static java.util.stream.Collectors.joining;
 
+import ee.tuleva.onboarding.investment.fees.ocf.OcfRunOutcome.Computed;
+import ee.tuleva.onboarding.investment.fees.ocf.OcfRunOutcome.Failed;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.notification.OperationsNotificationService.Severity;
 import java.math.BigDecimal;
@@ -46,7 +48,7 @@ class OcfNotifier {
   }
 
   private static Severity severity(List<OcfRunOutcome> outcomes) {
-    return outcomes.stream().anyMatch(o -> o.failed() || o.incomplete()) ? ERROR : INFO;
+    return outcomes.stream().anyMatch(o -> isFailed(o) || isIncomplete(o)) ? ERROR : INFO;
   }
 
   private static String message(String run, String scope, List<OcfRunOutcome> outcomes) {
@@ -56,8 +58,8 @@ class OcfNotifier {
   }
 
   private static String header(String run, String scope, List<OcfRunOutcome> outcomes) {
-    long failed = outcomes.stream().filter(OcfRunOutcome::failed).count();
-    long incomplete = outcomes.stream().filter(OcfRunOutcome::incomplete).count();
+    long failed = outcomes.stream().filter(OcfNotifier::isFailed).count();
+    long incomplete = outcomes.stream().filter(OcfNotifier::isIncomplete).count();
     if (failed == outcomes.size()) {
       return """
              🛑 %s DID NOT PRODUCE A SINGLE FIGURE: %s
@@ -98,17 +100,27 @@ class OcfNotifier {
         : "funds";
   }
 
+  private static boolean isFailed(OcfRunOutcome outcome) {
+    return outcome instanceof Failed;
+  }
+
+  private static boolean isIncomplete(OcfRunOutcome outcome) {
+    return outcome instanceof Computed computed && computed.incomplete();
+  }
+
   private static String line(OcfRunOutcome outcome) {
     var subject = "%s %s".formatted(outcome.fund().getCode(), outcome.month());
-    var snapshot = outcome.snapshot();
-    if (snapshot == null) {
-      return "🛑 %s: %s".formatted(subject, outcome.failureReason());
-    }
-    if (outcome.incomplete()) {
-      return "⚠️ %s: %s%%, incomplete — %s"
-          .formatted(subject, formatPercent(snapshot.totalOcf()), gapNames(outcome.gaps()));
-    }
-    return "✅ %s: %s%%".formatted(subject, formatPercent(snapshot.totalOcf()));
+    return switch (outcome) {
+      case Failed failed -> "🛑 %s: %s".formatted(subject, failed.reason());
+      case Computed computed when computed.incomplete() ->
+          "⚠️ %s: %s%%, incomplete — %s"
+              .formatted(
+                  subject,
+                  formatPercent(computed.snapshot().totalOcf()),
+                  gapNames(computed.gaps()));
+      case Computed computed ->
+          "✅ %s: %s%%".formatted(subject, formatPercent(computed.snapshot().totalOcf()));
+    };
   }
 
   private static String gapNames(List<OcfGap> gaps) {

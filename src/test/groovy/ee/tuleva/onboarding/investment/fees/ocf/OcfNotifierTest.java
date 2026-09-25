@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.fees.ocf;
 
 import static ee.tuleva.onboarding.investment.fees.ocf.OcfGap.NO_PUBLISHED_NAV_CALCULATION;
+import static ee.tuleva.onboarding.investment.fees.ocf.OcfGap.TRANSACTION_COSTS_WITHOUT_AVERAGE_AUM;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.INFO;
@@ -9,8 +10,6 @@ import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.contains;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
@@ -36,36 +35,35 @@ class OcfNotifierTest {
   @InjectMocks private OcfNotifier notifier;
 
   @Test
-  void aRunWhereEveryFundFailedIsReportedAsProducingNothing() {
+  void aRunWhereEveryFundFailedIsReportedAsProducingNothingAndNamesEachFundsReason() {
     notifier.notifyRun(MONTH, List.of(failed(TUK75), failed(TUK00)));
 
     then(notificationService)
         .should()
-        .sendMessage(contains("DID NOT PRODUCE A SINGLE FIGURE"), eq(INVESTMENT), eq(ERROR));
+        .sendMessage(
+            """
+            🛑 OCF RUN DID NOT PRODUCE A SINGLE FIGURE: month=2026-04
+              Every one of the 2 funds failed, so no OCF was written for this period and the last
+              figure on this channel is not this period's. Rerun it once the cause is fixed.
+              🛑 TUK75 2026-04: no rate for XX0000000001
+              🛑 TUK00 2026-04: no rate for XX0000000001""",
+            INVESTMENT,
+            ERROR);
   }
 
   @Test
-  void aRunWhereEveryFundFailedNamesEachFundAndItsReason() {
-    notifier.notifyRun(MONTH, List.of(failed(TUK75), failed(TUK00)));
-
-    then(notificationService)
-        .should()
-        .sendMessage(contains("TUK75 2026-04"), eq(INVESTMENT), eq(ERROR));
-    then(notificationService)
-        .should()
-        .sendMessage(contains("no rate for XX0000000001"), eq(INVESTMENT), eq(ERROR));
-  }
-
-  @Test
-  void aRunWhereOneFundFailedIsReportedAsPartial() {
+  void aRunWhereOneFundFailedIsReportedAsPartialAndCountsFunds() {
     notifier.notifyRun(MONTH, List.of(failed(TUK75), computed(TUK00, "0.0034")));
 
     then(notificationService)
         .should()
         .sendMessage(
-            contains("RAN ONLY IN PART: month=2026-04, 1 of 2 funds failed"),
-            eq(INVESTMENT),
-            eq(ERROR));
+            """
+            ⚠️ OCF RUN RAN ONLY IN PART: month=2026-04, 1 of 2 funds failed
+              Nothing here says what their OCF is this period. The rest were written.
+              🛑 TUK75 2026-04: no rate for XX0000000001
+              ✅ TUK00 2026-04: 0.34%""",
+            INVESTMENT, ERROR);
   }
 
   @Test
@@ -77,33 +75,51 @@ class OcfNotifierTest {
 
     then(notificationService)
         .should()
-        .sendMessage(contains("WROTE AN INCOMPLETE FIGURE"), eq(INVESTMENT), eq(ERROR));
-    then(notificationService)
-        .should()
-        .sendMessage(contains("NO_PUBLISHED_NAV_CALCULATION"), eq(INVESTMENT), eq(ERROR));
+        .sendMessage(
+            """
+            ⚠️ OCF RUN WROTE AN INCOMPLETE FIGURE: month=2026-04, 1 of 2 funds have gaps
+              A component resolved to zero instead of failing, so those totals are understated and
+              must not be published until the gap is closed.
+              ✅ TUK75 2026-04: 0.34%
+              ⚠️ TUK00 2026-04: 0.21%, incomplete — NO_PUBLISHED_NAV_CALCULATION""",
+            INVESTMENT, ERROR);
   }
 
   @Test
-  void aCleanRunReportsEachFundsTotalOcf() {
-    notifier.notifyRun(MONTH, List.of(computed(TUK75, "0.0034"), computed(TUK00, "0.0021")));
-
-    then(notificationService)
-        .should()
-        .sendMessage(contains("OCF RUN COMPLETE: month=2026-04"), eq(INVESTMENT), eq(INFO));
-    then(notificationService)
-        .should()
-        .sendMessage(contains("TUK75 2026-04: 0.34%"), eq(INVESTMENT), eq(INFO));
-  }
-
-  @Test
-  void aBackfillIsOneMessageForTheWholeRunRatherThanOnePerMonth() {
-    notifier.notifyBackfill(
-        3, List.of(computed(TUK75, "0.0034"), failed(TUK00), computed(TUK75, "0.0031")));
+  void anIncompleteFundNamesEveryGapItHas() {
+    notifier.notifyRun(
+        MONTH,
+        List.of(
+            incomplete(
+                TUK75,
+                "0.0021",
+                NO_PUBLISHED_NAV_CALCULATION,
+                TRANSACTION_COSTS_WITHOUT_AVERAGE_AUM)));
 
     then(notificationService)
         .should()
         .sendMessage(
-            contains("OCF BACKFILL RAN ONLY IN PART: monthsBack=3"), eq(INVESTMENT), eq(ERROR));
+            """
+            ⚠️ OCF RUN WROTE AN INCOMPLETE FIGURE: month=2026-04, 1 of 1 funds have gaps
+              A component resolved to zero instead of failing, so those totals are understated and
+              must not be published until the gap is closed.
+              ⚠️ TUK75 2026-04: 0.21%, incomplete — NO_PUBLISHED_NAV_CALCULATION, \
+            TRANSACTION_COSTS_WITHOUT_AVERAGE_AUM""",
+            INVESTMENT, ERROR);
+  }
+
+  @Test
+  void aCleanRunReportsEachFundsTotalOcfAsInfo() {
+    notifier.notifyRun(MONTH, List.of(computed(TUK75, "0.0034"), computed(TUK00, "0.0021")));
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            ✅ OCF RUN COMPLETE: month=2026-04
+              ✅ TUK75 2026-04: 0.34%
+              ✅ TUK00 2026-04: 0.21%""",
+            INVESTMENT, INFO);
   }
 
   @Test
@@ -113,31 +129,36 @@ class OcfNotifierTest {
 
     then(notificationService)
         .should()
-        .sendMessage(contains("must not be published"), eq(INVESTMENT), eq(ERROR));
+        .sendMessage(
+            """
+            ⚠️ OCF RUN RAN ONLY IN PART: month=2026-04, 1 of 2 funds failed
+              Nothing here says what their OCF is this period. The rest were written.
+            ⚠️ 1 of the written ones has a gap: a component resolved to zero instead of failing,
+              so that total is understated and must not be published until the gap is closed.
+              🛑 TUK75 2026-04: no rate for XX0000000001
+              ⚠️ TUK00 2026-04: 0.21%, incomplete — NO_PUBLISHED_NAV_CALCULATION""",
+            INVESTMENT, ERROR);
   }
 
   @Test
-  void aBackfillSpanningMonthsCountsFundMonthsRatherThanFunds() {
+  void aBackfillIsOneMessageForTheWholeRunCountedInFundMonths() {
     notifier.notifyBackfill(
         2,
         List.of(
             failed(TUK75),
             computed(TUK00, "0.0021"),
-            OcfRunOutcome.computed(
-                TUK75, MONTH.minusMonths(1), snapshot(TUK75, "0.0034", true), List.of())));
+            computed(TUK75, MONTH.minusMonths(1), "0.0034")));
 
     then(notificationService)
         .should()
-        .sendMessage(contains("1 of 3 fund-months failed"), eq(INVESTMENT), eq(ERROR));
-  }
-
-  @Test
-  void aSingleMonthRunCountsFunds() {
-    notifier.notifyRun(MONTH, List.of(failed(TUK75), computed(TUK00, "0.0021")));
-
-    then(notificationService)
-        .should()
-        .sendMessage(contains("1 of 2 funds failed"), eq(INVESTMENT), eq(ERROR));
+        .sendMessage(
+            """
+            ⚠️ OCF BACKFILL RAN ONLY IN PART: monthsBack=2, 1 of 3 fund-months failed
+              Nothing here says what their OCF is this period. The rest were written.
+              🛑 TUK75 2026-04: no rate for XX0000000001
+              ✅ TUK00 2026-04: 0.21%
+              ✅ TUK75 2026-03: 0.34%""",
+            INVESTMENT, ERROR);
   }
 
   @Test
@@ -162,17 +183,23 @@ class OcfNotifierTest {
   }
 
   private static OcfRunOutcome computed(TulevaFund fund, String totalOcf) {
-    return OcfRunOutcome.computed(fund, MONTH, snapshot(fund, totalOcf, true), List.of());
+    return computed(fund, MONTH, totalOcf);
   }
 
-  private static OcfRunOutcome incomplete(TulevaFund fund, String totalOcf, OcfGap gap) {
-    return OcfRunOutcome.computed(fund, MONTH, snapshot(fund, totalOcf, false), List.of(gap));
+  private static OcfRunOutcome computed(TulevaFund fund, YearMonth month, String totalOcf) {
+    return OcfRunOutcome.computed(fund, month, snapshot(fund, month, totalOcf, true), List.of());
   }
 
-  private static OcfSnapshot snapshot(TulevaFund fund, String totalOcf, boolean complete) {
+  private static OcfRunOutcome incomplete(TulevaFund fund, String totalOcf, OcfGap... gaps) {
+    return OcfRunOutcome.computed(
+        fund, MONTH, snapshot(fund, MONTH, totalOcf, false), List.of(gaps));
+  }
+
+  private static OcfSnapshot snapshot(
+      TulevaFund fund, YearMonth month, String totalOcf, boolean complete) {
     return OcfSnapshot.computed(
         fund.getCode(),
-        MONTH.atDay(1),
+        month.atDay(1),
         ZERO,
         ZERO,
         ZERO,

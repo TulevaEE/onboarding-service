@@ -7,7 +7,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.List;
-import java.util.TimeZone;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -27,19 +26,15 @@ class V1_285InstrumentFeeSplitRebateAndInvoicedTest {
   private static final String JUST_BEFORE_THE_SPLIT_EVEN_IF_NO_MIGRATION_HOLDS_IT = "1.284?";
   private static final String THE_SPLIT = "1.285";
 
-  private static final TimeZone UTC = TimeZone.getTimeZone("UTC");
-
   private static final String REBATE_ISIN = "XX0000000001";
   private static final String INVOICED_FEE_ISIN = "XX0000000002";
   private static final String NO_AGREEMENT_ISIN = "XX0000000003";
 
-  private TimeZone timeZoneBeforeTheTest;
   private SingleConnectionDataSource dataSource;
   private JdbcClient jdbcClient;
 
   @BeforeEach
   void migrateAFreshDatabaseUpToJustBeforeTheSplit() {
-    openH2InTheUtcZoneTheSpringTestsInThisJvmExpect();
     dataSource = new SingleConnectionDataSource(URL, "sa", "", true);
     migrateTo(JUST_BEFORE_THE_SPLIT_EVEN_IF_NO_MIGRATION_HOLDS_IT);
     jdbcClient = JdbcClient.create(dataSource);
@@ -49,12 +44,6 @@ class V1_285InstrumentFeeSplitRebateAndInvoicedTest {
   void dropTheDatabase() {
     new JdbcTemplate(dataSource).execute("DROP ALL OBJECTS");
     dataSource.destroy();
-    TimeZone.setDefault(timeZoneBeforeTheTest);
-  }
-
-  private void openH2InTheUtcZoneTheSpringTestsInThisJvmExpect() {
-    timeZoneBeforeTheTest = TimeZone.getDefault();
-    TimeZone.setDefault(UTC);
   }
 
   @Test

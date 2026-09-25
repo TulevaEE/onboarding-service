@@ -104,11 +104,7 @@ class TrackingDifferenceCalculator {
 
     var breachThreshold = breachThreshold(input.checkType(), input.checkDate());
 
-    var fundReturn =
-        input
-            .todayNav()
-            .subtract(input.yesterdayNav())
-            .divide(input.yesterdayNav(), SCALE, HALF_UP);
+    var fundReturn = dailyReturn(input.todayNav(), input.yesterdayNav());
 
     var validSecurities =
         input.securities().stream()
@@ -124,7 +120,7 @@ class TrackingDifferenceCalculator {
             .map(
                 s -> {
                   var secReturn =
-                      rawDailyReturn(
+                      dailyReturn(
                           s.today().requirePrice(s.isin()), s.previous().requirePrice(s.isin()));
                   return s.modelWeight().multiply(secReturn);
                 })
@@ -139,7 +135,7 @@ class TrackingDifferenceCalculator {
             .map(
                 s -> {
                   var secReturn =
-                      rawDailyReturn(
+                      dailyReturn(
                           s.today().requirePrice(s.isin()), s.previous().requirePrice(s.isin()));
                   var weightDiff =
                       s.actualWeight().subtract(s.modelWeight()).setScale(SCALE, HALF_UP);
@@ -221,7 +217,7 @@ class TrackingDifferenceCalculator {
             b ->
                 b.weight()
                     .multiply(
-                        rawDailyReturn(
+                        dailyReturn(
                             b.today().requirePrice(b.isin()), b.previous().requirePrice(b.isin()))))
         .reduce(ZERO, BigDecimal::add);
   }
@@ -278,12 +274,13 @@ class TrackingDifferenceCalculator {
     return parameterRepository.findLatestValue(TRACKING_MAX_DAILY_RETURN, asOf);
   }
 
-  BigDecimal rawDailyReturn(BigDecimal today, BigDecimal yesterday) {
+  static BigDecimal dailyReturn(BigDecimal today, BigDecimal yesterday) {
     return today.subtract(yesterday).divide(yesterday, SCALE, HALF_UP);
   }
 
-  BigDecimal safeDailyReturn(BigDecimal today, BigDecimal yesterday, BigDecimal maxDailyReturn) {
-    var ret = rawDailyReturn(today, yesterday);
+  static BigDecimal safeDailyReturn(
+      BigDecimal today, BigDecimal yesterday, BigDecimal maxDailyReturn) {
+    var ret = dailyReturn(today, yesterday);
     return ret.abs().compareTo(maxDailyReturn) > 0 ? ZERO : ret;
   }
 

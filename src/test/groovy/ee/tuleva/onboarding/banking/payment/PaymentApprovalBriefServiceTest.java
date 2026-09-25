@@ -16,7 +16,9 @@ import static org.mockito.Mockito.lenient;
 
 import ee.tuleva.onboarding.banking.BankAccount;
 import ee.tuleva.onboarding.banking.BankAccounts;
-import ee.tuleva.onboarding.banking.seb.SebAccountBalanceReader;
+import ee.tuleva.onboarding.banking.message.BookedBalance;
+import ee.tuleva.onboarding.banking.message.BookedBalanceReader;
+import ee.tuleva.onboarding.banking.payment.PaymentApprovalBrief.ProjectedBalance;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -34,6 +36,7 @@ class PaymentApprovalBriefServiceTest {
 
   private static final LocalDate DATE = LocalDate.of(2026, 4, 10);
   private static final Instant TODAY_AFTERNOON = Instant.parse("2026-04-10T13:05:00Z");
+  private static final Instant STATEMENT_TIME = Instant.parse("2026-04-10T13:00:05Z");
   private static final Instant YESTERDAY_AFTERNOON = Instant.parse("2026-04-09T13:05:00Z");
   private static final String IBAN = "EE222222222222222222";
   private static final UUID BATCH = UUID.fromString("11111111-1111-1111-1111-111111111111");
@@ -43,13 +46,13 @@ class PaymentApprovalBriefServiceTest {
 
   @Mock OutgoingPaymentRepository outgoingPaymentRepository;
   @Mock BankAccounts bankAccounts;
-  @Mock SebAccountBalanceReader balanceReader;
+  @Mock BookedBalanceReader bookedBalanceReader;
 
   private PaymentApprovalBriefService service() {
     return new PaymentApprovalBriefService(
         outgoingPaymentRepository,
         bankAccounts,
-        balanceReader,
+        bookedBalanceReader,
         new BatchTies(outgoingPaymentRepository));
   }
 
@@ -67,9 +70,10 @@ class PaymentApprovalBriefServiceTest {
   }
 
   @Test
-  void theProjectedBalanceIsWhatTheAccountIsLeftWithOnceThesePaymentsExecute() {
+  void theProjectedBalanceIsWhatTheLastProcessedStatementLeavesOnceThesePaymentsExecute() {
     givenAccountResolves();
-    given(balanceReader.available(ACCOUNT)).willReturn(Optional.of(new BigDecimal("1000.00")));
+    given(bookedBalanceReader.latest(IBAN))
+        .willReturn(Optional.of(new BookedBalance(new BigDecimal("1000.00"), STATEMENT_TIME)));
     givenPayments(payment(SUBMITTED, PAYOUT, "300.00"));
 
     var brief = service().build(DATE, List.of());
@@ -77,13 +81,32 @@ class PaymentApprovalBriefServiceTest {
     assertThat(brief.accounts())
         .singleElement()
         .satisfies(
-            account -> assertThat(account.projectedBalance()).isEqualByComparingTo("700.00"));
+            account ->
+                assertThat(account.projectedBalance())
+                    .isEqualTo(new ProjectedBalance(new BigDecimal("700.00"), STATEMENT_TIME)));
+  }
+
+  @Test
+  void anAccountWithNoProcessedStatementHasNoProjectionAndIsNotCalledNegative() {
+    givenAccountResolves();
+    givenPayments(payment(SUBMITTED, PAYOUT, "300.00"));
+
+    var brief = service().build(DATE, List.of());
+
+    assertThat(brief.accounts())
+        .singleElement()
+        .satisfies(
+            account -> {
+              assertThat(account.projectedBalance()).isNull();
+              assertThat(account.goesNegative()).isFalse();
+            });
   }
 
   @Test
   void anAccountThatWouldGoNegativeNeedsAttention() {
     givenAccountResolves();
-    given(balanceReader.available(ACCOUNT)).willReturn(Optional.of(new BigDecimal("100.00")));
+    given(bookedBalanceReader.latest(IBAN))
+        .willReturn(Optional.of(new BookedBalance(new BigDecimal("100.00"), STATEMENT_TIME)));
     givenPayments(payment(SUBMITTED, PAYOUT, "300.00"));
 
     var brief = service().build(DATE, List.of());
@@ -324,7 +347,7 @@ class PaymentApprovalBriefServiceTest {
 
   private void givenAccountResolves() {
     lenient().when(bankAccounts.find(IBAN)).thenReturn(Optional.of(ACCOUNT));
-    lenient().when(balanceReader.available(any(BankAccount.class))).thenReturn(Optional.empty());
+    lenient().when(bookedBalanceReader.latest(any())).thenReturn(Optional.empty());
   }
 
   private void givenPayments(OutgoingPayment... payments) {

@@ -6,7 +6,7 @@ import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.banking.BankAccounts;
-import ee.tuleva.onboarding.banking.seb.SebAccountBalanceReader;
+import ee.tuleva.onboarding.banking.message.BookedBalanceReader;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -30,7 +30,7 @@ public class PaymentApprovalBriefService {
 
   private final OutgoingPaymentRepository outgoingPaymentRepository;
   private final BankAccounts bankAccounts;
-  private final SebAccountBalanceReader balanceReader;
+  private final BookedBalanceReader bookedBalanceReader;
   private final BatchTies batchTies;
 
   public PaymentApprovalBrief build(LocalDate date, List<PaymentHold> holds) {
@@ -89,9 +89,11 @@ public class PaymentApprovalBriefService {
         payments.stream()
             .map(OutgoingPayment::getRemitterIban)
             .findFirst()
-            .flatMap(bankAccounts::find)
-            .flatMap(balanceReader::available)
-            .map(balance -> balance.subtract(sum(payments)))
+            .flatMap(bookedBalanceReader::latest)
+            .map(
+                balance ->
+                    new PaymentApprovalBrief.ProjectedBalance(
+                        balance.amount().subtract(sum(payments)), balance.asOf()))
             .orElse(null);
     var flows =
         payments.stream()

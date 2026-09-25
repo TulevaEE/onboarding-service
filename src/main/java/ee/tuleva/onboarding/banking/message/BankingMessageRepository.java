@@ -31,6 +31,18 @@ public interface BankingMessageRepository extends CrudRepository<BankingMessage,
 
   @Query(
       """
+      select m
+      from BankingMessage m
+      where m.accountIban = :accountIban
+        and m.processedAt is not null
+        and m.failedAt is null
+      order by m.statementTo desc, m.receivedAt desc
+      limit 1
+      """)
+  Optional<BankingMessage> findLatestProcessedStatement(String accountIban);
+
+  @Query(
+      """
       select min(m.statementFrom)
       from BankingMessage m
       where m.bankType = :bankType

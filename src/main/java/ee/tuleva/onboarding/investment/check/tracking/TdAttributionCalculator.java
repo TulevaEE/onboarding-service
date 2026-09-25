@@ -4,10 +4,12 @@ import static java.math.BigDecimal.ONE;
 import static java.math.BigDecimal.ZERO;
 import static java.math.RoundingMode.HALF_UP;
 
+import ee.tuleva.onboarding.investment.fees.FeeAccrualBuilder;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.time.LocalDate;
+import java.time.Year;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -22,8 +24,9 @@ class TdAttributionCalculator {
   static final int SCALE = 10;
   private static final BigDecimal CARINO_NEAR_EQUAL = new BigDecimal("0.0000000001");
   private static final BigDecimal EXTREME_SCALE = new BigDecimal("2.0");
-  private static final BigDecimal DAYS_IN_YEAR = new BigDecimal("365");
   private static final MathContext TOLERANCE_MATH = new MathContext(16, HALF_UP);
+  private static final BigDecimal DAYS_IN_YEAR_THE_FEE_ACCRUAL_DIVIDES_BY =
+      BigDecimal.valueOf(FeeAccrualBuilder.DAYS_IN_YEAR);
 
   TdAttributionResult calculate(TdAttributionInput input) {
     var dailyRecords = input.dailyRecords();
@@ -248,8 +251,13 @@ class TdAttributionCalculator {
       return null;
     }
     var yearFraction =
-        BigDecimal.valueOf(input.calendarDays()).divide(DAYS_IN_YEAR, TOLERANCE_MATH);
+        BigDecimal.valueOf(input.calendarDays())
+            .divide(lengthOfTheYearACalendarPeriodFallsIn(input), TOLERANCE_MATH);
     return annual.multiply(yearFraction.sqrt(TOLERANCE_MATH)).setScale(SCALE, HALF_UP);
+  }
+
+  private static BigDecimal lengthOfTheYearACalendarPeriodFallsIn(TdAttributionInput input) {
+    return BigDecimal.valueOf(Year.of(input.periodEnd().getYear()).length());
   }
 
   private Map<String, Object> buildChecks(
@@ -269,7 +277,7 @@ class TdAttributionCalculator {
               .expectedAnnualFeeRate()
               .negate()
               .multiply(BigDecimal.valueOf(input.calendarDays()))
-              .divide(BigDecimal.valueOf(365), SCALE, HALF_UP);
+              .divide(DAYS_IN_YEAR_THE_FEE_ACCRUAL_DIVIDES_BY, SCALE, HALF_UP);
       feeXcheck = orZero(input.mgmtFeeDragPeriod()).subtract(expectedFeeDrag).abs();
     }
 

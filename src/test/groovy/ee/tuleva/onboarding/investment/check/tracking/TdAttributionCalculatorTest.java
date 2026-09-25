@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
+import static ee.tuleva.onboarding.investment.check.tracking.PeriodType.ANNUAL;
 import static ee.tuleva.onboarding.investment.check.tracking.PeriodType.MONTHLY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
@@ -482,6 +483,24 @@ class TdAttributionCalculatorTest {
     assertThat(year).isEqualByComparingTo(annual);
     var quarterOverMonth = quarter.divide(month, 4, java.math.RoundingMode.HALF_UP).doubleValue();
     assertThat(quarterOverMonth).isCloseTo(Math.sqrt(91.0 / 30.0), within(0.001));
+  }
+
+  @Test
+  void aWholeLeapYearScalesTheToleranceToExactlyTheAnnualRate() {
+    var annual = new BigDecimal("0.00175");
+    var leapYear =
+        TdAttributionInput.builder()
+            .fund(TUK75)
+            .periodStart(LocalDate.of(2028, 1, 1))
+            .periodEnd(LocalDate.of(2028, 12, 31))
+            .periodType(ANNUAL)
+            .calendarDays(366)
+            .residualTolerance(annual)
+            .dailyRecords(buildConstantDays(1, "0", "0"))
+            .build();
+
+    assertThat(TdAttributionCalculator.scaledResidualTolerance(leapYear))
+        .isEqualByComparingTo(annual);
   }
 
   @Test

@@ -1,5 +1,10 @@
 package ee.tuleva.onboarding.investment.fees.ocf;
 
+import static ee.tuleva.onboarding.investment.fees.ocf.OcfNotifier.OcfRunKind.BACKFILL;
+import static ee.tuleva.onboarding.investment.fees.ocf.OcfNotifier.OcfRunKind.RUN;
+import static ee.tuleva.onboarding.investment.fees.ocf.OcfNotifier.OutcomeStatus.COMPLETE;
+import static ee.tuleva.onboarding.investment.fees.ocf.OcfNotifier.OutcomeStatus.FAILED;
+import static ee.tuleva.onboarding.investment.fees.ocf.OcfNotifier.OutcomeStatus.INCOMPLETE;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Channel.INVESTMENT;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.INFO;
@@ -13,6 +18,7 @@ import ee.tuleva.onboarding.notification.OperationsNotificationService.Severity;
 import java.math.BigDecimal;
 import java.time.YearMonth;
 import java.util.List;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -23,103 +29,129 @@ import org.springframework.stereotype.Component;
 class OcfNotifier {
 
   private static final BigDecimal HUNDRED = new BigDecimal("100");
+  private static final int PERCENT_DECIMAL_PLACES = 2;
+  private static final String OUTCOME_LINE_INDENT = "  ";
 
   private final OperationsNotificationService notificationService;
 
   void notifyRun(YearMonth month, List<OcfRunOutcome> outcomes) {
-    send("OCF RUN", "month=%s".formatted(month), outcomes);
+    send(RUN, "month=%s".formatted(month), outcomes);
   }
 
   void notifyBackfill(int monthsBack, List<OcfRunOutcome> outcomes) {
-    send("OCF BACKFILL", "monthsBack=%d".formatted(monthsBack), outcomes);
+    send(BACKFILL, "monthsBack=%d".formatted(monthsBack), outcomes);
   }
 
-  private void send(String run, String scope, List<OcfRunOutcome> outcomes) {
+  private void send(OcfRunKind kind, String scope, List<OcfRunOutcome> outcomes) {
     if (outcomes.isEmpty()) {
-      log.warn("Nothing to report about an OCF run: run={}, scope={}", run, scope);
+      log.warn("Nothing to report about an OCF run: run={}, scope={}", kind.label, scope);
       return;
     }
     try {
       notificationService.sendMessage(
-          message(run, scope, outcomes), INVESTMENT, severity(outcomes));
+          message(kind, scope, outcomes), INVESTMENT, severity(outcomes));
     } catch (Exception e) {
-      log.error("Failed to send OCF run notification: run={}, scope={}", run, scope, e);
+      log.error("Failed to send OCF run notification: run={}, scope={}", kind.label, scope, e);
     }
   }
 
   private static Severity severity(List<OcfRunOutcome> outcomes) {
-    return outcomes.stream().anyMatch(o -> isFailed(o) || isIncomplete(o)) ? ERROR : INFO;
+    return outcomes.stream().allMatch(outcome -> status(outcome) == COMPLETE) ? INFO : ERROR;
   }
 
-  private static String message(String run, String scope, List<OcfRunOutcome> outcomes) {
-    return outcomes.stream()
-        .map(OcfNotifier::line)
-        .collect(joining("\n  ", header(run, scope, outcomes) + "\n  ", ""));
+  private static String message(OcfRunKind kind, String scope, List<OcfRunOutcome> outcomes) {
+    return Stream.concat(
+            summary(kind, scope, outcomes),
+            outcomes.stream().map(outcome -> OUTCOME_LINE_INDENT + line(outcome)))
+        .collect(joining("\n"));
   }
 
-  private static String header(String run, String scope, List<OcfRunOutcome> outcomes) {
-    long failed = outcomes.stream().filter(OcfNotifier::isFailed).count();
-    long incomplete = outcomes.stream().filter(OcfNotifier::isIncomplete).count();
+  private static Stream<String> summary(
+      OcfRunKind kind, String scope, List<OcfRunOutcome> outcomes) {
+    long failed = countWith(FAILED, outcomes);
+    long incomplete = countWith(INCOMPLETE, outcomes);
     if (failed == outcomes.size()) {
-      return """
-             🛑 %s DID NOT PRODUCE A SINGLE FIGURE: %s
-               Every one of the %d %s failed, so no OCF was written for this period and the last
-               figure on this channel is not this period's. Rerun it once the cause is fixed."""
-          .formatted(run, scope, outcomes.size(), unitOf(outcomes));
+      return Stream.of(nothingProduced(kind, scope, outcomes));
     }
     if (failed > 0) {
-      return """
-             ⚠️ %s RAN ONLY IN PART: %s, %d of %d %s failed
-               Nothing here says what their OCF is this period. The rest were written.%s"""
-          .formatted(run, scope, failed, outcomes.size(), unitOf(outcomes), gapClause(incomplete));
+      return Stream.concat(
+          Stream.of(ranOnlyInPart(kind, scope, failed, outcomes)), gapWarnings(incomplete));
     }
     if (incomplete > 0) {
-      return """
-             ⚠️ %s WROTE AN INCOMPLETE FIGURE: %s, %d of %d %s have gaps
-               A component resolved to zero instead of failing, so those totals are understated and
-               must not be published until the gap is closed."""
-          .formatted(run, scope, incomplete, outcomes.size(), unitOf(outcomes));
+      return Stream.of(wroteIncompleteFigures(kind, scope, incomplete, outcomes));
     }
-    return "✅ %s COMPLETE: %s".formatted(run, scope);
+    return Stream.of("%s %s COMPLETE: %s".formatted(COMPLETE.icon, kind.label, scope));
   }
 
-  private static String gapClause(long incomplete) {
-    if (incomplete == 0) {
-      return "";
-    }
+  private static String nothingProduced(
+      OcfRunKind kind, String scope, List<OcfRunOutcome> outcomes) {
     return """
-
-             ⚠️ %d of the written ones has a gap: a component resolved to zero instead of failing,
-               so that total is understated and must not be published until the gap is closed."""
-        .formatted(incomplete);
+        %s %s DID NOT PRODUCE A SINGLE FIGURE: %s
+          Every one of the %d %s failed, so no OCF was written for this period and the last
+          figure on this channel is not this period's. Rerun it once the cause is fixed."""
+        .formatted(FAILED.icon, kind.label, scope, outcomes.size(), countedUnit(outcomes));
   }
 
-  private static String unitOf(List<OcfRunOutcome> outcomes) {
+  private static String ranOnlyInPart(
+      OcfRunKind kind, String scope, long failed, List<OcfRunOutcome> outcomes) {
+    return """
+        %s %s RAN ONLY IN PART: %s, %d of %d %s failed
+          Nothing here says what their OCF is this period. The rest were written."""
+        .formatted(
+            INCOMPLETE.icon, kind.label, scope, failed, outcomes.size(), countedUnit(outcomes));
+  }
+
+  private static Stream<String> gapWarnings(long incomplete) {
+    if (incomplete == 0) {
+      return Stream.empty();
+    }
+    return Stream.of(
+        """
+        %s %d of the written ones has a gap: a component resolved to zero instead of failing,
+          so that total is understated and must not be published until the gap is closed."""
+            .formatted(INCOMPLETE.icon, incomplete));
+  }
+
+  private static String wroteIncompleteFigures(
+      OcfRunKind kind, String scope, long incomplete, List<OcfRunOutcome> outcomes) {
+    return """
+        %s %s WROTE AN INCOMPLETE FIGURE: %s, %d of %d %s have gaps
+          A component resolved to zero instead of failing, so those totals are understated and
+          must not be published until the gap is closed."""
+        .formatted(
+            INCOMPLETE.icon, kind.label, scope, incomplete, outcomes.size(), countedUnit(outcomes));
+  }
+
+  private static long countWith(OutcomeStatus status, List<OcfRunOutcome> outcomes) {
+    return outcomes.stream().filter(outcome -> status(outcome) == status).count();
+  }
+
+  private static String countedUnit(List<OcfRunOutcome> outcomes) {
     return outcomes.stream().map(OcfRunOutcome::month).distinct().count() > 1
         ? "fund-months"
         : "funds";
   }
 
-  private static boolean isFailed(OcfRunOutcome outcome) {
-    return outcome instanceof Failed;
-  }
-
-  private static boolean isIncomplete(OcfRunOutcome outcome) {
-    return outcome instanceof Computed computed && computed.incomplete();
+  private static OutcomeStatus status(OcfRunOutcome outcome) {
+    return switch (outcome) {
+      case Failed _ -> FAILED;
+      case Computed computed when computed.incomplete() -> INCOMPLETE;
+      case Computed _ -> COMPLETE;
+    };
   }
 
   private static String line(OcfRunOutcome outcome) {
-    var subject = "%s %s".formatted(outcome.fund().getCode(), outcome.month());
+    return "%s %s %s: %s"
+        .formatted(
+            status(outcome).icon, outcome.fund().getCode(), outcome.month(), detail(outcome));
+  }
+
+  private static String detail(OcfRunOutcome outcome) {
     return switch (outcome) {
-      case Failed failed -> "🛑 %s: %s".formatted(subject, failed.reason());
+      case Failed failed -> failed.reason();
       case Computed computed when computed.incomplete() ->
-          "⚠️ %s: %s%%, incomplete — %s"
-              .formatted(
-                  subject,
-                  formatPercent(computed.snapshot().totalOcf()),
-                  gapNames(computed.gaps()));
-      case Computed computed ->
-          "✅ %s: %s%%".formatted(subject, formatPercent(computed.snapshot().totalOcf()));
+          "%s%%, incomplete — %s".formatted(totalOcfPercent(computed), gapNames(computed.gaps()));
+      case Computed computed -> "%s%%".formatted(totalOcfPercent(computed));
     };
   }
 
@@ -127,7 +159,29 @@ class OcfNotifier {
     return gaps.stream().map(Enum::name).collect(joining(", "));
   }
 
-  private static String formatPercent(BigDecimal rate) {
-    return rate.multiply(HUNDRED).setScale(2, HALF_UP).toPlainString();
+  private static String totalOcfPercent(Computed computed) {
+    return computed
+        .snapshot()
+        .totalOcf()
+        .multiply(HUNDRED)
+        .setScale(PERCENT_DECIMAL_PLACES, HALF_UP)
+        .toPlainString();
+  }
+
+  @RequiredArgsConstructor
+  enum OcfRunKind {
+    RUN("OCF RUN"),
+    BACKFILL("OCF BACKFILL");
+
+    private final String label;
+  }
+
+  @RequiredArgsConstructor
+  enum OutcomeStatus {
+    FAILED("🛑"),
+    INCOMPLETE("⚠️"),
+    COMPLETE("✅");
+
+    private final String icon;
   }
 }

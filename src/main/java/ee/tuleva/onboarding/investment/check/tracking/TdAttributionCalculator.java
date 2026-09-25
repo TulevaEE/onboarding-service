@@ -9,7 +9,6 @@ import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.time.LocalDate;
-import java.time.Year;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -251,13 +250,8 @@ class TdAttributionCalculator {
       return null;
     }
     var yearFraction =
-        BigDecimal.valueOf(input.calendarDays())
-            .divide(lengthOfTheYearACalendarPeriodFallsIn(input), TOLERANCE_MATH);
+        YearFraction.eachDayWeighedByItsOwnYear(input.periodStart(), input.periodEnd());
     return annual.multiply(yearFraction.sqrt(TOLERANCE_MATH)).setScale(SCALE, HALF_UP);
-  }
-
-  private static BigDecimal lengthOfTheYearACalendarPeriodFallsIn(TdAttributionInput input) {
-    return BigDecimal.valueOf(Year.of(input.periodEnd().getYear()).length());
   }
 
   private Map<String, Object> buildChecks(

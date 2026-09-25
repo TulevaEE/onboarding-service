@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.investment.check.tracking;
 
 import static ee.tuleva.onboarding.investment.check.tracking.PeriodType.ANNUAL;
+import static ee.tuleva.onboarding.investment.check.tracking.PeriodType.CUSTOM;
 import static ee.tuleva.onboarding.investment.check.tracking.PeriodType.MONTHLY;
 import static ee.tuleva.onboarding.tulevafund.TulevaFund.TUK75;
 import static java.math.BigDecimal.ZERO;
@@ -504,6 +505,24 @@ class TdAttributionCalculatorTest {
   }
 
   @Test
+  void aRangeAcrossNewYearWeighsEachDayByTheLengthOfItsOwnYear() {
+    var annual = new BigDecimal("0.00175");
+    var acrossNewYear =
+        TdAttributionInput.builder()
+            .fund(TUK75)
+            .periodStart(LocalDate.of(2027, 12, 31))
+            .periodEnd(LocalDate.of(2028, 1, 2))
+            .periodType(CUSTOM)
+            .calendarDays(3)
+            .residualTolerance(annual)
+            .dailyRecords(buildConstantDays(1, "0", "0"))
+            .build();
+
+    assertThat(TdAttributionCalculator.scaledResidualTolerance(acrossNewYear))
+        .isCloseTo(new BigDecimal("0.0001585099"), within(new BigDecimal("0.0000000001")));
+  }
+
+  @Test
   void aResidualInsideTheScaledBandPasses() {
     var input =
         toleranceInput(buildConstantDays(30, "0.0005", "0.0005"), new BigDecimal("0.00175"));
@@ -552,7 +571,7 @@ class TdAttributionCalculatorTest {
     return TdAttributionInput.builder()
         .fund(TUK75)
         .periodStart(PERIOD_START)
-        .periodEnd(PERIOD_END)
+        .periodEnd(PERIOD_START.plusDays(calendarDays - 1))
         .periodType(MONTHLY)
         .calendarDays(calendarDays)
         .residualTolerance(annual)

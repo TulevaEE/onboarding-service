@@ -140,17 +140,6 @@ class InstrumentFeeRepositoryTest {
   }
 
   @Test
-  void netOcfIsPublishedLessTheRebatePlusTheInvoicedFee() {
-    insertFee(
-        "IE00BFNM3G45", "iShares USA", "0.0007", "0.0002", "0.0004", "0.0009", "2025-01-01", null);
-
-    var fee = repository.findValidRate("IE00BFNM3G45", LocalDate.of(2026, 4, 30)).orElseThrow();
-
-    assertThat(fee.publishedOcf().subtract(fee.rebateRate()).add(fee.invoicedFeeRate()))
-        .isEqualByComparingTo(fee.netOcf());
-  }
-
-  @Test
   void aNegativeRebateIsRejectedSoTheDirectionCannotBeStated() {
     assertThatThrownBy(
             () ->

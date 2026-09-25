@@ -1227,6 +1227,36 @@ class TrackingDifferenceNotifierTest {
   }
 
   @Test
+  void theGapFillSummaryCountsOnlyAModelPortfolioResultOfTheSameFundAsARecheck() {
+    var earlier = LocalDate.of(2026, 4, 2);
+    var later = LocalDate.of(2026, 4, 3);
+    var run =
+        new GapFillRun(
+            List.of(
+                result(false, 0, ZERO).toBuilder().checkDate(earlier).build(),
+                result(false, 0, ZERO).toBuilder().checkDate(later).build(),
+                result(false, 0, ZERO).toBuilder()
+                    .checkDate(earlier)
+                    .fund(TUV100)
+                    .checkType(BENCHMARK_MODEL)
+                    .build()),
+            List.of(),
+            Map.of(TUK75, List.of(later), TUV100, List.of(earlier)));
+
+    notifier.notifyGapFillSummary(run);
+
+    then(notificationService)
+        .should()
+        .sendMessage(
+            """
+            🕗 TD GAP FILL: 2 past check dates rewritten, 2026-04-02 to 2026-04-03 — these are \
+            earlier days, not today's check
+              Rechecked because the NAV changed after the check ran: TUK75 2026-04-03
+              No breach on any of them.""",
+            INVESTMENT);
+  }
+
+  @Test
   void theGapFillSummaryListsNoRecheckWhenNoNavWasCorrected() {
     notifier.notifyGapFillSummary(
         gapFill(

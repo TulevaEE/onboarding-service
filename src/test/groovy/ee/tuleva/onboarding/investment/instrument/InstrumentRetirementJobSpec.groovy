@@ -46,7 +46,7 @@ class InstrumentRetirementJobSpec extends Specification {
 
     then:
     1 * notificationService.sendMessage(
-        { it.contains("INSTRUMENT RETIRED") && it.contains("could not be reloaded") }, INVESTMENT,
+        { it.contains("INSTRUMENT RETIRED") && it.contains("could not reload its instrument cache") }, INVESTMENT,
         INFO)
   }
 

@@ -26,6 +26,16 @@ class InstrumentRetirementJob {
       "INSTRUMENT RETIREMENT CHECK COULD NOT RUN — nothing was retired today; the cause is in the"
           + " application log. The job tries again the next working day.";
 
+  private static final String THIS_INSTANCE_RELOADED_ITS_CACHE =
+      "This instance reloaded its instrument cache; the others keep importing and checking these"
+          + " prices until their next hourly reload. Stored prices and findByIsin are"
+          + " unaffected.\n";
+
+  private static final String NO_INSTANCE_RELOADED_ITS_CACHE =
+      "This instance could not reload its instrument cache, so every instance keeps importing and"
+          + " checking these prices until its next hourly reload. Stored prices and findByIsin"
+          + " are unaffected.\n";
+
   private final InstrumentRetirementCandidateFinder retirementCandidateFinder;
   private final InstrumentRetirement instrumentRetirement;
   private final OperationsNotificationService notificationService;
@@ -64,17 +74,15 @@ class InstrumentRetirementJob {
     var message = new StringBuilder();
     if (!outcome.retiredIsins().isEmpty()) {
       message.append(
-          "INSTRUMENT RETIRED — neither held nor in a model for long enough that active is now"
-              + " false, so prices are no longer imported or checked\n");
+          "INSTRUMENT RETIRED — neither held nor in a model for long enough, so active is now"
+              + " false\n");
       candidates.stream()
           .filter(candidate -> outcome.retiredIsins().contains(candidate.isin()))
           .forEach(candidate -> message.append("  %s\n".formatted(candidate.describe())));
-      message.append("Stored prices and findByIsin are unaffected.\n");
-      if (outcome.retiredWithoutReloadingThisInstance()) {
-        message.append(
-            "The instrument cache on this instance could not be reloaded, so imports and checks"
-                + " stop within the hour rather than immediately.\n");
-      }
+      message.append(
+          outcome.retiredWithoutReloadingThisInstance()
+              ? NO_INSTANCE_RELOADED_ITS_CACHE
+              : THIS_INSTANCE_RELOADED_ITS_CACHE);
     }
     if (!outcome.refusals().isEmpty()) {
       message.append(

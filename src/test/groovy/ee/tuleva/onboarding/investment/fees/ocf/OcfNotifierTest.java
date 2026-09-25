@@ -14,6 +14,8 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 
+import ee.tuleva.onboarding.investment.fees.ocf.OcfRunOutcome.Computed;
+import ee.tuleva.onboarding.investment.fees.ocf.OcfRunOutcome.Failed;
 import ee.tuleva.onboarding.notification.OperationsNotificationService;
 import ee.tuleva.onboarding.tulevafund.TulevaFund;
 import java.math.BigDecimal;
@@ -179,7 +181,7 @@ class OcfNotifierTest {
   }
 
   private static OcfRunOutcome failed(TulevaFund fund) {
-    return OcfRunOutcome.failed(fund, MONTH, "no rate for XX0000000001");
+    return new Failed(fund, MONTH, "no rate for XX0000000001");
   }
 
   private static OcfRunOutcome computed(TulevaFund fund, String totalOcf) {
@@ -187,12 +189,11 @@ class OcfNotifierTest {
   }
 
   private static OcfRunOutcome computed(TulevaFund fund, YearMonth month, String totalOcf) {
-    return OcfRunOutcome.computed(fund, month, snapshot(fund, month, totalOcf, true), List.of());
+    return new Computed(fund, month, snapshot(fund, month, totalOcf, true), List.of());
   }
 
   private static OcfRunOutcome incomplete(TulevaFund fund, String totalOcf, OcfGap... gaps) {
-    return OcfRunOutcome.computed(
-        fund, MONTH, snapshot(fund, MONTH, totalOcf, false), List.of(gaps));
+    return new Computed(fund, MONTH, snapshot(fund, MONTH, totalOcf, false), List.of(gaps));
   }
 
   private static OcfSnapshot snapshot(

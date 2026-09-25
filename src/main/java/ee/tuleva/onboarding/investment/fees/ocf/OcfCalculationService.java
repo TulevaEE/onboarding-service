@@ -17,6 +17,8 @@ import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
 import ee.tuleva.onboarding.investment.fees.FeeRateRepository;
 import ee.tuleva.onboarding.investment.fees.InstrumentFee;
 import ee.tuleva.onboarding.investment.fees.InstrumentFeeRepository;
+import ee.tuleva.onboarding.investment.fees.ocf.OcfRunOutcome.Computed;
+import ee.tuleva.onboarding.investment.fees.ocf.OcfRunOutcome.Failed;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
 import ee.tuleva.onboarding.savings.fund.nav.NavAccountLine;
@@ -60,10 +62,10 @@ public class OcfCalculationService {
   private final OcfNotifier ocfNotifier;
 
   public OcfSnapshot calculateOcf(TulevaFund fund, YearMonth month) {
-    return computeSnapshot(fund, month).snapshot();
+    return compute(fund, month).snapshot();
   }
 
-  private ComputedOcf computeSnapshot(TulevaFund fund, YearMonth month) {
+  private Computed compute(TulevaFund fund, YearMonth month) {
     var monthEnd = month.atEndOfMonth();
 
     var mgmt = getManagementFee(fund, monthEnd);
@@ -103,7 +105,7 @@ public class OcfCalculationService {
         gaps.isEmpty(),
         gaps);
 
-    return new ComputedOcf(snapshot, gaps);
+    return new Computed(fund, month, snapshot, gaps);
   }
 
   public void calculateForAllFunds(YearMonth month) {
@@ -126,11 +128,10 @@ public class OcfCalculationService {
 
   private OcfRunOutcome computeFund(TulevaFund fund, YearMonth month) {
     try {
-      var computed = computeSnapshot(fund, month);
-      return OcfRunOutcome.computed(fund, month, computed.snapshot(), computed.gaps());
+      return compute(fund, month);
     } catch (Exception e) {
       log.error("OCF calculation failed: fund={}, month={}", fund.getCode(), month, e);
-      return OcfRunOutcome.failed(fund, month, reasonOf(e));
+      return new Failed(fund, month, reasonOf(e));
     }
   }
 
@@ -366,8 +367,6 @@ public class OcfCalculationService {
           firstNavDate);
     }
   }
-
-  private record ComputedOcf(OcfSnapshot snapshot, List<OcfGap> gaps) {}
 
   record ManagementFee(BigDecimal rate, @Nullable Long rateId) {}
 

@@ -16,6 +16,7 @@ import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.investment.fees.*;
 import ee.tuleva.onboarding.investment.fees.FeeChargedToFundPolicy;
+import ee.tuleva.onboarding.investment.fees.ocf.OcfRunOutcome.Failed;
 import ee.tuleva.onboarding.investment.transaction.TransactionExecutionRepository;
 import ee.tuleva.onboarding.savings.FundNavQueryService;
 import ee.tuleva.onboarding.savings.fund.nav.NavAccountLine;
@@ -608,7 +609,7 @@ class OcfCalculationServiceTest {
   }
 
   private static List<TulevaFund> failedFunds(List<OcfRunOutcome> outcomes) {
-    return outcomes.stream().filter(OcfRunOutcome::failed).map(OcfRunOutcome::fund).toList();
+    return outcomes.stream().filter(Failed.class::isInstance).map(OcfRunOutcome::fund).toList();
   }
 
   @Test

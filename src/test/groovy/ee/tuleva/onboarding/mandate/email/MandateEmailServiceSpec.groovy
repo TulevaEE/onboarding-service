@@ -11,6 +11,7 @@ import ee.tuleva.onboarding.deadline.MandateDeadlinesService
 import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.notification.email.EmailPersistenceService
 import ee.tuleva.onboarding.notification.email.EmailService
+import ee.tuleva.onboarding.notification.email.SecondPillarLetterScheduler
 import ee.tuleva.onboarding.paymentrate.PaymentRates
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService
 import spock.lang.Specification
@@ -48,6 +49,7 @@ class MandateEmailServiceSpec extends Specification {
   MandateDeadlinesService mandateDeadlinesService = Mock()
   SecondPillarPaymentRateService secondPillarPaymentRateService = Mock()
   AuthenticationHolder authenticationHolder = Mock()
+  SecondPillarLetterScheduler secondPillarLetter = Mock()
   def now = Instant.parse("2021-09-01T10:06:01Z")
 
   MandateEmailService mandateEmailService = new MandateEmailService(emailService,
@@ -56,7 +58,8 @@ class MandateEmailServiceSpec extends Specification {
       fundRepository,
       mandateDeadlinesService,
       secondPillarPaymentRateService,
-      authenticationHolder)
+      authenticationHolder,
+      secondPillarLetter)
 
   def "Send second pillar mandate email"() {
     given:
@@ -170,32 +173,6 @@ class MandateEmailServiceSpec extends Specification {
     1 * emailPersistenceService.saveWithMandate(user, mandrillResponse.id, THIRD_PILLAR_PAYMENT_REMINDER_MANDATE, mandrillResponse.status, mandate.id)
   }
 
-  def "schedule third pillar suggest second pillar email"() {
-    given:
-    def user = sampleUser().build()
-    def mandate = thirdPillarMandate()
-    def message = new MandrillMessage()
-    def mergeVars = [fname: user.firstName, lname: user.lastName]
-    def tags = ["pillar_3.1", "suggest_2"]
-    def locale = Locale.ENGLISH
-    def sendAt = now.plus(3, DAYS)
-    def mandrillResponse = new MandrillMessageStatus().tap {
-      _id = "123"
-      status = "sent"
-    }
-
-    emailPersistenceService.hasEmailsForMandate(mandate.id) >> false
-
-
-    when:
-    mandateEmailService.scheduleThirdPillarSuggestSecondEmail(user, mandate, locale)
-
-    then:
-    1 * emailService.newMandrillMessage(user.email, "third_pillar_suggest_second_en", mergeVars, tags) >> message
-    1 * emailService.send(user, message, "third_pillar_suggest_second_en", sendAt) >> Optional.of(mandrillResponse)
-    1 * emailPersistenceService.save(user, mandrillResponse.id, THIRD_PILLAR_SUGGEST_SECOND, mandrillResponse.status)
-  }
-
   def "Send third pillar suggest second pillar email"() {
     given:
     def user = sampleUser().build()
@@ -204,15 +181,10 @@ class MandateEmailServiceSpec extends Specification {
 
     def mandate = thirdPillarMandate()
     def paymentReminder = new MandrillMessage()
-    def suggestSecond = new MandrillMessage()
     def locale = Locale.ENGLISH
     def mergeVars = [fname: user.firstName, lname: user.lastName]
     def mandrillResponse1 = new MandrillMessageStatus().tap {
       _id = "123"
-      status = "sent"
-    }
-    def mandrillResponse2 = new MandrillMessageStatus().tap {
-      _id = "234"
       status = "sent"
     }
     def reminderMergeVars = mergeVars + [hasFundTransfer: true]
@@ -226,9 +198,7 @@ class MandateEmailServiceSpec extends Specification {
     mandateEmailService.sendMandate(user, mandate, decision, locale)
 
     then:
-    callCount * emailService.newMandrillMessage(user.email, "third_pillar_suggest_second_en", mergeVars, ["pillar_3.1", "suggest_2"]) >> suggestSecond
-    callCount * emailService.send(user, suggestSecond, "third_pillar_suggest_second_en", now.plus(3, DAYS)) >> Optional.of(mandrillResponse2)
-    callCount * emailPersistenceService.save(user, mandrillResponse2.id, THIRD_PILLAR_SUGGEST_SECOND, mandrillResponse2.status)
+    callCount * secondPillarLetter.schedule(user, locale, SecondPillarLetterScheduler.Trigger.MANDATE)
 
     where:
     suggestPillar | callCount
@@ -236,7 +206,7 @@ class MandateEmailServiceSpec extends Specification {
     false         | 0
   }
 
-  def "Sends two third pillar emails"() {
+  def "sends the payment reminder itself and hands the second pillar letter to its scheduler"() {
     given:
     def user = sampleUser().build()
     def decision = NudgeDecision.of(SECOND_PILLAR_TRANSFER)
@@ -253,7 +223,8 @@ class MandateEmailServiceSpec extends Specification {
     mandateEmailService.sendMandate(user, mandate, decision, Locale.ENGLISH)
 
     then:
-    2 * emailService.send(*_) >> Optional.of(mandrillResponse)
+    1 * emailService.send(*_) >> Optional.of(mandrillResponse)
+    1 * secondPillarLetter.schedule(user, Locale.ENGLISH, SecondPillarLetterScheduler.Trigger.MANDATE)
   }
 
   def "Send second pillar payment rate mandate email"() {

@@ -1,5 +1,9 @@
 {
   "variants": {
+    "II samba avamise soovitus": {
+      "FNAME": "Mari",
+      "suggestSecondPillarStart": true
+    },
     "II samba soovitus": {
       "FNAME": "Mari",
       "suggestSecondPillar": true

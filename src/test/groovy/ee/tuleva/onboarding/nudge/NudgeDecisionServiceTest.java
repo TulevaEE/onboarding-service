@@ -16,6 +16,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.auth.SecurityContextRunner;
+import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.conversion.PendingMandateApplications;
 import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
@@ -135,7 +136,9 @@ class NudgeDecisionServiceTest {
 
   @Test
   void theOfflineDecisionNeverMintsASecurityContextOrTouchesEpisBackedInputs() {
-    given(offlineInputs.assemble(member, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
+    given(
+            offlineInputs.assemble(
+                OfflineSaver.of(member), NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
         .willReturn(NudgeInputsFixture.everythingSorted().member(false).build());
 
     assertThat(service.decideOffline(member, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
@@ -182,12 +185,33 @@ class NudgeDecisionServiceTest {
   }
 
   @Test
+  void decidesForARegistryOnlyPersonWithoutAnAccountFromTheRegistryAlone() {
+    PersonImpl person =
+        PersonImpl.builder()
+            .personalCode("38801010004")
+            .firstName("Registry")
+            .lastName("Person")
+            .build();
+    given(
+            offlineInputs.assemble(
+                OfflineSaver.registryOnly(person), NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
+        .willReturn(
+            NudgeInputsFixture.everythingSorted()
+                .secondPillarPartiallyConverted(false)
+                .secondPillarFullyConverted(false)
+                .build());
+
+    assertThat(service.decideForRegistryOnly(person, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
+        .isEqualTo(NudgeDecision.secondPillarTransfer(null));
+  }
+
+  @Test
   void aCompanyPayerGoesThroughTheSameChainAsEveryoneElse() {
     given(recurringStatus.savingsFund(company)).willReturn(true);
     given(pillarStatus.of(member)).willReturn(new PillarActivity(false, false));
 
     assertThat(service.decide(member, company, SAVINGS_FUND_PAYMENT))
-        .isEqualTo(NudgeDecision.secondPillarTransfer(null));
+        .isEqualTo(NudgeDecision.of(NudgeKey.SECOND_PILLAR_START));
   }
 
   @Test
@@ -201,7 +225,7 @@ class NudgeDecisionServiceTest {
   @Test
   void savingThroughAChildCountsAsSavingSoTheSavingsFundIsNotSuggested() {
     given(saverStatus.savesFor(self)).willReturn(false);
-    given(actingParties.representedBy(member)).willReturn(List.of(child));
+    given(actingParties.representedBy(member.getPersonalCode())).willReturn(List.of(child));
     given(saverStatus.savesFor(child)).willReturn(true);
 
     assertThat(service.decide(member, THIRD_PILLAR_PAYMENT))

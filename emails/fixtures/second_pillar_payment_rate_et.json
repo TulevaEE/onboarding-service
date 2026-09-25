@@ -1,5 +1,12 @@
 {
   "variants": {
+    "II samba avamise soovitus": {
+      "FNAME": "Jaan",
+      "increased": false,
+      "paymentRateFulfillmentDate": "01.01.2027",
+      "newPaymentRate": "2",
+      "suggestSecondPillarStart": true
+    },
     "II samba soovitus": {
       "FNAME": "Jaan",
       "increased": false,

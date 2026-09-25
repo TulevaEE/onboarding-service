@@ -2,10 +2,12 @@ package ee.tuleva.onboarding.notification.email.firstpayment;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.notification.email.EmailType.THIRD_PILLAR_PAYMENT_ARRIVED;
+import static ee.tuleva.onboarding.notification.email.SecondPillarLetterScheduler.Trigger.PAYMENT_ARRIVED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
@@ -13,6 +15,7 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
 import ee.tuleva.onboarding.notification.email.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.notification.email.SecondPillarLetterScheduler;
 import ee.tuleva.onboarding.nudge.NudgeContext;
 import ee.tuleva.onboarding.nudge.NudgeDecision;
 import ee.tuleva.onboarding.nudge.NudgeDecisionService;
@@ -41,11 +44,18 @@ class ThirdPillarPaymentArrivedEmailServiceTest {
       mock(EmailPersistenceService.class);
   private final UserService userService = mock(UserService.class);
   private final NudgeDecisionService nudgeDecisionService = mock(NudgeDecisionService.class);
+  private final SecondPillarLetterScheduler secondPillarLetter =
+      mock(SecondPillarLetterScheduler.class);
   private final User user = sampleUser().personalCode(PERSONAL_CODE).build();
 
   private final ThirdPillarPaymentArrivedEmailService service =
       new ThirdPillarPaymentArrivedEmailService(
-          claims, emailService, emailPersistenceService, userService, nudgeDecisionService);
+          claims,
+          emailService,
+          emailPersistenceService,
+          userService,
+          nudgeDecisionService,
+          secondPillarLetter);
 
   @BeforeEach
   void setUp() {
@@ -141,6 +151,67 @@ class ThirdPillarPaymentArrivedEmailServiceTest {
             baseMergeVars(false),
             List.of("third_pillar_payment_arrived", "nudge_log_in"));
     verifyNoInteractions(nudgeDecisionService);
+  }
+
+  private void acceptedByMandrill() {
+    var response = mock(MandrillMessageStatus.class);
+    given(response.getId()).willReturn("mandrill-id");
+    given(response.getStatus()).willReturn("sent");
+    given(emailService.send(any(), any(), any())).willReturn(Optional.of(response));
+  }
+
+  @Test
+  void handsARegistryOnlyPayerWhoseSecondPillarIsElsewhereToTheLetterScheduler() {
+    acceptedByMandrill();
+    var payment = payment(false);
+    given(
+            nudgeDecisionService.decideForRegistryOnly(
+                payment, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
+        .willReturn(NudgeDecision.secondPillarTransfer(null));
+
+    assertThat(service.send(payment)).isTrue();
+
+    verify(secondPillarLetter).schedule(payment, Locale.of("et"), PAYMENT_ARRIVED);
+  }
+
+  @Test
+  void doesNotScheduleTheSecondPillarLetterForARegistryOnlyPayerWhoHasNoSecondPillar() {
+    acceptedByMandrill();
+    var payment = payment(false);
+    given(
+            nudgeDecisionService.decideForRegistryOnly(
+                payment, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
+        .willReturn(NudgeDecision.of(NudgeKey.SECOND_PILLAR_START));
+
+    service.send(payment);
+
+    verifyNoInteractions(secondPillarLetter);
+  }
+
+  @Test
+  void leavesTheSecondPillarLetterToTheMandateFlowForAnAccountHolder() {
+    acceptedByMandrill();
+    given(nudgeDecisionService.decideOffline(user, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
+        .willReturn(NudgeDecision.of(NudgeKey.NONE));
+
+    service.send(payment(true));
+
+    verify(nudgeDecisionService, never()).decideForRegistryOnly(any(), any());
+    verifyNoInteractions(secondPillarLetter);
+  }
+
+  @Test
+  void stillReportsTheArrivedEmailAsSentWhenTheLetterDecisionFails() {
+    acceptedByMandrill();
+    var payment = payment(false);
+    given(
+            nudgeDecisionService.decideForRegistryOnly(
+                payment, NudgeContext.THIRD_PILLAR_PAYMENT_ARRIVED))
+        .willThrow(new IllegalStateException("registry unavailable"));
+
+    assertThat(service.send(payment)).isTrue();
+    verify(emailPersistenceService)
+        .save(payment, "mandrill-id", THIRD_PILLAR_PAYMENT_ARRIVED, "sent", "nudge_log_in");
   }
 
   @Test

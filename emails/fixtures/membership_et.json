@@ -1,5 +1,12 @@
 {
   "variants": {
+    "II samba avamise soovitus": {
+      "FNAME": "Mari",
+      "LNAME": "Maasikas",
+      "memberNumber": "482",
+      "memberDate": "12.08.2026",
+      "suggestSecondPillarStart": true
+    },
     "II samba soovitus": {
       "FNAME": "Mari",
       "LNAME": "Maasikas",

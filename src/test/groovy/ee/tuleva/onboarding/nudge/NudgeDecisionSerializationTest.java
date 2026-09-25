@@ -23,6 +23,7 @@ class NudgeDecisionSerializationTest {
 
   private static List<NudgeDecision> everyDecisionShape() {
     var decisions = new ArrayList<NudgeDecision>();
+    decisions.add(NudgeDecision.of(NudgeKey.SECOND_PILLAR_START));
     decisions.add(
         NudgeDecision.secondPillarTransfer(new FeeComparison(new BigDecimal("0.65"), 130, 56, 74)));
     decisions.add(NudgeDecision.secondPillarTransfer(null));
@@ -84,6 +85,7 @@ class NudgeDecisionSerializationTest {
         NudgeDecision.of(NudgeKey.THIRD_PILLAR_RECURRING).mergeVars(Locale.ENGLISH);
 
     assertThat(vars)
+        .containsEntry("suggestSecondPillarStart", false)
         .containsEntry("suggestSecondPillar", false)
         .containsEntry("suggestPaymentRate", false)
         .containsEntry("suggestThirdPillar", false)

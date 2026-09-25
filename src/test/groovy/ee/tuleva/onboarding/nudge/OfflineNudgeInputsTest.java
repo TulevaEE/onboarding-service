@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 
+import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.user.User;
@@ -67,7 +68,7 @@ class OfflineNudgeInputsTest {
         .willReturn(Optional.of(new PensionRegistrySnapshot(true, true, false, true, true)));
     given(recurringStatus.thirdPillar(user.getPersonalCode())).willReturn(false);
 
-    NudgeInputs inputs = offlineInputs.assemble(user, MEMBERSHIP);
+    NudgeInputs inputs = offlineInputs.assemble(OfflineSaver.of(user), MEMBERSHIP);
 
     assertThat(inputs.secondPillarActive()).isTrue();
     assertThat(inputs.secondPillarPartiallyConverted()).isTrue();
@@ -83,10 +84,10 @@ class OfflineNudgeInputsTest {
   }
 
   @Test
-  void aPersonMissingFromTheRegistryHasNoSecondPillarAndNoThirdPillar() {
+  void aPersonMissingFromTheRegistryHasNoPensionAccountAndCanStillBeInvitedToOpenASecondPillar() {
     given(pensionRegistry.snapshotFor(user.getPersonalCode())).willReturn(Optional.empty());
 
-    NudgeInputs inputs = offlineInputs.assemble(user, MEMBERSHIP);
+    NudgeInputs inputs = offlineInputs.assemble(OfflineSaver.of(user), MEMBERSHIP);
 
     assertThat(inputs.secondPillarActive()).isFalse();
     assertThat(inputs.thirdPillarActive()).isFalse();
@@ -95,11 +96,40 @@ class OfflineNudgeInputsTest {
   }
 
   @Test
+  void aRegistryOnlyPersonIsNeverAMemberAndIsAgedFromThePersonalCode() {
+    given(pensionRegistry.snapshotFor(any()))
+        .willReturn(Optional.of(new PensionRegistrySnapshot(true, false, false, true, true)));
+    given(recurringStatus.thirdPillar(any())).willReturn(true);
+
+    NudgeInputs adult =
+        offlineInputs.assemble(
+            OfflineSaver.registryOnly(registryPerson("38801010004")), MEMBERSHIP);
+    NudgeInputs pensioner =
+        offlineInputs.assemble(
+            OfflineSaver.registryOnly(registryPerson("35501010000")), MEMBERSHIP);
+
+    assertThat(adult.member()).isFalse();
+    assertThat(adult.adult()).isTrue();
+    assertThat(adult.reachedRetirementAge()).isFalse();
+    assertThat(adult.secondPillarActive()).isTrue();
+    assertThat(pensioner.reachedRetirementAge()).isTrue();
+  }
+
+  private static PersonImpl registryPerson(String personalCode) {
+    return PersonImpl.builder()
+        .personalCode(personalCode)
+        .firstName("Registry")
+        .lastName("Person")
+        .build();
+  }
+
+  @Test
   void aThirdPillarContextImpliesAThirdPillarEvenBeforeTheRegistryCatchesUp() {
     given(pensionRegistry.snapshotFor(user.getPersonalCode())).willReturn(Optional.empty());
     given(recurringStatus.thirdPillar(user.getPersonalCode())).willReturn(false);
 
-    NudgeInputs inputs = offlineInputs.assemble(user, THIRD_PILLAR_PAYMENT_ARRIVED);
+    NudgeInputs inputs =
+        offlineInputs.assemble(OfflineSaver.of(user), THIRD_PILLAR_PAYMENT_ARRIVED);
 
     assertThat(inputs.thirdPillarActive()).isTrue();
     assertThat(inputs.thirdPillarRecurring()).isEqualTo(Known.NO);
@@ -110,7 +140,7 @@ class OfflineNudgeInputsTest {
     given(pensionRegistry.snapshotFor(user.getPersonalCode()))
         .willReturn(Optional.of(new PensionRegistrySnapshot(false, false, true, false, false)));
 
-    NudgeInputs inputs = offlineInputs.assemble(user, MEMBERSHIP);
+    NudgeInputs inputs = offlineInputs.assemble(OfflineSaver.of(user), MEMBERSHIP);
 
     assertThat(inputs.leftSecondPillar()).isEqualTo(Known.YES);
     assertThat(inputs.secondPillarActive()).isFalse();
@@ -121,13 +151,19 @@ class OfflineNudgeInputsTest {
     given(pensionRegistry.snapshotFor(user.getPersonalCode()))
         .willReturn(Optional.of(new PensionRegistrySnapshot(true, true, false, true, true)));
 
-    assertThat(offlineInputsOn("2026-11-10").assemble(user, MEMBERSHIP).paymentRateSeason())
+    assertThat(
+            offlineInputsOn("2026-11-10")
+                .assemble(OfflineSaver.of(user), MEMBERSHIP)
+                .paymentRateSeason())
         .isEqualTo(
             new PaymentRateSeason(
                 LocalDate.of(2026, 11, 30),
                 LocalDate.of(2027, 1, 1),
                 PaymentRateSeason.Mode.SEASON));
-    assertThat(offlineInputsOn("2026-12-10").assemble(user, MEMBERSHIP).paymentRateSeason())
+    assertThat(
+            offlineInputsOn("2026-12-10")
+                .assemble(OfflineSaver.of(user), MEMBERSHIP)
+                .paymentRateSeason())
         .isEqualTo(
             new PaymentRateSeason(
                 LocalDate.of(2027, 11, 30),

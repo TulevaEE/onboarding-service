@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.analytics.AnalyticsThirdPillarTransactionFixt
 import static ee.tuleva.onboarding.notification.email.EmailType.THIRD_PILLAR_PAYMENT_ARRIVED;
 import static ee.tuleva.onboarding.notification.email.EmailType.THIRD_PILLAR_PAYMENT_REMINDER_MANDATE;
 import static ee.tuleva.onboarding.notification.email.EmailType.THIRD_PILLAR_PAYMENT_SUCCESS_MANDATE;
+import static ee.tuleva.onboarding.notification.email.EmailType.THIRD_PILLAR_SUGGEST_SECOND;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -79,12 +80,16 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
   void stubMandrill() {
     given(nudgeDecisionService.decideOffline(any(User.class), any(NudgeContext.class)))
         .willReturn(NudgeDecision.of(NudgeKey.SECOND_PILLAR_TRANSFER));
+    given(nudgeDecisionService.decideForRegistryOnly(any(Person.class), any(NudgeContext.class)))
+        .willReturn(NudgeDecision.of(NudgeKey.SECOND_PILLAR_START));
     given(emailService.newMandrillMessage(any(), any(), any(), any()))
         .willReturn(new MandrillMessage());
     var response = org.mockito.Mockito.mock(MandrillMessageStatus.class);
     given(response.getId()).willReturn("mandrill-id");
     given(response.getStatus()).willReturn("sent");
     given(emailService.send(any(Person.class), any(), any())).willReturn(Optional.of(response));
+    given(emailService.send(any(Person.class), any(), any(), any(Instant.class)))
+        .willReturn(Optional.of(response));
   }
 
   @AfterEach
@@ -198,6 +203,70 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
             argThat((Person person) -> REGISTRY_ONLY.equals(person.getPersonalCode())),
             any(),
             eq("third_pillar_payment_arrived_en"));
+  }
+
+  @Test
+  void schedulesTheSecondPillarLetterForARegistryOnlyPayerWhoseSecondPillarIsElsewhere() {
+    given(nudgeDecisionService.decideForRegistryOnly(any(Person.class), any(NudgeContext.class)))
+        .willReturn(NudgeDecision.secondPillarTransfer(null));
+    saveUnitOwner(REGISTRY_ONLY, "registry.only@example.com", "EST", "LXK75");
+    saveOwnPayment(REGISTRY_ONLY, LocalDate.now().minusDays(1), new BigDecimal("100.00"));
+
+    job.run();
+    job.run();
+
+    verify(emailService, times(1))
+        .newMandrillMessage(
+            eq("registry.only@example.com"), eq("third_pillar_suggest_second_et"), any(), any());
+    verify(emailService, times(1))
+        .send(
+            argThat((Person person) -> REGISTRY_ONLY.equals(person.getPersonalCode())),
+            any(),
+            eq("third_pillar_suggest_second_et"),
+            any(Instant.class));
+    assertThat(letterNudges()).containsExactly("nudge_second_pillar");
+  }
+
+  @Test
+  void doesNotScheduleTheSecondPillarLetterForARegistryOnlyPayerWithNoSecondPillar() {
+    saveUnitOwner(REGISTRY_ONLY, builder -> builder.email("no.second.pillar@example.com"));
+    saveOwnPayment(REGISTRY_ONLY, LocalDate.now().minusDays(1), new BigDecimal("100.00"));
+
+    job.run();
+
+    verify(emailService, times(1))
+        .newMandrillMessage(
+            eq("no.second.pillar@example.com"),
+            eq("third_pillar_payment_arrived_et"),
+            any(),
+            any());
+    verify(emailService, never()).send(any(Person.class), any(), any(), any(Instant.class));
+    assertThat(letterNudges()).isEmpty();
+  }
+
+  @Test
+  void doesNotScheduleTheSecondPillarLetterAgainForSomeoneWhoAlreadyHasOne() {
+    given(nudgeDecisionService.decideForRegistryOnly(any(Person.class), any(NudgeContext.class)))
+        .willReturn(NudgeDecision.secondPillarTransfer(null));
+    emailPersistenceService.save(
+        registryPerson(REGISTRY_ONLY), THIRD_PILLAR_SUGGEST_SECOND, EmailStatus.SCHEDULED);
+    saveUnitOwner(REGISTRY_ONLY, "registry.only@example.com", "EST", "LXK75");
+    saveOwnPayment(REGISTRY_ONLY, LocalDate.now().minusDays(1), new BigDecimal("100.00"));
+
+    job.run();
+
+    verify(emailService, never()).send(any(Person.class), any(), any(), any(Instant.class));
+  }
+
+  @Test
+  void leavesTheSecondPillarLetterToTheMandateFlowForAnAccountHolder() {
+    saveUser(ACCOUNT_HOLDER, "account.holder@example.com");
+    saveOwnPayment(ACCOUNT_HOLDER, LocalDate.now().minusDays(1), new BigDecimal("300.00"));
+
+    job.run();
+
+    verify(nudgeDecisionService, never()).decideForRegistryOnly(any(), any());
+    verify(emailService, never()).send(any(Person.class), any(), any(), any(Instant.class));
   }
 
   @Test
@@ -367,6 +436,22 @@ class ThirdPillarPaymentArrivedEmailIntegrationTest {
                     .firstName("Registry")
                     .lastName("Person"))
             .build());
+  }
+
+  private static Person registryPerson(String personalCode) {
+    return ee.tuleva.onboarding.auth.principal.PersonImpl.builder()
+        .personalCode(personalCode)
+        .firstName("Registry")
+        .lastName("Person")
+        .build();
+  }
+
+  private java.util.List<String> letterNudges() {
+    return jdbcClient
+        .sql("SELECT nudge FROM email WHERE type = :type")
+        .param("type", THIRD_PILLAR_SUGGEST_SECOND.name())
+        .query(String.class)
+        .list();
   }
 
   private int sentEmailCount() {

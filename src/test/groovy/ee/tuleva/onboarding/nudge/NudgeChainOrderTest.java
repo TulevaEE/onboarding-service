@@ -30,6 +30,7 @@ class NudgeChainOrderTest {
 
     assertThat(branches)
         .containsExactly(
+            "suggestSecondPillarStart",
             "suggestSecondPillar",
             "suggestPaymentRate",
             "suggestThirdPillar",

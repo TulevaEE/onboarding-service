@@ -1,0 +1,9 @@
+<mj-text>
+  Next, it is smart to open a second pillar. On top of your 2% of salary the state adds 4% from
+  social tax, two euros for every euro of yours, and the contributions are free of income tax.
+  Tuleva's second pillar fund is a low-fee index fund.
+</mj-text>
+<mj-text><strong>Opening a second pillar takes a couple of minutes in the Tuleva web app:</strong></mj-text>
+<mj-button href="https://pension.tuleva.ee/2nd-pillar-flow?language=en&utm_content=nudge_second_pillar_start">
+  Open a second pillar
+</mj-button>

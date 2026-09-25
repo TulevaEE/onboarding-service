@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.investment.instrument;
 
 import static ee.tuleva.onboarding.investment.position.AccountType.SECURITY;
 import static java.math.BigDecimal.ZERO;
+import static java.util.Comparator.naturalOrder;
 import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.instrument.InstrumentReference;
@@ -25,7 +26,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class InstrumentRetirementCandidateFinder {
 
-  private static final int NAV_DATES_OFF_THE_BOOKS_BEFORE_RETIRING = 5;
+  private static final int NAV_DATES_NEITHER_HELD_NOR_MODELLED_BEFORE_RETIRING = 5;
 
   private final InstrumentReferenceService instrumentReferenceService;
   private final ModelPortfolioAllocationRepository allocationRepository;
@@ -34,7 +35,16 @@ class InstrumentRetirementCandidateFinder {
   private final Clock clock;
 
   record RetirementCandidate(
-      String isin, String displayName, LocalDate offTheBooksSince, long navDatesOffTheBooks) {}
+      String isin,
+      String displayName,
+      LocalDate retirementClockStartedOn,
+      long navDatesSinceClockStarted) {
+
+    String describe() {
+      return "%s %s — neither held nor in a model after %s, %d NAV dates since"
+          .formatted(isin, displayName, retirementClockStartedOn, navDatesSinceClockStarted);
+    }
+  }
 
   List<RetirementCandidate> findCandidates() {
     var today = LocalDate.now(clock);
@@ -49,7 +59,9 @@ class InstrumentRetirementCandidateFinder {
         .map(this::toCandidateUnlessAwaitingItsFirstModel)
         .flatMap(Optional::stream)
         .filter(
-            candidate -> candidate.navDatesOffTheBooks() >= NAV_DATES_OFF_THE_BOOKS_BEFORE_RETIRING)
+            candidate ->
+                candidate.navDatesSinceClockStarted()
+                    >= NAV_DATES_NEITHER_HELD_NOR_MODELLED_BEFORE_RETIRING)
         .toList();
   }
 
@@ -62,47 +74,69 @@ class InstrumentRetirementCandidateFinder {
 
   private Optional<RetirementCandidate> toCandidateUnlessAwaitingItsFirstModel(
       InstrumentReference instrument) {
-    return allocationRepository
-        .findLatestEffectiveDateByIsin(instrument.getIsin())
-        .map(lastInModelOn -> toCandidate(instrument, lastInModelOn));
+    var fundsWhoseModelNamedIt =
+        allocationRepository.findFundsWhoseModelNamed(instrument.getIsin()).stream()
+            .filter(TulevaFund::hasNavCalculation)
+            .toList();
+    if (fundsWhoseModelNamedIt.isEmpty()) {
+      return Optional.empty();
+    }
+    return Optional.of(toCandidate(instrument, fundsWhoseModelNamedIt));
   }
 
-  private RetirementCandidate toCandidate(InstrumentReference instrument, LocalDate lastInModelOn) {
-    var offTheBooksSince = offTheBooksSince(instrument.getIsin(), lastInModelOn);
+  private RetirementCandidate toCandidate(
+      InstrumentReference instrument, List<TulevaFund> fundsWhoseModelNamedIt) {
+    var isin = instrument.getIsin();
+    var clockStartedOn = retirementClockStartedOn(isin, fundsWhoseModelNamedIt);
     return new RetirementCandidate(
-        instrument.getIsin(),
+        isin,
         instrument.getDisplayName(),
-        offTheBooksSince,
-        navDatesOffTheBooks(instrument.getIsin(), offTheBooksSince));
+        clockStartedOn,
+        navDatesSinceClockStarted(isin, clockStartedOn));
   }
 
-  private long navDatesOffTheBooks(String isin, LocalDate offTheBooksSince) {
+  private LocalDate retirementClockStartedOn(String isin, List<TulevaFund> fundsWhoseModelNamedIt) {
+    var droppedFromTheLastModelOn =
+        fundsWhoseModelNamedIt.stream()
+            .map(fund -> droppedFromModelOn(fund, isin))
+            .max(naturalOrder())
+            .orElseThrow();
+    return fundPositionRepository
+        .findLatestNavDateHeld(isin, SECURITY)
+        .filter(lastHeldOn -> lastHeldOn.isAfter(droppedFromTheLastModelOn))
+        .orElse(droppedFromTheLastModelOn);
+  }
+
+  private LocalDate droppedFromModelOn(TulevaFund fund, String isin) {
+    return allocationRepository
+        .findEffectiveDateOfFirstVersionWithout(fund, isin)
+        .orElseThrow(
+            () ->
+                new IllegalStateException(
+                    "Latest model portfolio version still names the instrument: fund=%s, isin=%s"
+                        .formatted(fund, isin)));
+  }
+
+  private long navDatesSinceClockStarted(String isin, LocalDate clockStartedOn) {
     var fundsThatHeldIt = fundPositionRepository.findFundsThatHeld(isin, SECURITY);
     if (fundsThatHeldIt.isEmpty()) {
-      return navDatesAnyFundHasReportedSince(offTheBooksSince);
+      return navDatesAnyFundHasReportedSince(clockStartedOn);
     }
     return fundsThatHeldIt.stream()
-        .mapToLong(fund -> navDatesReportedSince(fund, offTheBooksSince))
+        .mapToLong(fund -> navDatesReportedSince(fund, clockStartedOn))
         .min()
         .orElse(0);
   }
 
-  private long navDatesAnyFundHasReportedSince(LocalDate offTheBooksSince) {
+  private long navDatesAnyFundHasReportedSince(LocalDate clockStartedOn) {
     return navCalculatingFunds()
-        .mapToLong(fund -> navDatesReportedSince(fund, offTheBooksSince))
+        .mapToLong(fund -> navDatesReportedSince(fund, clockStartedOn))
         .max()
         .orElse(0);
   }
 
-  private long navDatesReportedSince(TulevaFund fund, LocalDate offTheBooksSince) {
-    return fundPositionRepository.countNavDatesReportingAfter(fund, SECURITY, offTheBooksSince);
-  }
-
-  private LocalDate offTheBooksSince(String isin, LocalDate lastInModelOn) {
-    return fundPositionRepository
-        .findLatestNavDateHeld(isin, SECURITY)
-        .filter(lastHeldOn -> lastHeldOn.isAfter(lastInModelOn))
-        .orElse(lastInModelOn);
+  private long navDatesReportedSince(TulevaFund fund, LocalDate clockStartedOn) {
+    return fundPositionRepository.countNavDatesReportingAfter(fund, SECURITY, clockStartedOn);
   }
 
   private Set<String> liveAndUpcomingModelIsins(LocalDate today) {

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.aml;
 
 public enum ScreeningOutcome {
   CLEAR,
-  MATCH,
+  PEP_HIT,
+  SANCTION_HIT,
   UNAVAILABLE
 }

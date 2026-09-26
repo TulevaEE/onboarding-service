@@ -18,16 +18,17 @@ public class RedemptionStatusService {
 
   private static final Set<StatusTransition> ALLOWED_TRANSITIONS =
       Set.of(
-          new StatusTransition(RESERVED, IN_REVIEW),
+          new StatusTransition(RESERVED, FROZEN),
           new StatusTransition(RESERVED, VERIFIED),
           new StatusTransition(RESERVED, CANCELLED),
           new StatusTransition(RESERVED, FAILED),
-          new StatusTransition(IN_REVIEW, VERIFIED),
-          new StatusTransition(IN_REVIEW, CANCELLED),
-          new StatusTransition(IN_REVIEW, FAILED),
+          new StatusTransition(FROZEN, VERIFIED),
+          new StatusTransition(VERIFIED, PAYOUT_HELD),
           new StatusTransition(VERIFIED, CANCELLED),
           new StatusTransition(VERIFIED, REDEEMED),
           new StatusTransition(VERIFIED, FAILED),
+          new StatusTransition(PAYOUT_HELD, REDEEMED),
+          new StatusTransition(PAYOUT_HELD, FAILED),
           new StatusTransition(REDEEMED, PROCESSED),
           new StatusTransition(REDEEMED, FAILED),
           new StatusTransition(FAILED, REDEEMED));
@@ -36,17 +37,22 @@ public class RedemptionStatusService {
 
   @Transactional
   public void changeStatus(UUID id, Status newStatus) {
-    RedemptionRequest request = lockedRequest(id);
-    transition(request, newStatus);
-    repository.save(request);
+    transition(lockedRequest(id), newStatus);
   }
 
   @Transactional
-  public void holdForReview(UUID id, RedemptionHoldReason reason) {
+  public void changeStatus(UUID id, Status expectedCurrentStatus, Status newStatus) {
     RedemptionRequest request = lockedRequest(id);
-    transition(request, IN_REVIEW);
-    request.setHoldReason(reason);
-    repository.save(request);
+    if (request.getStatus() != expectedCurrentStatus) {
+      throw new IllegalStateException(
+          "Redemption is no longer "
+              + expectedCurrentStatus
+              + ": id="
+              + id
+              + ", status="
+              + request.getStatus());
+    }
+    transition(request, newStatus);
   }
 
   private RedemptionRequest lockedRequest(UUID id) {
@@ -73,6 +79,7 @@ public class RedemptionStatusService {
     if (newStatus == CANCELLED) {
       request.setCancelledAt(clock().instant());
     }
+    repository.save(request);
   }
 
   private record StatusTransition(Status from, Status to) {}

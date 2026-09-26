@@ -4,7 +4,8 @@ import static ee.tuleva.onboarding.notification.OperationsNotificationService.Ch
 import static ee.tuleva.onboarding.notification.OperationsNotificationService.Severity.ERROR;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionCutoff.TALLINN;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.FAILED;
-import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.IN_REVIEW;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.FROZEN;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.PAYOUT_HELD;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.REDEEMED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
@@ -36,7 +37,7 @@ public class OverdueRedemptionAlertJob {
   private static final DateTimeFormatter MINUTE = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
   private static final Duration VERIFICATION_GRACE = Duration.ofMinutes(15);
   private static final List<RedemptionRequest.Status> OPEN_STATUSES =
-      List.of(RESERVED, IN_REVIEW, VERIFIED, REDEEMED, FAILED);
+      List.of(RESERVED, FROZEN, VERIFIED, PAYOUT_HELD, REDEEMED, FAILED);
 
   private final Clock clock;
   private final PublicHolidays publicHolidays;
@@ -75,8 +76,8 @@ public class OverdueRedemptionAlertJob {
   private boolean isOverdue(RedemptionRequest request, Instant now) {
     return switch (request.getStatus()) {
       case RESERVED -> now.isAfter(request.getRequestedAt().plus(VERIFICATION_GRACE));
-      case IN_REVIEW -> !now.isBefore(deadlinesService.getScreeningRetryDeadline(request));
-      case VERIFIED -> now.isAfter(deadlinesService.getFulfillmentDeadline(request));
+      case FROZEN -> !now.isBefore(deadlinesService.getScreeningRetryDeadline(request));
+      case VERIFIED, PAYOUT_HELD -> now.isAfter(deadlinesService.getFulfillmentDeadline(request));
       case REDEEMED -> now.isAfter(settlementDeadline(request));
       case FAILED -> true;
       case CANCELLED, PROCESSED -> false;
@@ -104,7 +105,7 @@ public class OverdueRedemptionAlertJob {
                 publicHolidays.countWorkingDaysBehind(
                     request.getRequestedAt().atZone(TALLINN).toLocalDate(), today));
     return switch (request.getStatus()) {
-      case IN_REVIEW -> line + ", reason=" + request.getHoldReason();
+      case FROZEN, PAYOUT_HELD -> line + ", reasons=" + request.getHoldReasons();
       case FAILED -> line + ", error=" + request.getErrorReason();
       default -> line;
     };

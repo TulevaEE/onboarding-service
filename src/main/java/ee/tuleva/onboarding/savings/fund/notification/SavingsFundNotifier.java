@@ -58,9 +58,13 @@ public class SavingsFundNotifier {
   public void onRedemptionBatchCompleted(RedemptionBatchCompletedEvent event) {
     try {
       notificationService.sendMessage(
-          "Savings fund redemption batch: requests=%d, payouts=%d, totalCashAmount=%s EUR, NAV=%s"
+          "Savings fund redemption batch: requests=%d, payouts=%d, held=%d, totalCashAmount=%s EUR, NAV=%s"
               .formatted(
-                  event.requestCount(), event.payoutCount(), event.totalCashAmount(), event.nav()),
+                  event.requestCount(),
+                  event.payoutCount(),
+                  event.heldCount(),
+                  event.totalCashAmount(),
+                  event.nav()),
           SAVINGS);
     } catch (Exception e) {
       log.error("Failed to send redemption batch notification", e);

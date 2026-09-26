@@ -1,8 +1,11 @@
 package ee.tuleva.onboarding.savings.fund.redemption;
 
 public enum RedemptionHoldReason {
-  SCREENING_UNAVAILABLE,
-  SCREENING_MATCH,
+  SANCTION,
+  PEP,
   HIGH_RISK,
-  ONBOARDING_INCOMPLETE
+  ONBOARDING_INCOMPLETE,
+  KYB_SCREENING_FAILED,
+  SCREENING_UNAVAILABLE,
+  MANUAL
 }

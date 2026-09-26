@@ -3,7 +3,8 @@ package ee.tuleva.onboarding.savings.fund.redemption;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckSeverity.WARNING;
 import static ee.tuleva.onboarding.banking.check.payment.PaymentCheckType.PAYOUT_OVERDUE;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.FAILED;
-import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.IN_REVIEW;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.FROZEN;
+import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.PAYOUT_HELD;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.RESERVED;
 import static ee.tuleva.onboarding.savings.fund.redemption.RedemptionRequest.Status.VERIFIED;
 
@@ -17,7 +18,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 class RedemptionPayoutAgeChecker {
   static final List<RedemptionRequest.Status> NOT_YET_INITIATED =
-      List.of(RESERVED, IN_REVIEW, VERIFIED, FAILED);
+      List.of(RESERVED, FROZEN, VERIFIED, PAYOUT_HELD, FAILED);
 
   private final RedemptionRequestRepository redemptionRequestRepository;
   private final RedemptionPayoutDeadline deadline;
